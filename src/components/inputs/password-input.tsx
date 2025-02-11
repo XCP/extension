@@ -17,7 +17,7 @@ interface PasswordInputProps {
   showLabel?: boolean;
   value: string;
   variant?: 'default' | 'warning';
-  inputRef?: React.Ref<HTMLInputElement>;
+  ref?: React.Ref<HTMLInputElement>;
 }
 
 /**
@@ -37,7 +37,7 @@ export function PasswordInput({
   showLabel = false,
   value,
   variant = 'default',
-  inputRef,
+  ref,
 }: PasswordInputProps) {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -57,7 +57,7 @@ export function PasswordInput({
       <div className="relative">
         <Input
           id={id}
-          ref={inputRef}
+          ref={ref}
           type={showPassword ? 'text' : 'password'}
           value={value}
           onChange={onChange}
@@ -69,7 +69,7 @@ export function PasswordInput({
           aria-invalid={!!error}
           aria-describedby={error ? `${id}-error` : undefined}
           className={`
-            w-full p-2 border rounded-md pr-10
+            w-full p-2 border rounded-md pr-10 bg-white
             ${disabled ? 'bg-gray-50 cursor-not-allowed' : ''}
             ${
               variant === 'warning'

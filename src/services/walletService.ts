@@ -88,6 +88,14 @@ function createWalletService() {
     ): Promise<Wallet> => {
       return walletManager.createAndUnlockMnemonicWallet(mnemonic, password, name, addressType);
     },
+    createAndUnlockPrivateKeyWallet: async (
+      privateKey: string,
+      password: string,
+      name?: string,
+      addressType: AddressType = AddressType.P2WPKH
+    ): Promise<Wallet> => {
+      return walletManager.createAndUnlockPrivateKeyWallet(privateKey, password, name, addressType);
+    },    
     getUnencryptedMnemonic: async (walletId: string): Promise<string> => {
       const secret = sessionManager.getUnlockedSecret(walletId);
       if (!secret) throw new Error('Wallet secret not found or locked');
@@ -95,6 +103,9 @@ function createWalletService() {
     },
     getPrivateKey: async (walletId: string, pathIndex: number = 0): Promise<string> => {
       return walletManager.getPrivateKey(walletId, pathIndex);
+    },
+    removeWallet: async (walletId: string): Promise<void> => {
+      await walletManager.removeWallet(walletId);
     },
   };
 }

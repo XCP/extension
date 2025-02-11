@@ -8,6 +8,7 @@ export type AutoLockTimer = 'always' | '15m' | '30m';
  */
 export interface KeychainSettings {
   // Original keychain settings:
+  lastActiveWalletId?: string;
   autoLockTimeout: number;    // in milliseconds
   connectedWebsites: string[];
 
@@ -23,6 +24,7 @@ export interface KeychainSettings {
  * Fallback defaults for new installations.
  */
 const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
+  lastActiveWalletId: undefined,
   autoLockTimeout: 15 * 60 * 1000, // 15 minutes
   connectedWebsites: [],
   showHelpText: false,

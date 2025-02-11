@@ -4,6 +4,7 @@ import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 
 import * as sessionManager from '@/utils/auth/sessionManager';
+import { settingsManager } from '@/utils/wallet';
 
 import {
   getAllEncryptedWallets,
@@ -131,6 +132,12 @@ export class WalletManager {
         pinnedAssetBalances: rec.pinnedAssetBalances || [],
       };
     });
+
+    // After loading wallets, try to set the active wallet from settings.
+    const settings = await settingsManager.loadSettings();
+    if (settings.lastActiveWalletId && this.getWalletById(settings.lastActiveWalletId)) {
+      this.activeWalletId = settings.lastActiveWalletId;
+    }
   }
 
   /**
@@ -155,6 +162,7 @@ export class WalletManager {
    */
   public setActiveWallet(walletId: string): void {
     this.activeWalletId = walletId;
+    settingsManager.updateSettings({ lastActiveWalletId: walletId });
   }
 
   /**
@@ -258,6 +266,8 @@ export class WalletManager {
       throw new Error('A wallet with this private key already exists.');
     }
     const encryptedPrivateKey = await encryptPrivateKey(secretJson, password);
+    // Derive the preview address using the private key (this is public info)
+    const previewAddress = getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
     const record: EncryptedWalletRecord = {
       id,
       name: walletName,
@@ -266,6 +276,7 @@ export class WalletManager {
       addressCount: 1,
       encryptedSecret: encryptedPrivateKey,
       pinnedAssetBalances: [...DEFAULT_PINNED_ASSETS],
+      previewAddress, // now added for private key wallets
     };
     await addEncryptedWallet(record);
     const wallet: Wallet = {
@@ -280,7 +291,7 @@ export class WalletManager {
     this.wallets.push(wallet);
     return wallet;
   }
-
+  
   /**
    * Unlocks a wallet using the provided password.
    *
@@ -555,6 +566,39 @@ export class WalletManager {
     
     // Unlock it immediately
     await this.unlockWallet(newWallet.id, password);
+    
+    return newWallet;
+  }
+
+  /**
+   * Creates and unlocks a new private-key wallet in one operation.
+   * 
+   * @param privateKey - The private key (in WIF or hexadecimal format)
+   * @param password - The encryption password
+   * @param name - Optional wallet name (will be auto-generated if not provided)
+   * @param addressType - The address derivation type (default is P2WPKH)
+   * @returns A Promise that resolves to the created and unlocked wallet
+   */
+  public async createAndUnlockPrivateKeyWallet(
+    privateKey: string,
+    password: string,
+    name?: string,
+    addressType: AddressType = AddressType.P2WPKH
+  ): Promise<Wallet> {
+    // Generate wallet name if not provided.
+    if (!name) {
+      const privateKeyWallets = this.wallets.filter(w => w.type === 'privateKey');
+      name = `PK ${privateKeyWallets.length + 1}`;
+    }
+
+    // Create the wallet using the existing method.
+    const newWallet = await this.createPrivateKeyWallet(privateKey, password, name, addressType);
+    
+    // Unlock it immediately.
+    await this.unlockWallet(newWallet.id, password);
+
+    // Set as active wallet
+    this.setActiveWallet(newWallet.id);
     
     return newWallet;
   }

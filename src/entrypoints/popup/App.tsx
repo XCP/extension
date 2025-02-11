@@ -20,6 +20,8 @@ import CreateWallet from '@/pages/wallet/create-wallet';
 import ImportWallet from '@/pages/wallet/import-wallet';
 import SelectWallet from '@/pages/wallet/select-wallet';
 import UnlockWallet from '@/pages/wallet/unlock-wallet';
+import ResetWallet from '@/pages/wallet/reset-wallet';
+import RemoveWallet from '@/pages/wallet/remove-wallet';
 import ImportPrivateKey from '@/pages/wallet/import-private-key';
 
 // Reveal pages
@@ -92,6 +94,8 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/add-wallet" element={<AddWallet />} />
           <Route path="/select-wallet" element={<SelectWallet />} />
+          <Route path="/reset-wallet" element={<ResetWallet />} />
+          <Route path="/remove-wallet/:walletId" element={<RemoveWallet />} />
           <Route path="/show-passphrase/:walletId" element={<ShowPassphrase />} />
           <Route path="/show-private-key/:walletId/:addressPath?" element={<ShowPrivateKey />} />
           <Route path="/settings/address-type" element={<AddressTypeSettings />} />

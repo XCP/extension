@@ -5,7 +5,7 @@ import { FiUpload } from 'react-icons/fi';
 import { Button } from '@/components/button';
 import { useHeader } from '@/contexts/header-context';
 
-const Onboarding = () => {
+function Onboarding() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
 
@@ -16,13 +16,13 @@ const Onboarding = () => {
     });
   }, [setHeaderProps]);
 
-  function handleCreateWallet() {
+  const handleCreateWallet = () => {
     navigate('/create-wallet');
-  }
+  };
 
-  function handleImportWallet() {
+  const handleImportWallet = () => {
     navigate('/import-wallet');
-  }
+  };
 
   return (
     <div className="flex flex-col h-full" role="main">
@@ -54,12 +54,11 @@ const Onboarding = () => {
           </div>
         </div>
       </div>
-
       <div className="text-center text-xs p-4">
         By continuing you agree to our <a href="#" className="font-bold">Terms of Service</a>.
       </div>
     </div>
   );
-};
+}
 
 export default Onboarding;

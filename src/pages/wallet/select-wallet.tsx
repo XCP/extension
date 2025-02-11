@@ -1,13 +1,14 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaPlus } from 'react-icons/fa';
+import { Button } from '@/components/button';
+import { WalletList } from '@/components/lists/wallet-list';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { useToast } from '@/contexts/toast-context';
-import WalletList from '@/components/wallet/wallet-list';
-import { Button } from '@/components/button';
+import type { Wallet } from '@/utils/wallet';
 
-const SelectWallet: React.FC = () => {
+function SelectWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { wallets, activeWallet, setActiveWallet, reloadWallets } = useWallet();
@@ -22,13 +23,12 @@ const SelectWallet: React.FC = () => {
   };
 
   const handleSelectWalletInternal = (wallet: Wallet) => {
-    // If the wallet has no derived addresses (even a preview), assume it’s locked.
+    // If the wallet has no derived addresses, assume it's locked.
     if (wallet.addresses.length === 0) {
-      // Optionally, you can show a message or navigate to the unlock page.
-      navigate("/unlock-wallet");
+      navigate('/unlock-wallet');
     } else {
       setActiveWallet(wallet);
-      navigate("/index");
+      navigate('/index');
     }
   };
 
@@ -42,7 +42,7 @@ const SelectWallet: React.FC = () => {
         ariaLabel: 'Add Wallet',
       },
     });
-    // Reload wallets to update the list
+    // Update the wallet list on mount
     reloadWallets();
   }, [setHeaderProps, navigate, reloadWallets]);
 
@@ -57,13 +57,19 @@ const SelectWallet: React.FC = () => {
         />
       </div>
       <div className="p-4">
-        <Button color="green" fullWidth onClick={handleAddWallet} disabled={wallets.length >= 10} aria-label="Add Wallet">
+        <Button
+          color="green"
+          fullWidth
+          onClick={handleAddWallet}
+          disabled={wallets.length >= 10}
+          aria-label="Add Wallet"
+        >
           <FaPlus className="mr-2" aria-hidden="true" />
           Add Wallet
         </Button>
       </div>
     </div>
   );
-};
+}
 
 export default SelectWallet;

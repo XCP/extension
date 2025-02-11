@@ -1,24 +1,19 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { Input as HeadlessInput } from '@headlessui/react';
 import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
-import { useHeader } from '@/contexts/header-context';
-import { useToast } from '@/contexts/toast-context';
-import { useWallet } from '@/contexts/wallet-context';
 import { Button } from '@/components/button';
 import { CheckboxInput } from '@/components/inputs/checkbox-input';
 import { PasswordInput } from '@/components/inputs/password-input';
+import { useHeader } from '@/contexts/header-context';
+import { useToast } from '@/contexts/toast-context';
+import { useWallet } from '@/contexts/wallet-context';
 import { getWalletService } from '@/services/walletService';
 import { AddressType } from '@/utils/blockchain/bitcoin';
 import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
 
-/**
- * ImportWallet component provides an interface for importing Bitcoin wallets
- * using a 12‑word recovery phrase. It supports both standard BIP39 and Counterwallet
- * mnemonics, validating the input and handling password verification.
- */
 function ImportWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
@@ -27,37 +22,34 @@ function ImportWallet() {
   const walletExists = wallets.length > 0;
 
   const [mnemonicWords, setMnemonicWords] = useState<string[]>(Array(12).fill(''));
-  const [isConfirmed, setIsConfirmed] = useState<boolean>(false);
-  const [showMnemonic, setShowMnemonic] = useState<boolean>(false);
-  const [password, setPassword] = useState<string>('');
+  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [showMnemonic, setShowMnemonic] = useState(false);
+  const [password, setPassword] = useState('');
 
-  // References for the 12 input elements.
-  const inputRefs = useRef<(HTMLElement | null)[]>([]);
+  // Refs for each mnemonic word input
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Set header props (with a toggle for showing/hiding the recovery phrase).
   useEffect(() => {
     setHeaderProps({
       title: 'Import Wallet',
       onBack: () => navigate(walletExists ? '/add-wallet' : '/onboarding'),
       rightButton: {
         icon: showMnemonic ? <FaEyeSlash aria-hidden="true" /> : <FaEye aria-hidden="true" />,
-        onClick: () => setShowMnemonic((prev) => !prev),
+        onClick: () => setShowMnemonic(prev => !prev),
         ariaLabel: showMnemonic ? 'Hide recovery phrase' : 'Show recovery phrase',
       },
     });
   }, [navigate, setHeaderProps, showMnemonic, walletExists]);
 
-  // Auto-focus the first input on mount.
   useEffect(() => {
+    // Focus the first input field on mount
     inputRefs.current[0]?.focus();
   }, []);
 
-  // Update a single word at the given index.
-  function handleWordChange(index: number, value: string) {
+  const handleWordChange = (index: number, value: string) => {
     const newWords = [...mnemonicWords];
     const words = value.trim().split(/\s+/);
     if (words.length > 1) {
-      // If multiple words are pasted, fill subsequent inputs.
       for (let i = 0; i < words.length && index + i < 12; i++) {
         newWords[index + i] = words[i];
       }
@@ -68,10 +60,9 @@ function ImportWallet() {
       newWords[index] = value;
       setMnemonicWords(newWords);
     }
-  }
+  };
 
-  // Handle key events for word inputs.
-  function handleWordKeyDown(e: React.KeyboardEvent<HTMLInputElement>, index: number) {
+  const handleWordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       if (index < 11) {
@@ -83,25 +74,21 @@ function ImportWallet() {
       e.preventDefault();
       inputRefs.current[index - 1]?.focus();
     }
+  };
+
+  function areAllWordsPopulated(): boolean {
+    return mnemonicWords.every(word => word.trim() !== '');
   }
 
-  // Check whether every word input is non-empty.
-  function areAllWordsPopulated() {
-    return mnemonicWords.every((word) => word.trim() !== '');
-  }
-
-  // Checkbox handler: only allow confirmation if all words are populated.
-  function handleCheckboxChange(checked: boolean) {
+  const handleCheckboxChange = (checked: boolean) => {
     if (!areAllWordsPopulated()) return;
     setIsConfirmed(checked);
-  }
+  };
 
-  // Simple password validation.
-  function isPasswordValid(pw: string) {
+  function isPasswordValid(pw: string): boolean {
     return pw.length >= 8;
   }
 
-  // Validate form inputs and show errors using the toast.
   async function validateForm(): Promise<boolean> {
     const mnemonic = mnemonicWords.join(' ').trim();
     let validMnemonic = validateMnemonic(mnemonic, wordlist);
@@ -134,7 +121,6 @@ function ImportWallet() {
     return true;
   }
 
-  // Handle form submission.
   async function handleSubmit(e?: React.FormEvent<HTMLFormElement>) {
     if (e) e.preventDefault();
     if (await validateForm()) {
@@ -143,12 +129,11 @@ function ImportWallet() {
         const addressType = isValidCounterwalletMnemonic(mnemonic)
           ? AddressType.Counterwallet
           : AddressType.P2WPKH;
-        // Use the wallet service to create a new mnemonic wallet.
         const ws = getWalletService();
         const newWallet = await ws.createMnemonicWallet(mnemonic, password, undefined, addressType);
         await unlockWallet(newWallet.id, password);
         navigate('/index');
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error importing wallet:', error);
         showError('Failed to import wallet. Please try again.');
       }
@@ -162,33 +147,17 @@ function ImportWallet() {
           Your Recovery Phrase
         </h2>
         <p className="mb-5">Please enter a 12-word recovery phrase below.</p>
-
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div
-            className="bg-gray-100 p-2 rounded-md mb-4"
-            role="region"
-            aria-label="Recovery phrase input"
-          >
-            <ol
-              className="list-none p-0 m-0 grid grid-flow-col grid-cols-2 grid-rows-6 gap-2"
-              aria-label="Recovery phrase words"
-            >
+          <div className="bg-gray-100 p-2 rounded-md mb-4" role="region" aria-label="Recovery phrase input">
+            <ol className="list-none p-0 m-0 grid grid-flow-col grid-cols-2 grid-rows-6 gap-2" aria-label="Recovery phrase words">
               {mnemonicWords.map((word, index) => (
-                <li
-                  key={index}
-                  className="bg-white rounded p-1 flex items-center relative"
-                  aria-label={`Word ${index + 1}`}
-                >
-                  <span
-                    className="absolute left-2 w-6 text-right mr-2 text-gray-500"
-                    aria-hidden="true"
-                  >
+                <li key={index} className="bg-white rounded p-1 flex items-center relative" aria-label={`Word ${index + 1}`}>
+                  <span className="absolute left-2 w-6 text-right mr-2 text-gray-500" aria-hidden="true">
                     {index + 1}.
                   </span>
                   <HeadlessInput
-                    // Fix the ref callback so that it does not return a value.
                     ref={(el) => {
-                      inputRefs.current[index] = el;
+                      inputRefs.current[index] = el as unknown as HTMLInputElement;
                     }}
                     type={showMnemonic ? 'text' : 'password'}
                     value={word}
@@ -202,7 +171,6 @@ function ImportWallet() {
               ))}
             </ol>
           </div>
-
           <CheckboxInput
             checked={isConfirmed}
             onChange={handleCheckboxChange}
@@ -210,7 +178,6 @@ function ImportWallet() {
             ariaLabel="Confirm recovery phrase backup"
             disabled={!areAllWordsPopulated()}
           />
-
           {isConfirmed && (
             <>
               <PasswordInput

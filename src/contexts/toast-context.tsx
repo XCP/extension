@@ -9,6 +9,7 @@ interface ToastContextValue {
   showInfo: (message: string, options?: ToastOptions) => void;
   showLoading: (message: string) => void;
   hideLoading: () => void;
+  clearAll: () => void;
 }
 
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
@@ -21,6 +22,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     showInfo: (message, options) => toast.info(message, options),
     showLoading: (message) => toast.loading(message),
     hideLoading: () => toast.dismiss(),
+    clearAll: () => toast.dismiss(),
   };
 
   return (

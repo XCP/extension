@@ -2,21 +2,13 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiDownload, FiKey } from 'react-icons/fi';
 import { IoCreateOutline } from 'react-icons/io5';
-import { useHeader } from '@/contexts/header-context';
 import { Button } from '@/components/button';
+import { useHeader } from '@/contexts/header-context';
 
-/**
- * AddWallet component provides a user interface for adding new wallets to the application.
- * It presents three options:
- * 1. Create a new wallet - Generates a fresh wallet with new credentials
- * 2. Import from mnemonic - Allows recovery of existing wallet using seed phrase
- * 3. Import from private key - Enables wallet import using a private key
- */
-export const AddWallet = () => {
+function AddWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
 
-  // Set the header
   useEffect(() => {
     setHeaderProps({
       useLogoTitle: true,
@@ -24,15 +16,15 @@ export const AddWallet = () => {
     });
   }, [setHeaderProps, navigate]);
 
-  const handleCreateWallet = (): void => {
+  const handleCreateWallet = () => {
     navigate('/create-wallet');
   };
 
-  const handleImportWallet = (): void => {
+  const handleImportWallet = () => {
     navigate('/import-wallet');
   };
 
-  const handleImportPrivateKey = (): void => {
+  const handleImportPrivateKey = () => {
     navigate('/import-private-key');
   };
 
@@ -74,6 +66,6 @@ export const AddWallet = () => {
       </div>
     </div>
   );
-};
+}
 
 export default AddWallet;

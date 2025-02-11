@@ -4,7 +4,7 @@ import type { Wallet, Address } from '@/utils/wallet';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/contexts/toast-context';
 
-interface WalletContextValue {
+interface WalletContextType {
   wallets: Wallet[];
   activeWallet: Wallet | null;
   activeAddress: Address | null;
@@ -13,11 +13,11 @@ interface WalletContextValue {
   unlockWallet: (walletId: string, password: string) => Promise<void>;
   lockAll: () => Promise<void>;
   reloadWallets: () => Promise<void>;
-  setActiveWallet: (wallet: Wallet) => void;
-  setActiveAddress: (address: Address) => void;
+  setActiveWallet: (wallet: Wallet | null) => void;
+  setActiveAddress: (address: Address | null) => void;
 }
 
-const WalletContext = createContext<WalletContextValue | undefined>(undefined);
+const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const walletService = getWalletService();
@@ -113,19 +113,25 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [walletService, authDispatch]);
 
   const setActiveWallet = useCallback(
-    (wallet: Wallet) => {
-      walletService.setActiveWallet(wallet.id);
-      setActiveWalletState(wallet);
-      setActiveAddressState(wallet.addresses[0] || null);
+    (wallet: Wallet | null) => {
+      if (wallet) {
+        walletService.setActiveWallet(wallet.id);
+        setActiveWalletState(wallet);
+        setActiveAddressState(wallet.addresses[0] || null);
+      } else {
+        walletService.setActiveWallet(null);
+        setActiveWalletState(null);
+        setActiveAddressState(null);
+      }
     },
     [walletService]
   );
 
-  const setActiveAddress = useCallback((address: Address) => {
+  const setActiveAddress = useCallback((address: Address | null) => {
     setActiveAddressState(address);
   }, []);
 
-  const value: WalletContextValue = {
+  const value: WalletContextType = {
     wallets,
     activeWallet,
     activeAddress,
@@ -141,7 +147,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
 }
 
-export function useWallet(): WalletContextValue {
+export function useWallet(): WalletContextType {
   const context = useContext(WalletContext);
   if (!context) {
     throw new Error('useWallet must be used within a WalletProvider');

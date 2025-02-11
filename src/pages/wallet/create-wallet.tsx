@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaSync, FaEyeSlash } from 'react-icons/fa';
 import { Button } from '@/components/button';
@@ -10,16 +10,11 @@ import { useWallet } from '@/contexts/wallet-context';
 import { generateNewMnemonic } from '@/utils/blockchain/bitcoin';
 import { getWalletService } from '@/services/walletService';
 
-/**
- * CreateWalletPage allows users to generate a new mnemonic-based wallet.
- * The user confirms that they have backed up their 12-word recovery phrase,
- * then the wallet is created and unlocked.
- */
 function CreateWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets } = useWallet();
-  const { showError } = useToast();
+  const { wallets, reloadWallets } = useWallet();
+  const { showError, clearAll } = useToast();
   const walletExists = wallets.length > 0;
 
   const [mnemonic, setMnemonic] = useState('');
@@ -28,7 +23,7 @@ function CreateWallet() {
   const [isRecoveryPhraseVisible, setIsRecoveryPhraseVisible] = useState(false);
   const [password, setPassword] = useState('');
 
-  // Generate a new mnemonic and reset form fields.
+  // Generate a new mnemonic and reset the form
   function generateWallet() {
     const newMnemonic = generateNewMnemonic();
     setMnemonic(newMnemonic);
@@ -37,9 +32,9 @@ function CreateWallet() {
     setPassword('');
   }
 
-  // Set header props on mount or when wallet existence changes.
   useEffect(() => {
     generateWallet();
+    // Configure the header for the create wallet page
     setHeaderProps({
       title: 'Create Wallet',
       onBack: () => navigate(walletExists ? '/add-wallet' : '/onboarding'),
@@ -51,25 +46,23 @@ function CreateWallet() {
     });
   }, [navigate, walletExists, setHeaderProps]);
 
-  function handlePasswordChange(e: React.ChangeEvent<HTMLInputElement>) {
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(e.target.value);
-  }
+  };
 
-  function handleCheckboxChange(checked: boolean) {
+  const handleCheckboxChange = (checked: boolean) => {
     if (!isRecoveryPhraseVisible) return;
     setIsConfirmed(checked);
-  }
+  };
 
-  function handleRecoveryPhraseClick() {
+  const handleRecoveryPhraseClick = () => {
     setIsRecoveryPhraseVisible(true);
-  }
+  };
 
-  // Simple password validation logic.
   function isPasswordValid(pw: string) {
     return pw.length >= 8;
   }
 
-  // Validate the form inputs and show errors using toast notifications.
   async function validateForm(): Promise<boolean> {
     if (!isRecoveryPhraseVisible) {
       showError('Please view and save your recovery phrase first.');
@@ -97,16 +90,16 @@ function CreateWallet() {
     return true;
   }
 
-  // Handle form submission. Note that business logic for creating
-  // and unlocking the wallet has been moved into the wallet service.
   async function handleSubmit(e?: React.FormEvent<HTMLFormElement>) {
     if (e) e.preventDefault();
     if (await validateForm()) {
       try {
         const ws = getWalletService();
         await ws.createAndUnlockMnemonicWallet(mnemonic, password);
+        await reloadWallets();
+        clearAll();
         navigate('/index');
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error creating wallet:', err);
         showError('Failed to create wallet. Please try again.');
       }
@@ -120,7 +113,6 @@ function CreateWallet() {
           Your Recovery Phrase
         </h2>
         <p className="mb-5">Please write down this 12-word secret phrase.</p>
-
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="bg-gray-100 p-2 rounded-md mb-4 relative">
             <div className={!isRecoveryPhraseVisible ? 'bg-gray-100 opacity-50 filter blur-sm transition-filter' : ''}>
@@ -144,7 +136,6 @@ function CreateWallet() {
               </div>
             )}
           </div>
-
           <CheckboxInput
             checked={isConfirmed}
             onChange={handleCheckboxChange}
@@ -152,7 +143,6 @@ function CreateWallet() {
             ariaLabel="Confirm recovery phrase backup"
             disabled={!isRecoveryPhraseVisible}
           />
-
           {isConfirmed && (
             <>
               <PasswordInput
@@ -171,7 +161,6 @@ function CreateWallet() {
           )}
         </form>
       </div>
-
       {!isConfirmed && !document.documentElement.lang.startsWith('en') && (
         <div className="text-center text-xs p-4">
           For security reasons, recovery phrases are only shown in English.

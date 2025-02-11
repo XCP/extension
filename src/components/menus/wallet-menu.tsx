@@ -1,4 +1,3 @@
-import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaTrash } from 'react-icons/fa';
 import { HiDotsHorizontal } from 'react-icons/hi';
@@ -11,28 +10,18 @@ interface WalletMenuProps {
   isFirstWallet: boolean;
 }
 
-export const WalletMenu: React.FC<WalletMenuProps> = ({ wallet, isFirstWallet }) => {
+export function WalletMenu({ wallet, isFirstWallet }: WalletMenuProps) {
   const navigate = useNavigate();
 
-  const handleShowSecret = useCallback(
-    (e: React.MouseEvent<HTMLButtonElement>): void => {
-      e.stopPropagation();
-      navigate(
-        `/show-${
-          wallet.type === 'privateKey' ? 'private-key' : 'passphrase'
-        }/${wallet.id}`
-      );
-    },
-    [wallet.type, wallet.id, navigate]
-  );
+  const handleShowSecret = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    navigate(`/show-${wallet.type === 'privateKey' ? 'private-key' : 'passphrase'}/${wallet.id}`);
+  };
 
-  const handleRemoveWallet = useCallback(
-    (e: React.MouseEvent<HTMLButtonElement>): void => {
-      e.stopPropagation();
-      navigate(`/remove-wallet/${wallet.id}`);
-    },
-    [wallet.id, navigate]
-  );
+  const handleRemoveWallet = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    navigate(`/remove-wallet/${wallet.id}`);
+  };
 
   return (
     <Menu as="div" className="relative inline-block text-left">
@@ -53,33 +42,25 @@ export const WalletMenu: React.FC<WalletMenuProps> = ({ wallet, isFirstWallet })
           <MenuItem>
             {({ active }) => (
               <button
-                className={`${
-                  active ? 'bg-gray-100' : ''
-                } group flex w-full items-center px-4 py-2 text-sm text-gray-700`}
+                className={`${active ? 'bg-gray-100' : ''} group flex w-full items-center px-4 py-2 text-sm text-gray-700`}
                 onClick={handleShowSecret}
               >
                 <VscKey className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
-                {wallet.type === 'privateKey'
-                  ? 'Show Private Key'
-                  : 'Show Passphrase'}
+                {wallet.type === 'privateKey' ? 'Show Private Key' : 'Show Passphrase'}
               </button>
             )}
           </MenuItem>
           <MenuItem>
             {({ active }) => (
               <button
-                className={`${
-                  active ? 'bg-gray-100' : ''
-                } group flex w-full items-center px-4 py-2 text-sm ${
+                className={`${active ? 'bg-gray-100' : ''} group flex w-full items-center px-4 py-2 text-sm ${
                   isFirstWallet ? 'text-gray-400' : 'text-gray-700'
                 }`}
                 onClick={handleRemoveWallet}
                 disabled={isFirstWallet}
               >
                 <FaTrash className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
-                {wallet.type === 'privateKey' 
-                  ? 'Remove Address'
-                  : `Remove ${wallet.name}`}
+                {wallet.type === 'privateKey' ? 'Remove Address' : `Remove ${wallet.name}`}
               </button>
             )}
           </MenuItem>
@@ -87,4 +68,4 @@ export const WalletMenu: React.FC<WalletMenuProps> = ({ wallet, isFirstWallet })
       </MenuItems>
     </Menu>
   );
-};
+}

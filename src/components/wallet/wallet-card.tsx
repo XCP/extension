@@ -1,6 +1,5 @@
-import React from 'react';
 import { RadioGroup } from '@headlessui/react';
-import { Wallet } from '@/utils/wallet';
+import type { Wallet } from '@/utils/wallet';
 import { formatAddress } from '@/utils/format';
 import { WalletMenu } from '@/components/menus/wallet-menu';
 
@@ -10,12 +9,12 @@ interface WalletCardProps {
   onSelect: (wallet: Wallet) => void;
 }
 
-export const WalletCard: React.FC<WalletCardProps> = ({ wallet, selected, onSelect }) => {
-  // Use the first address (if any) as the primary address.
-  const primaryAddress = wallet.addresses.length > 0 ? wallet.addresses[0].address : 'No address';
+function WalletCard({ wallet, selected, onSelect }: WalletCardProps) {
+  const primaryAddress =
+    wallet.addresses.length > 0 ? wallet.addresses[0].address : 'No address';
 
   const handleClick = (e: React.MouseEvent) => {
-    // Only select the wallet if we didn't click the menu
+    // Only select the wallet if the menu wasn't clicked
     if (!(e.target as HTMLElement).closest('.wallet-menu')) {
       onSelect(wallet);
     }
@@ -41,12 +40,14 @@ export const WalletCard: React.FC<WalletCardProps> = ({ wallet, selected, onSele
             <span className="font-mono text-sm">{formatAddress(primaryAddress)}</span>
           </div>
           <div className="mt-1 text-xs">
-            {wallet.addressCount ? `${wallet.addressCount} address${wallet.addressCount > 1 ? 'es' : ''}` : ''}
+            {wallet.addressCount
+              ? `${wallet.addressCount} address${wallet.addressCount > 1 ? 'es' : ''}`
+              : ''}
           </div>
         </div>
       )}
     </RadioGroup.Option>
   );
-};
+}
 
 export default WalletCard;

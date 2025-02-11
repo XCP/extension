@@ -1,21 +1,22 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiChevronDown } from 'react-icons/fi';
+import { Button } from '@/components/button';
+import { CheckboxInput } from '@/components/inputs/checkbox-input';
+import { PasswordInput } from '@/components/inputs/password-input';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { useToast } from '@/contexts/toast-context';
 import { AddressType } from '@/utils/blockchain/bitcoin/address';
 import { getWalletService } from '@/services/walletService';
-import { Button } from '@/components/button';
-import { CheckboxInput } from '@/components/inputs/checkbox-input';
-import { PasswordInput } from '@/components/inputs/password-input';
 
 export const ImportPrivateKey = () => {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets, reloadWallets, unlockWallet } = useWallet();
+  const { wallets, reloadWallets } = useWallet();
   const { showError } = useToast();
 
+  // State
   const [privateKey, setPrivateKey] = useState('');
   const [addressType, setAddressType] = useState<AddressType>(AddressType.P2PKH);
   const [isConfirmed, setIsConfirmed] = useState(false);
@@ -24,12 +25,12 @@ export const ImportPrivateKey = () => {
   const [privateKeyError, setPrivateKeyError] = useState('');
   const [submissionError, setSubmissionError] = useState('');
 
+  // Refs
   const privateKeyInputRef = useRef<HTMLInputElement>(null);
-
-  const isPasswordValid = (password: string): boolean => password.length >= 8;
 
   const walletExists = wallets && wallets.length > 0;
 
+  // Called once on mount
   useEffect(() => {
     setHeaderProps({
       title: 'Import Key',
@@ -37,26 +38,34 @@ export const ImportPrivateKey = () => {
     });
   }, [setHeaderProps, navigate, walletExists]);
 
+  // Focus the input on mount
   useEffect(() => {
     privateKeyInputRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    console.log('Wallet state changed:', {
-      count: wallets.length,
-      walletIds: wallets.map(w => w.id),
-      types: wallets.map(w => w.type)
-    });
-  }, [wallets]);
-
+  // Reload wallet list on mount
   useEffect(() => {
     reloadWallets();
   }, [reloadWallets]);
 
-  const isPrivateKeyValid = (): boolean => {
-    return privateKey.trim().length >= 20;
-  };
+  // Track privateKey length changes
+  const [prevPkLen, setPrevPkLen] = useState(0);
+  useEffect(() => {
+    const currentLen = privateKey.trim().length;
+    if (currentLen !== prevPkLen) {
+      setPrevPkLen(currentLen);
+    }
+  }, [privateKey, prevPkLen]);
 
+  // True if user has typed at least 20 chars
+  const isPrivateKeyValid = useMemo(() => {
+    return privateKey.trim().length >= 20;
+  }, [privateKey]);
+
+  // Basic password check
+  const isPasswordValid = (pw: string): boolean => pw.length >= 8;
+
+  // Handlers
   const handlePrivateKeyChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setPrivateKey(e.target.value);
     setPrivateKeyError('');
@@ -74,44 +83,77 @@ export const ImportPrivateKey = () => {
   };
 
   const handleCheckboxChange = (checked: boolean): void => {
-    if (!isPrivateKeyValid()) return;
+    if (!isPrivateKeyValid) return;
     setIsConfirmed(checked);
     setSubmissionError('');
   };
 
+  // This is used to disable the submit button
   const canSubmit = (): boolean => {
     return (
       isConfirmed &&
-      !!privateKey.trim() &&
-      !!password &&
+      privateKey.trim().length > 0 &&
+      password.length > 0 &&
       (walletExists || isPasswordValid(password))
     );
   };
 
-  const handleSubmit = async (e?: React.FormEvent): Promise<void> => {
-    if (e) {
-      e.preventDefault();
+  // Validate form input
+  const validateForm = async (): Promise<boolean> => {
+    setPrivateKeyError('');
+    setPasswordError('');
+    setSubmissionError('');
+
+    const trimmedKey = privateKey.trim();
+
+    // 1. Check private key presence
+    if (!trimmedKey) {
+      setPrivateKeyError('Private key is required');
+      return false;
     }
 
-    console.log('Form submission started');
+    // 2. Check format
+    if (!/^[0-9a-fA-F]{64}$|^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(trimmedKey)) {
+      setPrivateKeyError(
+        'Invalid private key format. Please enter a valid WIF or hexadecimal private key.'
+      );
+      return false;
+    }
 
+    // 3. Check backup confirmation
+    if (!isConfirmed) {
+      setSubmissionError('Please confirm you have backed up your private key');
+      return false;
+    }
+
+    // 4. Check password presence
+    if (!password) {
+      setPasswordError('Password is required');
+      return false;
+    }
+
+    const walletService = getWalletService();
+    const valid = await walletService.verifyPassword(password);
+    if (!valid) {
+      setPasswordError('Invalid password');
+      return false;
+    }
+
+    return true;
+  };
+
+  // Actually create the wallet
+  const createWallet = async (): Promise<void> => {
     try {
-      const isValid = await validateForm();
-      if (!isValid) {
-        console.log('Form validation failed');
-        return;
-      }
-
-      console.log('Creating wallet...');
-      await createWallet();
-      
-      // Force a reload of wallets after creation
-      await reloadWallets();
-      
-      // Note: Navigation happens in createWallet
+      const walletService = getWalletService();
+      await walletService.createAndUnlockPrivateKeyWallet(
+        privateKey.trim(),
+        password,
+        undefined,
+        addressType
+      );
+      navigate('/index');
     } catch (error) {
-      console.error('Error importing private key:', error);
-      
       let errorMessage = 'Failed to import private key. ';
       if (error instanceof Error) {
         if (error.message.includes('Invalid private key')) {
@@ -124,115 +166,17 @@ export const ImportPrivateKey = () => {
       } else {
         errorMessage += 'Please check your input and try again.';
       }
-      
       showError(errorMessage);
       setSubmissionError(errorMessage);
     }
   };
 
-  const validateForm = async (): Promise<boolean> => {
-    console.log('Validating form...');
-    setPrivateKeyError('');
-    setPasswordError('');
-    setSubmissionError('');
-
-    const trimmedKey = privateKey.trim();
-    
-    if (!trimmedKey) {
-      setPrivateKeyError('Private key is required');
-      return false;
-    }
-
-    // Basic format validation for private key
-    if (!/^[0-9a-fA-F]{64}$|^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(trimmedKey)) {
-      setPrivateKeyError('Invalid private key format. Please enter a valid WIF or hexadecimal private key.');
-      return false;
-    }
-
-    if (!isConfirmed) {
-      setSubmissionError('Please confirm you have backed up your private key');
-      return false;
-    }
-
-    if (!password) {
-      setPasswordError('Password is required');
-      return false;
-    }
-
-    if (walletExists) {
-      try {
-        await unlockWallet(wallets[0].id, password);
-        return true;
-      } catch {
-        setPasswordError('Invalid password');
-        return false;
-      }
-    } else if (!isPasswordValid(password)) {
-      setPasswordError('Password must be at least 8 characters');
-      return false;
-    }
-
-    return true;
-  };
-
-  const createWallet = async (): Promise<void> => {
-    try {
-      const initialWalletCount = wallets.length;
-      console.log('Starting wallet creation. Initial wallet count:', initialWalletCount);
-
-      const walletService = await getWalletService();
-      const privateKeyWalletCount = wallets.filter((w) => w.type === 'privateKey').length;
-      const walletName = `Private Key Wallet ${privateKeyWalletCount + 1}`;
-
-      console.log('Creating private key wallet:', {
-        name: walletName,
-        addressType,
-        keyLength: privateKey.trim().length
-      });
-
-      // First create the wallet
-      const newWallet = await walletService.createPrivateKeyWallet(
-        privateKey.trim(),
-        password,
-        walletName,
-        addressType
-      );
-      console.log('Wallet created:', newWallet.id);
-
-      // Reload wallets first
-      await reloadWallets();
-      console.log('Wallets reloaded after creation');
-
-      // Then unlock the wallet
-      await unlockWallet(newWallet.id, password);
-      console.log('Wallet unlocked');
-
-      // Verify the wallet was added
-      const updatedWalletCount = wallets.length;
-      console.log('Wallet counts:', {
-        initial: initialWalletCount,
-        current: updatedWalletCount,
-        walletIds: wallets.map(w => w.id)
-      });
-
-      if (updatedWalletCount <= initialWalletCount) {
-        console.error('Wallet list did not update:', {
-          wallets,
-          newWalletId: newWallet.id
-        });
-        throw new Error('Wallet creation succeeded but wallet count did not increase');
-      }
-
-      // Navigate using the same method as create-wallet.tsx
-      navigate('/index');
-    } catch (error) {
-      console.error('Detailed error in createWallet:', {
-        error,
-        errorMessage: error instanceof Error ? error.message : 'Unknown error',
-        errorStack: error instanceof Error ? error.stack : undefined
-      });
-      throw error;
-    }
+  // Submit handler
+  const handleSubmit = async (e?: React.FormEvent): Promise<void> => {
+    if (e) e.preventDefault();
+    const isValid = await validateForm();
+    if (!isValid) return;
+    await createWallet();
   };
 
   return (
@@ -241,13 +185,13 @@ export const ImportPrivateKey = () => {
         <h2 className="text-2xl font-bold mb-2">Import Private Key</h2>
         <p className="mb-5">Enter your private key to use its address.</p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {submissionError && (
-            <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
-              {submissionError}
-            </div>
-          )}
+        {submissionError && (
+          <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
+            {submissionError}
+          </div>
+        )}
 
+        <form onSubmit={handleSubmit} className="space-y-4">
           <PasswordInput
             id="private-key"
             className="mb-2"
@@ -258,6 +202,7 @@ export const ImportPrivateKey = () => {
             label="Private Key"
             showLabel
             ariaLabel="Private Key Input"
+            ref={privateKeyInputRef}
           />
 
           <div className="flex items-center gap-2 mb-4">
@@ -265,7 +210,7 @@ export const ImportPrivateKey = () => {
               checked={isConfirmed}
               onChange={handleCheckboxChange}
               label="I have backed up this private key"
-              disabled={!isPrivateKeyValid()}
+              disabled={!isPrivateKeyValid}
             />
           </div>
 
@@ -298,18 +243,13 @@ export const ImportPrivateKey = () => {
                 className="mb-4"
                 value={password}
                 onChange={handlePasswordChange}
-                placeholder={walletExists ? "Confirm password" : "Create password"}
+                placeholder={walletExists ? 'Confirm password' : 'Create password'}
                 error={passwordError}
                 label="Password"
                 showLabel
                 ariaLabel="Password Input"
               />
-              <Button 
-                type="submit" 
-                disabled={!canSubmit()} 
-                fullWidth
-                onClick={handleSubmit}
-              >
+              <Button type="submit" disabled={!canSubmit()} fullWidth>
                 Continue
               </Button>
             </>
@@ -320,4 +260,4 @@ export const ImportPrivateKey = () => {
   );
 };
 
-export default ImportPrivateKey; 
+export default ImportPrivateKey;
