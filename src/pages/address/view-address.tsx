@@ -24,13 +24,13 @@ const ViewAddress = () => {
   // Set the header
   useEffect(() => {
     setHeaderProps({
-      title: 'View Address',
-      onBack: () => navigate('/main'),
+      title: 'My Address',
+      onBack: () => navigate('/index'),
       rightButton:
         activeWallet?.type === 'mnemonic'
           ? {
               icon: <FaList aria-hidden="true" />,
-              onClick: () => navigate('/address-selection', { state: { returnTo: '/receive' } }),
+              onClick: () => navigate('/select-address', { state: { returnTo: '/view-address' } }),
               ariaLabel: 'Select Address',
             }
           : undefined,

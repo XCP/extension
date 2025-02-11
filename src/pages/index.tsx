@@ -98,7 +98,7 @@ export default function Index() {
 
   const handleAddressSelection = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate("/address-selection");
+    navigate("/select-address");
   };
 
   // Current address UI
@@ -152,7 +152,7 @@ export default function Index() {
       <div className="grid grid-cols-3 gap-4 my-4">
         <Button
           color="gray"
-          onClick={() => navigate("/receive")}
+          onClick={() => navigate("/view-address")}
           className="flex-col !py-4"
           aria-label="Receive tokens"
         >

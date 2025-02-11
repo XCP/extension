@@ -44,7 +44,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           walletService.setActiveWallet(active.id);
         }
         setActiveWalletState(active);
-        setActiveAddressState(active.addresses[0] || null);
+        setActiveAddressState((prevActive) => {
+          if (prevActive && active.addresses.some(addr => addr.address === prevActive.address)) {
+            return prevActive;
+          }
+          return active.addresses[0] || null;
+        });
         const anyUnlocked = await walletService.isAnyWalletUnlocked();
         setWalletLocked(!anyUnlocked);
         authDispatch({ type: anyUnlocked ? 'WALLET_UNLOCKED' : 'WALLET_LOCKED' });

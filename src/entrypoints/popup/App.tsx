@@ -12,13 +12,14 @@ import NotFound from '@/pages/not-found';
 import Onboarding from '@/pages/auth/onboarding';
 
 // Address pages
+import SelectAddress from '@/pages/address/select-address';
 import ViewAddress from '@/pages/address/view-address';
 
 // Wallet pages
 import AddWallet from '@/pages/wallet/add-wallet';
+import SelectWallet from '@/pages/wallet/select-wallet';
 import CreateWallet from '@/pages/wallet/create-wallet';
 import ImportWallet from '@/pages/wallet/import-wallet';
-import SelectWallet from '@/pages/wallet/select-wallet';
 import UnlockWallet from '@/pages/wallet/unlock-wallet';
 import ResetWallet from '@/pages/wallet/reset-wallet';
 import RemoveWallet from '@/pages/wallet/remove-wallet';
@@ -102,6 +103,7 @@ export default function App() {
           <Route path="/settings/advanced" element={<AdvancedSettings />} />
           <Route path="/settings/connected-sites" element={<ConnectedSitesSettings />} />
           <Route path="/settings/security" element={<SecuritySettings />} />
+          <Route path="/select-address" element={<SelectAddress />} />
           <Route path="/view-address" element={<ViewAddress />} />
         </Route>
       </Route>
