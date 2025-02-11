@@ -1,24 +1,43 @@
-import React, { createContext, useState, useContext, useCallback, useEffect, type ReactNode } from 'react';
-import { getKeychainSettings, updateKeychainSettings, type KeychainSettings } from '@/utils/storage';
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useCallback,
+  useEffect,
+  type ReactNode,
+} from 'react';
+import { getKeychainSettings, updateKeychainSettings, KeychainSettings } from '@/utils/storage';
 
 interface SettingsContextValue {
   settings: KeychainSettings;
   updateSettings: (newSettings: Partial<KeychainSettings>) => Promise<void>;
+  isLoading: boolean;
 }
 
 const defaultSettings: KeychainSettings = {
   autoLockTimeout: 15 * 60 * 1000,
   connectedWebsites: [],
+  showHelpText: false,
+  analyticsAllowed: true,
+  allowUnconfirmedTxs: false,
+  autoLockTimer: 'always',
+  enableMPMA: false,
 };
 
 const SettingsContext = createContext<SettingsContextValue | undefined>(undefined);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<KeychainSettings>(defaultSettings);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadSettings = useCallback(async () => {
-    const s = await getKeychainSettings();
-    setSettings(s);
+    try {
+      setIsLoading(true);
+      const s = await getKeychainSettings();
+      setSettings(s);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -27,15 +46,20 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const updateSettingsHandler = useCallback(
     async (newSettings: Partial<KeychainSettings>) => {
-      await updateKeychainSettings(newSettings);
-      const updated = await getKeychainSettings();
-      setSettings(updated);
+      try {
+        setIsLoading(true);
+        await updateKeychainSettings(newSettings);
+        const updated = await getKeychainSettings();
+        setSettings(updated);
+      } finally {
+        setIsLoading(false);
+      }
     },
     []
   );
 
   return (
-    <SettingsContext.Provider value={{ settings, updateSettings: updateSettingsHandler }}>
+    <SettingsContext.Provider value={{ settings, updateSettings: updateSettingsHandler, isLoading }}>
       {children}
     </SettingsContext.Provider>
   );

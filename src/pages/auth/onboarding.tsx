@@ -56,7 +56,7 @@ const Onboarding = () => {
       </div>
 
       <div className="text-center text-xs p-4">
-        By continuing, you agree to our <a href="#" className="font-bold">Terms of Service</a>.
+        By continuing you agree to our <a href="#" className="font-bold">Terms of Service</a>.
       </div>
     </div>
   );

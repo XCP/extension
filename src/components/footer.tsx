@@ -12,7 +12,7 @@ const Footer: React.FC = () => {
   };
 
   return (
-    <div className="p-2 bg-white border-t">
+    <div className="p-2 bg-white border-t border-gray-300">
       <div className="grid grid-cols-4 gap-2">
         <Button
           variant="transparent"

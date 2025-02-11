@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaSync, FaEyeSlash } from 'react-icons/fa';
-import { useHeader } from '@/contexts/header-context';
-import { useToast } from '@/contexts/toast-context';
-import { useWallet } from '@/contexts/wallet-context';
 import { Button } from '@/components/button';
 import { CheckboxInput } from '@/components/inputs/checkbox-input';
 import { PasswordInput } from '@/components/inputs/password-input';
+import { useHeader } from '@/contexts/header-context';
+import { useToast } from '@/contexts/toast-context';
+import { useWallet } from '@/contexts/wallet-context';
 import { generateNewMnemonic } from '@/utils/blockchain/bitcoin';
 import { getWalletService } from '@/services/walletService';
 
@@ -119,7 +119,7 @@ function CreateWallet() {
         <h2 id="create-wallet-title" className="text-2xl font-bold mb-2">
           Your Recovery Phrase
         </h2>
-        <p className="mb-5">Please, write down this 12-word secret phrase.</p>
+        <p className="mb-5">Please write down this 12-word secret phrase.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="bg-gray-100 p-2 rounded-md mb-4 relative">

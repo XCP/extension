@@ -14,6 +14,13 @@ export const WalletCard: React.FC<WalletCardProps> = ({ wallet, selected, onSele
   // Use the first address (if any) as the primary address.
   const primaryAddress = wallet.addresses.length > 0 ? wallet.addresses[0].address : 'No address';
 
+  const handleClick = (e: React.MouseEvent) => {
+    // Only select the wallet if we didn't click the menu
+    if (!(e.target as HTMLElement).closest('.wallet-menu')) {
+      onSelect(wallet);
+    }
+  };
+
   return (
     <RadioGroup.Option
       value={wallet}
@@ -23,10 +30,10 @@ export const WalletCard: React.FC<WalletCardProps> = ({ wallet, selected, onSele
       `}
     >
       {({ checked }) => (
-        <div onClick={() => onSelect(wallet)} className="flex flex-col">
+        <div onClick={handleClick} className="flex flex-col">
           <div className="flex justify-between items-center">
             <div className="text-sm font-medium">{wallet.name}</div>
-            <div className="absolute top-2 right-2">
+            <div className="absolute top-2 right-2 wallet-menu">
               <WalletMenu wallet={wallet} isFirstWallet={false} />
             </div>
           </div>

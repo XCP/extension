@@ -11,6 +11,7 @@ export interface EncryptedWalletRecord extends StoredRecord {
   addressCount?: number;
   encryptedSecret: string;
   pinnedAssetBalances?: string[];
+  previewAddress?: string;
 }
 
 /**

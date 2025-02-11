@@ -100,20 +100,26 @@ export class WalletManager {
   public async loadWallets(): Promise<void> {
     const encryptedRecords = await getAllEncryptedWallets();
     this.wallets = encryptedRecords.map((rec: EncryptedWalletRecord) => {
-      // Check if a decrypted secret is stored for this wallet.
+      // Try to get the decrypted secret if available
       const unlockedSecret = sessionManager.getUnlockedSecret(rec.id);
       let addresses: Address[] = [];
       if (unlockedSecret) {
         if (rec.type === 'mnemonic') {
-          // For mnemonic wallets, derive addresses up to the stored count.
           const count = rec.addressCount || 1;
           addresses = Array.from({ length: count }, (_, i) =>
             this.deriveMnemonicAddress(unlockedSecret, rec.addressType, i)
           );
         } else {
-          // For private-key wallets, derive the single address.
           addresses = [this.deriveAddressFromPrivateKey(unlockedSecret, rec.addressType)];
         }
+      } else if (rec.previewAddress) {
+        // Use the preview address if the wallet is locked
+        addresses = [{
+          name: 'Address 1',
+          path: '',
+          address: rec.previewAddress,
+          pubKey: '',
+        }];
       }
       return {
         id: rec.id,
@@ -121,7 +127,7 @@ export class WalletManager {
         type: rec.type,
         addressType: rec.addressType,
         addressCount: rec.addressCount || 1,
-        addresses, // now contains derived addresses if unlocked
+        addresses,
         pinnedAssetBalances: rec.pinnedAssetBalances || [],
       };
     });
@@ -186,6 +192,11 @@ export class WalletManager {
       throw new Error('A wallet with this mnemonic+addressType combination already exists.');
     }
     const encryptedMnemonic = await encryptMnemonic(mnemonic, password, addressType);
+  
+    // Derive the preview address using the mnemonic (this is public info)
+    const previewPath = `${getDerivationPathForAddressType(addressType)}/0`;
+    const previewAddress = getAddressFromMnemonic(mnemonic, previewPath, addressType);
+  
     const record: EncryptedWalletRecord = {
       id,
       name: walletName,
@@ -194,6 +205,7 @@ export class WalletManager {
       addressCount: 1,
       encryptedSecret: encryptedMnemonic,
       pinnedAssetBalances: [...DEFAULT_PINNED_ASSETS],
+      previewAddress, // store the preview address
     };
     await addEncryptedWallet(record);
     const wallet: Wallet = {
@@ -202,7 +214,7 @@ export class WalletManager {
       type: 'mnemonic',
       addressType,
       addressCount: 1,
-      addresses: [],
+      addresses: [], // will be filled when unlocked
       pinnedAssetBalances: [...DEFAULT_PINNED_ASSETS],
     };
     this.wallets.push(wallet);

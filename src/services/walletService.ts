@@ -1,4 +1,5 @@
 import { walletManager, settingsManager, type Wallet, type Address } from '@/utils/wallet';
+import * as sessionManager from '@/utils/auth/sessionManager';
 import { AddressType } from '@/utils/blockchain/bitcoin';
 
 function createWalletService() {
@@ -50,8 +51,8 @@ function createWalletService() {
     updatePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
       await walletManager.updatePassword(currentPassword, newPassword);
     },
-    updateWalletAddressType: async (walletId: string, newType: string): Promise<void> => {
-      await walletManager.updateWalletAddressType(walletId, newType as any);
+    updateWalletAddressType: async (walletId: string, newType: AddressType): Promise<void> => {
+      await walletManager.updateWalletAddressType(walletId, newType);
     },
     updateWalletPinnedAssets: async (walletId: string, pinned: string[]): Promise<void> => {
       await walletManager.updateWalletPinnedAssets(walletId, pinned);
@@ -86,6 +87,14 @@ function createWalletService() {
       addressType: AddressType = AddressType.P2WPKH
     ): Promise<Wallet> => {
       return walletManager.createAndUnlockMnemonicWallet(mnemonic, password, name, addressType);
+    },
+    getUnencryptedMnemonic: async (walletId: string): Promise<string> => {
+      const secret = sessionManager.getUnlockedSecret(walletId);
+      if (!secret) throw new Error('Wallet secret not found or locked');
+      return secret;
+    },
+    getPrivateKey: async (walletId: string, pathIndex: number = 0): Promise<string> => {
+      return walletManager.getPrivateKey(walletId, pathIndex);
     },
   };
 }
