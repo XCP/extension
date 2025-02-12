@@ -34,8 +34,8 @@ import {
 } from '@/utils/blockchain/bitcoin';
 
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
+import { KeychainSettings } from '@/utils/storage/settingsStorage';
 
-/** Represents a single derived Bitcoin address. */
 export interface Address {
   name: string;
   path: string;
@@ -43,7 +43,6 @@ export interface Address {
   pubKey: string;
 }
 
-/** Represents an in‑memory wallet (without storing decrypted secrets). */
 export interface Wallet {
   id: string;
   name: string;
@@ -58,34 +57,20 @@ const MAX_WALLETS = 20;
 const MAX_ADDRESSES_PER_WALLET = 100;
 const DEFAULT_PINNED_ASSETS = ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'];
 
-/**
- * WalletManager handles wallet creation, unlocking, and modifications.
- */
 export class WalletManager {
   private wallets: Wallet[] = [];
   private activeWalletId: string | null = null;
 
-
-  // Expose onAutoLock via getter and setter.
+  // Session-related methods are wrapped here.
   public get onAutoLock(): (() => void) | undefined {
     return sessionManager.onAutoLock;
   }
   public set onAutoLock(callback: (() => void) | undefined) {
     sessionManager.setOnAutoLock(callback);
   }
-
-  /**
-   * Records user activity to prevent auto‑lock.
-   */
   public setLastActiveTime(): void {
     sessionManager.setLastActiveTime();
   }
-
-  /**
-   * Checks if any wallet is currently unlocked.
-   *
-   * @returns A Promise that resolves to true if at least one wallet is unlocked.
-   */
   public async isAnyWalletUnlocked(): Promise<boolean> {
     for (const w of this.wallets) {
       if (sessionManager.getUnlockedSecret(w.id)) {
@@ -94,14 +79,9 @@ export class WalletManager {
     }
     return false;
   }
-
-  /**
-   * Loads wallet metadata from persistent storage.
-   */
   public async loadWallets(): Promise<void> {
     const encryptedRecords = await getAllEncryptedWallets();
     this.wallets = encryptedRecords.map((rec: EncryptedWalletRecord) => {
-      // Try to get the decrypted secret if available
       const unlockedSecret = sessionManager.getUnlockedSecret(rec.id);
       let addresses: Address[] = [];
       if (unlockedSecret) {
@@ -114,7 +94,6 @@ export class WalletManager {
           addresses = [this.deriveAddressFromPrivateKey(unlockedSecret, rec.addressType)];
         }
       } else if (rec.previewAddress) {
-        // Use the preview address if the wallet is locked
         addresses = [{
           name: 'Address 1',
           path: '',
@@ -132,59 +111,28 @@ export class WalletManager {
         pinnedAssetBalances: rec.pinnedAssetBalances || [],
       };
     });
-
-    // After loading wallets, try to set the active wallet from settings.
-    const settings = await settingsManager.loadSettings();
+    const settings: KeychainSettings = await settingsManager.loadSettings();
     if (settings.lastActiveWalletId && this.getWalletById(settings.lastActiveWalletId)) {
       this.activeWalletId = settings.lastActiveWalletId;
     }
   }
-
-  /**
-   * Returns all loaded wallets.
-   */
   public getWallets(): Wallet[] {
     return this.wallets;
   }
-
-  /**
-   * Returns the active wallet (if any).
-   */
   public getActiveWallet(): Wallet | undefined {
     if (!this.activeWalletId) return undefined;
     return this.getWalletById(this.activeWalletId);
   }
-
-  /**
-   * Sets the active wallet by its ID.
-   *
-   * @param walletId - The wallet ID to mark as active.
-   */
   public setActiveWallet(walletId: string): void {
     this.activeWalletId = walletId;
     settingsManager.updateSettings({ lastActiveWalletId: walletId });
   }
-
-  /**
-   * Retrieves a wallet by its ID.
-   *
-   * @param id - The wallet ID.
-   * @returns The wallet if found; otherwise undefined.
-   */
   public getWalletById(id: string): Wallet | undefined {
     return this.wallets.find((w) => w.id === id);
   }
-
-  /**
-   * Creates a new mnemonic-based wallet.
-   *
-   * @param mnemonic - The BIP39 or Counterwallet mnemonic.
-   * @param password - The encryption password.
-   * @param name - Optional wallet name.
-   * @param addressType - The address derivation type (default is P2WPKH).
-   * @returns A Promise that resolves to the created wallet.
-   * @throws Error if the wallet limit is reached or if a duplicate wallet exists.
-   */
+  public getUnlockedSecret(walletId: string): string | null {
+    return sessionManager.getUnlockedSecret(walletId);
+  }
   public async createMnemonicWallet(
     mnemonic: string,
     password: string,
@@ -200,11 +148,8 @@ export class WalletManager {
       throw new Error('A wallet with this mnemonic+addressType combination already exists.');
     }
     const encryptedMnemonic = await encryptMnemonic(mnemonic, password, addressType);
-  
-    // Derive the preview address using the mnemonic (this is public info)
     const previewPath = `${getDerivationPathForAddressType(addressType)}/0`;
     const previewAddress = getAddressFromMnemonic(mnemonic, previewPath, addressType);
-  
     const record: EncryptedWalletRecord = {
       id,
       name: walletName,
@@ -213,7 +158,7 @@ export class WalletManager {
       addressCount: 1,
       encryptedSecret: encryptedMnemonic,
       pinnedAssetBalances: [...DEFAULT_PINNED_ASSETS],
-      previewAddress, // store the preview address
+      previewAddress,
     };
     await addEncryptedWallet(record);
     const wallet: Wallet = {
@@ -222,23 +167,12 @@ export class WalletManager {
       type: 'mnemonic',
       addressType,
       addressCount: 1,
-      addresses: [], // will be filled when unlocked
+      addresses: [],
       pinnedAssetBalances: [...DEFAULT_PINNED_ASSETS],
     };
     this.wallets.push(wallet);
     return wallet;
   }
-
-  /**
-   * Creates a new private-key wallet.
-   *
-   * @param privateKey - The private key in WIF or hexadecimal format.
-   * @param password - The encryption password.
-   * @param name - Optional wallet name.
-   * @param addressType - The address derivation type (default is P2WPKH).
-   * @returns A Promise that resolves to the created wallet.
-   * @throws Error if the wallet limit is reached or if a duplicate wallet exists.
-   */
   public async createPrivateKeyWallet(
     privateKey: string,
     password: string,
@@ -258,7 +192,6 @@ export class WalletManager {
     } else {
       privateKeyHex = privateKey.startsWith('0x') ? privateKey.slice(2) : privateKey;
     }
-    // Validate the private key by attempting to derive the public key.
     getPublicKeyFromPrivateKey(privateKeyHex, compressed);
     const secretJson = JSON.stringify({ key: privateKeyHex, compressed });
     const id = await this.generateWalletIdFromPrivateKey(privateKeyHex, addressType);
@@ -266,7 +199,6 @@ export class WalletManager {
       throw new Error('A wallet with this private key already exists.');
     }
     const encryptedPrivateKey = await encryptPrivateKey(secretJson, password);
-    // Derive the preview address using the private key (this is public info)
     const previewAddress = getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
     const record: EncryptedWalletRecord = {
       id,
@@ -276,7 +208,7 @@ export class WalletManager {
       addressCount: 1,
       encryptedSecret: encryptedPrivateKey,
       pinnedAssetBalances: [...DEFAULT_PINNED_ASSETS],
-      previewAddress, // now added for private key wallets
+      previewAddress,
     };
     await addEncryptedWallet(record);
     const wallet: Wallet = {
@@ -291,21 +223,12 @@ export class WalletManager {
     this.wallets.push(wallet);
     return wallet;
   }
-  
-  /**
-   * Unlocks a wallet using the provided password.
-   *
-   * @param walletId - The ID of the wallet to unlock.
-   * @param password - The password to decrypt the wallet.
-   * @throws Error if the wallet record is missing or if decryption fails.
-   */
   public async unlockWallet(walletId: string, password: string): Promise<void> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found in memory.');
     const allRecords = await getAllEncryptedWallets();
     const record = allRecords.find((r) => r.id === walletId);
     if (!record) throw new Error('Wallet record not found in storage.');
-
     try {
       if (record.type === 'mnemonic') {
         if (!record.encryptedSecret) throw new Error('Missing encrypted secret.');
@@ -324,7 +247,6 @@ export class WalletManager {
         wallet.addresses = [this.deriveAddressFromPrivateKey(privKeyData, wallet.addressType)];
         wallet.addressCount = 1;
       }
-      // *** The key fix: set the active wallet ID after a successful unlock ***
       this.activeWalletId = walletId;
     } catch (err) {
       console.error('Failed to unlock wallet', err);
@@ -333,12 +255,6 @@ export class WalletManager {
     }
     sessionManager.resetAutoLockTimer();
   }
-
-  /**
-   * Locks a specific wallet by clearing its unlocked secret and derived addresses.
-   *
-   * @param walletId - The wallet ID to lock.
-   */
   public lockWallet(walletId: string): void {
     sessionManager.clearUnlockedSecret(walletId);
     const wallet = this.getWalletById(walletId);
@@ -346,22 +262,10 @@ export class WalletManager {
       wallet.addresses = [];
     }
   }
-
-  /**
-   * Locks all wallets.
-   */
   public lockAllWallets(): void {
     sessionManager.clearAllUnlockedSecrets();
     this.wallets.forEach((wallet) => (wallet.addresses = []));
   }
-
-  /**
-   * Adds a new address to a mnemonic wallet.
-   *
-   * @param walletId - The wallet ID to update.
-   * @returns A Promise that resolves to the newly derived address.
-   * @throws Error if the wallet is not found, not mnemonic, locked, or at maximum address count.
-   */
   public async addAddress(walletId: string): Promise<Address> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found.');
@@ -384,13 +288,6 @@ export class WalletManager {
     await updateEncryptedWallet(record);
     return newAddr;
   }
-
-  /**
-   * Removes a wallet from memory and persistent storage.
-   *
-   * @param walletId - The wallet ID to remove.
-   * @throws Error if the wallet is not found.
-   */
   public async removeWallet(walletId: string): Promise<void> {
     const idx = this.wallets.findIndex((w) => w.id === walletId);
     if (idx === -1) throw new Error('Wallet not found in memory.');
@@ -401,13 +298,6 @@ export class WalletManager {
       this.activeWalletId = null;
     }
   }
-
-  /**
-   * Verifies the given password by attempting to decrypt at least one wallet record.
-   *
-   * @param password - The password to verify.
-   * @returns A Promise that resolves to true if decryption succeeds for any wallet.
-   */
   public async verifyPassword(password: string): Promise<boolean> {
     const all = await getAllEncryptedWallets();
     for (const r of all) {
@@ -425,13 +315,6 @@ export class WalletManager {
     }
     return false;
   }
-
-  /**
-   * Resets all wallets by removing all encrypted records and clearing memory.
-   *
-   * @param password - The current password for verification.
-   * @throws Error if the password is invalid.
-   */
   public async resetAllWallets(password: string): Promise<void> {
     const valid = await this.verifyPassword(password);
     if (!valid) throw new Error('Invalid password');
@@ -444,14 +327,6 @@ export class WalletManager {
     sessionManager.clearAllUnlockedSecrets();
     this.activeWalletId = null;
   }
-
-  /**
-   * Updates the password used to encrypt all wallet secrets.
-   *
-   * @param currentPassword - The current password.
-   * @param newPassword - The new password.
-   * @throws Error if the current password is incorrect.
-   */
   public async updatePassword(currentPassword: string, newPassword: string): Promise<void> {
     const valid = await this.verifyPassword(currentPassword);
     if (!valid) throw new Error('Current password is incorrect');
@@ -471,14 +346,6 @@ export class WalletManager {
     }
     this.lockAllWallets();
   }
-
-  /**
-   * Updates the address type for a mnemonic wallet.
-   *
-   * @param walletId - The wallet ID to update.
-   * @param newType - The new address type.
-   * @throws Error if the wallet is not found, not mnemonic, or locked.
-   */
   public async updateWalletAddressType(walletId: string, newType: AddressType): Promise<void> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found.');
@@ -499,14 +366,6 @@ export class WalletManager {
     record.addressCount = 1;
     await updateEncryptedWallet(record);
   }
-
-  /**
-   * Updates the list of pinned assets for a wallet.
-   *
-   * @param walletId - The wallet ID.
-   * @param pinned - The new array of pinned asset identifiers.
-   * @throws Error if the wallet is not found.
-   */
   public async updateWalletPinnedAssets(walletId: string, pinned: string[]): Promise<void> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found.');
@@ -517,15 +376,6 @@ export class WalletManager {
     record.pinnedAssetBalances = pinned;
     await updateEncryptedWallet(record);
   }
-
-  /**
-   * Retrieves the private key for a wallet.
-   *
-   * @param walletId - The wallet ID.
-   * @param pathIndex - For mnemonic wallets, the derivation index (default is 0).
-   * @returns A Promise that resolves to the private key in hexadecimal.
-   * @throws Error if the wallet is not found or locked.
-   */
   public async getPrivateKey(walletId: string, pathIndex = 0): Promise<string> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found.');
@@ -539,88 +389,61 @@ export class WalletManager {
       return privateKeyHex;
     }
   }
-
-  /**
-   * Creates and unlocks a new mnemonic wallet in one operation.
-   * 
-   * @param mnemonic - The BIP39 or Counterwallet mnemonic
-   * @param password - The encryption password
-   * @param name - Optional wallet name (will be auto-generated if not provided)
-   * @param addressType - The address derivation type (default is P2WPKH)
-   * @returns A Promise that resolves to the created and unlocked wallet
-   */
   public async createAndUnlockMnemonicWallet(
     mnemonic: string,
     password: string,
     name?: string,
     addressType: AddressType = AddressType.P2WPKH
   ): Promise<Wallet> {
-    // Generate wallet name if not provided
     if (!name) {
       const mnemonicWallets = this.wallets.filter(w => w.type === 'mnemonic');
       name = `Wallet ${mnemonicWallets.length + 1}`;
     }
-
-    // Create the wallet
     const newWallet = await this.createMnemonicWallet(mnemonic, password, name, addressType);
-    
-    // Unlock it immediately
     await this.unlockWallet(newWallet.id, password);
-    
     return newWallet;
   }
-
-  /**
-   * Creates and unlocks a new private-key wallet in one operation.
-   * 
-   * @param privateKey - The private key (in WIF or hexadecimal format)
-   * @param password - The encryption password
-   * @param name - Optional wallet name (will be auto-generated if not provided)
-   * @param addressType - The address derivation type (default is P2WPKH)
-   * @returns A Promise that resolves to the created and unlocked wallet
-   */
   public async createAndUnlockPrivateKeyWallet(
     privateKey: string,
     password: string,
     name?: string,
     addressType: AddressType = AddressType.P2WPKH
   ): Promise<Wallet> {
-    // Generate wallet name if not provided.
     if (!name) {
       const privateKeyWallets = this.wallets.filter(w => w.type === 'privateKey');
       name = `PK ${privateKeyWallets.length + 1}`;
     }
-
-    // Create the wallet using the existing method.
     const newWallet = await this.createPrivateKeyWallet(privateKey, password, name, addressType);
-    
-    // Unlock it immediately.
     await this.unlockWallet(newWallet.id, password);
-
-    // Set as active wallet
     this.setActiveWallet(newWallet.id);
-    
     return newWallet;
   }
-
-  // ---------------------------
-  // Private helper methods
-  // ---------------------------
-
-  /**
-   * Generates a wallet ID for a mnemonic wallet.
-   *
-   * @param mnemonic - The wallet's mnemonic.
-   * @param addressType - The address derivation type.
-   * @returns A Promise that resolves to the wallet ID as a hexadecimal string.
-   */
+  public getPreviewAddressForType(walletId: string, addressType: AddressType): string {
+    const secret = sessionManager.getUnlockedSecret(walletId);
+    if (!secret) {
+      throw new Error('Wallet is locked');
+    }
+    const wallet = this.getWalletById(walletId);
+    if (!wallet) {
+      throw new Error('Wallet not found');
+    }
+    if (wallet.type === 'mnemonic') {
+      return getAddressFromMnemonic(
+        secret,
+        `${getDerivationPathForAddressType(addressType)}/0`,
+        addressType
+      );
+    } else {
+      const { key: privateKeyHex, compressed } = JSON.parse(secret);
+      return getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
+    }
+  }
   private async generateWalletId(mnemonic: string, addressType: AddressType): Promise<string> {
     const seed =
       addressType === AddressType.Counterwallet
         ? getCounterwalletSeed(mnemonic)
         : mnemonicToSeedSync(mnemonic);
     const derivationPath = getDerivationPathForAddressType(addressType);
-    // Use all but the last segment for the account node.
     const pathParts = derivationPath.split('/').slice(0, -1).join('/');
     const root = HDKey.fromMasterSeed(seed);
     const accountNode = root.derive(pathParts);
@@ -634,33 +457,15 @@ export class WalletManager {
     const finalHash = sha256(combined);
     return bytesToHex(finalHash);
   }
-
-  /**
-   * Generates a wallet ID for a private-key wallet.
-   *
-   * @param privateKeyHex - The private key in hexadecimal.
-   * @param addressType - The address derivation type.
-   * @returns A Promise that resolves to the wallet ID as a hexadecimal string.
-   */
   private async generateWalletIdFromPrivateKey(privateKeyHex: string, addressType: AddressType): Promise<string> {
     const pubkeyCompressed = getPublicKeyFromPrivateKey(privateKeyHex, true);
     const combined = utf8ToBytes(pubkeyCompressed + addressType);
     const hash = sha256(combined);
     return bytesToHex(hash);
   }
-
-  /**
-   * Derives a single address from a mnemonic wallet.
-   *
-   * @param mnemonic - The wallet mnemonic.
-   * @param addressType - The address type.
-   * @param index - The derivation index.
-   * @returns A derived Address.
-   */
   private deriveMnemonicAddress(mnemonic: string, addressType: AddressType, index: number): Address {
     const path = `${getDerivationPathForAddressType(addressType)}/${index}`;
     const address = getAddressFromMnemonic(mnemonic, path, addressType);
-    // Recompute the public key.
     const seed =
       addressType === AddressType.Counterwallet
         ? getCounterwalletSeed(mnemonic)
@@ -678,15 +483,6 @@ export class WalletManager {
       pubKey: pubKeyHex,
     };
   }
-
-  /**
-   * Derives an address from a private-key wallet.
-   *
-   * @param privKeyData - The JSON string containing the private key data.
-   * @param addressType - The address type.
-   * @returns A derived Address.
-   * @throws Error if the JSON is invalid.
-   */
   private deriveAddressFromPrivateKey(privKeyData: string, addressType: AddressType): Address {
     try {
       const { key: privateKeyHex, compressed } = JSON.parse(privKeyData);

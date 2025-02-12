@@ -10,6 +10,7 @@ import NotFound from '@/pages/not-found';
 
 // Auth pages
 import Onboarding from '@/pages/auth/onboarding';
+import UnlockWallet from '@/pages/auth/unlock-wallet';
 
 // Address pages
 import SelectAddress from '@/pages/address/select-address';
@@ -20,7 +21,6 @@ import AddWallet from '@/pages/wallet/add-wallet';
 import SelectWallet from '@/pages/wallet/select-wallet';
 import CreateWallet from '@/pages/wallet/create-wallet';
 import ImportWallet from '@/pages/wallet/import-wallet';
-import UnlockWallet from '@/pages/wallet/unlock-wallet';
 import ResetWallet from '@/pages/wallet/reset-wallet';
 import RemoveWallet from '@/pages/wallet/remove-wallet';
 import ImportPrivateKey from '@/pages/wallet/import-private-key';

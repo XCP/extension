@@ -6,12 +6,11 @@ import { ErrorAlert } from '@/components/error-alert';
 import { PasswordInput } from '@/components/inputs/password-input';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
-import { getWalletService } from '@/services/walletService';
 
 function ResetWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { reloadWallets } = useWallet();
+  const { resetAllWallets, verifyPassword } = useWallet();
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [submissionError, setSubmissionError] = useState('');
@@ -48,29 +47,12 @@ function ResetWallet() {
       return false;
     }
     try {
-      const walletService = getWalletService();
-      await walletService.verifyPassword(password);
+      await verifyPassword(password);
     } catch {
       setPasswordError('Password does not match.');
       return false;
     }
     return true;
-  };
-
-  const resetWallet = async (): Promise<void> => {
-    setIsLoading(true);
-    try {
-      const walletService = getWalletService();
-      await walletService.resetAllWallets(password);
-      // Optionally, reload wallet state after reset
-      await reloadWallets();
-      navigate('/onboarding');
-    } catch (err) {
-      console.error('Error resetting wallet:', err);
-      setSubmissionError('Failed to reset wallet.');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
@@ -79,7 +61,16 @@ function ResetWallet() {
     setPasswordError('');
     const isValid = await validateForm();
     if (!isValid) return;
-    await resetWallet();
+    setIsLoading(true);
+    try {
+      await resetAllWallets(password);
+      navigate('/onboarding');
+    } catch (err) {
+      console.error('Error resetting wallet:', err);
+      setSubmissionError('Failed to reset wallet.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -95,7 +86,7 @@ function ResetWallet() {
             <h3 className="text-xl font-bold text-red-700">Warning</h3>
           </div>
           <p className="text-red-700 font-medium leading-relaxed">
-            Resetting your wallet will delete all wallet data. Tthis action cannot be undone.
+            Resetting your wallet will delete all wallet data. This action cannot be undone.
           </p>
         </div>
         <div className="w-full max-w-md space-y-4">

@@ -56,7 +56,7 @@ const ViewAddress = () => {
         className="text-center font-medium text-gray-600"
         id="view-address-title"
       >
-        {`${activeAddress?.name ?? ''} ${addressTypeLabel || ''}`}
+        {`${activeAddress?.name ?? ''} | ${addressTypeLabel || ''}`}
       </div>
 
       <QRCode

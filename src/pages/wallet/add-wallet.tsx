@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiDownload, FiKey } from 'react-icons/fi';
+import { FiDownload, FiKey, FiHelpCircle } from 'react-icons/fi';
 import { IoCreateOutline } from 'react-icons/io5';
 import { Button } from '@/components/button';
 import { useHeader } from '@/contexts/header-context';
@@ -13,6 +13,11 @@ function AddWallet() {
     setHeaderProps({
       useLogoTitle: true,
       onBack: () => navigate('/select-wallet'),
+      rightButton: {
+        icon: <FiHelpCircle className="w-4 h-4" />,
+        onClick: () => window.open('https://youtube.com', '_blank'),
+        ariaLabel: 'Help',
+      },
     });
   }, [setHeaderProps, navigate]);
 

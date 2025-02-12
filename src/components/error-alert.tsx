@@ -19,12 +19,12 @@ export const ErrorAlert: React.FC<ErrorAlertProps> = ({ message, onClose }) => {
           variant="menu"
           onClick={onClose}
           className="absolute top-2 right-2"
-          aria-label={i18n.t('common.errorAlert.dismiss', [message])}
+          aria-label="Dismiss error message"
         >
           <IoClose className="h-4 w-4 text-red-700" aria-hidden="true" />
         </Button>
       )}
-      <strong className="font-bold mr-2">{i18n.t('common.errorAlert.prefix')}</strong>
+      <strong className="font-bold mr-2">Error:</strong>
       <span className="block sm:inline break-all pr-6">{message}</span>
     </div>
   );

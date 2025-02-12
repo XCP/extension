@@ -1,5 +1,4 @@
 import { walletManager, settingsManager, type Wallet, type Address } from '@/utils/wallet';
-import * as sessionManager from '@/utils/auth/sessionManager';
 import { AddressType } from '@/utils/blockchain/bitcoin';
 
 function createWalletService() {
@@ -60,20 +59,20 @@ function createWalletService() {
     getSettings: async () => {
       return settingsManager.getSettings();
     },
-    updateSettings: async (newSettings: Partial<Parameters<typeof settingsManager.updateSettings>[0]>) => {
+    updateSettings: async (
+      newSettings: Partial<Parameters<typeof settingsManager.updateSettings>[0]>
+    ) => {
       await settingsManager.updateSettings(newSettings);
     },
     setLastActiveTime: () => {
       walletManager.setLastActiveTime();
     },
-    // Expose missing methods:
     getWalletById: (walletId: string): Wallet | undefined => {
       return walletManager.getWalletById(walletId);
     },
     isAnyWalletUnlocked: async (): Promise<boolean> => {
       return walletManager.isAnyWalletUnlocked();
     },
-    // Expose onAutoLock via getter and setter:
     get onAutoLock() {
       return walletManager.onAutoLock;
     },
@@ -95,9 +94,9 @@ function createWalletService() {
       addressType: AddressType = AddressType.P2WPKH
     ): Promise<Wallet> => {
       return walletManager.createAndUnlockPrivateKeyWallet(privateKey, password, name, addressType);
-    },    
+    },
     getUnencryptedMnemonic: async (walletId: string): Promise<string> => {
-      const secret = sessionManager.getUnlockedSecret(walletId);
+      const secret = walletManager.getUnlockedSecret(walletId);
       if (!secret) throw new Error('Wallet secret not found or locked');
       return secret;
     },
@@ -106,6 +105,16 @@ function createWalletService() {
     },
     removeWallet: async (walletId: string): Promise<void> => {
       await walletManager.removeWallet(walletId);
+    },
+    setLastActiveAddress: async (address: string) => {
+      await settingsManager.updateSettings({ lastActiveAddress: address });
+    },
+    getLastActiveAddress: async (): Promise<string | undefined> => {
+      const settings = await settingsManager.getSettings();
+      return settings?.lastActiveWalletId;
+    },
+    getPreviewAddressForType: async (walletId: string, addressType: AddressType): Promise<string> => {
+      return walletManager.getPreviewAddressForType(walletId, addressType);
     },
   };
 }

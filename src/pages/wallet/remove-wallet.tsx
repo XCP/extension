@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaExclamationTriangle } from 'react-icons/fa';
 import { Button } from '@/components/button';
@@ -6,13 +6,12 @@ import { ErrorAlert } from '@/components/error-alert';
 import { PasswordInput } from '@/components/inputs/password-input';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
-import { getWalletService } from '@/services/walletService';
 
 function RemoveWallet() {
   const { walletId } = useParams<{ walletId: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { setActiveWallet, setActiveAddress, activeWallet } = useWallet();
+  const { wallets, setActiveWallet, setActiveAddress, activeWallet, removeWallet, verifyPassword } = useWallet();
 
   const [walletName, setWalletName] = useState('');
   const [walletType, setWalletType] = useState<'mnemonic' | 'privateKey'>('mnemonic');
@@ -26,32 +25,22 @@ function RemoveWallet() {
   const isPasswordValid = (pwd: string): boolean => pwd.length >= 8;
 
   useEffect(() => {
-    async function loadWallet() {
-      if (!walletId) {
-        setSubmissionError('Invalid wallet identifier.');
-        return;
-      }
-      const walletService = getWalletService();
-      try {
-        const wallet = await walletService.getWalletById(walletId);
-        if (wallet) {
-          setWalletName(wallet.name);
-          setWalletType(wallet.type);
-          setHeaderProps({
-            title: wallet.type === 'privateKey' ? 'Remove Private Key' : 'Remove Wallet',
-            onBack: () => navigate(-1),
-          });
-        } else {
-          setSubmissionError('Wallet not found.');
-        }
-      } catch (err) {
-        console.error('Error loading wallet:', err);
-        setSubmissionError('Failed to load wallet.');
-      }
+    if (!walletId) {
+      setSubmissionError('Invalid wallet identifier.');
+      return;
     }
-
-    loadWallet();
-  }, [walletId, setHeaderProps, navigate]);
+    const wallet = wallets.find(w => w.id === walletId);
+    if (wallet) {
+      setWalletName(wallet.name);
+      setWalletType(wallet.type);
+      setHeaderProps({
+        title: wallet.type === 'privateKey' ? 'Remove Private Key' : 'Remove Wallet',
+        onBack: () => navigate(-1),
+      });
+    } else {
+      setSubmissionError('Wallet not found.');
+    }
+  }, [walletId, wallets, setHeaderProps, navigate]);
 
   useEffect(() => {
     passwordInputRef.current?.focus();
@@ -77,8 +66,7 @@ function RemoveWallet() {
       return false;
     }
     try {
-      const walletService = getWalletService();
-      await walletService.verifyPassword(password);
+      await verifyPassword(password);
     } catch {
       setPasswordError('Password does not match.');
       return false;
@@ -86,12 +74,16 @@ function RemoveWallet() {
     return true;
   };
 
-  const removeWallet = async (): Promise<void> => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    setPasswordError('');
+    setSubmissionError('');
+    const isValid = await validateForm();
+    if (!isValid) return;
     setIsLoading(true);
     try {
-      const walletService = getWalletService();
-      await walletService.removeWallet(walletId!);
-      const remainingWallets = await walletService.getWallets();
+      await removeWallet(walletId!);
+      const remainingWallets = wallets.filter(w => w.id !== walletId);
       if (activeWallet?.id === walletId) {
         if (remainingWallets.length > 0) {
           setActiveWallet(remainingWallets[0]);
@@ -99,12 +91,6 @@ function RemoveWallet() {
         } else {
           setActiveWallet(null);
           setActiveAddress(null);
-        }
-      } else {
-        // Optionally update active wallet if needed
-        const stillActive = remainingWallets.find(w => w.id === activeWallet?.id);
-        if (stillActive) {
-          setActiveWallet(stillActive);
         }
       }
       navigate('/wallet-selection');
@@ -114,15 +100,6 @@ function RemoveWallet() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
-    setPasswordError('');
-    setSubmissionError('');
-    const isValid = await validateForm();
-    if (!isValid) return;
-    await removeWallet();
   };
 
   return (

@@ -80,6 +80,7 @@ Files:
 /src/pages/address/select-address.tsx
 /src/pages/address/view-address.tsx
 /src/pages/auth/onboarding.tsx
+/src/pages/auth/unlock-wallet.tsx
 /src/pages/index.tsx
 /src/pages/not-found.tsx
 /src/pages/secrets/show-passphrase.tsx
@@ -96,7 +97,6 @@ Files:
 /src/pages/wallet/remove-wallet.tsx
 /src/pages/wallet/reset-wallet.tsx
 /src/pages/wallet/select-wallet.tsx
-/src/pages/wallet/unlock-wallet.tsx
 /src/public/icon/128.png
 /src/public/icon/16.png
 /src/public/icon/32.png
@@ -404,12 +404,12 @@ File Contents:
             variant="menu"
             onClick={onClose}
             className="absolute top-2 right-2"
-            aria-label={i18n.t('common.errorAlert.dismiss', [message])}
+            aria-label="Dismiss error message"
           >
             <IoClose className="h-4 w-4 text-red-700" aria-hidden="true" />
           </Button>
         )}
-        <strong className="font-bold mr-2">{i18n.t('common.errorAlert.prefix')}</strong>
+        <strong className="font-bold mr-2">Error:</strong>
         <span className="block sm:inline break-all pr-6">{message}</span>
       </div>
     );
@@ -827,14 +827,22 @@ File Contents:
   
     return (
       <RadioGroup
-        value={selectedAddress}
-        onChange={onSelectAddress}
+        // Use the address string as the value
+        value={selectedAddress ? selectedAddress.address : ''}
+        onChange={(value: string) => {
+          // Find the corresponding full address object by its unique address string.
+          const selected = addresses.find(addr => addr.address === value);
+          if (selected) {
+            onSelectAddress(selected);
+          }
+        }}
         className="space-y-2"
       >
         {addresses.map((address) => (
           <RadioGroup.Option
             key={address.path}
-            value={address}
+            // Set each option's value to the unique address string
+            value={address.address}
             className="focus:outline-none"
           >
             {({ checked }) => (
@@ -842,11 +850,9 @@ File Contents:
                 onClick={(e) => handleAddressClick(e, address)}
                 className={`
                   relative w-full rounded transition duration-300 p-4 cursor-pointer
-                  ${
-                    checked
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'bg-blue-100 hover:bg-blue-200 text-gray-800'
-                  }
+                  ${checked
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-blue-100 hover:bg-blue-200 text-gray-800'}
                 `}
               >
                 <div className="absolute top-2 right-2 address-menu">
@@ -865,9 +871,7 @@ File Contents:
                       <FaCheck className="ml-2 text-green-500" aria-hidden="true" />
                     )}
                   </div>
-                  <span
-                    className={`text-xs ${checked ? 'text-blue-200' : 'text-gray-500'}`}
-                  >
+                  <span className={`text-xs ${checked ? 'text-blue-200' : 'text-gray-500'}`}>
                     {address.path}
                   </span>
                 </div>
@@ -879,7 +883,7 @@ File Contents:
     );
   };
   
-  export default AddressList; 
+  export default AddressList;
 
 /src/components/lists/asset-list.tsx
   [contents of the file]
@@ -1907,11 +1911,21 @@ File Contents:
 
 /src/contexts/wallet-context.tsx
   [contents of the file]
-  import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
-  import { getWalletService } from '@/services/walletService';
-  import type { Wallet, Address } from '@/utils/wallet';
+  import React, {
+    createContext,
+    useContext,
+    useEffect,
+    useState,
+    useCallback,
+    ReactNode,
+  } from 'react';
   import { useAuth } from '@/contexts/auth-context';
   import { useToast } from '@/contexts/toast-context';
+  import { getWalletService } from '@/services/walletService';
+  import type { Wallet, Address } from '@/utils/wallet';
+  import { AddressType } from '@/utils/blockchain/bitcoin/address';
+  import * as sessionManager from '@/utils/auth/sessionManager';
+  import { settingsManager } from '@/utils/wallet';
   
   interface WalletContextType {
     wallets: Wallet[];
@@ -1921,9 +1935,29 @@ File Contents:
     loaded: boolean;
     unlockWallet: (walletId: string, password: string) => Promise<void>;
     lockAll: () => Promise<void>;
-    reloadWallets: () => Promise<void>;
-    setActiveWallet: (wallet: Wallet | null) => void;
-    setActiveAddress: (address: Address | null) => void;
+    setActiveWallet: (wallet: Wallet | null) => Promise<void>;
+    setActiveAddress: (address: Address | null) => Promise<void>;
+    addAddress: (walletId: string) => Promise<void>;
+    updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+    createAndUnlockMnemonicWallet: (
+      mnemonic: string,
+      password: string,
+      name?: string,
+      addressType?: AddressType
+    ) => Promise<Wallet>;
+    createAndUnlockPrivateKeyWallet: (
+      privateKey: string,
+      password: string,
+      name?: string,
+      addressType?: AddressType
+    ) => Promise<Wallet>;
+    resetAllWallets: (password: string) => Promise<void>;
+    getUnencryptedMnemonic: (walletId: string) => Promise<string>;
+    getPrivateKey: (walletId: string, pathIndex?: number) => Promise<string>;
+    verifyPassword: (password: string) => Promise<boolean>;
+    updateWalletAddressType: (walletId: string, newType: AddressType) => Promise<void>;
+    getPreviewAddressForType: (walletId: string, addressType: AddressType) => Promise<string>;
+    removeWallet: (walletId: string) => Promise<void>;
   }
   
   const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -1939,47 +1973,51 @@ File Contents:
     const [walletLocked, setWalletLocked] = useState<boolean>(true);
     const [loaded, setLoaded] = useState<boolean>(false);
   
-    const reloadWallets = useCallback(async () => {
-      try {
-        await walletService.loadWallets();
-        const allWallets = await walletService.getWallets();
-        setWallets(allWallets);
-        // Dispatch event for auth
-        authDispatch({ type: 'WALLETS_LOADED', walletExists: allWallets.length > 0 });
-        if (allWallets.length > 0) {
-          let active = await walletService.getActiveWallet();
-          if (!active) {
-            active = allWallets[0];
-            walletService.setActiveWallet(active.id);
+    useEffect(() => {
+      (async () => {
+        try {
+          await walletService.loadWallets();
+          const allWallets = await walletService.getWallets();
+          setWallets(allWallets);
+          authDispatch({ type: 'WALLETS_LOADED', walletExists: allWallets.length > 0 });
+          if (allWallets.length > 0) {
+            let active = await walletService.getActiveWallet();
+            if (!active) {
+              active = allWallets[0];
+              walletService.setActiveWallet(active.id);
+            }
+            setActiveWalletState(active);
+  
+            const lastActiveAddress = await walletService.getLastActiveAddress();
+            setActiveAddressState(
+              lastActiveAddress &&
+                active.addresses.some(addr => addr.address === lastActiveAddress)
+                ? active.addresses.find(addr => addr.address === lastActiveAddress) || active.addresses[0]
+                : active.addresses[0] || null
+            );
+  
+            const anyUnlocked = await walletService.isAnyWalletUnlocked();
+            setWalletLocked(!anyUnlocked);
+            authDispatch({ type: anyUnlocked ? 'WALLET_UNLOCKED' : 'WALLET_LOCKED' });
+          } else {
+            setActiveWalletState(null);
+            setActiveAddressState(null);
+            setWalletLocked(true);
+            authDispatch({ type: 'WALLET_LOCKED' });
           }
-          setActiveWalletState(active);
-          setActiveAddressState(active.addresses[0] || null);
-          const anyUnlocked = await walletService.isAnyWalletUnlocked();
-          setWalletLocked(!anyUnlocked);
-          authDispatch({ type: anyUnlocked ? 'WALLET_UNLOCKED' : 'WALLET_LOCKED' });
-        } else {
+        } catch (error) {
+          console.error('Failed to load wallets:', error);
+          setWallets([]);
           setActiveWalletState(null);
           setActiveAddressState(null);
           setWalletLocked(true);
-          authDispatch({ type: 'WALLET_LOCKED' });
+          authDispatch({ type: 'WALLETS_LOADED', walletExists: false });
+        } finally {
+          setLoaded(true);
         }
-      } catch (error) {
-        console.error('Failed to reload wallets:', error);
-        setWallets([]);
-        setActiveWalletState(null);
-        setActiveAddressState(null);
-        setWalletLocked(true);
-        authDispatch({ type: 'WALLETS_LOADED', walletExists: false });
-      } finally {
-        setLoaded(true);
-      }
+      })();
     }, [walletService, authDispatch]);
   
-    useEffect(() => {
-      reloadWallets();
-    }, [reloadWallets]);
-  
-    // Update UI state on auto‑lock by integrating the auth dispatch.
     useEffect(() => {
       const originalOnAutoLock = walletService.onAutoLock;
       walletService.onAutoLock = async () => {
@@ -2005,6 +2043,7 @@ File Contents:
           }
           setWalletLocked(false);
           authDispatch({ type: 'WALLET_UNLOCKED' });
+          setWallets(prev => prev.map(w => (w.id === walletId ? (wallet as Wallet) : w)));
         } catch (error) {
           console.error('Error unlocking wallet:', error);
           throw error;
@@ -2022,13 +2061,17 @@ File Contents:
     }, [walletService, authDispatch]);
   
     const setActiveWallet = useCallback(
-      (wallet: Wallet | null) => {
+      async (wallet: Wallet | null) => {
         if (wallet) {
-          walletService.setActiveWallet(wallet.id);
+          await walletService.setActiveWallet(wallet.id);
+          const activeAddress = wallet.addresses[0] || null;
+          if (activeAddress) {
+            await walletService.setLastActiveAddress(activeAddress.address);
+          }
           setActiveWalletState(wallet);
-          setActiveAddressState(wallet.addresses[0] || null);
+          setActiveAddressState(activeAddress);
         } else {
-          walletService.setActiveWallet(null);
+          await walletService.setActiveWallet('');
           setActiveWalletState(null);
           setActiveAddressState(null);
         }
@@ -2036,9 +2079,162 @@ File Contents:
       [walletService]
     );
   
-    const setActiveAddress = useCallback((address: Address | null) => {
-      setActiveAddressState(address);
-    }, []);
+    const setActiveAddress = useCallback(
+      async (address: Address | null) => {
+        setActiveAddressState(address);
+        if (address) {
+          await walletService.setLastActiveAddress(address.address);
+        }
+      },
+      [walletService]
+    );
+  
+    const addAddress = useCallback(
+      async (walletId: string) => {
+        try {
+          const newAddress = await walletService.addAddress(walletId);
+          setWallets(prev =>
+            prev.map(w =>
+              w.id === walletId
+                ? {
+                    ...w,
+                    addresses: [...w.addresses, newAddress],
+                    addressCount: w.addressCount + 1,
+                  }
+                : w
+            )
+          );
+        } catch (error) {
+          console.error('Failed to add address:', error);
+          throw error;
+        }
+      },
+      [walletService]
+    );
+  
+    const updatePassword = useCallback(
+      async (currentPassword: string, newPassword: string) => {
+        await walletService.updatePassword(currentPassword, newPassword);
+      },
+      [walletService]
+    );
+  
+    const createAndUnlockMnemonicWallet = useCallback(
+      async (
+        mnemonic: string,
+        password: string,
+        name?: string,
+        addressType: AddressType = AddressType.P2WPKH
+      ) => {
+        const wallet = await walletService.createAndUnlockMnemonicWallet(
+          mnemonic,
+          password,
+          name,
+          addressType
+        );
+        setWallets(prev => [...prev, wallet]);
+        walletService.setActiveWallet(wallet.id);
+        setActiveWalletState(wallet);
+        setActiveAddressState(wallet.addresses[0] || null);
+        setWalletLocked(false);
+        authDispatch({ type: 'WALLET_UNLOCKED' });
+        return wallet;
+      },
+      [walletService, authDispatch]
+    );
+  
+    const createAndUnlockPrivateKeyWallet = useCallback(
+      async (
+        privateKey: string,
+        password: string,
+        name?: string,
+        addressType: AddressType = AddressType.P2WPKH
+      ) => {
+        const wallet = await walletService.createAndUnlockPrivateKeyWallet(
+          privateKey,
+          password,
+          name,
+          addressType
+        );
+        setWallets(prev => [...prev, wallet]);
+        walletService.setActiveWallet(wallet.id);
+        setActiveWalletState(wallet);
+        setActiveAddressState(wallet.addresses[0] || null);
+        setWalletLocked(false);
+        authDispatch({ type: 'WALLET_UNLOCKED' });
+        return wallet;
+      },
+      [walletService, authDispatch]
+    );
+  
+    const resetAllWallets = useCallback(
+      async (password: string) => {
+        await walletService.resetAllWallets(password);
+        setWallets([]);
+        setActiveWalletState(null);
+        setActiveAddressState(null);
+        setWalletLocked(true);
+        authDispatch({ type: 'WALLET_LOCKED' });
+      },
+      [walletService, authDispatch]
+    );
+  
+    const removeWallet = useCallback(
+      async (walletId: string) => {
+        await walletService.removeWallet(walletId);
+        setWallets(prev => prev.filter(w => w.id !== walletId));
+        if (activeWallet?.id === walletId) {
+          const remaining = wallets.filter(w => w.id !== walletId);
+          if (remaining.length > 0) {
+            setActiveWalletState(remaining[0]);
+            setActiveAddressState(remaining[0].addresses[0] || null);
+          } else {
+            setActiveWalletState(null);
+            setActiveAddressState(null);
+          }
+        }
+      },
+      [walletService, wallets, activeWallet]
+    );
+  
+    const getUnencryptedMnemonic = useCallback(
+      async (walletId: string): Promise<string> => {
+        const secret = sessionManager.getUnlockedSecret(walletId);
+        if (!secret) {
+          throw new Error('Wallet secret not found or locked');
+        }
+        return secret;
+      },
+      []
+    );
+  
+    const getPrivateKey = useCallback(
+      async (walletId: string, pathIndex: number = 0): Promise<string> => {
+        return walletService.getPrivateKey(walletId, pathIndex);
+      },
+      [walletService]
+    );
+  
+    const verifyPassword = useCallback(
+      async (password: string): Promise<boolean> => {
+        return walletService.verifyPassword(password);
+      },
+      [walletService]
+    );
+  
+    const updateWalletAddressType = useCallback(
+      async (walletId: string, newType: AddressType): Promise<void> => {
+        await walletService.updateWalletAddressType(walletId, newType);
+      },
+      [walletService]
+    );
+  
+    const getPreviewAddressForType = useCallback(
+      async (walletId: string, addressType: AddressType): Promise<string> => {
+        return walletService.getPreviewAddressForType(walletId, addressType);
+      },
+      [walletService]
+    );
   
     const value: WalletContextType = {
       wallets,
@@ -2048,9 +2244,19 @@ File Contents:
       loaded,
       unlockWallet,
       lockAll,
-      reloadWallets,
       setActiveWallet,
       setActiveAddress,
+      addAddress,
+      updatePassword,
+      createAndUnlockMnemonicWallet,
+      createAndUnlockPrivateKeyWallet,
+      resetAllWallets,
+      getUnencryptedMnemonic,
+      getPrivateKey,
+      verifyPassword,
+      updateWalletAddressType,
+      getPreviewAddressForType,
+      removeWallet,
     };
   
     return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
@@ -2140,6 +2346,7 @@ File Contents:
   
   // Auth pages
   import Onboarding from '@/pages/auth/onboarding';
+  import UnlockWallet from '@/pages/auth/unlock-wallet';
   
   // Address pages
   import SelectAddress from '@/pages/address/select-address';
@@ -2150,7 +2357,6 @@ File Contents:
   import SelectWallet from '@/pages/wallet/select-wallet';
   import CreateWallet from '@/pages/wallet/create-wallet';
   import ImportWallet from '@/pages/wallet/import-wallet';
-  import UnlockWallet from '@/pages/wallet/unlock-wallet';
   import ResetWallet from '@/pages/wallet/reset-wallet';
   import RemoveWallet from '@/pages/wallet/remove-wallet';
   import ImportPrivateKey from '@/pages/wallet/import-private-key';
@@ -2366,34 +2572,28 @@ File Contents:
   import { AddressList } from '@/components/lists/address-list';
   import { useHeader } from '@/contexts/header-context';
   import { useWallet } from '@/contexts/wallet-context';
-  import { useToast } from '@/contexts/toast-context';
   import type { Address } from '@/utils/wallet';
-  import { getWalletService } from '@/services/walletService';
   
   export function AddressSelection() {
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
-    const { activeWallet, activeAddress, setActiveAddress, reloadWallets } = useWallet();
-    const { showError, showSuccess } = useToast();
+    const { activeWallet, activeAddress, setActiveAddress, addAddress } = useWallet();
   
     const handleAddAddress = async () => {
       if (!activeWallet?.id) return;
       if (activeWallet.type !== 'mnemonic') return;
-      if (!activeWallet.addresses?.length || activeWallet.addresses.length >= 10) return;
+      if (activeWallet.addresses.length >= 20) return;
   
       try {
-        const walletService = getWalletService();
-        await walletService.addAddress(activeWallet.id);
-        await reloadWallets();
+        await addAddress(activeWallet.id);
       } catch (error) {
         console.error('Failed to add address:', error);
       }
     };
   
     const handleSelectAddress = async (address: Address) => {
-      setActiveAddress(address);
-      await reloadWallets();
-      navigate(-1);
+      await setActiveAddress(address);
+      navigate('/index');
     };
   
     useEffect(() => {
@@ -2413,7 +2613,9 @@ File Contents:
     return (
       <div className="flex flex-col h-full" role="main" aria-labelledby="address-selection-title">
         <div className="flex-grow overflow-y-auto p-4">
-          <h2 id="address-selection-title" className="sr-only">Select an Address</h2>
+          <h2 id="address-selection-title" className="sr-only">
+            Select an Address
+          </h2>
           <AddressList
             addresses={activeWallet.addresses}
             selectedAddress={activeAddress}
@@ -2425,7 +2627,7 @@ File Contents:
             color="green"
             fullWidth
             onClick={handleAddAddress}
-            disabled={activeWallet.addresses.length >= 10}
+            disabled={activeWallet.addresses.length >= 20}
             aria-label="Add Address"
           >
             <FaPlus className="mr-2" aria-hidden="true" />
@@ -2498,7 +2700,7 @@ File Contents:
           className="text-center font-medium text-gray-600"
           id="view-address-title"
         >
-          {`${activeAddress?.name ?? ''} ${addressTypeLabel || ''}`}
+          {`${activeAddress?.name ?? ''} | ${addressTypeLabel || ''}`}
         </div>
   
         <QRCode
@@ -2593,7 +2795,7 @@ File Contents:
   import { useEffect } from 'react';
   import { useNavigate } from 'react-router-dom';
   import { IoCreateOutline } from 'react-icons/io5';
-  import { FiUpload } from 'react-icons/fi';
+  import { FiUpload, FiHelpCircle } from 'react-icons/fi';
   import { Button } from '@/components/button';
   import { useHeader } from '@/contexts/header-context';
   
@@ -2605,6 +2807,11 @@ File Contents:
       setHeaderProps({
         useLogoTitle: true,
         title: 'Onboarding',
+        rightButton: {
+          icon: <FiHelpCircle className="w-4 h-4" />,
+          onClick: () => window.open('https://youtube.com', '_blank'),
+          ariaLabel: 'Help',
+        },
       });
     }, [setHeaderProps]);
   
@@ -2654,6 +2861,97 @@ File Contents:
   }
   
   export default Onboarding;
+
+/src/pages/auth/unlock-wallet.tsx
+  [contents of the file]
+  import React, { useEffect, useRef, useState } from 'react';
+  import { useNavigate } from 'react-router-dom';
+  import { FiHelpCircle } from 'react-icons/fi';
+  import { Button } from '@/components/button';
+  import { PasswordInput } from '@/components/inputs/password-input';
+  import { useHeader } from '@/contexts/header-context';
+  import { useWallet } from '@/contexts/wallet-context';
+  
+  const UnlockWallet = () => {
+    const navigate = useNavigate();
+    const { unlockWallet, wallets } = useWallet();
+    const { setHeaderProps } = useHeader();
+  
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+  
+    const passwordInputRef = useRef<HTMLInputElement>(null);
+  
+    useEffect(() => {
+      setHeaderProps({
+        useLogoTitle: true,
+        rightButton: {
+          icon: <FiHelpCircle className="w-4 h-4" />,
+          onClick: () => window.open('https://youtube.com', '_blank'),
+          ariaLabel: 'Help',
+        },
+      });
+    }, [setHeaderProps]);
+  
+    useEffect(() => {
+      passwordInputRef.current?.focus();
+    }, []);
+  
+    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setPassword(e.target.value);
+      setError('');
+    };
+  
+    const handleSubmit = async (e?: React.FormEvent) => {
+      if (e) e.preventDefault();
+      setError('');
+      setIsLoading(true);
+      try {
+        if (!wallets.length) {
+          throw new Error('No wallets found.');
+        }
+        const walletId = wallets[0].id;
+        await unlockWallet(walletId, password);
+        navigate('/index');
+      } catch (err) {
+        console.error('Error unlocking wallet:', err);
+        const msg = err instanceof Error ? err.message : 'Invalid password or unknown error.';
+        setError(msg);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+  
+    return (
+      <div className="flex flex-col h-full" role="main">
+        <div className="flex-grow flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-lg shadow-md p-6">
+            <h1 className="text-3xl mb-5 flex justify-between items-center">
+              <span className="font-bold">XCP Wallet</span>
+              <span>v0.0.1</span>
+            </h1>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <PasswordInput
+                id="password"
+                ref={passwordInputRef}
+                value={password}
+                onChange={handlePasswordChange}
+                placeholder="Enter your password"
+                error={error}
+                ariaLabel="Password"
+              />
+              <Button type="submit" fullWidth disabled={isLoading} aria-label="Unlock">
+                {isLoading ? 'Unlocking...' : 'Unlock'}
+              </Button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  
+  export default UnlockWallet;
 
 /src/pages/index.tsx
   [contents of the file]
@@ -2939,7 +3237,7 @@ File Contents:
   import { useParams, useNavigate } from 'react-router-dom';
   import { FaExclamationTriangle } from 'react-icons/fa';
   import { useHeader } from '@/contexts/header-context';
-  import { getWalletService } from '@/services/walletService';
+  import { useWallet } from '@/contexts/wallet-context';
   import { Button } from '@/components/button';
   import { ErrorAlert } from '@/components/error-alert';
   import { PasswordInput } from '@/components/inputs/password-input';
@@ -2948,7 +3246,8 @@ File Contents:
     const { walletId } = useParams<{ walletId: string }>();
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
-    const walletService = getWalletService();
+    // Get the wallet-related methods from context:
+    const { unlockWallet, getUnencryptedMnemonic } = useWallet();
   
     const [password, setPassword] = useState('');
     const [passphrase, setPassphrase] = useState('');
@@ -2992,11 +3291,8 @@ File Contents:
         return false;
       }
       try {
-        const valid = await walletService.verifyPassword(password);
-        if (!valid) {
-          setPasswordError('Incorrect password.');
-          return false;
-        }
+        // Attempt to unlock via context; if wrong, this should throw.
+        await unlockWallet(walletId, password);
       } catch {
         setPasswordError('Incorrect password.');
         return false;
@@ -3008,10 +3304,8 @@ File Contents:
       setIsLoading(true);
       try {
         if (!walletId) throw new Error('Wallet ID is required.');
-        // Unlock the wallet using the wallet service.
-        await walletService.unlockWallet(walletId, password);
-        // Retrieve the decrypted mnemonic via a helper method on the wallet service.
-        const mnemonic = await walletService.getUnencryptedMnemonic(walletId);
+        // After unlocking (done in validateForm), retrieve the mnemonic via the context.
+        const mnemonic = await getUnencryptedMnemonic(walletId);
         if (mnemonic) {
           setPassphrase(mnemonic);
           setIsConfirmed(true);
@@ -3125,16 +3419,16 @@ File Contents:
   import { useParams, useNavigate } from 'react-router-dom';
   import { FaExclamationTriangle } from 'react-icons/fa';
   import { useHeader } from '@/contexts/header-context';
-  import { getWalletService } from '@/services/walletService';
   import { Button } from '@/components/button';
   import { ErrorAlert } from '@/components/error-alert';
   import { PasswordInput } from '@/components/inputs/password-input';
+  import { useWallet } from '@/contexts/wallet-context';
   
   const ShowPrivateKey = () => {
     const { walletId, addressPath } = useParams<{ walletId: string; addressPath?: string }>();
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
-    const walletService = getWalletService();
+    const { unlockWallet, getPrivateKey, verifyPassword, wallets } = useWallet();
   
     const [password, setPassword] = useState('');
     const [privateKey, setPrivateKey] = useState('');
@@ -3147,27 +3441,19 @@ File Contents:
     const passwordInputRef = useRef<HTMLInputElement>(null);
   
     useEffect(() => {
-      const fetchWalletType = async () => {
-        if (!walletId) return;
-        try {
-          const wallet = await walletService.getWalletById(walletId);
-          if (!wallet) {
-            setSubmissionError('Wallet not found.');
-            return;
-          }
+      if (walletId) {
+        const wallet = wallets.find(w => w.id === walletId);
+        if (!wallet) {
+          setSubmissionError('Wallet not found.');
+        } else {
           setWalletType(wallet.type);
-        } catch (err) {
-          console.error('Error fetching wallet:', err);
-          setSubmissionError('Failed to fetch wallet information.');
         }
-      };
-      fetchWalletType();
-  
+      }
       setHeaderProps({
         title: 'Show Private Key',
         onBack: () => navigate(-1),
       });
-    }, [walletId, setHeaderProps, navigate, walletService]);
+    }, [walletId, wallets, setHeaderProps, navigate]);
   
     useEffect(() => {
       passwordInputRef.current?.focus();
@@ -3195,7 +3481,7 @@ File Contents:
         return false;
       }
       try {
-        await walletService.verifyPassword(password);
+        await verifyPassword(password);
       } catch {
         setPasswordError('Incorrect password.');
         return false;
@@ -3211,12 +3497,12 @@ File Contents:
       setIsLoading(true);
       try {
         if (!walletId) throw new Error('Wallet ID is required.');
-        await walletService.unlockWallet(walletId, password);
+        await unlockWallet(walletId, password);
         let privKey: string;
         if (walletType === 'privateKey') {
-          privKey = await walletService.getPrivateKey(walletId);
+          privKey = await getPrivateKey(walletId);
         } else {
-          privKey = await walletService.getPrivateKey(walletId, decodeURIComponent(addressPath!));
+          privKey = await getPrivateKey(walletId, decodeURIComponent(addressPath!));
         }
         setPrivateKey(privKey);
         setIsConfirmed(true);
@@ -3346,23 +3632,19 @@ File Contents:
   import { useNavigate } from 'react-router-dom';
   import { FaCheck } from 'react-icons/fa';
   import { RadioGroup } from '@headlessui/react';
+  import { Loading } from '@/components/loading';
   import { useHeader } from '@/contexts/header-context';
   import { useWallet } from '@/contexts/wallet-context';
   import { AddressType } from '@/utils/blockchain/bitcoin';
   import { formatAddress } from '@/utils/format';
-  import { getWalletService } from '@/services/walletService';
-  import { Loading } from '@/components/loading';
   
   export function AddressTypeSettings() {
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
-    // Updated: destructure activeWallet instead of walletState
-    const { activeWallet, reloadWallets } = useWallet();
+    const { activeWallet, updateWalletAddressType, getPreviewAddressForType } = useWallet();
     const [addresses, setAddresses] = useState<{ [key: string]: string }>({});
     const [isLoading, setIsLoading] = useState(false);
-    const walletService = getWalletService();
   
-    // Use activeWallet directly.
     const currentWallet = activeWallet;
   
     const availableAddressTypes = useMemo(
@@ -3384,8 +3666,8 @@ File Contents:
           const addressMap: { [key: string]: string } = {};
           for (const type of availableAddressTypes) {
             try {
-              const address = await walletService.getAddressForType(currentWallet.id, type, 0);
-              addressMap[type] = address;
+              const previewAddress = await getPreviewAddressForType(currentWallet.id, type);
+              addressMap[type] = previewAddress;
             } catch (error) {
               console.error(`Error generating address for type ${type}:`, error);
               addressMap[type] = '';
@@ -3396,14 +3678,15 @@ File Contents:
         }
       };
       fetchAddresses();
-    }, [currentWallet, availableAddressTypes, walletService]);
+    }, [currentWallet, availableAddressTypes, getPreviewAddressForType]);
   
     const handleAddressTypeChange = async (newType: AddressType) => {
       if (!currentWallet) return;
       try {
         setIsLoading(true);
-        await walletService.updateWalletAddressType(currentWallet.id, newType);
-        await reloadWallets();
+        await updateWalletAddressType(currentWallet.id, newType);
+        const previewAddress = await getPreviewAddressForType(currentWallet.id, newType);
+        setAddresses((prev) => ({ ...prev, [newType]: previewAddress }));
       } catch (error) {
         console.error('Error updating address type:', error);
       } finally {
@@ -3713,7 +3996,6 @@ File Contents:
   import { useHeader } from '@/contexts/header-context';
   import { useWallet } from '@/contexts/wallet-context';
   import { Button } from '@/components/button';
-  import { getWalletService } from '@/services/walletService';
   import { useSettings } from '@/contexts/settings-context';
   
   export function SecuritySettings() {
@@ -3726,9 +4008,8 @@ File Contents:
     const [success, setSuccess] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
     const { setHeaderProps } = useHeader();
-    const { reloadWallets } = useWallet();
+    const { lockAll, updatePassword } = useWallet();
     const navigate = useNavigate();
-    const walletService = getWalletService();
     const { settings } = useSettings();
     const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
   
@@ -3769,8 +4050,11 @@ File Contents:
           throw new Error('New passwords do not match');
         }
   
-        await walletService.updatePassword(passwordForm.currentPassword, passwordForm.newPassword);
-        await reloadWallets();
+        await updatePassword(
+          passwordForm.currentPassword,
+          passwordForm.newPassword
+        );
+        await lockAll();
   
         setPasswordForm({
           currentPassword: '',
@@ -3787,7 +4071,9 @@ File Contents:
       }
     };
   
-    const shouldShowHelpText = isHelpTextOverride ? !settings.showHelpText : settings.showHelpText;
+    const shouldShowHelpText = isHelpTextOverride
+      ? !settings.showHelpText
+      : settings.showHelpText;
   
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter' && !isLoading && isFormValid()) {
@@ -3798,7 +4084,10 @@ File Contents:
     return (
       <div className="space-y-6 p-4">
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded" role="alert">
+          <div
+            className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded"
+            role="alert"
+          >
             {error}
           </div>
         )}
@@ -3815,7 +4104,10 @@ File Contents:
             type="password"
             value={passwordForm.currentPassword}
             onChange={(e) =>
-              setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))
+              setPasswordForm((prev) => ({
+                ...prev,
+                currentPassword: e.target.value,
+              }))
             }
             onKeyDown={handleKeyDown}
             className="w-full p-2 border rounded-md mt-2"
@@ -3834,7 +4126,10 @@ File Contents:
             type="password"
             value={passwordForm.newPassword}
             onChange={(e) =>
-              setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))
+              setPasswordForm((prev) => ({
+                ...prev,
+                newPassword: e.target.value,
+              }))
             }
             onKeyDown={handleKeyDown}
             className="w-full p-2 border rounded-md mt-2"
@@ -3853,7 +4148,10 @@ File Contents:
             type="password"
             value={passwordForm.confirmPassword}
             onChange={(e) =>
-              setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))
+              setPasswordForm((prev) => ({
+                ...prev,
+                confirmPassword: e.target.value,
+              }))
             }
             onKeyDown={handleKeyDown}
             className="w-full p-2 border rounded-md mt-2"
@@ -4027,7 +4325,7 @@ File Contents:
   [contents of the file]
   import { useEffect } from 'react';
   import { useNavigate } from 'react-router-dom';
-  import { FiDownload, FiKey } from 'react-icons/fi';
+  import { FiDownload, FiKey, FiHelpCircle } from 'react-icons/fi';
   import { IoCreateOutline } from 'react-icons/io5';
   import { Button } from '@/components/button';
   import { useHeader } from '@/contexts/header-context';
@@ -4040,6 +4338,11 @@ File Contents:
       setHeaderProps({
         useLogoTitle: true,
         onBack: () => navigate('/select-wallet'),
+        rightButton: {
+          icon: <FiHelpCircle className="w-4 h-4" />,
+          onClick: () => window.open('https://youtube.com', '_blank'),
+          ariaLabel: 'Help',
+        },
       });
     }, [setHeaderProps, navigate]);
   
@@ -4099,7 +4402,7 @@ File Contents:
 
 /src/pages/wallet/create-wallet.tsx
   [contents of the file]
-  import { useEffect, useState } from 'react';
+  import React, { useState, useEffect } from 'react';
   import { useNavigate } from 'react-router-dom';
   import { FaSync, FaEyeSlash } from 'react-icons/fa';
   import { Button } from '@/components/button';
@@ -4108,13 +4411,12 @@ File Contents:
   import { useHeader } from '@/contexts/header-context';
   import { useToast } from '@/contexts/toast-context';
   import { useWallet } from '@/contexts/wallet-context';
-  import { generateNewMnemonic } from '@/utils/blockchain/bitcoin';
-  import { getWalletService } from '@/services/walletService';
+  import { generateNewMnemonic, AddressType } from '@/utils/blockchain/bitcoin';
   
   function CreateWallet() {
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
-    const { wallets, reloadWallets } = useWallet();
+    const { wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
     const { showError, clearAll } = useToast();
     const walletExists = wallets.length > 0;
   
@@ -4124,7 +4426,6 @@ File Contents:
     const [isRecoveryPhraseVisible, setIsRecoveryPhraseVisible] = useState(false);
     const [password, setPassword] = useState('');
   
-    // Generate a new mnemonic and reset the form
     function generateWallet() {
       const newMnemonic = generateNewMnemonic();
       setMnemonic(newMnemonic);
@@ -4135,7 +4436,6 @@ File Contents:
   
     useEffect(() => {
       generateWallet();
-      // Configure the header for the create wallet page
       setHeaderProps({
         title: 'Create Wallet',
         onBack: () => navigate(walletExists ? '/add-wallet' : '/onboarding'),
@@ -4178,8 +4478,7 @@ File Contents:
         return false;
       }
       if (walletExists) {
-        const ws = getWalletService();
-        const isValid = await ws.verifyPassword(password);
+        const isValid = await verifyPassword(password);
         if (!isValid) {
           showError('Password does not match.');
           return false;
@@ -4195,9 +4494,7 @@ File Contents:
       if (e) e.preventDefault();
       if (await validateForm()) {
         try {
-          const ws = getWalletService();
-          await ws.createAndUnlockMnemonicWallet(mnemonic, password);
-          await reloadWallets();
+          await createAndUnlockMnemonicWallet(mnemonic, password);
           clearAll();
           navigate('/index');
         } catch (err: unknown) {
@@ -4275,25 +4572,25 @@ File Contents:
 
 /src/pages/wallet/import-private-key.tsx
   [contents of the file]
-  import { useState, useEffect, useRef, useMemo } from 'react';
+  import React, { useState, useEffect, useRef, useMemo } from 'react';
   import { useNavigate } from 'react-router-dom';
   import { FiChevronDown } from 'react-icons/fi';
   import { Button } from '@/components/button';
   import { CheckboxInput } from '@/components/inputs/checkbox-input';
   import { PasswordInput } from '@/components/inputs/password-input';
   import { useHeader } from '@/contexts/header-context';
-  import { useWallet } from '@/contexts/wallet-context';
   import { useToast } from '@/contexts/toast-context';
+  import { useWallet } from '@/contexts/wallet-context';
   import { AddressType } from '@/utils/blockchain/bitcoin/address';
-  import { getWalletService } from '@/services/walletService';
+  import { useState as useLocalState } from 'react'; // (if needed)
+  import { useMemo as useLocalMemo } from 'react'; // (if needed)
   
   export const ImportPrivateKey = () => {
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
-    const { wallets, reloadWallets } = useWallet();
+    const { wallets, createAndUnlockPrivateKeyWallet, verifyPassword } = useWallet();
     const { showError } = useToast();
   
-    // State
     const [privateKey, setPrivateKey] = useState('');
     const [addressType, setAddressType] = useState<AddressType>(AddressType.P2PKH);
     const [isConfirmed, setIsConfirmed] = useState(false);
@@ -4302,12 +4599,10 @@ File Contents:
     const [privateKeyError, setPrivateKeyError] = useState('');
     const [submissionError, setSubmissionError] = useState('');
   
-    // Refs
     const privateKeyInputRef = useRef<HTMLInputElement>(null);
   
-    const walletExists = wallets && wallets.length > 0;
+    const walletExists = wallets.length > 0;
   
-    // Called once on mount
     useEffect(() => {
       setHeaderProps({
         title: 'Import Key',
@@ -4315,17 +4610,10 @@ File Contents:
       });
     }, [setHeaderProps, navigate, walletExists]);
   
-    // Focus the input on mount
     useEffect(() => {
       privateKeyInputRef.current?.focus();
     }, []);
   
-    // Reload wallet list on mount
-    useEffect(() => {
-      reloadWallets();
-    }, [reloadWallets]);
-  
-    // Track privateKey length changes
     const [prevPkLen, setPrevPkLen] = useState(0);
     useEffect(() => {
       const currentLen = privateKey.trim().length;
@@ -4334,15 +4622,12 @@ File Contents:
       }
     }, [privateKey, prevPkLen]);
   
-    // True if user has typed at least 20 chars
     const isPrivateKeyValid = useMemo(() => {
       return privateKey.trim().length >= 20;
     }, [privateKey]);
   
-    // Basic password check
     const isPasswordValid = (pw: string): boolean => pw.length >= 8;
   
-    // Handlers
     const handlePrivateKeyChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
       setPrivateKey(e.target.value);
       setPrivateKeyError('');
@@ -4365,7 +4650,6 @@ File Contents:
       setSubmissionError('');
     };
   
-    // This is used to disable the submit button
     const canSubmit = (): boolean => {
       return (
         isConfirmed &&
@@ -4375,60 +4659,39 @@ File Contents:
       );
     };
   
-    // Validate form input
     const validateForm = async (): Promise<boolean> => {
       setPrivateKeyError('');
       setPasswordError('');
       setSubmissionError('');
   
       const trimmedKey = privateKey.trim();
-  
-      // 1. Check private key presence
       if (!trimmedKey) {
         setPrivateKeyError('Private key is required');
         return false;
       }
-  
-      // 2. Check format
       if (!/^[0-9a-fA-F]{64}$|^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(trimmedKey)) {
-        setPrivateKeyError(
-          'Invalid private key format. Please enter a valid WIF or hexadecimal private key.'
-        );
+        setPrivateKeyError('Invalid private key format. Please enter a valid WIF or hexadecimal private key.');
         return false;
       }
-  
-      // 3. Check backup confirmation
       if (!isConfirmed) {
         setSubmissionError('Please confirm you have backed up your private key');
         return false;
       }
-  
-      // 4. Check password presence
       if (!password) {
         setPasswordError('Password is required');
         return false;
       }
-  
-      const walletService = getWalletService();
-      const valid = await walletService.verifyPassword(password);
-      if (!valid) {
+      const isValid = await verifyPassword(password);
+      if (!isValid) {
         setPasswordError('Invalid password');
         return false;
       }
-  
       return true;
     };
   
-    // Actually create the wallet
     const createWallet = async (): Promise<void> => {
       try {
-        const walletService = getWalletService();
-        await walletService.createAndUnlockPrivateKeyWallet(
-          privateKey.trim(),
-          password,
-          undefined,
-          addressType
-        );
+        await createAndUnlockPrivateKeyWallet(privateKey.trim(), password, undefined, addressType);
         navigate('/index');
       } catch (error) {
         let errorMessage = 'Failed to import private key. ';
@@ -4448,7 +4711,6 @@ File Contents:
       }
     };
   
-    // Submit handler
     const handleSubmit = async (e?: React.FormEvent): Promise<void> => {
       if (e) e.preventDefault();
       const isValid = await validateForm();
@@ -4541,7 +4803,7 @@ File Contents:
 
 /src/pages/wallet/import-wallet.tsx
   [contents of the file]
-  import { useEffect, useState, useRef } from 'react';
+  import React, { useEffect, useState, useRef } from 'react';
   import { useNavigate } from 'react-router-dom';
   import { FaEye, FaEyeSlash } from 'react-icons/fa';
   import { Input as HeadlessInput } from '@headlessui/react';
@@ -4553,14 +4815,13 @@ File Contents:
   import { useHeader } from '@/contexts/header-context';
   import { useToast } from '@/contexts/toast-context';
   import { useWallet } from '@/contexts/wallet-context';
-  import { getWalletService } from '@/services/walletService';
   import { AddressType } from '@/utils/blockchain/bitcoin';
   import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
   
   function ImportWallet() {
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
-    const { unlockWallet, wallets } = useWallet();
+    const { unlockWallet, wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
     const { showError } = useToast();
     const walletExists = wallets.length > 0;
   
@@ -4569,7 +4830,6 @@ File Contents:
     const [showMnemonic, setShowMnemonic] = useState(false);
     const [password, setPassword] = useState('');
   
-    // Refs for each mnemonic word input
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   
     useEffect(() => {
@@ -4585,7 +4845,6 @@ File Contents:
     }, [navigate, setHeaderProps, showMnemonic, walletExists]);
   
     useEffect(() => {
-      // Focus the first input field on mount
       inputRefs.current[0]?.focus();
     }, []);
   
@@ -4651,8 +4910,7 @@ File Contents:
         return false;
       }
       if (walletExists) {
-        const ws = getWalletService();
-        const isValid = await ws.verifyPassword(password);
+        const isValid = await verifyPassword(password);
         if (!isValid) {
           showError('Password does not match.');
           return false;
@@ -4672,8 +4930,7 @@ File Contents:
           const addressType = isValidCounterwalletMnemonic(mnemonic)
             ? AddressType.Counterwallet
             : AddressType.P2WPKH;
-          const ws = getWalletService();
-          const newWallet = await ws.createMnemonicWallet(mnemonic, password, undefined, addressType);
+          const newWallet = await createAndUnlockMnemonicWallet(mnemonic, password, undefined, addressType);
           await unlockWallet(newWallet.id, password);
           navigate('/index');
         } catch (error: unknown) {
@@ -4746,7 +5003,7 @@ File Contents:
 
 /src/pages/wallet/remove-wallet.tsx
   [contents of the file]
-  import { useState, useEffect, useRef } from 'react';
+  import React, { useState, useEffect, useRef } from 'react';
   import { useParams, useNavigate } from 'react-router-dom';
   import { FaExclamationTriangle } from 'react-icons/fa';
   import { Button } from '@/components/button';
@@ -4754,13 +5011,12 @@ File Contents:
   import { PasswordInput } from '@/components/inputs/password-input';
   import { useHeader } from '@/contexts/header-context';
   import { useWallet } from '@/contexts/wallet-context';
-  import { getWalletService } from '@/services/walletService';
   
   function RemoveWallet() {
     const { walletId } = useParams<{ walletId: string }>();
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
-    const { setActiveWallet, setActiveAddress, activeWallet } = useWallet();
+    const { wallets, setActiveWallet, setActiveAddress, activeWallet, removeWallet, verifyPassword } = useWallet();
   
     const [walletName, setWalletName] = useState('');
     const [walletType, setWalletType] = useState<'mnemonic' | 'privateKey'>('mnemonic');
@@ -4774,32 +5030,22 @@ File Contents:
     const isPasswordValid = (pwd: string): boolean => pwd.length >= 8;
   
     useEffect(() => {
-      async function loadWallet() {
-        if (!walletId) {
-          setSubmissionError('Invalid wallet identifier.');
-          return;
-        }
-        const walletService = getWalletService();
-        try {
-          const wallet = await walletService.getWalletById(walletId);
-          if (wallet) {
-            setWalletName(wallet.name);
-            setWalletType(wallet.type);
-            setHeaderProps({
-              title: wallet.type === 'privateKey' ? 'Remove Private Key' : 'Remove Wallet',
-              onBack: () => navigate(-1),
-            });
-          } else {
-            setSubmissionError('Wallet not found.');
-          }
-        } catch (err) {
-          console.error('Error loading wallet:', err);
-          setSubmissionError('Failed to load wallet.');
-        }
+      if (!walletId) {
+        setSubmissionError('Invalid wallet identifier.');
+        return;
       }
-  
-      loadWallet();
-    }, [walletId, setHeaderProps, navigate]);
+      const wallet = wallets.find(w => w.id === walletId);
+      if (wallet) {
+        setWalletName(wallet.name);
+        setWalletType(wallet.type);
+        setHeaderProps({
+          title: wallet.type === 'privateKey' ? 'Remove Private Key' : 'Remove Wallet',
+          onBack: () => navigate(-1),
+        });
+      } else {
+        setSubmissionError('Wallet not found.');
+      }
+    }, [walletId, wallets, setHeaderProps, navigate]);
   
     useEffect(() => {
       passwordInputRef.current?.focus();
@@ -4825,8 +5071,7 @@ File Contents:
         return false;
       }
       try {
-        const walletService = getWalletService();
-        await walletService.verifyPassword(password);
+        await verifyPassword(password);
       } catch {
         setPasswordError('Password does not match.');
         return false;
@@ -4834,12 +5079,16 @@ File Contents:
       return true;
     };
   
-    const removeWallet = async (): Promise<void> => {
+    const handleSubmit = async (e: React.FormEvent): Promise<void> => {
+      e.preventDefault();
+      setPasswordError('');
+      setSubmissionError('');
+      const isValid = await validateForm();
+      if (!isValid) return;
       setIsLoading(true);
       try {
-        const walletService = getWalletService();
-        await walletService.removeWallet(walletId!);
-        const remainingWallets = await walletService.getWallets();
+        await removeWallet(walletId!);
+        const remainingWallets = wallets.filter(w => w.id !== walletId);
         if (activeWallet?.id === walletId) {
           if (remainingWallets.length > 0) {
             setActiveWallet(remainingWallets[0]);
@@ -4847,12 +5096,6 @@ File Contents:
           } else {
             setActiveWallet(null);
             setActiveAddress(null);
-          }
-        } else {
-          // Optionally update active wallet if needed
-          const stillActive = remainingWallets.find(w => w.id === activeWallet?.id);
-          if (stillActive) {
-            setActiveWallet(stillActive);
           }
         }
         navigate('/wallet-selection');
@@ -4862,15 +5105,6 @@ File Contents:
       } finally {
         setIsLoading(false);
       }
-    };
-  
-    const handleSubmit = async (e: React.FormEvent): Promise<void> => {
-      e.preventDefault();
-      setPasswordError('');
-      setSubmissionError('');
-      const isValid = await validateForm();
-      if (!isValid) return;
-      await removeWallet();
     };
   
     return (
@@ -4935,12 +5169,11 @@ File Contents:
   import { PasswordInput } from '@/components/inputs/password-input';
   import { useHeader } from '@/contexts/header-context';
   import { useWallet } from '@/contexts/wallet-context';
-  import { getWalletService } from '@/services/walletService';
   
   function ResetWallet() {
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
-    const { reloadWallets } = useWallet();
+    const { resetAllWallets, verifyPassword } = useWallet();
     const [password, setPassword] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [submissionError, setSubmissionError] = useState('');
@@ -4977,29 +5210,12 @@ File Contents:
         return false;
       }
       try {
-        const walletService = getWalletService();
-        await walletService.verifyPassword(password);
+        await verifyPassword(password);
       } catch {
         setPasswordError('Password does not match.');
         return false;
       }
       return true;
-    };
-  
-    const resetWallet = async (): Promise<void> => {
-      setIsLoading(true);
-      try {
-        const walletService = getWalletService();
-        await walletService.resetAllWallets(password);
-        // Optionally, reload wallet state after reset
-        await reloadWallets();
-        navigate('/onboarding');
-      } catch (err) {
-        console.error('Error resetting wallet:', err);
-        setSubmissionError('Failed to reset wallet.');
-      } finally {
-        setIsLoading(false);
-      }
     };
   
     const handleSubmit = async (e: React.FormEvent): Promise<void> => {
@@ -5008,7 +5224,16 @@ File Contents:
       setPasswordError('');
       const isValid = await validateForm();
       if (!isValid) return;
-      await resetWallet();
+      setIsLoading(true);
+      try {
+        await resetAllWallets(password);
+        navigate('/onboarding');
+      } catch (err) {
+        console.error('Error resetting wallet:', err);
+        setSubmissionError('Failed to reset wallet.');
+      } finally {
+        setIsLoading(false);
+      }
     };
   
     return (
@@ -5024,7 +5249,7 @@ File Contents:
               <h3 className="text-xl font-bold text-red-700">Warning</h3>
             </div>
             <p className="text-red-700 font-medium leading-relaxed">
-              Resetting your wallet will delete all wallet data. Tthis action cannot be undone.
+              Resetting your wallet will delete all wallet data. This action cannot be undone.
             </p>
           </div>
           <div className="w-full max-w-md space-y-4">
@@ -5070,7 +5295,7 @@ File Contents:
   function SelectWallet() {
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
-    const { wallets, activeWallet, setActiveWallet, reloadWallets } = useWallet();
+    const { wallets, activeWallet, setActiveWallet } = useWallet();
     const { showError } = useToast();
   
     const handleAddWallet = () => {
@@ -5081,14 +5306,9 @@ File Contents:
       navigate('/add-wallet');
     };
   
-    const handleSelectWalletInternal = (wallet: Wallet) => {
-      // If the wallet has no derived addresses, assume it's locked.
-      if (wallet.addresses.length === 0) {
-        navigate('/unlock-wallet');
-      } else {
-        setActiveWallet(wallet);
-        navigate('/index');
-      }
+    const handleSelectWalletInternal = async (wallet: Wallet) => {
+      await setActiveWallet(wallet);
+      navigate('/index');
     };
   
     useEffect(() => {
@@ -5101,9 +5321,7 @@ File Contents:
           ariaLabel: 'Add Wallet',
         },
       });
-      // Update the wallet list on mount
-      reloadWallets();
-    }, [setHeaderProps, navigate, reloadWallets]);
+    }, [setHeaderProps, navigate]);
   
     return (
       <div className="flex flex-col h-full" role="main" aria-labelledby="wallet-selection-title">
@@ -5132,89 +5350,6 @@ File Contents:
   }
   
   export default SelectWallet;
-
-/src/pages/wallet/unlock-wallet.tsx
-  [contents of the file]
-  import React, { useEffect, useRef, useState } from 'react';
-  import { useNavigate } from 'react-router-dom';
-  import { useHeader } from '@/contexts/header-context';
-  import { useWallet } from '@/contexts/wallet-context';
-  import { Button } from '@/components/button';
-  import { PasswordInput } from '@/components/inputs/password-input';
-  
-  const UnlockWallet = () => {
-    const navigate = useNavigate();
-    const { unlockWallet, wallets } = useWallet();
-    const { setHeaderProps } = useHeader();
-  
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-  
-    const passwordInputRef = useRef<HTMLInputElement>(null);
-  
-    useEffect(() => {
-      setHeaderProps({ useLogoTitle: true });
-    }, [setHeaderProps]);
-  
-    useEffect(() => {
-      passwordInputRef.current?.focus();
-    }, []);
-  
-    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setPassword(e.target.value);
-      setError('');
-    };
-  
-    const handleSubmit = async (e?: React.FormEvent) => {
-      if (e) e.preventDefault();
-      setError('');
-      setIsLoading(true);
-      try {
-        if (!wallets.length) {
-          throw new Error('No wallets found.');
-        }
-        const walletId = wallets[0].id;
-        await unlockWallet(walletId, password);
-        navigate('/index');
-      } catch (err) {
-        console.error('Error unlocking wallet:', err);
-        const msg = err instanceof Error ? err.message : 'Invalid password or unknown error.';
-        setError(msg);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-  
-    return (
-      <div className="flex flex-col h-full" role="main">
-        <div className="flex-grow flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-lg shadow-md p-6">
-            <h1 className="text-3xl mb-5 flex justify-between items-center">
-              <span className="font-bold">XCP Wallet</span>
-              <span>v0.0.1</span>
-            </h1>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <PasswordInput
-                id="password"
-                inputRef={passwordInputRef}
-                value={password}
-                onChange={handlePasswordChange}
-                placeholder="Enter your password"
-                error={error}
-                ariaLabel="Password"
-              />
-              <Button type="submit" fullWidth disabled={isLoading} aria-label="Continue">
-                {isLoading ? 'Unlocking...' : 'Continue'}
-              </Button>
-            </form>
-          </div>
-        </div>
-      </div>
-    );
-  };
-  
-  export default UnlockWallet;
 
 /src/public/icon/128.png
   [contents of the file]
@@ -5394,6 +5529,16 @@ File Contents:
       },
       removeWallet: async (walletId: string): Promise<void> => {
         await walletManager.removeWallet(walletId);
+      },
+      setLastActiveAddress: async (address: string) => {
+        await settingsManager.updateSettings({ lastActiveAddress: address });
+      },
+      getLastActiveAddress: async (): Promise<string | undefined> => {
+        const settings = await settingsManager.getSettings();
+        return settings.lastActiveAddress;
+      },
+      getPreviewAddressForType: async (walletId: string, addressType: AddressType): Promise<string> => {
+        return walletManager.getPreviewAddressForType(walletId, addressType);
       },
     };
   }
@@ -7206,6 +7351,7 @@ File Contents:
   export interface KeychainSettings {
     // Original keychain settings:
     lastActiveWalletId?: string;
+    lastActiveAddress?: string;
     autoLockTimeout: number;    // in milliseconds
     connectedWebsites: string[];
   
@@ -7222,6 +7368,7 @@ File Contents:
    */
   const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
     lastActiveWalletId: undefined,
+    lastActiveAddress: undefined,
     autoLockTimeout: 15 * 60 * 1000, // 15 minutes
     connectedWebsites: [],
     showHelpText: false,
@@ -8093,6 +8240,37 @@ File Contents:
       this.setActiveWallet(newWallet.id);
       
       return newWallet;
+    }
+  
+    /**
+     * Gets a preview address for a specific address type for a wallet.
+     * 
+     * @param walletId - The wallet ID
+     * @param addressType - The address type to preview
+     * @returns A Promise that resolves to the preview address
+     * @throws Error if the wallet is locked or not found
+     */
+    public getPreviewAddressForType(walletId: string, addressType: AddressType): string {
+      const secret = sessionManager.getUnlockedSecret(walletId);
+      if (!secret) {
+        throw new Error('Wallet is locked');
+      }
+  
+      const wallet = this.getWalletById(walletId);
+      if (!wallet) {
+        throw new Error('Wallet not found');
+      }
+  
+      if (wallet.type === 'mnemonic') {
+        return getAddressFromMnemonic(
+          secret,
+          `${getDerivationPathForAddressType(addressType)}/0`,
+          addressType
+        );
+      } else {
+        const { key: privateKeyHex, compressed } = JSON.parse(secret);
+        return getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
+      }
     }
   
     // ---------------------------

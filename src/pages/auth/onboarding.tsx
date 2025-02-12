@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IoCreateOutline } from 'react-icons/io5';
-import { FiUpload } from 'react-icons/fi';
+import { FiUpload, FiHelpCircle } from 'react-icons/fi';
 import { Button } from '@/components/button';
 import { useHeader } from '@/contexts/header-context';
 
@@ -13,6 +13,11 @@ function Onboarding() {
     setHeaderProps({
       useLogoTitle: true,
       title: 'Onboarding',
+      rightButton: {
+        icon: <FiHelpCircle className="w-4 h-4" />,
+        onClick: () => window.open('https://youtube.com', '_blank'),
+        ariaLabel: 'Help',
+      },
     });
   }, [setHeaderProps]);
 

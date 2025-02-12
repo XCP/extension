@@ -2,23 +2,19 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaCheck } from 'react-icons/fa';
 import { RadioGroup } from '@headlessui/react';
+import { Loading } from '@/components/loading';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { AddressType } from '@/utils/blockchain/bitcoin';
 import { formatAddress } from '@/utils/format';
-import { getWalletService } from '@/services/walletService';
-import { Loading } from '@/components/loading';
 
 export function AddressTypeSettings() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  // Updated: destructure activeWallet instead of walletState
-  const { activeWallet, reloadWallets } = useWallet();
+  const { activeWallet, updateWalletAddressType, getPreviewAddressForType } = useWallet();
   const [addresses, setAddresses] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
-  const walletService = getWalletService();
 
-  // Use activeWallet directly.
   const currentWallet = activeWallet;
 
   const availableAddressTypes = useMemo(
@@ -40,8 +36,8 @@ export function AddressTypeSettings() {
         const addressMap: { [key: string]: string } = {};
         for (const type of availableAddressTypes) {
           try {
-            const address = await walletService.getAddressForType(currentWallet.id, type, 0);
-            addressMap[type] = address;
+            const previewAddress = await getPreviewAddressForType(currentWallet.id, type);
+            addressMap[type] = previewAddress;
           } catch (error) {
             console.error(`Error generating address for type ${type}:`, error);
             addressMap[type] = '';
@@ -52,14 +48,15 @@ export function AddressTypeSettings() {
       }
     };
     fetchAddresses();
-  }, [currentWallet, availableAddressTypes, walletService]);
+  }, [currentWallet, availableAddressTypes, getPreviewAddressForType]);
 
   const handleAddressTypeChange = async (newType: AddressType) => {
     if (!currentWallet) return;
     try {
       setIsLoading(true);
-      await walletService.updateWalletAddressType(currentWallet.id, newType);
-      await reloadWallets();
+      await updateWalletAddressType(currentWallet.id, newType);
+      const previewAddress = await getPreviewAddressForType(currentWallet.id, newType);
+      setAddresses((prev) => ({ ...prev, [newType]: previewAddress }));
     } catch (error) {
       console.error('Error updating address type:', error);
     } finally {

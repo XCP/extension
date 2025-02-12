@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useHeader } from '@/contexts/header-context';
-import { useWallet } from '@/contexts/wallet-context';
+import { FiHelpCircle } from 'react-icons/fi';
 import { Button } from '@/components/button';
 import { PasswordInput } from '@/components/inputs/password-input';
+import { useHeader } from '@/contexts/header-context';
+import { useWallet } from '@/contexts/wallet-context';
 
 const UnlockWallet = () => {
   const navigate = useNavigate();
@@ -17,7 +18,14 @@ const UnlockWallet = () => {
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setHeaderProps({ useLogoTitle: true });
+    setHeaderProps({
+      useLogoTitle: true,
+      rightButton: {
+        icon: <FiHelpCircle className="w-4 h-4" />,
+        onClick: () => window.open('https://youtube.com', '_blank'),
+        ariaLabel: 'Help',
+      },
+    });
   }, [setHeaderProps]);
 
   useEffect(() => {
@@ -60,15 +68,15 @@ const UnlockWallet = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <PasswordInput
               id="password"
-              inputRef={passwordInputRef}
+              ref={passwordInputRef}
               value={password}
               onChange={handlePasswordChange}
               placeholder="Enter your password"
               error={error}
               ariaLabel="Password"
             />
-            <Button type="submit" fullWidth disabled={isLoading} aria-label="Continue">
-              {isLoading ? 'Unlocking...' : 'Continue'}
+            <Button type="submit" fullWidth disabled={isLoading} aria-label="Unlock">
+              {isLoading ? 'Unlocking...' : 'Unlock'}
             </Button>
           </form>
         </div>

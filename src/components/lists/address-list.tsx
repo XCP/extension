@@ -29,14 +29,22 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress }: Add
 
   return (
     <RadioGroup
-      value={selectedAddress}
-      onChange={onSelectAddress}
+      // Use the address string as the value
+      value={selectedAddress ? selectedAddress.address : ''}
+      onChange={(value: string) => {
+        // Find the corresponding full address object by its unique address string.
+        const selected = addresses.find(addr => addr.address === value);
+        if (selected) {
+          onSelectAddress(selected);
+        }
+      }}
       className="space-y-2"
     >
       {addresses.map((address) => (
         <RadioGroup.Option
           key={address.path}
-          value={address}
+          // Set each option's value to the unique address string
+          value={address.address}
           className="focus:outline-none"
         >
           {({ checked }) => (
@@ -44,11 +52,9 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress }: Add
               onClick={(e) => handleAddressClick(e, address)}
               className={`
                 relative w-full rounded transition duration-300 p-4 cursor-pointer
-                ${
-                  checked
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-blue-100 hover:bg-blue-200 text-gray-800'
-                }
+                ${checked
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-blue-100 hover:bg-blue-200 text-gray-800'}
               `}
             >
               <div className="absolute top-2 right-2 address-menu">
@@ -67,9 +73,7 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress }: Add
                     <FaCheck className="ml-2 text-green-500" aria-hidden="true" />
                   )}
                 </div>
-                <span
-                  className={`text-xs ${checked ? 'text-blue-200' : 'text-gray-500'}`}
-                >
+                <span className={`text-xs ${checked ? 'text-blue-200' : 'text-gray-500'}`}>
                   {address.path}
                 </span>
               </div>
@@ -81,4 +85,4 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress }: Add
   );
 };
 
-export default AddressList; 
+export default AddressList;

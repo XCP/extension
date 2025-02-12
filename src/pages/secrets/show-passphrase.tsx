@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaExclamationTriangle } from 'react-icons/fa';
 import { useHeader } from '@/contexts/header-context';
-import { getWalletService } from '@/services/walletService';
+import { useWallet } from '@/contexts/wallet-context';
 import { Button } from '@/components/button';
 import { ErrorAlert } from '@/components/error-alert';
 import { PasswordInput } from '@/components/inputs/password-input';
@@ -11,7 +11,8 @@ const ShowPassphrase = () => {
   const { walletId } = useParams<{ walletId: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const walletService = getWalletService();
+  // Get the wallet-related methods from context:
+  const { unlockWallet, getUnencryptedMnemonic } = useWallet();
 
   const [password, setPassword] = useState('');
   const [passphrase, setPassphrase] = useState('');
@@ -55,11 +56,8 @@ const ShowPassphrase = () => {
       return false;
     }
     try {
-      const valid = await walletService.verifyPassword(password);
-      if (!valid) {
-        setPasswordError('Incorrect password.');
-        return false;
-      }
+      // Attempt to unlock via context; if wrong, this should throw.
+      await unlockWallet(walletId, password);
     } catch {
       setPasswordError('Incorrect password.');
       return false;
@@ -71,10 +69,8 @@ const ShowPassphrase = () => {
     setIsLoading(true);
     try {
       if (!walletId) throw new Error('Wallet ID is required.');
-      // Unlock the wallet using the wallet service.
-      await walletService.unlockWallet(walletId, password);
-      // Retrieve the decrypted mnemonic via a helper method on the wallet service.
-      const mnemonic = await walletService.getUnencryptedMnemonic(walletId);
+      // After unlocking (done in validateForm), retrieve the mnemonic via the context.
+      const mnemonic = await getUnencryptedMnemonic(walletId);
       if (mnemonic) {
         setPassphrase(mnemonic);
         setIsConfirmed(true);

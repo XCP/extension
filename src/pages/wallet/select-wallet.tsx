@@ -11,7 +11,7 @@ import type { Wallet } from '@/utils/wallet';
 function SelectWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets, activeWallet, setActiveWallet, reloadWallets } = useWallet();
+  const { wallets, activeWallet, setActiveWallet } = useWallet();
   const { showError } = useToast();
 
   const handleAddWallet = () => {
@@ -22,14 +22,9 @@ function SelectWallet() {
     navigate('/add-wallet');
   };
 
-  const handleSelectWalletInternal = (wallet: Wallet) => {
-    // If the wallet has no derived addresses, assume it's locked.
-    if (wallet.addresses.length === 0) {
-      navigate('/unlock-wallet');
-    } else {
-      setActiveWallet(wallet);
-      navigate('/index');
-    }
+  const handleSelectWalletInternal = async (wallet: Wallet) => {
+    await setActiveWallet(wallet);
+    navigate('/index');
   };
 
   useEffect(() => {
@@ -42,9 +37,7 @@ function SelectWallet() {
         ariaLabel: 'Add Wallet',
       },
     });
-    // Update the wallet list on mount
-    reloadWallets();
-  }, [setHeaderProps, navigate, reloadWallets]);
+  }, [setHeaderProps, navigate]);
 
   return (
     <div className="flex flex-col h-full" role="main" aria-labelledby="wallet-selection-title">

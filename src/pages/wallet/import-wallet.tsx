@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { Input as HeadlessInput } from '@headlessui/react';
@@ -10,14 +10,13 @@ import { PasswordInput } from '@/components/inputs/password-input';
 import { useHeader } from '@/contexts/header-context';
 import { useToast } from '@/contexts/toast-context';
 import { useWallet } from '@/contexts/wallet-context';
-import { getWalletService } from '@/services/walletService';
 import { AddressType } from '@/utils/blockchain/bitcoin';
 import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
 
 function ImportWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { unlockWallet, wallets } = useWallet();
+  const { unlockWallet, wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
   const { showError } = useToast();
   const walletExists = wallets.length > 0;
 
@@ -26,7 +25,6 @@ function ImportWallet() {
   const [showMnemonic, setShowMnemonic] = useState(false);
   const [password, setPassword] = useState('');
 
-  // Refs for each mnemonic word input
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -42,7 +40,6 @@ function ImportWallet() {
   }, [navigate, setHeaderProps, showMnemonic, walletExists]);
 
   useEffect(() => {
-    // Focus the first input field on mount
     inputRefs.current[0]?.focus();
   }, []);
 
@@ -108,8 +105,7 @@ function ImportWallet() {
       return false;
     }
     if (walletExists) {
-      const ws = getWalletService();
-      const isValid = await ws.verifyPassword(password);
+      const isValid = await verifyPassword(password);
       if (!isValid) {
         showError('Password does not match.');
         return false;
@@ -129,8 +125,7 @@ function ImportWallet() {
         const addressType = isValidCounterwalletMnemonic(mnemonic)
           ? AddressType.Counterwallet
           : AddressType.P2WPKH;
-        const ws = getWalletService();
-        const newWallet = await ws.createMnemonicWallet(mnemonic, password, undefined, addressType);
+        const newWallet = await createAndUnlockMnemonicWallet(mnemonic, password, undefined, addressType);
         await unlockWallet(newWallet.id, password);
         navigate('/index');
       } catch (error: unknown) {

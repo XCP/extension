@@ -5,7 +5,6 @@ import { Field, Label, Input, Description } from '@headlessui/react';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { Button } from '@/components/button';
-import { getWalletService } from '@/services/walletService';
 import { useSettings } from '@/contexts/settings-context';
 
 export function SecuritySettings() {
@@ -18,9 +17,8 @@ export function SecuritySettings() {
   const [success, setSuccess] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const { setHeaderProps } = useHeader();
-  const { reloadWallets } = useWallet();
+  const { lockAll, updatePassword } = useWallet();
   const navigate = useNavigate();
-  const walletService = getWalletService();
   const { settings } = useSettings();
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
 
@@ -61,8 +59,11 @@ export function SecuritySettings() {
         throw new Error('New passwords do not match');
       }
 
-      await walletService.updatePassword(passwordForm.currentPassword, passwordForm.newPassword);
-      await reloadWallets();
+      await updatePassword(
+        passwordForm.currentPassword,
+        passwordForm.newPassword
+      );
+      await lockAll();
 
       setPasswordForm({
         currentPassword: '',
@@ -79,7 +80,9 @@ export function SecuritySettings() {
     }
   };
 
-  const shouldShowHelpText = isHelpTextOverride ? !settings.showHelpText : settings.showHelpText;
+  const shouldShowHelpText = isHelpTextOverride
+    ? !settings.showHelpText
+    : settings.showHelpText;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !isLoading && isFormValid()) {
@@ -90,7 +93,10 @@ export function SecuritySettings() {
   return (
     <div className="space-y-6 p-4">
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded" role="alert">
+        <div
+          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded"
+          role="alert"
+        >
           {error}
         </div>
       )}
@@ -107,7 +113,10 @@ export function SecuritySettings() {
           type="password"
           value={passwordForm.currentPassword}
           onChange={(e) =>
-            setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))
+            setPasswordForm((prev) => ({
+              ...prev,
+              currentPassword: e.target.value,
+            }))
           }
           onKeyDown={handleKeyDown}
           className="w-full p-2 border rounded-md mt-2"
@@ -126,7 +135,10 @@ export function SecuritySettings() {
           type="password"
           value={passwordForm.newPassword}
           onChange={(e) =>
-            setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))
+            setPasswordForm((prev) => ({
+              ...prev,
+              newPassword: e.target.value,
+            }))
           }
           onKeyDown={handleKeyDown}
           className="w-full p-2 border rounded-md mt-2"
@@ -145,7 +157,10 @@ export function SecuritySettings() {
           type="password"
           value={passwordForm.confirmPassword}
           onChange={(e) =>
-            setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))
+            setPasswordForm((prev) => ({
+              ...prev,
+              confirmPassword: e.target.value,
+            }))
           }
           onKeyDown={handleKeyDown}
           className="w-full p-2 border rounded-md mt-2"

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaSync, FaEyeSlash } from 'react-icons/fa';
 import { Button } from '@/components/button';
@@ -7,13 +7,12 @@ import { PasswordInput } from '@/components/inputs/password-input';
 import { useHeader } from '@/contexts/header-context';
 import { useToast } from '@/contexts/toast-context';
 import { useWallet } from '@/contexts/wallet-context';
-import { generateNewMnemonic } from '@/utils/blockchain/bitcoin';
-import { getWalletService } from '@/services/walletService';
+import { generateNewMnemonic, AddressType } from '@/utils/blockchain/bitcoin';
 
 function CreateWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets, reloadWallets } = useWallet();
+  const { wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
   const { showError, clearAll } = useToast();
   const walletExists = wallets.length > 0;
 
@@ -23,7 +22,6 @@ function CreateWallet() {
   const [isRecoveryPhraseVisible, setIsRecoveryPhraseVisible] = useState(false);
   const [password, setPassword] = useState('');
 
-  // Generate a new mnemonic and reset the form
   function generateWallet() {
     const newMnemonic = generateNewMnemonic();
     setMnemonic(newMnemonic);
@@ -33,8 +31,10 @@ function CreateWallet() {
   }
 
   useEffect(() => {
-    generateWallet();
-    // Configure the header for the create wallet page
+    if (!mnemonic) {
+      generateWallet();
+    }
+    
     setHeaderProps({
       title: 'Create Wallet',
       onBack: () => navigate(walletExists ? '/add-wallet' : '/onboarding'),
@@ -44,7 +44,7 @@ function CreateWallet() {
         ariaLabel: 'Generate new recovery phrase',
       },
     });
-  }, [navigate, walletExists, setHeaderProps]);
+  }, [navigate, walletExists, setHeaderProps, mnemonic]);
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(e.target.value);
@@ -77,8 +77,7 @@ function CreateWallet() {
       return false;
     }
     if (walletExists) {
-      const ws = getWalletService();
-      const isValid = await ws.verifyPassword(password);
+      const isValid = await verifyPassword(password);
       if (!isValid) {
         showError('Password does not match.');
         return false;
@@ -94,10 +93,8 @@ function CreateWallet() {
     if (e) e.preventDefault();
     if (await validateForm()) {
       try {
-        const ws = getWalletService();
-        await ws.createAndUnlockMnemonicWallet(mnemonic, password);
-        await reloadWallets();
         clearAll();
+        await createAndUnlockMnemonicWallet(mnemonic, password);
         navigate('/index');
       } catch (err: unknown) {
         console.error('Error creating wallet:', err);

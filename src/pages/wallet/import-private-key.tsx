@@ -1,22 +1,22 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiChevronDown } from 'react-icons/fi';
 import { Button } from '@/components/button';
 import { CheckboxInput } from '@/components/inputs/checkbox-input';
 import { PasswordInput } from '@/components/inputs/password-input';
 import { useHeader } from '@/contexts/header-context';
-import { useWallet } from '@/contexts/wallet-context';
 import { useToast } from '@/contexts/toast-context';
+import { useWallet } from '@/contexts/wallet-context';
 import { AddressType } from '@/utils/blockchain/bitcoin/address';
-import { getWalletService } from '@/services/walletService';
+import { useState as useLocalState } from 'react'; // (if needed)
+import { useMemo as useLocalMemo } from 'react'; // (if needed)
 
 export const ImportPrivateKey = () => {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets, reloadWallets } = useWallet();
+  const { wallets, createAndUnlockPrivateKeyWallet, verifyPassword } = useWallet();
   const { showError } = useToast();
 
-  // State
   const [privateKey, setPrivateKey] = useState('');
   const [addressType, setAddressType] = useState<AddressType>(AddressType.P2PKH);
   const [isConfirmed, setIsConfirmed] = useState(false);
@@ -25,12 +25,10 @@ export const ImportPrivateKey = () => {
   const [privateKeyError, setPrivateKeyError] = useState('');
   const [submissionError, setSubmissionError] = useState('');
 
-  // Refs
   const privateKeyInputRef = useRef<HTMLInputElement>(null);
 
-  const walletExists = wallets && wallets.length > 0;
+  const walletExists = wallets.length > 0;
 
-  // Called once on mount
   useEffect(() => {
     setHeaderProps({
       title: 'Import Key',
@@ -38,17 +36,10 @@ export const ImportPrivateKey = () => {
     });
   }, [setHeaderProps, navigate, walletExists]);
 
-  // Focus the input on mount
   useEffect(() => {
     privateKeyInputRef.current?.focus();
   }, []);
 
-  // Reload wallet list on mount
-  useEffect(() => {
-    reloadWallets();
-  }, [reloadWallets]);
-
-  // Track privateKey length changes
   const [prevPkLen, setPrevPkLen] = useState(0);
   useEffect(() => {
     const currentLen = privateKey.trim().length;
@@ -57,15 +48,12 @@ export const ImportPrivateKey = () => {
     }
   }, [privateKey, prevPkLen]);
 
-  // True if user has typed at least 20 chars
   const isPrivateKeyValid = useMemo(() => {
     return privateKey.trim().length >= 20;
   }, [privateKey]);
 
-  // Basic password check
   const isPasswordValid = (pw: string): boolean => pw.length >= 8;
 
-  // Handlers
   const handlePrivateKeyChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setPrivateKey(e.target.value);
     setPrivateKeyError('');
@@ -88,7 +76,6 @@ export const ImportPrivateKey = () => {
     setSubmissionError('');
   };
 
-  // This is used to disable the submit button
   const canSubmit = (): boolean => {
     return (
       isConfirmed &&
@@ -98,60 +85,39 @@ export const ImportPrivateKey = () => {
     );
   };
 
-  // Validate form input
   const validateForm = async (): Promise<boolean> => {
     setPrivateKeyError('');
     setPasswordError('');
     setSubmissionError('');
 
     const trimmedKey = privateKey.trim();
-
-    // 1. Check private key presence
     if (!trimmedKey) {
       setPrivateKeyError('Private key is required');
       return false;
     }
-
-    // 2. Check format
     if (!/^[0-9a-fA-F]{64}$|^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(trimmedKey)) {
-      setPrivateKeyError(
-        'Invalid private key format. Please enter a valid WIF or hexadecimal private key.'
-      );
+      setPrivateKeyError('Invalid private key format. Please enter a valid WIF or hexadecimal private key.');
       return false;
     }
-
-    // 3. Check backup confirmation
     if (!isConfirmed) {
       setSubmissionError('Please confirm you have backed up your private key');
       return false;
     }
-
-    // 4. Check password presence
     if (!password) {
       setPasswordError('Password is required');
       return false;
     }
-
-    const walletService = getWalletService();
-    const valid = await walletService.verifyPassword(password);
-    if (!valid) {
+    const isValid = await verifyPassword(password);
+    if (!isValid) {
       setPasswordError('Invalid password');
       return false;
     }
-
     return true;
   };
 
-  // Actually create the wallet
   const createWallet = async (): Promise<void> => {
     try {
-      const walletService = getWalletService();
-      await walletService.createAndUnlockPrivateKeyWallet(
-        privateKey.trim(),
-        password,
-        undefined,
-        addressType
-      );
+      await createAndUnlockPrivateKeyWallet(privateKey.trim(), password, undefined, addressType);
       navigate('/index');
     } catch (error) {
       let errorMessage = 'Failed to import private key. ';
@@ -171,7 +137,6 @@ export const ImportPrivateKey = () => {
     }
   };
 
-  // Submit handler
   const handleSubmit = async (e?: React.FormEvent): Promise<void> => {
     if (e) e.preventDefault();
     const isValid = await validateForm();

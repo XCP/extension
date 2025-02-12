@@ -2,16 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaExclamationTriangle } from 'react-icons/fa';
 import { useHeader } from '@/contexts/header-context';
-import { getWalletService } from '@/services/walletService';
 import { Button } from '@/components/button';
 import { ErrorAlert } from '@/components/error-alert';
 import { PasswordInput } from '@/components/inputs/password-input';
+import { useWallet } from '@/contexts/wallet-context';
 
 const ShowPrivateKey = () => {
   const { walletId, addressPath } = useParams<{ walletId: string; addressPath?: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const walletService = getWalletService();
+  const { unlockWallet, getPrivateKey, verifyPassword, wallets } = useWallet();
 
   const [password, setPassword] = useState('');
   const [privateKey, setPrivateKey] = useState('');
@@ -24,27 +24,19 @@ const ShowPrivateKey = () => {
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const fetchWalletType = async () => {
-      if (!walletId) return;
-      try {
-        const wallet = await walletService.getWalletById(walletId);
-        if (!wallet) {
-          setSubmissionError('Wallet not found.');
-          return;
-        }
+    if (walletId) {
+      const wallet = wallets.find(w => w.id === walletId);
+      if (!wallet) {
+        setSubmissionError('Wallet not found.');
+      } else {
         setWalletType(wallet.type);
-      } catch (err) {
-        console.error('Error fetching wallet:', err);
-        setSubmissionError('Failed to fetch wallet information.');
       }
-    };
-    fetchWalletType();
-
+    }
     setHeaderProps({
       title: 'Show Private Key',
       onBack: () => navigate(-1),
     });
-  }, [walletId, setHeaderProps, navigate, walletService]);
+  }, [walletId, wallets, setHeaderProps, navigate]);
 
   useEffect(() => {
     passwordInputRef.current?.focus();
@@ -72,7 +64,7 @@ const ShowPrivateKey = () => {
       return false;
     }
     try {
-      await walletService.verifyPassword(password);
+      await verifyPassword(password);
     } catch {
       setPasswordError('Incorrect password.');
       return false;
@@ -88,12 +80,12 @@ const ShowPrivateKey = () => {
     setIsLoading(true);
     try {
       if (!walletId) throw new Error('Wallet ID is required.');
-      await walletService.unlockWallet(walletId, password);
+      await unlockWallet(walletId, password);
       let privKey: string;
       if (walletType === 'privateKey') {
-        privKey = await walletService.getPrivateKey(walletId);
+        privKey = await getPrivateKey(walletId);
       } else {
-        privKey = await walletService.getPrivateKey(walletId, decodeURIComponent(addressPath!));
+        privKey = await getPrivateKey(walletId, decodeURIComponent(addressPath!));
       }
       setPrivateKey(privKey);
       setIsConfirmed(true);

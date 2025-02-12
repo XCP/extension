@@ -6,29 +6,26 @@ import { AddressList } from '@/components/lists/address-list';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
 import type { Address } from '@/utils/wallet';
-import { getWalletService } from '@/services/walletService';
 
 export function AddressSelection() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { activeWallet, activeAddress, setActiveAddress, reloadWallets } = useWallet();
+  const { activeWallet, activeAddress, setActiveAddress, addAddress } = useWallet();
 
   const handleAddAddress = async () => {
     if (!activeWallet?.id) return;
     if (activeWallet.type !== 'mnemonic') return;
-    if (!activeWallet.addresses?.length || activeWallet.addresses.length >= 10) return;
+    if (activeWallet.addresses.length >= 20) return;
 
     try {
-      const walletService = getWalletService();
-      await walletService.addAddress(activeWallet.id);
-      await reloadWallets();
+      await addAddress(activeWallet.id);
     } catch (error) {
       console.error('Failed to add address:', error);
     }
   };
 
   const handleSelectAddress = async (address: Address) => {
-    setActiveAddress(address);
+    await setActiveAddress(address);
     navigate('/index');
   };
 
@@ -49,7 +46,9 @@ export function AddressSelection() {
   return (
     <div className="flex flex-col h-full" role="main" aria-labelledby="address-selection-title">
       <div className="flex-grow overflow-y-auto p-4">
-        <h2 id="address-selection-title" className="sr-only">Select an Address</h2>
+        <h2 id="address-selection-title" className="sr-only">
+          Select an Address
+        </h2>
         <AddressList
           addresses={activeWallet.addresses}
           selectedAddress={activeAddress}
@@ -61,7 +60,7 @@ export function AddressSelection() {
           color="green"
           fullWidth
           onClick={handleAddAddress}
-          disabled={activeWallet.addresses.length >= 10}
+          disabled={activeWallet.addresses.length >= 20}
           aria-label="Add Address"
         >
           <FaPlus className="mr-2" aria-hidden="true" />

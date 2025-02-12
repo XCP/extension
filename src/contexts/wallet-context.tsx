@@ -1,8 +1,15 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
-import { getWalletService } from '@/services/walletService';
-import type { Wallet, Address } from '@/utils/wallet';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  ReactNode,
+} from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { useToast } from '@/contexts/toast-context';
+import { getWalletService } from '@/services/walletService';
+import { AddressType } from '@/utils/blockchain/bitcoin/address';
+import type { Wallet, Address } from '@/utils/wallet';
 
 interface WalletContextType {
   wallets: Wallet[];
@@ -12,16 +19,35 @@ interface WalletContextType {
   loaded: boolean;
   unlockWallet: (walletId: string, password: string) => Promise<void>;
   lockAll: () => Promise<void>;
-  reloadWallets: () => Promise<void>;
-  setActiveWallet: (wallet: Wallet | null) => void;
-  setActiveAddress: (address: Address | null) => void;
+  setActiveWallet: (wallet: Wallet | null) => Promise<void>;
+  setActiveAddress: (address: Address | null) => Promise<void>;
+  addAddress: (walletId: string) => Promise<void>;
+  updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  createAndUnlockMnemonicWallet: (
+    mnemonic: string,
+    password: string,
+    name?: string,
+    addressType?: AddressType
+  ) => Promise<Wallet>;
+  createAndUnlockPrivateKeyWallet: (
+    privateKey: string,
+    password: string,
+    name?: string,
+    addressType?: AddressType
+  ) => Promise<Wallet>;
+  resetAllWallets: (password: string) => Promise<void>;
+  getUnencryptedMnemonic: (walletId: string) => Promise<string>;
+  getPrivateKey: (walletId: string, pathIndex?: number) => Promise<string>;
+  verifyPassword: (password: string) => Promise<boolean>;
+  updateWalletAddressType: (walletId: string, newType: AddressType) => Promise<void>;
+  getPreviewAddressForType: (walletId: string, addressType: AddressType) => Promise<string>;
+  removeWallet: (walletId: string) => Promise<void>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const walletService = getWalletService();
-  const { showInfo } = useToast();
   const { dispatch: authDispatch } = useAuth();
 
   const [wallets, setWallets] = useState<Wallet[]>([]);
@@ -30,13 +56,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [walletLocked, setWalletLocked] = useState<boolean>(true);
   const [loaded, setLoaded] = useState<boolean>(false);
 
-  const reloadWallets = useCallback(async () => {
+  // Consolidate the state-refresh logic into one helper.
+  const refreshWalletState = useCallback(async () => {
     try {
       await walletService.loadWallets();
       const allWallets = await walletService.getWallets();
       setWallets(allWallets);
-      // Dispatch event for auth
       authDispatch({ type: 'WALLETS_LOADED', walletExists: allWallets.length > 0 });
+
       if (allWallets.length > 0) {
         let active = await walletService.getActiveWallet();
         if (!active) {
@@ -44,12 +71,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           walletService.setActiveWallet(active.id);
         }
         setActiveWalletState(active);
-        setActiveAddressState((prevActive) => {
-          if (prevActive && active.addresses.some(addr => addr.address === prevActive.address)) {
-            return prevActive;
-          }
-          return active.addresses[0] || null;
-        });
+
+        const lastActiveAddress = await walletService.getLastActiveAddress();
+        setActiveAddressState(
+          lastActiveAddress &&
+            active.addresses.some((addr) => addr.address === lastActiveAddress)
+            ? active.addresses.find((addr) => addr.address === lastActiveAddress) || active.addresses[0]
+            : active.addresses[0] || null
+        );
+
         const anyUnlocked = await walletService.isAnyWalletUnlocked();
         setWalletLocked(!anyUnlocked);
         authDispatch({ type: anyUnlocked ? 'WALLET_UNLOCKED' : 'WALLET_LOCKED' });
@@ -60,26 +90,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         authDispatch({ type: 'WALLET_LOCKED' });
       }
     } catch (error) {
-      console.error('Failed to reload wallets:', error);
-      setWallets([]);
-      setActiveWalletState(null);
-      setActiveAddressState(null);
-      setWalletLocked(true);
-      authDispatch({ type: 'WALLETS_LOADED', walletExists: false });
+      console.error('Error refreshing wallet state:', error);
     } finally {
       setLoaded(true);
     }
   }, [walletService, authDispatch]);
 
+  // Initial load on mount
   useEffect(() => {
-    reloadWallets();
-  }, [reloadWallets]);
+    refreshWalletState();
+  }, [refreshWalletState]);
 
-  // Update UI state on auto‑lock by integrating the auth dispatch.
+  // Set up auto-lock handler
   useEffect(() => {
     const originalOnAutoLock = walletService.onAutoLock;
     walletService.onAutoLock = async () => {
-      showInfo('Wallet auto-locked due to inactivity');
       setWalletLocked(true);
       setActiveWalletState(null);
       setActiveAddressState(null);
@@ -88,53 +113,107 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return () => {
       walletService.onAutoLock = originalOnAutoLock;
     };
-  }, [walletService, showInfo, authDispatch]);
+  }, [walletService, authDispatch]);
 
-  const unlockWallet = useCallback(
-    async (walletId: string, password: string) => {
-      try {
-        await walletService.unlockWallet(walletId, password);
-        const wallet = await walletService.getWalletById(walletId);
-        setActiveWalletState(wallet || null);
-        if (wallet && wallet.addresses && wallet.addresses.length > 0) {
-          setActiveAddressState(wallet.addresses[0]);
-        }
-        setWalletLocked(false);
-        authDispatch({ type: 'WALLET_UNLOCKED' });
-      } catch (error) {
-        console.error('Error unlocking wallet:', error);
-        throw error;
-      }
-    },
-    [walletService, authDispatch]
-  );
+  // Now refactor callbacks to be thin – call the service and then refresh.
+  const unlockWallet = useCallback(async (walletId: string, password: string) => {
+    try {
+      await walletService.unlockWallet(walletId, password);
+      await refreshWalletState();
+    } catch (error) {
+      console.error('Error unlocking wallet:', error);
+      throw error;
+    }
+  }, [walletService, refreshWalletState]);
 
   const lockAll = useCallback(async () => {
     walletService.lockAllWallets();
-    setWalletLocked(true);
-    setActiveWalletState(null);
-    setActiveAddressState(null);
-    authDispatch({ type: 'WALLET_LOCKED' });
-  }, [walletService, authDispatch]);
+    await refreshWalletState();
+  }, [walletService, refreshWalletState]);
 
-  const setActiveWallet = useCallback(
-    (wallet: Wallet | null) => {
-      if (wallet) {
-        walletService.setActiveWallet(wallet.id);
-        setActiveWalletState(wallet);
-        setActiveAddressState(wallet.addresses[0] || null);
-      } else {
-        walletService.setActiveWallet(null);
-        setActiveWalletState(null);
-        setActiveAddressState(null);
-      }
-    },
-    [walletService]
-  );
+  const setActiveWallet = useCallback(async (wallet: Wallet | null) => {
+    if (wallet) {
+      await walletService.setActiveWallet(wallet.id);
+    } else {
+      await walletService.setActiveWallet('');
+    }
+    await refreshWalletState();
+  }, [walletService, refreshWalletState]);
 
-  const setActiveAddress = useCallback((address: Address | null) => {
+  const setActiveAddress = useCallback(async (address: Address | null) => {
     setActiveAddressState(address);
-  }, []);
+    if (address) {
+      await walletService.setLastActiveAddress(address.address);
+    }
+  }, [walletService]);
+
+  const addAddress = useCallback(async (walletId: string) => {
+    try {
+      await walletService.addAddress(walletId);
+      await refreshWalletState();
+    } catch (error) {
+      console.error('Failed to add address:', error);
+      throw error;
+    }
+  }, [walletService, refreshWalletState]);
+
+  const updatePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    await walletService.updatePassword(currentPassword, newPassword);
+    await refreshWalletState();
+  }, [walletService, refreshWalletState]);
+
+  const createAndUnlockMnemonicWallet = useCallback(async (
+    mnemonic: string,
+    password: string,
+    name?: string,
+    addressType: AddressType = AddressType.P2WPKH
+  ) => {
+    const wallet = await walletService.createAndUnlockMnemonicWallet(mnemonic, password, name, addressType);
+    await refreshWalletState();
+    return wallet;
+  }, [walletService, refreshWalletState]);
+
+  const createAndUnlockPrivateKeyWallet = useCallback(async (
+    privateKey: string,
+    password: string,
+    name?: string,
+    addressType: AddressType = AddressType.P2WPKH
+  ) => {
+    const wallet = await walletService.createAndUnlockPrivateKeyWallet(privateKey, password, name, addressType);
+    await refreshWalletState();
+    return wallet;
+  }, [walletService, refreshWalletState]);
+
+  const resetAllWallets = useCallback(async (password: string) => {
+    await walletService.resetAllWallets(password);
+    await refreshWalletState();
+  }, [walletService, refreshWalletState]);
+
+  const removeWallet = useCallback(async (walletId: string) => {
+    await walletService.removeWallet(walletId);
+    await refreshWalletState();
+  }, [walletService, refreshWalletState]);
+
+  const getUnencryptedMnemonic = useCallback(async (walletId: string): Promise<string> => {
+    return walletService.getUnencryptedMnemonic(walletId);
+  }, [walletService]);
+
+  const getPrivateKey = useCallback(async (walletId: string, pathIndex: number = 0): Promise<string> => {
+    return walletService.getPrivateKey(walletId, pathIndex);
+  }, [walletService]);
+
+  const verifyPassword = useCallback(async (password: string): Promise<boolean> => {
+    return walletService.verifyPassword(password);
+  }, [walletService]);
+
+  const updateWalletAddressType = useCallback(async (walletId: string, newType: AddressType): Promise<void> => {
+    await walletService.updateWalletAddressType(walletId, newType);
+    await refreshWalletState();
+  }, [walletService, refreshWalletState]);
+
+  const getPreviewAddressForType = useCallback(async (walletId: string, addressType: AddressType): Promise<string> => {
+    return walletService.getPreviewAddressForType(walletId, addressType);
+  }, [walletService]);
 
   const value: WalletContextType = {
     wallets,
@@ -144,9 +223,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     loaded,
     unlockWallet,
     lockAll,
-    reloadWallets,
     setActiveWallet,
     setActiveAddress,
+    addAddress,
+    updatePassword,
+    createAndUnlockMnemonicWallet,
+    createAndUnlockPrivateKeyWallet,
+    resetAllWallets,
+    getUnencryptedMnemonic,
+    getPrivateKey,
+    verifyPassword,
+    updateWalletAddressType,
+    getPreviewAddressForType,
+    removeWallet,
   };
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
