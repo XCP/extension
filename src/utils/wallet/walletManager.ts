@@ -2,39 +2,15 @@ import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, bytesToHex } from '@noble/hashes/utils';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
-
 import * as sessionManager from '@/utils/auth/sessionManager';
 import { settingsManager } from '@/utils/wallet';
-
-import {
-  getAllEncryptedWallets,
-  addEncryptedWallet,
-  updateEncryptedWallet,
-  removeEncryptedWalletRecord,
-  EncryptedWalletRecord,
-} from '@/utils/storage/walletStorage';
-
-import {
-  encryptMnemonic,
-  decryptMnemonic,
-  encryptPrivateKey,
-  decryptPrivateKey,
-  DecryptionError,
-} from '@/utils/encryption';
-
-import {
-  AddressType,
-  getAddressFromMnemonic,
-  getPrivateKeyFromMnemonic,
-  getAddressFromPrivateKey,
-  getPublicKeyFromPrivateKey,
-  decodeWIF,
-  isWIF,
-  getDerivationPathForAddressType,
-} from '@/utils/blockchain/bitcoin';
-
+import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, removeEncryptedWalletRecord, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
+import { encryptMnemonic, decryptMnemonic, encryptPrivateKey, decryptPrivateKey, DecryptionError } from '@/utils/encryption';
+import { AddressType, getAddressFromMnemonic, getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, getDerivationPathForAddressType } from '@/utils/blockchain/bitcoin';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
 import { KeychainSettings } from '@/utils/storage/settingsStorage';
+import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
+import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 
 export interface Address {
   name: string;
@@ -61,7 +37,6 @@ export class WalletManager {
   private wallets: Wallet[] = [];
   private activeWalletId: string | null = null;
 
-  // Session-related methods are wrapped here.
   public get onAutoLock(): (() => void) | undefined {
     return sessionManager.onAutoLock;
   }
@@ -130,8 +105,15 @@ export class WalletManager {
   public getWalletById(id: string): Wallet | undefined {
     return this.wallets.find((w) => w.id === id);
   }
-  public getUnlockedSecret(walletId: string): string | null {
-    return sessionManager.getUnlockedSecret(walletId);
+  // New method: getWallet (convenience wrapper)
+  public getWallet(walletId: string): Wallet | undefined {
+    return this.getWalletById(walletId);
+  }
+  // New method: getUnencryptedMnemonic
+  public getUnencryptedMnemonic(walletId: string): string {
+    const secret = sessionManager.getUnlockedSecret(walletId);
+    if (!secret) throw new Error("Wallet secret not found or locked");
+    return secret;
   }
   public async createMnemonicWallet(
     mnemonic: string,
@@ -249,7 +231,6 @@ export class WalletManager {
       }
       this.activeWalletId = walletId;
     } catch (err) {
-      console.error('Failed to unlock wallet', err);
       if (err instanceof DecryptionError) throw err;
       throw new Error('Invalid password or corrupted data.');
     }
@@ -348,7 +329,7 @@ export class WalletManager {
   }
   public async updateWalletAddressType(walletId: string, newType: AddressType): Promise<void> {
     const wallet = this.getWalletById(walletId);
-    if (!wallet) throw new Error('Wallet not found.');
+    if (!wallet) throw new Error('Wallet not found');
     if (wallet.type !== 'mnemonic') {
       throw new Error('Only mnemonic wallets can change address type.');
     }
@@ -376,19 +357,22 @@ export class WalletManager {
     record.pinnedAssetBalances = pinned;
     await updateEncryptedWallet(record);
   }
-  public async getPrivateKey(walletId: string, pathIndex = 0): Promise<string> {
+  public async getPrivateKey(walletId: string, derivationPath?: string): Promise<string> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found.');
     const secret = sessionManager.getUnlockedSecret(walletId);
     if (!secret) throw new Error('Wallet is locked.');
     if (wallet.type === 'mnemonic') {
-      const path = `${getDerivationPathForAddressType(wallet.addressType)}/${pathIndex}`;
+      // Use the provided derivationPath or fallback to the first address’s path
+      const path =
+        derivationPath ||
+        (wallet.addresses[0]?.path ?? `${getDerivationPathForAddressType(wallet.addressType)}/0`);
       return getPrivateKeyFromMnemonic(secret, path, wallet.addressType);
     } else {
       const { key: privateKeyHex } = JSON.parse(secret);
       return privateKeyHex;
     }
-  }
+  }  
   public async createAndUnlockMnemonicWallet(
     mnemonic: string,
     password: string,
@@ -420,37 +404,33 @@ export class WalletManager {
   }
   public getPreviewAddressForType(walletId: string, addressType: AddressType): string {
     const secret = sessionManager.getUnlockedSecret(walletId);
-    
     if (!secret) {
       throw new Error('Wallet is locked');
     }
-
     const wallet = this.getWalletById(walletId);
     if (!wallet) {
       throw new Error('Wallet not found');
     }
-
-    try {
-      if (wallet.type === 'mnemonic') {
-        return getAddressFromMnemonic(
-          secret,
-          `${getDerivationPathForAddressType(addressType)}/0`,
-          addressType
-        );
-      } else {
-        const { key: privateKeyHex, compressed } = JSON.parse(secret);
-        return getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
-      }
-    } catch (error) {
-      console.error('Error generating preview address:', error);
-      throw error;
+    if (wallet.type === 'mnemonic') {
+      return getAddressFromMnemonic(
+        secret,
+        `${getDerivationPathForAddressType(addressType)}/0`,
+        addressType
+      );
+    } else {
+      const { key: privateKeyHex, compressed } = JSON.parse(secret);
+      return getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
     }
   }
+  public async signTransaction(rawTxHex: string, sourceAddress: string): Promise<string> {
+    if (!this.activeWalletId) throw new Error("No active wallet set");
+    return btcSignTransaction(rawTxHex, this.activeWalletId, sourceAddress);
+  }
+  public async broadcastTransaction(signedTxHex: string): Promise<{ txid: string; fees?: number }> {
+    return btcBroadcastTransaction(signedTxHex);
+  }
   private async generateWalletId(mnemonic: string, addressType: AddressType): Promise<string> {
-    const seed =
-      addressType === AddressType.Counterwallet
-        ? getCounterwalletSeed(mnemonic)
-        : mnemonicToSeedSync(mnemonic);
+    const seed = addressType === AddressType.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
     const derivationPath = getDerivationPathForAddressType(addressType);
     const pathParts = derivationPath.split('/').slice(0, -1).join('/');
     const root = HDKey.fromMasterSeed(seed);
@@ -474,10 +454,7 @@ export class WalletManager {
   private deriveMnemonicAddress(mnemonic: string, addressType: AddressType, index: number): Address {
     const path = `${getDerivationPathForAddressType(addressType)}/${index}`;
     const address = getAddressFromMnemonic(mnemonic, path, addressType);
-    const seed =
-      addressType === AddressType.Counterwallet
-        ? getCounterwalletSeed(mnemonic)
-        : mnemonicToSeedSync(mnemonic);
+    const seed = addressType === AddressType.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
     const root = HDKey.fromMasterSeed(seed);
     const child = root.derive(path);
     if (!child.publicKey) {
@@ -492,19 +469,15 @@ export class WalletManager {
     };
   }
   private deriveAddressFromPrivateKey(privKeyData: string, addressType: AddressType): Address {
-    try {
-      const { key: privateKeyHex, compressed } = JSON.parse(privKeyData);
-      const address = getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
-      const pubKey = getPublicKeyFromPrivateKey(privateKeyHex, compressed);
-      return {
-        name: 'Address 1',
-        path: '',
-        address,
-        pubKey,
-      };
-    } catch (err) {
-      throw new Error('Invalid privateKey JSON');
-    }
+    const { key: privateKeyHex, compressed } = JSON.parse(privKeyData);
+    const address = getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
+    const pubKey = getPublicKeyFromPrivateKey(privateKeyHex, compressed);
+    return {
+      name: 'Address 1',
+      path: '',
+      address,
+      pubKey,
+    };
   }
 }
 

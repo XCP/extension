@@ -141,7 +141,7 @@ const ShowPassphrase = () => {
           <div className="w-full max-w-md space-y-4">
             <div className="text-center mb-6">
               <p className="text-sm text-gray-600">
-                Below is your recovery phrase. Write it down and keep it secure.
+                Write down these 12 words in order and store them in a secure location.
               </p>
             </div>
             <div className="bg-gray-50 border-2 border-gray-200 p-6 rounded-xl shadow-sm">
@@ -167,7 +167,7 @@ const ShowPassphrase = () => {
                 <p className="text-sm font-bold text-red-800">Security Notice</p>
               </div>
               <p className="text-sm text-red-700">
-                Never share your recovery phrase with anyone.
+                Never share your recovery phrase. Anyone with these 12 words can steal your bitcoin!
               </p>
             </div>
           </div>

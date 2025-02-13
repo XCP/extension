@@ -35,11 +35,10 @@ export const AddressMenu = ({ address, walletId, onCopyAddress }: AddressMenuPro
   const handleShowPrivateKey = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation();
-      const index = address.path.split('/').pop() || '0';
-      navigate(`/show-private-key/${walletId}/${index}`);
+      navigate(`/show-private-key/${walletId}/${encodeURIComponent(address.path)}`);
     },
     [address, walletId, navigate]
-  );
+  );  
 
   return (
     <Menu as="div" className="relative">

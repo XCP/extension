@@ -25,7 +25,7 @@ function createWalletService() {
     createMnemonicWallet: async (
       mnemonic: string,
       password: string,
-      name?: string,
+      name?: string,s
       addressType?: AddressType
     ): Promise<Wallet> => {
       return walletManager.createMnemonicWallet(mnemonic, password, name, addressType);
@@ -59,9 +59,7 @@ function createWalletService() {
     getSettings: async () => {
       return settingsManager.getSettings();
     },
-    updateSettings: async (
-      newSettings: Partial<Parameters<typeof settingsManager.updateSettings>[0]>
-    ) => {
+    updateSettings: async (newSettings: Partial<Parameters<typeof settingsManager.updateSettings>[0]>) => {
       await settingsManager.updateSettings(newSettings);
     },
     setLastActiveTime: () => {
@@ -72,12 +70,6 @@ function createWalletService() {
     },
     isAnyWalletUnlocked: async (): Promise<boolean> => {
       return walletManager.isAnyWalletUnlocked();
-    },
-    get onAutoLock() {
-      return walletManager.onAutoLock;
-    },
-    set onAutoLock(callback: (() => void) | undefined) {
-      walletManager.onAutoLock = callback;
     },
     createAndUnlockMnemonicWallet: async (
       mnemonic: string,
@@ -96,26 +88,31 @@ function createWalletService() {
       return walletManager.createAndUnlockPrivateKeyWallet(privateKey, password, name, addressType);
     },
     getUnencryptedMnemonic: async (walletId: string): Promise<string> => {
-      const secret = walletManager.getUnlockedSecret(walletId);
-      if (!secret) throw new Error('Wallet secret not found or locked');
-      return secret;
+      return walletManager.getUnencryptedMnemonic(walletId);
     },
-    getPrivateKey: async (walletId: string, pathIndex: number = 0): Promise<string> => {
-      return walletManager.getPrivateKey(walletId, pathIndex);
+    getPrivateKey: async (walletId: string, derivationPath?: string): Promise<string> => {
+      return walletManager.getPrivateKey(walletId, derivationPath);
     },
     removeWallet: async (walletId: string): Promise<void> => {
       await walletManager.removeWallet(walletId);
     },
-    setLastActiveAddress: async (address: string) => {
-      await settingsManager.updateSettings({ lastActiveAddress: address });
-    },
-    getLastActiveAddress: async (): Promise<string | undefined> => {
-      const settings = await settingsManager.getSettings();
-      return settings?.lastActiveWalletId;
-    },
     getPreviewAddressForType: async (walletId: string, addressType: AddressType): Promise<string> => {
       return walletManager.getPreviewAddressForType(walletId, addressType);
     },
+    signTransaction: async (rawTxHex: string, sourceAddress: string): Promise<string> => {
+      return walletManager.signTransaction(rawTxHex, sourceAddress);
+    },
+    broadcastTransaction: async (signedTxHex: string): Promise<{ txid: string; fees?: number }> => {
+      return walletManager.broadcastTransaction(signedTxHex);
+    },
+    getLastActiveAddress: async (): Promise<string | undefined> => {
+      const settings = await settingsManager.getSettings();
+      return settings?.lastActiveAddress;
+    },
+    setLastActiveAddress: async (address: string): Promise<void> => {
+      await settingsManager.updateSettings({ lastActiveAddress: address });
+    },
+    onAutoLock: undefined as (() => void) | undefined,
   };
 }
 

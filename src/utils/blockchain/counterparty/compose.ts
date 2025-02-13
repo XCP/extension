@@ -30,7 +30,7 @@ export async function composeTransaction(
   sourceAddress: string,
   signal?: AbortSignal
 ): Promise<ApiResponse> {
-  const apiUrl = `https://api.counterparty.info/v2/addresses/${sourceAddress}/compose/${endpoint}`;
+  const apiUrl = `https://api.counterparty.io:4000/v2/addresses/${sourceAddress}/compose/${endpoint}`;
   const params = new URLSearchParams({
     ...paramsObj,
     exclude_utxos_with_balances: 'true',
@@ -214,7 +214,7 @@ export async function getDividendEstimateXcpFee(
   asset: string,
   signal?: AbortSignal
 ): Promise<number> {
-  const apiUrl = `https://api.counterparty.info/v2/addresses/${sourceAddress}/compose/dividend/estimatexcpfees`;
+  const apiUrl = `https://api.counterparty.io:4000/v2/addresses/${sourceAddress}/compose/dividend/estimatexcpfees`;
   const params = new URLSearchParams({ asset });
   const response = await axios.get<{ result: number }>(`${apiUrl}?${params.toString()}`, { signal });
   return response.data.result;
@@ -350,7 +350,7 @@ export async function composeSweep(options: ComposeOptions): Promise<ApiResponse
 }
 
 export async function getSweepEstimateXcpFee(sourceAddress: string, signal?: AbortSignal): Promise<number> {
-  const apiUrl = `https://api.counterparty.info/v2/addresses/${sourceAddress}/compose/sweep/estimatexcpfees`;
+  const apiUrl = `https://api.counterparty.io:4000/v2/addresses/${sourceAddress}/compose/sweep/estimatexcpfees`;
   const response = await axios.get<{ result: number }>(apiUrl, { signal });
   return response.data.result;
 }
@@ -443,7 +443,7 @@ export async function composeAttach(options: ComposeOptions): Promise<ApiRespons
 }
 
 export async function getAttachEstimateXcpFee(sourceAddress?: string, signal?: AbortSignal): Promise<number> {
-  const apiUrl = `https://api.counterparty.info/v2/addresses/${sourceAddress}/compose/attach/estimatexcpfees`;
+  const apiUrl = `https://api.counterparty.io:4000/v2/addresses/${sourceAddress}/compose/attach/estimatexcpfees`;
   const response = await axios.get<{ result: number }>(apiUrl, { signal });
   return response.data.result;
 }

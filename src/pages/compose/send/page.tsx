@@ -1,9 +1,9 @@
 import { SendForm } from "./form";
 import { ReviewSend } from "./review";
 import { Composer } from "@/components/composer";
-import { composeSend, signSendTransaction } from "@/utils/counterparty";
+import { composeSend } from "@/utils/blockchain/counterparty";
 
-export function ComposeSendPage() {
+export function ComposeSend() {
   return (
     <div className="p-4">
       <Composer
@@ -11,7 +11,6 @@ export function ComposeSendPage() {
         FormComponent={SendForm}
         ReviewComponent={ReviewSend}
         composeTransaction={composeSend}
-        signTransaction={signSendTransaction}
       />
     </div>
   );

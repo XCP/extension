@@ -3,6 +3,7 @@ import { Transaction, SigHash, OutScript } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 import { signECDSA } from '@scure/btc-signer/utils';
+import { walletManager } from '@/utils/wallet';
 
 /**
  * Re-implementation of concatBytes.
@@ -54,7 +55,7 @@ function customSignInput(
   // Get the uncompressed public key.
   const uncompressedPubKey: Uint8Array = getPublicKey(privateKey, false);
 
-  // Update this input’s partial signature so that finalize() later produces the correct unlocking script.
+  // Update this input's partial signature so that finalize() later produces the correct unlocking script.
   tx.updateInput(idx, { partialSig: [[uncompressedPubKey, sigWithHash]] }, true);
 }
 
@@ -182,7 +183,7 @@ export async function consolidateBareMultisig(
 /* ───────── Helper Functions ───────── */
 
 /**
- * Roughly estimates a transaction’s size in bytes.
+ * Roughly estimates a transaction's size in bytes.
  */
 function estimateTransactionSize(numInputs: number, numOutputs: number): number {
   let size = 8; // version (4 bytes) + locktime (4 bytes)
@@ -229,7 +230,7 @@ async function fetchBareMultisigUTXOs(address: string): Promise<UTXO[]> {
 }
 
 /**
- * Fetch a previous transaction’s raw hex given its txid.
+ * Fetch a previous transaction's raw hex given its txid.
  */
 async function fetchPreviousRawTransaction(txid: string): Promise<string> {
   const endpoints = [
@@ -255,11 +256,9 @@ async function fetchPreviousRawTransaction(txid: string): Promise<string> {
 async function getPrivateKey(walletId: string, address: string): Promise<string> {
   const wallet = walletManager.getWallet(walletId);
   if (!wallet) throw new Error('Wallet not found');
-  const targetAddress = wallet.addresses.find((addr: any) => addr.address === address);
+  const targetAddress = wallet.addresses.find((addr) => addr.address === address);
   if (!targetAddress) throw new Error('Source address not found in wallet');
-  const privateKeyHex = await walletManager.getPrivateKey(walletId, targetAddress.path);
-  if (!privateKeyHex) throw new Error('Private key not found');
-  return privateKeyHex;
+  return walletManager.getPrivateKey(walletId, targetAddress.path);
 }
 
 /**

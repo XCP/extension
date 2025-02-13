@@ -1,4 +1,4 @@
-import React, {
+import React, { 
   createContext,
   useContext,
   useEffect,
@@ -37,11 +37,13 @@ interface WalletContextType {
   ) => Promise<Wallet>;
   resetAllWallets: (password: string) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
-  getPrivateKey: (walletId: string, pathIndex?: number) => Promise<string>;
+  getPrivateKey: (walletId: string, derivationPath?: string) => Promise<string>;
   verifyPassword: (password: string) => Promise<boolean>;
   updateWalletAddressType: (walletId: string, newType: AddressType) => Promise<void>;
   getPreviewAddressForType: (walletId: string, addressType: AddressType) => Promise<string>;
   removeWallet: (walletId: string) => Promise<void>;
+  signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
+  broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -56,7 +58,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [walletLocked, setWalletLocked] = useState<boolean>(true);
   const [loaded, setLoaded] = useState<boolean>(false);
 
-  // Consolidate the state-refresh logic into one helper.
   const refreshWalletState = useCallback(async () => {
     try {
       await walletService.loadWallets();
@@ -74,8 +75,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
         const lastActiveAddress = await walletService.getLastActiveAddress();
         setActiveAddressState(
-          lastActiveAddress &&
-            active.addresses.some((addr) => addr.address === lastActiveAddress)
+          lastActiveAddress && active.addresses.some((addr) => addr.address === lastActiveAddress)
             ? active.addresses.find((addr) => addr.address === lastActiveAddress) || active.addresses[0]
             : active.addresses[0] || null
         );
@@ -96,12 +96,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [walletService, authDispatch]);
 
-  // Initial load on mount
   useEffect(() => {
     refreshWalletState();
   }, [refreshWalletState]);
 
-  // Set up auto-lock handler
   useEffect(() => {
     const originalOnAutoLock = walletService.onAutoLock;
     walletService.onAutoLock = async () => {
@@ -115,7 +113,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     };
   }, [walletService, authDispatch]);
 
-  // Now refactor callbacks to be thin – call the service and then refresh.
   const unlockWallet = useCallback(async (walletId: string, password: string) => {
     try {
       await walletService.unlockWallet(walletId, password);
@@ -198,8 +195,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return walletService.getUnencryptedMnemonic(walletId);
   }, [walletService]);
 
-  const getPrivateKey = useCallback(async (walletId: string, pathIndex: number = 0): Promise<string> => {
-    return walletService.getPrivateKey(walletId, pathIndex);
+  const getPrivateKey = useCallback(async (walletId: string, derivationPath?: string): Promise<string> => {
+    return walletService.getPrivateKey(walletId, derivationPath);
   }, [walletService]);
 
   const verifyPassword = useCallback(async (password: string): Promise<boolean> => {
@@ -236,6 +233,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     updateWalletAddressType,
     getPreviewAddressForType,
     removeWallet,
+    signTransaction: (rawTxHex: string, sourceAddress: string) =>
+      walletService.signTransaction(rawTxHex, sourceAddress),
+    broadcastTransaction: (signedTxHex: string) =>
+      walletService.broadcastTransaction(signedTxHex),
   };
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;

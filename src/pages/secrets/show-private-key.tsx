@@ -72,11 +72,7 @@ const ShowPrivateKey = () => {
 
     if (walletType === 'mnemonic') {
       if (!addressPath) {
-        return true;
-      }
-      const index = parseInt(addressPath, 10);
-      if (isNaN(index) || index < 0) {
-        setSubmissionError('Invalid address index.');
+        setSubmissionError('Address derivation path is missing.');
         return false;
       }
     }
@@ -93,8 +89,8 @@ const ShowPrivateKey = () => {
       if (walletType === 'privateKey') {
         privKey = await getPrivateKey(walletId);
       } else {
-        const index = addressPath ? parseInt(addressPath, 10) : 0;
-        privKey = await getPrivateKey(walletId, index);
+        // Use the full derivation path string directly.
+        privKey = await getPrivateKey(walletId, addressPath);
       }
       
       if (!privKey) {

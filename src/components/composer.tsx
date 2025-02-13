@@ -1,29 +1,29 @@
 import { useState } from "react";
+import type { ReactElement } from "react";
+import { useWallet } from "@/contexts/wallet-context";
 
 export function Composer({
   initialTitle,
   FormComponent,
   ReviewComponent,
   composeTransaction,
-  signTransaction,
 }: {
   initialTitle: string;
-  FormComponent: (props: { onSubmit: (data: any) => void }) => JSX.Element;
+  FormComponent: (props: { onSubmit: (data: any) => void }) => ReactElement;
   ReviewComponent: (props: {
     apiResponse: any;
     onSign: () => void;
     onBack: () => void;
-  }) => JSX.Element;
+  }) => ReactElement;
   composeTransaction: (data: any) => Promise<any>;
-  signTransaction: (apiResponse: any) => Promise<void>;
 }) {
+  const { activeWallet, activeAddress, signTransaction, broadcastTransaction } = useWallet();
   const [step, setStep] = useState<"form" | "review">("form");
   const [formData, setFormData] = useState<any>(null);
   const [apiResponse, setApiResponse] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // No need for useCallback – just plain functions!
   async function handleFormSubmit(data: any) {
     setIsLoading(true);
     setError(null);
@@ -43,8 +43,12 @@ export function Composer({
     setIsLoading(true);
     setError(null);
     try {
-      await signTransaction(apiResponse);
-      // In a real app you might navigate or show a success screen
+      if (!apiResponse) throw new Error("No transaction composed.");
+      if (!activeWallet || !activeAddress)
+        throw new Error("Wallet is not properly initialized.");
+      const rawTxHex = apiResponse.result.rawtransaction;
+      const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
+      await broadcastTransaction(signedTxHex);
       alert("Transaction signed successfully!");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
