@@ -7,9 +7,10 @@ interface WalletCardProps {
   wallet: Wallet;
   selected: boolean;
   onSelect: (wallet: Wallet) => void;
+  isFirstWallet: boolean;
 }
 
-function WalletCard({ wallet, selected, onSelect }: WalletCardProps) {
+function WalletCard({ wallet, selected, onSelect, isFirstWallet }: WalletCardProps) {
   const primaryAddress =
     wallet.addresses.length > 0 ? wallet.addresses[0].address : 'No address';
 
@@ -33,16 +34,16 @@ function WalletCard({ wallet, selected, onSelect }: WalletCardProps) {
           <div className="flex justify-between items-center">
             <div className="text-sm font-medium">{wallet.name}</div>
             <div className="absolute top-2 right-2 wallet-menu">
-              <WalletMenu wallet={wallet} isFirstWallet={false} />
+              <WalletMenu wallet={wallet} isFirstWallet={isFirstWallet} />
             </div>
           </div>
-          <div className="mt-2">
+          <div className="flex justify-between items-center mt-1">
             <span className="font-mono text-sm">{formatAddress(primaryAddress)}</span>
-          </div>
-          <div className="mt-1 text-xs">
-            {wallet.addressCount
-              ? `${wallet.addressCount} address${wallet.addressCount > 1 ? 'es' : ''}`
-              : ''}
+            <span className="text-xs">
+              {wallet.addressCount
+                ? `${wallet.addressCount} address${wallet.addressCount > 1 ? 'es' : ''}`
+                : ''}
+            </span>
           </div>
         </div>
       )}

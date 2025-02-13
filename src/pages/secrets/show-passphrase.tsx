@@ -25,8 +25,8 @@ const ShowPassphrase = () => {
 
   useEffect(() => {
     setHeaderProps({
-      title: 'Show Recovery Phrase',
-      onBack: () => navigate('/wallet-selection'),
+      title: 'Passphrase',
+      onBack: () => navigate('/select-wallet'),
     });
   }, [setHeaderProps, navigate]);
 
@@ -110,7 +110,8 @@ const ShowPassphrase = () => {
               <h3 className="text-xl font-bold text-red-700">Warning</h3>
             </div>
             <p className="text-red-700 font-medium leading-relaxed">
-              Your recovery phrase is highly sensitive. Do not share it with anyone.
+              Never share your recovery phrase with anyone.
+              Anyone with these words can steal your funds!
             </p>
           </div>
           <div className="w-full max-w-md space-y-4">
@@ -129,9 +130,9 @@ const ShowPassphrase = () => {
               disabled={isLoading}
               fullWidth
               color="red"
-              aria-label="Reveal Recovery Phrase"
+              aria-label="Show Recovery Phrase"
             >
-              {isLoading ? 'Verifying...' : 'Reveal Recovery Phrase'}
+              {isLoading ? 'Verifying...' : 'Show Recovery Phrase'}
             </Button>
           </div>
         </form>

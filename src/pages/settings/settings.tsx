@@ -47,10 +47,10 @@ const Settings: React.FC = () => {
         ]
       : []),
     {
-      id: 'advanced',
-      name: 'Advanced',
-      description: 'Network settings and developer options',
-      path: '/settings/advanced',
+      id: 'security',
+      name: 'Change Password',
+      description: 'Change your wallet password',
+      path: '/settings/security',
     },
     {
       id: 'connectedSites',
@@ -59,10 +59,10 @@ const Settings: React.FC = () => {
       path: '/settings/connected-sites',
     },
     {
-      id: 'security',
-      name: 'Security',
-      description: 'Change your wallet password',
-      path: '/settings/security',
+      id: 'advanced',
+      name: 'Advanced Options',
+      description: 'Network settings and developer options',
+      path: '/settings/advanced',
     },
   ];
 

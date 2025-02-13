@@ -23,7 +23,7 @@ export const BalanceMenu: React.FC<BalanceMenuProps> = ({ asset }) => {
   return (
     <Menu as="div" className="relative">
       <MenuButton as={React.Fragment}>
-        <button className="p-1 bg-transparent" onClick={handleMenuClick}>
+        <button className="p-1 bg-transparent cursor-pointer" onClick={handleMenuClick}>
           <BsThreeDots className="w-4 h-4" />
         </button>
       </MenuButton>
@@ -31,7 +31,7 @@ export const BalanceMenu: React.FC<BalanceMenuProps> = ({ asset }) => {
         <MenuItem>
           {({ active }: { active: boolean }) => (
             <button
-              className={`group flex w-full items-center px-4 py-2 text-sm text-gray-800 hover:bg-gray-100 focus:outline-none ${active ? 'bg-gray-100' : ''}`}
+              className={`group flex w-full items-center px-4 py-2 text-sm text-gray-800 hover:bg-gray-100 focus:outline-none cursor-pointer ${active ? 'bg-gray-100' : ''}`}
               onClick={handleMore}
             >
               <FaTools className="mr-3 h-4 w-4 text-gray-600" /> More

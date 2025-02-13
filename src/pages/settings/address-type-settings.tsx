@@ -13,7 +13,9 @@ export function AddressTypeSettings() {
   const { setHeaderProps } = useHeader();
   const { activeWallet, updateWalletAddressType, getPreviewAddressForType } = useWallet();
   const [addresses, setAddresses] = useState<{ [key: string]: string }>({});
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const currentWallet = activeWallet;
 
@@ -31,8 +33,12 @@ export function AddressTypeSettings() {
 
   useEffect(() => {
     const fetchAddresses = async () => {
-      if (currentWallet) {
-        setIsLoading(true);
+      if (!currentWallet) {
+        setIsLoading(false);
+        return;
+      }
+      
+      try {
         const addressMap: { [key: string]: string } = {};
         for (const type of availableAddressTypes) {
           try {
@@ -44,23 +50,29 @@ export function AddressTypeSettings() {
           }
         }
         setAddresses(addressMap);
+      } catch (error) {
+        console.error('Error fetching addresses:', error);
+        setError(error instanceof Error ? error.message : 'Failed to fetch addresses');
+      } finally {
         setIsLoading(false);
       }
     };
+
     fetchAddresses();
   }, [currentWallet, availableAddressTypes, getPreviewAddressForType]);
 
   const handleAddressTypeChange = async (newType: AddressType) => {
     if (!currentWallet) return;
+    
     try {
-      setIsLoading(true);
+      setIsUpdating(true);
       await updateWalletAddressType(currentWallet.id, newType);
       const previewAddress = await getPreviewAddressForType(currentWallet.id, newType);
       setAddresses((prev) => ({ ...prev, [newType]: previewAddress }));
     } catch (error) {
       console.error('Error updating address type:', error);
     } finally {
-      setIsLoading(false);
+      setIsUpdating(false);
     }
   };
 
@@ -80,20 +92,42 @@ export function AddressTypeSettings() {
   };
 
   if (isLoading) {
-    return <Loading showMessage={false} />;
+    return <Loading showMessage={true} message="Loading addresses..." />;
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 text-center text-red-500">
+        Error: {error}
+      </div>
+    );
+  }
+
+  if (!currentWallet) {
+    return (
+      <div className="p-4 text-center text-gray-500">
+        No wallet available
+      </div>
+    );
   }
 
   return (
     <div className="space-y-2 p-4">
       <RadioGroup
-        value={currentWallet?.addressType}
+        value={currentWallet.addressType}
         onChange={handleAddressTypeChange}
         className="space-y-2"
+        disabled={isUpdating}
       >
         {availableAddressTypes.map((type) => {
           const typeLabel = getAddressTypeDescription(type);
-          const isDisabled = type === AddressType.P2TR;
-          const disabledReason = isDisabled ? 'Taproot is not yet supported' : undefined;
+          const isDisabled = type === AddressType.P2TR || isUpdating;
+          const disabledReason = type === AddressType.P2TR 
+            ? 'Taproot is not yet supported' 
+            : isUpdating 
+              ? 'Updating...' 
+              : undefined;
+
           return (
             <RadioGroup.Option
               key={type}
@@ -101,7 +135,11 @@ export function AddressTypeSettings() {
               disabled={isDisabled}
               className={({ checked }) => `
                 relative w-full rounded transition duration-300 p-4
-                ${isDisabled ? 'cursor-not-allowed bg-gray-300' : (checked ? 'cursor-pointer bg-white shadow-md' : 'cursor-pointer bg-white hover:bg-gray-50')}
+                ${isDisabled 
+                  ? 'cursor-not-allowed bg-gray-300' 
+                  : (checked 
+                    ? 'cursor-pointer bg-white shadow-md' 
+                    : 'cursor-pointer bg-white hover:bg-gray-50')}
               `}
             >
               {({ checked }) => (
@@ -112,7 +150,9 @@ export function AddressTypeSettings() {
                     </div>
                   )}
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-gray-900 mb-1">{typeLabel}</span>
+                    <span className="text-sm font-medium text-gray-900 mb-1">
+                      {typeLabel}
+                    </span>
                     <span className="text-xs text-gray-500">
                       {addresses[type] ? formatAddress(addresses[type]) : 'Loading...'}
                     </span>

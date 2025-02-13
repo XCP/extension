@@ -30,7 +30,7 @@ export const AssetMenu: React.FC<AssetMenuProps> = ({ ownedAsset }) => {
   return (
     <Menu as="div" className="relative">
       <MenuButton as={React.Fragment}>
-        <Button variant="menu" onClick={handleMenuClick}>
+        <Button variant="menu" onClick={handleMenuClick} className="cursor-pointer">
           <BsThreeDots className="w-4 h-4" />
         </Button>
       </MenuButton>
@@ -38,13 +38,13 @@ export const AssetMenu: React.FC<AssetMenuProps> = ({ ownedAsset }) => {
         {!ownedAsset.locked && (
           <>
             <MenuItem>
-              <Button variant="menu-item" fullWidth onClick={handleAction('issue-supply')}>
+              <Button variant="menu-item" fullWidth onClick={handleAction('issue-supply')} className="cursor-pointer">
                 <FaCoins className="mr-3 h-4 w-4 text-gray-600" />
                 Issue Supply
               </Button>
             </MenuItem>
             <MenuItem>
-              <Button variant="menu-item" fullWidth onClick={handleAction('lock-supply')}>
+              <Button variant="menu-item" fullWidth onClick={handleAction('lock-supply')} className="cursor-pointer">
                 <FaLockOpen className="mr-3 h-4 w-4 text-gray-600" />
                 Lock Supply
               </Button>
@@ -52,13 +52,13 @@ export const AssetMenu: React.FC<AssetMenuProps> = ({ ownedAsset }) => {
           </>
         )}
         <MenuItem>
-          <Button variant="menu-item" fullWidth onClick={handleAction('update-description')}>
+          <Button variant="menu-item" fullWidth onClick={handleAction('update-description')} className="cursor-pointer">
             <FaPen className="mr-3 h-4 w-4 text-gray-600" />
             Change Description
           </Button>
         </MenuItem>
         <MenuItem>
-          <Button variant="menu-item" fullWidth onClick={handleAction('transfer-ownership')}>
+          <Button variant="menu-item" fullWidth onClick={handleAction('transfer-ownership')} className="cursor-pointer">
             <FaExchangeAlt className="mr-3 h-4 w-4 text-gray-600" />
             Transfer Ownership
           </Button>

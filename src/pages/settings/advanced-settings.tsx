@@ -30,10 +30,10 @@ export function AdvancedSettings() {
     return <Loading showMessage={false} />;
   }
 
-  const autoLockOptions: { value: AutoLockTimer; label: string; disabled?: boolean }[] = [
-    { value: 'always', label: 'Always Lock' },
-    { value: '15m', label: '15 Minutes', disabled: true },
-    { value: '30m', label: '30 Minutes', disabled: true },
+  const autoLockOptions: { value: AutoLockTimer; label: string }[] = [
+    { value: '5m', label: '5 Minutes' },
+    { value: '15m', label: '15 Minutes' },
+    { value: '30m', label: '30 Minutes' },
   ];
 
   const shouldShowHelpText = isHelpTextOverride ? !settings.showHelpText : settings.showHelpText;
@@ -41,7 +41,7 @@ export function AdvancedSettings() {
   return (
     <div className="space-y-6 p-4">
       <Field>
-        <Label className="font-bold">Enable Auto-Lock Timer</Label>
+        <Label className="font-bold">Auto-Lock Timer</Label>
         <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? '' : 'hidden'}`}>
           Choose how long to wait before automatically locking your wallet.
         </Description>
@@ -54,10 +54,9 @@ export function AdvancedSettings() {
             <RadioGroup.Option
               key={option.value}
               value={option.value}
-              disabled={option.disabled}
               className={({ checked }) => `
                 relative w-full rounded transition duration-300 p-4
-                ${option.disabled ? 'cursor-not-allowed bg-gray-300' : (checked ? 'cursor-pointer bg-white shadow-md' : 'cursor-pointer bg-white hover:bg-gray-50')}
+                ${checked ? 'cursor-pointer bg-white shadow-md' : 'cursor-pointer bg-white hover:bg-gray-50'}
               `}
             >
               {({ checked }) => (
@@ -68,10 +67,9 @@ export function AdvancedSettings() {
                     </div>
                   )}
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-gray-900">{option.label}</span>
-                    {option.disabled && (
-                      <span className="text-xs text-blue-500 mt-1">Coming soon</span>
-                    )}
+                    <span className="text-sm font-medium text-gray-900">
+                      {option.label}
+                    </span>
                   </div>
                 </>
               )}
@@ -88,7 +86,7 @@ export function AdvancedSettings() {
             onChange={(checked) => updateSettings({ enableMPMA: checked })}
             className={`${
               settings.enableMPMA ? 'bg-blue-600' : 'bg-gray-200'
-            } p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+            } p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
           >
             <span className={`${
               settings.enableMPMA ? 'translate-x-6' : 'translate-x-1'
@@ -108,7 +106,7 @@ export function AdvancedSettings() {
             onChange={(checked) => updateSettings({ allowUnconfirmedTxs: checked })}
             className={`${
               settings.allowUnconfirmedTxs ? 'bg-blue-600' : 'bg-gray-200'
-            } p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+            } p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
           >
             <span className={`${
               settings.allowUnconfirmedTxs ? 'translate-x-6' : 'translate-x-1'
@@ -128,7 +126,7 @@ export function AdvancedSettings() {
             onChange={(checked) => updateSettings({ showHelpText: checked })}
             className={`${
               settings.showHelpText ? 'bg-blue-600' : 'bg-gray-200'
-            } p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+            } p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
           >
             <span className={`${
               settings.showHelpText ? 'translate-x-6' : 'translate-x-1'
@@ -148,7 +146,7 @@ export function AdvancedSettings() {
             onChange={(checked) => updateSettings({ analyticsAllowed: checked })}
             className={`${
               settings.analyticsAllowed ? 'bg-blue-600' : 'bg-gray-200'
-            } p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+            } p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
           >
             <span className={`${
               settings.analyticsAllowed ? 'translate-x-6' : 'translate-x-1'

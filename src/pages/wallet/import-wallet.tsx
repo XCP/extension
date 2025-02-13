@@ -139,9 +139,9 @@ function ImportWallet() {
     <div className="flex-grow overflow-y-auto p-4" role="main" aria-labelledby="import-wallet-title">
       <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
         <h2 id="import-wallet-title" className="text-2xl font-bold mb-2">
-          Your Recovery Phrase
+          Import Your Mnemonic
         </h2>
-        <p className="mb-5">Please enter a 12-word recovery phrase below.</p>
+        <p className="mb-5">Please enter your 12-word recovery phrase below.</p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="bg-gray-100 p-2 rounded-md mb-4" role="region" aria-label="Recovery phrase input">
             <ol className="list-none p-0 m-0 grid grid-flow-col grid-cols-2 grid-rows-6 gap-2" aria-label="Recovery phrase words">

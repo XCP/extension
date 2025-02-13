@@ -27,7 +27,7 @@ export function WalletMenu({ wallet, isFirstWallet }: WalletMenuProps) {
     <Menu as="div" className="relative inline-block text-left">
       <div onClick={(e) => e.stopPropagation()}>
         <MenuButton
-          className="p-1 rounded-full hover:bg-black/5 transition-colors"
+          className="p-1 rounded-full hover:bg-black/5 transition-colors cursor-pointer"
           aria-label="Wallet options"
         >
           <HiDotsHorizontal className="w-4 h-4" aria-hidden="true" />
@@ -42,7 +42,7 @@ export function WalletMenu({ wallet, isFirstWallet }: WalletMenuProps) {
           <MenuItem>
             {({ active }) => (
               <button
-                className={`${active ? 'bg-gray-100' : ''} group flex w-full items-center px-4 py-2 text-sm text-gray-700`}
+                className={`${active ? 'bg-gray-100' : ''} group flex w-full items-center px-4 py-2 text-sm text-gray-700 cursor-pointer`}
                 onClick={handleShowSecret}
               >
                 <VscKey className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
@@ -54,10 +54,11 @@ export function WalletMenu({ wallet, isFirstWallet }: WalletMenuProps) {
             {({ active }) => (
               <button
                 className={`${active ? 'bg-gray-100' : ''} group flex w-full items-center px-4 py-2 text-sm ${
-                  isFirstWallet ? 'text-gray-400' : 'text-gray-700'
+                  isFirstWallet ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 cursor-pointer'
                 }`}
                 onClick={handleRemoveWallet}
                 disabled={isFirstWallet}
+                title={isFirstWallet ? 'Cannot remove primary wallet' : undefined}
               >
                 <FaTrash className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
                 {wallet.type === 'privateKey' ? 'Remove Address' : `Remove ${wallet.name}`}

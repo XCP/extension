@@ -33,7 +33,7 @@ const ShowPrivateKey = () => {
       }
     }
     setHeaderProps({
-      title: 'Show Private Key',
+      title: 'Private Key',
       onBack: () => navigate(-1),
     });
   }, [walletId, wallets, setHeaderProps, navigate]);
@@ -69,9 +69,16 @@ const ShowPrivateKey = () => {
       setPasswordError('Incorrect password.');
       return false;
     }
-    if (walletType === 'mnemonic' && !addressPath) {
-      setSubmissionError('Invalid address path.');
-      return false;
+
+    if (walletType === 'mnemonic') {
+      if (!addressPath) {
+        return true;
+      }
+      const index = parseInt(addressPath, 10);
+      if (isNaN(index) || index < 0) {
+        setSubmissionError('Invalid address index.');
+        return false;
+      }
     }
     return true;
   };
@@ -82,16 +89,23 @@ const ShowPrivateKey = () => {
       if (!walletId) throw new Error('Wallet ID is required.');
       await unlockWallet(walletId, password);
       let privKey: string;
+      
       if (walletType === 'privateKey') {
         privKey = await getPrivateKey(walletId);
       } else {
-        privKey = await getPrivateKey(walletId, decodeURIComponent(addressPath!));
+        const index = addressPath ? parseInt(addressPath, 10) : 0;
+        privKey = await getPrivateKey(walletId, index);
       }
+      
+      if (!privKey) {
+        throw new Error('Failed to retrieve private key');
+      }
+      
       setPrivateKey(privKey);
       setIsConfirmed(true);
     } catch (err) {
       console.error('Error revealing private key:', err);
-      setSubmissionError('Failed to reveal private key.');
+      setSubmissionError(err instanceof Error ? err.message : 'Failed to reveal private key.');
     } finally {
       setIsLoading(false);
     }
@@ -147,7 +161,7 @@ const ShowPrivateKey = () => {
               <h3 className="text-xl font-bold text-red-700">Warning</h3>
             </div>
             <p className="text-red-700 font-medium leading-relaxed">
-              Your private key is highly sensitive. Do not share it with anyone.
+              Never share your private key. Anyone with this sensitive string of letters can steal your funds!
             </p>
           </div>
           <div className="w-full max-w-md space-y-4">
@@ -166,9 +180,9 @@ const ShowPrivateKey = () => {
               disabled={isLoading}
               fullWidth
               color="red"
-              aria-label="Reveal Private Key"
+              aria-label="Show Private Key"
             >
-              {isLoading ? 'Verifying...' : 'Reveal Private Key'}
+              {isLoading ? 'Verifying...' : 'Show Private Key'}
             </Button>
           </div>
         </form>
@@ -178,7 +192,7 @@ const ShowPrivateKey = () => {
             <div className="text-center mb-6">
               <h3 className="text-2xl font-bold text-gray-800 mb-2">Your Private Key</h3>
               <p className="text-sm text-gray-600">
-                Click the key below to copy it. Keep it secret.
+                This is your private key. Never share it with anyone.
               </p>
             </div>
             <div
@@ -197,7 +211,7 @@ const ShowPrivateKey = () => {
                 <p className="text-sm font-bold text-red-800">Security Notice</p>
               </div>
               <p className="text-sm text-red-700">
-                Never share your private key with anyone.
+                Never share your private key. Anyone with access to this string can steal your bitcoin!
               </p>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaPlus } from 'react-icons/fa';
 import { Button } from '@/components/button';
@@ -12,7 +12,7 @@ export function AddressSelection() {
   const { setHeaderProps } = useHeader();
   const { activeWallet, activeAddress, setActiveAddress, addAddress } = useWallet();
 
-  const handleAddAddress = async () => {
+  const handleAddAddress = useCallback(async () => {
     if (!activeWallet?.id) return;
     if (activeWallet.type !== 'mnemonic') return;
     if (activeWallet.addresses.length >= 20) return;
@@ -22,24 +22,24 @@ export function AddressSelection() {
     } catch (error) {
       console.error('Failed to add address:', error);
     }
-  };
+  }, [activeWallet, addAddress]);
 
-  const handleSelectAddress = async (address: Address) => {
+  const handleSelectAddress = useCallback(async (address: Address) => {
     await setActiveAddress(address);
     navigate('/index');
-  };
+  }, [setActiveAddress, navigate]);
 
   useEffect(() => {
     setHeaderProps({
       title: 'Select Address',
       onBack: () => navigate(-1),
-      rightButton: {
+      rightButton: activeWallet?.type === 'mnemonic' ? {
         icon: <FaPlus />,
         onClick: handleAddAddress,
         ariaLabel: 'Add Address',
-      },
+      } : undefined,
     });
-  }, [setHeaderProps, navigate]);
+  }, [setHeaderProps, navigate, handleAddAddress, activeWallet?.type]);
 
   if (!activeWallet) return null;
 
@@ -53,6 +53,7 @@ export function AddressSelection() {
           addresses={activeWallet.addresses}
           selectedAddress={activeAddress}
           onSelectAddress={handleSelectAddress}
+          walletId={activeWallet.id}
         />
       </div>
       <div className="p-4">

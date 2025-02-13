@@ -420,22 +420,30 @@ export class WalletManager {
   }
   public getPreviewAddressForType(walletId: string, addressType: AddressType): string {
     const secret = sessionManager.getUnlockedSecret(walletId);
+    
     if (!secret) {
       throw new Error('Wallet is locked');
     }
+
     const wallet = this.getWalletById(walletId);
     if (!wallet) {
       throw new Error('Wallet not found');
     }
-    if (wallet.type === 'mnemonic') {
-      return getAddressFromMnemonic(
-        secret,
-        `${getDerivationPathForAddressType(addressType)}/0`,
-        addressType
-      );
-    } else {
-      const { key: privateKeyHex, compressed } = JSON.parse(secret);
-      return getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
+
+    try {
+      if (wallet.type === 'mnemonic') {
+        return getAddressFromMnemonic(
+          secret,
+          `${getDerivationPathForAddressType(addressType)}/0`,
+          addressType
+        );
+      } else {
+        const { key: privateKeyHex, compressed } = JSON.parse(secret);
+        return getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
+      }
+    } catch (error) {
+      console.error('Error generating preview address:', error);
+      throw error;
     }
   }
   private async generateWalletId(mnemonic: string, addressType: AddressType): Promise<string> {

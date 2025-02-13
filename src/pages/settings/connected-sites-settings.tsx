@@ -12,7 +12,7 @@ export function ConnectedSitesSettings() {
 
   useEffect(() => {
     setHeaderProps({
-      title: 'Connected Sites',
+      title: 'Connected',
       onBack: () => navigate('/settings'),
     });
   }, [setHeaderProps, navigate]);

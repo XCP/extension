@@ -9,9 +9,10 @@ interface AddressListProps {
   addresses: Address[];
   selectedAddress?: Address | null;
   onSelectAddress: (address: Address) => void;
+  walletId: string;
 }
 
-export const AddressList = ({ addresses, selectedAddress, onSelectAddress }: AddressListProps) => {
+export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walletId }: AddressListProps) => {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   const handleCopyAddress = (address: string) => {
@@ -60,6 +61,7 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress }: Add
               <div className="absolute top-2 right-2 address-menu">
                 <AddressMenu
                   address={address}
+                  walletId={walletId}
                   onCopyAddress={handleCopyAddress}
                 />
               </div>

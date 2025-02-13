@@ -21,6 +21,7 @@ export function WalletList({ wallets, selectedWallet, onSelectWallet }: WalletLi
           wallet={wallet}
           selected={selectedWallet?.id === wallet.id}
           onSelect={onSelectWallet}
+          isFirstWallet={wallets[0]?.id === wallet.id}
         />
       ))}
     </RadioGroup>

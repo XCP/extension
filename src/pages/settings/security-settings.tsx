@@ -119,7 +119,7 @@ export function SecuritySettings() {
             }))
           }
           onKeyDown={handleKeyDown}
-          className="w-full p-2 border rounded-md mt-2"
+          className="w-full p-2 border rounded-md mt-2 bg-white"
         />
         {shouldShowHelpText && (
           <Description className="mt-2 text-sm text-gray-500">
@@ -141,7 +141,7 @@ export function SecuritySettings() {
             }))
           }
           onKeyDown={handleKeyDown}
-          className="w-full p-2 border rounded-md mt-2"
+          className="w-full p-2 border rounded-md mt-2 bg-white"
         />
         {shouldShowHelpText && (
           <Description className="mt-2 text-sm text-gray-500">
@@ -163,7 +163,7 @@ export function SecuritySettings() {
             }))
           }
           onKeyDown={handleKeyDown}
-          className="w-full p-2 border rounded-md mt-2"
+          className="w-full p-2 border rounded-md mt-2 bg-white"
         />
         {shouldShowHelpText && (
           <Description className="mt-2 text-sm text-gray-500">

@@ -1,6 +1,6 @@
 import { storage } from 'wxt/storage';
 
-export type AutoLockTimer = 'always' | '15m' | '30m';
+export type AutoLockTimer = '5m' | '15m' | '30m';
 
 /**
  * Unified KeychainSettings interface combines the original keychain settings
@@ -27,12 +27,12 @@ export interface KeychainSettings {
 const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
   lastActiveWalletId: undefined,
   lastActiveAddress: undefined,
-  autoLockTimeout: 15 * 60 * 1000, // 15 minutes
+  autoLockTimeout: 5 * 60 * 1000, // 5 minutes
   connectedWebsites: [],
   showHelpText: false,
   analyticsAllowed: true,
   allowUnconfirmedTxs: false,
-  autoLockTimer: 'always',
+  autoLockTimer: '5m',
   enableMPMA: false,
 };
 
@@ -82,8 +82,8 @@ export async function updateKeychainSettings(newSettings: Partial<KeychainSettin
 
   if (newSettings.autoLockTimer) {
     switch (newSettings.autoLockTimer) {
-      case 'always':
-        updated.autoLockTimeout = 0;
+      case '5m':
+        updated.autoLockTimeout = 5 * 60 * 1000;
         break;
       case '15m':
         updated.autoLockTimeout = 15 * 60 * 1000;

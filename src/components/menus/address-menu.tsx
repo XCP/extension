@@ -9,10 +9,11 @@ import type { Address } from '@/utils/wallet';
 
 interface AddressMenuProps {
   address: Address;
+  walletId: string;
   onCopyAddress: (address: string) => void;
 }
 
-export const AddressMenu = ({ address, onCopyAddress }: AddressMenuProps) => {
+export const AddressMenu = ({ address, walletId, onCopyAddress }: AddressMenuProps) => {
   const navigate = useNavigate();
 
   const handleCopyAddress = useCallback(
@@ -34,14 +35,15 @@ export const AddressMenu = ({ address, onCopyAddress }: AddressMenuProps) => {
   const handleShowPrivateKey = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation();
-      navigate(`/show-private-key/${encodeURIComponent(address.path)}`);
+      const index = address.path.split('/').pop() || '0';
+      navigate(`/show-private-key/${walletId}/${index}`);
     },
-    [address, navigate]
+    [address, walletId, navigate]
   );
 
   return (
     <Menu as="div" className="relative">
-      <Menu.Button className="p-1 bg-transparent">
+      <Menu.Button className="p-1 bg-transparent cursor-pointer">
         <HiDotsHorizontal className="w-4 h-4" aria-hidden="true" />
       </Menu.Button>
       <Menu.Items className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg focus:outline-none z-10">
@@ -50,7 +52,7 @@ export const AddressMenu = ({ address, onCopyAddress }: AddressMenuProps) => {
             <button
               className={`group flex w-full items-center px-4 py-2 text-sm text-gray-800 ${
                 active ? 'bg-gray-100' : ''
-              } focus:outline-none`}
+              } focus:outline-none cursor-pointer`}
               onClick={handleCopyAddress}
             >
               <FaCopy className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
@@ -63,7 +65,7 @@ export const AddressMenu = ({ address, onCopyAddress }: AddressMenuProps) => {
             <button
               className={`group flex w-full items-center px-4 py-2 text-sm text-gray-800 ${
                 active ? 'bg-gray-100' : ''
-              } focus:outline-none`}
+              } focus:outline-none cursor-pointer`}
               onClick={handleSweepAddress}
             >
               <GiBroom className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
@@ -76,7 +78,7 @@ export const AddressMenu = ({ address, onCopyAddress }: AddressMenuProps) => {
             <button
               className={`group flex w-full items-center px-4 py-2 text-sm text-gray-800 ${
                 active ? 'bg-gray-100' : ''
-              } focus:outline-none`}
+              } focus:outline-none cursor-pointer`}
               onClick={handleShowPrivateKey}
             >
               <VscKey className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />

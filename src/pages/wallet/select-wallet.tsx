@@ -37,7 +37,7 @@ function SelectWallet() {
         ariaLabel: 'Add Wallet',
       },
     });
-  }, [setHeaderProps, navigate]);
+  }, [setHeaderProps, navigate, wallets]);
 
   return (
     <div className="flex flex-col h-full" role="main" aria-labelledby="wallet-selection-title">
