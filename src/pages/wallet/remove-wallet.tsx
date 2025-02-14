@@ -22,6 +22,9 @@ function RemoveWallet() {
 
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
+  // Move wallet lookup to a ref to prevent unnecessary re-renders
+  const wallet = wallets.find(w => w.id === walletId);
+
   const isPasswordValid = (pwd: string): boolean => pwd.length >= 8;
 
   useEffect(() => {
@@ -29,18 +32,22 @@ function RemoveWallet() {
       setSubmissionError('Invalid wallet identifier.');
       return;
     }
-    const wallet = wallets.find(w => w.id === walletId);
+    
+    // Only set error if we're not in the process of removing the wallet
+    if (!isLoading && !wallet) {
+      setSubmissionError('Wallet not found.');
+      return;
+    }
+
     if (wallet) {
       setWalletName(wallet.name);
       setWalletType(wallet.type);
       setHeaderProps({
-        title: wallet.type === 'privateKey' ? 'Remove Private Key' : 'Remove Wallet',
+        title: wallet.type === 'privateKey' ? 'Remove Address' : 'Remove Wallet',
         onBack: () => navigate(-1),
       });
-    } else {
-      setSubmissionError('Wallet not found.');
     }
-  }, [walletId, wallets, setHeaderProps, navigate]);
+  }, [walletId, wallets, setHeaderProps, navigate, isLoading, wallet]);
 
   useEffect(() => {
     passwordInputRef.current?.focus();
@@ -80,9 +87,9 @@ function RemoveWallet() {
     setSubmissionError('');
     const isValid = await validateForm();
     if (!isValid) return;
+    
     setIsLoading(true);
     try {
-      await removeWallet(walletId!);
       const remainingWallets = wallets.filter(w => w.id !== walletId);
       if (activeWallet?.id === walletId) {
         if (remainingWallets.length > 0) {
@@ -93,11 +100,13 @@ function RemoveWallet() {
           setActiveAddress(null);
         }
       }
-      navigate('/wallet-selection');
+      
+      await removeWallet(walletId!);
+      // Immediately navigate after successful removal
+      navigate('/select-wallet', { replace: true });
     } catch (err) {
       console.error('Error removing wallet:', err);
       setSubmissionError('Failed to remove wallet.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -105,7 +114,7 @@ function RemoveWallet() {
   return (
     <div className="flex flex-col h-full p-4" role="main" aria-labelledby="remove-wallet-title">
       <h2 id="remove-wallet-title" className="sr-only">
-        {walletType === 'privateKey' ? 'Remove Private Key' : 'Remove Wallet'}
+        {walletType === 'privateKey' ? 'Remove Address' : 'Remove Wallet'}
       </h2>
       {submissionError && (
         <ErrorAlert message={submissionError} onClose={() => setSubmissionError('')} />
@@ -115,11 +124,11 @@ function RemoveWallet() {
           <div className="flex items-center mb-4">
             <FaExclamationTriangle className="w-6 h-6 text-red-500 mr-2" aria-hidden="true" />
             <h3 className="text-xl font-bold text-red-700">
-              {walletType === 'privateKey' ? 'Remove Private Key' : 'Remove Wallet'}
+              {walletType === 'privateKey' ? 'Remove Address' : 'Remove Wallet'}
             </h3>
           </div>
           <p className="text-red-700 font-medium leading-relaxed">
-            Removing your wallet will delete all associated data. Please ensure you have a secure backup of your recovery phrase or private key before proceeding.
+            Make sure you have backed up your wallet or private key before removing it.
           </p>
         </div>
         <div className="w-full max-w-md space-y-4">
@@ -138,13 +147,13 @@ function RemoveWallet() {
             disabled={isLoading}
             fullWidth
             color="red"
-            aria-label={walletType === 'privateKey' ? 'Remove Private Key' : `Remove Wallet ${walletName}`}
+            aria-label={walletType === 'privateKey' ? 'Remove Private Key' : `Remove ${walletName}`}
           >
             {isLoading
               ? 'Removing...'
               : walletType === 'privateKey'
               ? 'Remove Private Key'
-              : `Remove Wallet ${walletName}`}
+              : `Remove ${walletName}`}
           </Button>
         </div>
       </form>

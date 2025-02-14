@@ -25,7 +25,7 @@ function createWalletService() {
     createMnemonicWallet: async (
       mnemonic: string,
       password: string,
-      name?: string,s
+      name?: string,
       addressType?: AddressType
     ): Promise<Wallet> => {
       return walletManager.createMnemonicWallet(mnemonic, password, name, addressType);

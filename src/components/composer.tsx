@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ReactElement } from "react";
 import { useWallet } from "@/contexts/wallet-context";
+import { useLoading } from "@/contexts/loading-context";
 
 export function Composer({
   initialTitle,
@@ -18,14 +19,14 @@ export function Composer({
   composeTransaction: (data: any) => Promise<any>;
 }) {
   const { activeWallet, activeAddress, signTransaction, broadcastTransaction } = useWallet();
+  const { showLoading, hideLoading } = useLoading();
   const [step, setStep] = useState<"form" | "review">("form");
   const [formData, setFormData] = useState<any>(null);
   const [apiResponse, setApiResponse] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleFormSubmit(data: any) {
-    setIsLoading(true);
+    showLoading("Composing transaction...");
     setError(null);
     try {
       const response = await composeTransaction(data);
@@ -35,12 +36,12 @@ export function Composer({
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setIsLoading(false);
+      hideLoading();
     }
   }
 
   async function handleSign() {
-    setIsLoading(true);
+    showLoading("Signing and broadcasting transaction...");
     setError(null);
     try {
       if (!apiResponse) throw new Error("No transaction composed.");
@@ -53,7 +54,7 @@ export function Composer({
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setIsLoading(false);
+      hideLoading();
     }
   }
 
@@ -65,7 +66,6 @@ export function Composer({
   return (
     <div>
       <h2>{initialTitle}</h2>
-      {isLoading && <div>Loading…</div>}
       {error && <div style={{ color: "red" }}>{error}</div>}
       {step === "form" && <FormComponent onSubmit={handleFormSubmit} />}
       {step === "review" && apiResponse && (

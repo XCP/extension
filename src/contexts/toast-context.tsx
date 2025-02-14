@@ -7,8 +7,6 @@ interface ToastContextValue {
   showError: (message: string, options?: ToastOptions) => void;
   showWarning: (message: string, options?: ToastOptions) => void;
   showInfo: (message: string, options?: ToastOptions) => void;
-  showLoading: (message: string) => void;
-  hideLoading: () => void;
   clearAll: () => void;
 }
 
@@ -20,8 +18,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     showError: (message, options) => toast.error(message, options),
     showWarning: (message, options) => toast.warning(message, options),
     showInfo: (message, options) => toast.info(message, options),
-    showLoading: (message) => toast.loading(message),
-    hideLoading: () => toast.dismiss(),
     clearAll: () => toast.dismiss(),
   };
 

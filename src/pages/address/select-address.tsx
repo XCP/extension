@@ -5,12 +5,21 @@ import { Button } from '@/components/button';
 import { AddressList } from '@/components/lists/address-list';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
+import { useToast } from '@/contexts/toast-context';
 import type { Address } from '@/utils/wallet';
 
 export function AddressSelection() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { activeWallet, activeAddress, setActiveAddress, addAddress } = useWallet();
+  // UPDATED: Destructure showError from useToast instead of addToast
+  const { showError } = useToast();
+  const { 
+    activeWallet, 
+    activeAddress, 
+    setActiveAddress, 
+    addAddress,
+    walletLocked,
+  } = useWallet();
 
   const handleAddAddress = useCallback(async () => {
     if (!activeWallet?.id) return;
@@ -18,11 +27,24 @@ export function AddressSelection() {
     if (activeWallet.addresses.length >= 20) return;
 
     try {
+      // If wallet is locked, navigate to unlock page
+      if (walletLocked) {
+        navigate('/unlock', { 
+          state: { 
+            returnTo: '/address/select',
+            walletId: activeWallet.id 
+          } 
+        });
+        return;
+      }
+
       await addAddress(activeWallet.id);
     } catch (error) {
       console.error('Failed to add address:', error);
+      // UPDATED: Use showError (from Toast context) to display error toast
+      showError('Failed to add address. Please try again.');
     }
-  }, [activeWallet, addAddress]);
+  }, [activeWallet, addAddress, walletLocked, navigate, showError]);
 
   const handleSelectAddress = useCallback(async (address: Address) => {
     await setActiveAddress(address);
@@ -33,13 +55,16 @@ export function AddressSelection() {
     setHeaderProps({
       title: 'Select Address',
       onBack: () => navigate(-1),
-      rightButton: activeWallet?.type === 'mnemonic' ? {
-        icon: <FaPlus />,
-        onClick: handleAddAddress,
-        ariaLabel: 'Add Address',
-      } : undefined,
+      rightButton: activeWallet?.type === 'mnemonic'
+        ? {
+            icon: <FaPlus />,
+            onClick: handleAddAddress,
+            ariaLabel: 'Add Address',
+            disabled: walletLocked, // Disable the button when wallet is locked
+          }
+        : undefined,
     });
-  }, [setHeaderProps, navigate, handleAddAddress, activeWallet?.type]);
+  }, [setHeaderProps, navigate, handleAddAddress, activeWallet?.type, walletLocked]);
 
   if (!activeWallet) return null;
 
@@ -61,11 +86,15 @@ export function AddressSelection() {
           color="green"
           fullWidth
           onClick={handleAddAddress}
-          disabled={activeWallet.addresses.length >= 20}
+          disabled={
+            activeWallet.addresses.length >= 20 ||
+            walletLocked ||
+            activeWallet.type !== 'mnemonic'
+          }
           aria-label="Add Address"
         >
           <FaPlus className="mr-2" aria-hidden="true" />
-          Add Address
+          {walletLocked ? 'Unlock to Add Address' : 'Add Address'}
         </Button>
       </div>
     </div>

@@ -363,7 +363,7 @@ export class WalletManager {
     const secret = sessionManager.getUnlockedSecret(walletId);
     if (!secret) throw new Error('Wallet is locked.');
     if (wallet.type === 'mnemonic') {
-      // Use the provided derivationPath or fallback to the first address’s path
+      // Use the provided derivationPath or fallback to the first address's path
       const path =
         derivationPath ||
         (wallet.addresses[0]?.path ?? `${getDerivationPathForAddressType(wallet.addressType)}/0`);
@@ -385,6 +385,7 @@ export class WalletManager {
     }
     const newWallet = await this.createMnemonicWallet(mnemonic, password, name, addressType);
     await this.unlockWallet(newWallet.id, password);
+    this.setActiveWallet(newWallet.id);
     return newWallet;
   }
   public async createAndUnlockPrivateKeyWallet(

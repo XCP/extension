@@ -63,6 +63,7 @@ Files:
 /src/contexts/app-providers.tsx
 /src/contexts/auth-context.tsx
 /src/contexts/header-context.tsx
+/src/contexts/loading-context.tsx
 /src/contexts/price-context.tsx
 /src/contexts/settings-context.tsx
 /src/contexts/toast-context.tsx
@@ -118,6 +119,8 @@ Files:
 /src/utils/blockchain/bitcoin/index.ts
 /src/utils/blockchain/bitcoin/price.ts
 /src/utils/blockchain/bitcoin/privateKey.ts
+/src/utils/blockchain/bitcoin/transactionBroadcaster.ts
+/src/utils/blockchain/bitcoin/transactionSigner.ts
 /src/utils/blockchain/bitcoin/utxo.ts
 /src/utils/blockchain/counterparty/api.ts
 /src/utils/blockchain/counterparty/compose.ts
@@ -397,8 +400,7 @@ File Contents:
   import { useState } from "react";
   import type { ReactElement } from "react";
   import { useWallet } from "@/contexts/wallet-context";
-  import { signRawTransaction } from "@/utils/signer";
-  import { broadcastTransaction } from "@/utils/broadcaster";
+  import { useLoading } from "@/contexts/loading-context";
   
   export function Composer({
     initialTitle,
@@ -415,15 +417,15 @@ File Contents:
     }) => ReactElement;
     composeTransaction: (data: any) => Promise<any>;
   }) {
-    const { activeWallet, activeAddress } = useWallet();
+    const { activeWallet, activeAddress, signTransaction, broadcastTransaction } = useWallet();
+    const { showLoading, hideLoading } = useLoading();
     const [step, setStep] = useState<"form" | "review">("form");
     const [formData, setFormData] = useState<any>(null);
     const [apiResponse, setApiResponse] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
   
     async function handleFormSubmit(data: any) {
-      setIsLoading(true);
+      showLoading("Composing transaction...");
       setError(null);
       try {
         const response = await composeTransaction(data);
@@ -433,29 +435,25 @@ File Contents:
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
       } finally {
-        setIsLoading(false);
+        hideLoading();
       }
     }
   
     async function handleSign() {
-      setIsLoading(true);
+      showLoading("Signing and broadcasting transaction...");
       setError(null);
       try {
         if (!apiResponse) throw new Error("No transaction composed.");
         if (!activeWallet || !activeAddress)
           throw new Error("Wallet is not properly initialized.");
         const rawTxHex = apiResponse.result.rawtransaction;
-        const signedTxHex = await signRawTransaction(
-          rawTxHex,
-          activeWallet.id,
-          activeAddress.address
-        );
+        const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
         await broadcastTransaction(signedTxHex);
         alert("Transaction signed successfully!");
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
       } finally {
-        setIsLoading(false);
+        hideLoading();
       }
     }
   
@@ -467,7 +465,6 @@ File Contents:
     return (
       <div>
         <h2>{initialTitle}</h2>
-        {isLoading && <div>Loading…</div>}
         {error && <div style={{ color: "red" }}>{error}</div>}
         {step === "form" && <FormComponent onSubmit={handleFormSubmit} />}
         {step === "review" && apiResponse && (
@@ -874,7 +871,9 @@ File Contents:
   import { Outlet } from 'react-router-dom';
   import { Header } from '@/components/header';
   import { useHeader } from '@/contexts/header-context';
+  import { useLoading } from '@/contexts/loading-context';
   import Footer from '@/components/footer';
+  import { Loading } from '@/components/loading';
   
   interface LayoutProps {
     showFooter?: boolean;
@@ -882,11 +881,20 @@ File Contents:
   
   export function Layout({ showFooter = false }: LayoutProps) {
     const { headerProps } = useHeader();
+    const { isLoading, message } = useLoading();
+  
+    if (isLoading) {
+      return (
+        <div className="fixed inset-0 flex items-center justify-center bg-white z-50">
+          <Loading message={message} />
+        </div>
+      );
+    }
   
     return (
       <div className="flex flex-col h-screen bg-gray-100">
         <Header {...headerProps} />
-        <main className="flex-1 overflow-y-auto no-scrollbar">
+        <main className="flex-1 overflow-y-auto no-scrollbar relative">
           <Outlet />
         </main>
         {showFooter && <Footer />}
@@ -1300,15 +1308,17 @@ File Contents:
   import { FaSpinner } from 'react-icons/fa';
   
   interface LoadingProps {
-    showMessage?: boolean;
     message?: string;
+    className?: string;
   }
   
-  export function Loading({ showMessage = true, message = 'Loading...' }: LoadingProps) {
+  export function Loading({ message = 'Loading...', className = '' }: LoadingProps) {
     return (
-      <div className="flex flex-col items-center justify-center p-4 space-y-2">
-        <FaSpinner className="w-6 h-6 text-blue-500 animate-spin" />
-        {showMessage && <span className="text-gray-500">{message}</span>}
+      <div className={`flex flex-col items-center justify-center space-y-4 ${className}`}>
+        <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
+        {message && (
+          <p className="text-gray-600 text-center font-medium">{message}</p>
+        )}
       </div>
     );
   } 
@@ -1352,11 +1362,10 @@ File Contents:
     const handleShowPrivateKey = useCallback(
       (e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation();
-        const index = address.path.split('/').pop() || '0';
-        navigate(`/show-private-key/${walletId}/${index}`);
+        navigate(`/show-private-key/${walletId}/${encodeURIComponent(address.path)}`);
       },
       [address, walletId, navigate]
-    );
+    );  
   
     return (
       <Menu as="div" className="relative">
@@ -1687,6 +1696,7 @@ File Contents:
   import { WalletProvider } from './wallet-context';
   import { HeaderProvider } from './header-context';
   import { PriceProvider } from './price-context';
+  import { LoadingProvider } from './loading-context';
   
   interface AppProvidersProps {
     children: ReactNode;
@@ -1695,17 +1705,19 @@ File Contents:
   export function AppProviders({ children }: AppProvidersProps) {
     return (
       <ToastProvider>
-        <AuthProvider>
-          <SettingsProvider>
-            <WalletProvider>
-              <HeaderProvider>
-                <PriceProvider>
-                  {children}
-                </PriceProvider>
-              </HeaderProvider>
-            </WalletProvider>
-          </SettingsProvider>
-        </AuthProvider>
+        <LoadingProvider>
+          <AuthProvider>
+            <SettingsProvider>
+              <WalletProvider>
+                <HeaderProvider>
+                  <PriceProvider>
+                    {children}
+                  </PriceProvider>
+                </HeaderProvider>
+              </WalletProvider>
+            </SettingsProvider>
+          </AuthProvider>
+        </LoadingProvider>
       </ToastProvider>
     );
   }
@@ -1811,6 +1823,84 @@ File Contents:
     }
     return context;
   }
+
+/src/contexts/loading-context.tsx
+  [contents of the file]
+  import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+  
+  interface LoadingContextType {
+    isLoading: boolean;
+    message: string;
+    showLoading: (message?: string) => void;
+    hideLoading: () => void;
+  }
+  
+  const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
+  
+  // Timeout in milliseconds before auto-hiding the loading state
+  const AUTO_HIDE_TIMEOUT = 30000; // 30 seconds
+  
+  export function LoadingProvider({ children }: { children: ReactNode }) {
+    const [isLoading, setIsLoading] = useState(false);
+    const [message, setMessage] = useState('');
+    
+    let timeoutId: number | undefined;
+  
+    useEffect(() => {
+      return () => {
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+        }
+      };
+    }, []);
+  
+    const showLoading = (message = 'Loading...') => {
+      // When showing loading, prevent background scrolling
+      if (typeof document !== 'undefined') {
+        document.body.style.overflow = 'hidden';
+      }
+      
+      setMessage(message);
+      setIsLoading(true);
+  
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+  
+      timeoutId = window.setTimeout(() => {
+        console.warn('Loading state auto-hidden after timeout');
+        hideLoading();
+      }, AUTO_HIDE_TIMEOUT);
+    };
+  
+    const hideLoading = () => {
+      // Re-enable scrolling when hiding loading
+      if (typeof document !== 'undefined') {
+        document.body.style.overflow = '';
+      }
+      
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+        timeoutId = undefined;
+      }
+      setIsLoading(false);
+      setMessage('');
+    };
+  
+    return (
+      <LoadingContext.Provider value={{ isLoading, message, showLoading, hideLoading }}>
+        {children}
+      </LoadingContext.Provider>
+    );
+  }
+  
+  export function useLoading() {
+    const context = useContext(LoadingContext);
+    if (context === undefined) {
+      throw new Error('useLoading must be used within a LoadingProvider');
+    }
+    return context;
+  } 
 
 /src/contexts/price-context.tsx
   [contents of the file]
@@ -1981,8 +2071,6 @@ File Contents:
     showError: (message: string, options?: ToastOptions) => void;
     showWarning: (message: string, options?: ToastOptions) => void;
     showInfo: (message: string, options?: ToastOptions) => void;
-    showLoading: (message: string) => void;
-    hideLoading: () => void;
     clearAll: () => void;
   }
   
@@ -1994,8 +2082,6 @@ File Contents:
       showError: (message, options) => toast.error(message, options),
       showWarning: (message, options) => toast.warning(message, options),
       showInfo: (message, options) => toast.info(message, options),
-      showLoading: (message) => toast.loading(message),
-      hideLoading: () => toast.dismiss(),
       clearAll: () => toast.dismiss(),
     };
   
@@ -2017,7 +2103,7 @@ File Contents:
 
 /src/contexts/wallet-context.tsx
   [contents of the file]
-  import React, {
+  import React, { 
     createContext,
     useContext,
     useEffect,
@@ -2056,11 +2142,13 @@ File Contents:
     ) => Promise<Wallet>;
     resetAllWallets: (password: string) => Promise<void>;
     getUnencryptedMnemonic: (walletId: string) => Promise<string>;
-    getPrivateKey: (walletId: string, pathIndex?: number) => Promise<string>;
+    getPrivateKey: (walletId: string, derivationPath?: string) => Promise<string>;
     verifyPassword: (password: string) => Promise<boolean>;
     updateWalletAddressType: (walletId: string, newType: AddressType) => Promise<void>;
     getPreviewAddressForType: (walletId: string, addressType: AddressType) => Promise<string>;
     removeWallet: (walletId: string) => Promise<void>;
+    signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
+    broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
   }
   
   const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -2075,7 +2163,6 @@ File Contents:
     const [walletLocked, setWalletLocked] = useState<boolean>(true);
     const [loaded, setLoaded] = useState<boolean>(false);
   
-    // Consolidate the state-refresh logic into one helper.
     const refreshWalletState = useCallback(async () => {
       try {
         await walletService.loadWallets();
@@ -2093,8 +2180,7 @@ File Contents:
   
           const lastActiveAddress = await walletService.getLastActiveAddress();
           setActiveAddressState(
-            lastActiveAddress &&
-              active.addresses.some((addr) => addr.address === lastActiveAddress)
+            lastActiveAddress && active.addresses.some((addr) => addr.address === lastActiveAddress)
               ? active.addresses.find((addr) => addr.address === lastActiveAddress) || active.addresses[0]
               : active.addresses[0] || null
           );
@@ -2115,12 +2201,10 @@ File Contents:
       }
     }, [walletService, authDispatch]);
   
-    // Initial load on mount
     useEffect(() => {
       refreshWalletState();
     }, [refreshWalletState]);
   
-    // Set up auto-lock handler
     useEffect(() => {
       const originalOnAutoLock = walletService.onAutoLock;
       walletService.onAutoLock = async () => {
@@ -2134,7 +2218,6 @@ File Contents:
       };
     }, [walletService, authDispatch]);
   
-    // Now refactor callbacks to be thin – call the service and then refresh.
     const unlockWallet = useCallback(async (walletId: string, password: string) => {
       try {
         await walletService.unlockWallet(walletId, password);
@@ -2217,8 +2300,8 @@ File Contents:
       return walletService.getUnencryptedMnemonic(walletId);
     }, [walletService]);
   
-    const getPrivateKey = useCallback(async (walletId: string, pathIndex: number = 0): Promise<string> => {
-      return walletService.getPrivateKey(walletId, pathIndex);
+    const getPrivateKey = useCallback(async (walletId: string, derivationPath?: string): Promise<string> => {
+      return walletService.getPrivateKey(walletId, derivationPath);
     }, [walletService]);
   
     const verifyPassword = useCallback(async (password: string): Promise<boolean> => {
@@ -2255,6 +2338,10 @@ File Contents:
       updateWalletAddressType,
       getPreviewAddressForType,
       removeWallet,
+      signTransaction: (rawTxHex: string, sourceAddress: string) =>
+        walletService.signTransaction(rawTxHex, sourceAddress),
+      broadcastTransaction: (signedTxHex: string) =>
+        walletService.broadcastTransaction(signedTxHex),
     };
   
     return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
@@ -2574,12 +2661,21 @@ File Contents:
   import { AddressList } from '@/components/lists/address-list';
   import { useHeader } from '@/contexts/header-context';
   import { useWallet } from '@/contexts/wallet-context';
+  import { useToast } from '@/contexts/toast-context';
   import type { Address } from '@/utils/wallet';
   
   export function AddressSelection() {
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
-    const { activeWallet, activeAddress, setActiveAddress, addAddress } = useWallet();
+    // UPDATED: Destructure showError from useToast instead of addToast
+    const { showError } = useToast();
+    const { 
+      activeWallet, 
+      activeAddress, 
+      setActiveAddress, 
+      addAddress,
+      walletLocked,
+    } = useWallet();
   
     const handleAddAddress = useCallback(async () => {
       if (!activeWallet?.id) return;
@@ -2587,11 +2683,24 @@ File Contents:
       if (activeWallet.addresses.length >= 20) return;
   
       try {
+        // If wallet is locked, navigate to unlock page
+        if (walletLocked) {
+          navigate('/unlock', { 
+            state: { 
+              returnTo: '/address/select',
+              walletId: activeWallet.id 
+            } 
+          });
+          return;
+        }
+  
         await addAddress(activeWallet.id);
       } catch (error) {
         console.error('Failed to add address:', error);
+        // UPDATED: Use showError (from Toast context) to display error toast
+        showError('Failed to add address. Please try again.');
       }
-    }, [activeWallet, addAddress]);
+    }, [activeWallet, addAddress, walletLocked, navigate, showError]);
   
     const handleSelectAddress = useCallback(async (address: Address) => {
       await setActiveAddress(address);
@@ -2602,13 +2711,16 @@ File Contents:
       setHeaderProps({
         title: 'Select Address',
         onBack: () => navigate(-1),
-        rightButton: activeWallet?.type === 'mnemonic' ? {
-          icon: <FaPlus />,
-          onClick: handleAddAddress,
-          ariaLabel: 'Add Address',
-        } : undefined,
+        rightButton: activeWallet?.type === 'mnemonic'
+          ? {
+              icon: <FaPlus />,
+              onClick: handleAddAddress,
+              ariaLabel: 'Add Address',
+              disabled: walletLocked, // Disable the button when wallet is locked
+            }
+          : undefined,
       });
-    }, [setHeaderProps, navigate, handleAddAddress, activeWallet?.type]);
+    }, [setHeaderProps, navigate, handleAddAddress, activeWallet?.type, walletLocked]);
   
     if (!activeWallet) return null;
   
@@ -2630,11 +2742,15 @@ File Contents:
             color="green"
             fullWidth
             onClick={handleAddAddress}
-            disabled={activeWallet.addresses.length >= 20}
+            disabled={
+              activeWallet.addresses.length >= 20 ||
+              walletLocked ||
+              activeWallet.type !== 'mnemonic'
+            }
             aria-label="Add Address"
           >
             <FaPlus className="mr-2" aria-hidden="true" />
-            Add Address
+            {walletLocked ? 'Unlock to Add Address' : 'Add Address'}
           </Button>
         </div>
       </div>
@@ -3628,11 +3744,7 @@ File Contents:
   
       if (walletType === 'mnemonic') {
         if (!addressPath) {
-          return true;
-        }
-        const index = parseInt(addressPath, 10);
-        if (isNaN(index) || index < 0) {
-          setSubmissionError('Invalid address index.');
+          setSubmissionError('Address derivation path is missing.');
           return false;
         }
       }
@@ -3649,8 +3761,8 @@ File Contents:
         if (walletType === 'privateKey') {
           privKey = await getPrivateKey(walletId);
         } else {
-          const index = addressPath ? parseInt(addressPath, 10) : 0;
-          privKey = await getPrivateKey(walletId, index);
+          // Use the full derivation path string directly.
+          privKey = await getPrivateKey(walletId, addressPath);
         }
         
         if (!privKey) {
@@ -4603,12 +4715,15 @@ File Contents:
   import { useToast } from '@/contexts/toast-context';
   import { useWallet } from '@/contexts/wallet-context';
   import { generateNewMnemonic } from '@/utils/blockchain/bitcoin';
+  import { Loading } from '@/components/loading';
+  import { useLoading } from '@/contexts/loading-context';
   
   function CreateWallet() {
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
     const { wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
     const { showError, clearAll } = useToast();
+    const { showLoading, hideLoading } = useLoading();
     const walletExists = wallets.length > 0;
   
     const [mnemonic, setMnemonic] = useState('');
@@ -4688,12 +4803,15 @@ File Contents:
       if (e) e.preventDefault();
       if (await validateForm()) {
         try {
+          showLoading('Creating wallet...');
           clearAll();
           await createAndUnlockMnemonicWallet(mnemonic, password);
           navigate('/index');
         } catch (err: unknown) {
           console.error('Error creating wallet:', err);
           showError('Failed to create wallet. Please try again.');
+        } finally {
+          hideLoading();
         }
       }
     }
@@ -4778,12 +4896,15 @@ File Contents:
   import { AddressType } from '@/utils/blockchain/bitcoin/address';
   import { useState as useLocalState } from 'react'; // (if needed)
   import { useMemo as useLocalMemo } from 'react'; // (if needed)
+  import { Loading } from '@/components/loading';
+  import { useLoading } from '@/contexts/loading-context';
   
   export const ImportPrivateKey = () => {
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
     const { wallets, createAndUnlockPrivateKeyWallet, verifyPassword } = useWallet();
     const { showError } = useToast();
+    const { showLoading, hideLoading } = useLoading();
   
     const [privateKey, setPrivateKey] = useState('');
     const [addressType, setAddressType] = useState<AddressType>(AddressType.P2PKH);
@@ -4885,6 +5006,7 @@ File Contents:
   
     const createWallet = async (): Promise<void> => {
       try {
+        showLoading('Importing private key...');
         await createAndUnlockPrivateKeyWallet(privateKey.trim(), password, undefined, addressType);
         navigate('/index');
       } catch (error) {
@@ -4902,6 +5024,8 @@ File Contents:
         }
         showError(errorMessage);
         setSubmissionError(errorMessage);
+      } finally {
+        hideLoading();
       }
     };
   
@@ -5011,6 +5135,8 @@ File Contents:
   import { useWallet } from '@/contexts/wallet-context';
   import { AddressType } from '@/utils/blockchain/bitcoin';
   import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
+  import { Loading } from '@/components/loading';
+  import { useLoading } from '@/contexts/loading-context';
   
   function ImportWallet() {
     const navigate = useNavigate();
@@ -5018,6 +5144,7 @@ File Contents:
     const { unlockWallet, wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
     const { showError } = useToast();
     const walletExists = wallets.length > 0;
+    const { showLoading, hideLoading } = useLoading();
   
     const [mnemonicWords, setMnemonicWords] = useState<string[]>(Array(12).fill(''));
     const [isConfirmed, setIsConfirmed] = useState(false);
@@ -5120,6 +5247,7 @@ File Contents:
       if (e) e.preventDefault();
       if (await validateForm()) {
         try {
+          showLoading('Importing wallet...');
           const mnemonic = mnemonicWords.join(' ').trim();
           const addressType = isValidCounterwalletMnemonic(mnemonic)
             ? AddressType.Counterwallet
@@ -5130,6 +5258,8 @@ File Contents:
         } catch (error: unknown) {
           console.error('Error importing wallet:', error);
           showError('Failed to import wallet. Please try again.');
+        } finally {
+          hideLoading();
         }
       }
     }
@@ -5221,6 +5351,9 @@ File Contents:
   
     const passwordInputRef = useRef<HTMLInputElement>(null);
   
+    // Move wallet lookup to a ref to prevent unnecessary re-renders
+    const wallet = wallets.find(w => w.id === walletId);
+  
     const isPasswordValid = (pwd: string): boolean => pwd.length >= 8;
   
     useEffect(() => {
@@ -5228,18 +5361,22 @@ File Contents:
         setSubmissionError('Invalid wallet identifier.');
         return;
       }
-      const wallet = wallets.find(w => w.id === walletId);
+      
+      // Only set error if we're not in the process of removing the wallet
+      if (!isLoading && !wallet) {
+        setSubmissionError('Wallet not found.');
+        return;
+      }
+  
       if (wallet) {
         setWalletName(wallet.name);
         setWalletType(wallet.type);
         setHeaderProps({
-          title: wallet.type === 'privateKey' ? 'Remove Private Key' : 'Remove Wallet',
+          title: wallet.type === 'privateKey' ? 'Remove Address' : 'Remove Wallet',
           onBack: () => navigate(-1),
         });
-      } else {
-        setSubmissionError('Wallet not found.');
       }
-    }, [walletId, wallets, setHeaderProps, navigate]);
+    }, [walletId, wallets, setHeaderProps, navigate, isLoading, wallet]);
   
     useEffect(() => {
       passwordInputRef.current?.focus();
@@ -5279,9 +5416,9 @@ File Contents:
       setSubmissionError('');
       const isValid = await validateForm();
       if (!isValid) return;
+      
       setIsLoading(true);
       try {
-        await removeWallet(walletId!);
         const remainingWallets = wallets.filter(w => w.id !== walletId);
         if (activeWallet?.id === walletId) {
           if (remainingWallets.length > 0) {
@@ -5292,11 +5429,13 @@ File Contents:
             setActiveAddress(null);
           }
         }
-        navigate('/wallet-selection');
+        
+        await removeWallet(walletId!);
+        // Immediately navigate after successful removal
+        navigate('/select-wallet', { replace: true });
       } catch (err) {
         console.error('Error removing wallet:', err);
         setSubmissionError('Failed to remove wallet.');
-      } finally {
         setIsLoading(false);
       }
     };
@@ -5304,7 +5443,7 @@ File Contents:
     return (
       <div className="flex flex-col h-full p-4" role="main" aria-labelledby="remove-wallet-title">
         <h2 id="remove-wallet-title" className="sr-only">
-          {walletType === 'privateKey' ? 'Remove Private Key' : 'Remove Wallet'}
+          {walletType === 'privateKey' ? 'Remove Address' : 'Remove Wallet'}
         </h2>
         {submissionError && (
           <ErrorAlert message={submissionError} onClose={() => setSubmissionError('')} />
@@ -5314,11 +5453,11 @@ File Contents:
             <div className="flex items-center mb-4">
               <FaExclamationTriangle className="w-6 h-6 text-red-500 mr-2" aria-hidden="true" />
               <h3 className="text-xl font-bold text-red-700">
-                {walletType === 'privateKey' ? 'Remove Private Key' : 'Remove Wallet'}
+                {walletType === 'privateKey' ? 'Remove Address' : 'Remove Wallet'}
               </h3>
             </div>
             <p className="text-red-700 font-medium leading-relaxed">
-              Removing your wallet will delete all associated data. Please ensure you have a secure backup of your recovery phrase or private key before proceeding.
+              Make sure you have backed up your wallet or private key before removing it.
             </p>
           </div>
           <div className="w-full max-w-md space-y-4">
@@ -5337,13 +5476,13 @@ File Contents:
               disabled={isLoading}
               fullWidth
               color="red"
-              aria-label={walletType === 'privateKey' ? 'Remove Private Key' : `Remove Wallet ${walletName}`}
+              aria-label={walletType === 'privateKey' ? 'Remove Private Key' : `Remove ${walletName}`}
             >
               {isLoading
                 ? 'Removing...'
                 : walletType === 'privateKey'
                 ? 'Remove Private Key'
-                : `Remove Wallet ${walletName}`}
+                : `Remove ${walletName}`}
             </Button>
           </div>
         </form>
@@ -5676,9 +5815,7 @@ File Contents:
       getSettings: async () => {
         return settingsManager.getSettings();
       },
-      updateSettings: async (
-        newSettings: Partial<Parameters<typeof settingsManager.updateSettings>[0]>
-      ) => {
+      updateSettings: async (newSettings: Partial<Parameters<typeof settingsManager.updateSettings>[0]>) => {
         await settingsManager.updateSettings(newSettings);
       },
       setLastActiveTime: () => {
@@ -5689,12 +5826,6 @@ File Contents:
       },
       isAnyWalletUnlocked: async (): Promise<boolean> => {
         return walletManager.isAnyWalletUnlocked();
-      },
-      get onAutoLock() {
-        return walletManager.onAutoLock;
-      },
-      set onAutoLock(callback: (() => void) | undefined) {
-        walletManager.onAutoLock = callback;
       },
       createAndUnlockMnemonicWallet: async (
         mnemonic: string,
@@ -5713,26 +5844,31 @@ File Contents:
         return walletManager.createAndUnlockPrivateKeyWallet(privateKey, password, name, addressType);
       },
       getUnencryptedMnemonic: async (walletId: string): Promise<string> => {
-        const secret = walletManager.getUnlockedSecret(walletId);
-        if (!secret) throw new Error('Wallet secret not found or locked');
-        return secret;
+        return walletManager.getUnencryptedMnemonic(walletId);
       },
-      getPrivateKey: async (walletId: string, pathIndex: number = 0): Promise<string> => {
-        return walletManager.getPrivateKey(walletId, pathIndex);
+      getPrivateKey: async (walletId: string, derivationPath?: string): Promise<string> => {
+        return walletManager.getPrivateKey(walletId, derivationPath);
       },
       removeWallet: async (walletId: string): Promise<void> => {
         await walletManager.removeWallet(walletId);
       },
-      setLastActiveAddress: async (address: string) => {
-        await settingsManager.updateSettings({ lastActiveAddress: address });
-      },
-      getLastActiveAddress: async (): Promise<string | undefined> => {
-        const settings = await settingsManager.getSettings();
-        return settings?.lastActiveWalletId;
-      },
       getPreviewAddressForType: async (walletId: string, addressType: AddressType): Promise<string> => {
         return walletManager.getPreviewAddressForType(walletId, addressType);
       },
+      signTransaction: async (rawTxHex: string, sourceAddress: string): Promise<string> => {
+        return walletManager.signTransaction(rawTxHex, sourceAddress);
+      },
+      broadcastTransaction: async (signedTxHex: string): Promise<{ txid: string; fees?: number }> => {
+        return walletManager.broadcastTransaction(signedTxHex);
+      },
+      getLastActiveAddress: async (): Promise<string | undefined> => {
+        const settings = await settingsManager.getSettings();
+        return settings?.lastActiveAddress;
+      },
+      setLastActiveAddress: async (address: string): Promise<void> => {
+        await settingsManager.updateSettings({ lastActiveAddress: address });
+      },
+      onAutoLock: undefined as (() => void) | undefined,
     };
   }
   
@@ -6117,6 +6253,7 @@ File Contents:
   import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
   import { getPublicKey } from '@noble/secp256k1';
   import { signECDSA } from '@scure/btc-signer/utils';
+  import { walletManager } from '@/utils/wallet';
   
   /**
    * Re-implementation of concatBytes.
@@ -6168,7 +6305,7 @@ File Contents:
     // Get the uncompressed public key.
     const uncompressedPubKey: Uint8Array = getPublicKey(privateKey, false);
   
-    // Update this input’s partial signature so that finalize() later produces the correct unlocking script.
+    // Update this input's partial signature so that finalize() later produces the correct unlocking script.
     tx.updateInput(idx, { partialSig: [[uncompressedPubKey, sigWithHash]] }, true);
   }
   
@@ -6296,7 +6433,7 @@ File Contents:
   /* ───────── Helper Functions ───────── */
   
   /**
-   * Roughly estimates a transaction’s size in bytes.
+   * Roughly estimates a transaction's size in bytes.
    */
   function estimateTransactionSize(numInputs: number, numOutputs: number): number {
     let size = 8; // version (4 bytes) + locktime (4 bytes)
@@ -6343,7 +6480,7 @@ File Contents:
   }
   
   /**
-   * Fetch a previous transaction’s raw hex given its txid.
+   * Fetch a previous transaction's raw hex given its txid.
    */
   async function fetchPreviousRawTransaction(txid: string): Promise<string> {
     const endpoints = [
@@ -6369,11 +6506,9 @@ File Contents:
   async function getPrivateKey(walletId: string, address: string): Promise<string> {
     const wallet = walletManager.getWallet(walletId);
     if (!wallet) throw new Error('Wallet not found');
-    const targetAddress = wallet.addresses.find((addr: any) => addr.address === address);
+    const targetAddress = wallet.addresses.find((addr) => addr.address === address);
     if (!targetAddress) throw new Error('Source address not found in wallet');
-    const privateKeyHex = await walletManager.getPrivateKey(walletId, targetAddress.path);
-    if (!privateKeyHex) throw new Error('Private key not found');
-    return privateKeyHex;
+    return walletManager.getPrivateKey(walletId, targetAddress.path);
   }
   
   /**
@@ -6576,6 +6711,183 @@ File Contents:
       throw new Error('Unable to derive private key');
     }
     return bytesToHex(child.privateKey);
+  }
+
+/src/utils/blockchain/bitcoin/transactionBroadcaster.ts
+  [contents of the file]
+  import axios, { AxiosResponse } from 'axios';
+  
+  export interface TransactionResponse {
+    txid: string;
+    fees?: number;
+  }
+  
+  interface BroadcastEndpoint {
+    name: string;
+    getUrl: (signedTxHex: string) => string;
+    getData: (signedTxHex: string) => any;
+    headers: Record<string, string>;
+  }
+  
+  const broadcastEndpoints: BroadcastEndpoint[] = [
+    {
+      name: 'counterparty',
+      getUrl: (signedTxHex: string) => {
+        const encoded = encodeURIComponent(signedTxHex);
+        return `https://api.counterparty.info/v2/bitcoin/transactions?signedhex=${encoded}`;
+      },
+      getData: () => null,
+      headers: { 'Content-Type': 'application/json' },
+    },
+    {
+      name: 'blockcypher',
+      getUrl: () => 'https://api.blockcypher.com/v1/btc/main/txs/push',
+      getData: (signedTxHex: string) => ({ tx: signedTxHex }),
+      headers: { 'Content-Type': 'application/json' },
+    },
+    {
+      name: 'blockstream',
+      getUrl: () => 'https://blockstream.info/api/tx',
+      getData: (signedTxHex: string) => signedTxHex,
+      headers: { 'Content-Type': 'text/plain' },
+    },
+    {
+      name: 'mempool',
+      getUrl: () => 'https://mempool.space/api/tx',
+      getData: (signedTxHex: string) => signedTxHex,
+      headers: { 'Content-Type': 'text/plain' },
+    },
+  ];
+  
+  const formatResponse = (endpoint: BroadcastEndpoint, response: AxiosResponse): TransactionResponse => {
+    if (endpoint.name === 'counterparty') {
+      return { txid: response.data?.result };
+    }
+    if (endpoint.name === 'blockcypher') {
+      return { txid: response.data?.tx?.hash, fees: response.data?.tx?.fees };
+    }
+    if (endpoint.name === 'blockstream' || endpoint.name === 'mempool') {
+      return { txid: response.data?.trim() };
+    }
+    throw new Error('Unknown endpoint response format');
+  };
+  
+  export async function broadcastTransaction(signedTxHex: string): Promise<TransactionResponse> {
+    let lastError: Error | null = null;
+    for (const endpoint of broadcastEndpoints) {
+      try {
+        const response = await axios.post(
+          endpoint.getUrl(signedTxHex),
+          endpoint.getData(signedTxHex),
+          { headers: endpoint.headers }
+        );
+        if (response.status >= 200 && response.status < 300) {
+          const formatted = formatResponse(endpoint, response);
+          if (formatted.txid) {
+            return formatted;
+          }
+        }
+      } catch (error) {
+        lastError = error as Error;
+      }
+    }
+    throw new Error(lastError?.message || 'Failed to broadcast transaction on all endpoints');
+  }
+
+/src/utils/blockchain/bitcoin/transactionSigner.ts
+  [contents of the file]
+  import { Transaction, p2pkh, p2wpkh, p2sh, p2tr, SigHash } from '@scure/btc-signer';
+  import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
+  import { getPublicKey } from '@noble/secp256k1';
+  import { AddressType } from '@/utils/blockchain/bitcoin/address';
+  import { fetchUTXOs, getUtxoByTxid, fetchPreviousRawTransaction } from '@/utils/blockchain/bitcoin/utxo';
+  import { walletManager } from '@/utils/wallet/walletManager';
+  
+  function paymentScript(pubkeyBytes: Uint8Array, addressType: AddressType) {
+    switch (addressType) {
+      case AddressType.P2PKH:
+      case AddressType.Counterwallet:
+        return p2pkh(pubkeyBytes);
+      case AddressType.P2WPKH:
+        return p2wpkh(pubkeyBytes);
+      case AddressType.P2SH_P2WPKH:
+        return p2sh(p2wpkh(pubkeyBytes));
+      case AddressType.P2TR:
+        return p2tr(pubkeyBytes);
+      default:
+        throw new Error(`Unsupported address type: ${addressType}`);
+    }
+  }
+  
+  export async function signTransaction(
+    rawTransaction: string,
+    walletId: string,
+    sourceAddress: string
+  ): Promise<string> {
+    const wallet = walletManager.getWallet(walletId);
+    if (!wallet) throw new Error('Wallet not found');
+    const targetAddress = wallet.addresses.find(addr => addr.address === sourceAddress);
+    if (!targetAddress) throw new Error('Source address not found in wallet');
+    const privateKeyHex = await walletManager.getPrivateKey(walletId, targetAddress.path);
+    if (!privateKeyHex) throw new Error('Private key not found');
+    const privateKeyBytes = hexToBytes(privateKeyHex);
+    const pubkeyBytes = getPublicKey(privateKeyBytes, true);
+    const payment = paymentScript(pubkeyBytes, wallet.addressType);
+    const utxos = await fetchUTXOs(sourceAddress);
+    if (!utxos || utxos.length === 0) {
+      throw new Error('No UTXOs found for the source address');
+    }
+    const rawTxBytes = hexToBytes(rawTransaction);
+    const parsedTx = Transaction.fromRaw(rawTxBytes, { allowUnknownInputs: true, allowUnknownOutputs: true });
+    const tx = new Transaction({ allowUnknownInputs: true, allowUnknownOutputs: true });
+    for (let i = 0; i < parsedTx.inputsLength; i++) {
+      const input = parsedTx.getInput(i);
+      if (!input?.txid || input.index === undefined) {
+        throw new Error(`Invalid input at index ${i}`);
+      }
+      const txidHex = bytesToHex(input.txid);
+      const utxo = getUtxoByTxid(utxos, txidHex, input.index);
+      if (!utxo) {
+        throw new Error(`UTXO not found for input ${i}: ${txidHex}:${input.index}`);
+      }
+      const rawPrevTx = await fetchPreviousRawTransaction(txidHex);
+      if (!rawPrevTx) {
+        throw new Error(`Failed to fetch previous transaction for input ${i}: ${txidHex}`);
+      }
+      const prevTx = Transaction.fromRaw(hexToBytes(rawPrevTx), { allowUnknownInputs: true, allowUnknownOutputs: true });
+      const prevOutput = prevTx.getOutput(input.index);
+      if (!prevOutput) {
+        throw new Error(`Output not found in previous transaction for input ${i}: ${txidHex}:${input.index}`);
+      }
+      const inputData: any = {
+        txid: input.txid,
+        index: input.index,
+        sequence: 0xfffffffd,
+        sighashType: SigHash.ALL,
+      };
+      if (wallet.addressType === AddressType.P2PKH || wallet.addressType === AddressType.Counterwallet) {
+        inputData.nonWitnessUtxo = hexToBytes(rawPrevTx);
+      } else {
+        inputData.witnessUtxo = {
+          script: prevOutput.script,
+          amount: prevOutput.amount,
+        };
+        if (wallet.addressType === AddressType.P2SH_P2WPKH && payment.redeemScript) {
+          inputData.redeemScript = payment.redeemScript;
+        }
+      }
+      tx.addInput(inputData);
+    }
+    for (let i = 0; i < parsedTx.outputsLength; i++) {
+      const output = parsedTx.getOutput(i);
+      tx.addOutput({
+        script: output.script,
+        amount: output.amount,
+      });
+    }
+    tx.sign(privateKeyBytes);
+    tx.finalize();
+    return tx.hex;
   }
 
 /src/utils/blockchain/bitcoin/utxo.ts
@@ -8668,39 +8980,15 @@ File Contents:
   import { utf8ToBytes, bytesToHex } from '@noble/hashes/utils';
   import { HDKey } from '@scure/bip32';
   import { mnemonicToSeedSync } from '@scure/bip39';
-  
   import * as sessionManager from '@/utils/auth/sessionManager';
   import { settingsManager } from '@/utils/wallet';
-  
-  import {
-    getAllEncryptedWallets,
-    addEncryptedWallet,
-    updateEncryptedWallet,
-    removeEncryptedWalletRecord,
-    EncryptedWalletRecord,
-  } from '@/utils/storage/walletStorage';
-  
-  import {
-    encryptMnemonic,
-    decryptMnemonic,
-    encryptPrivateKey,
-    decryptPrivateKey,
-    DecryptionError,
-  } from '@/utils/encryption';
-  
-  import {
-    AddressType,
-    getAddressFromMnemonic,
-    getPrivateKeyFromMnemonic,
-    getAddressFromPrivateKey,
-    getPublicKeyFromPrivateKey,
-    decodeWIF,
-    isWIF,
-    getDerivationPathForAddressType,
-  } from '@/utils/blockchain/bitcoin';
-  
+  import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, removeEncryptedWalletRecord, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
+  import { encryptMnemonic, decryptMnemonic, encryptPrivateKey, decryptPrivateKey, DecryptionError } from '@/utils/encryption';
+  import { AddressType, getAddressFromMnemonic, getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, getDerivationPathForAddressType } from '@/utils/blockchain/bitcoin';
   import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
   import { KeychainSettings } from '@/utils/storage/settingsStorage';
+  import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
+  import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
   
   export interface Address {
     name: string;
@@ -8727,7 +9015,6 @@ File Contents:
     private wallets: Wallet[] = [];
     private activeWalletId: string | null = null;
   
-    // Session-related methods are wrapped here.
     public get onAutoLock(): (() => void) | undefined {
       return sessionManager.onAutoLock;
     }
@@ -8796,8 +9083,15 @@ File Contents:
     public getWalletById(id: string): Wallet | undefined {
       return this.wallets.find((w) => w.id === id);
     }
-    public getUnlockedSecret(walletId: string): string | null {
-      return sessionManager.getUnlockedSecret(walletId);
+    // New method: getWallet (convenience wrapper)
+    public getWallet(walletId: string): Wallet | undefined {
+      return this.getWalletById(walletId);
+    }
+    // New method: getUnencryptedMnemonic
+    public getUnencryptedMnemonic(walletId: string): string {
+      const secret = sessionManager.getUnlockedSecret(walletId);
+      if (!secret) throw new Error("Wallet secret not found or locked");
+      return secret;
     }
     public async createMnemonicWallet(
       mnemonic: string,
@@ -8915,7 +9209,6 @@ File Contents:
         }
         this.activeWalletId = walletId;
       } catch (err) {
-        console.error('Failed to unlock wallet', err);
         if (err instanceof DecryptionError) throw err;
         throw new Error('Invalid password or corrupted data.');
       }
@@ -9014,7 +9307,7 @@ File Contents:
     }
     public async updateWalletAddressType(walletId: string, newType: AddressType): Promise<void> {
       const wallet = this.getWalletById(walletId);
-      if (!wallet) throw new Error('Wallet not found.');
+      if (!wallet) throw new Error('Wallet not found');
       if (wallet.type !== 'mnemonic') {
         throw new Error('Only mnemonic wallets can change address type.');
       }
@@ -9042,19 +9335,22 @@ File Contents:
       record.pinnedAssetBalances = pinned;
       await updateEncryptedWallet(record);
     }
-    public async getPrivateKey(walletId: string, pathIndex = 0): Promise<string> {
+    public async getPrivateKey(walletId: string, derivationPath?: string): Promise<string> {
       const wallet = this.getWalletById(walletId);
       if (!wallet) throw new Error('Wallet not found.');
       const secret = sessionManager.getUnlockedSecret(walletId);
       if (!secret) throw new Error('Wallet is locked.');
       if (wallet.type === 'mnemonic') {
-        const path = `${getDerivationPathForAddressType(wallet.addressType)}/${pathIndex}`;
+        // Use the provided derivationPath or fallback to the first address's path
+        const path =
+          derivationPath ||
+          (wallet.addresses[0]?.path ?? `${getDerivationPathForAddressType(wallet.addressType)}/0`);
         return getPrivateKeyFromMnemonic(secret, path, wallet.addressType);
       } else {
         const { key: privateKeyHex } = JSON.parse(secret);
         return privateKeyHex;
       }
-    }
+    }  
     public async createAndUnlockMnemonicWallet(
       mnemonic: string,
       password: string,
@@ -9067,6 +9363,7 @@ File Contents:
       }
       const newWallet = await this.createMnemonicWallet(mnemonic, password, name, addressType);
       await this.unlockWallet(newWallet.id, password);
+      this.setActiveWallet(newWallet.id);
       return newWallet;
     }
     public async createAndUnlockPrivateKeyWallet(
@@ -9086,37 +9383,33 @@ File Contents:
     }
     public getPreviewAddressForType(walletId: string, addressType: AddressType): string {
       const secret = sessionManager.getUnlockedSecret(walletId);
-      
       if (!secret) {
         throw new Error('Wallet is locked');
       }
-  
       const wallet = this.getWalletById(walletId);
       if (!wallet) {
         throw new Error('Wallet not found');
       }
-  
-      try {
-        if (wallet.type === 'mnemonic') {
-          return getAddressFromMnemonic(
-            secret,
-            `${getDerivationPathForAddressType(addressType)}/0`,
-            addressType
-          );
-        } else {
-          const { key: privateKeyHex, compressed } = JSON.parse(secret);
-          return getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
-        }
-      } catch (error) {
-        console.error('Error generating preview address:', error);
-        throw error;
+      if (wallet.type === 'mnemonic') {
+        return getAddressFromMnemonic(
+          secret,
+          `${getDerivationPathForAddressType(addressType)}/0`,
+          addressType
+        );
+      } else {
+        const { key: privateKeyHex, compressed } = JSON.parse(secret);
+        return getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
       }
     }
+    public async signTransaction(rawTxHex: string, sourceAddress: string): Promise<string> {
+      if (!this.activeWalletId) throw new Error("No active wallet set");
+      return btcSignTransaction(rawTxHex, this.activeWalletId, sourceAddress);
+    }
+    public async broadcastTransaction(signedTxHex: string): Promise<{ txid: string; fees?: number }> {
+      return btcBroadcastTransaction(signedTxHex);
+    }
     private async generateWalletId(mnemonic: string, addressType: AddressType): Promise<string> {
-      const seed =
-        addressType === AddressType.Counterwallet
-          ? getCounterwalletSeed(mnemonic)
-          : mnemonicToSeedSync(mnemonic);
+      const seed = addressType === AddressType.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
       const derivationPath = getDerivationPathForAddressType(addressType);
       const pathParts = derivationPath.split('/').slice(0, -1).join('/');
       const root = HDKey.fromMasterSeed(seed);
@@ -9140,10 +9433,7 @@ File Contents:
     private deriveMnemonicAddress(mnemonic: string, addressType: AddressType, index: number): Address {
       const path = `${getDerivationPathForAddressType(addressType)}/${index}`;
       const address = getAddressFromMnemonic(mnemonic, path, addressType);
-      const seed =
-        addressType === AddressType.Counterwallet
-          ? getCounterwalletSeed(mnemonic)
-          : mnemonicToSeedSync(mnemonic);
+      const seed = addressType === AddressType.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
       const root = HDKey.fromMasterSeed(seed);
       const child = root.derive(path);
       if (!child.publicKey) {
@@ -9158,19 +9448,15 @@ File Contents:
       };
     }
     private deriveAddressFromPrivateKey(privKeyData: string, addressType: AddressType): Address {
-      try {
-        const { key: privateKeyHex, compressed } = JSON.parse(privKeyData);
-        const address = getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
-        const pubKey = getPublicKeyFromPrivateKey(privateKeyHex, compressed);
-        return {
-          name: 'Address 1',
-          path: '',
-          address,
-          pubKey,
-        };
-      } catch (err) {
-        throw new Error('Invalid privateKey JSON');
-      }
+      const { key: privateKeyHex, compressed } = JSON.parse(privKeyData);
+      const address = getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
+      const pubKey = getPublicKeyFromPrivateKey(privateKeyHex, compressed);
+      return {
+        name: 'Address 1',
+        path: '',
+        address,
+        pubKey,
+      };
     }
   }
   
