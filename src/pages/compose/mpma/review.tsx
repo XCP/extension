@@ -9,9 +9,10 @@ interface ReviewSendProps {
   onBack: () => void;
 }
 
-export function ReviewSend({ apiResponse, onSign, onBack }: ReviewSendProps) {
+export function ReviewMPMA({ apiResponse, onSign, onBack }: ReviewSendProps) {
   const [isSigning, setIsSigning] = useState(false);
   const { result } = apiResponse;
+  // In this MPMA flow we assume the transaction is multi-destination.
   const asset = result.params.asset || "XCP";
   const assetDivisible = asset !== "BTC";
 
@@ -32,6 +33,15 @@ export function ReviewSend({ apiResponse, onSign, onBack }: ReviewSendProps) {
           maximumFractionDigits: 8,
         })
       : quantity.toString();
+
+  // Calculate total amount across all destinations.
+  const calculateTotal = () => {
+    const total = result.params.asset_dest_quant_list?.reduce(
+      (sum: number, entry: [string, string, string]) => sum + Number(entry[2]),
+      0
+    );
+    return total ? formatQuantity(total) : null;
+  };
 
   const formatBTCAmount = (amount: number) =>
     formatAmount({
@@ -57,8 +67,14 @@ export function ReviewSend({ apiResponse, onSign, onBack }: ReviewSendProps) {
         </div>
         <div className="space-y-1">
           <span className="font-semibold text-gray-700">To:</span>
-          <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
-            {result.params.destination}
+          <div className="space-y-2">
+            {result.params.asset_dest_quant_list?.map(
+              ([, destination]: [string, string, string], index: number) => (
+                <div key={index} className="bg-gray-50 p-2 rounded break-all text-gray-900">
+                  {destination}
+                </div>
+              )
+            )}
           </div>
         </div>
         {result.params.memo && (
@@ -70,9 +86,17 @@ export function ReviewSend({ apiResponse, onSign, onBack }: ReviewSendProps) {
           </div>
         )}
         <div className="space-y-1">
-          <span className="font-semibold text-gray-700">Amount:</span>
+          <span className="font-semibold text-gray-700">
+            Amount (per destination):
+          </span>
           <div className="bg-gray-50 p-2 rounded text-gray-900">
-            {`${formatQuantity(Number(result.params.quantity))} ${asset}`}
+            {`${formatQuantity(Number(result.params.asset_dest_quant_list?.[0]?.[2] || 0))} ${asset}`}
+          </div>
+        </div>
+        <div className="space-y-1">
+          <span className="font-semibold text-gray-700">Total:</span>
+          <div className="bg-gray-50 p-2 rounded text-gray-900 font-medium">
+            {calculateTotal()} {asset}
           </div>
         </div>
         <div className="space-y-1">

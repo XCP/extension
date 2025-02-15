@@ -1,11 +1,51 @@
 import axios from 'axios';
 
+export interface SignedTxEstimatedSize {
+  vsize: number;
+  adjusted_vsize: number;
+  sigops_count: number;
+}
+
+export interface AssetInfo {
+  asset_longname: string | null;
+  description: string;
+  issuer: string;
+  divisible: boolean;
+  locked: boolean;
+  owner: string;
+}
+
+export interface ComposeParams {
+  source: string;
+  destination: string;
+  asset: string;
+  quantity: number;
+  memo: string | null;
+  memo_is_hex: boolean;
+  use_enhanced_send: boolean;
+  no_dispense: boolean;
+  skip_validation: boolean;
+  asset_info: AssetInfo;
+  quantity_normalized: string;
+}
+
+export interface ComposeResult {
+  rawtransaction: string;
+  btc_in: number;
+  btc_out: number;
+  btc_change: number;
+  btc_fee: number;
+  data: string;
+  lock_scripts: string[];
+  inputs_values: number[];
+  signed_tx_estimated_size: SignedTxEstimatedSize;
+  psbt: string;
+  params: ComposeParams;
+  name: string;
+}
+
 export interface ApiResponse {
-  result: {
-    rawtransaction: string;
-    btc_fee: number;
-    params: any;
-  };
+  result: ComposeResult;
 }
 
 export interface ComposeOptions {
@@ -18,7 +58,6 @@ export interface ComposeOptions {
   change_address?: string;
   more_outputs?: string; // e.g. "1000:address1,2000:address2"
   use_all_inputs_set?: boolean;
-  verbose?: boolean;
   multisig_pubkey?: string;
   // Other parameters specific to each transaction type:
   [key: string]: any;
@@ -36,6 +75,7 @@ export async function composeTransaction(
     exclude_utxos_with_balances: 'true',
     allow_unconfirmed_inputs: 'true',
     disable_utxo_locks: 'true',
+    verbose: 'true',
   });
   const response = await axios.get<ApiResponse>(`${apiUrl}?${params.toString()}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -379,7 +419,6 @@ export async function composeFairminter(options: ComposeOptions): Promise<ApiRes
     max_fee,
     pubkeys,
     allow_unconfirmed_inputs = true,
-    verbose,
     signal,
   } = options;
   const paramsObj: any = {
@@ -404,7 +443,6 @@ export async function composeFairminter(options: ComposeOptions): Promise<ApiRes
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
     ...(pubkeys && { pubkeys }),
     allow_unconfirmed_inputs: allow_unconfirmed_inputs.toString(),
-    ...(verbose !== undefined && { verbose: verbose.toString() }),
   };
   return composeTransaction('fairminter', paramsObj, sourceAddress, signal);
 }

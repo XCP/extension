@@ -19,6 +19,7 @@ Folders:
 /src/pages/address/
 /src/pages/auth/
 /src/pages/compose/
+/src/pages/compose/mpma/
 /src/pages/compose/send/
 /src/pages/secrets/
 /src/pages/settings/
@@ -92,6 +93,9 @@ Files:
 /src/pages/address/view-address.tsx
 /src/pages/auth/onboarding.tsx
 /src/pages/auth/unlock-wallet.tsx
+/src/pages/compose/mpma/form.tsx
+/src/pages/compose/mpma/page.tsx
+/src/pages/compose/mpma/review.tsx
 /src/pages/compose/send/form.tsx
 /src/pages/compose/send/page.tsx
 /src/pages/compose/send/review.tsx
@@ -453,12 +457,10 @@ File Contents:
     const { isLoading, showLoading, hideLoading } = useLoading();
     const { setHeaderProps } = useHeader();
     const { settings, updateSettings } = useSettings();
-    const showHelpText = settings?.showHelpText;
   
-    // Rely on React 19's compiler optimizations instead of useCallback.
-    const toggleHelp = () => {
-      updateSettings({ showHelpText: !showHelpText });
-    };
+    const toggleHelp = useCallback(() => {
+      updateSettings({ showHelpText: !settings?.showHelpText });
+    }, [updateSettings, settings?.showHelpText]);
   
     const effectiveToggleHelp = headerCallbacks?.onToggleHelp || toggleHelp;
   
@@ -522,7 +524,13 @@ File Contents:
       showLoading("Composing transaction...");
       setError(null);
       try {
-        const response = await composeTransaction(data);
+        if (!activeAddress) {
+          throw new Error("Wallet is not properly initialized.");
+        }
+        const response = await composeTransaction({
+          sourceAddress: activeAddress.address,
+          ...data,
+        });
         setApiResponse(response);
         setFormData(data);
         setStep("review");
@@ -2171,12 +2179,12 @@ File Contents:
   }
   
   const defaultSettings: KeychainSettings = {
-    autoLockTimeout: 15 * 60 * 1000,
+    autoLockTimeout: 5 * 60 * 1000,
     connectedWebsites: [],
     showHelpText: false,
     analyticsAllowed: true,
     allowUnconfirmedTxs: false,
-    autoLockTimer: 'always',
+    autoLockTimer: '5m',
     enableMPMA: false,
   };
   
@@ -3342,9 +3350,8 @@ File Contents:
   
   export default UnlockWallet;
 
-/src/pages/compose/send/form.tsx
+/src/pages/compose/mpma/form.tsx
   [contents of the file]
-  // src/components/forms/SendForm.tsx
   import React, { useState, useRef, useEffect } from "react";
   import { FiPlus, FiMinus } from "react-icons/fi";
   import { Field, Label, Description, Input } from "@headlessui/react";
@@ -3372,7 +3379,7 @@ File Contents:
     initialAsset?: string;
   }
   
-  export function SendForm({ onSubmit, initialAsset = "XCP" }: SendFormProps) {
+  export function MPMAForm({ onSubmit, initialAsset = "XCP" }: SendFormProps) {
     const [formData, setFormData] = useState<SendFormData>({
       destinations: [{ id: 1, address: "" }],
       asset: initialAsset,
@@ -3383,30 +3390,18 @@ File Contents:
     const [localError, setLocalError] = useState<string | null>(null);
     const firstInputRef = useRef<HTMLInputElement>(null);
   
-    // Get user settings for help text.
     const { settings } = useSettings();
     const shouldShowHelpText = settings?.showHelpText;
   
-    // Now use the new useAssetDetails hook which suspends until data is available.
     const { isLoading, error, data } = useAssetDetails(formData.asset);
-    const { isDivisible, assetInfo, availableBalance } = data || {
-      isDivisible: false,
+    const { assetInfo, availableBalance } = data || {
       assetInfo: null,
-      availableBalance: "0"
+      availableBalance: "0",
     };
   
-    const enableMPMA = true;
-  
-    // Auto-focus the first destination input on mount (if nothing else is focused)
+    // Auto-focus the first destination input on mount.
     useEffect(() => {
-      if (document.activeElement === document.body) {
-        const timer = setTimeout(() => {
-          if (document.activeElement === document.body) {
-            firstInputRef.current?.focus();
-          }
-        }, 100);
-        return () => clearTimeout(timer);
-      }
+      firstInputRef.current?.focus();
     }, []);
   
     const handleDestinationChange = (id: number, value: string) => {
@@ -3434,6 +3429,38 @@ File Contents:
     const removeDestination = (id: number) => {
       const updated = formData.destinations.filter((dest) => dest.id !== id);
       setFormData({ ...formData, destinations: updated });
+    };
+  
+    const handlePaste = (
+      event: React.ClipboardEvent<HTMLInputElement>,
+      id: number
+    ) => {
+      event.preventDefault();
+      const pastedText = event.clipboardData.getData("text");
+      const lines = pastedText
+        .split(/[\n\r]+/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+      if (lines.length <= 1) {
+        handleDestinationChange(id, pastedText.trim());
+        return;
+      }
+      // Create new destination entries for each additional line.
+      const newDestinations = lines.map((line) => ({
+        id: Date.now() + Math.random(),
+        address: line,
+      }));
+      // Replace current input with the first pasted address.
+      const updatedDestinations = formData.destinations.map((dest) =>
+        dest.id === id ? { ...dest, address: lines[0] } : dest
+      );
+      setFormData({
+        ...formData,
+        destinations: [
+          ...updatedDestinations.slice(0, formData.destinations.length),
+          ...newDestinations.slice(1),
+        ],
+      });
     };
   
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -3482,41 +3509,378 @@ File Contents:
         <form onSubmit={handleSubmit} className="space-y-6">
           <Field>
             <Label className="text-sm font-medium text-gray-700">
-              Destination{formData.destinations.length > 1 ? "s" : ""}{" "}
-              <span className="text-red-500">*</span>
+              Destinations <span className="text-red-500">*</span>
             </Label>
             {formData.destinations.map((dest, index) => (
               <div key={dest.id} className="relative mt-1 mb-2">
                 <Input
                   ref={index === 0 ? firstInputRef : undefined}
                   type="text"
+                  name={`destination-${index}`}
                   value={dest.address}
                   onChange={(e) => handleDestinationChange(dest.id, e.target.value)}
+                  onPaste={(e) => handlePaste(e, dest.id)}
                   required
-                  placeholder={
-                    index === 0
-                      ? "Enter destination address"
-                      : `Destination address ${index + 1}`
-                  }
+                  placeholder={`Enter destination address ${index + 1}`}
                   className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500 pr-16"
                 />
-                <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex space-x-1">
-                  {index === 0 && formData.asset !== "BTC" && enableMPMA ? (
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                  {index === 0 ? (
                     <Button variant="icon" onClick={addDestination} aria-label="Add destination">
                       <FiPlus className="w-4 h-4" />
                     </Button>
                   ) : (
-                    <Button
-                      variant="icon"
-                      onClick={() => removeDestination(dest.id)}
-                      aria-label="Remove destination"
-                    >
+                    <Button variant="icon" onClick={() => removeDestination(dest.id)} aria-label="Remove destination">
                       <FiMinus className="w-4 h-4" />
                     </Button>
                   )}
                 </div>
               </div>
             ))}
+            <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+              Enter one or more destination addresses.
+            </Description>
+          </Field>
+  
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Amount <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative mt-1">
+              <Input
+                type="text"
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                required
+                placeholder="Enter amount"
+                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500 pr-24"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleMaxAmount}
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 px-2 py-1 text-sm"
+              >
+                Max
+              </Button>
+            </div>
+            <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+              Available balance: {availableBalance} {formData.asset}
+            </Description>
+          </Field>
+  
+          {formData.asset !== "BTC" && (
+            <Field>
+              <Label className="text-sm font-medium text-gray-700">Memo</Label>
+              <Input
+                type="text"
+                value={formData.memo}
+                onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
+                placeholder="Optional memo"
+                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+                Optionally include a memo with your transaction.
+              </Description>
+            </Field>
+          )}
+  
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Fee Rate (sat/vB) <span className="text-red-500">*</span>
+            </Label>
+            <div className="mt-1">
+              <Input
+                type="number"
+                min="1"
+                step="0.1"
+                value={formData.feeRateSatPerVByte}
+                onChange={(e) =>
+                  setFormData({ ...formData, feeRateSatPerVByte: parseFloat(e.target.value) || 0 })
+                }
+                required
+                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+              Higher fees may result in faster confirmation times.
+            </Description>
+          </Field>
+  
+          <Button type="submit" color="blue" fullWidth>
+            Continue
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
+/src/pages/compose/mpma/page.tsx
+  [contents of the file]
+  import React, { Suspense } from "react";
+  import { useParams } from "react-router-dom";
+  import { MPMAForm } from "./form";
+  import { ReviewMPMA } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeMPMA } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeMPMA() {
+    const { asset } = useParams<{ asset: string }>();
+    return (
+      <div className="p-4">
+        <Suspense fallback={<div>Loading asset details...</div>}>
+          <Composer
+            initialTitle="Send"
+            FormComponent={(props) => <MPMAForm {...props} initialAsset={asset} />}
+            ReviewComponent={ReviewMPMA}
+            composeTransaction={composeMPMA}
+          />
+        </Suspense>
+      </div>
+    );
+  }
+
+/src/pages/compose/mpma/review.tsx
+  [contents of the file]
+  import React, { useState } from "react";
+  import { formatAddress, formatAmount } from "@/utils/format";
+  import { Button } from "@/components/button";
+  import { ErrorAlert } from "@/components/error-alert";
+  
+  interface ReviewSendProps {
+    apiResponse: any;
+    onSign: () => void;
+    onBack: () => void;
+  }
+  
+  export function ReviewMPMA({ apiResponse, onSign, onBack }: ReviewSendProps) {
+    const [isSigning, setIsSigning] = useState(false);
+    const { result } = apiResponse;
+    // In this MPMA flow we assume the transaction is multi-destination.
+    const asset = result.params.asset || "XCP";
+    const assetDivisible = asset !== "BTC";
+  
+    const handleSignClick = async () => {
+      setIsSigning(true);
+      try {
+        await onSign();
+      } finally {
+        setIsSigning(false);
+      }
+    };
+  
+    const formatQuantity = (quantity: number) =>
+      assetDivisible
+        ? formatAmount({
+            value: quantity / 1e8,
+            minimumFractionDigits: 8,
+            maximumFractionDigits: 8,
+          })
+        : quantity.toString();
+  
+    // Calculate total amount across all destinations.
+    const calculateTotal = () => {
+      const total = result.params.asset_dest_quant_list?.reduce(
+        (sum: number, entry: [string, string, string]) => sum + Number(entry[2]),
+        0
+      );
+      return total ? formatQuantity(total) : null;
+    };
+  
+    const formatBTCAmount = (amount: number) =>
+      formatAmount({
+        value: amount / 1e8,
+        minimumFractionDigits: 8,
+        maximumFractionDigits: 8,
+      });
+  
+    return (
+      <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
+        <h3 className="text-lg font-bold">Review Transaction</h3>
+  
+        {result.error && (
+          <ErrorAlert message={result.error} onClose={() => {}} />
+        )}
+  
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">From:</span>
+            <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+              {formatAddress(result.params.source, true)}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">To:</span>
+            <div className="space-y-2">
+              {result.params.asset_dest_quant_list?.map(
+                ([, destination]: [string, string, string], index: number) => (
+                  <div key={index} className="bg-gray-50 p-2 rounded break-all text-gray-900">
+                    {destination}
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+          {result.params.memo && (
+            <div className="space-y-1">
+              <span className="font-semibold text-gray-700">Memo:</span>
+              <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+                {result.params.memo}
+              </div>
+            </div>
+          )}
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">
+              Amount (per destination):
+            </span>
+            <div className="bg-gray-50 p-2 rounded text-gray-900">
+              {`${formatQuantity(Number(result.params.asset_dest_quant_list?.[0]?.[2] || 0))} ${asset}`}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">Total:</span>
+            <div className="bg-gray-50 p-2 rounded text-gray-900 font-medium">
+              {calculateTotal()} {asset}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">Fee:</span>
+            <div className="bg-gray-50 p-2 rounded text-gray-900">
+              {formatBTCAmount(result.btc_fee)} BTC
+            </div>
+          </div>
+        </div>
+  
+        <div className="mt-4">
+          <details>
+            <summary className="text-md font-semibold cursor-pointer text-gray-700 hover:text-gray-900">
+              Raw Transaction
+            </summary>
+            <pre className="mt-2 overflow-y-auto overflow-x-auto text-sm bg-gray-50 p-3 rounded-md h-[175px] border border-gray-200">
+              {JSON.stringify(apiResponse, null, 2)}
+            </pre>
+          </details>
+        </div>
+  
+        <div className="flex space-x-4 mt-4">
+          <Button onClick={onBack} color="gray">
+            Back
+          </Button>
+          <Button onClick={handleSignClick} color="blue" disabled={isSigning}>
+            {isSigning ? "Signing..." : "Sign & Broadcast"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+/src/pages/compose/send/form.tsx
+  [contents of the file]
+  import React, { useState, useRef, useEffect } from "react";
+  import { Field, Label, Description, Input } from "@headlessui/react";
+  import { Button } from "@/components/button";
+  import { BalanceHeader } from "@/components/headers/balance-header";
+  import { useSettings } from "@/contexts/settings-context";
+  import { useAssetDetails } from "@/hooks/useAssetDetails";
+  import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
+  
+  export interface SendFormData {
+    destination: string;
+    asset: string;
+    quantity: string;
+    memo: string;
+    feeRateSatPerVByte: number;
+  }
+  
+  interface SendFormProps {
+    onSubmit: (data: SendFormData) => void;
+    initialAsset?: string;
+  }
+  
+  export function SendForm({ onSubmit, initialAsset = "XCP" }: SendFormProps) {
+    const [formData, setFormData] = useState<SendFormData>({
+      destination: "",
+      asset: initialAsset,
+      quantity: "",
+      memo: "",
+      feeRateSatPerVByte: 1,
+    });
+    const [localError, setLocalError] = useState<string | null>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+  
+    const { settings } = useSettings();
+    const shouldShowHelpText = settings?.showHelpText;
+  
+    const { isLoading, error, data } = useAssetDetails(formData.asset);
+    const { assetInfo, availableBalance } = data || {
+      assetInfo: null,
+      availableBalance: "0",
+    };
+  
+    useEffect(() => {
+      inputRef.current?.focus();
+    }, []);
+  
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      if (!formData.destination || !isValidBase58Address(formData.destination)) {
+        setLocalError("Please enter a valid Bitcoin address.");
+        return;
+      }
+      if (!formData.quantity || Number(formData.quantity) <= 0) {
+        setLocalError("Please enter a valid quantity greater than zero.");
+        return;
+      }
+      if (formData.feeRateSatPerVByte <= 0) {
+        setLocalError("Please enter a valid fee rate greater than zero.");
+        return;
+      }
+      setLocalError(null);
+      onSubmit(formData);
+    };
+  
+    const handleMaxAmount = () => {
+      setFormData({ ...formData, quantity: availableBalance });
+    };
+  
+    return (
+      <div className="bg-white rounded-lg shadow-lg p-4">
+        <div className="min-h-[80px]">
+          {isLoading ? (
+            <div className="animate-pulse h-12 bg-gray-200 rounded"></div>
+          ) : error ? (
+            <div className="text-red-500">{error.message}</div>
+          ) : (
+            <BalanceHeader
+              balance={{
+                asset: formData.asset,
+                asset_info: assetInfo,
+                quantity_normalized: availableBalance,
+              }}
+              className="mb-4"
+            />
+          )}
+        </div>
+        {localError && <div className="text-red-500 mb-2">{localError}</div>}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Destination <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative mt-1 mb-2">
+              <Input
+                ref={inputRef}
+                type="text"
+                name="destination"
+                value={formData.destination}
+                onChange={(e) =>
+                  setFormData({ ...formData, destination: e.target.value.trim() })
+                }
+                required
+                placeholder="Enter destination address"
+                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
             <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
               Enter the destination address where you want to send.
             </Description>
@@ -3585,35 +3949,6 @@ File Contents:
             <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
               Higher fees may result in faster confirmation times.
             </Description>
-            <div className={`mt-1 ${shouldShowHelpText ? "" : "hidden"}`}>
-              <span className="mr-2">Suggested rates:</span>
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                onClick={() => setFormData({ ...formData, feeRateSatPerVByte: 1 })}
-                className="mr-2"
-              >
-                Low (1)
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                onClick={() => setFormData({ ...formData, feeRateSatPerVByte: 5 })}
-                className="mr-2"
-              >
-                Medium (5)
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                onClick={() => setFormData({ ...formData, feeRateSatPerVByte: 10 })}
-              >
-                High (10)
-              </Button>
-            </div>
           </Field>
   
           <Button type="submit" color="blue" fullWidth>
@@ -3665,10 +4000,6 @@ File Contents:
   export function ReviewSend({ apiResponse, onSign, onBack }: ReviewSendProps) {
     const [isSigning, setIsSigning] = useState(false);
     const { result } = apiResponse;
-    // Determine if this is a multi-destination (MPMA) tx.
-    const isMPMA = result.name === "mpma";
-  
-    // Derive the asset from the response if provided; otherwise default to "XCP"
     const asset = result.params.asset || "XCP";
     const assetDivisible = asset !== "BTC";
   
@@ -3681,33 +4012,21 @@ File Contents:
       }
     };
   
-    const formatQuantity = (quantity: number) => {
-      return assetDivisible
+    const formatQuantity = (quantity: number) =>
+      assetDivisible
         ? formatAmount({
             value: quantity / 1e8,
             minimumFractionDigits: 8,
             maximumFractionDigits: 8,
           })
         : quantity.toString();
-    };
   
-    // For MPMA, calculate the total across all destinations.
-    const calculateTotal = () => {
-      if (!isMPMA) return null;
-      const total = result.params.asset_dest_quant_list?.reduce(
-        (sum: number, entry: [string, string, string]) => sum + Number(entry[2]),
-        0
-      );
-      return total ? formatQuantity(total) : null;
-    };
-  
-    const formatBTCAmount = (amount: number) => {
-      return formatAmount({
+    const formatBTCAmount = (amount: number) =>
+      formatAmount({
         value: amount / 1e8,
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
       });
-    };
   
     return (
       <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
@@ -3726,23 +4045,8 @@ File Contents:
           </div>
           <div className="space-y-1">
             <span className="font-semibold text-gray-700">To:</span>
-            <div className="space-y-2">
-              {isMPMA ? (
-                result.params.asset_dest_quant_list?.map(
-                  ([, destination]: [string, string, string], index: number) => (
-                    <div
-                      key={index}
-                      className="bg-gray-50 p-2 rounded break-all text-gray-900"
-                    >
-                      {destination}
-                    </div>
-                  )
-                )
-              ) : (
-                <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
-                  {result.params.destination}
-                </div>
-              )}
+            <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+              {result.params.destination}
             </div>
           </div>
           {result.params.memo && (
@@ -3754,25 +4058,11 @@ File Contents:
             </div>
           )}
           <div className="space-y-1">
-            <span className="font-semibold text-gray-700">
-              Amount{isMPMA ? " (per destination)" : ""}:
-            </span>
+            <span className="font-semibold text-gray-700">Amount:</span>
             <div className="bg-gray-50 p-2 rounded text-gray-900">
-              {isMPMA
-                ? `${formatQuantity(Number(
-                    result.params.asset_dest_quant_list?.[0]?.[2] || 0
-                  ))} ${asset}`
-                : `${formatQuantity(Number(result.params.quantity))} ${asset}`}
+              {`${formatQuantity(Number(result.params.quantity))} ${asset}`}
             </div>
           </div>
-          {isMPMA && calculateTotal() && (
-            <div className="space-y-1">
-              <span className="font-semibold text-gray-700">Total:</span>
-              <div className="bg-gray-50 p-2 rounded text-gray-900 font-medium">
-                {calculateTotal()} {asset}
-              </div>
-            </div>
-          )}
           <div className="space-y-1">
             <span className="font-semibold text-gray-700">Fee:</span>
             <div className="bg-gray-50 p-2 rounded text-gray-900">
@@ -3969,7 +4259,7 @@ File Contents:
           </Button>
           <Button
             color="gray"
-            onClick={() => navigate("/compose/send/BTC")}
+            onClick={() => navigate("/compose/send/RATPEPECORN")}
             className="flex-col !py-4"
             aria-label="Send tokens"
           >
@@ -5085,7 +5375,6 @@ File Contents:
   import { useWallet } from '@/contexts/wallet-context';
   import { useHeader } from '@/contexts/header-context';
   import { AddressType } from '@/utils/blockchain/bitcoin';
-  import Footer from '@/components/footer';
   
   const Settings: React.FC = () => {
     const navigate = useNavigate();

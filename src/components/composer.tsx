@@ -94,12 +94,19 @@ export function Composer({
     handleBack,
   ]);
 
-  // Set header props on mount and cleanup
   useEffect(() => {
     setHeaderProps(headerConfig);
-    // Cleanup with null instead of empty object
     return () => setHeaderProps(null);
   }, [headerConfig, setHeaderProps]);
+
+  useEffect(() => {
+    console.log("Step changed to:", step);
+  }, [step]);
+
+  useEffect(() => {
+    console.log("Composer mounted");
+    return () => console.log("Composer unmounted");
+  }, []);
 
   async function handleFormSubmit(data: any) {
     showLoading("Composing transaction...");
@@ -112,10 +119,12 @@ export function Composer({
         sourceAddress: activeAddress.address,
         ...data,
       });
+      console.log("Compose response:", response);
       setApiResponse(response);
       setFormData(data);
       setStep("review");
     } catch (err) {
+      console.error("Compose error:", err);
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       hideLoading();

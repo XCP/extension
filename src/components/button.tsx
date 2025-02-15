@@ -68,6 +68,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
 
   return (
     <HeadlessButton
+      as="button"
       ref={ref}
       disabled={disabled}
       className={({ active }) => `
