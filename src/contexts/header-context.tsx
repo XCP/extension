@@ -4,6 +4,7 @@ import React, {
   useContext,
   useCallback,
   useMemo,
+  useReducer,
   type ReactNode,
 } from 'react';
 
@@ -24,10 +25,10 @@ export interface HeaderProps {
 
 interface HeaderContextType {
   headerProps: HeaderProps;
-  setHeaderProps: (props: Partial<HeaderProps>) => void;
+  setHeaderProps: (props: Partial<HeaderProps> | null) => void;
 }
 
-const defaultHeaderProps: HeaderProps = {
+const EMPTY_HEADER_PROPS: HeaderProps = {
   title: '',
   useLogoTitle: false,
 };
@@ -38,25 +39,51 @@ interface HeaderProviderProps {
   children: ReactNode;
 }
 
-export function HeaderProvider({ children }: HeaderProviderProps) {
-  const [headerProps, setHeaderPropsState] = useState<HeaderProps>(defaultHeaderProps);
+function arePropsEqual(prev: HeaderProps, next: HeaderProps): boolean {
+  if (prev === next) return true;
+  return (
+    prev.useLogoTitle === next.useLogoTitle &&
+    prev.title === next.title &&
+    prev.onBack === next.onBack &&
+    prev.leftButton?.onClick === next.leftButton?.onClick &&
+    prev.leftButton?.ariaLabel === next.leftButton?.ariaLabel &&
+    prev.rightButton?.onClick === next.rightButton?.onClick &&
+    prev.rightButton?.ariaLabel === next.rightButton?.ariaLabel
+  );
+}
 
-  const setHeaderProps = useCallback((props: Partial<HeaderProps>) => {
-    setHeaderPropsState(() => ({
-      ...defaultHeaderProps,
-      ...props,
-    }));
+type HeaderAction = 
+  | { type: 'SET_PROPS'; payload: Partial<HeaderProps> }
+  | { type: 'RESET' };
+
+function headerReducer(state: HeaderProps, action: HeaderAction): HeaderProps {
+  switch (action.type) {
+    case 'SET_PROPS':
+      const newProps = { ...EMPTY_HEADER_PROPS, ...action.payload };
+      return arePropsEqual(state, newProps) ? state : newProps;
+    case 'RESET':
+      return EMPTY_HEADER_PROPS;
+    default:
+      return state;
+  }
+}
+
+export function HeaderProvider({ children }: HeaderProviderProps) {
+  const [headerProps, dispatch] = useReducer(headerReducer, EMPTY_HEADER_PROPS);
+
+  const setHeaderProps = useCallback((props: Partial<HeaderProps> | null) => {
+    dispatch(props ? { type: 'SET_PROPS', payload: props } : { type: 'RESET' });
   }, []);
 
-  const contextValue = useMemo<HeaderContextType>(
-    () => ({ headerProps, setHeaderProps }),
-    [headerProps, setHeaderProps]
-  );
+  const value = useMemo(() => ({
+    headerProps,
+    setHeaderProps,
+  }), [headerProps]);
 
   return (
-    <HeaderContext value={contextValue}>
+    <HeaderContext.Provider value={value}>
       {children}
-    </HeaderContext>
+    </HeaderContext.Provider>
   );
 }
 

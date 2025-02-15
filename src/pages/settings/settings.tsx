@@ -4,7 +4,6 @@ import { FaChevronRight } from 'react-icons/fa';
 import { useWallet } from '@/contexts/wallet-context';
 import { useHeader } from '@/contexts/header-context';
 import { AddressType } from '@/utils/blockchain/bitcoin';
-import Footer from '@/components/footer';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -47,10 +46,10 @@ const Settings: React.FC = () => {
         ]
       : []),
     {
-      id: 'security',
-      name: 'Change Password',
-      description: 'Change your wallet password',
-      path: '/settings/security',
+      id: 'advanced',
+      name: 'Advanced',
+      description: 'Network settings and developer options',
+      path: '/settings/advanced',
     },
     {
       id: 'connectedSites',
@@ -59,10 +58,10 @@ const Settings: React.FC = () => {
       path: '/settings/connected-sites',
     },
     {
-      id: 'advanced',
-      name: 'Advanced Options',
-      description: 'Network settings and developer options',
-      path: '/settings/advanced',
+      id: 'security',
+      name: 'Security',
+      description: 'Change your wallet password',
+      path: '/settings/security',
     },
   ];
 

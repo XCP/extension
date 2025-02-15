@@ -140,7 +140,7 @@ export async function fetchTokenBalances(
     const verbose = options.verbose ?? true;
 
     const response = await axios.get(
-      `https://api.counterparty.info/v2/addresses/${address}/balances`,
+      `https://api.counterparty.io:4000/v2/addresses/${address}/balances`,
       {
         params: {
           verbose: verbose,
@@ -183,7 +183,7 @@ export async function fetchTokenBalance(
     const verbose = options.verbose ?? true;
 
     const response = await axios.get(
-      `https://api.counterparty.info/v2/addresses/${address}/balances/${asset}`,
+      `https://api.counterparty.io:4000/v2/addresses/${address}/balances/${asset}`,
       {
         params: {
           verbose: verbose,
@@ -280,7 +280,7 @@ export async function fetchTokenUtxos(
     const verbose = options.verbose ?? true;
 
     const response = await axios.get(
-      `https://api.counterparty.info/v2/addresses/${address}/balances/${asset}`,
+      `https://api.counterparty.io:4000/v2/addresses/${address}/balances/${asset}`,
       {
         params: {
           verbose: verbose,
@@ -318,7 +318,7 @@ export async function fetchAssetDetails(
     const verbose = options.verbose ?? true;
 
     const response = await axios.get(
-      `https://api.counterparty.info/v2/assets/${asset}`,
+      `https://api.counterparty.io:4000/v2/assets/${asset}`,
       {
         params: {
           verbose: verbose,
@@ -387,7 +387,7 @@ export async function fetchAssetDetailsAndBalance(
     try {
       // Fetch asset details from Counterparty API.
       const assetResponse = await axios.get(
-        `https://api.counterparty.info/v2/assets/${asset}`,
+        `https://api.counterparty.io:4000/v2/assets/${asset}`,
         {
           params: {
             verbose: verbose,
@@ -436,7 +436,7 @@ export async function fetchUtxoBalances(
     const verbose = options.verbose ?? true;
 
     const response = await axios.get(
-      `https://api.counterparty.info/v2/utxos/${utxo}/balances`,
+      `https://api.counterparty.io:4000/v2/utxos/${utxo}/balances`,
       {
         params: {
           verbose: verbose,
@@ -476,7 +476,7 @@ export async function fetchOrders(
     const verbose = options.verbose ?? true;
 
     const response = await axios.get(
-      `https://api.counterparty.info/v2/addresses/${address}/orders`,
+      `https://api.counterparty.io:4000/v2/addresses/${address}/orders`,
       {
         params: {
           verbose: verbose,
@@ -516,7 +516,7 @@ export async function fetchOrder(
     const showUnconfirmed = options.showUnconfirmed ?? false;
 
     const response = await axios.get(
-      `https://api.counterparty.info/v2/orders/${orderHash}`,
+      `https://api.counterparty.io:4000/v2/orders/${orderHash}`,
       {
         params: {
           verbose: verbose,
@@ -553,7 +553,7 @@ export async function fetchTransaction(
     const verbose = options.verbose ?? true;
 
     const response = await axios.get(
-      `https://api.counterparty.info/v2/transactions/${txHash}?show_unconfirmed=true`,
+      `https://api.counterparty.io:4000/v2/transactions/${txHash}?show_unconfirmed=true`,
       {
         params: {
           verbose: verbose,
@@ -588,7 +588,7 @@ export async function fetchAddressDispensers(
     const verbose = options.verbose ?? true;
 
     const response = await axios.get(
-      `https://api.counterparty.info/v2/addresses/${address}/dispensers`,
+      `https://api.counterparty.io:4000/v2/addresses/${address}/dispensers`,
       {
         params: {
           verbose: verbose,

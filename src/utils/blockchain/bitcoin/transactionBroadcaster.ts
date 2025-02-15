@@ -17,7 +17,7 @@ const broadcastEndpoints: BroadcastEndpoint[] = [
     name: 'counterparty',
     getUrl: (signedTxHex: string) => {
       const encoded = encodeURIComponent(signedTxHex);
-      return `https://api.counterparty.info/v2/bitcoin/transactions?signedhex=${encoded}`;
+      return `https://api.counterparty.io:4000/v2/bitcoin/transactions?signedhex=${encoded}`;
     },
     getData: () => null,
     headers: { 'Content-Type': 'application/json' },

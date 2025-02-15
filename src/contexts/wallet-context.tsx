@@ -5,6 +5,7 @@ import React, {
   useState,
   useCallback,
   ReactNode,
+  useRef,
 } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { getWalletService } from '@/services/walletService';
@@ -58,27 +59,46 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [walletLocked, setWalletLocked] = useState<boolean>(true);
   const [loaded, setLoaded] = useState<boolean>(false);
 
+  // Move refs outside the callback
+  const prevWalletsRef = useRef<Wallet[]>([]);
+  const prevActiveWalletRef = useRef<Wallet | null>(null);
+  const prevActiveAddressRef = useRef<Address | null>(null);
+
   const refreshWalletState = useCallback(async () => {
     try {
       await walletService.loadWallets();
       const allWallets = await walletService.getWallets();
-      setWallets(allWallets);
-      authDispatch({ type: 'WALLETS_LOADED', walletExists: allWallets.length > 0 });
+      
+      const walletsChanged = JSON.stringify(prevWalletsRef.current) !== JSON.stringify(allWallets);
+      if (walletsChanged) {
+        setWallets(allWallets);
+        prevWalletsRef.current = allWallets;
+        authDispatch({ type: 'WALLETS_LOADED', walletExists: allWallets.length > 0 });
+      }
 
       if (allWallets.length > 0) {
         let active = await walletService.getActiveWallet();
         if (!active) {
           active = allWallets[0];
-          walletService.setActiveWallet(active.id);
+          await walletService.setActiveWallet(active.id);
         }
-        setActiveWalletState(active);
+
+        const activeChanged = prevActiveWalletRef.current?.id !== active?.id;
+        if (activeChanged) {
+          setActiveWalletState(active);
+          prevActiveWalletRef.current = active;
+        }
 
         const lastActiveAddress = await walletService.getLastActiveAddress();
-        setActiveAddressState(
-          lastActiveAddress && active.addresses.some((addr) => addr.address === lastActiveAddress)
-            ? active.addresses.find((addr) => addr.address === lastActiveAddress) || active.addresses[0]
-            : active.addresses[0] || null
-        );
+        const newActiveAddress = lastActiveAddress && active.addresses.some((addr) => addr.address === lastActiveAddress)
+          ? active.addresses.find((addr) => addr.address === lastActiveAddress) || active.addresses[0]
+          : active.addresses[0] || null;
+
+        const addressChanged = prevActiveAddressRef.current?.address !== newActiveAddress?.address;
+        if (addressChanged) {
+          setActiveAddressState(newActiveAddress);
+          prevActiveAddressRef.current = newActiveAddress;
+        }
 
         const anyUnlocked = await walletService.isAnyWalletUnlocked();
         setWalletLocked(!anyUnlocked);

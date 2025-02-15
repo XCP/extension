@@ -236,7 +236,7 @@ async function fetchPreviousRawTransaction(txid: string): Promise<string> {
   const endpoints = [
     { url: `https://blockstream.info/api/tx/${txid}/hex`, transform: (d: string) => d.trim() },
     { url: `https://mempool.space/api/tx/${txid}/hex`, transform: (d: string) => d.trim() },
-    { url: `https://api.counterparty.info/v2/bitcoin/transactions/${txid}`, transform: (d: any) => d.result.hex },
+    { url: `https://api.counterparty.io:4000/v2/bitcoin/transactions/${txid}`, transform: (d: any) => d.result.hex },
   ];
   for (const endpoint of endpoints) {
     try {

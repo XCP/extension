@@ -4,12 +4,14 @@ Folders:
 /src/assets/
 /src/components/
 /src/components/cards/
+/src/components/headers/
 /src/components/inputs/
 /src/components/lists/
 /src/components/menus/
 /src/contexts/
 /src/entrypoints/
 /src/entrypoints/popup/
+/src/hooks/
 /src/middleware/
 /src/models/
 /src/pages/
@@ -29,10 +31,14 @@ Folders:
 /src/utils/auth/
 /src/utils/blockchain/
 /src/utils/blockchain/bitcoin/
+/src/utils/blockchain/bitcoin/__tests__/
 /src/utils/blockchain/counterparty/
+/src/utils/blockchain/counterparty/__tests__/
 /src/utils/blockchain/counterwallet/
 /src/utils/encryption/
+/src/utils/encryption/__tests__/
 /src/utils/storage/
+/src/utils/storage/__tests__/
 /src/utils/wallet/
 
 Files:
@@ -47,6 +53,7 @@ Files:
 /src/components/error-alert.tsx
 /src/components/footer.tsx
 /src/components/header.tsx
+/src/components/headers/balance-header.tsx
 /src/components/inputs/checkbox-input.tsx
 /src/components/inputs/password-input.tsx
 /src/components/layout.tsx
@@ -75,6 +82,7 @@ Files:
 /src/entrypoints/popup/index.html
 /src/entrypoints/popup/main.tsx
 /src/entrypoints/popup/style.css
+/src/hooks/useAssetDetails.ts
 /src/middleware/auth-required.tsx
 /src/models/keychain.ts
 /src/pages/actions/sign-message.tsx
@@ -113,6 +121,8 @@ Files:
 /src/services/walletService.ts
 /src/stores/auth.ts
 /src/utils/auth/sessionManager.ts
+/src/utils/blockchain/bitcoin/__tests__/address.test.ts
+/src/utils/blockchain/bitcoin/__tests__/price.test.ts
 /src/utils/blockchain/bitcoin/address.ts
 /src/utils/blockchain/bitcoin/balance.ts
 /src/utils/blockchain/bitcoin/bareMultisig.ts
@@ -122,15 +132,21 @@ Files:
 /src/utils/blockchain/bitcoin/transactionBroadcaster.ts
 /src/utils/blockchain/bitcoin/transactionSigner.ts
 /src/utils/blockchain/bitcoin/utxo.ts
+/src/utils/blockchain/counterparty/__tests__/api.test.ts
 /src/utils/blockchain/counterparty/api.ts
 /src/utils/blockchain/counterparty/compose.ts
 /src/utils/blockchain/counterparty/index.ts
 /src/utils/blockchain/counterwallet/index.ts
 /src/utils/blockchain/counterwallet/mnemonic.ts
+/src/utils/encryption/__tests__/encryption.test.ts
+/src/utils/encryption/__tests__/walletEncryption.additional.test.ts
+/src/utils/encryption/__tests__/walletEncryption.test.ts
 /src/utils/encryption/encryption.ts
 /src/utils/encryption/index.ts
 /src/utils/encryption/walletEncryption.ts
+/src/utils/format.test.ts
 /src/utils/format.ts
+/src/utils/storage/__tests__/settingsStorage.test.ts
 /src/utils/storage/index.ts
 /src/utils/storage/settingsStorage.ts
 /src/utils/storage/storage.ts
@@ -397,17 +413,23 @@ File Contents:
 
 /src/components/composer.tsx
   [contents of the file]
-  import { useState } from "react";
+  import { useState, useEffect, useMemo, useCallback } from "react";
   import type { ReactElement } from "react";
-  import { useWallet } from "@/contexts/wallet-context";
+  import { FiHelpCircle, FiX } from "react-icons/fi";
+  import { useNavigate } from "react-router-dom";
+  import { useHeader } from "@/contexts/header-context";
   import { useLoading } from "@/contexts/loading-context";
+  import { useSettings } from "@/contexts/settings-context";
+  import { useWallet } from "@/contexts/wallet-context";
   
-  export function Composer({
-    initialTitle,
-    FormComponent,
-    ReviewComponent,
-    composeTransaction,
-  }: {
+  interface HeaderCallbacks {
+    onCancel?: () => void;
+    onBack?: () => void;
+    onReset?: () => void;
+    onToggleHelp?: () => void;
+  }
+  
+  interface ComposerProps {
     initialTitle: string;
     FormComponent: (props: { onSubmit: (data: any) => void }) => ReactElement;
     ReviewComponent: (props: {
@@ -416,13 +438,85 @@ File Contents:
       onBack: () => void;
     }) => ReactElement;
     composeTransaction: (data: any) => Promise<any>;
-  }) {
+    headerCallbacks?: HeaderCallbacks;
+  }
+  
+  export function Composer({
+    initialTitle,
+    FormComponent,
+    ReviewComponent,
+    composeTransaction,
+    headerCallbacks,
+  }: ComposerProps) {
+    const navigate = useNavigate();
     const { activeWallet, activeAddress, signTransaction, broadcastTransaction } = useWallet();
-    const { showLoading, hideLoading } = useLoading();
+    const { isLoading, showLoading, hideLoading } = useLoading();
+    const { setHeaderProps } = useHeader();
+    const { settings, updateSettings } = useSettings();
+    const showHelpText = settings?.showHelpText;
+  
+    // Rely on React 19's compiler optimizations instead of useCallback.
+    const toggleHelp = () => {
+      updateSettings({ showHelpText: !showHelpText });
+    };
+  
+    const effectiveToggleHelp = headerCallbacks?.onToggleHelp || toggleHelp;
+  
     const [step, setStep] = useState<"form" | "review">("form");
     const [formData, setFormData] = useState<any>(null);
     const [apiResponse, setApiResponse] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
+  
+    const handleBack = useCallback(() => {
+      setApiResponse(null);
+      setStep("form");
+    }, []);
+  
+    const headerConfig = useMemo(() => {
+      if (isLoading) {
+        return {
+          useLogoTitle: true,
+          leftButton: {
+            icon: <FiX className="w-4 h-4" />,
+            onClick: headerCallbacks?.onCancel || (() => {}),
+            ariaLabel: "Cancel transaction",
+          },
+        };
+      }
+  
+      if (step === "review" && apiResponse) {
+        return {
+          useLogoTitle: true,
+          onBack: headerCallbacks?.onBack || handleBack,
+        };
+      }
+  
+      return {
+        title: initialTitle,
+        onBack: () => navigate(-1),
+        rightButton: {
+          icon: <FiHelpCircle className="w-4 h-4" />,
+          onClick: effectiveToggleHelp,
+          ariaLabel: "Toggle help text",
+        },
+      };
+    }, [
+      isLoading,
+      step,
+      apiResponse,
+      initialTitle,
+      navigate,
+      effectiveToggleHelp,
+      headerCallbacks,
+      handleBack,
+    ]);
+  
+    // Set header props on mount and cleanup
+    useEffect(() => {
+      setHeaderProps(headerConfig);
+      // Cleanup with null instead of empty object
+      return () => setHeaderProps(null);
+    }, [headerConfig, setHeaderProps]);
   
     async function handleFormSubmit(data: any) {
       showLoading("Composing transaction...");
@@ -450,6 +544,7 @@ File Contents:
         const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
         await broadcastTransaction(signedTxHex);
         alert("Transaction signed successfully!");
+        headerCallbacks?.onReset?.();
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
       } finally {
@@ -457,14 +552,8 @@ File Contents:
       }
     }
   
-    function handleBack() {
-      setApiResponse(null);
-      setStep("form");
-    }
-  
     return (
       <div>
-        <h2>{initialTitle}</h2>
         {error && <div style={{ color: "red" }}>{error}</div>}
         {step === "form" && <FormComponent onSubmit={handleFormSubmit} />}
         {step === "review" && apiResponse && (
@@ -669,6 +758,59 @@ File Contents:
       </header>
     );
   }
+
+/src/components/headers/balance-header.tsx
+  [contents of the file]
+  import React from "react";
+  import { formatAmount } from "@/utils/format";
+  
+  interface TokenBalance {
+    asset: string;
+    asset_info?: {
+      asset_longname: string | null;
+      description?: string;
+      issuer?: string;
+      divisible?: boolean;
+      locked?: boolean;
+      supply?: string | number;
+    };
+    quantity_normalized?: string;
+  }
+  
+  interface BalanceHeaderProps {
+    balance: TokenBalance;
+    className?: string;
+  }
+  
+  export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
+    balance,
+    className = "",
+  }) => {
+    const formattedBalance = balance.quantity_normalized
+      ? formatAmount({
+          value: Number(balance.quantity_normalized),
+          minimumFractionDigits: balance.asset_info?.divisible ? 8 : 0,
+          maximumFractionDigits: balance.asset_info?.divisible ? 8 : 0,
+          useGrouping: true,
+        })
+      : "0";
+  
+    return (
+      <div className={`flex items-center ${className}`}>
+        <img
+          src={`https://app.xcp.io/img/icon/${balance.asset}`}
+          alt={balance.asset}
+          className="w-12 h-12 mr-4"
+        />
+        <div>
+          <h2 className="text-xl font-bold break-all">
+            {balance.asset_info?.asset_longname || balance.asset}
+          </h2>
+          <p className="text-sm text-gray-600">Available: {formattedBalance}</p>
+        </div>
+      </div>
+    );
+  };
 
 /src/components/inputs/checkbox-input.tsx
   [contents of the file]
@@ -1030,7 +1172,7 @@ File Contents:
         setIsLoadingAssets(true);
         try {
           const response = await fetch(
-            `https://api.counterparty.info/v2/addresses/${activeAddress.address}/assets/owned?verbose=true`
+            `https://api.counterparty.io:4000/v2/addresses/${activeAddress.address}/assets/owned?verbose=true`
           );
           const data = await response.json();
           setOwnedAssets(data.result);
@@ -1760,6 +1902,7 @@ File Contents:
     useContext,
     useCallback,
     useMemo,
+    useReducer,
     type ReactNode,
   } from 'react';
   
@@ -1780,10 +1923,10 @@ File Contents:
   
   interface HeaderContextType {
     headerProps: HeaderProps;
-    setHeaderProps: (props: Partial<HeaderProps>) => void;
+    setHeaderProps: (props: Partial<HeaderProps> | null) => void;
   }
   
-  const defaultHeaderProps: HeaderProps = {
+  const EMPTY_HEADER_PROPS: HeaderProps = {
     title: '',
     useLogoTitle: false,
   };
@@ -1794,25 +1937,51 @@ File Contents:
     children: ReactNode;
   }
   
-  export function HeaderProvider({ children }: HeaderProviderProps) {
-    const [headerProps, setHeaderPropsState] = useState<HeaderProps>(defaultHeaderProps);
+  function arePropsEqual(prev: HeaderProps, next: HeaderProps): boolean {
+    if (prev === next) return true;
+    return (
+      prev.useLogoTitle === next.useLogoTitle &&
+      prev.title === next.title &&
+      prev.onBack === next.onBack &&
+      prev.leftButton?.onClick === next.leftButton?.onClick &&
+      prev.leftButton?.ariaLabel === next.leftButton?.ariaLabel &&
+      prev.rightButton?.onClick === next.rightButton?.onClick &&
+      prev.rightButton?.ariaLabel === next.rightButton?.ariaLabel
+    );
+  }
   
-    const setHeaderProps = useCallback((props: Partial<HeaderProps>) => {
-      setHeaderPropsState(() => ({
-        ...defaultHeaderProps,
-        ...props,
-      }));
+  type HeaderAction = 
+    | { type: 'SET_PROPS'; payload: Partial<HeaderProps> }
+    | { type: 'RESET' };
+  
+  function headerReducer(state: HeaderProps, action: HeaderAction): HeaderProps {
+    switch (action.type) {
+      case 'SET_PROPS':
+        const newProps = { ...EMPTY_HEADER_PROPS, ...action.payload };
+        return arePropsEqual(state, newProps) ? state : newProps;
+      case 'RESET':
+        return EMPTY_HEADER_PROPS;
+      default:
+        return state;
+    }
+  }
+  
+  export function HeaderProvider({ children }: HeaderProviderProps) {
+    const [headerProps, dispatch] = useReducer(headerReducer, EMPTY_HEADER_PROPS);
+  
+    const setHeaderProps = useCallback((props: Partial<HeaderProps> | null) => {
+      dispatch(props ? { type: 'SET_PROPS', payload: props } : { type: 'RESET' });
     }, []);
   
-    const contextValue = useMemo<HeaderContextType>(
-      () => ({ headerProps, setHeaderProps }),
-      [headerProps, setHeaderProps]
-    );
+    const value = useMemo(() => ({
+      headerProps,
+      setHeaderProps,
+    }), [headerProps]);
   
     return (
-      <HeaderContext value={contextValue}>
+      <HeaderContext.Provider value={value}>
         {children}
-      </HeaderContext>
+      </HeaderContext.Provider>
     );
   }
   
@@ -2110,6 +2279,7 @@ File Contents:
     useState,
     useCallback,
     ReactNode,
+    useRef,
   } from 'react';
   import { useAuth } from '@/contexts/auth-context';
   import { getWalletService } from '@/services/walletService';
@@ -2163,27 +2333,46 @@ File Contents:
     const [walletLocked, setWalletLocked] = useState<boolean>(true);
     const [loaded, setLoaded] = useState<boolean>(false);
   
+    // Move refs outside the callback
+    const prevWalletsRef = useRef<Wallet[]>([]);
+    const prevActiveWalletRef = useRef<Wallet | null>(null);
+    const prevActiveAddressRef = useRef<Address | null>(null);
+  
     const refreshWalletState = useCallback(async () => {
       try {
         await walletService.loadWallets();
         const allWallets = await walletService.getWallets();
-        setWallets(allWallets);
-        authDispatch({ type: 'WALLETS_LOADED', walletExists: allWallets.length > 0 });
+        
+        const walletsChanged = JSON.stringify(prevWalletsRef.current) !== JSON.stringify(allWallets);
+        if (walletsChanged) {
+          setWallets(allWallets);
+          prevWalletsRef.current = allWallets;
+          authDispatch({ type: 'WALLETS_LOADED', walletExists: allWallets.length > 0 });
+        }
   
         if (allWallets.length > 0) {
           let active = await walletService.getActiveWallet();
           if (!active) {
             active = allWallets[0];
-            walletService.setActiveWallet(active.id);
+            await walletService.setActiveWallet(active.id);
           }
-          setActiveWalletState(active);
+  
+          const activeChanged = prevActiveWalletRef.current?.id !== active?.id;
+          if (activeChanged) {
+            setActiveWalletState(active);
+            prevActiveWalletRef.current = active;
+          }
   
           const lastActiveAddress = await walletService.getLastActiveAddress();
-          setActiveAddressState(
-            lastActiveAddress && active.addresses.some((addr) => addr.address === lastActiveAddress)
-              ? active.addresses.find((addr) => addr.address === lastActiveAddress) || active.addresses[0]
-              : active.addresses[0] || null
-          );
+          const newActiveAddress = lastActiveAddress && active.addresses.some((addr) => addr.address === lastActiveAddress)
+            ? active.addresses.find((addr) => addr.address === lastActiveAddress) || active.addresses[0]
+            : active.addresses[0] || null;
+  
+          const addressChanged = prevActiveAddressRef.current?.address !== newActiveAddress?.address;
+          if (addressChanged) {
+            setActiveAddressState(newActiveAddress);
+            prevActiveAddressRef.current = newActiveAddress;
+          }
   
           const anyUnlocked = await walletService.isAnyWalletUnlocked();
           setWalletLocked(!anyUnlocked);
@@ -2614,6 +2803,87 @@ File Contents:
       -ms-overflow-style: none;  /* IE and Edge */
       scrollbar-width: none;  /* Firefox */
     }
+  }
+
+/src/hooks/useAssetDetails.ts
+  [contents of the file]
+  import { useState, useEffect, useRef } from "react";
+  import { useWallet } from "@/contexts/wallet-context";
+  import { fetchAssetDetailsAndBalance } from "@/utils/blockchain/counterparty";
+  
+  export interface AssetInfo {
+    asset_longname: string | null;
+    description?: string;
+    issuer?: string;
+    divisible: boolean;
+    locked: boolean;
+    supply?: string | number;
+  }
+  
+  export interface AssetDetails {
+    isDivisible: boolean;
+    assetInfo: AssetInfo | null;
+    availableBalance: string;
+  }
+  
+  export function useAssetDetails(asset: string) {
+    const { activeAddress } = useWallet();
+    const [state, setState] = useState<{
+      isLoading: boolean;
+      error: Error | null;
+      data: AssetDetails | null;
+    }>({
+      isLoading: true,
+      error: null,
+      data: null
+    });
+  
+    const fetchDataRef = useRef(false);
+  
+    useEffect(() => {
+      let isMounted = true;
+      fetchDataRef.current = true;
+  
+      async function fetchData() {
+        if (!asset || !activeAddress?.address) {
+          setState(prev => ({
+            ...prev,
+            error: new Error("Asset or address not available"),
+            isLoading: false
+          }));
+          return;
+        }
+  
+        try {
+          const result = await fetchAssetDetailsAndBalance(asset, activeAddress.address);
+          if (isMounted && fetchDataRef.current) {
+            setState({
+              data: result,
+              error: null,
+              isLoading: false
+            });
+          }
+        } catch (err) {
+          if (isMounted && fetchDataRef.current) {
+            setState({
+              data: null,
+              error: err instanceof Error ? err : new Error(String(err)),
+              isLoading: false
+            });
+          }
+        }
+      }
+  
+      setState(prev => ({ ...prev, isLoading: true }));
+      fetchData();
+  
+      return () => {
+        isMounted = false;
+        fetchDataRef.current = false;
+      };
+    }, [asset, activeAddress?.address]);
+  
+    return state;
   }
 
 /src/middleware/auth-required.tsx
@@ -3074,135 +3344,462 @@ File Contents:
 
 /src/pages/compose/send/form.tsx
   [contents of the file]
-  import { useState } from "react";
+  // src/components/forms/SendForm.tsx
+  import React, { useState, useRef, useEffect } from "react";
+  import { FiPlus, FiMinus } from "react-icons/fi";
+  import { Field, Label, Description, Input } from "@headlessui/react";
+  import { Button } from "@/components/button";
+  import { BalanceHeader } from "@/components/headers/balance-header";
+  import { useSettings } from "@/contexts/settings-context";
+  import { useAssetDetails } from "@/hooks/useAssetDetails";
+  import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
   
-  export function SendForm({ onSubmit }: { onSubmit: (data: any) => void }) {
-    const [destination, setDestination] = useState("");
-    const [quantity, setQuantity] = useState("");
-    const [memo, setMemo] = useState("");
-    const [feeRateSatPerVByte, setFeeRateSatPerVByte] = useState(1);
+  export interface Destination {
+    id: number;
+    address: string;
+  }
   
-    function handleSubmit(e: React.FormEvent) {
-      e.preventDefault();
-      onSubmit({
-        // For simplicity we assume a single destination.
-        destinations: [{ id: 0, address: destination }],
-        asset: "XCP", // In your app you might allow selecting the asset.
-        quantity,
-        memo,
-        feeRateSatPerVByte,
+  export interface SendFormData {
+    destinations: Destination[];
+    asset: string;
+    quantity: string;
+    memo: string;
+    feeRateSatPerVByte: number;
+  }
+  
+  interface SendFormProps {
+    onSubmit: (data: SendFormData) => void;
+    initialAsset?: string;
+  }
+  
+  export function SendForm({ onSubmit, initialAsset = "XCP" }: SendFormProps) {
+    const [formData, setFormData] = useState<SendFormData>({
+      destinations: [{ id: 1, address: "" }],
+      asset: initialAsset,
+      quantity: "",
+      memo: "",
+      feeRateSatPerVByte: 1,
+    });
+    const [localError, setLocalError] = useState<string | null>(null);
+    const firstInputRef = useRef<HTMLInputElement>(null);
+  
+    // Get user settings for help text.
+    const { settings } = useSettings();
+    const shouldShowHelpText = settings?.showHelpText;
+  
+    // Now use the new useAssetDetails hook which suspends until data is available.
+    const { isLoading, error, data } = useAssetDetails(formData.asset);
+    const { isDivisible, assetInfo, availableBalance } = data || {
+      isDivisible: false,
+      assetInfo: null,
+      availableBalance: "0"
+    };
+  
+    const enableMPMA = true;
+  
+    // Auto-focus the first destination input on mount (if nothing else is focused)
+    useEffect(() => {
+      if (document.activeElement === document.body) {
+        const timer = setTimeout(() => {
+          if (document.activeElement === document.body) {
+            firstInputRef.current?.focus();
+          }
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }, []);
+  
+    const handleDestinationChange = (id: number, value: string) => {
+      const updatedDestinations = formData.destinations.map((dest) =>
+        dest.id === id ? { ...dest, address: value.trim() } : dest
+      );
+      setFormData({ ...formData, destinations: updatedDestinations });
+      if (value && !isValidBase58Address(value)) {
+        setLocalError(`Invalid Bitcoin address format: ${value}`);
+      } else {
+        setLocalError(null);
+      }
+    };
+  
+    const addDestination = () => {
+      setFormData({
+        ...formData,
+        destinations: [
+          ...formData.destinations,
+          { id: Date.now() + Math.random(), address: "" },
+        ],
       });
-    }
+    };
+  
+    const removeDestination = (id: number) => {
+      const updated = formData.destinations.filter((dest) => dest.id !== id);
+      setFormData({ ...formData, destinations: updated });
+    };
+  
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      for (const dest of formData.destinations) {
+        if (!dest.address || !isValidBase58Address(dest.address)) {
+          setLocalError("Please enter a valid Bitcoin address for each destination.");
+          return;
+        }
+      }
+      if (!formData.quantity || Number(formData.quantity) <= 0) {
+        setLocalError("Please enter a valid quantity greater than zero.");
+        return;
+      }
+      if (formData.feeRateSatPerVByte <= 0) {
+        setLocalError("Please enter a valid fee rate greater than zero.");
+        return;
+      }
+      onSubmit(formData);
+    };
+  
+    const handleMaxAmount = () => {
+      // In a real implementation, calculate the max amount considering fees.
+      setFormData({ ...formData, quantity: availableBalance });
+    };
   
     return (
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Destination Address:</label>
-          <input
-            type="text"
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
-            required
-          />
+      <div className="bg-white rounded-lg shadow-lg p-4">
+        <div className="min-h-[80px]">
+          {isLoading ? (
+            <div className="animate-pulse h-12 bg-gray-200 rounded"></div>
+          ) : error ? (
+            <div className="text-red-500">{error.message}</div>
+          ) : (
+            <BalanceHeader
+              balance={{
+                asset: formData.asset,
+                asset_info: assetInfo,
+                quantity_normalized: availableBalance,
+              }}
+              className="mb-4"
+            />
+          )}
         </div>
-        <div>
-          <label>Quantity:</label>
-          <input
-            type="text"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label>Memo (optional):</label>
-          <input
-            type="text"
-            value={memo}
-            onChange={(e) => setMemo(e.target.value)}
-          />
-        </div>
-        <div>
-          <label>Fee Rate (sat/vB):</label>
-          <input
-            type="number"
-            value={feeRateSatPerVByte}
-            onChange={(e) => setFeeRateSatPerVByte(Number(e.target.value))}
-            required
-          />
-        </div>
-        <button type="submit">Continue</button>
-      </form>
+        {localError && <div className="text-red-500 mb-2">{localError}</div>}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Destination{formData.destinations.length > 1 ? "s" : ""}{" "}
+              <span className="text-red-500">*</span>
+            </Label>
+            {formData.destinations.map((dest, index) => (
+              <div key={dest.id} className="relative mt-1 mb-2">
+                <Input
+                  ref={index === 0 ? firstInputRef : undefined}
+                  type="text"
+                  value={dest.address}
+                  onChange={(e) => handleDestinationChange(dest.id, e.target.value)}
+                  required
+                  placeholder={
+                    index === 0
+                      ? "Enter destination address"
+                      : `Destination address ${index + 1}`
+                  }
+                  className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500 pr-16"
+                />
+                <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex space-x-1">
+                  {index === 0 && formData.asset !== "BTC" && enableMPMA ? (
+                    <Button variant="icon" onClick={addDestination} aria-label="Add destination">
+                      <FiPlus className="w-4 h-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="icon"
+                      onClick={() => removeDestination(dest.id)}
+                      aria-label="Remove destination"
+                    >
+                      <FiMinus className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+            <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+              Enter the destination address where you want to send.
+            </Description>
+          </Field>
+  
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Amount <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative mt-1">
+              <Input
+                type="text"
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                required
+                placeholder="Enter amount"
+                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500 pr-24"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleMaxAmount}
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 px-2 py-1 text-sm"
+              >
+                Max
+              </Button>
+            </div>
+            <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+              Available balance: {availableBalance} {formData.asset}
+            </Description>
+          </Field>
+  
+          {formData.asset !== "BTC" && (
+            <Field>
+              <Label className="text-sm font-medium text-gray-700">Memo</Label>
+              <Input
+                type="text"
+                value={formData.memo}
+                onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
+                placeholder="Optional memo"
+                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+                Optionally include a memo with your transaction.
+              </Description>
+            </Field>
+          )}
+  
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Fee Rate (sat/vB) <span className="text-red-500">*</span>
+            </Label>
+            <div className="mt-1">
+              <Input
+                type="number"
+                min="1"
+                step="0.1"
+                value={formData.feeRateSatPerVByte}
+                onChange={(e) =>
+                  setFormData({ ...formData, feeRateSatPerVByte: parseFloat(e.target.value) || 0 })
+                }
+                required
+                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+              Higher fees may result in faster confirmation times.
+            </Description>
+            <div className={`mt-1 ${shouldShowHelpText ? "" : "hidden"}`}>
+              <span className="mr-2">Suggested rates:</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => setFormData({ ...formData, feeRateSatPerVByte: 1 })}
+                className="mr-2"
+              >
+                Low (1)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => setFormData({ ...formData, feeRateSatPerVByte: 5 })}
+                className="mr-2"
+              >
+                Medium (5)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => setFormData({ ...formData, feeRateSatPerVByte: 10 })}
+              >
+                High (10)
+              </Button>
+            </div>
+          </Field>
+  
+          <Button type="submit" color="blue" fullWidth>
+            Continue
+          </Button>
+        </form>
+      </div>
     );
   }
 
 /src/pages/compose/send/page.tsx
   [contents of the file]
+  import React, { Suspense } from "react";
+  import { useParams } from "react-router-dom";
   import { SendForm } from "./form";
   import { ReviewSend } from "./review";
   import { Composer } from "@/components/composer";
   import { composeSend } from "@/utils/blockchain/counterparty";
   
   export function ComposeSend() {
+    const { asset } = useParams<{ asset: string }>();
     return (
       <div className="p-4">
-        <Composer
-          initialTitle="Send"
-          FormComponent={SendForm}
-          ReviewComponent={ReviewSend}
-          composeTransaction={composeSend}
-        />
+        <Suspense fallback={<div>Loading asset details...</div>}>
+          <Composer
+            initialTitle="Send"
+            FormComponent={(props) => <SendForm {...props} initialAsset={asset} />}
+            ReviewComponent={ReviewSend}
+            composeTransaction={composeSend}
+          />
+        </Suspense>
       </div>
     );
   }
 
 /src/pages/compose/send/review.tsx
   [contents of the file]
+  import React, { useState } from "react";
   import { formatAddress, formatAmount } from "@/utils/format";
+  import { Button } from "@/components/button";
+  import { ErrorAlert } from "@/components/error-alert";
   
-  export function ReviewSend({
-    apiResponse,
-    onSign,
-    onBack,
-  }: {
+  interface ReviewSendProps {
     apiResponse: any;
     onSign: () => void;
     onBack: () => void;
-  }) {
+  }
+  
+  export function ReviewSend({ apiResponse, onSign, onBack }: ReviewSendProps) {
+    const [isSigning, setIsSigning] = useState(false);
     const { result } = apiResponse;
+    // Determine if this is a multi-destination (MPMA) tx.
+    const isMPMA = result.name === "mpma";
+  
+    // Derive the asset from the response if provided; otherwise default to "XCP"
+    const asset = result.params.asset || "XCP";
+    const assetDivisible = asset !== "BTC";
+  
+    const handleSignClick = async () => {
+      setIsSigning(true);
+      try {
+        await onSign();
+      } finally {
+        setIsSigning(false);
+      }
+    };
+  
+    const formatQuantity = (quantity: number) => {
+      return assetDivisible
+        ? formatAmount({
+            value: quantity / 1e8,
+            minimumFractionDigits: 8,
+            maximumFractionDigits: 8,
+          })
+        : quantity.toString();
+    };
+  
+    // For MPMA, calculate the total across all destinations.
+    const calculateTotal = () => {
+      if (!isMPMA) return null;
+      const total = result.params.asset_dest_quant_list?.reduce(
+        (sum: number, entry: [string, string, string]) => sum + Number(entry[2]),
+        0
+      );
+      return total ? formatQuantity(total) : null;
+    };
+  
+    const formatBTCAmount = (amount: number) => {
+      return formatAmount({
+        value: amount / 1e8,
+        minimumFractionDigits: 8,
+        maximumFractionDigits: 8,
+      });
+    };
+  
     return (
-      <div>
-        <h3>Review Transaction</h3>
-        <p>
-          <strong>From:</strong> {formatAddress(result.params.source, true)}
-        </p>
-        <p>
-          <strong>To:</strong> {result.params.destination}
-        </p>
-        <p>
-          <strong>Quantity:</strong>{" "}
-          {formatAmount({
-            value: Number(result.params.quantity),
-            minimumFractionDigits: 8,
-            maximumFractionDigits: 8,
-          })}
-        </p>
-        {result.params.memo && (
-          <p>
-            <strong>Memo:</strong> {result.params.memo}
-          </p>
+      <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
+        <h3 className="text-lg font-bold">Review Transaction</h3>
+  
+        {result.error && (
+          <ErrorAlert message={result.error} onClose={() => {}} />
         )}
-        <p>
-          <strong>Fee:</strong>{" "}
-          {formatAmount({
-            value: result.btc_fee / 1e8,
-            minimumFractionDigits: 8,
-            maximumFractionDigits: 8,
-          })}{" "}
-          BTC
-        </p>
-        <button onClick={onBack}>Back</button>
-        <button onClick={onSign}>Sign &amp; Broadcast</button>
+  
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">From:</span>
+            <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+              {formatAddress(result.params.source, true)}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">To:</span>
+            <div className="space-y-2">
+              {isMPMA ? (
+                result.params.asset_dest_quant_list?.map(
+                  ([, destination]: [string, string, string], index: number) => (
+                    <div
+                      key={index}
+                      className="bg-gray-50 p-2 rounded break-all text-gray-900"
+                    >
+                      {destination}
+                    </div>
+                  )
+                )
+              ) : (
+                <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+                  {result.params.destination}
+                </div>
+              )}
+            </div>
+          </div>
+          {result.params.memo && (
+            <div className="space-y-1">
+              <span className="font-semibold text-gray-700">Memo:</span>
+              <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+                {result.params.memo}
+              </div>
+            </div>
+          )}
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">
+              Amount{isMPMA ? " (per destination)" : ""}:
+            </span>
+            <div className="bg-gray-50 p-2 rounded text-gray-900">
+              {isMPMA
+                ? `${formatQuantity(Number(
+                    result.params.asset_dest_quant_list?.[0]?.[2] || 0
+                  ))} ${asset}`
+                : `${formatQuantity(Number(result.params.quantity))} ${asset}`}
+            </div>
+          </div>
+          {isMPMA && calculateTotal() && (
+            <div className="space-y-1">
+              <span className="font-semibold text-gray-700">Total:</span>
+              <div className="bg-gray-50 p-2 rounded text-gray-900 font-medium">
+                {calculateTotal()} {asset}
+              </div>
+            </div>
+          )}
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">Fee:</span>
+            <div className="bg-gray-50 p-2 rounded text-gray-900">
+              {formatBTCAmount(result.btc_fee)} BTC
+            </div>
+          </div>
+        </div>
+  
+        <div className="mt-4">
+          <details>
+            <summary className="text-md font-semibold cursor-pointer text-gray-700 hover:text-gray-900">
+              Raw Transaction
+            </summary>
+            <pre className="mt-2 overflow-y-auto overflow-x-auto text-sm bg-gray-50 p-3 rounded-md h-[175px] border border-gray-200">
+              {JSON.stringify(apiResponse, null, 2)}
+            </pre>
+          </details>
+        </div>
+  
+        <div className="flex space-x-4 mt-4">
+          <Button onClick={onBack} color="gray">
+            Back
+          </Button>
+          <Button onClick={handleSignClick} color="blue" disabled={isSigning}>
+            {isSigning ? "Signing..." : "Sign & Broadcast"}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -3283,7 +3880,7 @@ File Contents:
         setIsLoadingAssets(true);
         try {
           const response = await fetch(
-            `https://api.counterparty.info/v2/addresses/${activeAddress.address}/assets/owned?verbose=true`
+            `https://api.counterparty.io:4000/v2/addresses/${activeAddress.address}/assets/owned?verbose=true`
           );
           const data = await response.json();
           setOwnedAssets(data.result);
@@ -4531,10 +5128,10 @@ File Contents:
           ]
         : []),
       {
-        id: 'security',
-        name: 'Change Password',
-        description: 'Change your wallet password',
-        path: '/settings/security',
+        id: 'advanced',
+        name: 'Advanced',
+        description: 'Network settings and developer options',
+        path: '/settings/advanced',
       },
       {
         id: 'connectedSites',
@@ -4543,10 +5140,10 @@ File Contents:
         path: '/settings/connected-sites',
       },
       {
-        id: 'advanced',
-        name: 'Advanced Options',
-        description: 'Network settings and developer options',
-        path: '/settings/advanced',
+        id: 'security',
+        name: 'Security',
+        description: 'Change your wallet password',
+        path: '/settings/security',
       },
     ];
   
@@ -5999,6 +6596,66 @@ File Contents:
     resetAutoLockTimer();
   }
 
+/src/utils/blockchain/bitcoin/__tests__/address.test.ts
+  [contents of the file]
+  import { describe, it, expect } from 'vitest';
+  import { getDerivationPathForAddressType, AddressType } from '@/utils/blockchain/bitcoin/address';
+  
+  describe('Bitcoin Address Utilities', () => {
+    it('should return the correct derivation path for P2PKH', () => {
+      expect(getDerivationPathForAddressType(AddressType.P2PKH)).toBe("m/44'/0'/0'/0");
+    });
+  
+    it('should return the correct derivation path for P2SH_P2WPKH', () => {
+      expect(getDerivationPathForAddressType(AddressType.P2SH_P2WPKH)).toBe("m/49'/0'/0'/0");
+    });
+  
+    it('should return the correct derivation path for P2WPKH', () => {
+      expect(getDerivationPathForAddressType(AddressType.P2WPKH)).toBe("m/84'/0'/0'/0");
+    });
+  
+    it('should return the correct derivation path for P2TR', () => {
+      expect(getDerivationPathForAddressType(AddressType.P2TR)).toBe("m/86'/0'/0'/0");
+    });
+  
+    it('should return the correct derivation path for Counterwallet', () => {
+      expect(getDerivationPathForAddressType(AddressType.Counterwallet)).toBe("m/0'/0");
+    });
+  });
+
+/src/utils/blockchain/bitcoin/__tests__/price.test.ts
+  [contents of the file]
+  import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+  import { fetchFromCoinGecko } from '@/utils/blockchain/bitcoin/price';
+  
+  describe('Bitcoin Price Utilities', () => {
+    const originalFetch = globalThis.fetch;
+    beforeEach(() => {
+      globalThis.fetch = vi.fn();
+    });
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+    });
+  
+    it('should fetch price from CoinGecko successfully', async () => {
+      const mockResponse = { bitcoin: { usd: 30000 } };
+      (globalThis.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+      const data = await fetchFromCoinGecko();
+      expect(data.bitcoin.usd).toBe(30000);
+    });
+  
+    it('should throw an error on invalid response data', async () => {
+      (globalThis.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => ({}),
+      });
+      await expect(fetchFromCoinGecko()).rejects.toThrow();
+    });
+  });
+
 /src/utils/blockchain/bitcoin/address.ts
   [contents of the file]
   import { ripemd160 } from '@noble/hashes/ripemd160';
@@ -6486,7 +7143,7 @@ File Contents:
     const endpoints = [
       { url: `https://blockstream.info/api/tx/${txid}/hex`, transform: (d: string) => d.trim() },
       { url: `https://mempool.space/api/tx/${txid}/hex`, transform: (d: string) => d.trim() },
-      { url: `https://api.counterparty.info/v2/bitcoin/transactions/${txid}`, transform: (d: any) => d.result.hex },
+      { url: `https://api.counterparty.io:4000/v2/bitcoin/transactions/${txid}`, transform: (d: any) => d.result.hex },
     ];
     for (const endpoint of endpoints) {
       try {
@@ -6734,7 +7391,7 @@ File Contents:
       name: 'counterparty',
       getUrl: (signedTxHex: string) => {
         const encoded = encodeURIComponent(signedTxHex);
-        return `https://api.counterparty.info/v2/bitcoin/transactions?signedhex=${encoded}`;
+        return `https://api.counterparty.io:4000/v2/bitcoin/transactions?signedhex=${encoded}`;
       },
       getData: () => null,
       headers: { 'Content-Type': 'application/json' },
@@ -6978,6 +7635,34 @@ File Contents:
     }
   }
 
+/src/utils/blockchain/counterparty/__tests__/api.test.ts
+  [contents of the file]
+  import { describe, it, expect, vi, beforeEach } from 'vitest';
+  import axios from 'axios';
+  import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
+  
+  vi.mock('axios');
+  
+  describe('Counterparty API Utilities', () => {
+    beforeEach(() => {
+      vi.resetAllMocks();
+    });
+  
+    it('should return token balances array on a valid response', async () => {
+      const mockData = { result: [{ asset: 'XCP', quantity_normalized: '100.00000000' }] };
+      (axios.get as any).mockResolvedValue({ data: mockData });
+      const balances = await fetchTokenBalances('dummy-address', { verbose: true });
+      expect(Array.isArray(balances)).toBe(true);
+      expect(balances[0].asset).toBe('XCP');
+    });
+  
+    it('should return an empty array if response format is invalid', async () => {
+      (axios.get as any).mockResolvedValue({ data: { result: null } });
+      const balances = await fetchTokenBalances('dummy-address');
+      expect(balances).toEqual([]);
+    });
+  });
+
 /src/utils/blockchain/counterparty/api.ts
   [contents of the file]
   import axios from 'axios';
@@ -7122,7 +7807,7 @@ File Contents:
       const verbose = options.verbose ?? true;
   
       const response = await axios.get(
-        `https://api.counterparty.info/v2/addresses/${address}/balances`,
+        `https://api.counterparty.io:4000/v2/addresses/${address}/balances`,
         {
           params: {
             verbose: verbose,
@@ -7165,7 +7850,7 @@ File Contents:
       const verbose = options.verbose ?? true;
   
       const response = await axios.get(
-        `https://api.counterparty.info/v2/addresses/${address}/balances/${asset}`,
+        `https://api.counterparty.io:4000/v2/addresses/${address}/balances/${asset}`,
         {
           params: {
             verbose: verbose,
@@ -7262,7 +7947,7 @@ File Contents:
       const verbose = options.verbose ?? true;
   
       const response = await axios.get(
-        `https://api.counterparty.info/v2/addresses/${address}/balances/${asset}`,
+        `https://api.counterparty.io:4000/v2/addresses/${address}/balances/${asset}`,
         {
           params: {
             verbose: verbose,
@@ -7300,7 +7985,7 @@ File Contents:
       const verbose = options.verbose ?? true;
   
       const response = await axios.get(
-        `https://api.counterparty.info/v2/assets/${asset}`,
+        `https://api.counterparty.io:4000/v2/assets/${asset}`,
         {
           params: {
             verbose: verbose,
@@ -7369,7 +8054,7 @@ File Contents:
       try {
         // Fetch asset details from Counterparty API.
         const assetResponse = await axios.get(
-          `https://api.counterparty.info/v2/assets/${asset}`,
+          `https://api.counterparty.io:4000/v2/assets/${asset}`,
           {
             params: {
               verbose: verbose,
@@ -7418,7 +8103,7 @@ File Contents:
       const verbose = options.verbose ?? true;
   
       const response = await axios.get(
-        `https://api.counterparty.info/v2/utxos/${utxo}/balances`,
+        `https://api.counterparty.io:4000/v2/utxos/${utxo}/balances`,
         {
           params: {
             verbose: verbose,
@@ -7458,7 +8143,7 @@ File Contents:
       const verbose = options.verbose ?? true;
   
       const response = await axios.get(
-        `https://api.counterparty.info/v2/addresses/${address}/orders`,
+        `https://api.counterparty.io:4000/v2/addresses/${address}/orders`,
         {
           params: {
             verbose: verbose,
@@ -7498,7 +8183,7 @@ File Contents:
       const showUnconfirmed = options.showUnconfirmed ?? false;
   
       const response = await axios.get(
-        `https://api.counterparty.info/v2/orders/${orderHash}`,
+        `https://api.counterparty.io:4000/v2/orders/${orderHash}`,
         {
           params: {
             verbose: verbose,
@@ -7535,7 +8220,7 @@ File Contents:
       const verbose = options.verbose ?? true;
   
       const response = await axios.get(
-        `https://api.counterparty.info/v2/transactions/${txHash}?show_unconfirmed=true`,
+        `https://api.counterparty.io:4000/v2/transactions/${txHash}?show_unconfirmed=true`,
         {
           params: {
             verbose: verbose,
@@ -7570,7 +8255,7 @@ File Contents:
       const verbose = options.verbose ?? true;
   
       const response = await axios.get(
-        `https://api.counterparty.info/v2/addresses/${address}/dispensers`,
+        `https://api.counterparty.io:4000/v2/addresses/${address}/dispensers`,
         {
           params: {
             verbose: verbose,
@@ -8148,6 +8833,121 @@ File Contents:
     return hexToBytes(cwMnemonic.toHex());
   }
 
+/src/utils/encryption/__tests__/encryption.test.ts
+  [contents of the file]
+  import { describe, it, expect } from 'vitest';
+  import { encryptString, decryptString, DecryptionError } from '@/utils/encryption/encryption';
+  
+  describe('encryptString and decryptString', () => {
+    const plaintext = 'This is a secret message';
+    const password = 'supersecret123';
+  
+    it('should encrypt and then decrypt to the original plaintext', async () => {
+      const encrypted = await encryptString(plaintext, password);
+      expect(typeof encrypted).toBe('string');
+  
+      const decrypted = await decryptString(encrypted, password);
+      expect(decrypted).toBe(plaintext);
+    });
+  
+    it('should throw an error if an empty password is used during encryption', async () => {
+      await expect(encryptString(plaintext, '')).rejects.toThrow('Password cannot be empty');
+    });
+  
+    it('should throw a DecryptionError when decrypting with a wrong password', async () => {
+      const encrypted = await encryptString(plaintext, password);
+      await expect(decryptString(encrypted, 'wrongpassword')).rejects.toThrow(DecryptionError);
+    });
+  });
+
+/src/utils/encryption/__tests__/walletEncryption.additional.test.ts
+  [contents of the file]
+  import { describe, it, expect } from 'vitest';
+  import {
+    encryptMnemonic,
+    decryptMnemonic,
+    encryptPrivateKey,
+    decryptPrivateKey,
+  } from '@/utils/encryption/walletEncryption';
+  import { AddressType } from '@/utils/blockchain/bitcoin';
+  
+  // Use the same test data as before.
+  const testMnemonic =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+  const testPrivateKey = "5HueCGU8rMjxEXxiPuD5BDuK4kq68W5ogS9uQF3rftmLhpXcda7";
+  const validPassword = "correcthorsebatterystaple";
+  
+  describe('Additional Wallet Encryption Tests', () => {
+    it('should throw an error when encrypting a mnemonic with an empty password', async () => {
+      await expect(
+        encryptMnemonic(testMnemonic, "", AddressType.P2WPKH)
+      ).rejects.toThrow();
+    });
+  
+    it('should throw an error when encrypting a private key with an empty password', async () => {
+      await expect(encryptPrivateKey(testPrivateKey, "")).rejects.toThrow();
+    });
+  
+    it('should decrypt a mnemonic correctly after re-encryption', async () => {
+      const encrypted = await encryptMnemonic(testMnemonic, validPassword, AddressType.P2WPKH);
+      const decrypted = await decryptMnemonic(encrypted, validPassword);
+      expect(decrypted).toBe(testMnemonic);
+    });
+  
+    it('should decrypt a private key correctly after re-encryption', async () => {
+      const encrypted = await encryptPrivateKey(testPrivateKey, validPassword);
+      const decrypted = await decryptPrivateKey(encrypted, validPassword);
+      expect(decrypted).toBe(testPrivateKey);
+    });
+  });
+
+/src/utils/encryption/__tests__/walletEncryption.test.ts
+  [contents of the file]
+  // src/__tests__/walletEncryption.test.ts
+  
+  import { describe, it, expect } from 'vitest';
+  import {
+    encryptMnemonic,
+    decryptMnemonic,
+    encryptPrivateKey,
+    decryptPrivateKey,
+  } from '@/utils/encryption/walletEncryption';
+  import { AddressType } from '@/utils/blockchain/bitcoin';
+  
+  // A hard-coded example mnemonic (this is a common test mnemonic)
+  const testMnemonic =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+  
+  // An example private key in WIF format (this is for testing only)
+  const testPrivateKey = "5HueCGU8rMjxEXxiPuD5BDuK4kq68W5ogS9uQF3rftmLhpXcda7";
+  
+  const correctPassword = "correcthorsebatterystaple";
+  const wrongPassword = "incorrectpassword";
+  
+  describe('Wallet Encryption/Decryption', () => {
+    it('should encrypt and decrypt a mnemonic successfully', async () => {
+      const encrypted = await encryptMnemonic(testMnemonic, correctPassword, AddressType.P2WPKH);
+      const decrypted = await decryptMnemonic(encrypted, correctPassword);
+      expect(decrypted).toBe(testMnemonic);
+    });
+  
+    it('should throw an error when decrypting a mnemonic with a wrong password', async () => {
+      const encrypted = await encryptMnemonic(testMnemonic, correctPassword, AddressType.P2WPKH);
+      await expect(decryptMnemonic(encrypted, wrongPassword)).rejects.toThrow();
+    });
+  
+    it('should encrypt and decrypt a private key successfully', async () => {
+      const encrypted = await encryptPrivateKey(testPrivateKey, correctPassword);
+      const decrypted = await decryptPrivateKey(encrypted, correctPassword);
+      expect(decrypted).toBe(testPrivateKey);
+    });
+  
+    it('should throw an error when decrypting a private key with a wrong password', async () => {
+      const encrypted = await encryptPrivateKey(testPrivateKey, correctPassword);
+      await expect(decryptPrivateKey(encrypted, wrongPassword)).rejects.toThrow();
+    });
+  });
+
 /src/utils/encryption/encryption.ts
   [contents of the file]
   /**
@@ -8542,6 +9342,49 @@ File Contents:
     return decryptString(encrypted, password);
   }
 
+/src/utils/format.test.ts
+  [contents of the file]
+  import { describe, it, expect } from 'vitest';
+  import { formatAmount, formatAddress, formatAsset } from '@/utils/format';
+  
+  describe('Format Utilities', () => {
+    it('should format an amount in currency style', () => {
+      // The exact output might vary by locale so we check for a substring.
+      const formatted = formatAmount({
+        value: 1234.567,
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 2,
+      });
+      expect(formatted).toContain("1,234.57");
+    });
+  
+    it('should shorten a blockchain address correctly', () => {
+      const address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa";
+      const shortened = formatAddress(address);
+      expect(shortened).toBe("1A1zP1...DivfNa");
+    });
+  
+    it('should return the full address when shorten is false', () => {
+      const address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa";
+      const full = formatAddress(address, false);
+      expect(full).toBe(address);
+    });
+  
+    it('should use the asset longname if available', () => {
+      const assetName = "XMY";
+      const assetInfo = { asset_longname: "My Long Asset Name" };
+      const formatted = formatAsset(assetName, { assetInfo });
+      expect(formatted).toBe("My Long Asset Name");
+    });
+  
+    it('should shorten asset name if requested and too long', () => {
+      const assetName = "AReallyLongAssetNameThatExceedsTwentyCharacters";
+      const formatted = formatAsset(assetName, { shorten: true });
+      expect(formatted).toMatch(/\.\.\.$/); // ends with "..."
+    });
+  });
+
 /src/utils/format.ts
   [contents of the file]
   interface AmountFormatterOptions {
@@ -8670,6 +9513,31 @@ File Contents:
   
     return displayName;
   }
+
+/src/utils/storage/__tests__/settingsStorage.test.ts
+  [contents of the file]
+  import { describe, it, expect, beforeEach } from 'vitest';
+  import { getKeychainSettings, updateKeychainSettings } from '@/utils/storage/settingsStorage';
+  import { storage } from 'wxt/storage';
+  
+  // Clear the storage item before each test.
+  beforeEach(async () => {
+    await storage.removeItem('local:settings');
+  });
+  
+  describe('Settings Storage', () => {
+    it('should return default settings when none are stored', async () => {
+      const settings = await getKeychainSettings();
+      expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
+      expect(settings.connectedWebsites).toEqual([]);
+    });
+  
+    it('should update and persist settings', async () => {
+      await updateKeychainSettings({ showHelpText: true });
+      const settings = await getKeychainSettings();
+      expect(settings.showHelpText).toBe(true);
+    });
+  });
 
 /src/utils/storage/index.ts
   [contents of the file]

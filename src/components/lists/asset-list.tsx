@@ -31,7 +31,7 @@ export const AssetList: React.FC<AssetListProps> = ({ enabled = true }) => {
       setIsLoadingAssets(true);
       try {
         const response = await fetch(
-          `https://api.counterparty.info/v2/addresses/${activeAddress.address}/assets/owned?verbose=true`
+          `https://api.counterparty.io:4000/v2/addresses/${activeAddress.address}/assets/owned?verbose=true`
         );
         const data = await response.json();
         setOwnedAssets(data.result);
