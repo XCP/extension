@@ -1,4 +1,3 @@
-// src/components/forms/SendForm.tsx
 import React, { useState, useRef, useEffect } from "react";
 import { FiPlus, FiMinus } from "react-icons/fi";
 import { Field, Label, Description, Input } from "@headlessui/react";
@@ -37,21 +36,20 @@ export function SendForm({ onSubmit, initialAsset = "XCP" }: SendFormProps) {
   const [localError, setLocalError] = useState<string | null>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
 
-  // Get user settings for help text.
+  // Get settings (including showHelpText and enableMPMA) from context.
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText;
+  const enableMPMA = settings?.enableMPMA;
 
-  // Now use the new useAssetDetails hook which suspends until data is available.
+  // Load asset details (suspense or loading state handled elsewhere)
   const { isLoading, error, data } = useAssetDetails(formData.asset);
   const { isDivisible, assetInfo, availableBalance } = data || {
     isDivisible: false,
     assetInfo: null,
-    availableBalance: "0"
+    availableBalance: "0",
   };
 
-  const enableMPMA = true;
-
-  // Auto-focus the first destination input on mount (if nothing else is focused)
+  // Auto-focus the first destination input on mount.
   useEffect(() => {
     if (document.activeElement === document.body) {
       const timer = setTimeout(() => {
@@ -62,6 +60,16 @@ export function SendForm({ onSubmit, initialAsset = "XCP" }: SendFormProps) {
       return () => clearTimeout(timer);
     }
   }, []);
+
+  // Ensure only one destination is present if MPMA is disabled.
+  useEffect(() => {
+    if (!enableMPMA && formData.destinations.length !== 1) {
+      setFormData({
+        ...formData,
+        destinations: [formData.destinations[0] || { id: Date.now(), address: "" }],
+      });
+    }
+  }, [enableMPMA, formData]);
 
   const handleDestinationChange = (id: number, value: string) => {
     const updatedDestinations = formData.destinations.map((dest) =>
@@ -88,6 +96,39 @@ export function SendForm({ onSubmit, initialAsset = "XCP" }: SendFormProps) {
   const removeDestination = (id: number) => {
     const updated = formData.destinations.filter((dest) => dest.id !== id);
     setFormData({ ...formData, destinations: updated });
+  };
+
+  const handlePaste = (
+    event: React.ClipboardEvent<HTMLInputElement>,
+    id: number
+  ) => {
+    event.preventDefault();
+    const pastedText = event.clipboardData.getData("text");
+    const lines = pastedText
+      .split(/[\n\r]+/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    if (lines.length <= 1 || !enableMPMA || formData.asset === "BTC") {
+      handleDestinationChange(id, pastedText.trim());
+      return;
+    }
+    // When multiple lines are pasted and MPMA is enabled,
+    // create new destination entries for each additional line.
+    const newDestinations = lines.map((line) => ({
+      id: Date.now() + Math.random(),
+      address: line,
+    }));
+    // Replace current input with the first pasted address.
+    const updatedDestinations = formData.destinations.map((dest) =>
+      dest.id === id ? { ...dest, address: lines[0] } : dest
+    );
+    setFormData({
+      ...formData,
+      destinations: [
+        ...updatedDestinations.slice(0, formData.destinations.length),
+        ...newDestinations.slice(1),
+      ],
+    });
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -136,41 +177,62 @@ export function SendForm({ onSubmit, initialAsset = "XCP" }: SendFormProps) {
       <form onSubmit={handleSubmit} className="space-y-6">
         <Field>
           <Label className="text-sm font-medium text-gray-700">
-            Destination{formData.destinations.length > 1 ? "s" : ""}{" "}
+            Destination
+            {enableMPMA && formData.destinations.length > 1 && "s"}{" "}
             <span className="text-red-500">*</span>
           </Label>
-          {formData.destinations.map((dest, index) => (
-            <div key={dest.id} className="relative mt-1 mb-2">
-              <Input
-                ref={index === 0 ? firstInputRef : undefined}
-                type="text"
-                value={dest.address}
-                onChange={(e) => handleDestinationChange(dest.id, e.target.value)}
-                required
-                placeholder={
-                  index === 0
-                    ? "Enter destination address"
-                    : `Destination address ${index + 1}`
-                }
-                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500 pr-16"
-              />
-              <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex space-x-1">
-                {index === 0 && formData.asset !== "BTC" && enableMPMA ? (
-                  <Button variant="icon" onClick={addDestination} aria-label="Add destination">
-                    <FiPlus className="w-4 h-4" />
-                  </Button>
-                ) : (
-                  <Button
-                    variant="icon"
-                    onClick={() => removeDestination(dest.id)}
-                    aria-label="Remove destination"
-                  >
-                    <FiMinus className="w-4 h-4" />
-                  </Button>
-                )}
+          {enableMPMA ? (
+            formData.destinations.map((dest, index) => (
+              <div key={dest.id} className="relative mt-1 mb-2">
+                <Input
+                  ref={index === 0 ? firstInputRef : undefined}
+                  type="text"
+                  name={`destination-${index}`}
+                  value={dest.address}
+                  onChange={(e) => handleDestinationChange(dest.id, e.target.value)}
+                  onPaste={(e) => handlePaste(e, dest.id)}
+                  required
+                  placeholder={`Enter destination address ${index + 1}`}
+                  className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500 pr-16"
+                />
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                  {index === 0 ? (
+                    <Button
+                      variant="icon"
+                      onClick={addDestination}
+                      aria-label="Add destination"
+                    >
+                      <FiPlus className="w-4 h-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="icon"
+                      onClick={() => removeDestination(dest.id)}
+                      aria-label="Remove destination"
+                    >
+                      <FiMinus className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
+            ))
+          ) : (
+            // When MPMA is disabled, always render exactly one destination input.
+            <div className="relative mt-1 mb-2">
+              <Input
+                ref={firstInputRef}
+                type="text"
+                name="destination-0"
+                value={formData.destinations[0]?.address || ""}
+                onChange={(e) =>
+                  handleDestinationChange(formData.destinations[0].id, e.target.value)
+                }
+                required
+                placeholder="Enter destination address"
+                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500 pr-2"
+              />
             </div>
-          ))}
+          )}
           <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
             Enter the destination address where you want to send.
           </Description>

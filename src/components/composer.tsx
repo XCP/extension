@@ -38,7 +38,6 @@ export function Composer({
   const { isLoading, showLoading, hideLoading } = useLoading();
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings } = useSettings();
-  const showHelpText = settings?.showHelpText;
 
   const toggleHelp = useCallback(() => {
     updateSettings({ showHelpText: !settings?.showHelpText });
@@ -106,7 +105,13 @@ export function Composer({
     showLoading("Composing transaction...");
     setError(null);
     try {
-      const response = await composeTransaction(data);
+      if (!activeAddress) {
+        throw new Error("Wallet is not properly initialized.");
+      }
+      const response = await composeTransaction({
+        sourceAddress: activeAddress.address,
+        ...data,
+      });
       setApiResponse(response);
       setFormData(data);
       setStep("review");

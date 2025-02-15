@@ -15,12 +15,12 @@ interface SettingsContextValue {
 }
 
 const defaultSettings: KeychainSettings = {
-  autoLockTimeout: 15 * 60 * 1000,
+  autoLockTimeout: 5 * 60 * 1000,
   connectedWebsites: [],
   showHelpText: false,
   analyticsAllowed: true,
   allowUnconfirmedTxs: false,
-  autoLockTimer: 'always',
+  autoLockTimer: '5m',
   enableMPMA: false,
 };
 

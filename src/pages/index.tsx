@@ -161,7 +161,7 @@ export default function Index() {
         </Button>
         <Button
           color="gray"
-          onClick={() => navigate("/compose/send/BTC")}
+          onClick={() => navigate("/compose/send/RATPEPECORN")}
           className="flex-col !py-4"
           aria-label="Send tokens"
         >
