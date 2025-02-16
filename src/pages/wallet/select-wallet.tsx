@@ -23,7 +23,7 @@ function SelectWallet() {
   };
 
   const handleSelectWalletInternal = async (wallet: Wallet) => {
-    await setActiveWallet(wallet);
+    await setActiveWallet(wallet, false);
     navigate('/index');
   };
 

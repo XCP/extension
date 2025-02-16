@@ -6,6 +6,7 @@ import { composeSend } from "@/utils/blockchain/counterparty";
 
 export function ComposeSend() {
   const { asset } = useParams<{ asset: string }>();
+
   return (
     <div className="p-4">
       <Composer

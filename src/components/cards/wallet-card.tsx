@@ -39,10 +39,8 @@ function WalletCard({ wallet, selected, onSelect, isFirstWallet }: WalletCardPro
           </div>
           <div className="flex justify-between items-center mt-1">
             <span className="font-mono text-sm">{formatAddress(primaryAddress)}</span>
-            <span className="text-xs">
-              {wallet.addressCount
-                ? `${wallet.addressCount} address${wallet.addressCount > 1 ? 'es' : ''}`
-                : ''}
+            <span className="text-xs capitalize">
+              {wallet.type === 'mnemonic' ? 'Mnemonic' : 'Private Key'}
             </span>
           </div>
         </div>

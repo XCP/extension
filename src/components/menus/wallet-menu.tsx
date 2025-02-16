@@ -61,7 +61,7 @@ export function WalletMenu({ wallet, isFirstWallet }: WalletMenuProps) {
                 title={isFirstWallet ? 'Cannot remove primary wallet' : undefined}
               >
                 <FaTrash className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
-                {wallet.type === 'privateKey' ? 'Remove Address' : `Remove ${wallet.name}`}
+                Remove {wallet.name}
               </button>
             )}
           </MenuItem>

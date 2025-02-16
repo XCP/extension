@@ -60,7 +60,6 @@ export function AddressSelection() {
             icon: <FaPlus />,
             onClick: handleAddAddress,
             ariaLabel: 'Add Address',
-            disabled: walletLocked, // Disable the button when wallet is locked
           }
         : undefined,
     });

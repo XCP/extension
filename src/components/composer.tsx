@@ -3,9 +3,11 @@ import type { ReactElement } from "react";
 import { FiHelpCircle, FiX } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useHeader } from "@/contexts/header-context";
+import { useComposer } from "@/contexts/composer-context";
 import { useLoading } from "@/contexts/loading-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { SuccessScreen } from "@/components/success-screen";
 
 interface HeaderCallbacks {
   onCancel?: () => void;
@@ -34,7 +36,8 @@ export function Composer({
   headerCallbacks,
 }: ComposerProps) {
   const navigate = useNavigate();
-  const { activeWallet, activeAddress, signTransaction, broadcastTransaction } = useWallet();
+  const { activeWallet, activeAddress, signTransaction, broadcastTransaction } =
+    useWallet();
   const { isLoading, showLoading, hideLoading } = useLoading();
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings } = useSettings();
@@ -45,15 +48,22 @@ export function Composer({
 
   const effectiveToggleHelp = headerCallbacks?.onToggleHelp || toggleHelp;
 
-  const [step, setStep] = useState<"form" | "review">("form");
-  const [formData, setFormData] = useState<any>(null);
-  const [apiResponse, setApiResponse] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Use our Composer context instead of local state
+  const {
+    step,
+    setStep,
+    formData,
+    setFormData,
+    apiResponse,
+    setApiResponse,
+    error,
+    setError,
+  } = useComposer();
 
   const handleBack = useCallback(() => {
     setApiResponse(null);
     setStep("form");
-  }, []);
+  }, [setApiResponse, setStep]);
 
   const headerConfig = useMemo(() => {
     if (isLoading) {
@@ -99,15 +109,6 @@ export function Composer({
     return () => setHeaderProps(null);
   }, [headerConfig, setHeaderProps]);
 
-  useEffect(() => {
-    console.log("Step changed to:", step);
-  }, [step]);
-
-  useEffect(() => {
-    console.log("Composer mounted");
-    return () => console.log("Composer unmounted");
-  }, []);
-
   async function handleFormSubmit(data: any) {
     showLoading("Composing transaction...");
     setError(null);
@@ -139,10 +140,15 @@ export function Composer({
       if (!activeWallet || !activeAddress)
         throw new Error("Wallet is not properly initialized.");
       const rawTxHex = apiResponse.result.rawtransaction;
-      const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
-      await broadcastTransaction(signedTxHex);
-      alert("Transaction signed successfully!");
-      headerCallbacks?.onReset?.();
+      const signedTxHex = await signTransaction(
+        rawTxHex,
+        activeAddress.address
+      );
+      const broadcastResponse = await broadcastTransaction(signedTxHex);
+      // Optionally, store the broadcast response in apiResponse
+      setApiResponse({ ...apiResponse, broadcast: broadcastResponse });
+      // Instead of an alert, change the step to display the success screen
+      setStep("success");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -159,6 +165,17 @@ export function Composer({
           apiResponse={apiResponse}
           onSign={handleSign}
           onBack={handleBack}
+        />
+      )}
+      {step === "success" && apiResponse && (
+        <SuccessScreen
+          apiResponse={apiResponse}
+          onReset={() => {
+            // Reset state back to form (or call headerCallbacks?.onReset)
+            setStep("form");
+            setApiResponse(null);
+            setFormData(null);
+          }}
         />
       )}
     </div>

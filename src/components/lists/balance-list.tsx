@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSpinner } from "react-icons/fa";
 import { formatAmount, formatAsset } from "@/utils/format";
@@ -6,10 +6,7 @@ import { BalanceMenu } from "@/components/menus/balance-menu";
 import type { TokenBalance } from "@/utils/blockchain/counterparty";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchBTCBalance } from "@/utils/blockchain/bitcoin/balance";
-import {
-  fetchTokenBalance,
-  fetchTokenBalances,
-} from "@/utils/blockchain/counterparty";
+import { fetchTokenBalance, fetchTokenBalances } from "@/utils/blockchain/counterparty";
 import { useInView } from "react-intersection-observer";
 
 export interface BalanceItem {
@@ -19,7 +16,8 @@ export interface BalanceItem {
 }
 
 interface BalanceListProps {
-  enabled?: boolean;
+  visible: boolean;
+  scrollContainer: HTMLDivElement | null;
 }
 
 const BalanceItemComponent: React.FC<{ token: TokenBalance }> = ({ token }) => {
@@ -28,9 +26,7 @@ const BalanceItemComponent: React.FC<{ token: TokenBalance }> = ({ token }) => {
   return (
     <div
       className="relative flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50"
-      onClick={() =>
-        navigate(`/compose/send/${encodeURIComponent(token.asset)}`)
-      }
+      onClick={() => navigate(`/compose/send/${encodeURIComponent(token.asset)}`)}
     >
       <div className="w-12 h-12 flex-shrink-0">
         <img
@@ -59,58 +55,147 @@ const BalanceItemComponent: React.FC<{ token: TokenBalance }> = ({ token }) => {
   );
 };
 
-export const BalanceList: React.FC<BalanceListProps> = ({ enabled = true }) => {
+export const BalanceList: React.FC<BalanceListProps> = ({ visible, scrollContainer }) => {
   const { activeWallet, activeAddress } = useWallet();
   const [tokenBalances, setTokenBalances] = useState<BalanceItem[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-  
-  // Track existing assets so we don't refetch them in infinite scroll
-  const existingAssetsRef = React.useRef<Set<string>>(new Set());
-  
-  // Use a stateful variable to hold the scroll container element
-  const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
-  
+
+  // To avoid refetching duplicates
+  const existingAssetsRef = useRef<Set<string>>(new Set());
+
+  // Set up the intersection observer using the passed scrollContainer
   const { ref: loadMoreRef, inView } = useInView({
     root: scrollContainer,
     rootMargin: "100px",
     threshold: 0,
   });
 
-  // Fetch initial token balances (BTC + pinned assets)
+  // Fetch initial balances only once (even if not visible)
   useEffect(() => {
-    if (!enabled) return;
-    
-    let cancelled = false;
+    if (!activeAddress || !activeWallet) return;
+    let isCancelled = false;
+
     async function loadInitialBalances() {
-      if (!activeAddress || !activeWallet) return;
+      setIsInitialLoading(true);
+      setOffset(0);
+      setHasMore(true);
+      existingAssetsRef.current = new Set();
 
-      // ... rest of the initial balance loading logic moved from index.tsx ...
+      // Example: start with BTC
+      const newBalances: BalanceItem[] = [
+        { asset: "BTC", loading: true },
+        // You can add any pinned assets here if needed.
+      ];
+      setTokenBalances(newBalances);
+
+      // Fetch BTC balance
+      try {
+        const balanceSats = await fetchBTCBalance(activeAddress!.address);
+        const balanceBTC = balanceSats / 1e8;
+        const btcBalance: TokenBalance = {
+          asset: "BTC",
+          quantity_normalized: balanceBTC.toFixed(8),
+          asset_info: {
+            asset_longname: null,
+            description: "Bitcoin",
+            issuer: "",
+            divisible: true,
+            locked: true,
+            supply: "21000000",
+          },
+        };
+
+        if (!isCancelled) {
+          setTokenBalances((prev) =>
+            prev.map((item) =>
+              item.asset === "BTC" ? { asset: "BTC", balance: btcBalance, loading: false } : item
+            )
+          );
+          existingAssetsRef.current.add("BTC");
+        }
+      } catch (error) {
+        console.error("Error fetching BTC balance:", error);
+        if (!isCancelled) {
+          setTokenBalances((prev) => prev.filter((item) => item.asset !== "BTC"));
+        }
+      }
+
+      setIsInitialLoading(false);
     }
-    
+
     loadInitialBalances();
+
     return () => {
-      cancelled = true;
+      isCancelled = true;
     };
-  }, [activeAddress, activeWallet, enabled]);
+  }, [activeAddress, activeWallet]);
 
-  // Infinite scroll: load next set of balances
+  // Infinite scroll: load more token balances
   useEffect(() => {
-    if (!enabled) return;
-    
-    async function loadMoreBalances() {
-      // ... rest of the loadMoreBalances logic moved from index.tsx ...
-    }
-    
-    if (inView) {
-      loadMoreBalances();
-    }
-  }, [inView, activeAddress, activeWallet, hasMore, isFetchingMore, offset, isInitialLoading, enabled]);
+    if (!activeAddress || !activeWallet || !hasMore || isFetchingMore || isInitialLoading) return;
+    if (!inView) return;
 
-  if (!enabled) return null;
-  
+    let isCancelled = false;
+
+    async function loadMoreBalances() {
+      setIsFetchingMore(true);
+      try {
+        const fetchedBalances = await fetchTokenBalances(activeAddress!.address, { 
+          limit: 10, 
+          offset: offset,
+          sort: 'asset:asc'
+        });
+
+        // Filter out duplicates and items with zero balance
+        const filtered = fetchedBalances.filter((balance) => {
+          const normalized = balance.asset.toUpperCase();
+          const quantity = Number(balance.quantity_normalized);
+          return (
+            quantity > 0 &&
+            !existingAssetsRef.current.has(normalized) &&
+            normalized !== "BTC"
+          );
+        });
+
+        // Mark these assets as seen
+        filtered.forEach((balance) =>
+          existingAssetsRef.current.add(balance.asset.toUpperCase())
+        );
+
+        setTokenBalances((prev) => [
+          ...prev,
+          ...filtered.map((balance) => ({
+            asset: balance.asset.toUpperCase(),
+            balance,
+            loading: false,
+          })),
+        ]);
+        setOffset((prev) => prev + 10);
+
+        // If fewer than expected results, assume no more data
+        if (fetchedBalances.length < 10 || filtered.length === 0) {
+          setHasMore(false);
+        }
+      } catch (error) {
+        console.error("Error fetching more token balances:", error);
+        setHasMore(false);
+      } finally {
+        if (!isCancelled) {
+          setIsFetchingMore(false);
+        }
+      }
+    }
+
+    loadMoreBalances();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [inView, activeAddress, activeWallet, hasMore, isFetchingMore, offset, isInitialLoading]);
+
   if (isInitialLoading) {
     return (
       <div className="flex justify-center items-center py-20">

@@ -164,7 +164,7 @@ export class WalletManager {
     if (this.wallets.length >= MAX_WALLETS) {
       throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
     }
-    const walletName = name || `PK ${this.wallets.length + 1}`;
+    const walletName = name || `Wallet ${this.wallets.length + 1}`;
     let privateKeyHex: string;
     let compressed = true;
     if (isWIF(privateKey)) {
@@ -272,11 +272,34 @@ export class WalletManager {
   public async removeWallet(walletId: string): Promise<void> {
     const idx = this.wallets.findIndex((w) => w.id === walletId);
     if (idx === -1) throw new Error('Wallet not found in memory.');
+    
     this.wallets.splice(idx, 1);
     sessionManager.clearUnlockedSecret(walletId);
     await removeEncryptedWalletRecord(walletId);
+    
     if (this.activeWalletId === walletId) {
       this.activeWalletId = null;
+    }
+
+    // Renumber remaining wallets
+    await this.renumberWallets();
+  }
+  private async renumberWallets(): Promise<void> {
+    for (let i = 0; i < this.wallets.length; i++) {
+      const wallet = this.wallets[i];
+      const newName = `Wallet ${i + 1}`;
+      
+      if (wallet.name.match(/^Wallet \d+$/)) {
+        wallet.name = newName;
+        
+        // Update the name in storage
+        const allRecords = await getAllEncryptedWallets();
+        const record = allRecords.find((r) => r.id === wallet.id);
+        if (record) {
+          record.name = newName;
+          await updateEncryptedWallet(record);
+        }
+      }
     }
   }
   public async verifyPassword(password: string): Promise<boolean> {
@@ -380,8 +403,7 @@ export class WalletManager {
     addressType: AddressType = AddressType.P2WPKH
   ): Promise<Wallet> {
     if (!name) {
-      const mnemonicWallets = this.wallets.filter(w => w.type === 'mnemonic');
-      name = `Wallet ${mnemonicWallets.length + 1}`;
+      name = `Wallet ${this.wallets.length + 1}`;
     }
     const newWallet = await this.createMnemonicWallet(mnemonic, password, name, addressType);
     await this.unlockWallet(newWallet.id, password);
@@ -395,8 +417,7 @@ export class WalletManager {
     addressType: AddressType = AddressType.P2WPKH
   ): Promise<Wallet> {
     if (!name) {
-      const privateKeyWallets = this.wallets.filter(w => w.type === 'privateKey');
-      name = `PK ${privateKeyWallets.length + 1}`;
+      name = `Wallet ${this.wallets.length + 1}`;
     }
     const newWallet = await this.createPrivateKeyWallet(privateKey, password, name, addressType);
     await this.unlockWallet(newWallet.id, password);

@@ -1,11 +1,12 @@
 import React, { type ReactNode } from 'react';
-import { ToastProvider } from './toast-context';
 import { AuthProvider } from './auth-context';
-import { SettingsProvider } from './settings-context';
-import { WalletProvider } from './wallet-context';
+import { ComposerProvider } from './composer-context';
 import { HeaderProvider } from './header-context';
-import { PriceProvider } from './price-context';
 import { LoadingProvider } from './loading-context';
+import { PriceProvider } from './price-context';
+import { SettingsProvider } from './settings-context';
+import { ToastProvider } from './toast-context';
+import { WalletProvider } from './wallet-context';
 
 interface AppProvidersProps {
   children: ReactNode;
@@ -20,7 +21,9 @@ export function AppProviders({ children }: AppProvidersProps) {
             <WalletProvider>
               <HeaderProvider>
                 <PriceProvider>
-                  {children}
+                  <ComposerProvider>
+                    {children}
+                  </ComposerProvider>
                 </PriceProvider>
               </HeaderProvider>
             </WalletProvider>

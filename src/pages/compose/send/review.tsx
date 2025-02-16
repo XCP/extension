@@ -13,7 +13,8 @@ export function ReviewSend({ apiResponse, onSign, onBack }: ReviewSendProps) {
   const [isSigning, setIsSigning] = useState(false);
   const { result } = apiResponse;
   const asset = result.params.asset || "XCP";
-  const assetDivisible = asset !== "BTC";
+  // Use asset_info.divisible if available; otherwise, default to asset !== "BTC"
+  const assetDivisible = result.params.asset_info?.divisible ?? (asset !== "BTC");
 
   const handleSignClick = async () => {
     setIsSigning(true);

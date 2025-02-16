@@ -303,6 +303,7 @@ File Contents:
   
     return (
       <HeadlessButton
+        as="button"
         ref={ref}
         disabled={disabled}
         className={({ active }) => `
@@ -513,12 +514,19 @@ File Contents:
       handleBack,
     ]);
   
-    // Set header props on mount and cleanup
     useEffect(() => {
       setHeaderProps(headerConfig);
-      // Cleanup with null instead of empty object
       return () => setHeaderProps(null);
     }, [headerConfig, setHeaderProps]);
+  
+    useEffect(() => {
+      console.log("Step changed to:", step);
+    }, [step]);
+  
+    useEffect(() => {
+      console.log("Composer mounted");
+      return () => console.log("Composer unmounted");
+    }, []);
   
     async function handleFormSubmit(data: any) {
       showLoading("Composing transaction...");
@@ -531,10 +539,12 @@ File Contents:
           sourceAddress: activeAddress.address,
           ...data,
         });
+        console.log("Compose response:", response);
         setApiResponse(response);
         setFormData(data);
         setStep("review");
       } catch (err) {
+        console.error("Compose error:", err);
         setError(err instanceof Error ? err.message : String(err));
       } finally {
         hideLoading();
@@ -3776,7 +3786,7 @@ File Contents:
 
 /src/pages/compose/send/form.tsx
   [contents of the file]
-  import React, { useState, useRef, useEffect } from "react";
+  import React, { useState, useRef, useEffect, Suspense } from "react";
   import { Field, Label, Description, Input } from "@headlessui/react";
   import { Button } from "@/components/button";
   import { BalanceHeader } from "@/components/headers/balance-header";
@@ -3845,23 +3855,28 @@ File Contents:
   
     return (
       <div className="bg-white rounded-lg shadow-lg p-4">
+        {/* Asset details section wrapped in Suspense */}
         <div className="min-h-[80px]">
-          {isLoading ? (
-            <div className="animate-pulse h-12 bg-gray-200 rounded"></div>
-          ) : error ? (
-            <div className="text-red-500">{error.message}</div>
-          ) : (
-            <BalanceHeader
-              balance={{
-                asset: formData.asset,
-                asset_info: assetInfo,
-                quantity_normalized: availableBalance,
-              }}
-              className="mb-4"
-            />
-          )}
+          <Suspense fallback={<div>Loading asset details...</div>}>
+            {isLoading ? (
+              <div className="animate-pulse h-12 bg-gray-200 rounded"></div>
+            ) : error ? (
+              <div className="text-red-500">{error.message}</div>
+            ) : (
+              <BalanceHeader
+                balance={{
+                  asset: formData.asset,
+                  asset_info: assetInfo,
+                  quantity_normalized: availableBalance,
+                }}
+                className="mb-4"
+              />
+            )}
+          </Suspense>
         </div>
+  
         {localError && <div className="text-red-500 mb-2">{localError}</div>}
+  
         <form onSubmit={handleSubmit} className="space-y-6">
           <Field>
             <Label className="text-sm font-medium text-gray-700">
@@ -3961,7 +3976,6 @@ File Contents:
 
 /src/pages/compose/send/page.tsx
   [contents of the file]
-  import React, { Suspense } from "react";
   import { useParams } from "react-router-dom";
   import { SendForm } from "./form";
   import { ReviewSend } from "./review";
@@ -3972,14 +3986,12 @@ File Contents:
     const { asset } = useParams<{ asset: string }>();
     return (
       <div className="p-4">
-        <Suspense fallback={<div>Loading asset details...</div>}>
-          <Composer
-            initialTitle="Send"
-            FormComponent={(props) => <SendForm {...props} initialAsset={asset} />}
-            ReviewComponent={ReviewSend}
-            composeTransaction={composeSend}
-          />
-        </Suspense>
+        <Composer
+          initialTitle="Send"
+          FormComponent={(props) => <SendForm {...props} initialAsset={asset} />}
+          ReviewComponent={ReviewSend}
+          composeTransaction={composeSend}
+        />
       </div>
     );
   }
@@ -8569,12 +8581,52 @@ File Contents:
   [contents of the file]
   import axios from 'axios';
   
+  export interface SignedTxEstimatedSize {
+    vsize: number;
+    adjusted_vsize: number;
+    sigops_count: number;
+  }
+  
+  export interface AssetInfo {
+    asset_longname: string | null;
+    description: string;
+    issuer: string;
+    divisible: boolean;
+    locked: boolean;
+    owner: string;
+  }
+  
+  export interface ComposeParams {
+    source: string;
+    destination: string;
+    asset: string;
+    quantity: number;
+    memo: string | null;
+    memo_is_hex: boolean;
+    use_enhanced_send: boolean;
+    no_dispense: boolean;
+    skip_validation: boolean;
+    asset_info: AssetInfo;
+    quantity_normalized: string;
+  }
+  
+  export interface ComposeResult {
+    rawtransaction: string;
+    btc_in: number;
+    btc_out: number;
+    btc_change: number;
+    btc_fee: number;
+    data: string;
+    lock_scripts: string[];
+    inputs_values: number[];
+    signed_tx_estimated_size: SignedTxEstimatedSize;
+    psbt: string;
+    params: ComposeParams;
+    name: string;
+  }
+  
   export interface ApiResponse {
-    result: {
-      rawtransaction: string;
-      btc_fee: number;
-      params: any;
-    };
+    result: ComposeResult;
   }
   
   export interface ComposeOptions {
@@ -8587,7 +8639,6 @@ File Contents:
     change_address?: string;
     more_outputs?: string; // e.g. "1000:address1,2000:address2"
     use_all_inputs_set?: boolean;
-    verbose?: boolean;
     multisig_pubkey?: string;
     // Other parameters specific to each transaction type:
     [key: string]: any;
@@ -8605,6 +8656,7 @@ File Contents:
       exclude_utxos_with_balances: 'true',
       allow_unconfirmed_inputs: 'true',
       disable_utxo_locks: 'true',
+      verbose: 'true',
     });
     const response = await axios.get<ApiResponse>(`${apiUrl}?${params.toString()}`, {
       headers: { 'Content-Type': 'application/json' },
@@ -8948,7 +9000,6 @@ File Contents:
       max_fee,
       pubkeys,
       allow_unconfirmed_inputs = true,
-      verbose,
       signal,
     } = options;
     const paramsObj: any = {
@@ -8973,7 +9024,6 @@ File Contents:
       ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
       ...(pubkeys && { pubkeys }),
       allow_unconfirmed_inputs: allow_unconfirmed_inputs.toString(),
-      ...(verbose !== undefined && { verbose: verbose.toString() }),
     };
     return composeTransaction('fairminter', paramsObj, sourceAddress, signal);
   }

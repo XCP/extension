@@ -29,23 +29,11 @@ export default function Index() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = (searchParams.get("tab") as "Assets" | "Balances") || "Balances";
 
-  // Local state variables
-  const [tokenBalances, setTokenBalances] = useState<any[]>([]);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
-  const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [ownedAssets, setOwnedAssets] = useState<any[]>([]);
-  const [isLoadingAssets, setIsLoadingAssets] = useState(false);
 
-  // Track existing assets so we don't refetch them in infinite scroll
-  const existingAssetsRef = React.useRef<Set<string>>(new Set());
-
-  // Use a stateful variable to hold the scroll container element.
+  // We want to reuse the same scroll container for both lists (for inView/infinite scroll)
   const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
 
-  // Set header props (locking, etc.)
   useEffect(() => {
     setHeaderProps({
       useLogoTitle: true,
@@ -65,29 +53,6 @@ export default function Index() {
     });
   }, [setHeaderProps, navigate, activeWallet, lockAll]);
 
-  // Fetch owned assets when user is on the "Assets" tab
-  useEffect(() => {
-    async function loadOwnedAssets() {
-      if (!activeAddress) return;
-      setIsLoadingAssets(true);
-      try {
-        const response = await fetch(
-          `https://api.counterparty.io:4000/v2/addresses/${activeAddress.address}/assets/owned?verbose=true`
-        );
-        const data = await response.json();
-        setOwnedAssets(data.result);
-      } catch {
-        // handle error if needed
-      } finally {
-        setIsLoadingAssets(false);
-      }
-    }
-    if (activeTab === "Assets") {
-      loadOwnedAssets();
-    }
-  }, [activeAddress, activeTab]);
-
-  // Handlers
   const handleCopyAddress = () => {
     if (!activeAddress) return;
     navigator.clipboard.writeText(activeAddress.address).then(() => {
@@ -101,7 +66,6 @@ export default function Index() {
     navigate("/select-address");
   };
 
-  // Current address UI
   function renderCurrentAddress() {
     if (!activeAddress) return <div className="p-4">No address selected</div>;
     return (
@@ -146,7 +110,6 @@ export default function Index() {
     );
   }
 
-  // Action buttons (Receive, Send, History)
   function renderActionButtons() {
     return (
       <div className="grid grid-cols-3 gap-4 my-4">
@@ -161,7 +124,7 @@ export default function Index() {
         </Button>
         <Button
           color="gray"
-          onClick={() => navigate("/compose/send/RATPEPECORN")}
+          onClick={() => navigate("/compose/send/BTC")}
           className="flex-col !py-4"
           aria-label="Send tokens"
         >
@@ -181,7 +144,6 @@ export default function Index() {
     );
   }
 
-  // Header with Assets/Balances tabs
   function renderBalancesHeader() {
     return (
       <div className="flex justify-between items-center mb-2">
@@ -240,11 +202,6 @@ export default function Index() {
         {renderCurrentAddress()}
         {renderActionButtons()}
         {renderBalancesHeader()}
-        {activeTab === "Balances" ? (
-          <BalanceList enabled={false} />
-        ) : (
-          <AssetList enabled={false} />
-        )}
       </>
     );
 
@@ -256,6 +213,13 @@ export default function Index() {
         className="flex-grow overflow-y-auto no-scrollbar p-4"
       >
         {content}
+        {/* Always mount both list components but hide the one not active */}
+        <div style={{ display: activeTab === "Balances" ? "block" : "none" }}>
+          <BalanceList visible={activeTab === "Balances"} scrollContainer={scrollContainer} />
+        </div>
+        <div style={{ display: activeTab === "Assets" ? "block" : "none" }}>
+          <AssetList visible={activeTab === "Assets"} scrollContainer={scrollContainer} />
+        </div>
       </div>
     </div>
   );

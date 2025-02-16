@@ -20,7 +20,7 @@ interface WalletContextType {
   loaded: boolean;
   unlockWallet: (walletId: string, password: string) => Promise<void>;
   lockAll: () => Promise<void>;
-  setActiveWallet: (wallet: Wallet | null) => Promise<void>;
+  setActiveWallet: (wallet: Wallet | null, useLastActive?: boolean) => Promise<void>;
   setActiveAddress: (address: Address | null) => Promise<void>;
   addAddress: (walletId: string) => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -83,7 +83,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           await walletService.setActiveWallet(active.id);
         }
 
-        const activeChanged = prevActiveWalletRef.current?.id !== active?.id;
+        // Update the active wallet if either the wallet id or the number of addresses has changed.
+        const activeChanged =
+          prevActiveWalletRef.current?.id !== active?.id ||
+          (prevActiveWalletRef.current &&
+           active &&
+           prevActiveWalletRef.current.addresses.length !== active.addresses.length);
         if (activeChanged) {
           setActiveWalletState(active);
           prevActiveWalletRef.current = active;
@@ -148,12 +153,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     await refreshWalletState();
   }, [walletService, refreshWalletState]);
 
-  const setActiveWallet = useCallback(async (wallet: Wallet | null) => {
+  const setActiveWallet = useCallback(async (wallet: Wallet | null, useLastActive?: boolean) => {
     if (wallet) {
       await walletService.setActiveWallet(wallet.id);
+      
+      const lastActiveAddress = useLastActive ? await walletService.getLastActiveAddress() : undefined;
+      const newActiveAddress = lastActiveAddress && wallet.addresses.some((addr) => addr.address === lastActiveAddress)
+        ? wallet.addresses.find((addr) => addr.address === lastActiveAddress) ?? wallet.addresses[0]
+        : wallet.addresses[0];
+      
+      setActiveAddressState(newActiveAddress ?? null);
+      if (newActiveAddress) {
+        await walletService.setLastActiveAddress(newActiveAddress.address);
+      }
     } else {
       await walletService.setActiveWallet('');
     }
+    
     await refreshWalletState();
   }, [walletService, refreshWalletState]);
 

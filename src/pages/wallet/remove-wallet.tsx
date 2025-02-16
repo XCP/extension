@@ -33,7 +33,6 @@ function RemoveWallet() {
       return;
     }
     
-    // Only set error if we're not in the process of removing the wallet
     if (!isLoading && !wallet) {
       setSubmissionError('Wallet not found.');
       return;
@@ -43,7 +42,7 @@ function RemoveWallet() {
       setWalletName(wallet.name);
       setWalletType(wallet.type);
       setHeaderProps({
-        title: wallet.type === 'privateKey' ? 'Remove Address' : 'Remove Wallet',
+        title: 'Remove Wallet',
         onBack: () => navigate(-1),
       });
     }
@@ -114,7 +113,7 @@ function RemoveWallet() {
   return (
     <div className="flex flex-col h-full p-4" role="main" aria-labelledby="remove-wallet-title">
       <h2 id="remove-wallet-title" className="sr-only">
-        {walletType === 'privateKey' ? 'Remove Address' : 'Remove Wallet'}
+        Remove Wallet
       </h2>
       {submissionError && (
         <ErrorAlert message={submissionError} onClose={() => setSubmissionError('')} />
@@ -124,11 +123,11 @@ function RemoveWallet() {
           <div className="flex items-center mb-4">
             <FaExclamationTriangle className="w-6 h-6 text-red-500 mr-2" aria-hidden="true" />
             <h3 className="text-xl font-bold text-red-700">
-              {walletType === 'privateKey' ? 'Remove Address' : 'Remove Wallet'}
+              Warning
             </h3>
           </div>
           <p className="text-red-700 font-medium leading-relaxed">
-            Make sure you have backed up your wallet or private key before removing it.
+            Make sure you have backed up your wallet's mnemonic or private key before removing it.
           </p>
         </div>
         <div className="w-full max-w-md space-y-4">
@@ -147,13 +146,9 @@ function RemoveWallet() {
             disabled={isLoading}
             fullWidth
             color="red"
-            aria-label={walletType === 'privateKey' ? 'Remove Private Key' : `Remove ${walletName}`}
+            aria-label={`Remove ${walletName}`}
           >
-            {isLoading
-              ? 'Removing...'
-              : walletType === 'privateKey'
-              ? 'Remove Private Key'
-              : `Remove ${walletName}`}
+            {isLoading ? 'Removing...' : `Remove ${walletName}`}
           </Button>
         </div>
       </form>

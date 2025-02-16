@@ -14,39 +14,46 @@ export interface OwnedAsset {
 }
 
 interface AssetListProps {
-  enabled?: boolean;
+  visible: boolean;
+  scrollContainer: HTMLDivElement | null; // Provided for consistency if needed in the future
 }
 
-export const AssetList: React.FC<AssetListProps> = ({ enabled = true }) => {
+export const AssetList: React.FC<AssetListProps> = ({ visible, scrollContainer }) => {
   const { activeAddress } = useWallet();
   const [ownedAssets, setOwnedAssets] = useState<OwnedAsset[]>([]);
   const [isLoadingAssets, setIsLoadingAssets] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!enabled) return;
-    
+    if (!activeAddress) return;
+    let isCancelled = false;
+
     async function loadOwnedAssets() {
-      if (!activeAddress) return;
       setIsLoadingAssets(true);
       try {
         const response = await fetch(
           `https://api.counterparty.io:4000/v2/addresses/${activeAddress.address}/assets/owned?verbose=true`
         );
         const data = await response.json();
-        setOwnedAssets(data.result);
-      } catch {
-        // handle error if needed
+        if (!isCancelled) {
+          setOwnedAssets(data.result);
+        }
+      } catch (error) {
+        console.error("Error fetching owned assets:", error);
       } finally {
-        setIsLoadingAssets(false);
+        if (!isCancelled) {
+          setIsLoadingAssets(false);
+        }
       }
     }
-    
+
     loadOwnedAssets();
-  }, [activeAddress, enabled]);
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeAddress]);
 
-  if (!enabled) return null;
-
+  // Even if not visible, we keep the component mounted so its data persists.
   if (isLoadingAssets) {
     return (
       <div className="flex justify-center items-center h-full">
