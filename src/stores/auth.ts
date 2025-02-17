@@ -9,6 +9,7 @@ export type AuthEvent =
   | { type: 'WALLETS_LOADED'; walletExists: boolean }
   | { type: 'WALLET_UNLOCKED' }
   | { type: 'WALLET_LOCKED' }
+  | { type: 'WALLET_RESET' }
   | { type: 'CONNECTION_REQUESTED' }
   | { type: 'CONNECTION_APPROVED' }
   | { type: 'ONBOARDING_COMPLETED' };
@@ -21,6 +22,8 @@ export function authStateReducer(state: AuthState, event: AuthEvent): AuthState 
       return AuthState.Unlocked;
     case 'WALLET_LOCKED':
       return AuthState.Locked;
+    case 'WALLET_RESET':
+      return AuthState.Onboarding;
     case 'CONNECTION_REQUESTED':
       return AuthState.ConnectionPending;
     case 'CONNECTION_APPROVED':

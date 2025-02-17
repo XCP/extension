@@ -219,8 +219,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const resetAllWallets = useCallback(async (password: string) => {
     await walletService.resetAllWallets(password);
-    await refreshWalletState();
-  }, [walletService, refreshWalletState]);
+    
+    // Clear the wallet state to represent a "fresh start".
+    setWallets([]);
+    setActiveWalletState(null);
+    setActiveAddressState(null);
+  
+    // Dispatch an event to indicate the wallets have been reset.
+    // (The specific action type here is up to you.)
+    authDispatch({ type: 'WALLET_RESET' });
+  }, [walletService, authDispatch]);
 
   const removeWallet = useCallback(async (walletId: string) => {
     await walletService.removeWallet(walletId);
