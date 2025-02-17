@@ -55,7 +55,30 @@ const formatResponse = (endpoint: BroadcastEndpoint, response: AxiosResponse): T
   throw new Error('Unknown endpoint response format');
 };
 
+const isDevelopment = process.env.NODE_ENV === 'development';
+const MOCK_TXID_PREFIX = 'dev_mock_tx_';
+const FORCE_ERROR_HEX = 'FORCE_ERROR';
+
+const generateMockTxid = (signedTxHex: string): string => {
+  const truncatedHex = signedTxHex.slice(0, 8);
+  const timestamp = Date.now().toString(16).slice(-8);
+  return `${MOCK_TXID_PREFIX}${truncatedHex}_${timestamp}`;
+};
+
 export async function broadcastTransaction(signedTxHex: string): Promise<TransactionResponse> {
+  if (isDevelopment) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    if (signedTxHex.includes(FORCE_ERROR_HEX)) {
+      throw new Error('Simulated broadcast error for testing');
+    }
+
+    return {
+      txid: generateMockTxid(signedTxHex),
+      fees: 1000
+    };
+  }
+
   let lastError: Error | null = null;
   for (const endpoint of broadcastEndpoints) {
     try {

@@ -79,6 +79,13 @@ export function Composer({
 
     if (step === "review" && apiResponse) {
       return {
+        title: initialTitle,
+        onBack: headerCallbacks?.onBack || handleBack,
+      };
+    }
+
+    if (step === "success" && apiResponse) {
+      return {
         useLogoTitle: true,
         onBack: headerCallbacks?.onBack || handleBack,
       };
