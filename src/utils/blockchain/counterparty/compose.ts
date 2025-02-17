@@ -52,7 +52,7 @@ export interface ComposeOptions {
   sourceAddress: string;
   signal?: AbortSignal;
   // New fee parameters:
-  sat_per_vbyte?: number;
+  sat_per_vbyte: number;
   max_fee?: number;
   // New output/UTXO selection flags:
   change_address?: string;
