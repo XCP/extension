@@ -16,6 +16,7 @@ export default defineConfig({
       },
     ],
     permissions: [
+      'sidePanel',
       'storage',
     ],
   },

@@ -171,7 +171,7 @@ export default function Index() {
           <button
             onClick={async () => {
               await browser.tabs.create({
-                url: browser.runtime.getURL("/wallet.html#/main"),
+                url: browser.runtime.getURL("/newtab.html#/index"),
                 active: true,
               });
             }}
