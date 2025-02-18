@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@headlessui/react": "^2.2.0",
+    "@hello-pangea/dnd": "^18.0.1",
     "@noble/curves": "^1.8.1",
     "@noble/hashes": "^1.7.1",
     "@noble/secp256k1": "^2.2.3",

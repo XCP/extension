@@ -45,6 +45,7 @@ interface WalletContextType {
   removeWallet: (walletId: string) => Promise<void>;
   signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
+  updatePinnedAssets: (pinnedAssets: string[]) => Promise<void>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -256,6 +257,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return walletService.getPreviewAddressForType(walletId, addressType);
   }, [walletService]);
 
+  const updatePinnedAssets = useCallback(async (pinnedAssets: string[]) => {
+    const activeWallet = await walletService.getActiveWallet();
+    if (!activeWallet) throw new Error('No active wallet');
+    await walletService.updateWalletPinnedAssets(activeWallet.id, pinnedAssets);
+    await refreshWalletState();
+  }, [walletService, refreshWalletState]);
+
   const value: WalletContextType = {
     wallets,
     activeWallet,
@@ -281,6 +289,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       walletService.signTransaction(rawTxHex, sourceAddress),
     broadcastTransaction: (signedTxHex: string) =>
       walletService.broadcastTransaction(signedTxHex),
+    updatePinnedAssets,
   };
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;

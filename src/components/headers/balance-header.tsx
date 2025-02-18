@@ -32,6 +32,12 @@ export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
       })
     : "0";
 
+  const displayName = balance.asset_info?.asset_longname || balance.asset;
+  const textSizeClass = !balance.asset_info?.asset_longname && balance.asset.startsWith('A') ? "text-lg" :
+                       displayName.length > 21 ? "text-sm" : 
+                       displayName.length > 18 ? "text-base" : 
+                       displayName.length > 12 ? "text-lg" : "text-xl";
+
   return (
     <div className={`flex items-center ${className}`}>
       <img
@@ -40,8 +46,8 @@ export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
         className="w-12 h-12 mr-4"
       />
       <div>
-        <h2 className="text-xl font-bold break-all">
-          {balance.asset_info?.asset_longname || balance.asset}
+        <h2 className={`${textSizeClass} font-bold break-all`}>
+          {displayName}
         </h2>
         <p className="text-sm text-gray-600">Available: {formattedBalance}</p>
       </div>

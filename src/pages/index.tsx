@@ -181,7 +181,7 @@ export default function Index() {
             <FaListAlt className="w-5 h-5 text-gray-600" aria-hidden="true" />
           </button>
           <button
-            onClick={() => navigate("/token-settings")}
+            onClick={() => navigate("/select-assets")}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
             aria-label="Token Settings"
           >

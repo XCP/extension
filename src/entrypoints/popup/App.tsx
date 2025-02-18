@@ -16,6 +16,9 @@ import UnlockWallet from '@/pages/auth/unlock-wallet';
 import SelectAddress from '@/pages/address/select-address';
 import ViewAddress from '@/pages/address/view-address';
 
+// Asset pages
+import SelectAssets from '@/pages/assets/select-assets';
+
 // Compose pages
 import { ComposeSend } from '@/pages/compose/send/page';
 
@@ -108,6 +111,7 @@ export default function App() {
           <Route path="/settings/security" element={<SecuritySettings />} />
           <Route path="/select-address" element={<SelectAddress />} />
           <Route path="/view-address" element={<ViewAddress />} />
+          <Route path="/select-assets" element={<SelectAssets />} />
           <Route path="/compose/send/:asset" element={<ComposeSend />} />
         </Route>
       </Route>

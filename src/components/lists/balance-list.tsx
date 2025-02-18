@@ -6,7 +6,7 @@ import { BalanceMenu } from "@/components/menus/balance-menu";
 import type { TokenBalance } from "@/utils/blockchain/counterparty";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchBTCBalance } from "@/utils/blockchain/bitcoin/balance";
-import { fetchTokenBalance, fetchTokenBalances } from "@/utils/blockchain/counterparty";
+import { fetchTokenBalances } from "@/utils/blockchain/counterparty";
 import { useInView } from "react-intersection-observer";
 
 export interface BalanceItem {
@@ -87,7 +87,7 @@ export const BalanceList: React.FC<BalanceListProps> = ({ visible, scrollContain
       // Example: start with BTC
       const newBalances: BalanceItem[] = [
         { asset: "BTC", loading: true },
-        // You can add any pinned assets here if needed.
+        // Add any pinned assets if desired.
       ];
       setTokenBalances(newBalances);
 
@@ -149,7 +149,7 @@ export const BalanceList: React.FC<BalanceListProps> = ({ visible, scrollContain
           sort: 'asset:asc'
         });
 
-        // Filter out duplicates and items with zero balance
+        // Filter out duplicates and tokens with zero balance
         const filtered = fetchedBalances.filter((balance) => {
           const normalized = balance.asset.toUpperCase();
           const quantity = Number(balance.quantity_normalized);
@@ -160,23 +160,28 @@ export const BalanceList: React.FC<BalanceListProps> = ({ visible, scrollContain
           );
         });
 
-        // Mark these assets as seen
+        // Mark tokens that pass filtering as seen
         filtered.forEach((balance) =>
           existingAssetsRef.current.add(balance.asset.toUpperCase())
         );
 
-        setTokenBalances((prev) => [
-          ...prev,
-          ...filtered.map((balance) => ({
-            asset: balance.asset.toUpperCase(),
-            balance,
-            loading: false,
-          })),
-        ]);
+        if (filtered.length > 0) {
+          setTokenBalances((prev) => [
+            ...prev,
+            ...filtered.map((balance) => ({
+              asset: balance.asset.toUpperCase(),
+              balance,
+              loading: false,
+            })),
+          ]);
+        }
+
+        // Always update the offset so that duplicates in the current page
+        // don’t prevent subsequent pages from being requested.
         setOffset((prev) => prev + 10);
 
-        // If fewer than expected results, assume no more data
-        if (fetchedBalances.length < 10 || filtered.length === 0) {
+        // If fewer than 10 tokens were returned from the API, assume no more data.
+        if (fetchedBalances.length < 10) {
           setHasMore(false);
         }
       } catch (error) {
