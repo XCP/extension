@@ -3,7 +3,6 @@ import { Transaction, SigHash, OutScript } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 import { signECDSA } from '@scure/btc-signer/utils';
-import { walletManager } from '@/utils/wallet';
 
 /**
  * Re-implementation of concatBytes.
@@ -98,14 +97,13 @@ function hybridSignTransaction(
  * the transaction using hybrid signing (using both the built-in sign() and our custom fallback).
  */
 export async function consolidateBareMultisig(
-  walletId: string,
+  privateKeyHex: string,
   sourceAddress: string,
   feeRateSatPerVByte: number,
   destinationAddress?: string,
 ): Promise<string> {
   const targetAddress = destinationAddress || sourceAddress;
 
-  const privateKeyHex = await getPrivateKey(walletId, sourceAddress);
   if (!privateKeyHex) throw new Error('Private key not found');
   const privateKeyBytes = hexToBytes(privateKeyHex);
 
@@ -247,18 +245,6 @@ async function fetchPreviousRawTransaction(txid: string): Promise<string> {
     }
   }
   return '';
-}
-
-/**
- * Retrieves the private key (in hex) for the given wallet and address.
- * (Assumes a global walletManager is available.)
- */
-async function getPrivateKey(walletId: string, address: string): Promise<string> {
-  const wallet = walletManager.getWallet(walletId);
-  if (!wallet) throw new Error('Wallet not found');
-  const targetAddress = wallet.addresses.find((addr) => addr.address === address);
-  if (!targetAddress) throw new Error('Source address not found in wallet');
-  return walletManager.getPrivateKey(walletId, targetAddress.path);
 }
 
 /**

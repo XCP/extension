@@ -3,7 +3,12 @@ import { useWallet } from '@/contexts/wallet-context';
 import { consolidateBareMultisig } from '@/utils/blockchain/bitcoin/bareMultisig';
 
 export function useConsolidateAndBroadcast() {
-  const { activeWallet, activeAddress, broadcastTransaction } = useWallet();
+  const { 
+    activeWallet, 
+    activeAddress, 
+    broadcastTransaction, 
+    getPrivateKey 
+  } = useWallet();
   const [isProcessing, setIsProcessing] = useState(false);
 
   const consolidateAndBroadcast = async (
@@ -16,17 +21,23 @@ export function useConsolidateAndBroadcast() {
 
     setIsProcessing(true);
     try {
-      // Get signed transaction hex
-      const signedTxHex = await consolidateBareMultisig(
+      // Get the private key using wallet context
+      const privateKey = await getPrivateKey(
         activeWallet.id,
+        activeAddress.path // Use the derivation path from activeAddress
+      );
+
+      // Get signed transaction hex using the retrieved private key
+      const signedTxHex = await consolidateBareMultisig(
+        privateKey,
         activeAddress.address,
         feeRateSatPerVByte,
         destinationAddress
       );
 
       // Broadcast the transaction
-      const txid = await broadcastTransaction(signedTxHex);
-      return txid;
+      const result = await broadcastTransaction(signedTxHex);
+      return result;
     } finally {
       setIsProcessing(false);
     }
