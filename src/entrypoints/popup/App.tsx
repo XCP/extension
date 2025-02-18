@@ -12,7 +12,12 @@ import NotFound from '@/pages/not-found';
 import Onboarding from '@/pages/auth/onboarding';
 import UnlockWallet from '@/pages/auth/unlock-wallet';
 
+// Action pages
+import Actions from '@/pages/actions/actions';
+import Consolidate from '@/pages/actions/consolidate/page';
+
 // Address pages
+import AddressHistory from '@/pages/address/address-history';
 import SelectAddress from '@/pages/address/select-address';
 import ViewAddress from '@/pages/address/view-address';
 
@@ -20,7 +25,10 @@ import ViewAddress from '@/pages/address/view-address';
 import SelectAssets from '@/pages/assets/select-assets';
 
 // Compose pages
-import { ComposeSend } from '@/pages/compose/send/page';
+import ComposeBroadcast from '@/pages/compose/broadcast/page';
+import ComposeBroadcastAddressOptions from '@/pages/compose/broadcast/address-options/page';
+import ComposeSend from '@/pages/compose/send/page';
+import ComposeSweep from '@/pages/compose/sweep/page';
 
 // Wallet pages
 import AddWallet from '@/pages/wallet/add-wallet';
@@ -92,6 +100,7 @@ export default function App() {
       <Route element={<AuthRequired />}>
         <Route element={<Layout showFooter={true} />}>
           <Route path="/index" element={<Index />} />
+          <Route path="/actions" element={<Actions />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Route>
@@ -105,14 +114,19 @@ export default function App() {
           <Route path="/remove-wallet/:walletId" element={<RemoveWallet />} />
           <Route path="/show-passphrase/:walletId" element={<ShowPassphrase />} />
           <Route path="/show-private-key/:walletId/:addressPath?" element={<ShowPrivateKey />} />
+          <Route path="/consolidate" element={<Consolidate />} />
           <Route path="/settings/address-type" element={<AddressTypeSettings />} />
           <Route path="/settings/advanced" element={<AdvancedSettings />} />
           <Route path="/settings/connected-sites" element={<ConnectedSitesSettings />} />
           <Route path="/settings/security" element={<SecuritySettings />} />
+          <Route path="/address-history" element={<AddressHistory />} />
           <Route path="/select-address" element={<SelectAddress />} />
           <Route path="/view-address" element={<ViewAddress />} />
           <Route path="/select-assets" element={<SelectAssets />} />
+          <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
+          <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptions />} />
           <Route path="/compose/send/:asset" element={<ComposeSend />} />
+          <Route path="/compose/sweep/:address?" element={<ComposeSweep />} />
         </Route>
       </Route>
 

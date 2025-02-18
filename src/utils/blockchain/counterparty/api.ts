@@ -98,6 +98,15 @@ export interface Transaction {
   status: string;
   data: Record<string, any>;
   supported: boolean;
+  unpacked_data: {
+    message_type: string;
+    message_data?: any;
+  };
+}
+
+export interface TransactionResponse {
+  result: Transaction[];
+  result_count: number;
 }
 
 /**
@@ -572,6 +581,46 @@ export async function fetchTransaction(
   } catch (error) {
     console.error('Error fetching transaction:', error);
     throw new Error('Failed to fetch transaction');
+  }
+}
+
+/**
+ * Fetches transactions for a given address.
+ *
+ * @param address - The Bitcoin address to fetch transactions for.
+ * @param options - Optional parameters for pagination and verbosity.
+ * @returns A promise that resolves to a TransactionResponse object.
+ */
+export async function fetchTransactions(
+  address: string,
+  options: {
+    limit?: number;
+    offset?: number;
+    verbose?: boolean;
+    show_unconfirmed?: boolean;
+  } = {}
+): Promise<TransactionResponse> {
+  try {
+    const limit = options.limit ?? 20;
+    const offset = options.offset ?? 0;
+    const verbose = options.verbose ?? true;
+    const show_unconfirmed = options.show_unconfirmed ?? true;
+
+    const response = await axios.get(
+      `https://api.counterparty.io:4000/v2/addresses/${address}/transactions`,
+      {
+        params: {
+          verbose,
+          show_unconfirmed,
+          limit,
+          offset,
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching transactions:", error);
+    throw error;
   }
 }
 

@@ -10,17 +10,22 @@ Folders:
 /src/components/menus/
 /src/contexts/
 /src/entrypoints/
+/src/entrypoints/newtab/
 /src/entrypoints/popup/
+/src/entrypoints/sidepanel/
 /src/hooks/
 /src/middleware/
 /src/models/
 /src/pages/
 /src/pages/actions/
 /src/pages/address/
+/src/pages/assets/
 /src/pages/auth/
 /src/pages/compose/
+/src/pages/compose/broadcast/
 /src/pages/compose/mpma/
 /src/pages/compose/send/
+/src/pages/compose/sweep/
 /src/pages/secrets/
 /src/pages/settings/
 /src/pages/wallet/
@@ -54,8 +59,11 @@ Files:
 /src/components/error-alert.tsx
 /src/components/footer.tsx
 /src/components/header.tsx
+/src/components/headers/address-header.tsx
 /src/components/headers/balance-header.tsx
+/src/components/inputs/amount-with-max-input.tsx
 /src/components/inputs/checkbox-input.tsx
+/src/components/inputs/fee-rate-input.tsx
 /src/components/inputs/password-input.tsx
 /src/components/layout.tsx
 /src/components/lists/address-list.tsx
@@ -68,8 +76,10 @@ Files:
 /src/components/menus/balance-menu.tsx
 /src/components/menus/wallet-menu.tsx
 /src/components/qr-code.tsx
+/src/components/success-screen.tsx
 /src/contexts/app-providers.tsx
 /src/contexts/auth-context.tsx
+/src/contexts/composer-context.tsx
 /src/contexts/header-context.tsx
 /src/contexts/loading-context.tsx
 /src/contexts/price-context.tsx
@@ -79,26 +89,37 @@ Files:
 /src/entrypoints/background.ts
 /src/entrypoints/content.ts
 /src/entrypoints/injected.ts
+/src/entrypoints/newtab/index.html
 /src/entrypoints/popup/app.tsx
 /src/entrypoints/popup/index.html
 /src/entrypoints/popup/main.tsx
 /src/entrypoints/popup/style.css
+/src/entrypoints/sidepanel/index.html
 /src/hooks/useAssetDetails.ts
+/src/hooks/useFeeRates.ts
 /src/middleware/auth-required.tsx
 /src/models/keychain.ts
+/src/pages/actions/actions.tsx
 /src/pages/actions/sign-message.tsx
 /src/pages/actions/verify-message.tsx
 /src/pages/address/address-history.tsx
 /src/pages/address/select-address.tsx
 /src/pages/address/view-address.tsx
+/src/pages/assets/select-assets.tsx
 /src/pages/auth/onboarding.tsx
 /src/pages/auth/unlock-wallet.tsx
+/src/pages/compose/broadcast/form.tsx
+/src/pages/compose/broadcast/page.tsx
+/src/pages/compose/broadcast/review.tsx
 /src/pages/compose/mpma/form.tsx
 /src/pages/compose/mpma/page.tsx
 /src/pages/compose/mpma/review.tsx
 /src/pages/compose/send/form.tsx
 /src/pages/compose/send/page.tsx
 /src/pages/compose/send/review.tsx
+/src/pages/compose/sweep/form.tsx
+/src/pages/compose/sweep/page.tsx
+/src/pages/compose/sweep/review.tsx
 /src/pages/index.tsx
 /src/pages/not-found.tsx
 /src/pages/secrets/show-passphrase.tsx
@@ -130,6 +151,7 @@ Files:
 /src/utils/blockchain/bitcoin/address.ts
 /src/utils/blockchain/bitcoin/balance.ts
 /src/utils/blockchain/bitcoin/bareMultisig.ts
+/src/utils/blockchain/bitcoin/feeRate.ts
 /src/utils/blockchain/bitcoin/index.ts
 /src/utils/blockchain/bitcoin/price.ts
 /src/utils/blockchain/bitcoin/privateKey.ts
@@ -148,6 +170,7 @@ Files:
 /src/utils/encryption/encryption.ts
 /src/utils/encryption/index.ts
 /src/utils/encryption/walletEncryption.ts
+/src/utils/estimateGas.ts
 /src/utils/format.test.ts
 /src/utils/format.ts
 /src/utils/storage/__tests__/settingsStorage.test.ts
@@ -191,6 +214,7 @@ File Contents:
     },
     "dependencies": {
       "@headlessui/react": "^2.2.0",
+      "@hello-pangea/dnd": "^18.0.1",
       "@noble/curves": "^1.8.1",
       "@noble/hashes": "^1.7.1",
       "@noble/secp256k1": "^2.2.3",
@@ -402,10 +426,8 @@ File Contents:
             </div>
             <div className="flex justify-between items-center mt-1">
               <span className="font-mono text-sm">{formatAddress(primaryAddress)}</span>
-              <span className="text-xs">
-                {wallet.addressCount
-                  ? `${wallet.addressCount} address${wallet.addressCount > 1 ? 'es' : ''}`
-                  : ''}
+              <span className="text-xs capitalize">
+                {wallet.type === 'mnemonic' ? 'Mnemonic' : 'Private Key'}
               </span>
             </div>
           </div>
@@ -423,9 +445,11 @@ File Contents:
   import { FiHelpCircle, FiX } from "react-icons/fi";
   import { useNavigate } from "react-router-dom";
   import { useHeader } from "@/contexts/header-context";
+  import { useComposer } from "@/contexts/composer-context";
   import { useLoading } from "@/contexts/loading-context";
   import { useSettings } from "@/contexts/settings-context";
   import { useWallet } from "@/contexts/wallet-context";
+  import { SuccessScreen } from "@/components/success-screen";
   
   interface HeaderCallbacks {
     onCancel?: () => void;
@@ -454,7 +478,8 @@ File Contents:
     headerCallbacks,
   }: ComposerProps) {
     const navigate = useNavigate();
-    const { activeWallet, activeAddress, signTransaction, broadcastTransaction } = useWallet();
+    const { activeWallet, activeAddress, signTransaction, broadcastTransaction } =
+      useWallet();
     const { isLoading, showLoading, hideLoading } = useLoading();
     const { setHeaderProps } = useHeader();
     const { settings, updateSettings } = useSettings();
@@ -465,15 +490,22 @@ File Contents:
   
     const effectiveToggleHelp = headerCallbacks?.onToggleHelp || toggleHelp;
   
-    const [step, setStep] = useState<"form" | "review">("form");
-    const [formData, setFormData] = useState<any>(null);
-    const [apiResponse, setApiResponse] = useState<any>(null);
-    const [error, setError] = useState<string | null>(null);
+    // Use our Composer context instead of local state
+    const {
+      step,
+      setStep,
+      formData,
+      setFormData,
+      apiResponse,
+      setApiResponse,
+      error,
+      setError,
+    } = useComposer();
   
     const handleBack = useCallback(() => {
       setApiResponse(null);
       setStep("form");
-    }, []);
+    }, [setApiResponse, setStep]);
   
     const headerConfig = useMemo(() => {
       if (isLoading) {
@@ -488,6 +520,13 @@ File Contents:
       }
   
       if (step === "review" && apiResponse) {
+        return {
+          title: initialTitle,
+          onBack: headerCallbacks?.onBack || handleBack,
+        };
+      }
+  
+      if (step === "success" && apiResponse) {
         return {
           useLogoTitle: true,
           onBack: headerCallbacks?.onBack || handleBack,
@@ -518,15 +557,6 @@ File Contents:
       setHeaderProps(headerConfig);
       return () => setHeaderProps(null);
     }, [headerConfig, setHeaderProps]);
-  
-    useEffect(() => {
-      console.log("Step changed to:", step);
-    }, [step]);
-  
-    useEffect(() => {
-      console.log("Composer mounted");
-      return () => console.log("Composer unmounted");
-    }, []);
   
     async function handleFormSubmit(data: any) {
       showLoading("Composing transaction...");
@@ -559,10 +589,15 @@ File Contents:
         if (!activeWallet || !activeAddress)
           throw new Error("Wallet is not properly initialized.");
         const rawTxHex = apiResponse.result.rawtransaction;
-        const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
-        await broadcastTransaction(signedTxHex);
-        alert("Transaction signed successfully!");
-        headerCallbacks?.onReset?.();
+        const signedTxHex = await signTransaction(
+          rawTxHex,
+          activeAddress.address
+        );
+        const broadcastResponse = await broadcastTransaction(signedTxHex);
+        // Optionally, store the broadcast response in apiResponse
+        setApiResponse({ ...apiResponse, broadcast: broadcastResponse });
+        // Instead of an alert, change the step to display the success screen
+        setStep("success");
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
       } finally {
@@ -579,6 +614,17 @@ File Contents:
             apiResponse={apiResponse}
             onSign={handleSign}
             onBack={handleBack}
+          />
+        )}
+        {step === "success" && apiResponse && (
+          <SuccessScreen
+            apiResponse={apiResponse}
+            onReset={() => {
+              // Reset state back to form (or call headerCallbacks?.onReset)
+              setStep("form");
+              setApiResponse(null);
+              setFormData(null);
+            }}
           />
         )}
       </div>
@@ -777,6 +823,42 @@ File Contents:
     );
   }
 
+/src/components/headers/address-header.tsx
+  [contents of the file]
+  import React from 'react';
+  import { formatAddress } from '@/utils/format';
+  import logo from '@/assets/logo.png';
+  
+  interface AddressHeaderProps {
+    address: string;
+    walletName?: string;
+    className?: string;
+  }
+  
+  export const AddressHeader: React.FC<AddressHeaderProps> = ({
+    address,
+    walletName,
+    className = '',
+  }) => {
+    return (
+      <div className={`flex items-center ${className}`}>
+        <img
+          src={logo}
+          alt="Logo"
+          className="w-12 h-12 mr-4 rounded-full"
+        />
+        <div>
+          {walletName && (
+            <p className="text-sm text-gray-600">
+              {walletName}
+            </p>
+          )}
+          <h2 className="text-xl font-bold">{formatAddress(address, true)}</h2>
+        </div>
+      </div>
+    );
+  };
+
 /src/components/headers/balance-header.tsx
   [contents of the file]
   import React from "react";
@@ -813,6 +895,12 @@ File Contents:
         })
       : "0";
   
+    const displayName = balance.asset_info?.asset_longname || balance.asset;
+    const textSizeClass = !balance.asset_info?.asset_longname && balance.asset.startsWith('A') ? "text-lg" :
+                         displayName.length > 21 ? "text-sm" : 
+                         displayName.length > 18 ? "text-base" : 
+                         displayName.length > 12 ? "text-lg" : "text-xl";
+  
     return (
       <div className={`flex items-center ${className}`}>
         <img
@@ -821,14 +909,199 @@ File Contents:
           className="w-12 h-12 mr-4"
         />
         <div>
-          <h2 className="text-xl font-bold break-all">
-            {balance.asset_info?.asset_longname || balance.asset}
+          <h2 className={`${textSizeClass} font-bold break-all`}>
+            {displayName}
           </h2>
           <p className="text-sm text-gray-600">Available: {formattedBalance}</p>
         </div>
       </div>
     );
   };
+
+/src/components/inputs/amount-with-max-input.tsx
+  [contents of the file]
+  import axios from 'axios';
+  import React, { useState, ChangeEvent } from 'react';
+  import { Field, Input, Label, Description } from '@headlessui/react';
+  import { Button } from '@/components/button';
+  import { isValidBase58Address } from '@/utils/blockchain/bitcoin';
+  import { composeSend } from '@/utils/blockchain/counterparty';
+  
+  interface AmountWithMaxInputProps {
+    asset: string;
+    availableBalance: string;
+    value: string;
+    onChange: (value: string) => void;
+    feeRateSatPerVByte: number;
+    setError: (message: string | null) => void;
+    shouldShowHelpText: boolean;
+    sourceAddress: { address: string } | null;
+    maxAmount: string;
+    label: string;
+    name: string;
+    description?: string;
+    disabled?: boolean;
+    destinationCount?: number;
+    destination?: string;
+    memo?: string;
+    disableMaxButton?: boolean;
+    onMaxClick?: () => void;
+  }
+  
+  export function AmountWithMaxInput({
+    asset,
+    availableBalance,
+    value,
+    onChange,
+    feeRateSatPerVByte,
+    setError,
+    shouldShowHelpText,
+    sourceAddress,
+    maxAmount,
+    label,
+    name,
+    description,
+    disabled = false,
+    destinationCount = 1,
+    destination,
+    memo = '',
+    disableMaxButton = false,
+    onMaxClick,
+  }: AmountWithMaxInputProps) {
+    const [loading, setLoading] = useState(false);
+  
+    const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+      onChange(e.target.value);
+      setError(null);
+    };
+  
+    const handleMaxButtonClick = async () => {
+      if (!sourceAddress || disabled) return;
+      const sourceAddr = sourceAddress.address;
+  
+      // For non-BTC assets, simply use the provided maxAmount.
+      if (asset !== 'BTC') {
+        const maxNum = Number(maxAmount);
+        if (!isNaN(maxNum)) {
+          const perDestination = (maxNum / destinationCount).toFixed(8);
+          onChange(perDestination);
+        }
+        return;
+      }
+  
+      try {
+        setError(null);
+        setLoading(true);
+  
+        const estimationDestination =
+          destination && isValidBase58Address(destination)
+            ? destination
+            : sourceAddr;
+        const availableSats = Math.floor(Number(availableBalance) * 1e8);
+        if (availableSats <= 0) {
+          throw new Error('No available balance.');
+        }
+  
+        let candidate: number | undefined;
+  
+        // First, attempt to compose the transaction using the full balance.
+        try {
+          const composeResult = await composeSend({
+            sourceAddress: sourceAddr,
+            destination: estimationDestination,
+            asset: 'BTC',
+            quantity: availableSats.toString(),
+            memo,
+            sat_per_vbyte: feeRateSatPerVByte,
+          });
+          const fee = composeResult.result.btc_fee; // fee in sats
+          candidate = availableSats - fee;
+        } catch (e: any) {
+          // Look for the error pattern.
+          const errorMsg = e.response?.data?.error || e.message || '';
+          // Expected format: "Insufficient funds for the target amount: 757075 < 758774"
+          const regex = /Insufficient funds for the target amount:\s*(\d+)\s*<\s*(\d+)/;
+          const match = regex.exec(errorMsg);
+          if (match) {
+            const balanceParsed = parseInt(match[1], 10);
+            const targetNeeded = parseInt(match[2], 10);
+            // Calculate candidate = balance - (targetNeeded - balance)
+            candidate = balanceParsed - (targetNeeded - balanceParsed);
+          } else {
+            throw e;
+          }
+        }
+  
+        if (candidate === undefined || candidate <= 0) {
+          throw new Error('Insufficient balance to cover transaction fee.');
+        }
+  
+        // Check that the per-destination amount is above dust.
+        const dustLimit = 546;
+        const amountPerDestination = Math.floor(candidate / destinationCount);
+        if (amountPerDestination < dustLimit) {
+          throw new Error('Amount per destination after fee is below dust limit.');
+        }
+        const finalAmount = (amountPerDestination / 1e8).toFixed(8);
+        onChange(finalAmount);
+      } catch (err: any) {
+        console.error('Failed to calculate max amount:', err);
+        if (axios.isAxiosError(err)) {
+          setError(err.response?.data?.error || err.message);
+        } else if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError('Failed to estimate max amount.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    const handleMaxClick = () => {
+      if (disableMaxButton) {
+        onMaxClick?.();
+        return;
+      }
+      handleMaxButtonClick();
+    };
+  
+    return (
+      <Field>
+        <Label htmlFor={name} className="text-sm font-medium text-gray-700">
+          {label}
+          <span className="text-red-500">*</span>
+        </Label>
+        <div className="mt-1 relative rounded-md shadow-sm">
+          <Input
+            type="text"
+            name={name}
+            id={name}
+            value={value}
+            onChange={handleInputChange}
+            autoComplete="off"
+            className="mt-1 block w-full p-2 rounded-md border bg-gray-50 pr-16 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            placeholder="0.00000000"
+            disabled={disabled}
+          />
+          <Button
+            variant="input"
+            onClick={handleMaxClick}
+            disabled={loading || disabled || disableMaxButton}
+            aria-label={loading ? "Calculating maximum amount..." : "Use maximum available amount"}
+            className="absolute right-1 top-1/2 transform -translate-y-1/2 px-2 py-1 text-sm"
+          >
+            {loading ? "..." : "Max"}
+          </Button>
+        </div>
+        {shouldShowHelpText && (
+          <Description id={`${name}-description`} className="mt-2 text-sm text-gray-500">
+            {description || `Enter the amount of ${asset} you want to send${destinationCount > 1 ? ' (per destination)' : ''}.`}
+          </Description>
+        )}
+      </Field>
+    );
+  }
 
 /src/components/inputs/checkbox-input.tsx
   [contents of the file]
@@ -914,6 +1187,246 @@ File Contents:
           <p className="text-sm text-red-600" role="alert">
             {error}
           </p>
+        )}
+      </Field>
+    );
+  }
+
+/src/components/inputs/fee-rate-input.tsx
+  [contents of the file]
+  import React, { useState, useEffect, useRef } from 'react';
+  import {
+    Field,
+    Label,
+    Description,
+    Input,
+    Listbox,
+    ListboxButton,
+    ListboxOption,
+    ListboxOptions,
+  } from '@headlessui/react';
+  import { Button } from '@/components/button';
+  import { useFeeRates } from '@/hooks/useFeeRates';
+  
+  interface FeeRateInputProps {
+    id?: string;
+    value: number;
+    onChange: (value: number) => void;
+    error?: string;
+    showLabel?: boolean;
+    label?: string;
+    className?: string;
+    showHelpText?: boolean;
+    autoFetch?: boolean;
+  }
+  
+  type FeeRateOption = 'fast' | 'medium' | 'slow' | 'custom';
+  
+  interface FeeOption {
+    id: FeeRateOption;
+    name: string;
+    value: number;
+  }
+  
+  /**
+   * FeeRateInput displays preset fee rate options (unique values) and a custom input.
+   */
+  export function FeeRateInput({
+    id = 'feeRateSatPerVByte',
+    value,
+    onChange,
+    error,
+    showLabel = true,
+    label = 'Fee Rate',
+    className,
+    showHelpText = false,
+    autoFetch = true,
+  }: FeeRateInputProps) {
+    const { feeRates, loading, error: fetchError, uniquePresetOptions } = useFeeRates(autoFetch);
+    const [selectedOption, setSelectedOption] = useState<FeeRateOption>('fast');
+    const [customInput, setCustomInput] = useState<string>(value.toString());
+    const isInitial = useRef(true);
+  
+    useEffect(() => {
+      if (feeRates && isInitial.current) {
+        setSelectedOption('fast');
+        onChange(feeRates.fastestFee);
+        isInitial.current = false;
+      }
+    }, [feeRates, onChange]);
+  
+    useEffect(() => {
+      if (feeRates) {
+        const preset = uniquePresetOptions.find((opt) => opt.value === value);
+        setSelectedOption(preset ? (preset.id as FeeRateOption) : 'custom');
+      } else {
+        setSelectedOption('custom');
+      }
+    }, [value, feeRates, uniquePresetOptions]);
+  
+    useEffect(() => {
+      if (selectedOption === 'custom') {
+        setCustomInput(value.toString());
+      }
+    }, [value, selectedOption]);
+  
+    const feeOptions: FeeOption[] = feeRates
+      ? [...uniquePresetOptions, { id: 'custom', name: 'Custom', value }]
+      : [{ id: 'custom', name: 'Custom', value }];
+  
+    const handleCustomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setCustomInput(e.target.value);
+    };
+  
+    const handleCustomBlur = () => {
+      const trimmed = customInput.trim();
+      const num = parseFloat(trimmed);
+      if (isNaN(num) || num < 1) {
+        setCustomInput(value.toString());
+      } else {
+        const parts = trimmed.split('.');
+        if (parts.length === 2 && parts[1].length > 1) {
+          setCustomInput(value.toString());
+        } else {
+          onChange(num);
+        }
+      }
+    };
+  
+    const handleOptionSelect = (option: FeeOption) => {
+      setSelectedOption(option.id);
+      if (option.id === 'custom') {
+        // Let the user edit custom input.
+      } else {
+        onChange(option.value);
+      }
+    };
+  
+    const handleEscClick = () => {
+      if (uniquePresetOptions.length > 0) {
+        const firstPreset = uniquePresetOptions[0];
+        setSelectedOption(firstPreset.id as FeeRateOption);
+        onChange(firstPreset.value);
+      }
+    };
+  
+    if (loading) {
+      return (
+        <Field className={className}>
+          <Label htmlFor={id} className={showLabel ? 'block text-sm font-medium text-gray-700' : 'sr-only'}>
+            {label}
+            <span className="text-red-500">*</span>
+          </Label>
+          <div className="mt-1">
+            <p>Loading fee rates…</p>
+          </div>
+        </Field>
+      );
+    }
+  
+    if (fetchError) {
+      return (
+        <Field className={className}>
+          <Label htmlFor={id} className={showLabel ? 'block text-sm font-medium text-gray-700' : 'sr-only'}>
+            {label} (Custom)
+            <span className="text-red-500">*</span>
+          </Label>
+          <div className="mt-1">
+            <Input
+              id={id}
+              type="number"
+              value={customInput}
+              onChange={handleCustomChange}
+              onBlur={handleCustomBlur}
+              min="1"
+              step="0.1"
+              required
+              invalid={!!error}
+              aria-label={`Custom ${label}`}
+              aria-invalid={!!error}
+              aria-describedby={error ? `${id}-error` : undefined}
+              className="block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+          {showHelpText && (
+            <Description className="mt-2 text-sm text-gray-500">
+              Unable to fetch fee rates. Please enter a custom fee rate.
+            </Description>
+          )}
+          {error && (
+            <p className="text-red-500 text-sm mt-2" role="alert" id={`${id}-error`}>
+              {error}
+            </p>
+          )}
+        </Field>
+      );
+    }
+  
+    return (
+      <Field className={className}>
+        <Label htmlFor={id} className={showLabel ? 'block text-sm font-medium text-gray-700' : 'sr-only'}>
+          {label}
+          <span className="text-red-500">*</span>
+        </Label>
+        <div className="mt-1">
+          {selectedOption === 'custom' ? (
+            <div className="relative">
+              <Input
+                id={id}
+                type="number"
+                value={customInput}
+                onChange={handleCustomChange}
+                onBlur={handleCustomBlur}
+                min="1"
+                step="0.1"
+                required
+                invalid={!!error}
+                aria-label={`Custom ${label}`}
+                aria-invalid={!!error}
+                aria-describedby={error ? `${id}-error` : undefined}
+                className="block w-full p-2 rounded-md border bg-gray-50 pr-16 focus:border-blue-500 focus:ring-blue-500"
+              />
+              {feeRates && (
+                <Button variant="input" onClick={handleEscClick} aria-label="Reset to first preset">
+                  Esc
+                </Button>
+              )}
+            </div>
+          ) : (
+            feeRates && (
+              <Listbox value={feeOptions.find((opt) => opt.id === selectedOption)} onChange={handleOptionSelect}>
+                <ListboxButton className="w-full p-2 text-left rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500">
+                  {({ value }) => (
+                    <div className="flex justify-between">
+                      <span>{value?.name}</span>
+                      {value?.id !== 'custom' && (
+                        <span className="text-gray-500">{value.value} sat/vB</span>
+                      )}
+                    </div>
+                  )}
+                </ListboxButton>
+                <ListboxOptions className="w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                  {feeOptions.map((option) => (
+                    <ListboxOption key={option.id} value={option} className="p-2 cursor-pointer">
+                      {({ selected }) => (
+                        <div className="flex justify-between">
+                          <span className={selected ? 'font-medium' : ''}>{option.name}</span>
+                          {option.id !== 'custom' && (
+                            <span className="text-gray-500">{option.value} sat/vB</span>
+                          )}
+                        </div>
+                      )}
+                    </ListboxOption>
+                  ))}
+                </ListboxOptions>
+              </Listbox>
+            )
+          )}
+        </div>
+        {showHelpText && (
+          <Description className="mt-2 text-sm text-gray-500">
+            {feeRates ? 'Pre-populated with current network rates.' : 'Enter a custom fee rate.'}
+          </Description>
         )}
       </Field>
     );
@@ -1173,39 +1686,46 @@ File Contents:
   }
   
   interface AssetListProps {
-    enabled?: boolean;
+    visible: boolean;
+    scrollContainer: HTMLDivElement | null; // Provided for consistency if needed in the future
   }
   
-  export const AssetList: React.FC<AssetListProps> = ({ enabled = true }) => {
+  export const AssetList: React.FC<AssetListProps> = ({ visible, scrollContainer }) => {
     const { activeAddress } = useWallet();
     const [ownedAssets, setOwnedAssets] = useState<OwnedAsset[]>([]);
     const [isLoadingAssets, setIsLoadingAssets] = useState(false);
     const navigate = useNavigate();
   
     useEffect(() => {
-      if (!enabled) return;
-      
+      if (!activeAddress) return;
+      let isCancelled = false;
+  
       async function loadOwnedAssets() {
-        if (!activeAddress) return;
         setIsLoadingAssets(true);
         try {
           const response = await fetch(
             `https://api.counterparty.io:4000/v2/addresses/${activeAddress.address}/assets/owned?verbose=true`
           );
           const data = await response.json();
-          setOwnedAssets(data.result);
-        } catch {
-          // handle error if needed
+          if (!isCancelled) {
+            setOwnedAssets(data.result);
+          }
+        } catch (error) {
+          console.error("Error fetching owned assets:", error);
         } finally {
-          setIsLoadingAssets(false);
+          if (!isCancelled) {
+            setIsLoadingAssets(false);
+          }
         }
       }
-      
+  
       loadOwnedAssets();
-    }, [activeAddress, enabled]);
+      return () => {
+        isCancelled = true;
+      };
+    }, [activeAddress]);
   
-    if (!enabled) return null;
-  
+    // Even if not visible, we keep the component mounted so its data persists.
     if (isLoadingAssets) {
       return (
         <div className="flex justify-center items-center h-full">
@@ -1274,7 +1794,7 @@ File Contents:
 
 /src/components/lists/balance-list.tsx
   [contents of the file]
-  import React, { useState, useEffect } from "react";
+  import React, { useState, useEffect, useRef } from "react";
   import { useNavigate } from "react-router-dom";
   import { FaSpinner } from "react-icons/fa";
   import { formatAmount, formatAsset } from "@/utils/format";
@@ -1282,10 +1802,7 @@ File Contents:
   import type { TokenBalance } from "@/utils/blockchain/counterparty";
   import { useWallet } from "@/contexts/wallet-context";
   import { fetchBTCBalance } from "@/utils/blockchain/bitcoin/balance";
-  import {
-    fetchTokenBalance,
-    fetchTokenBalances,
-  } from "@/utils/blockchain/counterparty";
+  import { fetchTokenBalances } from "@/utils/blockchain/counterparty";
   import { useInView } from "react-intersection-observer";
   
   export interface BalanceItem {
@@ -1295,7 +1812,8 @@ File Contents:
   }
   
   interface BalanceListProps {
-    enabled?: boolean;
+    visible: boolean;
+    scrollContainer: HTMLDivElement | null;
   }
   
   const BalanceItemComponent: React.FC<{ token: TokenBalance }> = ({ token }) => {
@@ -1304,9 +1822,7 @@ File Contents:
     return (
       <div
         className="relative flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50"
-        onClick={() =>
-          navigate(`/compose/send/${encodeURIComponent(token.asset)}`)
-        }
+        onClick={() => navigate(`/compose/send/${encodeURIComponent(token.asset)}`)}
       >
         <div className="w-12 h-12 flex-shrink-0">
           <img
@@ -1335,58 +1851,152 @@ File Contents:
     );
   };
   
-  export const BalanceList: React.FC<BalanceListProps> = ({ enabled = true }) => {
+  export const BalanceList: React.FC<BalanceListProps> = ({ visible, scrollContainer }) => {
     const { activeWallet, activeAddress } = useWallet();
     const [tokenBalances, setTokenBalances] = useState<BalanceItem[]>([]);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [offset, setOffset] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [isFetchingMore, setIsFetchingMore] = useState(false);
-    
-    // Track existing assets so we don't refetch them in infinite scroll
-    const existingAssetsRef = React.useRef<Set<string>>(new Set());
-    
-    // Use a stateful variable to hold the scroll container element
-    const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
-    
+  
+    // To avoid refetching duplicates
+    const existingAssetsRef = useRef<Set<string>>(new Set());
+  
+    // Set up the intersection observer using the passed scrollContainer
     const { ref: loadMoreRef, inView } = useInView({
       root: scrollContainer,
       rootMargin: "100px",
       threshold: 0,
     });
   
-    // Fetch initial token balances (BTC + pinned assets)
+    // Fetch initial balances only once (even if not visible)
     useEffect(() => {
-      if (!enabled) return;
-      
-      let cancelled = false;
+      if (!activeAddress || !activeWallet) return;
+      let isCancelled = false;
+  
       async function loadInitialBalances() {
-        if (!activeAddress || !activeWallet) return;
+        setIsInitialLoading(true);
+        setOffset(0);
+        setHasMore(true);
+        existingAssetsRef.current = new Set();
   
-        // ... rest of the initial balance loading logic moved from index.tsx ...
+        // Example: start with BTC
+        const newBalances: BalanceItem[] = [
+          { asset: "BTC", loading: true },
+          // Add any pinned assets if desired.
+        ];
+        setTokenBalances(newBalances);
+  
+        // Fetch BTC balance
+        try {
+          const balanceSats = await fetchBTCBalance(activeAddress!.address);
+          const balanceBTC = balanceSats / 1e8;
+          const btcBalance: TokenBalance = {
+            asset: "BTC",
+            quantity_normalized: balanceBTC.toFixed(8),
+            asset_info: {
+              asset_longname: null,
+              description: "Bitcoin",
+              issuer: "",
+              divisible: true,
+              locked: true,
+              supply: "21000000",
+            },
+          };
+  
+          if (!isCancelled) {
+            setTokenBalances((prev) =>
+              prev.map((item) =>
+                item.asset === "BTC" ? { asset: "BTC", balance: btcBalance, loading: false } : item
+              )
+            );
+            existingAssetsRef.current.add("BTC");
+          }
+        } catch (error) {
+          console.error("Error fetching BTC balance:", error);
+          if (!isCancelled) {
+            setTokenBalances((prev) => prev.filter((item) => item.asset !== "BTC"));
+          }
+        }
+  
+        setIsInitialLoading(false);
       }
-      
+  
       loadInitialBalances();
+  
       return () => {
-        cancelled = true;
+        isCancelled = true;
       };
-    }, [activeAddress, activeWallet, enabled]);
+    }, [activeAddress, activeWallet]);
   
-    // Infinite scroll: load next set of balances
+    // Infinite scroll: load more token balances
     useEffect(() => {
-      if (!enabled) return;
-      
-      async function loadMoreBalances() {
-        // ... rest of the loadMoreBalances logic moved from index.tsx ...
-      }
-      
-      if (inView) {
-        loadMoreBalances();
-      }
-    }, [inView, activeAddress, activeWallet, hasMore, isFetchingMore, offset, isInitialLoading, enabled]);
+      if (!activeAddress || !activeWallet || !hasMore || isFetchingMore || isInitialLoading) return;
+      if (!inView) return;
   
-    if (!enabled) return null;
-    
+      let isCancelled = false;
+  
+      async function loadMoreBalances() {
+        setIsFetchingMore(true);
+        try {
+          const fetchedBalances = await fetchTokenBalances(activeAddress!.address, { 
+            limit: 10, 
+            offset: offset,
+            sort: 'asset:asc'
+          });
+  
+          // Filter out duplicates and tokens with zero balance
+          const filtered = fetchedBalances.filter((balance) => {
+            const normalized = balance.asset.toUpperCase();
+            const quantity = Number(balance.quantity_normalized);
+            return (
+              quantity > 0 &&
+              !existingAssetsRef.current.has(normalized) &&
+              normalized !== "BTC"
+            );
+          });
+  
+          // Mark tokens that pass filtering as seen
+          filtered.forEach((balance) =>
+            existingAssetsRef.current.add(balance.asset.toUpperCase())
+          );
+  
+          if (filtered.length > 0) {
+            setTokenBalances((prev) => [
+              ...prev,
+              ...filtered.map((balance) => ({
+                asset: balance.asset.toUpperCase(),
+                balance,
+                loading: false,
+              })),
+            ]);
+          }
+  
+          // Always update the offset so that duplicates in the current page
+          // don’t prevent subsequent pages from being requested.
+          setOffset((prev) => prev + 10);
+  
+          // If fewer than 10 tokens were returned from the API, assume no more data.
+          if (fetchedBalances.length < 10) {
+            setHasMore(false);
+          }
+        } catch (error) {
+          console.error("Error fetching more token balances:", error);
+          setHasMore(false);
+        } finally {
+          if (!isCancelled) {
+            setIsFetchingMore(false);
+          }
+        }
+      }
+  
+      loadMoreBalances();
+  
+      return () => {
+        isCancelled = true;
+      };
+    }, [inView, activeAddress, activeWallet, hasMore, isFetchingMore, offset, isInitialLoading]);
+  
     if (isInitialLoading) {
       return (
         <div className="flex justify-center items-center py-20">
@@ -1761,7 +2371,7 @@ File Contents:
                   title={isFirstWallet ? 'Cannot remove primary wallet' : undefined}
                 >
                   <FaTrash className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
-                  {wallet.type === 'privateKey' ? 'Remove Address' : `Remove ${wallet.name}`}
+                  Remove {wallet.name}
                 </button>
               )}
             </MenuItem>
@@ -1847,16 +2457,63 @@ File Contents:
   
   QRCode.displayName = 'QRCode'; 
 
+/src/components/success-screen.tsx
+  [contents of the file]
+  import { FaCheckCircle } from "react-icons/fa";
+  
+  interface SuccessScreenProps {
+    apiResponse: any;
+    onReset: () => void;
+  }
+  
+  export function SuccessScreen({ apiResponse, onReset }: SuccessScreenProps) {
+    const broadcastResponse = apiResponse.broadcast;
+    const txid = broadcastResponse?.txid || "unknown";
+    // Adjust the explorer URL as needed
+    const explorerUrl = `https://blockchain.info/tx/${txid}`;
+  
+    return (
+      <div className="p-4 bg-green-50 rounded-lg shadow-lg text-center">
+        <FaCheckCircle className="text-green-600 w-12 h-12 mx-auto" />
+        <h2 className="text-2xl font-bold text-green-800 mt-4">
+          Transaction Successful!
+        </h2>
+        <p className="mt-2 text-green-700">
+          Your transaction has been broadcast successfully.
+        </p>
+        <div className="mt-4">
+          <a
+            href={explorerUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline"
+          >
+            View Transaction on Explorer
+          </a>
+        </div>
+        <div className="mt-6">
+          <button
+            onClick={onReset}
+            className="bg-green-600 text-white py-2 px-4 rounded"
+          >
+            Back to Form
+          </button>
+        </div>
+      </div>
+    );
+  }
+
 /src/contexts/app-providers.tsx
   [contents of the file]
   import React, { type ReactNode } from 'react';
-  import { ToastProvider } from './toast-context';
   import { AuthProvider } from './auth-context';
-  import { SettingsProvider } from './settings-context';
-  import { WalletProvider } from './wallet-context';
+  import { ComposerProvider } from './composer-context';
   import { HeaderProvider } from './header-context';
-  import { PriceProvider } from './price-context';
   import { LoadingProvider } from './loading-context';
+  import { PriceProvider } from './price-context';
+  import { SettingsProvider } from './settings-context';
+  import { ToastProvider } from './toast-context';
+  import { WalletProvider } from './wallet-context';
   
   interface AppProvidersProps {
     children: ReactNode;
@@ -1871,7 +2528,9 @@ File Contents:
               <WalletProvider>
                 <HeaderProvider>
                   <PriceProvider>
-                    {children}
+                    <ComposerProvider>
+                      {children}
+                    </ComposerProvider>
                   </PriceProvider>
                 </HeaderProvider>
               </WalletProvider>
@@ -1908,6 +2567,64 @@ File Contents:
     const context = useContext(AuthContext);
     if (!context) {
       throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
+  }
+
+/src/contexts/composer-context.tsx
+  [contents of the file]
+  import React, {
+    createContext,
+    useContext,
+    useState,
+    ReactNode,
+    Dispatch,
+    SetStateAction,
+  } from "react";
+  
+  interface ComposerContextType {
+    step: "form" | "review" | "success";
+    setStep: Dispatch<SetStateAction<"form" | "review" | "success">>;
+    formData: any;
+    setFormData: Dispatch<SetStateAction<any>>;
+    apiResponse: any;
+    setApiResponse: Dispatch<SetStateAction<any>>;
+    error: string | null;
+    setError: Dispatch<SetStateAction<string | null>>;
+  }
+  
+  const ComposerContext = createContext<ComposerContextType | undefined>(
+    undefined
+  );
+  
+  export function ComposerProvider({ children }: { children: ReactNode }) {
+    const [step, setStep] = useState<"form" | "review" | "success">("form");
+    const [formData, setFormData] = useState<any>(null);
+    const [apiResponse, setApiResponse] = useState<any>(null);
+    const [error, setError] = useState<string | null>(null); // explicitly typed
+  
+    const value: ComposerContextType = {
+      step,
+      setStep,
+      formData,
+      setFormData,
+      apiResponse,
+      setApiResponse,
+      error,
+      setError,
+    };
+  
+    return (
+      <ComposerContext.Provider value={value}>
+        {children}
+      </ComposerContext.Provider>
+    );
+  }
+  
+  export function useComposer() {
+    const context = useContext(ComposerContext);
+    if (!context) {
+      throw new Error("useComposer must be used within a ComposerProvider");
     }
     return context;
   }
@@ -2312,7 +3029,7 @@ File Contents:
     loaded: boolean;
     unlockWallet: (walletId: string, password: string) => Promise<void>;
     lockAll: () => Promise<void>;
-    setActiveWallet: (wallet: Wallet | null) => Promise<void>;
+    setActiveWallet: (wallet: Wallet | null, useLastActive?: boolean) => Promise<void>;
     setActiveAddress: (address: Address | null) => Promise<void>;
     addAddress: (walletId: string) => Promise<void>;
     updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -2337,6 +3054,7 @@ File Contents:
     removeWallet: (walletId: string) => Promise<void>;
     signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
     broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
+    updatePinnedAssets: (pinnedAssets: string[]) => Promise<void>;
   }
   
   const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -2375,7 +3093,12 @@ File Contents:
             await walletService.setActiveWallet(active.id);
           }
   
-          const activeChanged = prevActiveWalletRef.current?.id !== active?.id;
+          // Update the active wallet if either the wallet id or the number of addresses has changed.
+          const activeChanged =
+            prevActiveWalletRef.current?.id !== active?.id ||
+            (prevActiveWalletRef.current &&
+             active &&
+             prevActiveWalletRef.current.addresses.length !== active.addresses.length);
           if (activeChanged) {
             setActiveWalletState(active);
             prevActiveWalletRef.current = active;
@@ -2440,12 +3163,23 @@ File Contents:
       await refreshWalletState();
     }, [walletService, refreshWalletState]);
   
-    const setActiveWallet = useCallback(async (wallet: Wallet | null) => {
+    const setActiveWallet = useCallback(async (wallet: Wallet | null, useLastActive?: boolean) => {
       if (wallet) {
         await walletService.setActiveWallet(wallet.id);
+        
+        const lastActiveAddress = useLastActive ? await walletService.getLastActiveAddress() : undefined;
+        const newActiveAddress = lastActiveAddress && wallet.addresses.some((addr) => addr.address === lastActiveAddress)
+          ? wallet.addresses.find((addr) => addr.address === lastActiveAddress) ?? wallet.addresses[0]
+          : wallet.addresses[0];
+        
+        setActiveAddressState(newActiveAddress ?? null);
+        if (newActiveAddress) {
+          await walletService.setLastActiveAddress(newActiveAddress.address);
+        }
       } else {
         await walletService.setActiveWallet('');
       }
+      
       await refreshWalletState();
     }, [walletService, refreshWalletState]);
   
@@ -2495,8 +3229,16 @@ File Contents:
   
     const resetAllWallets = useCallback(async (password: string) => {
       await walletService.resetAllWallets(password);
-      await refreshWalletState();
-    }, [walletService, refreshWalletState]);
+      
+      // Clear the wallet state to represent a "fresh start".
+      setWallets([]);
+      setActiveWalletState(null);
+      setActiveAddressState(null);
+    
+      // Dispatch an event to indicate the wallets have been reset.
+      // (The specific action type here is up to you.)
+      authDispatch({ type: 'WALLET_RESET' });
+    }, [walletService, authDispatch]);
   
     const removeWallet = useCallback(async (walletId: string) => {
       await walletService.removeWallet(walletId);
@@ -2524,6 +3266,13 @@ File Contents:
       return walletService.getPreviewAddressForType(walletId, addressType);
     }, [walletService]);
   
+    const updatePinnedAssets = useCallback(async (pinnedAssets: string[]) => {
+      const activeWallet = await walletService.getActiveWallet();
+      if (!activeWallet) throw new Error('No active wallet');
+      await walletService.updateWalletPinnedAssets(activeWallet.id, pinnedAssets);
+      await refreshWalletState();
+    }, [walletService, refreshWalletState]);
+  
     const value: WalletContextType = {
       wallets,
       activeWallet,
@@ -2549,6 +3298,7 @@ File Contents:
         walletService.signTransaction(rawTxHex, sourceAddress),
       broadcastTransaction: (signedTxHex: string) =>
         walletService.broadcastTransaction(signedTxHex),
+      updatePinnedAssets,
     };
   
     return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
@@ -2624,6 +3374,35 @@ File Contents:
     });
   });
 
+/src/entrypoints/newtab/index.html
+  [contents of the file]
+  <!doctype html>
+  <html class="h-full">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>XCP Wallet</title>
+      <meta name="manifest.open_at_install" content="true" />
+      <meta name="manifest.browser_style" content="true" />
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          overflow: hidden;
+        }
+        #root {
+          height: 100%;
+          width: 100%;
+          overflow-y: auto;
+        }
+      </style>
+    </head>
+    <body>
+      <div id="root"></div>
+      <script type="module" src="../popup/main.tsx"></script>
+    </body>
+  </html>
+
 /src/entrypoints/popup/app.tsx
   [contents of the file]
   import { Routes, Route, Navigate } from 'react-router-dom';
@@ -2640,12 +3419,21 @@ File Contents:
   import Onboarding from '@/pages/auth/onboarding';
   import UnlockWallet from '@/pages/auth/unlock-wallet';
   
+  // Action pages
+  import Actions from '@/pages/actions/actions';
+  
   // Address pages
+  import AddressHistory from '@/pages/address/address-history';
   import SelectAddress from '@/pages/address/select-address';
   import ViewAddress from '@/pages/address/view-address';
   
+  // Asset pages
+  import SelectAssets from '@/pages/assets/select-assets';
+  
   // Compose pages
-  import { ComposeSend } from '@/pages/compose/send/page';
+  import ComposeBroadcast from '@/pages/compose/broadcast/page';
+  import ComposeSend from '@/pages/compose/send/page';
+  import ComposeSweep from '@/pages/compose/sweep/page';
   
   // Wallet pages
   import AddWallet from '@/pages/wallet/add-wallet';
@@ -2717,6 +3505,7 @@ File Contents:
         <Route element={<AuthRequired />}>
           <Route element={<Layout showFooter={true} />}>
             <Route path="/index" element={<Index />} />
+            <Route path="/actions" element={<Actions />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
         </Route>
@@ -2734,9 +3523,13 @@ File Contents:
             <Route path="/settings/advanced" element={<AdvancedSettings />} />
             <Route path="/settings/connected-sites" element={<ConnectedSitesSettings />} />
             <Route path="/settings/security" element={<SecuritySettings />} />
+            <Route path="/address-history" element={<AddressHistory />} />
             <Route path="/select-address" element={<SelectAddress />} />
             <Route path="/view-address" element={<ViewAddress />} />
+            <Route path="/select-assets" element={<SelectAssets />} />
+            <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
             <Route path="/compose/send/:asset" element={<ComposeSend />} />
+            <Route path="/compose/sweep/:address?" element={<ComposeSweep />} />
           </Route>
         </Route>
   
@@ -2823,6 +3616,36 @@ File Contents:
     }
   }
 
+/src/entrypoints/sidepanel/index.html
+  [contents of the file]
+  <!doctype html>
+  <html class="h-full">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>XCP Wallet</title>
+      <meta name="manifest.open_at_install" content="true" />
+      <meta name="manifest.browser_style" content="true" />
+      <style>
+        body {
+          width: 350px;
+          margin: 0;
+          padding: 0;
+          overflow: hidden;
+        }
+        #root {
+          height: 100%;
+          width: 100%;
+          overflow-y: auto;
+        }
+      </style>
+    </head>
+    <body>
+      <div id="root"></div>
+      <script type="module" src="../popup/main.tsx"></script>
+    </body>
+  </html>
+
 /src/hooks/useAssetDetails.ts
   [contents of the file]
   import { useState, useEffect, useRef } from "react";
@@ -2904,20 +3727,68 @@ File Contents:
     return state;
   }
 
+/src/hooks/useFeeRates.ts
+  [contents of the file]
+  import { useState, useEffect, useMemo } from 'react';
+  import { getFeeRates, FeeRates } from '@/utils/blockchain/bitcoin';
+  
+  export function useFeeRates(autoFetch = true) {
+    const [feeRates, setFeeRates] = useState<FeeRates | null>(null);
+    const [loading, setLoading] = useState<boolean>(autoFetch);
+    const [error, setError] = useState<string | null>(null);
+  
+    useEffect(() => {
+      if (autoFetch) {
+        getFeeRates()
+          .then((rates) => {
+            setFeeRates(rates);
+            setLoading(false);
+          })
+          .catch((err) => {
+            console.error(err);
+            setError('Unable to fetch fee rates.');
+            setLoading(false);
+          });
+      } else {
+        setLoading(false);
+      }
+    }, [autoFetch]);
+  
+    const uniquePresetOptions = useMemo(() => {
+      if (!feeRates) return [];
+      const presets: Array<{ id: string; name: string; value: number }> = [];
+      const included = new Set<number>();
+      const tryAdd = (option: { id: string; name: string; value: number }) => {
+        if (!included.has(option.value)) {
+          presets.push(option);
+          included.add(option.value);
+        }
+      };
+      tryAdd({ id: 'fast', name: 'Fastest', value: feeRates.fastestFee });
+      tryAdd({ id: 'medium', name: '30 Min', value: feeRates.halfHourFee });
+      tryAdd({ id: 'slow', name: '1 Hour', value: feeRates.hourFee });
+      return presets;
+    }, [feeRates]);
+  
+    return { feeRates, loading, error, uniquePresetOptions };
+  }
+
 /src/middleware/auth-required.tsx
   [contents of the file]
   import { Navigate, Outlet } from 'react-router-dom';
   import { useWallet } from '@/contexts/wallet-context';
   
   export function AuthRequired() {
-    const { walletLocked } = useWallet();
+    const { walletLocked, wallets } = useWallet();
   
-    // If the wallet is not unlocked, redirect
+    // If no wallets exist, assume it's a new or reset state and allow the route.
+    if (wallets.length === 0) return <Outlet />;
+  
+    // If wallets exist but are locked, redirect to unlock.
     if (walletLocked) {
       return <Navigate to="/unlock-wallet" replace />;
     }
   
-    // Otherwise, render the nested routes
     return <Outlet />;
   }
 
@@ -2931,6 +3802,163 @@ File Contents:
     settings: KeychainSettings;
   }
 
+/src/pages/actions/actions.tsx
+  [contents of the file]
+  "use client";
+  
+  import { useEffect } from "react";
+  import { useNavigate } from "react-router-dom";
+  import { FaChevronRight } from "react-icons/fa";
+  import { useHeader } from "@/contexts/header-context";
+  import { useWallet } from "@/contexts/wallet-context";
+  
+  type Action = {
+    id: string;
+    name: string;
+    description: string;
+    path: string;
+  };
+  
+  type ActionGroup = {
+    title: string;
+    actions: Action[];
+  };
+  
+  const actionGroups: ActionGroup[] = [
+    {
+      title: "Basic Actions",
+      actions: [
+        {
+          id: "sign-message",
+          name: "Sign Message",
+          description: "Sign a message with your private key",
+          path: "/actions/sign-message",
+        },
+        {
+          id: "sign-broadcast",
+          name: "Sign & Broadcast Transaction",
+          description: "Sign and broadcast a raw transaction",
+          path: "/actions/sign-broadcast",
+        },
+      ],
+    },
+    {
+      title: "Assets",
+      actions: [
+        {
+          id: "issue-asset",
+          name: "Issue Asset",
+          description: "Create a new token",
+          path: "/compose/issuance",
+        },
+        {
+          id: "mint-supply",
+          name: "Mint Asset",
+          description: "Mint new token supply",
+          path: "/compose/fairminter",
+        },
+      ],
+    },
+    {
+      title: "DEX",
+      actions: [
+        {
+          id: "cancel-order",
+          name: "Cancel Order",
+          description: "Cancel an existing order",
+          path: "/compose/cancel",
+        },
+        {
+          id: "close-dispenser",
+          name: "Close Dispenser",
+          description: "Close an existing dispenser",
+          path: "/compose/close",
+        },
+      ],
+    },
+    {
+      title: "Address",
+      actions: [
+        {
+          id: "compose-broadcast",
+          name: "Make Broadcast",
+          description: "Broadcast a message to the network",
+          path: "/compose/broadcast",
+        },
+        {
+          id: "compose-sweep",
+          name: "Sweep Address",
+          description: "Transfer all funds from an address",
+          path: "/compose/sweep",
+        },
+        {
+          id: "compose-broadcast-address-options",
+          name: "Update Options",
+          description: "Set address options like requiring memos",
+          path: "/compose/broadcast-address-options",
+        },
+        {
+          id: "consolidate",
+          name: "Recover Bitcoin",
+          description: "Find and consolidate bare multisig UTXOs",
+          path: "/consolidate",
+        },
+      ],
+    },
+  ];
+  
+  export default function ActionsScreen() {
+    const navigate = useNavigate();
+    const { setHeaderProps } = useHeader();
+  
+    // Set the header.
+    useEffect(() => {
+      setHeaderProps({
+        title: "Actions",
+        onBack: () => navigate("/index"),
+      });
+    }, [setHeaderProps, navigate]);
+  
+    const handleActionClick = (action: Action) => {
+      navigate(action.path);
+    };
+  
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex-1 overflow-auto no-scrollbar p-4">
+          <div className="space-y-6">
+            {actionGroups.map((group) => (
+              <div key={group.title} className="space-y-2">
+                <h2 className="text-sm font-medium text-gray-500 px-4">
+                  {group.title}
+                </h2>
+                {group.actions.map((action) => (
+                  <div
+                    key={action.id}
+                    onClick={() => handleActionClick(action)}
+                    className="relative w-full rounded transition duration-300 p-4 cursor-pointer bg-white hover:bg-gray-50"
+                  >
+                    <div className="flex flex-col">
+                      <div className="absolute top-1/2 -translate-y-1/2 right-5">
+                        <FaChevronRight className="w-4 h-4 text-gray-400" />
+                      </div>
+                      <div className="text-sm font-medium text-gray-900 mb-1">
+                        {action.name}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {action.description}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
 /src/pages/actions/sign-message.tsx
   [contents of the file]
 
@@ -2939,6 +3967,194 @@ File Contents:
 
 /src/pages/address/address-history.tsx
   [contents of the file]
+  "use client";
+  
+  import { useState, useEffect } from "react";
+  import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+  import {
+    FaExternalLinkAlt,
+    FaSpinner,
+    FaChevronLeft,
+    FaChevronRight,
+  } from "react-icons/fa";
+  import { Button } from "@/components/button";
+  import { useWallet } from "@/contexts/wallet-context";
+  import { useHeader } from "@/contexts/header-context";
+  import { fetchTransactions, TransactionResponse, Transaction } from "@/utils/blockchain/counterparty";
+  
+  const TRANSACTIONS_PER_PAGE = 20;
+  
+  export default function AddressHistory() {
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [totalTransactions, setTotalTransactions] = useState(0);
+  
+    const [searchParams, setSearchParams] = useSearchParams();
+    const currentPage = Number(searchParams.get("page")) || 1;
+  
+    const navigate = useNavigate();
+    const { activeAddress } = useWallet();
+    const { setHeaderProps } = useHeader();
+    // Use activeAddress from the new context structure.
+    const currentAddress = activeAddress?.address;
+  
+    const totalPages = Math.ceil(totalTransactions / TRANSACTIONS_PER_PAGE);
+    const location = useLocation();
+  
+    // If a page is saved in location.state but not in the URL, update the search params.
+    useEffect(() => {
+      const savedPage = location.state?.page;
+      if (savedPage && !searchParams.get("page")) {
+        setSearchParams({ page: savedPage.toString() });
+      }
+    }, [location.state, searchParams, setSearchParams]);
+  
+    const loadTransactions = async (page: number) => {
+      if (!currentAddress) return;
+      try {
+        setLoading(true);
+        const offset = (page - 1) * TRANSACTIONS_PER_PAGE;
+        const data: TransactionResponse = await fetchTransactions(currentAddress, {
+          limit: TRANSACTIONS_PER_PAGE,
+          offset,
+          verbose: true,
+          show_unconfirmed: true,
+        });
+        setTransactions(data.result);
+        setTotalTransactions(data.result_count);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch transactions"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    useEffect(() => {
+      loadTransactions(currentPage);
+    }, [currentPage, currentAddress]);
+  
+    // Set the header.
+    useEffect(() => {
+      setHeaderProps({
+        title: "History",
+        onBack: () => navigate("/index"),
+        rightButton: {
+          icon: <FaExternalLinkAlt />,
+          onClick: () =>
+            window.open(`https://www.xcp.io/address/${currentAddress}`, "_blank"),
+          ariaLabel: "View on XChain",
+        },
+      });
+    }, [setHeaderProps, navigate, currentAddress]);
+  
+    const handlePageChange = (page: number) => {
+      setSearchParams({ page: page.toString() });
+    };
+  
+    const formatDate = (timestamp: number) =>
+      new Date(timestamp * 1000).toLocaleString();
+  
+    const renderPagination = () => (
+      <div className="flex justify-between gap-4">
+        <Button
+          color="blue"
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          fullWidth
+        >
+          <div className="flex items-center justify-center gap-2">
+            <FaChevronLeft />
+            Previous
+          </div>
+        </Button>
+  
+        <Button
+          color="blue"
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          fullWidth
+        >
+          <div className="flex items-center justify-center gap-2">
+            Next
+            <FaChevronRight />
+          </div>
+        </Button>
+      </div>
+    );
+  
+    if (loading) {
+      return (
+        <div className="flex justify-center items-center h-full">
+          <FaSpinner className="animate-spin text-4xl text-blue-500" />
+        </div>
+      );
+    }
+  
+    if (error) {
+      return <div className="p-4 text-red-500">Error: {error}</div>;
+    }
+  
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex-1 overflow-auto no-scrollbar p-4">
+          {transactions.length > 0 ? (
+            <div className="space-y-4">
+              {totalPages > 1 && (
+                <div className="text-center text-sm text-gray-500 mb-4">
+                  Page {currentPage} of {totalPages}
+                </div>
+              )}
+              {transactions.map((tx) => (
+                <div
+                  key={tx.tx_hash}
+                  onClick={() =>
+                    navigate(`/transaction/${tx.tx_hash}`, {
+                      state: { page: currentPage },
+                    })
+                  }
+                  className="block hover:shadow-lg transition-shadow cursor-pointer"
+                >
+                  <div className="bg-white rounded-lg shadow p-4 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm font-medium text-gray-900">
+                        {tx.unpacked_data.message_type.toUpperCase()}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {formatDate(tx.block_time)}
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-400 break-all flex items-center gap-1">
+                      TX: {tx.tx_hash}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center p-4">
+              <div className="bg-gray-50 rounded-lg p-6 max-w-sm w-full">
+                <div className="text-gray-600 text-lg font-medium mb-2">
+                  No Transactions Yet
+                </div>
+                <div className="text-gray-500 text-sm">
+                  This address hasn't made any transactions on Counterparty.
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Move pagination to bottom and add padding */}
+        {transactions.length > 0 && totalPages > 1 && (
+          <div className="p-4">
+            {renderPagination()}
+          </div>
+        )}
+      </div>
+    );
+  }
 
 /src/pages/address/select-address.tsx
   [contents of the file]
@@ -3004,7 +4220,6 @@ File Contents:
               icon: <FaPlus />,
               onClick: handleAddAddress,
               ariaLabel: 'Add Address',
-              disabled: walletLocked, // Disable the button when wallet is locked
             }
           : undefined,
       });
@@ -3197,6 +4412,269 @@ File Contents:
   
   export default ViewAddress;
 
+/src/pages/assets/select-assets.tsx
+  [contents of the file]
+  "use client";
+  
+  import { useState, useEffect } from 'react';
+  import { useNavigate } from 'react-router-dom';
+  import { FaSearch } from 'react-icons/fa';
+  import { FiHelpCircle } from 'react-icons/fi';
+  import { TbPinned, TbPinnedFilled } from 'react-icons/tb';
+  import {
+    DragDropContext,
+    Droppable,
+    Draggable,
+    DropResult,
+  } from '@hello-pangea/dnd';
+  import { useHeader } from '@/contexts/header-context';
+  import { useWallet } from '@/contexts/wallet-context';
+  import { useSettings } from '@/contexts/settings-context';
+  import { Button } from '@/components/button';
+  import { ErrorAlert } from '@/components/error-alert';
+  
+  interface Asset {
+    symbol: string;
+    supply?: string | number;
+  }
+  
+  function SelectAssets() {
+    const [searchQuery, setSearchQuery] = useState('');
+    const [pinnedAssets, setPinnedAssets] = useState<string[]>([]);
+    const [searchResults, setSearchResults] = useState<Asset[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [localHelpText, setLocalHelpText] = useState<boolean>(true);
+  
+    const { setHeaderProps } = useHeader();
+    const { activeWallet, updatePinnedAssets } = useWallet();
+    const { settings } = useSettings();
+    const navigate = useNavigate();
+  
+    // Initialize help text flag from settings context.
+    useEffect(() => {
+      if (settings) {
+        setLocalHelpText(settings.showHelpText);
+      }
+    }, [settings]);
+  
+    // Set the header.
+    useEffect(() => {
+      setHeaderProps({
+        title: 'Manage Assets',
+        onBack: searchQuery ? () => setSearchQuery('') : () => navigate('/index'),
+        rightButton: {
+          icon: <FiHelpCircle className="w-4 h-4" />,
+          onClick: () => setIsHelpTextOverride((prev) => !prev),
+          ariaLabel: 'Toggle help text',
+        },
+      });
+    }, [setHeaderProps, navigate, searchQuery]);
+  
+    // Debounced asset search.
+    useEffect(() => {
+      if (!searchQuery) {
+        setSearchResults([]);
+        setIsSearching(false);
+        return;
+      }
+  
+      setIsSearching(true);
+      const debounceTimeout = setTimeout(async () => {
+        try {
+          const response = await fetch(
+            `https://app.xcp.io/api/v1/simple-search?query=${encodeURIComponent(
+              searchQuery
+            )}`
+          );
+          const data = await response.json();
+          setSearchResults(data.assets || []);
+        } catch (err) {
+          console.error('Error searching assets:', err);
+          setSearchResults([]);
+        } finally {
+          setIsSearching(false);
+        }
+      }, 500);
+  
+      return () => clearTimeout(debounceTimeout);
+    }, [searchQuery]);
+  
+    // Initialize pinned assets from the active wallet.
+    useEffect(() => {
+      if (activeWallet && activeWallet.pinnedAssetBalances) {
+        setPinnedAssets(activeWallet.pinnedAssetBalances);
+      }
+    }, [activeWallet]);
+  
+    // Determine whether to show the help text.
+    const shouldShowHelpText = isHelpTextOverride ? !localHelpText : localHelpText;
+  
+    const handleAddAsset = async (asset: string) => {
+      if (!activeWallet) {
+        setError('No active wallet selected');
+        return;
+      }
+  
+      if (pinnedAssets.length >= 10) {
+        setError(
+          'You can only pin up to 10 assets. Please remove some assets before adding more.'
+        );
+        return;
+      }
+  
+      if (!pinnedAssets.includes(asset)) {
+        try {
+          const newPinnedAssets = [...pinnedAssets, asset];
+          await updatePinnedAssets(newPinnedAssets);
+          setPinnedAssets(newPinnedAssets);
+        } catch (err) {
+          console.error('Error adding asset:', err);
+          setError('Failed to add asset. Please try again.');
+        }
+      }
+    };
+  
+    const handleRemoveAsset = async (asset: string) => {
+      if (!activeWallet) {
+        setError('No active wallet selected');
+        return;
+      }
+  
+      try {
+        const newPinnedAssets = pinnedAssets.filter((a) => a !== asset);
+        await updatePinnedAssets(newPinnedAssets);
+        setPinnedAssets(newPinnedAssets);
+      } catch (err) {
+        console.error('Error removing asset:', err);
+        setError('Failed to remove asset. Please try again.');
+      }
+    };
+  
+    const handleDragEnd = async (result: DropResult) => {
+      if (!result.destination || !activeWallet) return;
+  
+      const items = Array.from(pinnedAssets);
+      const [reorderedItem] = items.splice(result.source.index, 1);
+      items.splice(result.destination.index, 0, reorderedItem);
+      setPinnedAssets(items);
+      try {
+        await updatePinnedAssets(items);
+      } catch (err) {
+        console.error('Error updating asset order:', err);
+        setError('Failed to reorder assets.');
+      }
+    };
+  
+    // A simple sub-component for displaying an asset icon and details.
+    const AssetWithIcon = ({ symbol, description }: { symbol: string; description?: string }) => {
+      const imageUrl = `https://app.xcp.io/img/icon/${symbol}`;
+      return (
+        <div className="flex items-center">
+          <div className="w-8 h-8 flex-shrink-0 mr-3">
+            <img src={imageUrl} alt={symbol} className="w-full h-full object-cover" />
+          </div>
+          <div>
+            <div>{symbol}</div>
+            {description && <div className="text-sm text-gray-500">{description}</div>}
+          </div>
+        </div>
+      );
+    };
+  
+    return (
+      <div className="h-full flex flex-col">
+        <div className="flex-shrink-0 p-4">
+          {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
+          <div className="relative mb-4">
+            <input
+              type="text"
+              className="w-full p-2 pl-10 border rounded-lg"
+              placeholder="Search assets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <FaSearch className="absolute left-3 top-3 text-gray-400" />
+          </div>
+        </div>
+  
+        <div className="flex-1 px-4">
+          {!searchQuery ? (
+            <div className="h-full flex flex-col">
+              <h3 className="text-lg font-semibold mb-2">Pinned Assets</h3>
+              {shouldShowHelpText && (
+                <p className="text-sm text-gray-500 mb-4">
+                  Pin up to 10 assets to the top of your main screen, useful for surfacing balances in large wallets.
+                </p>
+              )}
+              <div className="flex-1 overflow-y-auto">
+                <DragDropContext onDragEnd={handleDragEnd}>
+                  <Droppable droppableId="pinnedAssets" type="PINNED_ASSETS">
+                    {(provided) => (
+                      <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
+                        {pinnedAssets.map((asset, index) => (
+                          <Draggable key={asset} draggableId={asset} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`flex items-center justify-between p-3 bg-white rounded-lg shadow-sm ${
+                                  snapshot.isDragging ? 'shadow-lg' : ''
+                                }`}
+                              >
+                                <AssetWithIcon symbol={asset} />
+                                <Button color="gray" onClick={() => handleRemoveAsset(asset)} className="!p-2">
+                                  <TbPinnedFilled />
+                                </Button>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Search Results</h3>
+              {isSearching ? (
+                <div className="text-center py-4">Searching...</div>
+              ) : searchResults.length === 0 ? (
+                <div className="text-center py-4">No results found</div>
+              ) : (
+                <div className="space-y-2">
+                  {searchResults.map((asset) => (
+                    <div key={asset.symbol} className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm">
+                      <AssetWithIcon symbol={asset.symbol} />
+                      <Button
+                        color="gray"
+                        onClick={() =>
+                          pinnedAssets.includes(asset.symbol)
+                            ? handleRemoveAsset(asset.symbol)
+                            : handleAddAsset(asset.symbol)
+                        }
+                        className="!p-2"
+                      >
+                        {pinnedAssets.includes(asset.symbol) ? <TbPinnedFilled /> : <TbPinned />}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+  
+  export default SelectAssets;
+
 /src/pages/auth/onboarding.tsx
   [contents of the file]
   import { useEffect } from 'react';
@@ -3359,6 +4837,272 @@ File Contents:
   };
   
   export default UnlockWallet;
+
+/src/pages/compose/broadcast/form.tsx
+  [contents of the file]
+  import React, { useRef, useEffect, FormEvent, useState } from "react";
+  import { Field, Label, Description, Textarea, Input } from "@headlessui/react";
+  import { Button } from "@/components/button";
+  import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+  import { AddressHeader } from "@/components/headers/address-header";
+  import { useWallet } from "@/contexts/wallet-context";
+  import { useSettings } from "@/contexts/settings-context";
+  
+  export interface BroadcastFormData {
+    text: string;
+    feeRateSatPerVByte: number;
+    value: string;
+  }
+  
+  const DEFAULT_FORM_DATA: BroadcastFormData = {
+    text: '',
+    feeRateSatPerVByte: 1,
+    value: '',
+  };
+  
+  interface BroadcastFormProps {
+    onSubmit: (data: BroadcastFormData) => void;
+  }
+  
+  export function BroadcastForm({
+    onSubmit,
+  }: BroadcastFormProps) {
+    const { activeAddress, activeWallet } = useWallet();
+    const { settings } = useSettings();
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [formData, setFormData] = useState<BroadcastFormData>(DEFAULT_FORM_DATA);
+  
+    useEffect(() => {
+      textareaRef.current?.focus();
+    }, []);
+  
+    const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setFormData((prev) => ({ ...prev, text: e.target.value }));
+    };
+  
+    const handleFeeRateChange = (value: number) => {
+      setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
+    };
+  
+    const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      if (value === '' || /^\d*$/.test(value)) {
+        setFormData((prev) => ({ ...prev, value }));
+      }
+    };
+  
+    const handleSubmitInternal = (e: FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      const submissionData = {
+        ...formData,
+        value: formData.value || '0',
+      };
+      onSubmit(submissionData);
+    };
+  
+    return (
+      <div className="space-y-4">
+        {activeAddress && (
+          <AddressHeader
+            address={activeAddress.address}
+            walletName={activeWallet?.name}
+            className="mb-4"
+          />
+        )}
+        <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
+          <form onSubmit={handleSubmitInternal} className="space-y-4">
+            <Field>
+              <Label
+                htmlFor="broadcast-message"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Message<span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                ref={textareaRef}
+                id="broadcast-message"
+                value={formData.text}
+                onChange={handleTextChange}
+                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 hover:border-gray-400"
+                required
+                rows={4}
+              />
+              {settings?.showHelpText && (
+                <Description className="mt-2 text-sm text-gray-500">
+                  Enter the message you want to broadcast.
+                </Description>
+              )}
+            </Field>
+  
+            <Field>
+              <Label
+                htmlFor="broadcast-value"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Value
+              </Label>
+              <Input
+                id="broadcast-value"
+                type="text"
+                inputMode="numeric"
+                pattern="\d*"
+                value={formData.value}
+                onChange={handleValueChange}
+                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 hover:border-gray-400"
+                placeholder="0"
+              />
+              {settings?.showHelpText && (
+                <Description className="mt-2 text-sm text-gray-500">
+                  Optional numerical value for the broadcast (defaults to 0)
+                </Description>
+              )}
+            </Field>
+  
+            <FeeRateInput
+              value={formData.feeRateSatPerVByte}
+              onChange={handleFeeRateChange}
+              showHelpText={settings?.showHelpText}
+            />
+  
+            <Button
+              type="submit"
+              color="blue"
+              fullWidth
+              disabled={!formData.text.trim() || formData.feeRateSatPerVByte <= 0}
+            >
+              Continue
+            </Button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+/src/pages/compose/broadcast/page.tsx
+  [contents of the file]
+  import { BroadcastForm } from "./form";
+  import { ReviewBroadcast } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeBroadcast } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeBroadcast() {
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Broadcast"
+          FormComponent={(props) => <BroadcastForm {...props} />}
+          ReviewComponent={ReviewBroadcast}
+          composeTransaction={composeBroadcast}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeBroadcast;
+
+/src/pages/compose/broadcast/review.tsx
+  [contents of the file]
+  import React, { useState } from "react";
+  import { Button } from "@/components/button";
+  import { ErrorAlert } from "@/components/error-alert";
+  import { formatAddress } from "@/utils/format";
+  
+  interface ReviewBroadcastProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+    error: string | null;
+    setError: React.Dispatch<React.SetStateAction<string | null>>;
+  }
+  
+  export function ReviewBroadcast({
+    apiResponse,
+    onSign,
+    onBack,
+    error,
+    setError,
+  }: ReviewBroadcastProps) {
+    const [isSigning, setIsSigning] = useState(false);
+    const { result } = apiResponse;
+  
+    const handleSignClick = async () => {
+      setIsSigning(true);
+      try {
+        await onSign();
+      } finally {
+        setIsSigning(false);
+      }
+    };
+  
+    return (
+      <div
+        role="region"
+        aria-label="Transaction Review"
+        className="p-4 bg-white rounded-lg shadow-lg space-y-4"
+      >
+        <h3 className="text-lg font-bold">Review Broadcast</h3>
+  
+        {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
+  
+        <div className="space-y-4">
+          {/* From Address */}
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">From:</span>
+            <div className="text-gray-900 break-all bg-gray-50 p-2 rounded">
+              {formatAddress(result.params.source, true)}
+            </div>
+          </div>
+  
+          {/* Message */}
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">Message:</span>
+            <div className="text-gray-900 break-words bg-gray-50 p-2 rounded">
+              {result.params.text}
+            </div>
+          </div>
+  
+          {/* Value - only show if non-zero */}
+          {(result.params.value !== '0' && result.params.value !== 0) && (
+            <div className="space-y-1">
+              <span className="font-semibold text-gray-700">Value:</span>
+              <div className="text-gray-900 bg-gray-50 p-2 rounded">
+                {result.params.value}
+              </div>
+            </div>
+          )}
+  
+          {/* Fee */}
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">Fee:</span>
+            <div className="text-gray-900 bg-gray-50 p-2 rounded">
+              {(result.btc_fee / 1e8).toFixed(8)} BTC
+            </div>
+          </div>
+        </div>
+  
+        {/* Raw Transaction (collapsible) */}
+        <div className="mt-4">
+          <details>
+            <summary className="text-md font-semibold cursor-pointer text-gray-700 hover:text-gray-900">
+              Raw Transaction
+            </summary>
+            <pre className="mt-2 overflow-y-auto overflow-x-auto text-sm bg-gray-50 p-3 rounded-md h-44 border border-gray-200">
+              {JSON.stringify(apiResponse, null, 2)}
+            </pre>
+          </details>
+        </div>
+  
+        <div className="flex space-x-4">
+          <Button onClick={onBack} color="gray">
+            Back
+          </Button>
+          <Button onClick={handleSignClick} color="blue" fullWidth disabled={isSigning}>
+            {isSigning ? "Signing..." : "Sign & Broadcast"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
 /src/pages/compose/mpma/form.tsx
   [contents of the file]
@@ -3790,9 +5534,12 @@ File Contents:
   import { Field, Label, Description, Input } from "@headlessui/react";
   import { Button } from "@/components/button";
   import { BalanceHeader } from "@/components/headers/balance-header";
+  import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
+  import { FeeRateInput } from "@/components/inputs/fee-rate-input";
   import { useSettings } from "@/contexts/settings-context";
   import { useAssetDetails } from "@/hooks/useAssetDetails";
   import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
+  import { useWallet } from "@/contexts/wallet-context";
   
   export interface SendFormData {
     destination: string;
@@ -3817,7 +5564,6 @@ File Contents:
     });
     const [localError, setLocalError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-  
     const { settings } = useSettings();
     const shouldShowHelpText = settings?.showHelpText;
   
@@ -3826,6 +5572,9 @@ File Contents:
       assetInfo: null,
       availableBalance: "0",
     };
+  
+    // Use the activeAddress from the wallet context.
+    const { activeAddress } = useWallet();
   
     useEffect(() => {
       inputRef.current?.focus();
@@ -3846,16 +5595,19 @@ File Contents:
         return;
       }
       setLocalError(null);
-      onSubmit(formData);
-    };
-  
-    const handleMaxAmount = () => {
-      setFormData({ ...formData, quantity: availableBalance });
+      const quantityNumber = Number(formData.quantity);
+      const convertedQuantity = assetInfo?.divisible
+        ? Math.round(quantityNumber * 1e8).toString()
+        : Math.round(quantityNumber).toString();
+      const updatedFormData: SendFormData = {
+        ...formData,
+        quantity: convertedQuantity,
+      };
+      onSubmit(updatedFormData);
     };
   
     return (
       <div className="bg-white rounded-lg shadow-lg p-4">
-        {/* Asset details section wrapped in Suspense */}
         <div className="min-h-[80px]">
           <Suspense fallback={<div>Loading asset details...</div>}>
             {isLoading ? (
@@ -3874,9 +5626,7 @@ File Contents:
             )}
           </Suspense>
         </div>
-  
         {localError && <div className="text-red-500 mb-2">{localError}</div>}
-  
         <form onSubmit={handleSubmit} className="space-y-6">
           <Field>
             <Label className="text-sm font-medium text-gray-700">
@@ -3901,32 +5651,22 @@ File Contents:
             </Description>
           </Field>
   
-          <Field>
-            <Label className="text-sm font-medium text-gray-700">
-              Amount <span className="text-red-500">*</span>
-            </Label>
-            <div className="relative mt-1">
-              <Input
-                type="text"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                required
-                placeholder="Enter amount"
-                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500 pr-24"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleMaxAmount}
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 px-2 py-1 text-sm"
-              >
-                Max
-              </Button>
-            </div>
-            <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-              Available balance: {availableBalance} {formData.asset}
-            </Description>
-          </Field>
+          <AmountWithMaxInput
+            asset={formData.asset}
+            availableBalance={availableBalance}
+            value={formData.quantity}
+            onChange={(val: string) => setFormData({ ...formData, quantity: val })}
+            feeRateSatPerVByte={formData.feeRateSatPerVByte}
+            setError={setLocalError}
+            shouldShowHelpText={shouldShowHelpText}
+            sourceAddress={activeAddress}
+            maxAmount={availableBalance}
+            label="Amount"
+            name="amount"
+            destinationCount={1}
+            destination={formData.destination}
+            memo={formData.memo}
+          />
   
           {formData.asset !== "BTC" && (
             <Field>
@@ -3934,7 +5674,9 @@ File Contents:
               <Input
                 type="text"
                 value={formData.memo}
-                onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, memo: e.target.value })
+                }
                 placeholder="Optional memo"
                 className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
               />
@@ -3944,27 +5686,22 @@ File Contents:
             </Field>
           )}
   
-          <Field>
-            <Label className="text-sm font-medium text-gray-700">
-              Fee Rate (sat/vB) <span className="text-red-500">*</span>
-            </Label>
-            <div className="mt-1">
-              <Input
-                type="number"
-                min="1"
-                step="0.1"
-                value={formData.feeRateSatPerVByte}
-                onChange={(e) =>
-                  setFormData({ ...formData, feeRateSatPerVByte: parseFloat(e.target.value) || 0 })
-                }
-                required
-                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-              Higher fees may result in faster confirmation times.
-            </Description>
-          </Field>
+          <FeeRateInput
+            id="feeRateSatPerVByte"
+            value={formData.feeRateSatPerVByte}
+            onChange={(value: number) =>
+              setFormData({ ...formData, feeRateSatPerVByte: value })
+            }
+            error={
+              formData.feeRateSatPerVByte <= 0
+                ? "Please enter a valid fee rate greater than zero."
+                : ""
+            }
+            showLabel={true}
+            label="Fee Rate (sat/vB)"
+            showHelpText={shouldShowHelpText}
+            autoFetch={true}
+          />
   
           <Button type="submit" color="blue" fullWidth>
             Continue
@@ -3984,6 +5721,7 @@ File Contents:
   
   export function ComposeSend() {
     const { asset } = useParams<{ asset: string }>();
+  
     return (
       <div className="p-4">
         <Composer
@@ -3995,6 +5733,8 @@ File Contents:
       </div>
     );
   }
+  
+  export default ComposeSend;
 
 /src/pages/compose/send/review.tsx
   [contents of the file]
@@ -4013,7 +5753,8 @@ File Contents:
     const [isSigning, setIsSigning] = useState(false);
     const { result } = apiResponse;
     const asset = result.params.asset || "XCP";
-    const assetDivisible = asset !== "BTC";
+    // Use asset_info.divisible if available; otherwise, default to asset !== "BTC"
+    const assetDivisible = result.params.asset_info?.divisible ?? (asset !== "BTC");
   
     const handleSignClick = async () => {
       setIsSigning(true);
@@ -4106,6 +5847,381 @@ File Contents:
     );
   }
 
+/src/pages/compose/sweep/form.tsx
+  [contents of the file]
+  import React, { useState, useRef, useEffect } from "react";
+  import { Field, Label, Description, Input, Select } from "@headlessui/react";
+  import { FiChevronDown } from "react-icons/fi";
+  import { Button } from "@/components/button";
+  import { AddressHeader } from "@/components/headers/address-header";
+  import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+  import { useSettings } from "@/contexts/settings-context";
+  import { useWallet } from "@/contexts/wallet-context";
+  import { formatAddress } from "@/utils/format";
+  
+  // Flag constants and options from the old code:
+  const FLAG_BALANCES = 1;
+  const FLAG_OWNERSHIP = 2;
+  
+  const flagOptions = [
+    { id: 1, name: "Asset Balances Only", value: FLAG_BALANCES },
+    { id: 2, name: "Asset Ownership Only", value: FLAG_OWNERSHIP },
+    { id: 3, name: "Asset Balances & Ownership", value: FLAG_BALANCES | FLAG_OWNERSHIP },
+  ];
+  
+  export interface SweepFormData {
+    destination: string;
+    flags: number;
+    memo: string;
+    feeRateSatPerVByte: number;
+    allowUnconfirmedInputs?: boolean;
+  }
+  
+  interface SweepFormProps {
+    onSubmit: (data: SweepFormData) => void;
+    initialAddress?: string;
+  }
+  
+  export function SweepForm({ onSubmit, initialAddress }: SweepFormProps) {
+    const { settings } = useSettings();
+    const { activeAddress, activeWallet } = useWallet();
+    const sourceAddress = initialAddress || activeAddress?.address;
+    const [formData, setFormData] = useState<SweepFormData>({
+      destination: "",
+      flags: FLAG_BALANCES | FLAG_OWNERSHIP,
+      memo: "",
+      feeRateSatPerVByte: 0,
+      allowUnconfirmedInputs: false,
+    });
+    const destinationInputRef = useRef<HTMLInputElement>(null);
+  
+    useEffect(() => {
+      destinationInputRef.current?.focus();
+    }, []);
+  
+    const handleFlagsChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setFormData((prev) => ({ ...prev, flags: Number(e.target.value) }));
+    };
+  
+    const handleDestinationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setFormData((prev) => ({ ...prev, destination: e.target.value }));
+    };
+  
+    const handleMemoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setFormData((prev) => ({ ...prev, memo: e.target.value }));
+    };
+  
+    const handleFeeRateChange = (value: number) => {
+      setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
+    };
+  
+    // Generate help text for the destination field
+    const getDestinationHelpText = (flags: number) => {
+      const addressText = sourceAddress
+        ? `${formatAddress(sourceAddress)}`
+        : "the source address";
+  
+      if (flags === FLAG_BALANCES) {
+        return `The address to receive all asset balances from ${addressText}.`;
+      } else if (flags === FLAG_OWNERSHIP) {
+        return `The address to receive all asset ownership from ${addressText}.`;
+      } else {
+        return `The address to receive all assets and balances from ${addressText}.`;
+      }
+    };
+  
+    const handleSubmitInternal = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      onSubmit(formData);
+    };
+  
+    // Replace the hardcoded shouldShowHelpText with settings value
+    const shouldShowHelpText = settings?.showHelpText;
+  
+    return (
+      <div className="space-y-4">
+        {sourceAddress && (
+          <AddressHeader
+            address={sourceAddress}
+            walletName={activeWallet?.name}
+            className="mb-4"
+          />
+        )}
+        <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
+          <form onSubmit={handleSubmitInternal} className="space-y-4">
+            {/* Sweep Type */}
+            <Field className="relative">
+              <Label className="text-sm font-medium text-gray-700 block">
+                Sweep Type<span className="text-red-500">*</span>
+              </Label>
+              <div className="relative mt-1">
+                <Select
+                  value={formData.flags}
+                  onChange={handleFlagsChange}
+                  className="w-full p-2 pr-8 rounded-md border bg-gray-50 appearance-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {flagOptions.map((option) => (
+                    <option key={option.id} value={option.value}>
+                      {option.name}
+                    </option>
+                  ))}
+                </Select>
+                <FiChevronDown
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
+                  aria-hidden="true"
+                />
+              </div>
+              <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+                Choose whether to sweep asset balances only, asset ownership only, or both.
+              </Description>
+            </Field>
+  
+            {/* Destination */}
+            <Field>
+              <Label htmlFor="destination" className="text-sm font-medium text-gray-700 block">
+                Destination<span className="text-red-500">*</span>
+              </Label>
+              <Input
+                ref={destinationInputRef}
+                id="destination"
+                type="text"
+                value={formData.destination}
+                onChange={handleDestinationChange}
+                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+              <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+                {getDestinationHelpText(formData.flags)}
+              </Description>
+            </Field>
+  
+            {/* Memo */}
+            <Field>
+              <Label htmlFor="memo" className="text-sm font-medium text-gray-700 block">
+                Memo
+              </Label>
+              <Input
+                id="memo"
+                type="text"
+                value={formData.memo}
+                onChange={handleMemoChange}
+                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Optional memo (max 34 bytes)"
+              />
+              <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+                If memo is valid hex, it will be treated as binary. Otherwise, it will be UTF-8 encoded.
+              </Description>
+            </Field>
+  
+            {/* Fee Rate */}
+            <FeeRateInput
+              value={formData.feeRateSatPerVByte}
+              onChange={handleFeeRateChange}
+              showHelpText={shouldShowHelpText}
+            />
+  
+            <Button
+              type="submit"
+              color="blue"
+              fullWidth
+              disabled={!formData.destination || formData.feeRateSatPerVByte <= 0}
+            >
+              Continue
+            </Button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+/src/pages/compose/sweep/page.tsx
+  [contents of the file]
+  import { useParams } from "react-router-dom";
+  import { SweepForm } from "./form";
+  import { ReviewSweep } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeSweep } from "@/utils/blockchain/counterparty";
+  import { useWallet } from "@/contexts/wallet-context";
+  
+  export function ComposeSweep() {
+    const { address } = useParams<{ address?: string }>();
+    const { activeAddress } = useWallet();
+    
+    const initialAddress = address || activeAddress?.address;
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Sweep"
+          FormComponent={(props) => <SweepForm {...props} initialAddress={initialAddress} />}
+          ReviewComponent={ReviewSweep}
+          composeTransaction={composeSweep}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeSweep;
+
+/src/pages/compose/sweep/review.tsx
+  [contents of the file]
+  import React, { useState, useEffect } from "react";
+  import { Button } from "@/components/button";
+  import { ErrorAlert } from "@/components/error-alert";
+  import { getSweepEstimateXcpFee } from "@/utils/blockchain/counterparty/compose";
+  import { formatAddress, formatAmount } from "@/utils/format";
+  
+  // These flag options help display a friendly sweep type name.
+  const flagOptions = [
+    { id: 1, name: "Asset Balances Only", value: 1 },
+    { id: 2, name: "Asset Ownership Only", value: 2 },
+    { id: 3, name: "Asset Balances & Ownership", value: 1 | 2 },
+  ];
+  
+  function getSweepTypeName(flags: number) {
+    const option = flagOptions.find((opt) => opt.value === flags);
+    return option ? option.name : "Unknown";
+  }
+  
+  interface ReviewSweepProps {
+    apiResponse: any;
+    onSign: () => void;
+    onBack: () => void;
+  }
+  
+  export function ReviewSweep({ apiResponse, onSign, onBack }: ReviewSweepProps) {
+    const [isSigning, setIsSigning] = useState(false);
+    const [xcpFee, setXcpFee] = useState<number | null>(null);
+    const [isLoadingFees, setIsLoadingFees] = useState(true);
+    const { result } = apiResponse;
+  
+    useEffect(() => {
+      const fetchXcpFee = async () => {
+        try {
+          const fee = await getSweepEstimateXcpFee(result.params.source);
+          setXcpFee(fee);
+        } catch (err) {
+          console.error("Failed to fetch XCP fee:", err);
+        } finally {
+          setIsLoadingFees(false);
+        }
+      };
+  
+      fetchXcpFee();
+    }, [result.params.source]);
+  
+    const handleSignClick = async () => {
+      setIsSigning(true);
+      try {
+        await onSign();
+      } finally {
+        setIsSigning(false);
+      }
+    };
+  
+    return (
+      <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
+        <h3 className="text-lg font-bold">Review Sweep</h3>
+  
+        {/* Display any error returned in the composed result */}
+        {result.error && (
+          <ErrorAlert message={result.error} onClose={() => {}} />
+        )}
+  
+        <div className="space-y-4">
+          {/* From Address */}
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">From:</span>
+            <div className="text-gray-900 break-all bg-gray-50 p-2 rounded">
+              {formatAddress(result.params.source, true)}
+            </div>
+          </div>
+  
+          {/* To Address */}
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">To:</span>
+            <div className="text-gray-900 break-all bg-gray-50 p-2 rounded">
+              {result.params.destination}
+            </div>
+          </div>
+  
+          {/* Sweep Type */}
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">Sweep:</span>
+            <div className="text-gray-900 bg-gray-50 p-2 rounded">
+              {getSweepTypeName(result.params.flags)}
+            </div>
+          </div>
+  
+          {/* Memo */}
+          {result.params.memo && (
+            <div className="space-y-1">
+              <span className="font-semibold text-gray-700">Memo:</span>
+              <div className="text-gray-900 bg-gray-50 p-2 rounded break-all">
+                {result.params.memo}
+              </div>
+            </div>
+          )}
+  
+          {/* Fees */}
+          <div className="space-y-4">
+            {/* Gas Fee */}
+            <div className="space-y-1">
+              <span className="font-semibold text-gray-700">Gas:</span>
+              <div className="text-gray-900 bg-gray-50 p-2 rounded">
+                {isLoadingFees ? (
+                  <span className="text-gray-500">Loading...</span>
+                ) : xcpFee !== null ? (
+                  `${formatAmount({
+                    value: xcpFee / 1e8,
+                    minimumFractionDigits: 8,
+                    maximumFractionDigits: 8,
+                  })} XCP`
+                ) : (
+                  <span className="text-red-500">Failed to load XCP fee</span>
+                )}
+              </div>
+            </div>
+  
+            {/* BTC Fee */}
+            <div className="space-y-1">
+              <span className="font-semibold text-gray-700">Fee:</span>
+              <div className="text-gray-900 bg-gray-50 p-2 rounded">
+                {formatAmount({
+                  value: result.btc_fee / 1e8,
+                  minimumFractionDigits: 8,
+                  maximumFractionDigits: 8,
+                })}{" "}
+                BTC
+              </div>
+            </div>
+          </div>
+        </div>
+  
+        {/* Raw Transaction (collapsible) */}
+        <div className="mt-4">
+          <details>
+            <summary className="text-md font-semibold cursor-pointer text-gray-700 hover:text-gray-900">
+              Raw Transaction
+            </summary>
+            <pre className="mt-2 overflow-y-auto overflow-x-auto text-sm bg-gray-50 p-3 rounded-md h-44 border border-gray-200">
+              {JSON.stringify(apiResponse, null, 2)}
+            </pre>
+          </details>
+        </div>
+  
+        <div className="flex space-x-4">
+          <Button onClick={onBack} color="gray">
+            Back
+          </Button>
+          <Button onClick={handleSignClick} color="blue" disabled={isSigning}>
+            {isSigning ? "Signing..." : "Sign & Broadcast"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
 /src/pages/index.tsx
   [contents of the file]
   "use client";
@@ -4139,23 +6255,11 @@ File Contents:
     const [searchParams, setSearchParams] = useSearchParams();
     const activeTab = (searchParams.get("tab") as "Assets" | "Balances") || "Balances";
   
-    // Local state variables
-    const [tokenBalances, setTokenBalances] = useState<any[]>([]);
-    const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [copiedToClipboard, setCopiedToClipboard] = useState(false);
-    const [offset, setOffset] = useState(0);
-    const [hasMore, setHasMore] = useState(true);
-    const [isFetchingMore, setIsFetchingMore] = useState(false);
-    const [ownedAssets, setOwnedAssets] = useState<any[]>([]);
-    const [isLoadingAssets, setIsLoadingAssets] = useState(false);
   
-    // Track existing assets so we don't refetch them in infinite scroll
-    const existingAssetsRef = React.useRef<Set<string>>(new Set());
-  
-    // Use a stateful variable to hold the scroll container element.
+    // We want to reuse the same scroll container for both lists (for inView/infinite scroll)
     const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
   
-    // Set header props (locking, etc.)
     useEffect(() => {
       setHeaderProps({
         useLogoTitle: true,
@@ -4175,29 +6279,6 @@ File Contents:
       });
     }, [setHeaderProps, navigate, activeWallet, lockAll]);
   
-    // Fetch owned assets when user is on the "Assets" tab
-    useEffect(() => {
-      async function loadOwnedAssets() {
-        if (!activeAddress) return;
-        setIsLoadingAssets(true);
-        try {
-          const response = await fetch(
-            `https://api.counterparty.io:4000/v2/addresses/${activeAddress.address}/assets/owned?verbose=true`
-          );
-          const data = await response.json();
-          setOwnedAssets(data.result);
-        } catch {
-          // handle error if needed
-        } finally {
-          setIsLoadingAssets(false);
-        }
-      }
-      if (activeTab === "Assets") {
-        loadOwnedAssets();
-      }
-    }, [activeAddress, activeTab]);
-  
-    // Handlers
     const handleCopyAddress = () => {
       if (!activeAddress) return;
       navigator.clipboard.writeText(activeAddress.address).then(() => {
@@ -4211,7 +6292,6 @@ File Contents:
       navigate("/select-address");
     };
   
-    // Current address UI
     function renderCurrentAddress() {
       if (!activeAddress) return <div className="p-4">No address selected</div>;
       return (
@@ -4256,7 +6336,6 @@ File Contents:
       );
     }
   
-    // Action buttons (Receive, Send, History)
     function renderActionButtons() {
       return (
         <div className="grid grid-cols-3 gap-4 my-4">
@@ -4271,7 +6350,7 @@ File Contents:
           </Button>
           <Button
             color="gray"
-            onClick={() => navigate("/compose/send/RATPEPECORN")}
+            onClick={() => navigate("/compose/send/BTC")}
             className="flex-col !py-4"
             aria-label="Send tokens"
           >
@@ -4280,7 +6359,7 @@ File Contents:
           </Button>
           <Button
             color="gray"
-            onClick={() => navigate("/history")}
+            onClick={() => navigate("/address-history")}
             className="flex-col !py-4"
             aria-label="Transaction history"
           >
@@ -4291,7 +6370,6 @@ File Contents:
       );
     }
   
-    // Header with Assets/Balances tabs
     function renderBalancesHeader() {
       return (
         <div className="flex justify-between items-center mb-2">
@@ -4319,7 +6397,7 @@ File Contents:
             <button
               onClick={async () => {
                 await browser.tabs.create({
-                  url: browser.runtime.getURL("/wallet.html#/main"),
+                  url: browser.runtime.getURL("/newtab.html#/index"),
                   active: true,
                 });
               }}
@@ -4329,7 +6407,7 @@ File Contents:
               <FaListAlt className="w-5 h-5 text-gray-600" aria-hidden="true" />
             </button>
             <button
-              onClick={() => navigate("/token-settings")}
+              onClick={() => navigate("/select-assets")}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               aria-label="Token Settings"
             >
@@ -4350,11 +6428,6 @@ File Contents:
           {renderCurrentAddress()}
           {renderActionButtons()}
           {renderBalancesHeader()}
-          {activeTab === "Balances" ? (
-            <BalanceList enabled={false} />
-          ) : (
-            <AssetList enabled={false} />
-          )}
         </>
       );
   
@@ -4366,6 +6439,13 @@ File Contents:
           className="flex-grow overflow-y-auto no-scrollbar p-4"
         >
           {content}
+          {/* Always mount both list components but hide the one not active */}
+          <div style={{ display: activeTab === "Balances" ? "block" : "none" }}>
+            <BalanceList visible={activeTab === "Balances"} scrollContainer={scrollContainer} />
+          </div>
+          <div style={{ display: activeTab === "Assets" ? "block" : "none" }}>
+            <AssetList visible={activeTab === "Assets"} scrollContainer={scrollContainer} />
+          </div>
         </div>
       </div>
     );
@@ -6260,7 +8340,6 @@ File Contents:
         return;
       }
       
-      // Only set error if we're not in the process of removing the wallet
       if (!isLoading && !wallet) {
         setSubmissionError('Wallet not found.');
         return;
@@ -6270,7 +8349,7 @@ File Contents:
         setWalletName(wallet.name);
         setWalletType(wallet.type);
         setHeaderProps({
-          title: wallet.type === 'privateKey' ? 'Remove Address' : 'Remove Wallet',
+          title: 'Remove Wallet',
           onBack: () => navigate(-1),
         });
       }
@@ -6341,7 +8420,7 @@ File Contents:
     return (
       <div className="flex flex-col h-full p-4" role="main" aria-labelledby="remove-wallet-title">
         <h2 id="remove-wallet-title" className="sr-only">
-          {walletType === 'privateKey' ? 'Remove Address' : 'Remove Wallet'}
+          Remove Wallet
         </h2>
         {submissionError && (
           <ErrorAlert message={submissionError} onClose={() => setSubmissionError('')} />
@@ -6351,11 +8430,11 @@ File Contents:
             <div className="flex items-center mb-4">
               <FaExclamationTriangle className="w-6 h-6 text-red-500 mr-2" aria-hidden="true" />
               <h3 className="text-xl font-bold text-red-700">
-                {walletType === 'privateKey' ? 'Remove Address' : 'Remove Wallet'}
+                Warning
               </h3>
             </div>
             <p className="text-red-700 font-medium leading-relaxed">
-              Make sure you have backed up your wallet or private key before removing it.
+              Make sure you have backed up your wallet's mnemonic or private key before removing it.
             </p>
           </div>
           <div className="w-full max-w-md space-y-4">
@@ -6374,13 +8453,9 @@ File Contents:
               disabled={isLoading}
               fullWidth
               color="red"
-              aria-label={walletType === 'privateKey' ? 'Remove Private Key' : `Remove ${walletName}`}
+              aria-label={`Remove ${walletName}`}
             >
-              {isLoading
-                ? 'Removing...'
-                : walletType === 'privateKey'
-                ? 'Remove Private Key'
-                : `Remove ${walletName}`}
+              {isLoading ? 'Removing...' : `Remove ${walletName}`}
             </Button>
           </div>
         </form>
@@ -6538,7 +8613,7 @@ File Contents:
     };
   
     const handleSelectWalletInternal = async (wallet: Wallet) => {
-      await setActiveWallet(wallet);
+      await setActiveWallet(wallet, false);
       navigate('/index');
     };
   
@@ -6789,6 +8864,7 @@ File Contents:
     | { type: 'WALLETS_LOADED'; walletExists: boolean }
     | { type: 'WALLET_UNLOCKED' }
     | { type: 'WALLET_LOCKED' }
+    | { type: 'WALLET_RESET' }
     | { type: 'CONNECTION_REQUESTED' }
     | { type: 'CONNECTION_APPROVED' }
     | { type: 'ONBOARDING_COMPLETED' };
@@ -6801,6 +8877,8 @@ File Contents:
         return AuthState.Unlocked;
       case 'WALLET_LOCKED':
         return AuthState.Locked;
+      case 'WALLET_RESET':
+        return AuthState.Onboarding;
       case 'CONNECTION_REQUESTED':
         return AuthState.ConnectionPending;
       case 'CONNECTION_APPROVED':
@@ -7481,10 +9559,110 @@ File Contents:
     requiredSignatures?: number;
   }
 
+/src/utils/blockchain/bitcoin/feeRate.ts
+  [contents of the file]
+  export interface FeeRates {
+    fastestFee: number;
+    halfHourFee: number;
+    hourFee: number;
+  }
+  
+  /**
+   * Fetch fee rates from mempool.space.
+   *
+   * Expected response shape:
+   * {
+   *   fastestFee: number,
+   *   halfHourFee: number,
+   *   hourFee: number
+   * }
+   */
+  export const fetchFromMempoolSpace = async (): Promise<FeeRates> => {
+    const response = await fetch('https://mempool.space/api/v1/fees/recommended');
+    if (!response.ok) {
+      throw new Error('Failed to fetch fee rates from mempool.space');
+    }
+    const data = await response.json();
+    if (
+      typeof data.fastestFee !== 'number' ||
+      typeof data.halfHourFee !== 'number' ||
+      typeof data.hourFee !== 'number'
+    ) {
+      throw new Error('Invalid data format from mempool.space');
+    }
+    return {
+      fastestFee: data.fastestFee,
+      halfHourFee: data.halfHourFee,
+      hourFee: data.hourFee,
+    };
+  };
+  
+  /**
+   * Fetch fee rates from blockstream.info.
+   *
+   * The API returns an object mapping confirmation targets (in blocks)
+   * to fee rates. We extract:
+   *   - fastestFee: confirmation within 2 blocks (data["2"])
+   *   - halfHourFee: confirmation within 3 blocks (data["3"])
+   *   - hourFee: confirmation within 6 blocks (data["6"])
+   */
+  export const fetchFromBlockstream = async (): Promise<FeeRates> => {
+    const response = await fetch('https://blockstream.info/api/fee-estimates');
+    if (!response.ok) {
+      throw new Error('Failed to fetch fee rates from blockstream.info');
+    }
+    const data = await response.json();
+    const fastestFee = data["2"];
+    const halfHourFee = data["3"];
+    const hourFee = data["6"];
+    if (
+      typeof fastestFee !== 'number' ||
+      typeof halfHourFee !== 'number' ||
+      typeof hourFee !== 'number'
+    ) {
+      throw new Error('Invalid data format from blockstream.info');
+    }
+    return { fastestFee, halfHourFee, hourFee };
+  };
+  
+  // Ordered list of fee rate fetchers.
+  const feeRateFetchers: Array<() => Promise<FeeRates>> = [
+    fetchFromMempoolSpace,
+    fetchFromBlockstream,
+  ];
+  
+  /**
+   * Attempts to fetch fee rates from multiple APIs sequentially.
+   * If no source returns valid data, an error is thrown.
+   *
+   * @returns {Promise<FeeRates>} The fee rates object.
+   * @throws Error if all sources fail.
+   */
+  export const getFeeRates = async (): Promise<FeeRates> => {
+    for (const fetcher of feeRateFetchers) {
+      try {
+        const rates = await fetcher();
+        // Check that the returned rates are valid.
+        if (
+          typeof rates.fastestFee === 'number' &&
+          typeof rates.halfHourFee === 'number' &&
+          typeof rates.hourFee === 'number'
+        ) {
+          return rates;
+        }
+      } catch (error) {
+        console.error(error);
+        continue;
+      }
+    }
+    throw new Error('Unable to fetch fee rates from any source');
+  };
+
 /src/utils/blockchain/bitcoin/index.ts
   [contents of the file]
   export * from './address';
   export * from './balance';
+  export * from './feeRate';
   export * from './price';
   export * from './privateKey';
 
@@ -7730,7 +9908,30 @@ File Contents:
     throw new Error('Unknown endpoint response format');
   };
   
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const MOCK_TXID_PREFIX = 'dev_mock_tx_';
+  const FORCE_ERROR_HEX = 'FORCE_ERROR';
+  
+  const generateMockTxid = (signedTxHex: string): string => {
+    const truncatedHex = signedTxHex.slice(0, 8);
+    const timestamp = Date.now().toString(16).slice(-8);
+    return `${MOCK_TXID_PREFIX}${truncatedHex}_${timestamp}`;
+  };
+  
   export async function broadcastTransaction(signedTxHex: string): Promise<TransactionResponse> {
+    if (isDevelopment) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      if (signedTxHex.includes(FORCE_ERROR_HEX)) {
+        throw new Error('Simulated broadcast error for testing');
+      }
+  
+      return {
+        txid: generateMockTxid(signedTxHex),
+        fees: 1000
+      };
+    }
+  
     let lastError: Error | null = null;
     for (const endpoint of broadcastEndpoints) {
       try {
@@ -8066,6 +10267,15 @@ File Contents:
     status: string;
     data: Record<string, any>;
     supported: boolean;
+    unpacked_data: {
+      message_type: string;
+      message_data?: any;
+    };
+  }
+  
+  export interface TransactionResponse {
+    result: Transaction[];
+    result_count: number;
   }
   
   /**
@@ -8100,12 +10310,14 @@ File Contents:
       limit?: number;
       offset?: number;
       verbose?: boolean;
+      sort?: string;
     } = {}
   ): Promise<TokenBalance[]> {
     try {
       const limit = options.limit ?? 100;
       const offset = options.offset ?? 0;
       const verbose = options.verbose ?? true;
+      const sort = options.sort ?? 'asset:desc';
   
       const response = await axios.get(
         `https://api.counterparty.io:4000/v2/addresses/${address}/balances`,
@@ -8114,6 +10326,7 @@ File Contents:
             verbose: verbose,
             limit: limit,
             offset: offset,
+            sort: sort,
           },
         }
       );
@@ -8541,6 +10754,46 @@ File Contents:
   }
   
   /**
+   * Fetches transactions for a given address.
+   *
+   * @param address - The Bitcoin address to fetch transactions for.
+   * @param options - Optional parameters for pagination and verbosity.
+   * @returns A promise that resolves to a TransactionResponse object.
+   */
+  export async function fetchTransactions(
+    address: string,
+    options: {
+      limit?: number;
+      offset?: number;
+      verbose?: boolean;
+      show_unconfirmed?: boolean;
+    } = {}
+  ): Promise<TransactionResponse> {
+    try {
+      const limit = options.limit ?? 20;
+      const offset = options.offset ?? 0;
+      const verbose = options.verbose ?? true;
+      const show_unconfirmed = options.show_unconfirmed ?? true;
+  
+      const response = await axios.get(
+        `https://api.counterparty.io:4000/v2/addresses/${address}/transactions`,
+        {
+          params: {
+            verbose,
+            show_unconfirmed,
+            limit,
+            offset,
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      throw error;
+    }
+  }
+  
+  /**
    * Fetches dispensers for a given address with optional status filter
    */
   export async function fetchAddressDispensers(
@@ -8633,7 +10886,7 @@ File Contents:
     sourceAddress: string;
     signal?: AbortSignal;
     // New fee parameters:
-    sat_per_vbyte?: number;
+    sat_per_vbyte: number;
     max_fee?: number;
     // New output/UTXO selection flags:
     change_address?: string;
@@ -9681,6 +11934,14 @@ File Contents:
     return decryptString(encrypted, password);
   }
 
+/src/utils/estimateGas.ts
+  [contents of the file]
+  import { getSweepEstimateXcpFee } from "./blockchain/counterparty/compose";
+  
+  export const estimateGasForSweep = async (sourceAddress: string): Promise<number> => {
+    return getSweepEstimateXcpFee(sourceAddress);
+  }; 
+
 /src/utils/format.test.ts
   [contents of the file]
   import { describe, it, expect } from 'vitest';
@@ -10349,7 +12610,7 @@ File Contents:
       if (this.wallets.length >= MAX_WALLETS) {
         throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
       }
-      const walletName = name || `PK ${this.wallets.length + 1}`;
+      const walletName = name || `Wallet ${this.wallets.length + 1}`;
       let privateKeyHex: string;
       let compressed = true;
       if (isWIF(privateKey)) {
@@ -10457,11 +12718,34 @@ File Contents:
     public async removeWallet(walletId: string): Promise<void> {
       const idx = this.wallets.findIndex((w) => w.id === walletId);
       if (idx === -1) throw new Error('Wallet not found in memory.');
+      
       this.wallets.splice(idx, 1);
       sessionManager.clearUnlockedSecret(walletId);
       await removeEncryptedWalletRecord(walletId);
+      
       if (this.activeWalletId === walletId) {
         this.activeWalletId = null;
+      }
+  
+      // Renumber remaining wallets
+      await this.renumberWallets();
+    }
+    private async renumberWallets(): Promise<void> {
+      for (let i = 0; i < this.wallets.length; i++) {
+        const wallet = this.wallets[i];
+        const newName = `Wallet ${i + 1}`;
+        
+        if (wallet.name.match(/^Wallet \d+$/)) {
+          wallet.name = newName;
+          
+          // Update the name in storage
+          const allRecords = await getAllEncryptedWallets();
+          const record = allRecords.find((r) => r.id === wallet.id);
+          if (record) {
+            record.name = newName;
+            await updateEncryptedWallet(record);
+          }
+        }
       }
     }
     public async verifyPassword(password: string): Promise<boolean> {
@@ -10565,8 +12849,7 @@ File Contents:
       addressType: AddressType = AddressType.P2WPKH
     ): Promise<Wallet> {
       if (!name) {
-        const mnemonicWallets = this.wallets.filter(w => w.type === 'mnemonic');
-        name = `Wallet ${mnemonicWallets.length + 1}`;
+        name = `Wallet ${this.wallets.length + 1}`;
       }
       const newWallet = await this.createMnemonicWallet(mnemonic, password, name, addressType);
       await this.unlockWallet(newWallet.id, password);
@@ -10580,8 +12863,7 @@ File Contents:
       addressType: AddressType = AddressType.P2WPKH
     ): Promise<Wallet> {
       if (!name) {
-        const privateKeyWallets = this.wallets.filter(w => w.type === 'privateKey');
-        name = `PK ${privateKeyWallets.length + 1}`;
+        name = `Wallet ${this.wallets.length + 1}`;
       }
       const newWallet = await this.createPrivateKeyWallet(privateKey, password, name, addressType);
       await this.unlockWallet(newWallet.id, password);
@@ -10719,6 +13001,7 @@ File Contents:
         },
       ],
       permissions: [
+        'sidePanel',
         'storage',
       ],
     },

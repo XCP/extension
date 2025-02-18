@@ -133,7 +133,7 @@ export default function Index() {
         </Button>
         <Button
           color="gray"
-          onClick={() => navigate("/history")}
+          onClick={() => navigate("/address-history")}
           className="flex-col !py-4"
           aria-label="Transaction history"
         >

@@ -18,3 +18,5 @@ export function ComposeSend() {
     </div>
   );
 }
+
+export default ComposeSend;
