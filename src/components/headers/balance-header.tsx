@@ -19,10 +19,7 @@ interface BalanceHeaderProps {
   className?: string;
 }
 
-export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
-  balance,
-  className = "",
-}) => {
+export const BalanceHeader = ({ balance, className = "" }: BalanceHeaderProps) => {
   const formattedBalance = balance.quantity_normalized
     ? formatAmount({
         value: Number(balance.quantity_normalized),

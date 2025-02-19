@@ -8,11 +8,7 @@ interface AddressHeaderProps {
   className?: string;
 }
 
-export const AddressHeader: React.FC<AddressHeaderProps> = ({
-  address,
-  walletName,
-  className = '',
-}) => {
+export const AddressHeader = ({ address, walletName, className = '' }: AddressHeaderProps) => {
   return (
     <div className={`flex items-center ${className}`}>
       <img

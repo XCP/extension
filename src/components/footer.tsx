@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { FaWallet, FaUniversity, FaTools, FaCog } from 'react-icons/fa';
 import { Button } from '@/components/button';
 
-const Footer: React.FC = () => {
+const Footer = () => {
   const navigate = useNavigate();
   const location = useLocation();
 

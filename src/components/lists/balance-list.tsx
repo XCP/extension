@@ -15,12 +15,11 @@ export interface BalanceItem {
   loading: boolean;
 }
 
-interface BalanceListProps {
-  visible: boolean;
-  scrollContainer: HTMLDivElement | null;
+interface BalanceItemProps {
+  token: TokenBalance;
 }
 
-const BalanceItemComponent: React.FC<{ token: TokenBalance }> = ({ token }) => {
+const BalanceItemComponent = ({ token }: BalanceItemProps) => {
   const navigate = useNavigate();
   const imageUrl = `https://app.xcp.io/img/icon/${token.asset}`;
   return (
@@ -55,7 +54,12 @@ const BalanceItemComponent: React.FC<{ token: TokenBalance }> = ({ token }) => {
   );
 };
 
-export const BalanceList: React.FC<BalanceListProps> = ({ visible, scrollContainer }) => {
+interface BalanceListProps {
+  visible: boolean;
+  scrollContainer: HTMLDivElement | null;
+}
+
+export const BalanceList = ({ visible, scrollContainer }: BalanceListProps) => {
   const { activeWallet, activeAddress } = useWallet();
   const [tokenBalances, setTokenBalances] = useState<BalanceItem[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -177,7 +181,7 @@ export const BalanceList: React.FC<BalanceListProps> = ({ visible, scrollContain
         }
 
         // Always update the offset so that duplicates in the current page
-        // don’t prevent subsequent pages from being requested.
+        // don't prevent subsequent pages from being requested.
         setOffset((prev) => prev + 10);
 
         // If fewer than 10 tokens were returned from the API, assume no more data.

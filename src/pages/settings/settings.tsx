@@ -5,7 +5,7 @@ import { useWallet } from '@/contexts/wallet-context';
 import { useHeader } from '@/contexts/header-context';
 import { AddressType } from '@/utils/blockchain/bitcoin';
 
-const Settings: React.FC = () => {
+const Settings = () => {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeWallet } = useWallet();

@@ -42,13 +42,13 @@ function estimateTransactionSize(numInputs: number, numOutputs: number): number 
   return size;
 }
 
-export const ConsolidationReview: React.FC<ConsolidationReviewProps> = ({
+export const ConsolidationReview = ({
   apiResponse,
   onSign,
   onBack,
   error,
   setError
-}) => {
+}: ConsolidationReviewProps) => {
   const [isSigning, setIsSigning] = useState(false);
   const { params, utxoData } = apiResponse;
 

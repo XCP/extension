@@ -15,10 +15,10 @@ export interface OwnedAsset {
 
 interface AssetListProps {
   visible: boolean;
-  scrollContainer: HTMLDivElement | null; // Provided for consistency if needed in the future
+  scrollContainer: HTMLDivElement | null;
 }
 
-export const AssetList: React.FC<AssetListProps> = ({ visible, scrollContainer }) => {
+export const AssetList = ({ visible, scrollContainer }: AssetListProps) => {
   const { activeAddress } = useWallet();
   const [ownedAssets, setOwnedAssets] = useState<OwnedAsset[]>([]);
   const [isLoadingAssets, setIsLoadingAssets] = useState(false);

@@ -29,13 +29,13 @@ interface QRCodeProps {
   ariaLabel?: string;
 }
 
-export const QRCode: React.FC<QRCodeProps> = React.memo(({
+export const QRCode = React.memo(({
   text,
   width = 270,
   logo: customLogo,
   className = '',
   ariaLabel,
-}) => {
+}: QRCodeProps) => {
   const { Canvas } = useQRCode();
 
   const logoConfig = customLogo || {

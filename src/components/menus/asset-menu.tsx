@@ -15,7 +15,7 @@ interface AssetMenuProps {
   };
 }
 
-export const AssetMenu: React.FC<AssetMenuProps> = ({ ownedAsset }) => {
+export const AssetMenu = ({ ownedAsset }: AssetMenuProps) => {
   const navigate = useNavigate();
 
   const handleMenuClick = (e: React.MouseEvent) => {

@@ -7,7 +7,7 @@ interface ErrorAlertProps {
   onClose?: () => void;
 }
 
-export const ErrorAlert: React.FC<ErrorAlertProps> = ({ message, onClose }) => {
+export const ErrorAlert = ({ message, onClose }: ErrorAlertProps) => {
   return (
     <div 
       className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 relative" 

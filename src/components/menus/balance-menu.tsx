@@ -8,7 +8,7 @@ interface BalanceMenuProps {
   asset: string;
 }
 
-export const BalanceMenu: React.FC<BalanceMenuProps> = ({ asset }) => {
+export const BalanceMenu = ({ asset }: BalanceMenuProps) => {
   const navigate = useNavigate();
 
   const handleMore = (e: React.MouseEvent) => {
