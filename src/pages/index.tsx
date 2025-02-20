@@ -31,9 +31,6 @@ export default function Index() {
 
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
 
-  // We want to reuse the same scroll container for both lists (for inView/infinite scroll)
-  const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
-
   useEffect(() => {
     setHeaderProps({
       useLogoTitle: true,
@@ -207,18 +204,13 @@ export default function Index() {
 
   return (
     <div className="flex flex-col h-full" role="main">
-      {/* Attach the scroll container element via the setter */}
-      <div
-        ref={setScrollContainer}
-        className="flex-grow overflow-y-auto no-scrollbar p-4"
-      >
+      <div className="flex-grow overflow-y-auto no-scrollbar p-4">
         {content}
-        {/* Always mount both list components but hide the one not active */}
         <div style={{ display: activeTab === "Balances" ? "block" : "none" }}>
-          <BalanceList visible={activeTab === "Balances"} scrollContainer={scrollContainer} />
+          <BalanceList />
         </div>
         <div style={{ display: activeTab === "Assets" ? "block" : "none" }}>
-          <AssetList visible={activeTab === "Assets"} scrollContainer={scrollContainer} />
+          <AssetList />
         </div>
       </div>
     </div>
