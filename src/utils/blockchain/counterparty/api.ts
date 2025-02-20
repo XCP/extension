@@ -148,7 +148,7 @@ export async function fetchTokenBalances(
     const limit = options.limit ?? 100;
     const offset = options.offset ?? 0;
     const verbose = options.verbose ?? true;
-    const sort = options.sort ?? 'asset:desc';
+    const sort = options.sort ?? null;
 
     const response = await axios.get(
       `https://api.counterparty.io:4000/v2/addresses/${address}/balances`,

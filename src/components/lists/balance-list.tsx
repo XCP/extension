@@ -9,18 +9,7 @@ import { fetchTokenBalance, fetchTokenBalances } from "@/utils/blockchain/counte
 import type { TokenBalance } from "@/utils/blockchain/counterparty";
 import { formatAmount, formatAsset } from "@/utils/format";
 
-
-export interface BalanceItem {
-  asset: string;
-  balance?: TokenBalance;
-  loading: boolean;
-}
-
-interface BalanceItemProps {
-  token: TokenBalance;
-}
-
-const BalanceItemComponent = ({ token }: BalanceItemProps) => {
+const BalanceItemComponent = ({ token }: { token: TokenBalance }) => {
   const navigate = useNavigate();
   const imageUrl = `https://app.xcp.io/img/icon/${token.asset}`;
 
@@ -66,40 +55,46 @@ const BalanceItemComponent = ({ token }: BalanceItemProps) => {
   );
 };
 
-interface BalanceListProps {}
-
-export const BalanceList = ({}: BalanceListProps) => {
+export const BalanceList = () => {
   const { activeWallet, activeAddress } = useWallet();
-  const [tokenBalances, setTokenBalances] = useState<BalanceItem[]>([]);
-  const [pinnedBalances, setPinnedBalances] = useState<BalanceItem[]>([]);
+  const [allBalances, setAllBalances] = useState<TokenBalance[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const existingAssetsRef = useRef<Set<string>>(new Set());
 
   const { ref: loadMoreRef, inView } = useInView({
     rootMargin: "200px",
     threshold: 0,
-    triggerOnce: false,
   });
+
+  // Helper to add or update balance in our state (to avoid duplicates)
+  const upsertBalance = (balance: TokenBalance) => {
+    setAllBalances((prev) => {
+      const idx = prev.findIndex(
+        (b) => b.asset.toUpperCase() === balance.asset.toUpperCase()
+      );
+      if (idx > -1) {
+        const newBalances = [...prev];
+        newBalances[idx] = balance;
+        return newBalances;
+      }
+      return [...prev, balance];
+    });
+  };
 
   useEffect(() => {
     if (!activeAddress || !activeWallet) return;
-    let isCancelled = false;
+    // Reset state on wallet change
+    setIsInitialLoading(true);
+    setOffset(0);
+    setHasMore(true);
+    setAllBalances([]);
+
     async function loadInitialBalances() {
+      if (!activeAddress || !activeWallet) return;
       try {
-        setIsInitialLoading(true);
-        setOffset(0);
-        setHasMore(true);
-        existingAssetsRef.current = new Set();
-        const pinnedAssets = activeWallet?.pinnedAssetBalances ?? [];
-        const initialBalances: BalanceItem[] = [
-          { asset: "BTC", loading: true },
-          ...pinnedAssets.map(asset => ({ asset, loading: true }))
-        ];
-        setPinnedBalances(initialBalances);
-        setTokenBalances([]);
+        // Fetch BTC balance
         const balanceSats = await fetchBTCBalance(activeAddress.address);
         const balanceBTC = balanceSats / 1e8;
         const btcBalance: TokenBalance = {
@@ -114,117 +109,58 @@ export const BalanceList = ({}: BalanceListProps) => {
             supply: "21000000",
           },
         };
-        if (!isCancelled) {
-          setPinnedBalances(prev =>
-            prev.map(item =>
-              item.asset === "BTC" ? { asset: "BTC", balance: btcBalance, loading: false } : item
-            )
-          );
-          existingAssetsRef.current.add("BTC");
-        }
+        upsertBalance(btcBalance);
+
+        // Load pinned token balances
+        const pinnedAssets = activeWallet.pinnedAssetBalances || [];
         for (const asset of pinnedAssets) {
-          if (asset === "BTC") continue;
+          if (asset.toUpperCase() === "BTC") continue;
           try {
             const balance = await fetchTokenBalance(activeAddress.address, asset);
-            if (!isCancelled && balance) {
-              setPinnedBalances(prev =>
-                prev.map(item =>
-                  item.asset === asset ? { asset, balance, loading: false } : item
-                )
-              );
-              existingAssetsRef.current.add(asset);
+            if (balance) {
+              upsertBalance(balance);
             }
           } catch (error) {
             console.error(`Error fetching ${asset} balance:`, error);
-            if (!isCancelled) {
-              setPinnedBalances(prev => prev.filter(item => item.asset !== asset));
-            }
           }
         }
       } catch (error) {
         console.error("Error in loadInitialBalances:", error);
       } finally {
-        if (!isCancelled) {
-          setIsInitialLoading(false);
-        }
+        setIsInitialLoading(false);
       }
     }
     loadInitialBalances();
-    return () => {
-      isCancelled = true;
-    };
   }, [activeAddress, activeWallet]);
 
   useEffect(() => {
-    if (!activeAddress || !activeWallet || !hasMore || isInitialLoading) {
-      return;
-    }
-    if (!inView) {
-      return;
-    }
-    let isCancelled = false;
+    if (!activeAddress || !activeWallet || !hasMore || isInitialLoading) return;
+    if (!inView) return;
+
     async function loadMoreBalances() {
       setIsFetchingMore(true);
       try {
-        if (!activeAddress) return;
-        const fetchedBalances = await fetchTokenBalances(activeAddress.address, { 
-          limit: 10, 
-          offset: offset,
-          sort: "asset:asc"
+        const fetchedBalances = await fetchTokenBalances(activeAddress!.address, {
+          limit: 10,
+          offset,
         });
-        if (!activeWallet) return;
-        const pinnedAssets = new Set([
-          "BTC",
-          ...((activeWallet.pinnedAssetBalances || []).map(a => a.toUpperCase()))
-        ]);
-        const filtered = fetchedBalances.filter((balance) => {
-          const normalized = balance.asset.toUpperCase();
-          const quantity = Number(balance.quantity_normalized || "0");
-          const isNotPinned = !pinnedAssets.has(normalized);
-          const isNotDuplicate = !existingAssetsRef.current.has(normalized);
-          const hasPositiveBalance = quantity > 0;
-          return hasPositiveBalance && isNotDuplicate && isNotPinned;
-        });
-        filtered.forEach((balance) =>
-          existingAssetsRef.current.add(balance.asset.toUpperCase())
-        );
-        if (!isCancelled) {
-          if (filtered.length > 0) {
-            setTokenBalances((prev) => {
-              const newBalances = [
-                ...prev,
-                ...filtered.map((balance) => ({
-                  asset: balance.asset.toUpperCase(),
-                  balance,
-                  loading: false,
-                })),
-              ];
-              return newBalances;
-            });
-            setOffset((prev) => prev + 10);
-          }
-          if (fetchedBalances.length < 10 || filtered.length === 0) {
-            setHasMore(false);
-          }
-        }
-      } catch (error) {
-        if (!isCancelled) {
+        // If API returns fewer than limit, no more pages
+        if (fetchedBalances.length < 10) {
           setHasMore(false);
         }
+        // Append new balances
+        fetchedBalances.forEach((balance) => upsertBalance(balance));
+        // Advance offset regardless of whether new assets were added
+        setOffset((prev) => prev + 10);
+      } catch (error) {
+        console.error("Error fetching more balances:", error);
+        setHasMore(false);
       } finally {
-        if (!isCancelled) {
-          setIsFetchingMore(false);
-        }
+        setIsFetchingMore(false);
       }
     }
     loadMoreBalances();
-    return () => {
-      isCancelled = true;
-    };
-  }, [inView, activeAddress, activeWallet, hasMore, offset, isInitialLoading]);
-
-  useEffect(() => {
-  }, [inView]);
+  }, [inView, activeAddress, activeWallet, hasMore, isInitialLoading, offset]);
 
   if (isInitialLoading) {
     return (
@@ -234,39 +170,26 @@ export const BalanceList = ({}: BalanceListProps) => {
     );
   }
 
-  if (pinnedBalances.length === 0 && tokenBalances.length === 0) {
-    return <div className="text-center mt-4">No balances to display.</div>;
-  }
+  // During render, separate pinned vs. non-pinned balances
+  const pinnedAssets = (activeWallet?.pinnedAssetBalances || [])
+    .map((a) => a.toUpperCase())
+    .concat("BTC"); // Ensure BTC is treated as pinned
+  const pinnedBalances = allBalances.filter((balance) =>
+    pinnedAssets.includes(balance.asset.toUpperCase())
+  );
+  const otherBalances = allBalances.filter(
+    (balance) => !pinnedAssets.includes(balance.asset.toUpperCase())
+  );
 
   return (
     <div className="space-y-2">
-      {pinnedBalances.map((item) =>
-        item.loading ? (
-          <div
-            key={`${item.asset}-loading`}
-            className="relative flex items-center p-3 bg-white rounded-lg shadow-sm animate-pulse"
-          >
-            <div className="w-12 h-12 bg-gray-200 rounded-md"></div>
-            <div className="ml-3 flex-grow">
-              <div className="h-4 w-24 bg-gray-200 rounded mb-2"></div>
-              <div className="h-4 w-16 bg-gray-200 rounded"></div>
-            </div>
-          </div>
-        ) : (
-          item.balance && (
-            <BalanceItemComponent token={item.balance} key={`${item.asset}-balance`} />
-          )
-        )
-      )}
-      {tokenBalances.map((item) => (
-        item.balance && (
-          <BalanceItemComponent token={item.balance} key={`${item.asset}-balance`} />
-        )
+      {pinnedBalances.map((balance) => (
+        <BalanceItemComponent token={balance} key={balance.asset} />
       ))}
-      <div 
-        ref={loadMoreRef} 
-        className="flex flex-col justify-center items-center py-4"
-      >
+      {otherBalances.map((balance) => (
+        <BalanceItemComponent token={balance} key={balance.asset} />
+      ))}
+      <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-4">
         {hasMore ? (
           isFetchingMore ? (
             <div className="py-4">
