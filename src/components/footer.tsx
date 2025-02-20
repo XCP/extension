@@ -1,6 +1,5 @@
-import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaWallet, FaUniversity, FaTools, FaCog } from 'react-icons/fa';
+import { FaWallet, FaTools, FaCog } from 'react-icons/fa';
 import { Button } from '@/components/button';
 
 const Footer = () => {
@@ -13,7 +12,7 @@ const Footer = () => {
 
   return (
     <div className="p-2 bg-white border-t border-gray-300">
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <Button
           variant="transparent"
           fullWidth
@@ -22,16 +21,6 @@ const Footer = () => {
         >
           <div className="flex flex-col items-center">
             <FaWallet className="text-lg mb-1" />
-          </div>
-        </Button>
-        <Button
-          variant="transparent"
-          fullWidth
-          onClick={() => handleNavigation('/trade', 'Footer - Trade')}
-          className={`hover:bg-gray-100 ${location.pathname === '/trade' ? 'text-blue-600' : 'text-gray-600'}`}
-        >
-          <div className="flex flex-col items-center">
-            <FaUniversity className="text-lg mb-1" />
           </div>
         </Button>
         <Button

@@ -211,7 +211,7 @@ export const BalanceList = () => {
             <div className="text-sm text-gray-500">Loading more...</div>
           )
         ) : (
-          <div className="text-sm text-gray-500">No more assets to load</div>
+          <div className="text-sm text-gray-500"></div>
         )}
       </div>
     </div>
