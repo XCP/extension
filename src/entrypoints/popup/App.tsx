@@ -44,6 +44,9 @@ import ComposeIssuanceUpdateDescription from '@/pages/compose/issuance/update-de
 import ComposeFairminter from '@/pages/compose/fairminter/page';
 import ComposeSend from '@/pages/compose/send/page';
 import ComposeSweep from '@/pages/compose/sweep/page';
+import ComposeUtxoAttach from '@/pages/compose/utxo/attach/page';
+import ComposeUtxoDetach from '@/pages/compose/utxo/detach/page';
+import ComposeUtxoMove from '@/pages/compose/utxo/move/page';
 
 // Wallet pages
 import AddWallet from '@/pages/wallet/add-wallet';
@@ -138,6 +141,8 @@ export default function App() {
           <Route path="/select-address" element={<SelectAddress />} />
           <Route path="/view-address" element={<ViewAddress />} />
           <Route path="/select-assets" element={<SelectAssets />} />
+          <Route path="/asset/:asset" element={<ViewAsset />} />
+          <Route path="/balance/:asset" element={<ViewBalance />} />
           <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
           <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptions />} />
           <Route path="/compose/btcpay" element={<ComposeBTCPay />} />
@@ -156,8 +161,9 @@ export default function App() {
           <Route path="/compose/issuance/update-description/:asset" element={<ComposeIssuanceUpdateDescription />} />
           <Route path="/compose/issuance/destroy/:asset" element={<ComposeDestroy />} />
           <Route path="/compose/fairminter/:asset?" element={<ComposeFairminter />} />
-          <Route path="/asset/:asset" element={<ViewAsset />} />
-          <Route path="/balance/:asset" element={<ViewBalance />} />
+          <Route path="/compose/utxo/attach/:asset" element={<ComposeUtxoAttach />} />
+          <Route path="/compose/utxo/detach/:utxo" element={<ComposeUtxoDetach />} />
+          <Route path="/compose/utxo/move/:utxo" element={<ComposeUtxoMove />} />
         </Route>
       </Route>
 
