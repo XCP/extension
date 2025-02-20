@@ -180,9 +180,15 @@ export const BalanceList = () => {
   const pinnedAssets = (activeWallet?.pinnedAssetBalances || [])
     .map((a) => a.toUpperCase())
     .concat("BTC"); // Ensure BTC is treated as pinned
-  const pinnedBalances = allBalances.filter((balance) =>
-    pinnedAssets.includes(balance.asset.toUpperCase())
-  );
+
+  const pinnedBalances = allBalances.filter((balance) => {
+    const isAlwaysShow = ["BTC", "XCP"].includes(balance.asset.toUpperCase());
+    const isPinned = pinnedAssets.includes(balance.asset.toUpperCase());
+    const hasBalance = Number(balance.quantity_normalized) > 0;
+
+    return isPinned && (isAlwaysShow || hasBalance);
+  });
+
   const otherBalances = allBalances.filter(
     (balance) => !pinnedAssets.includes(balance.asset.toUpperCase())
   );

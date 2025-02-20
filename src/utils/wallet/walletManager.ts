@@ -360,15 +360,27 @@ export class WalletManager {
     if (!mnemonic) {
       throw new Error('Wallet is locked. Please unlock first.');
     }
+
+    // Update the wallet in memory
     wallet.addressType = newType;
     wallet.addressCount = 1;
     wallet.addresses = [this.deriveMnemonicAddress(mnemonic, newType, 0)];
+
+    // Update the storage record
     const allRecords = await getAllEncryptedWallets();
     const record = allRecords.find((r) => r.id === walletId);
     if (!record) throw new Error('Missing storage record.');
+    
     record.addressType = newType;
     record.addressCount = 1;
+    record.previewAddress = wallet.addresses[0].address;
+    
     await updateEncryptedWallet(record);
+
+    // Force a refresh of the active wallet if this is the active wallet
+    if (this.activeWalletId === walletId) {
+        this.setActiveWallet(walletId);
+    }
   }
   public async updateWalletPinnedAssets(walletId: string, pinned: string[]): Promise<void> {
     const wallet = this.getWalletById(walletId);

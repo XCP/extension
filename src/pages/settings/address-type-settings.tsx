@@ -16,8 +16,7 @@ export function AddressTypeSettings() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const currentWallet = activeWallet;
+  const [selectedType, setSelectedType] = useState<AddressType | null>(null);
 
   const availableAddressTypes = useMemo(
     () => Object.values(AddressType).filter((type) => type !== AddressType.Counterwallet),
@@ -33,7 +32,7 @@ export function AddressTypeSettings() {
 
   useEffect(() => {
     const fetchAddresses = async () => {
-      if (!currentWallet) {
+      if (!activeWallet) {
         setIsLoading(false);
         return;
       }
@@ -42,7 +41,7 @@ export function AddressTypeSettings() {
         const addressMap: { [key: string]: string } = {};
         for (const type of availableAddressTypes) {
           try {
-            const previewAddress = await getPreviewAddressForType(currentWallet.id, type);
+            const previewAddress = await getPreviewAddressForType(activeWallet.id, type);
             addressMap[type] = previewAddress;
           } catch (error) {
             console.error(`Error generating address for type ${type}:`, error);
@@ -58,19 +57,30 @@ export function AddressTypeSettings() {
       }
     };
 
+    setIsLoading(true);
     fetchAddresses();
-  }, [currentWallet, availableAddressTypes, getPreviewAddressForType]);
+  }, [activeWallet, availableAddressTypes, getPreviewAddressForType]);
+
+  useEffect(() => {
+    if (activeWallet) {
+      setSelectedType(activeWallet.addressType);
+    }
+  }, [activeWallet]);
 
   const handleAddressTypeChange = async (newType: AddressType) => {
-    if (!currentWallet) return;
+    if (!activeWallet) return;
     
     try {
       setIsUpdating(true);
-      await updateWalletAddressType(currentWallet.id, newType);
-      const previewAddress = await getPreviewAddressForType(currentWallet.id, newType);
-      setAddresses((prev) => ({ ...prev, [newType]: previewAddress }));
+      await updateWalletAddressType(activeWallet.id, newType);
+      
+      // Fetch the new preview address for the selected type
+      const previewAddress = await getPreviewAddressForType(activeWallet.id, newType);
+      setAddresses(prev => ({ ...prev, [newType]: previewAddress }));
+      
     } catch (error) {
       console.error('Error updating address type:', error);
+      setError(error instanceof Error ? error.message : 'Failed to update address type');
     } finally {
       setIsUpdating(false);
     }
@@ -92,7 +102,7 @@ export function AddressTypeSettings() {
   };
 
   if (isLoading) {
-    return <Loading showMessage={true} message="Loading addresses..." />;
+    return <Loading message="Loading addresses..." />;
   }
 
   if (error) {
@@ -103,7 +113,7 @@ export function AddressTypeSettings() {
     );
   }
 
-  if (!currentWallet) {
+  if (!activeWallet) {
     return (
       <div className="p-4 text-center text-gray-500">
         No wallet available
@@ -114,7 +124,7 @@ export function AddressTypeSettings() {
   return (
     <div className="space-y-2 p-4">
       <RadioGroup
-        value={currentWallet.addressType}
+        value={selectedType}
         onChange={handleAddressTypeChange}
         className="space-y-2"
         disabled={isUpdating}
@@ -137,9 +147,10 @@ export function AddressTypeSettings() {
                 relative w-full rounded transition duration-300 p-4
                 ${isDisabled 
                   ? 'cursor-not-allowed bg-gray-300' 
-                  : (checked 
+                  : checked 
                     ? 'cursor-pointer bg-white shadow-md' 
-                    : 'cursor-pointer bg-white hover:bg-gray-50')}
+                    : 'cursor-pointer bg-white hover:bg-gray-50'}
+                ${isUpdating ? 'opacity-50' : ''}
               `}
             >
               {({ checked }) => (
