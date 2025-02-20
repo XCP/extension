@@ -61,9 +61,18 @@ export function Composer({
   } = useComposer();
 
   const handleBack = useCallback(() => {
-    setApiResponse(null);
-    setStep("form");
-  }, [setApiResponse, setStep]);
+    if (step === "review") {
+      // Only clear apiResponse when going back from review to form
+      setApiResponse(null);
+      setStep("form");
+    } else {
+      // Clear everything when going back from form or success
+      setStep("form");
+      setApiResponse(null);
+      setFormData(null);
+      navigate(-1);
+    }
+  }, [step, setApiResponse, setStep, setFormData, navigate]);
 
   const headerConfig = useMemo(() => {
     if (isLoading) {
@@ -93,7 +102,7 @@ export function Composer({
 
     return {
       title: initialTitle,
-      onBack: () => navigate(-1),
+      onBack: headerCallbacks?.onBack || handleBack,
       rightButton: {
         icon: <FiHelpCircle className="w-4 h-4" />,
         onClick: effectiveToggleHelp,
@@ -178,10 +187,13 @@ export function Composer({
         <SuccessScreen
           apiResponse={apiResponse}
           onReset={() => {
-            // Reset state back to form (or call headerCallbacks?.onReset)
-            setStep("form");
-            setApiResponse(null);
-            setFormData(null);
+            if (headerCallbacks?.onReset) {
+              headerCallbacks.onReset();
+            } else {
+              setStep("form");
+              setApiResponse(null);
+              setFormData(null);
+            }
           }}
         />
       )}

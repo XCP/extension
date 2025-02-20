@@ -3,19 +3,15 @@ import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { formatAddress, formatAmount } from "@/utils/format";
 
-interface ReviewDispenserProps {
+interface ReviewBetProps {
   apiResponse: any;
   onSign: () => void;
   onBack: () => void;
-  asset: string;
 }
 
-export function ReviewDispenser({ apiResponse, onSign, onBack, asset }: ReviewDispenserProps) {
+export function ReviewBet({ apiResponse, onSign, onBack }: ReviewBetProps) {
   const [isSigning, setIsSigning] = useState(false);
   const { result } = apiResponse;
-  
-  // Get asset divisibility from the extra data saved during form submission
-  const assetDivisible = result.params.extra?.assetDivisible ?? true;
 
   const handleSignClick = async () => {
     setIsSigning(true);
@@ -27,13 +23,11 @@ export function ReviewDispenser({ apiResponse, onSign, onBack, asset }: ReviewDi
   };
 
   const formatQuantity = (quantity: number) =>
-    assetDivisible
-      ? formatAmount({
-          value: quantity / 1e8,
-          minimumFractionDigits: 8,
-          maximumFractionDigits: 8,
-        })
-      : quantity.toString();
+    formatAmount({
+      value: quantity / 1e8,
+      minimumFractionDigits: 8,
+      maximumFractionDigits: 8,
+    });
 
   const formatBTCAmount = (amount: number) =>
     formatAmount({
@@ -42,9 +36,16 @@ export function ReviewDispenser({ apiResponse, onSign, onBack, asset }: ReviewDi
       maximumFractionDigits: 8,
     });
 
+  const betTypeMapping: { [key: string]: string } = {
+    "0": "Bullish CFD (deprecated)",
+    "1": "Bearish CFD (deprecated)",
+    "2": "Equal",
+    "3": "NotEqual",
+  };
+
   return (
     <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
-      <h3 className="text-lg font-bold">Review Dispenser</h3>
+      <h3 className="text-lg font-bold">Review Bet Transaction</h3>
 
       {result.error && (
         <ErrorAlert message={result.error} onClose={() => {}} />
@@ -57,28 +58,56 @@ export function ReviewDispenser({ apiResponse, onSign, onBack, asset }: ReviewDi
             {formatAddress(result.params.source, true)}
           </div>
         </div>
-
         <div className="space-y-1">
-          <span className="font-semibold text-gray-700">Dispenser Escrow:</span>
-          <div className="bg-gray-50 p-2 rounded text-gray-900">
-            {`${formatQuantity(Number(result.params.escrow_quantity))} ${asset}`}
+          <span className="font-semibold text-gray-700">Feed Address:</span>
+          <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+            {result.params.feed_address}
           </div>
         </div>
-
         <div className="space-y-1">
-          <span className="font-semibold text-gray-700">Dispense Amount:</span>
-          <div className="bg-gray-50 p-2 rounded text-gray-900">
-            {`${formatQuantity(Number(result.params.give_quantity))} ${asset}`}
+          <span className="font-semibold text-gray-700">Bet Type:</span>
+          <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+            {betTypeMapping[result.params.bet_type] || result.params.bet_type}
           </div>
         </div>
-
         <div className="space-y-1">
-          <span className="font-semibold text-gray-700">BTC Per Dispense:</span>
-          <div className="bg-gray-50 p-2 rounded text-gray-900">
-            {`${formatBTCAmount(Number(result.params.mainchainrate))} BTC`}
+          <span className="font-semibold text-gray-700">Deadline:</span>
+          <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+            {result.params.deadline}
           </div>
         </div>
-
+        <div className="space-y-1">
+          <span className="font-semibold text-gray-700">Wager Quantity:</span>
+          <div className="bg-gray-50 p-2 rounded text-gray-900">
+            {`${formatQuantity(Number(result.params.wager_quantity))} XCP`}
+          </div>
+        </div>
+        <div className="space-y-1">
+          <span className="font-semibold text-gray-700">Counterwager Quantity:</span>
+          <div className="bg-gray-50 p-2 rounded text-gray-900">
+            {`${formatQuantity(Number(result.params.counterwager_quantity))} XCP`}
+          </div>
+        </div>
+        <div className="space-y-1">
+          <span className="font-semibold text-gray-700">Expiration (Blocks):</span>
+          <div className="bg-gray-50 p-2 rounded text-gray-900">
+            {result.params.expiration}
+          </div>
+        </div>
+        <div className="space-y-1">
+          <span className="font-semibold text-gray-700">Leverage:</span>
+          <div className="bg-gray-50 p-2 rounded text-gray-900">
+            {result.params.leverage}
+          </div>
+        </div>
+        {result.params.target_value && (
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">Target Value:</span>
+            <div className="bg-gray-50 p-2 rounded text-gray-900">
+              {result.params.target_value}
+            </div>
+          </div>
+        )}
         <div className="space-y-1">
           <span className="font-semibold text-gray-700">Fee:</span>
           <div className="bg-gray-50 p-2 rounded text-gray-900">

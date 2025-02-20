@@ -1,4 +1,4 @@
-import React, { FC, useState, useRef, useEffect, useMemo, FormEvent } from 'react';
+import React, { useState, useRef, useEffect, useMemo, FormEvent } from 'react';
 import { Button } from '@/components/button';
 import { AmountWithMaxInput } from '@/components/inputs/amount-with-max-input';
 import { AssetSelectInput } from '@/components/inputs/asset-select-input';
@@ -34,7 +34,7 @@ interface OrderFormProps {
   setIsPairFlipped: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export const OrderForm: FC<OrderFormProps> = ({
+export const OrderForm = ({
   giveAsset,
   onSubmit,
   shouldShowHelpText,
@@ -45,7 +45,7 @@ export const OrderForm: FC<OrderFormProps> = ({
   handleOrderTypeChange,
   isPairFlipped,
   setIsPairFlipped,
-}) => {
+}: OrderFormProps) => {
   const [formData, setFormData] = useState<OrderFormData>({
     type: 'sell',
     amount: '',

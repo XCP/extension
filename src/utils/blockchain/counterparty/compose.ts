@@ -51,15 +51,12 @@ export interface ApiResponse {
 export interface ComposeOptions {
   sourceAddress: string;
   signal?: AbortSignal;
-  // New fee parameters:
   sat_per_vbyte: number;
   max_fee?: number;
-  // New output/UTXO selection flags:
   change_address?: string;
-  more_outputs?: string; // e.g. "1000:address1,2000:address2"
+  more_outputs?: string;
   use_all_inputs_set?: boolean;
   multisig_pubkey?: string;
-  // Other parameters specific to each transaction type:
   [key: string]: any;
 }
 
@@ -70,13 +67,18 @@ export async function composeTransaction(
   signal?: AbortSignal
 ): Promise<ApiResponse> {
   const apiUrl = `https://api.counterparty.io:4000/v2/addresses/${sourceAddress}/compose/${endpoint}`;
+  
   const params = new URLSearchParams({
     ...paramsObj,
+    sat_per_vbyte: paramsObj.sat_per_vbyte.toString(),
     exclude_utxos_with_balances: 'true',
     allow_unconfirmed_inputs: 'true',
     disable_utxo_locks: 'true',
     verbose: 'true',
   });
+
+  console.log('Final API URL params:', params.toString());
+
   const response = await axios.get<ApiResponse>(`${apiUrl}?${params.toString()}`, {
     headers: { 'Content-Type': 'application/json' },
     signal,
@@ -107,8 +109,8 @@ export async function composeBet(options: ComposeOptions): Promise<ApiResponse> 
     counterwager_quantity: counterwager_quantity.toString(),
     expiration: expiration.toString(),
     leverage: leverage.toString(),
+    sat_per_vbyte,
     ...(target_value !== undefined && { target_value: target_value.toString() }),
-    ...(sat_per_vbyte !== undefined && { sat_per_vbyte: sat_per_vbyte.toString() }),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('bet', paramsObj, sourceAddress, signal);
@@ -125,14 +127,16 @@ export async function composeBroadcast(options: ComposeOptions): Promise<ApiResp
     max_fee,
     signal,
   } = options;
+  
   const paramsObj: any = {
     text,
     value,
     fee_fraction,
     timestamp,
-    ...(sat_per_vbyte !== undefined && { sat_per_vbyte: sat_per_vbyte.toString() }),
+    sat_per_vbyte,
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
+
   return composeTransaction('broadcast', paramsObj, sourceAddress, signal);
 }
 
@@ -140,7 +144,7 @@ export async function composeBTCPay(options: ComposeOptions): Promise<ApiRespons
   const { sourceAddress, order_match_id, sat_per_vbyte, max_fee, signal } = options;
   const paramsObj: any = {
     order_match_id,
-    ...(sat_per_vbyte !== undefined && { sat_per_vbyte: sat_per_vbyte.toString() }),
+    sat_per_vbyte,
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('btcpay', paramsObj, sourceAddress, signal);
@@ -151,7 +155,7 @@ export async function composeBurn(options: ComposeOptions): Promise<ApiResponse>
   const paramsObj: any = {
     quantity: quantity.toString(),
     overburn: overburn.toString(),
-    ...(sat_per_vbyte !== undefined && { sat_per_vbyte: sat_per_vbyte.toString() }),
+    sat_per_vbyte,
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('burn', paramsObj, sourceAddress, signal);
@@ -161,7 +165,7 @@ export async function composeCancel(options: ComposeOptions): Promise<ApiRespons
   const { sourceAddress, offer_hash, sat_per_vbyte, max_fee, signal } = options;
   const paramsObj: any = {
     offer_hash: offer_hash.trim(),
-    ...(sat_per_vbyte !== undefined && { sat_per_vbyte: sat_per_vbyte.toString() }),
+    sat_per_vbyte,
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('cancel', paramsObj, sourceAddress, signal);
@@ -172,8 +176,8 @@ export async function composeDestroy(options: ComposeOptions): Promise<ApiRespon
   const paramsObj: any = {
     asset,
     quantity: quantity.toString(),
+    sat_per_vbyte,
     ...(tag && { tag }),
-    ...(sat_per_vbyte !== undefined && { sat_per_vbyte: sat_per_vbyte.toString() }),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('destroy', paramsObj, sourceAddress, signal);
@@ -199,9 +203,9 @@ export async function composeDispenser(options: ComposeOptions): Promise<ApiResp
     escrow_quantity: escrow_quantity.toString(),
     mainchainrate: mainchainrate.toString(),
     status: status.toString(),
+    sat_per_vbyte,
     ...(open_address && { open_address }),
     ...(oracle_address && { oracle_address }),
-    ...(sat_per_vbyte !== undefined && { sat_per_vbyte: sat_per_vbyte.toString() }),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('dispenser', paramsObj, sourceAddress, signal);
@@ -221,9 +225,9 @@ export async function composeDispense(options: ComposeOptions): Promise<ApiRespo
   const paramsObj: any = {
     dispenser,
     quantity: quantity.toString(),
+    sat_per_vbyte,
     ...(encoding && { encoding }),
     ...(pubkeys && { pubkeys }),
-    ...(sat_per_vbyte !== undefined && { sat_per_vbyte: sat_per_vbyte.toString() }),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('dispense', paramsObj, sourceAddress, signal);

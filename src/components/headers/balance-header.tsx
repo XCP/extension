@@ -1,4 +1,3 @@
-import React from "react";
 import { formatAmount } from "@/utils/format";
 
 interface TokenBalance {

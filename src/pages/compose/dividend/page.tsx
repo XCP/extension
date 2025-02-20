@@ -1,9 +1,8 @@
-import React from "react";
 import { useParams } from "react-router-dom";
-import { Composer } from "@/components/composer";
-import { composeDividend } from "@/utils/composer";
 import { DividendForm } from "./form";
 import { ReviewDividend } from "./review";
+import { Composer } from "@/components/composer";
+import { composeDividend } from "@/utils/blockchain/counterparty";
 
 export function ComposeDividendPage() {
   const { asset: assetParam } = useParams<{ asset?: string }>();

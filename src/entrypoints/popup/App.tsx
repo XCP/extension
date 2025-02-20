@@ -24,21 +24,26 @@ import ViewAddress from '@/pages/address/view-address';
 // Asset pages
 import SelectAssets from '@/pages/assets/select-assets';
 import ViewAsset from '@/pages/assets/view-asset';
+import ViewBalance from '@/pages/assets/view-balance';
 
 // Compose pages
 import ComposeBroadcast from '@/pages/compose/broadcast/page';
 import ComposeBroadcastAddressOptions from '@/pages/compose/broadcast/address-options/page';
 import ComposeBTCPay from '@/pages/compose/order/btcpay/page';
 import ComposeCancel from '@/pages/compose/order/cancel/page';
-import ComposeSend from '@/pages/compose/send/page';
-import ComposeSweep from '@/pages/compose/sweep/page';
 import ComposeDestroy from '@/pages/compose/issuance/destroy-supply/page';
 import ComposeDispenser from '@/pages/compose/dispenser/page';
 import ComposeDispenserClose from '@/pages/compose/dispenser/close/page';
 import ComposeDispenserDispense from '@/pages/compose/dispenser/dispense/page';
 import ComposeDividend from '@/pages/compose/dividend/page';
 import ComposeIssuance from '@/pages/compose/issuance/page';
+import ComposeIssuanceIssueSupply from '@/pages/compose/issuance/issue-supply/page';
+import ComposeIssuanceLockSupply from '@/pages/compose/issuance/lock-supply/page';
+import ComposeIssuanceTransferOwnership from '@/pages/compose/issuance/transfer-ownership/page';
+import ComposeIssuanceUpdateDescription from '@/pages/compose/issuance/update-description/page';
 import ComposeFairminter from '@/pages/compose/fairminter/page';
+import ComposeSend from '@/pages/compose/send/page';
+import ComposeSweep from '@/pages/compose/sweep/page';
 
 // Wallet pages
 import AddWallet from '@/pages/wallet/add-wallet';
@@ -140,13 +145,19 @@ export default function App() {
           <Route path="/compose/send/:asset" element={<ComposeSend />} />
           <Route path="/compose/sweep/:address?" element={<ComposeSweep />} />
           <Route path="/compose/destroy/:asset" element={<ComposeDestroy />} />
+          <Route path="/compose/dispenser/close/:asset?" element={<ComposeDispenserClose />} />
           <Route path="/compose/dispenser/:asset" element={<ComposeDispenser />} />
-          <Route path="/compose/dispenser/close/:asset" element={<ComposeDispenserClose />} />
           <Route path="/compose/dispenser/dispense/:address?" element={<ComposeDispenserDispense />} />
           <Route path="/compose/dividend/:asset" element={<ComposeDividend />} />
-          <Route path="/compose/issuance" element={<ComposeIssuance />} />
+          <Route path="/compose/issuance/:asset?" element={<ComposeIssuance />} />
+          <Route path="/compose/issuance/issue-supply/:asset" element={<ComposeIssuanceIssueSupply />} />
+          <Route path="/compose/issuance/lock-supply/:asset" element={<ComposeIssuanceLockSupply />} />
+          <Route path="/compose/issuance/transfer-ownership/:asset" element={<ComposeIssuanceTransferOwnership />} />
+          <Route path="/compose/issuance/update-description/:asset" element={<ComposeIssuanceUpdateDescription />} />
+          <Route path="/compose/issuance/destroy/:asset" element={<ComposeDestroy />} />
           <Route path="/compose/fairminter/:asset?" element={<ComposeFairminter />} />
           <Route path="/asset/:asset" element={<ViewAsset />} />
+          <Route path="/balance/:asset" element={<ViewBalance />} />
         </Route>
       </Route>
 

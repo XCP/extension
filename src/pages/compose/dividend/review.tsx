@@ -1,4 +1,4 @@
-import React, { FC, useState } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { formatAmount } from "@/utils/format";
@@ -10,12 +10,12 @@ export interface ReviewDividendProps {
   setError: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
-export function ReviewDividend({
+export const ReviewDividend = ({
   apiResponse,
   handleSignAndBroadcast,
   error,
   setError,
-}: ReviewDividendProps) {
+}: ReviewDividendProps) => {
   const [isSigning, setIsSigning] = useState(false);
   const { result } = apiResponse;
 
@@ -83,4 +83,4 @@ export function ReviewDividend({
       </Button>
     </div>
   );
-}
+};

@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, FormEvent, useState } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
+import { ErrorAlert } from "@/components/error-alert";
+import { AssetHeader } from "@/components/headers/asset-header";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { ErrorAlert } from "@/components/error-alert";
-import { LoadingSpinner } from "@/components/loading-spinner";
-import { AssetHeader } from "@/components/headers/asset-header";
 
 export interface TransferOwnershipFormData {
   transfer_destination: string;
@@ -51,10 +50,6 @@ export function TransferOwnershipForm({
     e.preventDefault();
     onSubmit(formData);
   };
-
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
 
   if (error || !assetDetails) {
     return <ErrorAlert message={error?.message || "Failed to load asset details"} />;

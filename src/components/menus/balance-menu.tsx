@@ -13,7 +13,7 @@ export const BalanceMenu = ({ asset }: BalanceMenuProps) => {
 
   const handleMore = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/balance/${asset}`);
+    navigate(`/balance/${encodeURIComponent(asset)}`);
   };
 
   const handleMenuClick = (e: React.MouseEvent) => {

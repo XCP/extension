@@ -5,8 +5,6 @@ import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useWallet } from "@/contexts/wallet-context";
 import { ErrorAlert } from "@/components/error-alert";
-import { LoadingSpinner } from "@/components/loading-spinner";
-import { toBigNumber } from "@/utils/numeric";
 
 export interface IssueSupplyFormData {
   quantity: string;
@@ -50,10 +48,6 @@ export const IssueSupplyForm = ({
     e.preventDefault();
     onSubmit(formData);
   };
-
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
 
   if (error || !assetDetails) {
     return <ErrorAlert message={error?.message || "Failed to load asset details"} />;

@@ -1,6 +1,5 @@
-import React from 'react';
-import { formatAddress } from '@/utils/format';
 import logo from '@/assets/logo.png';
+import { formatAddress } from '@/utils/format';
 
 interface AddressHeaderProps {
   address: string;

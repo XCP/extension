@@ -1,4 +1,4 @@
-import React, { FC, useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/button';
 import { ErrorAlert } from '@/components/error-alert';
 import { formatAddress, formatAmount } from '@/utils/format';
@@ -10,12 +10,12 @@ export interface ReviewFairminterProps {
   setError: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
-export const ReviewFairminter: FC<ReviewFairminterProps> = ({
+export const ReviewFairminter = ({
   apiResponse,
   handleSignAndBroadcast,
   error,
   setError,
-}) => {
+}: ReviewFairminterProps) => {
   const [isSigning, setIsSigning] = useState(false);
   const { result } = apiResponse;
 

@@ -66,7 +66,7 @@ const actionGroups: ActionGroup[] = [
         id: "close-dispenser",
         name: "Close Dispenser",
         description: "Close an existing dispenser",
-        path: "/compose/close",
+        path: "/compose/dispenser/close",
       },
     ],
   },

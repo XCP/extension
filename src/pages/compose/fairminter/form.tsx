@@ -1,4 +1,4 @@
-import React, { FC, useState, useRef, useEffect, FormEvent } from 'react';
+import React, { useState, useRef, useEffect, FormEvent } from 'react';
 import { Field, Label, Description, Input, Textarea, Listbox, Disclosure } from '@headlessui/react';
 import { FaChevronDown, FaCheck } from 'react-icons/fa';
 import { Button } from '@/components/button';
@@ -46,7 +46,7 @@ const FAIRMINTER_MODEL_OPTIONS = [
   { value: FAIRMINTER_MODELS.XCP_FEE_BURNED, label: 'XCP Fee Model (Burned)' },
 ];
 
-export const FairminterForm: FC<FairminterFormProps> = ({ asset, onSubmit, shouldShowHelpText }) => {
+const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormProps) => {
   const [formData, setFormData] = useState<FairminterFormData>({
     mintMethod: FAIRMINTER_MODELS.MINER_FEE_ONLY,
     asset: asset ? `${asset}.` : '',

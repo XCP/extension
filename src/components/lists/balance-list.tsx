@@ -22,10 +22,20 @@ interface BalanceItemProps {
 const BalanceItemComponent = ({ token }: BalanceItemProps) => {
   const navigate = useNavigate();
   const imageUrl = `https://app.xcp.io/img/icon/${token.asset}`;
+
+  const handleClick = () => {
+    // If it's BTC, go to send page, otherwise go to balance view
+    if (token.asset === 'BTC') {
+      navigate(`/compose/send/${encodeURIComponent(token.asset)}`);
+    } else {
+      navigate(`/balance/${encodeURIComponent(token.asset)}`);
+    }
+  };
+
   return (
     <div
       className="relative flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50"
-      onClick={() => navigate(`/compose/send/${encodeURIComponent(token.asset)}`)}
+      onClick={handleClick}
     >
       <div className="w-12 h-12 flex-shrink-0">
         <img

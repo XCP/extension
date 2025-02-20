@@ -4,7 +4,7 @@ import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { Button } from "@/components/button";
 import { AssetHeader } from "@/components/headers/asset-header";
-import { fetchAssetDetails } from "@/utils/counterparty";
+import { fetchAssetDetails } from "@/utils/blockchain/counterparty";
 
 export interface DividendFormData {
   /** Amount of dividend asset to be paid per unit of the source asset */

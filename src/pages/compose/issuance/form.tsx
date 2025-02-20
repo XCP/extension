@@ -3,6 +3,8 @@ import { Field, Label, Description, Input, Textarea } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+import { useSettings } from "@/contexts/settings-context";
+import { useSearchParams } from 'react-router-dom';
 
 export interface IssuanceFormData {
   asset: string;
@@ -24,10 +26,19 @@ const DEFAULT_FORM_DATA: IssuanceFormData = {
 
 interface IssuanceFormProps {
   onSubmit: (data: IssuanceFormData) => void;
+  initialParentAsset?: string;
 }
 
-export const IssuanceForm = ({ onSubmit }: IssuanceFormProps) => {
-  const [formData, setFormData] = useState<IssuanceFormData>(DEFAULT_FORM_DATA);
+export const IssuanceForm = ({ onSubmit, initialParentAsset }: IssuanceFormProps) => {
+  const [searchParams] = useSearchParams();
+  const parentAsset = searchParams.get('parent');
+  
+  const [formData, setFormData] = useState<IssuanceFormData>({
+    ...DEFAULT_FORM_DATA,
+    asset: initialParentAsset ? `${initialParentAsset}.` : '',
+  });
+  const { settings } = useSettings();
+  const shouldShowHelpText = settings?.showHelpText;
 
   // Focus the asset input on mount
   useEffect(() => {
@@ -68,9 +79,12 @@ export const IssuanceForm = ({ onSubmit }: IssuanceFormProps) => {
             onChange={handleInputChange}
             className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
             required
+            placeholder={initialParentAsset ? `${initialParentAsset}.SUBASSET` : "Enter asset name"}
           />
-          <Description className="mt-2 text-sm text-gray-500">
-            The name of the asset to issue. This can also be a subasset or numeric asset name.
+          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+            {initialParentAsset 
+              ? `Enter a subasset name after "${initialParentAsset}." to create a subasset`
+              : "The name of the asset to issue. This can also be a subasset or numeric asset name."}
           </Description>
         </Field>
 
@@ -88,7 +102,7 @@ export const IssuanceForm = ({ onSubmit }: IssuanceFormProps) => {
             className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
             required
           />
-          <Description className="mt-2 text-sm text-gray-500">
+          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
             The quantity of the asset to issue.
           </Description>
         </Field>
@@ -122,7 +136,7 @@ export const IssuanceForm = ({ onSubmit }: IssuanceFormProps) => {
             className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
             rows={2}
           />
-          <Description className="mt-2 text-sm text-gray-500">
+          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
             A textual description for the asset.
           </Description>
         </Field>
@@ -131,7 +145,7 @@ export const IssuanceForm = ({ onSubmit }: IssuanceFormProps) => {
         <FeeRateInput
           value={formData.feeRateSatPerVByte}
           onChange={handleFeeRateChange}
-          showHelpText={true}
+          showHelpText={shouldShowHelpText}
         />
 
         <Button

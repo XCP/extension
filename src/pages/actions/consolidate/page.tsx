@@ -6,7 +6,7 @@ import { ConsolidationReview } from "./review";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { useConsolidateAndBroadcast } from "@/hooks/use-consolidate-and-broadcast";
+import { useConsolidateAndBroadcast } from "@/hooks/useConsolidateAndBroadcast";
 
 export function Consolidate() {
   const navigate = useNavigate();

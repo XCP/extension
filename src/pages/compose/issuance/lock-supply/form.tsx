@@ -4,7 +4,6 @@ import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { ErrorAlert } from "@/components/error-alert";
-import { LoadingSpinner } from "@/components/loading-spinner";
 
 export interface LockSupplyFormData {
   isConfirmed: boolean;
@@ -35,10 +34,6 @@ export const LockSupplyForm = ({
   const handleFeeRateChange = (value: number) => {
     setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
   };
-
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
 
   if (error || !assetDetails) {
     return <ErrorAlert message={error?.message || "Failed to load asset details"} />;

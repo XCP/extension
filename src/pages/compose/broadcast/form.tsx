@@ -5,6 +5,7 @@ import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useWallet } from "@/contexts/wallet-context";
 import { useSettings } from "@/contexts/settings-context";
+import { useComposer } from "@/contexts/composer-context";
 
 export interface BroadcastFormData {
   text: string;
@@ -27,8 +28,14 @@ export function BroadcastForm({
 }: BroadcastFormProps) {
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
+  const { formData: existingFormData } = useComposer();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [formData, setFormData] = useState<BroadcastFormData>(DEFAULT_FORM_DATA);
+  const [formData, setFormData] = useState<BroadcastFormData>(() => {
+    if (existingFormData) {
+      return existingFormData as BroadcastFormData;
+    }
+    return DEFAULT_FORM_DATA;
+  });
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -54,6 +61,7 @@ export function BroadcastForm({
     const submissionData = {
       ...formData,
       value: formData.value || '0',
+      sat_per_vbyte: formData.feeRateSatPerVByte,
     };
     onSubmit(submissionData);
   };
@@ -111,7 +119,7 @@ export function BroadcastForm({
             />
             {settings?.showHelpText && (
               <Description className="mt-2 text-sm text-gray-500">
-                Optional numerical value for the broadcast (defaults to 0)
+                Optional numeric value if publishing data.
               </Description>
             )}
           </Field>

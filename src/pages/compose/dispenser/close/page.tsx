@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Composer } from "@/components/composer";
-import { composeDispenser } from "@/utils/composer";
-import { fetchAddressDispensers } from "@/utils/counterparty";
 import { DispenserCloseForm } from "./form";
 import { ReviewDispenserClose } from "./review";
+import { Composer } from "@/components/composer";
+import { composeDispenser, fetchAddressDispensers } from "@/utils/blockchain/counterparty";
+import { useWallet } from "@/contexts/wallet-context";
 
 export function ComposeDispenserClosePage() {
   const { asset: assetParam } = useParams<{ asset?: string }>();
+  const { walletState } = useWallet();
   const asset = assetParam ? decodeURIComponent(assetParam) : "";
 
   // Fetch dispensers for the current wallet address
@@ -16,12 +17,10 @@ export function ComposeDispenserClosePage() {
 
   useEffect(() => {
     async function loadDispensers() {
-      // Replace with your wallet context value
-      const walletAddress = "YOUR_WALLET_ADDRESS"; // or get it from your wallet context
-      if (!walletAddress) return;
+      if (!walletState?.address) return;
       try {
         const { dispensers: fetchedDispensers, total } = await fetchAddressDispensers(
-          walletAddress,
+          walletState.address,
           { status: "open", verbose: true }
         );
         setDispensers(fetchedDispensers);
@@ -31,7 +30,7 @@ export function ComposeDispenserClosePage() {
       }
     }
     loadDispensers();
-  }, []);
+  }, [walletState?.address]);
 
   return (
     <div className="p-4">

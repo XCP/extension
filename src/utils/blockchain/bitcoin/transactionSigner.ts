@@ -40,8 +40,18 @@ export async function signTransaction(
     throw new Error('No UTXOs found for the source address');
   }
   const rawTxBytes = hexToBytes(rawTransaction);
-  const parsedTx = Transaction.fromRaw(rawTxBytes, { allowUnknownInputs: true, allowUnknownOutputs: true });
-  const tx = new Transaction({ allowUnknownInputs: true, allowUnknownOutputs: true });
+  const parsedTx = Transaction.fromRaw(rawTxBytes, {
+    allowUnknownInputs: true,
+    allowUnknownOutputs: true,
+    allowLegacyWitnessUtxo: true,
+    disableScriptCheck: true
+  });
+  const tx = new Transaction({
+    allowUnknownInputs: true,
+    allowUnknownOutputs: true,
+    allowLegacyWitnessUtxo: true,
+    disableScriptCheck: true
+  });
   for (let i = 0; i < parsedTx.inputsLength; i++) {
     const input = parsedTx.getInput(i);
     if (!input?.txid || input.index === undefined) {

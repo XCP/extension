@@ -24,7 +24,7 @@ export const AssetMenu = ({ ownedAsset }: AssetMenuProps) => {
 
   const handleAction = (path: string) => (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/compose/issuance/${encodeURIComponent(ownedAsset.asset)}/${path}`);
+    navigate(`/compose/${path}/${encodeURIComponent(ownedAsset.asset)}`);
   };
 
   return (
@@ -38,13 +38,13 @@ export const AssetMenu = ({ ownedAsset }: AssetMenuProps) => {
         {!ownedAsset.locked && (
           <>
             <MenuItem>
-              <Button variant="menu-item" fullWidth onClick={handleAction('issue-supply')} className="cursor-pointer">
+              <Button variant="menu-item" fullWidth onClick={handleAction('issuance/issue-supply')} className="cursor-pointer">
                 <FaCoins className="mr-3 h-4 w-4 text-gray-600" />
                 Issue Supply
               </Button>
             </MenuItem>
             <MenuItem>
-              <Button variant="menu-item" fullWidth onClick={handleAction('lock-supply')} className="cursor-pointer">
+              <Button variant="menu-item" fullWidth onClick={handleAction('issuance/lock-supply')} className="cursor-pointer">
                 <FaLockOpen className="mr-3 h-4 w-4 text-gray-600" />
                 Lock Supply
               </Button>
@@ -52,13 +52,13 @@ export const AssetMenu = ({ ownedAsset }: AssetMenuProps) => {
           </>
         )}
         <MenuItem>
-          <Button variant="menu-item" fullWidth onClick={handleAction('update-description')} className="cursor-pointer">
+          <Button variant="menu-item" fullWidth onClick={handleAction('issuance/update-description')} className="cursor-pointer">
             <FaPen className="mr-3 h-4 w-4 text-gray-600" />
             Change Description
           </Button>
         </MenuItem>
         <MenuItem>
-          <Button variant="menu-item" fullWidth onClick={handleAction('transfer-ownership')} className="cursor-pointer">
+          <Button variant="menu-item" fullWidth onClick={handleAction('issuance/transfer-ownership')} className="cursor-pointer">
             <FaExchangeAlt className="mr-3 h-4 w-4 text-gray-600" />
             Transfer Ownership
           </Button>

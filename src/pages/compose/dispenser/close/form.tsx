@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import React from "react";
 import { Field, Label, Description } from "@headlessui/react";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { FiChevronDown, FiCheck } from "react-icons/fi";
@@ -10,6 +10,7 @@ import { useWallet } from "@/contexts/wallet-context";
 export interface DispenserCloseFormData {
   feeRateSatPerVByte: number;
   asset: string;
+  tx_hash?: string;
 }
 
 interface Dispenser {
@@ -18,7 +19,7 @@ interface Dispenser {
   // ...other properties as needed
 }
 
-interface DispenserCloseFormProps {
+export interface DispenserCloseFormProps {
   dispensers: Dispenser[];
   formData: DispenserCloseFormData;
   setFormData: React.Dispatch<React.SetStateAction<DispenserCloseFormData>>;
@@ -29,7 +30,7 @@ interface DispenserCloseFormProps {
   asset: string;
 }
 
-export const DispenserCloseForm: FC<DispenserCloseFormProps> = ({
+export const DispenserCloseForm = ({
   dispensers,
   formData,
   setFormData,
@@ -38,11 +39,17 @@ export const DispenserCloseForm: FC<DispenserCloseFormProps> = ({
   shouldShowHelpText,
   totalDispensers,
   asset,
-}) => {
+}: DispenserCloseFormProps) => {
   const { walletState } = useWallet();
 
-  // Use the AssetSelectInput when no dispensers exist or when there are many.
-  const shouldUseAssetSelect = dispensers.length === 0 || totalDispensers > 100;
+  // Use the AssetSelectInput when no dispensers exist, when there are many,
+  // or when no specific asset is provided
+  const shouldUseAssetSelect = !asset && (dispensers.length === 0 || totalDispensers > 100);
+
+  // If we have a specific asset, filter dispensers for that asset
+  const relevantDispensers = asset 
+    ? dispensers.filter(d => d.asset === asset)
+    : dispensers;
 
   const AssetIcon = ({ asset }: { asset: string }) => (
     <img
@@ -70,11 +77,18 @@ export const DispenserCloseForm: FC<DispenserCloseFormProps> = ({
         ) : (
           <Field>
             <Label className="block text-sm font-medium text-gray-700">
-              Asset<span className="text-red-500">*</span>
+              Dispenser<span className="text-red-500">*</span>
             </Label>
             <Listbox
-              value={formData.asset}
-              onChange={(value) => setFormData((prev) => ({ ...prev, asset: value }))}
+              value={formData.tx_hash || ''}
+              onChange={(value) => {
+                const selectedDispenser = relevantDispensers.find(d => d.tx_hash === value);
+                setFormData(prev => ({
+                  ...prev,
+                  tx_hash: value,
+                  asset: selectedDispenser?.asset || prev.asset
+                }));
+              }}
             >
               <div className="relative mt-1">
                 <ListboxButton className="relative w-full cursor-default rounded-lg bg-gray-50 py-2 pl-3 pr-10 text-left border focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm">
@@ -89,10 +103,10 @@ export const DispenserCloseForm: FC<DispenserCloseFormProps> = ({
                   </span>
                 </ListboxButton>
                 <ListboxOptions className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                  {dispensers.map((dispenser) => (
+                  {relevantDispensers.map((dispenser) => (
                     <ListboxOption
                       key={dispenser.tx_hash}
-                      value={dispenser.asset}
+                      value={dispenser.tx_hash}
                       className={({ active }) =>
                         `relative cursor-pointer select-none py-2 pl-10 pr-4 ${
                           active ? "bg-blue-500 text-white" : "text-gray-900"
@@ -105,16 +119,14 @@ export const DispenserCloseForm: FC<DispenserCloseFormProps> = ({
                             <span className="absolute inset-y-0 left-0 flex items-center pl-3">
                               <AssetIcon asset={dispenser.asset} />
                             </span>
-                            <span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-                              {dispenser.asset}
+                            <span className={`ml-2 block truncate ${selected ? "font-medium" : "font-normal"}`}>
+                              {dispenser.asset} - {dispenser.tx_hash.substring(0, 8)}...
                             </span>
                           </div>
                           {selected && (
-                            <span
-                              className={`absolute inset-y-0 right-0 flex items-center pr-3 ${
-                                active ? "text-white" : "text-blue-500"
-                              }`}
-                            >
+                            <span className={`absolute inset-y-0 right-0 flex items-center pr-3 ${
+                              active ? "text-white" : "text-blue-500"
+                            }`}>
                               <FiCheck className="h-5 w-5" aria-hidden="true" />
                             </span>
                           )}

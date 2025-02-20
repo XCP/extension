@@ -1,4 +1,4 @@
-import React, { FC, useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/button';
 import { ErrorAlert } from '@/components/error-alert';
 import { formatAmount } from '@/utils/format';
@@ -12,14 +12,14 @@ interface ReviewOrderProps {
   setError: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
-export const ReviewOrder: FC<ReviewOrderProps> = ({
+export const ReviewOrder = ({
   apiResponse,
   giveAsset,
   assetDivisible,
   handleSignAndBroadcast,
   error,
   setError,
-}) => {
+}: ReviewOrderProps) => {
   const [isSigning, setIsSigning] = useState(false);
   const [isPriceFlipped, setIsPriceFlipped] = useState(false);
   const { result } = apiResponse;
