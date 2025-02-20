@@ -24,7 +24,7 @@ export const ViewBalance = () => {
   useEffect(() => {
     setHeaderProps({
       title: 'Balance',
-      onBack: () => navigate('/index?tab=Balances'),
+      onBack: () => navigate(-1),
     });
 
     return () => setHeaderProps(null);

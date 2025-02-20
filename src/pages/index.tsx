@@ -12,6 +12,7 @@ import {
   FaCog,
   FaListAlt,
   FaLock,
+  FaSearch,
 } from "react-icons/fa";
 import { RadioGroup } from "@headlessui/react";
 
@@ -179,10 +180,10 @@ export default function Index() {
           </button>
           <button
             onClick={() => navigate("/select-assets")}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            aria-label="Token Settings"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+            aria-label="Search Assets"
           >
-            <FaCog className="w-5 h-5 text-gray-600" aria-hidden="true" />
+            <FaSearch className="w-5 h-5 text-gray-600" aria-hidden="true" />
           </button>
         </div>
       </div>

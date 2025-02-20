@@ -90,7 +90,7 @@ export const BalanceList = () => {
     setOffset(0);
     setHasMore(true);
     setAllBalances([]);
-
+  
     async function loadInitialBalances() {
       if (!activeAddress || !activeWallet) return;
       try {
@@ -110,20 +110,26 @@ export const BalanceList = () => {
           },
         };
         upsertBalance(btcBalance);
-
-        // Load pinned token balances
+  
+        // Load pinned token balances in parallel, skipping BTC
         const pinnedAssets = activeWallet.pinnedAssetBalances || [];
-        for (const asset of pinnedAssets) {
-          if (asset.toUpperCase() === "BTC") continue;
-          try {
-            const balance = await fetchTokenBalance(activeAddress.address, asset);
-            if (balance) {
-              upsertBalance(balance);
-            }
-          } catch (error) {
-            console.error(`Error fetching ${asset} balance:`, error);
+        const nonBTCAssets = pinnedAssets.filter(
+          (asset) => asset.toUpperCase() !== "BTC"
+        );
+        const balancePromises = nonBTCAssets.map((asset) =>
+          fetchTokenBalance(activeAddress.address, asset)
+            .then((balance) => ({ asset, balance }))
+            .catch((error) => {
+              console.error(`Error fetching ${asset} balance:`, error);
+              return null;
+            })
+        );
+        const results = await Promise.all(balancePromises);
+        results.forEach((result) => {
+          if (result && result.balance) {
+            upsertBalance(result.balance);
           }
-        }
+        });
       } catch (error) {
         console.error("Error in loadInitialBalances:", error);
       } finally {
