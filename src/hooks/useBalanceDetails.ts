@@ -2,15 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useWallet } from '@/contexts/wallet-context';
 import { fetchBTCBalance } from '@/utils/blockchain/bitcoin';
 import { fetchTokenBalance, fetchTokenUtxos } from '@/utils/blockchain/counterparty';
-
-export interface AssetInfo {
-  asset_longname: string | null;
-  description?: string;
-  issuer?: string;
-  divisible: boolean;
-  locked: boolean;
-  supply?: string | number;
-}
+import { AssetInfo } from '@/types/asset';
 
 interface BalanceDetails {
   balance: string;

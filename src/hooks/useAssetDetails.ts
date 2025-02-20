@@ -1,15 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchAssetDetailsAndBalance } from "@/utils/blockchain/counterparty";
-
-export interface AssetInfo {
-  asset_longname: string | null;
-  description?: string;
-  issuer?: string;
-  divisible: boolean;
-  locked: boolean;
-  supply?: string | number;
-}
+import { AssetInfo } from '@/types/asset';
 
 export interface AssetDetails {
   isDivisible: boolean;
