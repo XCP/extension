@@ -10,7 +10,7 @@ interface AmountWithMaxInputProps {
   availableBalance: string;
   value: string;
   onChange: (value: string) => void;
-  feeRateSatPerVByte: number;
+  feeRateSatPerVByte: number; // Always required
   setError: (message: string | null) => void;
   shouldShowHelpText: boolean;
   sourceAddress: { address: string } | null;
@@ -57,7 +57,6 @@ export function AmountWithMaxInput({
     if (!sourceAddress || disabled) return;
     const sourceAddr = sourceAddress.address;
 
-    // For non-BTC assets, simply use the provided maxAmount.
     if (asset !== 'BTC') {
       const maxNum = Number(maxAmount);
       if (!isNaN(maxNum)) {
@@ -82,7 +81,6 @@ export function AmountWithMaxInput({
 
       let candidate: number | undefined;
 
-      // First, attempt to compose the transaction using the full balance.
       try {
         const composeResult = await composeSend({
           sourceAddress: sourceAddr,
@@ -90,20 +88,17 @@ export function AmountWithMaxInput({
           asset: 'BTC',
           quantity: availableSats.toString(),
           memo,
-          sat_per_vbyte: feeRateSatPerVByte,
+          sat_per_vbyte: feeRateSatPerVByte, // Always provided
         });
-        const fee = composeResult.result.btc_fee; // fee in sats
+        const fee = composeResult.result.btc_fee;
         candidate = availableSats - fee;
       } catch (e: any) {
-        // Look for the error pattern.
         const errorMsg = e.response?.data?.error || e.message || '';
-        // Expected format: "Insufficient funds for the target amount: 757075 < 758774"
         const regex = /Insufficient funds for the target amount:\s*(\d+)\s*<\s*(\d+)/;
         const match = regex.exec(errorMsg);
         if (match) {
           const balanceParsed = parseInt(match[1], 10);
           const targetNeeded = parseInt(match[2], 10);
-          // Calculate candidate = balance - (targetNeeded - balance)
           candidate = balanceParsed - (targetNeeded - balanceParsed);
         } else {
           throw e;
@@ -114,7 +109,6 @@ export function AmountWithMaxInput({
         throw new Error('Insufficient balance to cover transaction fee.');
       }
 
-      // Check that the per-destination amount is above dust.
       const dustLimit = 546;
       const amountPerDestination = Math.floor(candidate / destinationCount);
       if (amountPerDestination < dustLimit) {

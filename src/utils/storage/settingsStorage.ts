@@ -1,5 +1,14 @@
-import { storage } from 'wxt/storage';
+import {
+  getAllRecords,
+  addRecord,
+  updateRecord,
+  getRecordById,
+  StoredRecord,
+} from '@/utils/storage';
 
+/**
+ * Defines the valid auto-lock timer options in minutes.
+ */
 export type AutoLockTimer = '5m' | '15m' | '30m';
 
 /**
@@ -7,13 +16,10 @@ export type AutoLockTimer = '5m' | '15m' | '30m';
  * with the legacy user settings.
  */
 export interface KeychainSettings {
-  // Original keychain settings:
   lastActiveWalletId?: string;
   lastActiveAddress?: string;
-  autoLockTimeout: number;    // in milliseconds
+  autoLockTimeout: number; // in milliseconds
   connectedWebsites: string[];
-
-  // Legacy user settings:
   showHelpText: boolean;
   analyticsAllowed: boolean;
   allowUnconfirmedTxs: boolean;
@@ -37,49 +43,91 @@ const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
 };
 
 /**
- * Define a storage item under the key "local:settings"
- * with a fallback to the default keychain settings.
+ * Unique ID for the settings record in storage.
  */
-const keychainSettingsStorage = storage.defineItem<KeychainSettings>('local:settings', {
-  fallback: DEFAULT_KEYCHAIN_SETTINGS,
-});
+const SETTINGS_RECORD_ID = 'keychain-settings';
 
 /**
  * Loads the keychain settings from storage.
- * If older settings are found, migrates them to include the full unified interface.
+ * If no settings exist, initializes with defaults and stores them.
+ * Migrates older settings to the current format, ensuring autoLockTimer is valid.
+ *
+ * @returns A Promise resolving to the KeychainSettings object.
  */
 export async function getKeychainSettings(): Promise<KeychainSettings> {
-  const stored = await keychainSettingsStorage.getValue();
+  const records = await getAllRecords();
+  let storedRecord = records.find((r) => r.id === SETTINGS_RECORD_ID) as
+    | StoredRecord & Partial<KeychainSettings>
+    | undefined;
 
-  // If autoLockTimer is missing (from an older record), derive it from autoLockTimeout.
-  let autoLockTimer: AutoLockTimer = stored.autoLockTimer;
-  if (!stored.autoLockTimer && stored.autoLockTimeout !== undefined) {
-    if (stored.autoLockTimeout === 0) {
-      autoLockTimer = 'always';
-    } else if (stored.autoLockTimeout === 15 * 60 * 1000) {
-      autoLockTimer = '15m';
-    } else if (stored.autoLockTimeout === 30 * 60 * 1000) {
-      autoLockTimer = '30m';
-    } else {
-      autoLockTimer = 'always';
+  // If no settings record exists, create it with defaults
+  if (!storedRecord) {
+    storedRecord = { id: SETTINGS_RECORD_ID, ...DEFAULT_KEYCHAIN_SETTINGS };
+    await addRecord(storedRecord);
+  }
+
+  // Migrate or validate autoLockTimer
+  let autoLockTimer: AutoLockTimer = storedRecord.autoLockTimer || '5m';
+  let autoLockTimeout = storedRecord.autoLockTimeout ?? 5 * 60 * 1000;
+  if (!['5m', '15m', '30m'].includes(autoLockTimer)) {
+    // Handle legacy 'always' or invalid values by defaulting to '5m'
+    autoLockTimer = '5m';
+    autoLockTimeout = 5 * 60 * 1000;
+  } else {
+    // Ensure autoLockTimeout matches autoLockTimer
+    switch (autoLockTimer) {
+      case '5m':
+        autoLockTimeout = 5 * 60 * 1000;
+        break;
+      case '15m':
+        autoLockTimeout = 15 * 60 * 1000;
+        break;
+      case '30m':
+        autoLockTimeout = 30 * 60 * 1000;
+        break;
     }
   }
 
-  return {
+  // If autoLockTimer is missing but autoLockTimeout exists (older record), derive it
+  if (!storedRecord.autoLockTimer && storedRecord.autoLockTimeout !== undefined) {
+    if (storedRecord.autoLockTimeout === 15 * 60 * 1000) {
+      autoLockTimer = '15m';
+      autoLockTimeout = 15 * 60 * 1000;
+    } else if (storedRecord.autoLockTimeout === 30 * 60 * 1000) {
+      autoLockTimer = '30m';
+      autoLockTimeout = 30 * 60 * 1000;
+    } else {
+      autoLockTimer = '5m';
+      autoLockTimeout = 5 * 60 * 1000; // Default for 0 or other values
+    }
+  }
+
+  const settings: KeychainSettings = {
     ...DEFAULT_KEYCHAIN_SETTINGS,
-    ...stored,
+    ...storedRecord,
     autoLockTimer,
+    autoLockTimeout,
   };
+
+  // Remove the 'id' field from the returned settings to match the interface
+  delete (settings as any).id;
+
+  return settings;
 }
 
 /**
  * Updates the keychain settings by merging new settings with the current ones.
- * Also, if autoLockTimer is updated, autoLockTimeout is computed accordingly.
+ * Computes autoLockTimeout based on autoLockTimer if provided.
+ *
+ * @param newSettings - Partial settings to update.
+ * @returns A Promise that resolves when the update is complete.
+ * @throws Error if the settings record cannot be updated (e.g., storage failure).
  */
 export async function updateKeychainSettings(newSettings: Partial<KeychainSettings>): Promise<void> {
   const current = await getKeychainSettings();
   let updated: KeychainSettings = { ...current, ...newSettings };
 
+  // Update autoLockTimeout if autoLockTimer is provided
   if (newSettings.autoLockTimer) {
     switch (newSettings.autoLockTimer) {
       case '5m':
@@ -92,6 +140,20 @@ export async function updateKeychainSettings(newSettings: Partial<KeychainSettin
         updated.autoLockTimeout = 30 * 60 * 1000;
         break;
     }
+    updated.autoLockTimer = newSettings.autoLockTimer;
   }
-  await keychainSettingsStorage.setValue(updated);
+
+  // Update the stored record
+  const updatedRecord: StoredRecord & KeychainSettings = {
+    id: SETTINGS_RECORD_ID,
+    ...updated,
+  };
+
+  const existingRecord = await getRecordById(SETTINGS_RECORD_ID);
+  if (existingRecord) {
+    await updateRecord(updatedRecord);
+  } else {
+    // This shouldn’t happen due to getKeychainSettings creating it, but handle gracefully
+    await addRecord(updatedRecord);
+  }
 }

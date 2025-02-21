@@ -32,9 +32,6 @@ interface FeeOption {
   value: number;
 }
 
-/**
- * FeeRateInput displays preset fee rate options (unique values) and a custom input.
- */
 export function FeeRateInput({
   id = 'feeRateSatPerVByte',
   value,
@@ -53,8 +50,9 @@ export function FeeRateInput({
 
   useEffect(() => {
     if (feeRates && isInitial.current) {
+      const initialValue = Math.max(feeRates.fastestFee, 1); // Ensure >= 1
       setSelectedOption('fast');
-      onChange(feeRates.fastestFee);
+      onChange(initialValue);
       isInitial.current = false;
     }
   }, [feeRates, onChange]);
@@ -86,7 +84,8 @@ export function FeeRateInput({
     const trimmed = customInput.trim();
     const num = parseFloat(trimmed);
     if (isNaN(num) || num < 1) {
-      setCustomInput(value.toString());
+      setCustomInput(Math.max(value, 1).toString()); // Reset to valid value
+      onChange(Math.max(value, 1));
     } else {
       const parts = trimmed.split('.');
       if (parts.length === 2 && parts[1].length > 1) {
@@ -100,7 +99,7 @@ export function FeeRateInput({
   const handleOptionSelect = (option: FeeOption) => {
     setSelectedOption(option.id);
     if (option.id === 'custom') {
-      // Let the user edit custom input.
+      // Let the user edit custom input
     } else {
       onChange(option.value);
     }
@@ -154,7 +153,7 @@ export function FeeRateInput({
         </div>
         {showHelpText && (
           <Description className="mt-2 text-sm text-gray-500">
-            Unable to fetch fee rates. Please enter a custom fee rate.
+            Unable to fetch fee rates. Please enter a custom fee rate (minimum 1 sat/vB).
           </Description>
         )}
         {error && (
@@ -229,7 +228,7 @@ export function FeeRateInput({
       </div>
       {showHelpText && (
         <Description className="mt-2 text-sm text-gray-500">
-          {feeRates ? 'Pre-populated with current network rates.' : 'Enter a custom fee rate.'}
+          {feeRates ? 'Pre-populated with current network rates (minimum 1 sat/vB).' : 'Enter a custom fee rate (minimum 1 sat/vB).'}
         </Description>
       )}
     </Field>

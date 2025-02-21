@@ -5,16 +5,16 @@ import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
+import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
-import { useWallet } from "@/contexts/wallet-context";
 
 export interface SendFormData {
   destination: string;
   asset: string;
   quantity: string;
   memo: string;
-  feeRateSatPerVByte: number;
+  feeRateSatPerVByte: number; // Always required
 }
 
 interface SendFormProps {
@@ -41,7 +41,6 @@ export function SendForm({ onSubmit, initialAsset = "XCP" }: SendFormProps) {
     availableBalance: "0",
   };
 
-  // Use the activeAddress from the wallet context.
   const { activeAddress } = useWallet();
 
   useEffect(() => {

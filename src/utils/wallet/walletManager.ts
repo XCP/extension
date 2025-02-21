@@ -4,7 +4,7 @@ import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import * as sessionManager from '@/utils/auth/sessionManager';
 import { settingsManager } from '@/utils/wallet';
-import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, removeEncryptedWalletRecord, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
+import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, removeEncryptedWallet, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
 import { encryptMnemonic, decryptMnemonic, encryptPrivateKey, decryptPrivateKey, DecryptionError } from '@/utils/encryption';
 import { AddressType, getAddressFromMnemonic, getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, getDerivationPathForAddressType } from '@/utils/blockchain/bitcoin';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
@@ -275,7 +275,7 @@ export class WalletManager {
     
     this.wallets.splice(idx, 1);
     sessionManager.clearUnlockedSecret(walletId);
-    await removeEncryptedWalletRecord(walletId);
+    await removeEncryptedWallet(walletId);
     
     if (this.activeWalletId === walletId) {
       this.activeWalletId = null;
@@ -325,7 +325,7 @@ export class WalletManager {
     this.lockAllWallets();
     const all = await getAllEncryptedWallets();
     for (const rec of all) {
-      await removeEncryptedWalletRecord(rec.id);
+      await removeEncryptedWallet(rec.id);
     }
     this.wallets = [];
     sessionManager.clearAllUnlockedSecrets();

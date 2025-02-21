@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import type { ReactElement } from "react";
 import { FiHelpCircle, FiX } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { useHeader } from "@/contexts/header-context";
 import { useComposer } from "@/contexts/composer-context";
+import { useHeader } from "@/contexts/header-context";
 import { useLoading } from "@/contexts/loading-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
@@ -36,8 +36,7 @@ export function Composer({
   headerCallbacks,
 }: ComposerProps) {
   const navigate = useNavigate();
-  const { activeWallet, activeAddress, signTransaction, broadcastTransaction } =
-    useWallet();
+  const { activeWallet, activeAddress, signTransaction, broadcastTransaction } = useWallet();
   const { isLoading, showLoading, hideLoading } = useLoading();
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings } = useSettings();
@@ -48,7 +47,6 @@ export function Composer({
 
   const effectiveToggleHelp = headerCallbacks?.onToggleHelp || toggleHelp;
 
-  // Use our Composer context instead of local state
   const {
     step,
     setStep,
@@ -62,11 +60,9 @@ export function Composer({
 
   const handleBack = useCallback(() => {
     if (step === "review") {
-      // Only clear apiResponse when going back from review to form
       setApiResponse(null);
       setStep("form");
     } else {
-      // Clear everything when going back from form or success
       setStep("form");
       setApiResponse(null);
       setFormData(null);
@@ -134,6 +130,7 @@ export function Composer({
       }
       const response = await composeTransaction({
         sourceAddress: activeAddress.address,
+        sat_per_vbyte: data.feeRateSatPerVByte, // Explicitly required
         ...data,
       });
       console.log("Compose response:", response);
@@ -156,14 +153,9 @@ export function Composer({
       if (!activeWallet || !activeAddress)
         throw new Error("Wallet is not properly initialized.");
       const rawTxHex = apiResponse.result.rawtransaction;
-      const signedTxHex = await signTransaction(
-        rawTxHex,
-        activeAddress.address
-      );
+      const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
       const broadcastResponse = await broadcastTransaction(signedTxHex);
-      // Optionally, store the broadcast response in apiResponse
       setApiResponse({ ...apiResponse, broadcast: broadcastResponse });
-      // Instead of an alert, change the step to display the success screen
       setStep("success");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

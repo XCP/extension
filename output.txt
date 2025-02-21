@@ -293,6 +293,8 @@ Files:
 /src/utils/format.ts
 /src/utils/numeric.ts
 /src/utils/storage/__tests__/settingsStorage.test.ts
+/src/utils/storage/__tests__/storage.test.ts
+/src/utils/storage/__tests__/walletStorage.test.ts
 /src/utils/storage/index.ts
 /src/utils/storage/settingsStorage.ts
 /src/utils/storage/storage.ts
@@ -20978,26 +20980,581 @@ File Contents:
 
 /src/utils/storage/__tests__/settingsStorage.test.ts
   [contents of the file]
-  import { describe, it, expect, beforeEach } from 'vitest';
-  import { getKeychainSettings, updateKeychainSettings } from '@/utils/storage/settingsStorage';
-  import { storage } from 'wxt/storage';
+  import { describe, it, expect, beforeEach, vi } from 'vitest';
+  import {
+    getKeychainSettings,
+    updateKeychainSettings,
+    KeychainSettings,
+    addRecord,
+    updateRecord,
+    getRecordById,
+    clearAllRecords,
+  } from '@/utils/storage';
   
-  // Clear the storage item before each test.
-  beforeEach(async () => {
-    await storage.removeItem('local:settings');
+  // Mock the storage.ts module
+  vi.mock('../storage', () => {
+    let store: any[] = [];
+    return {
+      getAllRecords: async () => [...store],
+      getRecordById: async (id: string) => store.find((r) => r.id === id),
+      addRecord: async (record: any) => {
+        if (store.some((r) => r.id === record.id)) {
+          throw new Error(`Record with ID "${record.id}" already exists.`);
+        }
+        store.push({ ...record });
+      },
+      updateRecord: async (record: any) => {
+        const index = store.findIndex((r) => r.id === record.id);
+        if (index === -1) {
+          throw new Error(`Record with ID "${record.id}" not found.`);
+        }
+        store[index] = { ...record };
+      },
+      removeRecord: async (id: string) => {
+        store = store.filter((r) => r.id !== id);
+      },
+      clearAllRecords: async () => {
+        store = [];
+      },
+    };
   });
   
-  describe('Settings Storage', () => {
-    it('should return default settings when none are stored', async () => {
-      const settings = await getKeychainSettings();
-      expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
-      expect(settings.connectedWebsites).toEqual([]);
+  describe('settingsStorage.ts', () => {
+    beforeEach(async () => {
+      await clearAllRecords();
     });
   
-    it('should update and persist settings', async () => {
-      await updateKeychainSettings({ showHelpText: true });
-      const settings = await getKeychainSettings();
-      expect(settings.showHelpText).toBe(true);
+    describe('getKeychainSettings', () => {
+      it('should initialize with defaults if no settings exist', async () => {
+        const settings = await getKeychainSettings();
+        expect(settings).toEqual({
+          lastActiveWalletId: undefined,
+          lastActiveAddress: undefined,
+          autoLockTimeout: 5 * 60 * 1000,
+          connectedWebsites: [],
+          showHelpText: false,
+          analyticsAllowed: true,
+          allowUnconfirmedTxs: false,
+          autoLockTimer: '5m',
+          enableMPMA: false,
+        });
+        const stored = await getRecordById('keychain-settings');
+        expect(stored).toBeDefined();
+      });
+  
+      it('should return existing settings', async () => {
+        const customSettings: KeychainSettings = {
+          lastActiveWalletId: 'wallet1',
+          lastActiveAddress: 'addr1',
+          autoLockTimeout: 15 * 60 * 1000,
+          connectedWebsites: ['example.com'],
+          showHelpText: true,
+          analyticsAllowed: false,
+          allowUnconfirmedTxs: true,
+          autoLockTimer: '15m',
+          enableMPMA: true,
+        };
+        await addRecord({ id: 'keychain-settings', ...customSettings });
+        const settings = await getKeychainSettings();
+        expect(settings).toEqual(customSettings);
+      });
+  
+      it('should migrate legacy settings without autoLockTimer', async () => {
+        const legacySettings = {
+          id: 'keychain-settings',
+          autoLockTimeout: 15 * 60 * 1000,
+          connectedWebsites: [],
+          showHelpText: false,
+        };
+        await addRecord(legacySettings);
+        const settings = await getKeychainSettings();
+        expect(settings.autoLockTimer).toBe('15m');
+        expect(settings.autoLockTimeout).toBe(15 * 60 * 1000);
+      });
+  
+      it('should default invalid autoLockTimer to 5m', async () => {
+        const invalidSettings = {
+          id: 'keychain-settings',
+          autoLockTimer: 'always' as any,
+          autoLockTimeout: 0,
+        };
+        await addRecord(invalidSettings);
+        const settings = await getKeychainSettings();
+        expect(settings.autoLockTimer).toBe('5m');
+        expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
+      });
+    });
+  
+    describe('updateKeychainSettings', () => {
+      it('should update settings and merge with existing values', async () => {
+        await getKeychainSettings();
+        const partialUpdate: Partial<KeychainSettings> = {
+          showHelpText: true,
+          autoLockTimer: '30m',
+        };
+        await updateKeychainSettings(partialUpdate);
+        const settings = await getKeychainSettings();
+        expect(settings.showHelpText).toBe(true);
+        expect(settings.autoLockTimer).toBe('30m');
+        expect(settings.autoLockTimeout).toBe(30 * 60 * 1000);
+        expect(settings.analyticsAllowed).toBe(true);
+      });
+  
+      it('should set autoLockTimeout based on autoLockTimer', async () => {
+        await getKeychainSettings();
+        await updateKeychainSettings({ autoLockTimer: '15m' });
+        const settings = await getKeychainSettings();
+        expect(settings.autoLockTimer).toBe('15m');
+        expect(settings.autoLockTimeout).toBe(15 * 60 * 1000);
+      });
+  
+      it('should preserve unrelated fields', async () => {
+        const initialSettings: KeychainSettings = {
+          lastActiveWalletId: 'wallet1',
+          lastActiveAddress: 'addr1',
+          autoLockTimeout: 5 * 60 * 1000,
+          connectedWebsites: ['example.com'],
+          showHelpText: false,
+          analyticsAllowed: true,
+          allowUnconfirmedTxs: false,
+          autoLockTimer: '5m',
+          enableMPMA: false,
+        };
+        await addRecord({ id: 'keychain-settings', ...initialSettings });
+        await updateKeychainSettings({ showHelpText: true });
+        const settings = await getKeychainSettings();
+        expect(settings.showHelpText).toBe(true);
+        expect(settings.lastActiveWalletId).toBe('wallet1');
+        expect(settings.connectedWebsites).toEqual(['example.com']);
+      });
+  
+      it('should handle updates when no settings exist yet', async () => {
+        await updateKeychainSettings({ autoLockTimer: '30m', enableMPMA: true });
+        const settings = await getKeychainSettings();
+        expect(settings.autoLockTimer).toBe('30m');
+        expect(settings.autoLockTimeout).toBe(30 * 60 * 1000);
+        expect(settings.enableMPMA).toBe(true);
+        expect(settings.showHelpText).toBe(false);
+      });
+    });
+  
+    describe('migration and edge cases', () => {
+      it('should migrate autoLockTimeout of 0 to 5m', async () => {
+        const legacySettings = {
+          id: 'keychain-settings',
+          autoLockTimeout: 0,
+        };
+        await addRecord(legacySettings);
+        const settings = await getKeychainSettings();
+        expect(settings.autoLockTimer).toBe('5m');
+        expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
+      });
+  
+      it('should handle invalid autoLockTimeout values', async () => {
+        // Initialize with defaults first
+        await getKeychainSettings();
+        // Update with invalid autoLockTimeout
+        const invalidSettings = {
+          id: 'keychain-settings',
+          autoLockTimeout: 999999,
+        };
+        await updateRecord(invalidSettings); // Use update instead of add to avoid duplicate
+        const settings = await getKeychainSettings();
+        expect(settings.autoLockTimer).toBe('5m');
+        expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
+      });
+  
+      it('should not throw on duplicate ID during initial creation', async () => {
+        await expect(getKeychainSettings()).resolves.toBeDefined();
+        await expect(getKeychainSettings()).resolves.toBeDefined();
+      });
+    });
+  });
+
+/src/utils/storage/__tests__/storage.test.ts
+  [contents of the file]
+  import { describe, it, expect, beforeEach, vi } from 'vitest';
+  
+  // Mock wxt/storage with a factory function
+  vi.mock('wxt/storage', () => {
+    let store: any[] = []; // In-memory store for the mock
+    const mockGetValue = vi.fn(async () => [...store]);
+    const mockSetValue = vi.fn(async (value: any[]) => {
+      store = [...value];
+    });
+    const mockRemoveValue = vi.fn(async () => {
+      store = [];
+    });
+  
+    return {
+      storage: {
+        defineItem: () => ({
+          getValue: mockGetValue,
+          setValue: mockSetValue,
+          removeValue: mockRemoveValue,
+        }),
+      },
+      // Export mocks for spying
+      __mocks: {
+        getValue: mockGetValue,
+        setValue: mockSetValue,
+        removeValue: mockRemoveValue,
+      },
+    };
+  });
+  
+  // Import the module under test after mocking
+  import {
+    getAllRecords,
+    getRecordById,
+    addRecord,
+    updateRecord,
+    removeRecord,
+    clearAllRecords,
+    StoredRecord,
+  } from '@/utils/storage';
+  import * as mockedStorage from 'wxt/storage';
+  
+  describe('storage.ts', () => {
+    beforeEach(async () => {
+      await clearAllRecords(); // Reset the mock store
+      // Reset mock calls to ensure clean state
+      (mockedStorage as any).__mocks.getValue.mockClear();
+      (mockedStorage as any).__mocks.setValue.mockClear();
+      (mockedStorage as any).__mocks.removeValue.mockClear();
+    });
+  
+    describe('getAllRecords', () => {
+      it('should return an empty array when no records exist', async () => {
+        const records = await getAllRecords();
+        expect(records).toEqual([]);
+      });
+  
+      it('should return all stored records', async () => {
+        const record1: StoredRecord = { id: '1', name: 'Record 1' };
+        const record2: StoredRecord = { id: '2', name: 'Record 2' };
+        await addRecord(record1);
+        await addRecord(record2);
+        const records = await getAllRecords();
+        expect(records).toEqual([record1, record2]);
+      });
+  
+      it('should return a deep copy of records', async () => {
+        const record: StoredRecord = { id: '1', data: { nested: 'value' } };
+        await addRecord(record);
+        const records = await getAllRecords();
+        records[0].data.nested = 'modified';
+        const freshRecords = await getAllRecords();
+        expect(freshRecords[0].data.nested).toBe('value');
+      });
+    });
+  
+    describe('getRecordById', () => {
+      it('should return undefined for a non-existent ID', async () => {
+        const result = await getRecordById('nonexistent');
+        expect(result).toBeUndefined();
+      });
+  
+      it('should return the correct record by ID', async () => {
+        const record: StoredRecord = { id: '1', name: 'Test Record' };
+        await addRecord(record);
+        const result = await getRecordById('1');
+        expect(result).toEqual(record);
+      });
+    });
+  
+    describe('addRecord', () => {
+      it('should add a new record successfully', async () => {
+        const record: StoredRecord = { id: '1', name: 'New Record' };
+        await addRecord(record);
+        const records = await getAllRecords();
+        expect(records).toContainEqual(record);
+        expect(records.length).toBe(1);
+      });
+  
+      it('should throw an error when adding a duplicate ID', async () => {
+        const record: StoredRecord = { id: '1', name: 'Record' };
+        await addRecord(record);
+        await expect(addRecord(record)).rejects.toThrow(
+          'Record with ID "1" already exists.'
+        );
+      });
+    });
+  
+    describe('updateRecord', () => {
+      it('should update an existing record', async () => {
+        const original: StoredRecord = { id: '1', name: 'Original' };
+        await addRecord(original);
+        const updated: StoredRecord = { id: '1', name: 'Updated' };
+        await updateRecord(updated);
+        const records = await getAllRecords();
+        expect(records).toContainEqual(updated);
+        expect(records.length).toBe(1);
+      });
+  
+      it('should throw an error when updating a non-existent record', async () => {
+        const record: StoredRecord = { id: 'nonexistent', name: 'Nope' };
+        await expect(updateRecord(record)).rejects.toThrow(
+          'Record with ID "nonexistent" not found.'
+        );
+      });
+    });
+  
+    describe('removeRecord', () => {
+      it('should remove an existing record', async () => {
+        const record1: StoredRecord = { id: '1', name: 'Record 1' };
+        const record2: StoredRecord = { id: '2', name: 'Record 2' };
+        await addRecord(record1);
+        await addRecord(record2);
+        await removeRecord('1');
+        const records = await getAllRecords();
+        expect(records).toEqual([record2]);
+        expect(records.length).toBe(1);
+      });
+  
+      it('should do nothing when removing a non-existent ID', async () => {
+        const record: StoredRecord = { id: '1', name: 'Record' };
+        await addRecord(record);
+        await removeRecord('nonexistent');
+        const records = await getAllRecords();
+        expect(records).toEqual([record]);
+      });
+    });
+  
+    describe('clearAllRecords', () => {
+      it('should clear all records from storage', async () => {
+        const record1: StoredRecord = { id: '1', name: 'Record 1' };
+        const record2: StoredRecord = { id: '2', name: 'Record 2' };
+        await addRecord(record1);
+        await addRecord(record2);
+        await clearAllRecords();
+        const records = await getAllRecords();
+        expect(records).toEqual([]);
+      });
+    });
+  
+    describe('caching behavior', () => {
+      it('should use cache for subsequent reads', async () => {
+        const spy = (mockedStorage as any).__mocks.getValue;
+        expect(spy).toHaveBeenCalledTimes(0); // Initial state: no calls
+        const record: StoredRecord = { id: '1', name: 'Cached' };
+        await addRecord(record); // This sets the store
+        await getAllRecords(); // First read, should hit storage
+        expect(spy).toHaveBeenCalledTimes(1); // After first read: 1 call
+        await getAllRecords(); // Second read, should hit cache
+        expect(spy).toHaveBeenCalledTimes(1); // Still only 1 call due to caching
+      });
+  
+      it('should update cache on modification', async () => {
+        const record: StoredRecord = { id: '1', name: 'Initial' };
+        await addRecord(record);
+        const updated: StoredRecord = { id: '1', name: 'Modified' };
+        await updateRecord(updated);
+        const records = await getAllRecords();
+        expect(records).toContainEqual(updated);
+      });
+    });
+  
+    describe('error handling', () => {
+      it('should handle storage read failures gracefully', async () => {
+        const spy = (mockedStorage as any).__mocks.getValue;
+        spy.mockRejectedValueOnce(new Error('Storage error'));
+        const records = await getAllRecords();
+        expect(records).toEqual([]);
+      });
+  
+      it('should throw on storage write failure', async () => {
+        const spy = (mockedStorage as any).__mocks.setValue;
+        spy.mockRejectedValueOnce(new Error('Write error'));
+        const record: StoredRecord = { id: '1', name: 'Record' };
+        await expect(addRecord(record)).rejects.toThrow('Storage update failed');
+      });
+    });
+  });
+
+/src/utils/storage/__tests__/walletStorage.test.ts
+  [contents of the file]
+  import { describe, it, expect, beforeEach, vi } from 'vitest';
+  import { AddressType } from '@/utils/blockchain/bitcoin';
+  import {
+    addRecord,
+    getAllEncryptedWallets,
+    addEncryptedWallet,
+    updateEncryptedWallet,
+    removeEncryptedWallet,
+    EncryptedWalletRecord,
+  } from '@/utils/storage';
+  
+  // Mock the storage module
+  vi.mock('../storage', () => {
+    let store: any[] = [];
+    return {
+      getAllRecords: async () => [...store],
+      addRecord: async (record: any) => {
+        if (store.some((r) => r.id === record.id)) {
+          throw new Error(`Record with ID "${record.id}" already exists.`);
+        }
+        store.push({ ...record });
+      },
+      updateRecord: async (record: any) => {
+        const index = store.findIndex((r) => r.id === record.id);
+        if (index === -1) {
+          throw new Error(`Record with ID "${record.id}" not found.`);
+        }
+        store[index] = { ...record };
+      },
+      removeRecord: async (id: string) => {
+        store = store.filter((r) => r.id !== id);
+      },
+      clearAllRecords: async () => {
+        store = [];
+      },
+    };
+  });
+  
+  describe('walletStorage.ts', () => {
+    beforeEach(async () => {
+      await (await import('../storage')).clearAllRecords(); // Reset storage
+    });
+  
+    describe('getAllEncryptedWallets', () => {
+      it('should return an empty array when no wallets exist', async () => {
+        const wallets = await getAllEncryptedWallets();
+        expect(wallets).toEqual([]);
+      });
+  
+      it('should return only mnemonic and privateKey wallets', async () => {
+        const mnemonicWallet: EncryptedWalletRecord = {
+          id: '1',
+          name: 'Mnemonic Wallet',
+          type: 'mnemonic',
+          addressType: 'P2WPKH',
+          encryptedSecret: 'encrypted-mnemonic',
+        };
+        const pkWallet: EncryptedWalletRecord = {
+          id: '2',
+          name: 'PK Wallet',
+          type: 'privateKey',
+          addressType: AddressType.P2PKH,
+          encryptedSecret: 'encrypted-pk',
+        };
+        const otherRecord = {
+          id: '3',
+          name: 'Other',
+          type: 'other',
+        };
+        await addRecord(mnemonicWallet);
+        await addRecord(pkWallet);
+        await addRecord(otherRecord);
+        const wallets = await getAllEncryptedWallets();
+        expect(wallets).toEqual([mnemonicWallet, pkWallet]);
+        expect(wallets.length).toBe(2);
+      });
+    });
+  
+    describe('addEncryptedWallet', () => {
+      it('should add a new encrypted wallet record', async () => {
+        const wallet: EncryptedWalletRecord = {
+          id: '1',
+          name: 'Test Wallet',
+          type: 'mnemonic',
+          addressType: AddressType.P2WPKH,
+          encryptedSecret: 'encrypted-secret',
+        };
+        await addEncryptedWallet(wallet);
+        const wallets = await getAllEncryptedWallets();
+        expect(wallets).toContainEqual(wallet);
+        expect(wallets.length).toBe(1);
+      });
+  
+      it('should throw an error for duplicate wallet ID', async () => {
+        const wallet: EncryptedWalletRecord = {
+          id: '1',
+          name: 'Test Wallet',
+          type: 'mnemonic',
+          addressType: AddressType.P2WPKH,
+          encryptedSecret: 'encrypted-secret',
+        };
+        await addEncryptedWallet(wallet);
+        await expect(addEncryptedWallet(wallet)).rejects.toThrow(
+          'Record with ID "1" already exists.'
+        );
+      });
+    });
+  
+    describe('updateEncryptedWallet', () => {
+      it('should update an existing wallet record', async () => {
+        const wallet: EncryptedWalletRecord = {
+          id: '1',
+          name: 'Original Wallet',
+          type: 'privateKey',
+          addressType: AddressType.P2PKH,
+          encryptedSecret: 'encrypted-secret',
+        };
+        await addEncryptedWallet(wallet);
+        const updatedWallet: EncryptedWalletRecord = {
+          ...wallet,
+          name: 'Updated Wallet',
+          addressCount: 5,
+        };
+        await updateEncryptedWallet(updatedWallet);
+        const wallets = await getAllEncryptedWallets();
+        expect(wallets).toContainEqual(updatedWallet);
+        expect(wallets.length).toBe(1);
+      });
+  
+      it('should throw an error for non-existent wallet ID', async () => {
+        const wallet: EncryptedWalletRecord = {
+          id: 'nonexistent',
+          name: 'Test Wallet',
+          type: 'mnemonic',
+          addressType: AddressType.P2WPKH,
+          encryptedSecret: 'encrypted-secret',
+        };
+        await expect(updateEncryptedWallet(wallet)).rejects.toThrow(
+          'Record with ID "nonexistent" not found.'
+        );
+      });
+    });
+  
+    describe('removeEncryptedWallet', () => {
+      it('should remove an existing wallet record', async () => {
+        const wallet1: EncryptedWalletRecord = {
+          id: '1',
+          name: 'Wallet 1',
+          type: 'mnemonic',
+          addressType: AddressType.P2WPKH,
+          encryptedSecret: 'encrypted-secret-1',
+        };
+        const wallet2: EncryptedWalletRecord = {
+          id: '2',
+          name: 'Wallet 2',
+          type: 'privateKey',
+          addressType: AddressType.P2PKH,
+          encryptedSecret: 'encrypted-secret-2',
+        };
+        await addEncryptedWallet(wallet1);
+        await addEncryptedWallet(wallet2);
+        await removeEncryptedWallet('1');
+        const wallets = await getAllEncryptedWallets();
+        expect(wallets).toEqual([wallet2]);
+        expect(wallets.length).toBe(1);
+      });
+  
+      it('should do nothing for a non-existent wallet ID', async () => {
+        const wallet: EncryptedWalletRecord = {
+          id: '1',
+          name: 'Test Wallet',
+          type: 'mnemonic',
+          addressType: AddressType.P2WPKH,
+          encryptedSecret: 'encrypted-secret',
+        };
+        await addEncryptedWallet(wallet);
+        await removeEncryptedWallet('nonexistent');
+        const wallets = await getAllEncryptedWallets();
+        expect(wallets).toEqual([wallet]);
+        expect(wallets.length).toBe(1);
+      });
     });
   });
 
@@ -21009,8 +21566,17 @@ File Contents:
 
 /src/utils/storage/settingsStorage.ts
   [contents of the file]
-  import { storage } from 'wxt/storage';
+  import {
+    getAllRecords,
+    addRecord,
+    updateRecord,
+    getRecordById,
+    StoredRecord,
+  } from '@/utils/storage';
   
+  /**
+   * Defines the valid auto-lock timer options in minutes.
+   */
   export type AutoLockTimer = '5m' | '15m' | '30m';
   
   /**
@@ -21018,13 +21584,10 @@ File Contents:
    * with the legacy user settings.
    */
   export interface KeychainSettings {
-    // Original keychain settings:
     lastActiveWalletId?: string;
     lastActiveAddress?: string;
-    autoLockTimeout: number;    // in milliseconds
+    autoLockTimeout: number; // in milliseconds
     connectedWebsites: string[];
-  
-    // Legacy user settings:
     showHelpText: boolean;
     analyticsAllowed: boolean;
     allowUnconfirmedTxs: boolean;
@@ -21048,49 +21611,91 @@ File Contents:
   };
   
   /**
-   * Define a storage item under the key "local:settings"
-   * with a fallback to the default keychain settings.
+   * Unique ID for the settings record in storage.
    */
-  const keychainSettingsStorage = storage.defineItem<KeychainSettings>('local:settings', {
-    fallback: DEFAULT_KEYCHAIN_SETTINGS,
-  });
+  const SETTINGS_RECORD_ID = 'keychain-settings';
   
   /**
    * Loads the keychain settings from storage.
-   * If older settings are found, migrates them to include the full unified interface.
+   * If no settings exist, initializes with defaults and stores them.
+   * Migrates older settings to the current format, ensuring autoLockTimer is valid.
+   *
+   * @returns A Promise resolving to the KeychainSettings object.
    */
   export async function getKeychainSettings(): Promise<KeychainSettings> {
-    const stored = await keychainSettingsStorage.getValue();
+    const records = await getAllRecords();
+    let storedRecord = records.find((r) => r.id === SETTINGS_RECORD_ID) as
+      | StoredRecord & Partial<KeychainSettings>
+      | undefined;
   
-    // If autoLockTimer is missing (from an older record), derive it from autoLockTimeout.
-    let autoLockTimer: AutoLockTimer = stored.autoLockTimer;
-    if (!stored.autoLockTimer && stored.autoLockTimeout !== undefined) {
-      if (stored.autoLockTimeout === 0) {
-        autoLockTimer = 'always';
-      } else if (stored.autoLockTimeout === 15 * 60 * 1000) {
-        autoLockTimer = '15m';
-      } else if (stored.autoLockTimeout === 30 * 60 * 1000) {
-        autoLockTimer = '30m';
-      } else {
-        autoLockTimer = 'always';
+    // If no settings record exists, create it with defaults
+    if (!storedRecord) {
+      storedRecord = { id: SETTINGS_RECORD_ID, ...DEFAULT_KEYCHAIN_SETTINGS };
+      await addRecord(storedRecord);
+    }
+  
+    // Migrate or validate autoLockTimer
+    let autoLockTimer: AutoLockTimer = storedRecord.autoLockTimer || '5m';
+    let autoLockTimeout = storedRecord.autoLockTimeout ?? 5 * 60 * 1000;
+    if (!['5m', '15m', '30m'].includes(autoLockTimer)) {
+      // Handle legacy 'always' or invalid values by defaulting to '5m'
+      autoLockTimer = '5m';
+      autoLockTimeout = 5 * 60 * 1000;
+    } else {
+      // Ensure autoLockTimeout matches autoLockTimer
+      switch (autoLockTimer) {
+        case '5m':
+          autoLockTimeout = 5 * 60 * 1000;
+          break;
+        case '15m':
+          autoLockTimeout = 15 * 60 * 1000;
+          break;
+        case '30m':
+          autoLockTimeout = 30 * 60 * 1000;
+          break;
       }
     }
   
-    return {
+    // If autoLockTimer is missing but autoLockTimeout exists (older record), derive it
+    if (!storedRecord.autoLockTimer && storedRecord.autoLockTimeout !== undefined) {
+      if (storedRecord.autoLockTimeout === 15 * 60 * 1000) {
+        autoLockTimer = '15m';
+        autoLockTimeout = 15 * 60 * 1000;
+      } else if (storedRecord.autoLockTimeout === 30 * 60 * 1000) {
+        autoLockTimer = '30m';
+        autoLockTimeout = 30 * 60 * 1000;
+      } else {
+        autoLockTimer = '5m';
+        autoLockTimeout = 5 * 60 * 1000; // Default for 0 or other values
+      }
+    }
+  
+    const settings: KeychainSettings = {
       ...DEFAULT_KEYCHAIN_SETTINGS,
-      ...stored,
+      ...storedRecord,
       autoLockTimer,
+      autoLockTimeout,
     };
+  
+    // Remove the 'id' field from the returned settings to match the interface
+    delete (settings as any).id;
+  
+    return settings;
   }
   
   /**
    * Updates the keychain settings by merging new settings with the current ones.
-   * Also, if autoLockTimer is updated, autoLockTimeout is computed accordingly.
+   * Computes autoLockTimeout based on autoLockTimer if provided.
+   *
+   * @param newSettings - Partial settings to update.
+   * @returns A Promise that resolves when the update is complete.
+   * @throws Error if the settings record cannot be updated (e.g., storage failure).
    */
   export async function updateKeychainSettings(newSettings: Partial<KeychainSettings>): Promise<void> {
     const current = await getKeychainSettings();
     let updated: KeychainSettings = { ...current, ...newSettings };
   
+    // Update autoLockTimeout if autoLockTimer is provided
     if (newSettings.autoLockTimer) {
       switch (newSettings.autoLockTimer) {
         case '5m':
@@ -21103,8 +21708,22 @@ File Contents:
           updated.autoLockTimeout = 30 * 60 * 1000;
           break;
       }
+      updated.autoLockTimer = newSettings.autoLockTimer;
     }
-    await keychainSettingsStorage.setValue(updated);
+  
+    // Update the stored record
+    const updatedRecord: StoredRecord & KeychainSettings = {
+      id: SETTINGS_RECORD_ID,
+      ...updated,
+    };
+  
+    const existingRecord = await getRecordById(SETTINGS_RECORD_ID);
+    if (existingRecord) {
+      await updateRecord(updatedRecord);
+    } else {
+      // This shouldn’t happen due to getKeychainSettings creating it, but handle gracefully
+      await addRecord(updatedRecord);
+    }
   }
 
 /src/utils/storage/storage.ts
@@ -21128,72 +21747,128 @@ File Contents:
     fallback: [],
   });
   
+  // In-memory cache to reduce redundant storage reads.
+  // Initialized as null and populated on first access.
+  let cachedRecords: StoredRecord[] | null = null;
+  
+  /**
+   * Internal helper to fetch records from storage, utilizing an in-memory cache.
+   * If the cache is null, it retrieves from storage and caches the result.
+   * Handles storage failures gracefully by falling back to an empty array.
+   *
+   * @returns A Promise resolving to the array of stored records.
+   */
+  async function getCachedRecords(): Promise<StoredRecord[]> {
+    if (cachedRecords === null) {
+      try {
+        cachedRecords = await localRecords.getValue();
+      } catch (err) {
+        // Log error for debugging but don't fail the operation
+        console.error('Failed to fetch records from storage:', err);
+        cachedRecords = []; // Fallback to empty array on failure
+      }
+    }
+    return cachedRecords;
+  }
+  
+  /**
+   * Internal helper to update the cache and persist changes to storage.
+   * Ensures the cache stays in sync with persistent storage.
+   *
+   * @param records - The updated array of records to persist.
+   * @throws Error if storage write fails, allowing callers to handle persistence issues.
+   */
+  async function updateAndPersistRecords(records: StoredRecord[]): Promise<void> {
+    cachedRecords = records;
+    try {
+      await localRecords.setValue(records);
+    } catch (err) {
+      console.error('Failed to persist records to storage:', err);
+      throw new Error('Storage update failed'); // Propagate error for caller awareness
+    }
+  }
+  
   /**
    * Retrieves all records from storage.
+   * Returns a deep copy to prevent external mutations of the internal state.
    *
-   * @returns A Promise that resolves to an array of stored records.
+   * @returns A Promise resolving to an array of stored records.
    */
   export async function getAllRecords(): Promise<StoredRecord[]> {
-    return localRecords.getValue();
+    return structuredClone(await getCachedRecords());
   }
   
   /**
    * Retrieves a record by its ID.
+   * Uses the cached records for efficient lookup.
    *
    * @param id - The record ID to find.
-   * @returns A Promise that resolves to the found record, or undefined if not found.
+   * @returns A Promise resolving to the found record, or undefined if not found.
    */
   export async function getRecordById(id: string): Promise<StoredRecord | undefined> {
-    const records = await getAllRecords();
+    const records = await getCachedRecords();
     return records.find((r) => r.id === id);
   }
   
   /**
    * Adds a new record to storage.
+   * Checks for duplicate IDs before adding to maintain uniqueness.
    *
    * @param record - The record to add.
    * @throws Error if a record with the same ID already exists.
    */
   export async function addRecord(record: StoredRecord): Promise<void> {
-    const records = await getAllRecords();
+    const records = await getCachedRecords();
     if (records.some((r) => r.id === record.id)) {
       throw new Error(`Record with ID "${record.id}" already exists.`);
     }
-    records.push(record);
-    await localRecords.setValue(records);
+    records.push(record); // Append to the in-memory array
+    await updateAndPersistRecords(records);
   }
   
   /**
    * Updates an existing record in storage.
+   * Replaces the matching record by ID with the new data.
    *
    * @param record - The record with updated data.
    * @throws Error if no record with the matching ID is found.
    */
   export async function updateRecord(record: StoredRecord): Promise<void> {
-    const records = await getAllRecords();
+    const records = await getCachedRecords();
     const index = records.findIndex((r) => r.id === record.id);
     if (index === -1) {
       throw new Error(`Record with ID "${record.id}" not found.`);
     }
-    records[index] = record;
-    await localRecords.setValue(records);
+    records[index] = record; // Replace the existing record
+    await updateAndPersistRecords(records);
   }
   
   /**
    * Removes a record by its ID from storage.
+   * Performs an in-place removal to optimize memory usage.
    *
    * @param id - The ID of the record to remove.
    */
   export async function removeRecord(id: string): Promise<void> {
-    const records = (await getAllRecords()).filter((r) => r.id !== id);
-    await localRecords.setValue(records);
+    const records = await getCachedRecords();
+    const index = records.findIndex((r) => r.id === id);
+    if (index === -1) return; // No-op if record isn’t found
+    records.splice(index, 1); // Remove in-place for efficiency
+    await updateAndPersistRecords(records);
   }
   
   /**
    * Clears all records from storage.
+   * Resets both the cache and persistent storage.
    */
   export async function clearAllRecords(): Promise<void> {
-    await localRecords.removeValue();
+    cachedRecords = null; // Reset cache immediately
+    try {
+      await localRecords.removeValue();
+    } catch (err) {
+      // Log failure but don’t throw, as cache is already cleared
+      console.error('Failed to clear records from storage:', err);
+    }
   }
 
 /src/utils/storage/walletStorage.ts
@@ -21208,9 +21883,9 @@ File Contents:
     name: string;
     type: 'mnemonic' | 'privateKey';
     addressType: AddressType;
-    addressCount?: number;
+    addressCount?: number; // Number of derived addresses (defaults to 0 if omitted)
     encryptedSecret: string;
-    pinnedAssetBalances?: string[];
+    pinnedAssetBalances?: string[]; // List of asset IDs to pin in UI (defaults to [] if omitted)
     previewAddress?: string;
   }
   
@@ -21230,9 +21905,13 @@ File Contents:
    * Adds an encrypted wallet record to storage.
    *
    * @param record - The encrypted wallet record to add.
+   * @throws Error if encryptedSecret is missing or invalid (optional validation).
    */
   export async function addEncryptedWallet(record: EncryptedWalletRecord): Promise<void> {
-    // Additional validation (such as duplication) can be added here if needed.
+    // Optional validation
+    if (!record.encryptedSecret) {
+      throw new Error('Encrypted secret is required for wallet records');
+    }
     await addRecord(record);
   }
   
@@ -21250,7 +21929,7 @@ File Contents:
    *
    * @param id - The ID of the wallet record to remove.
    */
-  export async function removeEncryptedWalletRecord(id: string): Promise<void> {
+  export async function removeEncryptedWallet(id: string): Promise<void> {
     await removeRecord(id);
   }
 
@@ -21312,7 +21991,7 @@ File Contents:
   import { mnemonicToSeedSync } from '@scure/bip39';
   import * as sessionManager from '@/utils/auth/sessionManager';
   import { settingsManager } from '@/utils/wallet';
-  import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, removeEncryptedWalletRecord, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
+  import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, removeEncryptedWallet, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
   import { encryptMnemonic, decryptMnemonic, encryptPrivateKey, decryptPrivateKey, DecryptionError } from '@/utils/encryption';
   import { AddressType, getAddressFromMnemonic, getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, getDerivationPathForAddressType } from '@/utils/blockchain/bitcoin';
   import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
@@ -21583,7 +22262,7 @@ File Contents:
       
       this.wallets.splice(idx, 1);
       sessionManager.clearUnlockedSecret(walletId);
-      await removeEncryptedWalletRecord(walletId);
+      await removeEncryptedWallet(walletId);
       
       if (this.activeWalletId === walletId) {
         this.activeWalletId = null;
@@ -21633,7 +22312,7 @@ File Contents:
       this.lockAllWallets();
       const all = await getAllEncryptedWallets();
       for (const rec of all) {
-        await removeEncryptedWalletRecord(rec.id);
+        await removeEncryptedWallet(rec.id);
       }
       this.wallets = [];
       sessionManager.clearAllUnlockedSecrets();

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AddressType } from '@/utils/blockchain/bitcoin';
 import {
+  addRecord,
   getAllEncryptedWallets,
   addEncryptedWallet,
   updateEncryptedWallet,
@@ -8,12 +9,10 @@ import {
   EncryptedWalletRecord,
 } from '@/utils/storage';
 
-// Mock the entire '@/utils/storage' module, including walletStorage exports
-vi.mock('@/utils/storage', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/utils/storage')>();
+// Mock the storage module
+vi.mock('@/utils/storage', () => {
   let store: any[] = [];
   return {
-    ...actual, // Include real walletStorage exports
     getAllRecords: async () => [...store],
     addRecord: async (record: any) => {
       if (store.some((r) => r.id === record.id)) {
@@ -39,7 +38,7 @@ vi.mock('@/utils/storage', async (importOriginal) => {
 
 describe('walletStorage.ts', () => {
   beforeEach(async () => {
-    await (await import('@/utils/storage')).clearAllRecords(); // Reset storage
+    await (await import('../storage')).clearAllRecords(); // Reset storage
   });
 
   describe('getAllEncryptedWallets', () => {
@@ -53,7 +52,7 @@ describe('walletStorage.ts', () => {
         id: '1',
         name: 'Mnemonic Wallet',
         type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
+        addressType: 'P2WPKH',
         encryptedSecret: 'encrypted-mnemonic',
       };
       const pkWallet: EncryptedWalletRecord = {
@@ -68,9 +67,9 @@ describe('walletStorage.ts', () => {
         name: 'Other',
         type: 'other',
       };
-      await addEncryptedWallet(mnemonicWallet);
-      await addEncryptedWallet(pkWallet);
-      await (await import('@/utils/storage')).addRecord(otherRecord); // Use mocked addRecord directly
+      await addRecord(mnemonicWallet);
+      await addRecord(pkWallet);
+      await addRecord(otherRecord);
       const wallets = await getAllEncryptedWallets();
       expect(wallets).toEqual([mnemonicWallet, pkWallet]);
       expect(wallets.length).toBe(2);

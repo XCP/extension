@@ -8,9 +8,9 @@ export interface EncryptedWalletRecord extends StoredRecord {
   name: string;
   type: 'mnemonic' | 'privateKey';
   addressType: AddressType;
-  addressCount?: number;
+  addressCount?: number; // Number of derived addresses (defaults to 0 if omitted)
   encryptedSecret: string;
-  pinnedAssetBalances?: string[];
+  pinnedAssetBalances?: string[]; // List of asset IDs to pin in UI (defaults to [] if omitted)
   previewAddress?: string;
 }
 
@@ -30,9 +30,13 @@ export async function getAllEncryptedWallets(): Promise<EncryptedWalletRecord[]>
  * Adds an encrypted wallet record to storage.
  *
  * @param record - The encrypted wallet record to add.
+ * @throws Error if encryptedSecret is missing or invalid (optional validation).
  */
 export async function addEncryptedWallet(record: EncryptedWalletRecord): Promise<void> {
-  // Additional validation (such as duplication) can be added here if needed.
+  // Optional validation
+  if (!record.encryptedSecret) {
+    throw new Error('Encrypted secret is required for wallet records');
+  }
   await addRecord(record);
 }
 
@@ -50,6 +54,6 @@ export async function updateEncryptedWallet(record: EncryptedWalletRecord): Prom
  *
  * @param id - The ID of the wallet record to remove.
  */
-export async function removeEncryptedWalletRecord(id: string): Promise<void> {
+export async function removeEncryptedWallet(id: string): Promise<void> {
   await removeRecord(id);
 }
