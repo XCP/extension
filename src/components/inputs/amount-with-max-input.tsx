@@ -10,7 +10,7 @@ interface AmountWithMaxInputProps {
   availableBalance: string;
   value: string;
   onChange: (value: string) => void;
-  feeRateSatPerVByte: number; // Always required
+ // Always required
   setError: (message: string | null) => void;
   shouldShowHelpText: boolean;
   sourceAddress: { address: string } | null;

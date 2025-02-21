@@ -1,6 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getFeeRates, FeeRates } from '@/utils/blockchain/bitcoin';
 
+export type FeeRateOption = 'fast' | 'medium' | 'slow';
+
+export interface FeeOption {
+  id: FeeRateOption;
+  name: string;
+  value: number;
+}
+
 export function useFeeRates(autoFetch = true) {
   const [feeRates, setFeeRates] = useState<FeeRates | null>(null);
   const [loading, setLoading] = useState<boolean>(autoFetch);
@@ -23,11 +31,11 @@ export function useFeeRates(autoFetch = true) {
     }
   }, [autoFetch]);
 
-  const uniquePresetOptions = useMemo(() => {
+  const uniquePresetOptions = useMemo<FeeOption[]>(() => {
     if (!feeRates) return [];
-    const presets: Array<{ id: string; name: string; value: number }> = [];
+    const presets: FeeOption[] = [];
     const included = new Set<number>();
-    const tryAdd = (option: { id: string; name: string; value: number }) => {
+    const tryAdd = (option: FeeOption) => {
       if (!included.has(option.value)) {
         presets.push(option);
         included.add(option.value);

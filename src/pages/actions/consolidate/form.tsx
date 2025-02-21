@@ -8,7 +8,7 @@ import { formatAmount } from "@/utils/format";
 import { useSettings } from "@/contexts/settings-context";
 
 export interface ConsolidationFormData {
-  feeRateSatPerVByte: number;
+
   destinationAddress: string;
   utxoData: { count: number; total: number } | null;
 }

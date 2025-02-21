@@ -8,7 +8,7 @@ import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 export interface TransferOwnershipFormData {
   transfer_destination: string;
-  feeRateSatPerVByte: number;
+
 }
 
 interface TransferOwnershipFormProps {
@@ -25,7 +25,7 @@ export function TransferOwnershipForm({
   const { data: assetDetails, isLoading, error } = useAssetDetails(asset);
   const [formData, setFormData] = useState<TransferOwnershipFormData>({
     transfer_destination: "",
-    feeRateSatPerVByte: 1,
+
   });
 
   const transferDestinationRef = useRef<HTMLInputElement>(null);
@@ -42,12 +42,11 @@ export function TransferOwnershipForm({
     }));
   };
 
-  const handleFeeRateChange = (value: number) => {
-    setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
-  };
-
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!formData.transfer_destination.trim() || formData.feeRateSatPerVByte <= 0) {
+      return; // Validation handled by form fields and FeeRateInput
+    }
     onSubmit(formData);
   };
 
@@ -62,7 +61,7 @@ export function TransferOwnershipForm({
   return (
     <div className="space-y-4">
       <AssetHeader assetInfo={assetDetails.assetInfo} className="mb-6" />
-      
+
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Field>
@@ -88,7 +87,8 @@ export function TransferOwnershipForm({
 
           <FeeRateInput
             value={formData.feeRateSatPerVByte}
-            onChange={handleFeeRateChange}
+            onChange={(value) => setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))}
+            error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
             showHelpText={shouldShowHelpText}
           />
 

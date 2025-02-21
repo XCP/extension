@@ -8,7 +8,7 @@ interface ConsolidationReviewProps {
     params: {
       source: string;
       destination: string;
-      feeRateSatPerVByte: number;
+    
     };
     // Include the UTXO data from the form
     utxoData: { count: number; total: number } | null;

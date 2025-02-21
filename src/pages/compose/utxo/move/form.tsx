@@ -1,47 +1,47 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, FormEvent } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
+import { AddressHeader } from "@/components/headers/address-header";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
 
-export interface MoveFormData {
+export interface UtxoMoveFormData {
+  utxo: string;
   destination: string;
-  utxo_value?: string;
-  feeRateSatPerVByte: number;
+
 }
 
-interface MoveFormProps {
-  onSubmit: (data: MoveFormData) => void;
+interface UtxoMoveFormProps {
+  onSubmit: (data: UtxoMoveFormData) => void;
 }
 
-export function MoveForm({ onSubmit }: MoveFormProps) {
-  const [formData, setFormData] = useState<MoveFormData>({
-    destination: "",
-    utxo_value: "",
-    feeRateSatPerVByte: 1,
-  });
-  const [localError, setLocalError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+export function UtxoMoveForm({ onSubmit }: UtxoMoveFormProps) {
+  const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText;
 
-  const { activeAddress } = useWallet();
+  const [formData, setFormData] = useState<UtxoMoveFormData>({
+    utxo: "",
+    destination: "",
+    feeRateSatPerVByte: 10, // Default to 10 sat/vB
+  });
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const utxoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    inputRef.current?.focus();
+    utxoRef.current?.focus();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    if (!formData.destination || !isValidBase58Address(formData.destination)) {
-      setLocalError("Please enter a valid Bitcoin address.");
-      return;
-    }
-    if (formData.feeRateSatPerVByte <= 0) {
-      setLocalError("Please enter a valid fee rate greater than zero.");
+    if (
+      !formData.utxo.trim() ||
+      !formData.destination.trim() ||
+      formData.feeRateSatPerVByte <= 0
+    ) {
+      setLocalError("Please fill all required fields with valid values.");
       return;
     }
     setLocalError(null);
@@ -49,74 +49,77 @@ export function MoveForm({ onSubmit }: MoveFormProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-4">
+    <div className="space-y-4">
+      {activeAddress && (
+        <AddressHeader
+          address={activeAddress.address}
+          walletName={activeWallet?.name}
+          className="mb-4"
+        />
+      )}
       {localError && <div className="text-red-500 mb-2">{localError}</div>}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Field>
-          <Label className="text-sm font-medium text-gray-700">
-            Destination <span className="text-red-500">*</span>
-          </Label>
-          <div className="relative mt-1 mb-2">
+      <div className="bg-white rounded-lg shadow-lg p-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              UTXO <span className="text-red-500">*</span>
+            </Label>
             <Input
-              ref={inputRef}
+              ref={utxoRef}
+              type="text"
+              name="utxo"
+              value={formData.utxo}
+              onChange={(e) => setFormData((prev) => ({ ...prev, utxo: e.target.value.trim() }))}
+              required
+              placeholder="Enter UTXO (txid:vout)"
+              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Enter the UTXO identifier (e.g., txid:vout) to move.
+            </Description>
+          </Field>
+
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Destination <span className="text-red-500">*</span>
+            </Label>
+            <Input
               type="text"
               name="destination"
               value={formData.destination}
               onChange={(e) =>
-                setFormData({ ...formData, destination: e.target.value.trim() })
+                setFormData((prev) => ({ ...prev, destination: e.target.value.trim() }))
               }
               required
               placeholder="Enter destination address"
-              className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
             />
-          </div>
-          <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-            Enter the destination address for moving UTXO.
-          </Description>
-        </Field>
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Enter the address to move the UTXO to.
+            </Description>
+          </Field>
 
-        <Field>
-          <Label className="text-sm font-medium text-gray-700">
-            UTXO Value (satoshis)
-          </Label>
-          <div className="relative mt-1 mb-2">
-            <Input
-              type="text"
-              name="utxo_value"
-              value={formData.utxo_value}
-              onChange={(e) =>
-                setFormData({ ...formData, utxo_value: e.target.value.trim() })
-              }
-              placeholder="Optional UTXO value"
-              className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-            Optionally specify the UTXO value (in satoshis) to move.
-          </Description>
-        </Field>
+          <FeeRateInput
+            value={formData.feeRateSatPerVByte}
+            onChange={(value) => setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))}
+            error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
+            showHelpText={shouldShowHelpText}
+          />
 
-        <FeeRateInput
-          id="feeRateSatPerVByte"
-          value={formData.feeRateSatPerVByte}
-          onChange={(value: number) =>
-            setFormData({ ...formData, feeRateSatPerVByte: value })
-          }
-          error={
-            formData.feeRateSatPerVByte <= 0
-              ? "Please enter a valid fee rate greater than zero."
-              : ""
-          }
-          showLabel={true}
-          label="Fee Rate (sat/vB)"
-          showHelpText={shouldShowHelpText}
-          autoFetch={true}
-        />
-
-        <Button type="submit" color="blue" fullWidth>
-          Continue
-        </Button>
-      </form>
+          <Button
+            type="submit"
+            color="blue"
+            fullWidth
+            disabled={
+              !formData.utxo.trim() ||
+              !formData.destination.trim() ||
+              formData.feeRateSatPerVByte <= 0
+            }
+          >
+            Continue
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

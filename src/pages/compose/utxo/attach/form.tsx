@@ -1,215 +1,171 @@
-import React, { useState, useRef, useEffect, Suspense } from "react";
+import React, { useState, useRef, useEffect, FormEvent } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { BalanceHeader } from "@/components/headers/balance-header";
+import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
+import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { useAssetDetails } from "@/hooks/useAssetDetails";
 
-export interface AttachFormData {
+export interface UtxoAttachFormData {
+  utxo: string;
   asset: string;
   quantity: string;
-  utxo_value?: string;
-  destination_vout?: string;
-  feeRateSatPerVByte: number;
+
 }
 
-interface AttachFormProps {
-  onSubmit: (data: AttachFormData) => void;
-  initialAsset?: string;
+interface UtxoAttachFormProps {
+  onSubmit: (data: UtxoAttachFormData) => void;
 }
 
-export function AttachForm({ onSubmit, initialAsset = "" }: AttachFormProps) {
-  const [formData, setFormData] = useState<AttachFormData>({
-    asset: initialAsset,
-    quantity: "",
-    utxo_value: "",
-    destination_vout: "",
-    feeRateSatPerVByte: 1,
-  });
-  const [localError, setLocalError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+export function UtxoAttachForm({ onSubmit }: UtxoAttachFormProps) {
+  const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText;
 
-  // Load asset details if asset is provided.
-  const { isLoading, error, data } = useAssetDetails(formData.asset);
-  const { assetInfo } = data || { assetInfo: null };
+  const [formData, setFormData] = useState<UtxoAttachFormData>({
+    utxo: "",
+    asset: "XCP",
+    quantity: "",
 
-  const { activeAddress } = useWallet();
+  });
+  const [availableBalance, setAvailableBalance] = useState<string>("0");
+  const [assetInfo, setAssetInfo] = useState<any>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const utxoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    inputRef.current?.focus();
+    utxoRef.current?.focus();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!activeAddress?.address || !formData.asset) return;
+      try {
+        const { availableBalance, assetInfo } = await import("@/utils/blockchain/counterparty").then(
+          (module) => module.fetchAssetDetailsAndBalance(formData.asset, activeAddress.address)
+        );
+        setAvailableBalance(availableBalance);
+        setAssetInfo(assetInfo);
+      } catch (err) {
+        console.error("Failed to fetch balance:", err);
+        setLocalError("Failed to fetch balance.");
+      }
+    };
+    fetchBalance();
+  }, [activeAddress?.address, formData.asset]);
 
-    if (!formData.asset) {
-      setLocalError("Please enter an asset.");
-      return;
-    }
-    if (!formData.quantity || Number(formData.quantity) <= 0) {
-      setLocalError("Please enter a valid quantity greater than zero.");
-      return;
-    }
-    if (formData.feeRateSatPerVByte <= 0) {
-      setLocalError("Please enter a valid fee rate greater than zero.");
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (
+      !formData.utxo.trim() ||
+      !formData.asset ||
+      !formData.quantity ||
+      Number(formData.quantity) <= 0 ||
+      formData.feeRateSatPerVByte <= 0
+    ) {
+      setLocalError("Please fill all required fields with valid values.");
       return;
     }
     setLocalError(null);
-
-    // Convert quantity to satoshis if asset is divisible.
-    let convertedQuantity = formData.quantity;
-    if (assetInfo && assetInfo.divisible) {
-      const qty = Number(formData.quantity);
-      convertedQuantity = Math.round(qty * 1e8).toString();
-    }
-
-    const updatedFormData: AttachFormData = {
-      asset: formData.asset,
-      quantity: convertedQuantity,
-      feeRateSatPerVByte: formData.feeRateSatPerVByte,
-      ...(formData.utxo_value && { utxo_value: formData.utxo_value.trim() }),
-      ...(formData.destination_vout && { destination_vout: formData.destination_vout.trim() }),
-    };
-
-    onSubmit(updatedFormData);
+    onSubmit(formData);
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-4">
-      {formData.asset && (
-        <div className="min-h-[80px]">
-          <Suspense fallback={<div>Loading asset details...</div>}>
-            {isLoading ? (
-              <div className="animate-pulse h-12 bg-gray-200 rounded"></div>
-            ) : error ? (
-              <div className="text-red-500">{error.message}</div>
-            ) : (
-              <BalanceHeader
-                balance={{
-                  asset: formData.asset,
-                  asset_info: assetInfo,
-                  quantity_normalized: "", // Balance not needed for attach
-                }}
-                className="mb-4"
-              />
-            )}
-          </Suspense>
-        </div>
+    <div className="space-y-4">
+      {activeAddress && (
+        <BalanceHeader
+          balance={{
+            asset: formData.asset,
+            quantity_normalized: availableBalance,
+            asset_info: assetInfo,
+          }}
+          className="mb-4"
+        />
       )}
       {localError && <div className="text-red-500 mb-2">{localError}</div>}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Field>
-          <Label className="text-sm font-medium text-gray-700">
-            Asset <span className="text-red-500">*</span>
-          </Label>
-          <div className="relative mt-1 mb-2">
+      <div className="bg-white rounded-lg shadow-lg p-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              UTXO <span className="text-red-500">*</span>
+            </Label>
             <Input
-              ref={inputRef}
+              ref={utxoRef}
               type="text"
-              name="asset"
-              value={formData.asset}
-              onChange={(e) =>
-                setFormData({ ...formData, asset: e.target.value.trim() })
-              }
+              name="utxo"
+              value={formData.utxo}
+              onChange={(e) => setFormData((prev) => ({ ...prev, utxo: e.target.value.trim() }))}
               required
-              placeholder="Enter asset name"
-              className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter UTXO (txid:vout)"
+              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
             />
-          </div>
-          <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-            Enter the asset you want to attach.
-          </Description>
-        </Field>
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Enter the UTXO identifier (e.g., txid:vout) to attach the asset to.
+            </Description>
+          </Field>
 
-        <Field>
-          <Label className="text-sm font-medium text-gray-700">
-            Quantity <span className="text-red-500">*</span>
-          </Label>
-          <div className="relative mt-1 mb-2">
-            <Input
-              type="text"
-              name="quantity"
-              value={formData.quantity}
-              onChange={(e) =>
-                setFormData({ ...formData, quantity: e.target.value.trim() })
-              }
-              required
-              placeholder="Enter quantity to attach"
-              className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-            Enter the quantity to attach (in decimal; will be converted to satoshis if divisible).
-          </Description>
-        </Field>
+          <AssetSelectInput
+            selectedAsset={formData.asset}
+            onChange={(asset) => {
+              setFormData((prev) => ({
+                ...prev,
+                asset,
+                quantity: "", // Reset quantity when asset changes
+              }));
+              setAvailableBalance("0"); // Reset balance until fetched
+              setAssetInfo(null);
+            }}
+            label="Asset"
+            required
+            shouldShowHelpText={shouldShowHelpText}
+            description="Select the asset to attach to the UTXO."
+          />
 
-        <Field>
-          <Label className="text-sm font-medium text-gray-700">
-            UTXO Value (satoshis)
-          </Label>
-          <div className="relative mt-1 mb-2">
-            <Input
-              type="text"
-              name="utxo_value"
-              value={formData.utxo_value}
-              onChange={(e) =>
-                setFormData({ ...formData, utxo_value: e.target.value.trim() })
-              }
-              placeholder="Optional utxo value"
-              className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-            Optionally specify the UTXO value (in satoshis).
-          </Description>
-        </Field>
+          <AmountWithMaxInput
+            asset={formData.asset}
+            availableBalance={availableBalance}
+            value={formData.quantity}
+            onChange={(value) => setFormData((prev) => ({ ...prev, quantity: value }))}
+            feeRateSatPerVByte={formData.feeRateSatPerVByte}
+            setError={setLocalError}
+            sourceAddress={activeAddress}
+            maxAmount={availableBalance}
+            shouldShowHelpText={shouldShowHelpText}
+            label="Quantity"
+            name="quantity"
+            description={
+              assetInfo?.divisible
+                ? "Enter the quantity to attach (up to 8 decimal places)."
+                : "Enter a whole number quantity."
+            }
+          />
 
-        <Field>
-          <Label className="text-sm font-medium text-gray-700">
-            Destination Vout
-          </Label>
-          <div className="relative mt-1 mb-2">
-            <Input
-              type="text"
-              name="destination_vout"
-              value={formData.destination_vout}
-              onChange={(e) =>
-                setFormData({ ...formData, destination_vout: e.target.value.trim() })
-              }
-              placeholder="Optional destination vout"
-              className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-            Optionally specify the destination vout.
-          </Description>
-        </Field>
+          <FeeRateInput
+            value={formData.feeRateSatPerVByte}
+            onChange={(value) => setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))}
+            error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
+            showHelpText={shouldShowHelpText}
+          />
 
-        <FeeRateInput
-          id="feeRateSatPerVByte"
-          value={formData.feeRateSatPerVByte}
-          onChange={(value: number) =>
-            setFormData({ ...formData, feeRateSatPerVByte: value })
-          }
-          error={
-            formData.feeRateSatPerVByte <= 0
-              ? "Please enter a valid fee rate greater than zero."
-              : ""
-          }
-          showLabel={true}
-          label="Fee Rate (sat/vB)"
-          showHelpText={shouldShowHelpText}
-          autoFetch={true}
-        />
-
-        <Button type="submit" color="blue" fullWidth>
-          Continue
-        </Button>
-      </form>
+          <Button
+            type="submit"
+            color="blue"
+            fullWidth
+            disabled={
+              !formData.utxo.trim() ||
+              !formData.asset ||
+              !formData.quantity ||
+              Number(formData.quantity) <= 0 ||
+              formData.feeRateSatPerVByte <= 0
+            }
+          >
+            Continue
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

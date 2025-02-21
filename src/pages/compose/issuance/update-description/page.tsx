@@ -21,7 +21,7 @@ export function ComposeIssuanceUpdateDescription() {
         composeTransaction={composeIssuance}
         initialFormData={{
           description: "",
-          feeRateSatPerVByte: 1,
+      
         }}
       />
     </div>

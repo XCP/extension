@@ -3,12 +3,12 @@ import { Field, Label, Description } from "@headlessui/react";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { FiChevronDown, FiCheck } from "react-icons/fi";
 import { Button } from "@/components/button";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { AssetSelectInput } from "@/components/inputs/asset-select-input";
+import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useWallet } from "@/contexts/wallet-context";
 
 export interface DispenserCloseFormData {
-  feeRateSatPerVByte: number;
+
   asset: string;
   tx_hash?: string;
 }
@@ -16,7 +16,6 @@ export interface DispenserCloseFormData {
 interface Dispenser {
   tx_hash: string;
   asset: string;
-  // ...other properties as needed
 }
 
 export interface DispenserCloseFormProps {
@@ -40,16 +39,14 @@ export const DispenserCloseForm = ({
   totalDispensers,
   asset,
 }: DispenserCloseFormProps) => {
-  const { walletState } = useWallet();
+  useEffect(() => {
+    if (!formData.feeRateSatPerVByte) {
+      setFormData((prev) => ({ ...prev, feeRateSatPerVByte: 1 }));
+    }
+  }, [formData.feeRateSatPerVByte, setFormData]);
 
-  // Use the AssetSelectInput when no dispensers exist, when there are many,
-  // or when no specific asset is provided
   const shouldUseAssetSelect = !asset && (dispensers.length === 0 || totalDispensers > 100);
-
-  // If we have a specific asset, filter dispensers for that asset
-  const relevantDispensers = asset 
-    ? dispensers.filter(d => d.asset === asset)
-    : dispensers;
+  const relevantDispensers = asset ? dispensers.filter((d) => d.asset === asset) : dispensers;
 
   const AssetIcon = ({ asset }: { asset: string }) => (
     <img
@@ -80,13 +77,13 @@ export const DispenserCloseForm = ({
               Dispenser<span className="text-red-500">*</span>
             </Label>
             <Listbox
-              value={formData.tx_hash || ''}
+              value={formData.tx_hash || ""}
               onChange={(value) => {
-                const selectedDispenser = relevantDispensers.find(d => d.tx_hash === value);
-                setFormData(prev => ({
+                const selectedDispenser = relevantDispensers.find((d) => d.tx_hash === value);
+                setFormData((prev) => ({
                   ...prev,
                   tx_hash: value,
-                  asset: selectedDispenser?.asset || prev.asset
+                  asset: selectedDispenser?.asset || prev.asset,
                 }));
               }}
             >
@@ -119,14 +116,20 @@ export const DispenserCloseForm = ({
                             <span className="absolute inset-y-0 left-0 flex items-center pl-3">
                               <AssetIcon asset={dispenser.asset} />
                             </span>
-                            <span className={`ml-2 block truncate ${selected ? "font-medium" : "font-normal"}`}>
+                            <span
+                              className={`ml-2 block truncate ${
+                                selected ? "font-medium" : "font-normal"
+                              }`}
+                            >
                               {dispenser.asset} - {dispenser.tx_hash.substring(0, 8)}...
                             </span>
                           </div>
                           {selected && (
-                            <span className={`absolute inset-y-0 right-0 flex items-center pr-3 ${
-                              active ? "text-white" : "text-blue-500"
-                            }`}>
+                            <span
+                              className={`absolute inset-y-0 right-0 flex items-center pr-3 ${
+                                active ? "text-white" : "text-blue-500"
+                              }`}
+                            >
                               <FiCheck className="h-5 w-5" aria-hidden="true" />
                             </span>
                           )}
@@ -148,6 +151,7 @@ export const DispenserCloseForm = ({
         <FeeRateInput
           value={formData.feeRateSatPerVByte}
           onChange={handleFeeRateChange}
+          error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
           showHelpText={shouldShowHelpText}
         />
 
@@ -162,4 +166,4 @@ export const DispenserCloseForm = ({
       </form>
     </div>
   );
-};
+}

@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { Button } from "@/components/button";
+import { ErrorAlert } from "@/components/error-alert";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { ErrorAlert } from "@/components/error-alert";
 
 export interface LockSupplyFormData {
   isConfirmed: boolean;
-  feeRateSatPerVByte: number;
+
 }
 
 interface LockSupplyFormProps {
@@ -24,15 +24,19 @@ export const LockSupplyForm = ({
   const { data: assetDetails, isLoading, error } = useAssetDetails(asset);
   const [formData, setFormData] = useState<LockSupplyFormData>({
     isConfirmed: false,
-    feeRateSatPerVByte: 10,
+    feeRateSatPerVByte: 10, // Updated default to 10 sat/vB
   });
 
   const handleConfirmationChange = (checked: boolean) => {
     setFormData((prev) => ({ ...prev, isConfirmed: checked }));
   };
 
-  const handleFeeRateChange = (value: number) => {
-    setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!formData.isConfirmed || formData.feeRateSatPerVByte <= 0) {
+      return; // Validation handled by form fields and FeeRateInput
+    }
+    onSubmit(formData);
   };
 
   if (error || !assetDetails) {
@@ -43,7 +47,6 @@ export const LockSupplyForm = ({
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-      {/* Asset Info Summary */}
       <div className="mb-4 p-3 bg-gray-50 rounded-md">
         <h3 className="text-sm font-medium text-gray-700">Asset Details</h3>
         <div className="mt-2 text-sm text-gray-600">
@@ -55,18 +58,12 @@ export const LockSupplyForm = ({
 
       <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
         <p className="text-sm text-yellow-700">
-          Warning: Locking the token supply is an irreversible action. Once locked, 
-          you will not be able to create additional tokens.
+          Warning: Locking the token supply is an irreversible action. Once locked, you will not be
+          able to create additional tokens.
         </p>
       </div>
 
-      <form 
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSubmit(formData);
-        }} 
-        className="space-y-4"
-      >
+      <form onSubmit={handleSubmit} className="space-y-4">
         <CheckboxInput
           checked={formData.isConfirmed}
           onChange={handleConfirmationChange}
@@ -76,7 +73,8 @@ export const LockSupplyForm = ({
 
         <FeeRateInput
           value={formData.feeRateSatPerVByte}
-          onChange={handleFeeRateChange}
+          onChange={(value) => setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))}
+          error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
           showHelpText={shouldShowHelpText}
         />
 

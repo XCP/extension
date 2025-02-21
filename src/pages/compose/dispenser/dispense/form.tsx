@@ -12,7 +12,7 @@ import { toBigNumber } from "@/utils/numeric";
 
 export interface DispenseFormData {
   dispenserAddress: string;
-  feeRateSatPerVByte: number;
+
   numberOfDispenses: string;
   selectedPriceLevelIndex: number;
 }
@@ -61,7 +61,7 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
 
   const [formData, setFormData] = useState<DispenseFormData>({
     dispenserAddress: "",
-    feeRateSatPerVByte: 1,
+
     numberOfDispenses: "1",
     selectedPriceLevelIndex: -1,
   });
@@ -75,7 +75,6 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
     dispenserAddressRef.current?.focus();
   }, []);
 
-  // When the dispenser address changes, (re)fetch details
   useEffect(() => {
     if (formData.dispenserAddress.trim()) {
       fetchDispenserDetails(formData.dispenserAddress.trim());
@@ -103,7 +102,6 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
         setDispenserError("No open dispenser found at this address.");
         return;
       }
-      // Group by satoshirate
       const priceLevelMap = new Map<number, DispenserDetails[]>();
       for (const dispenser of dispensers) {
         const rate = dispenser.satoshirate;
@@ -138,7 +136,6 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
     }
   };
 
-  // Fetch BTC balance for “max dispenses” calculations
   useEffect(() => {
     const fetchBtcBalance = async () => {
       if (!activeAddress?.address) return;
@@ -153,7 +150,6 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
     fetchBtcBalance();
   }, [activeAddress?.address]);
 
-  // Build payment options based on price levels (cumulative grouping)
   const paymentOptions: PaymentOption[] = priceLevels.map((priceLevel, index) => {
     let assets: { asset: string; quantity: string; asset_info?: DispenserDetails["asset_info"] }[] = [];
     for (let i = 0; i <= index; i++) {
@@ -184,9 +180,7 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
       ? paymentOptions[formData.selectedPriceLevelIndex]
       : null;
   const numberOfDispenses = Number(formData.numberOfDispenses) || 0;
-  // Total quantity in satoshis for the composed transaction
   const totalQuantity = selectedPriceOption ? selectedPriceOption.satoshirate * numberOfDispenses : 0;
-  // Also compute display values
   const totalBtcAmount = selectedPriceOption ? selectedPriceOption.btcAmount * numberOfDispenses : 0;
   const totalAssets = selectedPriceOption
     ? selectedPriceOption.assets.map((asset) => ({
@@ -196,7 +190,6 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
       }))
     : [];
 
-  // Calculate maximum dispenses allowed based on BTC balance
   const calculateMaxDispenses = useCallback(
     (priceLevel: PriceLevel) => {
       if (!priceLevel) return 0;
@@ -223,14 +216,10 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
     ) {
       return;
     }
-    // Prepare the object for composeTransaction.
-    // Note that composeDispense expects keys “dispenser”, “sat_per_vbyte”, and “quantity”
-    // (with quantity given in satoshis).
     const submissionData = {
       dispenser: formData.dispenserAddress.trim(),
-      sat_per_vbyte: formData.feeRateSatPerVByte,
       quantity: totalQuantity.toString(),
-      // Save extra info for the review screen
+      
       extra: {
         priceLevels,
         selectedPriceLevelIndex: formData.selectedPriceLevelIndex,
@@ -288,14 +277,15 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
             <div className="text-red-500">{dispenserError}</div>
           ) : priceLevels.length > 0 && (
             <>
-              {/* Price Level Options */}
               <div className="space-y-4">
                 {paymentOptions.map((option) => (
                   <label
                     key={option.index}
                     htmlFor={`priceLevel-${option.index}`}
                     className={`relative flex items-start gap-3 bg-gray-50 p-4 rounded-md border cursor-pointer ${
-                      formData.selectedPriceLevelIndex === option.index ? "border-blue-500" : "border-gray-300"
+                      formData.selectedPriceLevelIndex === option.index
+                        ? "border-blue-500"
+                        : "border-gray-300"
                     }`}
                     onClick={() =>
                       setFormData((prev) => ({ ...prev, selectedPriceLevelIndex: option.index }))
@@ -308,7 +298,10 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
                       value={option.index}
                       checked={formData.selectedPriceLevelIndex === option.index}
                       onChange={() =>
-                        setFormData((prev) => ({ ...prev, selectedPriceLevelIndex: option.index }))
+                        setFormData((prev) => ({
+                          ...prev,
+                          selectedPriceLevelIndex: option.index,
+                        }))
                       }
                       className="form-radio text-blue-600 absolute right-5 top-5"
                     />
@@ -339,7 +332,6 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
                 ))}
               </div>
 
-              {/* If multiple dispenses are allowed */}
               {showMultipleDispenses && formData.selectedPriceLevelIndex !== -1 && (
                 <AmountWithMaxInput
                   asset="Dispenses"
@@ -354,10 +346,12 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
                   availableBalance={btcBalance}
                   feeRateSatPerVByte={formData.feeRateSatPerVByte}
                   description="Number of times to trigger the dispenser"
+                  setError={() => {}}
+                  shouldShowHelpText={settings?.showHelpText}
+                  sourceAddress={{ address: activeAddress?.address || '' }}
                 />
               )}
 
-              {/* Summary Box */}
               {numberOfDispenses > 0 && selectedPriceOption && (
                 <div className="bg-blue-50 p-4 rounded-md space-y-2">
                   <div className="text-sm text-blue-700">
@@ -394,6 +388,7 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
             onChange={(value) =>
               setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))
             }
+            error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
             showHelpText={settings?.showHelpText}
           />
 

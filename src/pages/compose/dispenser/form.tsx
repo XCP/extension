@@ -14,7 +14,7 @@ export interface DispenserFormData {
   give_quantity: string;
   escrow_quantity: string;
   mainchainrate: string;
-  feeRateSatPerVByte: number;
+
 }
 
 export interface TradingPairData {
@@ -35,7 +35,7 @@ export function DispenserForm({ asset, onSubmit }: DispenserFormProps) {
     give_quantity: "",
     escrow_quantity: "",
     mainchainrate: "",
-    feeRateSatPerVByte: 1,
+    feeRateSatPerVByte: 10, // Updated default to 10 sat/vB
   });
   const [availableBalance, setAvailableBalance] = useState<string>("0");
   const [assetInfo, setAssetInfo] = useState<any>(null);
@@ -44,12 +44,10 @@ export function DispenserForm({ asset, onSubmit }: DispenserFormProps) {
 
   const escrowInputRef = useRef<HTMLInputElement>(null);
 
-  // Autofocus on the escrow input
   useEffect(() => {
     escrowInputRef.current?.focus();
   }, []);
 
-  // Fetch asset details (balance, divisibility, etc.) and trading pair data
   useEffect(() => {
     const fetchDetails = async () => {
       if (!asset || !activeAddress?.address) return;
@@ -60,13 +58,11 @@ export function DispenserForm({ asset, onSubmit }: DispenserFormProps) {
         setAssetInfo(assetInfo);
         setAvailableBalance(availableBalance);
 
-        // Set default give_quantity based on divisibility
         setFormData((prev) => ({
           ...prev,
           give_quantity: isDivisible ? "1.00000000" : "1",
         }));
 
-        // Fetch trading pair data for the price-suggest button
         const tradingPairResponse = await axios.get(
           `https://app.xcp.io/api/v1/swap/${asset}/BTC`
         );
@@ -88,11 +84,9 @@ export function DispenserForm({ asset, onSubmit }: DispenserFormProps) {
 
   const handleSubmitInternal = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Validate required fields here if needed
     const submissionData = {
       asset,
       ...formData,
-      // Save extra data for the review screen:
       extra: {
         availableBalance,
         assetInfo,
@@ -117,15 +111,12 @@ export function DispenserForm({ asset, onSubmit }: DispenserFormProps) {
       )}
       <div className="bg-white rounded-lg shadow-lg p-4">
         <form className="space-y-6" onSubmit={handleSubmitInternal}>
-          {/* Dispenser Escrow Field with Max Button */}
           <AmountWithMaxInput
             ref={escrowInputRef}
             asset={asset}
             availableBalance={availableBalance}
             value={formData.escrow_quantity}
-            onChange={(value) =>
-              setFormData((prev) => ({ ...prev, escrow_quantity: value }))
-            }
+            onChange={(value) => setFormData((prev) => ({ ...prev, escrow_quantity: value }))}
             feeRateSatPerVByte={formData.feeRateSatPerVByte}
             walletState={activeAddress}
             maxAmount={availableBalance}
@@ -138,12 +129,9 @@ export function DispenserForm({ asset, onSubmit }: DispenserFormProps) {
             } Available: ${availableBalance}`}
           />
 
-          {/* BTC Rate with Suggest Button */}
           <PriceWithSuggestInput
             value={formData.mainchainrate}
-            onChange={(value) =>
-              setFormData((prev) => ({ ...prev, mainchainrate: value }))
-            }
+            onChange={(value) => setFormData((prev) => ({ ...prev, mainchainrate: value }))}
             tradingPairData={tradingPairData}
             shouldShowHelpText={settings?.showHelpText}
             label="BTC Per Dispense"
@@ -152,7 +140,6 @@ export function DispenserForm({ asset, onSubmit }: DispenserFormProps) {
             showPairFlip={false}
           />
 
-          {/* Give Quantity Field */}
           <Field>
             <Label htmlFor="give_quantity" className="text-sm font-medium text-gray-700">
               Dispense Amount<span className="text-red-500">*</span>
@@ -170,30 +157,26 @@ export function DispenserForm({ asset, onSubmit }: DispenserFormProps) {
             {settings?.showHelpText && (
               <Description className="mt-2 text-sm text-gray-500">
                 The quantity of the asset to dispense per transaction.
-                {assetDivisible
-                  ? " Enter up to 8 decimal places."
-                  : " Enter whole numbers only."}
+                {assetDivisible ? " Enter up to 8 decimal places." : " Enter whole numbers only."}
               </Description>
             )}
           </Field>
 
-          {/* Fee Rate Input */}
           <FeeRateInput
             value={formData.feeRateSatPerVByte}
-            onChange={(value) =>
-              setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))
-            }
+            onChange={(value) => setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))}
+            error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
             showHelpText={settings?.showHelpText}
           />
 
-          {/* Submit Button */}
           <Button
             color="blue"
             fullWidth
             disabled={
               !formData.give_quantity ||
               !formData.escrow_quantity ||
-              !formData.mainchainrate
+              !formData.mainchainrate ||
+              formData.feeRateSatPerVByte <= 0
             }
             type="submit"
           >

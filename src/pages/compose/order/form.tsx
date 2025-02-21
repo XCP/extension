@@ -1,19 +1,19 @@
-import React, { useState, useRef, useEffect, useMemo, FormEvent } from 'react';
-import { Button } from '@/components/button';
-import { AmountWithMaxInput } from '@/components/inputs/amount-with-max-input';
-import { AssetSelectInput } from '@/components/inputs/asset-select-input';
-import { FeeRateInput } from '@/components/inputs/fee-rate-input';
-import { PriceWithSuggestInput } from '@/components/inputs/price-with-suggest-input';
-import { Loading } from '@/components/loading';
-import { FaCog } from 'react-icons/fa';
-import { toBigNumber, formatBigNumber } from '@/utils/numeric';
+import React, { useState, useRef, useEffect, useMemo, FormEvent } from "react";
+import { FaCog } from "react-icons/fa";
+import { Button } from "@/components/button";
+import { Loading } from "@/components/loading";
+import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
+import { AssetSelectInput } from "@/components/inputs/asset-select-input";
+import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
+import { toBigNumber, formatBigNumber } from "@/utils/numeric";
 
 export interface OrderFormData {
-  type: 'buy' | 'sell';
+  type: "buy" | "sell";
   amount: string;
   asset: string;
   price: string;
-  feeRateSatPerVByte: number;
+
 }
 
 export interface TradingPairData {
@@ -29,7 +29,7 @@ interface OrderFormProps {
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   tradingPairData: TradingPairData | null;
   tabLoading: boolean;
-  handleOrderTypeChange: (type: 'buy' | 'sell') => void;
+  handleOrderTypeChange: (type: "buy" | "sell") => void;
   isPairFlipped: boolean;
   setIsPairFlipped: React.Dispatch<React.SetStateAction<boolean>>;
 }
@@ -47,11 +47,11 @@ export const OrderForm = ({
   setIsPairFlipped,
 }: OrderFormProps) => {
   const [formData, setFormData] = useState<OrderFormData>({
-    type: 'sell',
-    amount: '',
-    asset: giveAsset === 'XCP' ? 'BTC' : 'XCP',
-    price: '',
-    feeRateSatPerVByte: 1,
+    type: "sell",
+    amount: "",
+    asset: giveAsset === "XCP" ? "BTC" : "XCP",
+    price: "",
+
   });
 
   const amountInputRef = useRef<HTMLInputElement>(null);
@@ -63,11 +63,10 @@ export const OrderForm = ({
     }
   }, [tabLoading]);
 
-  const isBuy = formData.type === 'buy';
+  const isBuy = formData.type === "buy";
 
-  // For simplicity, assume available balances are provided via walletState.
-  const orderAssetBalance = walletState?.orderAssetBalance || '0';
-  const availableBalance = walletState?.availableBalance || '0';
+  const orderAssetBalance = walletState?.orderAssetBalance || "0";
+  const availableBalance = walletState?.availableBalance || "0";
 
   const maxAmount = useMemo(() => {
     if (isBuy && formData.price && orderAssetBalance) {
@@ -75,16 +74,16 @@ export const OrderForm = ({
       const orderBalanceBN = toBigNumber(orderAssetBalance);
       let effectivePrice = priceBN;
       if (isPairFlipped) {
-        if (priceBN.isZero()) return '';
+        if (priceBN.isZero()) return "";
         effectivePrice = toBigNumber(1).dividedBy(priceBN);
       }
-      if (effectivePrice.isZero()) return '';
+      if (effectivePrice.isZero()) return "";
       const max = orderBalanceBN.dividedBy(effectivePrice);
       return formatBigNumber(max);
     } else if (!isBuy) {
       return availableBalance;
     }
-    return '';
+    return "";
   }, [isBuy, formData.price, orderAssetBalance, availableBalance, isPairFlipped]);
 
   const isMaxAvailable = isBuy ? Boolean(formData.price) : true;
@@ -101,13 +100,16 @@ export const OrderForm = ({
     setShowMaxError(false);
   }, [formData.type, formData.price]);
 
-  const amountDescription = `Amount to ${isBuy ? 'buy' : 'sell'}. ${
-    isBuy ? 'Enter up to 8 decimal places.' : 'Enter whole numbers only.'
+  const amountDescription = `Amount to ${isBuy ? "buy" : "sell"}. ${
+    isBuy ? "Enter up to 8 decimal places." : "Enter whole numbers only."
   }`;
   const priceDescription = `Price per unit in ${formData.asset}`;
 
   const handleSubmitInternal = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!formData.amount || !formData.asset || !formData.price || formData.feeRateSatPerVByte <= 0) {
+      return; // Validation handled by form fields and FeeRateInput
+    }
     onSubmit({
       ...formData,
       giveAsset,
@@ -119,28 +121,27 @@ export const OrderForm = ({
 
   return (
     <>
-      {/* Order Type Tabs and Settings */}
       <div className="flex justify-between items-center mb-2">
         <div className="flex space-x-4">
           <button
             className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none ${
-              formData.type === 'buy' ? 'underline' : ''
+              formData.type === "buy" ? "underline" : ""
             }`}
-            onClick={() => handleOrderTypeChange('buy')}
+            onClick={() => handleOrderTypeChange("buy")}
           >
             Buy
           </button>
           <button
             className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none ${
-              formData.type === 'sell' ? 'underline' : ''
+              formData.type === "sell" ? "underline" : ""
             }`}
-            onClick={() => handleOrderTypeChange('sell')}
+            onClick={() => handleOrderTypeChange("sell")}
           >
             Sell
           </button>
         </div>
         <button
-          onClick={() => console.log('Settings clicked')}
+          onClick={() => console.log("Settings clicked")}
           className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           aria-label="Order Settings"
         >
@@ -158,7 +159,7 @@ export const OrderForm = ({
             <AmountWithMaxInput
               ref={amountInputRef}
               asset={giveAsset}
-              availableBalance={isBuy ? '' : availableBalance}
+              availableBalance={isBuy ? "" : availableBalance}
               value={formData.amount}
               onChange={(value: string) => setFormData((prev) => ({ ...prev, amount: value }))}
               feeRateSatPerVByte={formData.feeRateSatPerVByte}
@@ -185,7 +186,7 @@ export const OrderForm = ({
                 setFormData((prev) => ({
                   ...prev,
                   asset,
-                  price: '', // Clear price when asset changes
+                  price: "", // Clear price when asset changes
                 }))
               }
               label="Quote"
@@ -209,10 +210,16 @@ export const OrderForm = ({
               onChange={(value: number) =>
                 setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))
               }
+              error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
               showHelpText={shouldShowHelpText}
             />
 
-            <Button color="blue" fullWidth disabled={!formData.amount || !formData.asset || !formData.price} type="submit">
+            <Button
+              color="blue"
+              fullWidth
+              disabled={!formData.amount || !formData.asset || !formData.price || formData.feeRateSatPerVByte <= 0}
+              type="submit"
+            >
               Continue
             </Button>
           </form>

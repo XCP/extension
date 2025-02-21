@@ -1,8 +1,8 @@
 import React, { useState, FormEvent } from "react";
 import { Button } from "@/components/button";
 import { AddressHeader } from "@/components/headers/address-header";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
+import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 
@@ -13,35 +13,29 @@ export interface AddressOptionsFormData {
   feeRateSatPerVByte: number;
 }
 
-const DEFAULT_FORM_DATA: AddressOptionsFormData = {
-  requireMemo: false,
-  feeRateSatPerVByte: 1,
-};
-
 interface AddressOptionsFormProps {
   onSubmit: (data: AddressOptionsFormData & { text?: string }) => void;
 }
 
-export function AddressOptionsForm({
-  onSubmit,
-}: AddressOptionsFormProps) {
+export function AddressOptionsForm({ onSubmit }: AddressOptionsFormProps) {
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
-  const [formData, setFormData] = useState<AddressOptionsFormData>(DEFAULT_FORM_DATA);
+  const [formData, setFormData] = useState<Omit<AddressOptionsFormData, 'feeRateSatPerVByte'>>({
+    requireMemo: false,
+  });
+  const [feeRate, setFeeRate] = useState<number>(0);
 
   const handleRequireMemoChange = (checked: boolean) => {
     setFormData((prev) => ({ ...prev, requireMemo: checked }));
   };
 
-  const handleFeeRateChange = (value: number) => {
-    setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
-  };
-
   const handleSubmitInternal = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (feeRate <= 0) return;
     const options = formData.requireMemo ? ADDRESS_OPTION_REQUIRE_MEMO : 0;
     onSubmit({
       ...formData,
+      feeRateSatPerVByte: feeRate,
       text: `options ${options}`,
     });
   };
@@ -51,7 +45,7 @@ export function AddressOptionsForm({
       {activeAddress && (
         <AddressHeader
           address={activeAddress.address}
-          walletName={activeWallet?.name}
+          walletName={activeWallet?.name ?? ""}
           className="mb-6"
         />
       )}
@@ -59,29 +53,26 @@ export function AddressOptionsForm({
         <form onSubmit={handleSubmitInternal} className="space-y-4">
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
             <p className="text-sm text-yellow-700">
-              The "Require Memo" option will make this address reject transactions
-              without memos. This setting cannot be reversed.
+              The "Require Memo" option will make this address reject transactions without memos.
+              This setting cannot be reversed.
             </p>
           </div>
-
           <CheckboxInput
             checked={formData.requireMemo}
             onChange={handleRequireMemoChange}
             label="Require Memo for Incoming Transactions"
             aria-label="Toggle require memo for incoming transactions"
           />
-
           <FeeRateInput
-            value={formData.feeRateSatPerVByte}
-            onChange={handleFeeRateChange}
+            onChange={setFeeRate}
+            error={feeRate <= 0 ? "Fee rate must be greater than zero." : ""}
             showHelpText={settings?.showHelpText}
           />
-
           <Button
             type="submit"
             color="blue"
             fullWidth
-            disabled={!formData.requireMemo || formData.feeRateSatPerVByte <= 0}
+            disabled={!formData.requireMemo || feeRate <= 0}
           >
             Continue
           </Button>

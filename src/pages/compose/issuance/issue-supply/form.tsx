@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect, FormEvent } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { useWallet } from "@/contexts/wallet-context";
 import { ErrorAlert } from "@/components/error-alert";
+import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+import { useWallet } from "@/contexts/wallet-context";
+import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 export interface IssueSupplyFormData {
   quantity: string;
-  feeRateSatPerVByte: number;
+
 }
 
 interface IssueSupplyFormProps {
@@ -17,17 +17,13 @@ interface IssueSupplyFormProps {
   asset: string;
 }
 
-export const IssueSupplyForm = ({
-  onSubmit,
-  shouldShowHelpText = true,
-  asset,
-}: IssueSupplyFormProps) => {
+export const IssueSupplyForm = ({ onSubmit, shouldShowHelpText = true, asset }: IssueSupplyFormProps) => {
   const { activeAddress } = useWallet();
   const { data: assetDetails, isLoading, error } = useAssetDetails(asset);
 
   const [formData, setFormData] = useState<IssueSupplyFormData>({
     quantity: "",
-    feeRateSatPerVByte: 0,
+
   });
 
   const quantityInputRef = useRef<HTMLInputElement>(null);
@@ -40,12 +36,11 @@ export const IssueSupplyForm = ({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFeeRateChange = (value: number) => {
-    setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
-  };
-
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!formData.quantity.trim() || Number(formData.quantity) <= 0 || formData.feeRateSatPerVByte <= 0) {
+      return; // Validation handled by form fields and FeeRateInput
+    }
     onSubmit(formData);
   };
 
@@ -57,7 +52,6 @@ export const IssueSupplyForm = ({
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-      {/* Asset Info Summary */}
       <div className="mb-4 p-3 bg-gray-50 rounded-md">
         <h3 className="text-sm font-medium text-gray-700">Asset Details</h3>
         <div className="mt-2 text-sm text-gray-600">
@@ -67,7 +61,6 @@ export const IssueSupplyForm = ({
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Quantity Input */}
         <Field>
           <Label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
             Quantity<span className="text-red-500">*</span>
@@ -91,10 +84,10 @@ export const IssueSupplyForm = ({
           )}
         </Field>
 
-        {/* Fee Rate Input */}
         <FeeRateInput
           value={formData.feeRateSatPerVByte}
-          onChange={handleFeeRateChange}
+          onChange={(value) => setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))}
+          error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
           showHelpText={shouldShowHelpText}
         />
 
@@ -102,11 +95,7 @@ export const IssueSupplyForm = ({
           type="submit"
           color="blue"
           fullWidth
-          disabled={
-            !formData.quantity.trim() ||
-            Number(formData.quantity) <= 0 ||
-            formData.feeRateSatPerVByte <= 0
-          }
+          disabled={!formData.quantity.trim() || Number(formData.quantity) <= 0 || formData.feeRateSatPerVByte <= 0}
         >
           Continue
         </Button>

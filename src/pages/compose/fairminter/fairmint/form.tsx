@@ -10,7 +10,7 @@ import { useAssetDetails } from "@/hooks/useAssetDetails";
 export interface FairmintFormData {
   asset: string;
   quantity: string;
-  feeRateSatPerVByte: number;
+
 }
 
 interface FairmintFormProps {
@@ -22,14 +22,13 @@ export function FairmintForm({ onSubmit, initialAsset = "" }: FairmintFormProps)
   const [formData, setFormData] = useState<FairmintFormData>({
     asset: initialAsset,
     quantity: "",
-    feeRateSatPerVByte: 1,
+
   });
   const [localError, setLocalError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText;
 
-  // Load asset details if an asset is specified.
   const { isLoading, error, data } = useAssetDetails(formData.asset);
   const { assetInfo } = data || { assetInfo: null };
 
@@ -56,7 +55,6 @@ export function FairmintForm({ onSubmit, initialAsset = "" }: FairmintFormProps)
     }
     setLocalError(null);
 
-    // If the asset is divisible, convert the quantity from decimal to satoshis.
     let convertedQuantity = formData.quantity;
     if (assetInfo && assetInfo.divisible) {
       const quantityNumber = Number(formData.quantity);
@@ -66,7 +64,7 @@ export function FairmintForm({ onSubmit, initialAsset = "" }: FairmintFormProps)
     const updatedFormData: FairmintFormData = {
       asset: formData.asset,
       quantity: convertedQuantity,
-      feeRateSatPerVByte: formData.feeRateSatPerVByte,
+      
     };
 
     onSubmit(updatedFormData);
@@ -85,8 +83,8 @@ export function FairmintForm({ onSubmit, initialAsset = "" }: FairmintFormProps)
               <BalanceHeader
                 balance={{
                   asset: formData.asset,
-                  asset_info: assetInfo,
-                  quantity_normalized: "", // For fairmint, a balance may not be applicable.
+                  asset_info: assetInfo || undefined,
+                  quantity_normalized: "",
                 }}
                 className="mb-4"
               />
@@ -106,15 +104,13 @@ export function FairmintForm({ onSubmit, initialAsset = "" }: FairmintFormProps)
               type="text"
               name="asset"
               value={formData.asset}
-              onChange={(e) =>
-                setFormData({ ...formData, asset: e.target.value.trim() })
-              }
+              onChange={(e) => setFormData({ ...formData, asset: e.target.value.trim() })}
               required
               placeholder="Enter asset name"
               className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+          <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
             Enter the asset you want to perform a fair mint for.
           </Description>
         </Field>
@@ -128,15 +124,13 @@ export function FairmintForm({ onSubmit, initialAsset = "" }: FairmintFormProps)
               type="text"
               name="quantity"
               value={formData.quantity}
-              onChange={(e) =>
-                setFormData({ ...formData, quantity: e.target.value.trim() })
-              }
+              onChange={(e) => setFormData({ ...formData, quantity: e.target.value.trim() })}
               required
               placeholder="Enter quantity to mint"
               className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+          <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
             Enter the quantity to mint (in decimal; will be converted to satoshis if the asset is divisible).
           </Description>
         </Field>
@@ -147,11 +141,7 @@ export function FairmintForm({ onSubmit, initialAsset = "" }: FairmintFormProps)
           onChange={(value: number) =>
             setFormData({ ...formData, feeRateSatPerVByte: value })
           }
-          error={
-            formData.feeRateSatPerVByte <= 0
-              ? "Please enter a valid fee rate greater than zero."
-              : ""
-          }
+          error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
           showLabel={true}
           label="Fee Rate (sat/vB)"
           showHelpText={shouldShowHelpText}

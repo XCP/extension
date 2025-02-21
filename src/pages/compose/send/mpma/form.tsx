@@ -1,262 +1,183 @@
-import React, { useState, useRef, useEffect } from "react";
-import { FiPlus, FiMinus } from "react-icons/fi";
+import React, { useState, useEffect, FormEvent } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { BalanceHeader } from "@/components/headers/balance-header";
-import { useSettings } from "@/contexts/settings-context";
-import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
+import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+import { MultiAssetInput } from "@/components/inputs/multi-asset-input";
+import { useWallet } from "@/contexts/wallet-context";
+import { fetchAssetDetailsAndBalance } from "@/utils/blockchain/counterparty";
+import { toBigNumber } from "@/utils/numeric";
 
-export interface Destination {
-  id: number;
-  address: string;
-}
-
-export interface SendFormData {
-  destinations: Destination[];
-  asset: string;
-  quantity: string;
+export interface SendMpmaFormData {
+  destination: string;
+  assets: { asset: string; quantity: string }[];
   memo: string;
-  feeRateSatPerVByte: number;
+
 }
 
-interface SendFormProps {
-  onSubmit: (data: SendFormData) => void;
-  initialAsset?: string;
+interface SendMpmaFormProps {
+  onSubmit: (data: SendMpmaFormData) => void;
+  shouldShowHelpText?: boolean;
 }
 
-export function MPMAForm({ onSubmit, initialAsset = "XCP" }: SendFormProps) {
-  const [formData, setFormData] = useState<SendFormData>({
-    destinations: [{ id: 1, address: "" }],
-    asset: initialAsset,
-    quantity: "",
+export function SendMpmaForm({ onSubmit, shouldShowHelpText = true }: SendMpmaFormProps) {
+  const { activeAddress, activeWallet } = useWallet();
+
+  const [formData, setFormData] = useState<SendMpmaFormData>({
+    destination: "",
+    assets: [{ asset: "BTC", quantity: "" }],
     memo: "",
-    feeRateSatPerVByte: 1,
+
   });
+  const [balances, setBalances] = useState<{ [key: string]: { balance: string; assetInfo: any } }>(
+    {}
+  );
   const [localError, setLocalError] = useState<string | null>(null);
-  const firstInputRef = useRef<HTMLInputElement>(null);
 
-  const { settings } = useSettings();
-  const shouldShowHelpText = settings?.showHelpText;
-
-  const { isLoading, error, data } = useAssetDetails(formData.asset);
-  const { assetInfo, availableBalance } = data || {
-    assetInfo: null,
-    availableBalance: "0",
-  };
-
-  // Auto-focus the first destination input on mount.
   useEffect(() => {
-    firstInputRef.current?.focus();
-  }, []);
-
-  const handleDestinationChange = (id: number, value: string) => {
-    const updatedDestinations = formData.destinations.map((dest) =>
-      dest.id === id ? { ...dest, address: value.trim() } : dest
-    );
-    setFormData({ ...formData, destinations: updatedDestinations });
-    if (value && !isValidBase58Address(value)) {
-      setLocalError(`Invalid Bitcoin address format: ${value}`);
-    } else {
-      setLocalError(null);
-    }
-  };
-
-  const addDestination = () => {
-    setFormData({
-      ...formData,
-      destinations: [
-        ...formData.destinations,
-        { id: Date.now() + Math.random(), address: "" },
-      ],
-    });
-  };
-
-  const removeDestination = (id: number) => {
-    const updated = formData.destinations.filter((dest) => dest.id !== id);
-    setFormData({ ...formData, destinations: updated });
-  };
-
-  const handlePaste = (
-    event: React.ClipboardEvent<HTMLInputElement>,
-    id: number
-  ) => {
-    event.preventDefault();
-    const pastedText = event.clipboardData.getData("text");
-    const lines = pastedText
-      .split(/[\n\r]+/)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
-    if (lines.length <= 1) {
-      handleDestinationChange(id, pastedText.trim());
-      return;
-    }
-    // Create new destination entries for each additional line.
-    const newDestinations = lines.map((line) => ({
-      id: Date.now() + Math.random(),
-      address: line,
-    }));
-    // Replace current input with the first pasted address.
-    const updatedDestinations = formData.destinations.map((dest) =>
-      dest.id === id ? { ...dest, address: lines[0] } : dest
-    );
-    setFormData({
-      ...formData,
-      destinations: [
-        ...updatedDestinations.slice(0, formData.destinations.length),
-        ...newDestinations.slice(1),
-      ],
-    });
-  };
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    for (const dest of formData.destinations) {
-      if (!dest.address || !isValidBase58Address(dest.address)) {
-        setLocalError("Please enter a valid Bitcoin address for each destination.");
-        return;
+    const fetchBalances = async () => {
+      if (!activeAddress?.address) return;
+      const newBalances: { [key: string]: { balance: string; assetInfo: any } } = {};
+      for (const { asset } of formData.assets) {
+        if (asset && !balances[asset]) {
+          try {
+            const { availableBalance, assetInfo } = await fetchAssetDetailsAndBalance(
+              asset,
+              activeAddress.address
+            );
+            newBalances[asset] = { balance: availableBalance, assetInfo };
+          } catch (err) {
+            console.error(`Failed to fetch balance for ${asset}:`, err);
+            setLocalError(`Failed to fetch balance for ${asset}.`);
+          }
+        }
       }
-    }
-    if (!formData.quantity || Number(formData.quantity) <= 0) {
-      setLocalError("Please enter a valid quantity greater than zero.");
+      setBalances((prev) => ({ ...prev, ...newBalances }));
+    };
+    fetchBalances();
+  }, [activeAddress?.address, formData.assets]);
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (
+      !formData.destination.trim() ||
+      formData.assets.length === 0 ||
+      formData.assets.some((a) => !a.asset || !a.quantity || Number(a.quantity) <= 0) ||
+      formData.feeRateSatPerVByte <= 0
+    ) {
+      setLocalError("Please fill all required fields with valid values.");
       return;
     }
-    if (formData.feeRateSatPerVByte <= 0) {
-      setLocalError("Please enter a valid fee rate greater than zero.");
+
+    const invalidAssets = formData.assets.filter((a) => {
+      const balance = toBigNumber(balances[a.asset]?.balance || "0");
+      const quantity = toBigNumber(a.quantity);
+      const isDivisible = balances[a.asset]?.assetInfo?.divisible ?? true;
+      const normalizedQuantity = isDivisible ? quantity.times(1e8) : quantity;
+      return balance.lt(normalizedQuantity);
+    });
+
+    if (invalidAssets.length > 0) {
+      setLocalError(
+        `Insufficient balance for: ${invalidAssets.map((a) => a.asset).join(", ")}.`
+      );
       return;
     }
+
+    setLocalError(null);
     onSubmit(formData);
   };
 
-  const handleMaxAmount = () => {
-    // In a real implementation, calculate the max amount considering fees.
-    setFormData({ ...formData, quantity: availableBalance });
-  };
+  const aggregatedBalance = formData.assets.reduce((acc, { asset }) => {
+    const balance = balances[asset]?.balance || "0";
+    acc[asset] = Number(balance);
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-4">
-      <div className="min-h-[80px]">
-        {isLoading ? (
-          <div className="animate-pulse h-12 bg-gray-200 rounded"></div>
-        ) : error ? (
-          <div className="text-red-500">{error.message}</div>
-        ) : (
-          <BalanceHeader
-            balance={{
-              asset: formData.asset,
-              asset_info: assetInfo,
-              quantity_normalized: availableBalance,
-            }}
-            className="mb-4"
-          />
-        )}
-      </div>
+    <div className="space-y-4">
+      {activeAddress && (
+        <BalanceHeader
+          balance={{
+            asset: "Multiple Assets",
+            quantity_normalized: Object.entries(aggregatedBalance)
+              .map(([asset, qty]) => `${qty} ${asset}`)
+              .join(", "),
+            asset_info: Object.values(balances).map((b) => b.assetInfo)[0], // Use first asset info for display
+          }}
+          className="mb-4"
+        />
+      )}
       {localError && <div className="text-red-500 mb-2">{localError}</div>}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Field>
-          <Label className="text-sm font-medium text-gray-700">
-            Destinations <span className="text-red-500">*</span>
-          </Label>
-          {formData.destinations.map((dest, index) => (
-            <div key={dest.id} className="relative mt-1 mb-2">
-              <Input
-                ref={index === 0 ? firstInputRef : undefined}
-                type="text"
-                name={`destination-${index}`}
-                value={dest.address}
-                onChange={(e) => handleDestinationChange(dest.id, e.target.value)}
-                onPaste={(e) => handlePaste(e, dest.id)}
-                required
-                placeholder={`Enter destination address ${index + 1}`}
-                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500 pr-16"
-              />
-              <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center space-x-1">
-                {index === 0 ? (
-                  <Button variant="icon" onClick={addDestination} aria-label="Add destination">
-                    <FiPlus className="w-4 h-4" />
-                  </Button>
-                ) : (
-                  <Button variant="icon" onClick={() => removeDestination(dest.id)} aria-label="Remove destination">
-                    <FiMinus className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
-          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-            Enter one or more destination addresses.
-          </Description>
-        </Field>
-
-        <Field>
-          <Label className="text-sm font-medium text-gray-700">
-            Amount <span className="text-red-500">*</span>
-          </Label>
-          <div className="relative mt-1">
+      <div className="bg-white rounded-lg shadow-lg p-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Destination <span className="text-red-500">*</span>
+            </Label>
             <Input
               type="text"
-              value={formData.quantity}
-              onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+              name="destination"
+              value={formData.destination}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, destination: e.target.value.trim() }))
+              }
               required
-              placeholder="Enter amount"
-              className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500 pr-24"
+              placeholder="Enter destination address"
+              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
             />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleMaxAmount}
-              className="absolute right-1 top-1/2 transform -translate-y-1/2 px-2 py-1 text-sm"
-            >
-              Max
-            </Button>
-          </div>
-          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-            Available balance: {availableBalance} {formData.asset}
-          </Description>
-        </Field>
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Enter the address to send the assets to.
+            </Description>
+          </Field>
 
-        {formData.asset !== "BTC" && (
+          <MultiAssetInput
+            assets={formData.assets}
+            onAssetsChange={(assets) => setFormData((prev) => ({ ...prev, assets }))}
+            balances={balances}
+            shouldShowHelpText={shouldShowHelpText}
+            feeRateSatPerVByte={formData.feeRateSatPerVByte}
+            sourceAddress={activeAddress}
+            setError={setLocalError}
+          />
+
           <Field>
             <Label className="text-sm font-medium text-gray-700">Memo</Label>
             <Input
               type="text"
+              name="memo"
               value={formData.memo}
-              onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
+              onChange={(e) => setFormData((prev) => ({ ...prev, memo: e.target.value.trim() }))}
               placeholder="Optional memo"
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
             />
-            <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-              Optionally include a memo with your transaction.
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Optional memo to include with the transaction.
             </Description>
           </Field>
-        )}
 
-        <Field>
-          <Label className="text-sm font-medium text-gray-700">
-            Fee Rate (sat/vB) <span className="text-red-500">*</span>
-          </Label>
-          <div className="mt-1">
-            <Input
-              type="number"
-              min="1"
-              step="0.1"
-              value={formData.feeRateSatPerVByte}
-              onChange={(e) =>
-                setFormData({ ...formData, feeRateSatPerVByte: parseFloat(e.target.value) || 0 })
-              }
-              required
-              className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-            Higher fees may result in faster confirmation times.
-          </Description>
-        </Field>
+          <FeeRateInput
+            value={formData.feeRateSatPerVByte}
+            onChange={(value) => setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))}
+            error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
+            showHelpText={shouldShowHelpText}
+          />
 
-        <Button type="submit" color="blue" fullWidth>
-          Continue
-        </Button>
-      </form>
+          <Button
+            type="submit"
+            color="blue"
+            fullWidth
+            disabled={
+              !formData.destination.trim() ||
+              formData.assets.length === 0 ||
+              formData.assets.some((a) => !a.asset || !a.quantity || Number(a.quantity) <= 0) ||
+              formData.feeRateSatPerVByte <= 0
+            }
+          >
+            Continue
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

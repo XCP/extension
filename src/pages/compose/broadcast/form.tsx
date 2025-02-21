@@ -1,41 +1,38 @@
 import React, { useRef, useEffect, FormEvent, useState } from "react";
 import { Field, Label, Description, Textarea, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { AddressHeader } from "@/components/headers/address-header";
-import { useWallet } from "@/contexts/wallet-context";
-import { useSettings } from "@/contexts/settings-context";
+import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useComposer } from "@/contexts/composer-context";
+import { useSettings } from "@/contexts/settings-context";
+import { useWallet } from "@/contexts/wallet-context";
 
 export interface BroadcastFormData {
   text: string;
-  feeRateSatPerVByte: number;
   value: string;
+  feeRateSatPerVByte: number;
 }
-
-const DEFAULT_FORM_DATA: BroadcastFormData = {
-  text: '',
-  feeRateSatPerVByte: 1,
-  value: '',
-};
 
 interface BroadcastFormProps {
   onSubmit: (data: BroadcastFormData) => void;
 }
 
-export function BroadcastForm({
-  onSubmit,
-}: BroadcastFormProps) {
+export function BroadcastForm({ onSubmit }: BroadcastFormProps) {
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const { formData: existingFormData } = useComposer();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [formData, setFormData] = useState<BroadcastFormData>(() => {
-    if (existingFormData) {
-      return existingFormData as BroadcastFormData;
+  const [formData, setFormData] = useState<Omit<BroadcastFormData, 'feeRateSatPerVByte'>>(() => {
+    if (
+      existingFormData &&
+      'text' in existingFormData &&
+      'value' in existingFormData
+    ) {
+      return existingFormData as Omit<BroadcastFormData, 'feeRateSatPerVByte'>;
     }
-    return DEFAULT_FORM_DATA;
+    return { text: "", value: "" };
   });
+  const [feeRate, setFeeRate] = useState<number>(0);
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -45,25 +42,21 @@ export function BroadcastForm({
     setFormData((prev) => ({ ...prev, text: e.target.value }));
   };
 
-  const handleFeeRateChange = (value: number) => {
-    setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
-  };
-
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    if (value === '' || /^\d*$/.test(value)) {
+    if (value === "" || /^\d*$/.test(value)) {
       setFormData((prev) => ({ ...prev, value }));
     }
   };
 
   const handleSubmitInternal = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const submissionData = {
+    if (feeRate <= 0) return;
+    onSubmit({
       ...formData,
-      value: formData.value || '0',
-      sat_per_vbyte: formData.feeRateSatPerVByte,
-    };
-    onSubmit(submissionData);
+      value: formData.value || "0",
+      feeRateSatPerVByte: feeRate,
+    });
   };
 
   return (
@@ -71,17 +64,14 @@ export function BroadcastForm({
       {activeAddress && (
         <AddressHeader
           address={activeAddress.address}
-          walletName={activeWallet?.name}
+          walletName={activeWallet?.name ?? ""}
           className="mb-4"
         />
       )}
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
         <form onSubmit={handleSubmitInternal} className="space-y-4">
           <Field>
-            <Label
-              htmlFor="broadcast-message"
-              className="block text-sm font-medium text-gray-700"
-            >
+            <Label htmlFor="broadcast-message" className="block text-sm font-medium text-gray-700">
               Message<span className="text-red-500">*</span>
             </Label>
             <Textarea
@@ -99,12 +89,8 @@ export function BroadcastForm({
               </Description>
             )}
           </Field>
-
           <Field>
-            <Label
-              htmlFor="broadcast-value"
-              className="block text-sm font-medium text-gray-700"
-            >
+            <Label htmlFor="broadcast-value" className="block text-sm font-medium text-gray-700">
               Value
             </Label>
             <Input
@@ -123,18 +109,16 @@ export function BroadcastForm({
               </Description>
             )}
           </Field>
-
           <FeeRateInput
-            value={formData.feeRateSatPerVByte}
-            onChange={handleFeeRateChange}
+            onChange={setFeeRate}
+            error={feeRate <= 0 ? "Fee rate must be greater than zero." : ""}
             showHelpText={settings?.showHelpText}
           />
-
           <Button
             type="submit"
             color="blue"
             fullWidth
-            disabled={!formData.text.trim() || formData.feeRateSatPerVByte <= 0}
+            disabled={!formData.text.trim() || feeRate <= 0}
           >
             Continue
           </Button>

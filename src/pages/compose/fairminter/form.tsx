@@ -1,10 +1,9 @@
-import React, { useState, useRef, useEffect, FormEvent } from 'react';
-import { Field, Label, Description, Input, Textarea, Listbox, Disclosure } from '@headlessui/react';
-import { FaChevronDown, FaCheck } from 'react-icons/fa';
-import { Button } from '@/components/button';
-import { FeeRateInput } from '@/components/inputs/fee-rate-input';
-import { AssetSelectInput } from '@/components/inputs/asset-select-input';
-import { CheckboxInput } from '@/components/inputs/checkbox-input';
+import React, { useState, useRef, useEffect, FormEvent } from "react";
+import { Field, Label, Description, Input, Textarea, Listbox, Disclosure } from "@headlessui/react";
+import { FaChevronDown, FaCheck } from "react-icons/fa";
+import { Button } from "@/components/button";
+import { CheckboxInput } from "@/components/inputs/checkbox-input";
+import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 
 export interface FairminterFormData {
   mintMethod: FairminterModel;
@@ -23,7 +22,7 @@ export interface FairminterFormData {
   lock_quantity: boolean;
   divisible: boolean;
   description: string;
-  feeRateSatPerVByte: number;
+
 }
 
 interface FairminterFormProps {
@@ -33,43 +32,42 @@ interface FairminterFormProps {
 }
 
 const FAIRMINTER_MODELS = {
-  MINER_FEE_ONLY: 'MINER_FEE_ONLY',
-  XCP_FEE_TO_ISSUER: 'XCP_FEE_TO_ISSUER',
-  XCP_FEE_BURNED: 'XCP_FEE_BURNED',
+  MINER_FEE_ONLY: "MINER_FEE_ONLY",
+  XCP_FEE_TO_ISSUER: "XCP_FEE_TO_ISSUER",
+  XCP_FEE_BURNED: "XCP_FEE_BURNED",
 } as const;
 
 export type FairminterModel = typeof FAIRMINTER_MODELS[keyof typeof FAIRMINTER_MODELS];
 
 const FAIRMINTER_MODEL_OPTIONS = [
-  { value: FAIRMINTER_MODELS.MINER_FEE_ONLY, label: 'BTC Fee Model (Miners)' },
-  { value: FAIRMINTER_MODELS.XCP_FEE_TO_ISSUER, label: 'XCP Fee Model (To You)' },
-  { value: FAIRMINTER_MODELS.XCP_FEE_BURNED, label: 'XCP Fee Model (Burned)' },
+  { value: FAIRMINTER_MODELS.MINER_FEE_ONLY, label: "BTC Fee Model (Miners)" },
+  { value: FAIRMINTER_MODELS.XCP_FEE_TO_ISSUER, label: "XCP Fee Model (To You)" },
+  { value: FAIRMINTER_MODELS.XCP_FEE_BURNED, label: "XCP Fee Model (Burned)" },
 ];
 
 const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormProps) => {
   const [formData, setFormData] = useState<FairminterFormData>({
     mintMethod: FAIRMINTER_MODELS.MINER_FEE_ONLY,
-    asset: asset ? `${asset}.` : '',
-    price: '',
-    quantity_by_price: '',
-    max_mint_per_tx: '',
-    hard_cap: '',
-    premint_quantity: '0',
-    start_block: '',
-    end_block: '',
-    soft_cap: '',
-    soft_cap_deadline_block: '',
-    minted_asset_commission: '0.0',
+    asset: asset ? `${asset}.` : "",
+    price: "",
+    quantity_by_price: "",
+    max_mint_per_tx: "",
+    hard_cap: "",
+    premint_quantity: "0",
+    start_block: "",
+    end_block: "",
+    soft_cap: "",
+    soft_cap_deadline_block: "",
+    minted_asset_commission: "0.0",
     lock_description: false,
     lock_quantity: false,
     divisible: true,
-    description: '',
-    feeRateSatPerVByte: 1,
+    description: "",
+
   });
 
   const assetInputRef = useRef<HTMLInputElement>(null);
 
-  // Autofocus the asset input on load
   useEffect(() => {
     assetInputRef.current?.focus();
   }, []);
@@ -83,23 +81,21 @@ const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormP
     setFormData((prev) => ({ ...prev, [name]: checked }));
   };
 
-  const handleFeeRateChange = (value: number) => {
-    setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
-  };
-
   const handleMintMethodChange = (value: FairminterModel) => {
     setFormData((prev) => ({ ...prev, mintMethod: value }));
   };
 
   const handleSubmitInternal = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (formData.feeRateSatPerVByte <= 0) {
+      return; // Validation handled by FeeRateInput
+    }
     onSubmit(formData);
   };
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
       <form onSubmit={handleSubmitInternal} className="space-y-4">
-        {/* Mint Method */}
         <Field>
           <Label htmlFor="mintMethod" className="block text-sm font-medium text-gray-700">
             Mint Method<span className="text-red-500">*</span>
@@ -120,16 +116,20 @@ const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormP
                     key={option.value}
                     value={option.value}
                     className={({ active }) =>
-                      `${active ? 'text-white bg-blue-600' : 'text-gray-900'} cursor-pointer select-none relative py-2 pl-3 pr-9`
+                      `${active ? "text-white bg-blue-600" : "text-gray-900"} cursor-pointer select-none relative py-2 pl-3 pr-9`
                     }
                   >
                     {({ selected, active }) => (
                       <>
-                        <span className={`${selected ? 'font-semibold' : 'font-normal'} block truncate`}>
+                        <span
+                          className={`${selected ? "font-semibold" : "font-normal"} block truncate`}
+                        >
                           {option.label}
                         </span>
                         {selected && (
-                          <span className={`${active ? 'text-white' : 'text-blue-600'} absolute inset-y-0 right-0 flex items-center pr-4`}>
+                          <span
+                            className={`${active ? "text-white" : "text-blue-600"} absolute inset-y-0 right-0 flex items-center pr-4`}
+                          >
                             <FaCheck className="w-5 h-5" aria-hidden="true" />
                           </span>
                         )}
@@ -147,7 +147,6 @@ const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormP
           )}
         </Field>
 
-        {/* Asset Name */}
         <Field>
           <Label htmlFor="asset" className="block text-sm font-medium text-gray-700">
             Asset Name<span className="text-red-500">*</span>
@@ -169,7 +168,6 @@ const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormP
           )}
         </Field>
 
-        {/* Max Mint per TX (for Miner Fee Only method) */}
         {formData.mintMethod === FAIRMINTER_MODELS.MINER_FEE_ONLY && (
           <Field>
             <Label htmlFor="max_mint_per_tx" className="block text-sm font-medium text-gray-700">
@@ -193,7 +191,6 @@ const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormP
           </Field>
         )}
 
-        {/* Quantity by Price (for XCP fee models) */}
         {formData.mintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
           <Field>
             <Label htmlFor="quantity_by_price" className="block text-sm font-medium text-gray-700">
@@ -216,7 +213,6 @@ const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormP
           </Field>
         )}
 
-        {/* Price (for XCP fee models) */}
         {formData.mintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
           <Field>
             <Label htmlFor="price" className="block text-sm font-medium text-gray-700">
@@ -240,15 +236,13 @@ const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormP
           </Field>
         )}
 
-        {/* Divisible Checkbox */}
         <CheckboxInput
           checked={formData.divisible}
-          onChange={(checked) => handleCheckboxChange('divisible', checked)}
+          onChange={(checked) => handleCheckboxChange("divisible", checked)}
           label="Divisible"
           aria-label="Toggle asset divisibility"
         />
 
-        {/* Description */}
         <Field>
           <Label htmlFor="description" className="block text-sm font-medium text-gray-700">
             Description
@@ -268,15 +262,13 @@ const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormP
           )}
         </Field>
 
-        {/* Lock Description */}
         <CheckboxInput
           checked={formData.lock_description}
-          onChange={(checked) => handleCheckboxChange('lock_description', checked)}
+          onChange={(checked) => handleCheckboxChange("lock_description", checked)}
           label="Lock Description"
           aria-label="Toggle lock description"
         />
 
-        {/* Hard Cap */}
         <Field>
           <Label htmlFor="hard_cap" className="block text-sm font-medium text-gray-700">
             Hard Cap
@@ -297,24 +289,23 @@ const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormP
           )}
         </Field>
 
-        {/* Lock Quantity */}
         <CheckboxInput
           checked={formData.lock_quantity}
-          onChange={(checked) => handleCheckboxChange('lock_quantity', checked)}
+          onChange={(checked) => handleCheckboxChange("lock_quantity", checked)}
           label="Lock Quantity"
           aria-label="Toggle lock quantity"
         />
 
-        {/* Advanced Options (collapsible) */}
         <Disclosure>
           {({ open }) => (
             <>
               <Disclosure.Button className="flex items-center text-md font-semibold text-gray-700 hover:text-gray-900">
-                <FaChevronDown className={`${open ? 'transform rotate-180' : ''} w-4 h-4 mr-2 transition-transform`} />
+                <FaChevronDown
+                  className={`${open ? "transform rotate-180" : ""} w-4 h-4 mr-2 transition-transform`}
+                />
                 Advanced Options
               </Disclosure.Button>
               <Disclosure.Panel className="mt-2 space-y-4">
-                {/* Start Block */}
                 <Field>
                   <Label htmlFor="start_block" className="block text-sm font-medium text-gray-700">
                     Start Block
@@ -335,7 +326,6 @@ const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormP
                   )}
                 </Field>
 
-                {/* End Block */}
                 <Field>
                   <Label htmlFor="end_block" className="block text-sm font-medium text-gray-700">
                     End Block
@@ -356,7 +346,6 @@ const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormP
                   )}
                 </Field>
 
-                {/* Pre-mint Quantity */}
                 <Field>
                   <Label htmlFor="premint_quantity" className="block text-sm font-medium text-gray-700">
                     Pre-mine
@@ -377,9 +366,11 @@ const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormP
                   )}
                 </Field>
 
-                {/* Minted Asset Commission */}
                 <Field>
-                  <Label htmlFor="minted_asset_commission" className="block text-sm font-medium text-gray-700">
+                  <Label
+                    htmlFor="minted_asset_commission"
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     Commission
                   </Label>
                   <Input
@@ -400,7 +391,6 @@ const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormP
                   )}
                 </Field>
 
-                {/* Soft Cap and Soft Cap Deadline Block (only for non-Miner Fee Only models) */}
                 {formData.mintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
                   <>
                     <Field>
@@ -424,7 +414,10 @@ const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormP
                       )}
                     </Field>
                     <Field>
-                      <Label htmlFor="soft_cap_deadline_block" className="block text-sm font-medium text-gray-700">
+                      <Label
+                        htmlFor="soft_cap_deadline_block"
+                        className="block text-sm font-medium text-gray-700"
+                      >
                         Soft Cap Deadline Block
                       </Label>
                       <Input
@@ -450,14 +443,19 @@ const FairminterForm = ({ asset, onSubmit, shouldShowHelpText }: FairminterFormP
           )}
         </Disclosure>
 
-        {/* Fee Rate Input */}
         <FeeRateInput
           value={formData.feeRateSatPerVByte}
-          onChange={handleFeeRateChange}
+          onChange={(value) => setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))}
+          error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
           showHelpText={shouldShowHelpText}
         />
 
-        <Button type="submit" color="blue" fullWidth disabled={!formData.asset.trim() || formData.feeRateSatPerVByte <= 0}>
+        <Button
+          type="submit"
+          color="blue"
+          fullWidth
+          disabled={!formData.asset.trim() || formData.feeRateSatPerVByte <= 0}
+        >
           Continue
         </Button>
       </form>

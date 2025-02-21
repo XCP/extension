@@ -6,27 +6,83 @@ import React, {
   Dispatch,
   SetStateAction,
 } from "react";
+import {
+  SendOptions,
+  BetOptions,
+  BroadcastOptions,
+  BTCPayOptions,
+  BurnOptions,
+  CancelOptions,
+  DestroyOptions,
+  DispenserOptions,
+  DispenseOptions,
+  DividendOptions,
+  IssuanceOptions,
+  MPMAOptions,
+  OrderOptions,
+  SweepOptions,
+  FairminterOptions,
+  FairmintOptions,
+  AttachOptions,
+  DetachOptions,
+  MoveOptions,
+  ApiResponse as BaseApiResponse,
+} from "@/utils/blockchain/counterparty";
+import { TransactionResponse } from "@/utils/blockchain/bitcoin";
+
+// Extend ApiResponse to include an optional broadcast property with specific type
+interface ApiResponse extends BaseApiResponse {
+  broadcast?: TransactionResponse;
+}
+
+// Union of all possible transaction option types for formData
+type FormDataType =
+  | SendOptions
+  | BetOptions
+  | BroadcastOptions
+  | BTCPayOptions
+  | BurnOptions
+  | CancelOptions
+  | DestroyOptions
+  | DispenserOptions
+  | DispenseOptions
+  | DividendOptions
+  | IssuanceOptions
+  | MPMAOptions
+  | OrderOptions
+  | SweepOptions
+  | FairminterOptions
+  | FairmintOptions
+  | AttachOptions
+  | DetachOptions
+  | MoveOptions;
 
 interface ComposerContextType {
   step: "form" | "review" | "success";
   setStep: Dispatch<SetStateAction<"form" | "review" | "success">>;
-  formData: any;
-  setFormData: Dispatch<SetStateAction<any>>;
-  apiResponse: any;
-  setApiResponse: Dispatch<SetStateAction<any>>;
+  formData: FormDataType | null;
+  setFormData: Dispatch<SetStateAction<FormDataType | null>>;
+  apiResponse: ApiResponse | null;
+  setApiResponse: Dispatch<SetStateAction<ApiResponse | null>>;
   error: string | null;
   setError: Dispatch<SetStateAction<string | null>>;
+  reset: () => void;
 }
 
-const ComposerContext = createContext<ComposerContextType | undefined>(
-  undefined
-);
+const ComposerContext = createContext<ComposerContextType | undefined>(undefined);
 
 export function ComposerProvider({ children }: { children: ReactNode }) {
   const [step, setStep] = useState<"form" | "review" | "success">("form");
-  const [formData, setFormData] = useState<any>(null);
-  const [apiResponse, setApiResponse] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null); // explicitly typed
+  const [formData, setFormData] = useState<FormDataType | null>(null);
+  const [apiResponse, setApiResponse] = useState<ApiResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const reset = () => {
+    setStep("form");
+    setFormData(null);
+    setApiResponse(null);
+    setError(null);
+  };
 
   const value: ComposerContextType = {
     step,
@@ -37,6 +93,7 @@ export function ComposerProvider({ children }: { children: ReactNode }) {
     setApiResponse,
     error,
     setError,
+    reset,
   };
 
   return (

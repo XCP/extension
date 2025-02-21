@@ -1,18 +1,18 @@
-import React, { useState, useRef, useEffect, FormEvent } from 'react';
-import { Field, Label, Description, Textarea } from '@headlessui/react';
-import { Button } from '@/components/button';
-import { AddressHeader } from '@/components/headers/address-header';
-import { FeeRateInput } from '@/components/inputs/fee-rate-input';
-import { useWallet } from '@/contexts/wallet-context';
+import React, { useState, useRef, useEffect, FormEvent } from "react";
+import { Field, Label, Description, Textarea } from "@headlessui/react";
+import { Button } from "@/components/button";
+import { AddressHeader } from "@/components/headers/address-header";
+import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+import { useWallet } from "@/contexts/wallet-context";
 
 export interface BTCPayFormData {
   order_match_id: string;
-  sat_per_vbyte: number;
+ // Renamed from sat_per_vbyte for consistency
 }
 
 const DEFAULT_FORM_DATA: BTCPayFormData = {
-  order_match_id: '',
-  sat_per_vbyte: 1, // Default fee rate
+  order_match_id: "",
+  feeRateSatPerVByte: 1,
 };
 
 interface BTCPayFormProps {
@@ -32,13 +32,9 @@ export function BTCPayForm({ onSubmit }: BTCPayFormProps) {
     setFormData((prev) => ({ ...prev, order_match_id: e.target.value }));
   };
 
-  const handleFeeRateChange = (value: number) => {
-    setFormData((prev) => ({ ...prev, sat_per_vbyte: value }));
-  };
-
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!formData.order_match_id.trim() || formData.sat_per_vbyte <= 0) return;
+    if (!formData.order_match_id.trim() || formData.feeRateSatPerVByte <= 0) return;
     onSubmit(formData);
   };
 
@@ -72,16 +68,19 @@ export function BTCPayForm({ onSubmit }: BTCPayFormProps) {
           </Field>
 
           <FeeRateInput
-            value={formData.sat_per_vbyte}
-            onChange={handleFeeRateChange}
-            showHelpText={true} // Or use your settings context as needed
+            value={formData.feeRateSatPerVByte}
+            onChange={(value) =>
+              setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))
+            }
+            error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
+            showHelpText={true}
           />
 
           <Button
             type="submit"
             color="blue"
             fullWidth
-            disabled={!formData.order_match_id.trim() || formData.sat_per_vbyte <= 0}
+            disabled={!formData.order_match_id.trim() || formData.feeRateSatPerVByte <= 0}
           >
             Continue
           </Button>

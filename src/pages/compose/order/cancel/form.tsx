@@ -3,17 +3,17 @@ import { Field, Label, Description, Textarea } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { AddressHeader } from "@/components/headers/address-header";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { useWallet } from "@/contexts/wallet-context";
 import { useSettings } from "@/contexts/settings-context";
+import { useWallet } from "@/contexts/wallet-context";
 
 export interface CancelFormData {
   offer_hash: string;
-  sat_per_vbyte: number;
+
 }
 
 const DEFAULT_FORM_DATA: CancelFormData = {
   offer_hash: "",
-  sat_per_vbyte: 1,
+  feeRateSatPerVByte: 1,
 };
 
 interface CancelFormProps {
@@ -25,10 +25,10 @@ export function CancelForm({ onSubmit, initialHash }: CancelFormProps) {
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText;
-  const [formData, setFormData] = useState<CancelFormData>(() => ({
+  const [formData, setFormData] = useState<CancelFormData>({
     offer_hash: initialHash || "",
-    sat_per_vbyte: 1,
-  }));
+
+  });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -39,13 +39,9 @@ export function CancelForm({ onSubmit, initialHash }: CancelFormProps) {
     setFormData((prev) => ({ ...prev, offer_hash: e.target.value }));
   };
 
-  const handleFeeRateChange = (value: number) => {
-    setFormData((prev) => ({ ...prev, sat_per_vbyte: value }));
-  };
-
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!formData.offer_hash.trim() || formData.sat_per_vbyte <= 0) return;
+    if (!formData.offer_hash.trim() || formData.feeRateSatPerVByte <= 0) return;
     onSubmit(formData);
   };
 
@@ -73,14 +69,17 @@ export function CancelForm({ onSubmit, initialHash }: CancelFormProps) {
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
             />
-            <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
               Enter the hash of the order you want to cancel.
             </Description>
           </Field>
 
           <FeeRateInput
-            value={formData.sat_per_vbyte}
-            onChange={handleFeeRateChange}
+            value={formData.feeRateSatPerVByte}
+            onChange={(value) =>
+              setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))
+            }
+            error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
             showHelpText={shouldShowHelpText}
           />
 
@@ -88,7 +87,7 @@ export function CancelForm({ onSubmit, initialHash }: CancelFormProps) {
             type="submit"
             color="blue"
             fullWidth
-            disabled={!formData.offer_hash.trim() || formData.sat_per_vbyte <= 0}
+            disabled={!formData.offer_hash.trim() || formData.feeRateSatPerVByte <= 0}
           >
             Continue
           </Button>

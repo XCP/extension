@@ -10,11 +10,11 @@ import {
   ListboxOptions,
 } from '@headlessui/react';
 import { Button } from '@/components/button';
-import { useFeeRates } from '@/hooks/useFeeRates';
+import { useFeeRates, FeeRateOption } from '@/hooks/useFeeRates';
 
 interface FeeRateInputProps {
   id?: string;
-  value: number;
+  value?: number;
   onChange: (value: number) => void;
   error?: string;
   showLabel?: boolean;
@@ -24,17 +24,11 @@ interface FeeRateInputProps {
   autoFetch?: boolean;
 }
 
-type FeeRateOption = 'fast' | 'medium' | 'slow' | 'custom';
-
-interface FeeOption {
-  id: FeeRateOption;
-  name: string;
-  value: number;
-}
+type LocalFeeRateOption = FeeRateOption | 'custom';
 
 export function FeeRateInput({
   id = 'feeRateSatPerVByte',
-  value,
+  value: externalValue,
   onChange,
   error,
   showLabel = true,
@@ -44,37 +38,49 @@ export function FeeRateInput({
   autoFetch = true,
 }: FeeRateInputProps) {
   const { feeRates, loading, error: fetchError, uniquePresetOptions } = useFeeRates(autoFetch);
-  const [selectedOption, setSelectedOption] = useState<FeeRateOption>('fast');
-  const [customInput, setCustomInput] = useState<string>(value.toString());
+  const [selectedOption, setSelectedOption] = useState<LocalFeeRateOption>('fast');
+  const [internalValue, setInternalValue] = useState<number>(1); // Default to 1
+  const [customInput, setCustomInput] = useState<string>('1');
   const isInitial = useRef(true);
 
   useEffect(() => {
+    if (externalValue !== undefined) {
+      setInternalValue(externalValue);
+      setCustomInput(externalValue.toString());
+    }
+  }, [externalValue]);
+
+  useEffect(() => {
     if (feeRates && isInitial.current) {
-      const initialValue = Math.max(feeRates.fastestFee, 1); // Ensure >= 1
-      setSelectedOption('fast');
+      const initialValue = Math.max(feeRates.fastestFee, 1);
+      setInternalValue(initialValue);
+      setCustomInput(initialValue.toString());
       onChange(initialValue);
+      setSelectedOption('fast');
       isInitial.current = false;
     }
   }, [feeRates, onChange]);
 
   useEffect(() => {
+    const currentValue = externalValue !== undefined ? externalValue : internalValue;
     if (feeRates) {
-      const preset = uniquePresetOptions.find((opt) => opt.value === value);
-      setSelectedOption(preset ? (preset.id as FeeRateOption) : 'custom');
+      const preset = uniquePresetOptions.find((opt) => opt.value === currentValue);
+      setSelectedOption(preset ? preset.id : 'custom');
     } else {
       setSelectedOption('custom');
     }
-  }, [value, feeRates, uniquePresetOptions]);
+  }, [externalValue, internalValue, feeRates, uniquePresetOptions]);
 
   useEffect(() => {
     if (selectedOption === 'custom') {
-      setCustomInput(value.toString());
+      const currentValue = externalValue !== undefined ? externalValue : internalValue;
+      setCustomInput(currentValue.toString());
     }
-  }, [value, selectedOption]);
+  }, [externalValue, internalValue, selectedOption]);
 
-  const feeOptions: FeeOption[] = feeRates
-    ? [...uniquePresetOptions, { id: 'custom', name: 'Custom', value }]
-    : [{ id: 'custom', name: 'Custom', value }];
+  const feeOptions: { id: LocalFeeRateOption; name: string; value: number }[] = feeRates
+    ? [...uniquePresetOptions, { id: 'custom', name: 'Custom', value: internalValue }]
+    : [{ id: 'custom', name: 'Custom', value: internalValue }];
 
   const handleCustomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCustomInput(e.target.value);
@@ -84,23 +90,25 @@ export function FeeRateInput({
     const trimmed = customInput.trim();
     const num = parseFloat(trimmed);
     if (isNaN(num) || num < 1) {
-      setCustomInput(Math.max(value, 1).toString()); // Reset to valid value
-      onChange(Math.max(value, 1));
+      const resetValue = Math.max(internalValue, 1);
+      setCustomInput(resetValue.toString());
+      setInternalValue(resetValue);
+      onChange(resetValue);
     } else {
       const parts = trimmed.split('.');
       if (parts.length === 2 && parts[1].length > 1) {
-        setCustomInput(value.toString());
+        setCustomInput(internalValue.toString());
       } else {
+        setInternalValue(num);
         onChange(num);
       }
     }
   };
 
-  const handleOptionSelect = (option: FeeOption) => {
+  const handleOptionSelect = (option: { id: LocalFeeRateOption; name: string; value: number }) => {
     setSelectedOption(option.id);
-    if (option.id === 'custom') {
-      // Let the user edit custom input
-    } else {
+    if (option.id !== 'custom') {
+      setInternalValue(option.value);
       onChange(option.value);
     }
   };
@@ -108,7 +116,8 @@ export function FeeRateInput({
   const handleEscClick = () => {
     if (uniquePresetOptions.length > 0) {
       const firstPreset = uniquePresetOptions[0];
-      setSelectedOption(firstPreset.id as FeeRateOption);
+      setSelectedOption(firstPreset.id);
+      setInternalValue(firstPreset.value);
       onChange(firstPreset.value);
     }
   };
@@ -210,7 +219,7 @@ export function FeeRateInput({
               </ListboxButton>
               <ListboxOptions className="w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
                 {feeOptions.map((option) => (
-                  <ListboxOption key={option.id} value={option} className="p-2 cursor-pointer">
+                  <ListboxOption key={option.id} value={option} className="p-2 cursor-pointer hover:bg-gray-100">
                     {({ selected }) => (
                       <div className="flex justify-between">
                         <span className={selected ? 'font-medium' : ''}>{option.name}</span>
@@ -230,6 +239,11 @@ export function FeeRateInput({
         <Description className="mt-2 text-sm text-gray-500">
           {feeRates ? 'Pre-populated with current network rates (minimum 1 sat/vB).' : 'Enter a custom fee rate (minimum 1 sat/vB).'}
         </Description>
+      )}
+      {error && (
+        <p className="text-red-500 text-sm mt-2" role="alert" id={`${id}-error`}>
+          {error}
+        </p>
       )}
     </Field>
   );

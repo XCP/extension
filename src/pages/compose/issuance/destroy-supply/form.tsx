@@ -1,18 +1,18 @@
 import React, { useState, useRef, useEffect, FormEvent } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
+import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useWallet } from "@/contexts/wallet-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { BalanceHeader } from "@/components/headers/balance-header";
 
 export interface DestroyFormData {
   asset: string;
   quantity: string;
   memo: string;
-  feeRateSatPerVByte: number;
+
 }
 
 interface DestroyFormProps {
@@ -20,20 +20,17 @@ interface DestroyFormProps {
   initialAsset: string;
 }
 
-export function DestroyForm({
-  onSubmit,
-  initialAsset,
-}: DestroyFormProps) {
+export function DestroyForm({ onSubmit, initialAsset }: DestroyFormProps) {
   const { activeAddress } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText;
   const { isLoading, error, data } = useAssetDetails(initialAsset);
-  
+
   const [formData, setFormData] = useState<DestroyFormData>({
     asset: initialAsset,
     quantity: "",
     memo: "",
-    feeRateSatPerVByte: 10,
+
   });
   const [localError, setLocalError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLInputElement>(null);
@@ -58,12 +55,13 @@ export function DestroyForm({
     setFormData((prev) => ({ ...prev, memo: e.target.value }));
   };
 
-  const handleFeeRateChange = (value: number) => {
-    setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
-  };
-
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!formData.quantity || Number(formData.quantity) <= 0 || !formData.memo.trim() || formData.feeRateSatPerVByte <= 0) {
+      setLocalError("Please fill all required fields with valid values.");
+      return;
+    }
+    setLocalError(null);
     onSubmit(formData);
   };
 
@@ -116,13 +114,12 @@ export function DestroyForm({
 
         <FeeRateInput
           value={formData.feeRateSatPerVByte}
-          onChange={handleFeeRateChange}
+          onChange={(value) => setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))}
+          error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
           showHelpText={shouldShowHelpText}
         />
 
-        {localError && (
-          <div className="text-red-500 text-sm">{localError}</div>
-        )}
+        {localError && <div className="text-red-500 text-sm">{localError}</div>}
 
         <Button
           type="submit"

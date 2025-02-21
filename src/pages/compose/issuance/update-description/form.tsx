@@ -5,7 +5,7 @@ import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 
 export interface UpdateDescriptionFormData {
   description: string;
-  feeRateSatPerVByte: number;
+
 }
 
 interface UpdateDescriptionFormProps {
@@ -21,6 +21,12 @@ export const UpdateDescriptionForm = ({
   handleSubmit,
   shouldShowHelpText,
 }: UpdateDescriptionFormProps) => {
+  useEffect(() => {
+    if (!formData.feeRateSatPerVByte) {
+      setFormData((prev) => ({ ...prev, feeRateSatPerVByte: 1 }));
+    }
+  }, [formData.feeRateSatPerVByte, setFormData]);
+
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     descriptionRef.current?.focus();
@@ -29,10 +35,6 @@ export const UpdateDescriptionForm = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleFeeRateChange = (value: number) => {
-    setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
   };
 
   return (
@@ -61,7 +63,8 @@ export const UpdateDescriptionForm = ({
 
         <FeeRateInput
           value={formData.feeRateSatPerVByte}
-          onChange={handleFeeRateChange}
+          onChange={(value) => setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))}
+          error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
           showHelpText={shouldShowHelpText}
         />
 
