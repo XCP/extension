@@ -1,6 +1,9 @@
 Folders:
 /
 /e2e/
+/e2e/created/
+/e2e/imported/
+/e2e/onboarding/
 /playwright-report/
 /src/
 /src/assets/
@@ -33,10 +36,12 @@ Folders:
 /src/pages/compose/dispenser/dispense/
 /src/pages/compose/dividend/
 /src/pages/compose/fairminter/
+/src/pages/compose/fairminter/fairmint/
 /src/pages/compose/issuance/
 /src/pages/compose/issuance/destroy-supply/
 /src/pages/compose/issuance/issue-supply/
 /src/pages/compose/issuance/lock-supply/
+/src/pages/compose/issuance/reset-supply/
 /src/pages/compose/issuance/transfer-ownership/
 /src/pages/compose/issuance/update-description/
 /src/pages/compose/order/
@@ -45,6 +50,10 @@ Folders:
 /src/pages/compose/send/
 /src/pages/compose/send/mpma/
 /src/pages/compose/sweep/
+/src/pages/compose/utxo/
+/src/pages/compose/utxo/attach/
+/src/pages/compose/utxo/detach/
+/src/pages/compose/utxo/move/
 /src/pages/secrets/
 /src/pages/settings/
 /src/pages/wallet/
@@ -67,16 +76,21 @@ Folders:
 /src/utils/storage/__tests__/
 /src/utils/wallet/
 /test-results/
+/userData/
+/userData/created/
+/userData/imported/
+/userData/onboarding/
 
 Files:
 /README.md
-/e2e/create-wallet.spec.ts
+/e2e/created/wallet-operations.spec.ts
 /e2e/fixtures.ts
 /e2e/global-setup-created.ts
 /e2e/global-setup-imported.ts
-/e2e/import-wallet.spec.ts
-/e2e/onboarding.spec.ts
-/e2e/popup.spec.ts
+/e2e/global-setup.ts
+/e2e/onboarding/create-wallet.spec.ts
+/e2e/onboarding/import-wallet.spec.ts
+/e2e/onboarding/onboarding.spec.ts
 /package.json
 /playwright-report/index.html
 /playwright.config.ts
@@ -169,6 +183,9 @@ Files:
 /src/pages/compose/dividend/form.tsx
 /src/pages/compose/dividend/page.tsx
 /src/pages/compose/dividend/review.tsx
+/src/pages/compose/fairminter/fairmint/form.tsx
+/src/pages/compose/fairminter/fairmint/page.tsx
+/src/pages/compose/fairminter/fairmint/review.tsx
 /src/pages/compose/fairminter/form.tsx
 /src/pages/compose/fairminter/page.tsx
 /src/pages/compose/fairminter/review.tsx
@@ -183,6 +200,9 @@ Files:
 /src/pages/compose/issuance/lock-supply/page.tsx
 /src/pages/compose/issuance/lock-supply/review.tsx
 /src/pages/compose/issuance/page.tsx
+/src/pages/compose/issuance/reset-supply/form.tsx
+/src/pages/compose/issuance/reset-supply/page.tsx
+/src/pages/compose/issuance/reset-supply/review.tsx
 /src/pages/compose/issuance/review.tsx
 /src/pages/compose/issuance/transfer-ownership/form.tsx
 /src/pages/compose/issuance/transfer-ownership/page.tsx
@@ -208,6 +228,15 @@ Files:
 /src/pages/compose/sweep/form.tsx
 /src/pages/compose/sweep/page.tsx
 /src/pages/compose/sweep/review.tsx
+/src/pages/compose/utxo/attach/form.tsx
+/src/pages/compose/utxo/attach/page.tsx
+/src/pages/compose/utxo/attach/review.tsx
+/src/pages/compose/utxo/detach/form.tsx
+/src/pages/compose/utxo/detach/page.tsx
+/src/pages/compose/utxo/detach/review.tsx
+/src/pages/compose/utxo/move/form.tsx
+/src/pages/compose/utxo/move/page.tsx
+/src/pages/compose/utxo/move/review.tsx
 /src/pages/index.tsx
 /src/pages/not-found.tsx
 /src/pages/secrets/show-passphrase.tsx
@@ -273,6 +302,7 @@ Files:
 /src/utils/wallet/walletManager.ts
 /tailwind.config.cjs
 /tsconfig.json
+/userData/created/state.json
 /vitest.config.ts
 /wxt.config.ts
 
@@ -283,9 +313,348 @@ File Contents:
   
   This template should help get you started developing with React in WXT.
 
-/e2e/create-wallet.spec.ts
+/e2e/created/wallet-operations.spec.ts
   [contents of the file]
-  import { test, expect } from "./fixtures";
+  import { test, expect } from '../fixtures';
+  
+  test.describe('Wallet Management Operations', () => {
+    test.beforeEach(async ({ page, extensionId, unlockWallet }) => {
+      await page.goto(`chrome-extension://${extensionId}/popup.html#/select-wallet`);
+      await unlockWallet();
+    });
+  
+    test('should navigate to wallet selection and show existing wallet', async ({ page }) => {
+      await expect(page.getByTestId('wallet-list')).toBeVisible();
+      await expect(page.getByText('Wallet 1')).toBeVisible();
+    });
+  
+    test('should be able to add a new wallet', async ({ page }) => {
+      await page.getByTestId('add-wallet-button').click();
+      await page.getByRole('link', { name: /create wallet/i }).click();
+      await page.getByText(/View 12-word Secret Phrase/).click();
+      await page.getByLabel(/I have saved my secret recovery phrase/).check();
+      await page.fill('input[name="password"]', 'TestPassword123!');
+      await page.getByRole('button', { name: /create/i }).click();
+      await expect(page.getByText('Wallet 2')).toBeVisible();
+    });
+  
+    test('should show wallet secret', async ({ page }) => {
+      await expect(page.getByTestId('wallet-list')).toBeVisible();
+      await page.getByTestId('wallet-menu-button-0').click();
+      await page.getByRole('menuitem', { name: /show secret/i }).click();
+      await page.fill('input[name="password"]', 'TestPassword123!');
+      await page.getByRole('button', { name: /confirm/i }).click();
+      await expect(page.getByTestId('wallet-secret')).toBeVisible();
+    });
+  
+    test('should not allow removing the primary wallet', async ({ page }) => {
+      await expect(page.getByTestId('wallet-list')).toBeVisible();
+      await page.getByTestId('wallet-menu-button-0').click();
+      const removeButton = page.getByRole('menuitem', { name: /remove wallet/i });
+      await expect(removeButton).toBeDisabled();
+      await expect(removeButton).toHaveAttribute('title', 'Cannot remove primary wallet');
+    });
+  
+    test('should be able to remove secondary wallet', async ({ page, extensionId }) => {
+      // Add a second wallet first
+      await page.getByTestId('add-wallet-button').click();
+      await page.getByRole('link', { name: /create wallet/i }).click();
+      await page.getByText(/View 12-word Secret Phrase/).click();
+      await page.getByLabel(/I have saved my secret recovery phrase/).check();
+      await page.fill('input[name="password"]', 'TestPassword123!');
+      await page.getByRole('button', { name: /create/i }).click();
+      await page.goto(`chrome-extension://${extensionId}/popup.html#/select-wallet`);
+  
+      await expect(page.getByTestId('wallet-list')).toBeVisible();
+      await page.getByTestId('wallet-menu-button-1').click();
+      await page.getByRole('menuitem', { name: /remove wallet/i }).click();
+      await page.fill('input[name="password"]', 'TestPassword123!');
+      await page.getByRole('button', { name: /confirm/i }).click();
+      await expect(page.getByText('Wallet 2')).not.toBeVisible();
+    });
+  
+    test('should enforce maximum wallet limit', async ({ page, extensionId }) => {
+      for (let i = 0; i < 9; i++) {
+        await page.getByTestId('add-wallet-button').click();
+        await page.getByRole('link', { name: /create wallet/i }).click();
+        await page.getByText(/View 12-word Secret Phrase/).click();
+        await page.getByLabel(/I have saved my secret recovery phrase/).check();
+        await page.fill('input[name="password"]', 'TestPassword123!');
+        await page.getByRole('button', { name: /create/i }).click();
+        await page.goto(`chrome-extension://${extensionId}/popup.html#/select-wallet`);
+      }
+      await expect(page.getByTestId('add-wallet-button')).toBeDisabled();
+      await page.goto(`chrome-extension://${extensionId}/popup.html#/add-wallet`);
+      await expect(page.getByText('Maximum number of wallets reached')).toBeVisible();
+    });
+  });
+
+/e2e/fixtures.ts
+  [contents of the file]
+  import { test as base, chromium, type BrowserContext } from '@playwright/test';
+  import path from 'path';
+  
+  const pathToExtension = path.resolve('.output/chrome-mv3');
+  
+  export const test = base.extend<{
+    context: BrowserContext;
+    extensionId: string;
+    unlockWallet: (walletId?: string) => Promise<void>;
+  }>({
+    context: async ({}, use, testInfo) => {
+      const userDataDir = (testInfo.project.use as any).userDataDir || '';
+      const storageStatePath = (testInfo.project.use as any).storageState || undefined;
+  
+      let context: BrowserContext;
+      if (testInfo.project.name === 'onboarding') {
+        const browser = await chromium.launch({
+          headless: false,
+          args: [
+            `--disable-extensions-except=${pathToExtension}`,
+            `--load-extension=${pathToExtension}`,
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--no-sandbox',
+          ],
+        });
+        context = await browser.newContext();
+      } else {
+        context = await chromium.launchPersistentContext(userDataDir, {
+          headless: false,
+          args: [
+            `--disable-extensions-except=${pathToExtension}`,
+            `--load-extension=${pathToExtension}`,
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--no-sandbox',
+          ],
+          timeout: 60000,
+        });
+      }
+  
+      let [background] = context.serviceWorkers();
+      if (!background) background = await context.waitForEvent('serviceworker', { timeout: 15000 });
+  
+      context.on('close', () => console.log(`Browser context closed unexpectedly for project: ${testInfo.project.name}`));
+  
+      if (storageStatePath) {
+        try {
+          await context.addInitScript({ path: storageStatePath });
+          // Restore localStorage appRecords to chrome.storage.local
+          await context.addInitScript(() => {
+            const appRecords = window.localStorage.getItem('appRecords');
+            if (appRecords) {
+              chrome.storage.local.set({ appRecords: JSON.parse(appRecords) });
+            }
+          });
+        } catch (e) {
+          console.warn(`Failed to load storage state from ${storageStatePath}: ${e.message}`);
+        }
+      }
+  
+      await use(context);
+      await context.close();
+    },
+    extensionId: async ({ context }, use) => {
+      let [background] = context.serviceWorkers();
+      if (!background) background = await context.waitForEvent('serviceworker', { timeout: 15000 });
+      const extensionId = background.url().split('/')[2];
+      await use(extensionId);
+    },
+    unlockWallet: async ({ page, extensionId }, use) => {
+      const unlock = async (walletId?: string) => {
+        await page.goto(`chrome-extension://${extensionId}/popup.html#/unlock-wallet`);
+        const records = await page.evaluate(() => chrome.storage.local.get('appRecords'));
+        console.log('appRecords before unlock:', records);
+        if (!records.appRecords || records.appRecords.length === 0) {
+          throw new Error('No wallets found in local:appRecords during unlock');
+        }
+        if (walletId) {
+          await page.selectOption('select[name="wallet"]', walletId);
+        }
+        await page.fill('input[name="password"]', 'TestPassword123!');
+        await page.getByRole('button', { name: /unlock/i }).click();
+        await page.waitForURL(/#\/index$/);
+        await page.waitForSelector('text=bc1q');
+        console.log('Unlock successful, wallet address visible');
+      };
+      await use(unlock);
+    },
+  });
+  
+  export const expect = test.expect;
+
+/e2e/global-setup-created.ts
+  [contents of the file]
+  import { chromium } from '@playwright/test';
+  import path from 'path';
+  
+  async function globalSetupCreated() {
+    const pathToExtension = path.resolve('.output/chrome-mv3');
+    const userDataDir = 'userData/created';
+    const storageStatePath = 'userData/created/state.json';
+  
+    const context = await chromium.launchPersistentContext(userDataDir, {
+      headless: false,
+      args: [
+        `--disable-extensions-except=${pathToExtension}`,
+        `--load-extension=${pathToExtension}`,
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-sandbox',
+      ],
+      timeout: 60000,
+    });
+  
+    const page = await context.newPage();
+    let [background] = context.serviceWorkers();
+    if (!background) background = await context.waitForEvent('serviceworker', { timeout: 15000 });
+    const extensionId = background.url().split('/')[2];
+  
+    await page.goto(`chrome-extension://${extensionId}/popup.html#/onboarding`);
+    await page.getByRole('button', { name: /Create Wallet/i }).click();
+    await page.waitForURL(/#\/create-wallet$/);
+    await page.getByText(/View 12-word Secret Phrase/).click();
+    await page.getByLabel(/I have saved my secret recovery phrase/).check();
+    await page.fill('input[id="password"]', 'TestPassword123!');
+    await page.getByRole('button', { name: /Continue/i }).click();
+    await page.waitForURL(/#\/index$/);
+    await page.waitForSelector('text=bc1q');
+    await page.waitForTimeout(2000);
+  
+    const records = await page.evaluate(() => chrome.storage.local.get('appRecords'));
+    console.log('Stored appRecords after creation:', records);
+    if (!records.appRecords || records.appRecords.length === 0) {
+      throw new Error('Wallet creation failed to persist in local:appRecords');
+    }
+  
+    // Transfer chrome.storage.local to localStorage before saving state
+    await page.evaluate((records) => {
+      window.localStorage.setItem('appRecords', JSON.stringify(records.appRecords));
+    }, records);
+  
+    await context.storageState({ path: storageStatePath });
+    await context.close();
+  }
+  
+  export default globalSetupCreated;
+
+/e2e/global-setup-imported.ts
+  [contents of the file]
+  import { chromium } from '@playwright/test';
+  import path from 'path';
+  
+  async function globalSetupImported() {
+    const pathToExtension = path.resolve('.output/chrome-mv3');
+    const userDataDir = 'userData/imported';
+    const storageStatePath = 'userData/imported/state.json';
+  
+    const context = await chromium.launchPersistentContext(userDataDir, {
+      headless: false,
+      args: [
+        `--disable-extensions-except=${pathToExtension}`,
+        `--load-extension=${pathToExtension}`,
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-sandbox',
+      ],
+      timeout: 60000,
+    });
+  
+    try {
+      const page = await context.newPage();
+      let [background] = context.serviceWorkers();
+      if (!background) background = await context.waitForEvent('serviceworker', { timeout: 15000 });
+      const extensionId = background.url().split('/')[2];
+  
+      // Navigate to onboarding
+      await page.goto(`chrome-extension://${extensionId}/popup.html#/onboarding`);
+      
+      // Wait for and click Import Wallet button
+      await page.waitForSelector('button:has-text("Import Wallet")', { state: 'visible', timeout: 10000 });
+      await page.getByRole('button', { name: /Import Wallet/i }).click();
+      
+      // Wait for import wallet page to load
+      await page.waitForURL(/#\/import-wallet$/);
+      await page.waitForSelector('input[placeholder="Enter word"]', { state: 'visible', timeout: 10000 });
+  
+      // Enter mnemonic words
+      const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+      const words = testMnemonic.split(' ');
+      
+      for (let i = 0; i < 12; i++) {
+        const input = page.getByPlaceholder('Enter word').nth(i);
+        await input.waitFor({ state: 'visible' });
+        await input.fill(words[i]);
+        await input.press('Tab');
+      }
+  
+      // Check the confirmation checkbox - updated selector
+      await page.getByRole('checkbox', { name: /I have saved my secret recovery phrase/i }).check();
+  
+      // Enter password
+      await page.waitForSelector('input[id="password"]', { state: 'visible' });
+      await page.fill('input[id="password"]', 'TestPassword123!');
+  
+      // Click continue and wait for success
+      await page.getByRole('button', { name: /Continue/i }).click();
+  
+      // Wait for success indicator (the address)
+      await page.waitForSelector('text=bc1qcr...306fyu', { timeout: 15000 });
+  
+      // Add delay to ensure storage is updated
+      await page.waitForTimeout(3000);
+  
+      // Check storage
+      const records = await page.evaluate(() => chrome.storage.local.get('appRecords'));
+      console.log('Stored appRecords after import:', records);
+      
+      if (!records.appRecords || records.appRecords.length === 0) {
+        throw new Error('Wallet import failed to persist in local:appRecords');
+      }
+  
+      // Transfer storage
+      await page.evaluate((records) => {
+        window.localStorage.setItem('appRecords', JSON.stringify(records.appRecords));
+      }, records);
+  
+      await context.storageState({ path: storageStatePath });
+  
+    } catch (error) {
+      console.error('Setup failed:', error);
+      throw error;
+    } finally {
+      await context.close();
+    }
+  }
+  
+  export default globalSetupImported;
+
+/e2e/global-setup.ts
+  [contents of the file]
+  import { FullConfig } from '@playwright/test';
+  import globalSetupCreated from './global-setup-created';
+  import globalSetupImported from './global-setup-imported';
+  
+  async function globalSetup(config: FullConfig) {
+    const projects = config.projects.map(p => p.name);
+  
+    // Run setup for 'created' if included in the test run
+    if (projects.includes('created')) {
+      await globalSetupCreated();
+    }
+  
+    // Run setup for 'imported' if included in the test run
+    if (projects.includes('imported')) {
+      await globalSetupImported();
+    }
+  }
+  
+  export default globalSetup;
+
+/e2e/onboarding/create-wallet.spec.ts
+  [contents of the file]
+  import { test, expect } from "../fixtures";
   
   test.beforeEach(async ({}, testInfo) => {
     test.skip(testInfo.project.name !== 'onboarding', 'This test runs only in a clean state (onboarding project).');
@@ -298,199 +667,40 @@ File Contents:
     });
   
     test("can refresh mnemonic and reveals password input", async ({ page }) => {
-      // Store initial mnemonic by getting all words
       const initialWords = await page.locator('.font-mono').allTextContents();
-      
-      // Click refresh button in header
       await page.getByRole("button", { name: "Generate new recovery phrase" }).click();
-      
-      // Verify mnemonic changed
       const newWords = await page.locator('.font-mono').allTextContents();
       expect(newWords).not.toEqual(initialWords);
-      
-      // Initially password input should be hidden
+  
       await expect(page.getByPlaceholder(/Create a password/)).not.toBeVisible();
-      
-      // Click to reveal passphrase
       await page.getByText(/View 12-word Secret Phrase/).click();
-      
-      // Verify phrase is now visible
       await expect(page.locator('.blur-sm')).not.toBeVisible();
-      
-      // Check the acknowledgment checkbox
       await page.getByLabel(/I have saved my secret recovery phrase/).check();
-      
-      // Password input should now be visible
       await expect(page.getByPlaceholder(/Create a password/)).toBeVisible();
-      
-      // Refresh should uncheck the checkbox
+  
       await page.getByRole("button", { name: "Generate new recovery phrase" }).click();
       await expect(page.getByLabel(/I have saved my secret recovery phrase/)).not.toBeChecked();
       await expect(page.getByPlaceholder(/Create a password/)).not.toBeVisible();
     });
   
     test("validates password and creates wallet", async ({ page }) => {
-      // Click to reveal passphrase
       await page.getByText(/View 12-word Secret Phrase/).click();
-      
-      // Check acknowledgment
       await page.getByLabel(/I have saved my secret recovery phrase/).check();
-      
-      // Try short password
+  
       await page.getByPlaceholder(/Create a password/).fill("short");
       await page.getByRole("button", { name: "Continue" }).click();
-      
-      // Error message should be visible
       await expect(page.getByText("Password must be at least 8 characters long")).toBeVisible();
-      
-      // Use valid password
-      await page.getByPlaceholder(/Create a password/).fill("validpassword123");
+  
+      await page.getByPlaceholder(/Create a password/).fill("TestPassword123!");
       await page.getByRole("button", { name: "Continue" }).click();
-      
-      // Should redirect to index after wallet creation
       await expect(page).toHaveURL(/#\/index$/);
+      await page.waitForSelector('text=bc1q');
     });
-  }); 
-
-/e2e/fixtures.ts
-  [contents of the file]
-  import { test as base, chromium, type BrowserContext } from '@playwright/test';
-  import path from 'path';
-  
-  const pathToExtension = path.resolve('.output/chrome-mv3');
-  
-  export const test = base.extend<{
-    context: BrowserContext;
-    extensionId: string;
-  }>({
-    context: async ({}, use, testInfo) => {
-      // Retrieve our custom userDataDir property.
-      // Cast testInfo.project.use to any so that TypeScript ignores unknown properties.
-      const userDataDir = (testInfo.project.use as any).userDataDir || '';
-      const context = await chromium.launchPersistentContext(userDataDir, {
-        headless: false, // Use headed mode for extension testing.
-        args: [
-          `--disable-extensions-except=${pathToExtension}`,
-          `--load-extension=${pathToExtension}`,
-        ],
-      });
-      await use(context);
-      await context.close();
-    },
-    extensionId: async ({ context }, use) => {
-      let [background] = context.serviceWorkers();
-      if (!background) background = await context.waitForEvent('serviceworker');
-      const extensionId = background.url().split('/')[2];
-      await use(extensionId);
-    },
   });
-  
-  export const expect = test.expect;
 
-/e2e/global-setup-created.ts
+/e2e/onboarding/import-wallet.spec.ts
   [contents of the file]
-  import { chromium } from '@playwright/test';
-  import path from 'path';
-  
-  async function globalSetup() {
-    const pathToExtension = path.resolve('.output/chrome-mv3');
-    // Use the same fixed directory as specified in the "created" project.
-    const userDataDir = 'userData/created';
-  
-    const context = await chromium.launchPersistentContext(userDataDir, {
-      headless: false,
-      args: [
-        `--disable-extensions-except=${pathToExtension}`,
-        `--load-extension=${pathToExtension}`,
-      ],
-    });
-  
-    const page = await context.newPage();
-  
-    // Wait for the extension’s service worker and extract extensionId.
-    let [background] = context.serviceWorkers();
-    if (!background) background = await context.waitForEvent("serviceworker");
-    const extensionId = background.url().split("/")[2];
-  
-    // Navigate to onboarding.
-    await page.goto(`chrome-extension://${extensionId}/popup.html#/onboarding`);
-  
-    // Click "Create Wallet"
-    await page.getByRole('link', { name: /create wallet/i }).click();
-  
-    // Wait for the create wallet form.
-    await page.waitForSelector('input[name="walletName"]');
-  
-    // Fill in the form (adjust selectors as needed).
-    await page.fill('input[name="password"]', 'TestPassword123!');
-  
-    // Submit the form.
-    await page.getByRole('button', { name: /create/i }).click();
-  
-    // Wait for navigation to the main page.
-    await page.waitForURL(/\/index/);
-    // Optionally, wait for an element confirming the wallet is active.
-    await page.waitForSelector('text=bc1q');
-  
-    await context.close();
-  }
-  
-  export default globalSetup;
-
-/e2e/global-setup-imported.ts
-  [contents of the file]
-  import { chromium } from '@playwright/test';
-  import path from 'path';
-  
-  async function globalSetup() {
-    const pathToExtension = path.resolve('.output/chrome-mv3');
-    const userDataDir = 'userData/imported';
-  
-    const context = await chromium.launchPersistentContext(userDataDir, {
-      headless: false,
-      args: [
-        `--disable-extensions-except=${pathToExtension}`,
-        `--load-extension=${pathToExtension}`,
-      ],
-    });
-  
-    const page = await context.newPage();
-  
-    let [background] = context.serviceWorkers();
-    if (!background) background = await context.waitForEvent("serviceworker");
-    const extensionId = background.url().split("/")[2];
-  
-    await page.goto(`chrome-extension://${extensionId}/popup.html#/onboarding`);
-  
-    // Click "Import Wallet"
-    await page.getByRole('link', { name: /import wallet/i }).click();
-  
-    // Wait for the import wallet form.
-    await page.waitForSelector('textarea[name="mnemonic"]');
-  
-    // Fill in the mnemonic with the test mnemonic.
-    await page.fill(
-      'textarea[name="mnemonic"]',
-      'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
-    );
-  
-    // Fill in password (and confirm password if needed).
-    await page.fill('input[name="password"]', 'TestPassword123!');
-  
-    // Submit the form.
-    await page.getByRole('button', { name: /import/i }).click();
-  
-    // Wait until the active address appears.
-    await page.waitForSelector('text=bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu');
-  
-    await context.close();
-  }
-  
-  export default globalSetup;
-
-/e2e/import-wallet.spec.ts
-  [contents of the file]
-  import { test, expect } from "./fixtures";
+  import { test, expect } from "../fixtures";
   
   test.beforeEach(async ({}, testInfo) => {
     test.skip(testInfo.project.name !== 'onboarding', 'This test runs only in a clean state (onboarding project).');
@@ -506,88 +716,54 @@ File Contents:
     });
   
     test("validates mnemonic input and creates wallet", async ({ page }) => {
-      // Initially password input should be hidden
       await expect(page.getByPlaceholder(/Create a password/)).not.toBeVisible();
-      
-      // Enter mnemonic words
       for (let i = 0; i < 12; i++) {
         await page.getByPlaceholder("Enter word").nth(i).fill(TEST_MNEMONIC_ARRAY[i]);
       }
-  
-      // Check acknowledgment
       await page.getByLabel(/I have saved my secret recovery phrase/).check();
-      
-      // Password input should now be visible
       await expect(page.getByPlaceholder(/Create a password/)).toBeVisible();
-      
-      // Try short password
+  
       await page.getByPlaceholder(/Create a password/).fill("short");
       await page.getByRole("button", { name: "Continue" }).click();
-      
-      // Error message should be visible
       await expect(page.getByText("Password must be at least 8 characters long")).toBeVisible();
-      
-      // Use valid password
-      await page.getByPlaceholder(/Create a password/).fill("validpassword123");
+  
+      await page.getByPlaceholder(/Create a password/).fill("TestPassword123!");
       await page.getByRole("button", { name: "Continue" }).click();
-      
-      // Should redirect to index after wallet creation
       await expect(page).toHaveURL(/#\/index$/);
+      await page.waitForSelector('text=bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu');
     });
   
     test("handles invalid mnemonic", async ({ page }) => {
-      // Enter invalid mnemonic
       const invalidMnemonic = TEST_MNEMONIC_ARRAY.slice();
       invalidMnemonic[0] = "invalid";
-      
       for (let i = 0; i < 12; i++) {
         await page.getByPlaceholder("Enter word").nth(i).fill(invalidMnemonic[i]);
       }
-  
-      // Check acknowledgment
       await page.getByLabel(/I have saved my secret recovery phrase/).check();
-      
-      // Enter password
-      await page.getByPlaceholder(/Create a password/).fill("validpassword123");
+      await page.getByPlaceholder(/Create a password/).fill("TestPassword123!");
       await page.getByRole("button", { name: "Continue" }).click();
-      
-      // Should show error message
-      await expect(page.getByText("Invalid recovery phrase. Please check each word carefully.")).toBeVisible();
+      await expect(page.getByText("Invalid recovery phrase")).toBeVisible();
     });
   
     test("can toggle mnemonic visibility", async ({ page }) => {
-      // Enter first word
       const firstWordInput = page.getByPlaceholder("Enter word").first();
       await firstWordInput.fill(TEST_MNEMONIC_ARRAY[0]);
-      
-      // Initially input should be password type
       await expect(firstWordInput).toHaveAttribute("type", "password");
-      
-      // Click show button
       await page.getByRole("button", { name: "Show recovery phrase" }).click();
-      
-      // Input should now be text type
       await expect(firstWordInput).toHaveAttribute("type", "text");
-      
-      // Click hide button
       await page.getByRole("button", { name: "Hide recovery phrase" }).click();
-      
-      // Input should be password type again
       await expect(firstWordInput).toHaveAttribute("type", "password");
     });
   
     test("can navigate back to onboarding", async ({ page }) => {
-      // Click back button
       await page.getByRole("button", { name: /back/i }).click();
-      
-      // Should return to onboarding
       await expect(page).toHaveURL(/#\/onboarding$/);
     });
-  }); 
+  });
 
-/e2e/onboarding.spec.ts
+/e2e/onboarding/onboarding.spec.ts
   [contents of the file]
-  import { test, expect } from "./fixtures";
+  import { test, expect } from "../fixtures";
   
   test.beforeEach(async ({}, testInfo) => {
     test.skip(testInfo.project.name !== 'onboarding', 'This test runs only in a clean state (onboarding project).');
@@ -597,10 +773,7 @@ File Contents:
     test("redirects to /onboarding when no wallet exists", async ({ page, extensionId }) => {
       await page.goto(`chrome-extension://${extensionId}/popup.html#/`);
       await page.waitForLoadState("networkidle");
-      
       await expect(page).toHaveURL(new RegExp(`${extensionId}/popup.html#/onboarding$`));
-      
-      // Verify onboarding screen elements - update selectors to match actual content
       await expect(page.getByRole("button", { name: /Create Wallet/i })).toBeVisible();
       await expect(page.getByRole("button", { name: /Import Wallet/i })).toBeVisible();
     });
@@ -608,42 +781,15 @@ File Contents:
     test("can navigate between create and import wallet screens", async ({ page, extensionId }) => {
       await page.goto(`chrome-extension://${extensionId}/popup.html#/onboarding`);
       await page.waitForLoadState("networkidle");
-      
-      // Click create wallet
+  
       await page.getByRole("button", { name: /Create Wallet/i }).click();
       await expect(page).toHaveURL(new RegExp(`${extensionId}/popup.html#/create-wallet$`));
-      
-      // Go back using header button
       await page.getByRole("button", { name: /back/i }).click();
       await expect(page).toHaveURL(new RegExp(`${extensionId}/popup.html#/onboarding$`));
-      
-      // Click import wallet
+  
       await page.getByRole("button", { name: /Import Wallet/i }).click();
       await expect(page).toHaveURL(new RegExp(`${extensionId}/popup.html#/import-wallet$`));
     });
-  });
-
-/e2e/popup.spec.ts
-  [contents of the file]
-  import { test, expect } from "./fixtures";
-  
-  test.beforeEach(async ({}, testInfo) => {
-    test.skip(testInfo.project.name !== 'onboarding', 'This test runs only in a clean state (onboarding project).');
-  });
-  
-  test("Popup loads and redirects to onboarding", async ({ page, extensionId }) => {
-    // Navigate to the popup page of your extension
-    await page.goto(`chrome-extension://${extensionId}/popup.html`);
-    
-    // Wait until network activity settles
-    await page.waitForLoadState("networkidle");
-  
-    // Verify that we're redirected to onboarding (since no wallet exists)
-    await expect(page).toHaveURL(`chrome-extension://${extensionId}/popup.html#/onboarding`);
-  
-    // Check that the onboarding page content is visible
-    await expect(page.getByText(/Create Wallet/)).toBeVisible();
-    await expect(page.getByText(/Import Wallet/)).toBeVisible();
   });
 
 /package.json
@@ -774,39 +920,48 @@ File Contents:
     </body>
   </html>
   <script>
-  window.playwrightReportBase64 = "data:application/zip;base64,UEsDBBQAAAgIALu4U1p0TMcgywYAAOwqAAAZAAAAYjg3MzczNTgzODAxZTJmMDM5NzUuanNvbu1abW/bNhD+KwQ3ICngKHqxbEvdCqxZ34BhKNZsBVZlKC2dbSUSqZFUnCDzfx8oyxEly69xt2aL8yGyKd4d7557eDrqDo/iBN5F2MfDQd/pO+7AGZgW2CPT8fou7hTjP5MUsI9DDkTCyZQkCUhDZBAaUuAOliCkwP6nu+JqpbAT0ve6BKyBZ5kuITByepGjpscyKcQTijiMOIgJSimkjMYhIjRCHK6BJAJlRIgp4xGKaZZL3MEZZ5cQyoV5E87SOE9xBycsJDJmFPt3xQLWGJ/EFLDvdXDIkjyl2HdmHRzlvJzvOQO3gwmlTBa/qHVedLAk4/KK5TJkhX5xFWcZRMouIifY/4TPCp3oY6ETvU7YFF90MAeRJ6XDmoqEJFyex4U827TdE9M+sc1zs+ubrt/tGZZn/Y6VCMlvsW+qCZCVvi/d+BJGjAN6y9iVWt9miQMlsTLEtbu9NrnDQu4rEk7QhLGrLUTbprkk2m4TPYpvZM7BRyGjEm7kNrKtbl12f4XVnE0F8PPbDIyE5DScvAcuYiGByrMdtA2a2qxK20UHEylJOEmByvKHFgSWqxQ67iyrAp5tzdSXnErsK+klnPwRSQR0sKDqu8Q+RkFumtbwk2emyDLRX+VXx0sRWrhw8ZuT+trw4rKXEnFLQ23k+G5WTeloA7mAZ6ga+v6FNnYX0JotVsMWpCkMGRVSGy3t1EW3GzolcW1emeXVPKMaXRHh48UddhrgAFf3ty+5sSyEastaXFqL2dZ8qY3PH+WobadL+sy04Th7yXEITYBECQixKZIFPDYtqVJ2eope3UigQpEZ4vBnHnNABGX3TluE5rmK/b0ZPioUoSjnMR2jCK4hYZlCvOZ/PHtALvS0VOjtkQrI1b3YiGGvNYa9FG4yxmXrUBOxanNbAdchqUJQAyQoV0fV0HfV0EFQtjPUUH8fvnDSl3MePavfrcPtuQ6DTgu5Z2QMW3Ct17PqXGt1HXcNtZcmGRSm77fV4C5pMNfT+SostuJ95c1tXoFFMr6LNpo+MJzmbn2Ybegp9f6TqacyzhgzyY6LXRNO7sHmn56mYRpdRaOrOGMsC+nlcDIeXQJcxpBMJuEoPc1YlmfGRKbJN6e16vnZFkDtmv06UG3XGuyM1fVFu1uh1toLtd1GQBTMWrFU1b7HFUiXS6iC4to3YC3N0WzbgqqeVo2CqlkY1XVrxhcAqCqgzy1Y+PZOs2+2OvKfK6nPWuH3wMTaKZ16h3COuu814z8xEn2QREKtVKQgp4xfxVECetXYvvTlzGvK3pQ2rml4jtN4ZDK9A2dN76FZ89hB+ZXh5p9MmeYONFsF5YMgrVshbbAP0JyatSvJOQIR8nhYD8Fy62Xzc9/x1rz81W8c26JoJ/Q8usRvx/E25XmBdcYNkiTncDPvI1Apjo0Ro/IkZZRtLIJcy+i6DTbv9w5M5nr/yPUO0T9C2ujpKfogVTMxprGMSVK1ZYe3aAxSqk4ASRKkurJCA9D+baFS00clcOfe0ErQleHUcHdURfKoFUba7CYIvgiP7/B5YGsJtwF9DPLl7S8sgeOjYS4lo0cddIcoScFHR2+AAld0SmGKOITsGvgtyiacCDhCs2dGmMThxo6waxlut9ERdsyefeiU0Ladvtp3gHPGsY9fqf8+Wqy4sNlH54SPQRbQ6dw3JRlHZXcBTYhAQwCKwoQJiAJ6pgCfsLEf0EUcUoROkMKiyocR4+hB3tSiS/EeGe2sz+gzte77g5a5eSimRaMP+Mokbm55+5H/vV/0vXpuwxZ92cKD1Vjb47KSt87BupZa+aNZWSDjX8/yhyb+8m5dS/wfRhL4dqdEbtdwm4/zlum1nrfs09dS8q0GMWzoxz31te6H/od9rZ1aygW67J3QtVMDd8szy8IMp5lEg/4Wne1i59lGvt1tyt+j4Gw9ptTOx919qszBDrtHLuC4dOo2HGx5O8hegmaN9pmAA9L+LjlkN8vw9tPYp/O1JzJ80HPtR8avgKOzBAjNs42c4ho9s8lZ+x+UFYW4ug9X3j9XQZ8SgWIqgfM8kxDpB8qdR1m2F38LgGx4HGuw2cGq9xaEv1gD5Kcif0u2P+inJUjtbLOptm/csLLHPUfRb8Dj0W3VzgknhI4hWqmvSWrrOjgUpo+xe1PRuUYPCBGJzvwg+FUAF0GQkEyyLAh+ZGFekF4QvInl23wYBPfPO0EANgRBa5PCt7p+f1AFWL0OKCSRucA+1hgQLzGr4k92pTP62lctB7Zte96QdC3wPNuyI7AG2quW1ySJIyJBe6dSvWg5t1mgudEHfcGya616w9L8Yq9X1lx2MfsbUEsDBBQAAAgIALu4U1pvA80nOAcAAIksAAAZAAAAYWJhNDAwMjkxMGU3MzU5YjhhODQuanNvbu1abXPjthH+Kxi0M5EnMs13kUyamTvXaTzTXG4St5n26CYguRR5AgGWBE/2OPrvHdCU+SLqzac0l9byB1NacrHYffbBYokHHKcUriPsYRIQU1V1V1NhZlhu4BDHxNNa/oZkgD2cZjkvxPmSUApCKXMIFVHiKRZQihJ77x7qq63Kzq3IIQFYkQpEs3V3pqmaIx9PBZXqPxCaRkRAiTIGGWdpiFKWVwIRFqGwgFr0ODie4rzg7yEUjWlhUvAsrTI8xZSHRKScYe+hNn6H4TRlgD1Nn+KQ0ypj2DNWUxxVRaPANUx3igljXNS/yEneTrEg8+aKVyLktQHlIs1ziKRhRCTYe4ev60HRj/Wg6GvKl/h2igsoK9p4azhQKUghbtJan67q1rmqn+vqjWp6quWZtqLrzj+xVCGKe+yp8gHIG8c3PnwNMS8AfcP5Qk5wr0bDlBpbQ8zZTBvTG9R6r0iYoITzxUGqraFq2x1THad3oirAQyFnAu7EIbpNu6/b1fVRqwu+LKG4uc9BoaRiYfIWijItBTBxefholjoYTXPa0W6nmAhBwiQDJpofRiDYzLLsAU9rgadrK/mlYgJ7MgINnLyY0BKmuGTyu8AeRn6lqlrwzlUzpKnol+ar4WYIrV24/s3IvI54fWlnpLxnYUcyeVi1j0w7gqqEM9SK/vRVR/bgs54t2sAW1Bkw5KwUHWljZ1f1uKFLkvaea9K8fU5ppVsiPFnfoWc+9nF7//iUB9NCqDet9aW2flp7nOrg869GquvZxnhqNnCcvuE4hBIgEYWy3BfJGh77ptQOdnGBru4EsFKSGSrg31VaACIof3LaOjRfyNg/meGheiAUVUXK5iiCD0B5LhHf8T9efUQu2J1UsJ+RCsjqenEQQ3s0hnYGd5KiR0VDxMqVbQtcA9KGoAdIkK6OWtGXregkKDsaamj2HL4wstePPHrZv7sLty+6MJiOkHtO5rCXa2eKNhtwrWPbO5i9sUhhsHx76ADmcAB9N5lvQ+Io2rfePOYTWKfidbTXckdRDadvuXaSRegl8f4nE0/mmzLngk/qNRPOn8DmXVxkYRYtoniR5pznIXsfJPP4PcD7FGiShHF2kfO8ypVEZPQPF73i+ewQoJqzPlB105wdjdXdNbvTolZ7FmqHAZEwG8VSW/lOWpBuFlA1wY0vv500R6tDyynk7CinhmVRf+yO8TUA2vrn5xEs/PGhY99qe+R/brWejcLvIxPrqHRyT+Eced/XvPgrJ9EPggjoFYoMxJIXizSi0K0Zx6e+mXlD3fvSxlIV03X7aWOp1omzxv3YrPm9g/ITw81/MWU2toqrbVA+CdJmLdKc5wDN3lFUfPLUfWgcj6K8313qjSPpkAIZ7nIIhcK4UAR/DX9PyzSg+ylUU1TN6FOofXyjZk+v0GyBbT+HQjVjWxwft+fXLBUpofQe5aQsl7yImiZomfCKRigAlKRRBGxbemjmEUB59PRkO15AvL5/S0kICacRFE/YsbKLy7ojK5sHjaEXHUScjapjfDxRO1Ge/CpMefznKG61NlzeqwhqlPFC2fDmZ1dMQIGk8z47U+K0KMVE/qf0ELA7gzLbsPQ9W9nj4d6psy0JdygKXmAPX8n/HlrPTJrsoRtSzEHU7DN9avHxAjWbdZSQEgUADIWUlxD57JJQiiife/4aznqG0DmSKJV9ppgX6DCndaLF8DOycrimdJMm5kV3vWgFFLq5lO7pZlqZuoGkPsh7Kr4cVaHpe3W0P3/+eScjN/q1mwvK85aUbRQhq6E2VFuKoS45iGSSjoskvCat5Obqh5ufvn1z9e13b64vf3r1/fev/tHe+y69/U0p5Cji2KxHVz3meBVL/x30NscyFUsddohU19j5yuWIDpTUr2l9/epLB+qlA3WS1m+NLuModB3Vaj3w3WJthjlMIsc6oAVdr2mH6B++F9VU2zzN68TO9t56Tml6zBajKmHSOPUQuh1huu26N6DZSazazScsEo/JIX1jD92aMe1mwQsZvpDhR+x/f+TFAgp0SYGwKt/LKZZiq/pRr4Z2vdKqK3x5H269fyODviQlSmU9V1S5gKj74nf6Se8H6r81EHqkZO/eiz8qfjqMJEcoO0HvE9z/xw5iJCO/6vh6qPllozGktGd+Rvw+Tnh79xe7lrSBbOuJnsf0uEwgXCASLhhfUojmkmBGqbeTywgRgS493/9bCUXp+5Tkgue+/2ceVjVB+f5fUvFNFfj+097E90EH3x/tVHia41l26wl5xK4URFSl7G20bIU3WFByHV902Xfn2UXHCEI7nsXuzLVmoWlEqqV3zi4mhMmDMihl9SnGJ9I46UFFc+tBRfVXO6V4nJeM0LbBCSJwLDXSbVcPIeh4KSQMCT6fU2hZ9YPs+6U0Ffcn9ZX9yfvKjePQ1AMzjsEJYgfMyIgGvmLkQzqXTdaAhAskOOIs4KSIUjY/qbMc4zd21u3qP1BLAwQUAAAICAC7uFNa8s0jYdYGAABuKAAAGQAAAGZlNTM0ZjA4MjU0MDdmMjEzZmFhLmpzb27tWv1u2zYQfxWCK9AEcGx9OrbaBliydi1QbEWWtsCqDKWls61EIjWSihNkBvYWe4O9yN5kTzJQkS1Klr8Sb1i3OH9EEsm74/F3Px4/bvEwiuFNiD08BNd2hkbPch3jcGiZ9pAQ3MrLvyMJYA8zOmCEhxEdtUUKQVsK3MIShBTY+3SbPy2VdOB2e04AjhGY0CeGDcQ2TNU8krGSzSGMOARSIMlQp9SEJmOgiDI0IXEMEsF1JHK9KWcXEMjCtGDMWRJlCW7hmAVERoxi7zY3fpnhcUQBe04LByzOEoo9e9rCYcaLxn3TsFuYUMpk/kX18byFJRkVTyyTAcuVi8soTSFURhE5xt4n/H1p/6uYTfB5C3MQWVx4qq5FSMLlWZQLswzLPTCsA8s4MxzPcD2n2zb7vR+xEiH5DfYM1QDSwumF/45hyDig14xdqs6tk2gZrpJYGmJaltskdxhdy4yDhwJGJVzLTWSbvarsvu00iR5wNhHAz25SaMcko8H4HXARCQlUnmyuzbJq2qx+qe28hYmUJBgnQGXxoQEgRS+FjgzTLKFhmVP1klGJPbM1H3BvSGIBLSyoepfYw8jPDMMcfOobCTIN9EvxavcThGYunH2zE08rnj12EyJuaKCV7N1OyyYtrSATsI/KohdHWtmtTyu2mDVbkKYwYFRIrbSwUxfdbOiERJV2RRCW7dpl6ZIR3pvVsBIf+7is39zlWrcQqnRr9mjOWpt3Xa39fipKLStZ0GckNcdZC45DaAwkjEGIdSOZw2Ndl0plnQ56eS2BCkU3iMPPWcQBEZTOnTYbmmdq7OdmeChXhMKMK8YJ4QpilirEa/7H0wfEQlcLhe49QgG5uhdrY9htHMNuAtcp47KxqI5YNfUsgeuAlENQASQoV4dl0fOyaCco2xpq6PA+fGEnx3c8elKtrcPtmQ6DVgO5p2QEa7n2sG26dpVrrUN7BbMXFrUpTN5tqqA2dVjd3moyX4bERrQvrdzkE5iF4ptwA8sdq1+13NjJJPQYeP+dwLsvIlVwtkdMsr18goWDOTK9TicJkvAyHF5GKWNpQC8G49HwAuAigng8DoZJJ2VplrbHMom/6uxvAmS7lhnalrt9QrUi43ZLSJv3grRTGy2FwUoasd1aYn3SsSo1y6mzuZlGIGi6aaJWDdhaolZPuKq6tRDL0VK65HMDcJ7cavZNKzD5XArab8TyA6N0q9js7sIfqt4rxt8yEv4giYQKXCjICeOXURiDjoXmruOFyKzLXhdjrtHu9g+rMeaazi5DrPvQEPsCQfgvw8k/GSL16QuhCkrhOoVAtiV7Ta7g/enbtQA125ZZy2Zsx9g+oVmB0J6W1zjTFgbOGccefqn+e7PeWcmd7XuL3jCTXCHjC+6xkv12WX/e63lpg7CZHgibpGn1qU/f3qn1UKF/76nHGZNP9336shCCUiIlcDrvh20laydq39fh7/vavPWko+PqFAKIriBEQqrlnod0OOGHpgiV2ZCekDhGMRt5Pp37A6EDVIcUmkRyjGSUAMskcg3DSETFbXpjFWRqNh4yvujE5kYK43/8NquNOAgWKxdIhp4ru1FM6OiFj4H6+OjPX39/3lFfj5ZKU2ZkdDbo6IrEGaAdOi/XiO9BvIuhXIv13hY0VwSPYjuNpDS6m4/fXimEwqQx2T2F0cvrtCzSmX0FjWso1hn9byHNe5FnfzV5fj2UwDfbVnWdtmvU1q8983DlruoWi0wl3jRru7aPi8zHReZOdndydNlboWur3ZQNjw9yM2oL0J7RGEO1TaYgZmKjXtq1GDrs7yaKzH4ZRu59jgu2ofZMwF7h0k2o1FxkueWyF4CphVXu5b3dsfc2EWTVz1Oaj0UeN7ofqfBB+20fGb8Ejk5iIDRL11KK27atbm3X+v571vlCSNXDpffP1KBPiEARlcB5lkoI9ZOd1uOy6XHZ1NToi1w25X8z4viCtnialm4NDHq0GEfzqPmfr/CW/Bqc2DzbrFvY1XKiejqBtNJOB30AHg1vkHZ8IAIOQBHEkJO5CoY0JBKQgBgCyXh+4JAQGYwRCWRG4ruZjcplRq68lrFisBvHegTy+OaUxVVIDzIpGd3gZgWiJNEEN03BbtI54aB6/DE/QelEWqXp/jIIHsOHSESDeGniWKYJFbohEp14vv9eABe+H5NUstT3v2FBlvvf97+N5Ots4PtzbPo+WOD7ixuPXs+znBI06kKWkERmAntYm1Xxwmyt5mR2qWcJK2+5kcOe6Rj2oGcOTLs/dAYGGNott4BQRMlVNFI+HICcKDwFdy4lNERRojLB2fnUHd52eNnNdJfddjP+nqtuFeedT/8CUEsDBBQAAAgIALu4U1ru4VsRZQYAAAslAAAZAAAAMjM3YzI1ZjlhOGMxYjVmMzA2MTMuanNvbu1a/W7bNhB/FYIbUAdwbH36Q20DLFm3FiiKoktbYFWH0tLZZiKRGknlA1mAvcXeYC+yN9mTDJRl68Ny/LkN2OL8EVlH3h3vfnfHu+QOj2kEr0LsYcvuB5Y7HpJBYI7csW30TBu3M/obEgP2cMKTNOnIBIKOkriNFUglsffpLntayeTY6rm267jOaOwEAycIh6Y90NupijTbt5otijgJJSIsRAJCKiBQEimOOBtxIkLKJriNE8EvIFC5OsFU8JimMW7jiAdEUc6wd5cp3KBsRBlgz27jgEdpzLBn3rdxmIp8X3/Yc9qYMMZV9kaf63MbKzLJn3iqAp7JTRncJBAoCLVKRE1nCwTINMrtUecrFRHqnGbbLcNyjw3r2DLODcczXM/pdcyh8yPWLJS4xZ6hN0CSmza30imMuQD0kvNLfZx1HC3D0hwLRSzLHDTxHdMblQrwUMCZghu1CW/TrPIeDoZNrEeCX0sQ57cJdCKSsmD6FoSkUgFTZ1tIc+rS3ELa5zYmSpFgGgNT+YsGNOSnlGUsmGYBBkujIeApU9gz21he0iSBEHtjEkloY8n0d4U9jPzUMMzRp6ERI9NAv+Rf7WGM0NyE83d27JXI88deTOQtC0qU1t19saVdIqQSjlBBen5Sot35rKKLWdMFlQQGnElVouZ6llk3K3pNaGVfHnHFvk5BXeHh1nyFFfvYx8X65iPXjoVQ5VjzR3O+25wdtfb5KadaVrwkz4hrhrOWDIfQFEgYgZTrPJnBY92RCmHdLnpxo4BJnWCQgJ9TKgARlCyMNnfNU+37hRoeygShMBWUTVAIVxDxRCO+ZH98v0cs9Eqh0NshFJBbtmLNh71GH/ZiuEm4UI2kOmJ1gVkB1xEpXFABJGhThwXpWUE6CMq2hhrq75Iv7Ph0lkfPqqvLcHtahkG7IbknZAJrc21/uWqYlmk/kNpzlToMrt9uKqFXl2AMH07nq7DYiPeVi5usAvNgfBWuVX3QccxhTfWDlKHH0PvvhN6uiNTh2ZlwxVtZiYXjBTK9bjcO4vAyHF/ShPMkYBej6WR8AXBBIZpOg3HcnV11pyqOjjaBsVWDseX0tr9QNV+v3dL12tkFy07NTZXa+YZc0QlRoPsCNQWU6ZClNsTH6JanoojolRHhNktouO1oxo3ozhxVXGu+NPjs67tSbrkveehLweaoEUR7hcdWIdGrWQIvIVIb5DsuXnMS/qCIWpvfXaMzGPar6HLNQ4FrsC+46jmgAq6PhCqUMkUjxEBdc3GJSKDoFVW3SIJSEciVThrsj6m6qSvX5lwhGkZQvkH/2wAalllX0DNrkDuKvyRX8P7d67XAMTuOVWsqLdvuHwg5lU7Pum9jEIIL7OEX+rc3P5QVz/RuLRvBjDNhXCxZxYqPOsX6xYkX1AZmczkQNnErrWc+ez0T66FcfuuJJzhXT4589iJngqTSbcHiGBlk9qsjOad+/FW3GMDMFevHlTaOvYMA6FWDHub+elQEnZEoQhGfeD5bmAuhY1RHG7qmaooUjYGnCrmGYcSyYtXyZh14uqkac7Fs4+ZNOnX+8dt8NRIgeaTPrzh6prVGEWGT5z4G5uOTP3/9/VlXvz1ZyU2rUQyV0BWJUkAHM10mDx9gulFJlx9A0PEtUlOi0DU8EbAY280MUcAGtSRlASDG0TWJIlAIbqhU8qjs2gdHGavTaR6vOquWkmEprS4wsWu9LgfA31u79x9eVFLwN2MFYrNxoWt3+j2jmn0dq3EKuUvrlLGv9ZXGY+v02DodZGqRocveCl1bzQg2HItnatQG1Y5pbTA7CSIuNzplv87esA4zBx8WYeTuMgavX38fytiphFZu0k1yqDncgvcSMEthlVm5dbi0vU0EWfVK2jzufxzgPqbCvaZIH7m4BIHOIiAsTdamFKdjDmo9l737JDZrqfS6x6bqsan6fzRV2c88U6yejNQq2j/ZVjUkwpPl0FkEyn+4+2r8NJinuRw80HTVaPZD3j2bQnA5c66eX5ecmQ2xs2rCFKISXVFJRxGsFLNiTv6wkxp9NAF1ente/kO9G3fPBOg5+8cMWN2S4Vf5+RQ+zDRedcUqCmolSolCZ57vv5cgpO9HJFE88f1veZBmZcf3v6fqZTry/WKw74MFvl8Z9Hmm6VlW4Tn8Oat9KpX6tkRolP2rTq2c6aLFLxcV7P4vUEsDBBQAAAgIALu4U1oVVerbVwMAAEwOAAALAAAAcmVwb3J0Lmpzb27Nl0+Po0YQxb8K6jOe9F/o5hop0l6SHCLtIfKh6K62iTGNoD3e1cjfPQK8Y3uEZ8czTnZvYHBV9e/xHs0T2WIEBxFI8UTAxh3Un0O3wa4nhTykpI/Qxb+qLZKC5ZJSLoVUioqUuF0HsQoNKRhlPH+guU6Jr2rsSfH303j0yZGCcJFbrrwBbVmpvKAZE2S683cY6pI2tLv2oW/RPsSepCRiH6ciw9HVIgueKaGkkqWXVkvrDBN6+HsV66Hsn0PZpA7g+gQal3Toqg5t7JMYktCUATpXNSuSkrYL/6CNx3HsugvbarclKamDPa5xWtDMsHXVIClESmyod9uBxuGcTW4ymRJomhDHX4Z1LVMSYXU8Crtow9h31+CXFm1EN4wEcX28YUMKD3WPKemw39VHNBAj2PUWm/F8eVgelqNaw+kTiSFCTQqWkueaBU3PWwzXfA2br+OFflO17fGm54aHQ3qmY6lzkQulhaYMuafC5OpSR9shRFzsoa4xvq7nXLEF5EYCMm0YVQDoRebEmZ4WmqRD32G/TrYNbkNT2aOwjwh1n7TQ9/vQuaRq2l28Uddrw0/6mpO+4kJfI7R6o77fGD+LS34deyafx57Jb3XYk1sET78HVHPOjSlBMjSGM+6QnRvkEerKQcQzcgPOiUSfTCjuilGyaxzp/wFx1iP8FY/QWY/wqXzsdi8sAiUMEWkYxVwoU2rQ8tIi1bYNXXyTReaKLZTTUKJyFIFl3OSMXlH02SCjFz6u67XBJ10Zv+4Pad4t7aex6V38MUtTi9JmPvcmNyq3Ujiq+BnNNTSuxj6pmpHrM9O7opNX0b3fEjdwewMlYbMMdelQK+p4ZrjF8kUsx7Ba1Xh66B6rviqruopf78oq++lZGe+t5KX0HnXpNUon3AtWDTxWqyGxSrCbD21FXoelxQ+GNZO18uasldey1qMS0lPNlaS550x4gMusPXF9PWjnKi1UpqVFSS1DA1QgCMrOhLzYS/5y6pTs19gkTTiGbIJfqn7se4uus4Mf0+JqzrJhT/5OWf84zf+hkJ0lCblmkopSs5IJ42VJkV61BMY9YnN8VY1vrekh/8aztx1ic0egTN3fJW/F+V9sR5YXZIYuJzYz3czNHwj6/AMhJdh1oZsW8y9QSwECPwMUAAAICAC7uFNadEzHIMsGAADsKgAAGQAAAAAAAAAAAAAAtIEAAAAAYjg3MzczNTgzODAxZTJmMDM5NzUuanNvblBLAQI/AxQAAAgIALu4U1pvA80nOAcAAIksAAAZAAAAAAAAAAAAAAC0gQIHAABhYmE0MDAyOTEwZTczNTliOGE4NC5qc29uUEsBAj8DFAAACAgAu7hTWvLNI2HWBgAAbigAABkAAAAAAAAAAAAAALSBcQ4AAGZlNTM0ZjA4MjU0MDdmMjEzZmFhLmpzb25QSwECPwMUAAAICAC7uFNa7uFbEWUGAAALJQAAGQAAAAAAAAAAAAAAtIF+FQAAMjM3YzI1ZjlhOGMxYjVmMzA2MTMuanNvblBLAQI/AxQAAAgIALu4U1oVVerbVwMAAEwOAAALAAAAAAAAAAAAAAC0gRocAAByZXBvcnQuanNvblBLBQYAAAAABQAFAFUBAACaHwAAAAA=";</script>
+  window.playwrightReportBase64 = "data:application/zip;base64,UEsDBBQAAAgIACiVVFoLT8TeKQIAAJsFAAALAAAAcmVwb3J0Lmpzb26tU0tv2zAM/iuELk2A1JXjxo01bMDQPS+9dMMOVQcoFpNptSxPorcUWf77YNeGnbXpqdKF5Cd9fO+YRVJakWJit5+xQMrTF2ORifjinPPsfLm4yM6zGdO1V2RcyUScLec8yviSdyeZsbUpMDBxcztjlXc/MacrZXtLIEWBiR0jR6pggs8YbivMCXWr1OWBui7U3X0rhTtTVZ3V3TFBvsb9jKH3zjfcrInU1fS+MQio1AajP8rQB+evscCcGmv3BuIF59wGwG2OqFFHsrxURQGF2whZyprzeHUztwCn0HCYcgNr56FwuSLnJyeEW3q9yuNfuY+iKOHp+r4+mQI5WCH8NsGsCuxZ5laW7X3QM24BQBF0epLZTeFWqjgNSHV1amzlPKGOKIiUjz5yCyOKxRL+DgyyPMCyMQbNGdCzM/imDLX5hDrPMQQwpTZtZjChHwhKa48hTMf8vRzbTortm1GGw8shjJQfCyNJrWrqOkKbfvVqYqMB+a+Hkx6Z26e78CiUJLGzkaMd0MMQDLAYwb24sO2MjJD9dPjx6ljpAR7lPDpPFPH7k0U84Ezj461O58+3+q3WoLFQ981sYhlqjxDIebVBMAHqSitCfZQ9ecEOdrs3GSqcHBT4SHn74T9Yy3aBHtbmutmaz93SwORSSPk1oA9SFqoiV0n5zuW1xZKClB8NfapXUuKWsAzGlVLiHKV8ZgNFnE5HPXouipfw3jiNF2Ix8slu9/8AUEsBAj8DFAAACAgAKJVUWgtPxN4pAgAAmwUAAAsAAAAAAAAAAAAAALSBAAAAAHJlcG9ydC5qc29uUEsFBgAAAAABAAEAOQAAAFICAAAAAA==";</script>
 
 /playwright.config.ts
   [contents of the file]
-  import { defineConfig, devices } from '@playwright/test';
+  import { defineConfig } from '@playwright/test';
   
   export default defineConfig({
-    testDir: 'src/e2e',
+    testDir: './e2e',
+    fullyParallel: true,
+    reporter: 'html',
+    use: {
+      headless: false,
+      viewport: { width: 1280, height: 720 },
+      launchOptions: {
+        args: ['--disable-dev-shm-usage', '--disable-gpu', '--no-sandbox'],
+        timeout: 60000,
+      },
+    },
     projects: [
       {
+        name: 'onboarding',
+        testMatch: 'onboarding/*.spec.ts',
+        use: { userDataDir: 'userData/onboarding' } as any,
+      },
+      {
         name: 'created',
+        testMatch: 'created/*.spec.ts',
         use: {
-          // Casting to any allows our custom property.
           userDataDir: 'userData/created',
-          ...devices['Desktop Chrome'],
+          storageState: 'userData/created/state.json',
         } as any,
       },
       {
         name: 'imported',
+        testMatch: 'imported/*.spec.ts',
         use: {
           userDataDir: 'userData/imported',
-          ...devices['Desktop Chrome'],
-        } as any,
-      },
-      {
-        name: 'onboarding',
-        use: {
-          // Empty userDataDir creates a temporary context (clean state).
-          userDataDir: '',
-          ...devices['Desktop Chrome'],
+          storageState: 'userData/imported/state.json',
         } as any,
       },
     ],
+    globalSetup: './e2e/global-setup.ts',
   });
 
 /src/assets/logo.png
@@ -1241,9 +1396,8 @@ File Contents:
 
 /src/components/footer.tsx
   [contents of the file]
-  import React from 'react';
   import { useNavigate, useLocation } from 'react-router-dom';
-  import { FaWallet, FaUniversity, FaTools, FaCog } from 'react-icons/fa';
+  import { FaWallet, FaTools, FaCog } from 'react-icons/fa';
   import { Button } from '@/components/button';
   
   const Footer = () => {
@@ -1256,7 +1410,7 @@ File Contents:
   
     return (
       <div className="p-2 bg-white border-t border-gray-300">
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <Button
             variant="transparent"
             fullWidth
@@ -1265,16 +1419,6 @@ File Contents:
           >
             <div className="flex flex-col items-center">
               <FaWallet className="text-lg mb-1" />
-            </div>
-          </Button>
-          <Button
-            variant="transparent"
-            fullWidth
-            onClick={() => handleNavigation('/trade', 'Footer - Trade')}
-            className={`hover:bg-gray-100 ${location.pathname === '/trade' ? 'text-blue-600' : 'text-gray-600'}`}
-          >
-            <div className="flex flex-col items-center">
-              <FaUniversity className="text-lg mb-1" />
             </div>
           </Button>
           <Button
@@ -2744,38 +2888,29 @@ File Contents:
 /src/components/lists/balance-list.tsx
   [contents of the file]
   import React, { useState, useEffect, useRef } from "react";
+  import { useInView } from "react-intersection-observer";
   import { useNavigate } from "react-router-dom";
   import { FaSpinner } from "react-icons/fa";
-  import { formatAmount, formatAsset } from "@/utils/format";
   import { BalanceMenu } from "@/components/menus/balance-menu";
-  import type { TokenBalance } from "@/utils/blockchain/counterparty";
   import { useWallet } from "@/contexts/wallet-context";
   import { fetchBTCBalance } from "@/utils/blockchain/bitcoin/balance";
-  import { fetchTokenBalances } from "@/utils/blockchain/counterparty";
-  import { useInView } from "react-intersection-observer";
+  import { fetchTokenBalance, fetchTokenBalances } from "@/utils/blockchain/counterparty";
+  import type { TokenBalance } from "@/utils/blockchain/counterparty";
+  import { formatAmount, formatAsset } from "@/utils/format";
   
-  export interface BalanceItem {
-    asset: string;
-    balance?: TokenBalance;
-    loading: boolean;
-  }
-  
-  interface BalanceItemProps {
-    token: TokenBalance;
-  }
-  
-  const BalanceItemComponent = ({ token }: BalanceItemProps) => {
+  const BalanceItemComponent = ({ token }: { token: TokenBalance }) => {
     const navigate = useNavigate();
     const imageUrl = `https://app.xcp.io/img/icon/${token.asset}`;
   
     const handleClick = () => {
-      // If it's BTC, go to send page, otherwise go to balance view
-      if (token.asset === 'BTC') {
+      if (token.asset === "BTC") {
         navigate(`/compose/send/${encodeURIComponent(token.asset)}`);
       } else {
         navigate(`/balance/${encodeURIComponent(token.asset)}`);
       }
     };
+  
+    const isDivisible = token.asset_info?.divisible ?? false;
   
     return (
       <div
@@ -2796,8 +2931,8 @@ File Contents:
           <div className="text-sm text-gray-500">
             {formatAmount({
               value: Number(token.quantity_normalized),
-              minimumFractionDigits: token.asset_info.divisible ? 8 : 0,
-              maximumFractionDigits: token.asset_info.divisible ? 8 : 0,
+              minimumFractionDigits: isDivisible ? 8 : 0,
+              maximumFractionDigits: isDivisible ? 8 : 0,
               useGrouping: true,
             })}
           </div>
@@ -2809,50 +2944,47 @@ File Contents:
     );
   };
   
-  interface BalanceListProps {
-    visible: boolean;
-    scrollContainer: HTMLDivElement | null;
-  }
-  
-  export const BalanceList = ({ visible, scrollContainer }: BalanceListProps) => {
+  export const BalanceList = () => {
     const { activeWallet, activeAddress } = useWallet();
-    const [tokenBalances, setTokenBalances] = useState<BalanceItem[]>([]);
+    const [allBalances, setAllBalances] = useState<TokenBalance[]>([]);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [offset, setOffset] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [isFetchingMore, setIsFetchingMore] = useState(false);
   
-    // To avoid refetching duplicates
-    const existingAssetsRef = useRef<Set<string>>(new Set());
-  
-    // Set up the intersection observer using the passed scrollContainer
     const { ref: loadMoreRef, inView } = useInView({
-      root: scrollContainer,
-      rootMargin: "100px",
+      rootMargin: "200px",
       threshold: 0,
     });
   
-    // Fetch initial balances only once (even if not visible)
+    // Helper to add or update balance in our state (to avoid duplicates)
+    const upsertBalance = (balance: TokenBalance) => {
+      setAllBalances((prev) => {
+        const idx = prev.findIndex(
+          (b) => b.asset.toUpperCase() === balance.asset.toUpperCase()
+        );
+        if (idx > -1) {
+          const newBalances = [...prev];
+          newBalances[idx] = balance;
+          return newBalances;
+        }
+        return [...prev, balance];
+      });
+    };
+  
     useEffect(() => {
       if (!activeAddress || !activeWallet) return;
-      let isCancelled = false;
-  
+      // Reset state on wallet change
+      setIsInitialLoading(true);
+      setOffset(0);
+      setHasMore(true);
+      setAllBalances([]);
+    
       async function loadInitialBalances() {
-        setIsInitialLoading(true);
-        setOffset(0);
-        setHasMore(true);
-        existingAssetsRef.current = new Set();
-  
-        // Example: start with BTC
-        const newBalances: BalanceItem[] = [
-          { asset: "BTC", loading: true },
-          // Add any pinned assets if desired.
-        ];
-        setTokenBalances(newBalances);
-  
-        // Fetch BTC balance
+        if (!activeAddress || !activeWallet) return;
         try {
-          const balanceSats = await fetchBTCBalance(activeAddress!.address);
+          // Fetch BTC balance
+          const balanceSats = await fetchBTCBalance(activeAddress.address);
           const balanceBTC = balanceSats / 1e8;
           const btcBalance: TokenBalance = {
             asset: "BTC",
@@ -2866,99 +2998,64 @@ File Contents:
               supply: "21000000",
             },
           };
-  
-          if (!isCancelled) {
-            setTokenBalances((prev) =>
-              prev.map((item) =>
-                item.asset === "BTC" ? { asset: "BTC", balance: btcBalance, loading: false } : item
-              )
-            );
-            existingAssetsRef.current.add("BTC");
-          }
+          upsertBalance(btcBalance);
+    
+          // Load pinned token balances in parallel, skipping BTC
+          const pinnedAssets = activeWallet.pinnedAssetBalances || [];
+          const nonBTCAssets = pinnedAssets.filter(
+            (asset) => asset.toUpperCase() !== "BTC"
+          );
+          const balancePromises = nonBTCAssets.map((asset) =>
+            fetchTokenBalance(activeAddress.address, asset)
+              .then((balance) => ({ asset, balance }))
+              .catch((error) => {
+                console.error(`Error fetching ${asset} balance:`, error);
+                return null;
+              })
+          );
+          const results = await Promise.all(balancePromises);
+          results.forEach((result) => {
+            if (result && result.balance) {
+              upsertBalance(result.balance);
+            }
+          });
         } catch (error) {
-          console.error("Error fetching BTC balance:", error);
-          if (!isCancelled) {
-            setTokenBalances((prev) => prev.filter((item) => item.asset !== "BTC"));
-          }
+          console.error("Error in loadInitialBalances:", error);
+        } finally {
+          setIsInitialLoading(false);
         }
-  
-        setIsInitialLoading(false);
       }
-  
       loadInitialBalances();
-  
-      return () => {
-        isCancelled = true;
-      };
     }, [activeAddress, activeWallet]);
   
-    // Infinite scroll: load more token balances
     useEffect(() => {
-      if (!activeAddress || !activeWallet || !hasMore || isFetchingMore || isInitialLoading) return;
+      if (!activeAddress || !activeWallet || !hasMore || isInitialLoading) return;
       if (!inView) return;
-  
-      let isCancelled = false;
   
       async function loadMoreBalances() {
         setIsFetchingMore(true);
         try {
-          const fetchedBalances = await fetchTokenBalances(activeAddress!.address, { 
-            limit: 10, 
-            offset: offset,
-            sort: 'asset:asc'
+          const fetchedBalances = await fetchTokenBalances(activeAddress!.address, {
+            limit: 10,
+            offset,
           });
-  
-          // Filter out duplicates and tokens with zero balance
-          const filtered = fetchedBalances.filter((balance) => {
-            const normalized = balance.asset.toUpperCase();
-            const quantity = Number(balance.quantity_normalized);
-            return (
-              quantity > 0 &&
-              !existingAssetsRef.current.has(normalized) &&
-              normalized !== "BTC"
-            );
-          });
-  
-          // Mark tokens that pass filtering as seen
-          filtered.forEach((balance) =>
-            existingAssetsRef.current.add(balance.asset.toUpperCase())
-          );
-  
-          if (filtered.length > 0) {
-            setTokenBalances((prev) => [
-              ...prev,
-              ...filtered.map((balance) => ({
-                asset: balance.asset.toUpperCase(),
-                balance,
-                loading: false,
-              })),
-            ]);
-          }
-  
-          // Always update the offset so that duplicates in the current page
-          // don't prevent subsequent pages from being requested.
-          setOffset((prev) => prev + 10);
-  
-          // If fewer than 10 tokens were returned from the API, assume no more data.
+          // If API returns fewer than limit, no more pages
           if (fetchedBalances.length < 10) {
             setHasMore(false);
           }
+          // Append new balances
+          fetchedBalances.forEach((balance) => upsertBalance(balance));
+          // Advance offset regardless of whether new assets were added
+          setOffset((prev) => prev + 10);
         } catch (error) {
-          console.error("Error fetching more token balances:", error);
+          console.error("Error fetching more balances:", error);
           setHasMore(false);
         } finally {
-          if (!isCancelled) {
-            setIsFetchingMore(false);
-          }
+          setIsFetchingMore(false);
         }
       }
-  
       loadMoreBalances();
-  
-      return () => {
-        isCancelled = true;
-      };
-    }, [inView, activeAddress, activeWallet, hasMore, isFetchingMore, offset, isInitialLoading]);
+    }, [inView, activeAddress, activeWallet, hasMore, isInitialLoading, offset]);
   
     if (isInitialLoading) {
       return (
@@ -2967,38 +3064,44 @@ File Contents:
         </div>
       );
     }
-    if (tokenBalances.length === 0) {
-      return <div className="text-center mt-4">No balances to display.</div>;
-    }
+  
+    // During render, separate pinned vs. non-pinned balances
+    const pinnedAssets = (activeWallet?.pinnedAssetBalances || [])
+      .map((a) => a.toUpperCase())
+      .concat("BTC"); // Ensure BTC is treated as pinned
+  
+    const pinnedBalances = allBalances.filter((balance) => {
+      const isAlwaysShow = ["BTC", "XCP"].includes(balance.asset.toUpperCase());
+      const isPinned = pinnedAssets.includes(balance.asset.toUpperCase());
+      const hasBalance = Number(balance.quantity_normalized) > 0;
+  
+      return isPinned && (isAlwaysShow || hasBalance);
+    });
+  
+    const otherBalances = allBalances.filter(
+      (balance) => !pinnedAssets.includes(balance.asset.toUpperCase())
+    );
+  
     return (
       <div className="space-y-2">
-        {tokenBalances.map((item) =>
-          item.loading ? (
-            <div
-              key={`${item.asset}-loading`}
-              className="relative flex items-center p-3 bg-white rounded-lg shadow-sm animate-pulse"
-            >
-              <div className="w-12 h-12 bg-gray-200 rounded-md"></div>
-              <div className="ml-3 flex-grow">
-                <div className="h-4 w-24 bg-gray-200 rounded mb-2"></div>
-                <div className="h-4 w-16 bg-gray-200 rounded"></div>
-              </div>
-            </div>
-          ) : (
-            item.balance && (
-              <BalanceItemComponent token={item.balance} key={`${item.asset}-balance`} />
-            )
-          )
-        )}
-        <div ref={loadMoreRef} className="flex flex-col justify-center items-center">
-          {hasMore &&
-            (isFetchingMore ? (
+        {pinnedBalances.map((balance) => (
+          <BalanceItemComponent token={balance} key={balance.asset} />
+        ))}
+        {otherBalances.map((balance) => (
+          <BalanceItemComponent token={balance} key={balance.asset} />
+        ))}
+        <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-4">
+          {hasMore ? (
+            isFetchingMore ? (
               <div className="py-4">
                 <FaSpinner className="animate-spin text-2xl text-blue-500" />
               </div>
             ) : (
-              <div className="text-sm text-gray-500 py-4">Scroll to load more</div>
-            ))}
+              <div className="text-sm text-gray-500">Loading more...</div>
+            )
+          ) : (
+            <div className="text-sm text-gray-500"></div>
+          )}
         </div>
       </div>
     );
@@ -4414,6 +4517,9 @@ File Contents:
   import ComposeFairminter from '@/pages/compose/fairminter/page';
   import ComposeSend from '@/pages/compose/send/page';
   import ComposeSweep from '@/pages/compose/sweep/page';
+  import ComposeUtxoAttach from '@/pages/compose/utxo/attach/page';
+  import ComposeUtxoDetach from '@/pages/compose/utxo/detach/page';
+  import ComposeUtxoMove from '@/pages/compose/utxo/move/page';
   
   // Wallet pages
   import AddWallet from '@/pages/wallet/add-wallet';
@@ -4508,6 +4614,8 @@ File Contents:
             <Route path="/select-address" element={<SelectAddress />} />
             <Route path="/view-address" element={<ViewAddress />} />
             <Route path="/select-assets" element={<SelectAssets />} />
+            <Route path="/asset/:asset" element={<ViewAsset />} />
+            <Route path="/balance/:asset" element={<ViewBalance />} />
             <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
             <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptions />} />
             <Route path="/compose/btcpay" element={<ComposeBTCPay />} />
@@ -4526,8 +4634,9 @@ File Contents:
             <Route path="/compose/issuance/update-description/:asset" element={<ComposeIssuanceUpdateDescription />} />
             <Route path="/compose/issuance/destroy/:asset" element={<ComposeDestroy />} />
             <Route path="/compose/fairminter/:asset?" element={<ComposeFairminter />} />
-            <Route path="/asset/:asset" element={<ViewAsset />} />
-            <Route path="/balance/:asset" element={<ViewBalance />} />
+            <Route path="/compose/utxo/attach/:asset" element={<ComposeUtxoAttach />} />
+            <Route path="/compose/utxo/detach/:utxo" element={<ComposeUtxoDetach />} />
+            <Route path="/compose/utxo/move/:utxo" element={<ComposeUtxoMove />} />
           </Route>
         </Route>
   
@@ -5991,8 +6100,8 @@ File Contents:
   [contents of the file]
   "use client";
   
-  import { useState, useEffect } from 'react';
-  import { useNavigate } from 'react-router-dom';
+  import { useState, useEffect, useRef } from 'react';
+  import { useNavigate, Link, useSearchParams } from 'react-router-dom';
   import { FaSearch } from 'react-icons/fa';
   import { FiHelpCircle } from 'react-icons/fi';
   import { TbPinned, TbPinnedFilled } from 'react-icons/tb';
@@ -6014,7 +6123,8 @@ File Contents:
   }
   
   function SelectAssets() {
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
     const [pinnedAssets, setPinnedAssets] = useState<string[]>([]);
     const [searchResults, setSearchResults] = useState<Asset[]>([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -6027,6 +6137,9 @@ File Contents:
     const { settings } = useSettings();
     const navigate = useNavigate();
   
+    // Add ref for the search input
+    const searchInputRef = useRef<HTMLInputElement>(null);
+  
     // Initialize help text flag from settings context.
     useEffect(() => {
       if (settings) {
@@ -6034,18 +6147,33 @@ File Contents:
       }
     }, [settings]);
   
-    // Set the header.
+    // Modify the search input handler to update URL
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const query = e.target.value;
+      setSearchQuery(query);
+      // Update URL params, remove if empty
+      if (query) {
+        setSearchParams({ q: query });
+      } else {
+        setSearchParams({});
+      }
+    };
+  
+    // Modify the header effect to use the updated search state
     useEffect(() => {
       setHeaderProps({
-        title: 'Manage Assets',
-        onBack: searchQuery ? () => setSearchQuery('') : () => navigate('/index'),
+        title: 'Search Assets',
+        onBack: searchQuery ? () => {
+          setSearchQuery('');
+          setSearchParams({});
+        } : () => navigate('/index'),
         rightButton: {
           icon: <FiHelpCircle className="w-4 h-4" />,
           onClick: () => setIsHelpTextOverride((prev) => !prev),
           ariaLabel: 'Toggle help text',
         },
       });
-    }, [setHeaderProps, navigate, searchQuery]);
+    }, [setHeaderProps, navigate, searchQuery, setSearchParams]);
   
     // Debounced asset search.
     useEffect(() => {
@@ -6076,12 +6204,17 @@ File Contents:
       return () => clearTimeout(debounceTimeout);
     }, [searchQuery]);
   
-    // Initialize pinned assets from the active wallet.
+    // Initialize pinned assets from the active wallet
     useEffect(() => {
-      if (activeWallet && activeWallet.pinnedAssetBalances) {
-        setPinnedAssets(activeWallet.pinnedAssetBalances);
+      if (activeWallet) {
+        setPinnedAssets(activeWallet.pinnedAssetBalances || []);
       }
-    }, [activeWallet]);
+    }, [activeWallet?.id, activeWallet?.pinnedAssetBalances]);
+  
+    // Add effect to focus the input on mount
+    useEffect(() => {
+      searchInputRef.current?.focus();
+    }, []);
   
     // Determine whether to show the help text.
     const shouldShowHelpText = isHelpTextOverride ? !localHelpText : localHelpText;
@@ -6099,15 +6232,19 @@ File Contents:
         return;
       }
   
-      if (!pinnedAssets.includes(asset)) {
-        try {
-          const newPinnedAssets = [...pinnedAssets, asset];
-          await updatePinnedAssets(newPinnedAssets);
-          setPinnedAssets(newPinnedAssets);
-        } catch (err) {
-          console.error('Error adding asset:', err);
-          setError('Failed to add asset. Please try again.');
-        }
+      // Prevent duplicates
+      if (pinnedAssets.includes(asset)) {
+        return;
+      }
+  
+      try {
+        const newPinnedAssets = [...pinnedAssets, asset];
+        await updatePinnedAssets(newPinnedAssets);
+        // Wait for wallet state to refresh before updating local state
+        setPinnedAssets(newPinnedAssets);
+      } catch (err) {
+        console.error('Error adding asset:', err);
+        setError('Failed to add asset. Please try again.');
       }
     };
   
@@ -6120,6 +6257,7 @@ File Contents:
       try {
         const newPinnedAssets = pinnedAssets.filter((a) => a !== asset);
         await updatePinnedAssets(newPinnedAssets);
+        // Wait for wallet state to refresh before updating local state
         setPinnedAssets(newPinnedAssets);
       } catch (err) {
         console.error('Error removing asset:', err);
@@ -6146,7 +6284,10 @@ File Contents:
     const AssetWithIcon = ({ symbol, description }: { symbol: string; description?: string }) => {
       const imageUrl = `https://app.xcp.io/img/icon/${symbol}`;
       return (
-        <div className="flex items-center">
+        <Link 
+          to={`/balance/${symbol}`}
+          className="flex items-center flex-1 cursor-pointer hover:bg-gray-50"
+        >
           <div className="w-8 h-8 flex-shrink-0 mr-3">
             <img src={imageUrl} alt={symbol} className="w-full h-full object-cover" />
           </div>
@@ -6154,7 +6295,7 @@ File Contents:
             <div>{symbol}</div>
             {description && <div className="text-sm text-gray-500">{description}</div>}
           </div>
-        </div>
+        </Link>
       );
     };
   
@@ -6164,11 +6305,12 @@ File Contents:
           {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
           <div className="relative mb-4">
             <input
+              ref={searchInputRef}
               type="text"
               className="w-full p-2 pl-10 border rounded-lg"
               placeholder="Search assets..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
             />
             <FaSearch className="absolute left-3 top-3 text-gray-400" />
           </div>
@@ -6183,7 +6325,7 @@ File Contents:
                   Pin up to 10 assets to the top of your main screen, useful for surfacing balances in large wallets.
                 </p>
               )}
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto mb-4">
                 <DragDropContext onDragEnd={handleDragEnd}>
                   <Droppable droppableId="pinnedAssets" type="PINNED_ASSETS">
                     {(provided) => (
@@ -6468,7 +6610,7 @@ File Contents:
     useEffect(() => {
       setHeaderProps({
         title: 'Balance',
-        onBack: () => navigate('/index?tab=Balances'),
+        onBack: () => navigate(-1),
       });
   
       return () => setHeaderProps(null);
@@ -9327,6 +9469,292 @@ File Contents:
     );
   };
 
+/src/pages/compose/fairminter/fairmint/form.tsx
+  [contents of the file]
+  import React, { useState, useRef, useEffect, Suspense } from "react";
+  import { Field, Label, Description, Input } from "@headlessui/react";
+  import { Button } from "@/components/button";
+  import { BalanceHeader } from "@/components/headers/balance-header";
+  import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+  import { useSettings } from "@/contexts/settings-context";
+  import { useWallet } from "@/contexts/wallet-context";
+  import { useAssetDetails } from "@/hooks/useAssetDetails";
+  
+  export interface FairmintFormData {
+    asset: string;
+    quantity: string;
+    feeRateSatPerVByte: number;
+  }
+  
+  interface FairmintFormProps {
+    onSubmit: (data: FairmintFormData) => void;
+    initialAsset?: string;
+  }
+  
+  export function FairmintForm({ onSubmit, initialAsset = "" }: FairmintFormProps) {
+    const [formData, setFormData] = useState<FairmintFormData>({
+      asset: initialAsset,
+      quantity: "",
+      feeRateSatPerVByte: 1,
+    });
+    const [localError, setLocalError] = useState<string | null>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const { settings } = useSettings();
+    const shouldShowHelpText = settings?.showHelpText;
+  
+    // Load asset details if an asset is specified.
+    const { isLoading, error, data } = useAssetDetails(formData.asset);
+    const { assetInfo } = data || { assetInfo: null };
+  
+    const { activeAddress } = useWallet();
+  
+    useEffect(() => {
+      inputRef.current?.focus();
+    }, []);
+  
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+  
+      if (!formData.asset) {
+        setLocalError("Please enter an asset name.");
+        return;
+      }
+      if (!formData.quantity || Number(formData.quantity) <= 0) {
+        setLocalError("Please enter a valid quantity greater than zero.");
+        return;
+      }
+      if (formData.feeRateSatPerVByte <= 0) {
+        setLocalError("Please enter a valid fee rate greater than zero.");
+        return;
+      }
+      setLocalError(null);
+  
+      // If the asset is divisible, convert the quantity from decimal to satoshis.
+      let convertedQuantity = formData.quantity;
+      if (assetInfo && assetInfo.divisible) {
+        const quantityNumber = Number(formData.quantity);
+        convertedQuantity = Math.round(quantityNumber * 1e8).toString();
+      }
+  
+      const updatedFormData: FairmintFormData = {
+        asset: formData.asset,
+        quantity: convertedQuantity,
+        feeRateSatPerVByte: formData.feeRateSatPerVByte,
+      };
+  
+      onSubmit(updatedFormData);
+    };
+  
+    return (
+      <div className="bg-white rounded-lg shadow-lg p-4">
+        {formData.asset && (
+          <div className="min-h-[80px]">
+            <Suspense fallback={<div>Loading asset details...</div>}>
+              {isLoading ? (
+                <div className="animate-pulse h-12 bg-gray-200 rounded"></div>
+              ) : error ? (
+                <div className="text-red-500">{error.message}</div>
+              ) : (
+                <BalanceHeader
+                  balance={{
+                    asset: formData.asset,
+                    asset_info: assetInfo,
+                    quantity_normalized: "", // For fairmint, a balance may not be applicable.
+                  }}
+                  className="mb-4"
+                />
+              )}
+            </Suspense>
+          </div>
+        )}
+        {localError && <div className="text-red-500 mb-2">{localError}</div>}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Asset <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative mt-1 mb-2">
+              <Input
+                ref={inputRef}
+                type="text"
+                name="asset"
+                value={formData.asset}
+                onChange={(e) =>
+                  setFormData({ ...formData, asset: e.target.value.trim() })
+                }
+                required
+                placeholder="Enter asset name"
+                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+              Enter the asset you want to perform a fair mint for.
+            </Description>
+          </Field>
+  
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Quantity <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative mt-1 mb-2">
+              <Input
+                type="text"
+                name="quantity"
+                value={formData.quantity}
+                onChange={(e) =>
+                  setFormData({ ...formData, quantity: e.target.value.trim() })
+                }
+                required
+                placeholder="Enter quantity to mint"
+                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+              Enter the quantity to mint (in decimal; will be converted to satoshis if the asset is divisible).
+            </Description>
+          </Field>
+  
+          <FeeRateInput
+            id="feeRateSatPerVByte"
+            value={formData.feeRateSatPerVByte}
+            onChange={(value: number) =>
+              setFormData({ ...formData, feeRateSatPerVByte: value })
+            }
+            error={
+              formData.feeRateSatPerVByte <= 0
+                ? "Please enter a valid fee rate greater than zero."
+                : ""
+            }
+            showLabel={true}
+            label="Fee Rate (sat/vB)"
+            showHelpText={shouldShowHelpText}
+            autoFetch={true}
+          />
+  
+          <Button type="submit" color="blue" fullWidth>
+            Continue
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
+/src/pages/compose/fairminter/fairmint/page.tsx
+  [contents of the file]
+  import { useParams } from "react-router-dom";
+  import { FairmintForm } from "./form";
+  import { ReviewFairmint } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeFairmint } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeFairmint() {
+    const { asset } = useParams<{ asset: string }>();
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Fairmint"
+          FormComponent={(props) => <FairmintForm {...props} initialAsset={asset || ""} />}
+          ReviewComponent={ReviewFairmint}
+          composeTransaction={composeFairmint}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeFairmint;
+
+/src/pages/compose/fairminter/fairmint/review.tsx
+  [contents of the file]
+  import React, { useState } from "react";
+  import { Button } from "@/components/button";
+  import { ErrorAlert } from "@/components/error-alert";
+  import { formatAmount } from "@/utils/format";
+  
+  interface ReviewFairmintProps {
+    apiResponse: any;
+    onSign: () => void;
+    onBack: () => void;
+  }
+  
+  export function ReviewFairmint({ apiResponse, onSign, onBack }: ReviewFairmintProps) {
+    const [isSigning, setIsSigning] = useState(false);
+    const { result } = apiResponse;
+  
+    const handleSignClick = async () => {
+      setIsSigning(true);
+      try {
+        await onSign();
+      } finally {
+        setIsSigning(false);
+      }
+    };
+  
+    const formatQuantity = (quantity: number) =>
+      formatAmount({
+        value: quantity,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 8,
+      });
+  
+    return (
+      <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
+        <h3 className="text-lg font-bold">Review Fairmint Transaction</h3>
+  
+        {result.error && (
+          <ErrorAlert message={result.error} onClose={() => {}} />
+        )}
+  
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">From:</span>
+            <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+              {result.params.source}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">Asset:</span>
+            <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+              {result.params.asset}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">Quantity:</span>
+            <div className="bg-gray-50 p-2 rounded text-gray-900">
+              {formatQuantity(Number(result.params.quantity))}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">Fee:</span>
+            <div className="bg-gray-50 p-2 rounded text-gray-900">
+              {formatQuantity(Number(result.btc_fee))} BTC
+            </div>
+          </div>
+        </div>
+  
+        <div className="mt-4">
+          <details>
+            <summary className="text-md font-semibold cursor-pointer text-gray-700 hover:text-gray-900">
+              Raw Transaction
+            </summary>
+            <pre className="mt-2 overflow-y-auto overflow-x-auto text-sm bg-gray-50 p-3 rounded-md h-[175px] border border-gray-200">
+              {JSON.stringify(apiResponse, null, 2)}
+            </pre>
+          </details>
+        </div>
+  
+        <div className="flex space-x-4 mt-4">
+          <Button onClick={onBack} color="gray">
+            Back
+          </Button>
+          <Button onClick={handleSignClick} color="blue" disabled={isSigning}>
+            {isSigning ? "Signing..." : "Sign & Broadcast"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
 /src/pages/compose/fairminter/form.tsx
   [contents of the file]
   import React, { useState, useRef, useEffect, FormEvent } from 'react';
@@ -10986,6 +11414,15 @@ File Contents:
   }
   
   export default ComposeIssuance;
+
+/src/pages/compose/issuance/reset-supply/form.tsx
+  [contents of the file]
+
+/src/pages/compose/issuance/reset-supply/page.tsx
+  [contents of the file]
+
+/src/pages/compose/issuance/reset-supply/review.tsx
+  [contents of the file]
 
 /src/pages/compose/issuance/review.tsx
   [contents of the file]
@@ -13568,6 +14005,766 @@ File Contents:
     );
   }
 
+/src/pages/compose/utxo/attach/form.tsx
+  [contents of the file]
+  import React, { useState, useRef, useEffect, Suspense } from "react";
+  import { Field, Label, Description, Input } from "@headlessui/react";
+  import { Button } from "@/components/button";
+  import { BalanceHeader } from "@/components/headers/balance-header";
+  import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+  import { useSettings } from "@/contexts/settings-context";
+  import { useWallet } from "@/contexts/wallet-context";
+  import { useAssetDetails } from "@/hooks/useAssetDetails";
+  
+  export interface AttachFormData {
+    asset: string;
+    quantity: string;
+    utxo_value?: string;
+    destination_vout?: string;
+    feeRateSatPerVByte: number;
+  }
+  
+  interface AttachFormProps {
+    onSubmit: (data: AttachFormData) => void;
+    initialAsset?: string;
+  }
+  
+  export function AttachForm({ onSubmit, initialAsset = "" }: AttachFormProps) {
+    const [formData, setFormData] = useState<AttachFormData>({
+      asset: initialAsset,
+      quantity: "",
+      utxo_value: "",
+      destination_vout: "",
+      feeRateSatPerVByte: 1,
+    });
+    const [localError, setLocalError] = useState<string | null>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const { settings } = useSettings();
+    const shouldShowHelpText = settings?.showHelpText;
+  
+    // Load asset details if asset is provided.
+    const { isLoading, error, data } = useAssetDetails(formData.asset);
+    const { assetInfo } = data || { assetInfo: null };
+  
+    const { activeAddress } = useWallet();
+  
+    useEffect(() => {
+      inputRef.current?.focus();
+    }, []);
+  
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+  
+      if (!formData.asset) {
+        setLocalError("Please enter an asset.");
+        return;
+      }
+      if (!formData.quantity || Number(formData.quantity) <= 0) {
+        setLocalError("Please enter a valid quantity greater than zero.");
+        return;
+      }
+      if (formData.feeRateSatPerVByte <= 0) {
+        setLocalError("Please enter a valid fee rate greater than zero.");
+        return;
+      }
+      setLocalError(null);
+  
+      // Convert quantity to satoshis if asset is divisible.
+      let convertedQuantity = formData.quantity;
+      if (assetInfo && assetInfo.divisible) {
+        const qty = Number(formData.quantity);
+        convertedQuantity = Math.round(qty * 1e8).toString();
+      }
+  
+      const updatedFormData: AttachFormData = {
+        asset: formData.asset,
+        quantity: convertedQuantity,
+        feeRateSatPerVByte: formData.feeRateSatPerVByte,
+        ...(formData.utxo_value && { utxo_value: formData.utxo_value.trim() }),
+        ...(formData.destination_vout && { destination_vout: formData.destination_vout.trim() }),
+      };
+  
+      onSubmit(updatedFormData);
+    };
+  
+    return (
+      <div className="bg-white rounded-lg shadow-lg p-4">
+        {formData.asset && (
+          <div className="min-h-[80px]">
+            <Suspense fallback={<div>Loading asset details...</div>}>
+              {isLoading ? (
+                <div className="animate-pulse h-12 bg-gray-200 rounded"></div>
+              ) : error ? (
+                <div className="text-red-500">{error.message}</div>
+              ) : (
+                <BalanceHeader
+                  balance={{
+                    asset: formData.asset,
+                    asset_info: assetInfo,
+                    quantity_normalized: "", // Balance not needed for attach
+                  }}
+                  className="mb-4"
+                />
+              )}
+            </Suspense>
+          </div>
+        )}
+        {localError && <div className="text-red-500 mb-2">{localError}</div>}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Asset <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative mt-1 mb-2">
+              <Input
+                ref={inputRef}
+                type="text"
+                name="asset"
+                value={formData.asset}
+                onChange={(e) =>
+                  setFormData({ ...formData, asset: e.target.value.trim() })
+                }
+                required
+                placeholder="Enter asset name"
+                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Enter the asset you want to attach.
+            </Description>
+          </Field>
+  
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Quantity <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative mt-1 mb-2">
+              <Input
+                type="text"
+                name="quantity"
+                value={formData.quantity}
+                onChange={(e) =>
+                  setFormData({ ...formData, quantity: e.target.value.trim() })
+                }
+                required
+                placeholder="Enter quantity to attach"
+                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Enter the quantity to attach (in decimal; will be converted to satoshis if divisible).
+            </Description>
+          </Field>
+  
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              UTXO Value (satoshis)
+            </Label>
+            <div className="relative mt-1 mb-2">
+              <Input
+                type="text"
+                name="utxo_value"
+                value={formData.utxo_value}
+                onChange={(e) =>
+                  setFormData({ ...formData, utxo_value: e.target.value.trim() })
+                }
+                placeholder="Optional utxo value"
+                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Optionally specify the UTXO value (in satoshis).
+            </Description>
+          </Field>
+  
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Destination Vout
+            </Label>
+            <div className="relative mt-1 mb-2">
+              <Input
+                type="text"
+                name="destination_vout"
+                value={formData.destination_vout}
+                onChange={(e) =>
+                  setFormData({ ...formData, destination_vout: e.target.value.trim() })
+                }
+                placeholder="Optional destination vout"
+                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Optionally specify the destination vout.
+            </Description>
+          </Field>
+  
+          <FeeRateInput
+            id="feeRateSatPerVByte"
+            value={formData.feeRateSatPerVByte}
+            onChange={(value: number) =>
+              setFormData({ ...formData, feeRateSatPerVByte: value })
+            }
+            error={
+              formData.feeRateSatPerVByte <= 0
+                ? "Please enter a valid fee rate greater than zero."
+                : ""
+            }
+            showLabel={true}
+            label="Fee Rate (sat/vB)"
+            showHelpText={shouldShowHelpText}
+            autoFetch={true}
+          />
+  
+          <Button type="submit" color="blue" fullWidth>
+            Continue
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
+/src/pages/compose/utxo/attach/page.tsx
+  [contents of the file]
+  import { useParams } from "react-router-dom";
+  import { AttachForm } from "./form";
+  import { ReviewAttach } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeAttach } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeUtxoAttach() {
+    const { asset } = useParams<{ asset: string }>();
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Attach"
+          FormComponent={(props) => <AttachForm {...props} initialAsset={asset || ""} />}
+          ReviewComponent={ReviewAttach}
+          composeTransaction={composeAttach}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeUtxoAttach;
+
+/src/pages/compose/utxo/attach/review.tsx
+  [contents of the file]
+  import React, { useState } from "react";
+  import { Button } from "@/components/button";
+  import { ErrorAlert } from "@/components/error-alert";
+  import { formatAmount } from "@/utils/format";
+  
+  interface ReviewAttachProps {
+    apiResponse: any;
+    onSign: () => void;
+    onBack: () => void;
+  }
+  
+  export function ReviewAttach({ apiResponse, onSign, onBack }: ReviewAttachProps) {
+    const [isSigning, setIsSigning] = useState(false);
+    const { result } = apiResponse;
+  
+    const handleSignClick = async () => {
+      setIsSigning(true);
+      try {
+        await onSign();
+      } finally {
+        setIsSigning(false);
+      }
+    };
+  
+    const formatQuantity = (quantity: number) =>
+      formatAmount({
+        value: quantity,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 8,
+      });
+  
+    return (
+      <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
+        <h3 className="text-lg font-bold">Review Attach Transaction</h3>
+  
+        {result.error && <ErrorAlert message={result.error} onClose={() => {}} />}
+  
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">From:</span>
+            <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+              {result.params.source}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">Asset:</span>
+            <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+              {result.params.asset}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">Quantity:</span>
+            <div className="bg-gray-50 p-2 rounded text-gray-900">
+              {formatQuantity(Number(result.params.quantity))}
+            </div>
+          </div>
+          {result.params.utxo_value && (
+            <div className="space-y-1">
+              <span className="font-semibold text-gray-700">UTXO Value:</span>
+              <div className="bg-gray-50 p-2 rounded text-gray-900">
+                {result.params.utxo_value} satoshis
+              </div>
+            </div>
+          )}
+          {result.params.destination_vout && (
+            <div className="space-y-1">
+              <span className="font-semibold text-gray-700">Destination Vout:</span>
+              <div className="bg-gray-50 p-2 rounded text-gray-900">
+                {result.params.destination_vout}
+              </div>
+            </div>
+          )}
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">Fee:</span>
+            <div className="bg-gray-50 p-2 rounded text-gray-900">
+              {formatQuantity(Number(result.btc_fee))} BTC
+            </div>
+          </div>
+        </div>
+  
+        <div className="mt-4">
+          <details>
+            <summary className="text-md font-semibold cursor-pointer text-gray-700 hover:text-gray-900">
+              Raw Transaction
+            </summary>
+            <pre className="mt-2 overflow-auto text-sm bg-gray-50 p-3 rounded-md h-[175px] border border-gray-200">
+              {JSON.stringify(apiResponse, null, 2)}
+            </pre>
+          </details>
+        </div>
+  
+        <div className="flex space-x-4 mt-4">
+          <Button onClick={onBack} color="gray">
+            Back
+          </Button>
+          <Button onClick={handleSignClick} color="blue" disabled={isSigning}>
+            {isSigning ? "Signing..." : "Sign & Broadcast"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+/src/pages/compose/utxo/detach/form.tsx
+  [contents of the file]
+  import React, { useState, useRef, useEffect } from "react";
+  import { Field, Label, Description, Input } from "@headlessui/react";
+  import { Button } from "@/components/button";
+  import { useSettings } from "@/contexts/settings-context";
+  import { useWallet } from "@/contexts/wallet-context";
+  import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
+  
+  export interface DetachFormData {
+    destination: string;
+  }
+  
+  interface DetachFormProps {
+    onSubmit: (data: DetachFormData) => void;
+  }
+  
+  export function DetachForm({ onSubmit }: DetachFormProps) {
+    const [formData, setFormData] = useState<DetachFormData>({ destination: "" });
+    const [localError, setLocalError] = useState<string | null>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const { settings } = useSettings();
+    const shouldShowHelpText = settings?.showHelpText;
+  
+    const { activeAddress } = useWallet();
+  
+    useEffect(() => {
+      inputRef.current?.focus();
+    }, []);
+  
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+  
+      if (!formData.destination || !isValidBase58Address(formData.destination)) {
+        setLocalError("Please enter a valid Bitcoin address.");
+        return;
+      }
+      setLocalError(null);
+      onSubmit(formData);
+    };
+  
+    return (
+      <div className="bg-white rounded-lg shadow-lg p-4">
+        {localError && <div className="text-red-500 mb-2">{localError}</div>}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Destination <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative mt-1 mb-2">
+              <Input
+                ref={inputRef}
+                type="text"
+                name="destination"
+                value={formData.destination}
+                onChange={(e) =>
+                  setFormData({ ...formData, destination: e.target.value.trim() })
+                }
+                required
+                placeholder="Enter destination address"
+                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Enter the destination address for detaching.
+            </Description>
+          </Field>
+  
+          <Button type="submit" color="blue" fullWidth>
+            Continue
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
+/src/pages/compose/utxo/detach/page.tsx
+  [contents of the file]
+  import { useParams } from "react-router-dom";
+  import { DetachForm } from "./form";
+  import { ReviewDetach } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeDetach } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeUtxoDetach() {
+    const { utxo } = useParams<{ utxo: string }>();
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Detach"
+          FormComponent={(props) => <DetachForm {...props} initialUtxo={utxo || ""} />}
+          ReviewComponent={ReviewDetach}
+          composeTransaction={composeDetach}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeUtxoDetach;
+
+/src/pages/compose/utxo/detach/review.tsx
+  [contents of the file]
+  import React, { useState } from "react";
+  import { Button } from "@/components/button";
+  import { ErrorAlert } from "@/components/error-alert";
+  import { formatAddress } from "@/utils/format";
+  
+  interface ReviewDetachProps {
+    apiResponse: any;
+    onSign: () => void;
+    onBack: () => void;
+  }
+  
+  export function ReviewDetach({ apiResponse, onSign, onBack }: ReviewDetachProps) {
+    const [isSigning, setIsSigning] = useState(false);
+    const { result } = apiResponse;
+  
+    const handleSignClick = async () => {
+      setIsSigning(true);
+      try {
+        await onSign();
+      } finally {
+        setIsSigning(false);
+      }
+    };
+  
+    return (
+      <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
+        <h3 className="text-lg font-bold">Review Detach Transaction</h3>
+  
+        {result.error && <ErrorAlert message={result.error} onClose={() => {}} />}
+  
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">From:</span>
+            <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+              {formatAddress(result.params.source, true)}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">To:</span>
+            <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+              {formatAddress(result.params.destination, true)}
+            </div>
+          </div>
+        </div>
+  
+        <div className="mt-4">
+          <details>
+            <summary className="text-md font-semibold cursor-pointer text-gray-700 hover:text-gray-900">
+              Raw Transaction
+            </summary>
+            <pre className="mt-2 overflow-auto text-sm bg-gray-50 p-3 rounded-md h-[175px] border border-gray-200">
+              {JSON.stringify(apiResponse, null, 2)}
+            </pre>
+          </details>
+        </div>
+  
+        <div className="flex space-x-4 mt-4">
+          <Button onClick={onBack} color="gray">
+            Back
+          </Button>
+          <Button onClick={handleSignClick} color="blue" disabled={isSigning}>
+            {isSigning ? "Signing..." : "Sign & Broadcast"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+/src/pages/compose/utxo/move/form.tsx
+  [contents of the file]
+  import React, { useState, useRef, useEffect } from "react";
+  import { Field, Label, Description, Input } from "@headlessui/react";
+  import { Button } from "@/components/button";
+  import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+  import { useSettings } from "@/contexts/settings-context";
+  import { useWallet } from "@/contexts/wallet-context";
+  import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
+  
+  export interface MoveFormData {
+    destination: string;
+    utxo_value?: string;
+    feeRateSatPerVByte: number;
+  }
+  
+  interface MoveFormProps {
+    onSubmit: (data: MoveFormData) => void;
+  }
+  
+  export function MoveForm({ onSubmit }: MoveFormProps) {
+    const [formData, setFormData] = useState<MoveFormData>({
+      destination: "",
+      utxo_value: "",
+      feeRateSatPerVByte: 1,
+    });
+    const [localError, setLocalError] = useState<string | null>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const { settings } = useSettings();
+    const shouldShowHelpText = settings?.showHelpText;
+  
+    const { activeAddress } = useWallet();
+  
+    useEffect(() => {
+      inputRef.current?.focus();
+    }, []);
+  
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+  
+      if (!formData.destination || !isValidBase58Address(formData.destination)) {
+        setLocalError("Please enter a valid Bitcoin address.");
+        return;
+      }
+      if (formData.feeRateSatPerVByte <= 0) {
+        setLocalError("Please enter a valid fee rate greater than zero.");
+        return;
+      }
+      setLocalError(null);
+      onSubmit(formData);
+    };
+  
+    return (
+      <div className="bg-white rounded-lg shadow-lg p-4">
+        {localError && <div className="text-red-500 mb-2">{localError}</div>}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Destination <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative mt-1 mb-2">
+              <Input
+                ref={inputRef}
+                type="text"
+                name="destination"
+                value={formData.destination}
+                onChange={(e) =>
+                  setFormData({ ...formData, destination: e.target.value.trim() })
+                }
+                required
+                placeholder="Enter destination address"
+                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Enter the destination address for moving UTXO.
+            </Description>
+          </Field>
+  
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              UTXO Value (satoshis)
+            </Label>
+            <div className="relative mt-1 mb-2">
+              <Input
+                type="text"
+                name="utxo_value"
+                value={formData.utxo_value}
+                onChange={(e) =>
+                  setFormData({ ...formData, utxo_value: e.target.value.trim() })
+                }
+                placeholder="Optional UTXO value"
+                className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Optionally specify the UTXO value (in satoshis) to move.
+            </Description>
+          </Field>
+  
+          <FeeRateInput
+            id="feeRateSatPerVByte"
+            value={formData.feeRateSatPerVByte}
+            onChange={(value: number) =>
+              setFormData({ ...formData, feeRateSatPerVByte: value })
+            }
+            error={
+              formData.feeRateSatPerVByte <= 0
+                ? "Please enter a valid fee rate greater than zero."
+                : ""
+            }
+            showLabel={true}
+            label="Fee Rate (sat/vB)"
+            showHelpText={shouldShowHelpText}
+            autoFetch={true}
+          />
+  
+          <Button type="submit" color="blue" fullWidth>
+            Continue
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
+/src/pages/compose/utxo/move/page.tsx
+  [contents of the file]
+  import { useParams } from "react-router-dom";
+  import { MoveForm } from "./form";
+  import { ReviewMove } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeMovetoutxo } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeUtxoMove() {
+    const { utxo } = useParams<{ utxo: string }>();
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Move UTXO"
+          FormComponent={(props) => <MoveForm {...props} initialUtxo={utxo || ""} />}
+          ReviewComponent={ReviewMove}
+          composeTransaction={composeMovetoutxo}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeUtxoMove;
+
+/src/pages/compose/utxo/move/review.tsx
+  [contents of the file]
+  import React, { useState } from "react";
+  import { formatAddress, formatAmount } from "@/utils/format";
+  import { Button } from "@/components/button";
+  import { ErrorAlert } from "@/components/error-alert";
+  
+  interface ReviewMoveProps {
+    apiResponse: any;
+    onSign: () => void;
+    onBack: () => void;
+  }
+  
+  export function ReviewMove({ apiResponse, onSign, onBack }: ReviewMoveProps) {
+    const [isSigning, setIsSigning] = useState(false);
+    const { result } = apiResponse;
+  
+    const handleSignClick = async () => {
+      setIsSigning(true);
+      try {
+        await onSign();
+      } finally {
+        setIsSigning(false);
+      }
+    };
+  
+    const formatQty = (value: number) =>
+      formatAmount({
+        value,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 8,
+      });
+  
+    return (
+      <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
+        <h3 className="text-lg font-bold">Review Move Transaction</h3>
+  
+        {result.error && <ErrorAlert message={result.error} onClose={() => {}} />}
+  
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">From:</span>
+            <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+              {formatAddress(result.params.source, true)}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">To:</span>
+            <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
+              {formatAddress(result.params.destination, true)}
+            </div>
+          </div>
+          {result.params.utxo_value && (
+            <div className="space-y-1">
+              <span className="font-semibold text-gray-700">UTXO Value:</span>
+              <div className="bg-gray-50 p-2 rounded text-gray-900">
+                {result.params.utxo_value} satoshis
+              </div>
+            </div>
+          )}
+          <div className="space-y-1">
+            <span className="font-semibold text-gray-700">Fee:</span>
+            <div className="bg-gray-50 p-2 rounded text-gray-900">
+              {formatQty(Number(result.btc_fee))} BTC
+            </div>
+          </div>
+        </div>
+  
+        <div className="mt-4">
+          <details>
+            <summary className="text-md font-semibold cursor-pointer text-gray-700 hover:text-gray-900">
+              Raw Transaction
+            </summary>
+            <pre className="mt-2 overflow-auto text-sm bg-gray-50 p-3 rounded-md h-[175px] border border-gray-200">
+              {JSON.stringify(apiResponse, null, 2)}
+            </pre>
+          </details>
+        </div>
+  
+        <div className="flex space-x-4 mt-4">
+          <Button onClick={onBack} color="gray">
+            Back
+          </Button>
+          <Button onClick={handleSignClick} color="blue" disabled={isSigning}>
+            {isSigning ? "Signing..." : "Sign & Broadcast"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
 /src/pages/index.tsx
   [contents of the file]
   "use client";
@@ -13584,6 +14781,7 @@ File Contents:
     FaCog,
     FaListAlt,
     FaLock,
+    FaSearch,
   } from "react-icons/fa";
   import { RadioGroup } from "@headlessui/react";
   
@@ -13602,9 +14800,6 @@ File Contents:
     const activeTab = (searchParams.get("tab") as "Assets" | "Balances") || "Balances";
   
     const [copiedToClipboard, setCopiedToClipboard] = useState(false);
-  
-    // We want to reuse the same scroll container for both lists (for inView/infinite scroll)
-    const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
   
     useEffect(() => {
       setHeaderProps({
@@ -13754,10 +14949,10 @@ File Contents:
             </button>
             <button
               onClick={() => navigate("/select-assets")}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              aria-label="Token Settings"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+              aria-label="Search Assets"
             >
-              <FaCog className="w-5 h-5 text-gray-600" aria-hidden="true" />
+              <FaSearch className="w-5 h-5 text-gray-600" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -13779,18 +14974,13 @@ File Contents:
   
     return (
       <div className="flex flex-col h-full" role="main">
-        {/* Attach the scroll container element via the setter */}
-        <div
-          ref={setScrollContainer}
-          className="flex-grow overflow-y-auto no-scrollbar p-4"
-        >
+        <div className="flex-grow overflow-y-auto no-scrollbar p-4">
           {content}
-          {/* Always mount both list components but hide the one not active */}
           <div style={{ display: activeTab === "Balances" ? "block" : "none" }}>
-            <BalanceList visible={activeTab === "Balances"} scrollContainer={scrollContainer} />
+            <BalanceList />
           </div>
           <div style={{ display: activeTab === "Assets" ? "block" : "none" }}>
-            <AssetList visible={activeTab === "Assets"} scrollContainer={scrollContainer} />
+            <AssetList />
           </div>
         </div>
       </div>
@@ -14236,8 +15426,7 @@ File Contents:
     const [isLoading, setIsLoading] = useState(true);
     const [isUpdating, setIsUpdating] = useState(false);
     const [error, setError] = useState<string | null>(null);
-  
-    const currentWallet = activeWallet;
+    const [selectedType, setSelectedType] = useState<AddressType | null>(null);
   
     const availableAddressTypes = useMemo(
       () => Object.values(AddressType).filter((type) => type !== AddressType.Counterwallet),
@@ -14253,7 +15442,7 @@ File Contents:
   
     useEffect(() => {
       const fetchAddresses = async () => {
-        if (!currentWallet) {
+        if (!activeWallet) {
           setIsLoading(false);
           return;
         }
@@ -14262,7 +15451,7 @@ File Contents:
           const addressMap: { [key: string]: string } = {};
           for (const type of availableAddressTypes) {
             try {
-              const previewAddress = await getPreviewAddressForType(currentWallet.id, type);
+              const previewAddress = await getPreviewAddressForType(activeWallet.id, type);
               addressMap[type] = previewAddress;
             } catch (error) {
               console.error(`Error generating address for type ${type}:`, error);
@@ -14278,19 +15467,30 @@ File Contents:
         }
       };
   
+      setIsLoading(true);
       fetchAddresses();
-    }, [currentWallet, availableAddressTypes, getPreviewAddressForType]);
+    }, [activeWallet, availableAddressTypes, getPreviewAddressForType]);
+  
+    useEffect(() => {
+      if (activeWallet) {
+        setSelectedType(activeWallet.addressType);
+      }
+    }, [activeWallet]);
   
     const handleAddressTypeChange = async (newType: AddressType) => {
-      if (!currentWallet) return;
+      if (!activeWallet) return;
       
       try {
         setIsUpdating(true);
-        await updateWalletAddressType(currentWallet.id, newType);
-        const previewAddress = await getPreviewAddressForType(currentWallet.id, newType);
-        setAddresses((prev) => ({ ...prev, [newType]: previewAddress }));
+        await updateWalletAddressType(activeWallet.id, newType);
+        
+        // Fetch the new preview address for the selected type
+        const previewAddress = await getPreviewAddressForType(activeWallet.id, newType);
+        setAddresses(prev => ({ ...prev, [newType]: previewAddress }));
+        
       } catch (error) {
         console.error('Error updating address type:', error);
+        setError(error instanceof Error ? error.message : 'Failed to update address type');
       } finally {
         setIsUpdating(false);
       }
@@ -14312,7 +15512,7 @@ File Contents:
     };
   
     if (isLoading) {
-      return <Loading showMessage={true} message="Loading addresses..." />;
+      return <Loading message="Loading addresses..." />;
     }
   
     if (error) {
@@ -14323,7 +15523,7 @@ File Contents:
       );
     }
   
-    if (!currentWallet) {
+    if (!activeWallet) {
       return (
         <div className="p-4 text-center text-gray-500">
           No wallet available
@@ -14334,7 +15534,7 @@ File Contents:
     return (
       <div className="space-y-2 p-4">
         <RadioGroup
-          value={currentWallet.addressType}
+          value={selectedType}
           onChange={handleAddressTypeChange}
           className="space-y-2"
           disabled={isUpdating}
@@ -14357,9 +15557,10 @@ File Contents:
                   relative w-full rounded transition duration-300 p-4
                   ${isDisabled 
                     ? 'cursor-not-allowed bg-gray-300' 
-                    : (checked 
+                    : checked 
                       ? 'cursor-pointer bg-white shadow-md' 
-                      : 'cursor-pointer bg-white hover:bg-gray-50')}
+                      : 'cursor-pointer bg-white hover:bg-gray-50'}
+                  ${isUpdating ? 'opacity-50' : ''}
                 `}
               >
                 {({ checked }) => (
@@ -15573,15 +16774,24 @@ File Contents:
         try {
           showLoading('Importing wallet...');
           const mnemonic = mnemonicWords.join(' ').trim();
+          console.log('Attempting to import mnemonic...');
+          
           const addressType = isValidCounterwalletMnemonic(mnemonic)
             ? AddressType.Counterwallet
             : AddressType.P2WPKH;
+          console.log('Using address type:', addressType);
+          
           const newWallet = await createAndUnlockMnemonicWallet(mnemonic, password, undefined, addressType);
+          console.log('Wallet created successfully:', newWallet.id);
+          
           await unlockWallet(newWallet.id, password);
+          console.log('Wallet unlocked successfully');
+          
           navigate('/index');
         } catch (error: unknown) {
-          console.error('Error importing wallet:', error);
-          showError('Failed to import wallet. Please try again.');
+          console.error('Detailed error importing wallet:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          showError(`Failed to import wallet: ${errorMessage}`);
         } finally {
           hideLoading();
         }
@@ -17671,7 +18881,7 @@ File Contents:
       const limit = options.limit ?? 100;
       const offset = options.offset ?? 0;
       const verbose = options.verbose ?? true;
-      const sort = options.sort ?? 'asset:desc';
+      const sort = options.sort ?? null;
   
       const response = await axios.get(
         `https://api.counterparty.io:4000/v2/addresses/${address}/balances`,
@@ -20458,15 +21668,27 @@ File Contents:
       if (!mnemonic) {
         throw new Error('Wallet is locked. Please unlock first.');
       }
+  
+      // Update the wallet in memory
       wallet.addressType = newType;
       wallet.addressCount = 1;
       wallet.addresses = [this.deriveMnemonicAddress(mnemonic, newType, 0)];
+  
+      // Update the storage record
       const allRecords = await getAllEncryptedWallets();
       const record = allRecords.find((r) => r.id === walletId);
       if (!record) throw new Error('Missing storage record.');
+      
       record.addressType = newType;
       record.addressCount = 1;
+      record.previewAddress = wallet.addresses[0].address;
+      
       await updateEncryptedWallet(record);
+  
+      // Force a refresh of the active wallet if this is the active wallet
+      if (this.activeWalletId === walletId) {
+          this.setActiveWallet(walletId);
+      }
     }
     public async updateWalletPinnedAssets(walletId: string, pinned: string[]): Promise<void> {
       const wallet = this.getWalletById(walletId);
@@ -20622,6 +21844,13 @@ File Contents:
       "allowImportingTsExtensions": true,
       "jsx": "react-jsx"
     }
+  }
+
+/userData/created/state.json
+  [contents of the file]
+  {
+    "cookies": [],
+    "origins": []
   }
 
 /vitest.config.ts

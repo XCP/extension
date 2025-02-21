@@ -1,48 +1,88 @@
 import { chromium } from '@playwright/test';
 import path from 'path';
 
-async function globalSetup() {
+async function globalSetupImported() {
   const pathToExtension = path.resolve('.output/chrome-mv3');
   const userDataDir = 'userData/imported';
+  const storageStatePath = 'userData/imported/state.json';
 
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: false,
     args: [
       `--disable-extensions-except=${pathToExtension}`,
       `--load-extension=${pathToExtension}`,
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--no-sandbox',
     ],
+    timeout: 60000,
   });
 
-  const page = await context.newPage();
+  try {
+    const page = await context.newPage();
+    let [background] = context.serviceWorkers();
+    if (!background) background = await context.waitForEvent('serviceworker', { timeout: 15000 });
+    const extensionId = background.url().split('/')[2];
 
-  let [background] = context.serviceWorkers();
-  if (!background) background = await context.waitForEvent("serviceworker");
-  const extensionId = background.url().split("/")[2];
+    // Navigate to onboarding
+    await page.goto(`chrome-extension://${extensionId}/popup.html#/onboarding`);
+    
+    // Wait for and click Import Wallet button
+    await page.waitForSelector('button:has-text("Import Wallet")', { state: 'visible', timeout: 10000 });
+    await page.getByRole('button', { name: /Import Wallet/i }).click();
+    
+    // Wait for import wallet page to load
+    await page.waitForURL(/#\/import-wallet$/);
+    await page.waitForSelector('input[placeholder="Enter word"]', { state: 'visible', timeout: 10000 });
 
-  await page.goto(`chrome-extension://${extensionId}/popup.html#/onboarding`);
+    // Enter mnemonic words
+    const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+    const words = testMnemonic.split(' ');
+    
+    for (let i = 0; i < 12; i++) {
+      const input = page.getByPlaceholder('Enter word').nth(i);
+      await input.waitFor({ state: 'visible' });
+      await input.fill(words[i]);
+      await input.press('Tab');
+    }
 
-  // Click "Import Wallet"
-  await page.getByRole('link', { name: /import wallet/i }).click();
+    // Check the confirmation checkbox - updated selector
+    await page.getByRole('checkbox', { name: /I have saved my secret recovery phrase/i }).check();
 
-  // Wait for the import wallet form.
-  await page.waitForSelector('textarea[name="mnemonic"]');
+    // Enter password
+    await page.waitForSelector('input[id="password"]', { state: 'visible' });
+    await page.fill('input[id="password"]', 'TestPassword123!');
 
-  // Fill in the mnemonic with the test mnemonic.
-  await page.fill(
-    'textarea[name="mnemonic"]',
-    'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
-  );
+    // Click continue and wait for success
+    await page.getByRole('button', { name: /Continue/i }).click();
 
-  // Fill in password (and confirm password if needed).
-  await page.fill('input[name="password"]', 'TestPassword123!');
+    // Wait for success indicator (the address)
+    await page.waitForSelector('text=bc1qcr...306fyu', { timeout: 15000 });
 
-  // Submit the form.
-  await page.getByRole('button', { name: /import/i }).click();
+    // Add delay to ensure storage is updated
+    await page.waitForTimeout(3000);
 
-  // Wait until the active address appears.
-  await page.waitForSelector('text=bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu');
+    // Check storage
+    const records = await page.evaluate(() => chrome.storage.local.get('appRecords'));
+    console.log('Stored appRecords after import:', records);
+    
+    if (!records.appRecords || records.appRecords.length === 0) {
+      throw new Error('Wallet import failed to persist in local:appRecords');
+    }
 
-  await context.close();
+    // Transfer storage
+    await page.evaluate((records) => {
+      window.localStorage.setItem('appRecords', JSON.stringify(records.appRecords));
+    }, records);
+
+    await context.storageState({ path: storageStatePath });
+
+  } catch (error) {
+    console.error('Setup failed:', error);
+    throw error;
+  } finally {
+    await context.close();
+  }
 }
 
-export default globalSetup;
+export default globalSetupImported;

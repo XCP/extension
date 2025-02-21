@@ -25,3 +25,12 @@ web-ext.config.ts
 *.sln
 *.sw?
 .cursorrules
+
+# Playwright Testing
+playwright-report/
+test-results/
+e2e/state-*.json
+userData/
+userData/created/
+userData/imported/
+userData/onboarding/

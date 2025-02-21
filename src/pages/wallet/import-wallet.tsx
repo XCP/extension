@@ -126,15 +126,24 @@ function ImportWallet() {
       try {
         showLoading('Importing wallet...');
         const mnemonic = mnemonicWords.join(' ').trim();
+        console.log('Attempting to import mnemonic...');
+        
         const addressType = isValidCounterwalletMnemonic(mnemonic)
           ? AddressType.Counterwallet
           : AddressType.P2WPKH;
+        console.log('Using address type:', addressType);
+        
         const newWallet = await createAndUnlockMnemonicWallet(mnemonic, password, undefined, addressType);
+        console.log('Wallet created successfully:', newWallet.id);
+        
         await unlockWallet(newWallet.id, password);
+        console.log('Wallet unlocked successfully');
+        
         navigate('/index');
       } catch (error: unknown) {
-        console.error('Error importing wallet:', error);
-        showError('Failed to import wallet. Please try again.');
+        console.error('Detailed error importing wallet:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        showError(`Failed to import wallet: ${errorMessage}`);
       } finally {
         hideLoading();
       }

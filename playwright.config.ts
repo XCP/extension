@@ -1,30 +1,39 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
+  testDir: './e2e',
+  fullyParallel: true,
+  reporter: 'html',
+  use: {
+    headless: false,
+    viewport: { width: 1280, height: 720 },
+    launchOptions: {
+      args: ['--disable-dev-shm-usage', '--disable-gpu', '--no-sandbox'],
+      timeout: 60000,
+    },
+  },
   projects: [
     {
+      name: 'onboarding',
+      testMatch: 'onboarding/*.spec.ts',
+      use: { userDataDir: 'userData/onboarding' } as any,
+    },
+    {
       name: 'created',
-      testDir: 'e2e/created',
+      testMatch: 'created/*.spec.ts',
       use: {
         userDataDir: 'userData/created',
-        ...devices['Desktop Chrome'],
+        storageState: 'userData/created/state.json',
       } as any,
     },
     {
       name: 'imported',
-      testDir: 'e2e/imported',
+      testMatch: 'imported/*.spec.ts',
       use: {
         userDataDir: 'userData/imported',
-        ...devices['Desktop Chrome'],
-      } as any,
-    },
-    {
-      name: 'onboarding',
-      testDir: 'e2e/onboarding',
-      use: {
-        userDataDir: '',
-        ...devices['Desktop Chrome'],
+        storageState: 'userData/imported/state.json',
       } as any,
     },
   ],
+  globalSetup: './e2e/global-setup.ts',
 });
