@@ -30,13 +30,11 @@ import {
 } from "@/utils/blockchain/counterparty";
 import { TransactionResponse } from "@/utils/blockchain/bitcoin";
 
-// Extend ApiResponse to include an optional broadcast property with specific type
 interface ApiResponse extends BaseApiResponse {
   broadcast?: TransactionResponse;
 }
 
-// Union of all possible transaction option types for formData
-type FormDataType =
+export type FormDataType =
   | SendOptions
   | BetOptions
   | BroadcastOptions

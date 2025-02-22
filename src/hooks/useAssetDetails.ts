@@ -1,12 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchAssetDetailsAndBalance } from "@/utils/blockchain/counterparty";
+import { fetchAssetDetailsAndBalance, fetchTokenUtxos } from "@/utils/blockchain/counterparty";
+import { fetchBTCBalance } from "@/utils/blockchain/bitcoin";
 import { AssetInfo } from '@/types/asset';
 
 export interface AssetDetails {
   isDivisible: boolean;
   assetInfo: AssetInfo | null;
   availableBalance: string;
+  utxoBalances?: Array<{
+    txid: string;
+    amount: string;
+  }>;
 }
 
 export function useAssetDetails(asset: string) {
@@ -38,7 +43,37 @@ export function useAssetDetails(asset: string) {
       }
 
       try {
-        const result = await fetchAssetDetailsAndBalance(asset, activeAddress.address);
+        let result: AssetDetails;
+
+        if (asset === 'BTC') {
+          const balanceSats = await fetchBTCBalance(activeAddress.address);
+          result = {
+            isDivisible: true,
+            availableBalance: (balanceSats / 1e8).toString(),
+            assetInfo: {
+              asset_longname: null,
+              description: 'Bitcoin',
+              divisible: true,
+              locked: true,
+              supply: '21000000',
+              issuer: '',
+            }
+          };
+        } else {
+          const [assetDetails, utxos] = await Promise.all([
+            fetchAssetDetailsAndBalance(asset, activeAddress.address),
+            fetchTokenUtxos(activeAddress.address, asset)
+          ]);
+
+          result = {
+            ...assetDetails,
+            utxoBalances: utxos.map(utxo => ({
+              txid: utxo.utxo || '',
+              amount: utxo.quantity_normalized,
+            }))
+          };
+        }
+
         if (isMounted && fetchDataRef.current) {
           setState({
             data: result,

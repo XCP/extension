@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
-import { AttachForm } from "./form";
-import { ReviewAttach } from "./review";
+import { UtxoAttachForm } from "./form";
+import { ReviewUtxoAttach } from "./review";
 import { Composer } from "@/components/composer";
 import { composeAttach } from "@/utils/blockchain/counterparty";
 
@@ -11,8 +11,8 @@ export function ComposeUtxoAttach() {
     <div className="p-4">
       <Composer
         initialTitle="Attach"
-        FormComponent={(props) => <AttachForm {...props} initialAsset={asset || ""} />}
-        ReviewComponent={ReviewAttach}
+        FormComponent={(props) => <UtxoAttachForm {...props} initialAsset={asset || ""} />}
+        ReviewComponent={ReviewUtxoAttach}
         composeTransaction={composeAttach}
       />
     </div>

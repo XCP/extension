@@ -3,38 +3,51 @@ import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { SendOptions } from "@/utils/blockchain/counterparty";
 
-export interface SendFormData {
+interface SendFormDataInternal {
   destination: string;
   quantity: string;
   asset: string;
   memo: string;
-
+  sat_per_vbyte: number;
 }
 
 interface SendFormProps {
-  onSubmit: (data: SendFormData) => void;
+  onSubmit: (data: SendOptions) => void;
   initialAsset?: string;
+  initialFormData?: SendOptions;
 }
 
-export function SendForm({ onSubmit, initialAsset }: SendFormProps) {
-  const { activeAddress, activeWallet } = useWallet();
+export function SendForm({ onSubmit, initialAsset, initialFormData }: SendFormProps) {
+  const { activeAddress } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText;
 
-  const [formData, setFormData] = useState<SendFormData>({
-    destination: "",
-    quantity: "",
-    asset: initialAsset || "BTC",
-    memo: "",
-    feeRateSatPerVByte: 10, // Updated default to 10 sat/vB
+  const { data: assetDetails, error: assetDetailsError } = useAssetDetails(
+    initialFormData?.asset || initialAsset || "BTC"
+  );
+
+  const [formData, setFormData] = useState<SendFormDataInternal>(() => {
+    const isBTC = (initialFormData?.asset || initialAsset) === "BTC";
+    const isDivisible = isBTC || (assetDetails?.assetInfo?.divisible ?? false);
+    const initialQuantity = initialFormData?.quantity || 0;
+    const quantityStr = initialFormData && isDivisible 
+      ? (initialQuantity / 1e8).toFixed(8) 
+      : initialQuantity.toString();
+
+    return {
+      destination: initialFormData?.destination || "",
+      quantity: initialFormData ? quantityStr : "",
+      asset: initialFormData?.asset || initialAsset || "BTC",
+      memo: initialFormData?.memo || "",
+      sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
+    };
   });
-  const [availableBalance, setAvailableBalance] = useState<string>("0");
-  const [assetInfo, setAssetInfo] = useState<any>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const destinationRef = useRef<HTMLInputElement>(null);
@@ -44,21 +57,26 @@ export function SendForm({ onSubmit, initialAsset }: SendFormProps) {
   }, []);
 
   useEffect(() => {
-    const fetchBalance = async () => {
-      if (!activeAddress?.address || !formData.asset) return;
-      try {
-        const { availableBalance, assetInfo } = await import("@/utils/blockchain/counterparty").then(
-          (module) => module.fetchAssetDetailsAndBalance(formData.asset, activeAddress.address)
-        );
-        setAvailableBalance(availableBalance);
-        setAssetInfo(assetInfo);
-      } catch (err) {
-        console.error("Failed to fetch balance:", err);
-        setLocalError("Failed to fetch balance.");
-      }
-    };
-    fetchBalance();
-  }, [activeAddress?.address, formData.asset]);
+    if (assetDetailsError) {
+      setLocalError("Failed to fetch asset details.");
+    }
+  }, [assetDetailsError]);
+
+  // Update formData.quantity when assetDetails loads, if initialFormData exists
+  useEffect(() => {
+    if (initialFormData && assetDetails) {
+      const isDivisible = assetDetails.assetInfo?.divisible ?? false;
+      const quantityNum = initialFormData.quantity;
+      const quantityStr = isDivisible 
+        ? (quantityNum / 1e8).toFixed(8) 
+        : quantityNum.toString();
+      setFormData((prev) => ({
+        ...prev,
+        quantity: quantityStr,
+        asset: initialFormData.asset, // Ensure asset matches initialFormData
+      }));
+    }
+  }, [assetDetails, initialFormData]);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -67,25 +85,40 @@ export function SendForm({ onSubmit, initialAsset }: SendFormProps) {
       !formData.quantity ||
       Number(formData.quantity) <= 0 ||
       !formData.asset ||
-      formData.feeRateSatPerVByte <= 0
+      formData.sat_per_vbyte <= 0
     ) {
       setLocalError("Please fill all required fields with valid values.");
       return;
     }
     setLocalError(null);
-    onSubmit(formData);
+
+    const isBTC = formData.asset === "BTC";
+    const isDivisible = isBTC || (assetDetails?.assetInfo?.divisible ?? false);
+    const quantityNum = Number(formData.quantity);
+    const quantityInt = isDivisible ? Math.floor(quantityNum * 1e8) : Math.floor(quantityNum);
+
+    const convertedData: SendOptions = {
+      sourceAddress: activeAddress?.address || "",
+      destination: formData.destination.trim(),
+      asset: formData.asset,
+      quantity: quantityInt,
+      memo: formData.memo.trim() || undefined,
+      memo_is_hex: false,
+      sat_per_vbyte: formData.sat_per_vbyte,
+    };
+    onSubmit(convertedData);
   };
 
   return (
     <div className="space-y-4">
-      {activeAddress && (
+      {activeAddress && assetDetails && (
         <BalanceHeader
           balance={{
             asset: formData.asset,
-            quantity_normalized: availableBalance,
-            asset_info: assetInfo,
+            quantity_normalized: assetDetails.availableBalance,
+            asset_info: assetDetails.assetInfo || undefined,
           }}
-          className="mb-4"
+          className="mb-5"
         />
       )}
       {localError && <div className="text-red-500 mb-2">{localError}</div>}
@@ -101,7 +134,7 @@ export function SendForm({ onSubmit, initialAsset }: SendFormProps) {
               name="destination"
               value={formData.destination}
               onChange={(e) =>
-                setFormData((prev) => ({ ...prev, destination: e.target.value.trim() }))
+                setFormData((prev) => ({ ...prev, destination: e.target.value }))
               }
               required
               placeholder="Enter destination address"
@@ -112,61 +145,46 @@ export function SendForm({ onSubmit, initialAsset }: SendFormProps) {
             </Description>
           </Field>
 
-          <AssetSelectInput
-            selectedAsset={formData.asset}
-            onChange={(asset) => {
-              setFormData((prev) => ({
-                ...prev,
-                asset,
-                quantity: "", // Reset quantity when asset changes
-              }));
-              setAvailableBalance("0"); // Reset balance until fetched
-              setAssetInfo(null);
-            }}
-            label="Asset"
-            required
-            shouldShowHelpText={shouldShowHelpText}
-            description="Select the asset you want to send."
-          />
-
           <AmountWithMaxInput
             asset={formData.asset}
-            availableBalance={availableBalance}
+            availableBalance={assetDetails?.availableBalance || "0"}
             value={formData.quantity}
             onChange={(value) => setFormData((prev) => ({ ...prev, quantity: value }))}
-            feeRateSatPerVByte={formData.feeRateSatPerVByte}
+            sat_per_vbyte={formData.sat_per_vbyte}
             setError={setLocalError}
             sourceAddress={activeAddress}
-            maxAmount={availableBalance}
+            maxAmount={assetDetails?.availableBalance || "0"}
             shouldShowHelpText={shouldShowHelpText}
             label="Amount"
             name="quantity"
             description={
-              assetInfo?.divisible
+              assetDetails?.assetInfo?.divisible || formData.asset === "BTC"
                 ? "Enter the amount to send (up to 8 decimal places)."
                 : "Enter a whole number amount."
             }
           />
 
-          <Field>
-            <Label className="text-sm font-medium text-gray-700">Memo</Label>
-            <Input
-              type="text"
-              name="memo"
-              value={formData.memo}
-              onChange={(e) => setFormData((prev) => ({ ...prev, memo: e.target.value.trim() }))}
-              placeholder="Optional memo"
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Optional memo to include with the transaction.
-            </Description>
-          </Field>
+          {formData.asset !== "BTC" && (
+            <Field>
+              <Label className="text-sm font-medium text-gray-700">Memo</Label>
+              <Input
+                type="text"
+                name="memo"
+                value={formData.memo}
+                onChange={(e) => setFormData((prev) => ({ ...prev, memo: e.target.value }))}
+                placeholder="Optional memo"
+                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+                Optional memo to include with the transaction.
+              </Description>
+            </Field>
+          )}
 
           <FeeRateInput
-            value={formData.feeRateSatPerVByte}
-            onChange={(value) => setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))}
-            error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
+            value={formData.sat_per_vbyte}
+            onChange={(value) => setFormData((prev) => ({ ...prev, sat_per_vbyte: value }))}
+            error={formData.sat_per_vbyte <= 0 ? "Fee rate must be greater than zero." : ""}
             showHelpText={shouldShowHelpText}
           />
 
@@ -179,7 +197,7 @@ export function SendForm({ onSubmit, initialAsset }: SendFormProps) {
               !formData.quantity ||
               Number(formData.quantity) <= 0 ||
               !formData.asset ||
-              formData.feeRateSatPerVByte <= 0
+              formData.sat_per_vbyte <= 0
             }
           >
             Continue

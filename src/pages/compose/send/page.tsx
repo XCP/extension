@@ -11,7 +11,7 @@ export function ComposeSend() {
     <div className="p-4">
       <Composer
         initialTitle="Send"
-        FormComponent={(props) => <SendForm {...props} initialAsset={asset} />}
+        FormComponent={(props) => <SendForm {...props} initialAsset={asset || "BTC"} />}
         ReviewComponent={ReviewSend}
         composeTransaction={composeSend}
       />

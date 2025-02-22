@@ -51,7 +51,7 @@ export interface ApiResponse {
 // Base options shared across all transaction types
 export interface BaseComposeOptions {
   sourceAddress: string;
-  sat_per_vbyte: number; // Always required
+  sat_per_vbyte: number;
   max_fee?: number;
   change_address?: string;
   more_outputs?: string;
@@ -205,7 +205,6 @@ export interface MoveOptions extends BaseComposeOptions {
   utxo_value?: string;
 }
 
-// Generic composeTransaction with type parameter for paramsObj
 export async function composeTransaction<T>(
   endpoint: string,
   paramsObj: T,
@@ -215,15 +214,13 @@ export async function composeTransaction<T>(
   const apiUrl = `https://api.counterparty.io:4000/v2/addresses/${sourceAddress}/compose/${endpoint}`;
   
   const params = new URLSearchParams({
-    ...paramsObj as any, // Type assertion safe due to specific typing in callers
+    ...paramsObj as any,
     sat_per_vbyte: sat_per_vbyte.toString(),
     exclude_utxos_with_balances: 'true',
     allow_unconfirmed_inputs: 'true',
     disable_utxo_locks: 'true',
     verbose: 'true',
   });
-
-  console.log('Final API URL params:', params.toString());
 
   const response = await axios.get<ApiResponse>(`${apiUrl}?${params.toString()}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -477,8 +474,8 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     destination,
     asset,
     quantity: quantity.toString(),
-    ...(memo && { memo }),
-    ...(memo_is_hex !== undefined && { memo_is_hex: memo_is_hex.toString() }),
+    ...(memo !== undefined ? { memo } : {}),
+    ...(memo_is_hex !== undefined ? { memo_is_hex: memo_is_hex.toString() } : {}),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte);
@@ -498,7 +495,7 @@ export async function composeSweep(options: SweepOptions): Promise<ApiResponse> 
     destination,
     flags: flags.toString(),
     memo,
-    ...(allow_unconfirmed_inputs !== undefined && { allow_unconfirmed_inputs: allow_unconfirmed_inputs.toString() }),
+    allow_unconfirmed_inputs: allow_unconfirmed_inputs.toString(),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('sweep', paramsObj, sourceAddress, sat_per_vbyte);
@@ -583,14 +580,14 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
   const paramsObj = {
     asset,
     quantity: quantity.toString(),
-    ...(utxo_value !== undefined && { utxo_value: utxo_value.toString() }),
-    ...(destination_vout && { destination_vout }),
+    ...(utxo_value !== undefined ? { utxo_value: utxo_value.toString() } : {}),
+    ...(destination_vout ? { destination_vout } : {}),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte);
 }
 
-export async function getAttachEstimateXcpFee(sourceAddress?: string): Promise<number> {
+export async function getAttachEstimateXcpFee(sourceAddress: string): Promise<number> {
   const apiUrl = `https://api.counterparty.io:4000/v2/addresses/${sourceAddress}/compose/attach/estimatexcpfees`;
   const response = await axios.get<{ result: number }>(apiUrl);
   return response.data.result;
@@ -604,11 +601,11 @@ export async function composeDetach(options: DetachOptions): Promise<ApiResponse
   return composeTransaction('detach', paramsObj, sourceAddress, sat_per_vbyte);
 }
 
-export async function composeMovetoutxo(options: MoveOptions): Promise<ApiResponse> {
+export async function composeMove(options: MoveOptions): Promise<ApiResponse> {
   const { sourceAddress, destination, utxo_value, sat_per_vbyte } = options;
   const paramsObj = {
     destination,
-    ...(utxo_value !== undefined && { utxo_value: utxo_value.toString() }),
+    ...(utxo_value !== undefined ? { utxo_value: utxo_value.toString() } : {}),
   };
   return composeTransaction('move', paramsObj, sourceAddress, sat_per_vbyte);
 }

@@ -1,16 +1,16 @@
-import axios from 'axios';
-import React, { useState, ChangeEvent } from 'react';
-import { Field, Input, Label, Description } from '@headlessui/react';
-import { Button } from '@/components/button';
-import { isValidBase58Address } from '@/utils/blockchain/bitcoin';
-import { composeSend } from '@/utils/blockchain/counterparty';
+import axios from "axios";
+import React, { useState, ChangeEvent } from "react";
+import { Field, Input, Label, Description } from "@headlessui/react";
+import { Button } from "@/components/button";
+import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
+import { composeSend } from "@/utils/blockchain/counterparty";
 
 interface AmountWithMaxInputProps {
   asset: string;
   availableBalance: string;
   value: string;
   onChange: (value: string) => void;
- // Always required
+  sat_per_vbyte: number;
   setError: (message: string | null) => void;
   shouldShowHelpText: boolean;
   sourceAddress: { address: string } | null;
@@ -31,7 +31,7 @@ export function AmountWithMaxInput({
   availableBalance,
   value,
   onChange,
-  feeRateSatPerVByte,
+  sat_per_vbyte,
   setError,
   shouldShowHelpText,
   sourceAddress,
@@ -86,9 +86,10 @@ export function AmountWithMaxInput({
           sourceAddress: sourceAddr,
           destination: estimationDestination,
           asset: 'BTC',
-          quantity: availableSats.toString(),
+          quantity: Number(availableSats),
           memo,
-          sat_per_vbyte: feeRateSatPerVByte, // Always provided
+          sat_per_vbyte,
+          memo_is_hex: false,
         });
         const fee = composeResult.result.btc_fee;
         candidate = availableSats - fee;

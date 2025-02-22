@@ -27,7 +27,7 @@ interface FeeRateInputProps {
 type LocalFeeRateOption = FeeRateOption | 'custom';
 
 export function FeeRateInput({
-  id = 'feeRateSatPerVByte',
+  id = 'sat_per_vbyte',
   value: externalValue,
   onChange,
   error,

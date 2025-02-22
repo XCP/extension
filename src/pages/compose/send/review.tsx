@@ -19,10 +19,9 @@ export function ReviewSend({ apiResponse, onSign, onBack }: ReviewSendProps) {
           minimumFractionDigits: 8,
           maximumFractionDigits: 8,
         })
-      :quantity.toString();
+      : quantity.toString();
 
   const customFields = [
-    { label: "To", value: result.params.destination },
     {
       label: "Amount",
       value: `${formatQuantity(Number(result.params.quantity), result.params.asset_info.divisible)} ${result.params.asset}`,

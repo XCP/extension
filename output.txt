@@ -1,167 +1,378 @@
 Folders:
+/src/pages/compose/
+/src/pages/compose/bet/
+/src/pages/compose/broadcast/
+/src/pages/compose/broadcast/address-options/
+/src/pages/compose/dispenser/
+/src/pages/compose/dispenser/close/
+/src/pages/compose/dispenser/dispense/
+/src/pages/compose/dividend/
+/src/pages/compose/fairminter/
+/src/pages/compose/fairminter/fairmint/
+/src/pages/compose/issuance/
+/src/pages/compose/issuance/destroy-supply/
+/src/pages/compose/issuance/issue-supply/
+/src/pages/compose/issuance/lock-supply/
+/src/pages/compose/issuance/reset-supply/
+/src/pages/compose/issuance/transfer-ownership/
+/src/pages/compose/issuance/update-description/
+/src/pages/compose/order/
+/src/pages/compose/order/btcpay/
+/src/pages/compose/order/cancel/
+/src/pages/compose/send/
+/src/pages/compose/send/mpma/
+/src/pages/compose/sweep/
+/src/pages/compose/utxo/
+/src/pages/compose/utxo/attach/
+/src/pages/compose/utxo/detach/
+/src/pages/compose/utxo/move/
 
 Files:
-/src/pages/actions/consolidate/form.tsx
+/src/components/composer.tsx
+/src/contexts/composer-context.tsx
 /src/pages/compose/bet/form.tsx
+/src/pages/compose/bet/page.tsx
+/src/pages/compose/bet/review.tsx
 /src/pages/compose/broadcast/address-options/form.tsx
+/src/pages/compose/broadcast/address-options/page.tsx
+/src/pages/compose/broadcast/address-options/review.tsx
 /src/pages/compose/broadcast/form.tsx
+/src/pages/compose/broadcast/page.tsx
+/src/pages/compose/broadcast/review.tsx
 /src/pages/compose/dispenser/close/form.tsx
+/src/pages/compose/dispenser/close/page.tsx
+/src/pages/compose/dispenser/close/review.tsx
 /src/pages/compose/dispenser/dispense/form.tsx
+/src/pages/compose/dispenser/dispense/page.tsx
+/src/pages/compose/dispenser/dispense/review.tsx
 /src/pages/compose/dispenser/form.tsx
+/src/pages/compose/dispenser/page.tsx
+/src/pages/compose/dispenser/review.tsx
 /src/pages/compose/dividend/form.tsx
+/src/pages/compose/dividend/page.tsx
+/src/pages/compose/dividend/review.tsx
 /src/pages/compose/fairminter/fairmint/form.tsx
+/src/pages/compose/fairminter/fairmint/page.tsx
+/src/pages/compose/fairminter/fairmint/review.tsx
 /src/pages/compose/fairminter/form.tsx
+/src/pages/compose/fairminter/page.tsx
+/src/pages/compose/fairminter/review.tsx
 /src/pages/compose/issuance/destroy-supply/form.tsx
+/src/pages/compose/issuance/destroy-supply/page.tsx
+/src/pages/compose/issuance/destroy-supply/review.tsx
 /src/pages/compose/issuance/form.tsx
 /src/pages/compose/issuance/issue-supply/form.tsx
+/src/pages/compose/issuance/issue-supply/page.tsx
+/src/pages/compose/issuance/issue-supply/review.tsx
 /src/pages/compose/issuance/lock-supply/form.tsx
+/src/pages/compose/issuance/lock-supply/page.tsx
+/src/pages/compose/issuance/lock-supply/review.tsx
+/src/pages/compose/issuance/page.tsx
 /src/pages/compose/issuance/reset-supply/form.tsx
+/src/pages/compose/issuance/reset-supply/page.tsx
+/src/pages/compose/issuance/reset-supply/review.tsx
+/src/pages/compose/issuance/review.tsx
 /src/pages/compose/issuance/transfer-ownership/form.tsx
+/src/pages/compose/issuance/transfer-ownership/page.tsx
+/src/pages/compose/issuance/transfer-ownership/review.tsx
 /src/pages/compose/issuance/update-description/form.tsx
+/src/pages/compose/issuance/update-description/page.tsx
+/src/pages/compose/issuance/update-description/review.tsx
 /src/pages/compose/order/btcpay/form.tsx
+/src/pages/compose/order/btcpay/page.tsx
+/src/pages/compose/order/btcpay/review.tsx
 /src/pages/compose/order/cancel/form.tsx
+/src/pages/compose/order/cancel/page.tsx
+/src/pages/compose/order/cancel/review.tsx
 /src/pages/compose/order/form.tsx
+/src/pages/compose/order/page.tsx
+/src/pages/compose/order/review.tsx
 /src/pages/compose/send/form.tsx
 /src/pages/compose/send/mpma/form.tsx
+/src/pages/compose/send/mpma/page.tsx
+/src/pages/compose/send/mpma/review.tsx
+/src/pages/compose/send/page.tsx
+/src/pages/compose/send/review.tsx
 /src/pages/compose/sweep/form.tsx
+/src/pages/compose/sweep/page.tsx
+/src/pages/compose/sweep/review.tsx
 /src/pages/compose/utxo/attach/form.tsx
+/src/pages/compose/utxo/attach/page.tsx
+/src/pages/compose/utxo/attach/review.tsx
 /src/pages/compose/utxo/detach/form.tsx
+/src/pages/compose/utxo/detach/page.tsx
+/src/pages/compose/utxo/detach/review.tsx
 /src/pages/compose/utxo/move/form.tsx
-/src/utils/format.test.ts
-/src/utils/format.ts
+/src/pages/compose/utxo/move/page.tsx
+/src/pages/compose/utxo/move/review.tsx
+/src/utils/blockchain/counterparty/compose.ts
 
 File Contents:
-/src/pages/actions/consolidate/form.tsx
+/src/components/composer.tsx
   [contents of the file]
-  import axios from "axios";
-  import React, { useState, useEffect } from "react";
-  import { Button } from "@/components/button";
-  import { AddressHeader } from "@/components/headers/address-header";
-  import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-  import { useWallet } from "@/contexts/wallet-context";
-  import { formatAmount } from "@/utils/format";
+  import { useEffect, useMemo, useCallback } from "react";
+  import type { ReactElement } from "react";
+  import { FiHelpCircle, FiX } from "react-icons/fi";
+  import { useNavigate } from "react-router-dom";
+  import { SuccessScreen } from "@/components/screens/success-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  import type { FormDataType } from "@/contexts/composer-context";
+  import { useHeader } from "@/contexts/header-context";
+  import { useLoading } from "@/contexts/loading-context";
   import { useSettings } from "@/contexts/settings-context";
+  import { useWallet } from "@/contexts/wallet-context";
+  import type { ApiResponse } from "@/utils/blockchain/counterparty";
   
-  export interface ConsolidationFormData {
-  
-    destinationAddress: string;
-    utxoData: { count: number; total: number } | null;
+  interface HeaderCallbacks {
+    onBack?: () => void;
+    onToggleHelp?: () => void;
   }
   
-  const DEFAULT_FORM_DATA: ConsolidationFormData = {
-    feeRateSatPerVByte: 1,
-    destinationAddress: "",
-    utxoData: null,
-  };
-  
-  interface ConsolidationFormProps {
-    onSubmit: (data: ConsolidationFormData) => void;
+  interface ComposerProps {
+    initialTitle: string;
+    FormComponent: (props: { onSubmit: (data: FormDataType) => void }) => ReactElement;
+    ReviewComponent: (props: { 
+      apiResponse: ApiResponse; 
+      onSign: () => Promise<void>; 
+      onBack: () => void;
+    }) => ReactElement;
+    composeTransaction: (data: FormDataType) => Promise<ApiResponse>;
+    headerCallbacks?: HeaderCallbacks;
   }
   
-  export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
-    const { activeAddress, activeWallet } = useWallet();
-    const [formData, setFormData] = useState<ConsolidationFormData>(DEFAULT_FORM_DATA);
-    const { settings } = useSettings();
-    const shouldShowHelpText = settings?.showHelpText;
+  export function Composer({
+    initialTitle,
+    FormComponent,
+    ReviewComponent,
+    composeTransaction,
+    headerCallbacks,
+  }: ComposerProps) {
+    const navigate = useNavigate();
+    const { activeWallet, activeAddress, signTransaction, broadcastTransaction } = useWallet();
+    const { isLoading, showLoading, hideLoading } = useLoading();
+    const { setHeaderProps } = useHeader();
+    const { settings, updateSettings } = useSettings();
+    const {
+      step,
+      setStep,
+      formData,
+      setFormData,
+      apiResponse,
+      setApiResponse,
+      error,
+      setError,
+      reset,
+    } = useComposer();
   
-    // Fetch UTXO summary for the active address
-    useEffect(() => {
-      async function fetchUTXOs() {
-        if (!activeAddress) return;
-        try {
-          const response = await axios.get(
-            `https://app.xcp.io/api/v1/address/${activeAddress.address}/utxos`
-          );
-          const utxos = response.data.data;
-          const total = utxos.reduce((sum: number, utxo: any) => sum + Number(utxo.amount), 0);
-          setFormData((prev) => ({
-            ...prev,
-            utxoData: { count: utxos.length, total },
-          }));
-        } catch (error) {
-          console.error("Error fetching UTXOs:", error);
-        }
+    const toggleHelp = useCallback(
+      () => updateSettings({ showHelpText: !settings?.showHelpText }),
+      [updateSettings, settings?.showHelpText]
+    );
+    const effectiveToggleHelp = headerCallbacks?.onToggleHelp || toggleHelp;
+  
+    const handleBack = useCallback(() => {
+      if (step === "review") {
+        setApiResponse(null);
+        setStep("form");
+      } else {
+        reset();
+        navigate(-1);
       }
-      fetchUTXOs();
-    }, [activeAddress]);
+    }, [step, setApiResponse, setStep, navigate, reset]);
   
-    const handleFeeRateChange = (value: number) => {
-      setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
+    const headerConfig = useMemo(() => {
+      if (isLoading)
+        return {
+          useLogoTitle: true,
+          leftButton: {
+            icon: <FiX className="w-4 h-4" />,
+            onClick: () => {},
+            ariaLabel: "Cancel transaction",
+          },
+        };
+      if (step === "review" && apiResponse)
+        return { title: initialTitle, onBack: headerCallbacks?.onBack || handleBack };
+      if (step === "success" && apiResponse)
+        return { useLogoTitle: true, onBack: headerCallbacks?.onBack || handleBack };
+      return {
+        title: initialTitle,
+        onBack: headerCallbacks?.onBack || handleBack,
+        rightButton: {
+          icon: <FiHelpCircle className="w-4 h-4" />,
+          onClick: effectiveToggleHelp,
+          ariaLabel: "Toggle help text",
+        },
+      };
+    }, [isLoading, step, apiResponse, initialTitle, effectiveToggleHelp, headerCallbacks, handleBack]);
+  
+    useEffect(() => {
+      setHeaderProps(headerConfig);
+      return () => setHeaderProps(null);
+    }, [headerConfig, setHeaderProps]);
+  
+    async function handleFormSubmit(data: FormDataType) {
+      showLoading("Composing transaction...");
+      setError(null);
+      try {
+        if (!activeAddress) throw new Error("Wallet not initialized.");
+        const response = await composeTransaction({
+          ...data,
+          sourceAddress: activeAddress.address,
+        });
+        setApiResponse(response);
+        setFormData(data);
+        setStep("review");
+      } catch (err) {
+        console.error("Compose error:", err);
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        hideLoading();
+      }
+    }
+  
+    async function handleSign() {
+      showLoading("Signing and broadcasting transaction...");
+      setError(null);
+      try {
+        if (!apiResponse) throw new Error("No transaction composed.");
+        if (!activeWallet || !activeAddress) throw new Error("Wallet not initialized.");
+        const rawTxHex = apiResponse.result.rawtransaction;
+        const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
+        const broadcastResponse = await broadcastTransaction(signedTxHex);
+        setApiResponse({ ...apiResponse, broadcast: broadcastResponse });
+        setStep("success");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        hideLoading();
+      }
+    }
+  
+    return (
+      <div>
+        {error && <div style={{ color: "red" }}>{error}</div>}
+        {step === "form" && <FormComponent onSubmit={handleFormSubmit} />}
+        {step === "review" && apiResponse && (
+          <ReviewComponent apiResponse={apiResponse} onSign={handleSign} onBack={handleBack} />
+        )}
+        {step === "success" && apiResponse && (
+          <SuccessScreen apiResponse={apiResponse} onReset={reset} />
+        )}
+      </div>
+    );
+  }
+
+/src/contexts/composer-context.tsx
+  [contents of the file]
+  import React, {
+    createContext,
+    useContext,
+    useState,
+    ReactNode,
+    Dispatch,
+    SetStateAction,
+  } from "react";
+  import {
+    SendOptions,
+    BetOptions,
+    BroadcastOptions,
+    BTCPayOptions,
+    BurnOptions,
+    CancelOptions,
+    DestroyOptions,
+    DispenserOptions,
+    DispenseOptions,
+    DividendOptions,
+    IssuanceOptions,
+    MPMAOptions,
+    OrderOptions,
+    SweepOptions,
+    FairminterOptions,
+    FairmintOptions,
+    AttachOptions,
+    DetachOptions,
+    MoveOptions,
+    ApiResponse as BaseApiResponse,
+  } from "@/utils/blockchain/counterparty";
+  import { TransactionResponse } from "@/utils/blockchain/bitcoin";
+  
+  interface ApiResponse extends BaseApiResponse {
+    broadcast?: TransactionResponse;
+  }
+  
+  export type FormDataType =
+    | SendOptions
+    | BetOptions
+    | BroadcastOptions
+    | BTCPayOptions
+    | BurnOptions
+    | CancelOptions
+    | DestroyOptions
+    | DispenserOptions
+    | DispenseOptions
+    | DividendOptions
+    | IssuanceOptions
+    | MPMAOptions
+    | OrderOptions
+    | SweepOptions
+    | FairminterOptions
+    | FairmintOptions
+    | AttachOptions
+    | DetachOptions
+    | MoveOptions;
+  
+  interface ComposerContextType {
+    step: "form" | "review" | "success";
+    setStep: Dispatch<SetStateAction<"form" | "review" | "success">>;
+    formData: FormDataType | null;
+    setFormData: Dispatch<SetStateAction<FormDataType | null>>;
+    apiResponse: ApiResponse | null;
+    setApiResponse: Dispatch<SetStateAction<ApiResponse | null>>;
+    error: string | null;
+    setError: Dispatch<SetStateAction<string | null>>;
+    reset: () => void;
+  }
+  
+  const ComposerContext = createContext<ComposerContextType | undefined>(undefined);
+  
+  export function ComposerProvider({ children }: { children: ReactNode }) {
+    const [step, setStep] = useState<"form" | "review" | "success">("form");
+    const [formData, setFormData] = useState<FormDataType | null>(null);
+    const [apiResponse, setApiResponse] = useState<ApiResponse | null>(null);
+    const [error, setError] = useState<string | null>(null);
+  
+    const reset = () => {
+      setStep("form");
+      setFormData(null);
+      setApiResponse(null);
+      setError(null);
     };
   
-    const handleDestinationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setFormData((prev) => ({ ...prev, destinationAddress: e.target.value.trim() }));
-    };
-  
-    const handleSubmitInternal = (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      onSubmit(formData);
+    const value: ComposerContextType = {
+      step,
+      setStep,
+      formData,
+      setFormData,
+      apiResponse,
+      setApiResponse,
+      error,
+      setError,
+      reset,
     };
   
     return (
-      <div className="space-y-4">
-        {activeAddress && (
-          <AddressHeader
-            address={activeAddress.address}
-            walletName={activeWallet?.name}
-            className="mb-6"
-          />
-        )}
-        <form onSubmit={handleSubmitInternal} className="bg-white rounded-lg shadow-lg p-4 space-y-6">
-          {formData.utxoData && (
-            <div className="space-y-2">
-              <h3 className="font-semibold">Recoverable</h3>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Bitcoin</span>
-                <span className="font-medium">
-                  {`${formatAmount({
-                    value: formData.utxoData.total,
-                    minimumFractionDigits: 8,
-                    maximumFractionDigits: 8,
-                  })} BTC`}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">UTXOs</span>
-                <span className="font-medium">{formData.utxoData.count}</span>
-              </div>
-            </div>
-          )}
-  
-          <div className="space-y-2">
-            <label htmlFor="destinationAddress" className="block text-sm font-medium text-gray-700">
-              Destination Address (Optional)
-            </label>
-            <input
-              id="destinationAddress"
-              type="text"
-              className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              value={formData.destinationAddress}
-              onChange={handleDestinationChange}
-              placeholder="Leave empty to consolidate to source address"
-            />
-            <p className={`text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-              If left empty, UTXOs will be consolidated to your source address.
-            </p>
-          </div>
-  
-          <FeeRateInput
-            value={formData.feeRateSatPerVByte}
-            onChange={handleFeeRateChange}
-            showHelpText={shouldShowHelpText}
-          />
-  
-          <Button
-            type="submit"
-            color="blue"
-            fullWidth
-            disabled={!formData.utxoData || formData.utxoData.count === 0 || formData.feeRateSatPerVByte <= 0}
-          >
-            Continue
-          </Button>
-        </form>
-      </div>
+      <ComposerContext.Provider value={value}>
+        {children}
+      </ComposerContext.Provider>
     );
+  }
+  
+  export function useComposer() {
+    const context = useContext(ComposerContext);
+    if (!context) {
+      throw new Error("useComposer must be used within a ComposerProvider");
+    }
+    return context;
   }
 
 /src/pages/compose/bet/form.tsx
@@ -341,6 +552,92 @@ File Contents:
     );
   }
 
+/src/pages/compose/bet/page.tsx
+  [contents of the file]
+  import { BetForm } from "./form";
+  import { ReviewBet } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeBet } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeBet() {
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Bet"
+          FormComponent={BetForm}
+          ReviewComponent={ReviewBet}
+          composeTransaction={composeBet}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeBet;
+
+/src/pages/compose/bet/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  import { formatAmount } from "@/utils/format";
+  
+  interface ReviewBetProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export function ReviewBet({ apiResponse, onSign, onBack }: ReviewBetProps) {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const formatQuantity = (quantity: number) =>
+      formatAmount({
+        value: quantity / 1e8,
+        minimumFractionDigits: 8,
+        maximumFractionDigits: 8,
+      });
+  
+    const betTypeMapping: { [key: string]: string } = {
+      "0": "Bullish CFD (deprecated)",
+      "1": "Bearish CFD (deprecated)",
+      "2": "Equal",
+      "3": "NotEqual",
+    };
+  
+    const customFields = [
+      { label: "Feed Address", value: result.params.feed_address },
+      {
+        label: "Bet Type",
+        value: betTypeMapping[result.params.bet_type] || result.params.bet_type,
+      },
+      { label: "Deadline", value: result.params.deadline },
+      {
+        label: "Wager Quantity",
+        value: `${formatQuantity(Number(result.params.wager_quantity))} XCP`,
+      },
+      {
+        label: "Counterwager Quantity",
+        value: `${formatQuantity(Number(result.params.counterwager_quantity))} XCP`,
+      },
+      { label: "Expiration (Blocks)", value: result.params.expiration },
+      { label: "Leverage", value: result.params.leverage },
+      ...(result.params.target_value
+        ? [{ label: "Target Value", value: result.params.target_value }]
+        : []),
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
+    );
+  }
+
 /src/pages/compose/broadcast/address-options/form.tsx
   [contents of the file]
   import React, { useState, FormEvent } from "react";
@@ -424,6 +721,77 @@ File Contents:
           </form>
         </div>
       </div>
+    );
+  }
+
+/src/pages/compose/broadcast/address-options/page.tsx
+  [contents of the file]
+  import { AddressOptionsForm } from "./form";
+  import { ReviewAddressOptions } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeBroadcast } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeBroadcastAddressOptions() {
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Broadcast"
+          FormComponent={(props) => <AddressOptionsForm {...props} />}
+          ReviewComponent={ReviewAddressOptions}
+          composeTransaction={composeBroadcast}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeBroadcastAddressOptions;
+
+/src/pages/compose/broadcast/address-options/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  
+  interface ReviewAddressOptionsProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  const ADDRESS_OPTION_REQUIRE_MEMO = 1;
+  
+  const formatOptionsText = (text: string | number | undefined) => {
+    if (!text) return "None";
+    if (typeof text === "number") {
+      return text === ADDRESS_OPTION_REQUIRE_MEMO ? "Require Memo" : String(text);
+    }
+    const match = text.match(/options (\d+)/);
+    if (match) {
+      const value = parseInt(match[1], 10);
+      return value === ADDRESS_OPTION_REQUIRE_MEMO ? "Require Memo" : String(value);
+    }
+    return String(text);
+  };
+  
+  export function ReviewAddressOptions({ apiResponse, onSign, onBack }: ReviewAddressOptionsProps) {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const customFields = [
+      {
+        label: "Options",
+        value: formatOptionsText(result.params.options || result.params.text),
+      },
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
     );
   }
 
@@ -556,6 +924,62 @@ File Contents:
           </form>
         </div>
       </div>
+    );
+  }
+
+/src/pages/compose/broadcast/page.tsx
+  [contents of the file]
+  import { BroadcastForm } from "./form";
+  import { ReviewBroadcast } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeBroadcast } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeBroadcast() {
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Broadcast"
+          FormComponent={(props) => <BroadcastForm {...props} />}
+          ReviewComponent={ReviewBroadcast}
+          composeTransaction={composeBroadcast}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeBroadcast;
+
+/src/pages/compose/broadcast/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  
+  interface ReviewBroadcastProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export function ReviewBroadcast({ apiResponse, onSign, onBack }: ReviewBroadcastProps) {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const customFields = [
+      { label: "Message", value: result.params.text },
+      ...(result.params.value !== "0" && result.params.value !== 0
+        ? [{ label: "Value", value: result.params.value }]
+        : []),
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
     );
   }
 
@@ -728,6 +1152,94 @@ File Contents:
           </Button>
         </form>
       </div>
+    );
+  }
+
+/src/pages/compose/dispenser/close/page.tsx
+  [contents of the file]
+  import React, { useEffect, useState } from "react";
+  import { useParams } from "react-router-dom";
+  import { DispenserCloseForm } from "./form";
+  import { ReviewDispenserClose } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeDispenser, fetchAddressDispensers } from "@/utils/blockchain/counterparty";
+  import { useWallet } from "@/contexts/wallet-context";
+  
+  export function ComposeDispenserClosePage() {
+    const { asset: assetParam } = useParams<{ asset?: string }>();
+    const { walletState } = useWallet();
+    const asset = assetParam ? decodeURIComponent(assetParam) : "";
+  
+    // Fetch dispensers for the current wallet address
+    const [dispensers, setDispensers] = useState<any[]>([]);
+    const [totalDispensers, setTotalDispensers] = useState<number>(0);
+  
+    useEffect(() => {
+      async function loadDispensers() {
+        if (!walletState?.address) return;
+        try {
+          const { dispensers: fetchedDispensers, total } = await fetchAddressDispensers(
+            walletState.address,
+            { status: "open", verbose: true }
+          );
+          setDispensers(fetchedDispensers);
+          setTotalDispensers(total);
+        } catch (err) {
+          console.error("Failed to load dispensers:", err);
+        }
+      }
+      loadDispensers();
+    }, [walletState?.address]);
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Close Dispenser"
+          FormComponent={(props) => (
+            <DispenserCloseForm
+              {...props}
+              asset={asset}
+              dispensers={dispensers}
+              totalDispensers={totalDispensers}
+            />
+          )}
+          ReviewComponent={(props) => <ReviewDispenserClose {...props} />}
+          composeTransaction={composeDispenser}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeDispenserClosePage;
+
+/src/pages/compose/dispenser/close/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  
+  interface ReviewDispenserCloseProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export function ReviewDispenserClose({ apiResponse, onSign, onBack }: ReviewDispenserCloseProps) {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const customFields = [
+      { label: "Asset", value: result.params.asset },
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
     );
   }
 
@@ -1149,6 +1661,78 @@ File Contents:
     );
   }
 
+/src/pages/compose/dispenser/dispense/page.tsx
+  [contents of the file]
+  import { DispenseForm } from "./form";
+  import { ReviewDispense } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeDispense } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeDispense() {
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Dispense"
+          FormComponent={DispenseForm}
+          ReviewComponent={ReviewDispense}
+          composeTransaction={composeDispense}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeDispense;
+
+/src/pages/compose/dispenser/dispense/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  import { formatAmount } from "@/utils/format";
+  
+  interface ReviewDispenseProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export function ReviewDispense({ apiResponse, onSign, onBack }: ReviewDispenseProps) {
+    const { error, setError, formData } = useComposer();
+    const { result } = apiResponse;
+    const extra = formData?.extra || {};
+    const { totalAssets = [], totalBtcAmount = 0 } = extra;
+  
+    const customFields = [
+      { label: "Dispenser Address", value: result.params.dispenser },
+      {
+        label: "Assets You Get",
+        value: totalAssets
+          .map((asset: any) =>
+            `${formatAmount({
+              value: Number(asset.quantity),
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 8,
+            })} ${asset.asset_info?.asset_longname ?? asset.asset}`
+          )
+          .join(", "),
+      },
+      {
+        label: "Total BTC Amount",
+        value: `${(Number(result.params.quantity) / 1e8).toFixed(8)} BTC`,
+      },
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
+    );
+  }
+
 /src/pages/compose/dispenser/form.tsx
   [contents of the file]
   import axios from "axios";
@@ -1341,6 +1925,91 @@ File Contents:
     );
   }
 
+/src/pages/compose/dispenser/page.tsx
+  [contents of the file]
+  import { useParams } from "react-router-dom";
+  import { DispenserForm } from "./form";
+  import { ReviewDispenser } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeDispenser } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeDispenserPage() {
+    // Grab the asset from the URL parameters (if provided)
+    const { asset: assetParam } = useParams<{ asset?: string }>();
+    const asset = assetParam ? decodeURIComponent(assetParam) : "";
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Dispenser"
+          FormComponent={(props) => <DispenserForm {...props} asset={asset} />}
+          ReviewComponent={(props) => <ReviewDispenser {...props} asset={asset} />}
+          composeTransaction={composeDispenser}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeDispenserPage;
+
+/src/pages/compose/dispenser/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  import { formatAmount } from "@/utils/format";
+  
+  interface ReviewDispenserProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+    asset: string;
+  }
+  
+  export function ReviewDispenser({ apiResponse, onSign, onBack, asset }: ReviewDispenserProps) {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+    const assetDivisible = result.params.extra?.assetDivisible ?? true;
+  
+    const formatQuantity = (quantity: number) =>
+      assetDivisible
+        ? formatAmount({
+            value: quantity / 1e8,
+            minimumFractionDigits: 8,
+            maximumFractionDigits: 8,
+          })
+        : quantity.toString();
+  
+    const customFields = [
+      {
+        label: "Dispenser Escrow",
+        value: `${formatQuantity(Number(result.params.escrow_quantity))} ${asset}`,
+      },
+      {
+        label: "Dispense Amount",
+        value: `${formatQuantity(Number(result.params.give_quantity))} ${asset}`,
+      },
+      {
+        label: "BTC Per Dispense",
+        value: `${formatAmount({
+          value: Number(result.params.mainchainrate) / 1e8,
+          minimumFractionDigits: 8,
+          maximumFractionDigits: 8,
+        })} BTC`,
+      },
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
+    );
+  }
+
 /src/pages/compose/dividend/form.tsx
   [contents of the file]
   import React, { useState, useRef, useEffect, FormEvent } from "react";
@@ -1492,6 +2161,67 @@ File Contents:
       </div>
     );
   }
+
+/src/pages/compose/dividend/page.tsx
+  [contents of the file]
+  import { useParams } from "react-router-dom";
+  import { DividendForm } from "./form";
+  import { ReviewDividend } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeDividend } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeDividendPage() {
+    const { asset: assetParam } = useParams<{ asset?: string }>();
+    const asset = assetParam ? decodeURIComponent(assetParam) : "";
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Dividend"
+          FormComponent={(props) => <DividendForm {...props} asset={asset} />}
+          ReviewComponent={(props) => <ReviewDividend {...props} />}
+          composeTransaction={composeDividend}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeDividendPage;
+
+/src/pages/compose/dividend/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  
+  interface ReviewDividendProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export const ReviewDividend = ({ apiResponse, onSign, onBack }: ReviewDividendProps) => {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const customFields = [
+      { label: "Asset", value: result.params.asset },
+      {
+        label: "Dividend",
+        value: `${result.params.quantity_per_unit} ${result.params.dividend_asset}`,
+      },
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
+    );
+  };
 
 /src/pages/compose/fairminter/fairmint/form.tsx
   [contents of the file]
@@ -1650,6 +2380,71 @@ File Contents:
           </Button>
         </form>
       </div>
+    );
+  }
+
+/src/pages/compose/fairminter/fairmint/page.tsx
+  [contents of the file]
+  import { useParams } from "react-router-dom";
+  import { FairmintForm } from "./form";
+  import { ReviewFairmint } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeFairmint } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeFairmint() {
+    const { asset } = useParams<{ asset: string }>();
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Fairmint"
+          FormComponent={(props) => <FairmintForm {...props} initialAsset={asset || ""} />}
+          ReviewComponent={ReviewFairmint}
+          composeTransaction={composeFairmint}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeFairmint;
+
+/src/pages/compose/fairminter/fairmint/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  import { formatAmount } from "@/utils/format";
+  
+  interface ReviewFairmintProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export function ReviewFairmint({ apiResponse, onSign, onBack }: ReviewFairmintProps) {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const formatQuantity = (quantity: number) =>
+      formatAmount({
+        value: quantity,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 8,
+      });
+  
+    const customFields = [
+      { label: "Asset", value: result.params.asset },
+      { label: "Quantity", value: formatQuantity(Number(result.params.quantity)) },
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
     );
   }
 
@@ -2122,6 +2917,67 @@ File Contents:
   
   export { FairminterForm };
 
+/src/pages/compose/fairminter/page.tsx
+  [contents of the file]
+  import { useParams } from 'react-router-dom';
+  import { FairminterForm } from './form';
+  import { ReviewFairminter } from './review';
+  import { Composer } from '@/components/composer';
+  import { composeFairminter } from '@/utils/blockchain/counterparty';
+  
+  
+  export function ComposeFairminterPage() {
+    const { asset } = useParams<{ asset?: string }>();
+    // Pass the asset (if any) to the form for default values
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Fairminter"
+          FormComponent={(props) => <FairminterForm {...props} asset={asset || ''} />}
+          ReviewComponent={(props) => <ReviewFairminter {...props} />}
+          composeTransaction={composeFairminter}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeFairminterPage;
+
+/src/pages/compose/fairminter/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  
+  interface ReviewFairminterProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export const ReviewFairminter = ({ apiResponse, onSign, onBack }: ReviewFairminterProps) => {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const customFields = [
+      { label: "Asset", value: result.params.asset },
+      { label: "Price", value: result.params.price },
+      { label: "Quantity by Price", value: result.params.quantity_by_price },
+      { label: "Hard Cap", value: result.params.hard_cap },
+      ...(result.params.description ? [{ label: "Description", value: result.params.description }] : []),
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
+    );
+  };
+
 /src/pages/compose/issuance/destroy-supply/form.tsx
   [contents of the file]
   import React, { useState, useRef, useEffect, FormEvent } from "react";
@@ -2262,6 +3118,83 @@ File Contents:
           </Button>
         </form>
       </div>
+    );
+  }
+
+/src/pages/compose/issuance/destroy-supply/page.tsx
+  [contents of the file]
+  import { useParams } from "react-router-dom";
+  import { DestroyForm } from "./form";
+  import { ReviewDestroy } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeDestroy } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeDestroy() {
+    const { asset } = useParams<{ asset: string }>();
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Destroy"
+          FormComponent={(props) => (
+            <DestroyForm
+              {...props}
+              initialAsset={asset || ""}
+            />
+          )}
+          ReviewComponent={ReviewDestroy}
+          composeTransaction={composeDestroy}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeDestroy;
+
+/src/pages/compose/issuance/destroy-supply/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  import { formatAmount } from "@/utils/format";
+  
+  interface ReviewDestroyProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export function ReviewDestroy({ apiResponse, onSign, onBack }: ReviewDestroyProps) {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+    const asset = result.params.asset;
+    const assetDivisible = result.params.asset_info?.divisible ?? true;
+  
+    const formatQuantity = (quantity: number) =>
+      assetDivisible
+        ? formatAmount({
+            value: quantity / 1e8,
+            minimumFractionDigits: 8,
+            maximumFractionDigits: 8,
+          })
+        : quantity.toString();
+  
+    const customFields = [
+      {
+        label: "Amount",
+        value: `${formatQuantity(Number(result.params.quantity))} ${asset}`,
+      },
+      ...(result.params.tag ? [{ label: "Memo", value: result.params.tag }] : []),
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
     );
   }
 
@@ -2535,6 +3468,100 @@ File Contents:
     );
   };
 
+/src/pages/compose/issuance/issue-supply/page.tsx
+  [contents of the file]
+  import React from "react";
+  import { useParams } from "react-router-dom";
+  import { Composer } from "@/components/composer";
+  import { IssueSupplyForm } from "./form";
+  import { ReviewIssuanceIssueSupply } from "./review";
+  import { composeIssuance } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeIssuanceIssueSupply() {
+    const { asset: assetParam } = useParams<{ asset?: string }>();
+    const asset = assetParam ? decodeURIComponent(assetParam) : "";
+  
+    if (!asset) {
+      return <div>Asset not specified.</div>;
+    }
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Issue Additional Supply"
+          FormComponent={(props) => (
+            <IssueSupplyForm {...props} asset={asset} />
+          )}
+          ReviewComponent={ReviewIssuanceIssueSupply}
+          composeTransaction={composeIssuance}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeIssuanceIssueSupply;
+
+/src/pages/compose/issuance/issue-supply/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  import { formatAmount } from "@/utils/format";
+  import { toBigNumber } from "@/utils/numeric";
+  
+  interface ReviewIssuanceIssueSupplyProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export const ReviewIssuanceIssueSupply = ({
+    apiResponse,
+    onSign,
+    onBack,
+  }: ReviewIssuanceIssueSupplyProps) => {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const isDivisible = result.params.asset_info.divisible;
+  
+    const formatAssetAmount = (value: string | number): string => {
+      const numericValue = isDivisible ? Number(value) / 1e8 : Number(value);
+      return formatAmount({
+        value: numericValue,
+        minimumFractionDigits: isDivisible ? 8 : 0,
+        maximumFractionDigits: isDivisible ? 8 : 0,
+        useGrouping: true,
+      });
+    };
+  
+    const currentSupply = result.params.asset_info.supply
+      ? formatAssetAmount(result.params.asset_info.supply)
+      : "0";
+    const issuedQuantity = formatAssetAmount(result.params.quantity);
+    const newTotalSupply = result.params.asset_info.supply
+      ? formatAssetAmount(
+          toBigNumber(result.params.asset_info.supply).plus(result.params.quantity).toString()
+        )
+      : issuedQuantity;
+  
+    const customFields = [
+      { label: "Asset", value: result.params.asset },
+      { label: "Current Supply", value: currentSupply },
+      { label: "After Issuance", value: newTotalSupply },
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
+    );
+  };
+
 /src/pages/compose/issuance/lock-supply/form.tsx
   [contents of the file]
   import React, { useState } from "react";
@@ -2630,8 +3657,197 @@ File Contents:
     );
   };
 
+/src/pages/compose/issuance/lock-supply/page.tsx
+  [contents of the file]
+  import React from "react";
+  import { useParams } from "react-router-dom";
+  import { Composer } from "@/components/composer";
+  import { LockSupplyForm } from "./form";
+  import { ReviewIssuanceLockSupply } from "./review";
+  import { composeIssuance } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeIssuanceLockSupply() {
+    const { asset: assetParam } = useParams<{ asset?: string }>();
+    const asset = assetParam ? decodeURIComponent(assetParam) : "";
+  
+    if (!asset) {
+      return <div>Asset not specified.</div>;
+    }
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Lock Supply"
+          FormComponent={(props) => (
+            <LockSupplyForm {...props} asset={asset} />
+          )}
+          ReviewComponent={({ apiResponse, onSign, onBack }) => (
+            <ReviewIssuanceLockSupply
+              apiResponse={apiResponse}
+              onSign={onSign}
+              onBack={onBack}
+            />
+          )}
+          composeTransaction={composeIssuance}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeIssuanceLockSupply;
+
+/src/pages/compose/issuance/lock-supply/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  import { formatAmount } from "@/utils/format";
+  
+  interface ReviewIssuanceLockSupplyProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export const ReviewIssuanceLockSupply = ({
+    apiResponse,
+    onSign,
+    onBack,
+  }: ReviewIssuanceLockSupplyProps) => {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const isDivisible = result.params.asset_info.divisible;
+  
+    const formatAssetAmount = (value: string | number): string => {
+      const numericValue = isDivisible ? Number(value) / 1e8 : Number(value);
+      return formatAmount({
+        value: numericValue,
+        minimumFractionDigits: isDivisible ? 8 : 0,
+        maximumFractionDigits: isDivisible ? 8 : 0,
+        useGrouping: true,
+      });
+    };
+  
+    const currentSupply = result.params.asset_info.supply
+      ? formatAssetAmount(result.params.asset_info.supply)
+      : "0";
+  
+    const customFields = [
+      { label: "Asset", value: result.params.asset },
+      { label: "Supply to Lock", value: currentSupply },
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
+    );
+  };
+
+/src/pages/compose/issuance/page.tsx
+  [contents of the file]
+  import { useParams } from 'react-router-dom';
+  import { IssuanceForm } from "./form";
+  import { ReviewIssuance } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeIssuance } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeIssuance() {
+    const { asset } = useParams<{ asset?: string }>();
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Issuance"
+          FormComponent={(props) => <IssuanceForm {...props} initialParentAsset={asset} />}
+          ReviewComponent={ReviewIssuance}
+          composeTransaction={composeIssuance}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeIssuance;
+
 /src/pages/compose/issuance/reset-supply/form.tsx
   [contents of the file]
+
+/src/pages/compose/issuance/reset-supply/page.tsx
+  [contents of the file]
+
+/src/pages/compose/issuance/reset-supply/review.tsx
+  [contents of the file]
+
+/src/pages/compose/issuance/review.tsx
+  [contents of the file]
+  import { FaLock, FaLockOpen } from "react-icons/fa";
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  import { formatAmount } from "@/utils/format";
+  import { toBigNumber, fromSatoshis } from "@/utils/numeric";
+  
+  interface ReviewIssuanceProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export const ReviewIssuance = ({ apiResponse, onSign, onBack }: ReviewIssuanceProps) => {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const isTruthy = (value: any): boolean => {
+      if (value === "false") return false;
+      return ["true", "1", 1, true].includes(value);
+    };
+  
+    const formatQuantity = (quantity: string, isDivisible: any): string => {
+      const isDiv = isTruthy(isDivisible);
+      const numValue = toBigNumber(quantity);
+      return isDiv ? formatAmount({ 
+        value: fromSatoshis(numValue).toNumber(),
+        minimumFractionDigits: 8, 
+        maximumFractionDigits: 8 
+      }) : numValue.toString();
+    };
+  
+    const isDivisible = result.params.divisible;
+    const isLocked = isTruthy(result.params.lock);
+  
+    const customFields = [
+      { label: "Asset", value: result.params.asset },
+      {
+        label: "Issue",
+        value: (
+          <div className="flex items-center justify-between">
+            <span>{formatQuantity(result.params.quantity, isDivisible)}</span>
+            {isLocked ? (
+              <FaLock className="h-3 w-3 text-gray-500" aria-label="Supply locked" />
+            ) : (
+              <FaLockOpen className="h-3 w-3 text-gray-500" aria-label="Supply unlocked" />
+            )}
+          </div>
+        ),
+      },
+      ...(result.params.description ? [{ label: "Description", value: result.params.description }] : []),
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
+    );
+  };
 
 /src/pages/compose/issuance/transfer-ownership/form.tsx
   [contents of the file]
@@ -2743,6 +3959,84 @@ File Contents:
     );
   }
 
+/src/pages/compose/issuance/transfer-ownership/page.tsx
+  [contents of the file]
+  import React from "react";
+  import { useParams } from "react-router-dom";
+  import { Composer } from "@/components/composer";
+  import { TransferOwnershipForm } from "./form";
+  import { ReviewIssuanceTransferOwnership } from "./review";
+  import { composeIssuance } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeIssuanceTransferOwnership() {
+    const { asset: assetParam } = useParams<{ asset?: string }>();
+    const asset = assetParam ? decodeURIComponent(assetParam) : "";
+  
+    if (!asset) {
+      return <div>Asset not specified.</div>;
+    }
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Transfer Ownership"
+          FormComponent={(props) => (
+            <TransferOwnershipForm {...props} asset={asset} />
+          )}
+          ReviewComponent={ReviewIssuanceTransferOwnership}
+          composeTransaction={composeIssuance}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeIssuanceTransferOwnership;
+
+/src/pages/compose/issuance/transfer-ownership/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  
+  interface ReviewIssuanceTransferOwnershipProps {
+    apiResponse: {
+      result: {
+        params: {
+          source: string;
+          transfer_destination: string;
+          asset: string;
+        };
+        btc_fee: number;
+      };
+    };
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export function ReviewIssuanceTransferOwnership({
+    apiResponse,
+    onSign,
+    onBack,
+  }: ReviewIssuanceTransferOwnershipProps) {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const customFields = [
+      { label: "To", value: result.params.transfer_destination },
+      { label: "Asset", value: result.params.asset },
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
+    );
+  }
+
 /src/pages/compose/issuance/update-description/form.tsx
   [contents of the file]
   import React, { useEffect, useRef, FormEvent } from "react";
@@ -2825,6 +4119,76 @@ File Contents:
           </Button>
         </form>
       </div>
+    );
+  };
+
+/src/pages/compose/issuance/update-description/page.tsx
+  [contents of the file]
+  import { useParams } from "react-router-dom";
+  import { UpdateDescriptionForm } from "./form";
+  import { ReviewIssuanceUpdateDescription } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeIssuance } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeIssuanceUpdateDescription() {
+    const { asset: assetParam } = useParams<{ asset?: string }>();
+    const asset = assetParam ? decodeURIComponent(assetParam) : "";
+  
+    if (!asset) {
+      return <div>Asset not specified.</div>;
+    }
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Update Description"
+          FormComponent={UpdateDescriptionForm}
+          ReviewComponent={ReviewIssuanceUpdateDescription}
+          composeTransaction={composeIssuance}
+          initialFormData={{
+            description: "",
+        
+          }}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeIssuanceUpdateDescription;
+
+/src/pages/compose/issuance/update-description/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  
+  interface ReviewIssuanceUpdateDescriptionProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export const ReviewIssuanceUpdateDescription = ({
+    apiResponse,
+    onSign,
+    onBack,
+  }: ReviewIssuanceUpdateDescriptionProps) => {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const customFields = [
+      { label: "Asset", value: result.params.asset },
+      { label: "Description", value: result.params.description },
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error || result.error} // Include result.error if present
+        setError={setError}
+      />
     );
   };
 
@@ -2919,6 +4283,59 @@ File Contents:
           </form>
         </div>
       </div>
+    );
+  }
+
+/src/pages/compose/order/btcpay/page.tsx
+  [contents of the file]
+  import { BTCPayForm } from './form';
+  import { ReviewBTCPay } from './review';
+  import { Composer } from '@/components/composer';
+  import { composeBTCPay } from '@/utils/blockchain/counterparty';
+  
+  export function ComposeBTCPay() {
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="BTCPay"
+          FormComponent={BTCPayForm}
+          ReviewComponent={ReviewBTCPay}
+          composeTransaction={composeBTCPay}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeBTCPay;
+
+/src/pages/compose/order/btcpay/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  
+  interface ReviewBTCPayProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export function ReviewBTCPay({ apiResponse, onSign, onBack }: ReviewBTCPayProps) {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const customFields = [
+      { label: "Order Match ID", value: result.params.order_match_id },
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
     );
   }
 
@@ -3020,6 +4437,62 @@ File Contents:
           </form>
         </div>
       </div>
+    );
+  }
+
+/src/pages/compose/order/cancel/page.tsx
+  [contents of the file]
+  import { useParams } from 'react-router-dom';
+  import { CancelForm } from "./form";
+  import { ReviewCancel } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeCancel } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeCancel() {
+    const { hash } = useParams<{ hash?: string }>();
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Cancel"
+          FormComponent={(props) => <CancelForm {...props} initialHash={hash} />}
+          ReviewComponent={ReviewCancel}
+          composeTransaction={composeCancel}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeCancel;
+
+/src/pages/compose/order/cancel/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  
+  interface ReviewCancelProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export function ReviewCancel({ apiResponse, onSign, onBack }: ReviewCancelProps) {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const customFields = [
+      { label: "Offer Hash", value: result.params.offer_hash },
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
     );
   }
 
@@ -3256,6 +4729,91 @@ File Contents:
     );
   };
 
+/src/pages/compose/order/page.tsx
+  [contents of the file]
+  import React from 'react';
+  import { useParams } from 'react-router-dom';
+  import { Composer } from '@/components/composer';
+  import { composeOrder } from '@/utils/composer';
+  import { OrderForm } from './form';
+  import { ReviewOrder } from './review';
+  
+  export function ComposeOrderPage() {
+    const { asset: giveAssetParam } = useParams<{ asset?: string }>();
+    const giveAsset = giveAssetParam ? decodeURIComponent(giveAssetParam) : '';
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Dex Order"
+          FormComponent={(props) => <OrderForm {...props} giveAsset={giveAsset} />}
+          ReviewComponent={(props) => <ReviewOrder {...props} giveAsset={giveAsset} />}
+          composeTransaction={composeOrder}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeOrderPage;
+
+/src/pages/compose/order/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  import { formatAmount } from "@/utils/format";
+  
+  interface ReviewOrderProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export const ReviewOrder = ({ apiResponse, onSign, onBack }: ReviewOrderProps) => {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const customFields = [
+      {
+        label: "Give",
+        value: `${formatAmount({
+          value: Number(result.params.give_quantity) / 1e8,
+          minimumFractionDigits: 8,
+          maximumFractionDigits: 8,
+        })} ${result.params.give_asset}`,
+      },
+      {
+        label: "Get",
+        value: `${formatAmount({
+          value: Number(result.params.get_quantity) / 1e8,
+          minimumFractionDigits: 8,
+          maximumFractionDigits: 8,
+        })} ${result.params.get_asset}`,
+      },
+      {
+        label: "Price",
+        value: `1 ${result.params.give_asset} = ${formatAmount({
+          value: Number(result.params.get_quantity) / Number(result.params.give_quantity),
+          minimumFractionDigits: 8,
+          maximumFractionDigits: 8,
+        })} ${result.params.get_asset}`,
+      },
+      ...(result.params.expiration !== 8064
+        ? [{ label: "Expiration", value: `${result.params.expiration} blocks` }]
+        : []),
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
+    );
+  };
+
 /src/pages/compose/send/form.tsx
   [contents of the file]
   import React, { useState, useRef, useEffect, FormEvent } from "react";
@@ -3263,39 +4821,40 @@ File Contents:
   import { Button } from "@/components/button";
   import { BalanceHeader } from "@/components/headers/balance-header";
   import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-  import { AssetSelectInput } from "@/components/inputs/asset-select-input";
   import { FeeRateInput } from "@/components/inputs/fee-rate-input";
   import { useSettings } from "@/contexts/settings-context";
   import { useWallet } from "@/contexts/wallet-context";
+  import { useAssetDetails } from "@/hooks/useAssetDetails";
+  import { SendOptions } from "@/utils/blockchain/counterparty";
   
-  export interface SendFormData {
+  interface SendFormDataInternal {
     destination: string;
     quantity: string;
     asset: string;
     memo: string;
-  
+    sat_per_vbyte: number;
   }
   
   interface SendFormProps {
-    onSubmit: (data: SendFormData) => void;
+    onSubmit: (data: SendOptions) => void;
     initialAsset?: string;
   }
   
   export function SendForm({ onSubmit, initialAsset }: SendFormProps) {
-    const { activeAddress, activeWallet } = useWallet();
+    const { activeAddress } = useWallet();
     const { settings } = useSettings();
     const shouldShowHelpText = settings?.showHelpText;
   
-    const [formData, setFormData] = useState<SendFormData>({
+    const [formData, setFormData] = useState<SendFormDataInternal>({
       destination: "",
       quantity: "",
       asset: initialAsset || "BTC",
       memo: "",
-      feeRateSatPerVByte: 10, // Updated default to 10 sat/vB
+      sat_per_vbyte: 1,
     });
-    const [availableBalance, setAvailableBalance] = useState<string>("0");
-    const [assetInfo, setAssetInfo] = useState<any>(null);
     const [localError, setLocalError] = useState<string | null>(null);
+  
+    const { data: assetDetails, error: assetDetailsError } = useAssetDetails(formData.asset);
   
     const destinationRef = useRef<HTMLInputElement>(null);
   
@@ -3304,21 +4863,10 @@ File Contents:
     }, []);
   
     useEffect(() => {
-      const fetchBalance = async () => {
-        if (!activeAddress?.address || !formData.asset) return;
-        try {
-          const { availableBalance, assetInfo } = await import("@/utils/blockchain/counterparty").then(
-            (module) => module.fetchAssetDetailsAndBalance(formData.asset, activeAddress.address)
-          );
-          setAvailableBalance(availableBalance);
-          setAssetInfo(assetInfo);
-        } catch (err) {
-          console.error("Failed to fetch balance:", err);
-          setLocalError("Failed to fetch balance.");
-        }
-      };
-      fetchBalance();
-    }, [activeAddress?.address, formData.asset]);
+      if (assetDetailsError) {
+        setLocalError("Failed to fetch asset details.");
+      }
+    }, [assetDetailsError]);
   
     const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault();
@@ -3327,23 +4875,39 @@ File Contents:
         !formData.quantity ||
         Number(formData.quantity) <= 0 ||
         !formData.asset ||
-        formData.feeRateSatPerVByte <= 0
+        formData.sat_per_vbyte <= 0
       ) {
         setLocalError("Please fill all required fields with valid values.");
         return;
       }
       setLocalError(null);
-      onSubmit(formData);
+  
+      // Convert quantity to an integer based on asset type
+      const isBTC = formData.asset === "BTC";
+      const isDivisible = isBTC || (assetDetails?.assetInfo?.divisible ?? false);
+      const quantityNum = Number(formData.quantity);
+      const quantityInt = isDivisible ? Math.floor(quantityNum * 1e8) : Math.floor(quantityNum);
+  
+      const convertedData: SendOptions = {
+        sourceAddress: activeAddress?.address || "",
+        destination: formData.destination.trim(),
+        asset: formData.asset,
+        quantity: quantityInt,
+        memo: formData.memo.trim() || undefined, // Convert empty string to undefined
+        memo_is_hex: false,
+        sat_per_vbyte: formData.sat_per_vbyte,
+      };
+      onSubmit(convertedData);
     };
   
     return (
       <div className="space-y-4">
-        {activeAddress && (
+        {activeAddress && assetDetails && (
           <BalanceHeader
             balance={{
               asset: formData.asset,
-              quantity_normalized: availableBalance,
-              asset_info: assetInfo,
+              quantity_normalized: assetDetails.availableBalance,
+              asset_info: assetDetails.assetInfo || undefined,
             }}
             className="mb-4"
           />
@@ -3361,7 +4925,7 @@ File Contents:
                 name="destination"
                 value={formData.destination}
                 onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, destination: e.target.value.trim() }))
+                  setFormData((prev) => ({ ...prev, destination: e.target.value }))
                 }
                 required
                 placeholder="Enter destination address"
@@ -3372,61 +4936,46 @@ File Contents:
               </Description>
             </Field>
   
-            <AssetSelectInput
-              selectedAsset={formData.asset}
-              onChange={(asset) => {
-                setFormData((prev) => ({
-                  ...prev,
-                  asset,
-                  quantity: "", // Reset quantity when asset changes
-                }));
-                setAvailableBalance("0"); // Reset balance until fetched
-                setAssetInfo(null);
-              }}
-              label="Asset"
-              required
-              shouldShowHelpText={shouldShowHelpText}
-              description="Select the asset you want to send."
-            />
-  
             <AmountWithMaxInput
               asset={formData.asset}
-              availableBalance={availableBalance}
+              availableBalance={assetDetails?.availableBalance || "0"}
               value={formData.quantity}
               onChange={(value) => setFormData((prev) => ({ ...prev, quantity: value }))}
-              feeRateSatPerVByte={formData.feeRateSatPerVByte}
+              sat_per_vbyte={formData.sat_per_vbyte}
               setError={setLocalError}
               sourceAddress={activeAddress}
-              maxAmount={availableBalance}
+              maxAmount={assetDetails?.availableBalance || "0"}
               shouldShowHelpText={shouldShowHelpText}
               label="Amount"
               name="quantity"
               description={
-                assetInfo?.divisible
+                assetDetails?.assetInfo?.divisible || formData.asset === "BTC"
                   ? "Enter the amount to send (up to 8 decimal places)."
                   : "Enter a whole number amount."
               }
             />
   
-            <Field>
-              <Label className="text-sm font-medium text-gray-700">Memo</Label>
-              <Input
-                type="text"
-                name="memo"
-                value={formData.memo}
-                onChange={(e) => setFormData((prev) => ({ ...prev, memo: e.target.value.trim() }))}
-                placeholder="Optional memo"
-                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-              />
-              <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                Optional memo to include with the transaction.
-              </Description>
-            </Field>
+            {formData.asset !== "BTC" && (
+              <Field>
+                <Label className="text-sm font-medium text-gray-700">Memo</Label>
+                <Input
+                  type="text"
+                  name="memo"
+                  value={formData.memo}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, memo: e.target.value }))}
+                  placeholder="Optional memo"
+                  className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+                  Optional memo to include with the transaction.
+                </Description>
+              </Field>
+            )}
   
             <FeeRateInput
-              value={formData.feeRateSatPerVByte}
-              onChange={(value) => setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))}
-              error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
+              value={formData.sat_per_vbyte}
+              onChange={(value) => setFormData((prev) => ({ ...prev, sat_per_vbyte: value }))}
+              error={formData.sat_per_vbyte <= 0 ? "Fee rate must be greater than zero." : ""}
               showHelpText={shouldShowHelpText}
             />
   
@@ -3439,7 +4988,7 @@ File Contents:
                 !formData.quantity ||
                 Number(formData.quantity) <= 0 ||
                 !formData.asset ||
-                formData.feeRateSatPerVByte <= 0
+                formData.sat_per_vbyte <= 0
               }
             >
               Continue
@@ -3636,6 +5185,155 @@ File Contents:
     );
   }
 
+/src/pages/compose/send/mpma/page.tsx
+  [contents of the file]
+  import React, { Suspense } from "react";
+  import { useParams } from "react-router-dom";
+  import { MPMAForm } from "./form";
+  import { ReviewMPMA } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeMPMA } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeMPMA() {
+    const { asset } = useParams<{ asset: string }>();
+    return (
+      <div className="p-4">
+        <Suspense fallback={<div>Loading asset details...</div>}>
+          <Composer
+            initialTitle="Send"
+            FormComponent={(props) => <MPMAForm {...props} initialAsset={asset} />}
+            ReviewComponent={ReviewMPMA}
+            composeTransaction={composeMPMA}
+          />
+        </Suspense>
+      </div>
+    );
+  }
+
+/src/pages/compose/send/mpma/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  import { formatAmount } from "@/utils/format";
+  
+  interface ReviewSendMpmaProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export function ReviewSendMpma({ apiResponse, onSign, onBack }: ReviewSendMpmaProps) {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const formatQuantity = (quantity: number, isDivisible: boolean) =>
+      isDivisible
+        ? formatAmount({
+            value: quantity / 1e8,
+            minimumFractionDigits: 8,
+            maximumFractionDigits: 8,
+          })
+        : quantity.toString();
+  
+    const assets = Object.entries(result.params.asset_quantities).map(([asset, quantity]) => ({
+      asset,
+      quantity: Number(quantity),
+      isDivisible: result.params.asset_info[asset]?.divisible ?? true,
+    }));
+  
+    const customFields = [
+      { label: "To", value: result.params.destination },
+      {
+        label: "Assets",
+        value: assets
+          .map((a) => `${formatQuantity(a.quantity, a.isDivisible)} ${a.asset}`)
+          .join(", "),
+      },
+      ...(result.params.memo ? [{ label: "Memo", value: result.params.memo }] : []),
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
+    );
+  }
+
+/src/pages/compose/send/page.tsx
+  [contents of the file]
+  import { useParams } from "react-router-dom";
+  import { SendForm } from "./form";
+  import { ReviewSend } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeSend } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeSend() {
+    const { asset } = useParams<{ asset: string }>();
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Send"
+          FormComponent={(props) => <SendForm {...props} initialAsset={asset || "BTC"} />}
+          ReviewComponent={ReviewSend}
+          composeTransaction={composeSend}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeSend;
+
+/src/pages/compose/send/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  import { formatAmount } from "@/utils/format";
+  
+  interface ReviewSendProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export function ReviewSend({ apiResponse, onSign, onBack }: ReviewSendProps) {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const formatQuantity = (quantity: number, isDivisible: boolean) =>
+      isDivisible
+        ? formatAmount({
+            value: quantity / 1e8,
+            minimumFractionDigits: 8,
+            maximumFractionDigits: 8,
+          })
+        : quantity.toString();
+  
+    const customFields = [
+      {
+        label: "Amount",
+        value: `${formatQuantity(Number(result.params.quantity), result.params.asset_info.divisible)} ${result.params.asset}`,
+      },
+      ...(result.params.memo ? [{ label: "Memo", value: result.params.memo }] : []),
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
+    );
+  }
+
 /src/pages/compose/sweep/form.tsx
   [contents of the file]
   import React, { useState, useRef, useEffect, FormEvent } from "react";
@@ -3767,6 +5465,70 @@ File Contents:
           </form>
         </div>
       </div>
+    );
+  }
+
+/src/pages/compose/sweep/page.tsx
+  [contents of the file]
+  import { useParams } from "react-router-dom";
+  import { SweepForm } from "./form";
+  import { ReviewSweep } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeSweep } from "@/utils/blockchain/counterparty";
+  import { useWallet } from "@/contexts/wallet-context";
+  
+  export function ComposeSweep() {
+    const { address } = useParams<{ address?: string }>();
+    const { activeAddress } = useWallet();
+    
+    const initialAddress = address || activeAddress?.address;
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Sweep"
+          FormComponent={(props) => <SweepForm {...props} initialAddress={initialAddress} />}
+          ReviewComponent={ReviewSweep}
+          composeTransaction={composeSweep}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeSweep;
+
+/src/pages/compose/sweep/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  
+  interface ReviewSweepProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export function ReviewSweep({ apiResponse, onSign, onBack }: ReviewSweepProps) {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const customFields = [
+      { label: "Destination", value: result.params.destination },
+      ...(result.params.memo ? [{ label: "Memo", value: result.params.memo }] : []),
+      ...(result.params.flag !== undefined
+        ? [{ label: "Flag", value: result.params.flag.toString() }]
+        : []),
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
     );
   }
 
@@ -3944,6 +5706,73 @@ File Contents:
     );
   }
 
+/src/pages/compose/utxo/attach/page.tsx
+  [contents of the file]
+  import { useParams } from "react-router-dom";
+  import { UtxoAttachForm } from "./form";
+  import { ReviewUtxoAttach } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeAttach } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeUtxoAttach() {
+    const { asset } = useParams<{ asset: string }>();
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Attach"
+          FormComponent={(props) => <UtxoAttachForm {...props} initialAsset={asset || ""} />}
+          ReviewComponent={ReviewUtxoAttach}
+          composeTransaction={composeAttach}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeUtxoAttach;
+
+/src/pages/compose/utxo/attach/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  import { formatAmount } from "@/utils/format";
+  
+  interface ReviewUtxoAttachProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export function ReviewUtxoAttach({ apiResponse, onSign, onBack }: ReviewUtxoAttachProps) {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const customFields = [
+      { label: "UTXO Transaction ID", value: result.params.txid },
+      { label: "UTXO Output Index", value: result.params.vout.toString() },
+      { label: "Asset", value: result.params.asset },
+      {
+        label: "Quantity",
+        value: `${formatAmount({
+          value: Number(result.params.quantity) / 1e8,
+          minimumFractionDigits: 8,
+          maximumFractionDigits: 8,
+        })} ${result.params.asset}`,
+      },
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
+    );
+  }
+
 /src/pages/compose/utxo/detach/form.tsx
   [contents of the file]
   import React, { useState, useRef, useEffect, FormEvent } from "react";
@@ -4118,6 +5947,76 @@ File Contents:
     );
   }
 
+/src/pages/compose/utxo/detach/page.tsx
+  [contents of the file]
+  import { useParams } from "react-router-dom";
+  import { UtxoDetachForm } from "./form";
+  import { ReviewUtxoDetach } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeDetach } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeUtxoDetach() {
+    const { utxo } = useParams<{ utxo: string }>();
+  
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Detach"
+          FormComponent={(props) => <UtxoDetachForm {...props} initialUtxo={utxo || ""} />}
+          ReviewComponent={ReviewUtxoDetach}
+          composeTransaction={composeDetach}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeUtxoDetach;
+
+/src/pages/compose/utxo/detach/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  import { formatAmount } from "@/utils/format";
+  
+  interface ReviewUtxoDetachProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
+  }
+  
+  export function ReviewUtxoDetach({ apiResponse, onSign, onBack }: ReviewUtxoDetachProps) {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
+  
+    const formatQuantity = (quantity: number, isDivisible: boolean) =>
+      isDivisible
+        ? formatAmount({
+            value: quantity / 1e8,
+            minimumFractionDigits: 8,
+            maximumFractionDigits: 8,
+          })
+        : quantity.toString();
+  
+    const customFields = [
+      { label: "UTXO", value: result.params.utxo },
+      {
+        label: "Asset",
+        value: `${formatQuantity(Number(result.params.quantity), result.params.asset_info?.divisible ?? true)} ${result.params.asset}`,
+      },
+    ];
+  
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
+    );
+  }
+
 /src/pages/compose/utxo/move/form.tsx
   [contents of the file]
   import React, { useState, useRef, useEffect, FormEvent } from "react";
@@ -4246,175 +6145,674 @@ File Contents:
     );
   }
 
-/src/utils/format.test.ts
+/src/pages/compose/utxo/move/page.tsx
   [contents of the file]
-  import { describe, it, expect } from 'vitest';
-  import { formatAmount, formatAddress, formatAsset } from '@/utils/format';
+  import { useParams } from "react-router-dom";
+  import { UtxoMoveForm } from "./form";
+  import { ReviewUtxoMove } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeMove } from "@/utils/blockchain/counterparty";
   
-  describe('Format Utilities', () => {
-    it('should format an amount in currency style', () => {
-      // The exact output might vary by locale so we check for a substring.
-      const formatted = formatAmount({
-        value: 1234.567,
-        style: 'currency',
-        currency: 'USD',
-        maximumFractionDigits: 2,
-      });
-      expect(formatted).toContain("1,234.57");
-    });
+  export function ComposeUtxoMove() {
+    const { utxo } = useParams<{ utxo: string }>();
   
-    it('should shorten a blockchain address correctly', () => {
-      const address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa";
-      const shortened = formatAddress(address);
-      expect(shortened).toBe("1A1zP1...DivfNa");
-    });
-  
-    it('should return the full address when shorten is false', () => {
-      const address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa";
-      const full = formatAddress(address, false);
-      expect(full).toBe(address);
-    });
-  
-    it('should use the asset longname if available', () => {
-      const assetName = "XMY";
-      const assetInfo = { asset_longname: "My Long Asset Name" };
-      const formatted = formatAsset(assetName, { assetInfo });
-      expect(formatted).toBe("My Long Asset Name");
-    });
-  
-    it('should shorten asset name if requested and too long', () => {
-      const assetName = "AReallyLongAssetNameThatExceedsTwentyCharacters";
-      const formatted = formatAsset(assetName, { shorten: true });
-      expect(formatted).toMatch(/\.\.\.$/); // ends with "..."
-    });
-  });
-
-/src/utils/format.ts
-  [contents of the file]
-  interface AmountFormatterOptions {
-    value: number | null | undefined;
-    currency?: string;
-    style?: 'decimal' | 'currency' | 'percent' | 'unit';
-    maximumFractionDigits?: number;
-    minimumFractionDigits?: number;
-    compact?: boolean;
-    useGrouping?: boolean;
-    locale?: string;
-    signDisplay?: 'auto' | 'never' | 'always' | 'exceptZero';
-  }
-  
-  /**
-   * Formats a numeric value according to specified options.
-   * 
-   * @param options - Configuration options for formatting
-   * @param options.value - The numeric value to format
-   * @param options.currency - The currency code (e.g., 'USD', 'EUR')
-   * @param options.style - The formatting style ('decimal', 'currency', 'percent', 'unit')
-   * @param options.maximumFractionDigits - Maximum number of decimal places
-   * @param options.minimumFractionDigits - Minimum number of decimal places
-   * @param options.compact - Whether to use compact notation (e.g., 1K, 1M)
-   * @param options.useGrouping - Whether to use grouping separators (e.g., thousands)
-   * @param options.locale - The locale to use for formatting
-   * @param options.signDisplay - How to display the sign ('auto', 'never', 'always', 'exceptZero')
-   * @returns A formatted string representation of the value
-   * @example
-   * formatAmount({ value: 1234.5678, maximumFractionDigits: 2 }) // returns "1,234.57"
-   * formatAmount({ value: 1234.5678, currency: 'USD', style: 'currency' }) // returns "$1,234.57"
-   * formatAmount({ value: 1234.5678, compact: true }) // returns "1.2K"
-   */
-  export function formatAmount({
-    value,
-    currency,
-    style = 'decimal',
-    maximumFractionDigits,
-    minimumFractionDigits,
-    compact = false,
-    useGrouping = true,
-    locale,
-    signDisplay,
-  }: AmountFormatterOptions): string {
-    if (value === null || value === undefined) {
-      return 'N/A';
-    }
-  
-    // Determine notation
-    const notation: 'compact' | 'standard' = compact ? 'compact' : 'standard';
-  
-    // Build formatting options
-    const formatOptions: Intl.NumberFormatOptions = {
-      style,
-      currency,
-      notation,
-      maximumFractionDigits,
-      minimumFractionDigits,
-      useGrouping,
-      signDisplay,
-    };
-  
-    // Remove undefined properties
-    Object.keys(formatOptions).forEach(
-      (key) => formatOptions[key as keyof Intl.NumberFormatOptions] === undefined && 
-      delete formatOptions[key as keyof Intl.NumberFormatOptions]
+    return (
+      <div className="p-4">
+        <Composer
+          initialTitle="Move UTXO"
+          FormComponent={(props) => <UtxoMoveForm {...props} initialUtxo={utxo || ""} />}
+          ReviewComponent={ReviewUtxoMove}
+          composeTransaction={composeMove}
+        />
+      </div>
     );
-  
-    // Create an Intl.NumberFormat instance
-    const formatter = new Intl.NumberFormat(locale, formatOptions);
-  
-    // Format the number
-    return formatter.format(value);
   }
   
-  /**
-   * Formats a blockchain address by optionally shortening it.
-   * 
-   * @param address - The full blockchain address to format
-   * @param shorten - Whether to shorten the address (defaults to true)
-   * @returns The formatted address. If shortened, returns first 6 and last 6 characters with '...' in between
-   * @example
-   * formatAddress("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa") // returns "1A1zP1...DivfNa"
-   * formatAddress("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", false) // returns the full address
-   */
-  export function formatAddress(address: string, shorten: boolean = true): string {
-    if (!shorten) return address;
-    return `${address.slice(0, 6)}...${address.slice(-6)}`;
+  export default ComposeUtxoMove;
+
+/src/pages/compose/utxo/move/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { useComposer } from "@/contexts/composer-context";
+  
+  interface ReviewUtxoMoveProps {
+    apiResponse: any;
+    onSign: () => Promise<void>;
+    onBack: () => void;
   }
   
-  /**
-   * Formats an asset name, handling special cases and optional shortening.
-   * 
-   * @param assetName - The name of the asset to format
-   * @param options - Optional configuration
-   * @param options.assetInfo - Optional asset info containing asset_longname
-   * @param options.shorten - Whether to shorten names longer than 20 chars (defaults to false)
-   * @returns The formatted asset name
-   * @example
-   * formatAsset("XCP") // returns "XCP"
-   * formatAsset("MYLONGASSETNAME", { shorten: true }) // returns "MYLONGASSET..."
-   * formatAsset("A1234", { assetInfo: { asset_longname: "My Long Asset Name" } }) // returns "My Long Asset Name"
-   */
-  export function formatAsset(
-    assetName: string,
-    options?: {
-      assetInfo?: { asset_longname: string | null } | null;
-      shorten?: boolean;
-    }
-  ): string {
-    // Handle special cases first
-    if (assetName === 'XCP' || assetName === 'BTC') {
-      return assetName;
-    }
+  export function ReviewUtxoMove({ apiResponse, onSign, onBack }: ReviewUtxoMoveProps) {
+    const { error, setError } = useComposer();
+    const { result } = apiResponse;
   
-    // Get the display name (either longname or original name)
-    const displayName = (options?.assetInfo?.asset_longname && 
-      options.assetInfo.asset_longname !== "") 
-      ? options.assetInfo.asset_longname 
-      : assetName;
+    const customFields = [
+      { label: "UTXO", value: result.params.utxo },
+      { label: "Destination", value: result.params.destination },
+    ];
   
-    // Shorten if requested and name is long enough
-    if (options?.shorten && displayName.length > 25) {
-      return `${displayName.slice(0, 25)}...`;
+    return (
+      <ReviewScreen
+        apiResponse={apiResponse}
+        onSign={onSign}
+        onBack={onBack}
+        customFields={customFields}
+        error={error}
+        setError={setError}
+      />
+    );
+  }
+
+/src/utils/blockchain/counterparty/compose.ts
+  [contents of the file]
+  import axios from 'axios';
+  
+  export interface SignedTxEstimatedSize {
+    vsize: number;
+    adjusted_vsize: number;
+    sigops_count: number;
+  }
+  
+  export interface AssetInfo {
+    asset_longname: string | null;
+    description: string;
+    issuer: string;
+    divisible: boolean;
+    locked: boolean;
+    owner: string;
+  }
+  
+  export interface ComposeParams {
+    source: string;
+    destination: string;
+    asset: string;
+    quantity: number;
+    memo: string | null;
+    memo_is_hex: boolean;
+    use_enhanced_send: boolean;
+    no_dispense: boolean;
+    skip_validation: boolean;
+    asset_info: AssetInfo;
+    quantity_normalized: string;
+  }
+  
+  export interface ComposeResult {
+    rawtransaction: string;
+    btc_in: number;
+    btc_out: number;
+    btc_change: number;
+    btc_fee: number;
+    data: string;
+    lock_scripts: string[];
+    inputs_values: number[];
+    signed_tx_estimated_size: SignedTxEstimatedSize;
+    psbt: string;
+    params: ComposeParams;
+    name: string;
+  }
+  
+  export interface ApiResponse {
+    result: ComposeResult;
+  }
+  
+  // Base options shared across all transaction types
+  export interface BaseComposeOptions {
+    sourceAddress: string;
+    sat_per_vbyte: number;
+    max_fee?: number;
+    change_address?: string;
+    more_outputs?: string;
+    use_all_inputs_set?: boolean;
+    multisig_pubkey?: string;
+  }
+  
+  // Transaction-specific options
+  export interface BetOptions extends BaseComposeOptions {
+    feed_address: string;
+    bet_type: number;
+    deadline: number;
+    wager_quantity: number;
+    counterwager_quantity: number;
+    expiration: number;
+    leverage?: number;
+    target_value?: number;
+  }
+  
+  export interface BroadcastOptions extends BaseComposeOptions {
+    text: string;
+    value?: string;
+    fee_fraction?: string;
+    timestamp?: string;
+  }
+  
+  export interface BTCPayOptions extends BaseComposeOptions {
+    order_match_id: string;
+  }
+  
+  export interface BurnOptions extends BaseComposeOptions {
+    quantity: number;
+    overburn?: boolean;
+  }
+  
+  export interface CancelOptions extends BaseComposeOptions {
+    offer_hash: string;
+  }
+  
+  export interface DestroyOptions extends BaseComposeOptions {
+    asset: string;
+    quantity: number;
+    tag?: string;
+  }
+  
+  export interface DispenserOptions extends BaseComposeOptions {
+    asset: string;
+    give_quantity: number;
+    escrow_quantity: number;
+    mainchainrate: number;
+    status?: string;
+    open_address?: string;
+    oracle_address?: string;
+  }
+  
+  export interface DispenseOptions extends BaseComposeOptions {
+    dispenser: string;
+    quantity: number;
+    encoding?: string;
+    pubkeys?: string;
+  }
+  
+  export interface DividendOptions extends BaseComposeOptions {
+    asset: string;
+    dividend_asset: string;
+    quantity_per_unit: number;
+  }
+  
+  export interface IssuanceOptions extends BaseComposeOptions {
+    asset: string;
+    quantity: number;
+    divisible: boolean;
+    lock: boolean;
+    reset: boolean;
+    transfer_destination?: string;
+    description?: string;
+    pubkeys?: string;
+  }
+  
+  export interface MPMAOptions extends BaseComposeOptions {
+    assets: string[];
+    destinations: string[];
+    quantities: string[];
+    memos?: string[];
+    memos_are_hex?: boolean[];
+  }
+  
+  export interface OrderOptions extends BaseComposeOptions {
+    give_asset: string;
+    give_quantity: number;
+    get_asset: string;
+    get_quantity: number;
+    expiration: number;
+  }
+  
+  export interface SendOptions extends BaseComposeOptions {
+    destination: string;
+    asset: string;
+    quantity: number;
+    memo?: string;
+    memo_is_hex?: boolean;
+  }
+  
+  export interface SweepOptions extends BaseComposeOptions {
+    destination: string;
+    flags: number;
+    memo?: string;
+    allow_unconfirmed_inputs?: boolean;
+  }
+  
+  export interface FairminterOptions extends BaseComposeOptions {
+    asset: string;
+    price?: number;
+    quantity_by_price?: number;
+    max_mint_per_tx?: number;
+    hard_cap?: number;
+    premint_quantity?: number;
+    start_block?: number;
+    end_block?: number;
+    soft_cap?: number;
+    soft_cap_deadline_block?: number;
+    minted_asset_commission?: number;
+    burn_payment?: boolean;
+    lock_description?: boolean;
+    lock_quantity?: boolean;
+    divisible?: boolean;
+    description?: string;
+    encoding?: string;
+    pubkeys?: string;
+    allow_unconfirmed_inputs?: boolean;
+  }
+  
+  export interface FairmintOptions extends BaseComposeOptions {
+    asset: string;
+    quantity?: number;
+  }
+  
+  export interface AttachOptions extends BaseComposeOptions {
+    asset: string;
+    quantity: number;
+    utxo_value?: string;
+    destination_vout?: string;
+  }
+  
+  export interface DetachOptions extends BaseComposeOptions {
+    destination: string;
+  }
+  
+  export interface MoveOptions extends BaseComposeOptions {
+    destination: string;
+    utxo_value?: string;
+  }
+  
+  export async function composeTransaction<T>(
+    endpoint: string,
+    paramsObj: T,
+    sourceAddress: string,
+    sat_per_vbyte: number
+  ): Promise<ApiResponse> {
+    const apiUrl = `https://api.counterparty.io:4000/v2/addresses/${sourceAddress}/compose/${endpoint}`;
+    
+    const params = new URLSearchParams({
+      ...paramsObj as any,
+      sat_per_vbyte: sat_per_vbyte.toString(),
+      exclude_utxos_with_balances: 'true',
+      allow_unconfirmed_inputs: 'true',
+      disable_utxo_locks: 'true',
+      verbose: 'true',
+    });
+  
+    const response = await axios.get<ApiResponse>(`${apiUrl}?${params.toString()}`, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return response.data;
+  }
+  
+  export async function composeBet(options: BetOptions): Promise<ApiResponse> {
+    const {
+      sourceAddress,
+      feed_address,
+      bet_type,
+      deadline,
+      wager_quantity,
+      counterwager_quantity,
+      expiration,
+      leverage = 5040,
+      target_value,
+      sat_per_vbyte,
+      max_fee,
+    } = options;
+    const paramsObj = {
+      feed_address,
+      bet_type: bet_type.toString(),
+      deadline: deadline.toString(),
+      wager_quantity: wager_quantity.toString(),
+      counterwager_quantity: counterwager_quantity.toString(),
+      expiration: expiration.toString(),
+      leverage: leverage.toString(),
+      ...(target_value !== undefined && { target_value: target_value.toString() }),
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('bet', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function composeBroadcast(options: BroadcastOptions): Promise<ApiResponse> {
+    const {
+      sourceAddress,
+      text,
+      value = '0',
+      fee_fraction = '0',
+      timestamp = Math.floor(Date.now() / 1000).toString(),
+      sat_per_vbyte,
+      max_fee,
+    } = options;
+    const paramsObj = {
+      text,
+      value,
+      fee_fraction,
+      timestamp,
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('broadcast', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function composeBTCPay(options: BTCPayOptions): Promise<ApiResponse> {
+    const { sourceAddress, order_match_id, sat_per_vbyte, max_fee } = options;
+    const paramsObj = {
+      order_match_id,
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('btcpay', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function composeBurn(options: BurnOptions): Promise<ApiResponse> {
+    const { sourceAddress, quantity, overburn = false, sat_per_vbyte, max_fee } = options;
+    const paramsObj = {
+      quantity: quantity.toString(),
+      overburn: overburn.toString(),
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('burn', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function composeCancel(options: CancelOptions): Promise<ApiResponse> {
+    const { sourceAddress, offer_hash, sat_per_vbyte, max_fee } = options;
+    const paramsObj = {
+      offer_hash: offer_hash.trim(),
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('cancel', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function composeDestroy(options: DestroyOptions): Promise<ApiResponse> {
+    const { sourceAddress, asset, quantity, tag, sat_per_vbyte, max_fee } = options;
+    const paramsObj = {
+      asset,
+      quantity: quantity.toString(),
+      ...(tag && { tag }),
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('destroy', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function composeDispenser(options: DispenserOptions): Promise<ApiResponse> {
+    const {
+      sourceAddress,
+      asset,
+      give_quantity,
+      escrow_quantity,
+      mainchainrate,
+      status = '0',
+      open_address,
+      oracle_address,
+      sat_per_vbyte,
+      max_fee,
+    } = options;
+    const paramsObj = {
+      asset,
+      give_quantity: give_quantity.toString(),
+      escrow_quantity: escrow_quantity.toString(),
+      mainchainrate: mainchainrate.toString(),
+      status: status.toString(),
+      ...(open_address && { open_address }),
+      ...(oracle_address && { oracle_address }),
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('dispenser', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function composeDispense(options: DispenseOptions): Promise<ApiResponse> {
+    const {
+      sourceAddress,
+      dispenser,
+      quantity,
+      encoding,
+      pubkeys,
+      sat_per_vbyte,
+      max_fee,
+    } = options;
+    const paramsObj = {
+      dispenser,
+      quantity: quantity.toString(),
+      ...(encoding && { encoding }),
+      ...(pubkeys && { pubkeys }),
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('dispense', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function composeDividend(options: DividendOptions): Promise<ApiResponse> {
+    const {
+      sourceAddress,
+      asset,
+      dividend_asset,
+      quantity_per_unit,
+      sat_per_vbyte,
+      max_fee,
+    } = options;
+    const paramsObj = {
+      asset,
+      dividend_asset,
+      quantity_per_unit: quantity_per_unit.toString(),
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('dividend', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function getDividendEstimateXcpFee(sourceAddress: string, asset: string): Promise<number> {
+    const apiUrl = `https://api.counterparty.io:4000/v2/addresses/${sourceAddress}/compose/dividend/estimatexcpfees`;
+    const params = new URLSearchParams({ asset });
+    const response = await axios.get<{ result: number }>(`${apiUrl}?${params.toString()}`);
+    return response.data.result;
+  }
+  
+  export async function composeIssuance(options: IssuanceOptions): Promise<ApiResponse> {
+    const {
+      sourceAddress,
+      asset,
+      quantity,
+      divisible,
+      lock,
+      reset,
+      transfer_destination,
+      description,
+      sat_per_vbyte,
+      max_fee,
+      pubkeys,
+    } = options;
+    const paramsObj = {
+      asset,
+      quantity: quantity.toString(),
+      divisible: divisible ? 'true' : 'false',
+      lock: lock ? 'true' : 'false',
+      reset: reset ? 'true' : 'false',
+      ...(transfer_destination && { transfer_destination }),
+      ...(description && { description }),
+      ...(pubkeys && { pubkeys }),
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('issuance', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function composeMPMA(options: MPMAOptions): Promise<ApiResponse> {
+    const {
+      sourceAddress,
+      assets,
+      destinations,
+      quantities,
+      memos,
+      memos_are_hex,
+      sat_per_vbyte,
+      max_fee,
+    } = options;
+    if (
+      !Array.isArray(assets) ||
+      !Array.isArray(destinations) ||
+      !Array.isArray(quantities) ||
+      assets.length !== destinations.length ||
+      assets.length !== quantities.length
+    ) {
+      throw new Error('Assets, destinations, and quantities must be arrays of the same length.');
     }
+    const paramsObj = {
+      assets: assets.join(','),
+      destinations: destinations.join(','),
+      quantities: quantities.join(','),
+      ...(memos && memos.length > 0 && { memos: memos.join(',') }),
+      ...(memos_are_hex && memos_are_hex.length > 0 && { memos_are_hex: memos_are_hex.join(',') }),
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('mpma', paramsObj, sourceAddress, sat_per_vbyte);
+  }
   
-    return displayName;
+  export async function composeOrder(options: OrderOptions): Promise<ApiResponse> {
+    const {
+      sourceAddress,
+      give_asset,
+      give_quantity,
+      get_asset,
+      get_quantity,
+      expiration,
+      sat_per_vbyte,
+      max_fee,
+    } = options;
+    const paramsObj = {
+      give_asset,
+      give_quantity: give_quantity.toString(),
+      get_asset,
+      get_quantity: get_quantity.toString(),
+      expiration: expiration.toString(),
+      fee_required: '0',
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('order', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function composeSend(options: SendOptions): Promise<ApiResponse> {
+    const { sourceAddress, destination, asset, quantity, memo, memo_is_hex, sat_per_vbyte, max_fee } = options;
+    const paramsObj = {
+      destination,
+      asset,
+      quantity: quantity.toString(),
+      ...(memo !== undefined ? { memo } : {}),
+      ...(memo_is_hex !== undefined ? { memo_is_hex: memo_is_hex.toString() } : {}),
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function composeSweep(options: SweepOptions): Promise<ApiResponse> {
+    const {
+      sourceAddress,
+      destination,
+      flags,
+      memo = '',
+      sat_per_vbyte,
+      max_fee,
+      allow_unconfirmed_inputs = false,
+    } = options;
+    const paramsObj = {
+      destination,
+      flags: flags.toString(),
+      memo,
+      allow_unconfirmed_inputs: allow_unconfirmed_inputs.toString(),
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('sweep', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function getSweepEstimateXcpFee(sourceAddress: string): Promise<number> {
+    const apiUrl = `https://api.counterparty.io:4000/v2/addresses/${sourceAddress}/compose/sweep/estimatexcpfees`;
+    const response = await axios.get<{ result: number }>(apiUrl);
+    return response.data.result;
+  }
+  
+  export async function composeFairminter(options: FairminterOptions): Promise<ApiResponse> {
+    const {
+      sourceAddress,
+      asset,
+      price = 0,
+      quantity_by_price = 1,
+      max_mint_per_tx = 0,
+      hard_cap = 0,
+      premint_quantity = 0,
+      start_block = 0,
+      end_block = 0,
+      soft_cap = 0,
+      soft_cap_deadline_block = 0,
+      minted_asset_commission = 0.0,
+      burn_payment = false,
+      lock_description = false,
+      lock_quantity = false,
+      divisible = true,
+      description = '',
+      encoding = 'auto',
+      sat_per_vbyte,
+      max_fee,
+      pubkeys,
+      allow_unconfirmed_inputs = true,
+    } = options;
+    const paramsObj = {
+      asset,
+      price: price.toString(),
+      quantity_by_price: quantity_by_price.toString(),
+      max_mint_per_tx: max_mint_per_tx.toString(),
+      hard_cap: hard_cap.toString(),
+      premint_quantity: premint_quantity.toString(),
+      start_block: start_block.toString(),
+      end_block: end_block.toString(),
+      soft_cap: soft_cap.toString(),
+      soft_cap_deadline_block: soft_cap_deadline_block.toString(),
+      minted_asset_commission: minted_asset_commission.toString(),
+      burn_payment: burn_payment.toString(),
+      lock_description: lock_description.toString(),
+      lock_quantity: lock_quantity.toString(),
+      divisible: divisible ? 'true' : 'false',
+      ...(description && { description }),
+      encoding,
+      ...(pubkeys && { pubkeys }),
+      allow_unconfirmed_inputs: allow_unconfirmed_inputs.toString(),
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('fairminter', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function composeFairmint(options: FairmintOptions): Promise<ApiResponse> {
+    const { sourceAddress, asset, quantity = 0, sat_per_vbyte, max_fee } = options;
+    const paramsObj = {
+      asset,
+      quantity: quantity.toString(),
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('fairmint', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function composeAttach(options: AttachOptions): Promise<ApiResponse> {
+    const {
+      sourceAddress,
+      asset,
+      quantity,
+      utxo_value,
+      destination_vout,
+      sat_per_vbyte,
+      max_fee,
+    } = options;
+    const paramsObj = {
+      asset,
+      quantity: quantity.toString(),
+      ...(utxo_value !== undefined ? { utxo_value: utxo_value.toString() } : {}),
+      ...(destination_vout ? { destination_vout } : {}),
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    };
+    return composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function getAttachEstimateXcpFee(sourceAddress: string): Promise<number> {
+    const apiUrl = `https://api.counterparty.io:4000/v2/addresses/${sourceAddress}/compose/attach/estimatexcpfees`;
+    const response = await axios.get<{ result: number }>(apiUrl);
+    return response.data.result;
+  }
+  
+  export async function composeDetach(options: DetachOptions): Promise<ApiResponse> {
+    const { sourceAddress, destination, sat_per_vbyte } = options;
+    const paramsObj = {
+      destination,
+    };
+    return composeTransaction('detach', paramsObj, sourceAddress, sat_per_vbyte);
+  }
+  
+  export async function composeMove(options: MoveOptions): Promise<ApiResponse> {
+    const { sourceAddress, destination, utxo_value, sat_per_vbyte } = options;
+    const paramsObj = {
+      destination,
+      ...(utxo_value !== undefined ? { utxo_value: utxo_value.toString() } : {}),
+    };
+    return composeTransaction('move', paramsObj, sourceAddress, sat_per_vbyte);
   }
 

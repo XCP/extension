@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { FaSpinner, FaChevronRight } from 'react-icons/fa';
 import { useWallet } from '@/contexts/wallet-context';
 import { useHeader } from '@/contexts/header-context';
-import { useBalanceDetails } from '@/hooks/useBalanceDetails';
+import { useAssetDetails } from '@/hooks/useAssetDetails';
 import { formatAsset, formatAmount } from '@/utils/format';
 
 interface Action {
@@ -19,7 +19,7 @@ export const ViewBalance = () => {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeAddress } = useWallet();
-  const { data: balanceDetails, isLoading, error } = useBalanceDetails(asset || '');
+  const { data: assetDetails, isLoading, error } = useAssetDetails(asset || '');
 
   useEffect(() => {
     setHeaderProps({
@@ -31,7 +31,7 @@ export const ViewBalance = () => {
   }, [setHeaderProps, navigate]);
 
   const getActions = (): Action[] => {
-    if (!asset || !balanceDetails) return [];
+    if (!asset || !assetDetails) return [];
 
     const actions: Action[] = [];
     const isBTC = asset === 'BTC';
@@ -105,7 +105,7 @@ export const ViewBalance = () => {
     );
   }
 
-  if (error || !balanceDetails) {
+  if (error || !assetDetails) {
     return (
       <div className="p-4 text-center text-gray-600">
         Failed to load balance information
@@ -119,14 +119,17 @@ export const ViewBalance = () => {
       <div className="bg-white rounded-lg p-4 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900">
           {formatAsset(asset || '', {
-            assetInfo: balanceDetails.assetInfo,
+            assetInfo: assetDetails.assetInfo,
           })}
         </h2>
         <p className="text-3xl font-bold text-gray-900 mt-2">
-          {formatAmount(balanceDetails.balance)}
+          {formatAmount({
+            amount: assetDetails.availableBalance,
+            isDivisible: assetDetails.isDivisible
+          })}
         </p>
         <p className="text-sm text-gray-500 mt-1">
-          {balanceDetails.assetInfo?.description || 'No description'}
+          {assetDetails.assetInfo?.description || 'No description'}
         </p>
       </div>
 
@@ -163,11 +166,11 @@ export const ViewBalance = () => {
       </div>
 
       {/* UTXO Balances */}
-      {balanceDetails.utxoBalances && balanceDetails.utxoBalances.length > 0 && (
+      {assetDetails.utxoBalances && assetDetails.utxoBalances.length > 0 && (
         <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
           <h3 className="text-sm font-medium text-gray-900">UTXO Balances</h3>
           <div className="space-y-2">
-            {balanceDetails.utxoBalances.map((utxo, index) => (
+            {assetDetails.utxoBalances.map((utxo, index) => (
               <div
                 key={index}
                 onClick={() => navigate(`/utxo/${utxo.txid}`)}

@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
-import { DetachForm } from "./form";
-import { ReviewDetach } from "./review";
+import { UtxoDetachForm } from "./form";
+import { ReviewUtxoDetach } from "./review";
 import { Composer } from "@/components/composer";
 import { composeDetach } from "@/utils/blockchain/counterparty";
 
@@ -11,8 +11,8 @@ export function ComposeUtxoDetach() {
     <div className="p-4">
       <Composer
         initialTitle="Detach"
-        FormComponent={(props) => <DetachForm {...props} initialUtxo={utxo || ""} />}
-        ReviewComponent={ReviewDetach}
+        FormComponent={(props) => <UtxoDetachForm {...props} initialUtxo={utxo || ""} />}
+        ReviewComponent={ReviewUtxoDetach}
         composeTransaction={composeDetach}
       />
     </div>

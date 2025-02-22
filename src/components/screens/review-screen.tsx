@@ -15,7 +15,6 @@ interface ReviewScreenProps {
 export function ReviewScreen({
   apiResponse,
   onSign,
-  onBack,
   customFields,
   error,
   setError,
@@ -47,7 +46,7 @@ export function ReviewScreen({
           <div className="space-y-1">
             <span className="font-semibold text-gray-700">To:</span>
             <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
-              {formatAddress(result.params.destination, true)}
+              {result.params.destination}
             </div>
           </div>
         )}
@@ -80,7 +79,6 @@ export function ReviewScreen({
         </details>
       </div>
       <div className="flex space-x-4">
-        <Button onClick={onBack} color="gray">Back</Button>
         <Button onClick={handleSignClick} color="blue" fullWidth disabled={isSigning}>
           {isSigning ? "Signing..." : "Sign & Broadcast"}
         </Button>
