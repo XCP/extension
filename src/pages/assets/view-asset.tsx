@@ -84,13 +84,13 @@ export const ViewAsset = () => {
         id: 'update-description',
         name: 'Update Description',
         description: 'Update the asset description',
-        path: `/compose/issuance/${asset}/update-description`,
+        path: `/compose/issuance/update-description/${asset}`,
       },
       {
         id: 'transfer-ownership',
         name: 'Transfer Ownership',
         description: 'Transfer asset ownership to another address',
-        path: `/compose/issuance/${asset}/transfer-ownership`,
+        path: `/compose/issuance/transfer-ownership/${asset}`,
       }
     );
 

@@ -15,7 +15,7 @@ export function ComposeIssuanceUpdateDescription() {
   return (
     <div className="p-4">
       <Composer
-        initialTitle="Update Description"
+        initialTitle="Description"
         FormComponent={UpdateDescriptionForm}
         ReviewComponent={ReviewIssuanceUpdateDescription}
         composeTransaction={composeIssuance}

@@ -1,70 +1,93 @@
-import React, { useState, useRef, useEffect, FormEvent } from "react";
+import axios from "axios";
+import React, { useState, useEffect, useRef, FormEvent } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
-import { AssetHeader } from "@/components/headers/asset-header";
-import { AssetSelectInput } from "@/components/inputs/asset-select-input";
+import { BalanceHeader } from "@/components/headers/balance-header";
+import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { DividendOptions, fetchAssetDetails } from "@/utils/blockchain/counterparty";
+import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { DispenserOptions, fetchAssetDetailsAndBalance } from "@/utils/blockchain/counterparty";
 
-interface DividendFormDataInternal {
-  quantity_per_unit: string;
-  dividend_asset: string;
+interface DispenserFormDataInternal {
+  give_quantity: string;
+  escrow_quantity: string;
+  mainchainrate: string;
   sat_per_vbyte: number;
 }
 
-interface DividendFormProps {
-  onSubmit: (data: DividendOptions) => void;
-  initialFormData?: DividendOptions;
+interface TradingPairData {
+  last_trade_price: string | null;
+  name: string;
+}
+
+interface DispenserFormProps {
+  onSubmit: (data: DispenserOptions) => void;
+  initialFormData?: DispenserOptions;
   asset: string;
 }
 
-export function DividendForm({ onSubmit, initialFormData, asset }: DividendFormProps) {
-  const { activeAddress } = useWallet();
+export function DispenserForm({ onSubmit, initialFormData, asset }: DispenserFormProps) {
+  const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
-
   const shouldShowHelpText = settings?.showHelpText ?? false;
 
-  const [formData, setFormData] = useState<DividendFormDataInternal>(() => ({
-    quantity_per_unit: initialFormData?.quantity_per_unit ? (initialFormData.quantity_per_unit / 1e8).toFixed(8) : "",
-    dividend_asset: initialFormData?.dividend_asset || "XCP",
-    sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
-  }));
-  const [assetInfo, setAssetInfo] = useState<any>(null);
-  const [localError, setLocalError] = useState<string | null>(null);
+  const { isLoading, error: assetError, data: assetDetails } = useAssetDetails(asset);
 
-  const amountRef = useRef<HTMLInputElement>(null);
+  const [formData, setFormData] = useState<DispenserFormDataInternal>(() => {
+    const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
+    return {
+      give_quantity: initialFormData?.give_quantity ? (isDivisible ? (initialFormData.give_quantity / 1e8).toFixed(8) : initialFormData.give_quantity.toString()) : "",
+      escrow_quantity: initialFormData?.escrow_quantity ? (isDivisible ? (initialFormData.escrow_quantity / 1e8).toFixed(8) : initialFormData.escrow_quantity.toString()) : "",
+      mainchainrate: initialFormData?.mainchainrate ? (initialFormData.mainchainrate / 1e8).toFixed(8) : "",
+      sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
+    };
+  });
+  const [availableBalance, setAvailableBalance] = useState<string>("0");
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [tradingPairData, setTradingPairData] = useState<TradingPairData | null>(null);
+
+  const escrowInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    amountRef.current?.focus();
+    escrowInputRef.current?.focus();
   }, []);
 
   useEffect(() => {
-    async function fetchDetails() {
-      if (!asset) {
-        setLocalError("Asset is not specified.");
-        return;
-      }
+    const fetchDetails = async () => {
+      if (!asset || !activeAddress?.address) return;
       try {
-        const details = await fetchAssetDetails(asset);
-        setAssetInfo(details);
+        const { isDivisible, assetInfo, availableBalance } = await fetchAssetDetailsAndBalance(asset, activeAddress.address);
+        setAvailableBalance(availableBalance);
+        if (!initialFormData) {
+          setFormData((prev) => ({ ...prev, give_quantity: isDivisible ? "1.00000000" : "1" }));
+        }
+
+        const tradingPairResponse = await axios.get(`https://app.xcp.io/api/v1/swap/${asset}/BTC`);
+        const lastTradePrice = tradingPairResponse.data?.data?.trading_pair?.last_trade_price || null;
+        setTradingPairData({ last_trade_price: lastTradePrice, name: "BTC" });
       } catch (err) {
-        console.error("Failed to fetch asset details:", err);
-        setLocalError("Failed to retrieve asset information.");
+        console.error("Error fetching asset details:", err);
+        setLocalError("Error fetching asset details.");
       }
-    }
+    };
     fetchDetails();
-  }, [asset]);
+  }, [asset, activeAddress?.address, initialFormData]);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!formData.quantity_per_unit || Number(formData.quantity_per_unit) <= 0) {
-      setLocalError("Quantity per unit must be a positive number.");
+    if (!formData.give_quantity || Number(formData.give_quantity) <= 0) {
+      setLocalError("Dispense amount must be greater than zero.");
       return;
     }
-    if (!formData.dividend_asset.trim()) {
-      setLocalError("Dividend asset is required.");
+    if (!formData.escrow_quantity || Number(formData.escrow_quantity) <= 0) {
+      setLocalError("Escrow quantity must be greater than zero.");
+      return;
+    }
+    if (!formData.mainchainrate || Number(formData.mainchainrate) <= 0) {
+      setLocalError("BTC per dispense must be greater than zero.");
       return;
     }
     if (formData.sat_per_vbyte <= 0) {
@@ -73,11 +96,17 @@ export function DividendForm({ onSubmit, initialFormData, asset }: DividendFormP
     }
     setLocalError(null);
 
-    const submissionData: DividendOptions = {
+    const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
+    const giveQtyNum = Number(formData.give_quantity);
+    const escrowQtyNum = Number(formData.escrow_quantity);
+    const mainchainrateNum = Number(formData.mainchainrate);
+
+    const submissionData: DispenserOptions = {
       sourceAddress: activeAddress?.address || "",
       asset,
-      dividend_asset: formData.dividend_asset,
-      quantity_per_unit: Math.round(Number(formData.quantity_per_unit) * 1e8),
+      give_quantity: isDivisible ? Math.round(giveQtyNum * 1e8) : Math.round(giveQtyNum),
+      escrow_quantity: isDivisible ? Math.round(escrowQtyNum * 1e8) : Math.round(escrowQtyNum),
+      mainchainrate: Math.round(mainchainrateNum * 1e8),
       sat_per_vbyte: formData.sat_per_vbyte,
     };
     onSubmit(submissionData);
@@ -85,33 +114,57 @@ export function DividendForm({ onSubmit, initialFormData, asset }: DividendFormP
 
   return (
     <div className="space-y-4">
-      {asset && assetInfo && <AssetHeader assetInfo={assetInfo} className="mb-6" />}
-      {localError && <div className="text-red-500">{localError}</div>}
-      <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <AssetSelectInput
-            selectedAsset={formData.dividend_asset}
-            onChange={(value) => setFormData((prev) => ({ ...prev, dividend_asset: value }))}
-            label="Dividend Asset"
-            required
+      {asset && activeAddress && assetDetails && (
+        <BalanceHeader
+          balance={{ asset, quantity_normalized: availableBalance, asset_info: assetDetails.assetInfo }}
+          className="mb-6"
+        />
+      )}
+      {localError && <div className="text-red-500 mb-2">{localError}</div>}
+      <div className="bg-white rounded-lg shadow-lg p-4">
+        <form className="space-y-6" onSubmit={handleSubmit}>
+          <AmountWithMaxInput
+            asset={asset}
+            availableBalance={availableBalance}
+            value={formData.escrow_quantity}
+            onChange={(value) => setFormData((prev) => ({ ...prev, escrow_quantity: value }))}
+            sat_per_vbyte={formData.sat_per_vbyte}
+            setError={setLocalError}
+            sourceAddress={activeAddress}
+            maxAmount={availableBalance}
             shouldShowHelpText={shouldShowHelpText}
-            description="The asset to pay dividends in (e.g., XCP)."
+            label="Dispenser Escrow"
+            name="escrow_quantity"
+            description={`The total quantity of the asset to reserve for this dispenser. ${
+              assetDetails?.assetInfo?.divisible ? "Enter up to 8 decimal places." : "Enter whole numbers only."
+            } Available: ${availableBalance}`}
+          />
+          <PriceWithSuggestInput
+            value={formData.mainchainrate}
+            onChange={(value) => setFormData((prev) => ({ ...prev, mainchainrate: value }))}
+            tradingPairData={tradingPairData}
+            shouldShowHelpText={shouldShowHelpText}
+            label="BTC Per Dispense"
+            name="mainchainrate"
+            priceDescription="The amount of BTC required per dispensed portion."
+            showPairFlip={false}
           />
           <Field>
-            <Label htmlFor="quantity_per_unit" className="block text-sm font-medium text-gray-700">
-              Amount Per Unit <span className="text-red-500">*</span>
+            <Label htmlFor="give_quantity" className="text-sm font-medium text-gray-700">
+              Dispense Amount <span className="text-red-500">*</span>
             </Label>
             <Input
-              ref={amountRef}
-              id="quantity_per_unit"
+              id="give_quantity"
               type="text"
-              value={formData.quantity_per_unit}
-              onChange={(e) => setFormData((prev) => ({ ...prev, quantity_per_unit: e.target.value }))}
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+              name="give_quantity"
+              value={formData.give_quantity}
+              onChange={(e) => setFormData((prev) => ({ ...prev, give_quantity: e.target.value }))}
+              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
+              placeholder={assetDetails?.assetInfo?.divisible ? "0.00000000" : "0"}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Amount of dividend asset to be paid per unit of the source asset (up to 8 decimal places).
+              The quantity of the asset to dispense per transaction.{assetDetails?.assetInfo?.divisible ? " Enter up to 8 decimal places." : " Enter whole numbers only."}
             </Description>
           </Field>
           <FeeRateInput

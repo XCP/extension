@@ -9,7 +9,7 @@ import { fetchAssetDetails } from "@/utils/blockchain/counterparty";
 export interface DividendFormData {
   quantity_per_unit: string;
   dividend_asset: string;
-
+  sat_per_vbyte: number;
 }
 
 interface DividendFormProps {
@@ -22,7 +22,7 @@ export function DividendForm({ asset, onSubmit, shouldShowHelpText }: DividendFo
   const [formData, setFormData] = useState<DividendFormData>({
     quantity_per_unit: "",
     dividend_asset: "XCP",
-
+    sat_per_vbyte: 1,
   });
   const [assetInfo, setAssetInfo] = useState<any>(null);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -69,7 +69,7 @@ export function DividendForm({ asset, onSubmit, shouldShowHelpText }: DividendFo
       setLocalError("Dividend asset is required.");
       return;
     }
-    if (formData.feeRateSatPerVByte <= 0) {
+    if (formData.sat_per_vbyte <= 0) {
       setLocalError("Fee rate must be greater than zero.");
       return;
     }
@@ -123,9 +123,9 @@ export function DividendForm({ asset, onSubmit, shouldShowHelpText }: DividendFo
           </Field>
 
           <FeeRateInput
-            value={formData.feeRateSatPerVByte}
-            onChange={(value) => setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))}
-            error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
+            value={formData.sat_per_vbyte}
+            onChange={(value) => setFormData((prev) => ({ ...prev, sat_per_vbyte: value }))}
+            error={formData.sat_per_vbyte <= 0 ? "Fee rate must be greater than zero." : ""}
             showHelpText={shouldShowHelpText}
           />
 
@@ -137,7 +137,7 @@ export function DividendForm({ asset, onSubmit, shouldShowHelpText }: DividendFo
               !formData.quantity_per_unit ||
               Number(formData.quantity_per_unit) <= 0 ||
               !formData.dividend_asset ||
-              formData.feeRateSatPerVByte <= 0
+              formData.sat_per_vbyte <= 0
             }
           >
             Continue

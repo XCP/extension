@@ -69,7 +69,7 @@ export const ViewBalance = () => {
           id: 'order',
           name: 'DEX Order',
           description: 'Create a new order on the DEX',
-          path: `/compose/order/${asset}`,
+          path: `/compose/broadcast/${asset}`,
         },
         {
           id: 'dispenser',
@@ -81,7 +81,7 @@ export const ViewBalance = () => {
           id: 'attach',
           name: 'Attach',
           description: 'Attach this asset to a Bitcoin UTXO',
-          path: `/balance/${asset}/attach`,
+          path: `/compose/utxo/attach/${asset}`,
           variant: 'success',
         },
         {

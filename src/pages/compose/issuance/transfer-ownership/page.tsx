@@ -16,7 +16,7 @@ export function ComposeIssuanceTransferOwnership() {
   return (
     <div className="p-4">
       <Composer
-        initialTitle="Transfer Ownership"
+        initialTitle="Transfer"
         FormComponent={(props) => (
           <TransferOwnershipForm {...props} asset={asset} />
         )}
