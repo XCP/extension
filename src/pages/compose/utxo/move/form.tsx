@@ -3,29 +3,30 @@ import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { AddressHeader } from "@/components/headers/address-header";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { useSettings } from "@/contexts/settings-context";
+import { MoveOptions } from "@/utils/blockchain/counterparty";
 
-export interface UtxoMoveFormData {
+interface UtxoMoveFormDataInternal {
   utxo: string;
   destination: string;
-
+  sat_per_vbyte: number;
 }
 
 interface UtxoMoveFormProps {
-  onSubmit: (data: UtxoMoveFormData) => void;
+  onSubmit: (data: MoveOptions) => void;
+  initialFormData?: MoveOptions;
 }
 
-export function UtxoMoveForm({ onSubmit }: UtxoMoveFormProps) {
+export function UtxoMoveForm({ onSubmit, initialFormData }: UtxoMoveFormProps) {
   const { activeAddress, activeWallet } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = settings?.showHelpText;
+  const shouldShowHelpText = useSettings()?.showHelpText ?? false;
 
-  const [formData, setFormData] = useState<UtxoMoveFormData>({
-    utxo: "",
-    destination: "",
-    feeRateSatPerVByte: 10, // Default to 10 sat/vB
-  });
+  const [formData, setFormData] = useState<UtxoMoveFormDataInternal>(() => ({
+    utxo: initialFormData?.utxo_value || "",
+    destination: initialFormData?.destination || "",
+    sat_per_vbyte: initialFormData?.sat_per_vbyte || 10,
+  }));
   const [localError, setLocalError] = useState<string | null>(null);
 
   const utxoRef = useRef<HTMLInputElement>(null);
@@ -36,16 +37,27 @@ export function UtxoMoveForm({ onSubmit }: UtxoMoveFormProps) {
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (
-      !formData.utxo.trim() ||
-      !formData.destination.trim() ||
-      formData.feeRateSatPerVByte <= 0
-    ) {
-      setLocalError("Please fill all required fields with valid values.");
+    if (!formData.utxo.trim()) {
+      setLocalError("UTXO is required.");
+      return;
+    }
+    if (!formData.destination.trim()) {
+      setLocalError("Destination is required.");
+      return;
+    }
+    if (formData.sat_per_vbyte <= 0) {
+      setLocalError("Fee rate must be greater than zero.");
       return;
     }
     setLocalError(null);
-    onSubmit(formData);
+
+    const submissionData: MoveOptions = {
+      sourceAddress: activeAddress?.address || "",
+      destination: formData.destination.trim(),
+      utxo_value: formData.utxo.trim(),
+      sat_per_vbyte: formData.sat_per_vbyte,
+    };
+    onSubmit(submissionData);
   };
 
   return (
@@ -78,7 +90,6 @@ export function UtxoMoveForm({ onSubmit }: UtxoMoveFormProps) {
               Enter the UTXO identifier (e.g., txid:vout) to move.
             </Description>
           </Field>
-
           <Field>
             <Label className="text-sm font-medium text-gray-700">
               Destination <span className="text-red-500">*</span>
@@ -87,9 +98,7 @@ export function UtxoMoveForm({ onSubmit }: UtxoMoveFormProps) {
               type="text"
               name="destination"
               value={formData.destination}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, destination: e.target.value.trim() }))
-              }
+              onChange={(e) => setFormData((prev) => ({ ...prev, destination: e.target.value.trim() }))}
               required
               placeholder="Enter destination address"
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
@@ -98,24 +107,13 @@ export function UtxoMoveForm({ onSubmit }: UtxoMoveFormProps) {
               Enter the address to move the UTXO to.
             </Description>
           </Field>
-
           <FeeRateInput
-            value={formData.feeRateSatPerVByte}
-            onChange={(value) => setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))}
-            error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
+            value={formData.sat_per_vbyte}
+            onChange={(value) => setFormData((prev) => ({ ...prev, sat_per_vbyte: value }))}
+            error={formData.sat_per_vbyte <= 0 ? "Fee rate must be greater than zero." : ""}
             showHelpText={shouldShowHelpText}
           />
-
-          <Button
-            type="submit"
-            color="blue"
-            fullWidth
-            disabled={
-              !formData.utxo.trim() ||
-              !formData.destination.trim() ||
-              formData.feeRateSatPerVByte <= 0
-            }
-          >
+          <Button type="submit" color="blue" fullWidth>
             Continue
           </Button>
         </form>

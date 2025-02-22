@@ -1,30 +1,32 @@
 import React, { useState, useRef, useEffect, useMemo, FormEvent } from "react";
 import { FaCog } from "react-icons/fa";
 import { Button } from "@/components/button";
-import { Loading } from "@/components/loading";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
+import { useSettings } from "@/contexts/settings-context";
+import { useWallet } from "@/contexts/wallet-context";
+import { OrderOptions } from "@/utils/blockchain/counterparty";
 import { toBigNumber, formatBigNumber } from "@/utils/numeric";
 
-export interface OrderFormData {
+interface OrderFormDataInternal {
   type: "buy" | "sell";
   amount: string;
   asset: string;
   price: string;
-
+  sat_per_vbyte: number;
 }
 
-export interface TradingPairData {
+interface TradingPairData {
   last_trade_price: string | null;
   name: string;
 }
 
 interface OrderFormProps {
+  onSubmit: (data: OrderOptions) => void;
+  initialFormData?: OrderOptions;
   giveAsset: string;
-  onSubmit: (data: any) => void;
-  shouldShowHelpText: boolean;
   walletState: any;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   tradingPairData: TradingPairData | null;
@@ -34,10 +36,10 @@ interface OrderFormProps {
   setIsPairFlipped: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export const OrderForm = ({
-  giveAsset,
+export function OrderForm({
   onSubmit,
-  shouldShowHelpText,
+  initialFormData,
+  giveAsset,
   walletState,
   setError,
   tradingPairData,
@@ -45,26 +47,27 @@ export const OrderForm = ({
   handleOrderTypeChange,
   isPairFlipped,
   setIsPairFlipped,
-}: OrderFormProps) => {
-  const [formData, setFormData] = useState<OrderFormData>({
-    type: "sell",
-    amount: "",
-    asset: giveAsset === "XCP" ? "BTC" : "XCP",
-    price: "",
+}: OrderFormProps) {
+  const { activeAddress } = useWallet();
+  const { settings } = useSettings();
+  const shouldShowHelpText = settings?.showHelpText ?? false;
 
-  });
-
-  const amountInputRef = useRef<HTMLInputElement>(null);
+  const [formData, setFormData] = useState<OrderFormDataInternal>(() => ({
+    type: initialFormData?.give_quantity ? "sell" : "buy",
+    amount: initialFormData?.give_quantity?.toString() || initialFormData?.get_quantity?.toString() || "",
+    asset: initialFormData?.get_asset || (giveAsset === "XCP" ? "BTC" : "XCP"),
+    price: "", // Price not directly mappable from initialFormData, calculated in review
+    sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
+  }));
   const [showMaxError, setShowMaxError] = useState(false);
 
+  const amountInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
-    if (!tabLoading) {
-      amountInputRef.current?.focus();
-    }
+    if (!tabLoading) amountInputRef.current?.focus();
   }, [tabLoading]);
 
   const isBuy = formData.type === "buy";
-
   const orderAssetBalance = walletState?.orderAssetBalance || "0";
   const availableBalance = walletState?.availableBalance || "0";
 
@@ -100,47 +103,64 @@ export const OrderForm = ({
     setShowMaxError(false);
   }, [formData.type, formData.price]);
 
-  const amountDescription = `Amount to ${isBuy ? "buy" : "sell"}. ${
-    isBuy ? "Enter up to 8 decimal places." : "Enter whole numbers only."
-  }`;
-  const priceDescription = `Price per unit in ${formData.asset}`;
-
-  const handleSubmitInternal = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!formData.amount || !formData.asset || !formData.price || formData.feeRateSatPerVByte <= 0) {
-      return; // Validation handled by form fields and FeeRateInput
+    if (!formData.amount || Number(formData.amount) <= 0) {
+      setError("Amount must be greater than zero.");
+      return;
     }
-    onSubmit({
-      ...formData,
-      giveAsset,
-      extra: {
-        tradingPairData,
-      },
-    });
+    if (!formData.asset) {
+      setError("Quote asset is required.");
+      return;
+    }
+    if (!formData.price || Number(formData.price) <= 0) {
+      setError("Price must be greater than zero.");
+      return;
+    }
+    if (formData.sat_per_vbyte <= 0) {
+      setError("Fee rate must be greater than zero.");
+      return;
+    }
+    setError(null);
+
+    const quantityNum = Number(formData.amount);
+    const priceNum = Number(formData.price);
+    const giveQty = isBuy ? Math.round(quantityNum * priceNum * 1e8) : Math.round(quantityNum * 1e8);
+    const getQty = isBuy ? Math.round(quantityNum * 1e8) : Math.round(quantityNum * priceNum * 1e8);
+
+    const submissionData: OrderOptions = {
+      sourceAddress: activeAddress?.address || "",
+      give_asset: isBuy ? formData.asset : giveAsset,
+      give_quantity: giveQty,
+      get_asset: isBuy ? giveAsset : formData.asset,
+      get_quantity: getQty,
+      expiration: 100, // Default expiration, typically set in review
+      sat_per_vbyte: formData.sat_per_vbyte,
+    };
+    onSubmit(submissionData);
   };
 
   return (
-    <>
+    <div className="space-y-4">
       <div className="flex justify-between items-center mb-2">
         <div className="flex space-x-4">
           <button
-            className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none ${
-              formData.type === "buy" ? "underline" : ""
-            }`}
+            type="button"
+            className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none ${formData.type === "buy" ? "underline" : ""}`}
             onClick={() => handleOrderTypeChange("buy")}
           >
             Buy
           </button>
           <button
-            className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none ${
-              formData.type === "sell" ? "underline" : ""
-            }`}
+            type="button"
+            className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none ${formData.type === "sell" ? "underline" : ""}`}
             onClick={() => handleOrderTypeChange("sell")}
           >
             Sell
           </button>
         </div>
         <button
+          type="button"
           onClick={() => console.log("Settings clicked")}
           className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           aria-label="Order Settings"
@@ -148,83 +168,60 @@ export const OrderForm = ({
           <FaCog className="w-5 h-5 text-gray-600" aria-hidden="true" />
         </button>
       </div>
-
-      <div className="bg-white rounded-lg shadow-lg p-4">
-        {tabLoading ? (
-          <div className="flex justify-center items-center h-[21rem]">
-            <Loading />
-          </div>
-        ) : (
-          <form className="space-y-4" onSubmit={handleSubmitInternal}>
+      {tabLoading ? (
+        <div className="flex justify-center items-center h-[21rem]">Loading...</div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-lg p-4">
+          {showMaxError && (
+            <p className="text-red-500 text-sm mb-2">Please set a price to use the Max button for buying.</p>
+          )}
+          <form className="space-y-4" onSubmit={handleSubmit}>
             <AmountWithMaxInput
-              ref={amountInputRef}
               asset={giveAsset}
               availableBalance={isBuy ? "" : availableBalance}
               value={formData.amount}
-              onChange={(value: string) => setFormData((prev) => ({ ...prev, amount: value }))}
-              feeRateSatPerVByte={formData.feeRateSatPerVByte}
+              onChange={(value) => setFormData((prev) => ({ ...prev, amount: value }))}
+              sat_per_vbyte={formData.sat_per_vbyte}
               setError={setError}
               shouldShowHelpText={shouldShowHelpText}
-              walletState={walletState}
-              label="Amount"
-              name="amount"
-              description={amountDescription}
+              sourceAddress={activeAddress}
               maxAmount={maxAmount}
               disableMaxButton={!isMaxAvailable}
               onMaxClick={handleMaxClick}
+              label="Amount"
+              name="amount"
+              description={`Amount to ${isBuy ? "buy" : "sell"}.${isBuy ? " Enter up to 8 decimal places." : " Enter whole numbers only."}`}
             />
-
-            {showMaxError && (
-              <p className="text-red-500 text-sm">
-                Please set a price to use the Max button for buying.
-              </p>
-            )}
-
             <AssetSelectInput
               selectedAsset={formData.asset}
-              onChange={(asset: string) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  asset,
-                  price: "", // Clear price when asset changes
-                }))
-              }
+              onChange={(asset) => setFormData((prev) => ({ ...prev, asset, price: "" }))}
               label="Quote"
               shouldShowHelpText={shouldShowHelpText}
             />
-
             <PriceWithSuggestInput
-              label="Price"
               value={formData.price}
-              onChange={(value: string) => setFormData((prev) => ({ ...prev, price: value }))}
+              onChange={(value) => setFormData((prev) => ({ ...prev, price: value }))}
               tradingPairData={tradingPairData}
               shouldShowHelpText={shouldShowHelpText}
-              priceDescription={priceDescription}
+              label="Price"
+              name="price"
+              priceDescription={`Price per unit in ${formData.asset}`}
               showPairFlip={true}
               isPairFlipped={isPairFlipped}
               setIsPairFlipped={setIsPairFlipped}
             />
-
             <FeeRateInput
-              value={formData.feeRateSatPerVByte}
-              onChange={(value: number) =>
-                setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))
-              }
-              error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
+              value={formData.sat_per_vbyte}
+              onChange={(value) => setFormData((prev) => ({ ...prev, sat_per_vbyte: value }))}
+              error={formData.sat_per_vbyte <= 0 ? "Fee rate must be greater than zero." : ""}
               showHelpText={shouldShowHelpText}
             />
-
-            <Button
-              color="blue"
-              fullWidth
-              disabled={!formData.amount || !formData.asset || !formData.price || formData.feeRateSatPerVByte <= 0}
-              type="submit"
-            >
+            <Button type="submit" color="blue" fullWidth>
               Continue
             </Button>
           </form>
-        )}
-      </div>
-    </>
+        </div>
+      )}
+    </div>
   );
-};
+}

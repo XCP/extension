@@ -6,19 +6,13 @@ import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchAddressDispensers, fetchAssetDetailsAndBalance } from "@/utils/blockchain/counterparty";
+import { fetchAddressDispensers, fetchAssetDetailsAndBalance, DispenseOptions } from "@/utils/blockchain/counterparty";
 import { formatAmount } from "@/utils/format";
 import { toBigNumber } from "@/utils/numeric";
 
-export interface DispenseFormData {
-  dispenserAddress: string;
-
-  numberOfDispenses: string;
-  selectedPriceLevelIndex: number;
-}
-
 interface DispenserDetails {
   asset: string;
+  tx_hash: string;
   status: number;
   give_remaining: number;
   give_remaining_normalized: string;
@@ -42,34 +36,39 @@ interface PriceLevel {
 interface PaymentOption {
   satoshirate: number;
   btcAmount: number;
-  assets: {
-    asset: string;
-    quantity: string;
-    asset_info?: DispenserDetails["asset_info"];
-  }[];
+  assets: { asset: string; quantity: string; asset_info?: DispenserDetails["asset_info"] }[];
   index: number;
 }
 
-interface DispenseFormProps {
-  onSubmit: (data: any) => void;
+interface DispenseFormDataInternal {
+  dispenserAddress: string;
+  numberOfDispenses: string;
+  selectedPriceLevelIndex: number;
+  sat_per_vbyte: number;
 }
 
-export function DispenseForm({ onSubmit }: DispenseFormProps) {
+interface DispenseFormProps {
+  onSubmit: (data: DispenseOptions) => void;
+  initialFormData?: DispenseOptions;
+}
+
+export function DispenseForm({ onSubmit, initialFormData }: DispenseFormProps) {
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
-  const dispenserAddressRef = useRef<HTMLInputElement>(null);
+  const shouldShowHelpText = settings?.showHelpText ?? false;
 
-  const [formData, setFormData] = useState<DispenseFormData>({
-    dispenserAddress: "",
-
-    numberOfDispenses: "1",
+  const [formData, setFormData] = useState<DispenseFormDataInternal>(() => ({
+    dispenserAddress: initialFormData?.dispenser || "",
+    numberOfDispenses: initialFormData?.quantity && initialFormData?.sat_per_vbyte ? (initialFormData.quantity / initialFormData.sat_per_vbyte).toString() : "1",
     selectedPriceLevelIndex: -1,
-  });
-
+    sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
+  }));
   const [priceLevels, setPriceLevels] = useState<PriceLevel[]>([]);
   const [isFetchingDispenser, setIsFetchingDispenser] = useState<boolean>(false);
   const [dispenserError, setDispenserError] = useState<string | null>(null);
   const [btcBalance, setBtcBalance] = useState<string>("0");
+
+  const dispenserAddressRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     dispenserAddressRef.current?.focus();
@@ -94,16 +93,14 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
     setDispenserError(null);
     setPriceLevels([]);
     try {
-      const { dispensers } = await fetchAddressDispensers(address, {
-        status: "open",
-        verbose: true,
-      });
+      const { dispensers } = await fetchAddressDispensers(address, { status: "open", verbose: true });
       if (!dispensers || dispensers.length === 0) {
         setDispenserError("No open dispenser found at this address.");
         return;
       }
       const priceLevelMap = new Map<number, DispenserDetails[]>();
-      for (const dispenser of dispensers) {
+      // Use safer type assertion to handle runtime type mismatch
+      for (const dispenser of dispensers as unknown as DispenserDetails[]) {
         const rate = dispenser.satoshirate;
         if (!priceLevelMap.has(rate)) {
           priceLevelMap.set(rate, []);
@@ -112,6 +109,7 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
         const divisor = isDivisible ? 1e8 : 1;
         priceLevelMap.get(rate)!.push({
           asset: dispenser.asset,
+          tx_hash: dispenser.tx_hash,
           status: dispenser.status,
           give_remaining: dispenser.give_remaining,
           give_remaining_normalized: (dispenser.give_remaining / divisor).toString(),
@@ -122,10 +120,7 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
         });
       }
       const priceLevelsArray: PriceLevel[] = Array.from(priceLevelMap.entries())
-        .map(([satoshirate, dispensers]) => ({
-          satoshirate,
-          dispensers,
-        }))
+        .map(([satoshirate, dispensers]) => ({ satoshirate, dispensers }))
         .sort((a, b) => a.satoshirate - b.satoshirate);
       setPriceLevels(priceLevelsArray);
     } catch (err) {
@@ -176,19 +171,9 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
   });
 
   const selectedPriceOption =
-    formData.selectedPriceLevelIndex !== -1
-      ? paymentOptions[formData.selectedPriceLevelIndex]
-      : null;
+    formData.selectedPriceLevelIndex !== -1 ? paymentOptions[formData.selectedPriceLevelIndex] : null;
   const numberOfDispenses = Number(formData.numberOfDispenses) || 0;
   const totalQuantity = selectedPriceOption ? selectedPriceOption.satoshirate * numberOfDispenses : 0;
-  const totalBtcAmount = selectedPriceOption ? selectedPriceOption.btcAmount * numberOfDispenses : 0;
-  const totalAssets = selectedPriceOption
-    ? selectedPriceOption.assets.map((asset) => ({
-        asset: asset.asset,
-        quantity: (Number(asset.quantity) * numberOfDispenses).toString(),
-        asset_info: asset.asset_info,
-      }))
-    : [];
 
   const calculateMaxDispenses = useCallback(
     (priceLevel: PriceLevel) => {
@@ -209,25 +194,29 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (
-      !formData.dispenserAddress.trim() ||
-      formData.selectedPriceLevelIndex === -1 ||
-      Number(formData.numberOfDispenses) <= 0
-    ) {
+    if (!formData.dispenserAddress.trim()) {
+      setDispenserError("Dispenser address is required.");
       return;
     }
-    const submissionData = {
+    if (formData.selectedPriceLevelIndex === -1) {
+      setDispenserError("Please select a price level.");
+      return;
+    }
+    if (Number(formData.numberOfDispenses) <= 0) {
+      setDispenserError("Number of dispenses must be greater than zero.");
+      return;
+    }
+    if (formData.sat_per_vbyte <= 0) {
+      setDispenserError("Fee rate must be greater than zero.");
+      return;
+    }
+    setDispenserError(null);
+
+    const submissionData: DispenseOptions = {
+      sourceAddress: activeAddress?.address || "",
       dispenser: formData.dispenserAddress.trim(),
-      quantity: totalQuantity.toString(),
-      
-      extra: {
-        priceLevels,
-        selectedPriceLevelIndex: formData.selectedPriceLevelIndex,
-        numberOfDispenses: formData.numberOfDispenses,
-        paymentOptions,
-        totalBtcAmount,
-        totalAssets,
-      },
+      quantity: totalQuantity,
+      sat_per_vbyte: formData.sat_per_vbyte,
     };
     onSubmit(submissionData);
   };
@@ -241,11 +230,12 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
           className="mb-4"
         />
       )}
+      {dispenserError && <div className="text-red-500 mb-2">{dispenserError}</div>}
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Field>
             <Label htmlFor="dispenserAddress" className="block text-sm font-medium text-gray-700">
-              Dispenser Address<span className="text-red-500">*</span>
+              Dispenser Address <span className="text-red-500">*</span>
             </Label>
             <Input
               id="dispenserAddress"
@@ -264,11 +254,9 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
               className="mt-1 block w-full p-2 rounded-md border"
               required
             />
-            {settings?.showHelpText && (
-              <Description className="mt-2 text-sm text-gray-500">
-                Enter the dispenser address to send BTC to.
-              </Description>
-            )}
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Enter the dispenser address to send BTC to.
+            </Description>
           </Field>
 
           {isFetchingDispenser ? (
@@ -283,9 +271,7 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
                     key={option.index}
                     htmlFor={`priceLevel-${option.index}`}
                     className={`relative flex items-start gap-3 bg-gray-50 p-4 rounded-md border cursor-pointer ${
-                      formData.selectedPriceLevelIndex === option.index
-                        ? "border-blue-500"
-                        : "border-gray-300"
+                      formData.selectedPriceLevelIndex === option.index ? "border-blue-500" : "border-gray-300"
                     }`}
                     onClick={() =>
                       setFormData((prev) => ({ ...prev, selectedPriceLevelIndex: option.index }))
@@ -298,10 +284,7 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
                       value={option.index}
                       checked={formData.selectedPriceLevelIndex === option.index}
                       onChange={() =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          selectedPriceLevelIndex: option.index,
-                        }))
+                        setFormData((prev) => ({ ...prev, selectedPriceLevelIndex: option.index }))
                       }
                       className="form-radio text-blue-600 absolute right-5 top-5"
                     />
@@ -344,11 +327,11 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
                   }}
                   maxAmount={maxDispenses.toString()}
                   availableBalance={btcBalance}
-                  feeRateSatPerVByte={formData.feeRateSatPerVByte}
+                  sat_per_vbyte={formData.sat_per_vbyte}
                   description="Number of times to trigger the dispenser"
-                  setError={() => {}}
-                  shouldShowHelpText={settings?.showHelpText}
-                  sourceAddress={{ address: activeAddress?.address || '' }}
+                  setError={setDispenserError}
+                  shouldShowHelpText={shouldShowHelpText}
+                  sourceAddress={{ address: activeAddress?.address || "" }}
                 />
               )}
 
@@ -357,7 +340,7 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
                   <div className="text-sm text-blue-700">
                     <strong>Total Pay:</strong>{" "}
                     {formatAmount({
-                      value: totalBtcAmount,
+                      value: selectedPriceOption.btcAmount * numberOfDispenses,
                       minimumFractionDigits: 8,
                       maximumFractionDigits: 8,
                     })}{" "}
@@ -366,10 +349,10 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
                   <div className="text-sm text-blue-700">
                     <strong>Total Get:</strong>
                     <ul className="list-disc list-inside">
-                      {totalAssets.map((asset, idx) => (
+                      {selectedPriceOption.assets.map((asset, idx) => (
                         <li key={idx}>
                           {formatAmount({
-                            value: Number(asset.quantity),
+                            value: Number(asset.quantity) * numberOfDispenses,
                             minimumFractionDigits: 0,
                             maximumFractionDigits: 8,
                           })}{" "}
@@ -384,28 +367,14 @@ export function DispenseForm({ onSubmit }: DispenseFormProps) {
           )}
 
           <FeeRateInput
-            value={formData.feeRateSatPerVByte}
-            onChange={(value) =>
-              setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))
-            }
-            error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
-            showHelpText={settings?.showHelpText}
+            id="sat_per_vbyte"
+            value={formData.sat_per_vbyte}
+            onChange={(value) => setFormData((prev) => ({ ...prev, sat_per_vbyte: value }))}
+            error={formData.sat_per_vbyte <= 0 ? "Fee rate must be greater than zero." : ""}
+            showHelpText={shouldShowHelpText}
           />
 
-          <Button
-            type="submit"
-            color="blue"
-            fullWidth
-            disabled={
-              !formData.dispenserAddress.trim() ||
-              formData.selectedPriceLevelIndex === -1 ||
-              formData.feeRateSatPerVByte <= 0 ||
-              priceLevels.length === 0 ||
-              !!dispenserError ||
-              !formData.numberOfDispenses ||
-              Number(formData.numberOfDispenses) <= 0
-            }
-          >
+          <Button type="submit" color="blue" fullWidth>
             Continue
           </Button>
         </form>

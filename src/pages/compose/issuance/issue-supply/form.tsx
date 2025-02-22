@@ -1,69 +1,93 @@
 import React, { useState, useRef, useEffect, FormEvent } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { IssuanceOptions } from "@/utils/blockchain/counterparty";
 
-export interface IssueSupplyFormData {
+interface IssueSupplyFormDataInternal {
   quantity: string;
-
+  sat_per_vbyte: number;
 }
 
 interface IssueSupplyFormProps {
-  onSubmit: (data: IssueSupplyFormData) => void;
-  shouldShowHelpText?: boolean;
+  onSubmit: (data: IssuanceOptions) => void;
+  initialFormData?: IssuanceOptions;
   asset: string;
 }
 
-export const IssueSupplyForm = ({ onSubmit, shouldShowHelpText = true, asset }: IssueSupplyFormProps) => {
+export function IssueSupplyForm({ onSubmit, initialFormData, asset }: IssueSupplyFormProps) {
   const { activeAddress } = useWallet();
-  const { data: assetDetails, isLoading, error } = useAssetDetails(asset);
+  const { settings } = useSettings();
+  const shouldShowHelpText = settings?.showHelpText ?? false;
+  const { data: assetDetails, isLoading, error: assetError } = useAssetDetails(asset);
 
-  const [formData, setFormData] = useState<IssueSupplyFormData>({
-    quantity: "",
-
+  const [formData, setFormData] = useState<IssueSupplyFormDataInternal>(() => {
+    const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
+    return {
+      quantity: initialFormData?.quantity
+        ? isDivisible
+          ? (initialFormData.quantity / 1e8).toFixed(8)
+          : initialFormData.quantity.toString()
+        : "",
+      sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
+    };
   });
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const quantityInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     quantityInputRef.current?.focus();
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!formData.quantity.trim() || Number(formData.quantity) <= 0 || formData.feeRateSatPerVByte <= 0) {
-      return; // Validation handled by form fields and FeeRateInput
+    if (!formData.quantity || Number(formData.quantity) <= 0) {
+      setLocalError("Quantity must be greater than zero.");
+      return;
     }
-    onSubmit(formData);
+    if (formData.sat_per_vbyte <= 0) {
+      setLocalError("Fee rate must be greater than zero.");
+      return;
+    }
+    setLocalError(null);
+
+    const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
+    const quantityNum = Number(formData.quantity);
+
+    const submissionData: IssuanceOptions = {
+      sourceAddress: activeAddress?.address || "",
+      asset,
+      quantity: isDivisible ? Math.round(quantityNum * 1e8) : Math.round(quantityNum),
+      divisible: isDivisible,
+      lock: false,
+      reset: false,
+      sat_per_vbyte: formData.sat_per_vbyte,
+    };
+    onSubmit(submissionData);
   };
 
-  if (error || !assetDetails) {
-    return <ErrorAlert message={error?.message || "Failed to load asset details"} />;
-  }
-
-  const { isDivisible, assetInfo } = assetDetails;
+  if (isLoading) return <div className="p-4">Loading asset details...</div>;
+  if (assetError || !assetDetails)
+    return <div className="p-4 text-red-500">Error loading asset details: {assetError?.message}</div>;
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
       <div className="mb-4 p-3 bg-gray-50 rounded-md">
         <h3 className="text-sm font-medium text-gray-700">Asset Details</h3>
         <div className="mt-2 text-sm text-gray-600">
-          <p>Current Supply: {assetInfo?.supply || "0"}</p>
-          <p>Divisible: {isDivisible ? "Yes" : "No"}</p>
+          <p>Current Supply: {assetDetails?.assetInfo?.supply || "0"}</p>
+          <p>Divisible: {assetDetails?.assetInfo?.divisible ? "Yes" : "No"}</p>
         </div>
       </div>
-
+      {localError && <div className="text-red-500 mb-2">{localError}</div>}
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field>
           <Label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
-            Quantity<span className="text-red-500">*</span>
+            Quantity <span className="text-red-500">*</span>
           </Label>
           <Input
             ref={quantityInputRef}
@@ -71,35 +95,27 @@ export const IssueSupplyForm = ({ onSubmit, shouldShowHelpText = true, asset }: 
             name="quantity"
             type="text"
             value={formData.quantity}
-            onChange={handleInputChange}
+            onChange={(e) => setFormData((prev) => ({ ...prev, quantity: e.target.value }))}
             className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
             required
+            placeholder={assetDetails?.assetInfo?.divisible ? "0.00000000" : "0"}
           />
-          {shouldShowHelpText && (
-            <Description className="mt-2 text-sm text-gray-500">
-              {assetInfo && assetInfo.divisible
-                ? "Enter the quantity to issue (up to 8 decimal places)."
-                : "Enter a whole number quantity."}
-            </Description>
-          )}
+          <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+            {assetDetails?.assetInfo?.divisible
+              ? "Enter the quantity to issue (up to 8 decimal places)."
+              : "Enter a whole number quantity."}
+          </Description>
         </Field>
-
         <FeeRateInput
-          value={formData.feeRateSatPerVByte}
-          onChange={(value) => setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))}
-          error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
+          value={formData.sat_per_vbyte}
+          onChange={(value) => setFormData((prev) => ({ ...prev, sat_per_vbyte: value }))}
+          error={formData.sat_per_vbyte <= 0 ? "Fee rate must be greater than zero." : ""}
           showHelpText={shouldShowHelpText}
         />
-
-        <Button
-          type="submit"
-          color="blue"
-          fullWidth
-          disabled={!formData.quantity.trim() || Number(formData.quantity) <= 0 || formData.feeRateSatPerVByte <= 0}
-        >
+        <Button type="submit" color="blue" fullWidth>
           Continue
         </Button>
       </form>
     </div>
   );
-};
+}

@@ -6,33 +6,37 @@ import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { FairmintOptions } from "@/utils/blockchain/counterparty";
 
-export interface FairmintFormData {
+interface FairmintFormDataInternal {
   asset: string;
   quantity: string;
-
+  sat_per_vbyte: number;
 }
 
 interface FairmintFormProps {
-  onSubmit: (data: FairmintFormData) => void;
+  onSubmit: (data: FairmintOptions) => void;
+  initialFormData?: FairmintOptions;
   initialAsset?: string;
 }
 
-export function FairmintForm({ onSubmit, initialAsset = "" }: FairmintFormProps) {
-  const [formData, setFormData] = useState<FairmintFormData>({
-    asset: initialAsset,
-    quantity: "",
+export function FairmintForm({ onSubmit, initialFormData, initialAsset = "" }: FairmintFormProps) {
+  const { activeAddress } = useWallet();
+  const { settings } = useSettings();
+  const shouldShowHelpText = settings?.showHelpText ?? false;
+  const { isLoading, error: assetError, data: assetDetails } = useAssetDetails(initialFormData?.asset || initialAsset);
 
+  const [formData, setFormData] = useState<FairmintFormDataInternal>(() => {
+    const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
+    return {
+      asset: initialFormData?.asset || initialAsset,
+      quantity: initialFormData?.quantity ? (isDivisible ? (initialFormData.quantity / 1e8).toFixed(8) : initialFormData.quantity.toString()) : "",
+      sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
+    };
   });
   const [localError, setLocalError] = useState<string | null>(null);
+
   const inputRef = useRef<HTMLInputElement>(null);
-  const { settings } = useSettings();
-  const shouldShowHelpText = settings?.showHelpText;
-
-  const { isLoading, error, data } = useAssetDetails(formData.asset);
-  const { assetInfo } = data || { assetInfo: null };
-
-  const { activeAddress } = useWallet();
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -40,7 +44,6 @@ export function FairmintForm({ onSubmit, initialAsset = "" }: FairmintFormProps)
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     if (!formData.asset) {
       setLocalError("Please enter an asset name.");
       return;
@@ -49,56 +52,49 @@ export function FairmintForm({ onSubmit, initialAsset = "" }: FairmintFormProps)
       setLocalError("Please enter a valid quantity greater than zero.");
       return;
     }
-    if (formData.feeRateSatPerVByte <= 0) {
-      setLocalError("Please enter a valid fee rate greater than zero.");
+    if (formData.sat_per_vbyte <= 0) {
+      setLocalError("Fee rate must be greater than zero.");
       return;
     }
     setLocalError(null);
 
-    let convertedQuantity = formData.quantity;
-    if (assetInfo && assetInfo.divisible) {
-      const quantityNumber = Number(formData.quantity);
-      convertedQuantity = Math.round(quantityNumber * 1e8).toString();
-    }
+    const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
+    const quantityNum = Number(formData.quantity);
 
-    const updatedFormData: FairmintFormData = {
+    const submissionData: FairmintOptions = {
+      sourceAddress: activeAddress?.address || "",
       asset: formData.asset,
-      quantity: convertedQuantity,
-      
+      quantity: isDivisible ? Math.round(quantityNum * 1e8) : Math.round(quantityNum),
+      sat_per_vbyte: formData.sat_per_vbyte,
     };
-
-    onSubmit(updatedFormData);
+    onSubmit(submissionData);
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-4">
-      {formData.asset && (
-        <div className="min-h-[80px]">
-          <Suspense fallback={<div>Loading asset details...</div>}>
-            {isLoading ? (
-              <div className="animate-pulse h-12 bg-gray-200 rounded"></div>
-            ) : error ? (
-              <div className="text-red-500">{error.message}</div>
-            ) : (
-              <BalanceHeader
-                balance={{
-                  asset: formData.asset,
-                  asset_info: assetInfo || undefined,
-                  quantity_normalized: "",
-                }}
-                className="mb-4"
-              />
-            )}
-          </Suspense>
-        </div>
-      )}
+    <div className="space-y-4">
+      <Suspense fallback={<div>Loading asset details...</div>}>
+        {isLoading ? (
+          <div className="animate-pulse h-12 bg-gray-200 rounded mb-4" />
+        ) : assetError ? (
+          <div className="text-red-500 mb-4">{assetError.message}</div>
+        ) : assetDetails && formData.asset ? (
+          <BalanceHeader
+            balance={{
+              asset: formData.asset,
+              asset_info: assetDetails?.assetInfo || { asset_longname: null },
+              quantity_normalized: (assetDetails?.availableBalance || 0).toString()
+            }}
+            className="mb-4"
+          />
+        ) : null}
+      </Suspense>
       {localError && <div className="text-red-500 mb-2">{localError}</div>}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Field>
-          <Label className="text-sm font-medium text-gray-700">
-            Asset <span className="text-red-500">*</span>
-          </Label>
-          <div className="relative mt-1 mb-2">
+      <div className="bg-white rounded-lg shadow-lg p-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Asset <span className="text-red-500">*</span>
+            </Label>
             <Input
               ref={inputRef}
               type="text"
@@ -107,51 +103,40 @@ export function FairmintForm({ onSubmit, initialAsset = "" }: FairmintFormProps)
               onChange={(e) => setFormData({ ...formData, asset: e.target.value.trim() })}
               required
               placeholder="Enter asset name"
-              className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
             />
-          </div>
-          <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-            Enter the asset you want to perform a fair mint for.
-          </Description>
-        </Field>
-
-        <Field>
-          <Label className="text-sm font-medium text-gray-700">
-            Quantity <span className="text-red-500">*</span>
-          </Label>
-          <div className="relative mt-1 mb-2">
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Enter the asset you want to perform a fair mint for.
+            </Description>
+          </Field>
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              Quantity <span className="text-red-500">*</span>
+            </Label>
             <Input
               type="text"
               name="quantity"
               value={formData.quantity}
               onChange={(e) => setFormData({ ...formData, quantity: e.target.value.trim() })}
               required
-              placeholder="Enter quantity to mint"
-              className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              placeholder={assetDetails?.assetInfo?.divisible ? "0.00000000" : "0"}
+              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
             />
-          </div>
-          <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-            Enter the quantity to mint (in decimal; will be converted to satoshis if the asset is divisible).
-          </Description>
-        </Field>
-
-        <FeeRateInput
-          id="feeRateSatPerVByte"
-          value={formData.feeRateSatPerVByte}
-          onChange={(value: number) =>
-            setFormData({ ...formData, feeRateSatPerVByte: value })
-          }
-          error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
-          showLabel={true}
-          label="Fee Rate (sat/vB)"
-          showHelpText={shouldShowHelpText}
-          autoFetch={true}
-        />
-
-        <Button type="submit" color="blue" fullWidth>
-          Continue
-        </Button>
-      </form>
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Enter the quantity to mint {assetDetails?.assetInfo?.divisible ? "(up to 8 decimal places)" : "(whole numbers only)"}.
+            </Description>
+          </Field>
+          <FeeRateInput
+            value={formData.sat_per_vbyte}
+            onChange={(value) => setFormData({ ...formData, sat_per_vbyte: value })}
+            error={formData.sat_per_vbyte <= 0 ? "Fee rate must be greater than zero." : ""}
+            showHelpText={shouldShowHelpText}
+          />
+          <Button type="submit" color="blue" fullWidth>
+            Continue
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

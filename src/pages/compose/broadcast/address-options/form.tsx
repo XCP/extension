@@ -5,39 +5,50 @@ import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { BroadcastOptions } from "@/utils/blockchain/counterparty";
 
 const ADDRESS_OPTION_REQUIRE_MEMO = 1;
 
-export interface AddressOptionsFormData {
+interface AddressOptionsFormDataInternal {
   requireMemo: boolean;
-  feeRateSatPerVByte: number;
+  sat_per_vbyte: number;
 }
 
 interface AddressOptionsFormProps {
-  onSubmit: (data: AddressOptionsFormData & { text?: string }) => void;
+  onSubmit: (data: BroadcastOptions) => void;
+  initialFormData?: BroadcastOptions;
 }
 
-export function AddressOptionsForm({ onSubmit }: AddressOptionsFormProps) {
+export function AddressOptionsForm({ onSubmit, initialFormData }: AddressOptionsFormProps) {
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
-  const [formData, setFormData] = useState<Omit<AddressOptionsFormData, 'feeRateSatPerVByte'>>({
-    requireMemo: false,
-  });
-  const [feeRate, setFeeRate] = useState<number>(0);
+  const shouldShowHelpText = settings?.showHelpText ?? false;
 
-  const handleRequireMemoChange = (checked: boolean) => {
-    setFormData((prev) => ({ ...prev, requireMemo: checked }));
-  };
+  const [formData, setFormData] = useState<AddressOptionsFormDataInternal>(() => ({
+    requireMemo: initialFormData?.text === `options ${ADDRESS_OPTION_REQUIRE_MEMO}` || false,
+    sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
+  }));
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  const handleSubmitInternal = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (feeRate <= 0) return;
+    if (!formData.requireMemo) {
+      setLocalError("Please check 'Require Memo' to proceed.");
+      return;
+    }
+    if (formData.sat_per_vbyte <= 0) {
+      setLocalError("Fee rate must be greater than zero.");
+      return;
+    }
+    setLocalError(null);
+
     const options = formData.requireMemo ? ADDRESS_OPTION_REQUIRE_MEMO : 0;
-    onSubmit({
-      ...formData,
-      feeRateSatPerVByte: feeRate,
+    const submissionData: BroadcastOptions = {
+      sourceAddress: activeAddress?.address || "",
       text: `options ${options}`,
-    });
+      sat_per_vbyte: formData.sat_per_vbyte,
+    };
+    onSubmit(submissionData);
   };
 
   return (
@@ -49,31 +60,28 @@ export function AddressOptionsForm({ onSubmit }: AddressOptionsFormProps) {
           className="mb-6"
         />
       )}
+      {localError && <div className="text-red-500 mb-2">{localError}</div>}
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-        <form onSubmit={handleSubmitInternal} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
             <p className="text-sm text-yellow-700">
-              The "Require Memo" option will make this address reject transactions without memos.
-              This setting cannot be reversed.
+              The "Require Memo" option will make this address reject transactions without memos. This setting cannot be reversed.
             </p>
           </div>
           <CheckboxInput
             checked={formData.requireMemo}
-            onChange={handleRequireMemoChange}
+            onChange={(checked) => setFormData({ ...formData, requireMemo: checked })}
             label="Require Memo for Incoming Transactions"
             aria-label="Toggle require memo for incoming transactions"
           />
           <FeeRateInput
-            onChange={setFeeRate}
-            error={feeRate <= 0 ? "Fee rate must be greater than zero." : ""}
-            showHelpText={settings?.showHelpText}
+            id="sat_per_vbyte"
+            value={formData.sat_per_vbyte}
+            onChange={(value) => setFormData({ ...formData, sat_per_vbyte: value })}
+            error={formData.sat_per_vbyte <= 0 ? "Fee rate must be greater than zero." : ""}
+            showHelpText={shouldShowHelpText}
           />
-          <Button
-            type="submit"
-            color="blue"
-            fullWidth
-            disabled={!formData.requireMemo || feeRate <= 0}
-          >
+          <Button type="submit" color="blue" fullWidth>
             Continue
           </Button>
         </form>

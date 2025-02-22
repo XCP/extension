@@ -1,185 +1,126 @@
-import axios from "axios";
-import React, { useState, useEffect, useRef, FormEvent } from "react";
+import React, { useState, useRef, useEffect, FormEvent } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
-import { BalanceHeader } from "@/components/headers/balance-header";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
+import { AssetHeader } from "@/components/headers/asset-header";
+import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchAssetDetailsAndBalance } from "@/utils/blockchain/counterparty";
+import { DividendOptions, fetchAssetDetails } from "@/utils/blockchain/counterparty";
 
-export interface DispenserFormData {
-  give_quantity: string;
-  escrow_quantity: string;
-  mainchainrate: string;
-
+interface DividendFormDataInternal {
+  quantity_per_unit: string;
+  dividend_asset: string;
+  sat_per_vbyte: number;
 }
 
-export interface TradingPairData {
-  last_trade_price: string | null;
-  name: string;
-}
-
-interface DispenserFormProps {
+interface DividendFormProps {
+  onSubmit: (data: DividendOptions) => void;
+  initialFormData?: DividendOptions;
   asset: string;
-  onSubmit: (data: any) => void;
 }
 
-export function DispenserForm({ asset, onSubmit }: DispenserFormProps) {
-  const { activeAddress, activeWallet } = useWallet();
+export function DividendForm({ onSubmit, initialFormData, asset }: DividendFormProps) {
+  const { activeAddress } = useWallet();
   const { settings } = useSettings();
 
-  const [formData, setFormData] = useState<DispenserFormData>({
-    give_quantity: "",
-    escrow_quantity: "",
-    mainchainrate: "",
-    feeRateSatPerVByte: 10, // Updated default to 10 sat/vB
-  });
-  const [availableBalance, setAvailableBalance] = useState<string>("0");
-  const [assetInfo, setAssetInfo] = useState<any>(null);
-  const [assetDivisible, setAssetDivisible] = useState<boolean>(true);
-  const [tradingPairData, setTradingPairData] = useState<TradingPairData | null>(null);
+  const shouldShowHelpText = settings?.showHelpText ?? false;
 
-  const escrowInputRef = useRef<HTMLInputElement>(null);
+  const [formData, setFormData] = useState<DividendFormDataInternal>(() => ({
+    quantity_per_unit: initialFormData?.quantity_per_unit ? (initialFormData.quantity_per_unit / 1e8).toFixed(8) : "",
+    dividend_asset: initialFormData?.dividend_asset || "XCP",
+    sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
+  }));
+  const [assetInfo, setAssetInfo] = useState<any>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const amountRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    escrowInputRef.current?.focus();
+    amountRef.current?.focus();
   }, []);
 
   useEffect(() => {
-    const fetchDetails = async () => {
-      if (!asset || !activeAddress?.address) return;
-      try {
-        const { isDivisible, assetInfo, availableBalance } =
-          await fetchAssetDetailsAndBalance(asset, activeAddress.address);
-        setAssetDivisible(isDivisible);
-        setAssetInfo(assetInfo);
-        setAvailableBalance(availableBalance);
-
-        setFormData((prev) => ({
-          ...prev,
-          give_quantity: isDivisible ? "1.00000000" : "1",
-        }));
-
-        const tradingPairResponse = await axios.get(
-          `https://app.xcp.io/api/v1/swap/${asset}/BTC`
-        );
-        const lastTradePrice =
-          tradingPairResponse.data?.data?.trading_pair?.last_trade_price || null;
-        setTradingPairData({ last_trade_price: lastTradePrice, name: "BTC" });
-      } catch (err) {
-        console.error("Error fetching asset details:", err);
+    async function fetchDetails() {
+      if (!asset) {
+        setLocalError("Asset is not specified.");
+        return;
       }
-    };
-
+      try {
+        const details = await fetchAssetDetails(asset);
+        setAssetInfo(details);
+      } catch (err) {
+        console.error("Failed to fetch asset details:", err);
+        setLocalError("Failed to retrieve asset information.");
+      }
+    }
     fetchDetails();
-  }, [asset, activeAddress?.address]);
+  }, [asset]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmitInternal = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const submissionData = {
+    if (!formData.quantity_per_unit || Number(formData.quantity_per_unit) <= 0) {
+      setLocalError("Quantity per unit must be a positive number.");
+      return;
+    }
+    if (!formData.dividend_asset.trim()) {
+      setLocalError("Dividend asset is required.");
+      return;
+    }
+    if (formData.sat_per_vbyte <= 0) {
+      setLocalError("Fee rate must be greater than zero.");
+      return;
+    }
+    setLocalError(null);
+
+    const submissionData: DividendOptions = {
+      sourceAddress: activeAddress?.address || "",
       asset,
-      ...formData,
-      extra: {
-        availableBalance,
-        assetInfo,
-        assetDivisible,
-        tradingPairData,
-      },
+      dividend_asset: formData.dividend_asset,
+      quantity_per_unit: Math.round(Number(formData.quantity_per_unit) * 1e8),
+      sat_per_vbyte: formData.sat_per_vbyte,
     };
     onSubmit(submissionData);
   };
 
   return (
     <div className="space-y-4">
-      {asset && activeAddress && (
-        <BalanceHeader
-          balance={{
-            asset,
-            quantity_normalized: availableBalance,
-            asset_info: assetInfo || undefined,
-          }}
-          className="mb-6"
-        />
-      )}
-      <div className="bg-white rounded-lg shadow-lg p-4">
-        <form className="space-y-6" onSubmit={handleSubmitInternal}>
-          <AmountWithMaxInput
-            ref={escrowInputRef}
-            asset={asset}
-            availableBalance={availableBalance}
-            value={formData.escrow_quantity}
-            onChange={(value) => setFormData((prev) => ({ ...prev, escrow_quantity: value }))}
-            feeRateSatPerVByte={formData.feeRateSatPerVByte}
-            walletState={activeAddress}
-            maxAmount={availableBalance}
-            shouldShowHelpText={settings?.showHelpText}
-            disabled={false}
-            label="Dispenser Escrow"
-            name="escrow_quantity"
-            description={`The total quantity of the asset to reserve for this dispenser. ${
-              assetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only."
-            } Available: ${availableBalance}`}
+      {asset && assetInfo && <AssetHeader assetInfo={assetInfo} className="mb-6" />}
+      {localError && <div className="text-red-500">{localError}</div>}
+      <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <AssetSelectInput
+            selectedAsset={formData.dividend_asset}
+            onChange={(value) => setFormData((prev) => ({ ...prev, dividend_asset: value }))}
+            label="Dividend Asset"
+            required
+            shouldShowHelpText={shouldShowHelpText}
+            description="The asset to pay dividends in (e.g., XCP)."
           />
-
-          <PriceWithSuggestInput
-            value={formData.mainchainrate}
-            onChange={(value) => setFormData((prev) => ({ ...prev, mainchainrate: value }))}
-            tradingPairData={tradingPairData}
-            shouldShowHelpText={settings?.showHelpText}
-            label="BTC Per Dispense"
-            name="mainchainrate"
-            priceDescription="The amount of BTC required per dispensed portion."
-            showPairFlip={false}
-          />
-
           <Field>
-            <Label htmlFor="give_quantity" className="text-sm font-medium text-gray-700">
-              Dispense Amount<span className="text-red-500">*</span>
+            <Label htmlFor="quantity_per_unit" className="block text-sm font-medium text-gray-700">
+              Amount Per Unit <span className="text-red-500">*</span>
             </Label>
             <Input
-              id="give_quantity"
+              ref={amountRef}
+              id="quantity_per_unit"
               type="text"
-              name="give_quantity"
-              value={formData.give_quantity}
-              onChange={handleInputChange}
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={formData.quantity_per_unit}
+              onChange={(e) => setFormData((prev) => ({ ...prev, quantity_per_unit: e.target.value }))}
+              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
               required
-              placeholder={assetDivisible ? "0.00000000" : "0"}
             />
-            {settings?.showHelpText && (
-              <Description className="mt-2 text-sm text-gray-500">
-                The quantity of the asset to dispense per transaction.
-                {assetDivisible ? " Enter up to 8 decimal places." : " Enter whole numbers only."}
-              </Description>
-            )}
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Amount of dividend asset to be paid per unit of the source asset (up to 8 decimal places).
+            </Description>
           </Field>
-
           <FeeRateInput
-            value={formData.feeRateSatPerVByte}
-            onChange={(value) => setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }))}
-            error={formData.feeRateSatPerVByte <= 0 ? "Fee rate must be greater than zero." : ""}
-            showHelpText={settings?.showHelpText}
+            value={formData.sat_per_vbyte}
+            onChange={(value) => setFormData((prev) => ({ ...prev, sat_per_vbyte: value }))}
+            error={formData.sat_per_vbyte <= 0 ? "Fee rate must be greater than zero." : ""}
+            showHelpText={shouldShowHelpText}
           />
-
-          <Button
-            color="blue"
-            fullWidth
-            disabled={
-              !formData.give_quantity ||
-              !formData.escrow_quantity ||
-              !formData.mainchainrate ||
-              formData.feeRateSatPerVByte <= 0
-            }
-            type="submit"
-          >
+          <Button type="submit" color="blue" fullWidth>
             Continue
           </Button>
         </form>
