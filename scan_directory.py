@@ -24,14 +24,25 @@ def matches_filter(path, filter_keyword):
         return True
     return filter_keyword.lower() in path.lower()
 
-def generate_structure(root_dir, filter_keyword=None):
+def should_skip(path, skip_keywords):
+    """
+    Checks if the path contains any of the skip keywords (case-insensitive).
+    If skip_keywords is None or empty, returns False (no skipping).
+    """
+    if not skip_keywords:
+        return False
+    path_lower = path.lower()
+    return any(keyword.lower() in path_lower for keyword in skip_keywords)
+
+def generate_structure(root_dir, filter_keyword=None, skip_keywords=None):
     """
     Walk through root_dir and collect folder and file paths while skipping ignored items.
-    Optionally filter by a keyword in the path.
+    Optionally filter by a keyword in the path and skip paths with specified keywords.
 
     Args:
       - root_dir: The root directory to scan.
       - filter_keyword: Optional string to filter paths (e.g., "compose").
+      - skip_keywords: Optional list of strings to exclude paths (e.g., ["negative", "negative2"]).
 
     Returns:
       - folders: a list of folder paths (formatted in Unix style with a leading "/" and a trailing "/" when appropriate)
@@ -50,8 +61,8 @@ def generate_structure(root_dir, filter_keyword=None):
             rel_dir = ""
         posix_dir = "/" + rel_dir.replace(os.sep, "/") + ("/" if rel_dir != "" else "")
         
-        # Apply filter to folders
-        if matches_filter(posix_dir, filter_keyword):
+        # Apply inclusion and exclusion filters to folders
+        if matches_filter(posix_dir, filter_keyword) and not should_skip(posix_dir, skip_keywords):
             folders.append(posix_dir)
         
         for filename in filenames:
@@ -59,8 +70,8 @@ def generate_structure(root_dir, filter_keyword=None):
                 continue
             full_path = os.path.join(dirpath, filename)
             rel_file = os.path.relpath(full_path, root_dir).replace(os.sep, "/")
-            # Apply filter to files
-            if matches_filter(rel_file, filter_keyword):
+            # Apply inclusion and exclusion filters to files
+            if matches_filter(rel_file, filter_keyword) and not should_skip(rel_file, skip_keywords):
                 files.append((rel_file, full_path))
             
     return folders, files
@@ -125,7 +136,7 @@ def main():
         description="Generate a project listing that first shows folder names and file paths, then lists file contents. "
                     "Uses the current directory if no path is provided. "
                     "Ignored items: names starting with a dot, any 'node_modules' folders, and files named "
-                    "'scan_directory.py' or 'package-lock.json'. Optionally filter by a keyword in paths."
+                    "'scan_directory.py' or 'package-lock.json'. Optionally filter by a keyword in paths and skip paths with specified keywords."
     )
     parser.add_argument(
         "path",
@@ -136,6 +147,10 @@ def main():
     parser.add_argument(
         "--filter",
         help="Optional keyword to filter folders and files (e.g., 'compose')."
+    )
+    parser.add_argument(
+        "--skip",
+        help="Optional comma-separated keywords to exclude folders and files (e.g., 'negative,negative2,negative3')."
     )
     parser.add_argument(
         "--output",
@@ -150,9 +165,12 @@ def main():
         sys.exit(1)
     
     root_dir = os.path.abspath(root_dir)
-    folders, files = generate_structure(root_dir, filter_keyword=args.filter)
+    # Split the skip argument into a list if provided, otherwise None
+    skip_keywords = args.skip.split(',') if args.skip else None
+    folders, files = generate_structure(root_dir, filter_keyword=args.filter, skip_keywords=skip_keywords)
     
     output_text(folders, files, args.output)
 
 if __name__ == '__main__':
     main()
+    

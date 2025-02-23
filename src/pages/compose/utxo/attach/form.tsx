@@ -95,7 +95,7 @@ export function UtxoAttachForm({ onSubmit, initialFormData }: UtxoAttachFormProp
       {activeAddress && assetInfo && (
         <BalanceHeader
           balance={{ asset: formData.asset, quantity_normalized: availableBalance, asset_info: assetInfo }}
-          className="mb-4"
+          className="mb-5"
         />
       )}
       {localError && <div className="text-red-500 mb-2">{localError}</div>}

@@ -7,6 +7,7 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { FairmintOptions } from "@/utils/blockchain/counterparty";
+import { useLoading } from "@/contexts/loading-context";
 
 interface FairmintFormDataInternal {
   asset: string;
@@ -23,8 +24,12 @@ interface FairmintFormProps {
 export function FairmintForm({ onSubmit, initialFormData, initialAsset = "" }: FairmintFormProps) {
   const { activeAddress } = useWallet();
   const { settings } = useSettings();
+  const { showLoading, hideLoading } = useLoading();
   const shouldShowHelpText = settings?.showHelpText ?? false;
-  const { isLoading, error: assetError, data: assetDetails } = useAssetDetails(initialFormData?.asset || initialAsset);
+  const { error: assetError, data: assetDetails } = useAssetDetails(initialFormData?.asset || initialAsset, {
+    onLoadStart: () => showLoading(`Loading ${initialFormData?.asset || initialAsset} details...`),
+    onLoadEnd: hideLoading
+  });
 
   const [formData, setFormData] = useState<FairmintFormDataInternal>(() => {
     const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
@@ -72,16 +77,21 @@ export function FairmintForm({ onSubmit, initialFormData, initialAsset = "" }: F
 
   return (
     <div className="space-y-4">
-      <Suspense fallback={<div>Loading asset details...</div>}>
-        {isLoading ? (
-          <div className="animate-pulse h-12 bg-gray-200 rounded mb-4" />
-        ) : assetError ? (
+      <Suspense fallback={null}>
+        {assetError ? (
           <div className="text-red-500 mb-4">{assetError.message}</div>
         ) : assetDetails && formData.asset ? (
           <BalanceHeader
             balance={{
               asset: formData.asset,
-              asset_info: assetDetails?.assetInfo || { asset_longname: null },
+              asset_info: assetDetails?.assetInfo || { 
+                asset_longname: null,
+                divisible: false,
+                locked: false,
+                description: '',
+                issuer: '',
+                supply: '0'
+              },
               quantity_normalized: (assetDetails?.availableBalance || 0).toString()
             }}
             className="mb-4"

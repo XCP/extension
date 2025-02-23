@@ -5,6 +5,7 @@ import { useWallet } from '@/contexts/wallet-context';
 import { useHeader } from '@/contexts/header-context';
 import { useAssetDetails } from '@/hooks/useAssetDetails';
 import { formatAsset, formatAmount } from '@/utils/format';
+import { BalanceHeader } from '@/components/headers/balance-header';
 
 interface Action {
   id: string;
@@ -113,24 +114,25 @@ export const ViewBalance = () => {
     );
   }
 
+  // Create the balance object expected by BalanceHeader
+  const balanceData = {
+    asset: asset || '',
+    asset_info: {
+      asset_longname: assetDetails.assetInfo?.asset_longname || null,
+      description: assetDetails.assetInfo?.description,
+      issuer: assetDetails.assetInfo?.issuer,
+      divisible: assetDetails.isDivisible,
+      locked: assetDetails.assetInfo?.locked,
+      supply: assetDetails.assetInfo?.supply,
+    },
+    quantity_normalized: assetDetails.availableBalance,
+  };
+
   return (
     <div className="p-4 space-y-6">
-      {/* Balance Header */}
+      {/* Replace the old balance header with BalanceHeader component */}
       <div className="bg-white rounded-lg p-4 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900">
-          {formatAsset(asset || '', {
-            assetInfo: assetDetails.assetInfo,
-          })}
-        </h2>
-        <p className="text-3xl font-bold text-gray-900 mt-2">
-          {formatAmount({
-            amount: assetDetails.availableBalance,
-            isDivisible: assetDetails.isDivisible
-          })}
-        </p>
-        <p className="text-sm text-gray-500 mt-1">
-          {assetDetails.assetInfo?.description || 'No description'}
-        </p>
+        <BalanceHeader balance={balanceData} />
       </div>
 
       {/* Balance Actions */}

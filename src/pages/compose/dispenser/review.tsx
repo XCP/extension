@@ -25,17 +25,26 @@ export function ReviewDispenser({ apiResponse, onSign, onBack, asset }: ReviewDi
 
   const customFields = [
     {
-      label: "Dispenser Escrow",
+      label: "Escrow Total",
       value: `${formatQuantity(Number(result.params.escrow_quantity))} ${asset}`,
     },
     {
-      label: "Dispense Amount",
+      label: "Give Amount",
       value: `${formatQuantity(Number(result.params.give_quantity))} ${asset}`,
     },
     {
-      label: "BTC Per Dispense",
+      label: "Per Dispense",
       value: `${formatAmount({
         value: Number(result.params.mainchainrate) / 1e8,
+        minimumFractionDigits: 8,
+        maximumFractionDigits: 8,
+      })} BTC`,
+    },
+    {
+      label: "Bitcoin Total",
+      value: `${formatAmount({
+        value: (Number(result.params.escrow_quantity) / Number(result.params.give_quantity)) * 
+               (Number(result.params.mainchainrate) / 1e8),
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
       })} BTC`,

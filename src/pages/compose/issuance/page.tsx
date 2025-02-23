@@ -10,7 +10,7 @@ export function ComposeIssuance() {
   return (
     <div className="p-4">
       <Composer
-        initialTitle="Issuance"
+        initialTitle="Issue Asset"
         FormComponent={(props) => <IssuanceForm {...props} initialParentAsset={asset} />}
         ReviewComponent={ReviewIssuance}
         composeTransaction={composeIssuance}

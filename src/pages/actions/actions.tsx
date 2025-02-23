@@ -99,6 +99,17 @@ const actionGroups: ActionGroup[] = [
       },
     ],
   },
+  {
+    title: "Betting",
+    actions: [
+      {
+        id: "place-bet",
+        name: "Place Bet",
+        description: "Create a new bet on the network",
+        path: "/compose/bet",
+      },
+    ],
+  },
 ];
 
 export default function ActionsScreen() {

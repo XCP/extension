@@ -6,6 +6,7 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { IssuanceOptions } from "@/utils/blockchain/counterparty";
+import { useLoading } from "@/contexts/loading-context";
 
 interface IssueSupplyFormDataInternal {
   quantity: string;
@@ -21,8 +22,13 @@ interface IssueSupplyFormProps {
 export function IssueSupplyForm({ onSubmit, initialFormData, asset }: IssueSupplyFormProps) {
   const { activeAddress } = useWallet();
   const { settings } = useSettings();
+  const { showLoading, hideLoading } = useLoading();
   const shouldShowHelpText = settings?.showHelpText ?? false;
-  const { data: assetDetails, isLoading, error: assetError } = useAssetDetails(asset);
+  
+  const { error: assetError, data: assetDetails } = useAssetDetails(asset, {
+    onLoadStart: () => showLoading(`Loading ${asset} details...`),
+    onLoadEnd: hideLoading
+  });
 
   const [formData, setFormData] = useState<IssueSupplyFormDataInternal>(() => {
     const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
@@ -70,7 +76,6 @@ export function IssueSupplyForm({ onSubmit, initialFormData, asset }: IssueSuppl
     onSubmit(submissionData);
   };
 
-  if (isLoading) return <div className="p-4">Loading asset details...</div>;
   if (assetError || !assetDetails)
     return <div className="p-4 text-red-500">Error loading asset details: {assetError?.message}</div>;
 

@@ -60,7 +60,7 @@ export function UtxoDetachForm({ onSubmit, initialFormData }: UtxoDetachFormProp
         <AddressHeader
           address={activeAddress.address}
           walletName={activeWallet?.name}
-          className="mb-4"
+          className="mb-5"
         />
       )}
       {localError && <div className="text-red-500 mb-2">{localError}</div>}

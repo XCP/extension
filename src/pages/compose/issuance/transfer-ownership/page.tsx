@@ -1,4 +1,3 @@
-import React from "react";
 import { useParams } from "react-router-dom";
 import { Composer } from "@/components/composer";
 import { TransferOwnershipForm } from "./form";
@@ -16,7 +15,7 @@ export function ComposeIssuanceTransferOwnership() {
   return (
     <div className="p-4">
       <Composer
-        initialTitle="Transfer"
+        initialTitle="Transfer Asset"
         FormComponent={(props) => (
           <TransferOwnershipForm {...props} asset={asset} />
         )}

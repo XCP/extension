@@ -7,6 +7,7 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { IssuanceOptions } from "@/utils/blockchain/counterparty";
+import { useLoading } from "@/contexts/loading-context";
 
 interface TransferOwnershipFormDataInternal {
   transfer_destination: string;
@@ -22,8 +23,13 @@ interface TransferOwnershipFormProps {
 export function TransferOwnershipForm({ onSubmit, initialFormData, asset }: TransferOwnershipFormProps) {
   const { activeAddress } = useWallet();
   const { settings } = useSettings();
+  const { showLoading, hideLoading } = useLoading();
   const shouldShowHelpText = settings?.showHelpText ?? false;
-  const { data: assetDetails, isLoading, error: assetError } = useAssetDetails(asset);
+  
+  const { error: assetError, data: assetDetails } = useAssetDetails(asset, {
+    onLoadStart: () => showLoading(`Loading ${asset} details...`),
+    onLoadEnd: hideLoading
+  });
 
   const [formData, setFormData] = useState<TransferOwnershipFormDataInternal>(() => ({
     transfer_destination: initialFormData?.transfer_destination || "",
@@ -62,20 +68,33 @@ export function TransferOwnershipForm({ onSubmit, initialFormData, asset }: Tran
     onSubmit(submissionData);
   };
 
-  if (isLoading) return <div className="p-4">Loading asset details...</div>;
   if (assetError || !assetDetails)
-    return <div className="p-4 text-red-500">Error loading asset details: {assetError?.message}</div>;
+    return (
+      <div className="p-4 text-red-500">
+        Unable to load asset details. Please ensure the asset exists and you have the necessary permissions.
+      </div>
+    );
   if (asset === "BTC") return <div className="p-4 text-red-500">Cannot transfer ownership of BTC</div>;
 
   return (
     <div className="space-y-4">
-      <AssetHeader assetInfo={assetDetails?.assetInfo || { asset_longname: null }} className="mb-6" />
+      <AssetHeader 
+        assetInfo={assetDetails?.assetInfo || { 
+          asset_longname: null,
+          divisible: false,
+          locked: false,
+          description: '',
+          issuer: '',
+          supply: '0'
+        }} 
+        className="mb-5"
+      />
       {localError && <div className="text-red-500 mb-2">{localError}</div>}
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Field>
             <Label htmlFor="transfer_destination" className="block text-sm font-medium text-gray-700">
-              Transfer Destination <span className="text-red-500">*</span>
+              Destination <span className="text-red-500">*</span>
             </Label>
             <Input
               ref={transferDestinationRef}
@@ -88,7 +107,7 @@ export function TransferOwnershipForm({ onSubmit, initialFormData, asset }: Tran
               required
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Enter the address to which you want to transfer ownership.
+              Enter the bitcoin address receiving ownership.
             </Description>
           </Field>
           <FeeRateInput

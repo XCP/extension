@@ -27,6 +27,7 @@ import ViewAsset from '@/pages/assets/view-asset';
 import ViewBalance from '@/pages/assets/view-balance';
 
 // Compose pages
+import ComposeBet from '@/pages/compose/bet/page';
 import ComposeBroadcast from '@/pages/compose/broadcast/page';
 import ComposeBroadcastAddressOptions from '@/pages/compose/broadcast/address-options/page';
 import ComposeBTCPay from '@/pages/compose/order/btcpay/page';
@@ -143,6 +144,7 @@ export default function App() {
           <Route path="/select-assets" element={<SelectAssets />} />
           <Route path="/asset/:asset" element={<ViewAsset />} />
           <Route path="/balance/:asset" element={<ViewBalance />} />
+          <Route path="/compose/bet" element={<ComposeBet />} />
           <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
           <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptions />} />
           <Route path="/compose/btcpay" element={<ComposeBTCPay />} />

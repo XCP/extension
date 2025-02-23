@@ -10,25 +10,25 @@ import {
   FaQrcode,
   FaHistory,
   FaCog,
-  FaListAlt,
+  FaExternalLinkAlt,
   FaLock,
   FaSearch,
 } from "react-icons/fa";
 import { RadioGroup } from "@headlessui/react";
-
+import { Button } from "@/components/button";
+import { AssetList } from "@/components/lists/asset-list";
+import { BalanceList } from "@/components/lists/balance-list";
+import { SearchList } from "@/components/lists/search-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { formatAddress } from "@/utils/format";
-import { Button } from "@/components/button";
-import { BalanceList } from "@/components/lists/balance-list";
-import { AssetList } from "@/components/lists/asset-list";
 
 export default function Index() {
   const { activeWallet, activeAddress, lockAll, loaded } = useWallet();
   const { setHeaderProps } = useHeader();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (searchParams.get("tab") as "Assets" | "Balances") || "Balances";
+  const activeTab = (searchParams.get("tab") as "Assets" | "Balances" | "Search") || "Balances";
 
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
 
@@ -64,6 +64,23 @@ export default function Index() {
     navigate("/select-address");
   };
 
+  const handleSearchClick = () => {
+    setSearchParams({ tab: "Search" });
+  };
+
+  const handleCloseSearch = () => {
+    setSearchParams({ tab: "Balances" });
+  };
+
+  useEffect(() => {
+    if (activeTab === "Search") {
+      setTimeout(() => {
+        const searchInput = document.querySelector<HTMLInputElement>('input[placeholder="Search assets..."]');
+        searchInput?.focus();
+      }, 0);
+    }
+  }, [activeTab]);
+
   function renderCurrentAddress() {
     if (!activeAddress) return <div className="p-4">No address selected</div>;
     return (
@@ -74,7 +91,7 @@ export default function Index() {
               className={`relative w-full rounded p-4 cursor-pointer ${
                 checked
                   ? "bg-blue-600 text-white shadow-md"
-                  : "bg-blue-100 hover:bg-blue-200 text-gray-800"
+                  : "bg-blue-200 hover:bg-blue-300 text-gray-800"
               }`}
               onClick={handleCopyAddress}
               aria-label="Current address"
@@ -143,6 +160,8 @@ export default function Index() {
   }
 
   function renderBalancesHeader() {
+    const isTabbedView = window.location.pathname.includes('tabbed.html');
+
     return (
       <div className="flex justify-between items-center mb-2">
         <div className="flex space-x-4">
@@ -167,24 +186,26 @@ export default function Index() {
         </div>
         <div className="flex items-center space-x-2">
           <button
-            onClick={async () => {
-              await browser.tabs.create({
-                url: browser.runtime.getURL("/newtab.html#/index"),
-                active: true,
-              });
-            }}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            aria-label="Open Wallet in New Tab"
-          >
-            <FaListAlt className="w-5 h-5 text-gray-600" aria-hidden="true" />
-          </button>
-          <button
-            onClick={() => navigate("/select-assets")}
+            onClick={handleSearchClick}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
             aria-label="Search Assets"
           >
-            <FaSearch className="w-5 h-5 text-gray-600" aria-hidden="true" />
+            <FaSearch className="w-4 h-4 text-gray-600" aria-hidden="true" />
           </button>
+          {!isTabbedView && (
+            <button
+              onClick={async () => {
+                await browser.tabs.create({
+                  url: browser.runtime.getURL("/tabbed.html#/index"),
+                  active: true,
+                });
+              }}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+              aria-label="Open Wallet in New Tab"
+            >
+              <FaExternalLinkAlt className="w-4 h-4 text-gray-600" aria-hidden="true" />
+            </button>
+          )}
         </div>
       </div>
     );
@@ -212,6 +233,9 @@ export default function Index() {
         </div>
         <div style={{ display: activeTab === "Assets" ? "block" : "none" }}>
           <AssetList />
+        </div>
+        <div style={{ display: activeTab === "Search" ? "block" : "none" }}>
+          <SearchList onClose={handleCloseSearch} visible={activeTab === "Search"} />
         </div>
       </div>
     </div>

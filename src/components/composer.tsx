@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useCallback } from "react";
 import type { ReactElement } from "react";
-import { FiHelpCircle, FiX } from "react-icons/fi";
+import { FiHelpCircle, FiX, FiRefreshCw } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { SuccessScreen } from "@/components/screens/success-screen";
 import { useComposer } from "@/contexts/composer-context";
@@ -100,18 +100,21 @@ export function Composer({
         onBack: headerCallbacks?.onBack || handleBack,
         rightButton: {
           icon: <FiX className="w-4 h-4" />,
-          onClick: handleCancel,
-          ariaLabel: "Reset form",
+          onClick: () => navigate('/index'),
+          ariaLabel: "Cancel and return to index",
         },
       };
     if (step === "success" && apiResponse)
       return { 
         useLogoTitle: true, 
-        onBack: reset,  // Changed from headerCallbacks?.onBack || handleBack
-        rightButton: {  // Added rightButton configuration
-          icon: <FiX className="w-4 h-4" />,
-          onClick: handleCancel,
-          ariaLabel: "Cancel and return to index",
+        onBack: () => navigate('/index'),  // Left button goes to index
+        rightButton: {
+          icon: <FiRefreshCw className="w-4 h-4" />,
+          onClick: () => {
+            reset();
+            setStep('form');
+          },
+          ariaLabel: "Reset and return to form",
         },
       };
     return {
@@ -131,8 +134,9 @@ export function Composer({
     effectiveToggleHelp,
     headerCallbacks,
     handleBack,
-    handleCancel,
-    reset,  // Add reset to dependencies
+    navigate,
+    reset,
+    setStep,
   ]);
 
   useEffect(() => {

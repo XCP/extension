@@ -3,6 +3,7 @@ import { UpdateDescriptionForm } from "./form";
 import { ReviewIssuanceUpdateDescription } from "./review";
 import { Composer } from "@/components/composer";
 import { composeIssuance } from "@/utils/blockchain/counterparty";
+import { IssuanceOptions } from "@/utils/blockchain/counterparty";
 
 export function ComposeIssuanceUpdateDescription() {
   const { asset: assetParam } = useParams<{ asset?: string }>();
@@ -12,17 +13,24 @@ export function ComposeIssuanceUpdateDescription() {
     return <div>Asset not specified.</div>;
   }
 
+  const initialFormData: Partial<IssuanceOptions> = {
+    description: "",
+    asset,
+    quantity: 0,
+    divisible: false,
+    lock: false,
+    reset: false,
+    sat_per_vbyte: 1,
+  };
+
   return (
     <div className="p-4">
-      <Composer
-        initialTitle="Description"
-        FormComponent={UpdateDescriptionForm}
+      <Composer<IssuanceOptions>
+        initialTitle="Update Asset"
+        FormComponent={(props) => <UpdateDescriptionForm {...props} asset={asset} />}
         ReviewComponent={ReviewIssuanceUpdateDescription}
         composeTransaction={composeIssuance}
-        initialFormData={{
-          description: "",
-      
-        }}
+        initialFormData={initialFormData}
       />
     </div>
   );

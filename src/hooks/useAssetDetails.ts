@@ -14,7 +14,12 @@ export interface AssetDetails {
   }>;
 }
 
-export function useAssetDetails(asset: string) {
+interface UseAssetDetailsOptions {
+  onLoadStart?: () => void;
+  onLoadEnd?: () => void;
+}
+
+export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions) {
   const { activeAddress } = useWallet();
   const [state, setState] = useState<{
     isLoading: boolean;
@@ -43,6 +48,7 @@ export function useAssetDetails(asset: string) {
       }
 
       try {
+        options?.onLoadStart?.();
         let result: AssetDetails;
 
         if (asset === 'BTC') {
@@ -89,6 +95,8 @@ export function useAssetDetails(asset: string) {
             isLoading: false
           });
         }
+      } finally {
+        options?.onLoadEnd?.();
       }
     }
 

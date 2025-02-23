@@ -8,6 +8,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
 import { BetOptions } from "@/utils/blockchain/counterparty";
+import { useLoading } from "@/contexts/loading-context";
 
 interface BetFormDataInternal {
   feed_address: string;
@@ -29,8 +30,12 @@ interface BetFormProps {
 export function BetForm({ onSubmit, initialFormData }: BetFormProps) {
   const { activeAddress } = useWallet();
   const { settings } = useSettings();
+  const { showLoading, hideLoading } = useLoading();
   const shouldShowHelpText = settings?.showHelpText ?? false;
-  const { isLoading, error: assetError, data: assetDetails } = useAssetDetails("XCP");
+  const { error: assetError, data: assetDetails } = useAssetDetails("XCP", {
+    onLoadStart: () => showLoading("Loading XCP details..."),
+    onLoadEnd: hideLoading
+  });
 
   const [formData, setFormData] = useState<BetFormDataInternal>(() => {
     const isDivisible = assetDetails?.assetInfo?.divisible ?? true; // XCP is divisible
@@ -136,10 +141,8 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps) {
 
   return (
     <div className="space-y-4">
-      <Suspense fallback={<div>Loading XCP details...</div>}>
-        {isLoading ? (
-          <div className="animate-pulse h-12 bg-gray-200 rounded mb-4" />
-        ) : assetError ? (
+      <Suspense fallback={null}>
+        {assetError ? (
           <div className="text-red-500 mb-4">{assetError.message}</div>
         ) : assetDetails ? (
           <BalanceHeader
@@ -148,7 +151,7 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps) {
               quantity_normalized: assetDetails.availableBalance,
               asset_info: assetDetails.assetInfo || undefined,
             }}
-            className="mb-4"
+            className="mb-5"
           />
         ) : null}
       </Suspense>
