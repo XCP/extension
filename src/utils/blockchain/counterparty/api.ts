@@ -128,6 +128,17 @@ export interface Dispenser {
   };
 }
 
+export interface UtxoBalance extends TokenBalance {
+  utxo: string;
+  utxo_address: string;
+}
+
+export interface UtxoBalancesResponse {
+  result: UtxoBalance[];
+  next_cursor: string | null;
+  result_count: number;
+}
+
 /**
  * Fetches the token balances for a given address.
  *
@@ -436,35 +447,43 @@ export async function fetchAssetDetailsAndBalance(
  *
  * @param utxo - The UTXO identifier (txid:vout).
  * @param options - Optional parameters.
- * @returns A promise that resolves to an array of TokenBalance objects.
+ * @returns A promise that resolves to an array of UtxoBalance objects.
  */
 export async function fetchUtxoBalances(
   utxo: string,
   options: {
+    cursor?: string;
+    limit?: number;
+    offset?: number;
     verbose?: boolean;
+    show_unconfirmed?: boolean;
   } = {}
-): Promise<TokenBalance[]> {
+): Promise<UtxoBalancesResponse> {
   try {
     const verbose = options.verbose ?? true;
+    const show_unconfirmed = options.show_unconfirmed ?? false;
 
     const response = await axios.get(
       `https://api.counterparty.io:4000/v2/utxos/${utxo}/balances`,
       {
         params: {
-          verbose: verbose,
+          cursor: options.cursor,
+          limit: options.limit,
+          offset: options.offset,
+          verbose,
+          show_unconfirmed,
         },
       }
     );
-    const data = response.data;
 
-    if (!data.result || !Array.isArray(data.result)) {
-      return [];
-    }
-
-    return data.result;
+    return response.data;
   } catch (error) {
     console.error('Error fetching UTXO balances:', error);
-    return [];
+    return {
+      result: [],
+      next_cursor: null,
+      result_count: 0
+    };
   }
 }
 
@@ -658,5 +677,49 @@ export async function fetchAddressDispensers(
   } catch (error) {
     console.error('Failed to fetch dispensers:', error);
     throw new Error('Failed to fetch dispensers');
+  }
+}
+
+export interface OwnedAsset {
+  asset: string;
+  asset_longname: string | null;
+  supply_normalized: string;
+  description: string;
+  locked: boolean;
+}
+
+/**
+ * Fetches assets owned by a given address.
+ *
+ * @param address - The Bitcoin address to fetch owned assets for.
+ * @param options - Optional parameters.
+ * @returns A promise that resolves to an array of OwnedAsset objects.
+ */
+export async function fetchOwnedAssets(
+  address: string,
+  options: {
+    verbose?: boolean;
+  } = {}
+): Promise<OwnedAsset[]> {
+  try {
+    const verbose = options.verbose ?? true;
+
+    const response = await axios.get(
+      `https://api.counterparty.io:4000/v2/addresses/${address}/assets/owned`,
+      {
+        params: {
+          verbose: verbose,
+        },
+      }
+    );
+
+    if (!response.data.result) {
+      return [];
+    }
+
+    return response.data.result;
+  } catch (error) {
+    console.error('Error fetching owned assets:', error);
+    return [];
   }
 }

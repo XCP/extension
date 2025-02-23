@@ -3,12 +3,12 @@ import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+import { useLoading } from "@/contexts/loading-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
 import { BetOptions } from "@/utils/blockchain/counterparty";
-import { useLoading } from "@/contexts/loading-context";
 
 interface BetFormDataInternal {
   feed_address: string;
@@ -34,7 +34,7 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps) {
   const shouldShowHelpText = settings?.showHelpText ?? false;
   const { error: assetError, data: assetDetails } = useAssetDetails("XCP", {
     onLoadStart: () => showLoading("Loading XCP details..."),
-    onLoadEnd: hideLoading
+    onLoadEnd: hideLoading,
   });
 
   const [formData, setFormData] = useState<BetFormDataInternal>(() => {
@@ -45,8 +45,16 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps) {
       feed_address: initialFormData?.feed_address || "",
       bet_type: initialFormData?.bet_type?.toString() || "2",
       deadline: initialFormData?.deadline?.toString() || "",
-      wager_quantity: initialFormData ? (isDivisible ? (wagerQty / 1e8).toFixed(8) : wagerQty.toString()) : "",
-      counterwager_quantity: initialFormData ? (isDivisible ? (counterwagerQty / 1e8).toFixed(8) : counterwagerQty.toString()) : "",
+      wager_quantity: initialFormData
+        ? isDivisible
+          ? (wagerQty / 1e8).toFixed(8)
+          : wagerQty.toString()
+        : "",
+      counterwager_quantity: initialFormData
+        ? isDivisible
+          ? (counterwagerQty / 1e8).toFixed(8)
+          : counterwagerQty.toString()
+        : "",
       expiration: initialFormData?.expiration?.toString() || "",
       leverage: initialFormData?.leverage?.toString() || "5040",
       target_value: initialFormData?.target_value?.toString() || "",
@@ -69,7 +77,9 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps) {
       setFormData((prev) => ({
         ...prev,
         wager_quantity: isDivisible ? (wagerQty / 1e8).toFixed(8) : wagerQty.toString(),
-        counterwager_quantity: isDivisible ? (counterwagerQty / 1e8).toFixed(8) : counterwagerQty.toString(),
+        counterwager_quantity: isDivisible
+          ? (counterwagerQty / 1e8).toFixed(8)
+          : counterwagerQty.toString(),
       }));
     }
   }, [assetDetails, initialFormData]);
@@ -122,7 +132,9 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps) {
     const wagerQtyNum = Number(formData.wager_quantity);
     const counterwagerQtyNum = Number(formData.counterwager_quantity);
     const wagerQtyInt = isDivisible ? Math.round(wagerQtyNum * 1e8) : Math.round(wagerQtyNum);
-    const counterwagerQtyInt = isDivisible ? Math.round(counterwagerQtyNum * 1e8) : Math.round(counterwagerQtyNum);
+    const counterwagerQtyInt = isDivisible
+      ? Math.round(counterwagerQtyNum * 1e8)
+      : Math.round(counterwagerQtyNum);
 
     const submissionData: BetOptions = {
       sourceAddress: activeAddress?.address || "",
@@ -239,7 +251,9 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps) {
               type="text"
               name="counterwager_quantity"
               value={formData.counterwager_quantity}
-              onChange={(e) => setFormData({ ...formData, counterwager_quantity: e.target.value.trim() })}
+              onChange={(e) =>
+                setFormData({ ...formData, counterwager_quantity: e.target.value.trim() })
+              }
               required
               placeholder="Enter counterwager quantity"
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
@@ -287,7 +301,10 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps) {
 
           <Field>
             <Label className="text-sm font-medium text-gray-700">
-              Target Value {(formData.bet_type === "2" || formData.bet_type === "3") && <span className="text-red-500">*</span>}
+              Target Value{" "}
+              {(formData.bet_type === "2" || formData.bet_type === "3") && (
+                <span className="text-red-500">*</span>
+              )}
             </Label>
             <Input
               type="text"

@@ -70,7 +70,7 @@ export const ViewBalance = () => {
           id: 'order',
           name: 'DEX Order',
           description: 'Create a new order on the DEX',
-          path: `/compose/broadcast/${asset}`,
+          path: `/compose/order/${asset}`,
         },
         {
           id: 'dispenser',

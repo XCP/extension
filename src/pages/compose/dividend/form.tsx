@@ -5,6 +5,7 @@ import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { Button } from "@/components/button";
 import { AssetHeader } from "@/components/headers/asset-header";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty";
+import { formatAmount } from "@/utils/format";
 
 export interface DividendFormData {
   quantity_per_unit: string;
@@ -26,6 +27,7 @@ export function DividendForm({ asset, onSubmit, shouldShowHelpText }: DividendFo
   });
   const [assetInfo, setAssetInfo] = useState<any>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [dividendAssetInfo, setDividendAssetInfo] = useState<any>(null);
 
   const amountRef = useRef<HTMLInputElement>(null);
 
@@ -49,6 +51,19 @@ export function DividendForm({ asset, onSubmit, shouldShowHelpText }: DividendFo
     }
     fetchDetails();
   }, [asset]);
+
+  useEffect(() => {
+    async function fetchDividendAssetDetails() {
+      if (!formData.dividend_asset) return;
+      try {
+        const details = await fetchAssetDetails(formData.dividend_asset);
+        setDividendAssetInfo(details);
+      } catch (err) {
+        console.error("Failed to fetch dividend asset details:", err);
+      }
+    }
+    fetchDividendAssetDetails();
+  }, [formData.dividend_asset]);
 
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, quantity_per_unit: e.target.value }));
@@ -78,12 +93,30 @@ export function DividendForm({ asset, onSubmit, shouldShowHelpText }: DividendFo
 
     onSubmit({
       ...formData,
+      quantity_per_unit: Number(formData.quantity_per_unit),
       asset,
       extra: {
         assetInfo,
+        dividendAssetInfo,
       },
     });
   };
+
+  useEffect(() => {
+    if (formData.quantity_per_unit && dividendAssetInfo) {
+      const numValue = Number(formData.quantity_per_unit);
+      if (!isNaN(numValue)) {
+        const formattedValue = dividendAssetInfo.divisible
+          ? formatAmount({
+              value: numValue,
+              minimumFractionDigits: 8,
+              maximumFractionDigits: 8,
+            })
+          : Math.round(numValue).toString();
+        setFormData(prev => ({ ...prev, quantity_per_unit: formattedValue }));
+      }
+    }
+  }, [dividendAssetInfo?.divisible]);
 
   return (
     <div className="space-y-4">

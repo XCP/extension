@@ -5,13 +5,13 @@ import { Composer } from "@/components/composer";
 import { composeMove } from "@/utils/blockchain/counterparty";
 
 export function ComposeUtxoMove() {
-  const { utxo } = useParams<{ utxo: string }>();
+  const { txid } = useParams<{ txid: string }>();
 
   return (
     <div className="p-4">
       <Composer
         initialTitle="Move UTXO"
-        FormComponent={(props) => <UtxoMoveForm {...props} initialUtxo={utxo || ""} />}
+        FormComponent={(props) => <UtxoMoveForm {...props} initialUtxo={txid || ""} />}
         ReviewComponent={ReviewUtxoMove}
         composeTransaction={composeMove}
       />

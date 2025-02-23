@@ -1,3 +1,4 @@
+import axios from "axios";
 import React, { useState, useRef, useEffect, useMemo, FormEvent } from "react";
 import { FaCog } from "react-icons/fa";
 import { Button } from "@/components/button";
@@ -9,6 +10,9 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { OrderOptions } from "@/utils/blockchain/counterparty";
 import { toBigNumber, formatBigNumber } from "@/utils/numeric";
+import { fetchAssetDetailsAndBalance } from "@/utils/blockchain/counterparty";
+import { BalanceHeader } from "@/components/headers/balance-header";
+import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 interface OrderFormDataInternal {
   type: "buy" | "sell";
@@ -27,26 +31,14 @@ interface OrderFormProps {
   onSubmit: (data: OrderOptions) => void;
   initialFormData?: OrderOptions;
   giveAsset: string;
-  walletState: any;
-  setError: React.Dispatch<React.SetStateAction<string | null>>;
-  tradingPairData: TradingPairData | null;
-  tabLoading: boolean;
-  handleOrderTypeChange: (type: "buy" | "sell") => void;
-  isPairFlipped: boolean;
-  setIsPairFlipped: React.Dispatch<React.SetStateAction<boolean>>;
+  setError: (error: string | null) => void;
 }
 
 export function OrderForm({
   onSubmit,
   initialFormData,
   giveAsset,
-  walletState,
   setError,
-  tradingPairData,
-  tabLoading,
-  handleOrderTypeChange,
-  isPairFlipped,
-  setIsPairFlipped,
 }: OrderFormProps) {
   const { activeAddress } = useWallet();
   const { settings } = useSettings();
@@ -56,20 +48,86 @@ export function OrderForm({
     type: initialFormData?.give_quantity ? "sell" : "buy",
     amount: initialFormData?.give_quantity?.toString() || initialFormData?.get_quantity?.toString() || "",
     asset: initialFormData?.get_asset || (giveAsset === "XCP" ? "BTC" : "XCP"),
-    price: "", // Price not directly mappable from initialFormData, calculated in review
+    price: "",
     sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
   }));
   const [showMaxError, setShowMaxError] = useState(false);
+  const [tabLoading, setTabLoading] = useState(false);
+  const [isPairFlipped, setIsPairFlipped] = useState(false);
+  const [tradingPairData, setTradingPairData] = useState<TradingPairData | null>(null);
+  const [availableBalance, setAvailableBalance] = useState<string>("0");
+  const [orderAssetBalance, setOrderAssetBalance] = useState<string>("0");
+  const [isGiveAssetDivisible, setIsGiveAssetDivisible] = useState<boolean>(true);
+  const [isOrderAssetDivisible, setIsOrderAssetDivisible] = useState<boolean>(true);
+  const [isGetAssetDivisible, setIsGetAssetDivisible] = useState<boolean>(true);
 
   const amountInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: giveAssetDetails } = useAssetDetails(giveAsset);
 
   useEffect(() => {
     if (!tabLoading) amountInputRef.current?.focus();
   }, [tabLoading]);
 
+  // Fetch asset details and balances
+  useEffect(() => {
+    const fetchDetails = async () => {
+      if (!giveAsset || !activeAddress?.address) return;
+
+      try {
+        const {
+          isDivisible: giveDivisible,
+          availableBalance: giveBalance,
+        } = await fetchAssetDetailsAndBalance(giveAsset, activeAddress.address);
+        setIsGiveAssetDivisible(giveDivisible);
+        setAvailableBalance(giveBalance);
+
+        if (formData.asset) {
+          const {
+            isDivisible: orderDivisible,
+            availableBalance: orderBalance,
+          } = await fetchAssetDetailsAndBalance(formData.asset, activeAddress.address);
+          setIsOrderAssetDivisible(orderDivisible);
+          setOrderAssetBalance(orderBalance);
+        }
+
+        const currentGetAsset = formData.type === "buy" ? giveAsset : formData.asset;
+        const { isDivisible: getDivisible } = await fetchAssetDetailsAndBalance(
+          currentGetAsset,
+          activeAddress.address
+        );
+        setIsGetAssetDivisible(getDivisible);
+      } catch (err) {
+        console.error("Failed to fetch asset details:", err);
+        setError("Failed to fetch asset details");
+      }
+    };
+
+    fetchDetails();
+  }, [giveAsset, formData.type, formData.asset, activeAddress?.address, setError]);
+
+  // Fetch trading pair data
+  useEffect(() => {
+    const fetchTradingPairData = async () => {
+      if (!giveAsset || !formData.asset) return;
+
+      try {
+        const give = formData.type === "buy" ? formData.asset : giveAsset;
+        const get = formData.type === "buy" ? giveAsset : formData.asset;
+        const response = await axios.get(`https://app.xcp.io/api/v1/swap/${give}/${get}`);
+        const lastTradePrice = response.data?.data?.trading_pair?.last_trade_price || null;
+        const tradingPairName = response.data?.data?.trading_pair?.name || "";
+        setTradingPairData({ last_trade_price: lastTradePrice, name: tradingPairName });
+      } catch (err) {
+        console.error("Failed to fetch trading pair data:", err);
+        setTradingPairData(null);
+      }
+    };
+
+    fetchTradingPairData();
+  }, [giveAsset, formData.asset, formData.type]);
+
   const isBuy = formData.type === "buy";
-  const orderAssetBalance = walletState?.orderAssetBalance || "0";
-  const availableBalance = walletState?.availableBalance || "0";
 
   const maxAmount = useMemo(() => {
     if (isBuy && formData.price && orderAssetBalance) {
@@ -82,12 +140,20 @@ export function OrderForm({
       }
       if (effectivePrice.isZero()) return "";
       const max = orderBalanceBN.dividedBy(effectivePrice);
-      return formatBigNumber(max);
+      return isGetAssetDivisible ? formatBigNumber(max) : max.floor().toFixed(0);
     } else if (!isBuy) {
-      return availableBalance;
+      return isGiveAssetDivisible ? availableBalance : toBigNumber(availableBalance).floor().toFixed(0);
     }
     return "";
-  }, [isBuy, formData.price, orderAssetBalance, availableBalance, isPairFlipped]);
+  }, [
+    isBuy,
+    formData.price,
+    orderAssetBalance,
+    availableBalance,
+    isPairFlipped,
+    isGiveAssetDivisible,
+    isGetAssetDivisible,
+  ]);
 
   const isMaxAvailable = isBuy ? Boolean(formData.price) : true;
 
@@ -97,6 +163,12 @@ export function OrderForm({
     } else if (maxAmount) {
       setFormData((prev) => ({ ...prev, amount: maxAmount }));
     }
+  };
+
+  const handleOrderTypeChange = (type: "buy" | "sell") => {
+    setTabLoading(true);
+    setFormData((prev) => ({ ...prev, type }));
+    setTimeout(() => setTabLoading(false), 150);
   };
 
   useEffect(() => {
@@ -125,8 +197,20 @@ export function OrderForm({
 
     const quantityNum = Number(formData.amount);
     const priceNum = Number(formData.price);
-    const giveQty = isBuy ? Math.round(quantityNum * priceNum * 1e8) : Math.round(quantityNum * 1e8);
-    const getQty = isBuy ? Math.round(quantityNum * 1e8) : Math.round(quantityNum * priceNum * 1e8);
+    const giveQty = isBuy
+      ? isOrderAssetDivisible
+        ? Math.round(quantityNum * priceNum * 1e8)
+        : Math.floor(quantityNum * priceNum)
+      : isGiveAssetDivisible
+      ? Math.round(quantityNum * 1e8)
+      : Math.floor(quantityNum);
+    const getQty = isBuy
+      ? isGetAssetDivisible
+        ? Math.round(quantityNum * 1e8)
+        : Math.floor(quantityNum)
+      : isGetAssetDivisible
+      ? Math.round(quantityNum * priceNum * 1e8)
+      : Math.floor(quantityNum * priceNum);
 
     const submissionData: OrderOptions = {
       sourceAddress: activeAddress?.address || "",
@@ -134,26 +218,51 @@ export function OrderForm({
       give_quantity: giveQty,
       get_asset: isBuy ? giveAsset : formData.asset,
       get_quantity: getQty,
-      expiration: 100, // Default expiration, typically set in review
+      expiration: 8064, // Default from old version
       sat_per_vbyte: formData.sat_per_vbyte,
     };
     onSubmit(submissionData);
   };
 
+  const amountDescription = `Amount to ${isBuy ? "buy" : "sell"}. ${
+    isBuy
+      ? isGetAssetDivisible
+        ? "Enter up to 8 decimal places."
+        : "Enter whole numbers only."
+      : isGiveAssetDivisible
+      ? "Enter up to 8 decimal places."
+      : "Enter whole numbers only."
+  }`;
+
   return (
     <div className="space-y-4">
+      {activeAddress && giveAssetDetails && (
+        <BalanceHeader
+          balance={{
+            asset: giveAsset,
+            quantity_normalized: giveAssetDetails.availableBalance,
+            asset_info: giveAssetDetails.assetInfo || undefined,
+          }}
+          className="mb-2"
+        />
+      )}
+
       <div className="flex justify-between items-center mb-2">
         <div className="flex space-x-4">
           <button
             type="button"
-            className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none ${formData.type === "buy" ? "underline" : ""}`}
+            className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none ${
+              formData.type === "buy" ? "underline" : ""
+            }`}
             onClick={() => handleOrderTypeChange("buy")}
           >
             Buy
           </button>
           <button
             type="button"
-            className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none ${formData.type === "sell" ? "underline" : ""}`}
+            className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none ${
+              formData.type === "sell" ? "underline" : ""
+            }`}
             onClick={() => handleOrderTypeChange("sell")}
           >
             Sell
@@ -173,7 +282,9 @@ export function OrderForm({
       ) : (
         <div className="bg-white rounded-lg shadow-lg p-4">
           {showMaxError && (
-            <p className="text-red-500 text-sm mb-2">Please set a price to use the Max button for buying.</p>
+            <p className="text-red-500 text-sm mb-2">
+              Please set a price to use the Max button for buying.
+            </p>
           )}
           <form className="space-y-4" onSubmit={handleSubmit}>
             <AmountWithMaxInput
@@ -190,7 +301,7 @@ export function OrderForm({
               onMaxClick={handleMaxClick}
               label="Amount"
               name="amount"
-              description={`Amount to ${isBuy ? "buy" : "sell"}.${isBuy ? " Enter up to 8 decimal places." : " Enter whole numbers only."}`}
+              description={amountDescription}
             />
             <AssetSelectInput
               selectedAsset={formData.asset}

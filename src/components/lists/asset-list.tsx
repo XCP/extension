@@ -1,17 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSpinner } from "react-icons/fa";
-import { formatAsset, formatAmount } from "@/utils/format";
 import { AssetMenu } from "@/components/menus/asset-menu";
 import { useWallet } from "@/contexts/wallet-context";
-
-export interface OwnedAsset {
-  asset: string;
-  asset_longname: string | null;
-  supply_normalized: string;
-  description: string;
-  locked: boolean;
-}
+import { fetchOwnedAssets, type OwnedAsset } from "@/utils/blockchain/counterparty/api";
+import { formatAsset, formatAmount } from "@/utils/format";
 
 interface AssetListProps {
   visible: boolean;
@@ -25,18 +18,15 @@ export const AssetList = ({ visible, scrollContainer }: AssetListProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!activeAddress) return;
+    if (!activeAddress?.address) return;
     let isCancelled = false;
 
     async function loadOwnedAssets() {
       setIsLoadingAssets(true);
       try {
-        const response = await fetch(
-          `https://api.counterparty.io:4000/v2/addresses/${activeAddress.address}/assets/owned?verbose=true`
-        );
-        const data = await response.json();
+        const assets = await fetchOwnedAssets(activeAddress.address);
         if (!isCancelled) {
-          setOwnedAssets(data.result);
+          setOwnedAssets(assets);
         }
       } catch (error) {
         console.error("Error fetching owned assets:", error);

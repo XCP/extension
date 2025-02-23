@@ -25,6 +25,7 @@ import ViewAddress from '@/pages/address/view-address';
 import SelectAssets from '@/pages/assets/select-assets';
 import ViewAsset from '@/pages/assets/view-asset';
 import ViewBalance from '@/pages/assets/view-balance';
+import ViewUtxo from '@/pages/assets/view-utxo';
 
 // Compose pages
 import ComposeBet from '@/pages/compose/bet/page';
@@ -40,6 +41,7 @@ import ComposeDividend from '@/pages/compose/dividend/page';
 import ComposeIssuance from '@/pages/compose/issuance/page';
 import ComposeIssuanceIssueSupply from '@/pages/compose/issuance/issue-supply/page';
 import ComposeIssuanceLockSupply from '@/pages/compose/issuance/lock-supply/page';
+import ComposeIssuanceResetSupply from '@/pages/compose/issuance/reset-supply/page';
 import ComposeIssuanceTransferOwnership from '@/pages/compose/issuance/transfer-ownership/page';
 import ComposeIssuanceUpdateDescription from '@/pages/compose/issuance/update-description/page';
 import ComposeFairminter from '@/pages/compose/fairminter/page';
@@ -48,6 +50,7 @@ import ComposeSweep from '@/pages/compose/sweep/page';
 import ComposeUtxoAttach from '@/pages/compose/utxo/attach/page';
 import ComposeUtxoDetach from '@/pages/compose/utxo/detach/page';
 import ComposeUtxoMove from '@/pages/compose/utxo/move/page';
+import ComposeOrder from '@/pages/compose/order/page';
 
 // Wallet pages
 import AddWallet from '@/pages/wallet/add-wallet';
@@ -159,13 +162,16 @@ export default function App() {
           <Route path="/compose/issuance/:asset?" element={<ComposeIssuance />} />
           <Route path="/compose/issuance/issue-supply/:asset" element={<ComposeIssuanceIssueSupply />} />
           <Route path="/compose/issuance/lock-supply/:asset" element={<ComposeIssuanceLockSupply />} />
+          <Route path="/compose/issuance/reset-supply/:asset" element={<ComposeIssuanceResetSupply />} />
           <Route path="/compose/issuance/transfer-ownership/:asset" element={<ComposeIssuanceTransferOwnership />} />
           <Route path="/compose/issuance/update-description/:asset" element={<ComposeIssuanceUpdateDescription />} />
           <Route path="/compose/issuance/destroy/:asset" element={<ComposeDestroy />} />
           <Route path="/compose/fairminter/:asset?" element={<ComposeFairminter />} />
           <Route path="/compose/utxo/attach/:asset" element={<ComposeUtxoAttach />} />
-          <Route path="/compose/utxo/detach/:utxo" element={<ComposeUtxoDetach />} />
-          <Route path="/compose/utxo/move/:utxo" element={<ComposeUtxoMove />} />
+          <Route path="/compose/utxo/detach/:txid" element={<ComposeUtxoDetach />} />
+          <Route path="/compose/utxo/move/:txid" element={<ComposeUtxoMove />} />
+          <Route path="/compose/order/:asset?" element={<ComposeOrder />} />
+          <Route path="/utxo/:txid" element={<ViewUtxo />} />
         </Route>
       </Route>
 

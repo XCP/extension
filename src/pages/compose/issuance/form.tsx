@@ -7,6 +7,7 @@ import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { IssuanceOptions } from "@/utils/blockchain/counterparty";
+import { formatAmount } from "@/utils/format";
 
 interface IssuanceFormDataInternal {
   asset: string;
@@ -30,14 +31,29 @@ export function IssuanceForm({ onSubmit, initialFormData, initialParentAsset }: 
   const [searchParams] = useSearchParams();
   const parentAsset = searchParams.get("parent");
 
-  const [formData, setFormData] = useState<IssuanceFormDataInternal>(() => ({
-    asset: initialFormData?.asset || (initialParentAsset ? `${initialParentAsset}.` : ""),
-    quantity: initialFormData?.quantity?.toString() || "",
-    divisible: initialFormData?.divisible ?? true,
-    lock: initialFormData?.lock || false,
-    description: initialFormData?.description || "",
-    sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
-  }));
+  const [formData, setFormData] = useState<IssuanceFormDataInternal>(() => {
+    const initialQuantity = initialFormData?.quantity?.toString() || "";
+    let formattedQuantity = initialQuantity;
+    
+    // If we have initial data, format the quantity appropriately
+    if (initialQuantity && initialFormData?.divisible) {
+      const numValue = Number(initialQuantity) / 100000000;
+      formattedQuantity = formatAmount({ 
+        value: numValue,
+        minimumFractionDigits: 8,
+        maximumFractionDigits: 8
+      });
+    }
+
+    return {
+      asset: initialFormData?.asset || (initialParentAsset ? `${initialParentAsset}.` : ""),
+      quantity: formattedQuantity,
+      divisible: initialFormData?.divisible ?? true,
+      lock: initialFormData?.lock || false,
+      description: initialFormData?.description || "",
+      sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
+    };
+  });
   const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -61,10 +77,14 @@ export function IssuanceForm({ onSubmit, initialFormData, initialParentAsset }: 
     }
     setLocalError(null);
 
+    const quantity = formData.divisible 
+      ? Math.round(Number(formData.quantity) * 100000000)
+      : Math.round(Number(formData.quantity));
+
     const submissionData: IssuanceOptions = {
       sourceAddress: activeAddress?.address || "",
       asset: formData.asset,
-      quantity: Math.round(Number(formData.quantity)),
+      quantity,
       divisible: formData.divisible,
       lock: formData.lock,
       reset: false,
@@ -73,6 +93,22 @@ export function IssuanceForm({ onSubmit, initialFormData, initialParentAsset }: 
     };
     onSubmit(submissionData);
   };
+
+  useEffect(() => {
+    if (formData.quantity) {
+      const numValue = Number(formData.quantity);
+      if (!isNaN(numValue)) {
+        const formattedValue = formData.divisible 
+          ? formatAmount({ 
+              value: numValue,
+              minimumFractionDigits: 8,
+              maximumFractionDigits: 8
+            })
+          : Math.round(numValue).toString();
+        setFormData(prev => ({ ...prev, quantity: formattedValue }));
+      }
+    }
+  }, [formData.divisible]);
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">

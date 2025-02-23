@@ -1,5 +1,7 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposer } from "@/contexts/composer-context";
+import { formatAmount } from "@/utils/format";
+import { toBigNumber } from "@/utils/numeric";
 
 interface ReviewDividendProps {
   apiResponse: any;
@@ -15,7 +17,7 @@ export const ReviewDividend = ({ apiResponse, onSign, onBack }: ReviewDividendPr
     { label: "Asset", value: result.params.asset },
     {
       label: "Dividend",
-      value: `${result.params.quantity_per_unit} ${result.params.dividend_asset}`,
+      value: `${result.params.quantity_per_unit_normalized} ${result.params.dividend_asset}`,
     },
   ];
 

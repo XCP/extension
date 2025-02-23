@@ -34,9 +34,17 @@ export const ViewAsset = () => {
 
     const actions: Action[] = [];
     const isOwner = assetDetails.assetInfo.issuer === activeAddress?.address;
-    const hasSupply = assetDetails.assetInfo.supply && Number(assetDetails.assetInfo.supply) > 0;
+    const isLocked = assetDetails.assetInfo.locked;
+    const totalSupply = assetDetails.assetInfo.supply_normalized || '0';
+    const hasSupply = Number(totalSupply) > 0;
+    const issuerBalance = assetDetails.availableBalance || '0';
 
-    if (!assetDetails.assetInfo.locked) {
+    // Eligible for reset if not locked and either:
+    // - No supply (no holders), or
+    // - Issuer holds all supply (single holder)
+    const canResetSupply = !isLocked && isOwner && (!hasSupply || issuerBalance === totalSupply);
+
+    if (!isLocked) {
       actions.push(
         {
           id: 'issue-supply',
@@ -63,20 +71,21 @@ export const ViewAsset = () => {
     }
 
     if (isOwner && hasSupply) {
-      actions.push(
-        {
-          id: 'give-dividend',
-          name: 'Give Dividend',
-          description: 'Distribute dividends to token holders',
-          path: `/compose/dividend/${asset}`,
-        },
-        {
-          id: 'reset-supply',
-          name: 'Reset Supply',
-          description: 'Reset asset description and other properties',
-          path: `/actions/reset-supply/${asset}`,
-        }
-      );
+      actions.push({
+        id: 'give-dividend',
+        name: 'Give Dividend',
+        description: 'Distribute dividends to token holders',
+        path: `/compose/dividend/${asset}`,
+      });
+    }
+
+    if (isOwner && canResetSupply) {
+      actions.push({
+        id: 'reset-supply',
+        name: 'Reset Supply',
+        description: 'Reset asset description and other properties',
+        path: `/compose/issuance/reset-supply/${asset}`,
+      });
     }
 
     actions.push(
@@ -178,10 +187,16 @@ export const ViewAsset = () => {
               {assetDetails.assetInfo?.issuer || 'Unknown'}
             </span>
           </div>
+          <div className="flex justify-between">
+            <span className="text-sm text-gray-500">Your Balance</span>
+            <span className="text-sm text-gray-900">
+              {assetDetails.availableBalance || '0'}
+            </span>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default ViewAsset; 
+export default ViewAsset;

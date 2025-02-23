@@ -16,23 +16,24 @@ interface UtxoMoveFormDataInternal {
 interface UtxoMoveFormProps {
   onSubmit: (data: MoveOptions) => void;
   initialFormData?: MoveOptions;
+  initialUtxo?: string;
 }
 
-export function UtxoMoveForm({ onSubmit, initialFormData }: UtxoMoveFormProps) {
+export function UtxoMoveForm({ onSubmit, initialFormData, initialUtxo }: UtxoMoveFormProps) {
   const { activeAddress, activeWallet } = useWallet();
   const shouldShowHelpText = useSettings()?.showHelpText ?? false;
 
   const [formData, setFormData] = useState<UtxoMoveFormDataInternal>(() => ({
-    utxo: initialFormData?.utxo_value || "",
+    utxo: initialUtxo || initialFormData?.utxo_value || "",
     destination: initialFormData?.destination || "",
     sat_per_vbyte: initialFormData?.sat_per_vbyte || 10,
   }));
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const utxoRef = useRef<HTMLInputElement>(null);
+  const destinationRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    utxoRef.current?.focus();
+    destinationRef.current?.focus();
   }, []);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -74,27 +75,10 @@ export function UtxoMoveForm({ onSubmit, initialFormData }: UtxoMoveFormProps) {
         <form onSubmit={handleSubmit} className="space-y-6">
           <Field>
             <Label className="text-sm font-medium text-gray-700">
-              UTXO <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              ref={utxoRef}
-              type="text"
-              name="utxo"
-              value={formData.utxo}
-              onChange={(e) => setFormData((prev) => ({ ...prev, utxo: e.target.value.trim() }))}
-              required
-              placeholder="Enter UTXO (txid:vout)"
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Enter the UTXO identifier (e.g., txid:vout) to move.
-            </Description>
-          </Field>
-          <Field>
-            <Label className="text-sm font-medium text-gray-700">
               Destination <span className="text-red-500">*</span>
             </Label>
             <Input
+              ref={destinationRef}
               type="text"
               name="destination"
               value={formData.destination}
@@ -105,6 +89,28 @@ export function UtxoMoveForm({ onSubmit, initialFormData }: UtxoMoveFormProps) {
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
               Enter the address to move the UTXO to.
+            </Description>
+          </Field>
+          <Field>
+            <Label className="text-sm font-medium text-gray-700">
+              UTXO <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              type="text"
+              name="utxo"
+              value={formData.utxo}
+              onChange={(e) => setFormData((prev) => ({ ...prev, utxo: e.target.value.trim() }))}
+              required
+              disabled={!!initialUtxo}
+              placeholder="Enter UTXO (txid:vout)"
+              className={`
+                mt-1 block w-full p-2 rounded-md border
+                ${initialUtxo ? 'bg-gray-100 cursor-not-allowed' : 'bg-gray-50'}
+                focus:ring-blue-500 focus:border-blue-500
+              `}
+            />
+            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+              Enter the UTXO identifier (e.g., txid:vout) to move.
             </Description>
           </Field>
           <FeeRateInput

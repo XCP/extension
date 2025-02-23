@@ -1,6 +1,8 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
+import { useState } from "react";
+import { FaExchangeAlt } from "react-icons/fa";
 
 interface ReviewOrderProps {
   apiResponse: any;
@@ -11,6 +13,24 @@ interface ReviewOrderProps {
 export const ReviewOrder = ({ apiResponse, onSign, onBack }: ReviewOrderProps) => {
   const { error, setError } = useComposer();
   const { result } = apiResponse;
+  const [isPriceFlipped, setIsPriceFlipped] = useState(false);
+
+  const priceRatio = Number(result.params.get_quantity) / Number(result.params.give_quantity);
+  
+  const getPriceDisplay = () => {
+    if (isPriceFlipped) {
+      return `1 ${result.params.get_asset} = ${formatAmount({
+        value: 1 / priceRatio,
+        minimumFractionDigits: 8,
+        maximumFractionDigits: 8,
+      })} ${result.params.give_asset}`;
+    }
+    return `1 ${result.params.give_asset} = ${formatAmount({
+      value: priceRatio,
+      minimumFractionDigits: 8,
+      maximumFractionDigits: 8,
+    })} ${result.params.get_asset}`;
+  };
 
   const customFields = [
     {
@@ -31,11 +51,17 @@ export const ReviewOrder = ({ apiResponse, onSign, onBack }: ReviewOrderProps) =
     },
     {
       label: "Price",
-      value: `1 ${result.params.give_asset} = ${formatAmount({
-        value: Number(result.params.get_quantity) / Number(result.params.give_quantity),
-        minimumFractionDigits: 8,
-        maximumFractionDigits: 8,
-      })} ${result.params.get_asset}`,
+      value: getPriceDisplay(),
+      rightElement: (
+        <button
+          type="button"
+          onClick={() => setIsPriceFlipped(!isPriceFlipped)}
+          className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+          aria-label="Flip price ratio"
+        >
+          <FaExchangeAlt className="w-4 h-4 text-gray-600" />
+        </button>
+      ),
     },
     ...(result.params.expiration !== 8064
       ? [{ label: "Expiration", value: `${result.params.expiration} blocks` }]

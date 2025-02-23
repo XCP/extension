@@ -5,13 +5,13 @@ import { Composer } from "@/components/composer";
 import { composeDetach } from "@/utils/blockchain/counterparty";
 
 export function ComposeUtxoDetach() {
-  const { utxo } = useParams<{ utxo: string }>();
+  const { txid } = useParams<{ txid: string }>();
 
   return (
     <div className="p-4">
       <Composer
-        initialTitle="Detach"
-        FormComponent={(props) => <UtxoDetachForm {...props} initialUtxo={utxo || ""} />}
+        initialTitle="Detach UTXO"
+        FormComponent={(props) => <UtxoDetachForm {...props} initialUtxo={txid || ""} />}
         ReviewComponent={ReviewUtxoDetach}
         composeTransaction={composeDetach}
       />

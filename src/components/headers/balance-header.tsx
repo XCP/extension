@@ -1,5 +1,10 @@
-import { formatAmount } from "@/utils/format";
+import React, { useEffect } from 'react';
+import { useHeader } from '@/contexts/header-context';
+import { formatAmount } from '@/utils/format';
 
+/**
+ * Represents a token balance.
+ */
 interface TokenBalance {
   asset: string;
   asset_info?: {
@@ -13,38 +18,65 @@ interface TokenBalance {
   quantity_normalized?: string;
 }
 
+/**
+ * Props for the BalanceHeader component.
+ */
 interface BalanceHeaderProps {
   balance: TokenBalance;
   className?: string;
 }
 
-export const BalanceHeader = ({ balance, className = "" }: BalanceHeaderProps) => {
-  const formattedBalance = balance.quantity_normalized
+/**
+ * Displays a header with token balance information, using cached data from HeaderContext.
+ * @param props BalanceHeaderProps
+ * @returns JSX.Element
+ */
+export const BalanceHeader = ({ balance, className = '' }: BalanceHeaderProps) => {
+  const { subheadings, setBalanceHeader } = useHeader();
+  const cached = subheadings.balances[balance.asset];
+
+  // Update cache if props differ from cached data
+  useEffect(() => {
+    if (!cached || JSON.stringify(cached) !== JSON.stringify(balance)) {
+      setBalanceHeader(balance.asset, balance);
+    }
+  }, [balance, cached, setBalanceHeader]);
+
+  // Use cached data if available, otherwise fall back to props
+  const displayBalance = cached ?? balance;
+
+  // Format the balance based on divisibility
+  const formattedBalance = displayBalance.quantity_normalized
     ? formatAmount({
-        value: Number(balance.quantity_normalized),
-        minimumFractionDigits: balance.asset_info?.divisible ? 8 : 0,
-        maximumFractionDigits: balance.asset_info?.divisible ? 8 : 0,
+        value: Number(displayBalance.quantity_normalized),
+        minimumFractionDigits: displayBalance.asset_info?.divisible ? 8 : 0,
+        maximumFractionDigits: displayBalance.asset_info?.divisible ? 8 : 0,
         useGrouping: true,
       })
-    : "0";
+    : '0';
 
-  const displayName = balance.asset_info?.asset_longname || balance.asset;
-  const textSizeClass = !balance.asset_info?.asset_longname && balance.asset.startsWith('A') ? "text-lg" :
-                       displayName.length > 21 ? "text-sm" : 
-                       displayName.length > 18 ? "text-base" : 
-                       displayName.length > 12 ? "text-lg" : "text-xl";
+  // Determine display name and text size based on asset name length
+  const displayName = displayBalance.asset_info?.asset_longname || displayBalance.asset;
+  const textSizeClass =
+    !displayBalance.asset_info?.asset_longname && displayBalance.asset.startsWith('A')
+      ? 'text-lg'
+      : displayName.length > 21
+      ? 'text-sm'
+      : displayName.length > 18
+      ? 'text-base'
+      : displayName.length > 12
+      ? 'text-lg'
+      : 'text-xl';
 
   return (
     <div className={`flex items-center ${className}`}>
       <img
-        src={`https://app.xcp.io/img/icon/${balance.asset}`}
-        alt={balance.asset}
+        src={`https://app.xcp.io/img/icon/${displayBalance.asset}`}
+        alt={displayBalance.asset}
         className="w-12 h-12 mr-4"
       />
       <div>
-        <h2 className={`${textSizeClass} font-bold break-all`}>
-          {displayName}
-        </h2>
+        <h2 className={`${textSizeClass} font-bold break-all`}>{displayName}</h2>
         <p className="text-sm text-gray-600">Available: {formattedBalance}</p>
       </div>
     </div>

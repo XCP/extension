@@ -7,7 +7,11 @@ interface ReviewScreenProps {
   apiResponse: any;
   onSign: () => Promise<void>;
   onBack: () => void;
-  customFields: { label: string; value: string | number }[];
+  customFields: {
+    label: string;
+    value: string | number;
+    rightElement?: React.ReactNode;
+  }[];
   error: string | null;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
 }
@@ -53,7 +57,10 @@ export function ReviewScreen({
         {customFields.map((field, idx) => (
           <div key={idx} className="space-y-1">
             <span className="font-semibold text-gray-700">{field.label}:</span>
-            <div className="bg-gray-50 p-2 rounded text-gray-900">{field.value}</div>
+            <div className="bg-gray-50 p-2 rounded text-gray-900 flex justify-between items-center">
+              <span>{field.value}</span>
+              {field.rightElement}
+            </div>
           </div>
         ))}
         <div className="space-y-1">
