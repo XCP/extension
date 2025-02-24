@@ -112,4 +112,4 @@ export const toSatoshis = (value: BigNumber | string | number): BigNumber => {
  */
 export const fromSatoshis = (satoshis: BigNumber | string | number): BigNumber => {
   return toBigNumber(satoshis).dividedBy(1e8);
-}; 
+};

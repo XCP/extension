@@ -30,17 +30,6 @@ interface ActionGroup {
 const CONSTANTS = {
   PATHS: {
     BACK: "/index",
-    SIGN_MESSAGE: "/actions/sign-message",
-    SIGN_BROADCAST: "/actions/sign-broadcast",
-    ISSUE_ASSET: "/compose/issuance",
-    MINT_SUPPLY: "/compose/fairminter",
-    CANCEL_ORDER: "/compose/cancel",
-    CLOSE_DISPENSER: "/compose/dispenser/close",
-    COMPOSE_BROADCAST: "/compose/broadcast",
-    COMPOSE_SWEEP: "/compose/sweep",
-    BROADCAST_ADDRESS_OPTIONS: "/compose/broadcast/address-options",
-    CONSOLIDATE: "/consolidate",
-    PLACE_BET: "/compose/bet",
   } as const,
   ACTION_GROUPS: [
     {
