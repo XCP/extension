@@ -2,15 +2,16 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaCheck } from 'react-icons/fa';
 import { RadioGroup } from '@headlessui/react';
-import { Loading } from '@/components/loading';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { AddressType } from '@/utils/blockchain/bitcoin';
 import { formatAddress } from '@/utils/format';
+import { useLoading } from '@/contexts/loading-context';
 
 export function AddressTypeSettings() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
+  const { showLoading, hideLoading } = useLoading();
   const { activeWallet, updateWalletAddressType, getPreviewAddressForType } = useWallet();
   const [addresses, setAddresses] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -37,6 +38,7 @@ export function AddressTypeSettings() {
         return;
       }
       
+      const loadingId = showLoading('Loading addresses...');
       try {
         const addressMap: { [key: string]: string } = {};
         for (const type of availableAddressTypes) {
@@ -53,13 +55,14 @@ export function AddressTypeSettings() {
         console.error('Error fetching addresses:', error);
         setError(error instanceof Error ? error.message : 'Failed to fetch addresses');
       } finally {
+        hideLoading(loadingId);
         setIsLoading(false);
       }
     };
 
     setIsLoading(true);
     fetchAddresses();
-  }, [activeWallet, availableAddressTypes, getPreviewAddressForType]);
+  }, [activeWallet, availableAddressTypes, getPreviewAddressForType, showLoading, hideLoading]);
 
   useEffect(() => {
     if (activeWallet) {
@@ -70,6 +73,7 @@ export function AddressTypeSettings() {
   const handleAddressTypeChange = async (newType: AddressType) => {
     if (!activeWallet) return;
     
+    const loadingId = showLoading('Updating address type...');
     try {
       setIsUpdating(true);
       await updateWalletAddressType(activeWallet.id, newType);
@@ -82,6 +86,7 @@ export function AddressTypeSettings() {
       console.error('Error updating address type:', error);
       setError(error instanceof Error ? error.message : 'Failed to update address type');
     } finally {
+      hideLoading(loadingId);
       setIsUpdating(false);
     }
   };
@@ -102,7 +107,7 @@ export function AddressTypeSettings() {
   };
 
   if (isLoading) {
-    return <Loading message="Loading addresses..." />;
+    return null;
   }
 
   if (error) {

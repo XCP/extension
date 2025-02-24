@@ -91,92 +91,90 @@ export default function App() {
   const walletExists = wallets.length > 0;
 
   return (
-    <Routes>
-      {/* Root route logic:
-          - If no wallet exists, go to onboarding.
-          - If a wallet exists but is locked, go to unlock-wallet.
-          - Otherwise, go to the main page. */}
-      <Route
-        path="/"
-        element={
-          !walletExists ? (
-            <Navigate to="/onboarding" replace />
-          ) : walletLocked ? (
-            <Navigate to="/unlock-wallet" replace />
-          ) : (
-            <Navigate to="/index" replace />
-          )
-        }
-      />
+    <>
+      <Routes>
+        {/* Root route logic:
+            - If no wallet exists, go to onboarding.
+            - If a wallet exists but is locked, go to unlock-wallet.
+            - Otherwise, go to the main page. */}
+        <Route
+          path="/"
+          element={
+            !walletExists ? (
+              <Navigate to="/onboarding" replace />
+            ) : walletLocked ? (
+              <Navigate to="/unlock-wallet" replace />
+            ) : (
+              <Navigate to="/index" replace />
+            )
+          }
+        />
 
-      {/* Public routes */}
-      <Route element={<Layout />}>
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/create-wallet" element={<CreateWallet />} />
-        <Route path="/import-wallet" element={<ImportWallet />} />
-        <Route path="/unlock-wallet" element={<UnlockWallet />} />
-        <Route path="/import-private-key" element={<ImportPrivateKey />} />
-      </Route>
-
-      {/* Protected routes with footer */}
-      <Route element={<AuthRequired />}>
-        <Route element={<Layout showFooter={true} />}>
-          <Route path="/index" element={<Index />} />
-          <Route path="/actions" element={<Actions />} />
-          <Route path="/settings" element={<Settings />} />
-        </Route>
-      </Route>
-
-      {/* Protected routes */}
-      <Route element={<AuthRequired />}>
+        {/* Public routes */}
         <Route element={<Layout />}>
-          <Route path="/add-wallet" element={<AddWallet />} />
-          <Route path="/select-wallet" element={<SelectWallet />} />
-          <Route path="/reset-wallet" element={<ResetWallet />} />
-          <Route path="/remove-wallet/:walletId" element={<RemoveWallet />} />
-          <Route path="/show-passphrase/:walletId" element={<ShowPassphrase />} />
-          <Route path="/show-private-key/:walletId/:addressPath?" element={<ShowPrivateKey />} />
-          <Route path="/consolidate" element={<Consolidate />} />
-          <Route path="/settings/address-type" element={<AddressTypeSettings />} />
-          <Route path="/settings/advanced" element={<AdvancedSettings />} />
-          <Route path="/settings/connected-sites" element={<ConnectedSitesSettings />} />
-          <Route path="/settings/security" element={<SecuritySettings />} />
-          <Route path="/address-history" element={<AddressHistory />} />
-          <Route path="/select-address" element={<SelectAddress />} />
-          <Route path="/view-address" element={<ViewAddress />} />
-          <Route path="/select-assets" element={<SelectAssets />} />
-          <Route path="/asset/:asset" element={<ViewAsset />} />
-          <Route path="/balance/:asset" element={<ViewBalance />} />
-          <Route path="/compose/bet" element={<ComposeBet />} />
-          <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
-          <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptions />} />
-          <Route path="/compose/btcpay" element={<ComposeBTCPay />} />
-          <Route path="/compose/cancel/:hash?" element={<ComposeCancel />} />
-          <Route path="/compose/send/:asset" element={<ComposeSend />} />
-          <Route path="/compose/sweep/:address?" element={<ComposeSweep />} />
-          <Route path="/compose/destroy/:asset" element={<ComposeDestroy />} />
-          <Route path="/compose/dispenser/close/:asset?" element={<ComposeDispenserClose />} />
-          <Route path="/compose/dispenser/:asset" element={<ComposeDispenser />} />
-          <Route path="/compose/dispenser/dispense/:address?" element={<ComposeDispenserDispense />} />
-          <Route path="/compose/dividend/:asset" element={<ComposeDividend />} />
-          <Route path="/compose/issuance/:asset?" element={<ComposeIssuance />} />
-          <Route path="/compose/issuance/issue-supply/:asset" element={<ComposeIssuanceIssueSupply />} />
-          <Route path="/compose/issuance/lock-supply/:asset" element={<ComposeIssuanceLockSupply />} />
-          <Route path="/compose/issuance/reset-supply/:asset" element={<ComposeIssuanceResetSupply />} />
-          <Route path="/compose/issuance/transfer-ownership/:asset" element={<ComposeIssuanceTransferOwnership />} />
-          <Route path="/compose/issuance/update-description/:asset" element={<ComposeIssuanceUpdateDescription />} />
-          <Route path="/compose/issuance/destroy/:asset" element={<ComposeDestroy />} />
-          <Route path="/compose/fairminter/:asset?" element={<ComposeFairminter />} />
-          <Route path="/compose/utxo/attach/:asset" element={<ComposeUtxoAttach />} />
-          <Route path="/compose/utxo/detach/:txid" element={<ComposeUtxoDetach />} />
-          <Route path="/compose/utxo/move/:txid" element={<ComposeUtxoMove />} />
-          <Route path="/compose/order/:asset?" element={<ComposeOrder />} />
-          <Route path="/utxo/:txid" element={<ViewUtxo />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/create-wallet" element={<CreateWallet />} />
+          <Route path="/import-wallet" element={<ImportWallet />} />
+          <Route path="/unlock-wallet" element={<UnlockWallet />} />
+          <Route path="/import-private-key" element={<ImportPrivateKey />} />
         </Route>
-      </Route>
 
-      {/* Catch-all route */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        {/* Protected routes */}
+        <Route element={<AuthRequired />}>
+          <Route element={<Layout showFooter={true} />}>
+            <Route path="/index" element={<Index />} />
+            <Route path="/actions" element={<Actions />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
+          <Route element={<Layout />}>
+            <Route path="/add-wallet" element={<AddWallet />} />
+            <Route path="/select-wallet" element={<SelectWallet />} />
+            <Route path="/reset-wallet" element={<ResetWallet />} />
+            <Route path="/remove-wallet/:walletId" element={<RemoveWallet />} />
+            <Route path="/show-passphrase/:walletId" element={<ShowPassphrase />} />
+            <Route path="/show-private-key/:walletId/:addressPath?" element={<ShowPrivateKey />} />
+            <Route path="/consolidate" element={<Consolidate />} />
+            <Route path="/settings/address-type" element={<AddressTypeSettings />} />
+            <Route path="/settings/advanced" element={<AdvancedSettings />} />
+            <Route path="/settings/connected-sites" element={<ConnectedSitesSettings />} />
+            <Route path="/settings/security" element={<SecuritySettings />} />
+            <Route path="/address-history" element={<AddressHistory />} />
+            <Route path="/select-address" element={<SelectAddress />} />
+            <Route path="/view-address" element={<ViewAddress />} />
+            <Route path="/select-assets" element={<SelectAssets />} />
+            <Route path="/asset/:asset" element={<ViewAsset />} />
+            <Route path="/balance/:asset" element={<ViewBalance />} />
+            <Route path="/compose/bet" element={<ComposeBet />} />
+            <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
+            <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptions />} />
+            <Route path="/compose/btcpay" element={<ComposeBTCPay />} />
+            <Route path="/compose/cancel/:hash?" element={<ComposeCancel />} />
+            <Route path="/compose/send/:asset" element={<ComposeSend />} />
+            <Route path="/compose/sweep/:address?" element={<ComposeSweep />} />
+            <Route path="/compose/destroy/:asset" element={<ComposeDestroy />} />
+            <Route path="/compose/dispenser/close/:asset?" element={<ComposeDispenserClose />} />
+            <Route path="/compose/dispenser/:asset" element={<ComposeDispenser />} />
+            <Route path="/compose/dispenser/dispense/:address?" element={<ComposeDispenserDispense />} />
+            <Route path="/compose/dividend/:asset" element={<ComposeDividend />} />
+            <Route path="/compose/issuance/:asset?" element={<ComposeIssuance />} />
+            <Route path="/compose/issuance/issue-supply/:asset" element={<ComposeIssuanceIssueSupply />} />
+            <Route path="/compose/issuance/lock-supply/:asset" element={<ComposeIssuanceLockSupply />} />
+            <Route path="/compose/issuance/reset-supply/:asset" element={<ComposeIssuanceResetSupply />} />
+            <Route path="/compose/issuance/transfer-ownership/:asset" element={<ComposeIssuanceTransferOwnership />} />
+            <Route path="/compose/issuance/update-description/:asset" element={<ComposeIssuanceUpdateDescription />} />
+            <Route path="/compose/issuance/destroy/:asset" element={<ComposeDestroy />} />
+            <Route path="/compose/fairminter/:asset?" element={<ComposeFairminter />} />
+            <Route path="/compose/utxo/attach/:asset" element={<ComposeUtxoAttach />} />
+            <Route path="/compose/utxo/detach/:txid" element={<ComposeUtxoDetach />} />
+            <Route path="/compose/utxo/move/:txid" element={<ComposeUtxoMove />} />
+            <Route path="/compose/order/:asset?" element={<ComposeOrder />} />
+            <Route path="/utxo/:txid" element={<ViewUtxo />} />
+          </Route>
+        </Route>
+
+        {/* Catch-all route */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
   );
 }

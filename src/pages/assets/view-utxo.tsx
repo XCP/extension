@@ -1,9 +1,22 @@
+"use client";
+
 import React, { useEffect, useState } from 'react';
+import type { ReactElement } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaSpinner, FaChevronRight } from 'react-icons/fa';
+import { FaChevronRight } from 'react-icons/fa';
 import { useHeader } from '@/contexts/header-context';
+import { useLoading } from '@/contexts/loading-context';
 import { fetchUtxoBalances, type UtxoBalance } from '@/utils/blockchain/counterparty/api';
 
+/**
+ * Represents an actionable option for a UTXO.
+ * @typedef {Object} Action
+ * @property {string} id - Unique identifier for the action.
+ * @property {string} name - Display name of the action.
+ * @property {string} description - Description of the action.
+ * @property {string} path - Navigation path for the action.
+ * @property {'default' | 'success' | 'destructive'} [variant] - Optional styling variant for the action.
+ */
 interface Action {
   id: string;
   name: string;
@@ -12,14 +25,26 @@ interface Action {
   variant?: 'default' | 'success' | 'destructive';
 }
 
-export const ViewUtxo = () => {
+/**
+ * A component that displays details and actions for a specific UTXO.
+ * Fetches UTXO balances and provides navigation to UTXO-related actions.
+ * @returns {ReactElement} The rendered UTXO view UI.
+ * @example
+ * ```tsx
+ * <ViewUtxo />
+ * ```
+ */
+export const ViewUtxo = (): ReactElement => {
   const { txid } = useParams<{ txid: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const [isLoading, setIsLoading] = useState(true);
+  const { showLoading, hideLoading } = useLoading();
   const [error, setError] = useState<Error | null>(null);
   const [balances, setBalances] = useState<UtxoBalance[]>([]);
 
+  /**
+   * Configures the header with navigation back to the previous page.
+   */
   useEffect(() => {
     setHeaderProps({
       title: 'UTXO Details',
@@ -29,24 +54,51 @@ export const ViewUtxo = () => {
     return () => setHeaderProps(null);
   }, [setHeaderProps, navigate]);
 
+  /**
+   * Loads UTXO balances for the given transaction ID, managing loading state via context.
+   */
   useEffect(() => {
+    if (!txid) {
+      setBalances([]);
+      return;
+    }
+
+    let loadingId: string | undefined;
+    let isCancelled = false;
+
     const loadUtxoBalances = async () => {
-      if (!txid) return;
-      
+      loadingId = showLoading('Loading UTXO details...', {
+        onError: (err) => setError(err instanceof Error ? err : new Error('Failed to load UTXO')),
+      });
       try {
-        setIsLoading(true);
-        const response = await fetchUtxoBalances(`${txid}`);
-        setBalances(response.result);
+        const response = await fetchUtxoBalances(txid);
+        if (!isCancelled) {
+          setBalances(response.result);
+          setError(null);
+        }
       } catch (err) {
-        setError(err as Error);
+        if (!isCancelled) {
+          setError(err instanceof Error ? err : new Error('Unknown error'));
+        }
       } finally {
-        setIsLoading(false);
+        if (!isCancelled && loadingId) {
+          hideLoading(loadingId);
+        }
       }
     };
 
     loadUtxoBalances();
-  }, [txid]);
 
+    return () => {
+      isCancelled = true;
+      if (loadingId) hideLoading(loadingId);
+    };
+  }, [txid, showLoading, hideLoading]);
+
+  /**
+   * Generates a list of available actions for the UTXO.
+   * @returns {Action[]} The list of actionable options for the UTXO.
+   */
   const getActions = (): Action[] => {
     if (!txid) return [];
 
@@ -67,18 +119,10 @@ export const ViewUtxo = () => {
     ];
   };
 
-  if (isLoading) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <FaSpinner className="animate-spin text-4xl text-primary-600" />
-      </div>
-    );
-  }
-
-  if (error || !balances) {
+  if (error) {
     return (
       <div className="p-4 text-center text-gray-600">
-        Failed to load UTXO information
+        Failed to load UTXO information: {error.message}
       </div>
     );
   }
@@ -152,4 +196,4 @@ export const ViewUtxo = () => {
   );
 };
 
-export default ViewUtxo; 
+export default ViewUtxo;

@@ -8,8 +8,21 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
-import { BetOptions } from "@/utils/blockchain/counterparty";
+import type { BetOptions } from "@/utils/blockchain/counterparty";
 
+/**
+ * Internal form data structure for the BetForm component.
+ * @typedef {Object} BetFormDataInternal
+ * @property {string} feed_address - The address of the feed to bet on.
+ * @property {string} bet_type - The type of bet (0: Bullish, 1: Bearish, 2: Equal, 3: NotEqual).
+ * @property {string} deadline - The block deadline for the bet.
+ * @property {string} wager_quantity - The wager amount in XCP (human-readable).
+ * @property {string} counterwager_quantity - The counterwager amount in XCP (human-readable).
+ * @property {string} expiration - The number of blocks until expiration.
+ * @property {string} leverage - The leverage factor for the bet.
+ * @property {string} target_value - The target value for Equal/NotEqual bets.
+ * @property {number} sat_per_vbyte - The fee rate in satoshis per virtual byte.
+ */
 interface BetFormDataInternal {
   feed_address: string;
   bet_type: string;
@@ -22,20 +35,34 @@ interface BetFormDataInternal {
   sat_per_vbyte: number;
 }
 
+/**
+ * Props for the BetForm component.
+ * @typedef {Object} BetFormProps
+ * @property {(data: BetOptions) => void} onSubmit - Callback to submit the validated bet data to the Composer.
+ * @property {BetOptions} [initialFormData] - Optional initial data to prefill the form.
+ */
 interface BetFormProps {
   onSubmit: (data: BetOptions) => void;
   initialFormData?: BetOptions;
 }
 
-export function BetForm({ onSubmit, initialFormData }: BetFormProps) {
+/**
+ * A form component for composing a bet transaction on the Counterparty protocol.
+ * Validates user input and submits bet options to the Composer for processing.
+ * Manages loading state for fetching XCP balance details.
+ * @param {BetFormProps} props - The properties for the BetForm component.
+ * @returns {ReactElement} The rendered bet form UI.
+ * @example
+ * ```tsx
+ * <BetForm onSubmit={handleBetSubmit} initialFormData={initialBetData} />
+ * ```
+ */
+export function BetForm({ onSubmit, initialFormData }: BetFormProps): ReactElement {
   const { activeAddress } = useWallet();
   const { settings } = useSettings();
   const { showLoading, hideLoading } = useLoading();
   const shouldShowHelpText = settings?.showHelpText ?? false;
-  const { error: assetError, data: assetDetails } = useAssetDetails("XCP", {
-    onLoadStart: () => showLoading("Loading XCP details..."),
-    onLoadEnd: hideLoading,
-  });
+  const { error: assetError, data: assetDetails } = useAssetDetails("XCP");
 
   const [formData, setFormData] = useState<BetFormDataInternal>(() => {
     const isDivisible = assetDetails?.assetInfo?.divisible ?? true; // XCP is divisible
@@ -65,11 +92,27 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps) {
 
   const inputRef = useRef<HTMLInputElement>(null);
 
+  /**
+   * Focuses the feed address input on mount.
+   */
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
+  /**
+   * Manages loading state for fetching XCP asset details and updates form data if initial data changes.
+   */
   useEffect(() => {
+    let loadingId: string | undefined;
+
+    if (!assetDetails && !assetError) {
+      loadingId = showLoading("Loading XCP details...", {
+        onError: (err) => setLocalError(`Failed to load XCP details: ${err.message}`),
+      });
+    } else if (loadingId) {
+      hideLoading(loadingId);
+    }
+
     if (initialFormData && assetDetails) {
       const isDivisible = assetDetails.assetInfo?.divisible ?? true;
       const wagerQty = initialFormData.wager_quantity;
@@ -82,8 +125,16 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps) {
           : counterwagerQty.toString(),
       }));
     }
-  }, [assetDetails, initialFormData]);
 
+    return () => {
+      if (loadingId) hideLoading(loadingId);
+    };
+  }, [assetDetails, assetError, initialFormData, showLoading, hideLoading]);
+
+  /**
+   * Handles form submission by validating inputs and preparing bet options for the Composer.
+   * @param {React.FormEvent<HTMLFormElement>} e - The form submission event.
+   */
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 

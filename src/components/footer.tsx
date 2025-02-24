@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { FaWallet, FaTools, FaCog } from 'react-icons/fa';
 import { Button } from '@/components/button';
 
-const Footer = () => {
+export const Footer = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -47,5 +47,3 @@ const Footer = () => {
     </div>
   );
 };
-
-export default Footer;

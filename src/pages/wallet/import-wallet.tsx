@@ -12,8 +12,6 @@ import { useToast } from '@/contexts/toast-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { AddressType } from '@/utils/blockchain/bitcoin';
 import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
-import { Loading } from '@/components/loading';
-import { useLoading } from '@/contexts/loading-context';
 
 function ImportWallet() {
   const navigate = useNavigate();
@@ -21,7 +19,6 @@ function ImportWallet() {
   const { unlockWallet, wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
   const { showError } = useToast();
   const walletExists = wallets.length > 0;
-  const { showLoading, hideLoading } = useLoading();
 
   const [mnemonicWords, setMnemonicWords] = useState<string[]>(Array(12).fill(''));
   const [isConfirmed, setIsConfirmed] = useState(false);
@@ -124,7 +121,6 @@ function ImportWallet() {
     if (e) e.preventDefault();
     if (await validateForm()) {
       try {
-        showLoading('Importing wallet...');
         const mnemonic = mnemonicWords.join(' ').trim();
         console.log('Attempting to import mnemonic...');
         
@@ -144,8 +140,6 @@ function ImportWallet() {
         console.error('Detailed error importing wallet:', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         showError(`Failed to import wallet: ${errorMessage}`);
-      } finally {
-        hideLoading();
       }
     }
   }

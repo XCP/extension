@@ -1,28 +1,27 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaSpinner } from "react-icons/fa";
 import { AssetMenu } from "@/components/menus/asset-menu";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchOwnedAssets, type OwnedAsset } from "@/utils/blockchain/counterparty/api";
 import { formatAsset, formatAmount } from "@/utils/format";
+import { Spinner } from "@/components/spinner";
 
-interface AssetListProps {
-  visible: boolean;
-  scrollContainer: HTMLDivElement | null;
-}
-
-export const AssetList = ({ visible, scrollContainer }: AssetListProps) => {
+export const AssetList = (): JSX.Element => {
   const { activeAddress } = useWallet();
   const [ownedAssets, setOwnedAssets] = useState<OwnedAsset[]>([]);
-  const [isLoadingAssets, setIsLoadingAssets] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!activeAddress?.address) return;
+    if (!activeAddress?.address) {
+      setOwnedAssets([]);
+      return;
+    }
+
     let isCancelled = false;
 
-    async function loadOwnedAssets() {
-      setIsLoadingAssets(true);
+    const loadOwnedAssets = async () => {
+      setIsLoading(true);
       try {
         const assets = await fetchOwnedAssets(activeAddress.address);
         if (!isCancelled) {
@@ -32,25 +31,22 @@ export const AssetList = ({ visible, scrollContainer }: AssetListProps) => {
         console.error("Error fetching owned assets:", error);
       } finally {
         if (!isCancelled) {
-          setIsLoadingAssets(false);
+          setIsLoading(false);
         }
       }
-    }
+    };
 
     loadOwnedAssets();
+
     return () => {
       isCancelled = true;
     };
   }, [activeAddress]);
 
-  // Even if not visible, we keep the component mounted so its data persists.
-  if (isLoadingAssets) {
-    return (
-      <div className="flex justify-center items-center h-full">
-        <FaSpinner className="animate-spin text-4xl text-blue-500" />
-      </div>
-    );
+  if (isLoading) {
+    return <Spinner message="Loading owned assets..." />;
   }
+
   if (ownedAssets.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center text-center">
@@ -65,6 +61,7 @@ export const AssetList = ({ visible, scrollContainer }: AssetListProps) => {
       </div>
     );
   }
+
   return (
     <div className="space-y-2">
       {ownedAssets.map((asset) => {

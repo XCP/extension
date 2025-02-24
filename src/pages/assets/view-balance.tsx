@@ -1,12 +1,24 @@
-import React, { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { FaSpinner, FaChevronRight } from 'react-icons/fa';
-import { useWallet } from '@/contexts/wallet-context';
-import { useHeader } from '@/contexts/header-context';
-import { useAssetDetails } from '@/hooks/useAssetDetails';
-import { formatAsset, formatAmount } from '@/utils/format';
-import { BalanceHeader } from '@/components/headers/balance-header';
+"use client";
 
+import React, { useEffect } from 'react';
+import type { ReactElement } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { FaChevronRight } from 'react-icons/fa';
+import { BalanceHeader } from '@/components/headers/balance-header';
+import { useHeader } from '@/contexts/header-context';
+import { useLoading } from '@/contexts/loading-context';
+import { useAssetDetails } from '@/hooks/useAssetDetails';
+import type { TokenBalance } from '@/utils/blockchain/counterparty';
+
+/**
+ * Represents an actionable option for a balance.
+ * @typedef {Object} Action
+ * @property {string} id - Unique identifier for the action.
+ * @property {string} name - Display name of the action.
+ * @property {string} description - Description of the action.
+ * @property {string} path - Navigation path for the action.
+ * @property {'default' | 'success' | 'destructive'} [variant] - Optional styling variant for the action.
+ */
 interface Action {
   id: string;
   name: string;
@@ -15,22 +27,53 @@ interface Action {
   variant?: 'default' | 'success' | 'destructive';
 }
 
-export const ViewBalance = () => {
+/**
+ * A component that displays balance details and actions for a specific asset.
+ * Fetches asset details and provides navigation to asset-related actions and UTXOs.
+ * @returns {ReactElement} The rendered balance view UI.
+ * @example
+ * ```tsx
+ * <ViewBalance />
+ * ```
+ */
+export const ViewBalance = (): ReactElement => {
   const { asset } = useParams<{ asset: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { activeAddress } = useWallet();
+  const { showLoading, hideLoading } = useLoading();
   const { data: assetDetails, isLoading, error } = useAssetDetails(asset || '');
 
+  // Note: activeAddress is not used in this component; consider removing useWallet import if not needed elsewhere
+
+  /**
+   * Configures the header and manages loading state for balance details fetch.
+   */
   useEffect(() => {
+    let loadingId: string | undefined;
+
     setHeaderProps({
       title: 'Balance',
       onBack: () => navigate(-1),
     });
 
-    return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate]);
+    if (isLoading) {
+      loadingId = showLoading('Loading balance details...', {
+        onError: (err) => console.error(`Failed to load balance: ${err.message}`),
+      });
+    } else if (loadingId) {
+      hideLoading(loadingId);
+    }
 
+    return () => {
+      setHeaderProps(null);
+      if (loadingId) hideLoading(loadingId);
+    };
+  }, [setHeaderProps, navigate, isLoading, showLoading, hideLoading]);
+
+  /**
+   * Generates a list of available actions based on the asset type and details.
+   * @returns {Action[]} The list of actionable options for the balance.
+   */
   const getActions = (): Action[] => {
     if (!asset || !assetDetails) return [];
 
@@ -98,14 +141,6 @@ export const ViewBalance = () => {
     return actions;
   };
 
-  if (isLoading) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <FaSpinner className="animate-spin text-4xl text-primary-600" />
-      </div>
-    );
-  }
-
   if (error || !assetDetails) {
     return (
       <div className="p-4 text-center text-gray-600">
@@ -115,7 +150,7 @@ export const ViewBalance = () => {
   }
 
   // Create the balance object expected by BalanceHeader
-  const balanceData = {
+  const balanceData: TokenBalance = {
     asset: asset || '',
     asset_info: {
       asset_longname: assetDetails.assetInfo?.asset_longname || null,
@@ -130,7 +165,7 @@ export const ViewBalance = () => {
 
   return (
     <div className="p-4 space-y-6">
-      {/* Replace the old balance header with BalanceHeader component */}
+      {/* Balance Header */}
       <div className="bg-white rounded-lg p-4 shadow-sm">
         <BalanceHeader balance={balanceData} />
       </div>
@@ -189,4 +224,4 @@ export const ViewBalance = () => {
   );
 };
 
-export default ViewBalance; 
+export default ViewBalance;

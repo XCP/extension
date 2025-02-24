@@ -1,16 +1,18 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useNavigate, Outlet } from 'react-router-dom';
 import { useWallet } from '@/contexts/wallet-context';
 
 export function AuthRequired() {
-  const { walletLocked, wallets } = useWallet();
+  const { authState, wallets } = useWallet();
+  const navigate = useNavigate();
 
-  // If no wallets exist, assume it's a new or reset state and allow the route.
-  if (wallets.length === 0) return <Outlet />;
+  useEffect(() => {
+    if (authState === 'LOCKED' && wallets.length > 0) {
+      navigate('/unlock-wallet', { replace: true });
+    } else if (authState === 'ONBOARDING_NEEDED') {
+      navigate('/onboarding', { replace: true });
+    }
+  }, [authState, wallets, navigate]);
 
-  // If wallets exist but are locked, redirect to unlock.
-  if (walletLocked) {
-    return <Navigate to="/unlock-wallet" replace />;
-  }
-
-  return <Outlet />;
+  return authState === 'UNLOCKED' ? <Outlet /> : null;
 }

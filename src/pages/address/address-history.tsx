@@ -2,22 +2,31 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import {
-  FaExternalLinkAlt,
-  FaSpinner,
-  FaChevronLeft,
-  FaChevronRight,
-} from "react-icons/fa";
+import { FaExternalLinkAlt, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { Button } from "@/components/button";
-import { useWallet } from "@/contexts/wallet-context";
 import { useHeader } from "@/contexts/header-context";
-import { fetchTransactions, TransactionResponse, Transaction } from "@/utils/blockchain/counterparty";
+import { useLoading } from "@/contexts/loading-context";
+import { useWallet } from "@/contexts/wallet-context";
+import { fetchTransactions, type TransactionResponse, type Transaction } from "@/utils/blockchain/counterparty";
+import type { ReactElement } from 'react';
 
+/**
+ * Number of transactions to display per page.
+ * @constant {number}
+ */
 const TRANSACTIONS_PER_PAGE = 20;
 
-export default function AddressHistory() {
+/**
+ * A component that displays the transaction history for the active wallet address.
+ * Supports pagination and external link navigation to XChain.
+ * @returns {JSX.Element} The rendered transaction history UI.
+ * @example
+ * ```tsx
+ * <AddressHistory />
+ * ```
+ */
+export default function AddressHistory(): ReactElement {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalTransactions, setTotalTransactions] = useState(0);
 
@@ -27,13 +36,14 @@ export default function AddressHistory() {
   const navigate = useNavigate();
   const { activeAddress } = useWallet();
   const { setHeaderProps } = useHeader();
-  // Use activeAddress from the new context structure.
-  const currentAddress = activeAddress?.address;
-
-  const totalPages = Math.ceil(totalTransactions / TRANSACTIONS_PER_PAGE);
+  const { showLoading, hideLoading } = useLoading();
   const location = useLocation();
 
-  // If a page is saved in location.state but not in the URL, update the search params.
+  const totalPages = Math.ceil(totalTransactions / TRANSACTIONS_PER_PAGE);
+
+  /**
+   * Syncs URL search params with saved page state from location if needed.
+   */
   useEffect(() => {
     const savedPage = location.state?.page;
     if (savedPage && !searchParams.get("page")) {
@@ -41,33 +51,57 @@ export default function AddressHistory() {
     }
   }, [location.state, searchParams, setSearchParams]);
 
-  const loadTransactions = async (page: number) => {
-    if (!currentAddress) return;
-    try {
-      setLoading(true);
-      const offset = (page - 1) * TRANSACTIONS_PER_PAGE;
-      const data: TransactionResponse = await fetchTransactions(currentAddress, {
-        limit: TRANSACTIONS_PER_PAGE,
-        offset,
-        verbose: true,
-        show_unconfirmed: true,
-      });
-      setTransactions(data.result);
-      setTotalTransactions(data.result_count);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch transactions"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  /**
+   * Loads transactions for the current page, managing loading state via context.
+   */
   useEffect(() => {
-    loadTransactions(currentPage);
-  }, [currentPage, currentAddress]);
+    if (!activeAddress?.address) {
+      setTransactions([]);
+      return;
+    }
 
-  // Set the header.
+    let loadingId: string | undefined;
+    let isCancelled = false;
+
+    const loadTransactions = async (page: number) => {
+      loadingId = showLoading("Loading transaction history...", {
+        onError: (err) => setError(`Failed to load transactions: ${err.message}`),
+      });
+      try {
+        const offset = (page - 1) * TRANSACTIONS_PER_PAGE;
+        const data: TransactionResponse = await fetchTransactions(activeAddress.address, {
+          limit: TRANSACTIONS_PER_PAGE,
+          offset,
+          verbose: true,
+          show_unconfirmed: true,
+        });
+        if (!isCancelled) {
+          setTransactions(data.result);
+          setTotalTransactions(data.result_count);
+          setError(null);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          setError(err instanceof Error ? err.message : "Failed to fetch transactions");
+        }
+      } finally {
+        if (!isCancelled && loadingId) {
+          hideLoading(loadingId);
+        }
+      }
+    };
+
+    loadTransactions(currentPage);
+
+    return () => {
+      isCancelled = true;
+      if (loadingId) hideLoading(loadingId);
+    };
+  }, [currentPage, activeAddress, showLoading, hideLoading]);
+
+  /**
+   * Configures the header with back navigation and an external link to XChain.
+   */
   useEffect(() => {
     setHeaderProps({
       title: "History",
@@ -75,20 +109,34 @@ export default function AddressHistory() {
       rightButton: {
         icon: <FaExternalLinkAlt />,
         onClick: () =>
-          window.open(`https://www.xcp.io/address/${currentAddress}`, "_blank"),
+          window.open(`https://www.xcp.io/address/${activeAddress?.address}`, "_blank"),
         ariaLabel: "View on XChain",
       },
     });
-  }, [setHeaderProps, navigate, currentAddress]);
+    return () => setHeaderProps(null); // Cleanup on unmount
+  }, [setHeaderProps, navigate, activeAddress]);
 
+  /**
+   * Changes the current page and updates URL search params.
+   * @param {number} page - The page number to navigate to.
+   */
   const handlePageChange = (page: number) => {
     setSearchParams({ page: page.toString() });
   };
 
-  const formatDate = (timestamp: number) =>
+  /**
+   * Formats a Unix timestamp into a human-readable date string.
+   * @param {number} timestamp - The Unix timestamp in seconds.
+   * @returns {string} The formatted date string.
+   */
+  const formatDate = (timestamp: number): string =>
     new Date(timestamp * 1000).toLocaleString();
 
-  const renderPagination = () => (
+  /**
+   * Renders pagination controls for navigating between pages.
+   * @returns {JSX.Element} The pagination buttons.
+   */
+  const renderPagination = (): ReactElement => (
     <div className="flex justify-between gap-4">
       <Button
         color="blue"
@@ -115,14 +163,6 @@ export default function AddressHistory() {
       </Button>
     </div>
   );
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-full">
-        <FaSpinner className="animate-spin text-4xl text-blue-500" />
-      </div>
-    );
-  }
 
   if (error) {
     return <div className="p-4 text-red-500">Error: {error}</div>;
@@ -177,7 +217,6 @@ export default function AddressHistory() {
           </div>
         )}
       </div>
-      {/* Move pagination to bottom and add padding */}
       {transactions.length > 0 && totalPages > 1 && (
         <div className="p-4">
           {renderPagination()}

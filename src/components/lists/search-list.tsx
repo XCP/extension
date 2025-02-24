@@ -1,19 +1,20 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { FaSearch, FaSpinner, FaTimes } from "react-icons/fa";
+import { FaSearch, FaTimes } from "react-icons/fa";
 import { TbPinned, TbPinnedFilled } from "react-icons/tb";
 import {
   DragDropContext,
   Droppable,
   Draggable,
-  DropResult,
+  type DropResult,
 } from "@hello-pangea/dnd";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { Spinner } from "@/components/spinner";
 
 interface Asset {
   symbol: string;
@@ -25,13 +26,13 @@ interface SearchListProps {
   visible: boolean;
 }
 
-export const SearchList = ({ onClose, visible }: SearchListProps) => {
+export const SearchList = ({ onClose, visible }: SearchListProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [pinnedAssets, setPinnedAssets] = useState<string[]>([]);
   const [searchResults, setSearchResults] = useState<Asset[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHelpText, setShowHelpText] = useState<boolean>(true);
+  const [isSearching, setIsSearching] = useState(false);
 
   const { activeWallet, updatePinnedAssets } = useWallet();
   const { settings } = useSettings();
@@ -44,35 +45,6 @@ export const SearchList = ({ onClose, visible }: SearchListProps) => {
   }, [settings]);
 
   useEffect(() => {
-    if (!searchQuery) {
-      setSearchResults([]);
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
-    const debounceTimeout = setTimeout(async () => {
-      try {
-        const response = await fetch(
-          `https://app.xcp.io/api/v1/simple-search?query=${encodeURIComponent(
-            searchQuery
-          )}`
-        );
-        const data = await response.json();
-        setSearchResults(data.assets || []);
-      } catch (err) {
-        console.error("Error searching assets:", err);
-        setSearchResults([]);
-        setError("Failed to load search results.");
-      } finally {
-        setIsSearching(false);
-      }
-    }, 500);
-
-    return () => clearTimeout(debounceTimeout);
-  }, [searchQuery]);
-
-  useEffect(() => {
     if (activeWallet) {
       setPinnedAssets(activeWallet.pinnedAssetBalances || []);
     }
@@ -83,6 +55,45 @@ export const SearchList = ({ onClose, visible }: SearchListProps) => {
       searchInputRef.current?.focus();
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (!searchQuery) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const debounceTimeout = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const response = await fetch(
+          `https://app.xcp.io/api/v1/simple-search?query=${encodeURIComponent(searchQuery)}`
+        );
+        if (!response.ok) throw new Error("Network response was not ok");
+        const data = await response.json();
+        if (!isCancelled) {
+          setSearchResults(data.assets || []);
+        }
+      } catch (err) {
+        console.error("Error searching assets:", err);
+        if (!isCancelled) {
+          setSearchResults([]);
+          setError("Failed to load search results.");
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsSearching(false);
+        }
+      }
+    }, 500);
+
+    return () => {
+      clearTimeout(debounceTimeout);
+      isCancelled = true;
+    };
+  }, [searchQuery]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
@@ -151,7 +162,11 @@ export const SearchList = ({ onClose, visible }: SearchListProps) => {
     searchInputRef.current?.focus();
   };
 
-  const SearchItemComponent = ({ asset }: { asset: Asset }) => {
+  interface SearchItemProps {
+    asset: Asset;
+  }
+
+  const SearchItemComponent = ({ asset }: SearchItemProps): JSX.Element => {
     const imageUrl = `https://app.xcp.io/img/icon/${asset.symbol}`;
     const isPinned = pinnedAssets.includes(asset.symbol);
 
@@ -176,7 +191,11 @@ export const SearchList = ({ onClose, visible }: SearchListProps) => {
     );
   };
 
-  const PinnedItemComponent = ({ symbol }: { symbol: string }) => {
+  interface PinnedItemProps {
+    symbol: string;
+  }
+
+  const PinnedItemComponent = ({ symbol }: PinnedItemProps): JSX.Element => {
     const imageUrl = `https://app.xcp.io/img/icon/${symbol}`;
 
     return (
@@ -234,7 +253,9 @@ export const SearchList = ({ onClose, visible }: SearchListProps) => {
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-2">
-        {!searchQuery ? (
+        {isSearching ? (
+          <Spinner message="Searching assets..." />
+        ) : !searchQuery ? (
           <div className="h-full flex flex-col">
             {pinnedAssets.length > 0 && (
               <>
@@ -261,11 +282,7 @@ export const SearchList = ({ onClose, visible }: SearchListProps) => {
           </div>
         ) : (
           <>
-            {isSearching ? (
-              <div className="flex justify-center items-center py-4">
-                <FaSpinner className="animate-spin text-2xl text-blue-500" />
-              </div>
-            ) : searchResults.length === 0 ? (
+            {searchResults.length === 0 ? (
               <div className="text-center py-4 text-gray-500">No results found</div>
             ) : (
               searchResults.map((asset) => (

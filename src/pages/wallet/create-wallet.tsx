@@ -8,15 +8,12 @@ import { useHeader } from '@/contexts/header-context';
 import { useToast } from '@/contexts/toast-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { generateNewMnemonic } from '@/utils/blockchain/bitcoin';
-import { Loading } from '@/components/loading';
-import { useLoading } from '@/contexts/loading-context';
 
 function CreateWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
   const { showError, clearAll } = useToast();
-  const { showLoading, hideLoading } = useLoading();
   const walletExists = wallets.length > 0;
 
   const [mnemonic, setMnemonic] = useState('');
@@ -96,15 +93,12 @@ function CreateWallet() {
     if (e) e.preventDefault();
     if (await validateForm()) {
       try {
-        showLoading('Creating wallet...');
         clearAll();
         await createAndUnlockMnemonicWallet(mnemonic, password);
         navigate('/index');
       } catch (err: unknown) {
         console.error('Error creating wallet:', err);
         showError('Failed to create wallet. Please try again.');
-      } finally {
-        hideLoading();
       }
     }
   }

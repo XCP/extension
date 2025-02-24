@@ -1,5 +1,4 @@
 import React, { type ReactNode } from 'react';
-import { AuthProvider } from './auth-context';
 import { ComposerProvider } from './composer-context';
 import { HeaderProvider } from './header-context';
 import { LoadingProvider } from './loading-context';
@@ -15,20 +14,18 @@ interface AppProvidersProps {
 export function AppProviders({ children }: AppProvidersProps) {
   return (
     <ToastProvider>
-      <LoadingProvider>
-        <AuthProvider>
-          <SettingsProvider>
-            <WalletProvider>
-              <HeaderProvider>
-                <PriceProvider>
-                  <ComposerProvider>
-                    {children}
-                  </ComposerProvider>
-                </PriceProvider>
-              </HeaderProvider>
-            </WalletProvider>
-          </SettingsProvider>
-        </AuthProvider>
+      <LoadingProvider disableScroll={true}>
+        <SettingsProvider>
+          <WalletProvider>
+            <HeaderProvider>
+              <PriceProvider>
+                <ComposerProvider>
+                  {children}
+                </ComposerProvider>
+              </PriceProvider>
+            </HeaderProvider>
+          </WalletProvider>
+        </SettingsProvider>
       </LoadingProvider>
     </ToastProvider>
   );

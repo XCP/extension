@@ -36,16 +36,22 @@ const DEFAULT_PINNED_ASSETS = ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CRO
 export class WalletManager {
   private wallets: Wallet[] = [];
   private activeWalletId: string | null = null;
+  private autoLockCallbacks: Set<() => void> = new Set();
 
-  public get onAutoLock(): (() => void) | undefined {
-    return sessionManager.onAutoLock;
+  public registerAutoLockCallback(callback: () => void): void {
+    console.log('Registering auto-lock callback, current count:', this.autoLockCallbacks.size);
+    this.autoLockCallbacks.add(callback);
   }
-  public set onAutoLock(callback: (() => void) | undefined) {
-    sessionManager.setOnAutoLock(callback);
+  
+  public unregisterAutoLockCallback(callback: () => void): void {
+    console.log('Unregistering auto-lock callback, current count:', this.autoLockCallbacks.size);
+    this.autoLockCallbacks.delete(callback);
   }
+
   public setLastActiveTime(): void {
     sessionManager.setLastActiveTime();
   }
+
   public async isAnyWalletUnlocked(): Promise<boolean> {
     for (const w of this.wallets) {
       if (sessionManager.getUnlockedSecret(w.id)) {
@@ -54,6 +60,7 @@ export class WalletManager {
     }
     return false;
   }
+
   public async loadWallets(): Promise<void> {
     const encryptedRecords = await getAllEncryptedWallets();
     this.wallets = encryptedRecords.map((rec: EncryptedWalletRecord) => {
@@ -91,30 +98,35 @@ export class WalletManager {
       this.activeWalletId = settings.lastActiveWalletId;
     }
   }
+
   public getWallets(): Wallet[] {
     return this.wallets;
   }
+
   public getActiveWallet(): Wallet | undefined {
     if (!this.activeWalletId) return undefined;
     return this.getWalletById(this.activeWalletId);
   }
+
   public setActiveWallet(walletId: string): void {
     this.activeWalletId = walletId;
     settingsManager.updateSettings({ lastActiveWalletId: walletId });
   }
+
   public getWalletById(id: string): Wallet | undefined {
     return this.wallets.find((w) => w.id === id);
   }
-  // New method: getWallet (convenience wrapper)
+
   public getWallet(walletId: string): Wallet | undefined {
     return this.getWalletById(walletId);
   }
-  // New method: getUnencryptedMnemonic
+
   public getUnencryptedMnemonic(walletId: string): string {
     const secret = sessionManager.getUnlockedSecret(walletId);
     if (!secret) throw new Error("Wallet secret not found or locked");
     return secret;
   }
+
   public async createMnemonicWallet(
     mnemonic: string,
     password: string,
@@ -155,6 +167,7 @@ export class WalletManager {
     this.wallets.push(wallet);
     return wallet;
   }
+
   public async createPrivateKeyWallet(
     privateKey: string,
     password: string,
@@ -205,6 +218,7 @@ export class WalletManager {
     this.wallets.push(wallet);
     return wallet;
   }
+
   public async unlockWallet(walletId: string, password: string): Promise<void> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found in memory.');
@@ -236,6 +250,7 @@ export class WalletManager {
     }
     sessionManager.resetAutoLockTimer();
   }
+
   public lockWallet(walletId: string): void {
     sessionManager.clearUnlockedSecret(walletId);
     const wallet = this.getWalletById(walletId);
@@ -243,10 +258,14 @@ export class WalletManager {
       wallet.addresses = [];
     }
   }
+
   public lockAllWallets(): void {
     sessionManager.clearAllUnlockedSecrets();
     this.wallets.forEach((wallet) => (wallet.addresses = []));
+    console.log('Invoking', this.autoLockCallbacks.size, 'auto-lock callbacks');
+    this.autoLockCallbacks.forEach(callback => callback());
   }
+
   public async addAddress(walletId: string): Promise<Address> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found.');
@@ -269,6 +288,7 @@ export class WalletManager {
     await updateEncryptedWallet(record);
     return newAddr;
   }
+
   public async removeWallet(walletId: string): Promise<void> {
     const idx = this.wallets.findIndex((w) => w.id === walletId);
     if (idx === -1) throw new Error('Wallet not found in memory.');
@@ -281,9 +301,9 @@ export class WalletManager {
       this.activeWalletId = null;
     }
 
-    // Renumber remaining wallets
     await this.renumberWallets();
   }
+
   private async renumberWallets(): Promise<void> {
     for (let i = 0; i < this.wallets.length; i++) {
       const wallet = this.wallets[i];
@@ -292,7 +312,6 @@ export class WalletManager {
       if (wallet.name.match(/^Wallet \d+$/)) {
         wallet.name = newName;
         
-        // Update the name in storage
         const allRecords = await getAllEncryptedWallets();
         const record = allRecords.find((r) => r.id === wallet.id);
         if (record) {
@@ -302,6 +321,7 @@ export class WalletManager {
       }
     }
   }
+
   public async verifyPassword(password: string): Promise<boolean> {
     const all = await getAllEncryptedWallets();
     for (const r of all) {
@@ -319,6 +339,7 @@ export class WalletManager {
     }
     return false;
   }
+
   public async resetAllWallets(password: string): Promise<void> {
     const valid = await this.verifyPassword(password);
     if (!valid) throw new Error('Invalid password');
@@ -331,6 +352,7 @@ export class WalletManager {
     sessionManager.clearAllUnlockedSecrets();
     this.activeWalletId = null;
   }
+
   public async updatePassword(currentPassword: string, newPassword: string): Promise<void> {
     const valid = await this.verifyPassword(currentPassword);
     if (!valid) throw new Error('Current password is incorrect');
@@ -350,6 +372,7 @@ export class WalletManager {
     }
     this.lockAllWallets();
   }
+
   public async updateWalletAddressType(walletId: string, newType: AddressType): Promise<void> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found');
@@ -361,12 +384,10 @@ export class WalletManager {
       throw new Error('Wallet is locked. Please unlock first.');
     }
 
-    // Update the wallet in memory
     wallet.addressType = newType;
     wallet.addressCount = 1;
     wallet.addresses = [this.deriveMnemonicAddress(mnemonic, newType, 0)];
 
-    // Update the storage record
     const allRecords = await getAllEncryptedWallets();
     const record = allRecords.find((r) => r.id === walletId);
     if (!record) throw new Error('Missing storage record.');
@@ -377,11 +398,11 @@ export class WalletManager {
     
     await updateEncryptedWallet(record);
 
-    // Force a refresh of the active wallet if this is the active wallet
     if (this.activeWalletId === walletId) {
-        this.setActiveWallet(walletId);
+      this.setActiveWallet(walletId);
     }
   }
+
   public async updateWalletPinnedAssets(walletId: string, pinned: string[]): Promise<void> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found.');
@@ -392,13 +413,13 @@ export class WalletManager {
     record.pinnedAssetBalances = pinned;
     await updateEncryptedWallet(record);
   }
+
   public async getPrivateKey(walletId: string, derivationPath?: string): Promise<string> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found.');
     const secret = sessionManager.getUnlockedSecret(walletId);
     if (!secret) throw new Error('Wallet is locked.');
     if (wallet.type === 'mnemonic') {
-      // Use the provided derivationPath or fallback to the first address's path
       const path =
         derivationPath ||
         (wallet.addresses[0]?.path ?? `${getDerivationPathForAddressType(wallet.addressType)}/0`);
@@ -407,7 +428,8 @@ export class WalletManager {
       const { key: privateKeyHex } = JSON.parse(secret);
       return privateKeyHex;
     }
-  }  
+  }
+
   public async createAndUnlockMnemonicWallet(
     mnemonic: string,
     password: string,
@@ -422,6 +444,7 @@ export class WalletManager {
     this.setActiveWallet(newWallet.id);
     return newWallet;
   }
+
   public async createAndUnlockPrivateKeyWallet(
     privateKey: string,
     password: string,
@@ -436,6 +459,7 @@ export class WalletManager {
     this.setActiveWallet(newWallet.id);
     return newWallet;
   }
+
   public getPreviewAddressForType(walletId: string, addressType: AddressType): string {
     const secret = sessionManager.getUnlockedSecret(walletId);
     if (!secret) {
@@ -456,13 +480,16 @@ export class WalletManager {
       return getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
     }
   }
+
   public async signTransaction(rawTxHex: string, sourceAddress: string): Promise<string> {
     if (!this.activeWalletId) throw new Error("No active wallet set");
     return btcSignTransaction(rawTxHex, this.activeWalletId, sourceAddress);
   }
+
   public async broadcastTransaction(signedTxHex: string): Promise<{ txid: string; fees?: number }> {
     return btcBroadcastTransaction(signedTxHex);
   }
+
   private async generateWalletId(mnemonic: string, addressType: AddressType): Promise<string> {
     const seed = addressType === AddressType.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
     const derivationPath = getDerivationPathForAddressType(addressType);
@@ -479,12 +506,14 @@ export class WalletManager {
     const finalHash = sha256(combined);
     return bytesToHex(finalHash);
   }
+
   private async generateWalletIdFromPrivateKey(privateKeyHex: string, addressType: AddressType): Promise<string> {
     const pubkeyCompressed = getPublicKeyFromPrivateKey(privateKeyHex, true);
     const combined = utf8ToBytes(pubkeyCompressed + addressType);
     const hash = sha256(combined);
     return bytesToHex(hash);
   }
+
   private deriveMnemonicAddress(mnemonic: string, addressType: AddressType, index: number): Address {
     const path = `${getDerivationPathForAddressType(addressType)}/${index}`;
     const address = getAddressFromMnemonic(mnemonic, path, addressType);
@@ -502,6 +531,7 @@ export class WalletManager {
       pubKey: pubKeyHex,
     };
   }
+
   private deriveAddressFromPrivateKey(privKeyData: string, addressType: AddressType): Address {
     const { key: privateKeyHex, compressed } = JSON.parse(privKeyData);
     const address = getAddressFromPrivateKey(privateKeyHex, addressType, compressed);

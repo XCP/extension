@@ -1,75 +1,113 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode, type ReactElement } from 'react';
+import { FaSpinner } from 'react-icons/fa';
+
+interface LoadingState {
+  id: string;
+  message?: string;
+  timestamp: number;
+}
 
 interface LoadingContextType {
+  showLoading: (message?: string, options?: { onError?: (err: Error) => void }) => string;
+  hideLoading: (id: string) => void;
   isLoading: boolean;
-  message: string;
-  showLoading: (message?: string) => void;
-  hideLoading: () => void;
+  currentMessage?: string;
 }
 
 const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
 
-// Timeout in milliseconds before auto-hiding the loading state
-const AUTO_HIDE_TIMEOUT = 30000; // 30 seconds
+const AUTO_HIDE_TIMEOUT = 30000;
 
-export function LoadingProvider({ children }: { children: ReactNode }) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  
-  let timeoutId: number | undefined;
-
-  useEffect(() => {
-    return () => {
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
-    };
-  }, []);
-
-  const showLoading = (message = 'Loading...') => {
-    // When showing loading, prevent background scrolling
-    if (typeof document !== 'undefined') {
-      document.body.style.overflow = 'hidden';
-    }
-    
-    setMessage(message);
-    setIsLoading(true);
-
-    if (timeoutId) {
-      window.clearTimeout(timeoutId);
-    }
-
-    timeoutId = window.setTimeout(() => {
-      console.warn('Loading state auto-hidden after timeout');
-      hideLoading();
-    }, AUTO_HIDE_TIMEOUT);
-  };
-
-  const hideLoading = () => {
-    // Re-enable scrolling when hiding loading
-    if (typeof document !== 'undefined') {
-      document.body.style.overflow = '';
-    }
-    
-    if (timeoutId) {
-      window.clearTimeout(timeoutId);
-      timeoutId = undefined;
-    }
-    setIsLoading(false);
-    setMessage('');
-  };
-
-  return (
-    <LoadingContext.Provider value={{ isLoading, message, showLoading, hideLoading }}>
-      {children}
-    </LoadingContext.Provider>
-  );
+interface LoadingProviderProps {
+  children: ReactNode;
+  disableScroll?: boolean;
 }
 
-export function useLoading() {
+export function LoadingProvider({ children, disableScroll = true }: LoadingProviderProps): ReactElement {
+  const [loadingCount, setLoadingCount] = useState(0);
+  const [currentMessage, setCurrentMessage] = useState<string | undefined>(undefined);
+  const loadingStatesRef = useRef<Map<string, LoadingState>>(new Map());
+  const timeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const errorCallbacksRef = useRef<Map<string, (err: Error) => void>>(new Map());
+  const updatePendingRef = useRef(false); // Flag to batch updates
+
+  useEffect(() => {
+    if (disableScroll) {
+      document.body.style.overflow = loadingCount > 0 ? 'hidden' : '';
+    }
+    return () => {
+      if (disableScroll) document.body.style.overflow = '';
+    };
+  }, [loadingCount, disableScroll]);
+
+  /**
+   * Updates loading state in a batched manner to prevent rapid re-renders.
+   */
+  const updateLoadingState = useCallback(() => {
+    if (updatePendingRef.current) return; // Prevent re-entry
+    updatePendingRef.current = true;
+
+    requestAnimationFrame(() => {
+      const remainingStates = Array.from(loadingStatesRef.current.values());
+      setLoadingCount(remainingStates.length);
+      setCurrentMessage(remainingStates[0]?.message);
+      updatePendingRef.current = false;
+    });
+  }, []);
+
+  const showLoading = useCallback((message = 'Loading...', options: { onError?: (err: Error) => void } = {}): string => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    loadingStatesRef.current.set(id, { id, message, timestamp: Date.now() });
+    if (options.onError) errorCallbacksRef.current.set(id, options.onError);
+
+    const timeout = setTimeout(() => {
+      console.warn(`Loading state "${message}" auto-hidden after ${AUTO_HIDE_TIMEOUT}ms`);
+      hideLoading(id);
+    }, AUTO_HIDE_TIMEOUT);
+    timeoutsRef.current.set(id, timeout);
+
+    updateLoadingState();
+    return id;
+  }, [updateLoadingState]);
+
+  const hideLoading = useCallback((id: string): void => {
+    const timeout = timeoutsRef.current.get(id);
+    if (timeout) {
+      clearTimeout(timeout);
+      timeoutsRef.current.delete(id);
+    }
+    loadingStatesRef.current.delete(id);
+    errorCallbacksRef.current.delete(id);
+    updateLoadingState();
+  }, [updateLoadingState]);
+
+  const contextValue: LoadingContextType = {
+    showLoading,
+    hideLoading,
+    isLoading: loadingCount > 0,
+    currentMessage,
+  };
+
+  return <LoadingContext.Provider value={contextValue}>{children}</LoadingContext.Provider>;
+}
+
+export function useLoading(): LoadingContextType {
   const context = useContext(LoadingContext);
-  if (context === undefined) {
-    throw new Error('useLoading must be used within a LoadingProvider');
-  }
+  if (!context) throw new Error('useLoading must be used within a LoadingProvider');
   return context;
-} 
+}
+
+interface SpinnerProps {
+  className?: string;
+}
+
+export function Spinner({ className = '' }: SpinnerProps): ReactElement | null {
+  const { isLoading, currentMessage } = useLoading();
+  if (!isLoading) return null;
+  return (
+    <div className={`flex flex-col items-center justify-center h-full ${className}`}>
+      <FaSpinner className="animate-spin text-4xl text-blue-500" />
+      {currentMessage && <p className="mt-4 text-gray-600 text-center font-medium">{currentMessage}</p>}
+    </div>
+  );
+}

@@ -1,11 +1,23 @@
+"use client";
+
 import React, { useEffect } from 'react';
+import type { ReactElement } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaSpinner, FaChevronRight } from 'react-icons/fa';
+import { FaChevronRight } from 'react-icons/fa';
+import { useHeader } from '@/contexts/header-context';
+import { useLoading } from '@/contexts/loading-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { useAssetDetails } from '@/hooks/useAssetDetails';
 import { formatAsset } from '@/utils/format';
-import { useHeader } from '@/contexts/header-context';
 
+/**
+ * Represents an actionable option for an asset.
+ * @typedef {Object} Action
+ * @property {string} id - Unique identifier for the action.
+ * @property {string} name - Display name of the action.
+ * @property {string} description - Description of the action.
+ * @property {string} path - Navigation path for the action.
+ */
 interface Action {
   id: string;
   name: string;
@@ -13,22 +25,50 @@ interface Action {
   path: string;
 }
 
-export const ViewAsset = () => {
+/**
+ * A component that displays detailed information and actions for a specific asset.
+ * Fetches asset details and provides navigation to various asset-related actions.
+ * @returns {ReactElement} The rendered asset view UI.
+ * @example
+ * ```tsx
+ * <ViewAsset />
+ * ```
+ */
+export const ViewAsset = (): ReactElement => {
   const { asset } = useParams<{ asset: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeAddress } = useWallet();
+  const { showLoading, hideLoading } = useLoading();
   const { data: assetDetails, isLoading, error } = useAssetDetails(asset || '');
 
+  /**
+   * Configures the header and manages loading state for asset details fetch.
+   */
   useEffect(() => {
+    let loadingId: string | undefined;
+
     setHeaderProps({
       title: 'Asset',
       onBack: () => navigate('/index?tab=Assets'),
     });
 
-    return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate]);
+    if (isLoading) {
+      loadingId = showLoading('Loading asset details...');
+    } else if (loadingId) {
+      hideLoading(loadingId);
+    }
 
+    return () => {
+      setHeaderProps(null);
+      if (loadingId) hideLoading(loadingId);
+    };
+  }, [setHeaderProps, navigate, isLoading, showLoading, hideLoading]);
+
+  /**
+   * Generates a list of available actions based on asset details and ownership.
+   * @returns {Action[]} The list of actionable options for the asset.
+   */
   const getActions = (): Action[] => {
     if (!assetDetails?.assetInfo || !asset) return [];
 
@@ -105,14 +145,6 @@ export const ViewAsset = () => {
 
     return actions;
   };
-
-  if (isLoading) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <FaSpinner className="animate-spin text-4xl text-primary-600" />
-      </div>
-    );
-  }
 
   if (error || !assetDetails) {
     return (

@@ -8,17 +8,12 @@ import { useHeader } from '@/contexts/header-context';
 import { useToast } from '@/contexts/toast-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { AddressType } from '@/utils/blockchain/bitcoin/address';
-import { useState as useLocalState } from 'react'; // (if needed)
-import { useMemo as useLocalMemo } from 'react'; // (if needed)
-import { Loading } from '@/components/loading';
-import { useLoading } from '@/contexts/loading-context';
 
 export const ImportPrivateKey = () => {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { wallets, createAndUnlockPrivateKeyWallet, verifyPassword } = useWallet();
   const { showError } = useToast();
-  const { showLoading, hideLoading } = useLoading();
 
   const [privateKey, setPrivateKey] = useState('');
   const [addressType, setAddressType] = useState<AddressType>(AddressType.P2PKH);
@@ -120,7 +115,6 @@ export const ImportPrivateKey = () => {
 
   const createWallet = async (): Promise<void> => {
     try {
-      showLoading('Importing private key...');
       await createAndUnlockPrivateKeyWallet(privateKey.trim(), password, undefined, addressType);
       navigate('/index');
     } catch (error) {
@@ -138,8 +132,6 @@ export const ImportPrivateKey = () => {
       }
       showError(errorMessage);
       setSubmissionError(errorMessage);
-    } finally {
-      hideLoading();
     }
   };
 
