@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, type ReactElement } from "react";
 import { useInView } from "react-intersection-observer";
 import { useNavigate } from "react-router-dom";
+import { Spinner } from "@/components/spinner";
 import { BalanceMenu } from "@/components/menus/balance-menu";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchBTCBalance } from "@/utils/blockchain/bitcoin/balance";
 import { fetchTokenBalance, fetchTokenBalances } from "@/utils/blockchain/counterparty";
 import type { TokenBalance } from "@/utils/blockchain/counterparty";
 import { formatAmount, formatAsset } from "@/utils/format";
-import { Spinner } from "@/components/spinner";
 
 interface BalanceItemProps {
   token: TokenBalance;
@@ -50,13 +50,19 @@ export const BalanceList = (): ReactElement => {
   const { ref: loadMoreRef, inView } = useInView({ rootMargin: "200px", threshold: 0 });
 
   const upsertBalance = useCallback((balance: TokenBalance) => {
+    if (!balance?.asset || !balance?.quantity_normalized) {
+      console.warn("Invalid balance object skipped:", balance);
+      return;
+    }
     setAllBalances((prev) => {
       const idx = prev.findIndex((b) => b.asset.toUpperCase() === balance.asset.toUpperCase());
       if (idx > -1) {
         const newBalances = [...prev];
         newBalances[idx] = balance;
+        console.log(`Updated balance for ${balance.asset}:`, balance);
         return newBalances;
       }
+      console.log(`Added new balance for ${balance.asset}:`, balance);
       return [...prev, balance];
     });
   }, []);
@@ -106,23 +112,32 @@ export const BalanceList = (): ReactElement => {
 
     loadInitialBalances();
 
-    return () => {
-      isCancelled = true;
-    };
+    return () => { isCancelled = true; };
   }, [activeAddress, activeWallet, upsertBalance, initialLoaded]);
 
   useEffect(() => {
-    if (!activeAddress || !activeWallet || !hasMore || isFetchingMore || !inView || !initialLoaded) return;
-
-    let isCancelled = false;
+    if (!activeAddress || !activeWallet || !hasMore || isFetchingMore || !inView) return;
 
     const loadMoreBalances = async () => {
+      let isCancelled = false; // Local to this invocation
       setIsFetchingMore(true);
       try {
+        console.log("Fetching more balances at offset:", offset);
         const fetchedBalances = await fetchTokenBalances(activeAddress.address, { limit: 10, offset });
+        console.log("Fetched balances raw:", fetchedBalances);
+        console.log("Fetched balances length:", fetchedBalances.length);
         if (fetchedBalances.length < 10) setHasMore(false);
-        fetchedBalances.forEach((balance) => !isCancelled && upsertBalance(balance));
-        if (!isCancelled) setOffset((prev) => prev + 10);
+        fetchedBalances.forEach((balance) => {
+          if (isCancelled) {
+            console.log("Fetch cancelled, skipping balance:", balance);
+            return;
+          }
+          upsertBalance(balance);
+        });
+        if (!isCancelled) {
+          console.log("Incrementing offset from", offset, "to", offset + 10);
+          setOffset((prev) => prev + 10);
+        }
       } catch (error) {
         console.error("Error fetching more balances:", error);
         if (!isCancelled) setHasMore(false);
@@ -133,17 +148,23 @@ export const BalanceList = (): ReactElement => {
 
     loadMoreBalances();
 
-    return () => { isCancelled = true; };
-  }, [inView, activeAddress, activeWallet, hasMore, isFetchingMore, offset, upsertBalance, initialLoaded]);
+    return () => {
+      console.log("Cleaning up loadMoreBalances effect at offset:", offset);
+      // No need to set isCancelled here; it's local to the async function
+    };
+  }, [inView, activeAddress, activeWallet, hasMore, offset, upsertBalance]);
 
   const pinnedAssets = (activeWallet?.pinnedAssetBalances || []).map((a) => a.toUpperCase()).concat("BTC");
-  const pinnedBalances = allBalances.filter((balance) => {
-    const isAlwaysShow = ["BTC", "XCP"].includes(balance.asset.toUpperCase());
-    const isPinned = pinnedAssets.includes(balance.asset.toUpperCase());
-    const hasBalance = Number(balance.quantity_normalized) > 0;
-    return isPinned && (isAlwaysShow || hasBalance);
-  });
-  const otherBalances = allBalances.filter((balance) => !pinnedAssets.includes(balance.asset.toUpperCase()));
+  const pinnedBalances = allBalances.filter((balance) =>
+    pinnedAssets.includes(balance.asset.toUpperCase())
+  );
+  const otherBalances = allBalances.filter(
+    (balance) => !pinnedAssets.includes(balance.asset.toUpperCase())
+  );
+
+  console.log("Pinned balances:", pinnedBalances);
+  console.log("Other balances:", otherBalances);
+  console.log("All balances total:", allBalances);
 
   if (isInitialLoading) {
     return <Spinner message="Loading balances..." />;
@@ -158,7 +179,7 @@ export const BalanceList = (): ReactElement => {
         <BalanceItemComponent token={balance} key={balance.asset} />
       ))}
       <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-4">
-        {hasMore && initialLoaded ? (
+        {hasMore ? (
           isFetchingMore ? (
             <Spinner className="py-4" />
           ) : (

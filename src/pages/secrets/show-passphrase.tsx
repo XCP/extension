@@ -1,97 +1,140 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { FaExclamationTriangle } from 'react-icons/fa';
-import { useHeader } from '@/contexts/header-context';
-import { useWallet } from '@/contexts/wallet-context';
-import { Button } from '@/components/button';
-import { ErrorAlert } from '@/components/error-alert';
-import { PasswordInput } from '@/components/inputs/password-input';
+"use client";
 
-const ShowPassphrase = () => {
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { FaExclamationTriangle } from "react-icons/fa";
+import { Button } from "@/components/button";
+import { ErrorAlert } from "@/components/error-alert";
+import { PasswordInput } from "@/components/inputs/password-input";
+import { useHeader } from "@/contexts/header-context";
+import { useWallet } from "@/contexts/wallet-context";
+import type { ReactElement } from "react";
+
+/**
+ * Constants for navigation paths and validation rules.
+ */
+const CONSTANTS = {
+  MIN_PASSWORD_LENGTH: 8,
+  PATHS: {
+    BACK: "/select-wallet",
+  } as const,
+} as const;
+
+/**
+ * ShowPassphrase component reveals a wallet's mnemonic passphrase after password verification.
+ *
+ * Features:
+ * - Requires password entry to unlock and display the 12-word recovery phrase
+ * - Displays security warnings to emphasize confidentiality
+ *
+ * @returns {ReactElement} The rendered passphrase reveal UI.
+ * @example
+ * ```tsx
+ * <ShowPassphrase />
+ * ```
+ */
+export default function ShowPassphrase(): ReactElement {
   const { walletId } = useParams<{ walletId: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  // Get the wallet-related methods from context:
   const { unlockWallet, getUnencryptedMnemonic } = useWallet();
 
-  const [password, setPassword] = useState('');
-  const [passphrase, setPassphrase] = useState('');
+  const [password, setPassword] = useState("");
+  const [passphrase, setPassphrase] = useState("");
   const [isConfirmed, setIsConfirmed] = useState(false);
-  const [passwordError, setPasswordError] = useState('');
-  const [submissionError, setSubmissionError] = useState('');
+  const [passwordError, setPasswordError] = useState("");
+  const [submissionError, setSubmissionError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
+  // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: 'Passphrase',
-      onBack: () => navigate('/select-wallet'),
+      title: "Passphrase",
+      onBack: () => navigate(CONSTANTS.PATHS.BACK),
     });
   }, [setHeaderProps, navigate]);
 
+  // Focus password input on mount
   useEffect(() => {
     passwordInputRef.current?.focus();
   }, []);
 
-  const isPasswordValid = (pwd: string): boolean => pwd.length >= 8;
+  /**
+   * Validates the password length.
+   * @param pwd - The password to validate.
+   * @returns {boolean} Whether the password is valid.
+   */
+  const isPasswordValid = (pwd: string): boolean => pwd.length >= CONSTANTS.MIN_PASSWORD_LENGTH;
 
+  /**
+   * Handles password input changes.
+   */
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setPassword(e.target.value);
-    setPasswordError('');
-    setSubmissionError('');
+    setPasswordError("");
+    setSubmissionError("");
   };
 
+  /**
+   * Validates the form before revealing the passphrase.
+   * @returns {Promise<boolean>} Whether the form is valid.
+   */
   const validateForm = async (): Promise<boolean> => {
     if (!walletId) {
-      setSubmissionError('Invalid wallet.');
+      setSubmissionError("Invalid wallet.");
       return false;
     }
     if (!password) {
-      setPasswordError('Password is required.');
+      setPasswordError("Password is required.");
       return false;
     }
     if (!isPasswordValid(password)) {
-      setPasswordError('Password must be at least 8 characters.');
+      setPasswordError(`Password must be at least ${CONSTANTS.MIN_PASSWORD_LENGTH} characters.`);
       return false;
     }
     try {
-      // Attempt to unlock via context; if wrong, this should throw.
       await unlockWallet(walletId, password);
+      return true;
     } catch {
-      setPasswordError('Incorrect password.');
+      setPasswordError("Incorrect password.");
       return false;
     }
-    return true;
   };
 
+  /**
+   * Reveals the passphrase after successful validation.
+   */
   const revealPassphrase = async (): Promise<void> => {
     setIsLoading(true);
     try {
-      if (!walletId) throw new Error('Wallet ID is required.');
-      // After unlocking (done in validateForm), retrieve the mnemonic via the context.
+      if (!walletId) throw new Error("Wallet ID is required.");
       const mnemonic = await getUnencryptedMnemonic(walletId);
       if (mnemonic) {
         setPassphrase(mnemonic);
         setIsConfirmed(true);
+        setError(null);
       } else {
-        setSubmissionError('Unable to retrieve recovery phrase.');
+        setSubmissionError("Unable to retrieve recovery phrase.");
       }
     } catch (err) {
-      console.error('Error revealing passphrase:', err);
-      setSubmissionError('Failed to reveal recovery phrase.');
+      console.error("Error revealing passphrase:", err);
+      setSubmissionError("Failed to reveal recovery phrase.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  /**
+   * Handles form submission to reveal the passphrase.
+   */
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    setPasswordError('');
-    setSubmissionError('');
+    setPasswordError("");
+    setSubmissionError("");
     const isValid = await validateForm();
-    if (!isValid) return;
-    await revealPassphrase();
+    if (isValid) await revealPassphrase();
   };
 
   return (
@@ -99,9 +142,7 @@ const ShowPassphrase = () => {
       <h2 id="show-passphrase-title" className="sr-only">
         Show Recovery Phrase
       </h2>
-      {submissionError && (
-        <ErrorAlert message={submissionError} onClose={() => setSubmissionError('')} />
-      )}
+      {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
       {!isConfirmed ? (
         <form onSubmit={handleSubmit} className="flex flex-col items-center justify-center flex-grow">
           <div className="max-w-md w-full bg-red-50 border-2 border-red-500 rounded-xl p-6 mb-6">
@@ -110,8 +151,7 @@ const ShowPassphrase = () => {
               <h3 className="text-xl font-bold text-red-700">Warning</h3>
             </div>
             <p className="text-red-700 font-medium leading-relaxed">
-              Never share your recovery phrase with anyone.
-              Anyone with these words can steal your funds!
+              Never share your recovery phrase with anyone. Anyone with these words can steal your funds!
             </p>
           </div>
           <div className="w-full max-w-md space-y-4">
@@ -124,6 +164,7 @@ const ShowPassphrase = () => {
               error={passwordError}
               ariaLabel="Password"
               variant="warning"
+              disabled={isLoading}
             />
             <Button
               type="submit"
@@ -132,7 +173,7 @@ const ShowPassphrase = () => {
               color="red"
               aria-label="Show Recovery Phrase"
             >
-              {isLoading ? 'Verifying...' : 'Show Recovery Phrase'}
+              {isLoading ? "Verifying..." : "Show Recovery Phrase"}
             </Button>
           </div>
         </form>
@@ -146,7 +187,7 @@ const ShowPassphrase = () => {
             </div>
             <div className="bg-gray-50 border-2 border-gray-200 p-6 rounded-xl shadow-sm">
               <ol className="list-none p-0 m-0 grid grid-flow-col grid-cols-2 grid-rows-6 gap-2">
-                {passphrase.split(' ').map((word, index) => (
+                {passphrase.split(" ").map((word, index) => (
                   <li
                     key={index}
                     className="bg-white rounded p-1 flex items-center relative border border-gray-200 select-none"
@@ -154,9 +195,7 @@ const ShowPassphrase = () => {
                     <span className="absolute left-2 w-4 text-right mr-2 text-gray-500 select-none">
                       {index + 1}.
                     </span>
-                    <span className="font-mono ml-8 text-gray-800 select-none">
-                      {word}
-                    </span>
+                    <span className="font-mono ml-8 text-gray-800 select-none">{word}</span>
                   </li>
                 ))}
               </ol>
@@ -175,6 +214,4 @@ const ShowPassphrase = () => {
       )}
     </div>
   );
-};
-
-export default ShowPassphrase;
+}

@@ -1,30 +1,55 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { FaSearch } from 'react-icons/fa';
-import { FiHelpCircle } from 'react-icons/fi';
-import { TbPinned, TbPinnedFilled } from 'react-icons/tb';
-import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  DropResult,
-} from '@hello-pangea/dnd';
-import { useHeader } from '@/contexts/header-context';
-import { useWallet } from '@/contexts/wallet-context';
-import { useSettings } from '@/contexts/settings-context';
-import { Button } from '@/components/button';
-import { ErrorAlert } from '@/components/error-alert';
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { FaSearch } from "react-icons/fa";
+import { FiHelpCircle } from "react-icons/fi";
+import { TbPinned, TbPinnedFilled } from "react-icons/tb";
+import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
+import { Button } from "@/components/button";
+import { ErrorAlert } from "@/components/error-alert";
+import { useHeader } from "@/contexts/header-context";
+import { useSettings } from "@/contexts/settings-context";
+import { useWallet } from "@/contexts/wallet-context";
+import type { ReactElement } from "react";
 
+/**
+ * Interface for an asset object returned from the search API.
+ */
 interface Asset {
   symbol: string;
   supply?: string | number;
 }
 
-function SelectAssets() {
+/**
+ * Constants for asset selection configuration and navigation paths.
+ */
+const CONSTANTS = {
+  MAX_PINNED_ASSETS: 10,
+  SEARCH_API_URL: "https://app.xcp.io/api/v1/simple-search",
+  PATHS: {
+    INDEX: "/index",
+    BALANCE: "/balance",
+  } as const,
+} as const;
+
+/**
+ * SelectAssets component allows users to search, pin, and reorder assets.
+ *
+ * Features:
+ * - Search assets via an external API with debounced input
+ * - Pin up to 10 assets with drag-and-drop reordering
+ * - Toggle help text visibility
+ *
+ * @returns {ReactElement} The rendered asset selection UI.
+ * @example
+ * ```tsx
+ * <SelectAssets />
+ * ```
+ */
+export default function SelectAssets(): ReactElement {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
   const [pinnedAssets, setPinnedAssets] = useState<string[]>([]);
   const [searchResults, setSearchResults] = useState<Asset[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -36,46 +61,37 @@ function SelectAssets() {
   const { activeWallet, updatePinnedAssets } = useWallet();
   const { settings } = useSettings();
   const navigate = useNavigate();
-
-  // Add ref for the search input
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize help text flag from settings context.
+  // Sync help text from settings
   useEffect(() => {
-    if (settings) {
-      setLocalHelpText(settings.showHelpText);
-    }
+    if (settings) setLocalHelpText(settings.showHelpText);
   }, [settings]);
 
-  // Modify the search input handler to update URL
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    // Update URL params, remove if empty
-    if (query) {
-      setSearchParams({ q: query });
-    } else {
-      setSearchParams({});
-    }
-  };
-
-  // Modify the header effect to use the updated search state
+  // Configure header with dynamic back and help toggle
   useEffect(() => {
     setHeaderProps({
-      title: 'Search Assets',
-      onBack: searchQuery ? () => {
-        setSearchQuery('');
-        setSearchParams({});
-      } : () => navigate('/index'),
+      title: "Search Assets",
+      onBack: searchQuery
+        ? () => {
+            setSearchQuery("");
+            setSearchParams({});
+          }
+        : () => navigate(CONSTANTS.PATHS.INDEX),
       rightButton: {
-        icon: <FiHelpCircle className="w-4 h-4" />,
+        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
         onClick: () => setIsHelpTextOverride((prev) => !prev),
-        ariaLabel: 'Toggle help text',
+        ariaLabel: "Toggle help text",
       },
     });
   }, [setHeaderProps, navigate, searchQuery, setSearchParams]);
 
-  // Debounced asset search.
+  // Focus search input on mount
+  useEffect(() => {
+    searchInputRef.current?.focus();
+  }, []);
+
+  // Debounced asset search
   useEffect(() => {
     if (!searchQuery) {
       setSearchResults([]);
@@ -87,15 +103,15 @@ function SelectAssets() {
     const debounceTimeout = setTimeout(async () => {
       try {
         const response = await fetch(
-          `https://app.xcp.io/api/v1/simple-search?query=${encodeURIComponent(
-            searchQuery
-          )}`
+          `${CONSTANTS.SEARCH_API_URL}?query=${encodeURIComponent(searchQuery)}`
         );
         const data = await response.json();
         setSearchResults(data.assets || []);
+        setError(null);
       } catch (err) {
-        console.error('Error searching assets:', err);
+        console.error("Error searching assets:", err);
         setSearchResults([]);
+        setError("Failed to search assets.");
       } finally {
         setIsSearching(false);
       }
@@ -104,67 +120,72 @@ function SelectAssets() {
     return () => clearTimeout(debounceTimeout);
   }, [searchQuery]);
 
-  // Initialize pinned assets from the active wallet
+  // Sync pinned assets from wallet
   useEffect(() => {
-    if (activeWallet) {
-      setPinnedAssets(activeWallet.pinnedAssetBalances || []);
-    }
+    if (activeWallet) setPinnedAssets(activeWallet.pinnedAssetBalances || []);
   }, [activeWallet?.id, activeWallet?.pinnedAssetBalances]);
 
-  // Add effect to focus the input on mount
-  useEffect(() => {
-    searchInputRef.current?.focus();
-  }, []);
+  /**
+   * Handles search input changes and updates URL params.
+   */
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    if (query) setSearchParams({ q: query });
+    else setSearchParams({});
+  };
 
-  // Determine whether to show the help text.
-  const shouldShowHelpText = isHelpTextOverride ? !localHelpText : localHelpText;
-
+  /**
+   * Adds an asset to the pinned list.
+   * @param asset - The asset symbol to pin.
+   */
   const handleAddAsset = async (asset: string) => {
     if (!activeWallet) {
-      setError('No active wallet selected');
+      setError("No active wallet selected");
       return;
     }
-
-    if (pinnedAssets.length >= 10) {
-      setError(
-        'You can only pin up to 10 assets. Please remove some assets before adding more.'
-      );
+    if (pinnedAssets.length >= CONSTANTS.MAX_PINNED_ASSETS) {
+      setError(`You can only pin up to ${CONSTANTS.MAX_PINNED_ASSETS} assets.`);
       return;
     }
-
-    // Prevent duplicates
-    if (pinnedAssets.includes(asset)) {
-      return;
-    }
+    if (pinnedAssets.includes(asset)) return;
 
     try {
       const newPinnedAssets = [...pinnedAssets, asset];
       await updatePinnedAssets(newPinnedAssets);
-      // Wait for wallet state to refresh before updating local state
       setPinnedAssets(newPinnedAssets);
+      setError(null);
     } catch (err) {
-      console.error('Error adding asset:', err);
-      setError('Failed to add asset. Please try again.');
+      console.error("Error adding asset:", err);
+      setError("Failed to add asset.");
     }
   };
 
+  /**
+   * Removes an asset from the pinned list.
+   * @param asset - The asset symbol to unpin.
+   */
   const handleRemoveAsset = async (asset: string) => {
     if (!activeWallet) {
-      setError('No active wallet selected');
+      setError("No active wallet selected");
       return;
     }
 
     try {
       const newPinnedAssets = pinnedAssets.filter((a) => a !== asset);
       await updatePinnedAssets(newPinnedAssets);
-      // Wait for wallet state to refresh before updating local state
       setPinnedAssets(newPinnedAssets);
+      setError(null);
     } catch (err) {
-      console.error('Error removing asset:', err);
-      setError('Failed to remove asset. Please try again.');
+      console.error("Error removing asset:", err);
+      setError("Failed to remove asset.");
     }
   };
 
+  /**
+   * Reorders pinned assets after drag-and-drop.
+   * @param result - The drag-and-drop result.
+   */
   const handleDragEnd = async (result: DropResult) => {
     if (!result.destination || !activeWallet) return;
 
@@ -174,18 +195,23 @@ function SelectAssets() {
     setPinnedAssets(items);
     try {
       await updatePinnedAssets(items);
+      setError(null);
     } catch (err) {
-      console.error('Error updating asset order:', err);
-      setError('Failed to reorder assets.');
+      console.error("Error updating asset order:", err);
+      setError("Failed to reorder assets.");
     }
   };
 
-  // A simple sub-component for displaying an asset icon and details.
+  const shouldShowHelpText = isHelpTextOverride ? !localHelpText : localHelpText;
+
+  /**
+   * Sub-component to display an asset with its icon.
+   */
   const AssetWithIcon = ({ symbol, description }: { symbol: string; description?: string }) => {
     const imageUrl = `https://app.xcp.io/img/icon/${symbol}`;
     return (
-      <Link 
-        to={`/balance/${symbol}`}
+      <Link
+        to={`${CONSTANTS.PATHS.BALANCE}/${symbol}`}
         className="flex items-center flex-1 cursor-pointer hover:bg-gray-50"
       >
         <div className="w-8 h-8 flex-shrink-0 mr-3">
@@ -200,7 +226,7 @@ function SelectAssets() {
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col" role="main" aria-labelledby="select-assets-title">
       <div className="flex-shrink-0 p-4">
         {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
         <div className="relative mb-4">
@@ -211,18 +237,20 @@ function SelectAssets() {
             placeholder="Search assets..."
             value={searchQuery}
             onChange={handleSearchChange}
+            aria-label="Search assets"
           />
-          <FaSearch className="absolute left-3 top-3 text-gray-400" />
+          <FaSearch className="absolute left-3 top-3 text-gray-400" aria-hidden="true" />
         </div>
       </div>
-
       <div className="flex-1 px-4">
         {!searchQuery ? (
           <div className="h-full flex flex-col">
-            <h3 className="text-lg font-semibold mb-2">Pinned Assets</h3>
+            <h3 className="text-lg font-semibold mb-2" id="select-assets-title">
+              Pinned Assets
+            </h3>
             {shouldShowHelpText && (
               <p className="text-sm text-gray-500 mb-4">
-                Pin up to 10 assets to the top of your main screen, useful for surfacing balances in large wallets.
+                Pin up to {CONSTANTS.MAX_PINNED_ASSETS} assets to the top of your main screen.
               </p>
             )}
             <div className="flex-1 overflow-y-auto mb-4">
@@ -238,12 +266,17 @@ function SelectAssets() {
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
                               className={`flex items-center justify-between p-3 bg-white rounded-lg shadow-sm ${
-                                snapshot.isDragging ? 'shadow-lg' : ''
+                                snapshot.isDragging ? "shadow-lg" : ""
                               }`}
                             >
                               <AssetWithIcon symbol={asset} />
-                              <Button color="gray" onClick={() => handleRemoveAsset(asset)} className="!p-2">
-                                <TbPinnedFilled />
+                              <Button
+                                color="gray"
+                                onClick={() => handleRemoveAsset(asset)}
+                                className="!p-2"
+                                aria-label={`Remove ${asset} from pinned`}
+                              >
+                                <TbPinnedFilled aria-hidden="true" />
                               </Button>
                             </div>
                           )}
@@ -266,7 +299,10 @@ function SelectAssets() {
             ) : (
               <div className="space-y-2">
                 {searchResults.map((asset) => (
-                  <div key={asset.symbol} className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm">
+                  <div
+                    key={asset.symbol}
+                    className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm"
+                  >
                     <AssetWithIcon symbol={asset.symbol} />
                     <Button
                       color="gray"
@@ -276,8 +312,17 @@ function SelectAssets() {
                           : handleAddAsset(asset.symbol)
                       }
                       className="!p-2"
+                      aria-label={
+                        pinnedAssets.includes(asset.symbol)
+                          ? `Unpin ${asset.symbol}`
+                          : `Pin ${asset.symbol}`
+                      }
                     >
-                      {pinnedAssets.includes(asset.symbol) ? <TbPinnedFilled /> : <TbPinned />}
+                      {pinnedAssets.includes(asset.symbol) ? (
+                        <TbPinnedFilled aria-hidden="true" />
+                      ) : (
+                        <TbPinned aria-hidden="true" />
+                      )}
                     </Button>
                   </div>
                 ))}
@@ -289,5 +334,3 @@ function SelectAssets() {
     </div>
   );
 }
-
-export default SelectAssets;

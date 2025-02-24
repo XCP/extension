@@ -7,11 +7,20 @@ import { composeAttach } from "@/utils/blockchain/counterparty";
 export function ComposeUtxoAttach() {
   const { asset } = useParams<{ asset: string }>();
 
+  if (!asset) {
+    return <div className="p-4 text-red-500">No asset specified</div>;
+  }
+
   return (
     <div className="p-4">
       <Composer
-        initialTitle="Attach"
-        FormComponent={(props) => <UtxoAttachForm {...props} initialAsset={asset || ""} />}
+        initialTitle={`Attach ${asset}`}
+        FormComponent={(props) => (
+          <UtxoAttachForm 
+            {...props} 
+            initialAsset={asset}
+          />
+        )}
         ReviewComponent={ReviewUtxoAttach}
         composeTransaction={composeAttach}
       />

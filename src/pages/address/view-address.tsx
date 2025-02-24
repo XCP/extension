@@ -1,52 +1,61 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FaCheck, FaClipboard, FaList } from 'react-icons/fa';
-import { Button } from '@/components/button';
-import { QRCode } from '@/components/qr-code';
-import { useHeader } from '@/contexts/header-context';
-import { useWallet } from '@/contexts/wallet-context';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { FaCheck, FaClipboard, FaList } from "react-icons/fa";
+import { Button } from "@/components/button";
+import { QRCode } from "@/components/qr-code";
+import { useHeader } from "@/contexts/header-context";
+import { useWallet } from "@/contexts/wallet-context";
+import { AddressType } from "@/utils/blockchain/bitcoin";
+import type { ReactElement } from "react";
 
 /**
- * ViewAddress page component displays the current address's QR code and provides options
- * to copy the address or select a different address.
+ * Constants for navigation paths.
+ */
+const CONSTANTS = {
+  PATHS: {
+    BACK: "/index",
+    SELECT_ADDRESS: "/select-address",
+  } as const,
+} as const;
+
+/**
+ * ViewAddress component displays the QR code and details of the active address.
  *
  * Features:
- * - Displays the QR code for the current address
- * - Allows users to copy the address to the clipboard
- * - Navigates to the address selection screen
+ * - Shows QR code for the active address
+ * - Allows copying the address to the clipboard
+ * - Provides navigation to select a different address (mnemonic wallets only)
+ *
+ * @returns {ReactElement} The rendered address view UI.
  */
-const ViewAddress = () => {
+export default function ViewAddress(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeWallet, activeAddress } = useWallet();
 
-  // Set the header with navigation and address selection options
+  // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: 'My Address',
-      onBack: () => navigate('/index'),
+      title: "My Address",
+      onBack: () => navigate(CONSTANTS.PATHS.BACK),
       rightButton:
-        activeWallet?.type === 'mnemonic'
+        activeWallet?.type === "mnemonic"
           ? {
               icon: <FaList aria-hidden="true" />,
-              onClick: () => navigate('/select-address', { state: { returnTo: '/view-address' } }),
-              ariaLabel: 'Select Address',
+              onClick: () =>
+                navigate(CONSTANTS.PATHS.SELECT_ADDRESS, { state: { returnTo: "/view-address" } }),
+              ariaLabel: "Select Address",
             }
           : undefined,
     });
   }, [setHeaderProps, navigate, activeWallet?.type]);
 
-  // Handle case where no address is selected
-  if (!activeAddress) {
-    return <div className="p-4">No address selected</div>;
-  }
+  if (!activeAddress) return <div className="p-4">No address selected</div>;
 
-  // Determine address type label, defaulting to 'P2PKH' for Counterwallet
   const addressTypeLabel =
     activeWallet?.addressType !== AddressType.Counterwallet
       ? activeWallet?.addressType.toUpperCase()
-      : 'P2PKH'; // Default ensures consistency for Counterwallet addresses
+      : "P2PKH";
 
   return (
     <div
@@ -54,54 +63,54 @@ const ViewAddress = () => {
       role="main"
       aria-labelledby="view-address-title"
     >
-      <div
-        className="text-center font-medium text-gray-600"
-        id="view-address-title"
-      >
-        {`${activeAddress?.name ?? ''} | ${addressTypeLabel || ''}`}
+      <div id="view-address-title" className="text-center font-medium text-gray-600">
+        {`${activeAddress?.name ?? ""} | ${addressTypeLabel || ""}`}
       </div>
-
-      <QRCode
-        text={activeAddress?.address}
-        ariaLabel="Address QR Code"
-      />
-
+      <QRCode text={activeAddress?.address} ariaLabel="Address QR Code" />
       <CopyAddress address={activeAddress?.address} />
     </div>
   );
-};
+}
 
+/**
+ * Props for the CopyAddress component.
+ */
 interface CopyAddressProps {
   address: string;
 }
 
 /**
- * CopyAddress component provides UI elements to display and copy a cryptocurrency address.
+ * CopyAddress component provides UI to display and copy a cryptocurrency address.
  *
  * Features:
  * - Displays the address in a selectable, monospace font
- * - Provides a dedicated copy button with visual feedback
- * - Supports click and keyboard interactions (Enter/Space)
+ * - Offers a copy button with visual feedback
+ * - Supports click and keyboard interactions
+ *
+ * @param props - Component props.
+ * @returns {ReactElement} The rendered copy address UI.
  */
-const CopyAddress = ({ address }: CopyAddressProps) => {
+function CopyAddress({ address }: CopyAddressProps): ReactElement {
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
 
+  /**
+   * Copies the address to the clipboard and provides feedback.
+   */
   const handleCopyAddress = async () => {
     try {
       await navigator.clipboard.writeText(address);
       setCopiedToClipboard(true);
-
-      // Reset copy state after 2 seconds
-      setTimeout(() => {
-        setCopiedToClipboard(false);
-      }, 2000);
-    } catch (error) {
-      console.error('Failed to copy address:', error);
+      setTimeout(() => setCopiedToClipboard(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy address:", err);
     }
   };
 
+  /**
+   * Handles keyboard events for copying the address.
+   */
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' || event.key === ' ') {
+    if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       handleCopyAddress();
     }
@@ -121,7 +130,6 @@ const CopyAddress = ({ address }: CopyAddressProps) => {
           {address}
         </div>
       </div>
-
       <Button
         onClick={handleCopyAddress}
         color="blue"
@@ -143,6 +151,4 @@ const CopyAddress = ({ address }: CopyAddressProps) => {
       </Button>
     </>
   );
-};
-
-export default ViewAddress;
+}

@@ -1,1510 +1,752 @@
 Folders:
-/src/pages/wallet/
+/src/pages/settings/
 
 Files:
-/src/pages/auth/unlock-wallet.tsx
-/src/pages/wallet/add-wallet.tsx
-/src/pages/wallet/create-wallet.tsx
-/src/pages/wallet/import-private-key.tsx
-/src/pages/wallet/import-wallet.tsx
-/src/pages/wallet/remove-wallet.tsx
-/src/pages/wallet/reset-wallet.tsx
-/src/pages/wallet/select-wallet.tsx
+/src/pages/settings/address-type-settings.tsx
+/src/pages/settings/advanced-settings.tsx
+/src/pages/settings/connected-sites-settings.tsx
+/src/pages/settings/security-settings.tsx
+/src/pages/settings/settings.tsx
 
 File Contents:
-/src/pages/auth/unlock-wallet.tsx
+/src/pages/settings/address-type-settings.tsx
   [contents of the file]
-  import React, { useEffect, useRef, useState } from 'react';
+  import React, { useState, useEffect, useMemo } from 'react';
   import { useNavigate } from 'react-router-dom';
-  import { FiHelpCircle } from 'react-icons/fi';
-  import { Button } from '@/components/button';
-  import { PasswordInput } from '@/components/inputs/password-input';
+  import { FaCheck } from 'react-icons/fa';
+  import { RadioGroup } from '@headlessui/react';
   import { useHeader } from '@/contexts/header-context';
   import { useWallet } from '@/contexts/wallet-context';
+  import { AddressType } from '@/utils/blockchain/bitcoin';
+  import { formatAddress } from '@/utils/format';
   
-  /**
-   * UnlockWallet component prompts users to unlock their wallet with a password.
-   *
-   * Features:
-   * - Displays a password input and unlock button
-   * - Provides a help link in the header
-   * - Navigates to the index on successful unlock
-   */
-  const UnlockWallet = () => {
-    const navigate = useNavigate();
-    const { unlockWallet, wallets } = useWallet();
-    const { setHeaderProps } = useHeader();
-  
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState<string | undefined>();
-    const [isLoading, setIsLoading] = useState(false);
-  
-    const passwordInputRef = useRef<HTMLInputElement>(null);
-  
-    // Constants for paths and validation
-    const PATHS = {
-      SUCCESS: '/index',
-      HELP_URL: 'https://youtube.com', // Replace with actual help URL
-    } as const;
-    const MIN_PASSWORD_LENGTH = 8;
-  
-    // Configure header with help button
-    useEffect(() => {
-      setHeaderProps({
-        useLogoTitle: true,
-        rightButton: {
-          icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
-          onClick: () => window.open(PATHS.HELP_URL, '_blank'),
-          ariaLabel: 'Help',
-        },
-      });
-    }, [setHeaderProps]);
-  
-    // Focus password input on mount
-    useEffect(() => {
-      passwordInputRef.current?.focus();
-    }, []);
-  
-    const isPasswordValid = (pwd: string): boolean => pwd.length >= MIN_PASSWORD_LENGTH;
-  
-    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setPassword(e.target.value);
-      setError('');
-    };
-  
-    const validateForm = (): boolean => {
-      if (!password) {
-        setError('Password cannot be empty.');
-        return false;
-      }
-      if (!isPasswordValid(password)) {
-        setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
-        return false;
-      }
-      return true;
-    };
-  
-    const handleSubmit = async (e?: React.FormEvent) => {
-      if (e) e.preventDefault();
-      if (isLoading || !validateForm()) return;
-  
-      setIsLoading(true);
-      try {
-        if (!wallets.length) {
-          throw new Error('No wallets found.');
-        }
-        const walletId = wallets[0].id;
-        await unlockWallet(walletId, password);
-        navigate(PATHS.SUCCESS);
-      } catch (err) {
-        console.error('Error unlocking wallet:', err);
-        setError('Invalid password. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-  
-    return (
-      <div
-        className="flex flex-col h-full"
-        role="main"
-        aria-labelledby="unlock-wallet-title"
-      >
-        <div className="flex-grow flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-lg shadow-md p-6">
-            <h1
-              id="unlock-wallet-title"
-              className="text-3xl mb-5 flex justify-between items-center"
-            >
-              <span className="font-bold">XCP Wallet</span>
-              <span>v0.0.1</span>
-            </h1>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <PasswordInput
-                id="password"
-                ref={passwordInputRef}
-                value={password}
-                onChange={handlePasswordChange}
-                placeholder="Enter your password"
-                error={error}
-                ariaLabel="Password entry"
-                disabled={isLoading}
-              />
-              <Button
-                type="submit"
-                fullWidth
-                disabled={isLoading}
-                aria-label="Unlock Wallet"
-              >
-                {isLoading ? 'Unlocking...' : 'Unlock'}
-              </Button>
-            </form>
-          </div>
-        </div>
-      </div>
-    );
-  };
-  
-  export default UnlockWallet;
-
-/src/pages/wallet/add-wallet.tsx
-  [contents of the file]
-  import { useEffect, useState } from 'react';
-  import { useNavigate } from 'react-router-dom';
-  import { FiDownload, FiKey, FiX } from 'react-icons/fi';
-  import { IoCreateOutline } from 'react-icons/io5';
-  import { Button } from '@/components/button';
-  import { useHeader } from '@/contexts/header-context';
-  import { ErrorAlert } from '@/components/error-alert';
-  
-  /**
-   * AddWallet component provides options for creating or importing a wallet.
-   *
-   * Features:
-   * - Offers buttons to create a new wallet, import a mnemonic, or import a private key
-   * - Includes navigation to return to wallet selection or close to index
-   */
-  function AddWallet() {
+  export function AddressTypeSettings() {
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
+    const { activeWallet, updateWalletAddressType, getPreviewAddressForType } = useWallet();
+    const [addresses, setAddresses] = useState<{ [key: string]: string }>({});
+    const [isLoading, setIsLoading] = useState(true);
+    const [isUpdating, setIsUpdating] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [selectedType, setSelectedType] = useState<AddressType | null>(null);
   
-    // Navigation paths for wallet actions
-    const PATHS = {
-      BACK: '/select-wallet',
-      CLOSE: '/index',
-      CREATE_WALLET: '/create-wallet',
-      IMPORT_WALLET: '/import-wallet',
-      IMPORT_PRIVATE_KEY: '/import-private-key',
-    } as const;
+    const availableAddressTypes = useMemo(
+      () => Object.values(AddressType).filter((type) => type !== AddressType.Counterwallet),
+      []
+    );
   
-    // Configure header with logo and close button
     useEffect(() => {
       setHeaderProps({
-        useLogoTitle: true,
-        onBack: () => navigate(PATHS.BACK),
-        rightButton: {
-          icon: <FiX className="w-4 h-4" aria-hidden="true" />,
-          onClick: () => navigate(PATHS.CLOSE),
-          ariaLabel: 'Close',
-        },
+        title: 'Address Type',
+        onBack: () => navigate('/settings'),
       });
     }, [setHeaderProps, navigate]);
   
-    const handleCreateWallet = () => {
-      navigate(PATHS.CREATE_WALLET);
-    };
+    useEffect(() => {
+      const fetchAddresses = async () => {
+        if (!activeWallet) {
+          setIsLoading(false);
+          return;
+        }
+        
+        setIsLoading(true);
+        try {
+          const addressMap: { [key: string]: string } = {};
+          for (const type of availableAddressTypes) {
+            try {
+              const previewAddress = await getPreviewAddressForType(activeWallet.id, type);
+              addressMap[type] = previewAddress;
+            } catch (error) {
+              console.error(`Error generating address for type ${type}:`, error);
+              addressMap[type] = '';
+            }
+          }
+          setAddresses(addressMap);
+        } catch (error) {
+          console.error('Error fetching addresses:', error);
+          setError(error instanceof Error ? error.message : 'Failed to fetch addresses');
+        } finally {
+          setIsLoading(false);
+        }
+      };
   
-    const handleImportWallet = () => {
-      navigate(PATHS.IMPORT_WALLET);
-    };
+      fetchAddresses();
+    }, [activeWallet, availableAddressTypes, getPreviewAddressForType]);
   
-    const handleImportPrivateKey = () => {
-      navigate(PATHS.IMPORT_PRIVATE_KEY);
-    };
-  
-    const handleAddWallet = () => {
-      if (wallets.length >= MAX_WALLETS) {
-        setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
-        return;
+    useEffect(() => {
+      if (activeWallet) {
+        setSelectedType(activeWallet.addressType);
       }
-      // ... rest of the function
+    }, [activeWallet]);
+  
+    const handleAddressTypeChange = async (newType: AddressType) => {
+      if (!activeWallet) return;
+      
+      setIsUpdating(true);
+      try {
+        await updateWalletAddressType(activeWallet.id, newType);
+        
+        // Fetch the new preview address for the selected type
+        const previewAddress = await getPreviewAddressForType(activeWallet.id, newType);
+        setAddresses(prev => ({ ...prev, [newType]: previewAddress }));
+        
+      } catch (error) {
+        console.error('Error updating address type:', error);
+        setError(error instanceof Error ? error.message : 'Failed to update address type');
+      } finally {
+        setIsUpdating(false);
+      }
     };
+  
+    const getAddressTypeDescription = (type: AddressType) => {
+      switch (type) {
+        case AddressType.P2PKH:
+          return 'Legacy (P2PKH)';
+        case AddressType.P2WPKH:
+          return 'Native SegWit (P2WPKH)';
+        case AddressType.P2SH_P2WPKH:
+          return 'Nested SegWit (P2SH-P2WPKH)';
+        case AddressType.P2TR:
+          return 'Taproot (P2TR)';
+        default:
+          return type;
+      }
+    };
+  
+    if (isLoading) {
+      return null;
+    }
+  
+    if (error) {
+      return (
+        <div className="p-4 text-center text-red-500">
+          Error: {error}
+        </div>
+      );
+    }
+  
+    if (!activeWallet) {
+      return (
+        <div className="p-4 text-center text-gray-500">
+          No wallet available
+        </div>
+      );
+    }
   
     return (
-      <div className="flex flex-col h-full" role="main" aria-labelledby="add-wallet-title">
-        <div className="flex-grow flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-lg shadow-md p-6 text-center">
-            <h2 id="add-wallet-title" className="text-2xl font-bold mb-6">
-              Add Wallet
-            </h2>
-            {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
-            <div className="space-y-4">
-              <Button
-                color="green"
-                fullWidth
-                onClick={handleCreateWallet}
-                aria-label="Create New Wallet"
+      <div className="space-y-2 p-4">
+        <RadioGroup
+          value={selectedType}
+          onChange={handleAddressTypeChange}
+          className="space-y-2"
+          disabled={isUpdating}
+        >
+          {availableAddressTypes.map((type) => {
+            const typeLabel = getAddressTypeDescription(type);
+            const isDisabled = type === AddressType.P2TR || isUpdating;
+            const disabledReason = type === AddressType.P2TR 
+              ? 'Taproot is not yet supported' 
+              : isUpdating 
+                ? 'Updating...' 
+                : undefined;
+  
+            return (
+              <RadioGroup.Option
+                key={type}
+                value={type}
+                disabled={isDisabled}
+                className={({ checked }) => `
+                  relative w-full rounded transition duration-300 p-4
+                  ${isDisabled 
+                    ? 'cursor-not-allowed bg-gray-300' 
+                    : checked 
+                      ? 'cursor-pointer bg-white shadow-md' 
+                      : 'cursor-pointer bg-white hover:bg-gray-50'}
+                  ${isUpdating ? 'opacity-50' : ''}
+                `}
               >
-                <IoCreateOutline className="w-4 h-4 mr-2" aria-hidden="true" />
-                Create New Wallet
-              </Button>
-              <Button
-                color="blue"
-                fullWidth
-                onClick={handleImportWallet}
-                aria-label="Import Wallet"
-              >
-                <FiDownload className="w-4 h-4 mr-2" aria-hidden="true" />
-                Import Mnemonic
-              </Button>
-              <Button
-                color="gray"
-                fullWidth
-                onClick={handleImportPrivateKey}
-                aria-label="Import Private Key"
-              >
-                <FiKey className="w-4 h-4 mr-2" aria-hidden="true" />
-                Import Private Key
-              </Button>
-            </div>
-          </div>
-        </div>
+                {({ checked }) => (
+                  <>
+                    {checked && (
+                      <div className="absolute top-1/2 -translate-y-1/2 right-5">
+                        <FaCheck className="w-4 h-4 text-blue-500" />
+                      </div>
+                    )}
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-900 mb-1">
+                        {typeLabel}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {addresses[type] ? formatAddress(addresses[type]) : 'Loading...'}
+                      </span>
+                      {isDisabled && disabledReason && (
+                        <span className="text-xs text-blue-500 mt-1">{disabledReason}</span>
+                      )}
+                    </div>
+                  </>
+                )}
+              </RadioGroup.Option>
+            );
+          })}
+        </RadioGroup>
       </div>
     );
   }
   
-  export default AddWallet;
+  export default AddressTypeSettings;
 
-/src/pages/wallet/create-wallet.tsx
+/src/pages/settings/advanced-settings.tsx
   [contents of the file]
   import React, { useState, useEffect } from 'react';
   import { useNavigate } from 'react-router-dom';
-  import { FaSync, FaEyeSlash } from 'react-icons/fa';
-  import { Button } from '@/components/button';
-  import { CheckboxInput } from '@/components/inputs/checkbox-input';
-  import { PasswordInput } from '@/components/inputs/password-input';
+  import { FaCheck } from 'react-icons/fa';
+  import { FiHelpCircle } from 'react-icons/fi';
+  import { Switch, Field, Label, Description, RadioGroup } from '@headlessui/react';
   import { useHeader } from '@/contexts/header-context';
-  import { useWallet } from '@/contexts/wallet-context';
-  import { generateNewMnemonic } from '@/utils/blockchain/bitcoin';
-  import { ErrorAlert } from '@/components/error-alert';
+  import { useSettings } from '@/contexts/settings-context';
+  import type { AutoLockTimer } from '@/utils/storage';
   
-  /**
-   * CreateWallet component guides users through creating a new wallet with a mnemonic phrase.
-   *
-   * Features:
-   * - Generates and displays a 12-word recovery phrase
-   * - Requires confirmation of phrase backup and password entry
-   * - Supports regenerating the phrase and form submission
-   */
-  function CreateWallet() {
+  export function AdvancedSettings() {
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
-    const { wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
-    const walletExists = wallets.length > 0;
+    const { settings, updateSettings, isLoading } = useSettings();
+    const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
   
-    // Initialize mnemonic and words with a generated value
-    const initialMnemonic = generateNewMnemonic();
-    const [mnemonic, setMnemonic] = useState(initialMnemonic);
-    const [mnemonicWords, setMnemonicWords] = useState(initialMnemonic.split(' '));
-    const [isConfirmed, setIsConfirmed] = useState(false);
-    const [isRecoveryPhraseVisible, setIsRecoveryPhraseVisible] = useState(false);
-    const [password, setPassword] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-  
-    // Constants for paths and validation
-    const PATHS = {
-      BACK: walletExists ? '/add-wallet' : '/onboarding',
-      SUCCESS: '/index',
-    } as const;
-    const MIN_PASSWORD_LENGTH = 8;
-  
-    // Generate a new mnemonic phrase
-    function generateWallet() {
-      const newMnemonic = generateNewMnemonic();
-      setMnemonic(newMnemonic);
-      setMnemonicWords(newMnemonic.split(' '));
-      setIsConfirmed(false);
-      setPassword('');
-    }
-  
-    // Set up header only (no state changes here)
     useEffect(() => {
       setHeaderProps({
-        title: 'Create Wallet',
-        onBack: () => navigate(PATHS.BACK),
+        title: 'Advanced',
+        onBack: () => navigate(-1),
         rightButton: {
-          icon: <FaSync aria-hidden="true" />,
-          onClick: generateWallet,
-          ariaLabel: 'Generate new recovery phrase',
+          icon: <FiHelpCircle className="w-4 h-4" />,
+          onClick: () => setIsHelpTextOverride((prev) => !prev),
+          ariaLabel: 'Toggle help text',
         },
       });
-    }, [navigate, setHeaderProps, walletExists]);
+    }, [setHeaderProps, navigate]);
   
-    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setPassword(e.target.value);
-    };
-  
-    const handleCheckboxChange = (checked: boolean) => {
-      if (!isRecoveryPhraseVisible) return;
-      setIsConfirmed(checked);
-    };
-  
-    const handleRecoveryPhraseClick = () => {
-      setIsRecoveryPhraseVisible(true);
-    };
-  
-    function isPasswordValid(pw: string) {
-      return pw.length >= MIN_PASSWORD_LENGTH;
+    if (isLoading || !settings) {
+      return null;
     }
   
-    async function validateForm(): Promise<boolean> {
-      if (!isRecoveryPhraseVisible) {
-        setError('Please view and save your recovery phrase first.');
-        return false;
-      }
-      if (!isConfirmed) {
-        setError('Please confirm you have backed up your recovery phrase.');
-        return false;
-      }
-      if (!password) {
-        setError('Password is required.');
-        return false;
-      }
-      if (walletExists) {
-        const isValid = await verifyPassword(password);
-        if (!isValid) {
-          setError('Password does not match.');
-          return false;
-        }
-      } else if (!isPasswordValid(password)) {
-        setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
-        return false;
-      }
-      return true;
-    }
+    const autoLockOptions: { value: AutoLockTimer; label: string }[] = [
+      { value: '5m', label: '5 Minutes' },
+      { value: '15m', label: '15 Minutes' },
+      { value: '30m', label: '30 Minutes' },
+    ];
   
-    async function handleSubmit(e?: React.FormEvent<HTMLFormElement>) {
-      if (e) e.preventDefault();
-      if (isSubmitting) return;
-  
-      setIsSubmitting(true);
-      try {
-        if (await validateForm()) {
-          await createAndUnlockMnemonicWallet(mnemonic, password);
-          navigate(PATHS.SUCCESS);
-        }
-      } catch (err: unknown) {
-        console.error('Error creating wallet:', err);
-        setError('Failed to create wallet. Please try again.');
-      } finally {
-        setIsSubmitting(false);
-      }
-    }
+    const shouldShowHelpText = isHelpTextOverride ? !settings.showHelpText : settings.showHelpText;
   
     return (
-      <div
-        className="flex-grow overflow-y-auto p-4"
-        role="main"
-        aria-labelledby="create-wallet-title"
-      >
-        <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
-          {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
-          <h2 id="create-wallet-title" className="text-2xl font-bold mb-2">
-            Your Recovery Phrase
-          </h2>
-          <p className="mb-5" id="recovery-instructions">
-            Please write down this 12-word secret phrase.
-          </p>
-          <form onSubmit={handleSubmit} className="space-y-4" aria-describedby="recovery-instructions">
-            <div className="bg-gray-100 p-2 rounded-md mb-4 relative">
-              <div
-                className={
-                  !isRecoveryPhraseVisible
-                    ? 'bg-gray-100 opacity-50 filter blur-sm transition-filter'
-                    : ''
-                }
+      <div className="space-y-6 p-4">
+        <Field>
+          <Label className="font-bold">Auto-Lock Timer</Label>
+          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? '' : 'hidden'}`}>
+            Choose how long to wait before automatically locking your wallet.
+          </Description>
+          <RadioGroup
+            value={settings.autoLockTimer}
+            onChange={(value: AutoLockTimer) => updateSettings({ autoLockTimer: value })}
+            className="mt-4 space-y-2"
+          >
+            {autoLockOptions.map((option) => (
+              <RadioGroup.Option
+                key={option.value}
+                value={option.value}
+                className={({ checked }) => `
+                  relative w-full rounded transition duration-300 p-4
+                  ${checked ? 'cursor-pointer bg-white shadow-md' : 'cursor-pointer bg-white hover:bg-gray-50'}
+                `}
               >
-                <ol className="list-none p-0 m-0 grid grid-flow-col grid-cols-2 grid-rows-6 gap-2">
-                  {mnemonicWords.map((word, i) => (
-                    <li
-                      key={i}
-                      className="bg-white rounded p-1 flex items-center relative select-none"
-                    >
-                      <span className="absolute left-2 w-4 text-right mr-2 text-gray-500">
-                        {i + 1}.
+                {({ checked }) => (
+                  <>
+                    {checked && (
+                      <div className="absolute top-1/2 -translate-y-1/2 right-5">
+                        <FaCheck className="w-4 h-4 text-blue-500" />
+                      </div>
+                    )}
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-900">
+                        {option.label}
                       </span>
-                      <span className="font-mono ml-8">{word}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-              {!isRecoveryPhraseVisible && (
-                <div
-                  className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 cursor-pointer"
-                  onClick={handleRecoveryPhraseClick}
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Reveal recovery phrase"
-                >
-                  <FaEyeSlash className="mb-2 text-2xl" aria-hidden="true" />
-                  <p className="mb-2 font-bold">View 12-word Secret Phrase</p>
-                  <p>Make sure no one is looking!</p>
-                </div>
-              )}
-            </div>
-            <CheckboxInput
-              checked={isConfirmed}
-              onChange={handleCheckboxChange}
-              label="I have saved my secret recovery phrase."
-              ariaLabel="Confirm recovery phrase backup"
-              disabled={!isRecoveryPhraseVisible}
-            />
-            {isConfirmed && (
-              <>
-                <PasswordInput
-                  id="password"
-                  className="mb-4"
-                  value={password}
-                  onChange={handlePasswordChange}
-                  placeholder={walletExists ? 'Confirm your password' : 'Create a password'}
-                  error=""
-                  ariaLabel={walletExists ? 'Confirm password' : 'Create password'}
-                  disabled={isSubmitting}
-                />
+                    </div>
+                  </>
+                )}
+              </RadioGroup.Option>
+            ))}
+          </RadioGroup>
+        </Field>
+  
+        <Field>
+          <div className="flex items-center justify-between">
+            <Label className="font-bold">Enable MPMA Sends</Label>
+            <Switch
+              checked={settings.enableMPMA}
+              onChange={(checked) => updateSettings({ enableMPMA: checked })}
+              className={`${
+                settings.enableMPMA ? 'bg-blue-600' : 'bg-gray-200'
+              } p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
+            >
+              <span className={`${
+                settings.enableMPMA ? 'translate-x-6' : 'translate-x-1'
+              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`} />
+            </Switch>
+          </div>
+          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? '' : 'hidden'}`}>
+            Enable multi-destination sends (MPMA) for supported assets.
+          </Description>
+        </Field>
+  
+        <Field>
+          <div className="flex items-center justify-between">
+            <Label className="font-bold">Use Unconfirmed TXs</Label>
+            <Switch
+              checked={settings.allowUnconfirmedTxs}
+              onChange={(checked) => updateSettings({ allowUnconfirmedTxs: checked })}
+              className={`${
+                settings.allowUnconfirmedTxs ? 'bg-blue-600' : 'bg-gray-200'
+              } p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
+            >
+              <span className={`${
+                settings.allowUnconfirmedTxs ? 'translate-x-6' : 'translate-x-1'
+              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`} />
+            </Switch>
+          </div>
+          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? '' : 'hidden'}`}>
+            Enable this to chain transactions that haven't been confirmed yet.
+          </Description>
+        </Field>
+  
+        <Field>
+          <div className="flex items-center justify-between">
+            <Label className="font-bold">Show/Hide Help Text</Label>
+            <Switch
+              checked={settings.showHelpText}
+              onChange={(checked) => updateSettings({ showHelpText: checked })}
+              className={`${
+                settings.showHelpText ? 'bg-blue-600' : 'bg-gray-200'
+              } p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
+            >
+              <span className={`${
+                settings.showHelpText ? 'translate-x-6' : 'translate-x-1'
+              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`} />
+            </Switch>
+          </div>
+          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? '' : 'hidden'}`}>
+            Show or hide help text by default.
+          </Description>
+        </Field>
+  
+        <Field>
+          <div className="flex items-center justify-between">
+            <Label className="font-bold">Anonymous Analytics</Label>
+            <Switch
+              checked={settings.analyticsAllowed}
+              onChange={(checked) => updateSettings({ analyticsAllowed: checked })}
+              className={`${
+                settings.analyticsAllowed ? 'bg-blue-600' : 'bg-gray-200'
+              } p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
+            >
+              <span className={`${
+                settings.analyticsAllowed ? 'translate-x-6' : 'translate-x-1'
+              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`} />
+            </Switch>
+          </div>
+          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? '' : 'hidden'}`}>
+            Choose whether to share usage data.
+          </Description>
+        </Field>
+      </div>
+    );
+  }
+  
+  export default AdvancedSettings;
+
+/src/pages/settings/connected-sites-settings.tsx
+  [contents of the file]
+  import { useEffect } from 'react';
+  import { useNavigate } from 'react-router-dom';
+  import { useHeader } from '@/contexts/header-context';
+  import { useSettings } from '@/contexts/settings-context';
+  import { FiX } from 'react-icons/fi';
+  import { Button } from '@/components/button';
+  
+  export function ConnectedSitesSettings() {
+    const navigate = useNavigate();
+    const { setHeaderProps } = useHeader();
+    const { settings, updateSettings } = useSettings();
+  
+    useEffect(() => {
+      setHeaderProps({
+        title: 'Connected',
+        onBack: () => navigate('/settings'),
+      });
+    }, [setHeaderProps, navigate]);
+  
+    const handleDisconnect = (siteToRemove: string) => {
+      const updatedSites = settings.connectedWebsites.filter(site => site !== siteToRemove);
+      updateSettings({ connectedWebsites: updatedSites });
+    };
+  
+    return (
+      <div className="p-4">
+        {settings.connectedWebsites.length > 0 ? (
+          <ul className="space-y-2">
+            {settings.connectedWebsites.map((site) => (
+              <li key={site} className="p-3 bg-white rounded-lg shadow flex justify-between items-center">
+                <span>{site}</span>
                 <Button
-                  type="submit"
-                  disabled={!isConfirmed || !isPasswordValid(password) || isSubmitting}
-                  fullWidth
+                  color="red"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDisconnect(site)}
+                  aria-label={`Disconnect ${site}`}
                 >
-                  Continue
+                  <FiX className="w-4 h-4" />
                 </Button>
-              </>
-            )}
-          </form>
-        </div>
-        {!isConfirmed && !document.documentElement.lang.startsWith('en') && (
-          <div className="text-center text-xs p-4">
-            For security reasons, recovery phrases are only shown in English.
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="text-center text-gray-500 py-8">
+            No connected sites.
           </div>
         )}
       </div>
     );
   }
   
-  export default CreateWallet;
+  export default ConnectedSitesSettings;
 
-/src/pages/wallet/import-private-key.tsx
+/src/pages/settings/security-settings.tsx
   [contents of the file]
-  import React, { useState, useEffect, useRef, useMemo } from 'react';
+  import React, { useState, useEffect } from 'react';
   import { useNavigate } from 'react-router-dom';
-  import { FiChevronDown } from 'react-icons/fi';
-  import { Button } from '@/components/button';
-  import { ErrorAlert } from '@/components/error-alert';
-  import { CheckboxInput } from '@/components/inputs/checkbox-input';
-  import { PasswordInput } from '@/components/inputs/password-input';
+  import { FiHelpCircle } from 'react-icons/fi';
+  import { Field, Label, Input, Description } from '@headlessui/react';
   import { useHeader } from '@/contexts/header-context';
   import { useWallet } from '@/contexts/wallet-context';
-  import { AddressType } from '@/utils/blockchain/bitcoin';
+  import { Button } from '@/components/button';
+  import { useSettings } from '@/contexts/settings-context';
   
-  /**
-   * ImportPrivateKey component allows users to import a wallet using a private key.
-   *
-   * Features:
-   * - Accepts a private key and auto-detects address type (Legacy or Nested SegWit)
-   * - Allows overriding the suggested address type via dropdown
-   * - Requires confirmation of key backup and password entry
-   * - Validates inputs and handles submission errors
-   */
-  const ImportPrivateKey = () => {
-    const navigate = useNavigate();
+  export function SecuritySettings() {
+    const [passwordForm, setPasswordForm] = useState({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    });
+    const [error, setError] = useState<string>('');
+    const [success, setSuccess] = useState<string>('');
+    const [isLoading, setIsLoading] = useState(false);
     const { setHeaderProps } = useHeader();
-    const { wallets, createAndUnlockPrivateKeyWallet, verifyPassword } = useWallet();
+    const { lockAll, updatePassword } = useWallet();
+    const navigate = useNavigate();
+    const { settings } = useSettings();
+    const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
   
-    const [privateKey, setPrivateKey] = useState('');
-    const [addressType, setAddressType] = useState<AddressType>(AddressType.P2PKH);
-    const [isConfirmed, setIsConfirmed] = useState(false);
-    const [password, setPassword] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [privateKeyError, setPrivateKeyError] = useState('');
-    const [passwordError, setPasswordError] = useState('');
-    const [submissionError, setSubmissionError] = useState('');
-  
-    const privateKeyInputRef = useRef<HTMLInputElement>(null);
-    const walletExists = wallets.length > 0;
-  
-    // Constants for paths and validation
-    const PATHS = {
-      BACK: walletExists ? '/add-wallet' : '/onboarding',
-      SUCCESS: '/index',
-    } as const;
-    const MIN_PASSWORD_LENGTH = 8;
-    const MIN_PRIVATE_KEY_LENGTH = 20;
-    const ADDRESS_TYPES = [
-      { value: AddressType.P2PKH, label: 'Legacy' },
-      { value: AddressType.P2SH_P2WPKH, label: 'Nested SegWit' },
-      { value: AddressType.P2WPKH, label: 'Native SegWit' },
-    ] as const;
-  
-    // Helper functions for private key validation and address type detection
-    const isValidPrivateKey = (key: string): boolean => {
-      const trimmedKey = key.trim();
-      if (!trimmedKey) return false;
-      return /^[0-9a-fA-F]{64}$|^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(trimmedKey);
-    };
-  
-    const isWIFUncompressed = (key: string): boolean => {
-      return key.startsWith('5') && /^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(key);
-    };
-  
-    const isWIFCompressed = (key: string): boolean => {
-      return (key.startsWith('K') || key.startsWith('L')) && /^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(key);
-    };
-  
-    const isHexPrivateKey = (key: string): boolean => {
-      return /^[0-9a-fA-F]{64}$/.test(key);
-    };
-  
-    const determineAddressType = (key: string): AddressType => {
-      const trimmedKey = key.trim();
-      if (isWIFUncompressed(trimmedKey)) {
-        return AddressType.P2PKH; // Legacy for uncompressed WIF
-      } else if (isWIFCompressed(trimmedKey)) {
-        return AddressType.P2SH_P2WPKH; // Nested SegWit for compressed WIF
-      } else if (isHexPrivateKey(trimmedKey)) {
-        return AddressType.P2PKH; // Default to Legacy for hex
-      }
-      return AddressType.P2PKH; // Fallback to Legacy
-    };
-  
-    // Set up header
     useEffect(() => {
       setHeaderProps({
-        title: 'Import Key',
-        onBack: () => navigate(PATHS.BACK),
+        title: 'Security',
+        onBack: () => navigate('/settings'),
+        rightButton: {
+          icon: <FiHelpCircle className="w-4 h-4" />,
+          onClick: () => setIsHelpTextOverride((prev) => !prev),
+          ariaLabel: 'Toggle help text',
+        },
       });
-    }, [setHeaderProps, navigate, walletExists]);
+    }, [setHeaderProps, navigate]);
   
-    // Focus private key input on mount
-    useEffect(() => {
-      privateKeyInputRef.current?.focus();
-    }, []);
+    const isPasswordValid = (password: string) => password.length >= 8;
   
-    // Validate private key length
-    const isPrivateKeyValid = useMemo(() => {
-      return privateKey.trim().length >= MIN_PRIVATE_KEY_LENGTH && /^[0-9a-fA-F]{64}$|^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(privateKey.trim());
-    }, [privateKey]);
-  
-    const isPasswordValid = (pw: string): boolean => pw.length >= MIN_PASSWORD_LENGTH;
-  
-    const handlePrivateKeyChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-      const newPrivateKey = e.target.value;
-      setPrivateKey(newPrivateKey);
-      setPrivateKeyError('');
-      setSubmissionError('');
-  
-      if (!isValidPrivateKey(newPrivateKey)) {
-        if (!newPrivateKey.trim()) {
-          setPrivateKeyError('Private key is required');
-        } else {
-          setPrivateKeyError('Invalid private key format. Please enter a valid WIF or hexadecimal key.');
-        }
-      } else {
-        const suggestedType = determineAddressType(newPrivateKey);
-        setAddressType(suggestedType);
-      }
-    };
-  
-    const handleAddressTypeChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
-      setAddressType(e.target.value as AddressType);
-    };
-  
-    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-      setPassword(e.target.value);
-      setPasswordError('');
-      setSubmissionError('');
-    };
-  
-    const handleCheckboxChange = (checked: boolean): void => {
-      if (!isPrivateKeyValid) return;
-      setIsConfirmed(checked);
-      setSubmissionError('');
-    };
-  
-    const canSubmit = (): boolean => {
+    const isFormValid = () => {
       return (
-        isConfirmed &&
-        isValidPrivateKey(privateKey.trim()) &&
-        password.length > 0 &&
-        (walletExists || isPasswordValid(password))
+        passwordForm.currentPassword &&
+        passwordForm.newPassword &&
+        passwordForm.confirmPassword &&
+        isPasswordValid(passwordForm.newPassword)
       );
     };
   
-    const validateForm = async (): Promise<boolean> => {
-      setPasswordError('');
-      setSubmissionError('');
+    const handlePasswordChange = async () => {
+      setError('');
+      setSuccess('');
+      setIsLoading(true);
   
-      if (privateKeyError) {
-        return false; // Early return if private key is invalid
-      }
-  
-      const trimmedKey = privateKey.trim();
-      if (!trimmedKey) {
-        setPrivateKeyError('Private key is required');
-        return false;
-      }
-      if (!isValidPrivateKey(trimmedKey)) {
-        setPrivateKeyError('Invalid private key format. Please enter a valid WIF or hexadecimal key.');
-        return false;
-      }
-      if (!isConfirmed) {
-        setSubmissionError('Please confirm you have backed up your private key');
-        return false;
-      }
-      if (!password) {
-        setPasswordError('Password is required');
-        return false;
-      }
-      if (walletExists) {
-        const isValid = await verifyPassword(password);
-        if (!isValid) {
-          setPasswordError('Invalid password');
-          return false;
-        }
-      } else if (!isPasswordValid(password)) {
-        setPasswordError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
-        return false;
-      }
-      return true;
-    };
-  
-    const createWallet = async (): Promise<void> => {
       try {
-        await createAndUnlockPrivateKeyWallet(privateKey.trim(), password, undefined, addressType);
-        navigate(PATHS.SUCCESS);
-      } catch (error) {
-        let errorMessage = 'Failed to import private key. ';
-        if (error instanceof Error) {
-          if (error.message.includes('Invalid private key')) {
-            errorMessage += 'The private key format is invalid.';
-          } else if (error.message.includes('already exists')) {
-            errorMessage += 'This private key has already been imported.';
-          } else {
-            errorMessage += error.message;
-          }
-        } else {
-          errorMessage += 'Please check your input and try again.';
+        if (!isPasswordValid(passwordForm.newPassword)) {
+          throw new Error('New password must be at least 8 characters long');
         }
-        setSubmissionError(errorMessage);
-      }
-    };
   
-    const handleSubmit = async (e?: React.FormEvent): Promise<void> => {
-      if (e) e.preventDefault();
-      if (isSubmitting) return;
-  
-      setIsSubmitting(true);
-      try {
-        if (await validateForm()) {
-          await createWallet();
+        if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+          throw new Error('New passwords do not match');
         }
+  
+        await updatePassword(
+          passwordForm.currentPassword,
+          passwordForm.newPassword
+        );
+        await lockAll();
+  
+        setPasswordForm({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+  
+        setSuccess('Password successfully changed');
+      } catch (err) {
+        console.error('Error changing password:', err);
+        setError(err instanceof Error ? err.message : 'Failed to change password');
       } finally {
-        setIsSubmitting(false);
+        setIsLoading(false);
+      }
+    };
+  
+    const shouldShowHelpText = isHelpTextOverride
+      ? !settings.showHelpText
+      : settings.showHelpText;
+  
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter' && !isLoading && isFormValid()) {
+        handlePasswordChange();
       }
     };
   
     return (
-      <div
-        className="flex-grow overflow-y-auto p-4"
-        role="main"
-        aria-labelledby="import-private-key-title"
-      >
-        <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
-          <h2 id="import-private-key-title" className="text-2xl font-bold mb-2">
-            Import Private Key
-          </h2>
-          <p className="mb-5" id="import-instructions">
-            Enter your private key to use its address.
-          </p>
-  
-          {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError('')} />}
-  
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-4"
-            aria-describedby="import-instructions"
+      <div className="space-y-6 p-4">
+        {error && (
+          <div
+            className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded"
+            role="alert"
           >
-            <PasswordInput
-              id="private-key"
-              className="mb-2"
-              value={privateKey}
-              onChange={handlePrivateKeyChange}
-              placeholder="Enter private key"
-              error={privateKeyError}
-              label="Private Key"
-              showLabel
-              ariaLabel="Private Key Input"
-              ref={privateKeyInputRef}
-              disabled={isSubmitting}
-            />
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+            {success}
+          </div>
+        )}
   
-            <div className="flex items-center gap-2 mb-4">
-              <CheckboxInput
-                checked={isConfirmed}
-                onChange={handleCheckboxChange}
-                label="I have backed up this private key"
-                ariaLabel="Confirm private key backup"
-                disabled={!isPrivateKeyValid || isSubmitting}
-              />
+        <Field>
+          <Label className="font-bold">Current Password</Label>
+          <Input
+            id="currentPassword"
+            type="password"
+            value={passwordForm.currentPassword}
+            onChange={(e) =>
+              setPasswordForm((prev) => ({
+                ...prev,
+                currentPassword: e.target.value,
+              }))
+            }
+            onKeyDown={handleKeyDown}
+            className="w-full p-2 border rounded-md mt-2 bg-white"
+          />
+          {shouldShowHelpText && (
+            <Description className="mt-2 text-sm text-gray-500">
+              Enter your current wallet password to authorize the change.
+            </Description>
+          )}
+        </Field>
+  
+        <Field>
+          <Label className="font-bold">New Password</Label>
+          <Input
+            id="newPassword"
+            type="password"
+            value={passwordForm.newPassword}
+            onChange={(e) =>
+              setPasswordForm((prev) => ({
+                ...prev,
+                newPassword: e.target.value,
+              }))
+            }
+            onKeyDown={handleKeyDown}
+            className="w-full p-2 border rounded-md mt-2 bg-white"
+          />
+          {shouldShowHelpText && (
+            <Description className="mt-2 text-sm text-gray-500">
+              Choose a new password that is at least 8 characters long.
+            </Description>
+          )}
+        </Field>
+  
+        <Field>
+          <Label className="font-bold">Confirm New Password</Label>
+          <Input
+            id="confirmPassword"
+            type="password"
+            value={passwordForm.confirmPassword}
+            onChange={(e) =>
+              setPasswordForm((prev) => ({
+                ...prev,
+                confirmPassword: e.target.value,
+              }))
+            }
+            onKeyDown={handleKeyDown}
+            className="w-full p-2 border rounded-md mt-2 bg-white"
+          />
+          {shouldShowHelpText && (
+            <Description className="mt-2 text-sm text-gray-500">
+              Re-enter your new password to confirm it was typed correctly.
+            </Description>
+          )}
+        </Field>
+  
+        <Button
+          color="blue"
+          onClick={handlePasswordChange}
+          fullWidth
+          disabled={isLoading || !isFormValid()}
+        >
+          {isLoading ? 'Changing Password...' : 'Change Password'}
+        </Button>
+      </div>
+    );
+  }
+  
+  export default SecuritySettings;
+
+/src/pages/settings/settings.tsx
+  [contents of the file]
+  import React, { useEffect } from 'react';
+  import { useNavigate } from 'react-router-dom';
+  import { FaChevronRight } from 'react-icons/fa';
+  import { useWallet } from '@/contexts/wallet-context';
+  import { useHeader } from '@/contexts/header-context';
+  import { AddressType } from '@/utils/blockchain/bitcoin';
+  
+  const Settings = () => {
+    const navigate = useNavigate();
+    const { setHeaderProps } = useHeader();
+    const { activeWallet } = useWallet();
+  
+    useEffect(() => {
+      setHeaderProps({
+        title: 'Settings',
+        onBack: () => navigate('/index'),
+      });
+    }, [setHeaderProps, navigate]);
+  
+    const getAddressTypeDescription = () => {
+      if (!activeWallet) return '';
+      switch (activeWallet.addressType) {
+        case AddressType.P2PKH:
+          return 'Legacy (P2PKH)';
+        case AddressType.P2SH_P2WPKH:
+          return 'Nested SegWit (P2SH-P2WPKH)';
+        case AddressType.P2WPKH:
+          return 'Native SegWit (P2WPKH)';
+        case AddressType.P2TR:
+          return 'Taproot (P2TR)';
+        default:
+          return '';
+      }
+    };
+  
+    const settingOptions = [
+      ...(activeWallet?.type === 'mnemonic' &&
+         activeWallet?.addressType !== AddressType.Counterwallet
+        ? [
+            {
+              id: 'addressType',
+              name: 'Address Type',
+              description: getAddressTypeDescription(),
+              path: '/settings/address-type',
+            },
+          ]
+        : []),
+      {
+        id: 'advanced',
+        name: 'Advanced',
+        description: 'Network settings and developer options',
+        path: '/settings/advanced',
+      },
+      {
+        id: 'connectedSites',
+        name: 'Connected Sites',
+        description: 'Manage website connections',
+        path: '/settings/connected-sites',
+      },
+      {
+        id: 'security',
+        name: 'Security',
+        description: 'Change your wallet password',
+        path: '/settings/security',
+      },
+    ];
+  
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex-1 overflow-auto no-scrollbar">
+          <div className="p-4">
+            <div className="space-y-2">
+              {settingOptions.map((option) => (
+                <div
+                  key={option.id}
+                  onClick={() => navigate(option.path)}
+                  className="relative w-full rounded transition duration-300 p-4 cursor-pointer bg-white hover:bg-gray-50"
+                >
+                  <div className="flex flex-col">
+                    <div className="absolute top-1/2 -translate-y-1/2 right-5">
+                      <FaChevronRight className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <div className="text-sm font-medium text-gray-900 mb-1">{option.name}</div>
+                    <div className="text-xs text-gray-500">{option.description}</div>
+                  </div>
+                </div>
+              ))}
             </div>
   
-            <div className="mb-4">
-              <label htmlFor="address-type" className="block mb-2 text-sm font-medium">
-                Address Type
-              </label>
-              <div className="relative">
-                <select
-                  id="address-type"
-                  value={addressType}
-                  onChange={handleAddressTypeChange}
-                  className="w-full p-2 pr-8 rounded-md border bg-white appearance-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isSubmitting}
+            {/* About Section */}
+            <div className="mt-8">
+              <h3 className="text-sm font-medium text-gray-900 px-4 mb-2">About XCP Wallet</h3>
+              <div className="bg-white rounded">
+                <div className="p-4 border-b">
+                  <div className="text-sm">Version 0.0.1</div>
+                </div>
+                <a
+                  href="https://www.xcp.io/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block p-4 border-b text-sm text-blue-500 hover:text-blue-600 hover:bg-gray-50"
                 >
-                  {ADDRESS_TYPES.map(({ value, label }) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-                <FiChevronDown
-                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
-                  aria-hidden="true"
-                />
+                  Terms of Service
+                </a>
+                <a
+                  href="https://www.xcp.io/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block p-4 border-b text-sm text-blue-500 hover:text-blue-600 hover:bg-gray-50"
+                >
+                  Privacy Policy
+                </a>
+                <a
+                  href="https://www.xcp.io/?ref=wallet"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block p-4 text-sm text-blue-500 hover:text-blue-600 hover:bg-gray-50"
+                >
+                  Visit Website
+                </a>
               </div>
             </div>
   
-            {isConfirmed && (
-              <>
-                <PasswordInput
-                  id="password"
-                  className="mb-4"
-                  value={password}
-                  onChange={handlePasswordChange}
-                  placeholder={walletExists ? 'Confirm password' : 'Create password'}
-                  error={passwordError}
-                  label="Password"
-                  showLabel
-                  ariaLabel="Password Input"
-                  disabled={isSubmitting}
-                />
-                <Button
-                  type="submit"
-                  disabled={!canSubmit() || !isPasswordValid(password) || isSubmitting}
-                  fullWidth
-                >
-                  {isSubmitting ? 'Importing...' : 'Continue'}
-                </Button>
-              </>
-            )}
-          </form>
+            {/* Reset Wallet Section */}
+            <div className="mt-8 mb-4">
+              <button
+                onClick={() => navigate('/reset-wallet')}
+                className="w-full py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition-colors duration-300"
+                aria-label="Reset Wallet"
+              >
+                Reset Wallet
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
   };
   
-  export default ImportPrivateKey;
-
-/src/pages/wallet/import-wallet.tsx
-  [contents of the file]
-  import React, { useEffect, useState, useRef } from 'react';
-  import { useNavigate } from 'react-router-dom';
-  import { FaEye, FaEyeSlash } from 'react-icons/fa';
-  import { Input as HeadlessInput } from '@headlessui/react';
-  import { validateMnemonic } from '@scure/bip39';
-  import { wordlist } from '@scure/bip39/wordlists/english';
-  import { Button } from '@/components/button';
-  import { CheckboxInput } from '@/components/inputs/checkbox-input';
-  import { PasswordInput } from '@/components/inputs/password-input';
-  import { useHeader } from '@/contexts/header-context';
-  import { useWallet } from '@/contexts/wallet-context';
-  import { AddressType } from '@/utils/blockchain/bitcoin';
-  import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
-  import { ErrorAlert } from '@/components/error-alert';
-  
-  /**
-   * ImportWallet component allows users to import a wallet using a 12-word mnemonic phrase.
-   *
-   * Features:
-   * - Accepts a 12-word recovery phrase input, supporting pasting multiple words into one field
-   * - Validates mnemonic and requires confirmation
-   * - Supports password entry and wallet unlocking
-   */
-  function ImportWallet() {
-    const navigate = useNavigate();
-    const { setHeaderProps } = useHeader();
-    const { unlockWallet, wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
-    const walletExists = wallets.length > 0;
-  
-    const [mnemonicWords, setMnemonicWords] = useState<string[]>(Array(12).fill(''));
-    const [isConfirmed, setIsConfirmed] = useState(false);
-    const [showMnemonic, setShowMnemonic] = useState(false);
-    const [password, setPassword] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-  
-    const inputRefs = useRef<(HTMLInputElement | null)[]>(Array(12).fill(null));
-  
-    // Constants for paths and validation
-    const PATHS = {
-      BACK: walletExists ? '/add-wallet' : '/onboarding',
-      SUCCESS: '/index',
-    } as const;
-    const MIN_PASSWORD_LENGTH = 8;
-  
-    // Set up header with show/hide toggle
-    useEffect(() => {
-      setHeaderProps({
-        title: 'Import Wallet',
-        onBack: () => navigate(PATHS.BACK),
-        rightButton: {
-          icon: showMnemonic ? (
-            <FaEyeSlash aria-hidden="true" />
-          ) : (
-            <FaEye aria-hidden="true" />
-          ),
-          onClick: () => setShowMnemonic((prev) => !prev),
-          ariaLabel: showMnemonic ? 'Hide recovery phrase' : 'Show recovery phrase',
-        },
-      });
-    }, [navigate, setHeaderProps, showMnemonic, walletExists]);
-  
-    // Focus first input on mount
-    useEffect(() => {
-      inputRefs.current[0]?.focus();
-    }, []);
-  
-    const handleWordChange = (index: number, value: string) => {
-      const newWords = [...mnemonicWords];
-      const words = value.trim().split(/\s+/);
-      if (words.length > 1) {
-        for (let i = 0; i < words.length && index + i < 12; i++) {
-          newWords[index + i] = words[i];
-        }
-        setMnemonicWords(newWords);
-        const nextIndex = Math.min(index + words.length, 11);
-        inputRefs.current[nextIndex]?.focus();
-      } else {
-        newWords[index] = value;
-        setMnemonicWords(newWords);
-      }
-    };
-  
-    const handleWordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        if (index < 11) {
-          inputRefs.current[index + 1]?.focus();
-        } else if (isConfirmed) {
-          document.getElementById('password')?.focus();
-        }
-      } else if (e.key === 'Backspace' && !mnemonicWords[index] && index > 0) {
-        e.preventDefault();
-        inputRefs.current[index - 1]?.focus();
-      }
-    };
-  
-    function areAllWordsPopulated(): boolean {
-      return mnemonicWords.every((word) => word.trim() !== '');
-    }
-  
-    const handleCheckboxChange = (checked: boolean) => {
-      if (!areAllWordsPopulated()) return;
-      setIsConfirmed(checked);
-    };
-  
-    function isPasswordValid(pw: string): boolean {
-      return pw.length >= MIN_PASSWORD_LENGTH;
-    }
-  
-    async function validateForm(): Promise<boolean> {
-      const mnemonic = mnemonicWords.join(' ').trim();
-      let validMnemonic = validateMnemonic(mnemonic, wordlist);
-      if (!validMnemonic && isValidCounterwalletMnemonic(mnemonic)) {
-        validMnemonic = true;
-      }
-      if (!validMnemonic) {
-        setError('Invalid recovery phrase. Please check each word carefully.');
-        return false;
-      }
-      if (!isConfirmed) {
-        setError('Please confirm you have backed up your recovery phrase.');
-        return false;
-      }
-      if (!password) {
-        setError('Password is required.');
-        return false;
-      }
-      if (walletExists) {
-        const isValid = await verifyPassword(password);
-        if (!isValid) {
-          setError('Password does not match.');
-          return false;
-        }
-      } else if (!isPasswordValid(password)) {
-        setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
-        return false;
-      }
-      return true;
-    }
-  
-    async function handleSubmit(e?: React.FormEvent<HTMLFormElement>) {
-      if (e) e.preventDefault();
-      if (isSubmitting) return;
-  
-      setIsSubmitting(true);
-      try {
-        if (await validateForm()) {
-          const mnemonic = mnemonicWords.join(' ').trim();
-          const addressType = isValidCounterwalletMnemonic(mnemonic)
-            ? AddressType.Counterwallet
-            : AddressType.P2WPKH;
-          const newWallet = await createAndUnlockMnemonicWallet(
-            mnemonic,
-            password,
-            undefined,
-            addressType
-          );
-          await unlockWallet(newWallet.id, password);
-          navigate(PATHS.SUCCESS);
-        }
-      } catch (error: unknown) {
-        console.error('Detailed error importing wallet:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        setError(`Failed to import wallet: ${errorMessage}`);
-      } finally {
-        setIsSubmitting(false);
-      }
-    }
-  
-    return (
-      <div
-        className="flex-grow overflow-y-auto p-4"
-        role="main"
-        aria-labelledby="import-wallet-title"
-      >
-        <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
-          {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
-          <h2 id="import-wallet-title" className="text-2xl font-bold mb-2">
-            Import Your Mnemonic
-          </h2>
-          <p className="mb-5" id="import-instructions">
-            Please enter your 12-word recovery phrase below.
-          </p>
-          <form onSubmit={handleSubmit} className="space-y-4" aria-describedby="import-instructions">
-            <div
-              className="bg-gray-100 p-2 rounded-md mb-4"
-              role="region"
-              aria-label="Recovery phrase input"
-            >
-              <ol
-                className="list-none p-0 m-0 grid grid-flow-col grid-cols-2 grid-rows-6 gap-2"
-                aria-label="Recovery phrase words"
-              >
-                {mnemonicWords.map((word, index) => (
-                  <li
-                    key={index}
-                    className="bg-white rounded p-1 flex items-center relative"
-                    aria-label={`Word ${index + 1}`}
-                  >
-                    <span
-                      className="absolute left-2 w-6 text-right mr-2 text-gray-500"
-                      aria-hidden="true"
-                    >
-                      {index + 1}.
-                    </span>
-                    <HeadlessInput
-                      ref={(el) => {
-                        inputRefs.current[index] = el as HTMLInputElement;
-                      }}
-                      type={showMnemonic ? 'text' : 'password'}
-                      value={word}
-                      onChange={(e) => handleWordChange(index, e.target.value)}
-                      onKeyDown={(e) => handleWordKeyDown(e, index)}
-                      className="font-mono ml-8 w-full bg-transparent outline-none"
-                      placeholder="Enter word"
-                      aria-label={`Word ${index + 1}`}
-                      disabled={isSubmitting}
-                    />
-                  </li>
-                ))}
-              </ol>
-            </div>
-            <CheckboxInput
-              checked={isConfirmed}
-              onChange={handleCheckboxChange}
-              label="I have saved my secret recovery phrase"
-              ariaLabel="Confirm recovery phrase backup"
-              disabled={!areAllWordsPopulated() || isSubmitting}
-            />
-            {isConfirmed && (
-              <>
-                <PasswordInput
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={walletExists ? 'Confirm your password' : 'Create a password'}
-                  error=""
-                  ariaLabel={walletExists ? 'Confirm password' : 'Create password'}
-                  disabled={isSubmitting}
-                />
-                <Button
-                  type="submit"
-                  disabled={!isConfirmed || !isPasswordValid(password) || isSubmitting}
-                  fullWidth
-                >
-                  Continue
-                </Button>
-              </>
-            )}
-          </form>
-        </div>
-      </div>
-    );
-  }
-  
-  export default ImportWallet;
-
-/src/pages/wallet/remove-wallet.tsx
-  [contents of the file]
-  import React, { useState, useEffect, useRef } from 'react';
-  import { useParams, useNavigate } from 'react-router-dom';
-  import { FaExclamationTriangle } from 'react-icons/fa';
-  import { Button } from '@/components/button';
-  import { ErrorAlert } from '@/components/error-alert';
-  import { PasswordInput } from '@/components/inputs/password-input';
-  import { useHeader } from '@/contexts/header-context';
-  import { useWallet } from '@/contexts/wallet-context';
-  
-  /**
-   * RemoveWallet component allows users to delete a wallet after password confirmation.
-   *
-   * Features:
-   * - Displays a warning about backing up the wallet
-   * - Requires password verification before removal
-   * - Updates active wallet/address and navigates on success
-   */
-  function RemoveWallet() {
-    const { walletId } = useParams<{ walletId: string }>();
-    const navigate = useNavigate();
-    const { setHeaderProps } = useHeader();
-    const { wallets, setActiveWallet, setActiveAddress, activeWallet, removeWallet, verifyPassword } =
-      useWallet();
-  
-    const [walletName, setWalletName] = useState('');
-    const [walletType, setWalletType] = useState<'mnemonic' | 'privateKey'>('mnemonic');
-    const [password, setPassword] = useState('');
-    const [passwordError, setPasswordError] = useState('');
-    const [submissionError, setSubmissionError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-  
-    const passwordInputRef = useRef<HTMLInputElement>(null);
-  
-    // Constants for paths and validation
-    const PATHS = {
-      BACK: -1, // Using -1 for navigate(-1)
-      SUCCESS: '/select-wallet',
-    } as const;
-    const MIN_PASSWORD_LENGTH = 8;
-  
-    // Set up header and wallet details
-    useEffect(() => {
-      const wallet = wallets.find((w) => w.id === walletId);
-      if (!walletId || !wallet) {
-        setSubmissionError(walletId ? 'Wallet not found.' : 'Invalid wallet identifier.');
-        setIsLoading(false);
-        return;
-      }
-  
-      setWalletName(wallet.name);
-      setWalletType(wallet.type);
-      setHeaderProps({
-        title: 'Remove Wallet',
-        onBack: () => navigate(PATHS.BACK),
-      });
-    }, [walletId, wallets, setHeaderProps, navigate]);
-  
-    // Focus password input on mount
-    useEffect(() => {
-      passwordInputRef.current?.focus();
-    }, []);
-  
-    const isPasswordValid = (pwd: string): boolean => pwd.length >= MIN_PASSWORD_LENGTH;
-  
-    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-      setPassword(e.target.value);
-      setPasswordError('');
-      setSubmissionError('');
-    };
-  
-    const validateForm = async (): Promise<boolean> => {
-      setPasswordError('');
-      setSubmissionError('');
-  
-      if (!walletId) {
-        setSubmissionError('Invalid wallet identifier.');
-        return false;
-      }
-      if (!password) {
-        setPasswordError('Password cannot be empty.');
-        return false;
-      }
-      if (!isPasswordValid(password)) {
-        setPasswordError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
-        return false;
-      }
-      try {
-        const isValid = await verifyPassword(password);
-        if (!isValid) {
-          setPasswordError('Password does not match.');
-          return false;
-        }
-      } catch {
-        setPasswordError('Password verification failed.');
-        return false;
-      }
-      return true;
-    };
-  
-    const handleSubmit = async (e: React.FormEvent): Promise<void> => {
-      e.preventDefault();
-      if (isLoading) return;
-  
-      setIsLoading(true);
-      try {
-        if (await validateForm()) {
-          const remainingWallets = wallets.filter((w) => w.id !== walletId);
-          if (activeWallet?.id === walletId) {
-            if (remainingWallets.length > 0) {
-              await setActiveWallet(remainingWallets[0]);
-            } else {
-              await setActiveWallet(null);
-            }
-          }
-  
-          await removeWallet(walletId!);
-          navigate(PATHS.SUCCESS, { replace: true });
-        }
-      } catch (err) {
-        console.error('Error removing wallet:', err);
-        setSubmissionError('Failed to remove wallet. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-  
-    return (
-      <div
-        className="flex flex-col h-full p-4"
-        role="main"
-        aria-labelledby="remove-wallet-title"
-      >
-        <h2 id="remove-wallet-title" className="sr-only text-2xl font-bold mb-2">
-          Remove Wallet
-        </h2>
-        {submissionError && (
-          <ErrorAlert message={submissionError} onClose={() => setSubmissionError('')} />
-        )}
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col items-center justify-center flex-grow"
-          aria-describedby="remove-wallet-warning"
-        >
-          <div
-            className="max-w-md w-full bg-red-50 border-2 border-red-500 rounded-xl p-6 mb-6"
-            id="remove-wallet-warning"
-          >
-            <div className="flex items-center mb-4">
-              <FaExclamationTriangle
-                className="w-6 h-6 text-red-500 mr-2"
-                aria-hidden="true"
-              />
-              <h3 className="text-xl font-bold text-red-700">Warning</h3>
-            </div>
-            <p className="text-red-700 font-medium leading-relaxed">
-              Make sure you have backed up your wallet's{' '}
-              {walletType === 'mnemonic' ? 'mnemonic' : 'private key'} before removing it.
-            </p>
-          </div>
-          <div className="w-full max-w-md space-y-4">
-            <PasswordInput
-              id="password"
-              value={password}
-              onChange={handlePasswordChange}
-              placeholder="Confirm your password"
-              error={passwordError}
-              ariaLabel="Password confirmation"
-              variant="warning"
-              ref={passwordInputRef}
-              disabled={isLoading}
-            />
-            <Button
-              type="submit"
-              disabled={isLoading || !isPasswordValid(password)}
-              fullWidth
-              color="red"
-              aria-label={`Remove ${walletName || 'wallet'}`}
-            >
-              {isLoading ? 'Removing...' : `Remove ${walletName || 'Wallet'}`}
-            </Button>
-          </div>
-        </form>
-      </div>
-    );
-  }
-  
-  export default RemoveWallet;
-
-/src/pages/wallet/reset-wallet.tsx
-  [contents of the file]
-  import { useState, useEffect, useRef } from 'react';
-  import { useNavigate } from 'react-router-dom';
-  import { FaExclamationTriangle } from 'react-icons/fa';
-  import { Button } from '@/components/button';
-  import { ErrorAlert } from '@/components/error-alert';
-  import { PasswordInput } from '@/components/inputs/password-input';
-  import { useHeader } from '@/contexts/header-context';
-  import { useWallet } from '@/contexts/wallet-context';
-  
-  /**
-   * ResetWallet component allows users to delete all wallet data after password confirmation.
-   *
-   * Features:
-   * - Displays a warning about irreversible data loss
-   * - Requires password verification before resetting
-   * - Navigates to onboarding on success
-   */
-  function ResetWallet() {
-    const navigate = useNavigate();
-    const { setHeaderProps } = useHeader();
-    const { resetAllWallets, verifyPassword } = useWallet();
-  
-    const [password, setPassword] = useState('');
-    const [passwordError, setPasswordError] = useState('');
-    const [submissionError, setSubmissionError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-  
-    const passwordInputRef = useRef<HTMLInputElement>(null);
-  
-    // Constants for paths and validation
-    const PATHS = {
-      BACK: '/settings',
-      SUCCESS: '/onboarding',
-    } as const;
-    const MIN_PASSWORD_LENGTH = 8;
-  
-    // Set up header
-    useEffect(() => {
-      setHeaderProps({
-        title: 'Reset Wallet',
-        onBack: () => navigate(PATHS.BACK),
-      });
-    }, [setHeaderProps, navigate]);
-  
-    // Focus password input on mount
-    useEffect(() => {
-      passwordInputRef.current?.focus();
-    }, []);
-  
-    const isPasswordValid = (pwd: string): boolean => pwd.length >= MIN_PASSWORD_LENGTH;
-  
-    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-      setPassword(e.target.value);
-      setPasswordError('');
-      setSubmissionError('');
-    };
-  
-    const validateForm = async (): Promise<boolean> => {
-      setPasswordError('');
-      setSubmissionError('');
-  
-      if (!password) {
-        setPasswordError('Password cannot be empty.');
-        return false;
-      }
-      if (!isPasswordValid(password)) {
-        setPasswordError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
-        return false;
-      }
-      try {
-        const isValid = await verifyPassword(password);
-        if (!isValid) {
-          setPasswordError('Password does not match.');
-          return false;
-        }
-      } catch {
-        setPasswordError('Password verification failed.');
-        return false;
-      }
-      return true;
-    };
-  
-    const handleSubmit = async (e: React.FormEvent): Promise<void> => {
-      e.preventDefault();
-      if (isLoading) return;
-  
-      setIsLoading(true);
-      try {
-        if (await validateForm()) {
-          await resetAllWallets(password);
-          navigate(PATHS.SUCCESS);
-        }
-      } catch (err) {
-        console.error('Error resetting wallet:', err);
-        setSubmissionError('Failed to reset wallet. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-  
-    return (
-      <div
-        className="flex flex-col h-full p-4"
-        role="main"
-        aria-labelledby="reset-wallet-title"
-      >
-        <h2 id="reset-wallet-title" className="sr-only text-2xl font-bold mb-2">
-          Reset Wallet
-        </h2>
-        {submissionError && (
-          <ErrorAlert message={submissionError} onClose={() => setSubmissionError('')} />
-        )}
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col items-center justify-center flex-grow"
-          aria-describedby="reset-wallet-warning"
-        >
-          <div
-            className="max-w-md w-full bg-red-50 border-2 border-red-500 rounded-xl p-6 mb-6"
-            id="reset-wallet-warning"
-          >
-            <div className="flex items-center mb-4">
-              <FaExclamationTriangle
-                className="w-6 h-6 text-red-500 mr-2"
-                aria-hidden="true"
-              />
-              <h3 className="text-xl font-bold text-red-700">Warning</h3>
-            </div>
-            <p className="text-red-700 font-medium leading-relaxed">
-              Resetting your wallet will delete all wallet data. This action cannot be undone.
-            </p>
-          </div>
-          <div className="w-full max-w-md space-y-4">
-            <PasswordInput
-              id="password"
-              ref={passwordInputRef}
-              value={password}
-              onChange={handlePasswordChange}
-              placeholder="Confirm your password"
-              error={passwordError}
-              ariaLabel="Password confirmation"
-              variant="warning"
-              disabled={isLoading}
-            />
-            <Button
-              type="submit"
-              disabled={isLoading || !isPasswordValid(password)}
-              fullWidth
-              color="red"
-              aria-label="Reset Wallet"
-            >
-              {isLoading ? 'Resetting...' : 'Reset Wallet'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    );
-  }
-  
-  export default ResetWallet;
-
-/src/pages/wallet/select-wallet.tsx
-  [contents of the file]
-  import { useEffect, useState, useCallback } from 'react';
-  import { useNavigate } from 'react-router-dom';
-  import { FaPlus } from 'react-icons/fa';
-  import { Button } from '@/components/button';
-  import { WalletList } from '@/components/lists/wallet-list';
-  import { useHeader } from '@/contexts/header-context';
-  import { useWallet } from '@/contexts/wallet-context';
-  import { ErrorAlert } from '@/components/error-alert';
-  import type { Wallet } from '@/utils/wallet';
-  
-  /**
-   * SelectWallet component allows users to choose an active wallet or add a new one.
-   *
-   * Features:
-   * - Displays a list of wallets for selection
-   * - Provides an option to add a new wallet with a limit of 10
-   * - Navigates to the index on wallet selection
-   */
-  function SelectWallet() {
-    const navigate = useNavigate();
-    const { setHeaderProps } = useHeader();
-    const { wallets, activeWallet, setActiveWallet } = useWallet();
-    const [error, setError] = useState<string | null>(null);
-  
-    // Constants for paths and limits
-    const PATHS = {
-      BACK: '/',
-      ADD_WALLET: '/add-wallet',
-      INDEX: '/index',
-    } as const;
-    const MAX_WALLETS = 10;
-  
-    const handleAddWallet = useCallback(() => {
-      if (wallets.length >= MAX_WALLETS) {
-        setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
-        return;
-      }
-      navigate(PATHS.ADD_WALLET);
-    }, [navigate, wallets.length]);
-  
-    // Configure header with add wallet button
-    useEffect(() => {
-      setHeaderProps({
-        title: 'Select Wallet',
-        onBack: () => navigate(PATHS.BACK),
-        rightButton: {
-          icon: <FaPlus className="w-4 h-4" aria-hidden="true" />,
-          onClick: handleAddWallet,
-          ariaLabel: 'Add Wallet',
-        },
-      });
-    }, [setHeaderProps, navigate, handleAddWallet]);
-  
-    const handleSelectWalletInternal = async (wallet: Wallet) => {
-      try {
-        await setActiveWallet(wallet, false);
-        navigate(PATHS.INDEX);
-      } catch (err) {
-        console.error('Error selecting wallet:', err);
-        setError('Failed to select wallet. Please try again.');
-      }
-    };
-  
-    return (
-      <div
-        className="flex flex-col h-full"
-        role="main"
-        aria-labelledby="wallet-selection-title"
-      >
-        <div className="flex-grow overflow-y-auto p-4">
-          {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
-          <h2 id="wallet-selection-title" className="sr-only text-2xl font-bold mb-2">
-            Select a Wallet
-          </h2>
-          <WalletList
-            wallets={wallets}
-            selectedWallet={activeWallet}
-            onSelectWallet={handleSelectWalletInternal}
-          />
-        </div>
-        <div className="p-4">
-          <Button
-            color="green"
-            fullWidth
-            onClick={handleAddWallet}
-            disabled={wallets.length >= MAX_WALLETS}
-            aria-label="Add Wallet"
-          >
-            <FaPlus className="w-4 h-4 mr-2" aria-hidden="true" />
-            Add Wallet
-          </Button>
-        </div>
-      </div>
-    );
-  }
-  
-  export default SelectWallet;
+  export default Settings;
 

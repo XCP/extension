@@ -44,7 +44,7 @@ function SelectWallet() {
       title: 'Wallets',
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
-        icon: <FaPlus className="w-4 h-4" aria-hidden="true" />,
+        icon: <FaPlus />,
         onClick: handleAddWallet,
         ariaLabel: 'Add Wallet',
       },
@@ -86,7 +86,7 @@ function SelectWallet() {
           disabled={wallets.length >= MAX_WALLETS}
           aria-label="Add Wallet"
         >
-          <FaPlus className="w-4 h-4 mr-2" aria-hidden="true" />
+          <FaPlus className="mr-2" aria-hidden="true" />
           Add Wallet
         </Button>
       </div>

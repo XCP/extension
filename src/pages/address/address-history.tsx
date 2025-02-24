@@ -1,24 +1,33 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { FaExternalLinkAlt, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { Button } from "@/components/button";
+import { ErrorAlert } from "@/components/error-alert";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchTransactions, type TransactionResponse, type Transaction } from "@/utils/blockchain/counterparty";
-import type { ReactElement } from 'react';
+import { formatDate } from "@/utils/format";
+import type { ReactElement } from "react";
 
 /**
- * Number of transactions to display per page.
- * @constant {number}
+ * Constants for transaction pagination and navigation paths.
  */
-const TRANSACTIONS_PER_PAGE = 20;
+const CONSTANTS = {
+  TRANSACTIONS_PER_PAGE: 20,
+  PATHS: {
+    BACK: "/index",
+    TRANSACTION: "/transaction",
+    XCHAIN_URL: "https://www.xcp.io/address",
+  } as const,
+} as const;
 
 /**
- * A component that displays the transaction history for the active wallet address.
- * Supports pagination and external link navigation to XChain.
- * @returns {JSX.Element} The rendered transaction history UI.
+ * AddressHistory component displays the transaction history for the active wallet address.
+ * Features pagination and external link navigation to XChain.
+ *
+ * @returns {ReactElement} The rendered transaction history UI.
  * @example
  * ```tsx
  * <AddressHistory />
@@ -32,139 +41,111 @@ export default function AddressHistory(): ReactElement {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const currentPage = Number(searchParams.get("page")) || 1;
+  const totalPages = Math.ceil(totalTransactions / CONSTANTS.TRANSACTIONS_PER_PAGE);
 
   const navigate = useNavigate();
   const { activeAddress } = useWallet();
   const { setHeaderProps } = useHeader();
-  const location = useLocation();
-
-  const totalPages = Math.ceil(totalTransactions / TRANSACTIONS_PER_PAGE);
 
   /**
-   * Syncs URL search params with saved page state from location if needed.
+   * Loads transactions for the current page, handling loading and error states.
    */
-  useEffect(() => {
-    const savedPage = location.state?.page;
-    if (savedPage && !searchParams.get("page")) {
-      setSearchParams({ page: savedPage.toString() });
-    }
-  }, [location.state, searchParams, setSearchParams]);
-
-  /**
-   * Loads transactions for the current page, managing loading state via context.
-   */
-  useEffect(() => {
+  const loadTransactions = async () => {
     if (!activeAddress?.address) {
       setTransactions([]);
       return;
     }
 
-    let isCancelled = false;
+    setIsLoading(true);
+    try {
+      const offset = (currentPage - 1) * CONSTANTS.TRANSACTIONS_PER_PAGE;
+      const data: TransactionResponse = await fetchTransactions(activeAddress.address, {
+        limit: CONSTANTS.TRANSACTIONS_PER_PAGE,
+        offset,
+        verbose: true,
+        show_unconfirmed: true,
+      });
+      setTransactions(data.result);
+      setTotalTransactions(data.result_count);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch transactions");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    const loadTransactions = async (page: number) => {
-      setIsLoading(true);
-      try {
-        const offset = (page - 1) * TRANSACTIONS_PER_PAGE;
-        const data: TransactionResponse = await fetchTransactions(activeAddress.address, {
-          limit: TRANSACTIONS_PER_PAGE,
-          offset,
-          verbose: true,
-          show_unconfirmed: true,
-        });
-        if (!isCancelled) {
-          setTransactions(data.result);
-          setTotalTransactions(data.result_count);
-          setError(null);
-        }
-      } catch (err) {
-        if (!isCancelled) {
-          setError(err instanceof Error ? err.message : "Failed to fetch transactions");
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
+  // Sync URL search params with saved page state
+  useEffect(() => {
+    const savedPage = history.state?.page;
+    if (savedPage && !searchParams.get("page")) {
+      setSearchParams({ page: savedPage.toString() });
+    }
+  }, [searchParams, setSearchParams]);
 
-    loadTransactions(currentPage);
-
-    return () => {
-      isCancelled = true;
-    };
+  // Fetch transactions when page or address changes
+  useEffect(() => {
+    loadTransactions();
   }, [currentPage, activeAddress]);
 
-  /**
-   * Configures the header with back navigation and an external link to XChain.
-   */
+  // Configure header
   useEffect(() => {
     setHeaderProps({
       title: "History",
-      onBack: () => navigate("/index"),
+      onBack: () => navigate(CONSTANTS.PATHS.BACK),
       rightButton: {
-        icon: <FaExternalLinkAlt />,
-        onClick: () =>
-          window.open(`https://www.xcp.io/address/${activeAddress?.address}`, "_blank"),
+        icon: <FaExternalLinkAlt aria-hidden="true" />,
+        onClick: () => window.open(`${CONSTANTS.PATHS.XCHAIN_URL}/${activeAddress?.address}`, "_blank"),
         ariaLabel: "View on XChain",
       },
     });
-    return () => setHeaderProps(null); // Cleanup on unmount
+    return () => setHeaderProps(null);
   }, [setHeaderProps, navigate, activeAddress]);
 
   /**
-   * Changes the current page and updates URL search params.
-   * @param {number} page - The page number to navigate to.
+   * Updates the current page in URL search params.
+   * @param page - The page number to navigate to.
    */
   const handlePageChange = (page: number) => {
     setSearchParams({ page: page.toString() });
   };
 
   /**
-   * Formats a Unix timestamp into a human-readable date string.
-   * @param {number} timestamp - The Unix timestamp in seconds.
-   * @returns {string} The formatted date string.
-   */
-  const formatDate = (timestamp: number): string =>
-    new Date(timestamp * 1000).toLocaleString();
-
-  /**
    * Renders pagination controls for navigating between pages.
-   * @returns {JSX.Element} The pagination buttons.
+   * @returns {ReactElement} Pagination buttons.
    */
   const renderPagination = (): ReactElement => (
     <div className="flex justify-between gap-4">
       <Button
         color="blue"
         onClick={() => handlePageChange(currentPage - 1)}
-        disabled={currentPage === 1}
+        disabled={currentPage === 1 || isLoading}
         fullWidth
       >
         <div className="flex items-center justify-center gap-2">
-          <FaChevronLeft />
+          <FaChevronLeft aria-hidden="true" />
           Previous
         </div>
       </Button>
-
       <Button
         color="blue"
         onClick={() => handlePageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
+        disabled={currentPage === totalPages || isLoading}
         fullWidth
       >
         <div className="flex items-center justify-center gap-2">
           Next
-          <FaChevronRight />
+          <FaChevronRight aria-hidden="true" />
         </div>
       </Button>
     </div>
   );
 
-  if (error) {
-    return <div className="p-4 text-red-500">Error: {error}</div>;
-  }
+  if (isLoading) return <div className="p-4 text-gray-500">Loading transactions...</div>;
+  if (error) return <ErrorAlert message={error} onClose={() => setError(null)} />;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" role="main" aria-labelledby="history-title">
       <div className="flex-1 overflow-auto no-scrollbar p-4">
         {transactions.length > 0 ? (
           <div className="space-y-4">
@@ -177,20 +158,19 @@ export default function AddressHistory(): ReactElement {
               <div
                 key={tx.tx_hash}
                 onClick={() =>
-                  navigate(`/transaction/${tx.tx_hash}`, {
-                    state: { page: currentPage },
-                  })
+                  navigate(`${CONSTANTS.PATHS.TRANSACTION}/${tx.tx_hash}`, { state: { page: currentPage } })
                 }
                 className="block hover:shadow-lg transition-shadow cursor-pointer"
+                role="button"
+                tabIndex={0}
+                aria-label={`View transaction ${tx.tx_hash}`}
               >
                 <div className="bg-white rounded-lg shadow p-4 space-y-2">
                   <div className="flex justify-between items-center">
                     <div className="text-sm font-medium text-gray-900">
                       {tx.unpacked_data.message_type.toUpperCase()}
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {formatDate(tx.block_time)}
-                    </div>
+                    <div className="text-xs text-gray-500">{formatDate(tx.block_time)}</div>
                   </div>
                   <div className="text-xs text-gray-400 break-all flex items-center gap-1">
                     TX: {tx.tx_hash}
@@ -202,21 +182,15 @@ export default function AddressHistory(): ReactElement {
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center p-4">
             <div className="bg-gray-50 rounded-lg p-6 max-w-sm w-full">
-              <div className="text-gray-600 text-lg font-medium mb-2">
-                No Transactions Yet
-              </div>
+              <div className="text-gray-600 text-lg font-medium mb-2">No Transactions Yet</div>
               <div className="text-gray-500 text-sm">
-                This address hasn't made any transactions on Counterparty.
+                This address hasn’t made any transactions on Counterparty.
               </div>
             </div>
           </div>
         )}
       </div>
-      {transactions.length > 0 && totalPages > 1 && (
-        <div className="p-4">
-          {renderPagination()}
-        </div>
-      )}
+      {transactions.length > 0 && totalPages > 1 && <div className="p-4">{renderPagination()}</div>}
     </div>
   );
 }

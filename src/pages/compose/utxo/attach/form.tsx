@@ -19,16 +19,17 @@ interface UtxoAttachFormDataInternal {
 interface UtxoAttachFormProps {
   onSubmit: (data: AttachOptions) => void;
   initialFormData?: AttachOptions;
+  initialAsset: string;
 }
 
-export function UtxoAttachForm({ onSubmit, initialFormData }: UtxoAttachFormProps) {
+export function UtxoAttachForm({ onSubmit, initialFormData, initialAsset }: UtxoAttachFormProps) {
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText ?? false;
 
   const [formData, setFormData] = useState<UtxoAttachFormDataInternal>(() => ({
     utxo: initialFormData?.utxo_value || "",
-    asset: initialFormData?.asset || "XCP",
+    asset: initialFormData?.asset || initialAsset || "XCP",
     quantity: initialFormData?.quantity?.toString() || "",
     sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
   }));

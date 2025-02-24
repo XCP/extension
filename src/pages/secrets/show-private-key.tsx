@@ -1,154 +1,195 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { FaExclamationTriangle } from 'react-icons/fa';
-import { useHeader } from '@/contexts/header-context';
-import { Button } from '@/components/button';
-import { ErrorAlert } from '@/components/error-alert';
-import { PasswordInput } from '@/components/inputs/password-input';
-import { useWallet } from '@/contexts/wallet-context';
+"use client";
 
-const ShowPrivateKey = () => {
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { FaExclamationTriangle } from "react-icons/fa";
+import { Button } from "@/components/button";
+import { ErrorAlert } from "@/components/error-alert";
+import { PasswordInput } from "@/components/inputs/password-input";
+import { useHeader } from "@/contexts/header-context";
+import { useWallet } from "@/contexts/wallet-context";
+import type { ReactElement } from "react";
+
+/**
+ * Constants for navigation paths and validation rules.
+ */
+const CONSTANTS = {
+  MIN_PASSWORD_LENGTH: 8,
+  COPY_FEEDBACK_DURATION: 2000,
+  PATHS: {
+    BACK: -1, // Using -1 for navigate(-1)
+  } as const,
+} as const;
+
+/**
+ * ShowPrivateKey component reveals a wallet's private key after password verification.
+ *
+ * Features:
+ * - Requires password entry to unlock and display the private key
+ * - Supports copying the key to clipboard with feedback
+ * - Displays security warnings to emphasize confidentiality
+ *
+ * @returns {ReactElement} The rendered private key reveal UI.
+ * @example
+ * ```tsx
+ * <ShowPrivateKey />
+ * ```
+ */
+export default function ShowPrivateKey(): ReactElement {
   const { walletId, addressPath } = useParams<{ walletId: string; addressPath?: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { unlockWallet, getPrivateKey, verifyPassword, wallets } = useWallet();
 
-  const [password, setPassword] = useState('');
-  const [privateKey, setPrivateKey] = useState('');
+  const [password, setPassword] = useState("");
+  const [privateKey, setPrivateKey] = useState("");
   const [isConfirmed, setIsConfirmed] = useState(false);
-  const [passwordError, setPasswordError] = useState('');
-  const [submissionError, setSubmissionError] = useState('');
+  const [passwordError, setPasswordError] = useState("");
+  const [submissionError, setSubmissionError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [walletType, setWalletType] = useState<'mnemonic' | 'privateKey' | null>(null);
+  const [walletType, setWalletType] = useState<"mnemonic" | "privateKey" | null>(null);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
+
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
+  // Configure header and set wallet type
   useEffect(() => {
     if (walletId) {
-      const wallet = wallets.find(w => w.id === walletId);
+      const wallet = wallets.find((w) => w.id === walletId);
       if (!wallet) {
-        setSubmissionError('Wallet not found.');
+        setSubmissionError("Wallet not found.");
       } else {
         setWalletType(wallet.type);
       }
     }
     setHeaderProps({
-      title: 'Private Key',
-      onBack: () => navigate(-1),
+      title: "Private Key",
+      onBack: () => navigate(CONSTANTS.PATHS.BACK),
     });
   }, [walletId, wallets, setHeaderProps, navigate]);
 
+  // Focus password input on mount
   useEffect(() => {
     passwordInputRef.current?.focus();
   }, []);
 
-  const isPasswordValid = (pwd: string): boolean => pwd.length >= 8;
+  // Handle copy feedback timeout
+  useEffect(() => {
+    if (copiedToClipboard) {
+      const timer = setTimeout(() => setCopiedToClipboard(false), CONSTANTS.COPY_FEEDBACK_DURATION);
+      return () => clearTimeout(timer);
+    }
+  }, [copiedToClipboard]);
 
+  /**
+   * Validates the password length.
+   * @param pwd - The password to validate.
+   * @returns {boolean} Whether the password is valid.
+   */
+  const isPasswordValid = (pwd: string): boolean => pwd.length >= CONSTANTS.MIN_PASSWORD_LENGTH;
+
+  /**
+   * Handles password input changes.
+   */
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setPassword(e.target.value);
-    setPasswordError('');
-    setSubmissionError('');
+    setPasswordError("");
+    setSubmissionError("");
   };
 
+  /**
+   * Validates the form before revealing the private key.
+   * @returns {Promise<boolean>} Whether the form is valid.
+   */
   const validateForm = async (): Promise<boolean> => {
     if (!walletId) {
-      setSubmissionError('Invalid wallet.');
+      setSubmissionError("Invalid wallet.");
       return false;
     }
     if (!password) {
-      setPasswordError('Password is required.');
+      setPasswordError("Password is required.");
       return false;
     }
     if (!isPasswordValid(password)) {
-      setPasswordError('Password must be at least 8 characters.');
+      setPasswordError(`Password must be at least ${CONSTANTS.MIN_PASSWORD_LENGTH} characters.`);
       return false;
     }
     try {
       await verifyPassword(password);
     } catch {
-      setPasswordError('Incorrect password.');
+      setPasswordError("Incorrect password.");
       return false;
     }
-
-    if (walletType === 'mnemonic') {
-      if (!addressPath) {
-        setSubmissionError('Address derivation path is missing.');
-        return false;
-      }
+    if (walletType === "mnemonic" && !addressPath) {
+      setSubmissionError("Address derivation path is missing.");
+      return false;
     }
     return true;
   };
 
+  /**
+   * Reveals the private key after successful validation.
+   */
   const revealPrivateKey = async (): Promise<void> => {
     setIsLoading(true);
     try {
-      if (!walletId) throw new Error('Wallet ID is required.');
+      if (!walletId) throw new Error("Wallet ID is required.");
       await unlockWallet(walletId, password);
-      let privKey: string;
-      
-      if (walletType === 'privateKey') {
-        privKey = await getPrivateKey(walletId);
-      } else {
-        // Use the full derivation path string directly.
-        privKey = await getPrivateKey(walletId, addressPath);
-      }
-      
-      if (!privKey) {
-        throw new Error('Failed to retrieve private key');
-      }
-      
+      const privKey =
+        walletType === "privateKey"
+          ? await getPrivateKey(walletId)
+          : await getPrivateKey(walletId, addressPath);
+      if (!privKey) throw new Error("Failed to retrieve private key");
       setPrivateKey(privKey);
       setIsConfirmed(true);
+      setError(null);
     } catch (err) {
-      console.error('Error revealing private key:', err);
-      setSubmissionError(err instanceof Error ? err.message : 'Failed to reveal private key.');
+      console.error("Error revealing private key:", err);
+      setSubmissionError(err instanceof Error ? err.message : "Failed to reveal private key.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  /**
+   * Handles form submission to reveal the private key.
+   */
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    setSubmissionError('');
-    setPasswordError('');
+    setSubmissionError("");
+    setPasswordError("");
     const valid = await validateForm();
-    if (!valid) return;
-    await revealPrivateKey();
+    if (valid) await revealPrivateKey();
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      handleCopyPrivateKey();
-    }
-  };
-
+  /**
+   * Copies the private key to the clipboard.
+   */
   const handleCopyPrivateKey = async () => {
     try {
       await navigator.clipboard.writeText(privateKey);
       setCopiedToClipboard(true);
-    } catch (error) {
-      console.error('Failed to copy private key:', error);
+    } catch (err) {
+      console.error("Failed to copy private key:", err);
     }
   };
 
-  useEffect(() => {
-    if (copiedToClipboard) {
-      const timer = setTimeout(() => {
-        setCopiedToClipboard(false);
-      }, 2000);
-      return () => clearTimeout(timer);
+  /**
+   * Handles keyboard events for copying the private key.
+   */
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleCopyPrivateKey();
     }
-  }, [copiedToClipboard]);
+  };
 
   return (
     <div className="flex flex-col h-full p-4" role="main" aria-labelledby="show-private-key-title">
       <h2 id="show-private-key-title" className="sr-only">
         Show Private Key
       </h2>
-      {submissionError && (
-        <ErrorAlert message={submissionError} onClose={() => setSubmissionError('')} />
-      )}
+      {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
       {!isConfirmed ? (
         <form onSubmit={handleSubmit} className="flex flex-col items-center justify-center flex-grow">
           <div className="max-w-md w-full bg-red-50 border-2 border-red-500 rounded-xl p-6 mb-6">
@@ -170,6 +211,7 @@ const ShowPrivateKey = () => {
               error={passwordError}
               ariaLabel="Password"
               variant="warning"
+              disabled={isLoading}
             />
             <Button
               type="submit"
@@ -178,7 +220,7 @@ const ShowPrivateKey = () => {
               color="red"
               aria-label="Show Private Key"
             >
-              {isLoading ? 'Verifying...' : 'Show Private Key'}
+              {isLoading ? "Verifying..." : "Show Private Key"}
             </Button>
           </div>
         </form>
@@ -201,6 +243,15 @@ const ShowPrivateKey = () => {
             >
               {privateKey}
             </div>
+            <Button
+              onClick={handleCopyPrivateKey}
+              color="blue"
+              fullWidth
+              className="max-w-sm"
+              aria-label="Copy Private Key"
+            >
+              {copiedToClipboard ? "Copied!" : "Copy Private Key"}
+            </Button>
             <div className="bg-red-50 border border-red-200 rounded-xl p-4">
               <div className="flex items-center space-x-2 mb-2">
                 <FaExclamationTriangle className="w-5 h-5 text-red-500" aria-hidden="true" />
@@ -215,6 +266,4 @@ const ShowPrivateKey = () => {
       )}
     </div>
   );
-};
-
-export default ShowPrivateKey;
+}
