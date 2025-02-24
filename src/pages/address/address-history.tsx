@@ -5,7 +5,6 @@ import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { FaExternalLinkAlt, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { Button } from "@/components/button";
 import { useHeader } from "@/contexts/header-context";
-import { useLoading } from "@/contexts/loading-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchTransactions, type TransactionResponse, type Transaction } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from 'react';
@@ -29,6 +28,7 @@ export default function AddressHistory(): ReactElement {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [totalTransactions, setTotalTransactions] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const currentPage = Number(searchParams.get("page")) || 1;
@@ -36,7 +36,6 @@ export default function AddressHistory(): ReactElement {
   const navigate = useNavigate();
   const { activeAddress } = useWallet();
   const { setHeaderProps } = useHeader();
-  const { showLoading, hideLoading } = useLoading();
   const location = useLocation();
 
   const totalPages = Math.ceil(totalTransactions / TRANSACTIONS_PER_PAGE);
@@ -60,13 +59,10 @@ export default function AddressHistory(): ReactElement {
       return;
     }
 
-    let loadingId: string | undefined;
     let isCancelled = false;
 
     const loadTransactions = async (page: number) => {
-      loadingId = showLoading("Loading transaction history...", {
-        onError: (err) => setError(`Failed to load transactions: ${err.message}`),
-      });
+      setIsLoading(true);
       try {
         const offset = (page - 1) * TRANSACTIONS_PER_PAGE;
         const data: TransactionResponse = await fetchTransactions(activeAddress.address, {
@@ -85,8 +81,8 @@ export default function AddressHistory(): ReactElement {
           setError(err instanceof Error ? err.message : "Failed to fetch transactions");
         }
       } finally {
-        if (!isCancelled && loadingId) {
-          hideLoading(loadingId);
+        if (!isCancelled) {
+          setIsLoading(false);
         }
       }
     };
@@ -95,9 +91,8 @@ export default function AddressHistory(): ReactElement {
 
     return () => {
       isCancelled = true;
-      if (loadingId) hideLoading(loadingId);
     };
-  }, [currentPage, activeAddress, showLoading, hideLoading]);
+  }, [currentPage, activeAddress]);
 
   /**
    * Configures the header with back navigation and an external link to XChain.

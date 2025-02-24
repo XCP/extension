@@ -5,7 +5,6 @@ import type { ReactElement } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaChevronRight } from 'react-icons/fa';
 import { useHeader } from '@/contexts/header-context';
-import { useLoading } from '@/contexts/loading-context';
 import { fetchUtxoBalances, type UtxoBalance } from '@/utils/blockchain/counterparty/api';
 
 /**
@@ -38,9 +37,9 @@ export const ViewUtxo = (): ReactElement => {
   const { txid } = useParams<{ txid: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { showLoading, hideLoading } = useLoading();
   const [error, setError] = useState<Error | null>(null);
   const [balances, setBalances] = useState<UtxoBalance[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   /**
    * Configures the header with navigation back to the previous page.
@@ -63,13 +62,10 @@ export const ViewUtxo = (): ReactElement => {
       return;
     }
 
-    let loadingId: string | undefined;
     let isCancelled = false;
 
     const loadUtxoBalances = async () => {
-      loadingId = showLoading('Loading UTXO details...', {
-        onError: (err) => setError(err instanceof Error ? err : new Error('Failed to load UTXO')),
-      });
+      setIsLoading(true);
       try {
         const response = await fetchUtxoBalances(txid);
         if (!isCancelled) {
@@ -81,8 +77,8 @@ export const ViewUtxo = (): ReactElement => {
           setError(err instanceof Error ? err : new Error('Unknown error'));
         }
       } finally {
-        if (!isCancelled && loadingId) {
-          hideLoading(loadingId);
+        if (!isCancelled) {
+          setIsLoading(false);
         }
       }
     };
@@ -91,9 +87,8 @@ export const ViewUtxo = (): ReactElement => {
 
     return () => {
       isCancelled = true;
-      if (loadingId) hideLoading(loadingId);
     };
-  }, [txid, showLoading, hideLoading]);
+  }, [txid]);
 
   /**
    * Generates a list of available actions for the UTXO.

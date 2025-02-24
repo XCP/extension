@@ -7,7 +7,6 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { FairmintOptions } from "@/utils/blockchain/counterparty";
-import { useLoading } from "@/contexts/loading-context";
 
 interface FairmintFormDataInternal {
   asset: string;
@@ -24,12 +23,8 @@ interface FairmintFormProps {
 export function FairmintForm({ onSubmit, initialFormData, initialAsset = "" }: FairmintFormProps) {
   const { activeAddress } = useWallet();
   const { settings } = useSettings();
-  const { showLoading, hideLoading } = useLoading();
   const shouldShowHelpText = settings?.showHelpText ?? false;
-  const { error: assetError, data: assetDetails } = useAssetDetails(initialFormData?.asset || initialAsset, {
-    onLoadStart: () => showLoading(`Loading ${initialFormData?.asset || initialAsset} details...`),
-    onLoadEnd: hideLoading
-  });
+  const { error: assetError, data: assetDetails } = useAssetDetails(initialFormData?.asset || initialAsset);
 
   const [formData, setFormData] = useState<FairmintFormDataInternal>(() => {
     const isDivisible = assetDetails?.assetInfo?.divisible ?? true;

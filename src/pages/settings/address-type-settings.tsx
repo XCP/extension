@@ -6,12 +6,10 @@ import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { AddressType } from '@/utils/blockchain/bitcoin';
 import { formatAddress } from '@/utils/format';
-import { useLoading } from '@/contexts/loading-context';
 
 export function AddressTypeSettings() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { showLoading, hideLoading } = useLoading();
   const { activeWallet, updateWalletAddressType, getPreviewAddressForType } = useWallet();
   const [addresses, setAddresses] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -38,7 +36,7 @@ export function AddressTypeSettings() {
         return;
       }
       
-      const loadingId = showLoading('Loading addresses...');
+      setIsLoading(true);
       try {
         const addressMap: { [key: string]: string } = {};
         for (const type of availableAddressTypes) {
@@ -55,14 +53,12 @@ export function AddressTypeSettings() {
         console.error('Error fetching addresses:', error);
         setError(error instanceof Error ? error.message : 'Failed to fetch addresses');
       } finally {
-        hideLoading(loadingId);
         setIsLoading(false);
       }
     };
 
-    setIsLoading(true);
     fetchAddresses();
-  }, [activeWallet, availableAddressTypes, getPreviewAddressForType, showLoading, hideLoading]);
+  }, [activeWallet, availableAddressTypes, getPreviewAddressForType]);
 
   useEffect(() => {
     if (activeWallet) {
@@ -73,9 +69,8 @@ export function AddressTypeSettings() {
   const handleAddressTypeChange = async (newType: AddressType) => {
     if (!activeWallet) return;
     
-    const loadingId = showLoading('Updating address type...');
+    setIsUpdating(true);
     try {
-      setIsUpdating(true);
       await updateWalletAddressType(activeWallet.id, newType);
       
       // Fetch the new preview address for the selected type
@@ -86,7 +81,6 @@ export function AddressTypeSettings() {
       console.error('Error updating address type:', error);
       setError(error instanceof Error ? error.message : 'Failed to update address type');
     } finally {
-      hideLoading(loadingId);
       setIsUpdating(false);
     }
   };

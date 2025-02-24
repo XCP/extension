@@ -7,7 +7,6 @@ import { useWallet } from "@/contexts/wallet-context";
 import { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import { AssetHeader } from "@/components/headers/asset-header";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { useLoading } from "@/contexts/loading-context";
 
 interface UpdateDescriptionFormDataInternal {
   description: string;
@@ -23,13 +22,9 @@ interface UpdateDescriptionFormProps {
 export function UpdateDescriptionForm({ onSubmit, initialFormData, asset }: UpdateDescriptionFormProps) {
   const { activeAddress } = useWallet();
   const { settings } = useSettings();
-  const { showLoading, hideLoading } = useLoading();
   const shouldShowHelpText = settings?.showHelpText ?? false;
   
-  const { error: assetError, data: assetDetails } = useAssetDetails(asset, {
-    onLoadStart: () => showLoading(`Loading ${asset} details...`),
-    onLoadEnd: hideLoading
-  });
+  const { error: assetError, data: assetDetails } = useAssetDetails(asset);
 
   const [formData, setFormData] = useState<UpdateDescriptionFormDataInternal>(() => ({
     description: initialFormData?.description || "",

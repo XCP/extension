@@ -8,7 +8,6 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { DestroyOptions } from "@/utils/blockchain/counterparty";
-import { useLoading } from "@/contexts/loading-context";
 
 interface DestroyFormDataInternal {
   asset: string;
@@ -26,12 +25,8 @@ interface DestroyFormProps {
 export function DestroyForm({ onSubmit, initialFormData, initialAsset }: DestroyFormProps) {
   const { activeAddress } = useWallet();
   const { settings } = useSettings();
-  const { showLoading, hideLoading } = useLoading();
   const shouldShowHelpText = settings?.showHelpText ?? false;
-  const { error: assetError, data: assetDetails } = useAssetDetails(initialAsset, {
-    onLoadStart: () => showLoading(`Loading ${initialAsset} details...`),
-    onLoadEnd: hideLoading
-  });
+  const { error: assetError, data: assetDetails } = useAssetDetails(initialAsset);
 
   const [formData, setFormData] = useState<DestroyFormDataInternal>(() => {
     const isDivisible = assetDetails?.assetInfo?.divisible ?? true;

@@ -10,7 +10,6 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { DispenserOptions, fetchAssetDetailsAndBalance } from "@/utils/blockchain/counterparty";
-import { useLoading } from "@/contexts/loading-context";
 
 interface DispenserFormDataInternal {
   give_quantity: string;
@@ -33,13 +32,9 @@ interface DispenserFormProps {
 export function DispenserForm({ onSubmit, initialFormData, asset }: DispenserFormProps) {
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
-  const { showLoading, hideLoading } = useLoading();
   const shouldShowHelpText = settings?.showHelpText ?? false;
 
-  const { error: assetError, data: assetDetails } = useAssetDetails(asset, {
-    onLoadStart: () => showLoading(`Loading ${asset} details...`),
-    onLoadEnd: hideLoading
-  });
+  const { error: assetError, data: assetDetails } = useAssetDetails(asset);
 
   const [formData, setFormData] = useState<DispenserFormDataInternal>(() => {
     const isDivisible = assetDetails?.assetInfo?.divisible ?? true;

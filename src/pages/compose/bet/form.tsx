@@ -3,12 +3,12 @@ import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { useLoading } from "@/contexts/loading-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
 import type { BetOptions } from "@/utils/blockchain/counterparty";
+import type { ReactElement } from 'react';
 
 /**
  * Internal form data structure for the BetForm component.
@@ -60,7 +60,6 @@ interface BetFormProps {
 export function BetForm({ onSubmit, initialFormData }: BetFormProps): ReactElement {
   const { activeAddress } = useWallet();
   const { settings } = useSettings();
-  const { showLoading, hideLoading } = useLoading();
   const shouldShowHelpText = settings?.showHelpText ?? false;
   const { error: assetError, data: assetDetails } = useAssetDetails("XCP");
 
@@ -103,33 +102,27 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps): ReactEleme
    * Manages loading state for fetching XCP asset details and updates form data if initial data changes.
    */
   useEffect(() => {
-    let loadingId: string | undefined;
-
-    if (!assetDetails && !assetError) {
-      loadingId = showLoading("Loading XCP details...", {
-        onError: (err) => setLocalError(`Failed to load XCP details: ${err.message}`),
-      });
-    } else if (loadingId) {
-      hideLoading(loadingId);
-    }
+    let isCancelled = false;
 
     if (initialFormData && assetDetails) {
       const isDivisible = assetDetails.assetInfo?.divisible ?? true;
       const wagerQty = initialFormData.wager_quantity;
       const counterwagerQty = initialFormData.counterwager_quantity;
-      setFormData((prev) => ({
-        ...prev,
-        wager_quantity: isDivisible ? (wagerQty / 1e8).toFixed(8) : wagerQty.toString(),
-        counterwager_quantity: isDivisible
-          ? (counterwagerQty / 1e8).toFixed(8)
-          : counterwagerQty.toString(),
-      }));
+      if (!isCancelled) {
+        setFormData((prev) => ({
+          ...prev,
+          wager_quantity: isDivisible ? (wagerQty / 1e8).toFixed(8) : wagerQty.toString(),
+          counterwager_quantity: isDivisible
+            ? (counterwagerQty / 1e8).toFixed(8)
+            : counterwagerQty.toString(),
+        }));
+      }
     }
 
     return () => {
-      if (loadingId) hideLoading(loadingId);
+      isCancelled = true;
     };
-  }, [assetDetails, assetError, initialFormData, showLoading, hideLoading]);
+  }, [assetDetails, initialFormData]);
 
   /**
    * Handles form submission by validating inputs and preparing bet options for the Composer.

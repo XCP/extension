@@ -6,9 +6,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { FaChevronRight } from 'react-icons/fa';
 import { BalanceHeader } from '@/components/headers/balance-header';
 import { useHeader } from '@/contexts/header-context';
-import { useLoading } from '@/contexts/loading-context';
 import { useAssetDetails } from '@/hooks/useAssetDetails';
 import type { TokenBalance } from '@/utils/blockchain/counterparty';
+import { Spinner } from '@/components/spinner';
 
 /**
  * Represents an actionable option for a balance.
@@ -40,7 +40,6 @@ export const ViewBalance = (): ReactElement => {
   const { asset } = useParams<{ asset: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { showLoading, hideLoading } = useLoading();
   const { data: assetDetails, isLoading, error } = useAssetDetails(asset || '');
 
   // Note: activeAddress is not used in this component; consider removing useWallet import if not needed elsewhere
@@ -49,26 +48,15 @@ export const ViewBalance = (): ReactElement => {
    * Configures the header and manages loading state for balance details fetch.
    */
   useEffect(() => {
-    let loadingId: string | undefined;
-
     setHeaderProps({
       title: 'Balance',
       onBack: () => navigate(-1),
     });
 
-    if (isLoading) {
-      loadingId = showLoading('Loading balance details...', {
-        onError: (err) => console.error(`Failed to load balance: ${err.message}`),
-      });
-    }
-
     return () => {
       setHeaderProps(null);
-      if (loadingId) {
-        hideLoading(loadingId);
-      }
     };
-  }, [setHeaderProps, navigate, isLoading, showLoading, hideLoading]);
+  }, [setHeaderProps, navigate]);
 
   /**
    * Generates a list of available actions based on the asset type and details.
@@ -140,6 +128,10 @@ export const ViewBalance = (): ReactElement => {
 
     return actions;
   };
+
+  if (isLoading) {
+    return <Spinner message="Loading balance details..." />;
+  }
 
   if (error || !assetDetails) {
     return (

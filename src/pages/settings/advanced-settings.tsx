@@ -5,14 +5,12 @@ import { FiHelpCircle } from 'react-icons/fi';
 import { Switch, Field, Label, Description, RadioGroup } from '@headlessui/react';
 import { useHeader } from '@/contexts/header-context';
 import { useSettings } from '@/contexts/settings-context';
-import { useLoading } from '@/contexts/loading-context';
 import type { AutoLockTimer } from '@/utils/storage';
 
 export function AdvancedSettings() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings, isLoading } = useSettings();
-  const { showLoading, hideLoading } = useLoading();
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
 
   useEffect(() => {

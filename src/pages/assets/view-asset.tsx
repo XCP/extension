@@ -5,10 +5,10 @@ import type { ReactElement } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaChevronRight } from 'react-icons/fa';
 import { useHeader } from '@/contexts/header-context';
-import { useLoading } from '@/contexts/loading-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { useAssetDetails } from '@/hooks/useAssetDetails';
 import { formatAsset } from '@/utils/format';
+import { Spinner } from '@/components/spinner';
 
 /**
  * Represents an actionable option for an asset.
@@ -39,31 +39,21 @@ export const ViewAsset = (): ReactElement => {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeAddress } = useWallet();
-  const { showLoading, hideLoading } = useLoading();
   const { data: assetDetails, isLoading, error } = useAssetDetails(asset || '');
 
   /**
    * Configures the header and manages loading state for asset details fetch.
    */
   useEffect(() => {
-    let loadingId: string | undefined;
-
     setHeaderProps({
       title: 'Asset',
       onBack: () => navigate('/index?tab=Assets'),
     });
 
-    if (isLoading) {
-      loadingId = showLoading('Loading asset details...');
-    }
-
     return () => {
       setHeaderProps(null);
-      if (loadingId) {
-        hideLoading(loadingId);
-      }
     };
-  }, [setHeaderProps, navigate, isLoading, showLoading, hideLoading]);
+  }, [setHeaderProps, navigate]);
 
   /**
    * Generates a list of available actions based on asset details and ownership.
@@ -145,6 +135,10 @@ export const ViewAsset = (): ReactElement => {
 
     return actions;
   };
+
+  if (isLoading) {
+    return <Spinner message="Loading asset details..." />;
+  }
 
   if (error || !assetDetails) {
     return (
