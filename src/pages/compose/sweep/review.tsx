@@ -1,14 +1,20 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 
 interface ReviewSweepProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export function ReviewSweep({ apiResponse, onSign, onBack }: ReviewSweepProps) {
-  const { error, setError } = useComposer();
+export function ReviewSweep({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError 
+}: ReviewSweepProps) {
   const { result } = apiResponse;
 
   const customFields = [

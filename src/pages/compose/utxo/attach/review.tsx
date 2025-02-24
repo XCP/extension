@@ -1,15 +1,21 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
 
 interface ReviewUtxoAttachProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export function ReviewUtxoAttach({ apiResponse, onSign, onBack }: ReviewUtxoAttachProps) {
-  const { error, setError } = useComposer();
+export function ReviewUtxoAttach({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError 
+}: ReviewUtxoAttachProps) {
   const { result } = apiResponse;
 
   const customFields = [

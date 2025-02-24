@@ -1,16 +1,21 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
-import { toBigNumber } from "@/utils/numeric";
 
 interface ReviewDividendProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export const ReviewDividend = ({ apiResponse, onSign, onBack }: ReviewDividendProps) => {
-  const { error, setError } = useComposer();
+export function ReviewDividend({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError 
+}: ReviewDividendProps) {
   const { result } = apiResponse;
 
   const customFields = [
@@ -31,4 +36,4 @@ export const ReviewDividend = ({ apiResponse, onSign, onBack }: ReviewDividendPr
       setError={setError}
     />
   );
-};
+}

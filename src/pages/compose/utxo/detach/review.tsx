@@ -1,15 +1,21 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
 
 interface ReviewUtxoDetachProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export function ReviewUtxoDetach({ apiResponse, onSign, onBack }: ReviewUtxoDetachProps) {
-  const { error, setError } = useComposer();
+export function ReviewUtxoDetach({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError 
+}: ReviewUtxoDetachProps) {
   const { result } = apiResponse;
 
   const formatQuantity = (quantity: number, isDivisible: boolean) =>

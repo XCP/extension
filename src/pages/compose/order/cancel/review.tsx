@@ -1,14 +1,20 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 
 interface ReviewCancelProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export function ReviewCancel({ apiResponse, onSign, onBack }: ReviewCancelProps) {
-  const { error, setError } = useComposer();
+export function ReviewCancel({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError 
+}: ReviewCancelProps) {
   const { result } = apiResponse;
 
   const customFields = [

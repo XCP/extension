@@ -1,15 +1,21 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
 
 interface ReviewFairmintProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export function ReviewFairmint({ apiResponse, onSign, onBack }: ReviewFairmintProps) {
-  const { error, setError } = useComposer();
+export function ReviewFairmint({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError 
+}: ReviewFairmintProps) {
   const { result } = apiResponse;
 
   const formatQuantity = (quantity: number) =>

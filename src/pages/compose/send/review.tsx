@@ -1,15 +1,21 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
 
 interface ReviewSendProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export function ReviewSend({ apiResponse, onSign, onBack }: ReviewSendProps) {
-  const { error, setError } = useComposer();
+export function ReviewSend({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError 
+}: ReviewSendProps) {
   const { result } = apiResponse;
 
   const formatQuantity = (quantity: number, isDivisible: boolean) =>

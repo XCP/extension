@@ -3,6 +3,7 @@ import { DividendForm } from "./form";
 import { ReviewDividend } from "./review";
 import { Composer } from "@/components/composer";
 import { composeDividend } from "@/utils/blockchain/counterparty";
+import type { DividendOptions } from "@/utils/blockchain/counterparty";
 
 export function ComposeDividendPage() {
   const { asset: assetParam } = useParams<{ asset?: string }>();
@@ -10,10 +11,10 @@ export function ComposeDividendPage() {
 
   return (
     <div className="p-4">
-      <Composer
+      <Composer<DividendOptions>
         initialTitle="Dividend"
         FormComponent={(props) => <DividendForm {...props} asset={asset} />}
-        ReviewComponent={(props) => <ReviewDividend {...props} />}
+        ReviewComponent={ReviewDividend}
         composeTransaction={composeDividend}
       />
     </div>

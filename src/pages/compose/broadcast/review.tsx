@@ -1,14 +1,20 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 
 interface ReviewBroadcastProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export function ReviewBroadcast({ apiResponse, onSign, onBack }: ReviewBroadcastProps) {
-  const { error, setError } = useComposer();
+export function ReviewBroadcast({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError 
+}: ReviewBroadcastProps) {
   const { result } = apiResponse;
 
   const customFields = [

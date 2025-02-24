@@ -1,17 +1,23 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
 import { useState } from "react";
 import { FaExchangeAlt } from "react-icons/fa";
 
 interface ReviewOrderProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export const ReviewOrder = ({ apiResponse, onSign, onBack }: ReviewOrderProps) => {
-  const { error, setError } = useComposer();
+export function ReviewOrder({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError 
+}: ReviewOrderProps) {
   const { result } = apiResponse;
   const [isPriceFlipped, setIsPriceFlipped] = useState(false);
 
@@ -78,4 +84,4 @@ export const ReviewOrder = ({ apiResponse, onSign, onBack }: ReviewOrderProps) =
       setError={setError}
     />
   );
-};
+}

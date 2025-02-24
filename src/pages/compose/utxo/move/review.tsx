@@ -1,14 +1,20 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 
 interface ReviewUtxoMoveProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export function ReviewUtxoMove({ apiResponse, onSign, onBack }: ReviewUtxoMoveProps) {
-  const { error, setError } = useComposer();
+export function ReviewUtxoMove({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError 
+}: ReviewUtxoMoveProps) {
   const { result } = apiResponse;
 
   const customFields = [

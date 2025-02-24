@@ -1,15 +1,15 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
 
 interface ReviewBetProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export function ReviewBet({ apiResponse, onSign, onBack }: ReviewBetProps) {
-  const { error, setError } = useComposer();
+export function ReviewBet({ apiResponse, onSign, onBack, error, setError }: ReviewBetProps) {
   const { result } = apiResponse;
 
   const formatQuantity = (quantity: number) =>

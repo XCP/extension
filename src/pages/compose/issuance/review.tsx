@@ -1,17 +1,23 @@
 import { FaLock, FaLockOpen } from "react-icons/fa";
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
 import { toBigNumber } from "@/utils/numeric";
 
 interface ReviewIssuanceProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export const ReviewIssuance = ({ apiResponse, onSign, onBack }: ReviewIssuanceProps) => {
-  const { error, setError } = useComposer();
+export function ReviewIssuance({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError 
+}: ReviewIssuanceProps) {
   const { result } = apiResponse;
 
   const isTruthy = (value: any): boolean => {
@@ -64,4 +70,4 @@ export const ReviewIssuance = ({ apiResponse, onSign, onBack }: ReviewIssuancePr
       setError={setError}
     />
   );
-};
+}

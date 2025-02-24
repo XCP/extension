@@ -1,14 +1,20 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 
 interface ReviewFairminterProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export const ReviewFairminter = ({ apiResponse, onSign, onBack }: ReviewFairminterProps) => {
-  const { error, setError } = useComposer();
+export function ReviewFairminter({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError 
+}: ReviewFairminterProps) {
   const { result } = apiResponse;
 
   const customFields = [
@@ -29,4 +35,4 @@ export const ReviewFairminter = ({ apiResponse, onSign, onBack }: ReviewFairmint
       setError={setError}
     />
   );
-};
+}

@@ -3,6 +3,7 @@ import { DispenserForm } from "./form";
 import { ReviewDispenser } from "./review";
 import { Composer } from "@/components/composer";
 import { composeDispenser } from "@/utils/blockchain/counterparty";
+import type { DispenserOptions } from "@/utils/blockchain/counterparty";
 
 export function ComposeDispenserPage() {
   // Grab the asset from the URL parameters (if provided)
@@ -11,7 +12,7 @@ export function ComposeDispenserPage() {
 
   return (
     <div className="p-4">
-      <Composer
+      <Composer<DispenserOptions>
         initialTitle="Dispenser"
         FormComponent={(props) => <DispenserForm {...props} asset={asset} />}
         ReviewComponent={(props) => <ReviewDispenser {...props} asset={asset} />}

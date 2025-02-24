@@ -5,7 +5,7 @@ import { formatAddress, formatAmount } from "@/utils/format";
 
 interface ReviewScreenProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
   customFields: {
     label: string;
@@ -13,12 +13,13 @@ interface ReviewScreenProps {
     rightElement?: React.ReactNode;
   }[];
   error: string | null;
-  setError: React.Dispatch<React.SetStateAction<string | null>>;
+  setError: (error: string | null) => void;
 }
 
 export function ReviewScreen({
   apiResponse,
   onSign,
+  onBack,
   customFields,
   error,
   setError,
@@ -26,13 +27,10 @@ export function ReviewScreen({
   const [isSigning, setIsSigning] = useState(false);
   const { result } = apiResponse;
 
-  const handleSignClick = async () => {
+  const handleSignClick = () => {
     setIsSigning(true);
-    try {
-      await onSign();
-    } finally {
-      setIsSigning(false);
-    }
+    onSign();
+    setIsSigning(false);
   };
 
   return (
@@ -86,6 +84,7 @@ export function ReviewScreen({
         </details>
       </div>
       <div className="flex space-x-4">
+        <Button onClick={onBack} color="gray">Back</Button>
         <Button onClick={handleSignClick} color="blue" fullWidth disabled={isSigning}>
           {isSigning ? "Signing..." : "Sign & Broadcast"}
         </Button>

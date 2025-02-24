@@ -5,6 +5,7 @@ import { ReviewDispenserClose } from "./review";
 import { Composer } from "@/components/composer";
 import { composeDispenser, fetchAddressDispensers } from "@/utils/blockchain/counterparty";
 import { useWallet } from "@/contexts/wallet-context";
+import type { DispenserOptions } from "@/utils/blockchain/counterparty";
 
 export function ComposeDispenserClosePage() {
   const { asset: assetParam } = useParams<{ asset?: string }>();
@@ -34,7 +35,7 @@ export function ComposeDispenserClosePage() {
 
   return (
     <div className="p-4">
-      <Composer
+      <Composer<DispenserOptions>
         initialTitle="Close Dispenser"
         FormComponent={(props) => (
           <DispenserCloseForm
@@ -44,7 +45,7 @@ export function ComposeDispenserClosePage() {
             totalDispensers={totalDispensers}
           />
         )}
-        ReviewComponent={(props) => <ReviewDispenserClose {...props} />}
+        ReviewComponent={ReviewDispenserClose}
         composeTransaction={composeDispenser}
       />
     </div>

@@ -1,10 +1,11 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 
 interface ReviewAddressOptionsProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
 const ADDRESS_OPTION_REQUIRE_MEMO = 1;
@@ -22,8 +23,13 @@ const formatOptionsText = (text: string | number | undefined) => {
   return String(text);
 };
 
-export function ReviewAddressOptions({ apiResponse, onSign, onBack }: ReviewAddressOptionsProps) {
-  const { error, setError } = useComposer();
+export function ReviewAddressOptions({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError 
+}: ReviewAddressOptionsProps) {
   const { result } = apiResponse;
 
   const customFields = [

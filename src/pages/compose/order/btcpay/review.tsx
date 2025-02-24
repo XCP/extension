@@ -1,14 +1,20 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 
 interface ReviewBTCPayProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export function ReviewBTCPay({ apiResponse, onSign, onBack }: ReviewBTCPayProps) {
-  const { error, setError } = useComposer();
+export function ReviewBTCPay({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError 
+}: ReviewBTCPayProps) {
   const { result } = apiResponse;
 
   const customFields = [

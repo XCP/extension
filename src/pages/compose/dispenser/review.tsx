@@ -1,16 +1,23 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
 
 interface ReviewDispenserProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
   asset: string;
 }
 
-export function ReviewDispenser({ apiResponse, onSign, onBack, asset }: ReviewDispenserProps) {
-  const { error, setError } = useComposer();
+export function ReviewDispenser({ 
+  apiResponse, 
+  onSign, 
+  onBack, 
+  error,
+  setError,
+  asset 
+}: ReviewDispenserProps) {
   const { result } = apiResponse;
   const assetDivisible = result.params.extra?.assetDivisible ?? true;
 

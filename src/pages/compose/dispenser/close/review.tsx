@@ -1,14 +1,20 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 
 interface ReviewDispenserCloseProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export function ReviewDispenserClose({ apiResponse, onSign, onBack }: ReviewDispenserCloseProps) {
-  const { error, setError } = useComposer();
+export function ReviewDispenserClose({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError 
+}: ReviewDispenserCloseProps) {
   const { result } = apiResponse;
 
   const customFields = [

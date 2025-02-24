@@ -4,6 +4,7 @@ import { ReviewSweep } from "./review";
 import { Composer } from "@/components/composer";
 import { composeSweep } from "@/utils/blockchain/counterparty";
 import { useWallet } from "@/contexts/wallet-context";
+import type { SweepOptions } from "@/utils/blockchain/counterparty";
 
 export function ComposeSweep() {
   const { address } = useParams<{ address?: string }>();
@@ -13,7 +14,7 @@ export function ComposeSweep() {
 
   return (
     <div className="p-4">
-      <Composer
+      <Composer<SweepOptions>
         initialTitle="Sweep"
         FormComponent={(props) => <SweepForm {...props} initialAddress={initialAddress} />}
         ReviewComponent={ReviewSweep}

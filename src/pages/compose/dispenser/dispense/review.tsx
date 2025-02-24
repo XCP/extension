@@ -1,15 +1,23 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
 
 interface ReviewDispenseProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
+  formData?: any;
 }
 
-export function ReviewDispense({ apiResponse, onSign, onBack }: ReviewDispenseProps) {
-  const { error, setError, formData } = useComposer();
+export function ReviewDispense({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError,
+  formData 
+}: ReviewDispenseProps) {
   const { result } = apiResponse;
   const extra = formData?.extra || {};
   const { totalAssets = [], totalBtcAmount = 0 } = extra;

@@ -3,28 +3,18 @@ import { OrderForm } from './form';
 import { ReviewOrder } from './review';
 import { Composer } from '@/components/composer';
 import { composeOrder } from '@/utils/blockchain/counterparty';
-import { useComposer } from "@/contexts/composer-context";
+import type { OrderOptions } from '@/utils/blockchain/counterparty';
 
 export function ComposeOrderPage() {
   const { asset: giveAssetParam } = useParams<{ asset?: string }>();
   const giveAsset = giveAssetParam ? decodeURIComponent(giveAssetParam) : '';
-  const { setError } = useComposer();
-
-  const handleSubmit = async (data: OrderOptions) => {
-    try {
-      const response = await composeOrder(data);
-      // Handle successful response
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  };
 
   return (
     <div className="p-4">
-      <Composer
+      <Composer<OrderOptions>
         initialTitle="Dex Order"
-        FormComponent={(props) => <OrderForm {...props} giveAsset={giveAsset} setError={setError} />}
-        ReviewComponent={(props) => <ReviewOrder {...props} giveAsset={giveAsset} />}
+        FormComponent={(props) => <OrderForm {...props} giveAsset={giveAsset} />}
+        ReviewComponent={ReviewOrder}
         composeTransaction={composeOrder}
       />
     </div>
