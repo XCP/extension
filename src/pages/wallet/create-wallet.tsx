@@ -1,125 +1,98 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FaSync, FaEyeSlash } from 'react-icons/fa';
-import { Button } from '@/components/button';
-import { CheckboxInput } from '@/components/inputs/checkbox-input';
-import { PasswordInput } from '@/components/inputs/password-input';
-import { useHeader } from '@/contexts/header-context';
-import { useWallet } from '@/contexts/wallet-context';
-import { generateNewMnemonic } from '@/utils/blockchain/bitcoin';
-import { ErrorAlert } from '@/components/error-alert';
+"use client";
 
-/**
- * CreateWallet component guides users through creating a new wallet with a mnemonic phrase.
- *
- * Features:
- * - Generates and displays a 12-word recovery phrase
- * - Requires confirmation of phrase backup and password entry
- * - Supports regenerating the phrase and form submission
- */
+import { useEffect } from "react";
+import { useFormStatus } from "react-dom";
+import { useNavigate } from "react-router-dom";
+import { FaSync, FaEyeSlash } from "react-icons/fa";
+import { Button } from "@/components/button";
+import { ErrorAlert } from "@/components/error-alert";
+import { CheckboxInput } from "@/components/inputs/checkbox-input";
+import { PasswordInput } from "@/components/inputs/password-input";
+import { useHeader } from "@/contexts/header-context";
+import { useWallet } from "@/contexts/wallet-context";
+import { generateNewMnemonic } from "@/utils/blockchain/bitcoin";
+
 function CreateWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
   const walletExists = wallets.length > 0;
+  const { pending } = useFormStatus();
 
-  // Initialize mnemonic and words with a generated value
   const initialMnemonic = generateNewMnemonic();
   const [mnemonic, setMnemonic] = useState(initialMnemonic);
-  const [mnemonicWords, setMnemonicWords] = useState(initialMnemonic.split(' '));
-  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [mnemonicWords] = useState(initialMnemonic.split(" "));
   const [isRecoveryPhraseVisible, setIsRecoveryPhraseVisible] = useState(false);
-  const [password, setPassword] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Constants for paths and validation
   const PATHS = {
-    BACK: walletExists ? '/add-wallet' : '/onboarding',
-    SUCCESS: '/index',
+    BACK: walletExists ? "/add-wallet" : "/onboarding",
+    SUCCESS: "/index",
   } as const;
   const MIN_PASSWORD_LENGTH = 8;
 
-  // Generate a new mnemonic phrase
-  function generateWallet() {
-    const newMnemonic = generateNewMnemonic();
-    setMnemonic(newMnemonic);
-    setMnemonicWords(newMnemonic.split(' '));
-    setIsConfirmed(false);
-    setPassword('');
-  }
-
-  // Set up header only (no state changes here)
   useEffect(() => {
     setHeaderProps({
-      title: 'Create Wallet',
+      title: "Create Wallet",
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
         icon: <FaSync aria-hidden="true" />,
         onClick: generateWallet,
-        ariaLabel: 'Generate new recovery phrase',
+        ariaLabel: "Generate new recovery phrase",
+        disabled: pending,
       },
     });
-  }, [navigate, setHeaderProps, walletExists]);
+  }, [navigate, setHeaderProps, walletExists, pending]);
 
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPassword(e.target.value);
-  };
-
-  const handleCheckboxChange = (checked: boolean) => {
-    if (!isRecoveryPhraseVisible) return;
-    setIsConfirmed(checked);
-  };
+  function generateWallet() {
+    const newMnemonic = generateNewMnemonic();
+    setMnemonic(newMnemonic);
+    setIsRecoveryPhraseVisible(false);
+    setError(null);
+  }
 
   const handleRecoveryPhraseClick = () => {
     setIsRecoveryPhraseVisible(true);
+    setError(null);
   };
 
-  function isPasswordValid(pw: string) {
-    return pw.length >= MIN_PASSWORD_LENGTH;
-  }
+  async function handleFormAction(formData: FormData) {
+    setError(null);
 
-  async function validateForm(): Promise<boolean> {
     if (!isRecoveryPhraseVisible) {
-      setError('Please view and save your recovery phrase first.');
-      return false;
+      setError("Please view and save your recovery phrase first.");
+      return;
     }
+
+    const isConfirmed = formData.get("confirmed") === "on";
     if (!isConfirmed) {
-      setError('Please confirm you have backed up your recovery phrase.');
-      return false;
+      setError("Please confirm you have backed up your recovery phrase.");
+      return;
     }
+
+    const password = formData.get("password") as string;
     if (!password) {
-      setError('Password is required.');
-      return false;
+      setError("Password is required.");
+      return;
     }
+
     if (walletExists) {
       const isValid = await verifyPassword(password);
       if (!isValid) {
-        setError('Password does not match.');
-        return false;
+        setError("Password does not match.");
+        return;
       }
-    } else if (!isPasswordValid(password)) {
+    } else if (password.length < MIN_PASSWORD_LENGTH) {
       setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
-      return false;
+      return;
     }
-    return true;
-  }
 
-  async function handleSubmit(e?: React.FormEvent<HTMLFormElement>) {
-    if (e) e.preventDefault();
-    if (isSubmitting) return;
-
-    setIsSubmitting(true);
     try {
-      if (await validateForm()) {
-        await createAndUnlockMnemonicWallet(mnemonic, password);
-        navigate(PATHS.SUCCESS);
-      }
+      await createAndUnlockMnemonicWallet(mnemonic, password);
+      navigate(PATHS.SUCCESS);
     } catch (err: unknown) {
-      console.error('Error creating wallet:', err);
-      setError('Failed to create wallet. Please try again.');
-    } finally {
-      setIsSubmitting(false);
+      console.error("Error creating wallet:", err);
+      setError("Failed to create wallet. Please try again.");
     }
   }
 
@@ -137,13 +110,13 @@ function CreateWallet() {
         <p className="mb-5" id="recovery-instructions">
           Please write down this 12-word secret phrase.
         </p>
-        <form onSubmit={handleSubmit} className="space-y-4" aria-describedby="recovery-instructions">
+        <form action={handleFormAction} className="space-y-4" aria-describedby="recovery-instructions">
           <div className="bg-gray-100 p-2 rounded-md mb-4 relative">
             <div
               className={
                 !isRecoveryPhraseVisible
-                  ? 'bg-gray-100 opacity-50 filter blur-sm transition-filter'
-                  : ''
+                  ? "bg-gray-100 opacity-50 filter blur-sm transition-filter"
+                  : ""
               }
             >
               <ol className="list-none p-0 m-0 grid grid-flow-col grid-cols-2 grid-rows-6 gap-2">
@@ -175,36 +148,22 @@ function CreateWallet() {
             )}
           </div>
           <CheckboxInput
-            checked={isConfirmed}
-            onChange={handleCheckboxChange}
+            name="confirmed"
             label="I have saved my secret recovery phrase."
-            ariaLabel="Confirm recovery phrase backup"
-            disabled={!isRecoveryPhraseVisible}
+            checked={isRecoveryPhraseVisible}
+            disabled={!isRecoveryPhraseVisible || pending}
           />
-          {isConfirmed && (
-            <>
-              <PasswordInput
-                id="password"
-                className="mb-4"
-                value={password}
-                onChange={handlePasswordChange}
-                placeholder={walletExists ? 'Confirm your password' : 'Create a password'}
-                error=""
-                ariaLabel={walletExists ? 'Confirm password' : 'Create password'}
-                disabled={isSubmitting}
-              />
-              <Button
-                type="submit"
-                disabled={!isConfirmed || !isPasswordValid(password) || isSubmitting}
-                fullWidth
-              >
-                Continue
-              </Button>
-            </>
-          )}
+          <PasswordInput
+            name="password"
+            placeholder={walletExists ? "Confirm your password" : "Create a password"}
+            disabled={pending}
+          />
+          <Button type="submit" fullWidth disabled={pending}>
+            {pending ? "Submitting..." : "Continue"}
+          </Button>
         </form>
       </div>
-      {!isConfirmed && !document.documentElement.lang.startsWith('en') && (
+      {!isRecoveryPhraseVisible && !document.documentElement.lang.startsWith("en") && (
         <div className="text-center text-xs p-4">
           For security reasons, recovery phrases are only shown in English.
         </div>

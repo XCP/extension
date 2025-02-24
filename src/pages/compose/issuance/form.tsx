@@ -1,119 +1,45 @@
-import React, { useState, useEffect, FormEvent } from "react";
-import { useSearchParams } from "react-router-dom";
+"use client";
+
+import { useEffect } from "react";
+import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input, Textarea } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
-import { IssuanceOptions } from "@/utils/blockchain/counterparty";
-import { formatAmount } from "@/utils/format";
+import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
+import type { ReactElement } from "react";
 
-interface IssuanceFormDataInternal {
-  asset: string;
-  quantity: string;
-  divisible: boolean;
-  lock: boolean;
-  description: string;
-  sat_per_vbyte: number;
-}
-
+/**
+ * Props for the IssuanceForm component, aligned with Composer's formAction.
+ */
 interface IssuanceFormProps {
-  onSubmit: (data: IssuanceOptions) => void;
-  initialFormData?: IssuanceOptions;
+  formAction: (formData: FormData) => void;
+  initialFormData: IssuanceOptions | null;
   initialParentAsset?: string;
 }
 
-export function IssuanceForm({ onSubmit, initialFormData, initialParentAsset }: IssuanceFormProps) {
-  const { activeAddress } = useWallet();
+/**
+ * Form for issuing a new asset using React 19 Actions.
+ */
+export function IssuanceForm({
+  formAction,
+  initialFormData,
+  initialParentAsset,
+}: IssuanceFormProps): ReactElement {
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText ?? false;
-  const [searchParams] = useSearchParams();
-  const parentAsset = searchParams.get("parent");
+  const { pending } = useFormStatus();
 
-  const [formData, setFormData] = useState<IssuanceFormDataInternal>(() => {
-    const initialQuantity = initialFormData?.quantity?.toString() || "";
-    let formattedQuantity = initialQuantity;
-    
-    // If we have initial data, format the quantity appropriately
-    if (initialQuantity && initialFormData?.divisible) {
-      const numValue = Number(initialQuantity) / 100000000;
-      formattedQuantity = formatAmount({ 
-        value: numValue,
-        minimumFractionDigits: 8,
-        maximumFractionDigits: 8
-      });
-    }
-
-    return {
-      asset: initialFormData?.asset || (initialParentAsset ? `${initialParentAsset}.` : ""),
-      quantity: formattedQuantity,
-      divisible: initialFormData?.divisible ?? true,
-      lock: initialFormData?.lock || false,
-      description: initialFormData?.description || "",
-      sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
-    };
-  });
-  const [localError, setLocalError] = useState<string | null>(null);
-
+  // Focus asset input on mount
   useEffect(() => {
-    const assetInput = document.getElementById("asset");
-    assetInput?.focus();
+    const input = document.getElementById("asset") as HTMLInputElement;
+    input?.focus();
   }, []);
-
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!formData.asset.trim()) {
-      setLocalError("Asset name is required.");
-      return;
-    }
-    if (!formData.quantity || Number(formData.quantity) <= 0) {
-      setLocalError("Quantity must be greater than zero.");
-      return;
-    }
-    if (formData.sat_per_vbyte <= 0) {
-      setLocalError("Fee rate must be greater than zero.");
-      return;
-    }
-    setLocalError(null);
-
-    const quantity = formData.divisible 
-      ? Math.round(Number(formData.quantity) * 100000000)
-      : Math.round(Number(formData.quantity));
-
-    const submissionData: IssuanceOptions = {
-      sourceAddress: activeAddress?.address || "",
-      asset: formData.asset,
-      quantity,
-      divisible: formData.divisible,
-      lock: formData.lock,
-      reset: false,
-      description: formData.description,
-      sat_per_vbyte: formData.sat_per_vbyte,
-    };
-    onSubmit(submissionData);
-  };
-
-  useEffect(() => {
-    if (formData.quantity) {
-      const numValue = Number(formData.quantity);
-      if (!isNaN(numValue)) {
-        const formattedValue = formData.divisible 
-          ? formatAmount({ 
-              value: numValue,
-              minimumFractionDigits: 8,
-              maximumFractionDigits: 8
-            })
-          : Math.round(numValue).toString();
-        setFormData(prev => ({ ...prev, quantity: formattedValue }));
-      }
-    }
-  }, [formData.divisible]);
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-      {localError && <div className="text-red-500 mb-2">{localError}</div>}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form action={formAction} className="space-y-4">
         <Field>
           <Label htmlFor="asset" className="block text-sm font-medium text-gray-700">
             Asset Name <span className="text-red-500">*</span>
@@ -122,14 +48,16 @@ export function IssuanceForm({ onSubmit, initialFormData, initialParentAsset }: 
             id="asset"
             name="asset"
             type="text"
-            value={formData.asset}
-            onChange={(e) => setFormData((prev) => ({ ...prev, asset: e.target.value }))}
+            defaultValue={initialFormData?.asset || (initialParentAsset ? `${initialParentAsset}.` : "")}
             className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
             required
             placeholder={initialParentAsset ? `${initialParentAsset}.SUBASSET` : "Enter asset name"}
+            disabled={pending}
           />
           <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-            {initialParentAsset ? `Enter a subasset name after "${initialParentAsset}." to create a subasset` : "The name of the asset to issue."}
+            {initialParentAsset
+              ? `Enter a subasset name after "${initialParentAsset}." to create a subasset`
+              : "The name of the asset to issue."}
           </Description>
         </Field>
         <Field>
@@ -140,27 +68,33 @@ export function IssuanceForm({ onSubmit, initialFormData, initialParentAsset }: 
             id="quantity"
             name="quantity"
             type="text"
-            value={formData.quantity}
-            onChange={(e) => setFormData((prev) => ({ ...prev, quantity: e.target.value }))}
+            defaultValue={
+              initialFormData?.quantity
+                ? initialFormData.divisible
+                  ? (initialFormData.quantity / 1e8).toFixed(8)
+                  : initialFormData.quantity.toString()
+                : ""
+            }
             className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
             required
+            disabled={pending}
           />
           <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-            The quantity of the asset to issue {formData.divisible ? "(up to 8 decimal places)" : "(whole numbers only)"}.
+            The quantity of the asset to issue {initialFormData?.divisible ?? true ? "(up to 8 decimal places)" : "(whole numbers only)"}.
           </Description>
         </Field>
         <div className="grid grid-cols-2 gap-4">
           <CheckboxInput
-            checked={formData.divisible}
-            onChange={(checked) => setFormData((prev) => ({ ...prev, divisible: checked }))}
+            name="divisible"
             label="Divisible"
-            aria-label="Toggle asset divisibility"
+            checked={initialFormData?.divisible ?? true}
+            disabled={pending}
           />
           <CheckboxInput
-            checked={formData.lock}
-            onChange={(checked) => setFormData((prev) => ({ ...prev, lock: checked }))}
+            name="lock"
             label="Locked"
-            aria-label="Toggle supply lock"
+            checked={initialFormData?.lock || false}
+            disabled={pending}
           />
         </div>
         <Field>
@@ -170,23 +104,20 @@ export function IssuanceForm({ onSubmit, initialFormData, initialParentAsset }: 
           <Textarea
             id="description"
             name="description"
-            value={formData.description}
-            onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+            defaultValue={initialFormData?.description || ""}
             className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
             rows={2}
+            disabled={pending}
           />
           <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
             A textual description for the asset.
           </Description>
         </Field>
-        <FeeRateInput
-          value={formData.sat_per_vbyte}
-          onChange={(value) => setFormData((prev) => ({ ...prev, sat_per_vbyte: value }))}
-          error={formData.sat_per_vbyte <= 0 ? "Fee rate must be greater than zero." : ""}
-          showHelpText={shouldShowHelpText}
-        />
-        <Button type="submit" color="blue" fullWidth>
-          Continue
+
+        <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
+        
+        <Button type="submit" color="blue" fullWidth disabled={pending}>
+          {pending ? "Submitting..." : "Continue"}
         </Button>
       </form>
     </div>

@@ -16,6 +16,7 @@ export interface HeaderButtonProps {
   label?: string;
   icon?: React.ReactNode;
   onClick: () => void;
+  disabled?: boolean;
 }
 
 /**

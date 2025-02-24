@@ -32,13 +32,14 @@ export function Header({
   const renderButton = useCallback((config?: HeaderButtonProps): ReactNode => {
     if (!config) return null;
 
-    const { ariaLabel, label, icon } = config;
+    const { ariaLabel, label, icon, disabled } = config;
 
     return (
       <Button
         onClick={config.onClick}
         variant="header"
         aria-label={ariaLabel}
+        disabled={disabled}
       >
         {icon && (
           <span className={label ? 'mr-1' : ''} aria-hidden="true">
@@ -59,6 +60,7 @@ export function Header({
             onClick={handleLeftClick}
             variant="header"
             aria-label="Go Back"
+            disabled={leftButton?.disabled}
           >
             <span className="mr-1" aria-hidden="true">
               ←

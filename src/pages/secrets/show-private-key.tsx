@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
+import { useFormStatus } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaExclamationTriangle } from "react-icons/fa";
 import { Button } from "@/components/button";
@@ -10,49 +11,26 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import type { ReactElement } from "react";
 
-/**
- * Constants for navigation paths and validation rules.
- */
 const CONSTANTS = {
   MIN_PASSWORD_LENGTH: 8,
   COPY_FEEDBACK_DURATION: 2000,
-  PATHS: {
-    BACK: -1, // Using -1 for navigate(-1)
-  } as const,
+  PATHS: { BACK: -1 } as const,
 } as const;
 
-/**
- * ShowPrivateKey component reveals a wallet's private key after password verification.
- *
- * Features:
- * - Requires password entry to unlock and display the private key
- * - Supports copying the key to clipboard with feedback
- * - Displays security warnings to emphasize confidentiality
- *
- * @returns {ReactElement} The rendered private key reveal UI.
- * @example
- * ```tsx
- * <ShowPrivateKey />
- * ```
- */
 export default function ShowPrivateKey(): ReactElement {
   const { walletId, addressPath } = useParams<{ walletId: string; addressPath?: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { unlockWallet, getPrivateKey, verifyPassword, wallets } = useWallet();
+  const { pending } = useFormStatus();
 
-  const [password, setPassword] = useState("");
   const [privateKey, setPrivateKey] = useState("");
   const [isConfirmed, setIsConfirmed] = useState(false);
-  const [passwordError, setPasswordError] = useState("");
   const [submissionError, setSubmissionError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [walletType, setWalletType] = useState<"mnemonic" | "privateKey" | null>(null);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
-
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
-  // Configure header and set wallet type
   useEffect(() => {
     if (walletId) {
       const wallet = wallets.find((w) => w.id === walletId);
@@ -68,12 +46,10 @@ export default function ShowPrivateKey(): ReactElement {
     });
   }, [walletId, wallets, setHeaderProps, navigate]);
 
-  // Focus password input on mount
   useEffect(() => {
     passwordInputRef.current?.focus();
   }, []);
 
-  // Handle copy feedback timeout
   useEffect(() => {
     if (copiedToClipboard) {
       const timer = setTimeout(() => setCopiedToClipboard(false), CONSTANTS.COPY_FEEDBACK_DURATION);
@@ -81,59 +57,34 @@ export default function ShowPrivateKey(): ReactElement {
     }
   }, [copiedToClipboard]);
 
-  /**
-   * Validates the password length.
-   * @param pwd - The password to validate.
-   * @returns {boolean} Whether the password is valid.
-   */
-  const isPasswordValid = (pwd: string): boolean => pwd.length >= CONSTANTS.MIN_PASSWORD_LENGTH;
-
-  /**
-   * Handles password input changes.
-   */
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    setPassword(e.target.value);
-    setPasswordError("");
+  async function handleFormAction(formData: FormData) {
     setSubmissionError("");
-  };
 
-  /**
-   * Validates the form before revealing the private key.
-   * @returns {Promise<boolean>} Whether the form is valid.
-   */
-  const validateForm = async (): Promise<boolean> => {
+    const password = formData.get("password") as string;
     if (!walletId) {
       setSubmissionError("Invalid wallet.");
-      return false;
+      return;
     }
     if (!password) {
-      setPasswordError("Password is required.");
-      return false;
+      setSubmissionError("Password is required.");
+      return;
     }
-    if (!isPasswordValid(password)) {
-      setPasswordError(`Password must be at least ${CONSTANTS.MIN_PASSWORD_LENGTH} characters.`);
-      return false;
+    if (password.length < CONSTANTS.MIN_PASSWORD_LENGTH) {
+      setSubmissionError(`Password must be at least ${CONSTANTS.MIN_PASSWORD_LENGTH} characters.`);
+      return;
     }
     try {
       await verifyPassword(password);
     } catch {
-      setPasswordError("Incorrect password.");
-      return false;
+      setSubmissionError("Incorrect password.");
+      return;
     }
     if (walletType === "mnemonic" && !addressPath) {
       setSubmissionError("Address derivation path is missing.");
-      return false;
+      return;
     }
-    return true;
-  };
 
-  /**
-   * Reveals the private key after successful validation.
-   */
-  const revealPrivateKey = async (): Promise<void> => {
-    setIsLoading(true);
     try {
-      if (!walletId) throw new Error("Wallet ID is required.");
       await unlockWallet(walletId, password);
       const privKey =
         walletType === "privateKey"
@@ -142,29 +93,12 @@ export default function ShowPrivateKey(): ReactElement {
       if (!privKey) throw new Error("Failed to retrieve private key");
       setPrivateKey(privKey);
       setIsConfirmed(true);
-      setError(null);
     } catch (err) {
       console.error("Error revealing private key:", err);
       setSubmissionError(err instanceof Error ? err.message : "Failed to reveal private key.");
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }
 
-  /**
-   * Handles form submission to reveal the private key.
-   */
-  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
-    setSubmissionError("");
-    setPasswordError("");
-    const valid = await validateForm();
-    if (valid) await revealPrivateKey();
-  };
-
-  /**
-   * Copies the private key to the clipboard.
-   */
   const handleCopyPrivateKey = async () => {
     try {
       await navigator.clipboard.writeText(privateKey);
@@ -174,9 +108,6 @@ export default function ShowPrivateKey(): ReactElement {
     }
   };
 
-  /**
-   * Handles keyboard events for copying the private key.
-   */
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
@@ -186,12 +117,10 @@ export default function ShowPrivateKey(): ReactElement {
 
   return (
     <div className="flex flex-col h-full p-4" role="main" aria-labelledby="show-private-key-title">
-      <h2 id="show-private-key-title" className="sr-only">
-        Show Private Key
-      </h2>
+      <h2 id="show-private-key-title" className="sr-only">Show Private Key</h2>
       {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
       {!isConfirmed ? (
-        <form onSubmit={handleSubmit} className="flex flex-col items-center justify-center flex-grow">
+        <form action={handleFormAction} className="flex flex-col items-center justify-center flex-grow">
           <div className="max-w-md w-full bg-red-50 border-2 border-red-500 rounded-xl p-6 mb-6">
             <div className="flex items-center mb-4">
               <FaExclamationTriangle className="w-6 h-6 text-red-500 mr-2" aria-hidden="true" />
@@ -203,24 +132,13 @@ export default function ShowPrivateKey(): ReactElement {
           </div>
           <div className="w-full max-w-md space-y-4">
             <PasswordInput
-              id="password"
-              ref={passwordInputRef}
-              value={password}
-              onChange={handlePasswordChange}
+              name="password"
               placeholder="Enter your password"
-              error={passwordError}
-              ariaLabel="Password"
-              variant="warning"
-              disabled={isLoading}
+              disabled={pending}
+              innerRef={passwordInputRef}
             />
-            <Button
-              type="submit"
-              disabled={isLoading}
-              fullWidth
-              color="red"
-              aria-label="Show Private Key"
-            >
-              {isLoading ? "Verifying..." : "Show Private Key"}
+            <Button type="submit" disabled={pending} fullWidth color="red" aria-label="Show Private Key">
+              {pending ? "Verifying..." : "Show Private Key"}
             </Button>
           </div>
         </form>

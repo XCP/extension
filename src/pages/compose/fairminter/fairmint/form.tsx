@@ -131,12 +131,9 @@ export function FairmintForm({ onSubmit, initialFormData, initialAsset = "" }: F
               Enter the quantity to mint {assetDetails?.assetInfo?.divisible ? "(up to 8 decimal places)" : "(whole numbers only)"}.
             </Description>
           </Field>
-          <FeeRateInput
-            value={formData.sat_per_vbyte}
-            onChange={(value) => setFormData({ ...formData, sat_per_vbyte: value })}
-            error={formData.sat_per_vbyte <= 0 ? "Fee rate must be greater than zero." : ""}
-            showHelpText={shouldShowHelpText}
-          />
+
+          <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
+          
           <Button type="submit" color="blue" fullWidth>
             Continue
           </Button>

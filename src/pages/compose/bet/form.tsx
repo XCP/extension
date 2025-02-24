@@ -1,232 +1,69 @@
-import React, { useState, useRef, useEffect, Suspense } from "react";
+"use client";
+
+import { useEffect } from "react";
+import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
 import type { BetOptions } from "@/utils/blockchain/counterparty";
-import type { ReactElement } from 'react';
+import type { ReactElement } from "react";
 
 /**
- * Internal form data structure for the BetForm component.
- * @typedef {Object} BetFormDataInternal
- * @property {string} feed_address - The address of the feed to bet on.
- * @property {string} bet_type - The type of bet (0: Bullish, 1: Bearish, 2: Equal, 3: NotEqual).
- * @property {string} deadline - The block deadline for the bet.
- * @property {string} wager_quantity - The wager amount in XCP (human-readable).
- * @property {string} counterwager_quantity - The counterwager amount in XCP (human-readable).
- * @property {string} expiration - The number of blocks until expiration.
- * @property {string} leverage - The leverage factor for the bet.
- * @property {string} target_value - The target value for Equal/NotEqual bets.
- * @property {number} sat_per_vbyte - The fee rate in satoshis per virtual byte.
- */
-interface BetFormDataInternal {
-  feed_address: string;
-  bet_type: string;
-  deadline: string;
-  wager_quantity: string;
-  counterwager_quantity: string;
-  expiration: string;
-  leverage: string;
-  target_value: string;
-  sat_per_vbyte: number;
-}
-
-/**
- * Props for the BetForm component.
- * @typedef {Object} BetFormProps
- * @property {(data: BetOptions) => void} onSubmit - Callback to submit the validated bet data to the Composer.
- * @property {BetOptions} [initialFormData] - Optional initial data to prefill the form.
+ * Props for the BetForm component, aligned with Composer's formAction.
  */
 interface BetFormProps {
-  onSubmit: (data: BetOptions) => void;
-  initialFormData?: BetOptions;
+  formAction: (formData: FormData) => void;
+  initialFormData: BetOptions | null;
 }
 
 /**
- * A form component for composing a bet transaction on the Counterparty protocol.
- * Validates user input and submits bet options to the Composer for processing.
- * Manages loading state for fetching XCP balance details.
- * @param {BetFormProps} props - The properties for the BetForm component.
- * @returns {ReactElement} The rendered bet form UI.
- * @example
- * ```tsx
- * <BetForm onSubmit={handleBetSubmit} initialFormData={initialBetData} />
- * ```
+ * Form for composing a bet transaction using React 19 Actions.
  */
-export function BetForm({ onSubmit, initialFormData }: BetFormProps): ReactElement {
-  const { activeAddress } = useWallet();
+export function BetForm({ formAction, initialFormData }: BetFormProps): ReactElement {
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText ?? false;
   const { error: assetError, data: assetDetails } = useAssetDetails("XCP");
+  const { pending } = useFormStatus();
 
-  const [formData, setFormData] = useState<BetFormDataInternal>(() => {
-    const isDivisible = assetDetails?.assetInfo?.divisible ?? true; // XCP is divisible
-    const wagerQty = initialFormData?.wager_quantity || 0;
-    const counterwagerQty = initialFormData?.counterwager_quantity || 0;
-    return {
-      feed_address: initialFormData?.feed_address || "",
-      bet_type: initialFormData?.bet_type?.toString() || "2",
-      deadline: initialFormData?.deadline?.toString() || "",
-      wager_quantity: initialFormData
-        ? isDivisible
-          ? (wagerQty / 1e8).toFixed(8)
-          : wagerQty.toString()
-        : "",
-      counterwager_quantity: initialFormData
-        ? isDivisible
-          ? (counterwagerQty / 1e8).toFixed(8)
-          : counterwagerQty.toString()
-        : "",
-      expiration: initialFormData?.expiration?.toString() || "",
-      leverage: initialFormData?.leverage?.toString() || "5040",
-      target_value: initialFormData?.target_value?.toString() || "",
-      sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
-    };
-  });
-  const [localError, setLocalError] = useState<string | null>(null);
+  const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
 
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  /**
-   * Focuses the feed address input on mount.
-   */
+  // Focus feed_address input on mount
   useEffect(() => {
-    inputRef.current?.focus();
+    const input = document.querySelector("input[name='feed_address']") as HTMLInputElement;
+    input?.focus();
   }, []);
-
-  /**
-   * Manages loading state for fetching XCP asset details and updates form data if initial data changes.
-   */
-  useEffect(() => {
-    let isCancelled = false;
-
-    if (initialFormData && assetDetails) {
-      const isDivisible = assetDetails.assetInfo?.divisible ?? true;
-      const wagerQty = initialFormData.wager_quantity;
-      const counterwagerQty = initialFormData.counterwager_quantity;
-      if (!isCancelled) {
-        setFormData((prev) => ({
-          ...prev,
-          wager_quantity: isDivisible ? (wagerQty / 1e8).toFixed(8) : wagerQty.toString(),
-          counterwager_quantity: isDivisible
-            ? (counterwagerQty / 1e8).toFixed(8)
-            : counterwagerQty.toString(),
-        }));
-      }
-    }
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [assetDetails, initialFormData]);
-
-  /**
-   * Handles form submission by validating inputs and preparing bet options for the Composer.
-   * @param {React.FormEvent<HTMLFormElement>} e - The form submission event.
-   */
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    if (!formData.feed_address || !isValidBase58Address(formData.feed_address)) {
-      setLocalError("Please enter a valid feed address.");
-      return;
-    }
-    if (!["0", "1", "2", "3"].includes(formData.bet_type)) {
-      setLocalError("Please select a valid bet type.");
-      return;
-    }
-    if (!formData.deadline || Number(formData.deadline) <= 0) {
-      setLocalError("Please enter a valid deadline.");
-      return;
-    }
-    if (!formData.wager_quantity || Number(formData.wager_quantity) <= 0) {
-      setLocalError("Please enter a valid wager quantity greater than zero.");
-      return;
-    }
-    if (!formData.counterwager_quantity || Number(formData.counterwager_quantity) <= 0) {
-      setLocalError("Please enter a valid counterwager quantity greater than zero.");
-      return;
-    }
-    if (!formData.expiration || Number(formData.expiration) <= 0) {
-      setLocalError("Please enter a valid expiration block count.");
-      return;
-    }
-    if (!formData.leverage || Number(formData.leverage) <= 0) {
-      setLocalError("Please enter a valid leverage value greater than zero.");
-      return;
-    }
-    if (
-      (formData.bet_type === "2" || formData.bet_type === "3") &&
-      (!formData.target_value || Number(formData.target_value) <= 0)
-    ) {
-      setLocalError("Please enter a valid target value for Equal/NotEqual bet.");
-      return;
-    }
-    if (formData.sat_per_vbyte <= 0) {
-      setLocalError("Fee rate must be greater than zero.");
-      return;
-    }
-    setLocalError(null);
-
-    const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
-    const wagerQtyNum = Number(formData.wager_quantity);
-    const counterwagerQtyNum = Number(formData.counterwager_quantity);
-    const wagerQtyInt = isDivisible ? Math.round(wagerQtyNum * 1e8) : Math.round(wagerQtyNum);
-    const counterwagerQtyInt = isDivisible
-      ? Math.round(counterwagerQtyNum * 1e8)
-      : Math.round(counterwagerQtyNum);
-
-    const submissionData: BetOptions = {
-      sourceAddress: activeAddress?.address || "",
-      feed_address: formData.feed_address,
-      bet_type: Number(formData.bet_type),
-      deadline: Number(formData.deadline),
-      wager_quantity: wagerQtyInt,
-      counterwager_quantity: counterwagerQtyInt,
-      expiration: Number(formData.expiration),
-      leverage: Number(formData.leverage),
-      target_value: Number(formData.target_value || "0"),
-      sat_per_vbyte: formData.sat_per_vbyte,
-    };
-    onSubmit(submissionData);
-  };
 
   return (
     <div className="space-y-4">
-      <Suspense fallback={null}>
-        {assetError ? (
-          <div className="text-red-500 mb-4">{assetError.message}</div>
-        ) : assetDetails ? (
-          <BalanceHeader
-            balance={{
-              asset: "XCP",
-              quantity_normalized: assetDetails.availableBalance,
-              asset_info: assetDetails.assetInfo || undefined,
-            }}
-            className="mb-5"
-          />
-        ) : null}
-      </Suspense>
-      {localError && <div className="text-red-500 mb-2">{localError}</div>}
+      {assetError ? (
+        <div className="text-red-500 mb-4">{assetError.message}</div>
+      ) : assetDetails ? (
+        <BalanceHeader
+          balance={{
+            asset: "XCP",
+            quantity_normalized: assetDetails.availableBalance,
+            asset_info: assetDetails.assetInfo || undefined,
+          }}
+          className="mb-5"
+        />
+      ) : null}
       <div className="bg-white rounded-lg shadow-lg p-4">
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form action={formAction} className="space-y-6">
           <Field>
             <Label className="text-sm font-medium text-gray-700">
               Feed Address <span className="text-red-500">*</span>
             </Label>
             <Input
-              ref={inputRef}
               type="text"
               name="feed_address"
-              value={formData.feed_address}
-              onChange={(e) => setFormData({ ...formData, feed_address: e.target.value.trim() })}
+              defaultValue={initialFormData?.feed_address || ""}
               required
               placeholder="Enter feed address"
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
               Enter the address of the feed you want to bet on.
@@ -240,11 +77,11 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps): ReactEleme
             <Input
               type="text"
               name="bet_type"
-              value={formData.bet_type}
-              onChange={(e) => setFormData({ ...formData, bet_type: e.target.value.trim() })}
+              defaultValue={initialFormData?.bet_type?.toString() || "2"}
               required
               placeholder="e.g., 2"
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
               Enter bet type (0 = Bullish, 1 = Bearish, 2 = Equal, 3 = Not Equal).
@@ -258,11 +95,11 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps): ReactEleme
             <Input
               type="text"
               name="deadline"
-              value={formData.deadline}
-              onChange={(e) => setFormData({ ...formData, deadline: e.target.value.trim() })}
+              defaultValue={initialFormData?.deadline?.toString() || ""}
               required
               placeholder="Enter deadline block"
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
               Enter the block deadline for the bet.
@@ -276,11 +113,17 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps): ReactEleme
             <Input
               type="text"
               name="wager_quantity"
-              value={formData.wager_quantity}
-              onChange={(e) => setFormData({ ...formData, wager_quantity: e.target.value.trim() })}
+              defaultValue={
+                initialFormData && assetDetails
+                  ? isDivisible
+                    ? (initialFormData.wager_quantity / 1e8).toFixed(8)
+                    : initialFormData.wager_quantity.toString()
+                  : ""
+              }
               required
               placeholder="Enter wager quantity"
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
               Enter the XCP wager amount (up to 8 decimal places).
@@ -294,13 +137,17 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps): ReactEleme
             <Input
               type="text"
               name="counterwager_quantity"
-              value={formData.counterwager_quantity}
-              onChange={(e) =>
-                setFormData({ ...formData, counterwager_quantity: e.target.value.trim() })
+              defaultValue={
+                initialFormData && assetDetails
+                  ? isDivisible
+                    ? (initialFormData.counterwager_quantity / 1e8).toFixed(8)
+                    : initialFormData.counterwager_quantity.toString()
+                  : ""
               }
               required
               placeholder="Enter counterwager quantity"
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
               Enter the XCP counterwager amount (up to 8 decimal places).
@@ -314,11 +161,11 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps): ReactEleme
             <Input
               type="text"
               name="expiration"
-              value={formData.expiration}
-              onChange={(e) => setFormData({ ...formData, expiration: e.target.value.trim() })}
+              defaultValue={initialFormData?.expiration?.toString() || ""}
               required
               placeholder="Enter expiration blocks"
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
               Enter the number of blocks until the bet expires.
@@ -332,11 +179,11 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps): ReactEleme
             <Input
               type="text"
               name="leverage"
-              value={formData.leverage}
-              onChange={(e) => setFormData({ ...formData, leverage: e.target.value.trim() })}
+              defaultValue={initialFormData?.leverage?.toString() || "5040"}
               required
               placeholder="e.g., 5040"
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
               Enter the leverage factor (default is 5040).
@@ -346,37 +193,28 @@ export function BetForm({ onSubmit, initialFormData }: BetFormProps): ReactEleme
           <Field>
             <Label className="text-sm font-medium text-gray-700">
               Target Value{" "}
-              {(formData.bet_type === "2" || formData.bet_type === "3") && (
+              {(initialFormData?.bet_type === 2 || initialFormData?.bet_type === 3) && (
                 <span className="text-red-500">*</span>
               )}
             </Label>
             <Input
               type="text"
               name="target_value"
-              value={formData.target_value}
-              onChange={(e) => setFormData({ ...formData, target_value: e.target.value.trim() })}
-              required={formData.bet_type === "2" || formData.bet_type === "3"}
+              defaultValue={initialFormData?.target_value?.toString() || ""}
+              required={initialFormData?.bet_type === 2 || initialFormData?.bet_type === 3}
               placeholder="Enter target value"
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
               Enter the target value for Equal/NotEqual bets (required for types 2 and 3).
             </Description>
           </Field>
 
-          <FeeRateInput
-            id="sat_per_vbyte"
-            value={formData.sat_per_vbyte}
-            onChange={(value) => setFormData({ ...formData, sat_per_vbyte: value })}
-            error={formData.sat_per_vbyte <= 0 ? "Fee rate must be greater than zero." : ""}
-            showLabel
-            label="Fee Rate (sat/vB)"
-            showHelpText={shouldShowHelpText}
-            autoFetch
-          />
+          <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
 
-          <Button type="submit" color="blue" fullWidth>
-            Continue
+          <Button type="submit" color="blue" fullWidth disabled={pending}>
+            {pending ? "Submitting..." : "Continue"}
           </Button>
         </form>
       </div>

@@ -198,6 +198,7 @@ export interface AttachOptions extends BaseComposeOptions {
 
 export interface DetachOptions extends BaseComposeOptions {
   destination: string;
+  utxo?: string;
 }
 
 export interface MoveOptions extends BaseComposeOptions {

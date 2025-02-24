@@ -1,119 +1,117 @@
-import React, { useState, useRef, useEffect, FormEvent } from "react";
-import { Field, Label, Description, Input } from "@headlessui/react";
+"use client";
+
+import { useEffect } from "react";
+import { useFormStatus } from "react-dom";
+import { Field, Label, Description, Input, Textarea } from "@headlessui/react";
 import { Button } from "@/components/button";
+import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
-import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { IssuanceOptions } from "@/utils/blockchain/counterparty";
+import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
+import type { ReactElement } from "react";
 
-interface IssueSupplyFormDataInternal {
-  quantity: string;
-  sat_per_vbyte: number;
+/**
+ * Props for the IssuanceForm component, aligned with Composer's formAction.
+ */
+interface IssuanceFormProps {
+  formAction: (formData: FormData) => void;
+  initialFormData: IssuanceOptions | null;
+  initialParentAsset?: string;
 }
 
-interface IssueSupplyFormProps {
-  onSubmit: (data: IssuanceOptions) => void;
-  initialFormData?: IssuanceOptions;
-  asset: string;
-}
-
-export function IssueSupplyForm({ onSubmit, initialFormData, asset }: IssueSupplyFormProps) {
-  const { activeAddress } = useWallet();
+/**
+ * Form for issuing a new asset using React 19 Actions.
+ */
+export function IssuanceForm({
+  formAction,
+  initialFormData,
+  initialParentAsset,
+}: IssuanceFormProps): ReactElement {
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText ?? false;
-  
-  const { error: assetError, data: assetDetails } = useAssetDetails(asset);
+  const { pending } = useFormStatus();
 
-  const [formData, setFormData] = useState<IssueSupplyFormDataInternal>(() => {
-    const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
-    return {
-      quantity: initialFormData?.quantity
-        ? isDivisible
-          ? (initialFormData.quantity / 1e8).toFixed(8)
-          : initialFormData.quantity.toString()
-        : "",
-      sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
-    };
-  });
-  const [localError, setLocalError] = useState<string | null>(null);
-
-  const quantityInputRef = useRef<HTMLInputElement>(null);
-
+  // Focus asset input on mount
   useEffect(() => {
-    quantityInputRef.current?.focus();
+    const input = document.getElementById("asset") as HTMLInputElement;
+    input?.focus();
   }, []);
-
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!formData.quantity || Number(formData.quantity) <= 0) {
-      setLocalError("Quantity must be greater than zero.");
-      return;
-    }
-    if (formData.sat_per_vbyte <= 0) {
-      setLocalError("Fee rate must be greater than zero.");
-      return;
-    }
-    setLocalError(null);
-
-    const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
-    const quantityNum = Number(formData.quantity);
-
-    const submissionData: IssuanceOptions = {
-      sourceAddress: activeAddress?.address || "",
-      asset,
-      quantity: isDivisible ? Math.round(quantityNum * 1e8) : Math.round(quantityNum),
-      divisible: isDivisible,
-      lock: false,
-      reset: false,
-      sat_per_vbyte: formData.sat_per_vbyte,
-    };
-    onSubmit(submissionData);
-  };
-
-  if (assetError || !assetDetails)
-    return <div className="p-4 text-red-500">Error loading asset details: {assetError?.message}</div>;
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-      <div className="mb-4 p-3 bg-gray-50 rounded-md">
-        <h3 className="text-sm font-medium text-gray-700">Asset Details</h3>
-        <div className="mt-2 text-sm text-gray-600">
-          <p>Current Supply: {assetDetails?.assetInfo?.supply || "0"}</p>
-          <p>Divisible: {assetDetails?.assetInfo?.divisible ? "Yes" : "No"}</p>
-        </div>
-      </div>
-      {localError && <div className="text-red-500 mb-2">{localError}</div>}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form action={formAction} className="space-y-4">
         <Field>
-          <Label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
-            Quantity <span className="text-red-500">*</span>
+          <Label htmlFor="asset" className="block text-sm font-medium text-gray-700">
+            Asset Name <span className="text-red-500">*</span>
           </Label>
           <Input
-            ref={quantityInputRef}
+            id="asset"
+            name="asset"
+            type="text"
+            defaultValue={initialFormData?.asset || (initialParentAsset ? `${initialParentAsset}.` : "")}
+            className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+            required
+            placeholder={initialParentAsset ? `${initialParentAsset}.SUBASSET` : "Enter asset name"}
+            disabled={pending}
+          />
+          <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+            {initialParentAsset
+              ? `Enter a subasset name after "${initialParentAsset}." to create a subasset`
+              : "The name of the asset to issue."}
+          </Description>
+        </Field>
+        <Field>
+          <Label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
+            Amount <span className="text-red-500">*</span>
+          </Label>
+          <Input
             id="quantity"
             name="quantity"
             type="text"
-            value={formData.quantity}
-            onChange={(e) => setFormData((prev) => ({ ...prev, quantity: e.target.value }))}
+            defaultValue={initialFormData?.quantity ? (initialFormData.divisible ? (initialFormData.quantity / 1e8).toFixed(8) : initialFormData.quantity.toString()) : ""}
             className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
             required
-            placeholder={assetDetails?.assetInfo?.divisible ? "0.00000000" : "0"}
+            disabled={pending}
           />
           <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-            {assetDetails?.assetInfo?.divisible
-              ? "Enter the quantity to issue (up to 8 decimal places)."
-              : "Enter a whole number quantity."}
+            The quantity of the asset to issue {initialFormData?.divisible ?? true ? "(up to 8 decimal places)" : "(whole numbers only)"}.
           </Description>
         </Field>
-        <FeeRateInput
-          value={formData.sat_per_vbyte}
-          onChange={(value) => setFormData((prev) => ({ ...prev, sat_per_vbyte: value }))}
-          error={formData.sat_per_vbyte <= 0 ? "Fee rate must be greater than zero." : ""}
-          showHelpText={shouldShowHelpText}
-        />
-        <Button type="submit" color="blue" fullWidth>
-          Continue
+        <div className="grid grid-cols-2 gap-4">
+          <CheckboxInput
+            name="divisible"
+            label="Divisible"
+            checked={initialFormData?.divisible ?? true}
+            disabled={pending}
+          />
+          <CheckboxInput
+            name="lock"
+            label="Locked"
+            checked={initialFormData?.lock || false}
+            disabled={pending}
+          />
+        </div>
+        <Field>
+          <Label htmlFor="description" className="block text-sm font-medium text-gray-700">
+            Description
+          </Label>
+          <Textarea
+            id="description"
+            name="description"
+            defaultValue={initialFormData?.description || ""}
+            className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+            rows={2}
+            disabled={pending}
+          />
+          <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+            A textual description for the asset.
+          </Description>
+        </Field>
+
+        <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
+        
+        <Button type="submit" color="blue" fullWidth disabled={pending}>
+          {pending ? "Submitting..." : "Continue"}
         </Button>
       </form>
     </div>

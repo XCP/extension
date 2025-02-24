@@ -1,42 +1,25 @@
 import { Checkbox, Field, Label } from '@headlessui/react';
 
 interface CheckboxInputProps {
-  ariaLabel?: string;
-  checked: boolean;
-  className?: string;
-  description?: string;
-  disabled?: boolean;
-  error?: string;
+  name: string;
   label: string;
-  onChange: (checked: boolean) => void;
+  checked?: boolean;
+  disabled?: boolean;
 }
 
-/**
- * A checkbox input component with optional label and description,
- * using Headless UI's Checkbox, Field, and Label components.
- */
 export function CheckboxInput({
-  ariaLabel,
-  checked,
-  className = '',
-  description,
-  disabled = false,
-  error,
+  name,
   label,
-  onChange,
+  checked = false,
+  disabled = false,
 }: CheckboxInputProps) {
-  function handleChange(newChecked: boolean) {
-    onChange(newChecked);
-  }
-
   return (
-    <Field className={`space-y-2 ${className}`}>
+    <Field>
       <div className="flex items-center gap-3">
         <Checkbox
           checked={checked}
-          onChange={handleChange}
+          name={name}
           disabled={disabled}
-          aria-label={ariaLabel || label}
           className={`
             group relative flex size-4 items-center justify-center rounded 
             border bg-white transition-colors
@@ -63,24 +46,10 @@ export function CheckboxInput({
             />
           </svg>
         </Checkbox>
-
-        <div className="flex-1">
-          <Label className={`text-xs ${disabled ? 'text-gray-500' : 'text-gray-700'}`}>
-            {label}
-          </Label>
-          {description && (
-            <p className={`text-sm ${disabled ? 'text-gray-400' : 'text-gray-500'}`}>
-              {description}
-            </p>
-          )}
-        </div>
+        <Label className={`text-xs ${disabled ? 'text-gray-500' : 'text-gray-700'}`}>
+          {label}
+        </Label>
       </div>
-
-      {error && (
-        <p className="text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      )}
     </Field>
   );
 }

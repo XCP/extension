@@ -1,12 +1,27 @@
-import React, { useState, useRef, useEffect, FormEvent } from "react";
-import { Field, Label, Description, Input, Textarea, Listbox, ListboxButton, ListboxOption, ListboxOptions, Disclosure } from "@headlessui/react";
+"use client";
+
+import { useEffect } from "react";
+import { useFormStatus } from "react-dom";
 import { FaChevronDown, FaCheck } from "react-icons/fa";
+import {
+  Field,
+  Label,
+  Description,
+  Input,
+  Textarea,
+  Listbox,
+  ListboxButton,
+  ListboxOption,
+  ListboxOptions,
+  Disclosure,
+} from "@headlessui/react";
 import { Button } from "@/components/button";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { FairminterOptions } from "@/utils/blockchain/counterparty";
+import type { FairminterOptions } from "@/utils/blockchain/counterparty";
+import type { ReactElement } from "react";
 
 const FAIRMINTER_MODELS = {
   MINER_FEE_ONLY: "MINER_FEE_ONLY",
@@ -22,119 +37,51 @@ const FAIRMINTER_MODEL_OPTIONS = [
   { value: FAIRMINTER_MODELS.XCP_FEE_BURNED, label: "XCP Fee Model (Burned)" },
 ];
 
-interface FairminterFormDataInternal {
-  mintMethod: FairminterModel;
-  asset: string;
-  price: string;
-  quantity_by_price: string;
-  max_mint_per_tx: string;
-  hard_cap: string;
-  premint_quantity: string;
-  start_block: string;
-  end_block: string;
-  soft_cap: string;
-  soft_cap_deadline_block: string;
-  minted_asset_commission: string;
-  lock_description: boolean;
-  lock_quantity: boolean;
-  divisible: boolean;
-  description: string;
-  sat_per_vbyte: number;
-}
-
+/**
+ * Props for the FairminterForm component, aligned with Composer's formAction.
+ */
 interface FairminterFormProps {
-  onSubmit: (data: FairminterOptions) => void;
-  initialFormData?: FairminterOptions;
+  formAction: (formData: FormData) => void;
+  initialFormData: FairminterOptions | null;
   asset: string;
 }
 
-export function FairminterForm({ onSubmit, initialFormData, asset }: FairminterFormProps) {
+/**
+ * Form for creating a fairminter using React 19 Actions.
+ */
+export function FairminterForm({
+  formAction,
+  initialFormData,
+  asset,
+}: FairminterFormProps): ReactElement {
   const { activeAddress } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText ?? false;
+  const { pending } = useFormStatus();
 
-  const [formData, setFormData] = useState<FairminterFormDataInternal>(() => ({
-    mintMethod: initialFormData?.burn_payment === false ? FAIRMINTER_MODELS.MINER_FEE_ONLY : (initialFormData?.burn_payment ? FAIRMINTER_MODELS.XCP_FEE_BURNED : FAIRMINTER_MODELS.XCP_FEE_TO_ISSUER),
-    asset: initialFormData?.asset || (asset ? `${asset}.` : ""),
-    price: initialFormData?.price?.toString() || "",
-    quantity_by_price: initialFormData?.quantity_by_price?.toString() || "",
-    max_mint_per_tx: initialFormData?.max_mint_per_tx?.toString() || "",
-    hard_cap: initialFormData?.hard_cap?.toString() || "",
-    premint_quantity: initialFormData?.premint_quantity?.toString() || "0",
-    start_block: initialFormData?.start_block?.toString() || "",
-    end_block: initialFormData?.end_block?.toString() || "",
-    soft_cap: initialFormData?.soft_cap?.toString() || "",
-    soft_cap_deadline_block: initialFormData?.soft_cap_deadline_block?.toString() || "",
-    minted_asset_commission: initialFormData?.minted_asset_commission?.toString() || "0.0",
-    lock_description: initialFormData?.lock_description || false,
-    lock_quantity: initialFormData?.lock_quantity || false,
-    divisible: initialFormData?.divisible ?? true,
-    description: initialFormData?.description || "",
-    sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
-  }));
-  const [localError, setLocalError] = useState<string | null>(null);
+  const initialMintMethod = initialFormData?.burn_payment === false
+    ? FAIRMINTER_MODELS.MINER_FEE_ONLY
+    : initialFormData?.burn_payment
+    ? FAIRMINTER_MODELS.XCP_FEE_BURNED
+    : FAIRMINTER_MODELS.XCP_FEE_TO_ISSUER;
 
-  const assetInputRef = useRef<HTMLInputElement>(null);
-
+  // Focus asset input on mount
   useEffect(() => {
-    assetInputRef.current?.focus();
+    const input = document.querySelector("input[name='asset']") as HTMLInputElement;
+    input?.focus();
   }, []);
-
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!formData.asset.trim()) {
-      setLocalError("Asset name is required.");
-      return;
-    }
-    if (formData.mintMethod === FAIRMINTER_MODELS.MINER_FEE_ONLY && (!formData.max_mint_per_tx || Number(formData.max_mint_per_tx) <= 0)) {
-      setLocalError("Max mint per transaction is required for BTC Fee Model.");
-      return;
-    }
-    if (formData.mintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (!formData.price || Number(formData.price) <= 0)) {
-      setLocalError("Price per mint is required for XCP Fee Models.");
-      return;
-    }
-    if (formData.sat_per_vbyte <= 0) {
-      setLocalError("Fee rate must be greater than zero.");
-      return;
-    }
-    setLocalError(null);
-
-    const submissionData: FairminterOptions = {
-      sourceAddress: activeAddress?.address || "",
-      asset: formData.asset,
-      price: Number(formData.price) || 0,
-      quantity_by_price: Number(formData.quantity_by_price) || 1,
-      max_mint_per_tx: Number(formData.max_mint_per_tx) || 0,
-      hard_cap: Number(formData.hard_cap) || 0,
-      premint_quantity: Number(formData.premint_quantity) || 0,
-      start_block: Number(formData.start_block) || 0,
-      end_block: Number(formData.end_block) || 0,
-      soft_cap: Number(formData.soft_cap) || 0,
-      soft_cap_deadline_block: Number(formData.soft_cap_deadline_block) || 0,
-      minted_asset_commission: Number(formData.minted_asset_commission) || 0,
-      burn_payment: formData.mintMethod === FAIRMINTER_MODELS.XCP_FEE_BURNED,
-      lock_description: formData.lock_description,
-      lock_quantity: formData.lock_quantity,
-      divisible: formData.divisible,
-      description: formData.description,
-      sat_per_vbyte: formData.sat_per_vbyte,
-    };
-    onSubmit(submissionData);
-  };
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-      {localError && <div className="text-red-500 mb-2">{localError}</div>}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form action={formAction} className="space-y-4">
         <Field>
           <Label htmlFor="mintMethod" className="block text-sm font-medium text-gray-700">
             Mint Method <span className="text-red-500">*</span>
           </Label>
-          <Listbox value={formData.mintMethod} onChange={(value) => setFormData((prev) => ({ ...prev, mintMethod: value }))}>
-            <ListboxButton className="relative w-full p-2 text-left bg-gray-50 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <Listbox name="mintMethod" defaultValue={initialMintMethod} disabled={pending}>
+            <ListboxButton className="relative w-full p-2 text-left bg-gray-50 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed">
               <span className="block truncate">
-                {FAIRMINTER_MODEL_OPTIONS.find((option) => option.value === formData.mintMethod)?.label}
+                {FAIRMINTER_MODEL_OPTIONS.find((option) => option.value === initialMintMethod)?.label}
               </span>
               <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                 <FaChevronDown className="w-5 h-5 text-gray-500" aria-hidden="true" />
@@ -145,7 +92,9 @@ export function FairminterForm({ onSubmit, initialFormData, asset }: FairminterF
                 <ListboxOption
                   key={option.value}
                   value={option.value}
-                  className={({ focus }) => `${focus ? "text-white bg-blue-600" : "text-gray-900"} cursor-pointer select-none relative py-2 pl-3 pr-9`}
+                  className={({ focus }) =>
+                    `${focus ? "text-white bg-blue-600" : "text-gray-900"} cursor-pointer select-none relative py-2 pl-3 pr-9`
+                  }
                 >
                   {({ selected, focus }) => (
                     <>
@@ -153,7 +102,9 @@ export function FairminterForm({ onSubmit, initialFormData, asset }: FairminterF
                         {option.label}
                       </span>
                       {selected && (
-                        <span className={`${focus ? "text-white" : "text-blue-600"} absolute inset-y-0 right-0 flex items-center pr-4`}>
+                        <span
+                          className={`${focus ? "text-white" : "text-blue-600"} absolute inset-y-0 right-0 flex items-center pr-4`}
+                        >
                           <FaCheck className="w-5 h-5" aria-hidden="true" />
                         </span>
                       )}
@@ -175,17 +126,16 @@ export function FairminterForm({ onSubmit, initialFormData, asset }: FairminterF
             id="asset"
             name="asset"
             type="text"
-            value={formData.asset}
-            onChange={(e) => setFormData((prev) => ({ ...prev, asset: e.target.value.trim() }))}
-            ref={assetInputRef}
+            defaultValue={initialFormData?.asset || (asset ? `${asset}.` : "")}
             className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
             required
+            disabled={pending}
           />
           <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
             The name of the asset to be minted.
           </Description>
         </Field>
-        {formData.mintMethod === FAIRMINTER_MODELS.MINER_FEE_ONLY && (
+        {initialMintMethod === FAIRMINTER_MODELS.MINER_FEE_ONLY && (
           <Field>
             <Label htmlFor="max_mint_per_tx" className="block text-sm font-medium text-gray-700">
               Mint per TX <span className="text-red-500">*</span>
@@ -194,17 +144,17 @@ export function FairminterForm({ onSubmit, initialFormData, asset }: FairminterF
               id="max_mint_per_tx"
               name="max_mint_per_tx"
               type="text"
-              value={formData.max_mint_per_tx}
-              onChange={(e) => setFormData((prev) => ({ ...prev, max_mint_per_tx: e.target.value }))}
+              defaultValue={initialFormData?.max_mint_per_tx?.toString() || ""}
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
               required
+              disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
               Maximum amount that can be minted in a single transaction.
             </Description>
           </Field>
         )}
-        {formData.mintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
+        {initialMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
           <>
             <Field>
               <Label htmlFor="quantity_by_price" className="block text-sm font-medium text-gray-700">
@@ -214,9 +164,9 @@ export function FairminterForm({ onSubmit, initialFormData, asset }: FairminterF
                 id="quantity_by_price"
                 name="quantity_by_price"
                 type="text"
-                value={formData.quantity_by_price}
-                onChange={(e) => setFormData((prev) => ({ ...prev, quantity_by_price: e.target.value }))}
+                defaultValue={initialFormData?.quantity_by_price?.toString() || ""}
                 className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                disabled={pending}
               />
               <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
                 The quantity of asset minted per price unit.
@@ -230,10 +180,10 @@ export function FairminterForm({ onSubmit, initialFormData, asset }: FairminterF
                 id="price"
                 name="price"
                 type="text"
-                value={formData.price}
-                onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
+                defaultValue={initialFormData?.price?.toString() || ""}
                 className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
                 required
+                disabled={pending}
               />
               <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
                 The price in XCP per unit of the asset.
@@ -242,10 +192,10 @@ export function FairminterForm({ onSubmit, initialFormData, asset }: FairminterF
           </>
         )}
         <CheckboxInput
-          checked={formData.divisible}
-          onChange={(checked) => setFormData((prev) => ({ ...prev, divisible: checked }))}
+          name="divisible"
           label="Divisible"
-          aria-label="Toggle asset divisibility"
+          checked={initialFormData?.divisible ?? true}
+          disabled={pending}
         />
         <Field>
           <Label htmlFor="description" className="block text-sm font-medium text-gray-700">
@@ -254,20 +204,20 @@ export function FairminterForm({ onSubmit, initialFormData, asset }: FairminterF
           <Textarea
             id="description"
             name="description"
-            value={formData.description}
-            onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+            defaultValue={initialFormData?.description || ""}
             className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
             rows={2}
+            disabled={pending}
           />
           <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
             A textual description for the asset.
           </Description>
         </Field>
         <CheckboxInput
-          checked={formData.lock_description}
-          onChange={(checked) => setFormData((prev) => ({ ...prev, lock_description: checked }))}
+          name="lock_description"
           label="Lock Description"
-          aria-label="Toggle lock description"
+          checked={initialFormData?.lock_description || false}
+          disabled={pending}
         />
         <Field>
           <Label htmlFor="hard_cap" className="block text-sm font-medium text-gray-700">
@@ -277,25 +227,27 @@ export function FairminterForm({ onSubmit, initialFormData, asset }: FairminterF
             id="hard_cap"
             name="hard_cap"
             type="text"
-            value={formData.hard_cap}
-            onChange={(e) => setFormData((prev) => ({ ...prev, hard_cap: e.target.value }))}
+            defaultValue={initialFormData?.hard_cap?.toString() || ""}
             className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
+            disabled={pending}
           />
           <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
             Maximum total supply that can be minted.
           </Description>
         </Field>
         <CheckboxInput
-          checked={formData.lock_quantity}
-          onChange={(checked) => setFormData((prev) => ({ ...prev, lock_quantity: checked }))}
+          name="lock_quantity"
           label="Lock Quantity"
-          aria-label="Toggle lock quantity"
+          checked={initialFormData?.lock_quantity || false}
+          disabled={pending}
         />
         <Disclosure>
           {({ open }) => (
             <>
               <Disclosure.Button className="flex items-center text-md font-semibold text-gray-700 hover:text-gray-900">
-                <FaChevronDown className={`${open ? "transform rotate-180" : ""} w-4 h-4 mr-2 transition-transform`} />
+                <FaChevronDown
+                  className={`${open ? "transform rotate-180" : ""} w-4 h-4 mr-2 transition-transform`}
+                />
                 Advanced Options
               </Disclosure.Button>
               <Disclosure.Panel className="mt-2 space-y-4">
@@ -307,9 +259,9 @@ export function FairminterForm({ onSubmit, initialFormData, asset }: FairminterF
                     id="start_block"
                     name="start_block"
                     type="text"
-                    value={formData.start_block}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, start_block: e.target.value }))}
+                    defaultValue={initialFormData?.start_block?.toString() || ""}
                     className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                    disabled={pending}
                   />
                   <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
                     The block at which the sale starts.
@@ -323,9 +275,9 @@ export function FairminterForm({ onSubmit, initialFormData, asset }: FairminterF
                     id="end_block"
                     name="end_block"
                     type="text"
-                    value={formData.end_block}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, end_block: e.target.value }))}
+                    defaultValue={initialFormData?.end_block?.toString() || ""}
                     className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                    disabled={pending}
                   />
                   <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
                     The block at which the sale ends.
@@ -339,31 +291,34 @@ export function FairminterForm({ onSubmit, initialFormData, asset }: FairminterF
                     id="premint_quantity"
                     name="premint_quantity"
                     type="text"
-                    value={formData.premint_quantity}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, premint_quantity: e.target.value }))}
+                    defaultValue={initialFormData?.premint_quantity?.toString() || "0"}
                     className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                    disabled={pending}
                   />
                   <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
                     Amount of asset to mint when the sale starts.
                   </Description>
                 </Field>
                 <Field>
-                  <Label htmlFor="minted_asset_commission" className="block text-sm font-medium text-gray-700">
+                  <Label
+                    htmlFor="minted_asset_commission"
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     Commission
                   </Label>
                   <Input
                     id="minted_asset_commission"
                     name="minted_asset_commission"
                     type="text"
-                    value={formData.minted_asset_commission}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, minted_asset_commission: e.target.value }))}
+                    defaultValue={initialFormData?.minted_asset_commission?.toString() || "0.0"}
                     className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                    disabled={pending}
                   />
                   <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
                     Commission (fraction between 0 and less than 1) to be paid.
                   </Description>
                 </Field>
-                {formData.mintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
+                {initialMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
                   <>
                     <Field>
                       <Label htmlFor="soft_cap" className="block text-sm font-medium text-gray-700">
@@ -373,27 +328,30 @@ export function FairminterForm({ onSubmit, initialFormData, asset }: FairminterF
                         id="soft_cap"
                         name="soft_cap"
                         type="text"
-                        value={formData.soft_cap}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, soft_cap: e.target.value }))}
+                        defaultValue={initialFormData?.soft_cap?.toString() || ""}
                         className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
                         placeholder="0"
+                        disabled={pending}
                       />
                       <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
                         Minimum amount required for the sale to succeed.
                       </Description>
                     </Field>
                     <Field>
-                      <Label htmlFor="soft_cap_deadline_block" className="block text-sm font-medium text-gray-700">
+                      <Label
+                        htmlFor="soft_cap_deadline_block"
+                        className="block text-sm font-medium text-gray-700"
+                      >
                         Soft Cap Deadline Block
                       </Label>
                       <Input
                         id="soft_cap_deadline_block"
                         name="soft_cap_deadline_block"
                         type="text"
-                        value={formData.soft_cap_deadline_block}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, soft_cap_deadline_block: e.target.value }))}
+                        defaultValue={initialFormData?.soft_cap_deadline_block?.toString() || ""}
                         className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
                         placeholder="0"
+                        disabled={pending}
                       />
                       <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
                         The block by which the soft cap must be reached.
@@ -405,14 +363,11 @@ export function FairminterForm({ onSubmit, initialFormData, asset }: FairminterF
             </>
           )}
         </Disclosure>
-        <FeeRateInput
-          value={formData.sat_per_vbyte}
-          onChange={(value) => setFormData((prev) => ({ ...prev, sat_per_vbyte: value }))}
-          error={formData.sat_per_vbyte <= 0 ? "Fee rate must be greater than zero." : ""}
-          showHelpText={shouldShowHelpText}
-        />
-        <Button type="submit" color="blue" fullWidth>
-          Continue
+
+        <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
+        
+        <Button type="submit" color="blue" fullWidth disabled={pending}>
+          {pending ? "Submitting..." : "Continue"}
         </Button>
       </form>
     </div>
