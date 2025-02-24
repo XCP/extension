@@ -55,13 +55,13 @@ export const ViewAsset = (): ReactElement => {
 
     if (isLoading) {
       loadingId = showLoading('Loading asset details...');
-    } else if (loadingId) {
-      hideLoading(loadingId);
     }
 
     return () => {
       setHeaderProps(null);
-      if (loadingId) hideLoading(loadingId);
+      if (loadingId) {
+        hideLoading(loadingId);
+      }
     };
   }, [setHeaderProps, navigate, isLoading, showLoading, hideLoading]);
 

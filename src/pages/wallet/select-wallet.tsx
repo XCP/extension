@@ -41,7 +41,7 @@ function SelectWallet() {
   // Configure header with add wallet button
   useEffect(() => {
     setHeaderProps({
-      title: 'Select Wallet',
+      title: 'Wallets',
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
         icon: <FaPlus className="w-4 h-4" aria-hidden="true" />,

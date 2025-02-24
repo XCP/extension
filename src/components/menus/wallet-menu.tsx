@@ -7,10 +7,10 @@ import type { Wallet } from '@/utils/wallet';
 
 interface WalletMenuProps {
   wallet: Wallet;
-  isFirstWallet: boolean;
+  isOnlyWallet: boolean;
 }
 
-export function WalletMenu({ wallet, isFirstWallet }: WalletMenuProps) {
+export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps) {
   const navigate = useNavigate();
 
   const handleShowSecret = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -54,11 +54,11 @@ export function WalletMenu({ wallet, isFirstWallet }: WalletMenuProps) {
             {({ active }) => (
               <button
                 className={`${active ? 'bg-gray-100' : ''} group flex w-full items-center px-4 py-2 text-sm ${
-                  isFirstWallet ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 cursor-pointer'
+                  isOnlyWallet ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 cursor-pointer'
                 }`}
                 onClick={handleRemoveWallet}
-                disabled={isFirstWallet}
-                title={isFirstWallet ? 'Cannot remove primary wallet' : undefined}
+                disabled={isOnlyWallet}
+                title={isOnlyWallet ? 'Cannot remove only wallet' : undefined}
               >
                 <FaTrash className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
                 Remove {wallet.name}

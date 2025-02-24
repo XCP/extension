@@ -7,10 +7,10 @@ interface WalletCardProps {
   wallet: Wallet;
   selected: boolean;
   onSelect: (wallet: Wallet) => void;
-  isFirstWallet: boolean;
+  isOnlyWallet: boolean;
 }
 
-function WalletCard({ wallet, selected, onSelect, isFirstWallet }: WalletCardProps) {
+function WalletCard({ wallet, selected, onSelect, isOnlyWallet }: WalletCardProps) {
   const primaryAddress =
     wallet.addresses.length > 0 ? wallet.addresses[0].address : 'No address';
 
@@ -34,7 +34,7 @@ function WalletCard({ wallet, selected, onSelect, isFirstWallet }: WalletCardPro
           <div className="flex justify-between items-center">
             <div className="text-sm font-medium">{wallet.name}</div>
             <div className="absolute top-2 right-2 wallet-menu">
-              <WalletMenu wallet={wallet} isFirstWallet={isFirstWallet} />
+              <WalletMenu wallet={wallet} isOnlyWallet={isOnlyWallet} />
             </div>
           </div>
           <div className="flex justify-between items-center mt-1">

@@ -60,13 +60,13 @@ export const ViewBalance = (): ReactElement => {
       loadingId = showLoading('Loading balance details...', {
         onError: (err) => console.error(`Failed to load balance: ${err.message}`),
       });
-    } else if (loadingId) {
-      hideLoading(loadingId);
     }
 
     return () => {
       setHeaderProps(null);
-      if (loadingId) hideLoading(loadingId);
+      if (loadingId) {
+        hideLoading(loadingId);
+      }
     };
   }, [setHeaderProps, navigate, isLoading, showLoading, hideLoading]);
 

@@ -141,7 +141,10 @@ export function Composer({
         onBack: headerCallbacks?.onBack || handleBack,
         rightButton: {
           icon: <FiX className="w-4 h-4" />,
-          onClick: () => navigate('/index'),
+          onClick: () => {
+            reset();
+            navigate('/index');
+          },
           ariaLabel: "Cancel and return to index",
         },
       };
@@ -149,7 +152,10 @@ export function Composer({
     if (step === "success" && apiResponse) {
       return {
         useLogoTitle: true,
-        onBack: () => navigate('/index'),
+        onBack: () => {
+          reset();
+          navigate('/index');
+        },
         rightButton: {
           icon: <FiRefreshCw className="w-4 h-4" />,
           onClick: () => {

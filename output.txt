@@ -36,7 +36,7 @@ File Contents:
     const { setHeaderProps } = useHeader();
   
     const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
+    const [error, setError] = useState<string | undefined>();
     const [isLoading, setIsLoading] = useState(false);
   
     const passwordInputRef = useRef<HTMLInputElement>(null);
@@ -98,11 +98,7 @@ File Contents:
         navigate(PATHS.SUCCESS);
       } catch (err) {
         console.error('Error unlocking wallet:', err);
-        const msg =
-          err instanceof Error && err.message.includes('Invalid')
-            ? 'Invalid password.'
-            : 'Failed to unlock wallet. Please try again.';
-        setError(msg);
+        setError('Invalid password. Please try again.');
       } finally {
         setIsLoading(false);
       }
@@ -137,7 +133,7 @@ File Contents:
               <Button
                 type="submit"
                 fullWidth
-                disabled={isLoading || !isPasswordValid(password)}
+                disabled={isLoading}
                 aria-label="Unlock Wallet"
               >
                 {isLoading ? 'Unlocking...' : 'Unlock'}
@@ -153,12 +149,13 @@ File Contents:
 
 /src/pages/wallet/add-wallet.tsx
   [contents of the file]
-  import { useEffect } from 'react';
+  import { useEffect, useState } from 'react';
   import { useNavigate } from 'react-router-dom';
   import { FiDownload, FiKey, FiX } from 'react-icons/fi';
   import { IoCreateOutline } from 'react-icons/io5';
   import { Button } from '@/components/button';
   import { useHeader } from '@/contexts/header-context';
+  import { ErrorAlert } from '@/components/error-alert';
   
   /**
    * AddWallet component provides options for creating or importing a wallet.
@@ -170,6 +167,7 @@ File Contents:
   function AddWallet() {
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
+    const [error, setError] = useState<string | null>(null);
   
     // Navigation paths for wallet actions
     const PATHS = {
@@ -205,6 +203,14 @@ File Contents:
       navigate(PATHS.IMPORT_PRIVATE_KEY);
     };
   
+    const handleAddWallet = () => {
+      if (wallets.length >= MAX_WALLETS) {
+        setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+        return;
+      }
+      // ... rest of the function
+    };
+  
     return (
       <div className="flex flex-col h-full" role="main" aria-labelledby="add-wallet-title">
         <div className="flex-grow flex items-center justify-center p-4">
@@ -212,6 +218,7 @@ File Contents:
             <h2 id="add-wallet-title" className="text-2xl font-bold mb-6">
               Add Wallet
             </h2>
+            {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
             <div className="space-y-4">
               <Button
                 color="green"
@@ -258,9 +265,9 @@ File Contents:
   import { CheckboxInput } from '@/components/inputs/checkbox-input';
   import { PasswordInput } from '@/components/inputs/password-input';
   import { useHeader } from '@/contexts/header-context';
-  import { useToast } from '@/contexts/toast-context';
   import { useWallet } from '@/contexts/wallet-context';
   import { generateNewMnemonic } from '@/utils/blockchain/bitcoin';
+  import { ErrorAlert } from '@/components/error-alert';
   
   /**
    * CreateWallet component guides users through creating a new wallet with a mnemonic phrase.
@@ -274,7 +281,6 @@ File Contents:
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
     const { wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
-    const { showError, clearAll } = useToast();
     const walletExists = wallets.length > 0;
   
     // Initialize mnemonic and words with a generated value
@@ -285,6 +291,7 @@ File Contents:
     const [isRecoveryPhraseVisible, setIsRecoveryPhraseVisible] = useState(false);
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
   
     // Constants for paths and validation
     const PATHS = {
@@ -334,25 +341,25 @@ File Contents:
   
     async function validateForm(): Promise<boolean> {
       if (!isRecoveryPhraseVisible) {
-        showError('Please view and save your recovery phrase first.');
+        setError('Please view and save your recovery phrase first.');
         return false;
       }
       if (!isConfirmed) {
-        showError('Please confirm you have backed up your recovery phrase.');
+        setError('Please confirm you have backed up your recovery phrase.');
         return false;
       }
       if (!password) {
-        showError('Password is required.');
+        setError('Password is required.');
         return false;
       }
       if (walletExists) {
         const isValid = await verifyPassword(password);
         if (!isValid) {
-          showError('Password does not match.');
+          setError('Password does not match.');
           return false;
         }
       } else if (!isPasswordValid(password)) {
-        showError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
+        setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
         return false;
       }
       return true;
@@ -365,13 +372,12 @@ File Contents:
       setIsSubmitting(true);
       try {
         if (await validateForm()) {
-          clearAll();
           await createAndUnlockMnemonicWallet(mnemonic, password);
           navigate(PATHS.SUCCESS);
         }
       } catch (err: unknown) {
         console.error('Error creating wallet:', err);
-        showError('Failed to create wallet. Please try again.');
+        setError('Failed to create wallet. Please try again.');
       } finally {
         setIsSubmitting(false);
       }
@@ -384,6 +390,7 @@ File Contents:
         aria-labelledby="create-wallet-title"
       >
         <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+          {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
           <h2 id="create-wallet-title" className="text-2xl font-bold mb-2">
             Your Recovery Phrase
           </h2>
@@ -474,10 +481,10 @@ File Contents:
   import { useNavigate } from 'react-router-dom';
   import { FiChevronDown } from 'react-icons/fi';
   import { Button } from '@/components/button';
+  import { ErrorAlert } from '@/components/error-alert';
   import { CheckboxInput } from '@/components/inputs/checkbox-input';
   import { PasswordInput } from '@/components/inputs/password-input';
   import { useHeader } from '@/contexts/header-context';
-  import { useToast } from '@/contexts/toast-context';
   import { useWallet } from '@/contexts/wallet-context';
   import { AddressType } from '@/utils/blockchain/bitcoin';
   
@@ -485,7 +492,8 @@ File Contents:
    * ImportPrivateKey component allows users to import a wallet using a private key.
    *
    * Features:
-   * - Accepts a private key and address type selection
+   * - Accepts a private key and auto-detects address type (Legacy or Nested SegWit)
+   * - Allows overriding the suggested address type via dropdown
    * - Requires confirmation of key backup and password entry
    * - Validates inputs and handles submission errors
    */
@@ -493,7 +501,6 @@ File Contents:
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
     const { wallets, createAndUnlockPrivateKeyWallet, verifyPassword } = useWallet();
-    const { showError } = useToast();
   
     const [privateKey, setPrivateKey] = useState('');
     const [addressType, setAddressType] = useState<AddressType>(AddressType.P2PKH);
@@ -520,6 +527,37 @@ File Contents:
       { value: AddressType.P2WPKH, label: 'Native SegWit' },
     ] as const;
   
+    // Helper functions for private key validation and address type detection
+    const isValidPrivateKey = (key: string): boolean => {
+      const trimmedKey = key.trim();
+      if (!trimmedKey) return false;
+      return /^[0-9a-fA-F]{64}$|^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(trimmedKey);
+    };
+  
+    const isWIFUncompressed = (key: string): boolean => {
+      return key.startsWith('5') && /^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(key);
+    };
+  
+    const isWIFCompressed = (key: string): boolean => {
+      return (key.startsWith('K') || key.startsWith('L')) && /^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(key);
+    };
+  
+    const isHexPrivateKey = (key: string): boolean => {
+      return /^[0-9a-fA-F]{64}$/.test(key);
+    };
+  
+    const determineAddressType = (key: string): AddressType => {
+      const trimmedKey = key.trim();
+      if (isWIFUncompressed(trimmedKey)) {
+        return AddressType.P2PKH; // Legacy for uncompressed WIF
+      } else if (isWIFCompressed(trimmedKey)) {
+        return AddressType.P2SH_P2WPKH; // Nested SegWit for compressed WIF
+      } else if (isHexPrivateKey(trimmedKey)) {
+        return AddressType.P2PKH; // Default to Legacy for hex
+      }
+      return AddressType.P2PKH; // Fallback to Legacy
+    };
+  
     // Set up header
     useEffect(() => {
       setHeaderProps({
@@ -535,15 +573,27 @@ File Contents:
   
     // Validate private key length
     const isPrivateKeyValid = useMemo(() => {
-      return privateKey.trim().length >= MIN_PRIVATE_KEY_LENGTH;
+      return privateKey.trim().length >= MIN_PRIVATE_KEY_LENGTH && /^[0-9a-fA-F]{64}$|^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(privateKey.trim());
     }, [privateKey]);
   
     const isPasswordValid = (pw: string): boolean => pw.length >= MIN_PASSWORD_LENGTH;
   
     const handlePrivateKeyChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-      setPrivateKey(e.target.value);
+      const newPrivateKey = e.target.value;
+      setPrivateKey(newPrivateKey);
       setPrivateKeyError('');
       setSubmissionError('');
+  
+      if (!isValidPrivateKey(newPrivateKey)) {
+        if (!newPrivateKey.trim()) {
+          setPrivateKeyError('Private key is required');
+        } else {
+          setPrivateKeyError('Invalid private key format. Please enter a valid WIF or hexadecimal key.');
+        }
+      } else {
+        const suggestedType = determineAddressType(newPrivateKey);
+        setAddressType(suggestedType);
+      }
     };
   
     const handleAddressTypeChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
@@ -565,23 +615,26 @@ File Contents:
     const canSubmit = (): boolean => {
       return (
         isConfirmed &&
-        privateKey.trim().length > 0 &&
+        isValidPrivateKey(privateKey.trim()) &&
         password.length > 0 &&
         (walletExists || isPasswordValid(password))
       );
     };
   
     const validateForm = async (): Promise<boolean> => {
-      setPrivateKeyError('');
       setPasswordError('');
       setSubmissionError('');
+  
+      if (privateKeyError) {
+        return false; // Early return if private key is invalid
+      }
   
       const trimmedKey = privateKey.trim();
       if (!trimmedKey) {
         setPrivateKeyError('Private key is required');
         return false;
       }
-      if (!/^[0-9a-fA-F]{64}$|^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(trimmedKey)) {
+      if (!isValidPrivateKey(trimmedKey)) {
         setPrivateKeyError('Invalid private key format. Please enter a valid WIF or hexadecimal key.');
         return false;
       }
@@ -623,7 +676,6 @@ File Contents:
         } else {
           errorMessage += 'Please check your input and try again.';
         }
-        showError(errorMessage);
         setSubmissionError(errorMessage);
       }
     };
@@ -656,11 +708,7 @@ File Contents:
             Enter your private key to use its address.
           </p>
   
-          {submissionError && (
-            <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
-              {submissionError}
-            </div>
-          )}
+          {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError('')} />}
   
           <form
             onSubmit={handleSubmit}
@@ -732,11 +780,10 @@ File Contents:
                 />
                 <Button
                   type="submit"
-                  disabled={!canSubmit() || isSubmitting}
+                  disabled={!canSubmit() || !isPasswordValid(password) || isSubmitting}
                   fullWidth
-                  loading={isSubmitting}
                 >
-                  Continue
+                  {isSubmitting ? 'Importing...' : 'Continue'}
                 </Button>
               </>
             )}
@@ -760,16 +807,16 @@ File Contents:
   import { CheckboxInput } from '@/components/inputs/checkbox-input';
   import { PasswordInput } from '@/components/inputs/password-input';
   import { useHeader } from '@/contexts/header-context';
-  import { useToast } from '@/contexts/toast-context';
   import { useWallet } from '@/contexts/wallet-context';
   import { AddressType } from '@/utils/blockchain/bitcoin';
   import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
+  import { ErrorAlert } from '@/components/error-alert';
   
   /**
    * ImportWallet component allows users to import a wallet using a 12-word mnemonic phrase.
    *
    * Features:
-   * - Accepts a 12-word recovery phrase input
+   * - Accepts a 12-word recovery phrase input, supporting pasting multiple words into one field
    * - Validates mnemonic and requires confirmation
    * - Supports password entry and wallet unlocking
    */
@@ -777,7 +824,6 @@ File Contents:
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
     const { unlockWallet, wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
-    const { showError } = useToast();
     const walletExists = wallets.length > 0;
   
     const [mnemonicWords, setMnemonicWords] = useState<string[]>(Array(12).fill(''));
@@ -785,6 +831,7 @@ File Contents:
     const [showMnemonic, setShowMnemonic] = useState(false);
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
   
     const inputRefs = useRef<(HTMLInputElement | null)[]>(Array(12).fill(null));
   
@@ -818,13 +865,18 @@ File Contents:
     }, []);
   
     const handleWordChange = (index: number, value: string) => {
-      const trimmedValue = value.trim();
       const newWords = [...mnemonicWords];
-      newWords[index] = trimmedValue;
-      setMnemonicWords(newWords);
-  
-      if (trimmedValue && index < 11) {
-        inputRefs.current[index + 1]?.focus();
+      const words = value.trim().split(/\s+/);
+      if (words.length > 1) {
+        for (let i = 0; i < words.length && index + i < 12; i++) {
+          newWords[index + i] = words[i];
+        }
+        setMnemonicWords(newWords);
+        const nextIndex = Math.min(index + words.length, 11);
+        inputRefs.current[nextIndex]?.focus();
+      } else {
+        newWords[index] = value;
+        setMnemonicWords(newWords);
       }
     };
   
@@ -862,25 +914,25 @@ File Contents:
         validMnemonic = true;
       }
       if (!validMnemonic) {
-        showError('Invalid recovery phrase. Please check each word carefully.');
+        setError('Invalid recovery phrase. Please check each word carefully.');
         return false;
       }
       if (!isConfirmed) {
-        showError('Please confirm you have backed up your recovery phrase.');
+        setError('Please confirm you have backed up your recovery phrase.');
         return false;
       }
       if (!password) {
-        showError('Password is required.');
+        setError('Password is required.');
         return false;
       }
       if (walletExists) {
         const isValid = await verifyPassword(password);
         if (!isValid) {
-          showError('Password does not match.');
+          setError('Password does not match.');
           return false;
         }
       } else if (!isPasswordValid(password)) {
-        showError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
+        setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
         return false;
       }
       return true;
@@ -909,7 +961,7 @@ File Contents:
       } catch (error: unknown) {
         console.error('Detailed error importing wallet:', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        showError(`Failed to import wallet: ${errorMessage}`);
+        setError(`Failed to import wallet: ${errorMessage}`);
       } finally {
         setIsSubmitting(false);
       }
@@ -922,6 +974,7 @@ File Contents:
         aria-labelledby="import-wallet-title"
       >
         <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+          {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
           <h2 id="import-wallet-title" className="text-2xl font-bold mb-2">
             Import Your Mnemonic
           </h2>
@@ -1113,11 +1166,9 @@ File Contents:
           const remainingWallets = wallets.filter((w) => w.id !== walletId);
           if (activeWallet?.id === walletId) {
             if (remainingWallets.length > 0) {
-              setActiveWallet(remainingWallets[0]);
-              setActiveAddress(remainingWallets[0].addresses[0] || null);
+              await setActiveWallet(remainingWallets[0]);
             } else {
-              setActiveWallet(null);
-              setActiveAddress(null);
+              await setActiveWallet(null);
             }
           }
   
@@ -1138,7 +1189,7 @@ File Contents:
         role="main"
         aria-labelledby="remove-wallet-title"
       >
-        <h2 id="remove-wallet-title" className="text-2xl font-bold mb-2">
+        <h2 id="remove-wallet-title" className="sr-only text-2xl font-bold mb-2">
           Remove Wallet
         </h2>
         {submissionError && (
@@ -1302,7 +1353,7 @@ File Contents:
         role="main"
         aria-labelledby="reset-wallet-title"
       >
-        <h2 id="reset-wallet-title" className="text-2xl font-bold mb-2">
+        <h2 id="reset-wallet-title" className="sr-only text-2xl font-bold mb-2">
           Reset Wallet
         </h2>
         {submissionError && (
@@ -1359,14 +1410,14 @@ File Contents:
 
 /src/pages/wallet/select-wallet.tsx
   [contents of the file]
-  import { useEffect } from 'react';
+  import { useEffect, useState, useCallback } from 'react';
   import { useNavigate } from 'react-router-dom';
   import { FaPlus } from 'react-icons/fa';
   import { Button } from '@/components/button';
   import { WalletList } from '@/components/lists/wallet-list';
   import { useHeader } from '@/contexts/header-context';
   import { useWallet } from '@/contexts/wallet-context';
-  import { useToast } from '@/contexts/toast-context';
+  import { ErrorAlert } from '@/components/error-alert';
   import type { Wallet } from '@/utils/wallet';
   
   /**
@@ -1381,7 +1432,7 @@ File Contents:
     const navigate = useNavigate();
     const { setHeaderProps } = useHeader();
     const { wallets, activeWallet, setActiveWallet } = useWallet();
-    const { showError } = useToast();
+    const [error, setError] = useState<string | null>(null);
   
     // Constants for paths and limits
     const PATHS = {
@@ -1391,13 +1442,13 @@ File Contents:
     } as const;
     const MAX_WALLETS = 10;
   
-    const handleAddWallet = () => {
+    const handleAddWallet = useCallback(() => {
       if (wallets.length >= MAX_WALLETS) {
-        showError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+        setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
         return;
       }
       navigate(PATHS.ADD_WALLET);
-    };
+    }, [navigate, wallets.length]);
   
     // Configure header with add wallet button
     useEffect(() => {
@@ -1418,7 +1469,7 @@ File Contents:
         navigate(PATHS.INDEX);
       } catch (err) {
         console.error('Error selecting wallet:', err);
-        showError('Failed to select wallet. Please try again.');
+        setError('Failed to select wallet. Please try again.');
       }
     };
   
@@ -1429,7 +1480,8 @@ File Contents:
         aria-labelledby="wallet-selection-title"
       >
         <div className="flex-grow overflow-y-auto p-4">
-          <h2 id="wallet-selection-title" className="text-2xl font-bold mb-2">
+          {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
+          <h2 id="wallet-selection-title" className="sr-only text-2xl font-bold mb-2">
             Select a Wallet
           </h2>
           <WalletList

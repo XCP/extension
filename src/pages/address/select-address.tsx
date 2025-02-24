@@ -50,7 +50,7 @@ export function AddressSelection() {
 
   useEffect(() => {
     setHeaderProps({
-      title: 'Select Address',
+      title: 'Addresses',
       onBack: () => navigate(-1),
       rightButton: activeWallet?.type === 'mnemonic'
         ? {
