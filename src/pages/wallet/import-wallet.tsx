@@ -8,37 +8,59 @@ import { Button } from '@/components/button';
 import { CheckboxInput } from '@/components/inputs/checkbox-input';
 import { PasswordInput } from '@/components/inputs/password-input';
 import { useHeader } from '@/contexts/header-context';
-import { useToast } from '@/contexts/toast-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { AddressType } from '@/utils/blockchain/bitcoin';
 import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
+import { ErrorAlert } from '@/components/error-alert';
 
+/**
+ * ImportWallet component allows users to import a wallet using a 12-word mnemonic phrase.
+ *
+ * Features:
+ * - Accepts a 12-word recovery phrase input, supporting pasting multiple words into one field
+ * - Validates mnemonic and requires confirmation
+ * - Supports password entry and wallet unlocking
+ */
 function ImportWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { unlockWallet, wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
-  const { showError } = useToast();
   const walletExists = wallets.length > 0;
 
   const [mnemonicWords, setMnemonicWords] = useState<string[]>(Array(12).fill(''));
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [showMnemonic, setShowMnemonic] = useState(false);
   const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>(Array(12).fill(null));
 
+  // Constants for paths and validation
+  const PATHS = {
+    BACK: walletExists ? '/add-wallet' : '/onboarding',
+    SUCCESS: '/index',
+  } as const;
+  const MIN_PASSWORD_LENGTH = 8;
+
+  // Set up header with show/hide toggle
   useEffect(() => {
     setHeaderProps({
       title: 'Import Wallet',
-      onBack: () => navigate(walletExists ? '/add-wallet' : '/onboarding'),
+      onBack: () => navigate(PATHS.BACK),
       rightButton: {
-        icon: showMnemonic ? <FaEyeSlash aria-hidden="true" /> : <FaEye aria-hidden="true" />,
-        onClick: () => setShowMnemonic(prev => !prev),
+        icon: showMnemonic ? (
+          <FaEyeSlash aria-hidden="true" />
+        ) : (
+          <FaEye aria-hidden="true" />
+        ),
+        onClick: () => setShowMnemonic((prev) => !prev),
         ariaLabel: showMnemonic ? 'Hide recovery phrase' : 'Show recovery phrase',
       },
     });
   }, [navigate, setHeaderProps, showMnemonic, walletExists]);
 
+  // Focus first input on mount
   useEffect(() => {
     inputRefs.current[0]?.focus();
   }, []);
@@ -74,7 +96,7 @@ function ImportWallet() {
   };
 
   function areAllWordsPopulated(): boolean {
-    return mnemonicWords.every(word => word.trim() !== '');
+    return mnemonicWords.every((word) => word.trim() !== '');
   }
 
   const handleCheckboxChange = (checked: boolean) => {
@@ -83,7 +105,7 @@ function ImportWallet() {
   };
 
   function isPasswordValid(pw: string): boolean {
-    return pw.length >= 8;
+    return pw.length >= MIN_PASSWORD_LENGTH;
   }
 
   async function validateForm(): Promise<boolean> {
@@ -93,25 +115,25 @@ function ImportWallet() {
       validMnemonic = true;
     }
     if (!validMnemonic) {
-      showError('Invalid recovery phrase. Please check each word carefully.');
+      setError('Invalid recovery phrase. Please check each word carefully.');
       return false;
     }
     if (!isConfirmed) {
-      showError('Please confirm you have backed up your recovery phrase.');
+      setError('Please confirm you have backed up your recovery phrase.');
       return false;
     }
     if (!password) {
-      showError('Password is required.');
+      setError('Password is required.');
       return false;
     }
     if (walletExists) {
       const isValid = await verifyPassword(password);
       if (!isValid) {
-        showError('Password does not match.');
+        setError('Password does not match.');
         return false;
       }
     } else if (!isPasswordValid(password)) {
-      showError('Password must be at least 8 characters long.');
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
       return false;
     }
     return true;
@@ -119,49 +141,72 @@ function ImportWallet() {
 
   async function handleSubmit(e?: React.FormEvent<HTMLFormElement>) {
     if (e) e.preventDefault();
-    if (await validateForm()) {
-      try {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      if (await validateForm()) {
         const mnemonic = mnemonicWords.join(' ').trim();
-        console.log('Attempting to import mnemonic...');
-        
         const addressType = isValidCounterwalletMnemonic(mnemonic)
           ? AddressType.Counterwallet
           : AddressType.P2WPKH;
-        console.log('Using address type:', addressType);
-        
-        const newWallet = await createAndUnlockMnemonicWallet(mnemonic, password, undefined, addressType);
-        console.log('Wallet created successfully:', newWallet.id);
-        
+        const newWallet = await createAndUnlockMnemonicWallet(
+          mnemonic,
+          password,
+          undefined,
+          addressType
+        );
         await unlockWallet(newWallet.id, password);
-        console.log('Wallet unlocked successfully');
-        
-        navigate('/index');
-      } catch (error: unknown) {
-        console.error('Detailed error importing wallet:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        showError(`Failed to import wallet: ${errorMessage}`);
+        navigate(PATHS.SUCCESS);
       }
+    } catch (error: unknown) {
+      console.error('Detailed error importing wallet:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(`Failed to import wallet: ${errorMessage}`);
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   return (
-    <div className="flex-grow overflow-y-auto p-4" role="main" aria-labelledby="import-wallet-title">
+    <div
+      className="flex-grow overflow-y-auto p-4"
+      role="main"
+      aria-labelledby="import-wallet-title"
+    >
       <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+        {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
         <h2 id="import-wallet-title" className="text-2xl font-bold mb-2">
           Import Your Mnemonic
         </h2>
-        <p className="mb-5">Please enter your 12-word recovery phrase below.</p>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="bg-gray-100 p-2 rounded-md mb-4" role="region" aria-label="Recovery phrase input">
-            <ol className="list-none p-0 m-0 grid grid-flow-col grid-cols-2 grid-rows-6 gap-2" aria-label="Recovery phrase words">
+        <p className="mb-5" id="import-instructions">
+          Please enter your 12-word recovery phrase below.
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-4" aria-describedby="import-instructions">
+          <div
+            className="bg-gray-100 p-2 rounded-md mb-4"
+            role="region"
+            aria-label="Recovery phrase input"
+          >
+            <ol
+              className="list-none p-0 m-0 grid grid-flow-col grid-cols-2 grid-rows-6 gap-2"
+              aria-label="Recovery phrase words"
+            >
               {mnemonicWords.map((word, index) => (
-                <li key={index} className="bg-white rounded p-1 flex items-center relative" aria-label={`Word ${index + 1}`}>
-                  <span className="absolute left-2 w-6 text-right mr-2 text-gray-500" aria-hidden="true">
+                <li
+                  key={index}
+                  className="bg-white rounded p-1 flex items-center relative"
+                  aria-label={`Word ${index + 1}`}
+                >
+                  <span
+                    className="absolute left-2 w-6 text-right mr-2 text-gray-500"
+                    aria-hidden="true"
+                  >
                     {index + 1}.
                   </span>
                   <HeadlessInput
                     ref={(el) => {
-                      inputRefs.current[index] = el as unknown as HTMLInputElement;
+                      inputRefs.current[index] = el as HTMLInputElement;
                     }}
                     type={showMnemonic ? 'text' : 'password'}
                     value={word}
@@ -170,6 +215,7 @@ function ImportWallet() {
                     className="font-mono ml-8 w-full bg-transparent outline-none"
                     placeholder="Enter word"
                     aria-label={`Word ${index + 1}`}
+                    disabled={isSubmitting}
                   />
                 </li>
               ))}
@@ -180,7 +226,7 @@ function ImportWallet() {
             onChange={handleCheckboxChange}
             label="I have saved my secret recovery phrase"
             ariaLabel="Confirm recovery phrase backup"
-            disabled={!areAllWordsPopulated()}
+            disabled={!areAllWordsPopulated() || isSubmitting}
           />
           {isConfirmed && (
             <>
@@ -191,8 +237,13 @@ function ImportWallet() {
                 placeholder={walletExists ? 'Confirm your password' : 'Create a password'}
                 error=""
                 ariaLabel={walletExists ? 'Confirm password' : 'Create password'}
+                disabled={isSubmitting}
               />
-              <Button type="submit" disabled={!isConfirmed || !password} fullWidth>
+              <Button
+                type="submit"
+                disabled={!isConfirmed || !isPasswordValid(password) || isSubmitting}
+                fullWidth
+              >
                 Continue
               </Button>
             </>

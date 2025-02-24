@@ -77,15 +77,28 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       const allWallets = await walletService.getWallets();
       const newState: WalletState = { ...walletState };
 
-      // Declare change flags at the top of the function scope
+      // Declare change flags
       let walletsEqual = JSON.stringify(newState.wallets) === JSON.stringify(allWallets);
       let activeChanged = false;
       let addressChanged = false;
       let lockChanged = false;
 
+      // Update auth state based on wallet count first
+      if (allWallets.length === 0) {
+        newState.authState = AuthState.Onboarding;
+        newState.activeWallet = null;
+        newState.activeAddress = null;
+        newState.walletLocked = true;
+      } else {
+        // Check if any wallet is unlocked
+        const anyUnlocked = await walletService.isAnyWalletUnlocked();
+        newState.walletLocked = !anyUnlocked;
+        newState.authState = anyUnlocked ? AuthState.Unlocked : AuthState.Locked;
+      }
+
+      // Update wallets list
       if (!walletsEqual) {
         newState.wallets = allWallets;
-        newState.authState = allWallets.length > 0 ? AuthState.Locked : AuthState.Onboarding;
       }
 
       if (allWallets.length > 0) {
@@ -94,12 +107,12 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
           active = allWallets[0];
           await walletService.setActiveWallet(active.id);
         }
-        activeChanged =
-          newState.activeWallet?.id !== active.id ||
+        if (activeChanged = newState.activeWallet?.id !== active.id ||
           (newState.activeWallet &&
             active &&
-            JSON.stringify(newState.activeWallet.addresses) !== JSON.stringify(active.addresses));
-        if (activeChanged) newState.activeWallet = active;
+            JSON.stringify(newState.activeWallet.addresses) !== JSON.stringify(active.addresses))) {
+          newState.activeWallet = active;
+        }
 
         const lastActiveAddress = await walletService.getLastActiveAddress();
         const newActiveAddress =
@@ -123,7 +136,6 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       }
 
       newState.loaded = true;
-      // Only update if something changed
       if (!walletsEqual || activeChanged || addressChanged || lockChanged || !walletState.loaded) {
         setWalletState(newState);
       }

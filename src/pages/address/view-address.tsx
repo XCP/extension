@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaCheck, FaClipboard, FaList } from 'react-icons/fa';
-import { useHeader } from '@/contexts/header-context';
-import { useWallet } from '@/contexts/wallet-context';
-import { AddressType } from '@/utils/blockchain/bitcoin/address';
 import { Button } from '@/components/button';
 import { QRCode } from '@/components/qr-code';
+import { useHeader } from '@/contexts/header-context';
+import { useWallet } from '@/contexts/wallet-context';
+import { AddressType } from '@/utils/blockchain/bitcoin';
 
 /**
  * ViewAddress page component displays the current address's QR code and provides options
@@ -18,10 +18,10 @@ import { QRCode } from '@/components/qr-code';
  */
 const ViewAddress = () => {
   const navigate = useNavigate();
-  const { activeWallet, activeAddress } = useWallet();
   const { setHeaderProps } = useHeader();
+  const { activeWallet, activeAddress } = useWallet();
 
-  // Set the header
+  // Set the header with navigation and address selection options
   useEffect(() => {
     setHeaderProps({
       title: 'My Address',
@@ -37,14 +37,16 @@ const ViewAddress = () => {
     });
   }, [setHeaderProps, navigate, activeWallet?.type]);
 
-  // No Address State
+  // Handle case where no address is selected
   if (!activeAddress) {
     return <div className="p-4">No address selected</div>;
   }
 
-  const addressTypeLabel = activeWallet?.addressType !== AddressType.Counterwallet
-    ? activeWallet?.addressType.toUpperCase()
-    : 'P2PKH'; // Default to 'P2PKH' if Counterwallet
+  // Determine address type label, defaulting to 'P2PKH' for Counterwallet
+  const addressTypeLabel =
+    activeWallet?.addressType !== AddressType.Counterwallet
+      ? activeWallet?.addressType.toUpperCase()
+      : 'P2PKH'; // Default ensures consistency for Counterwallet addresses
 
   return (
     <div
@@ -60,11 +62,11 @@ const ViewAddress = () => {
       </div>
 
       <QRCode
-        text={activeAddress.address}
+        text={activeAddress?.address}
         ariaLabel="Address QR Code"
       />
 
-      <CopyAddress address={activeAddress.address} />
+      <CopyAddress address={activeAddress?.address} />
     </div>
   );
 };
@@ -75,12 +77,11 @@ interface CopyAddressProps {
 
 /**
  * CopyAddress component provides UI elements to display and copy a cryptocurrency address.
- * 
+ *
  * Features:
  * - Displays the address in a selectable, monospace font
- * - Provides a dedicated copy button
- * - Shows visual feedback when address is copied
- * - Supports both click and keyboard interactions
+ * - Provides a dedicated copy button with visual feedback
+ * - Supports click and keyboard interactions (Enter/Space)
  */
 const CopyAddress = ({ address }: CopyAddressProps) => {
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
@@ -89,7 +90,7 @@ const CopyAddress = ({ address }: CopyAddressProps) => {
     try {
       await navigator.clipboard.writeText(address);
       setCopiedToClipboard(true);
-      
+
       // Reset copy state after 2 seconds
       setTimeout(() => {
         setCopiedToClipboard(false);

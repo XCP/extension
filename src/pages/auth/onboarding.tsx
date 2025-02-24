@@ -5,35 +5,54 @@ import { FiUpload, FiHelpCircle } from 'react-icons/fi';
 import { Button } from '@/components/button';
 import { useHeader } from '@/contexts/header-context';
 
+/**
+ * Onboarding component serves as the entry point for users to create or import a wallet.
+ *
+ * Features:
+ * - Displays options to create a new wallet or import an existing one
+ * - Provides a help link in the header
+ * - Includes Terms of Service agreement notice
+ */
 function Onboarding() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
 
+  // Navigation paths for wallet actions
+  const PATHS = {
+    CREATE_WALLET: '/create-wallet',
+    IMPORT_WALLET: '/import-wallet',
+    HELP_URL: 'https://youtube.com', // Replace with actual help URL
+  } as const;
+
+  // Configure header with logo and help button
   useEffect(() => {
     setHeaderProps({
       useLogoTitle: true,
       title: 'Onboarding',
       rightButton: {
-        icon: <FiHelpCircle className="w-4 h-4" />,
-        onClick: () => window.open('https://youtube.com', '_blank'),
+        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        onClick: () => window.open(PATHS.HELP_URL, '_blank'),
         ariaLabel: 'Help',
       },
     });
-  }, [setHeaderProps]);
+  }, [setHeaderProps, navigate]);
 
   const handleCreateWallet = () => {
-    navigate('/create-wallet');
+    navigate(PATHS.CREATE_WALLET);
   };
 
   const handleImportWallet = () => {
-    navigate('/import-wallet');
+    navigate(PATHS.IMPORT_WALLET);
   };
 
   return (
-    <div className="flex flex-col h-full" role="main">
+    <div className="flex flex-col h-full" role="main" aria-labelledby="onboarding-title">
       <div className="flex-grow flex items-center justify-center p-4">
         <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6 text-center">
-          <h1 className="text-3xl mb-5 flex justify-between items-center">
+          <h1
+            id="onboarding-title"
+            className="text-3xl mb-5 flex justify-between items-center"
+          >
             <span className="font-bold">XCP Wallet</span>
             <span>v0.0.1</span>
           </h1>
@@ -44,7 +63,7 @@ function Onboarding() {
               onClick={handleCreateWallet}
               aria-label="Create wallet"
             >
-              <IoCreateOutline className="mr-2" aria-hidden="true" />
+              <IoCreateOutline className="w-4 h-4 mr-2" aria-hidden="true" />
               Create Wallet
             </Button>
             <Button
@@ -53,14 +72,22 @@ function Onboarding() {
               onClick={handleImportWallet}
               aria-label="Import wallet"
             >
-              <FiUpload className="mr-2" aria-hidden="true" />
+              <FiUpload className="w-4 h-4 mr-2" aria-hidden="true" />
               Import Wallet
             </Button>
           </div>
         </div>
       </div>
       <div className="text-center text-xs p-4">
-        By continuing you agree to our <a href="#" className="font-bold">Terms of Service</a>.
+        By continuing you agree to our{' '}
+        <a
+          href="/terms-of-service" // Replace with actual Terms of Service URL
+          className="font-bold hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500"
+          tabIndex={0}
+        >
+          Terms of Service
+        </a>
+        .
       </div>
     </div>
   );

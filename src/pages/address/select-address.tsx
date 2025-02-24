@@ -1,18 +1,16 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaPlus } from 'react-icons/fa';
 import { Button } from '@/components/button';
 import { AddressList } from '@/components/lists/address-list';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
-import { useToast } from '@/contexts/toast-context';
+import { ErrorAlert } from '@/components/error-alert';
 import type { Address } from '@/utils/wallet';
 
 export function AddressSelection() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  // UPDATED: Destructure showError from useToast instead of addToast
-  const { showError } = useToast();
   const { 
     activeWallet, 
     activeAddress, 
@@ -20,6 +18,7 @@ export function AddressSelection() {
     addAddress,
     walletLocked,
   } = useWallet();
+  const [error, setError] = useState<string | null>(null);
 
   const handleAddAddress = useCallback(async () => {
     if (!activeWallet?.id) return;
@@ -27,7 +26,6 @@ export function AddressSelection() {
     if (activeWallet.addresses.length >= 20) return;
 
     try {
-      // If wallet is locked, navigate to unlock page
       if (walletLocked) {
         navigate('/unlock', { 
           state: { 
@@ -41,10 +39,9 @@ export function AddressSelection() {
       await addAddress(activeWallet.id);
     } catch (error) {
       console.error('Failed to add address:', error);
-      // UPDATED: Use showError (from Toast context) to display error toast
-      showError('Failed to add address. Please try again.');
+      setError('Failed to add address. Please try again.');
     }
-  }, [activeWallet, addAddress, walletLocked, navigate, showError]);
+  }, [activeWallet, addAddress, walletLocked, navigate]);
 
   const handleSelectAddress = useCallback(async (address: Address) => {
     await setActiveAddress(address);
@@ -70,6 +67,7 @@ export function AddressSelection() {
   return (
     <div className="flex flex-col h-full" role="main" aria-labelledby="address-selection-title">
       <div className="flex-grow overflow-y-auto p-4">
+        {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
         <h2 id="address-selection-title" className="sr-only">
           Select an Address
         </h2>
