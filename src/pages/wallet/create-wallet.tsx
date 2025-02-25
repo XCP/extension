@@ -30,13 +30,12 @@ function CreateWallet() {
   } as const;
   const MIN_PASSWORD_LENGTH = 8;
 
-  const [state, formAction, isPending] = useActionState<{ error: string | null }>(
-    async (state: { error: string | null }) => {
+  const [state, formAction, isPending] = useActionState(
+    async (_prevState: { error: string | null }, formData: FormData) => {
       if (!isRecoveryPhraseVisible) {
         return { error: "Please view and save your recovery phrase first." };
       }
 
-      const formData = state as unknown as FormData;
       const password = formData.get("password") as string;
       if (!password) {
         return { error: "Password is required." };
@@ -82,7 +81,6 @@ function CreateWallet() {
     const newMnemonic = generateNewMnemonic();
     setMnemonic(newMnemonic);
     setMnemonicWords(newMnemonic.split(" "));
-    setIsRecoveryPhraseVisible(false);
     setIsConfirmed(false);
     setPassword("");
   }
