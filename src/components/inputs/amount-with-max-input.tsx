@@ -171,7 +171,7 @@ export function AmountWithMaxInput({
           aria-label={loading ? "Calculating maximum amount..." : "Use maximum available amount"}
           className="absolute right-1 top-1/2 transform -translate-y-1/2 px-2 py-1 text-sm"
         >
-          {loading ? "..." : "Max"}
+          Max
         </Button>
       </div>
       {shouldShowHelpText && (
