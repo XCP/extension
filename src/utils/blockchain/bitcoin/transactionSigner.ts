@@ -3,7 +3,7 @@ import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 import { AddressType } from '@/utils/blockchain/bitcoin/address';
 import { fetchUTXOs, getUtxoByTxid, fetchPreviousRawTransaction } from '@/utils/blockchain/bitcoin/utxo';
-import { walletManager } from '@/utils/wallet/walletManager';
+import type { Wallet, Address } from '@/utils/wallet';
 
 function paymentScript(pubkeyBytes: Uint8Array, addressType: AddressType) {
   switch (addressType) {
@@ -23,22 +23,24 @@ function paymentScript(pubkeyBytes: Uint8Array, addressType: AddressType) {
 
 export async function signTransaction(
   rawTransaction: string,
-  walletId: string,
-  sourceAddress: string
+  wallet: Wallet,
+  targetAddress: Address,
+  privateKeyHex: string // New parameter
 ): Promise<string> {
-  const wallet = walletManager.getWallet(walletId);
-  if (!wallet) throw new Error('Wallet not found');
-  const targetAddress = wallet.addresses.find(addr => addr.address === sourceAddress);
-  if (!targetAddress) throw new Error('Source address not found in wallet');
-  const privateKeyHex = await walletManager.getPrivateKey(walletId, targetAddress.path);
-  if (!privateKeyHex) throw new Error('Private key not found');
+  if (!wallet) throw new Error('Wallet not provided');
+  if (!targetAddress) throw new Error('Target address not provided');
+  
+  console.log("Using wallet addresses:", wallet.addresses);
+  console.log("Target address:", targetAddress);
+
   const privateKeyBytes = hexToBytes(privateKeyHex);
   const pubkeyBytes = getPublicKey(privateKeyBytes, true);
   const payment = paymentScript(pubkeyBytes, wallet.addressType);
-  const utxos = await fetchUTXOs(sourceAddress);
+  const utxos = await fetchUTXOs(targetAddress.address);
   if (!utxos || utxos.length === 0) {
     throw new Error('No UTXOs found for the source address');
   }
+
   const rawTxBytes = hexToBytes(rawTransaction);
   const parsedTx = Transaction.fromRaw(rawTxBytes, {
     allowUnknownInputs: true,
@@ -52,6 +54,7 @@ export async function signTransaction(
     allowLegacyWitnessUtxo: true,
     disableScriptCheck: true
   });
+
   for (let i = 0; i < parsedTx.inputsLength; i++) {
     const input = parsedTx.getInput(i);
     if (!input?.txid || input.index === undefined) {
@@ -90,6 +93,7 @@ export async function signTransaction(
     }
     tx.addInput(inputData);
   }
+
   for (let i = 0; i < parsedTx.outputsLength; i++) {
     const output = parsedTx.getOutput(i);
     tx.addOutput({
@@ -97,6 +101,7 @@ export async function signTransaction(
       amount: output.amount,
     });
   }
+
   tx.sign(privateKeyBytes);
   tx.finalize();
   return tx.hex;

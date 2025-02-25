@@ -11,6 +11,7 @@ import { useLoading } from "@/contexts/loading-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import type { ApiResponse as CounterpartyApiResponse } from "@/utils/blockchain/counterparty";
+import { signTransaction as btcSignTransaction } from "@/utils/blockchain/bitcoin/transactionSigner";
 
 interface HeaderCallbacks {
   onBack?: () => void;
@@ -35,7 +36,7 @@ interface ComposerProps<T> {
 }
 
 interface ApiResponse extends CounterpartyApiResponse {
-  result: CounterpartyApiResponse['result'] & {
+  result: CounterpartyApiResponse["result"] & {
     data: string | null;
   };
 }
@@ -48,7 +49,7 @@ export function Composer<T>({
   headerCallbacks,
 }: ComposerProps<T>): ReactElement {
   const navigate = useNavigate();
-  const { activeWallet, activeAddress, signTransaction, broadcastTransaction } = useWallet();
+  const { activeWallet, activeAddress, getPrivateKey, broadcastTransaction } = useWallet();
   const { isLoading, showLoading, hideLoading } = useLoading();
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings } = useSettings();
@@ -63,33 +64,39 @@ export function Composer<T>({
     [compose, composeTransaction, activeAddress]
   );
 
-  const signAction = useCallback(() => {
-    if (state.apiResponse && activeAddress) {
-      const signFn = async () => {
-        const loadingId = showLoading("Signing and broadcasting transaction...");
-        try {
-          const rawTxHex = state.apiResponse!.result.rawtransaction;
-          const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
-          await broadcastTransaction(signedTxHex);
-        } finally {
-          hideLoading(loadingId);
-        }
-      };
-      sign(state.apiResponse, signFn);
+  const signAction = useCallback(async () => {
+    if (!state.apiResponse || !activeAddress || !activeWallet) return;
+
+    const loadingId = showLoading("Signing and broadcasting transaction...");
+    try {
+      const rawTxHex = state.apiResponse.result.rawtransaction;
+      const privateKeyHex = await getPrivateKey(activeWallet.id, activeAddress.path || undefined);
+      const signedTxHex = await btcSignTransaction(rawTxHex, activeWallet, activeAddress, privateKeyHex);
+      await broadcastTransaction(signedTxHex);
+      sign(state.apiResponse, async () => {}); // Proceed with context sign action
+    } catch (err) {
+      console.error("Sign action error:", err);
+      let errorMessage = "Failed to sign and broadcast transaction";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      throw new Error(errorMessage);
+    } finally {
+      hideLoading(loadingId);
     }
-  }, [state.apiResponse, sign, signTransaction, broadcastTransaction, activeAddress, showLoading, hideLoading]);
+  }, [state.apiResponse, activeAddress, activeWallet, getPrivateKey, broadcastTransaction, showLoading, hideLoading, sign]);
 
   const handleBack = useCallback(() => {
     if (state.step === "review") {
-      revertToForm(); // Go back to form, keep formData
+      revertToForm();
     } else if (state.step === "success") {
-      reset(); // Reset and go to /index
+      reset();
       navigate("/index");
     }
   }, [state.step, revertToForm, reset, navigate]);
 
   const handleCancel = useCallback(() => {
-    reset(); // Reset and go to /index
+    reset();
     navigate("/index");
   }, [reset, navigate]);
 
@@ -101,12 +108,12 @@ export function Composer<T>({
   const effectiveToggleHelp = headerCallbacks?.onToggleHelp || toggleHelp;
 
   const onBackSuccess = useCallback(() => {
-    reset(); // Reset and go to /index
+    reset();
     navigate("/index");
   }, [reset, navigate]);
 
   const onResetForm = useCallback(() => {
-    reset(); // Reset and stay on form
+    reset();
   }, [reset]);
 
   const onBackDefault = useCallback(() => navigate(-1), [navigate]);
@@ -125,10 +132,10 @@ export function Composer<T>({
     if (state.step === "review" && state.apiResponse) {
       return {
         title: initialTitle,
-        onBack: handleBack, // Go back to form, keep data
+        onBack: handleBack,
         rightButton: {
           icon: <FiX className="w-4 h-4" aria-hidden="true" />,
-          onClick: handleCancel, // Reset and go to /index
+          onClick: handleCancel,
           ariaLabel: "Cancel and return to index",
         },
       };
@@ -136,10 +143,10 @@ export function Composer<T>({
     if (state.step === "success" && state.apiResponse) {
       return {
         useLogoTitle: true,
-        onBack: onBackSuccess, // Reset and go to /index
+        onBack: onBackSuccess,
         rightButton: {
           icon: <FiRefreshCw className="w-4 h-4" aria-hidden="true" />,
-          onClick: onResetForm, // Reset and go to form
+          onClick: onResetForm,
           ariaLabel: "Return to form",
         },
       };
@@ -185,7 +192,7 @@ export function Composer<T>({
           onSign={signAction}
           onBack={handleBack}
           error={error}
-          setError={() => {}} // Error setting handled in context
+          setError={() => {}}
         />
       )}
       {state.step === "success" && state.apiResponse && (

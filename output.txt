@@ -1,471 +1,2510 @@
 Folders:
-/src/pages/compose/send/
-/src/pages/compose/send/mpma/
+/src/pages/wallet/
+/src/utils/blockchain/counterwallet/
+/src/utils/wallet/
 
 Files:
-/src/pages/compose/send/form.tsx
-/src/pages/compose/send/mpma/form.tsx
-/src/pages/compose/send/mpma/page.tsx
-/src/pages/compose/send/mpma/review.tsx
-/src/pages/compose/send/page.tsx
-/src/pages/compose/send/review.tsx
+/src/components/cards/wallet-card.tsx
+/src/components/lists/wallet-list.tsx
+/src/components/menus/wallet-menu.tsx
+/src/contexts/wallet-context.tsx
+/src/pages/auth/unlock-wallet.tsx
+/src/pages/wallet/add-wallet.tsx
+/src/pages/wallet/create-wallet.tsx
+/src/pages/wallet/import-private-key.tsx
+/src/pages/wallet/import-wallet.tsx
+/src/pages/wallet/remove-wallet.tsx
+/src/pages/wallet/reset-wallet.tsx
+/src/pages/wallet/select-wallet.tsx
+/src/services/walletService.ts
+/src/utils/blockchain/counterwallet/index.ts
+/src/utils/blockchain/counterwallet/mnemonic.ts
+/src/utils/encryption/walletEncryption.ts
+/src/utils/storage/walletStorage.ts
+/src/utils/wallet/index.ts
+/src/utils/wallet/settingsManager.ts
+/src/utils/wallet/walletManager.ts
 
 File Contents:
-/src/pages/compose/send/form.tsx
+/src/components/cards/wallet-card.tsx
   [contents of the file]
-  "use client";
+  import { RadioGroup } from '@headlessui/react';
+  import type { Wallet } from '@/utils/wallet';
+  import { formatAddress } from '@/utils/format';
+  import { WalletMenu } from '@/components/menus/wallet-menu';
   
-  import { useEffect, useState } from "react";
-  import { useFormStatus } from "react-dom";
-  import { Field, Label, Description, Input } from "@headlessui/react";
-  import { Button } from "@/components/button";
-  import { BalanceHeader } from "@/components/headers/balance-header";
-  import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-  import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-  import { useSettings } from "@/contexts/settings-context";
-  import { useWallet } from "@/contexts/wallet-context";
-  import { useAssetDetails } from "@/hooks/useAssetDetails";
-  import { toSatoshis } from "@/utils/numeric";
-  import type { SendOptions } from "@/utils/blockchain/counterparty";
-  import type { ReactElement } from "react";
-  
-  /**
-   * Props for the SendForm component, aligned with Composer's formAction.
-   */
-  interface SendFormProps {
-    formAction: (formData: FormData) => void;
-    initialAsset?: string;
-    initialFormData: SendOptions | null;
+  interface WalletCardProps {
+    wallet: Wallet;
+    selected: boolean;
+    onSelect: (wallet: Wallet) => void;
+    isOnlyWallet: boolean;
   }
   
-  /**
-   * Form for sending assets using React 19 Actions.
-   */
-  export function SendForm({
-    formAction,
-    initialAsset,
-    initialFormData,
-  }: SendFormProps): ReactElement {
-    const { activeAddress } = useWallet();
-    const { settings } = useSettings();
-    const shouldShowHelpText = settings?.showHelpText ?? false;
-    const { data: assetDetails, error: assetDetailsError } = useAssetDetails(
-      initialFormData?.asset || initialAsset || "BTC"
-    );
-    const { pending } = useFormStatus();
+  function WalletCard({ wallet, selected, onSelect, isOnlyWallet }: WalletCardProps) {
+    const primaryAddress =
+      wallet.addresses.length > 0 ? wallet.addresses[0].address : 'No address';
   
-    const isDivisible = initialFormData?.asset === "BTC" || assetDetails?.assetInfo?.divisible;
-  
-    // Local state for amount input
-    const [amount, setAmount] = useState<string>(
-      initialFormData?.quantity
-        ? isDivisible
-          ? (initialFormData.quantity / 1e8).toFixed(8) // Temporary, refine if needed
-          : initialFormData.quantity.toString()
-        : ""
-    );
-  
-    // Local state for fee rate
-    const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 1);
-  
-    // Focus destination input on mount
-    useEffect(() => {
-      const input = document.querySelector("input[name='destination']") as HTMLInputElement;
-      input?.focus();
-    }, []);
-  
-    // Custom form action to include the dynamic amount and fee rate
-    const handleFormAction = (formData: FormData) => {
-      if (amount) {
-        // Use toSatoshis for divisible assets, raw amount for non-divisible
-        const quantity = isDivisible ? toSatoshis(amount) : amount;
-        formData.set("quantity", quantity);
+    const handleClick = (e: React.MouseEvent) => {
+      // Only select the wallet if the menu wasn't clicked
+      if (!(e.target as HTMLElement).closest('.wallet-menu')) {
+        onSelect(wallet);
       }
-      formData.set("sat_per_vbyte", satPerVbyte.toString());
-      formAction(formData);
     };
   
     return (
-      <div className="space-y-4">
-        {activeAddress && assetDetails && (
-          <BalanceHeader
-            balance={{
-              asset: initialFormData?.asset || initialAsset || "BTC",
-              quantity_normalized: assetDetails.availableBalance,
-              asset_info: assetDetails.assetInfo || undefined,
-            }}
-            className="mb-5"
-          />
+      <RadioGroup.Option
+        value={wallet}
+        className={({ checked }) => `
+          relative w-full rounded transition duration-300 p-4 cursor-pointer
+          ${checked ? 'bg-blue-600 text-white shadow-md' : 'bg-blue-100 hover:bg-blue-200 text-gray-800'}
+        `}
+      >
+        {({ checked }) => (
+          <div onClick={handleClick} className="flex flex-col">
+            <div className="flex justify-between items-center">
+              <div className="text-sm font-medium">{wallet.name}</div>
+              <div className="absolute top-2 right-2 wallet-menu">
+                <WalletMenu wallet={wallet} isOnlyWallet={isOnlyWallet} />
+              </div>
+            </div>
+            <div className="flex justify-between items-center mt-1">
+              <span className="font-mono text-sm">{formatAddress(primaryAddress)}</span>
+              <span className="text-xs capitalize">
+                {wallet.type === 'mnemonic' ? 'Mnemonic' : 'Private Key'}
+              </span>
+            </div>
+          </div>
         )}
-        {assetDetailsError && <div className="text-red-500 mb-2">Failed to fetch asset details.</div>}
-        <div className="bg-white rounded-lg shadow-lg p-4">
-          <form action={handleFormAction} className="space-y-6">
-            <Field>
-              <Label className="text-sm font-medium text-gray-700">
-                Destination <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                type="text"
-                name="destination"
-                defaultValue={initialFormData?.destination || ""}
-                required
-                placeholder="Enter destination address"
-                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-                disabled={pending}
-              />
-              <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                Enter the address to send the asset to.
-              </Description>
-            </Field>
-            <input type="hidden" name="asset" value={initialFormData?.asset || initialAsset || "BTC"} />
-            <AmountWithMaxInput
-              asset={initialFormData?.asset || initialAsset || "BTC"}
-              availableBalance={assetDetails?.availableBalance || "0"}
-              value={amount}
-              onChange={setAmount}
-              sat_per_vbyte={satPerVbyte}
-              setError={() => {}} // No-op since Composer handles errors
-              sourceAddress={activeAddress}
-              maxAmount={assetDetails?.availableBalance || "0"}
-              shouldShowHelpText={shouldShowHelpText}
-              label="Amount"
-              name="quantity"
-              description={
-                isDivisible
-                  ? "Enter the amount to send (up to 8 decimal places)."
-                  : "Enter a whole number amount."
-              }
-              disabled={pending}
-            />
-            {(initialFormData?.asset || initialAsset) !== "BTC" && (
-              <Field>
-                <Label className="text-sm font-medium text-gray-700">Memo</Label>
-                <Input
-                  type="text"
-                  name="memo"
-                  defaultValue={initialFormData?.memo || ""}
-                  placeholder="Optional memo"
-                  className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={pending}
-                />
-                <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                  Optional memo to include with the transaction.
-                </Description>
-              </Field>
-            )}
+      </RadioGroup.Option>
+    );
+  }
   
-            <FeeRateInput
-              showHelpText={shouldShowHelpText}
-              disabled={pending}
-              onFeeRateChange={setSatPerVbyte}
-            />
+  export default WalletCard;
+
+/src/components/lists/wallet-list.tsx
+  [contents of the file]
+  import { RadioGroup } from '@headlessui/react';
+  import type { Wallet } from '@/utils/wallet';
+  import WalletCard from '@/components/cards/wallet-card';
   
-            <Button type="submit" color="blue" fullWidth disabled={pending}>
-              {pending ? "Submitting..." : "Continue"}
-            </Button>
-          </form>
-        </div>
-      </div>
+  interface WalletListProps {
+    wallets: Wallet[];
+    selectedWallet: Wallet | null;
+    onSelectWallet: (wallet: Wallet) => void;
+  }
+  
+  export function WalletList({ wallets, selectedWallet, onSelectWallet }: WalletListProps) {
+    return (
+      <RadioGroup
+        value={selectedWallet}
+        onChange={onSelectWallet}
+        className="space-y-2"
+      >
+        {wallets.map((wallet) => (
+          <WalletCard
+            key={wallet.id}
+            wallet={wallet}
+            selected={selectedWallet?.id === wallet.id}
+            onSelect={onSelectWallet}
+            isOnlyWallet={wallets.length === 1}
+          />
+        ))}
+      </RadioGroup>
     );
   }
 
-/src/pages/compose/send/mpma/form.tsx
+/src/components/menus/wallet-menu.tsx
+  [contents of the file]
+  import { useNavigate } from 'react-router-dom';
+  import { FaTrash } from 'react-icons/fa';
+  import { HiDotsHorizontal } from 'react-icons/hi';
+  import { VscKey } from 'react-icons/vsc';
+  import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
+  import type { Wallet } from '@/utils/wallet';
+  
+  interface WalletMenuProps {
+    wallet: Wallet;
+    isOnlyWallet: boolean;
+  }
+  
+  export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps) {
+    const navigate = useNavigate();
+  
+    const handleShowSecret = (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+      navigate(`/show-${wallet.type === 'privateKey' ? 'private-key' : 'passphrase'}/${wallet.id}`);
+    };
+  
+    const handleRemoveWallet = (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+      navigate(`/remove-wallet/${wallet.id}`);
+    };
+  
+    return (
+      <Menu as="div" className="relative inline-block text-left">
+        <div onClick={(e) => e.stopPropagation()}>
+          <MenuButton
+            className="p-1 rounded-full hover:bg-black/5 transition-colors cursor-pointer"
+            aria-label="Wallet options"
+          >
+            <HiDotsHorizontal className="w-4 h-4" aria-hidden="true" />
+          </MenuButton>
+        </div>
+  
+        <MenuItems
+          className="absolute right-0 mt-1 w-48 origin-top-right divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
+          aria-label="Wallet options list"
+        >
+          <div className="py-1">
+            <MenuItem>
+              {({ active }) => (
+                <button
+                  className={`${active ? 'bg-gray-100' : ''} group flex w-full items-center px-4 py-2 text-sm text-gray-700 cursor-pointer`}
+                  onClick={handleShowSecret}
+                >
+                  <VscKey className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
+                  {wallet.type === 'privateKey' ? 'Show Private Key' : 'Show Passphrase'}
+                </button>
+              )}
+            </MenuItem>
+            <MenuItem>
+              {({ active }) => (
+                <button
+                  className={`${active ? 'bg-gray-100' : ''} group flex w-full items-center px-4 py-2 text-sm ${
+                    isOnlyWallet ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 cursor-pointer'
+                  }`}
+                  onClick={handleRemoveWallet}
+                  disabled={isOnlyWallet}
+                  title={isOnlyWallet ? 'Cannot remove only wallet' : undefined}
+                >
+                  <FaTrash className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
+                  Remove {wallet.name}
+                </button>
+              )}
+            </MenuItem>
+          </div>
+        </MenuItems>
+      </Menu>
+    );
+  }
+
+/src/contexts/wallet-context.tsx
+  [contents of the file]
+  import React, { createContext, useContext, useEffect, useState, useCallback, type ReactNode, type ReactElement } from 'react';
+  import { getWalletService } from '@/services/walletService';
+  import { AddressType } from '@/utils/blockchain/bitcoin';
+  import type { Wallet, Address } from '@/utils/wallet';
+  
+  enum AuthState {
+    Onboarding = 'ONBOARDING_NEEDED',
+    Locked = 'LOCKED',
+    Unlocked = 'UNLOCKED',
+  }
+  
+  interface WalletState {
+    authState: AuthState;
+    wallets: Wallet[];
+    activeWallet: Wallet | null;
+    activeAddress: Address | null;
+    walletLocked: boolean;
+    loaded: boolean;
+  }
+  
+  interface WalletContextType {
+    authState: AuthState;
+    wallets: Wallet[];
+    activeWallet: Wallet | null;
+    activeAddress: Address | null;
+    walletLocked: boolean;
+    loaded: boolean;
+    unlockWallet: (walletId: string, password: string) => Promise<void>;
+    lockAll: () => Promise<void>;
+    setActiveWallet: (wallet: Wallet | null, useLastActive?: boolean) => Promise<void>;
+    setActiveAddress: (address: Address | null) => Promise<void>;
+    addAddress: (walletId: string) => Promise<Address>;
+    updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+    createAndUnlockMnemonicWallet: (mnemonic: string, password: string, name?: string, addressType?: AddressType) => Promise<Wallet>;
+    createAndUnlockPrivateKeyWallet: (privateKey: string, password: string, name?: string, addressType?: AddressType) => Promise<Wallet>;
+    resetAllWallets: (password: string) => Promise<void>;
+    getUnencryptedMnemonic: (walletId: string) => Promise<string>;
+    getPrivateKey: (walletId: string, derivationPath?: string) => Promise<string>;
+    verifyPassword: (password: string) => Promise<boolean>;
+    updateWalletAddressType: (walletId: string, newType: AddressType) => Promise<void>;
+    getPreviewAddressForType: (walletId: string, addressType: AddressType) => Promise<string>;
+    removeWallet: (walletId: string) => Promise<void>;
+    signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
+    broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
+    updatePinnedAssets: (pinnedAssets: string[]) => Promise<void>;
+  }
+  
+  const WalletContext = createContext<WalletContextType | undefined>(undefined);
+  
+  const withRefresh = <T extends (...args: any[]) => Promise<any>>(
+    fn: T,
+    refresh: () => Promise<void>
+  ) => async (...args: Parameters<T>): Promise<Awaited<ReturnType<T>>> => {
+    const result = await fn(...args);
+    await refresh();
+    return result;
+  };
+  
+  export function WalletProvider({ children }: { children: ReactNode }): ReactElement {
+    const walletService = getWalletService();
+    const [walletState, setWalletState] = useState<WalletState>({
+      authState: AuthState.Onboarding,
+      wallets: [],
+      activeWallet: null,
+      activeAddress: null,
+      walletLocked: true,
+      loaded: false,
+    });
+    const refreshInProgress = useRef(false);
+  
+    const refreshWalletState = useCallback(async () => {
+      if (refreshInProgress.current) return;
+      refreshInProgress.current = true;
+  
+      try {
+        await walletService.loadWallets();
+        const allWallets = await walletService.getWallets();
+        const newState: WalletState = { ...walletState };
+  
+        // Declare change flags
+        let walletsEqual = JSON.stringify(newState.wallets) === JSON.stringify(allWallets);
+        let activeChanged = false;
+        let addressChanged = false;
+        let lockChanged = false;
+  
+        // Update auth state based on wallet count first
+        if (allWallets.length === 0) {
+          newState.authState = AuthState.Onboarding;
+          newState.activeWallet = null;
+          newState.activeAddress = null;
+          newState.walletLocked = true;
+        } else {
+          // Check if any wallet is unlocked
+          const anyUnlocked = await walletService.isAnyWalletUnlocked();
+          newState.walletLocked = !anyUnlocked;
+          newState.authState = anyUnlocked ? AuthState.Unlocked : AuthState.Locked;
+        }
+  
+        // Update wallets list
+        if (!walletsEqual) {
+          newState.wallets = allWallets;
+        }
+  
+        if (allWallets.length > 0) {
+          let active = await walletService.getActiveWallet();
+          if (!active) {
+            active = allWallets[0];
+            await walletService.setActiveWallet(active.id);
+          }
+          if (activeChanged = newState.activeWallet?.id !== active.id ||
+            (newState.activeWallet &&
+              active &&
+              JSON.stringify(newState.activeWallet.addresses) !== JSON.stringify(active.addresses))) {
+            newState.activeWallet = active;
+          }
+  
+          const lastActiveAddress = await walletService.getLastActiveAddress();
+          const newActiveAddress =
+            lastActiveAddress && active.addresses.some((addr) => addr.address === lastActiveAddress)
+              ? active.addresses.find((addr) => addr.address === lastActiveAddress) || active.addresses[0]
+              : active.addresses[0] || null;
+          addressChanged = newState.activeAddress?.address !== newActiveAddress?.address;
+          if (addressChanged) newState.activeAddress = newActiveAddress;
+  
+          const anyUnlocked = await walletService.isAnyWalletUnlocked();
+          lockChanged = newState.walletLocked !== !anyUnlocked;
+          if (lockChanged) {
+            newState.walletLocked = !anyUnlocked;
+            newState.authState = anyUnlocked ? AuthState.Unlocked : AuthState.Locked;
+          }
+        } else {
+          newState.activeWallet = null;
+          newState.activeAddress = null;
+          newState.walletLocked = true;
+          newState.authState = AuthState.Onboarding;
+        }
+  
+        newState.loaded = true;
+        if (!walletsEqual || activeChanged || addressChanged || lockChanged || !walletState.loaded) {
+          setWalletState(newState);
+        }
+      } catch (error) {
+        console.error('Error refreshing wallet state:', error);
+        setWalletState((prev) => ({ ...prev, loaded: true }));
+      } finally {
+        refreshInProgress.current = false;
+      }
+    }, [walletService, walletState]);
+  
+    useEffect(() => {
+      refreshWalletState();
+    }, [refreshWalletState]);
+  
+    const setActiveWallet = useCallback(async (wallet: Wallet | null, useLastActive?: boolean) => {
+      if (wallet) {
+        await walletService.setActiveWallet(wallet.id);
+        const lastActiveAddress = useLastActive ? await walletService.getLastActiveAddress() : undefined;
+        const newActiveAddress =
+          lastActiveAddress && wallet.addresses.some((addr) => addr.address === lastActiveAddress)
+            ? wallet.addresses.find((addr) => addr.address === lastActiveAddress) ?? wallet.addresses[0]
+            : wallet.addresses[0];
+        setWalletState((prev) => ({
+          ...prev,
+          activeWallet: wallet,
+          activeAddress: newActiveAddress ?? null,
+        }));
+        if (newActiveAddress) await walletService.setLastActiveAddress(newActiveAddress.address);
+      } else {
+        await walletService.setActiveWallet('');
+        setWalletState((prev) => ({ ...prev, activeWallet: null, activeAddress: null }));
+      }
+    }, [walletService]);
+  
+    const setActiveAddress = useCallback(async (address: Address | null) => {
+      setWalletState((prev) => ({ ...prev, activeAddress: address }));
+      if (address) await walletService.setLastActiveAddress(address.address);
+    }, [walletService]);
+  
+    const value: WalletContextType = {
+      authState: walletState.authState,
+      wallets: walletState.wallets,
+      activeWallet: walletState.activeWallet,
+      activeAddress: walletState.activeAddress,
+      walletLocked: walletState.walletLocked,
+      loaded: walletState.loaded,
+      unlockWallet: withRefresh(walletService.unlockWallet, async () => {
+        await refreshWalletState();
+        setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
+      }),
+      lockAll: withRefresh(walletService.lockAllWallets, async () => {
+        await refreshWalletState();
+        setWalletState((prev) => ({ ...prev, authState: AuthState.Locked }));
+      }),
+      setActiveWallet,
+      setActiveAddress,
+      addAddress: withRefresh(walletService.addAddress, refreshWalletState),
+      updatePassword: withRefresh(walletService.updatePassword, refreshWalletState),
+      createAndUnlockMnemonicWallet: withRefresh(walletService.createAndUnlockMnemonicWallet, async () => {
+        await refreshWalletState();
+        setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
+      }),
+      createAndUnlockPrivateKeyWallet: withRefresh(walletService.createAndUnlockPrivateKeyWallet, async () => {
+        await refreshWalletState();
+        setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
+      }),
+      resetAllWallets: async (password) => {
+        await walletService.resetAllWallets(password);
+        setWalletState({
+          authState: AuthState.Onboarding,
+          wallets: [],
+          activeWallet: null,
+          activeAddress: null,
+          walletLocked: true,
+          loaded: true,
+        });
+      },
+      getUnencryptedMnemonic: walletService.getUnencryptedMnemonic,
+      getPrivateKey: walletService.getPrivateKey,
+      verifyPassword: walletService.verifyPassword,
+      updateWalletAddressType: withRefresh(walletService.updateWalletAddressType, refreshWalletState),
+      getPreviewAddressForType: walletService.getPreviewAddressForType,
+      removeWallet: withRefresh(walletService.removeWallet, refreshWalletState),
+      signTransaction: walletService.signTransaction,
+      broadcastTransaction: walletService.broadcastTransaction,
+      updatePinnedAssets: withRefresh(
+        async (pinnedAssets: string[]) => {
+          if (!walletState.activeWallet) throw new Error('No active wallet');
+          return walletService.updateWalletPinnedAssets(walletState.activeWallet.id, pinnedAssets);
+        },
+        refreshWalletState
+      ),
+    };
+  
+    return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
+  }
+  
+  export function useWallet(): WalletContextType {
+    const context = useContext(WalletContext);
+    if (!context) throw new Error('useWallet must be used within a WalletProvider');
+    return context;
+  }
+
+/src/pages/auth/unlock-wallet.tsx
   [contents of the file]
   "use client";
   
-  import { useEffect, useState } from "react";
+  import { useEffect, useRef } from "react";
   import { useFormStatus } from "react-dom";
-  import { Field, Label, Description, Input } from "@headlessui/react";
+  import { useNavigate } from "react-router-dom";
+  import { FiHelpCircle } from "react-icons/fi";
   import { Button } from "@/components/button";
-  import { BalanceHeader } from "@/components/headers/balance-header";
-  import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-  import { MultiAssetInput } from "@/components/inputs/multi-asset-input";
+  import { PasswordInput } from "@/components/inputs/password-input";
+  import { useHeader } from "@/contexts/header-context";
   import { useWallet } from "@/contexts/wallet-context";
-  import { fetchAssetDetailsAndBalance } from "@/utils/blockchain/counterparty";
-  import type { ReactElement } from "react";
   
-  /**
-   * Props for the SendMpmaForm component, aligned with Composer's formAction.
-   */
-  interface SendMpmaFormProps {
-    formAction: (formData: FormData) => void;
-    shouldShowHelpText?: boolean;
-  }
-  
-  /**
-   * Form for sending multiple assets (MPMA) using React 19 Actions.
-   */
-  export function SendMpmaForm({
-    formAction,
-    shouldShowHelpText = true,
-  }: SendMpmaFormProps): ReactElement {
-    const { activeAddress, activeWallet } = useWallet();
+  const UnlockWallet = () => {
+    const navigate = useNavigate();
+    const { unlockWallet, wallets } = useWallet();
+    const { setHeaderProps } = useHeader();
     const { pending } = useFormStatus();
-    const [balances, setBalances] = useState<{ [key: string]: { balance: string; assetInfo: any } }>({});
   
-    const initialAssets = [{ asset: "BTC", quantity: "" }];
+    const [error, setError] = useState<string | undefined>();
+    const passwordInputRef = useRef<HTMLInputElement>(null);
   
-    // Fetch balances when assets change
+    const PATHS = {
+      SUCCESS: "/index",
+      HELP_URL: "https://youtube.com", // Replace with actual help URL
+    } as const;
+    const MIN_PASSWORD_LENGTH = 8;
+  
     useEffect(() => {
-      const fetchBalances = async () => {
-        if (!activeAddress?.address) return;
-        const newBalances: { [key: string]: { balance: string; assetInfo: any } } = {};
-        for (const { asset } of initialAssets) {
-          if (asset && !balances[asset]) {
-            try {
-              const { availableBalance, assetInfo } = await fetchAssetDetailsAndBalance(
-                asset,
-                activeAddress.address
-              );
-              newBalances[asset] = { balance: availableBalance, assetInfo };
-            } catch (err) {
-              console.error(`Failed to fetch balance for ${asset}:`, err);
-            }
-          }
-        }
-        setBalances((prev) => ({ ...prev, ...newBalances }));
-      };
-      fetchBalances();
-    }, [activeAddress?.address]);
+      setHeaderProps({
+        useLogoTitle: true,
+        rightButton: {
+          icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+          onClick: () => window.open(PATHS.HELP_URL, "_blank"),
+          ariaLabel: "Help",
+        },
+      });
+    }, [setHeaderProps]);
   
-    const aggregatedBalance = initialAssets.reduce((acc, { asset }) => {
-      const balance = balances[asset]?.balance || "0";
-      acc[asset] = Number(balance);
-      return acc;
-    }, {} as Record<string, number>);
+    useEffect(() => {
+      passwordInputRef.current?.focus();
+    }, []);
+  
+    async function handleFormAction(formData: FormData) {
+      setError(undefined);
+  
+      const password = formData.get("password") as string;
+      if (!password) {
+        setError("Password cannot be empty.");
+        return;
+      }
+      if (password.length < MIN_PASSWORD_LENGTH) {
+        setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+        return;
+      }
+  
+      try {
+        if (!wallets.length) {
+          throw new Error("No wallets found.");
+        }
+        const walletId = wallets[0].id;
+        await unlockWallet(walletId, password);
+        navigate(PATHS.SUCCESS);
+      } catch (err) {
+        console.error("Error unlocking wallet:", err);
+        setError("Invalid password. Please try again.");
+      }
+    }
   
     return (
-      <div className="space-y-4">
-        {activeAddress && (
-          <BalanceHeader
-            balance={{
-              asset: "Multiple Assets",
-              quantity_normalized: Object.entries(aggregatedBalance)
-                .map(([asset, qty]) => `${qty} ${asset}`)
-                .join(", "),
-              asset_info: Object.values(balances).map((b) => b.assetInfo)[0], // Use first asset info
-            }}
-            className="mb-4"
-          />
-        )}
-        <div className="bg-white rounded-lg shadow-lg p-4">
-          <form action={formAction} className="space-y-6">
-            <Field>
-              <Label className="text-sm font-medium text-gray-700">
-                Destination <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                type="text"
-                name="destination"
-                defaultValue=""
-                required
-                placeholder="Enter destination address"
-                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+      <div className="flex flex-col h-full" role="main" aria-labelledby="unlock-wallet-title">
+        <div className="flex-grow flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-lg shadow-md p-6">
+            <h1 id="unlock-wallet-title" className="text-3xl mb-5 flex justify-between items-center">
+              <span className="font-bold">XCP Wallet</span>
+              <span>v0.0.1</span>
+            </h1>
+            <form action={handleFormAction} className="space-y-4">
+              <PasswordInput
+                name="password"
+                placeholder="Enter your password"
                 disabled={pending}
+                innerRef={passwordInputRef}
               />
-              <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                Enter the address to send the assets to.
-              </Description>
-            </Field>
-            <MultiAssetInput
-              assets={initialAssets}
-              onAssetsChange={() => {}} // No-op since formAction handles submission
-              name="assets"
-              balances={balances}
-              shouldShowHelpText={shouldShowHelpText}
-              feeRateSatPerVByte={1} // Default value; updated via FeeRateInput
-              sourceAddress={activeAddress}
-              setError={() => {}} // No-op since Composer handles errors
-              disabled={pending}
-            />
-            <Field>
-              <Label className="text-sm font-medium text-gray-700">Memo</Label>
-              <Input
-                type="text"
-                name="memo"
-                defaultValue=""
-                placeholder="Optional memo"
-                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-                disabled={pending}
-              />
-              <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                Optional memo to include with the transaction.
-              </Description>
-            </Field>
+              {error && (
+                <p className="text-red-500 text-sm" role="alert">
+                  {error}
+                </p>
+              )}
+              <Button type="submit" fullWidth disabled={pending} aria-label="Unlock Wallet">
+                {pending ? "Unlocking..." : "Unlock"}
+              </Button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  };
   
-            <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-            
-            <Button type="submit" color="blue" fullWidth disabled={pending}>
-              {pending ? "Submitting..." : "Continue"}
-            </Button>
+  export default UnlockWallet;
+
+/src/pages/wallet/add-wallet.tsx
+  [contents of the file]
+  import { useEffect, useState } from 'react';
+  import { useNavigate } from 'react-router-dom';
+  import { FiDownload, FiKey, FiX } from 'react-icons/fi';
+  import { IoCreateOutline } from 'react-icons/io5';
+  import { Button } from '@/components/button';
+  import { useHeader } from '@/contexts/header-context';
+  import { ErrorAlert } from '@/components/error-alert';
+  
+  /**
+   * AddWallet component provides options for creating or importing a wallet.
+   *
+   * Features:
+   * - Offers buttons to create a new wallet, import a mnemonic, or import a private key
+   * - Includes navigation to return to wallet selection or close to index
+   */
+  function AddWallet() {
+    const navigate = useNavigate();
+    const { setHeaderProps } = useHeader();
+    const [error, setError] = useState<string | null>(null);
+  
+    // Navigation paths for wallet actions
+    const PATHS = {
+      BACK: '/select-wallet',
+      CLOSE: '/index',
+      CREATE_WALLET: '/create-wallet',
+      IMPORT_WALLET: '/import-wallet',
+      IMPORT_PRIVATE_KEY: '/import-private-key',
+    } as const;
+  
+    // Configure header with logo and close button
+    useEffect(() => {
+      setHeaderProps({
+        useLogoTitle: true,
+        onBack: () => navigate(PATHS.BACK),
+        rightButton: {
+          icon: <FiX className="w-4 h-4" aria-hidden="true" />,
+          onClick: () => navigate(PATHS.CLOSE),
+          ariaLabel: 'Close',
+        },
+      });
+    }, [setHeaderProps, navigate]);
+  
+    const handleCreateWallet = () => {
+      navigate(PATHS.CREATE_WALLET);
+    };
+  
+    const handleImportWallet = () => {
+      navigate(PATHS.IMPORT_WALLET);
+    };
+  
+    const handleImportPrivateKey = () => {
+      navigate(PATHS.IMPORT_PRIVATE_KEY);
+    };
+  
+    const handleAddWallet = () => {
+      if (wallets.length >= MAX_WALLETS) {
+        setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+        return;
+      }
+      // ... rest of the function
+    };
+  
+    return (
+      <div className="flex flex-col h-full" role="main" aria-labelledby="add-wallet-title">
+        <div className="flex-grow flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-lg shadow-md p-6 text-center">
+            <h2 id="add-wallet-title" className="text-2xl font-bold mb-6">
+              Add Wallet
+            </h2>
+            {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
+            <div className="space-y-4">
+              <Button
+                color="green"
+                fullWidth
+                onClick={handleCreateWallet}
+                aria-label="Create New Wallet"
+              >
+                <IoCreateOutline className="w-4 h-4 mr-2" aria-hidden="true" />
+                Create New Wallet
+              </Button>
+              <Button
+                color="blue"
+                fullWidth
+                onClick={handleImportWallet}
+                aria-label="Import Wallet"
+              >
+                <FiDownload className="w-4 h-4 mr-2" aria-hidden="true" />
+                Import Mnemonic
+              </Button>
+              <Button
+                color="gray"
+                fullWidth
+                onClick={handleImportPrivateKey}
+                aria-label="Import Private Key"
+              >
+                <FiKey className="w-4 h-4 mr-2" aria-hidden="true" />
+                Import Private Key
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  export default AddWallet;
+
+/src/pages/wallet/create-wallet.tsx
+  [contents of the file]
+  "use client";
+  
+  import { useEffect, useState, useActionState } from "react";
+  import { useNavigate } from "react-router-dom";
+  import { FaSync, FaEyeSlash } from "react-icons/fa";
+  import { Button } from "@/components/button";
+  import { ErrorAlert } from "@/components/error-alert";
+  import { CheckboxInput } from "@/components/inputs/checkbox-input";
+  import { PasswordInput } from "@/components/inputs/password-input";
+  import { useHeader } from "@/contexts/header-context";
+  import { useWallet } from "@/contexts/wallet-context";
+  import { generateNewMnemonic } from "@/utils/blockchain/bitcoin";
+  
+  function CreateWallet() {
+    const navigate = useNavigate();
+    const { setHeaderProps } = useHeader();
+    const { wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
+    const walletExists = wallets.length > 0;
+  
+    const initialMnemonic = generateNewMnemonic();
+    const [mnemonic, setMnemonic] = useState(initialMnemonic);
+    const [mnemonicWords, setMnemonicWords] = useState(initialMnemonic.split(" "));
+    const [isRecoveryPhraseVisible, setIsRecoveryPhraseVisible] = useState(false);
+    const [isConfirmed, setIsConfirmed] = useState(false);
+    const [password, setPassword] = useState("");
+  
+    const PATHS = {
+      BACK: walletExists ? "/add-wallet" : "/onboarding",
+      SUCCESS: "/index",
+    } as const;
+    const MIN_PASSWORD_LENGTH = 8;
+  
+    const [state, formAction, isPending] = useActionState(
+      async (_prevState: { error: string | null }, formData: FormData) => {
+        if (!isRecoveryPhraseVisible) {
+          return { error: "Please view and save your recovery phrase first." };
+        }
+  
+        const password = formData.get("password") as string;
+        if (!password) {
+          return { error: "Password is required." };
+        }
+  
+        if (walletExists) {
+          const isValid = await verifyPassword(password);
+          if (!isValid) {
+            return { error: "Password does not match." };
+          }
+        } else if (password.length < MIN_PASSWORD_LENGTH) {
+          return {
+            error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`,
+          };
+        }
+  
+        try {
+          await createAndUnlockMnemonicWallet(mnemonic, password);
+          navigate(PATHS.SUCCESS);
+          return { error: null };
+        } catch (err) {
+          console.error("Error creating wallet:", err);
+          return { error: "Failed to create wallet. Please try again." };
+        }
+      },
+      { error: null }
+    );
+  
+    useEffect(() => {
+      setHeaderProps({
+        title: "Create Wallet",
+        onBack: () => navigate(PATHS.BACK),
+        rightButton: {
+          icon: <FaSync aria-hidden="true" />,
+          onClick: generateWallet,
+          ariaLabel: "Generate new recovery phrase",
+          disabled: isPending,
+        },
+      });
+    }, [navigate, setHeaderProps, walletExists, isPending]);
+  
+    function generateWallet() {
+      const newMnemonic = generateNewMnemonic();
+      setMnemonic(newMnemonic);
+      setMnemonicWords(newMnemonic.split(" "));
+      setIsConfirmed(false);
+      setPassword("");
+    }
+  
+    const handleRecoveryPhraseClick = () => {
+      setIsRecoveryPhraseVisible(true);
+    };
+  
+    const handleCheckboxChange = (checked: boolean) => {
+      setIsConfirmed(checked);
+    };
+  
+    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setPassword(e.target.value);
+    };
+  
+    const isPasswordValid = password.length >= MIN_PASSWORD_LENGTH;
+  
+    return (
+      <div
+        className="flex-grow overflow-y-auto p-4"
+        role="main"
+        aria-labelledby="create-wallet-title"
+      >
+        <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+          {state.error && <ErrorAlert message={state.error} />}
+          <h2 id="create-wallet-title" className="text-2xl font-bold mb-2">
+            Your Recovery Phrase
+          </h2>
+          <p className="mb-5" id="recovery-instructions">
+            Please write down this 12-word secret phrase.
+          </p>
+          <form
+            action={formAction}
+            className="space-y-4"
+            aria-describedby="recovery-instructions"
+          >
+            <div className="bg-gray-100 p-2 rounded-md mb-4 relative">
+              <div
+                className={
+                  !isRecoveryPhraseVisible
+                    ? "bg-gray-100 opacity-50 filter blur-sm transition-filter"
+                    : ""
+                }
+              >
+                <ol className="list-none p-0 m-0 grid grid-flow-col grid-cols-2 grid-rows-6 gap-2">
+                  {mnemonicWords.map((word, i) => (
+                    <li
+                      key={i}
+                      className="bg-white rounded p-1 flex items-center relative select-none"
+                    >
+                      <span className="absolute left-2 w-4 text-right mr-2 text-gray-500">
+                        {i + 1}.
+                      </span>
+                      <span className="font-mono ml-8">{word}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+              {!isRecoveryPhraseVisible && (
+                <div
+                  className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 cursor-pointer"
+                  onClick={handleRecoveryPhraseClick}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Reveal recovery phrase"
+                >
+                  <FaEyeSlash className="mb-2 text-2xl" aria-hidden="true" />
+                  <p className="mb-2 font-bold">View 12-word Secret Phrase</p>
+                  <p>Make sure no one is looking!</p>
+                </div>
+              )}
+            </div>
+            <CheckboxInput
+              name="confirmed"
+              label="I have saved my secret recovery phrase."
+              disabled={!isRecoveryPhraseVisible || isPending}
+              defaultChecked={isConfirmed}
+              onChange={handleCheckboxChange}
+            />
+            {isConfirmed && (
+              <>
+                <PasswordInput
+                  name="password"
+                  placeholder={
+                    walletExists ? "Confirm your password" : "Create a password"
+                  }
+                  disabled={isPending}
+                  onChange={handlePasswordChange}
+                />
+                <Button
+                  type="submit"
+                  fullWidth
+                  disabled={isPending || !isPasswordValid}
+                >
+                  {isPending ? "Submitting..." : "Continue"}
+                </Button>
+              </>
+            )}
           </form>
         </div>
       </div>
     );
   }
-
-/src/pages/compose/send/mpma/page.tsx
-  [contents of the file]
-  import React, { Suspense } from "react";
-  import { useParams } from "react-router-dom";
-  import { MPMAForm } from "./form";
-  import { ReviewSendMpma } from "./review";
-  import { Composer } from "@/components/composer";
-  import { composeMPMA } from "@/utils/blockchain/counterparty";
-  import type { MPMAOptions } from "@/utils/blockchain/counterparty";
   
-  export function ComposeMPMA() {
-    const { asset } = useParams<{ asset: string }>();
+  export default CreateWallet;
+
+/src/pages/wallet/import-private-key.tsx
+  [contents of the file]
+  "use client";
+  
+  import { useEffect, useRef } from "react";
+  import { useFormStatus } from "react-dom";
+  import { useNavigate } from "react-router-dom";
+  import { FiChevronDown } from "react-icons/fi";
+  import { Button } from "@/components/button";
+  import { ErrorAlert } from "@/components/error-alert";
+  import { CheckboxInput } from "@/components/inputs/checkbox-input";
+  import { PasswordInput } from "@/components/inputs/password-input";
+  import { useHeader } from "@/contexts/header-context";
+  import { useWallet } from "@/contexts/wallet-context";
+  import { AddressType } from "@/utils/blockchain/bitcoin";
+  
+  const ImportPrivateKey = () => {
+    const navigate = useNavigate();
+    const { setHeaderProps } = useHeader();
+    const { wallets, createAndUnlockPrivateKeyWallet, verifyPassword } = useWallet();
+    const { pending } = useFormStatus();
+  
+    const [addressType, setAddressType] = useState<AddressType>(AddressType.P2PKH);
+    const [submissionError, setSubmissionError] = useState("");
+    const privateKeyInputRef = useRef<HTMLInputElement>(null);
+    const walletExists = wallets.length > 0;
+  
+    const PATHS = {
+      BACK: walletExists ? "/add-wallet" : "/onboarding",
+      SUCCESS: "/index",
+    } as const;
+    const MIN_PASSWORD_LENGTH = 8;
+    const ADDRESS_TYPES = [
+      { value: AddressType.P2PKH, label: "Legacy" },
+      { value: AddressType.P2SH_P2WPKH, label: "Nested SegWit" },
+      { value: AddressType.P2WPKH, label: "Native SegWit" },
+    ] as const;
+  
+    const isValidPrivateKey = (key: string): boolean =>
+      /^[0-9a-fA-F]{64}$|^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(key.trim());
+    const isWIFUncompressed = (key: string): boolean =>
+      key.startsWith("5") && /^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(key);
+    const isWIFCompressed = (key: string): boolean =>
+      (key.startsWith("K") || key.startsWith("L")) && /^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(key);
+    const isHexPrivateKey = (key: string): boolean => /^[0-9a-fA-F]{64}$/.test(key);
+    const determineAddressType = (key: string): AddressType =>
+      isWIFUncompressed(key)
+        ? AddressType.P2PKH
+        : isWIFCompressed(key)
+        ? AddressType.P2SH_P2WPKH
+        : isHexPrivateKey(key)
+        ? AddressType.P2PKH
+        : AddressType.P2PKH;
+  
+    useEffect(() => {
+      setHeaderProps({
+        title: "Import Key",
+        onBack: () => navigate(PATHS.BACK),
+      });
+    }, [setHeaderProps, navigate, walletExists]);
+  
+    useEffect(() => {
+      privateKeyInputRef.current?.focus();
+    }, []);
+  
+    async function handleFormAction(formData: FormData) {
+      setSubmissionError("");
+  
+      const privateKey = formData.get("private-key") as string;
+      const isConfirmed = formData.get("confirmed") === "on";
+      const password = formData.get("password") as string;
+  
+      if (!privateKey) {
+        setSubmissionError("Private key is required.");
+        return;
+      }
+      if (!isValidPrivateKey(privateKey)) {
+        setSubmissionError("Invalid private key format. Please enter a valid WIF or hexadecimal key.");
+        return;
+      }
+      if (!isConfirmed) {
+        setSubmissionError("Please confirm you have backed up your private key.");
+        return;
+      }
+      if (!password) {
+        setSubmissionError("Password is required.");
+        return;
+      }
+      if (walletExists) {
+        const isValid = await verifyPassword(password);
+        if (!isValid) {
+          setSubmissionError("Invalid password.");
+          return;
+        }
+      } else if (password.length < MIN_PASSWORD_LENGTH) {
+        setSubmissionError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
+        return;
+      }
+  
+      try {
+        const suggestedType = determineAddressType(privateKey);
+        setAddressType(suggestedType); // Update UI, though submission uses formData
+        await createAndUnlockPrivateKeyWallet(privateKey.trim(), password, undefined, addressType);
+        navigate(PATHS.SUCCESS);
+      } catch (error) {
+        let errorMessage = "Failed to import private key. ";
+        if (error instanceof Error) {
+          errorMessage +=
+            error.message.includes("Invalid private key")
+              ? "The private key format is invalid."
+              : error.message.includes("already exists")
+              ? "This private key has already been imported."
+              : error.message;
+        } else {
+          errorMessage += "Please check your input and try again.";
+        }
+        setSubmissionError(errorMessage);
+      }
+    }
+  
+    const handleAddressTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setAddressType(e.target.value as AddressType);
+    };
+  
     return (
-      <div className="p-4">
-        <Suspense fallback={<div>Loading asset details...</div>}>
-          <Composer<MPMAOptions>
-            initialTitle="Send"
-            FormComponent={(props) => <MPMAForm {...props} initialAsset={asset} />}
-            ReviewComponent={ReviewSendMpma}
-            composeTransaction={composeMPMA}
+      <div className="flex-grow overflow-y-auto p-4" role="main" aria-labelledby="import-private-key-title">
+        <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+          <h2 id="import-private-key-title" className="text-2xl font-bold mb-2">Import Private Key</h2>
+          <p className="mb-5" id="import-instructions">Enter your private key to use its address.</p>
+          {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
+          <form action={handleFormAction} className="space-y-4" aria-describedby="import-instructions">
+            <PasswordInput
+              name="private-key"
+              placeholder="Enter private key"
+              disabled={pending}
+              innerRef={privateKeyInputRef}
+            />
+            <div className="flex items-center gap-2 mb-4">
+              <CheckboxInput
+                name="confirmed"
+                label="I have backed up this private key"
+                defaultChecked={false}
+                disabled={pending}
+              />
+            </div>
+            <div className="mb-4">
+              <label htmlFor="address-type" className="block mb-2 text-sm font-medium">
+                Address Type
+              </label>
+              <div className="relative">
+                <select
+                  id="address-type"
+                  value={addressType}
+                  onChange={handleAddressTypeChange}
+                  className="w-full p-2 pr-8 rounded-md border bg-white appearance-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={pending}
+                >
+                  {ADDRESS_TYPES.map(({ value, label }) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+                <FiChevronDown
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
+                  aria-hidden="true"
+                />
+              </div>
+            </div>
+            <PasswordInput
+              name="password"
+              placeholder={walletExists ? "Confirm password" : "Create password"}
+              disabled={pending}
+            />
+            <Button type="submit" disabled={pending} fullWidth>
+              {pending ? "Importing..." : "Continue"}
+            </Button>
+          </form>
+        </div>
+      </div>
+    );
+  };
+  
+  export default ImportPrivateKey;
+
+/src/pages/wallet/import-wallet.tsx
+  [contents of the file]
+  "use client";
+  
+  import { useEffect, useRef, useState, useActionState } from "react";
+  import { useNavigate } from "react-router-dom";
+  import { FaEye, FaEyeSlash } from "react-icons/fa";
+  import { Input as HeadlessInput } from "@headlessui/react";
+  import { validateMnemonic } from "@scure/bip39";
+  import { wordlist } from "@scure/bip39/wordlists/english";
+  import { Button } from "@/components/button";
+  import { ErrorAlert } from "@/components/error-alert";
+  import { CheckboxInput } from "@/components/inputs/checkbox-input";
+  import { PasswordInput } from "@/components/inputs/password-input";
+  import { useHeader } from "@/contexts/header-context";
+  import { useWallet } from "@/contexts/wallet-context";
+  import { AddressType } from "@/utils/blockchain/bitcoin";
+  import { isValidCounterwalletMnemonic } from "@/utils/blockchain/counterwallet";
+  
+  function ImportWallet() {
+    const navigate = useNavigate();
+    const { setHeaderProps } = useHeader();
+    const { unlockWallet, wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
+    const walletExists = wallets.length > 0;
+  
+    const [showMnemonic, setShowMnemonic] = useState(false);
+    const [mnemonicWords, setMnemonicWords] = useState(Array(12).fill(""));
+    const [isConfirmed, setIsConfirmed] = useState(false);
+    const [password, setPassword] = useState("");
+    const inputRefs = useRef<(HTMLInputElement | null)[]>(Array(12).fill(null));
+  
+    const PATHS = {
+      BACK: walletExists ? "/add-wallet" : "/onboarding",
+      SUCCESS: "/index",
+    } as const;
+    const MIN_PASSWORD_LENGTH = 8;
+  
+    const [state, formAction, isPending] = useActionState(
+      async (_, formData: FormData) => {
+        const mnemonicWords = Array.from({ length: 12 }, (_, i) => formData.get(`word-${i}`) as string);
+        const mnemonic = mnemonicWords.join(" ").trim();
+        const password = formData.get("password") as string;
+  
+        let validMnemonic = validateMnemonic(mnemonic, wordlist);
+        if (!validMnemonic && isValidCounterwalletMnemonic(mnemonic)) validMnemonic = true;
+        if (!validMnemonic) {
+          return { error: "Invalid recovery phrase. Please check each word carefully." };
+        }
+        if (!isConfirmed) {
+          return { error: "Please confirm you have backed up your recovery phrase." };
+        }
+        if (!password) {
+          return { error: "Password is required." };
+        }
+        if (walletExists) {
+          const isValid = await verifyPassword(password);
+          if (!isValid) {
+            return { error: "Password does not match." };
+          }
+        } else if (password.length < MIN_PASSWORD_LENGTH) {
+          return { error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.` };
+        }
+  
+        try {
+          const addressType = isValidCounterwalletMnemonic(mnemonic)
+            ? AddressType.Counterwallet
+            : AddressType.P2WPKH;
+          const newWallet = await createAndUnlockMnemonicWallet(mnemonic, password, undefined, addressType);
+          await unlockWallet(newWallet.id, password);
+          navigate(PATHS.SUCCESS);
+          return { error: null };
+        } catch (error: unknown) {
+          console.error("Detailed error importing wallet:", error);
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
+          return { error: `Failed to import wallet: ${errorMessage}` };
+        }
+      },
+      { error: null }
+    );
+  
+    useEffect(() => {
+      setHeaderProps({
+        title: "Import Wallet",
+        onBack: () => navigate(PATHS.BACK),
+        rightButton: {
+          icon: showMnemonic ? <FaEyeSlash aria-hidden="true" /> : <FaEye aria-hidden="true" />,
+          onClick: () => setShowMnemonic((prev) => !prev),
+          ariaLabel: showMnemonic ? "Hide recovery phrase" : "Show recovery phrase",
+        },
+      });
+    }, [navigate, setHeaderProps, showMnemonic, walletExists]);
+  
+    useEffect(() => {
+      inputRefs.current[0]?.focus();
+    }, []);
+  
+    const handleWordChange = (index: number, value: string, e: React.ChangeEvent<HTMLInputElement>) => {
+      const words = value.trim().split(/\s+/);
+      const newMnemonicWords = [...mnemonicWords];
+      if (words.length > 1) {
+        for (let i = 0; i < words.length && index + i < 12; i++) {
+          newMnemonicWords[index + i] = words[i];
+          const input = inputRefs.current[index + i];
+          if (input) input.value = words[i];
+        }
+        const nextIndex = Math.min(index + words.length, 11);
+        inputRefs.current[nextIndex]?.focus();
+      } else {
+        newMnemonicWords[index] = value.trim();
+        inputRefs.current[index]!.value = value.trim();
+      }
+      setMnemonicWords(newMnemonicWords);
+    };
+  
+    const handleWordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        if (index < 11) inputRefs.current[index + 1]?.focus();
+      } else if (e.key === "Backspace" && !e.currentTarget.value && index > 0) {
+        e.preventDefault();
+        inputRefs.current[index - 1]?.focus();
+      }
+    };
+  
+    const handleCheckboxChange = (checked: boolean) => {
+      setIsConfirmed(checked);
+    };
+  
+    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setPassword(e.target.value);
+    };
+  
+    const allWordsPopulated = () => mnemonicWords.every((word) => word.trim().length > 0);
+    const isPasswordValid = password.length >= MIN_PASSWORD_LENGTH;
+  
+    return (
+      <div className="flex-grow overflow-y-auto p-4" role="main" aria-labelledby="import-wallet-title">
+        <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+          {state.error && <ErrorAlert message={state.error} />}
+          <h2 id="import-wallet-title" className="text-2xl font-bold mb-2">Import Your Mnemonic</h2>
+          <p className="mb-5" id="import-instructions">Please enter your 12-word recovery phrase below.</p>
+          <form action={formAction} className="space-y-4" aria-describedby="import-instructions">
+            <div className="bg-gray-100 p-2 rounded-md mb-4" role="region" aria-label="Recovery phrase input">
+              <ol className="list-none p-0 m-0 grid grid-flow-col grid-cols-2 grid-rows-6 gap-2" aria-label="Recovery phrase words">
+                {Array(12).fill(null).map((_, index) => (
+                  <li key={index} className="bg-white rounded p-1 flex items-center relative" aria-label={`Word ${index + 1}`}>
+                    <span className="absolute left-2 w-6 text-right mr-2 text-gray-500" aria-hidden="true">
+                      {index + 1}.
+                    </span>
+                    <HeadlessInput
+                      name={`word-${index}`}
+                      ref={(el: HTMLInputElement | null) => { inputRefs.current[index] = el; }}
+                      type={showMnemonic ? "text" : "password"}
+                      onChange={(e) => handleWordChange(index, e.target.value, e)}
+                      onKeyDown={(e) => handleWordKeyDown(e, index)}
+                      className="font-mono ml-8 w-full bg-transparent outline-none"
+                      placeholder="Enter word"
+                      aria-label={`Word ${index + 1}`}
+                      disabled={isPending}
+                    />
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <CheckboxInput
+              name="confirmed"
+              label="I have saved my secret recovery phrase"
+              disabled={!allWordsPopulated() || isPending}
+              defaultChecked={isConfirmed}
+              onChange={handleCheckboxChange}
+            />
+            {isConfirmed && (
+              <>
+                <PasswordInput
+                  name="password"
+                  placeholder={walletExists ? "Confirm your password" : "Create a password"}
+                  disabled={isPending}
+                  onChange={handlePasswordChange}
+                />
+                <Button
+                  type="submit"
+                  disabled={isPending || !isPasswordValid}
+                  fullWidth
+                >
+                  {isPending ? "Submitting..." : "Continue"}
+                </Button>
+              </>
+            )}
+          </form>
+        </div>
+      </div>
+    );
+  }
+  
+  export default ImportWallet;
+
+/src/pages/wallet/remove-wallet.tsx
+  [contents of the file]
+  "use client";
+  
+  import { useEffect, useRef } from "react";
+  import { useFormStatus } from "react-dom";
+  import { useParams, useNavigate } from "react-router-dom";
+  import { FaExclamationTriangle } from "react-icons/fa";
+  import { Button } from "@/components/button";
+  import { ErrorAlert } from "@/components/error-alert";
+  import { PasswordInput } from "@/components/inputs/password-input";
+  import { useHeader } from "@/contexts/header-context";
+  import { useWallet } from "@/contexts/wallet-context";
+  
+  function RemoveWallet() {
+    const { walletId } = useParams<{ walletId: string }>();
+    const navigate = useNavigate();
+    const { setHeaderProps } = useHeader();
+    const { wallets, setActiveWallet, activeWallet, removeWallet, verifyPassword } = useWallet();
+    const { pending } = useFormStatus();
+  
+    const [walletName, setWalletName] = useState("");
+    const [walletType, setWalletType] = useState<"mnemonic" | "privateKey">("mnemonic");
+    const [submissionError, setSubmissionError] = useState("");
+    const passwordInputRef = useRef<HTMLInputElement>(null);
+  
+    const PATHS = {
+      BACK: -1,
+      SUCCESS: "/select-wallet",
+    } as const;
+    const MIN_PASSWORD_LENGTH = 8;
+  
+    useEffect(() => {
+      const wallet = wallets.find((w) => w.id === walletId);
+      if (!walletId || !wallet) {
+        setSubmissionError(walletId ? "Wallet not found." : "Invalid wallet identifier.");
+        return;
+      }
+      setWalletName(wallet.name);
+      setWalletType(wallet.type);
+      setHeaderProps({
+        title: "Remove Wallet",
+        onBack: () => navigate(PATHS.BACK),
+      });
+    }, [walletId, wallets, setHeaderProps, navigate]);
+  
+    useEffect(() => {
+      passwordInputRef.current?.focus();
+    }, []);
+  
+    async function handleFormAction(formData: FormData) {
+      setSubmissionError("");
+  
+      const password = formData.get("password") as string;
+      if (!walletId) {
+        setSubmissionError("Invalid wallet identifier.");
+        return;
+      }
+      if (!password) {
+        setSubmissionError("Password cannot be empty.");
+        return;
+      }
+      if (password.length < MIN_PASSWORD_LENGTH) {
+        setSubmissionError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+        return;
+      }
+      try {
+        const isValid = await verifyPassword(password);
+        if (!isValid) {
+          setSubmissionError("Password does not match.");
+          return;
+        }
+      } catch {
+        setSubmissionError("Password verification failed.");
+        return;
+      }
+  
+      try {
+        const remainingWallets = wallets.filter((w) => w.id !== walletId);
+        if (activeWallet?.id === walletId) {
+          await setActiveWallet(remainingWallets.length > 0 ? remainingWallets[0] : null);
+        }
+        await removeWallet(walletId);
+        navigate(PATHS.SUCCESS, { replace: true });
+      } catch (err) {
+        console.error("Error removing wallet:", err);
+        setSubmissionError("Failed to remove wallet. Please try again.");
+      }
+    }
+  
+    return (
+      <div className="flex flex-col h-full p-4" role="main" aria-labelledby="remove-wallet-title">
+        <h2 id="remove-wallet-title" className="sr-only text-2xl font-bold mb-2">Remove Wallet</h2>
+        {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
+        <form action={handleFormAction} className="flex flex-col items-center justify-center flex-grow" aria-describedby="remove-wallet-warning">
+          <div className="max-w-md w-full bg-red-50 border-2 border-red-500 rounded-xl p-6 mb-6" id="remove-wallet-warning">
+            <div className="flex items-center mb-4">
+              <FaExclamationTriangle className="w-6 h-6 text-red-500 mr-2" aria-hidden="true" />
+              <h3 className="text-xl font-bold text-red-700">Warning</h3>
+            </div>
+            <p className="text-red-700 font-medium leading-relaxed">
+              Make sure you have backed up your wallet's {walletType === "mnemonic" ? "mnemonic" : "private key"} before removing it.
+            </p>
+          </div>
+          <div className="w-full max-w-md space-y-4">
+            <PasswordInput
+              name="password"
+              placeholder="Confirm your password"
+              disabled={pending}
+              innerRef={passwordInputRef}
+            />
+            <Button type="submit" disabled={pending} fullWidth color="red" aria-label={`Remove ${walletName || "wallet"}`}>
+              {pending ? "Removing..." : `Remove ${walletName || "Wallet"}`}
+            </Button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+  
+  export default RemoveWallet;
+
+/src/pages/wallet/reset-wallet.tsx
+  [contents of the file]
+  "use client";
+  
+  import { useEffect, useRef } from "react";
+  import { useFormStatus } from "react-dom";
+  import { useNavigate } from "react-router-dom";
+  import { FaExclamationTriangle } from "react-icons/fa";
+  import { Button } from "@/components/button";
+  import { ErrorAlert } from "@/components/error-alert";
+  import { PasswordInput } from "@/components/inputs/password-input";
+  import { useHeader } from "@/contexts/header-context";
+  import { useWallet } from "@/contexts/wallet-context";
+  
+  function ResetWallet() {
+    const navigate = useNavigate();
+    const { setHeaderProps } = useHeader();
+    const { resetAllWallets, verifyPassword } = useWallet();
+    const { pending } = useFormStatus();
+  
+    const [submissionError, setSubmissionError] = useState("");
+    const passwordInputRef = useRef<HTMLInputElement>(null);
+  
+    const PATHS = {
+      BACK: "/settings",
+      SUCCESS: "/onboarding",
+    } as const;
+    const MIN_PASSWORD_LENGTH = 8;
+  
+    useEffect(() => {
+      setHeaderProps({
+        title: "Reset Wallet",
+        onBack: () => navigate(PATHS.BACK),
+      });
+    }, [setHeaderProps, navigate]);
+  
+    useEffect(() => {
+      passwordInputRef.current?.focus();
+    }, []);
+  
+    async function handleFormAction(formData: FormData) {
+      setSubmissionError("");
+  
+      const password = formData.get("password") as string;
+      if (!password) {
+        setSubmissionError("Password cannot be empty.");
+        return;
+      }
+      if (password.length < MIN_PASSWORD_LENGTH) {
+        setSubmissionError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+        return;
+      }
+      try {
+        const isValid = await verifyPassword(password);
+        if (!isValid) {
+          setSubmissionError("Password does not match.");
+          return;
+        }
+      } catch {
+        setSubmissionError("Password verification failed.");
+        return;
+      }
+  
+      try {
+        await resetAllWallets(password);
+        navigate(PATHS.SUCCESS);
+      } catch (err) {
+        console.error("Error resetting wallet:", err);
+        setSubmissionError("Failed to reset wallet. Please try again.");
+      }
+    }
+  
+    return (
+      <div className="flex flex-col h-full p-4" role="main" aria-labelledby="reset-wallet-title">
+        <h2 id="reset-wallet-title" className="sr-only text-2xl font-bold mb-2">Reset Wallet</h2>
+        {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
+        <form action={handleFormAction} className="flex flex-col items-center justify-center flex-grow" aria-describedby="reset-wallet-warning">
+          <div className="max-w-md w-full bg-red-50 border-2 border-red-500 rounded-xl p-6 mb-6" id="reset-wallet-warning">
+            <div className="flex items-center mb-4">
+              <FaExclamationTriangle className="w-6 h-6 text-red-500 mr-2" aria-hidden="true" />
+              <h3 className="text-xl font-bold text-red-700">Warning</h3>
+            </div>
+            <p className="text-red-700 font-medium leading-relaxed">
+              Resetting your wallet will delete all wallet data. This action cannot be undone.
+            </p>
+          </div>
+          <div className="w-full max-w-md space-y-4">
+            <PasswordInput
+              name="password"
+              placeholder="Confirm your password"
+              disabled={pending}
+              innerRef={passwordInputRef}
+            />
+            <Button type="submit" disabled={pending} fullWidth color="red" aria-label="Reset Wallet">
+              {pending ? "Resetting..." : "Reset Wallet"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+  
+  export default ResetWallet;
+
+/src/pages/wallet/select-wallet.tsx
+  [contents of the file]
+  import { useEffect, useState, useCallback } from 'react';
+  import { useNavigate } from 'react-router-dom';
+  import { FaPlus } from 'react-icons/fa';
+  import { Button } from '@/components/button';
+  import { WalletList } from '@/components/lists/wallet-list';
+  import { useHeader } from '@/contexts/header-context';
+  import { useWallet } from '@/contexts/wallet-context';
+  import { ErrorAlert } from '@/components/error-alert';
+  import type { Wallet } from '@/utils/wallet';
+  
+  /**
+   * SelectWallet component allows users to choose an active wallet or add a new one.
+   *
+   * Features:
+   * - Displays a list of wallets for selection
+   * - Provides an option to add a new wallet with a limit of 10
+   * - Navigates to the index on wallet selection
+   */
+  function SelectWallet() {
+    const navigate = useNavigate();
+    const { setHeaderProps } = useHeader();
+    const { wallets, activeWallet, setActiveWallet } = useWallet();
+    const [error, setError] = useState<string | null>(null);
+  
+    // Constants for paths and limits
+    const PATHS = {
+      BACK: '/',
+      ADD_WALLET: '/add-wallet',
+      INDEX: '/index',
+    } as const;
+    const MAX_WALLETS = 10;
+  
+    const handleAddWallet = useCallback(() => {
+      if (wallets.length >= MAX_WALLETS) {
+        setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+        return;
+      }
+      navigate(PATHS.ADD_WALLET);
+    }, [navigate, wallets.length]);
+  
+    // Configure header with add wallet button
+    useEffect(() => {
+      setHeaderProps({
+        title: 'Wallets',
+        onBack: () => navigate(PATHS.BACK),
+        rightButton: {
+          icon: <FaPlus />,
+          onClick: handleAddWallet,
+          ariaLabel: 'Add Wallet',
+        },
+      });
+    }, [setHeaderProps, navigate, handleAddWallet]);
+  
+    const handleSelectWalletInternal = async (wallet: Wallet) => {
+      try {
+        await setActiveWallet(wallet, false);
+        navigate(PATHS.INDEX);
+      } catch (err) {
+        console.error('Error selecting wallet:', err);
+        setError('Failed to select wallet. Please try again.');
+      }
+    };
+  
+    return (
+      <div
+        className="flex flex-col h-full"
+        role="main"
+        aria-labelledby="wallet-selection-title"
+      >
+        <div className="flex-grow overflow-y-auto p-4">
+          {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
+          <h2 id="wallet-selection-title" className="sr-only text-2xl font-bold mb-2">
+            Select a Wallet
+          </h2>
+          <WalletList
+            wallets={wallets}
+            selectedWallet={activeWallet}
+            onSelectWallet={handleSelectWalletInternal}
           />
-        </Suspense>
+        </div>
+        <div className="p-4">
+          <Button
+            color="green"
+            fullWidth
+            onClick={handleAddWallet}
+            disabled={wallets.length >= MAX_WALLETS}
+            aria-label="Add Wallet"
+          >
+            <FaPlus className="mr-2" aria-hidden="true" />
+            Add Wallet
+          </Button>
+        </div>
       </div>
     );
   }
   
-  export default ComposeMPMA;
+  export default SelectWallet;
 
-/src/pages/compose/send/mpma/review.tsx
+/src/services/walletService.ts
   [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { formatAmount } from "@/utils/format";
+  import { defineProxyService } from '@webext-core/proxy-service';
+  import { AddressType } from '@/utils/blockchain/bitcoin';
+  import { walletManager, settingsManager, type Wallet, type Address } from '@/utils/wallet';
   
-  interface ReviewSendMpmaProps {
-    apiResponse: any;
-    onSign: () => void;
-    onBack: () => void;
-    error: string | null;
-    setError: (error: string | null) => void;
+  interface WalletService {
+    loadWallets: () => Promise<void>;
+    getWallets: () => Promise<Wallet[]>;
+    getActiveWallet: () => Promise<Wallet | undefined>;
+    setActiveWallet: (walletId: string) => Promise<void>;
+    unlockWallet: (walletId: string, password: string) => Promise<void>;
+    lockAllWallets: () => Promise<void>;
+    createMnemonicWallet: (
+      mnemonic: string,
+      password: string,
+      name?: string,
+      addressType?: AddressType
+    ) => Promise<Wallet>;
+    createPrivateKeyWallet: (
+      privateKey: string,
+      password: string,
+      name?: string,
+      addressType?: AddressType
+    ) => Promise<Wallet>;
+    addAddress: (walletId: string) => Promise<Address>;
+    verifyPassword: (password: string) => Promise<boolean>;
+    resetAllWallets: (password: string) => Promise<void>;
+    updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+    updateWalletAddressType: (walletId: string, newType: AddressType) => Promise<void>;
+    updateWalletPinnedAssets: (walletId: string, pinned: string[]) => Promise<void>;
+    getUnencryptedMnemonic: (walletId: string) => Promise<string>;
+    getPrivateKey: (walletId: string, derivationPath?: string) => Promise<string>;
+    removeWallet: (walletId: string) => Promise<void>;
+    getPreviewAddressForType: (walletId: string, addressType: AddressType) => Promise<string>;
+    signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
+    broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
+    getLastActiveAddress: () => Promise<string | undefined>;
+    setLastActiveAddress: (address: string) => Promise<void>;
+    isAnyWalletUnlocked: () => Promise<boolean>;
+    createAndUnlockMnemonicWallet: (
+      mnemonic: string,
+      password: string,
+      name?: string,
+      addressType?: AddressType
+    ) => Promise<Wallet>;
+    createAndUnlockPrivateKeyWallet: (
+      privateKey: string,
+      password: string,
+      name?: string,
+      addressType?: AddressType
+    ) => Promise<Wallet>;
   }
   
-  export function ReviewSendMpma({ 
-    apiResponse, 
-    onSign, 
-    onBack,
-    error,
-    setError 
-  }: ReviewSendMpmaProps) {
-    const { result } = apiResponse;
-  
-    const formatQuantity = (quantity: number, isDivisible: boolean) =>
-      isDivisible
-        ? formatAmount({
-            value: quantity / 1e8,
-            minimumFractionDigits: 8,
-            maximumFractionDigits: 8,
-          })
-        : quantity.toString();
-  
-    const assets = Object.entries(result.params.asset_quantities).map(([asset, quantity]) => ({
-      asset,
-      quantity: Number(quantity),
-      isDivisible: result.params.asset_info[asset]?.divisible ?? true,
-    }));
-  
-    const customFields = [
-      { label: "To", value: result.params.destination },
-      {
-        label: "Assets",
-        value: assets
-          .map((a) => `${formatQuantity(a.quantity, a.isDivisible)} ${a.asset}`)
-          .join(", "),
+  function createWalletService(): WalletService {
+    return {
+      loadWallets: async () => {
+        await settingsManager.loadSettings();
+        await walletManager.loadWallets();
       },
-      ...(result.params.memo ? [{ label: "Memo", value: result.params.memo }] : []),
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  }
-
-/src/pages/compose/send/page.tsx
-  [contents of the file]
-  import { useParams } from "react-router-dom";
-  import { SendForm } from "./form";
-  import { ReviewSend } from "./review";
-  import { Composer } from "@/components/composer";
-  import { composeSend } from "@/utils/blockchain/counterparty";
-  import type { SendOptions } from "@/utils/blockchain/counterparty";
-  
-  export function ComposeSend() {
-    const { asset } = useParams<{ asset: string }>();
-  
-    return (
-      <div className="p-4">
-        <Composer<SendOptions>
-          initialTitle="Send"
-          FormComponent={(props) => <SendForm {...props} initialAsset={asset || "BTC"} />}
-          ReviewComponent={ReviewSend}
-          composeTransaction={composeSend}
-        />
-      </div>
-    );
-  }
-  
-  export default ComposeSend;
-
-/src/pages/compose/send/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { formatAmount } from "@/utils/format";
-  
-  interface ReviewSendProps {
-    apiResponse: any;
-    onSign: () => void;
-    onBack: () => void;
-    error: string | null;
-    setError: (error: string | null) => void;
-  }
-  
-  export function ReviewSend({ 
-    apiResponse, 
-    onSign, 
-    onBack,
-    error,
-    setError 
-  }: ReviewSendProps) {
-    const { result } = apiResponse;
-  
-    const formatQuantity = (quantity: number, isDivisible: boolean) =>
-      isDivisible
-        ? formatAmount({
-            value: quantity / 1e8,
-            minimumFractionDigits: 8,
-            maximumFractionDigits: 8,
-          })
-        : quantity.toString();
-  
-    const customFields = [
-      {
-        label: "Amount",
-        value: `${formatQuantity(Number(result.params.quantity), result.params.asset_info.divisible)} ${result.params.asset}`,
+      getWallets: async () => walletManager.getWallets(),
+      getActiveWallet: async () => walletManager.getActiveWallet(),
+      setActiveWallet: async (walletId) => walletManager.setActiveWallet(walletId),
+      unlockWallet: async (walletId, password) => {
+        await walletManager.unlockWallet(walletId, password);
       },
-      ...(result.params.memo ? [{ label: "Memo", value: result.params.memo }] : []),
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
+      lockAllWallets: async () => walletManager.lockAllWallets(),
+      createMnemonicWallet: async (mnemonic, password, name, addressType) => {
+        return walletManager.createMnemonicWallet(mnemonic, password, name, addressType);
+      },
+      createPrivateKeyWallet: async (privateKey, password, name, addressType) => {
+        return walletManager.createPrivateKeyWallet(privateKey, password, name, addressType);
+      },
+      addAddress: async (walletId) => walletManager.addAddress(walletId),
+      verifyPassword: async (password) => walletManager.verifyPassword(password),
+      resetAllWallets: async (password) => {
+        await walletManager.resetAllWallets(password);
+      },
+      updatePassword: async (currentPassword, newPassword) => {
+        await walletManager.updatePassword(currentPassword, newPassword);
+      },
+      updateWalletAddressType: async (walletId, newType) => {
+        await walletManager.updateWalletAddressType(walletId, newType);
+      },
+      updateWalletPinnedAssets: async (walletId, pinned) => {
+        await walletManager.updateWalletPinnedAssets(walletId, pinned);
+      },
+      getUnencryptedMnemonic: async (walletId) => {
+        return walletManager.getUnencryptedMnemonic(walletId);
+      },
+      getPrivateKey: async (walletId, derivationPath) => {
+        return walletManager.getPrivateKey(walletId, derivationPath);
+      },
+      removeWallet: async (walletId) => {
+        await walletManager.removeWallet(walletId);
+      },
+      getPreviewAddressForType: async (walletId, addressType) => {
+        return walletManager.getPreviewAddressForType(walletId, addressType);
+      },
+      signTransaction: async (rawTxHex, sourceAddress) => {
+        return walletManager.signTransaction(rawTxHex, sourceAddress);
+      },
+      broadcastTransaction: async (signedTxHex) => {
+        return walletManager.broadcastTransaction(signedTxHex);
+      },
+      getLastActiveAddress: async () => {
+        const settings = await settingsManager.getSettings();
+        return settings?.lastActiveAddress;
+      },
+      setLastActiveAddress: async (address) => {
+        await settingsManager.updateSettings({ lastActiveAddress: address });
+      },
+      isAnyWalletUnlocked: async () => walletManager.isAnyWalletUnlocked(),
+      createAndUnlockMnemonicWallet: async (mnemonic, password, name, addressType) => {
+        return walletManager.createAndUnlockMnemonicWallet(mnemonic, password, name, addressType);
+      },
+      createAndUnlockPrivateKeyWallet: async (privateKey, password, name, addressType) => {
+        return walletManager.createAndUnlockPrivateKeyWallet(privateKey, password, name, addressType);
+      },
+    };
   }
+  
+  export const [registerWalletService, getWalletService] = defineProxyService(
+    'WalletService',
+    createWalletService
+  );
+
+/src/utils/blockchain/counterwallet/index.ts
+  [contents of the file]
+  export * from './mnemonic';
+
+/src/utils/blockchain/counterwallet/mnemonic.ts
+  [contents of the file]
+  import { hexToBytes } from '@noble/hashes/utils';
+  
+  /**
+   * The wordlist used for generating/validating Counterwallet mnemonics.
+   */
+  const counterwalletWordlist = ["like","just","love","know","never","want","time","out","there","make","look","eye","down","only","think","heart","back","then","into","about","more","away","still","them","take","thing","even","through","long","always","world","too","friend","tell","try","hand","thought","over","here","other","need","smile","again","much","cry","been","night","ever","little","said","end","some","those","around","mind","people","girl","leave","dream","left","turn","myself","give","nothing","really","off","before","something","find","walk","wish","good","once","place","ask","stop","keep","watch","seem","everything","wait","got","yet","made","remember","start","alone","run","hope","maybe","believe","body","hate","after","close","talk","stand","own","each","hurt","help","home","god","soul","new","many","two","inside","should","true","first","fear","mean","better","play","another","gone","change","use","wonder","someone","hair","cold","open","best","any","behind","happen","water","dark","laugh","stay","forever","name","work","show","sky","break","came","deep","door","put","black","together","upon","happy","such","great","white","matter","fill","past","please","burn","cause","enough","touch","moment","soon","voice","scream","anything","stare","sound","red","everyone","hide","kiss","truth","death","beautiful","mine","blood","broken","very","pass","next","forget","tree","wrong","air","mother","understand","lip","hit","wall","memory","sleep","free","high","realize","school","might","skin","sweet","perfect","blue","kill","breath","dance","against","fly","between","grow","strong","under","listen","bring","sometimes","speak","pull","person","become","family","begin","ground","real","small","father","sure","feet","rest","young","finally","land","across","today","different","guy","line","fire","reason","reach","second","slowly","write","eat","smell","mouth","step","learn","three","floor","promise","breathe","darkness","push","earth","guess","save","song","above","along","both","color","house","almost","sorry","anymore","brother","okay","dear","game","fade","already","apart","warm","beauty","heard","notice","question","shine","began","piece","whole","shadow","secret","street","within","finger","point","morning","whisper","child","moon","green","story","glass","kid","silence","since","soft","yourself","empty","shall","angel","answer","baby","bright","dad","path","worry","hour","drop","follow","power","war","half","flow","heaven","act","chance","fact","least","tired","children","near","quite","afraid","rise","sea","taste","window","cover","nice","trust","lot","sad","cool","force","peace","return","blind","easy","ready","roll","rose","drive","held","music","beneath","hang","mom","paint","emotion","quiet","clear","cloud","few","pretty","bird","outside","paper","picture","front","rock","simple","anyone","meant","reality","road","sense","waste","bit","leaf","thank","happiness","meet","men","smoke","truly","decide","self","age","book","form","alive","carry","escape","damn","instead","able","ice","minute","throw","catch","leg","ring","course","goodbye","lead","poem","sick","corner","desire","known","problem","remind","shoulder","suppose","toward","wave","drink","jump","woman","pretend","sister","week","human","joy","crack","grey","pray","surprise","dry","knee","less","search","bleed","caught","clean","embrace","future","king","son","sorrow","chest","hug","remain","sat","worth","blow","daddy","final","parent","tight","also","create","lonely","safe","cross","dress","evil","silent","bone","fate","perhaps","anger","class","scar","snow","tiny","tonight","continue","control","dog","edge","mirror","month","suddenly","comfort","given","loud","quickly","gaze","plan","rush","stone","town","battle","ignore","spirit","stood","stupid","yours","brown","build","dust","hey","kept","pay","phone","twist","although","ball","beyond","hidden","nose","taken","fail","float","pure","somehow","wash","wrap","angry","cheek","creature","forgotten","heat","rip","single","space","special","weak","whatever","yell","anyway","blame","job","choose","country","curse","drift","echo","figure","grew","laughter","neck","suffer","worse","yeah","disappear","foot","forward","knife","mess","somewhere","stomach","storm","beg","idea","lift","offer","breeze","field","five","often","simply","stuck","win","allow","confuse","enjoy","except","flower","seek","strength","calm","grin","gun","heavy","hill","large","ocean","shoe","sigh","straight","summer","tongue","accept","crazy","everyday","exist","grass","mistake","sent","shut","surround","table","ache","brain","destroy","heal","nature","shout","sign","stain","choice","doubt","glance","glow","mountain","queen","stranger","throat","tomorrow","city","either","fish","flame","rather","shape","spin","spread","ash","distance","finish","image","imagine","important","nobody","shatter","warmth","became","feed","flesh","funny","lust","shirt","trouble","yellow","attention","bare","bite","money","protect","amaze","appear","born","choke","completely","daughter","fresh","friendship","gentle","probably","six","deserve","expect","grab","middle","nightmare","river","thousand","weight","worst","wound","barely","bottle","cream","regret","relationship","stick","test","crush","endless","fault","itself","rule","spill","art","circle","join","kick","mask","master","passion","quick","raise","smooth","unless","wander","actually","broke","chair","deal","favorite","gift","note","number","sweat","box","chill","clothes","lady","mark","park","poor","sadness","tie","animal","belong","brush","consume","dawn","forest","innocent","pen","pride","stream","thick","clay","complete","count","draw","faith","press","silver","struggle","surface","taught","teach","wet","bless","chase","climb","enter","letter","melt","metal","movie","stretch","swing","vision","wife","beside","crash","forgot","guide","haunt","joke","knock","plant","pour","prove","reveal","steal","stuff","trip","wood","wrist","bother","bottom","crawl","crowd","fix","forgive","frown","grace","loose","lucky","party","release","surely","survive","teacher","gently","grip","speed","suicide","travel","treat","vein","written","cage","chain","conversation","date","enemy","however","interest","million","page","pink","proud","sway","themselves","winter","church","cruel","cup","demon","experience","freedom","pair","pop","purpose","respect","shoot","softly","state","strange","bar","birth","curl","dirt","excuse","lord","lovely","monster","order","pack","pants","pool","scene","seven","shame","slide","ugly","among","blade","blonde","closet","creek","deny","drug","eternity","gain","grade","handle","key","linger","pale","prepare","swallow","swim","tremble","wheel","won","cast","cigarette","claim","college","direction","dirty","gather","ghost","hundred","loss","lung","orange","present","swear","swirl","twice","wild","bitter","blanket","doctor","everywhere","flash","grown","knowledge","numb","pressure","radio","repeat","ruin","spend","unknown","buy","clock","devil","early","false","fantasy","pound","precious","refuse","sheet","teeth","welcome","add","ahead","block","bury","caress","content","depth","despite","distant","marry","purple","threw","whenever","bomb","dull","easily","grasp","hospital","innocence","normal","receive","reply","rhyme","shade","someday","sword","toe","visit","asleep","bought","center","consider","flat","hero","history","ink","insane","muscle","mystery","pocket","reflection","shove","silently","smart","soldier","spot","stress","train","type","view","whether","bus","energy","explain","holy","hunger","inch","magic","mix","noise","nowhere","prayer","presence","shock","snap","spider","study","thunder","trail","admit","agree","bag","bang","bound","butterfly","cute","exactly","explode","familiar","fold","further","pierce","reflect","scent","selfish","sharp","sink","spring","stumble","universe","weep","women","wonderful","action","ancient","attempt","avoid","birthday","branch","chocolate","core","depress","drunk","especially","focus","fruit","honest","match","palm","perfectly","pillow","pity","poison","roar","shift","slightly","thump","truck","tune","twenty","unable","wipe","wrote","coat","constant","dinner","drove","egg","eternal","flight","flood","frame","freak","gasp","glad","hollow","motion","peer","plastic","root","screen","season","sting","strike","team","unlike","victim","volume","warn","weird","attack","await","awake","built","charm","crave","despair","fought","grant","grief","horse","limit","message","ripple","sanity","scatter","serve","split","string","trick","annoy","blur","boat","brave","clearly","cling","connect","fist","forth","imagination","iron","jock","judge","lesson","milk","misery","nail","naked","ourselves","poet","possible","princess","sail","size","snake","society","stroke","torture","toss","trace","wise","bloom","bullet","cell","check","cost","darling","during","footstep","fragile","hallway","hardly","horizon","invisible","journey","midnight","mud","nod","pause","relax","shiver","sudden","value","youth","abuse","admire","blink","breast","bruise","constantly","couple","creep","curve","difference","dumb","emptiness","gotta","honor","plain","planet","recall","rub","ship","slam","soar","somebody","tightly","weather","adore","approach","bond","bread","burst","candle","coffee","cousin","crime","desert","flutter","frozen","grand","heel","hello","language","level","movement","pleasure","powerful","random","rhythm","settle","silly","slap","sort","spoken","steel","threaten","tumble","upset","aside","awkward","bee","blank","board","button","card","carefully","complain","crap","deeply","discover","drag","dread","effort","entire","fairy","giant","gotten","greet","illusion","jeans","leap","liquid","march","mend","nervous","nine","replace","rope","spine","stole","terror","accident","apple","balance","boom","childhood","collect","demand","depression","eventually","faint","glare","goal","group","honey","kitchen","laid","limb","machine","mere","mold","murder","nerve","painful","poetry","prince","rabbit","shelter","shore","shower","soothe","stair","steady","sunlight","tangle","tease","treasure","uncle","begun","bliss","canvas","cheer","claw","clutch","commit","crimson","crystal","delight","doll","existence","express","fog","football","gay","goose","guard","hatred","illuminate","mass","math","mourn","rich","rough","skip","stir","student","style","support","thorn","tough","yard","yearn","yesterday","advice","appreciate","autumn","bank","beam","bowl","capture","carve","collapse","confusion","creation","dove","feather","girlfriend","glory","government","harsh","hop","inner","loser","moonlight","neighbor","neither","peach","pig","praise","screw","shield","shimmer","sneak","stab","subject","throughout","thrown","tower","twirl","wow","army","arrive","bathroom","bump","cease","cookie","couch","courage","dim","guilt","howl","hum","husband","insult","led","lunch","mock","mostly","natural","nearly","needle","nerd","peaceful","perfection","pile","price","remove","roam","sanctuary","serious","shiny","shook","sob","stolen","tap","vain","void","warrior","wrinkle","affection","apologize","blossom","bounce","bridge","cheap","crumble","decision","descend","desperately","dig","dot","flip","frighten","heartbeat","huge","lazy","lick","odd","opinion","process","puzzle","quietly","retreat","score","sentence","separate","situation","skill","soak","square","stray","taint","task","tide","underneath","veil","whistle","anywhere","bedroom","bid","bloody","burden","careful","compare","concern","curtain","decay","defeat","describe","double","dreamer","driver","dwell","evening","flare","flicker","grandma","guitar","harm","horrible","hungry","indeed","lace","melody","monkey","nation","object","obviously","rainbow","salt","scratch","shown","shy","stage","stun","third","tickle","useless","weakness","worship","worthless","afternoon","beard","boyfriend","bubble","busy","certain","chin","concrete","desk","diamond","doom","drawn","due","felicity","freeze","frost","garden","glide","harmony","hopefully","hunt","jealous","lightning","mama","mercy","peel","physical","position","pulse","punch","quit","rant","respond","salty","sane","satisfy","savior","sheep","slept","social","sport","tuck","utter","valley","wolf","aim","alas","alter","arrow","awaken","beaten","belief","brand","ceiling","cheese","clue","confidence","connection","daily","disguise","eager","erase","essence","everytime","expression","fan","flag","flirt","foul","fur","giggle","glorious","ignorance","law","lifeless","measure","mighty","muse","north","opposite","paradise","patience","patient","pencil","petal","plate","ponder","possibly","practice","slice","spell","stock","strife","strip","suffocate","suit","tender","tool","trade","velvet","verse","waist","witch","aunt","bench","bold","cap","certainly","click","companion","creator","dart","delicate","determine","dish","dragon","drama","drum","dude","everybody","feast","forehead","former","fright","fully","gas","hook","hurl","invite","juice","manage","moral","possess","raw","rebel","royal","scale","scary","several","slight","stubborn","swell","talent","tea","terrible","thread","torment","trickle","usually","vast","violence","weave","acid","agony","ashamed","awe","belly","blend","blush","character","cheat","common","company","coward","creak","danger","deadly","defense","define","depend","desperate","destination","dew","duck","dusty","embarrass","engine","example","explore","foe","freely","frustrate","generation","glove","guilty","health","hurry","idiot","impossible","inhale","jaw","kingdom","mention","mist","moan","mumble","mutter","observe","ode","pathetic","pattern","pie","prefer","puff","rape","rare","revenge","rude","scrape","spiral","squeeze","strain","sunset","suspend","sympathy","thigh","throne","total","unseen","weapon","weary"];
+  
+  /**
+   * Helper to handle negative remainders. 
+   */
+  function mod(a: number, b: number): number {
+    return ((a % b) + b) % b;
+  }
+  
+  /**
+   * Checks if a given mnemonic is valid for Counterwallet:
+   *  - multiple of 3 words
+   *  - every word in `counterwalletWordlist`
+   */
+  export function isValidCounterwalletMnemonic(mnemonic: string): boolean {
+    const words = mnemonic.trim().split(/\s+/);
+    if (words.length % 3 !== 0) {
+      return false;
+    }
+    return words.every((w) => counterwalletWordlist.includes(w));
+  }
+  
+  /**
+   * A class representing a Counterwallet mnemonic.
+   * 
+   * On construction, it converts each set of 3 words
+   * into a 32-bit integer, storing them in a Uint32Array.
+   */
+  export class CounterwalletMnemonic {
+    private random: Uint32Array;
+  
+    constructor(words: string[]) {
+      if (words.length % 3 !== 0) {
+        throw new Error('Invalid number of words (must be multiple of 3).');
+      }
+      const n = counterwalletWordlist.length;
+      const l = words.length / 3;
+      this.random = new Uint32Array(l);
+  
+      for (let i = 0; i < l; i++) {
+        const w1 = counterwalletWordlist.indexOf(words[3 * i]);
+        const w2 = counterwalletWordlist.indexOf(words[3 * i + 1]);
+        const w3 = counterwalletWordlist.indexOf(words[3 * i + 2]);
+  
+        if (w1 === -1 || w2 === -1 || w3 === -1) {
+          throw new Error(`Invalid mnemonic word at group #${i}`);
+        }
+  
+        this.random[i] = w1 + n * mod(w2 - w1, n) + n * n * mod(w3 - w2, n);
+      }
+    }
+  
+    /**
+     * Returns a hexadecimal string representation of this mnemonic.
+     */
+    toHex(): string {
+      let res = '';
+      for (let i = 0; i < this.random.length; i++) {
+        const hexVal = this.random[i].toString(16).padStart(8, '0');
+        res += hexVal;
+      }
+      return res;
+    }
+  }
+  
+  /**
+   * Generates a Uint8Array seed from a Counterwallet mnemonic string.
+   */
+  export function getCounterwalletSeed(mnemonic: string): Uint8Array {
+    const words = mnemonic.trim().split(/\s+/);
+    const cwMnemonic = new CounterwalletMnemonic(words);
+    return hexToBytes(cwMnemonic.toHex());
+  }
+
+/src/utils/encryption/walletEncryption.ts
+  [contents of the file]
+  import { validateMnemonic } from '@scure/bip39';
+  import { wordlist } from '@scure/bip39/wordlists/english';
+  import { AddressType } from '@/utils/blockchain/bitcoin';
+  import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
+  import { encryptString, decryptString, DecryptionError } from '@/utils/encryption';
+  
+  /**
+   * Encrypts a mnemonic after validating it against the specified address type.
+   *
+   * @param mnemonic - The mnemonic phrase to encrypt.
+   * @param password - The password used for encryption.
+   * @param addressType - The address type (e.g. standard or Counterwallet).
+   * @returns A Promise that resolves to the encrypted mnemonic (JSON string).
+   * @throws Error if the password is empty or the mnemonic is invalid.
+   */
+  export async function encryptMnemonic(
+    mnemonic: string,
+    password: string,
+    addressType: AddressType
+  ): Promise<string> {
+    if (!password) {
+      throw new Error('Password cannot be empty');
+    }
+  
+    const valid =
+      addressType === AddressType.Counterwallet
+        ? isValidCounterwalletMnemonic(mnemonic)
+        : validateMnemonic(mnemonic, wordlist);
+  
+    if (!valid) {
+      throw new Error(`Invalid mnemonic for address type: ${addressType}`);
+    }
+  
+    return encryptString(mnemonic, password);
+  }
+  
+  /**
+   * Decrypts an encrypted mnemonic and verifies that the result is a valid mnemonic.
+   *
+   * @param encrypted - The encrypted mnemonic (JSON string).
+   * @param password - The password used for decryption.
+   * @returns A Promise that resolves to the decrypted mnemonic.
+   * @throws DecryptionError if the decrypted mnemonic is invalid.
+   */
+  export async function decryptMnemonic(
+    encrypted: string,
+    password: string
+  ): Promise<string> {
+    const decrypted = await decryptString(encrypted, password);
+  
+    if (!validateMnemonic(decrypted, wordlist) && !isValidCounterwalletMnemonic(decrypted)) {
+      throw new DecryptionError('Decrypted mnemonic is invalid');
+    }
+    return decrypted;
+  }
+  
+  /**
+   * Encrypts a private key (or private key JSON string) using the provided password.
+   *
+   * @param privKeyData - The private key data to encrypt.
+   * @param password - The encryption password.
+   * @returns A Promise that resolves to the encrypted private key.
+   * @throws Error if the password is empty.
+   */
+  export async function encryptPrivateKey(
+    privKeyData: string,
+    password: string
+  ): Promise<string> {
+    if (!password) {
+      throw new Error('Password cannot be empty');
+    }
+    return encryptString(privKeyData, password);
+  }
+  
+  /**
+   * Decrypts an encrypted private key using the provided password.
+   *
+   * @param encrypted - The encrypted private key.
+   * @param password - The password for decryption.
+   * @returns A Promise that resolves to the decrypted private key data.
+   */
+  export async function decryptPrivateKey(
+    encrypted: string,
+    password: string
+  ): Promise<string> {
+    return decryptString(encrypted, password);
+  }
+
+/src/utils/storage/walletStorage.ts
+  [contents of the file]
+  import { getAllRecords, addRecord, updateRecord, removeRecord, StoredRecord } from '@/utils/storage';
+  import { AddressType } from '@/utils/blockchain/bitcoin';
+  
+  /**
+   * Interface for encrypted wallet records stored in local storage.
+   */
+  export interface EncryptedWalletRecord extends StoredRecord {
+    name: string;
+    type: 'mnemonic' | 'privateKey';
+    addressType: AddressType;
+    addressCount?: number; // Number of derived addresses (defaults to 0 if omitted)
+    encryptedSecret: string;
+    pinnedAssetBalances?: string[]; // List of asset IDs to pin in UI (defaults to [] if omitted)
+    previewAddress?: string;
+  }
+  
+  /**
+   * Retrieves all wallet records that are of type 'mnemonic' or 'privateKey'.
+   *
+   * @returns A Promise that resolves to an array of encrypted wallet records.
+   */
+  export async function getAllEncryptedWallets(): Promise<EncryptedWalletRecord[]> {
+    const all = await getAllRecords();
+    return all.filter(
+      (r) => r.type === 'mnemonic' || r.type === 'privateKey'
+    ) as EncryptedWalletRecord[];
+  }
+  
+  /**
+   * Adds an encrypted wallet record to storage.
+   *
+   * @param record - The encrypted wallet record to add.
+   * @throws Error if encryptedSecret is missing or invalid (optional validation).
+   */
+  export async function addEncryptedWallet(record: EncryptedWalletRecord): Promise<void> {
+    // Optional validation
+    if (!record.encryptedSecret) {
+      throw new Error('Encrypted secret is required for wallet records');
+    }
+    await addRecord(record);
+  }
+  
+  /**
+   * Updates an existing encrypted wallet record.
+   *
+   * @param record - The wallet record with updated information.
+   */
+  export async function updateEncryptedWallet(record: EncryptedWalletRecord): Promise<void> {
+    await updateRecord(record);
+  }
+  
+  /**
+   * Removes an encrypted wallet record by its ID.
+   *
+   * @param id - The ID of the wallet record to remove.
+   */
+  export async function removeEncryptedWallet(id: string): Promise<void> {
+    await removeRecord(id);
+  }
+
+/src/utils/wallet/index.ts
+  [contents of the file]
+  export * from './settingsManager';
+  export * from './walletManager';
+
+/src/utils/wallet/settingsManager.ts
+  [contents of the file]
+  import { getKeychainSettings, updateKeychainSettings, KeychainSettings } from '@/utils/storage';
+  
+  /**
+   * SettingsManager is responsible for loading and updating persistent keychain settings,
+   * such as auto‑lock timeouts and approved websites.
+   *
+   * This module does not handle runtime wallet operations.
+   */
+  class SettingsManager {
+    private settings: KeychainSettings | null = null;
+  
+    /**
+     * Loads the persistent settings from storage.
+     *
+     * @returns A Promise that resolves to the loaded settings.
+     */
+    async loadSettings(): Promise<KeychainSettings> {
+      this.settings = await getKeychainSettings();
+      return this.settings;
+    }
+  
+    /**
+     * Updates the persistent settings.
+     *
+     * @param newSettings - Partial settings to update.
+     */
+    async updateSettings(newSettings: Partial<KeychainSettings>): Promise<void> {
+      await updateKeychainSettings(newSettings);
+      this.settings = await getKeychainSettings();
+    }
+  
+    /**
+     * Returns the currently loaded settings.
+     *
+     * @returns The current keychain settings, or null if not loaded.
+     */
+    getSettings(): KeychainSettings | null {
+      return this.settings;
+    }
+  }
+  
+  export const settingsManager = new SettingsManager();
+
+/src/utils/wallet/walletManager.ts
+  [contents of the file]
+  import { sha256 } from '@noble/hashes/sha256';
+  import { utf8ToBytes, bytesToHex } from '@noble/hashes/utils';
+  import { HDKey } from '@scure/bip32';
+  import { mnemonicToSeedSync } from '@scure/bip39';
+  import * as sessionManager from '@/utils/auth/sessionManager';
+  import { settingsManager } from '@/utils/wallet';
+  import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, removeEncryptedWallet, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
+  import { encryptMnemonic, decryptMnemonic, encryptPrivateKey, decryptPrivateKey, DecryptionError } from '@/utils/encryption';
+  import { AddressType, getAddressFromMnemonic, getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, getDerivationPathForAddressType } from '@/utils/blockchain/bitcoin';
+  import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
+  import { KeychainSettings } from '@/utils/storage/settingsStorage';
+  import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
+  import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
+  
+  export interface Address {
+    name: string;
+    path: string;
+    address: string;
+    pubKey: string;
+  }
+  
+  export interface Wallet {
+    id: string;
+    name: string;
+    type: 'mnemonic' | 'privateKey';
+    addressType: AddressType;
+    addressCount: number;
+    addresses: Address[];
+    pinnedAssetBalances: string[];
+  }
+  
+  const MAX_WALLETS = 20;
+  const MAX_ADDRESSES_PER_WALLET = 100;
+  const DEFAULT_PINNED_ASSETS = ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'];
+  
+  export class WalletManager {
+    private wallets: Wallet[] = [];
+    private activeWalletId: string | null = null;
+    private autoLockCallbacks: Set<() => void> = new Set();
+  
+    public registerAutoLockCallback(callback: () => void): void {
+      console.log('Registering auto-lock callback, current count:', this.autoLockCallbacks.size);
+      this.autoLockCallbacks.add(callback);
+    }
+    
+    public unregisterAutoLockCallback(callback: () => void): void {
+      console.log('Unregistering auto-lock callback, current count:', this.autoLockCallbacks.size);
+      this.autoLockCallbacks.delete(callback);
+    }
+  
+    public setLastActiveTime(): void {
+      sessionManager.setLastActiveTime();
+    }
+  
+    public async isAnyWalletUnlocked(): Promise<boolean> {
+      for (const w of this.wallets) {
+        if (sessionManager.getUnlockedSecret(w.id)) {
+          return true;
+        }
+      }
+      return false;
+    }
+  
+    public async loadWallets(): Promise<void> {
+      const encryptedRecords = await getAllEncryptedWallets();
+      this.wallets = encryptedRecords.map((rec: EncryptedWalletRecord) => {
+        const unlockedSecret = sessionManager.getUnlockedSecret(rec.id);
+        let addresses: Address[] = [];
+        if (unlockedSecret) {
+          if (rec.type === 'mnemonic') {
+            const count = rec.addressCount || 1;
+            addresses = Array.from({ length: count }, (_, i) =>
+              this.deriveMnemonicAddress(unlockedSecret, rec.addressType, i)
+            );
+          } else {
+            addresses = [this.deriveAddressFromPrivateKey(unlockedSecret, rec.addressType)];
+          }
+        } else if (rec.previewAddress) {
+          addresses = [{
+            name: 'Address 1',
+            path: '',
+            address: rec.previewAddress,
+            pubKey: '',
+          }];
+        }
+        return {
+          id: rec.id,
+          name: rec.name,
+          type: rec.type,
+          addressType: rec.addressType,
+          addressCount: rec.addressCount || 1,
+          addresses,
+          pinnedAssetBalances: rec.pinnedAssetBalances || [],
+        };
+      });
+      const settings: KeychainSettings = await settingsManager.loadSettings();
+      if (settings.lastActiveWalletId && this.getWalletById(settings.lastActiveWalletId)) {
+        this.activeWalletId = settings.lastActiveWalletId;
+      }
+    }
+  
+    public getWallets(): Wallet[] {
+      return this.wallets;
+    }
+  
+    public getActiveWallet(): Wallet | undefined {
+      if (!this.activeWalletId) return undefined;
+      return this.getWalletById(this.activeWalletId);
+    }
+  
+    public setActiveWallet(walletId: string): void {
+      this.activeWalletId = walletId;
+      settingsManager.updateSettings({ lastActiveWalletId: walletId });
+    }
+  
+    public getWalletById(id: string): Wallet | undefined {
+      return this.wallets.find((w) => w.id === id);
+    }
+  
+    public getWallet(walletId: string): Wallet | undefined {
+      return this.getWalletById(walletId);
+    }
+  
+    public getUnencryptedMnemonic(walletId: string): string {
+      const secret = sessionManager.getUnlockedSecret(walletId);
+      if (!secret) throw new Error("Wallet secret not found or locked");
+      return secret;
+    }
+  
+    public async createMnemonicWallet(
+      mnemonic: string,
+      password: string,
+      name?: string,
+      addressType: AddressType = AddressType.P2WPKH
+    ): Promise<Wallet> {
+      if (this.wallets.length >= MAX_WALLETS) {
+        throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+      }
+      const walletName = name || `Wallet ${this.wallets.length + 1}`;
+      const id = await this.generateWalletId(mnemonic, addressType);
+      if (this.wallets.some((w) => w.id === id)) {
+        throw new Error('A wallet with this mnemonic+addressType combination already exists.');
+      }
+      const encryptedMnemonic = await encryptMnemonic(mnemonic, password, addressType);
+      const previewPath = `${getDerivationPathForAddressType(addressType)}/0`;
+      const previewAddress = getAddressFromMnemonic(mnemonic, previewPath, addressType);
+      const record: EncryptedWalletRecord = {
+        id,
+        name: walletName,
+        type: 'mnemonic',
+        addressType,
+        addressCount: 1,
+        encryptedSecret: encryptedMnemonic,
+        pinnedAssetBalances: [...DEFAULT_PINNED_ASSETS],
+        previewAddress,
+      };
+      await addEncryptedWallet(record);
+      const wallet: Wallet = {
+        id,
+        name: walletName,
+        type: 'mnemonic',
+        addressType,
+        addressCount: 1,
+        addresses: [],
+        pinnedAssetBalances: [...DEFAULT_PINNED_ASSETS],
+      };
+      this.wallets.push(wallet);
+      return wallet;
+    }
+  
+    public async createPrivateKeyWallet(
+      privateKey: string,
+      password: string,
+      name?: string,
+      addressType: AddressType = AddressType.P2WPKH
+    ): Promise<Wallet> {
+      if (this.wallets.length >= MAX_WALLETS) {
+        throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+      }
+      const walletName = name || `Wallet ${this.wallets.length + 1}`;
+      let privateKeyHex: string;
+      let compressed = true;
+      if (isWIF(privateKey)) {
+        const decoded = decodeWIF(privateKey);
+        privateKeyHex = decoded.privateKey;
+        compressed = decoded.compressed;
+      } else {
+        privateKeyHex = privateKey.startsWith('0x') ? privateKey.slice(2) : privateKey;
+      }
+      getPublicKeyFromPrivateKey(privateKeyHex, compressed);
+      const secretJson = JSON.stringify({ key: privateKeyHex, compressed });
+      const id = await this.generateWalletIdFromPrivateKey(privateKeyHex, addressType);
+      if (this.wallets.some((w) => w.id === id)) {
+        throw new Error('A wallet with this private key already exists.');
+      }
+      const encryptedPrivateKey = await encryptPrivateKey(secretJson, password);
+      const previewAddress = getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
+      const record: EncryptedWalletRecord = {
+        id,
+        name: walletName,
+        type: 'privateKey',
+        addressType,
+        addressCount: 1,
+        encryptedSecret: encryptedPrivateKey,
+        pinnedAssetBalances: [...DEFAULT_PINNED_ASSETS],
+        previewAddress,
+      };
+      await addEncryptedWallet(record);
+      const wallet: Wallet = {
+        id,
+        name: walletName,
+        type: 'privateKey',
+        addressType,
+        addressCount: 1,
+        addresses: [],
+        pinnedAssetBalances: [...DEFAULT_PINNED_ASSETS],
+      };
+      this.wallets.push(wallet);
+      return wallet;
+    }
+  
+    public async unlockWallet(walletId: string, password: string): Promise<void> {
+      const wallet = this.getWalletById(walletId);
+      if (!wallet) throw new Error('Wallet not found in memory.');
+      const allRecords = await getAllEncryptedWallets();
+      const record = allRecords.find((r) => r.id === walletId);
+      if (!record) throw new Error('Wallet record not found in storage.');
+      try {
+        if (record.type === 'mnemonic') {
+          if (!record.encryptedSecret) throw new Error('Missing encrypted secret.');
+          const mnemonic = await decryptMnemonic(record.encryptedSecret, password);
+          sessionManager.storeUnlockedSecret(walletId, mnemonic);
+          wallet.addresses = [];
+          const count = Math.min(record.addressCount || 1, MAX_ADDRESSES_PER_WALLET);
+          wallet.addressCount = count;
+          for (let i = 0; i < count; i++) {
+            wallet.addresses.push(this.deriveMnemonicAddress(mnemonic, wallet.addressType, i));
+          }
+        } else {
+          if (!record.encryptedSecret) throw new Error('Missing encrypted secret.');
+          const privKeyData = await decryptPrivateKey(record.encryptedSecret, password);
+          sessionManager.storeUnlockedSecret(walletId, privKeyData);
+          wallet.addresses = [this.deriveAddressFromPrivateKey(privKeyData, wallet.addressType)];
+          wallet.addressCount = 1;
+        }
+        this.activeWalletId = walletId;
+      } catch (err) {
+        if (err instanceof DecryptionError) throw err;
+        throw new Error('Invalid password or corrupted data.');
+      }
+      sessionManager.resetAutoLockTimer();
+    }
+  
+    public lockWallet(walletId: string): void {
+      sessionManager.clearUnlockedSecret(walletId);
+      const wallet = this.getWalletById(walletId);
+      if (wallet) {
+        wallet.addresses = [];
+      }
+    }
+  
+    public lockAllWallets(): void {
+      sessionManager.clearAllUnlockedSecrets();
+      this.wallets.forEach((wallet) => (wallet.addresses = []));
+      console.log('Invoking', this.autoLockCallbacks.size, 'auto-lock callbacks');
+      this.autoLockCallbacks.forEach(callback => callback());
+    }
+  
+    public async addAddress(walletId: string): Promise<Address> {
+      const wallet = this.getWalletById(walletId);
+      if (!wallet) throw new Error('Wallet not found.');
+      if (wallet.type !== 'mnemonic')
+        throw new Error('Can only add addresses to a mnemonic wallet.');
+      if (!sessionManager.getUnlockedSecret(walletId))
+        throw new Error('Wallet is locked. Please unlock first.');
+      if (wallet.addressCount >= MAX_ADDRESSES_PER_WALLET) {
+        throw new Error(`Cannot exceed ${MAX_ADDRESSES_PER_WALLET} addresses.`);
+      }
+      const mnemonic = sessionManager.getUnlockedSecret(walletId)!;
+      const index = wallet.addressCount;
+      const newAddr = this.deriveMnemonicAddress(mnemonic, wallet.addressType, index);
+      wallet.addresses.push(newAddr);
+      wallet.addressCount++;
+      const allRecords = await getAllEncryptedWallets();
+      const record = allRecords.find((r) => r.id === walletId);
+      if (!record) throw new Error('Missing storage record.');
+      record.addressCount = wallet.addressCount;
+      await updateEncryptedWallet(record);
+      return newAddr;
+    }
+  
+    public async removeWallet(walletId: string): Promise<void> {
+      const idx = this.wallets.findIndex((w) => w.id === walletId);
+      if (idx === -1) throw new Error('Wallet not found in memory.');
+      
+      this.wallets.splice(idx, 1);
+      sessionManager.clearUnlockedSecret(walletId);
+      await removeEncryptedWallet(walletId);
+      
+      if (this.activeWalletId === walletId) {
+        this.activeWalletId = null;
+      }
+  
+      await this.renumberWallets();
+    }
+  
+    private async renumberWallets(): Promise<void> {
+      for (let i = 0; i < this.wallets.length; i++) {
+        const wallet = this.wallets[i];
+        const newName = `Wallet ${i + 1}`;
+        
+        if (wallet.name.match(/^Wallet \d+$/)) {
+          wallet.name = newName;
+          
+          const allRecords = await getAllEncryptedWallets();
+          const record = allRecords.find((r) => r.id === wallet.id);
+          if (record) {
+            record.name = newName;
+            await updateEncryptedWallet(record);
+          }
+        }
+      }
+    }
+  
+    public async verifyPassword(password: string): Promise<boolean> {
+      const all = await getAllEncryptedWallets();
+      for (const r of all) {
+        try {
+          if (r.type === 'mnemonic' && r.encryptedSecret) {
+            await decryptMnemonic(r.encryptedSecret, password);
+            return true;
+          } else if (r.type === 'privateKey' && r.encryptedSecret) {
+            await decryptPrivateKey(r.encryptedSecret, password);
+            return true;
+          }
+        } catch {
+          continue;
+        }
+      }
+      return false;
+    }
+  
+    public async resetAllWallets(password: string): Promise<void> {
+      const valid = await this.verifyPassword(password);
+      if (!valid) throw new Error('Invalid password');
+      this.lockAllWallets();
+      const all = await getAllEncryptedWallets();
+      for (const rec of all) {
+        await removeEncryptedWallet(rec.id);
+      }
+      this.wallets = [];
+      sessionManager.clearAllUnlockedSecrets();
+      this.activeWalletId = null;
+    }
+  
+    public async updatePassword(currentPassword: string, newPassword: string): Promise<void> {
+      const valid = await this.verifyPassword(currentPassword);
+      if (!valid) throw new Error('Current password is incorrect');
+      const all = await getAllEncryptedWallets();
+      for (const rec of all) {
+        if (rec.type === 'mnemonic' && rec.encryptedSecret) {
+          const mnemonic = await decryptMnemonic(rec.encryptedSecret, currentPassword);
+          const newEnc = await encryptMnemonic(mnemonic, newPassword, rec.addressType);
+          rec.encryptedSecret = newEnc;
+          await updateEncryptedWallet(rec);
+        } else if (rec.type === 'privateKey' && rec.encryptedSecret) {
+          const pkData = await decryptPrivateKey(rec.encryptedSecret, currentPassword);
+          const newEnc = await encryptPrivateKey(pkData, newPassword);
+          rec.encryptedSecret = newEnc;
+          await updateEncryptedWallet(rec);
+        }
+      }
+      this.lockAllWallets();
+    }
+  
+    public async updateWalletAddressType(walletId: string, newType: AddressType): Promise<void> {
+      const wallet = this.getWalletById(walletId);
+      if (!wallet) throw new Error('Wallet not found');
+      if (wallet.type !== 'mnemonic') {
+        throw new Error('Only mnemonic wallets can change address type.');
+      }
+      const mnemonic = sessionManager.getUnlockedSecret(walletId);
+      if (!mnemonic) {
+        throw new Error('Wallet is locked. Please unlock first.');
+      }
+  
+      wallet.addressType = newType;
+      wallet.addressCount = 1;
+      wallet.addresses = [this.deriveMnemonicAddress(mnemonic, newType, 0)];
+  
+      const allRecords = await getAllEncryptedWallets();
+      const record = allRecords.find((r) => r.id === walletId);
+      if (!record) throw new Error('Missing storage record.');
+      
+      record.addressType = newType;
+      record.addressCount = 1;
+      record.previewAddress = wallet.addresses[0].address;
+      
+      await updateEncryptedWallet(record);
+  
+      if (this.activeWalletId === walletId) {
+        this.setActiveWallet(walletId);
+      }
+    }
+  
+    public async updateWalletPinnedAssets(walletId: string, pinned: string[]): Promise<void> {
+      const wallet = this.getWalletById(walletId);
+      if (!wallet) throw new Error('Wallet not found.');
+      wallet.pinnedAssetBalances = pinned;
+      const allRecords = await getAllEncryptedWallets();
+      const record = allRecords.find((r) => r.id === walletId);
+      if (!record) throw new Error('Missing storage record.');
+      record.pinnedAssetBalances = pinned;
+      await updateEncryptedWallet(record);
+    }
+  
+    public async getPrivateKey(walletId: string, derivationPath?: string): Promise<string> {
+      const wallet = this.getWalletById(walletId);
+      if (!wallet) throw new Error('Wallet not found.');
+      const secret = sessionManager.getUnlockedSecret(walletId);
+      if (!secret) throw new Error('Wallet is locked.');
+      if (wallet.type === 'mnemonic') {
+        const path =
+          derivationPath ||
+          (wallet.addresses[0]?.path ?? `${getDerivationPathForAddressType(wallet.addressType)}/0`);
+        return getPrivateKeyFromMnemonic(secret, path, wallet.addressType);
+      } else {
+        const { key: privateKeyHex } = JSON.parse(secret);
+        return privateKeyHex;
+      }
+    }
+  
+    public async createAndUnlockMnemonicWallet(
+      mnemonic: string,
+      password: string,
+      name?: string,
+      addressType: AddressType = AddressType.P2WPKH
+    ): Promise<Wallet> {
+      if (!name) {
+        name = `Wallet ${this.wallets.length + 1}`;
+      }
+      const newWallet = await this.createMnemonicWallet(mnemonic, password, name, addressType);
+      await this.unlockWallet(newWallet.id, password);
+      this.setActiveWallet(newWallet.id);
+      return newWallet;
+    }
+  
+    public async createAndUnlockPrivateKeyWallet(
+      privateKey: string,
+      password: string,
+      name?: string,
+      addressType: AddressType = AddressType.P2WPKH
+    ): Promise<Wallet> {
+      if (!name) {
+        name = `Wallet ${this.wallets.length + 1}`;
+      }
+      const newWallet = await this.createPrivateKeyWallet(privateKey, password, name, addressType);
+      await this.unlockWallet(newWallet.id, password);
+      this.setActiveWallet(newWallet.id);
+      return newWallet;
+    }
+  
+    public getPreviewAddressForType(walletId: string, addressType: AddressType): string {
+      const secret = sessionManager.getUnlockedSecret(walletId);
+      if (!secret) {
+        throw new Error('Wallet is locked');
+      }
+      const wallet = this.getWalletById(walletId);
+      if (!wallet) {
+        throw new Error('Wallet not found');
+      }
+      if (wallet.type === 'mnemonic') {
+        return getAddressFromMnemonic(
+          secret,
+          `${getDerivationPathForAddressType(addressType)}/0`,
+          addressType
+        );
+      } else {
+        const { key: privateKeyHex, compressed } = JSON.parse(secret);
+        return getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
+      }
+    }
+  
+    public async signTransaction(rawTxHex: string, sourceAddress: string): Promise<string> {
+      if (!this.activeWalletId) throw new Error("No active wallet set");
+      const wallet = this.getWalletById(this.activeWalletId);
+      if (!wallet) throw new Error("Wallet not found");
+      const targetAddress = wallet.addresses.find(addr => addr.address === sourceAddress);
+      if (!targetAddress) throw new Error("Source address not found in wallet");
+      return btcSignTransaction(rawTxHex, wallet, targetAddress);
+    }
+  
+    public async broadcastTransaction(signedTxHex: string): Promise<{ txid: string; fees?: number }> {
+      return btcBroadcastTransaction(signedTxHex);
+    }
+  
+    private async generateWalletId(mnemonic: string, addressType: AddressType): Promise<string> {
+      const seed = addressType === AddressType.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
+      const derivationPath = getDerivationPathForAddressType(addressType);
+      const pathParts = derivationPath.split('/').slice(0, -1).join('/');
+      const root = HDKey.fromMasterSeed(seed);
+      const accountNode = root.derive(pathParts);
+      if (!accountNode.publicKey) {
+        throw new Error('Unable to derive public key for ID creation.');
+      }
+      const xpub = accountNode.publicExtendedKey;
+      const xpubHash = sha256(utf8ToBytes(xpub));
+      const typeHash = sha256(utf8ToBytes(addressType));
+      const combined = new Uint8Array([...xpubHash, ...typeHash]);
+      const finalHash = sha256(combined);
+      return bytesToHex(finalHash);
+    }
+  
+    private async generateWalletIdFromPrivateKey(privateKeyHex: string, addressType: AddressType): Promise<string> {
+      const pubkeyCompressed = getPublicKeyFromPrivateKey(privateKeyHex, true);
+      const combined = utf8ToBytes(pubkeyCompressed + addressType);
+      const hash = sha256(combined);
+      return bytesToHex(hash);
+    }
+  
+    private deriveMnemonicAddress(mnemonic: string, addressType: AddressType, index: number): Address {
+      const path = `${getDerivationPathForAddressType(addressType)}/${index}`;
+      const address = getAddressFromMnemonic(mnemonic, path, addressType);
+      const seed = addressType === AddressType.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
+      const root = HDKey.fromMasterSeed(seed);
+      const child = root.derive(path);
+      if (!child.publicKey) {
+        throw new Error('Unable to derive public key');
+      }
+      const pubKeyHex = bytesToHex(child.publicKey);
+      return {
+        name: `Address ${index + 1}`,
+        path,
+        address,
+        pubKey: pubKeyHex,
+      };
+    }
+  
+    private deriveAddressFromPrivateKey(privKeyData: string, addressType: AddressType): Address {
+      const { key: privateKeyHex, compressed } = JSON.parse(privKeyData);
+      const address = getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
+      const pubKey = getPublicKeyFromPrivateKey(privateKeyHex, compressed);
+      return {
+        name: 'Address 1',
+        path: '',
+        address,
+        pubKey,
+      };
+    }
+  }
+  
+  export const walletManager = new WalletManager();
 

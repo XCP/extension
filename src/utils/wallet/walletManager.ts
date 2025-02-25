@@ -36,17 +36,6 @@ const DEFAULT_PINNED_ASSETS = ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CRO
 export class WalletManager {
   private wallets: Wallet[] = [];
   private activeWalletId: string | null = null;
-  private autoLockCallbacks: Set<() => void> = new Set();
-
-  public registerAutoLockCallback(callback: () => void): void {
-    console.log('Registering auto-lock callback, current count:', this.autoLockCallbacks.size);
-    this.autoLockCallbacks.add(callback);
-  }
-  
-  public unregisterAutoLockCallback(callback: () => void): void {
-    console.log('Unregistering auto-lock callback, current count:', this.autoLockCallbacks.size);
-    this.autoLockCallbacks.delete(callback);
-  }
 
   public setLastActiveTime(): void {
     sessionManager.setLastActiveTime();
@@ -262,8 +251,6 @@ export class WalletManager {
   public lockAllWallets(): void {
     sessionManager.clearAllUnlockedSecrets();
     this.wallets.forEach((wallet) => (wallet.addresses = []));
-    console.log('Invoking', this.autoLockCallbacks.size, 'auto-lock callbacks');
-    this.autoLockCallbacks.forEach(callback => callback());
   }
 
   public async addAddress(walletId: string): Promise<Address> {
@@ -483,7 +470,11 @@ export class WalletManager {
 
   public async signTransaction(rawTxHex: string, sourceAddress: string): Promise<string> {
     if (!this.activeWalletId) throw new Error("No active wallet set");
-    return btcSignTransaction(rawTxHex, this.activeWalletId, sourceAddress);
+    const wallet = this.getWalletById(this.activeWalletId);
+    if (!wallet) throw new Error("Wallet not found");
+    const targetAddress = wallet.addresses.find(addr => addr.address === sourceAddress);
+    if (!targetAddress) throw new Error("Source address not found in wallet");
+    return btcSignTransaction(rawTxHex, wallet, targetAddress);
   }
 
   public async broadcastTransaction(signedTxHex: string): Promise<{ txid: string; fees?: number }> {
