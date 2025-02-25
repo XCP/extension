@@ -1,10 +1,6 @@
-import { settingsManager, walletManager } from '@/utils/wallet';
-
 // In-memory store for decrypted secrets (by wallet ID).
 let unlockedSecrets: Record<string, string> = {};
-
-// Auto-lock timer reference.
-let idleTimer: ReturnType<typeof setTimeout> | null = null;
+let lastActiveTime: number = Date.now();
 
 /**
  * Stores a decrypted secret for a given wallet ID.
@@ -47,25 +43,17 @@ export function clearAllUnlockedSecrets(): void {
 }
 
 /**
- * Resets the auto-lock timer based on the configured timeout.
- * When the timer elapses, clears secrets and triggers wallet locking via walletManager.
+ * Updates the last active time to mark user activity.
  */
-export async function resetAutoLockTimer(): Promise<void> {
-  if (idleTimer) {
-    clearTimeout(idleTimer);
-  }
-  const settings = await settingsManager.getSettings();
-  const timeout = settings?.autoLockTimeout ?? 1 * 60 * 1000; // Fallback to 1 minute
-  idleTimer = setTimeout(async () => {
-    console.log('Auto-locking wallets due to inactivity');
-    clearAllUnlockedSecrets();
-    await walletManager.lockAllWallets(); // Trigger locking, which emits 'autoLock' via walletService
-  }, timeout);
+export function setLastActiveTime(): void {
+  lastActiveTime = Date.now();
 }
 
 /**
- * Marks user activity to keep the session alive by resetting the auto-lock timer.
+ * Retrieves the last active time.
+ *
+ * @returns The timestamp of the last activity.
  */
-export async function setLastActiveTime(): Promise<void> {
-  await resetAutoLockTimer();
+export function getLastActiveTime(): number {
+  return lastActiveTime;
 }

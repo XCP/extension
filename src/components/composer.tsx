@@ -11,7 +11,6 @@ import { useLoading } from "@/contexts/loading-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import type { ApiResponse as CounterpartyApiResponse } from "@/utils/blockchain/counterparty";
-import { signTransaction as btcSignTransaction } from "@/utils/blockchain/bitcoin/transactionSigner";
 
 interface HeaderCallbacks {
   onBack?: () => void;
@@ -49,7 +48,7 @@ export function Composer<T>({
   headerCallbacks,
 }: ComposerProps<T>): ReactElement {
   const navigate = useNavigate();
-  const { activeWallet, activeAddress, getPrivateKey, broadcastTransaction } = useWallet();
+  const { activeWallet, activeAddress, signTransaction, broadcastTransaction } = useWallet(); // Updated to include signTransaction
   const { isLoading, showLoading, hideLoading } = useLoading();
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings } = useSettings();
@@ -70,10 +69,9 @@ export function Composer<T>({
     const loadingId = showLoading("Signing and broadcasting transaction...");
     try {
       const rawTxHex = state.apiResponse.result.rawtransaction;
-      const privateKeyHex = await getPrivateKey(activeWallet.id, activeAddress.path || undefined);
-      const signedTxHex = await btcSignTransaction(rawTxHex, activeWallet, activeAddress, privateKeyHex);
+      const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
       await broadcastTransaction(signedTxHex);
-      sign(state.apiResponse, async () => {}); // Proceed with context sign action
+      sign(state.apiResponse, async () => {});
     } catch (err) {
       console.error("Sign action error:", err);
       let errorMessage = "Failed to sign and broadcast transaction";
@@ -84,7 +82,16 @@ export function Composer<T>({
     } finally {
       hideLoading(loadingId);
     }
-  }, [state.apiResponse, activeAddress, activeWallet, getPrivateKey, broadcastTransaction, showLoading, hideLoading, sign]);
+  }, [
+    state.apiResponse,
+    activeAddress,
+    activeWallet,
+    signTransaction,
+    broadcastTransaction,
+    showLoading,
+    hideLoading,
+    sign,
+  ]);
 
   const handleBack = useCallback(() => {
     if (state.step === "review") {

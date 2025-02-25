@@ -25,7 +25,7 @@ export async function signTransaction(
   rawTransaction: string,
   wallet: Wallet,
   targetAddress: Address,
-  privateKeyHex: string // New parameter
+  privateKeyHex: string
 ): Promise<string> {
   if (!wallet) throw new Error('Wallet not provided');
   if (!targetAddress) throw new Error('Target address not provided');

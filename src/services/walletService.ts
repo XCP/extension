@@ -35,6 +35,7 @@ interface WalletService {
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
   getLastActiveAddress: () => Promise<string | undefined>;
   setLastActiveAddress: (address: string) => Promise<void>;
+  setLastActiveTime: () => void;
   isAnyWalletUnlocked: () => Promise<boolean>;
   createAndUnlockMnemonicWallet: (
     mnemonic: string,
@@ -108,6 +109,7 @@ function createWalletService(): WalletService {
     setLastActiveAddress: async (address) => {
       await settingsManager.updateSettings({ lastActiveAddress: address });
     },
+    setLastActiveTime: () => walletManager.setLastActiveTime(),
     isAnyWalletUnlocked: async () => walletManager.isAnyWalletUnlocked(),
     createAndUnlockMnemonicWallet: async (mnemonic, password, name, addressType) => {
       return walletManager.createAndUnlockMnemonicWallet(mnemonic, password, name, addressType);

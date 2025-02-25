@@ -237,7 +237,6 @@ export class WalletManager {
       if (err instanceof DecryptionError) throw err;
       throw new Error('Invalid password or corrupted data.');
     }
-    sessionManager.resetAutoLockTimer();
   }
 
   public lockWallet(walletId: string): void {
@@ -472,9 +471,12 @@ export class WalletManager {
     if (!this.activeWalletId) throw new Error("No active wallet set");
     const wallet = this.getWalletById(this.activeWalletId);
     if (!wallet) throw new Error("Wallet not found");
+    
     const targetAddress = wallet.addresses.find(addr => addr.address === sourceAddress);
     if (!targetAddress) throw new Error("Source address not found in wallet");
-    return btcSignTransaction(rawTxHex, wallet, targetAddress);
+    
+    const privateKeyHex = await this.getPrivateKey(wallet.id, targetAddress.path);
+    return btcSignTransaction(rawTxHex, wallet, targetAddress, privateKeyHex);
   }
 
   public async broadcastTransaction(signedTxHex: string): Promise<{ txid: string; fees?: number }> {

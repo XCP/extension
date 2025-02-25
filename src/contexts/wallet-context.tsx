@@ -36,6 +36,7 @@ interface WalletContextType {
   resetAllWallets: (password: string) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<string>;
+  setLastActiveTime: () => void;
   verifyPassword: (password: string) => Promise<boolean>;
   updateWalletAddressType: (walletId: string, newType: AddressType) => Promise<void>;
   getPreviewAddressForType: (walletId: string, addressType: AddressType) => Promise<string>;
@@ -66,7 +67,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     walletLocked: true,
     loaded: false,
   });
-  const refreshInProgress = useRef(false);
+  const refreshInProgress = React.useRef(false);
 
   const refreshWalletState = useCallback(async () => {
     if (refreshInProgress.current) return;
@@ -77,26 +78,22 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       const allWallets = await walletService.getWallets();
       const newState: WalletState = { ...walletState };
 
-      // Declare change flags
       let walletsEqual = JSON.stringify(newState.wallets) === JSON.stringify(allWallets);
       let activeChanged = false;
       let addressChanged = false;
       let lockChanged = false;
 
-      // Update auth state based on wallet count first
       if (allWallets.length === 0) {
         newState.authState = AuthState.Onboarding;
         newState.activeWallet = null;
         newState.activeAddress = null;
         newState.walletLocked = true;
       } else {
-        // Check if any wallet is unlocked
         const anyUnlocked = await walletService.isAnyWalletUnlocked();
         newState.walletLocked = !anyUnlocked;
         newState.authState = anyUnlocked ? AuthState.Unlocked : AuthState.Locked;
       }
 
-      // Update wallets list
       if (!walletsEqual) {
         newState.wallets = allWallets;
       }
@@ -107,10 +104,12 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
           active = allWallets[0];
           await walletService.setActiveWallet(active.id);
         }
-        if (activeChanged = newState.activeWallet?.id !== active.id ||
+        if (
+          (activeChanged = newState.activeWallet?.id !== active.id) ||
           (newState.activeWallet &&
             active &&
-            JSON.stringify(newState.activeWallet.addresses) !== JSON.stringify(active.addresses))) {
+            JSON.stringify(newState.activeWallet.addresses) !== JSON.stringify(active.addresses))
+        ) {
           newState.activeWallet = active;
         }
 
@@ -151,29 +150,39 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     refreshWalletState();
   }, [refreshWalletState]);
 
-  const setActiveWallet = useCallback(async (wallet: Wallet | null, useLastActive?: boolean) => {
-    if (wallet) {
-      await walletService.setActiveWallet(wallet.id);
-      const lastActiveAddress = useLastActive ? await walletService.getLastActiveAddress() : undefined;
-      const newActiveAddress =
-        lastActiveAddress && wallet.addresses.some((addr) => addr.address === lastActiveAddress)
-          ? wallet.addresses.find((addr) => addr.address === lastActiveAddress) ?? wallet.addresses[0]
-          : wallet.addresses[0];
-      setWalletState((prev) => ({
-        ...prev,
-        activeWallet: wallet,
-        activeAddress: newActiveAddress ?? null,
-      }));
-      if (newActiveAddress) await walletService.setLastActiveAddress(newActiveAddress.address);
-    } else {
-      await walletService.setActiveWallet('');
-      setWalletState((prev) => ({ ...prev, activeWallet: null, activeAddress: null }));
-    }
-  }, [walletService]);
+  const setActiveWallet = useCallback(
+    async (wallet: Wallet | null, useLastActive?: boolean) => {
+      if (wallet) {
+        await walletService.setActiveWallet(wallet.id);
+        const lastActiveAddress = useLastActive ? await walletService.getLastActiveAddress() : undefined;
+        const newActiveAddress =
+          lastActiveAddress && wallet.addresses.some((addr) => addr.address === lastActiveAddress)
+            ? wallet.addresses.find((addr) => addr.address === lastActiveAddress) ?? wallet.addresses[0]
+            : wallet.addresses[0];
+        setWalletState((prev) => ({
+          ...prev,
+          activeWallet: wallet,
+          activeAddress: newActiveAddress ?? null,
+        }));
+        if (newActiveAddress) await walletService.setLastActiveAddress(newActiveAddress.address);
+      } else {
+        await walletService.setActiveWallet('');
+        setWalletState((prev) => ({ ...prev, activeWallet: null, activeAddress: null }));
+      }
+    },
+    [walletService]
+  );
 
-  const setActiveAddress = useCallback(async (address: Address | null) => {
-    setWalletState((prev) => ({ ...prev, activeAddress: address }));
-    if (address) await walletService.setLastActiveAddress(address.address);
+  const setActiveAddress = useCallback(
+    async (address: Address | null) => {
+      setWalletState((prev) => ({ ...prev, activeAddress: address }));
+      if (address) await walletService.setLastActiveAddress(address.address);
+    },
+    [walletService]
+  );
+
+  const setLastActiveTime = useCallback(() => {
+    walletService.setLastActiveTime();
   }, [walletService]);
 
   const value: WalletContextType = {
@@ -216,6 +225,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     },
     getUnencryptedMnemonic: walletService.getUnencryptedMnemonic,
     getPrivateKey: walletService.getPrivateKey,
+    setLastActiveTime,
     verifyPassword: walletService.verifyPassword,
     updateWalletAddressType: withRefresh(walletService.updateWalletAddressType, refreshWalletState),
     getPreviewAddressForType: walletService.getPreviewAddressForType,
