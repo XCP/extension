@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
   Field,
   Label,
@@ -8,24 +8,26 @@ import {
   ListboxButton,
   ListboxOption,
   ListboxOptions,
-} from '@headlessui/react';
-import { Button } from '@/components/button';
-import { useFeeRates, FeeRateOption } from '@/hooks/useFeeRates';
+} from "@headlessui/react";
+import { Button } from "@/components/button";
+import { useFeeRates, FeeRateOption } from "@/hooks/useFeeRates";
 
 interface FeeRateInputProps {
   showHelpText?: boolean;
   disabled?: boolean;
+  onFeeRateChange?: (satPerVbyte: number) => void; // New prop
 }
 
-type LocalFeeRateOption = FeeRateOption | 'custom';
+type LocalFeeRateOption = FeeRateOption | "custom";
 
 export function FeeRateInput({
   showHelpText = false,
   disabled = false,
+  onFeeRateChange,
 }: FeeRateInputProps) {
   const { feeRates, loading, error: fetchError, uniquePresetOptions } = useFeeRates(true);
-  const [selectedOption, setSelectedOption] = useState<LocalFeeRateOption>('fast');
-  const [customInput, setCustomInput] = useState<string>('1');
+  const [selectedOption, setSelectedOption] = useState<LocalFeeRateOption>("fast");
+  const [customInput, setCustomInput] = useState<string>("1");
   const [internalError, setInternalError] = useState<string | null>(null);
   const isInitial = useRef(true);
 
@@ -33,21 +35,25 @@ export function FeeRateInput({
     if (feeRates && isInitial.current) {
       const initialValue = Math.max(feeRates.fastestFee, 1);
       setCustomInput(initialValue.toString());
-      setSelectedOption('fast');
+      setSelectedOption("fast");
       isInitial.current = false;
+      onFeeRateChange?.(initialValue); // Notify parent of initial value
     }
-  }, [feeRates]);
+  }, [feeRates, onFeeRateChange]);
 
   useEffect(() => {
-    if (feeRates && selectedOption !== 'custom') {
+    if (feeRates && selectedOption !== "custom") {
       const preset = uniquePresetOptions.find((opt) => opt.id === selectedOption);
-      if (preset) setCustomInput(preset.value.toString());
+      if (preset) {
+        setCustomInput(preset.value.toString());
+        onFeeRateChange?.(preset.value); // Notify parent of preset change
+      }
     }
-  }, [selectedOption, feeRates, uniquePresetOptions]);
+  }, [selectedOption, feeRates, uniquePresetOptions, onFeeRateChange]);
 
   const feeOptions = feeRates
-    ? [...uniquePresetOptions, { id: 'custom', name: 'Custom', value: parseFloat(customInput) || 1 }]
-    : [{ id: 'custom', name: 'Custom', value: parseFloat(customInput) || 1 }];
+    ? [...uniquePresetOptions, { id: "custom", name: "Custom", value: parseFloat(customInput) || 1 }]
+    : [{ id: "custom", name: "Custom", value: parseFloat(customInput) || 1 }];
 
   const handleCustomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCustomInput(e.target.value);
@@ -58,21 +64,24 @@ export function FeeRateInput({
     const trimmed = customInput.trim();
     const num = parseFloat(trimmed);
     if (isNaN(num) || num < 1) {
-      setCustomInput('1');
-      setInternalError('Fee rate must be at least 1 sat/vB.');
+      setCustomInput("1");
+      setInternalError("Fee rate must be at least 1 sat/vB.");
+      onFeeRateChange?.(1); // Notify parent of corrected value
     } else {
-      const parts = trimmed.split('.');
+      const parts = trimmed.split(".");
       if (parts.length === 2 && parts[1].length > 1) {
         setCustomInput(num.toFixed(1));
       }
+      onFeeRateChange?.(num); // Notify parent of custom value
     }
   };
 
   const handleOptionSelect = (option: { id: LocalFeeRateOption; name: string; value: number }) => {
     setSelectedOption(option.id);
-    if (option.id !== 'custom') {
+    if (option.id !== "custom") {
       setCustomInput(option.value.toString());
       setInternalError(null);
+      onFeeRateChange?.(option.value); // Notify parent of selected preset
     }
   };
 
@@ -82,6 +91,7 @@ export function FeeRateInput({
       setSelectedOption(firstPreset.id);
       setCustomInput(firstPreset.value.toString());
       setInternalError(null);
+      onFeeRateChange?.(firstPreset.value); // Notify parent of reset
     }
   };
 
@@ -142,7 +152,7 @@ export function FeeRateInput({
         Fee Rate <span className="text-red-500">*</span>
       </Label>
       <div className="mt-1">
-        {selectedOption === 'custom' ? (
+        {selectedOption === "custom" ? (
           <div className="relative">
             <Input
               name="sat_per_vbyte"
@@ -176,7 +186,7 @@ export function FeeRateInput({
                 {({ value }) => (
                   <div className="flex justify-between">
                     <span>{value?.name}</span>
-                    {value?.id !== 'custom' && (
+                    {value?.id !== "custom" && (
                       <span className="text-gray-500">{value.value} sat/vB</span>
                     )}
                   </div>
@@ -187,8 +197,8 @@ export function FeeRateInput({
                   <ListboxOption key={option.id} value={option} className="p-2 cursor-pointer hover:bg-gray-100">
                     {({ selected }) => (
                       <div className="flex justify-between">
-                        <span className={selected ? 'font-medium' : ''}>{option.name}</span>
-                        {option.id !== 'custom' && (
+                        <span className={selected ? "font-medium" : ""}>{option.name}</span>
+                        {option.id !== "custom" && (
                           <span className="text-gray-500">{option.value} sat/vB</span>
                         )}
                       </div>

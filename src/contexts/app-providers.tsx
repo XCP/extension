@@ -1,4 +1,5 @@
 import React, { type ReactNode } from 'react';
+import { ComposerProvider } from './composer-context';
 import { HeaderProvider } from './header-context';
 import { LoadingProvider } from './loading-context';
 import { PriceProvider } from './price-context';
@@ -16,7 +17,9 @@ export function AppProviders({ children }: AppProvidersProps) {
         <WalletProvider>
           <HeaderProvider>
             <PriceProvider>
-              {children}
+              <ComposerProvider>
+                {children}
+              </ComposerProvider>
             </PriceProvider>
           </HeaderProvider>
         </WalletProvider>

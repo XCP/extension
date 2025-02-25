@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
@@ -10,6 +10,7 @@ import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { toSatoshis } from "@/utils/numeric";
 import type { SendOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -40,11 +41,34 @@ export function SendForm({
 
   const isDivisible = initialFormData?.asset === "BTC" || assetDetails?.assetInfo?.divisible;
 
+  // Local state for amount input
+  const [amount, setAmount] = useState<string>(
+    initialFormData?.quantity
+      ? isDivisible
+        ? (initialFormData.quantity / 1e8).toFixed(8) // Temporary, refine if needed
+        : initialFormData.quantity.toString()
+      : ""
+  );
+
+  // Local state for fee rate
+  const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 1);
+
   // Focus destination input on mount
   useEffect(() => {
     const input = document.querySelector("input[name='destination']") as HTMLInputElement;
     input?.focus();
   }, []);
+
+  // Custom form action to include the dynamic amount and fee rate
+  const handleFormAction = (formData: FormData) => {
+    if (amount) {
+      // Use toSatoshis for divisible assets, raw amount for non-divisible
+      const quantity = isDivisible ? toSatoshis(amount) : amount;
+      formData.set("quantity", quantity);
+    }
+    formData.set("sat_per_vbyte", satPerVbyte.toString());
+    formAction(formData);
+  };
 
   return (
     <div className="space-y-4">
@@ -60,7 +84,7 @@ export function SendForm({
       )}
       {assetDetailsError && <div className="text-red-500 mb-2">Failed to fetch asset details.</div>}
       <div className="bg-white rounded-lg shadow-lg p-4">
-        <form action={formAction} className="space-y-6">
+        <form action={handleFormAction} className="space-y-6">
           <Field>
             <Label className="text-sm font-medium text-gray-700">
               Destination <span className="text-red-500">*</span>
@@ -82,15 +106,9 @@ export function SendForm({
           <AmountWithMaxInput
             asset={initialFormData?.asset || initialAsset || "BTC"}
             availableBalance={assetDetails?.availableBalance || "0"}
-            value={
-              initialFormData?.quantity
-                ? isDivisible
-                  ? (initialFormData.quantity / 1e8).toFixed(8)
-                  : initialFormData.quantity.toString()
-                : ""
-            }
-            onChange={() => {}} // No-op since formAction handles submission
-            sat_per_vbyte={initialFormData?.sat_per_vbyte || 1}
+            value={amount}
+            onChange={setAmount}
+            sat_per_vbyte={satPerVbyte}
             setError={() => {}} // No-op since Composer handles errors
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.availableBalance || "0"}
@@ -121,8 +139,12 @@ export function SendForm({
             </Field>
           )}
 
-          <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-          
+          <FeeRateInput
+            showHelpText={shouldShowHelpText}
+            disabled={pending}
+            onFeeRateChange={setSatPerVbyte}
+          />
+
           <Button type="submit" color="blue" fullWidth disabled={pending}>
             {pending ? "Submitting..." : "Continue"}
           </Button>

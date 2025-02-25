@@ -1,15 +1,16 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import type { ReactElement } from "react";
 import { FiHelpCircle, FiX, FiRefreshCw } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { SuccessScreen } from "@/components/screens/success-screen";
+import { useComposer } from "@/contexts/composer-context";
 import { useHeader } from "@/contexts/header-context";
 import { useLoading } from "@/contexts/loading-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import type { ApiResponse } from "@/utils/blockchain/counterparty";
+import type { ApiResponse as CounterpartyApiResponse } from "@/utils/blockchain/counterparty";
 
 interface HeaderCallbacks {
   onBack?: () => void;
@@ -18,7 +19,6 @@ interface HeaderCallbacks {
 
 interface ComposerProps<T> {
   initialTitle: string;
-  initialFormData?: T | null;
   FormComponent: (props: {
     formAction: (formData: FormData) => void;
     initialFormData: T | null;
@@ -34,19 +34,14 @@ interface ComposerProps<T> {
   headerCallbacks?: HeaderCallbacks;
 }
 
-interface ComposerState<T> {
-  step: "form" | "review" | "success";
-  formData: T | null;
-  apiResponse: ApiResponse | null;
-}
-
-interface ExtendedApiResponse extends ApiResponse {
-  broadcast?: { txid: string; fees?: number };
+interface ApiResponse extends CounterpartyApiResponse {
+  result: CounterpartyApiResponse['result'] & {
+    data: string | null;
+  };
 }
 
 export function Composer<T>({
   initialTitle,
-  initialFormData = null,
   FormComponent,
   ReviewComponent,
   composeTransaction,
@@ -57,151 +52,144 @@ export function Composer<T>({
   const { isLoading, showLoading, hideLoading } = useLoading();
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings } = useSettings();
+  const { state, error, isPending, compose, sign, reset, revertToForm } = useComposer<T>();
 
-  const initialComposeState: ComposerState<T> = {
-    step: "form",
-    formData: initialFormData,
-    apiResponse: null,
-  };
+  const formAction = useCallback(
+    (formData: FormData) => {
+      if (activeAddress) {
+        compose(formData, composeTransaction, activeAddress.address);
+      }
+    },
+    [compose, composeTransaction, activeAddress]
+  );
 
-  const [error, setError] = useState<string | null>(null);
-
-  async function composeAction(prevState: ComposerState<T>, formData: FormData): Promise<ComposerState<T>> {
-    const loadingId = showLoading("Composing transaction...");
-    try {
-      if (!activeAddress) throw new Error("Wallet not initialized.");
-      const rawData = Object.fromEntries(formData);
-      const data = rawData as unknown as T;
-      const response = await composeTransaction({
-        ...data,
-        sourceAddress: activeAddress.address,
-      });
-      setError(null);
-      return {
-        ...prevState,
-        step: "review",
-        formData: data,
-        apiResponse: response,
+  const signAction = useCallback(() => {
+    if (state.apiResponse && activeAddress) {
+      const signFn = async () => {
+        const loadingId = showLoading("Signing and broadcasting transaction...");
+        try {
+          const rawTxHex = state.apiResponse!.result.rawtransaction;
+          const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
+          await broadcastTransaction(signedTxHex);
+        } finally {
+          hideLoading(loadingId);
+        }
       };
-    } catch (err) {
-      console.error("Compose error:", err);
-      setError(err instanceof Error ? err.message : String(err));
-      return prevState;
-    } finally {
-      hideLoading(loadingId);
+      sign(state.apiResponse, signFn);
     }
-  }
+  }, [state.apiResponse, sign, signTransaction, broadcastTransaction, activeAddress, showLoading, hideLoading]);
 
-  async function signAction(prevState: ComposerState<T>): Promise<ComposerState<T>> {
-    const loadingId = showLoading("Signing and broadcasting transaction...");
-    try {
-      if (!prevState.apiResponse) throw new Error("No transaction composed.");
-      if (!activeWallet || !activeAddress) throw new Error("Wallet not initialized.");
-      const rawTxHex = prevState.apiResponse.result.rawtransaction;
-      const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
-      const broadcastResponse = await broadcastTransaction(signedTxHex);
-      setError(null);
-      return {
-        ...prevState,
-        step: "success",
-        apiResponse: { ...prevState.apiResponse, broadcast: broadcastResponse } as ExtendedApiResponse,
-      };
-    } catch (err) {
-      console.error("Sign error:", err);
-      setError(err instanceof Error ? err.message : String(err));
-      return prevState;
-    } finally {
-      hideLoading(loadingId);
+  const handleBack = useCallback(() => {
+    if (state.step === "review") {
+      revertToForm(); // Go back to form, keep formData
+    } else if (state.step === "success") {
+      reset(); // Reset and go to /index
+      navigate("/index");
     }
-  }
+  }, [state.step, revertToForm, reset, navigate]);
 
-  const [composeState, formAction, isComposePending] = useActionState(composeAction, initialComposeState);
-  const [signState, signDispatch, isSignPending] = useActionState(signAction, composeState);
+  const handleCancel = useCallback(() => {
+    reset(); // Reset and go to /index
+    navigate("/index");
+  }, [reset, navigate]);
 
-  const toggleHelp = () => updateSettings({ showHelpText: !settings?.showHelpText });
+  const toggleHelp = useCallback(() => updateSettings({ showHelpText: !settings?.showHelpText }), [
+    settings?.showHelpText,
+    updateSettings,
+  ]);
+
   const effectiveToggleHelp = headerCallbacks?.onToggleHelp || toggleHelp;
 
-  const handleBack = () => {
-    if (signState.step === "review") navigate(-1);
-    else if (signState.step === "success") navigate("/index");
-  };
+  const onBackSuccess = useCallback(() => {
+    reset(); // Reset and go to /index
+    navigate("/index");
+  }, [reset, navigate]);
 
-  const handleCancel = () => navigate("/index");
+  const onResetForm = useCallback(() => {
+    reset(); // Reset and stay on form
+  }, [reset]);
+
+  const onBackDefault = useCallback(() => navigate(-1), [navigate]);
+
+  const headerConfig = useMemo(() => {
+    if (isLoading || isPending) {
+      return {
+        useLogoTitle: true,
+        leftButton: {
+          icon: <FiX className="w-4 h-4" aria-hidden="true" />,
+          onClick: handleCancel,
+          ariaLabel: "Cancel transaction",
+        },
+      };
+    }
+    if (state.step === "review" && state.apiResponse) {
+      return {
+        title: initialTitle,
+        onBack: handleBack, // Go back to form, keep data
+        rightButton: {
+          icon: <FiX className="w-4 h-4" aria-hidden="true" />,
+          onClick: handleCancel, // Reset and go to /index
+          ariaLabel: "Cancel and return to index",
+        },
+      };
+    }
+    if (state.step === "success" && state.apiResponse) {
+      return {
+        useLogoTitle: true,
+        onBack: onBackSuccess, // Reset and go to /index
+        rightButton: {
+          icon: <FiRefreshCw className="w-4 h-4" aria-hidden="true" />,
+          onClick: onResetForm, // Reset and go to form
+          ariaLabel: "Return to form",
+        },
+      };
+    }
+    return {
+      title: initialTitle,
+      onBack: headerCallbacks?.onBack || onBackDefault,
+      rightButton: {
+        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        onClick: effectiveToggleHelp,
+        ariaLabel: "Toggle help text",
+      },
+    };
+  }, [
+    isLoading,
+    isPending,
+    state.step,
+    state.apiResponse,
+    initialTitle,
+    headerCallbacks?.onBack,
+    handleCancel,
+    handleBack,
+    effectiveToggleHelp,
+    onBackSuccess,
+    onResetForm,
+    onBackDefault,
+  ]);
 
   useEffect(() => {
-    const headerConfig = isLoading || isComposePending || isSignPending
-      ? {
-          useLogoTitle: true,
-          leftButton: {
-            icon: <FiX className="w-4 h-4" aria-hidden="true" />,
-            onClick: handleCancel,
-            ariaLabel: "Cancel transaction",
-          },
-        }
-      : signState.step === "review" && signState.apiResponse
-      ? {
-          title: initialTitle,
-          onBack: headerCallbacks?.onBack || handleBack,
-          rightButton: {
-            icon: <FiX className="w-4 h-4" aria-hidden="true" />,
-            onClick: handleCancel,
-            ariaLabel: "Cancel and return to index",
-          },
-        }
-      : signState.step === "success" && signState.apiResponse
-      ? {
-          useLogoTitle: true,
-          onBack: () => navigate("/index"),
-          rightButton: {
-            icon: <FiRefreshCw className="w-4 h-4" aria-hidden="true" />,
-            onClick: () => navigate(-1),
-            ariaLabel: "Return to form",
-          },
-        }
-      : {
-          title: initialTitle,
-          onBack: headerCallbacks?.onBack || (() => navigate(-1)),
-          rightButton: {
-            icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
-            onClick: effectiveToggleHelp,
-            ariaLabel: "Toggle help text",
-          },
-        };
     setHeaderProps(headerConfig);
     return () => setHeaderProps(null);
-  }, [
-    composeState,
-    isLoading,
-    isComposePending,
-    isSignPending,
-    signState.step,
-    signState.apiResponse,
-    initialTitle,
-    headerCallbacks,
-    effectiveToggleHelp,
-    handleBack,
-    handleCancel,
-    navigate,
-    setHeaderProps,
-  ]);
+  }, [headerConfig, setHeaderProps]);
 
   return (
     <div>
       {error && <div style={{ color: "red" }}>{error}</div>}
-      {signState.step === "form" && (
-        <FormComponent formAction={formAction} initialFormData={signState.formData || null} />
+      {state.step === "form" && (
+        <FormComponent formAction={formAction} initialFormData={state.formData || null} />
       )}
-      {signState.step === "review" && signState.apiResponse && (
+      {state.step === "review" && state.apiResponse && (
         <ReviewComponent
-          apiResponse={signState.apiResponse}
-          onSign={signDispatch}
+          apiResponse={state.apiResponse}
+          onSign={signAction}
           onBack={handleBack}
           error={error}
-          setError={setError}
+          setError={() => {}} // Error setting handled in context
         />
       )}
-      {signState.step === "success" && signState.apiResponse && (
-        <SuccessScreen apiResponse={signState.apiResponse} onReset={() => navigate("/index")} />
+      {state.step === "success" && state.apiResponse && (
+        <SuccessScreen apiResponse={state.apiResponse} onReset={onBackSuccess} />
       )}
     </div>
   );

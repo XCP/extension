@@ -4,6 +4,14 @@ import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
 import { composeSend } from "@/utils/blockchain/counterparty";
+import {
+  toSatoshis,
+  fromSatoshis,
+  subtractSatoshis,
+  divideSatoshis,
+  isLessThanOrEqualToSatoshis,
+  isLessThanSatoshis
+} from "@/utils/numeric";
 
 interface AmountWithMaxInputProps {
   asset: string;
@@ -42,7 +50,7 @@ export function AmountWithMaxInput({
   disabled = false,
   destinationCount = 1,
   destination,
-  memo = '',
+  memo = "",
   disableMaxButton = false,
   onMaxClick,
 }: AmountWithMaxInputProps) {
@@ -57,7 +65,7 @@ export function AmountWithMaxInput({
     if (!sourceAddress || disabled) return;
     const sourceAddr = sourceAddress.address;
 
-    if (asset !== 'BTC') {
+    if (asset !== "BTC") {
       const maxNum = Number(maxAmount);
       if (!isNaN(maxNum)) {
         const perDestination = (maxNum / destinationCount).toFixed(8);
@@ -74,57 +82,56 @@ export function AmountWithMaxInput({
         destination && isValidBase58Address(destination)
           ? destination
           : sourceAddr;
-      const availableSats = Math.floor(Number(availableBalance) * 1e8);
-      if (availableSats <= 0) {
-        throw new Error('No available balance.');
+      const availableSats = toSatoshis(availableBalance); // Integer string
+      if (isLessThanOrEqualToSatoshis(availableSats, "0")) {
+        throw new Error("No available balance.");
       }
 
-      let candidate: number | undefined;
+      let candidate: string | undefined;
 
       try {
         const composeResult = await composeSend({
           sourceAddress: sourceAddr,
           destination: estimationDestination,
-          asset: 'BTC',
-          quantity: Number(availableSats),
+          asset: "BTC",
+          quantity: Number(availableSats), // Convert to number for API
           memo,
           sat_per_vbyte,
           memo_is_hex: false,
         });
-        const fee = composeResult.result.btc_fee;
-        candidate = availableSats - fee;
+        candidate = subtractSatoshis(availableSats, composeResult.result.btc_fee);
       } catch (e: any) {
-        const errorMsg = e.response?.data?.error || e.message || '';
+        const errorMsg = e.response?.data?.error || e.message || "";
         const regex = /Insufficient funds for the target amount:\s*(\d+)\s*<\s*(\d+)/;
         const match = regex.exec(errorMsg);
         if (match) {
-          const balanceParsed = parseInt(match[1], 10);
-          const targetNeeded = parseInt(match[2], 10);
-          candidate = balanceParsed - (targetNeeded - balanceParsed);
+          const balanceParsed = match[1];
+          const targetNeeded = match[2];
+          candidate = subtractSatoshis(balanceParsed, subtractSatoshis(targetNeeded, balanceParsed));
         } else {
           throw e;
         }
       }
 
-      if (candidate === undefined || candidate <= 0) {
-        throw new Error('Insufficient balance to cover transaction fee.');
+      if (!candidate || isLessThanOrEqualToSatoshis(candidate, "0")) {
+        throw new Error("Insufficient balance to cover transaction fee.");
       }
 
-      const dustLimit = 546;
-      const amountPerDestination = Math.floor(candidate / destinationCount);
-      if (amountPerDestination < dustLimit) {
-        throw new Error('Amount per destination after fee is below dust limit.');
+      const dustLimit = "546"; // Integer string
+      const amountPerDestination = divideSatoshis(candidate, destinationCount);
+      if (isLessThanSatoshis(amountPerDestination, dustLimit)) {
+        throw new Error("Amount per destination after fee is below dust limit.");
       }
-      const finalAmount = (amountPerDestination / 1e8).toFixed(8);
+      const finalAmount = fromSatoshis(amountPerDestination); // Returns BTC string
       onChange(finalAmount);
     } catch (err: any) {
-      console.error('Failed to calculate max amount:', err);
+      console.error("Failed to calculate max amount:", err);
       if (axios.isAxiosError(err)) {
         setError(err.response?.data?.error || err.message);
       } else if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Failed to estimate max amount.');
+        setError("Failed to estimate max amount.");
       }
     } finally {
       setLoading(false);
@@ -169,7 +176,7 @@ export function AmountWithMaxInput({
       </div>
       {shouldShowHelpText && (
         <Description id={`${name}-description`} className="mt-2 text-sm text-gray-500">
-          {description || `Enter the amount of ${asset} you want to send${destinationCount > 1 ? ' (per destination)' : ''}.`}
+          {description || `Enter the amount of ${asset} you want to send${destinationCount > 1 ? " (per destination)" : ""}.`}
         </Description>
       )}
     </Field>

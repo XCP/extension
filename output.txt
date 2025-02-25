@@ -1,1221 +1,357 @@
 Folders:
+/src/pages/compose/send/
+/src/pages/compose/send/mpma/
 
 Files:
-/src/components/screens/review-screen.tsx
-/src/pages/actions/consolidate/review.tsx
-/src/pages/compose/bet/review.tsx
-/src/pages/compose/broadcast/address-options/review.tsx
-/src/pages/compose/broadcast/review.tsx
-/src/pages/compose/dispenser/close/review.tsx
-/src/pages/compose/dispenser/dispense/review.tsx
-/src/pages/compose/dispenser/review.tsx
-/src/pages/compose/dividend/review.tsx
-/src/pages/compose/fairminter/fairmint/review.tsx
-/src/pages/compose/fairminter/review.tsx
-/src/pages/compose/issuance/destroy-supply/review.tsx
-/src/pages/compose/issuance/issue-supply/review.tsx
-/src/pages/compose/issuance/lock-supply/review.tsx
-/src/pages/compose/issuance/reset-supply/review.tsx
-/src/pages/compose/issuance/review.tsx
-/src/pages/compose/issuance/transfer-ownership/review.tsx
-/src/pages/compose/issuance/update-description/review.tsx
-/src/pages/compose/order/btcpay/review.tsx
-/src/pages/compose/order/cancel/review.tsx
-/src/pages/compose/order/review.tsx
+/src/pages/compose/send/form.tsx
+/src/pages/compose/send/mpma/form.tsx
+/src/pages/compose/send/mpma/page.tsx
 /src/pages/compose/send/mpma/review.tsx
+/src/pages/compose/send/page.tsx
 /src/pages/compose/send/review.tsx
-/src/pages/compose/sweep/review.tsx
-/src/pages/compose/utxo/attach/review.tsx
-/src/pages/compose/utxo/detach/review.tsx
-/src/pages/compose/utxo/move/review.tsx
 
 File Contents:
-/src/components/screens/review-screen.tsx
+/src/pages/compose/send/form.tsx
   [contents of the file]
-  import React, { useState } from "react";
-  import { Button } from "@/components/button";
-  import { ErrorAlert } from "@/components/error-alert";
-  import { formatAddress, formatAmount } from "@/utils/format";
+  "use client";
   
-  interface ReviewScreenProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-    customFields: {
-      label: string;
-      value: string | number;
-      rightElement?: React.ReactNode;
-    }[];
-    error: string | null;
-    setError: React.Dispatch<React.SetStateAction<string | null>>;
+  import { useEffect, useState } from "react";
+  import { useFormStatus } from "react-dom";
+  import { Field, Label, Description, Input } from "@headlessui/react";
+  import { Button } from "@/components/button";
+  import { BalanceHeader } from "@/components/headers/balance-header";
+  import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
+  import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+  import { useSettings } from "@/contexts/settings-context";
+  import { useWallet } from "@/contexts/wallet-context";
+  import { useAssetDetails } from "@/hooks/useAssetDetails";
+  import { toSatoshis } from "@/utils/numeric";
+  import type { SendOptions } from "@/utils/blockchain/counterparty";
+  import type { ReactElement } from "react";
+  
+  /**
+   * Props for the SendForm component, aligned with Composer's formAction.
+   */
+  interface SendFormProps {
+    formAction: (formData: FormData) => void;
+    initialAsset?: string;
+    initialFormData: SendOptions | null;
   }
   
-  export function ReviewScreen({
-    apiResponse,
-    onSign,
-    customFields,
-    error,
-    setError,
-  }: ReviewScreenProps) {
-    const [isSigning, setIsSigning] = useState(false);
-    const { result } = apiResponse;
+  /**
+   * Form for sending assets using React 19 Actions.
+   */
+  export function SendForm({
+    formAction,
+    initialAsset,
+    initialFormData,
+  }: SendFormProps): ReactElement {
+    const { activeAddress } = useWallet();
+    const { settings } = useSettings();
+    const shouldShowHelpText = settings?.showHelpText ?? false;
+    const { data: assetDetails, error: assetDetailsError } = useAssetDetails(
+      initialFormData?.asset || initialAsset || "BTC"
+    );
+    const { pending } = useFormStatus();
   
-    const handleSignClick = async () => {
-      setIsSigning(true);
-      try {
-        await onSign();
-      } finally {
-        setIsSigning(false);
+    const isDivisible = initialFormData?.asset === "BTC" || assetDetails?.assetInfo?.divisible;
+  
+    // Local state for amount input
+    const [amount, setAmount] = useState<string>(
+      initialFormData?.quantity
+        ? isDivisible
+          ? (initialFormData.quantity / 1e8).toFixed(8) // Temporary, refine if needed
+          : initialFormData.quantity.toString()
+        : ""
+    );
+  
+    // Local state for fee rate
+    const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 1);
+  
+    // Focus destination input on mount
+    useEffect(() => {
+      const input = document.querySelector("input[name='destination']") as HTMLInputElement;
+      input?.focus();
+    }, []);
+  
+    // Custom form action to include the dynamic amount and fee rate
+    const handleFormAction = (formData: FormData) => {
+      if (amount) {
+        // Use toSatoshis for divisible assets, raw amount for non-divisible
+        const quantity = isDivisible ? toSatoshis(amount) : amount;
+        formData.set("quantity", quantity);
       }
+      formData.set("sat_per_vbyte", satPerVbyte.toString());
+      formAction(formData);
     };
   
     return (
-      <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
-        <h3 className="text-lg font-bold">Review Transaction</h3>
-        {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <span className="font-semibold text-gray-700">From:</span>
-            <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
-              {formatAddress(result.params.source, true)}
-            </div>
-          </div>
-          {result.params.destination && (
-            <div className="space-y-1">
-              <span className="font-semibold text-gray-700">To:</span>
-              <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
-                {result.params.destination}
-              </div>
-            </div>
-          )}
-          {customFields.map((field, idx) => (
-            <div key={idx} className="space-y-1">
-              <span className="font-semibold text-gray-700">{field.label}:</span>
-              <div className="bg-gray-50 p-2 rounded text-gray-900 flex justify-between items-center">
-                <span>{field.value}</span>
-                {field.rightElement}
-              </div>
-            </div>
-          ))}
-          <div className="space-y-1">
-            <span className="font-semibold text-gray-700">Fee:</span>
-            <div className="bg-gray-50 p-2 rounded text-gray-900">
-              {formatAmount({
-                value: result.btc_fee / 1e8,
-                minimumFractionDigits: 8,
-                maximumFractionDigits: 8,
-              })}{" "}
-              BTC
-            </div>
-          </div>
-        </div>
-        <div className="mt-4">
-          <details>
-            <summary className="text-md font-semibold cursor-pointer text-gray-700 hover:text-gray-900">
-              Raw Transaction
-            </summary>
-            <pre className="mt-2 overflow-y-auto overflow-x-auto text-sm bg-gray-50 p-3 rounded-md h-44 border border-gray-200">
-              {JSON.stringify(apiResponse, null, 2)}
-            </pre>
-          </details>
-        </div>
-        <div className="flex space-x-4">
-          <Button onClick={handleSignClick} color="blue" fullWidth disabled={isSigning}>
-            {isSigning ? "Signing..." : "Sign & Broadcast"}
-          </Button>
+      <div className="space-y-4">
+        {activeAddress && assetDetails && (
+          <BalanceHeader
+            balance={{
+              asset: initialFormData?.asset || initialAsset || "BTC",
+              quantity_normalized: assetDetails.availableBalance,
+              asset_info: assetDetails.assetInfo || undefined,
+            }}
+            className="mb-5"
+          />
+        )}
+        {assetDetailsError && <div className="text-red-500 mb-2">Failed to fetch asset details.</div>}
+        <div className="bg-white rounded-lg shadow-lg p-4">
+          <form action={handleFormAction} className="space-y-6">
+            <Field>
+              <Label className="text-sm font-medium text-gray-700">
+                Destination <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="text"
+                name="destination"
+                defaultValue={initialFormData?.destination || ""}
+                required
+                placeholder="Enter destination address"
+                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+                disabled={pending}
+              />
+              <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+                Enter the address to send the asset to.
+              </Description>
+            </Field>
+            <input type="hidden" name="asset" value={initialFormData?.asset || initialAsset || "BTC"} />
+            <AmountWithMaxInput
+              asset={initialFormData?.asset || initialAsset || "BTC"}
+              availableBalance={assetDetails?.availableBalance || "0"}
+              value={amount}
+              onChange={setAmount}
+              sat_per_vbyte={satPerVbyte}
+              setError={() => {}} // No-op since Composer handles errors
+              sourceAddress={activeAddress}
+              maxAmount={assetDetails?.availableBalance || "0"}
+              shouldShowHelpText={shouldShowHelpText}
+              label="Amount"
+              name="quantity"
+              description={
+                isDivisible
+                  ? "Enter the amount to send (up to 8 decimal places)."
+                  : "Enter a whole number amount."
+              }
+              disabled={pending}
+            />
+            {(initialFormData?.asset || initialAsset) !== "BTC" && (
+              <Field>
+                <Label className="text-sm font-medium text-gray-700">Memo</Label>
+                <Input
+                  type="text"
+                  name="memo"
+                  defaultValue={initialFormData?.memo || ""}
+                  placeholder="Optional memo"
+                  className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={pending}
+                />
+                <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+                  Optional memo to include with the transaction.
+                </Description>
+              </Field>
+            )}
+  
+            <FeeRateInput
+              showHelpText={shouldShowHelpText}
+              disabled={pending}
+              onFeeRateChange={setSatPerVbyte}
+            />
+  
+            <Button type="submit" color="blue" fullWidth disabled={pending}>
+              {pending ? "Submitting..." : "Continue"}
+            </Button>
+          </form>
         </div>
       </div>
     );
   }
 
-/src/pages/actions/consolidate/review.tsx
+/src/pages/compose/send/mpma/form.tsx
   [contents of the file]
-  import React, { useState } from "react";
-  import { Button } from "@/components/button";
-  import { ErrorAlert } from "@/components/error-alert";
-  import { formatAddress, formatAmount } from "@/utils/format";
+  "use client";
   
-  interface ConsolidationReviewProps {
-    apiResponse: {
-      params: {
-        source: string;
-        destination: string;
-      
+  import { useEffect, useState } from "react";
+  import { useFormStatus } from "react-dom";
+  import { Field, Label, Description, Input } from "@headlessui/react";
+  import { Button } from "@/components/button";
+  import { BalanceHeader } from "@/components/headers/balance-header";
+  import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+  import { MultiAssetInput } from "@/components/inputs/multi-asset-input";
+  import { useWallet } from "@/contexts/wallet-context";
+  import { fetchAssetDetailsAndBalance } from "@/utils/blockchain/counterparty";
+  import type { ReactElement } from "react";
+  
+  /**
+   * Props for the SendMpmaForm component, aligned with Composer's formAction.
+   */
+  interface SendMpmaFormProps {
+    formAction: (formData: FormData) => void;
+    shouldShowHelpText?: boolean;
+  }
+  
+  /**
+   * Form for sending multiple assets (MPMA) using React 19 Actions.
+   */
+  export function SendMpmaForm({
+    formAction,
+    shouldShowHelpText = true,
+  }: SendMpmaFormProps): ReactElement {
+    const { activeAddress, activeWallet } = useWallet();
+    const { pending } = useFormStatus();
+    const [balances, setBalances] = useState<{ [key: string]: { balance: string; assetInfo: any } }>({});
+  
+    const initialAssets = [{ asset: "BTC", quantity: "" }];
+  
+    // Fetch balances when assets change
+    useEffect(() => {
+      const fetchBalances = async () => {
+        if (!activeAddress?.address) return;
+        const newBalances: { [key: string]: { balance: string; assetInfo: any } } = {};
+        for (const { asset } of initialAssets) {
+          if (asset && !balances[asset]) {
+            try {
+              const { availableBalance, assetInfo } = await fetchAssetDetailsAndBalance(
+                asset,
+                activeAddress.address
+              );
+              newBalances[asset] = { balance: availableBalance, assetInfo };
+            } catch (err) {
+              console.error(`Failed to fetch balance for ${asset}:`, err);
+            }
+          }
+        }
+        setBalances((prev) => ({ ...prev, ...newBalances }));
       };
-      // Include the UTXO data from the form
-      utxoData: { count: number; total: number } | null;
-    };
+      fetchBalances();
+    }, [activeAddress?.address]);
+  
+    const aggregatedBalance = initialAssets.reduce((acc, { asset }) => {
+      const balance = balances[asset]?.balance || "0";
+      acc[asset] = Number(balance);
+      return acc;
+    }, {} as Record<string, number>);
+  
+    return (
+      <div className="space-y-4">
+        {activeAddress && (
+          <BalanceHeader
+            balance={{
+              asset: "Multiple Assets",
+              quantity_normalized: Object.entries(aggregatedBalance)
+                .map(([asset, qty]) => `${qty} ${asset}`)
+                .join(", "),
+              asset_info: Object.values(balances).map((b) => b.assetInfo)[0], // Use first asset info
+            }}
+            className="mb-4"
+          />
+        )}
+        <div className="bg-white rounded-lg shadow-lg p-4">
+          <form action={formAction} className="space-y-6">
+            <Field>
+              <Label className="text-sm font-medium text-gray-700">
+                Destination <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="text"
+                name="destination"
+                defaultValue=""
+                required
+                placeholder="Enter destination address"
+                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+                disabled={pending}
+              />
+              <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+                Enter the address to send the assets to.
+              </Description>
+            </Field>
+            <MultiAssetInput
+              assets={initialAssets}
+              onAssetsChange={() => {}} // No-op since formAction handles submission
+              name="assets"
+              balances={balances}
+              shouldShowHelpText={shouldShowHelpText}
+              feeRateSatPerVByte={1} // Default value; updated via FeeRateInput
+              sourceAddress={activeAddress}
+              setError={() => {}} // No-op since Composer handles errors
+              disabled={pending}
+            />
+            <Field>
+              <Label className="text-sm font-medium text-gray-700">Memo</Label>
+              <Input
+                type="text"
+                name="memo"
+                defaultValue=""
+                placeholder="Optional memo"
+                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+                disabled={pending}
+              />
+              <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
+                Optional memo to include with the transaction.
+              </Description>
+            </Field>
+  
+            <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
+            
+            <Button type="submit" color="blue" fullWidth disabled={pending}>
+              {pending ? "Submitting..." : "Continue"}
+            </Button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+/src/pages/compose/send/mpma/page.tsx
+  [contents of the file]
+  import React, { Suspense } from "react";
+  import { useParams } from "react-router-dom";
+  import { MPMAForm } from "./form";
+  import { ReviewSendMpma } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeMPMA } from "@/utils/blockchain/counterparty";
+  import type { MPMAOptions } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeMPMA() {
+    const { asset } = useParams<{ asset: string }>();
+    return (
+      <div className="p-4">
+        <Suspense fallback={<div>Loading asset details...</div>}>
+          <Composer<MPMAOptions>
+            initialTitle="Send"
+            FormComponent={(props) => <MPMAForm {...props} initialAsset={asset} />}
+            ReviewComponent={ReviewSendMpma}
+            composeTransaction={composeMPMA}
+          />
+        </Suspense>
+      </div>
+    );
+  }
+  
+  export default ComposeMPMA;
+
+/src/pages/compose/send/mpma/review.tsx
+  [contents of the file]
+  import { ReviewScreen } from "@/components/screens/review-screen";
+  import { formatAmount } from "@/utils/format";
+  
+  interface ReviewSendMpmaProps {
+    apiResponse: any;
     onSign: () => void;
     onBack: () => void;
     error: string | null;
     setError: (error: string | null) => void;
   }
   
-  // Helper to compute the size of a varint given a number
-  function varIntSize(n: number): number {
-    if (n < 0xfd) return 1;
-    else if (n <= 0xffff) return 3;
-    else if (n <= 0xffffffff) return 5;
-    else return 9;
-  }
-  
-  // Estimate transaction size (in bytes) using a rough calculation similar to your consolidation function
-  function estimateTransactionSize(numInputs: number, numOutputs: number): number {
-    let size = 8; // version (4 bytes) + locktime (4 bytes)
-    size += varIntSize(numInputs);
-    for (let i = 0; i < numInputs; i++) {
-      const signaturesSize = 74; // approximate signature size
-      size += 36 + varIntSize(signaturesSize) + signaturesSize + 4;
-    }
-    size += varIntSize(numOutputs);
-    for (let i = 0; i < numOutputs; i++) {
-      size += 8 + varIntSize(25) + 25; // output: amount + script length + script (assumed 25 bytes)
-    }
-    return size;
-  }
-  
-  export const ConsolidationReview = ({
-    apiResponse,
-    onSign,
+  export function ReviewSendMpma({ 
+    apiResponse, 
+    onSign, 
     onBack,
     error,
-    setError
-  }: ConsolidationReviewProps) => {
-    const [isSigning, setIsSigning] = useState(false);
-    const { params, utxoData } = apiResponse;
-  
-    // Compute fee and net amounts if utxoData is available
-    let consolidatingBtc = 0;
-    let feeBtc = 0;
-    let netTotalBtc = 0;
-  
-    if (utxoData) {
-      consolidatingBtc = utxoData.total;
-      // Estimate transaction size using the number of inputs (UTXOs) and a single output
-      const estimatedSize = estimateTransactionSize(utxoData.count, 1);
-      // Fee (in satoshis) = estimatedSize * feeRate (sat/vB)
-      const feeSats = estimatedSize * params.feeRateSatPerVByte;
-      feeBtc = feeSats / 1e8; // convert sats to BTC
-      netTotalBtc = consolidatingBtc - feeBtc;
-    }
-  
-    const handleSignClick = async () => {
-      setIsSigning(true);
-      try {
-        await onSign();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-      } finally {
-        setIsSigning(false);
-      }
-    };
-  
-    return (
-      <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
-        <h3 className="text-lg font-bold">Review Consolidation</h3>
-  
-        {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
-  
-        <div className="space-y-4">
-          {/* From Address */}
-          <div className="space-y-1">
-            <span className="font-semibold text-gray-700">From:</span>
-            <div className="text-gray-900 break-all bg-gray-50 p-2 rounded">
-              {formatAddress(params.source, true)}
-            </div>
-          </div>
-  
-          {/* Destination Address */}
-          <div className="space-y-1">
-            <span className="font-semibold text-gray-700">To:</span>
-            <div className="text-gray-900 bg-gray-50 p-2 rounded">
-              {formatAddress(params.destination, true)}
-            </div>
-          </div>
-  
-          {/* Fee Rate */}
-          <div className="space-y-1">
-            <span className="font-semibold text-gray-700">Fee Rate:</span>
-            <div className="text-gray-900 bg-gray-50 p-2 rounded">
-              {params.feeRateSatPerVByte} sat/vB
-            </div>
-          </div>
-  
-          {/* Additional Information */}
-          {utxoData && (
-            <>
-              <div className="space-y-1">
-                <span className="font-semibold text-gray-700">Consolidating:</span>
-                <div className="text-gray-900 bg-gray-50 p-2 rounded">
-                  {formatAmount({
-                    value: consolidatingBtc,
-                    minimumFractionDigits: 8,
-                    maximumFractionDigits: 8,
-                  })}{" "}
-                  BTC
-                </div>
-              </div>
-  
-              <div className="space-y-1">
-                <span className="font-semibold text-gray-700">Fee:</span>
-                <div className="text-gray-900 bg-gray-50 p-2 rounded">
-                  {formatAmount({
-                    value: feeBtc,
-                    minimumFractionDigits: 8,
-                    maximumFractionDigits: 8,
-                  })}{" "}
-                  BTC
-                </div>
-              </div>
-  
-              <div className="space-y-1">
-                <span className="font-semibold text-gray-700">Net Total:</span>
-                <div className="text-gray-900 bg-gray-50 p-2 rounded">
-                  {formatAmount({
-                    value: netTotalBtc,
-                    minimumFractionDigits: 8,
-                    maximumFractionDigits: 8,
-                  })}{" "}
-                  BTC
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-  
-        <div className="flex space-x-4">
-          <Button onClick={onBack} color="gray">
-            Back
-          </Button>
-          <Button onClick={handleSignClick} color="blue" fullWidth disabled={isSigning}>
-            {isSigning ? "Broadcasting..." : "Broadcast Transaction"}
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
-/src/pages/compose/bet/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { formatAmount } from "@/utils/format";
-  
-  interface ReviewBetProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export function ReviewBet({ apiResponse, onSign, onBack }: ReviewBetProps) {
-    const { result } = apiResponse;
-  
-    const formatQuantity = (quantity: number) =>
-      formatAmount({
-        value: quantity / 1e8,
-        minimumFractionDigits: 8,
-        maximumFractionDigits: 8,
-      });
-  
-    const betTypeMapping: { [key: string]: string } = {
-      "0": "Bullish CFD (deprecated)",
-      "1": "Bearish CFD (deprecated)",
-      "2": "Equal",
-      "3": "NotEqual",
-    };
-  
-    const customFields = [
-      { label: "Feed Address", value: result.params.feed_address },
-      {
-        label: "Bet Type",
-        value: betTypeMapping[result.params.bet_type] || result.params.bet_type,
-      },
-      { label: "Deadline", value: result.params.deadline },
-      {
-        label: "Wager Quantity",
-        value: `${formatQuantity(Number(result.params.wager_quantity))} XCP`,
-      },
-      {
-        label: "Counterwager Quantity",
-        value: `${formatQuantity(Number(result.params.counterwager_quantity))} XCP`,
-      },
-      { label: "Expiration (Blocks)", value: result.params.expiration },
-      { label: "Leverage", value: result.params.leverage },
-      ...(result.params.target_value
-        ? [{ label: "Target Value", value: result.params.target_value }]
-        : []),
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  }
-
-/src/pages/compose/broadcast/address-options/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  
-  interface ReviewAddressOptionsProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  const ADDRESS_OPTION_REQUIRE_MEMO = 1;
-  
-  const formatOptionsText = (text: string | number | undefined) => {
-    if (!text) return "None";
-    if (typeof text === "number") {
-      return text === ADDRESS_OPTION_REQUIRE_MEMO ? "Require Memo" : String(text);
-    }
-    const match = text.match(/options (\d+)/);
-    if (match) {
-      const value = parseInt(match[1], 10);
-      return value === ADDRESS_OPTION_REQUIRE_MEMO ? "Require Memo" : String(value);
-    }
-    return String(text);
-  };
-  
-  export function ReviewAddressOptions({ apiResponse, onSign, onBack }: ReviewAddressOptionsProps) {
-    const { result } = apiResponse;
-  
-    const customFields = [
-      {
-        label: "Options",
-        value: formatOptionsText(result.params.options || result.params.text),
-      },
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  }
-
-/src/pages/compose/broadcast/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  
-  interface ReviewBroadcastProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export function ReviewBroadcast({ apiResponse, onSign, onBack }: ReviewBroadcastProps) {
-    const { result } = apiResponse;
-  
-    const customFields = [
-      { label: "Message", value: result.params.text },
-      ...(result.params.value !== "0" && result.params.value !== 0
-        ? [{ label: "Value", value: result.params.value }]
-        : []),
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  }
-
-/src/pages/compose/dispenser/close/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  
-  interface ReviewDispenserCloseProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export function ReviewDispenserClose({ apiResponse, onSign, onBack }: ReviewDispenserCloseProps) {
-    const { result } = apiResponse;
-  
-    const customFields = [
-      { label: "Asset", value: result.params.asset },
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  }
-
-/src/pages/compose/dispenser/dispense/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { useComposer } from "@/contexts/composer-context";
-  import { formatAmount } from "@/utils/format";
-  
-  interface ReviewDispenseProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export function ReviewDispense({ apiResponse, onSign, onBack }: ReviewDispenseProps) {
-    const { error, setError, formData } = useComposer();
-    const { result } = apiResponse;
-    const extra = formData?.extra || {};
-    const { totalAssets = [], totalBtcAmount = 0 } = extra;
-  
-    const customFields = [
-      { label: "Dispenser Address", value: result.params.dispenser },
-      {
-        label: "Assets You Get",
-        value: totalAssets
-          .map((asset: any) =>
-            `${formatAmount({
-              value: Number(asset.quantity),
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 8,
-            })} ${asset.asset_info?.asset_longname ?? asset.asset}`
-          )
-          .join(", "),
-      },
-      {
-        label: "Total BTC Amount",
-        value: `${(Number(result.params.quantity) / 1e8).toFixed(8)} BTC`,
-      },
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  }
-
-/src/pages/compose/dispenser/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { formatAmount } from "@/utils/format";
-  
-  interface ReviewDispenserProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-    asset: string;
-  }
-  
-  export function ReviewDispenser({ apiResponse, onSign, onBack, asset }: ReviewDispenserProps) {
-    const { result } = apiResponse;
-    const assetDivisible = result.params.extra?.assetDivisible ?? true;
-  
-    const formatQuantity = (quantity: number) =>
-      assetDivisible
-        ? formatAmount({
-            value: quantity / 1e8,
-            minimumFractionDigits: 8,
-            maximumFractionDigits: 8,
-          })
-        : quantity.toString();
-  
-    const customFields = [
-      {
-        label: "Escrow Total",
-        value: `${formatQuantity(Number(result.params.escrow_quantity))} ${asset}`,
-      },
-      {
-        label: "Give Amount",
-        value: `${formatQuantity(Number(result.params.give_quantity))} ${asset}`,
-      },
-      {
-        label: "Per Dispense",
-        value: `${formatAmount({
-          value: Number(result.params.mainchainrate) / 1e8,
-          minimumFractionDigits: 8,
-          maximumFractionDigits: 8,
-        })} BTC`,
-      },
-      {
-        label: "Bitcoin Total",
-        value: `${formatAmount({
-          value: (Number(result.params.escrow_quantity) / Number(result.params.give_quantity)) * 
-                 (Number(result.params.mainchainrate) / 1e8),
-          minimumFractionDigits: 8,
-          maximumFractionDigits: 8,
-        })} BTC`,
-      },
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  }
-
-/src/pages/compose/dividend/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { useComposer } from "@/contexts/composer-context";
-  import { formatAmount } from "@/utils/format";
-  import { toBigNumber } from "@/utils/numeric";
-  
-  interface ReviewDividendProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export const ReviewDividend = ({ apiResponse, onSign, onBack }: ReviewDividendProps) => {
-    const { error, setError } = useComposer();
-    const { result } = apiResponse;
-  
-    const customFields = [
-      { label: "Asset", value: result.params.asset },
-      {
-        label: "Dividend",
-        value: `${result.params.quantity_per_unit_normalized} ${result.params.dividend_asset}`,
-      },
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  };
-
-/src/pages/compose/fairminter/fairmint/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { useComposer } from "@/contexts/composer-context";
-  import { formatAmount } from "@/utils/format";
-  
-  interface ReviewFairmintProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export function ReviewFairmint({ apiResponse, onSign, onBack }: ReviewFairmintProps) {
-    const { error, setError } = useComposer();
-    const { result } = apiResponse;
-  
-    const formatQuantity = (quantity: number) =>
-      formatAmount({
-        value: quantity,
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 8,
-      });
-  
-    const customFields = [
-      { label: "Asset", value: result.params.asset },
-      { label: "Quantity", value: formatQuantity(Number(result.params.quantity)) },
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  }
-
-/src/pages/compose/fairminter/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { useComposer } from "@/contexts/composer-context";
-  
-  interface ReviewFairminterProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export const ReviewFairminter = ({ apiResponse, onSign, onBack }: ReviewFairminterProps) => {
-    const { error, setError } = useComposer();
-    const { result } = apiResponse;
-  
-    const customFields = [
-      { label: "Asset", value: result.params.asset },
-      { label: "Price", value: result.params.price },
-      { label: "Quantity by Price", value: result.params.quantity_by_price },
-      { label: "Hard Cap", value: result.params.hard_cap },
-      ...(result.params.description ? [{ label: "Description", value: result.params.description }] : []),
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  };
-
-/src/pages/compose/issuance/destroy-supply/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { useComposer } from "@/contexts/composer-context";
-  import { formatAmount } from "@/utils/format";
-  
-  interface ReviewDestroyProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export function ReviewDestroy({ apiResponse, onSign, onBack }: ReviewDestroyProps) {
-    const { error, setError } = useComposer();
-    const { result } = apiResponse;
-    const asset = result.params.asset;
-    const assetDivisible = result.params.asset_info?.divisible ?? true;
-  
-    const formatQuantity = (quantity: number) =>
-      assetDivisible
-        ? formatAmount({
-            value: quantity / 1e8,
-            minimumFractionDigits: 8,
-            maximumFractionDigits: 8,
-          })
-        : quantity.toString();
-  
-    const customFields = [
-      {
-        label: "Amount",
-        value: `${formatQuantity(Number(result.params.quantity))} ${asset}`,
-      },
-      ...(result.params.tag ? [{ label: "Memo", value: result.params.tag }] : []),
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  }
-
-/src/pages/compose/issuance/issue-supply/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { useComposer } from "@/contexts/composer-context";
-  import { formatAmount } from "@/utils/format";
-  import { toBigNumber } from "@/utils/numeric";
-  
-  interface ReviewIssuanceIssueSupplyProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export const ReviewIssuanceIssueSupply = ({
-    apiResponse,
-    onSign,
-    onBack,
-  }: ReviewIssuanceIssueSupplyProps) => {
-    const { error, setError } = useComposer();
-    const { result } = apiResponse;
-  
-    const isDivisible = result.params.asset_info.divisible;
-  
-    const formatAssetAmount = (value: string | number): string => {
-      const numericValue = isDivisible ? Number(value) / 1e8 : Number(value);
-      return formatAmount({
-        value: numericValue,
-        minimumFractionDigits: isDivisible ? 8 : 0,
-        maximumFractionDigits: isDivisible ? 8 : 0,
-        useGrouping: true,
-      });
-    };
-  
-    const currentSupply = result.params.asset_info.supply
-      ? formatAssetAmount(result.params.asset_info.supply)
-      : "0";
-    const issuedQuantity = formatAssetAmount(result.params.quantity);
-    const newTotalSupply = result.params.asset_info.supply
-      ? formatAssetAmount(
-          toBigNumber(result.params.asset_info.supply).plus(result.params.quantity).toString()
-        )
-      : issuedQuantity;
-  
-    const customFields = [
-      { label: "Asset", value: result.params.asset },
-      { label: "Current Supply", value: currentSupply },
-      { label: "After Issuance", value: newTotalSupply },
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  };
-
-/src/pages/compose/issuance/lock-supply/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { useComposer } from "@/contexts/composer-context";
-  import { formatAmount } from "@/utils/format";
-  
-  interface ReviewIssuanceLockSupplyProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export const ReviewIssuanceLockSupply = ({
-    apiResponse,
-    onSign,
-    onBack,
-  }: ReviewIssuanceLockSupplyProps) => {
-    const { error, setError } = useComposer();
-    const { result } = apiResponse;
-  
-    const isDivisible = result.params.asset_info.divisible;
-  
-    const formatAssetAmount = (value: string | number): string => {
-      const numericValue = isDivisible ? Number(value) / 1e8 : Number(value);
-      return formatAmount({
-        value: numericValue,
-        minimumFractionDigits: isDivisible ? 8 : 0,
-        maximumFractionDigits: isDivisible ? 8 : 0,
-        useGrouping: true,
-      });
-    };
-  
-    const currentSupply = result.params.asset_info.supply
-      ? formatAssetAmount(result.params.asset_info.supply)
-      : "0";
-  
-    const customFields = [
-      { label: "Asset", value: result.params.asset },
-      { label: "Supply to Lock", value: currentSupply },
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  };
-
-/src/pages/compose/issuance/reset-supply/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { useComposer } from "@/contexts/composer-context";
-  import { formatAmount } from "@/utils/format";
-  
-  interface ReviewIssuanceResetSupplyProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export const ReviewIssuanceResetSupply = ({
-    apiResponse,
-    onSign,
-    onBack,
-  }: ReviewIssuanceResetSupplyProps) => {
-    const { error, setError } = useComposer();
-    const { result } = apiResponse;
-  
-    const isDivisible = result.params.asset_info.divisible;
-  
-    const formatAssetAmount = (value: string | number): string => {
-      const numericValue = isDivisible ? Number(value) / 1e8 : Number(value);
-      return formatAmount({
-        value: numericValue,
-        minimumFractionDigits: isDivisible ? 8 : 0,
-        maximumFractionDigits: isDivisible ? 8 : 0,
-        useGrouping: true,
-      });
-    };
-  
-    const currentSupply = result.params.asset_info.supply
-      ? formatAssetAmount(result.params.asset_info.supply)
-      : "0";
-  
-    const customFields = [
-      { label: "Asset", value: result.params.asset },
-      { label: "Current Supply", value: currentSupply },
-      { label: "Action", value: "Reset Supply" },
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  };
-
-/src/pages/compose/issuance/review.tsx
-  [contents of the file]
-  import { FaLock, FaLockOpen } from "react-icons/fa";
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { useComposer } from "@/contexts/composer-context";
-  import { formatAmount } from "@/utils/format";
-  import { toBigNumber } from "@/utils/numeric";
-  
-  interface ReviewIssuanceProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export const ReviewIssuance = ({ apiResponse, onSign, onBack }: ReviewIssuanceProps) => {
-    const { error, setError } = useComposer();
-    const { result } = apiResponse;
-  
-    const isTruthy = (value: any): boolean => {
-      if (value === "false") return false;
-      return ["true", "1", 1, true].includes(value);
-    };
-  
-    const formatQuantity = (quantity: string, isDivisible: any): string => {
-      const isDiv = isTruthy(isDivisible);
-      const numValue = toBigNumber(quantity);
-      
-      if (isDiv) {
-        // For divisible assets, divide by 100000000 and format with 8 decimal places
-        const value = numValue.dividedBy(100000000);
-        return formatAmount({ 
-          value: value.toNumber(),
-          minimumFractionDigits: 8,
-          maximumFractionDigits: 8 
-        });
-      }
-      
-      // For non-divisible assets, just return the number as is
-      return numValue.toString();
-    };
-  
-    const isDivisible = result.params.divisible;
-    const isLocked = isTruthy(result.params.lock);
-  
-    const customFields = [
-      { label: "Asset", value: result.params.asset },
-      {
-        label: "Issuance",
-        value: formatQuantity(result.params.quantity, isDivisible),
-        rightElement: isLocked ? (
-          <FaLock className="h-3 w-3 text-gray-500" aria-label="Supply locked" />
-        ) : (
-          <FaLockOpen className="h-3 w-3 text-gray-500" aria-label="Supply unlocked" />
-        ),
-      },
-      ...(result.params.description ? [{ label: "Description", value: result.params.description }] : []),
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  };
-
-/src/pages/compose/issuance/transfer-ownership/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { useComposer } from "@/contexts/composer-context";
-  
-  interface ReviewIssuanceTransferOwnershipProps {
-    apiResponse: {
-      result: {
-        params: {
-          source: string;
-          transfer_destination: string;
-          asset: string;
-        };
-        btc_fee: number;
-      };
-    };
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export function ReviewIssuanceTransferOwnership({
-    apiResponse,
-    onSign,
-    onBack,
-  }: ReviewIssuanceTransferOwnershipProps) {
-    const { error, setError } = useComposer();
-    const { result } = apiResponse;
-  
-    const customFields = [
-      { label: "To", value: result.params.transfer_destination },
-      { label: "Asset", value: result.params.asset },
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  }
-
-/src/pages/compose/issuance/update-description/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { useComposer } from "@/contexts/composer-context";
-  
-  interface ReviewIssuanceUpdateDescriptionProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export const ReviewIssuanceUpdateDescription = ({
-    apiResponse,
-    onSign,
-    onBack,
-  }: ReviewIssuanceUpdateDescriptionProps) => {
-    const { error, setError } = useComposer();
-    const { result } = apiResponse;
-  
-    const customFields = [
-      { label: "Asset", value: result.params.asset },
-      { label: "Description", value: result.params.description },
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error || result.error} // Include result.error if present
-        setError={setError}
-      />
-    );
-  };
-
-/src/pages/compose/order/btcpay/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { useComposer } from "@/contexts/composer-context";
-  
-  interface ReviewBTCPayProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export function ReviewBTCPay({ apiResponse, onSign, onBack }: ReviewBTCPayProps) {
-    const { error, setError } = useComposer();
-    const { result } = apiResponse;
-  
-    const customFields = [
-      { label: "Order Match ID", value: result.params.order_match_id },
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  }
-
-/src/pages/compose/order/cancel/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { useComposer } from "@/contexts/composer-context";
-  
-  interface ReviewCancelProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export function ReviewCancel({ apiResponse, onSign, onBack }: ReviewCancelProps) {
-    const { error, setError } = useComposer();
-    const { result } = apiResponse;
-  
-    const customFields = [
-      { label: "Offer Hash", value: result.params.offer_hash },
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  }
-
-/src/pages/compose/order/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { formatAmount } from "@/utils/format";
-  import { useState } from "react";
-  import { FaExchangeAlt } from "react-icons/fa";
-  
-  interface ReviewOrderProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export const ReviewOrder = ({ apiResponse, onSign, onBack }: ReviewOrderProps) => {
-    const { result } = apiResponse;
-    const [isPriceFlipped, setIsPriceFlipped] = useState(false);
-  
-    const priceRatio = Number(result.params.get_quantity) / Number(result.params.give_quantity);
-    
-    const getPriceDisplay = () => {
-      if (isPriceFlipped) {
-        return `1 ${result.params.get_asset} = ${formatAmount({
-          value: 1 / priceRatio,
-          minimumFractionDigits: 8,
-          maximumFractionDigits: 8,
-        })} ${result.params.give_asset}`;
-      }
-      return `1 ${result.params.give_asset} = ${formatAmount({
-        value: priceRatio,
-        minimumFractionDigits: 8,
-        maximumFractionDigits: 8,
-      })} ${result.params.get_asset}`;
-    };
-  
-    const customFields = [
-      {
-        label: "Give",
-        value: `${formatAmount({
-          value: Number(result.params.give_quantity) / 1e8,
-          minimumFractionDigits: 8,
-          maximumFractionDigits: 8,
-        })} ${result.params.give_asset}`,
-      },
-      {
-        label: "Get",
-        value: `${formatAmount({
-          value: Number(result.params.get_quantity) / 1e8,
-          minimumFractionDigits: 8,
-          maximumFractionDigits: 8,
-        })} ${result.params.get_asset}`,
-      },
-      {
-        label: "Price",
-        value: getPriceDisplay(),
-        rightElement: (
-          <button
-            type="button"
-            onClick={() => setIsPriceFlipped(!isPriceFlipped)}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-            aria-label="Flip price ratio"
-          >
-            <FaExchangeAlt className="w-4 h-4 text-gray-600" />
-          </button>
-        ),
-      },
-      ...(result.params.expiration !== 8064
-        ? [{ label: "Expiration", value: `${result.params.expiration} blocks` }]
-        : []),
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  };
-
-/src/pages/compose/send/mpma/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { useComposer } from "@/contexts/composer-context";
-  import { formatAmount } from "@/utils/format";
-  
-  interface ReviewSendMpmaProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export function ReviewSendMpma({ apiResponse, onSign, onBack }: ReviewSendMpmaProps) {
-    const { error, setError } = useComposer();
+    setError 
+  }: ReviewSendMpmaProps) {
     const { result } = apiResponse;
   
     const formatQuantity = (quantity: number, isDivisible: boolean) =>
@@ -1256,6 +392,32 @@ File Contents:
     );
   }
 
+/src/pages/compose/send/page.tsx
+  [contents of the file]
+  import { useParams } from "react-router-dom";
+  import { SendForm } from "./form";
+  import { ReviewSend } from "./review";
+  import { Composer } from "@/components/composer";
+  import { composeSend } from "@/utils/blockchain/counterparty";
+  import type { SendOptions } from "@/utils/blockchain/counterparty";
+  
+  export function ComposeSend() {
+    const { asset } = useParams<{ asset: string }>();
+  
+    return (
+      <div className="p-4">
+        <Composer<SendOptions>
+          initialTitle="Send"
+          FormComponent={(props) => <SendForm {...props} initialAsset={asset || "BTC"} />}
+          ReviewComponent={ReviewSend}
+          composeTransaction={composeSend}
+        />
+      </div>
+    );
+  }
+  
+  export default ComposeSend;
+
 /src/pages/compose/send/review.tsx
   [contents of the file]
   import { ReviewScreen } from "@/components/screens/review-screen";
@@ -1263,11 +425,19 @@ File Contents:
   
   interface ReviewSendProps {
     apiResponse: any;
-    onSign: () => Promise<void>;
+    onSign: () => void;
     onBack: () => void;
+    error: string | null;
+    setError: (error: string | null) => void;
   }
   
-  export function ReviewSend({ apiResponse, onSign, onBack }: ReviewSendProps) {
+  export function ReviewSend({ 
+    apiResponse, 
+    onSign, 
+    onBack,
+    error,
+    setError 
+  }: ReviewSendProps) {
     const { result } = apiResponse;
   
     const formatQuantity = (quantity: number, isDivisible: boolean) =>
@@ -1285,152 +455,6 @@ File Contents:
         value: `${formatQuantity(Number(result.params.quantity), result.params.asset_info.divisible)} ${result.params.asset}`,
       },
       ...(result.params.memo ? [{ label: "Memo", value: result.params.memo }] : []),
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  }
-
-/src/pages/compose/sweep/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  
-  interface ReviewSweepProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export function ReviewSweep({ apiResponse, onSign, onBack }: ReviewSweepProps) {
-    const { result } = apiResponse;
-  
-    const customFields = [
-      { label: "Destination", value: result.params.destination },
-      ...(result.params.memo ? [{ label: "Memo", value: result.params.memo }] : []),
-      ...(result.params.flag !== undefined
-        ? [{ label: "Flag", value: result.params.flag.toString() }]
-        : []),
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  }
-
-/src/pages/compose/utxo/attach/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { formatAmount } from "@/utils/format";
-  
-  interface ReviewUtxoAttachProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export function ReviewUtxoAttach({ apiResponse, onSign, onBack }: ReviewUtxoAttachProps) {
-    const { result } = apiResponse;
-  
-    const customFields = [
-      { label: "UTXO Transaction ID", value: result.params.txid },
-      { label: "UTXO Output Index", value: result.params.vout.toString() },
-      { label: "Asset", value: result.params.asset },
-      {
-        label: "Quantity",
-        value: `${formatAmount({
-          value: Number(result.params.quantity) / 1e8,
-          minimumFractionDigits: 8,
-          maximumFractionDigits: 8,
-        })} ${result.params.asset}`,
-      },
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  }
-
-/src/pages/compose/utxo/detach/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  import { formatAmount } from "@/utils/format";
-  
-  interface ReviewUtxoDetachProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export function ReviewUtxoDetach({ apiResponse, onSign, onBack }: ReviewUtxoDetachProps) {
-    const { result } = apiResponse;
-  
-    const formatQuantity = (quantity: number, isDivisible: boolean) =>
-      isDivisible
-        ? formatAmount({
-            value: quantity / 1e8,
-            minimumFractionDigits: 8,
-            maximumFractionDigits: 8,
-          })
-        : quantity.toString();
-  
-    const customFields = [
-      { label: "UTXO", value: result.params.utxo },
-      {
-        label: "Asset",
-        value: `${formatQuantity(Number(result.params.quantity), result.params.asset_info?.divisible ?? true)} ${result.params.asset}`,
-      },
-    ];
-  
-    return (
-      <ReviewScreen
-        apiResponse={apiResponse}
-        onSign={onSign}
-        onBack={onBack}
-        customFields={customFields}
-        error={error}
-        setError={setError}
-      />
-    );
-  }
-
-/src/pages/compose/utxo/move/review.tsx
-  [contents of the file]
-  import { ReviewScreen } from "@/components/screens/review-screen";
-  
-  interface ReviewUtxoMoveProps {
-    apiResponse: any;
-    onSign: () => Promise<void>;
-    onBack: () => void;
-  }
-  
-  export function ReviewUtxoMove({ apiResponse, onSign, onBack }: ReviewUtxoMoveProps) {
-    const { result } = apiResponse;
-  
-    const customFields = [
-      { label: "UTXO", value: result.params.utxo },
-      { label: "Destination", value: result.params.destination },
     ];
   
     return (
