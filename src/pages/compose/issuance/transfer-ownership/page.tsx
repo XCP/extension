@@ -3,6 +3,7 @@ import { Composer } from "@/components/composer";
 import { TransferOwnershipForm } from "./form";
 import { ReviewIssuanceTransferOwnership } from "./review";
 import { composeIssuance } from "@/utils/blockchain/counterparty";
+import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 
 export function ComposeIssuanceTransferOwnership() {
   const { asset: assetParam } = useParams<{ asset?: string }>();
@@ -14,11 +15,9 @@ export function ComposeIssuanceTransferOwnership() {
 
   return (
     <div className="p-4">
-      <Composer
+      <Composer<IssuanceOptions>
         initialTitle="Transfer Asset"
-        FormComponent={(props) => (
-          <TransferOwnershipForm {...props} asset={asset} />
-        )}
+        FormComponent={(props) => <TransferOwnershipForm {...props} asset={asset} />}
         ReviewComponent={ReviewIssuanceTransferOwnership}
         composeTransaction={composeIssuance}
       />

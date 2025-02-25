@@ -1,21 +1,22 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
 
 interface ReviewIssuanceResetSupplyProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export const ReviewIssuanceResetSupply = ({
+export function ReviewIssuanceResetSupply({
   apiResponse,
   onSign,
   onBack,
-}: ReviewIssuanceResetSupplyProps) => {
-  const { error, setError } = useComposer();
+  error,
+  setError
+}: ReviewIssuanceResetSupplyProps) {
   const { result } = apiResponse;
-
   const isDivisible = result.params.asset_info.divisible;
 
   const formatAssetAmount = (value: string | number): string => {
@@ -48,4 +49,4 @@ export const ReviewIssuanceResetSupply = ({
       setError={setError}
     />
   );
-};
+}

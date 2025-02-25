@@ -87,13 +87,13 @@ export function IssuanceForm({
           <CheckboxInput
             name="divisible"
             label="Divisible"
-            checked={initialFormData?.divisible ?? true}
+            defaultChecked={initialFormData?.divisible ?? true}
             disabled={pending}
           />
           <CheckboxInput
             name="lock"
             label="Locked"
-            checked={initialFormData?.lock || false}
+            defaultChecked={initialFormData?.lock || false}
             disabled={pending}
           />
         </div>

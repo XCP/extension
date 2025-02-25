@@ -1,5 +1,4 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 
 interface ReviewIssuanceTransferOwnershipProps {
   apiResponse: {
@@ -12,16 +11,19 @@ interface ReviewIssuanceTransferOwnershipProps {
       btc_fee: number;
     };
   };
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
 export function ReviewIssuanceTransferOwnership({
   apiResponse,
   onSign,
   onBack,
+  error,
+  setError
 }: ReviewIssuanceTransferOwnershipProps) {
-  const { error, setError } = useComposer();
   const { result } = apiResponse;
 
   const customFields = [

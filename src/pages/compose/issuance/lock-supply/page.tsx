@@ -4,7 +4,7 @@ import { Composer } from "@/components/composer";
 import { LockSupplyForm } from "./form";
 import { ReviewIssuanceLockSupply } from "./review";
 import { composeIssuance } from "@/utils/blockchain/counterparty";
-import { IssuanceOptions } from "@/utils/blockchain/counterparty";
+import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 
 export function ComposeIssuanceLockSupply() {
   const { asset: assetParam } = useParams<{ asset?: string }>();
@@ -18,16 +18,8 @@ export function ComposeIssuanceLockSupply() {
     <div className="p-4">
       <Composer<IssuanceOptions>
         initialTitle="Lock Supply"
-        FormComponent={(props) => (
-          <LockSupplyForm {...props} asset={asset} />
-        )}
-        ReviewComponent={({ apiResponse, onSign, onBack }) => (
-          <ReviewIssuanceLockSupply
-            apiResponse={apiResponse}
-            onSign={onSign}
-            onBack={onBack}
-          />
-        )}
+        FormComponent={(props) => <LockSupplyForm {...props} asset={asset} />}
+        ReviewComponent={ReviewIssuanceLockSupply}
         composeTransaction={composeIssuance}
       />
     </div>

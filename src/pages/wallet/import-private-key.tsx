@@ -137,7 +137,7 @@ const ImportPrivateKey = () => {
             <CheckboxInput
               name="confirmed"
               label="I have backed up this private key"
-              checked={false}
+              defaultChecked={false}
               disabled={pending}
             />
           </div>

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { useFormStatus } from "react-dom";
+import { useEffect, useState, useActionState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSync, FaEyeSlash } from "react-icons/fa";
 import { Button } from "@/components/button";
@@ -17,19 +16,54 @@ function CreateWallet() {
   const { setHeaderProps } = useHeader();
   const { wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
   const walletExists = wallets.length > 0;
-  const { pending } = useFormStatus();
 
   const initialMnemonic = generateNewMnemonic();
   const [mnemonic, setMnemonic] = useState(initialMnemonic);
-  const [mnemonicWords] = useState(initialMnemonic.split(" "));
+  const [mnemonicWords, setMnemonicWords] = useState(initialMnemonic.split(" "));
   const [isRecoveryPhraseVisible, setIsRecoveryPhraseVisible] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [password, setPassword] = useState("");
 
   const PATHS = {
     BACK: walletExists ? "/add-wallet" : "/onboarding",
     SUCCESS: "/index",
   } as const;
   const MIN_PASSWORD_LENGTH = 8;
+
+  const [state, formAction, isPending] = useActionState<{ error: string | null }>(
+    async (state: { error: string | null }) => {
+      if (!isRecoveryPhraseVisible) {
+        return { error: "Please view and save your recovery phrase first." };
+      }
+
+      const formData = state as unknown as FormData;
+      const password = formData.get("password") as string;
+      if (!password) {
+        return { error: "Password is required." };
+      }
+
+      if (walletExists) {
+        const isValid = await verifyPassword(password);
+        if (!isValid) {
+          return { error: "Password does not match." };
+        }
+      } else if (password.length < MIN_PASSWORD_LENGTH) {
+        return {
+          error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`,
+        };
+      }
+
+      try {
+        await createAndUnlockMnemonicWallet(mnemonic, password);
+        navigate(PATHS.SUCCESS);
+        return { error: null };
+      } catch (err) {
+        console.error("Error creating wallet:", err);
+        return { error: "Failed to create wallet. Please try again." };
+      }
+    },
+    { error: null }
+  );
 
   useEffect(() => {
     setHeaderProps({
@@ -39,62 +73,33 @@ function CreateWallet() {
         icon: <FaSync aria-hidden="true" />,
         onClick: generateWallet,
         ariaLabel: "Generate new recovery phrase",
-        disabled: pending,
+        disabled: isPending,
       },
     });
-  }, [navigate, setHeaderProps, walletExists, pending]);
+  }, [navigate, setHeaderProps, walletExists, isPending]);
 
   function generateWallet() {
     const newMnemonic = generateNewMnemonic();
     setMnemonic(newMnemonic);
+    setMnemonicWords(newMnemonic.split(" "));
     setIsRecoveryPhraseVisible(false);
-    setError(null);
+    setIsConfirmed(false);
+    setPassword("");
   }
 
   const handleRecoveryPhraseClick = () => {
     setIsRecoveryPhraseVisible(true);
-    setError(null);
   };
 
-  async function handleFormAction(formData: FormData) {
-    setError(null);
+  const handleCheckboxChange = (checked: boolean) => {
+    setIsConfirmed(checked);
+  };
 
-    if (!isRecoveryPhraseVisible) {
-      setError("Please view and save your recovery phrase first.");
-      return;
-    }
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+  };
 
-    const isConfirmed = formData.get("confirmed") === "on";
-    if (!isConfirmed) {
-      setError("Please confirm you have backed up your recovery phrase.");
-      return;
-    }
-
-    const password = formData.get("password") as string;
-    if (!password) {
-      setError("Password is required.");
-      return;
-    }
-
-    if (walletExists) {
-      const isValid = await verifyPassword(password);
-      if (!isValid) {
-        setError("Password does not match.");
-        return;
-      }
-    } else if (password.length < MIN_PASSWORD_LENGTH) {
-      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
-      return;
-    }
-
-    try {
-      await createAndUnlockMnemonicWallet(mnemonic, password);
-      navigate(PATHS.SUCCESS);
-    } catch (err: unknown) {
-      console.error("Error creating wallet:", err);
-      setError("Failed to create wallet. Please try again.");
-    }
-  }
+  const isPasswordValid = password.length >= MIN_PASSWORD_LENGTH;
 
   return (
     <div
@@ -103,14 +108,18 @@ function CreateWallet() {
       aria-labelledby="create-wallet-title"
     >
       <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
-        {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
+        {state.error && <ErrorAlert message={state.error} />}
         <h2 id="create-wallet-title" className="text-2xl font-bold mb-2">
           Your Recovery Phrase
         </h2>
         <p className="mb-5" id="recovery-instructions">
           Please write down this 12-word secret phrase.
         </p>
-        <form action={handleFormAction} className="space-y-4" aria-describedby="recovery-instructions">
+        <form
+          action={formAction}
+          className="space-y-4"
+          aria-describedby="recovery-instructions"
+        >
           <div className="bg-gray-100 p-2 rounded-md mb-4 relative">
             <div
               className={
@@ -150,24 +159,31 @@ function CreateWallet() {
           <CheckboxInput
             name="confirmed"
             label="I have saved my secret recovery phrase."
-            checked={isRecoveryPhraseVisible}
-            disabled={!isRecoveryPhraseVisible || pending}
+            disabled={!isRecoveryPhraseVisible || isPending}
+            defaultChecked={isConfirmed}
+            onChange={handleCheckboxChange}
           />
-          <PasswordInput
-            name="password"
-            placeholder={walletExists ? "Confirm your password" : "Create a password"}
-            disabled={pending}
-          />
-          <Button type="submit" fullWidth disabled={pending}>
-            {pending ? "Submitting..." : "Continue"}
-          </Button>
+          {isConfirmed && (
+            <>
+              <PasswordInput
+                name="password"
+                placeholder={
+                  walletExists ? "Confirm your password" : "Create a password"
+                }
+                disabled={isPending}
+                onChange={handlePasswordChange}
+              />
+              <Button
+                type="submit"
+                fullWidth
+                disabled={isPending || !isPasswordValid}
+              >
+                {isPending ? "Submitting..." : "Continue"}
+              </Button>
+            </>
+          )}
         </form>
       </div>
-      {!isRecoveryPhraseVisible && !document.documentElement.lang.startsWith("en") && (
-        <div className="text-center text-xs p-4">
-          For security reasons, recovery phrases are only shown in English.
-        </div>
-      )}
     </div>
   );
 }

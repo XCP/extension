@@ -4,6 +4,7 @@ import { Composer } from "@/components/composer";
 import { ResetSupplyForm } from "./form";
 import { ReviewIssuanceResetSupply } from "./review";
 import { composeIssuance } from "@/utils/blockchain/counterparty";
+import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 
 export function ComposeIssuanceResetSupply() {
   const { asset: assetParam } = useParams<{ asset?: string }>();
@@ -15,18 +16,10 @@ export function ComposeIssuanceResetSupply() {
 
   return (
     <div className="p-4">
-      <Composer
+      <Composer<IssuanceOptions>
         initialTitle="Reset Supply"
-        FormComponent={(props) => (
-          <ResetSupplyForm {...props} asset={asset} />
-        )}
-        ReviewComponent={({ apiResponse, onSign, onBack }) => (
-          <ReviewIssuanceResetSupply
-            apiResponse={apiResponse}
-            onSign={onSign}
-            onBack={onBack}
-          />
-        )}
+        FormComponent={(props) => <ResetSupplyForm {...props} asset={asset} />}
+        ReviewComponent={ReviewIssuanceResetSupply}
         composeTransaction={composeIssuance}
       />
     </div>

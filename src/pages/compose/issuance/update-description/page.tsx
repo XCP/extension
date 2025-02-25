@@ -3,7 +3,7 @@ import { UpdateDescriptionForm } from "./form";
 import { ReviewIssuanceUpdateDescription } from "./review";
 import { Composer } from "@/components/composer";
 import { composeIssuance } from "@/utils/blockchain/counterparty";
-import { IssuanceOptions } from "@/utils/blockchain/counterparty";
+import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 
 export function ComposeIssuanceUpdateDescription() {
   const { asset: assetParam } = useParams<{ asset?: string }>();

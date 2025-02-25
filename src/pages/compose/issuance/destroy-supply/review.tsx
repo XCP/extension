@@ -1,15 +1,21 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
 
 interface ReviewDestroyProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export function ReviewDestroy({ apiResponse, onSign, onBack }: ReviewDestroyProps) {
-  const { error, setError } = useComposer();
+export function ReviewDestroy({ 
+  apiResponse, 
+  onSign, 
+  onBack,
+  error,
+  setError 
+}: ReviewDestroyProps) {
   const { result } = apiResponse;
   const asset = result.params.asset;
   const assetDivisible = result.params.asset_info?.divisible ?? true;

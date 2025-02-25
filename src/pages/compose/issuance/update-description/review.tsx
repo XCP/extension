@@ -1,18 +1,20 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposer } from "@/contexts/composer-context";
 
 interface ReviewIssuanceUpdateDescriptionProps {
   apiResponse: any;
-  onSign: () => Promise<void>;
+  onSign: () => void;
   onBack: () => void;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
-export const ReviewIssuanceUpdateDescription = ({
+export function ReviewIssuanceUpdateDescription({
   apiResponse,
   onSign,
   onBack,
-}: ReviewIssuanceUpdateDescriptionProps) => {
-  const { error, setError } = useComposer();
+  error,
+  setError
+}: ReviewIssuanceUpdateDescriptionProps) {
   const { result } = apiResponse;
 
   const customFields = [
@@ -26,8 +28,8 @@ export const ReviewIssuanceUpdateDescription = ({
       onSign={onSign}
       onBack={onBack}
       customFields={customFields}
-      error={error || result.error} // Include result.error if present
+      error={error}
       setError={setError}
     />
   );
-};
+}

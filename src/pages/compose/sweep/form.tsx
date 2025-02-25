@@ -72,7 +72,7 @@ export function SweepForm({ formAction, initialFormData }: SweepFormProps): Reac
             </Description>
           </Field>
           <CheckboxInput
-            checked={initialFormData?.flags === 1 || false}
+            defaultChecked={initialFormData?.flags === 1 || false}
             label="Include BTC"
             aria-label="Toggle include BTC"
             disabled={pending}

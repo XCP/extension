@@ -15,11 +15,12 @@ export function PasswordInput({
   name = "password",
   placeholder,
   innerRef,
-}: PasswordInputProps) {
+  onChange, // Add onChange prop
+}: PasswordInputProps & { onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void }) {
   const [showPassword, setShowPassword] = useState(false);
 
   function handleTogglePassword() {
-    setShowPassword(prev => !prev);
+    setShowPassword((prev) => !prev);
   }
 
   return (
@@ -31,6 +32,7 @@ export function PasswordInput({
           type={showPassword ? "text" : "password"}
           placeholder={placeholder}
           disabled={disabled}
+          onChange={onChange} // Pass onChange handler
           className={`
             w-full p-2 border rounded-md pr-10 bg-white
             ${disabled ? 'bg-gray-50 cursor-not-allowed' : ''}

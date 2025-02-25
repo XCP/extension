@@ -11,22 +11,22 @@ import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
 /**
- * Props for the IssuanceForm component, aligned with Composer's formAction.
+ * Props for the IssueSupplyForm component, aligned with Composer's formAction.
  */
-interface IssuanceFormProps {
+interface IssueSupplyFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: IssuanceOptions | null;
   initialParentAsset?: string;
 }
 
 /**
- * Form for issuing a new asset using React 19 Actions.
+ * Form for issuing additional supply to an existing asset using React 19 Actions.
  */
-export function IssuanceForm({
+export function IssueSupplyForm({
   formAction,
   initialFormData,
   initialParentAsset,
-}: IssuanceFormProps): ReactElement {
+}: IssueSupplyFormProps): ReactElement {
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText ?? false;
   const { pending } = useFormStatus();
@@ -81,13 +81,13 @@ export function IssuanceForm({
           <CheckboxInput
             name="divisible"
             label="Divisible"
-            checked={initialFormData?.divisible ?? true}
+            defaultChecked={initialFormData?.divisible ?? true}
             disabled={pending}
           />
           <CheckboxInput
             name="lock"
             label="Locked"
-            checked={initialFormData?.lock || false}
+            defaultChecked={initialFormData?.lock || false}
             disabled={pending}
           />
         </div>

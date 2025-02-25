@@ -1,9 +1,9 @@
-import React from "react";
 import { useParams } from "react-router-dom";
 import { Composer } from "@/components/composer";
 import { IssueSupplyForm } from "./form";
 import { ReviewIssuanceIssueSupply } from "./review";
 import { composeIssuance } from "@/utils/blockchain/counterparty";
+import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 
 export function ComposeIssuanceIssueSupply() {
   const { asset: assetParam } = useParams<{ asset?: string }>();
@@ -15,11 +15,9 @@ export function ComposeIssuanceIssueSupply() {
 
   return (
     <div className="p-4">
-      <Composer
+      <Composer<IssuanceOptions>
         initialTitle="Issue Additional Supply"
-        FormComponent={(props) => (
-          <IssueSupplyForm {...props} asset={asset} />
-        )}
+        FormComponent={(props) => <IssueSupplyForm {...props} asset={asset} />}
         ReviewComponent={ReviewIssuanceIssueSupply}
         composeTransaction={composeIssuance}
       />

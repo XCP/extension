@@ -194,7 +194,7 @@ export function FairminterForm({
         <CheckboxInput
           name="divisible"
           label="Divisible"
-          checked={initialFormData?.divisible ?? true}
+          defaultChecked={initialFormData?.divisible ?? true}
           disabled={pending}
         />
         <Field>
@@ -216,7 +216,7 @@ export function FairminterForm({
         <CheckboxInput
           name="lock_description"
           label="Lock Description"
-          checked={initialFormData?.lock_description || false}
+          defaultChecked={initialFormData?.lock_description || false}
           disabled={pending}
         />
         <Field>
@@ -238,7 +238,7 @@ export function FairminterForm({
         <CheckboxInput
           name="lock_quantity"
           label="Lock Quantity"
-          checked={initialFormData?.lock_quantity || false}
+          defaultChecked={initialFormData?.lock_quantity || false}
           disabled={pending}
         />
         <Disclosure>

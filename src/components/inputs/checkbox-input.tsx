@@ -3,23 +3,27 @@ import { Checkbox, Field, Label } from '@headlessui/react';
 interface CheckboxInputProps {
   name: string;
   label: string;
-  checked?: boolean;
   disabled?: boolean;
+  defaultChecked?: boolean;
+  onChange?: (checked: boolean) => void;
 }
 
 export function CheckboxInput({
   name,
   label,
-  checked = false,
   disabled = false,
+  defaultChecked = false,
+  onChange,
 }: CheckboxInputProps) {
   return (
     <Field>
       <div className="flex items-center gap-3">
         <Checkbox
-          checked={checked}
+          checked={defaultChecked}
           name={name}
+          value="yes"
           disabled={disabled}
+          onChange={onChange}
           className={`
             group relative flex size-4 items-center justify-center rounded 
             border bg-white transition-colors
@@ -28,9 +32,8 @@ export function CheckboxInput({
                 ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
                 : 'border-gray-300 cursor-pointer hover:border-gray-400'
             }
-            ${checked && !disabled ? 'border-blue-600 bg-blue-600' : ''}
             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-            data-[checked]:bg-blue-600 data-[checked]:border-blue-600
+            data-[checked]:border-blue-600 data-[checked]:bg-blue-600
           `}
         >
           <svg

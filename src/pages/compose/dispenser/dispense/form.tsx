@@ -215,7 +215,7 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
                       id={`priceLevel-${option.index}`}
                       name="selectedPriceLevelIndex"
                       value={option.index}
-                      defaultChecked={
+                      defaultdefaultChecked={
                         initialFormData?.quantity &&
                         initialFormData.quantity === option.satoshirate * (Number(initialFormData.quantity) || 1)
                       }

@@ -105,7 +105,7 @@ export default function AdvancedSettings(): ReactElement {
         <div className="flex items-center justify-between">
           <Label className="font-bold">Enable MPMA Sends</Label>
           <Switch
-            checked={settings.enableMPMA}
+            defaultChecked={settings.enableMPMA}
             onChange={(checked) => updateSettings({ enableMPMA: checked })}
             className={`${settings.enableMPMA ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
           >
@@ -125,7 +125,7 @@ export default function AdvancedSettings(): ReactElement {
         <div className="flex items-center justify-between">
           <Label className="font-bold">Use Unconfirmed TXs</Label>
           <Switch
-            checked={settings.allowUnconfirmedTxs}
+            defaultChecked={settings.allowUnconfirmedTxs}
             onChange={(checked) => updateSettings({ allowUnconfirmedTxs: checked })}
             className={`${settings.allowUnconfirmedTxs ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
           >
@@ -145,7 +145,7 @@ export default function AdvancedSettings(): ReactElement {
         <div className="flex items-center justify-between">
           <Label className="font-bold">Show/Hide Help Text</Label>
           <Switch
-            checked={settings.showHelpText}
+            defaultChecked={settings.showHelpText}
             onChange={(checked) => updateSettings({ showHelpText: checked })}
             className={`${settings.showHelpText ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
           >
@@ -165,7 +165,7 @@ export default function AdvancedSettings(): ReactElement {
         <div className="flex items-center justify-between">
           <Label className="font-bold">Anonymous Analytics</Label>
           <Switch
-            checked={settings.analyticsAllowed}
+            defaultChecked={settings.analyticsAllowed}
             onChange={(checked) => updateSettings({ analyticsAllowed: checked })}
             className={`${settings.analyticsAllowed ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
           >
