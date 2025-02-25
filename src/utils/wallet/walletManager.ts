@@ -26,12 +26,10 @@ export interface Wallet {
   addressType: AddressType;
   addressCount: number;
   addresses: Address[];
-  pinnedAssetBalances: string[];
 }
 
 const MAX_WALLETS = 20;
 const MAX_ADDRESSES_PER_WALLET = 100;
-const DEFAULT_PINNED_ASSETS = ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'];
 
 export class WalletManager {
   private wallets: Wallet[] = [];
@@ -79,7 +77,6 @@ export class WalletManager {
         addressType: rec.addressType,
         addressCount: rec.addressCount || 1,
         addresses,
-        pinnedAssetBalances: rec.pinnedAssetBalances || [],
       };
     });
     const settings: KeychainSettings = await settingsManager.loadSettings();
@@ -140,7 +137,6 @@ export class WalletManager {
       addressType,
       addressCount: 1,
       encryptedSecret: encryptedMnemonic,
-      pinnedAssetBalances: [...DEFAULT_PINNED_ASSETS],
       previewAddress,
     };
     await addEncryptedWallet(record);
@@ -151,7 +147,6 @@ export class WalletManager {
       addressType,
       addressCount: 1,
       addresses: [],
-      pinnedAssetBalances: [...DEFAULT_PINNED_ASSETS],
     };
     this.wallets.push(wallet);
     return wallet;
@@ -191,7 +186,6 @@ export class WalletManager {
       addressType,
       addressCount: 1,
       encryptedSecret: encryptedPrivateKey,
-      pinnedAssetBalances: [...DEFAULT_PINNED_ASSETS],
       previewAddress,
     };
     await addEncryptedWallet(record);
@@ -202,7 +196,6 @@ export class WalletManager {
       addressType,
       addressCount: 1,
       addresses: [],
-      pinnedAssetBalances: [...DEFAULT_PINNED_ASSETS],
     };
     this.wallets.push(wallet);
     return wallet;
@@ -389,15 +382,14 @@ export class WalletManager {
     }
   }
 
-  public async updateWalletPinnedAssets(walletId: string, pinned: string[]): Promise<void> {
-    const wallet = this.getWalletById(walletId);
-    if (!wallet) throw new Error('Wallet not found.');
-    wallet.pinnedAssetBalances = pinned;
-    const allRecords = await getAllEncryptedWallets();
-    const record = allRecords.find((r) => r.id === walletId);
-    if (!record) throw new Error('Missing storage record.');
-    record.pinnedAssetBalances = pinned;
-    await updateEncryptedWallet(record);
+  /**
+   * Updates the pinned assets in the global settings.
+   * This method is kept for backward compatibility.
+   * 
+   * @param pinnedAssets - Array of asset IDs to pin
+   */
+  public async updateWalletPinnedAssets(pinnedAssets: string[]): Promise<void> {
+    await settingsManager.updateSettings({ pinnedAssets });
   }
 
   public async getPrivateKey(walletId: string, derivationPath?: string): Promise<string> {

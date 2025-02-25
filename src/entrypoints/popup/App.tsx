@@ -71,6 +71,7 @@ import AddressTypeSettings from '@/pages/settings/address-type-settings';
 import AdvancedSettings from '@/pages/settings/advanced-settings';
 import SecuritySettings from '@/pages/settings/security-settings';
 import ConnectedSitesSettings from '@/pages/settings/connected-sites-settings';
+import PinnedAssetsSettings from '@/pages/settings/pinned-assets-settings';
 
 export default function App() {
   const { wallets, walletLocked, loaded } = useWallet();
@@ -138,6 +139,7 @@ export default function App() {
             <Route path="/settings/advanced" element={<AdvancedSettings />} />
             <Route path="/settings/connected-sites" element={<ConnectedSitesSettings />} />
             <Route path="/settings/security" element={<SecuritySettings />} />
+            <Route path="/settings/pinned-assets" element={<PinnedAssetsSettings />} />
             <Route path="/address-history" element={<AddressHistory />} />
             <Route path="/select-address" element={<SelectAddress />} />
             <Route path="/view-address" element={<ViewAddress />} />

@@ -11,21 +11,17 @@ import {
   FaHistory,
   FaExternalLinkAlt,
   FaLock,
-  FaSearch,
+  FaCog,
 } from "react-icons/fa";
 import { RadioGroup } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { AssetList } from "@/components/lists/asset-list";
 import { BalanceList } from "@/components/lists/balance-list";
-import { SearchList } from "@/components/lists/search-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { formatAddress } from "@/utils/format";
 import type { ReactElement } from "react";
 
-/**
- * Constants for navigation paths and UI settings.
- */
 const CONSTANTS = {
   COPY_FEEDBACK_DURATION: 2000,
   PATHS: {
@@ -36,33 +32,19 @@ const CONSTANTS = {
     ADDRESS_HISTORY: "/address-history",
     SELECT_ADDRESS: "/select-address",
     TABBED_INDEX: "/tabbed.html#/index",
+    PINNED_ASSETS: "/settings/pinned-assets",
   } as const,
-  TABS: ["Assets", "Balances", "Search"] as const,
+  TABS: ["Assets", "Balances"] as const,
 } as const;
 
-/**
- * Index component serves as the main dashboard for the wallet application.
- *
- * Features:
- * - Displays the current address with copy functionality
- * - Provides action buttons for receiving, sending, and viewing history
- * - Switches between Assets, Balances, and Search tabs
- *
- * @returns {ReactElement} The rendered index UI.
- * @example
- * ```tsx
- * <Index />
- * ```
- */
 export default function Index(): ReactElement {
   const { activeWallet, activeAddress, lockAll, loaded } = useWallet();
   const { setHeaderProps } = useHeader();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (searchParams.get("tab") as "Assets" | "Balances" | "Search") || "Balances";
+  const activeTab = (searchParams.get("tab") as "Assets" | "Balances") || "Balances";
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
 
-  // Configure header
   useEffect(() => {
     setHeaderProps({
       useLogoTitle: true,
@@ -83,7 +65,6 @@ export default function Index(): ReactElement {
     return () => setHeaderProps(null);
   }, [setHeaderProps, navigate, activeWallet, lockAll]);
 
-  // Handle copy feedback timeout
   useEffect(() => {
     if (copiedToClipboard) {
       const timer = setTimeout(() => setCopiedToClipboard(false), CONSTANTS.COPY_FEEDBACK_DURATION);
@@ -91,19 +72,6 @@ export default function Index(): ReactElement {
     }
   }, [copiedToClipboard]);
 
-  // Focus search input when Search tab is active
-  useEffect(() => {
-    if (activeTab === "Search") {
-      setTimeout(() => {
-        const searchInput = document.querySelector<HTMLInputElement>('input[placeholder="Search assets..."]');
-        searchInput?.focus();
-      }, 0);
-    }
-  }, [activeTab]);
-
-  /**
-   * Copies the active address to the clipboard.
-   */
   const handleCopyAddress = () => {
     if (!activeAddress) return;
     navigator.clipboard.writeText(activeAddress.address).then(() => {
@@ -111,28 +79,11 @@ export default function Index(): ReactElement {
     });
   };
 
-  /**
-   * Navigates to the address selection screen.
-   */
   const handleAddressSelection = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigate(CONSTANTS.PATHS.SELECT_ADDRESS);
   };
 
-  /**
-   * Switches to the Search tab.
-   */
-  const handleSearchClick = () => setSearchParams({ tab: "Search" });
-
-  /**
-   * Closes the Search tab and returns to Balances.
-   */
-  const handleCloseSearch = () => setSearchParams({ tab: "Balances" });
-
-  /**
-   * Renders the current address with copy and selection options.
-   * @returns {ReactElement} The rendered address UI.
-   */
   const renderCurrentAddress = (): ReactElement => {
     if (!activeAddress) return <div className="p-4">No address selected</div>;
     return (
@@ -171,46 +122,23 @@ export default function Index(): ReactElement {
     );
   };
 
-  /**
-   * Renders action buttons for receive, send, and history.
-   * @returns {ReactElement} The rendered action buttons UI.
-   */
   const renderActionButtons = (): ReactElement => (
     <div className="grid grid-cols-3 gap-4 my-4">
-      <Button
-        color="gray"
-        onClick={() => navigate(CONSTANTS.PATHS.VIEW_ADDRESS)}
-        className="flex-col !py-4"
-        aria-label="Receive tokens"
-      >
+      <Button color="gray" onClick={() => navigate(CONSTANTS.PATHS.VIEW_ADDRESS)} className="flex-col !py-4" aria-label="Receive tokens">
         <FaQrcode className="text-xl mb-2" aria-hidden="true" />
         <span>Receive</span>
       </Button>
-      <Button
-        color="gray"
-        onClick={() => navigate(CONSTANTS.PATHS.SEND_BTC)}
-        className="flex-col !py-4"
-        aria-label="Send tokens"
-      >
+      <Button color="gray" onClick={() => navigate(CONSTANTS.PATHS.SEND_BTC)} className="flex-col !py-4" aria-label="Send tokens">
         <FaPaperPlane className="text-xl mb-2" aria-hidden="true" />
         <span>Send</span>
       </Button>
-      <Button
-        color="gray"
-        onClick={() => navigate(CONSTANTS.PATHS.ADDRESS_HISTORY)}
-        className="flex-col !py-4"
-        aria-label="Transaction history"
-      >
+      <Button color="gray" onClick={() => navigate(CONSTANTS.PATHS.ADDRESS_HISTORY)} className="flex-col !py-4" aria-label="Transaction history">
         <FaHistory className="text-xl mb-2" aria-hidden="true" />
         <span>History</span>
       </Button>
     </div>
   );
 
-  /**
-   * Renders the header for the Balances/Assets tabs.
-   * @returns {ReactElement} The rendered balances header UI.
-   */
   const renderBalancesHeader = (): ReactElement => {
     const isTabbedView = window.location.pathname.includes("tabbed.html");
     return (
@@ -235,11 +163,11 @@ export default function Index(): ReactElement {
         </div>
         <div className="flex items-center space-x-2">
           <button
-            onClick={handleSearchClick}
+            onClick={() => navigate(CONSTANTS.PATHS.PINNED_ASSETS)}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-            aria-label="Search Assets"
+            aria-label="Manage Pinned Assets"
           >
-            <FaSearch className="w-4 h-4 text-gray-600" aria-hidden="true" />
+            <FaCog className="w-4 h-4 text-gray-600" aria-hidden="true" />
           </button>
           {!isTabbedView && (
             <button
@@ -271,9 +199,7 @@ export default function Index(): ReactElement {
 
   return (
     <div className="flex flex-col h-full" role="main" aria-labelledby="index-title">
-      <h2 id="index-title" className="sr-only">
-        Wallet Dashboard
-      </h2>
+      <h2 id="index-title" className="sr-only">Wallet Dashboard</h2>
       <div className="flex-grow overflow-y-auto no-scrollbar p-4">
         {content}
         <div style={{ display: activeTab === "Balances" ? "block" : "none" }}>
@@ -281,9 +207,6 @@ export default function Index(): ReactElement {
         </div>
         <div style={{ display: activeTab === "Assets" ? "block" : "none" }}>
           <AssetList />
-        </div>
-        <div style={{ display: activeTab === "Search" ? "block" : "none" }}>
-          <SearchList onClose={handleCloseSearch} visible={activeTab === "Search"} />
         </div>
       </div>
     </div>

@@ -29,6 +29,7 @@ const CONSTANTS = {
     CONNECTED_SITES: "/settings/connected-sites",
     SECURITY: "/settings/security",
     RESET_WALLET: "/reset-wallet",
+    PINNED_ASSETS: "/settings/pinned-assets",
   } as const,
   EXTERNAL_LINKS: {
     TERMS: "https://www.xcp.io/terms",
@@ -106,6 +107,12 @@ export default function Settings(): ReactElement {
       name: "Connected Sites",
       description: "Manage website connections",
       path: CONSTANTS.PATHS.CONNECTED_SITES,
+    },
+    {
+      id: "pinnedAssets",
+      name: "Pinned Assets",
+      description: "Manage assets pinned to your dashboard",
+      path: CONSTANTS.PATHS.PINNED_ASSETS,
     },
     {
       id: "security",

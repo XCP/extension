@@ -8,12 +8,11 @@ import { fetchBTCBalance } from "@/utils/blockchain/bitcoin/balance";
 import { fetchTokenBalance, fetchTokenBalances } from "@/utils/blockchain/counterparty";
 import type { TokenBalance } from "@/utils/blockchain/counterparty";
 import { formatAmount, formatAsset } from "@/utils/format";
+import { FaSearch, FaTimes } from "react-icons/fa";
+import { useSearchQuery } from "@/hooks/useSearchQuery";
+import { useSettings } from "@/contexts/settings-context";
 
-interface BalanceItemProps {
-  token: TokenBalance;
-}
-
-const BalanceItemComponent = ({ token }: BalanceItemProps): ReactElement => {
+const BalanceItemComponent = ({ token }: { token: TokenBalance }): ReactElement => {
   const navigate = useNavigate();
   const imageUrl = `https://app.xcp.io/img/icon/${token.asset}`;
   const handleClick = () => {
@@ -23,46 +22,77 @@ const BalanceItemComponent = ({ token }: BalanceItemProps): ReactElement => {
   const isDivisible = token.asset_info?.divisible ?? false;
 
   return (
-    <div className="relative flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50" onClick={handleClick}>
+    <div
+      className="relative flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50"
+      onClick={handleClick}
+    >
       <div className="w-12 h-12 flex-shrink-0">
         <img src={imageUrl} alt={formatAsset(token.asset, { assetInfo: token.asset_info })} className="w-full h-full object-cover" />
       </div>
       <div className="ml-3 flex-grow">
-        <div className="font-medium text-sm text-gray-900">{formatAsset(token.asset, { assetInfo: token.asset_info, shorten: true })}</div>
+        <div className="font-medium text-sm text-gray-900">
+          {formatAsset(token.asset, { assetInfo: token.asset_info, shorten: true })}
+        </div>
         <div className="text-sm text-gray-500">
-          {formatAmount({ value: Number(token.quantity_normalized), minimumFractionDigits: isDivisible ? 8 : 0, maximumFractionDigits: isDivisible ? 8 : 0, useGrouping: true })}
+          {formatAmount({
+            value: Number(token.quantity_normalized),
+            minimumFractionDigits: isDivisible ? 8 : 0,
+            maximumFractionDigits: isDivisible ? 8 : 0,
+            useGrouping: true,
+          })}
         </div>
       </div>
-      <div className="absolute top-2 right-2"><BalanceMenu asset={token.asset} /></div>
+      <div className="absolute top-2 right-2">
+        <BalanceMenu asset={token.asset} />
+      </div>
+    </div>
+  );
+};
+
+const SearchResultComponent = ({ asset }: { asset: { symbol: string } }): ReactElement => {
+  const navigate = useNavigate();
+  const imageUrl = `https://app.xcp.io/img/icon/${asset.symbol}`;
+  return (
+    <div
+      className="relative flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50"
+      onClick={() => navigate(`/balance/${asset.symbol}`)}
+    >
+      <div className="w-12 h-12 flex-shrink-0">
+        <img src={imageUrl} alt={asset.symbol} className="w-full h-full object-cover" />
+      </div>
+      <div className="ml-3 flex-grow">
+        <div className="font-medium text-sm text-gray-900">{asset.symbol}</div>
+      </div>
     </div>
   );
 };
 
 export const BalanceList = (): ReactElement => {
   const { activeWallet, activeAddress } = useWallet();
+  const { settings } = useSettings();
   const [allBalances, setAllBalances] = useState<TokenBalance[]>([]);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(false);
+  const { searchQuery, setSearchQuery, searchResults, isSearching } = useSearchQuery();
 
   const { ref: loadMoreRef, inView } = useInView({ rootMargin: "200px", threshold: 0 });
 
+  useEffect(() => {
+    setInitialLoaded(false);
+  }, [settings?.pinnedAssets]);
+
   const upsertBalance = useCallback((balance: TokenBalance) => {
-    if (!balance?.asset || !balance?.quantity_normalized) {
-      console.warn("Invalid balance object skipped:", balance);
-      return;
-    }
+    if (!balance?.asset || !balance?.quantity_normalized) return;
     setAllBalances((prev) => {
       const idx = prev.findIndex((b) => b.asset.toUpperCase() === balance.asset.toUpperCase());
       if (idx > -1) {
         const newBalances = [...prev];
         newBalances[idx] = balance;
-        console.log(`Updated balance for ${balance.asset}:`, balance);
         return newBalances;
       }
-      console.log(`Added new balance for ${balance.asset}:`, balance);
       return [...prev, balance];
     });
   }, []);
@@ -87,7 +117,7 @@ export const BalanceList = (): ReactElement => {
         };
         if (!isCancelled) upsertBalance(btcBalance);
 
-        const pinnedAssets = activeWallet.pinnedAssetBalances || [];
+        const pinnedAssets = settings?.pinnedAssets || [];
         const nonBTCAssets = pinnedAssets.filter((asset) => asset.toUpperCase() !== "BTC");
         const balancePromises = nonBTCAssets.map((asset) =>
           fetchTokenBalance(activeAddress.address, asset)
@@ -113,31 +143,21 @@ export const BalanceList = (): ReactElement => {
     loadInitialBalances();
 
     return () => { isCancelled = true; };
-  }, [activeAddress, activeWallet, upsertBalance, initialLoaded]);
+  }, [activeAddress, activeWallet, upsertBalance, initialLoaded, settings?.pinnedAssets]);
 
   useEffect(() => {
     if (!activeAddress || !activeWallet || !hasMore || isFetchingMore || !inView) return;
 
     const loadMoreBalances = async () => {
-      let isCancelled = false; // Local to this invocation
+      let isCancelled = false;
       setIsFetchingMore(true);
       try {
-        console.log("Fetching more balances at offset:", offset);
         const fetchedBalances = await fetchTokenBalances(activeAddress.address, { limit: 10, offset });
-        console.log("Fetched balances raw:", fetchedBalances);
-        console.log("Fetched balances length:", fetchedBalances.length);
         if (fetchedBalances.length < 10) setHasMore(false);
         fetchedBalances.forEach((balance) => {
-          if (isCancelled) {
-            console.log("Fetch cancelled, skipping balance:", balance);
-            return;
-          }
-          upsertBalance(balance);
+          if (!isCancelled) upsertBalance(balance);
         });
-        if (!isCancelled) {
-          console.log("Incrementing offset from", offset, "to", offset + 10);
-          setOffset((prev) => prev + 10);
-        }
+        if (!isCancelled) setOffset((prev) => prev + 10);
       } catch (error) {
         console.error("Error fetching more balances:", error);
         if (!isCancelled) setHasMore(false);
@@ -148,47 +168,70 @@ export const BalanceList = (): ReactElement => {
 
     loadMoreBalances();
 
-    return () => {
-      console.log("Cleaning up loadMoreBalances effect at offset:", offset);
-      // No need to set isCancelled here; it's local to the async function
-    };
+    return () => {};
   }, [inView, activeAddress, activeWallet, hasMore, offset, upsertBalance]);
 
-  const pinnedAssets = (activeWallet?.pinnedAssetBalances || []).map((a) => a.toUpperCase()).concat("BTC");
-  const pinnedBalances = allBalances.filter((balance) =>
-    pinnedAssets.includes(balance.asset.toUpperCase())
-  );
-  const otherBalances = allBalances.filter(
-    (balance) => !pinnedAssets.includes(balance.asset.toUpperCase())
-  );
+  const pinnedAssets = (settings?.pinnedAssets || []).map((a) => a.toUpperCase()).concat("BTC");
+  const pinnedBalances = allBalances.filter((balance) => {
+    const isPinned = pinnedAssets.includes(balance.asset.toUpperCase());
+    const isSpecialAsset = balance.asset.toUpperCase() === "BTC" || balance.asset.toUpperCase() === "XCP";
+    const hasNonZeroBalance = Number(balance.quantity_normalized) > 0;
+    return isPinned && (isSpecialAsset || hasNonZeroBalance);
+  });
+  const otherBalances = allBalances.filter((balance) => !pinnedAssets.includes(balance.asset.toUpperCase()));
 
-  console.log("Pinned balances:", pinnedBalances);
-  console.log("Other balances:", otherBalances);
-  console.log("All balances total:", allBalances);
-
-  if (isInitialLoading) {
-    return <Spinner message="Loading balances..." />;
-  }
+  if (isInitialLoading) return <Spinner message="Loading balances..." />;
 
   return (
     <div className="space-y-2">
-      {pinnedBalances.map((balance) => (
-        <BalanceItemComponent token={balance} key={balance.asset} />
-      ))}
-      {otherBalances.map((balance) => (
-        <BalanceItemComponent token={balance} key={balance.asset} />
-      ))}
-      <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-4">
-        {hasMore ? (
-          isFetchingMore ? (
-            <Spinner className="py-4" />
-          ) : (
-            <div className="text-sm text-gray-500">Scroll to load more...</div>
-          )
-        ) : (
-          <div className="text-sm text-gray-500">{allBalances.length > 0 ? "No more balances" : ""}</div>
+      <div className="relative mb-2">
+        <input
+          type="text"
+          className="w-full p-2 pl-8 pr-8 border rounded-lg bg-white"
+          placeholder="Search balances..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        <FaSearch className="absolute left-3 top-3 text-gray-400" />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+            aria-label="Clear search"
+          >
+            <FaTimes />
+          </button>
         )}
       </div>
+      {searchQuery ? (
+        isSearching ? (
+          <Spinner message="Searching balances..." />
+        ) : searchResults.length === 0 ? (
+          <div className="text-center py-4 text-gray-500">No results found</div>
+        ) : (
+          searchResults.map((asset) => <SearchResultComponent key={asset.symbol} asset={asset} />)
+        )
+      ) : (
+        <>
+          {pinnedBalances.map((balance) => (
+            <BalanceItemComponent token={balance} key={balance.asset} />
+          ))}
+          {otherBalances.map((balance) => (
+            <BalanceItemComponent token={balance} key={balance.asset} />
+          ))}
+          <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-4">
+            {hasMore ? (
+              isFetchingMore ? (
+                <Spinner className="py-4" />
+              ) : (
+                <div className="text-sm text-gray-500">Scroll to load more...</div>
+              )
+            ) : (
+              <div className="text-sm text-gray-500">{allBalances.length > 0 ? "No more balances" : ""}</div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 };

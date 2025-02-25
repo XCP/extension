@@ -24,6 +24,7 @@ export interface KeychainSettings {
   allowUnconfirmedTxs: boolean;
   autoLockTimer: AutoLockTimer;
   enableMPMA: boolean;
+  pinnedAssets: string[];
 }
 
 /**
@@ -32,13 +33,14 @@ export interface KeychainSettings {
 const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
   lastActiveWalletId: undefined,
   lastActiveAddress: undefined,
-  autoLockTimeout: 1 * 60 * 1000, // 1 minute
+  autoLockTimeout: 5 * 60 * 1000, // 5 minutes
   connectedWebsites: [],
   showHelpText: false,
   analyticsAllowed: true,
   allowUnconfirmedTxs: false,
-  autoLockTimer: '1m',
+  autoLockTimer: '5m',
   enableMPMA: false,
+  pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
 };
 
 /**

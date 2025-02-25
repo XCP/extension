@@ -43,7 +43,6 @@ interface WalletContextType {
   removeWallet: (walletId: string) => Promise<void>;
   signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
-  updatePinnedAssets: (pinnedAssets: string[]) => Promise<void>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -232,13 +231,6 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     removeWallet: withRefresh(walletService.removeWallet, refreshWalletState),
     signTransaction: walletService.signTransaction,
     broadcastTransaction: walletService.broadcastTransaction,
-    updatePinnedAssets: withRefresh(
-      async (pinnedAssets: string[]) => {
-        if (!walletState.activeWallet) throw new Error('No active wallet');
-        return walletService.updateWalletPinnedAssets(walletState.activeWallet.id, pinnedAssets);
-      },
-      refreshWalletState
-    ),
   };
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;

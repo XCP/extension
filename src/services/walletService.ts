@@ -26,7 +26,7 @@ interface WalletService {
   resetAllWallets: (password: string) => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   updateWalletAddressType: (walletId: string, newType: AddressType) => Promise<void>;
-  updateWalletPinnedAssets: (walletId: string, pinned: string[]) => Promise<void>;
+  updateWalletPinnedAssets: (pinnedAssets: string[]) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<string>;
   removeWallet: (walletId: string) => Promise<void>;
@@ -81,8 +81,8 @@ function createWalletService(): WalletService {
     updateWalletAddressType: async (walletId, newType) => {
       await walletManager.updateWalletAddressType(walletId, newType);
     },
-    updateWalletPinnedAssets: async (walletId, pinned) => {
-      await walletManager.updateWalletPinnedAssets(walletId, pinned);
+    updateWalletPinnedAssets: async (pinnedAssets) => {
+      await walletManager.updateWalletPinnedAssets(pinnedAssets);
     },
     getUnencryptedMnemonic: async (walletId) => {
       return walletManager.getUnencryptedMnemonic(walletId);

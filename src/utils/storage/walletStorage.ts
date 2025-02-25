@@ -10,7 +10,6 @@ export interface EncryptedWalletRecord extends StoredRecord {
   addressType: AddressType;
   addressCount?: number; // Number of derived addresses (defaults to 0 if omitted)
   encryptedSecret: string;
-  pinnedAssetBalances?: string[]; // List of asset IDs to pin in UI (defaults to [] if omitted)
   previewAddress?: string;
 }
 
