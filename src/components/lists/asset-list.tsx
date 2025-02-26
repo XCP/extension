@@ -98,7 +98,7 @@ export const AssetList = (): JSX.Element => {
 
   return (
     <div className="space-y-2">
-      <div className="relative mb-2">
+      <div className="relative mb-3">
         <input
           type="text"
           className="w-full p-2 pl-8 pr-8 border rounded-lg bg-white"

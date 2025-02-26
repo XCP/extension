@@ -38,6 +38,7 @@ export function SendForm({
     initialFormData?.asset || initialAsset || "BTC"
   );
   const { pending } = useFormStatus();
+  const [formError, setFormError] = useState<string | null>(null);
 
   const isDivisible = initialFormData?.asset === "BTC" || assetDetails?.assetInfo?.divisible;
 
@@ -50,7 +51,7 @@ export function SendForm({
       : ""
   );
 
-  // Local state for fee rate
+  // Local state for fee rate - still needed for AmountWithMaxInput
   const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 1);
 
   // Focus destination input on mount
@@ -59,16 +60,40 @@ export function SendForm({
     input?.focus();
   }, []);
 
-  // Custom form action to include the dynamic amount and fee rate
+  // Custom form action to include the dynamic amount
   const handleFormAction = (formData: FormData) => {
     if (amount) {
       // Use toSatoshis for divisible assets, raw amount for non-divisible
       const quantity = isDivisible ? toSatoshis(amount) : amount;
       formData.set("quantity", quantity);
     }
-    formData.set("sat_per_vbyte", satPerVbyte.toString());
     formAction(formData);
   };
+
+  // Handle amount change
+  const handleAmountChange = (value: string) => {
+    setAmount(value);
+    // Clear form error when amount changes
+    if (formError) setFormError(null);
+  };
+
+  // Check if amount is valid for enabling the submit button
+  const isAmountValid = (): boolean => {
+    if (!amount || amount.trim() === '') return false;
+    
+    // For divisible assets, check if amount is a valid number > 0
+    if (isDivisible) {
+      const numAmount = parseFloat(amount);
+      return !isNaN(numAmount) && numAmount > 0;
+    }
+    
+    // For non-divisible assets, check if it's a valid integer > 0
+    const intAmount = parseInt(amount, 10);
+    return !isNaN(intAmount) && intAmount > 0 && intAmount.toString() === amount.trim();
+  };
+
+  // Determine if the submit button should be disabled
+  const isSubmitDisabled = pending || !isAmountValid();
 
   return (
     <div className="space-y-4">
@@ -103,13 +128,14 @@ export function SendForm({
             </Description>
           </Field>
           <input type="hidden" name="asset" value={initialFormData?.asset || initialAsset || "BTC"} />
+          
           <AmountWithMaxInput
             asset={initialFormData?.asset || initialAsset || "BTC"}
             availableBalance={assetDetails?.availableBalance || "0"}
             value={amount}
-            onChange={setAmount}
+            onChange={handleAmountChange}
             sat_per_vbyte={satPerVbyte}
-            setError={() => {}} // No-op since Composer handles errors
+            setError={setFormError}
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.availableBalance || "0"}
             shouldShowHelpText={shouldShowHelpText}
@@ -122,6 +148,7 @@ export function SendForm({
             }
             disabled={pending}
           />
+          
           {(initialFormData?.asset || initialAsset) !== "BTC" && (
             <Field>
               <Label className="text-sm font-medium text-gray-700">Memo</Label>
@@ -145,7 +172,12 @@ export function SendForm({
             onFeeRateChange={setSatPerVbyte}
           />
 
-          <Button type="submit" color="blue" fullWidth disabled={pending}>
+          <Button 
+            type="submit" 
+            color="blue" 
+            fullWidth 
+            disabled={isSubmitDisabled}
+          >
             {pending ? "Submitting..." : "Continue"}
           </Button>
         </form>

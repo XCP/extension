@@ -1,7 +1,7 @@
 "use client";
 
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, memo, useCallback } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
@@ -12,6 +12,7 @@ import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-in
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { toSatoshis } from "@/utils/numeric";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -31,8 +32,13 @@ interface DispenserFormProps {
 
 /**
  * Form for creating a dispenser using React 19 Actions.
+ * Wrapped with memo to prevent unnecessary re-renders.
  */
-export function DispenserForm({ formAction, initialFormData, asset }: DispenserFormProps): ReactElement {
+export const DispenserForm = memo(function DispenserForm({ 
+  formAction, 
+  initialFormData, 
+  asset 
+}: DispenserFormProps): ReactElement {
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText ?? false;
@@ -41,6 +47,29 @@ export function DispenserForm({ formAction, initialFormData, asset }: DispenserF
 
   const [availableBalance, setAvailableBalance] = useState<string>("0");
   const [tradingPairData, setTradingPairData] = useState<TradingPairData | null>(null);
+  
+  // Add state for form values
+  const [escrowQuantity, setEscrowQuantity] = useState<string>(
+    initialFormData?.escrow_quantity
+      ? (assetDetails?.assetInfo?.divisible ?? true)
+        ? (initialFormData.escrow_quantity / 1e8).toFixed(8)
+        : initialFormData.escrow_quantity.toString()
+      : ""
+  );
+  
+  const [mainchainRate, setMainchainRate] = useState<string>(
+    initialFormData?.mainchainrate
+      ? (initialFormData.mainchainrate / 1e8).toFixed(8)
+      : ""
+  );
+  
+  const [giveQuantity, setGiveQuantity] = useState<string>(
+    initialFormData?.give_quantity
+      ? (assetDetails?.assetInfo?.divisible ?? true)
+        ? (initialFormData.give_quantity / 1e8).toFixed(8)
+        : initialFormData.give_quantity.toString()
+      : (assetDetails?.assetInfo?.divisible ?? true) ? "1.00000000" : "1"
+  );
 
   const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
 
@@ -55,7 +84,13 @@ export function DispenserForm({ formAction, initialFormData, asset }: DispenserF
 
         const response = await axios.get(`https://app.xcp.io/api/v1/swap/${asset}/BTC`);
         const lastTradePrice = response.data?.data?.trading_pair?.last_trade_price || null;
-        setTradingPairData({ last_trade_price: lastTradePrice, name: "BTC" });
+        setTradingPairData((prev) => {
+          // Only update if the data has changed
+          if (prev?.last_trade_price === lastTradePrice && prev?.name === "BTC") {
+            return prev;
+          }
+          return { last_trade_price: lastTradePrice, name: "BTC" };
+        });
       } catch (err) {
         console.error("Error fetching asset details:", err);
       }
@@ -65,9 +100,59 @@ export function DispenserForm({ formAction, initialFormData, asset }: DispenserF
 
   // Focus escrow_quantity input on mount
   useEffect(() => {
-    const input = document.querySelector("input[name='escrow_quantity']") as HTMLInputElement;
+    const input = document.querySelector("input[name='escrow_quantity_display']") as HTMLInputElement;
     input?.focus();
   }, []);
+
+  // Reset form fields when initialFormData changes to null
+  // Using a ref to track previous initialFormData state to prevent unnecessary resets
+  const prevInitialFormDataRef = useRef(initialFormData);
+  useEffect(() => {
+    // Only reset if initialFormData changed from non-null to null
+    if (initialFormData === null && prevInitialFormDataRef.current !== null) {
+      setEscrowQuantity("");
+      setMainchainRate("");
+      setGiveQuantity((assetDetails?.assetInfo?.divisible ?? true) ? "1.00000000" : "1");
+    }
+    prevInitialFormDataRef.current = initialFormData;
+  }, [initialFormData, assetDetails?.assetInfo?.divisible]);
+
+  // Convert decimal values to integers for API submission
+  const getFormattedValue = (value: string, isValueDivisible: boolean): string => {
+    if (!value) return "";
+    
+    if (isValueDivisible) {
+      // For divisible assets, convert to satoshis (multiply by 10^8)
+      return toSatoshis(value);
+    }
+    
+    // For non-divisible assets, use as is
+    return value;
+  };
+
+  // Custom form action wrapper to convert values before submission
+  const handleFormAction = useCallback((formData: FormData) => {
+    // Create a new FormData object to avoid modifying the original
+    const processedFormData = new FormData();
+    
+    // Copy all fields from the original FormData
+    for (const [key, value] of formData.entries()) {
+      if (key !== "escrow_quantity" && key !== "mainchainrate" && key !== "give_quantity") {
+        processedFormData.append(key, value);
+      }
+    }
+    
+    // Add the asset parameter
+    processedFormData.append("asset", asset);
+    
+    // Add the converted values
+    processedFormData.append("escrow_quantity", getFormattedValue(escrowQuantity, isDivisible));
+    processedFormData.append("mainchainrate", getFormattedValue(mainchainRate, true)); // BTC is always divisible
+    processedFormData.append("give_quantity", getFormattedValue(giveQuantity, isDivisible));
+    
+    // Call the original formAction with the processed data
+    formAction(processedFormData);
+  }, [asset, escrowQuantity, mainchainRate, giveQuantity, isDivisible, formAction]);
 
   return (
     <div className="space-y-4">
@@ -90,61 +175,44 @@ export function DispenserForm({ formAction, initialFormData, asset }: DispenserF
       )}
       {assetError && <div className="text-red-500 mb-2">{assetError.message}</div>}
       <div className="bg-white rounded-lg shadow-lg p-4">
-        <form action={formAction} className="space-y-6">
+        <form action={handleFormAction} className="space-y-6">
           <AmountWithMaxInput
             asset={asset}
             availableBalance={availableBalance}
-            value={
-              initialFormData?.escrow_quantity
-                ? isDivisible
-                  ? (initialFormData.escrow_quantity / 1e8).toFixed(8)
-                  : initialFormData.escrow_quantity.toString()
-                : ""
-            }
-            onChange={() => {}} // No-op since formAction handles submission
+            value={escrowQuantity}
+            onChange={setEscrowQuantity}
             sat_per_vbyte={initialFormData?.sat_per_vbyte || 1}
             setError={() => {}} // No-op since Composer handles errors
             shouldShowHelpText={shouldShowHelpText}
             sourceAddress={activeAddress}
             maxAmount={availableBalance}
             label="Dispenser Escrow"
-            name="escrow_quantity"
+            name="escrow_quantity_display"
             description={`The total quantity of the asset to reserve for this dispenser. ${
               isDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only."
             } Available: ${availableBalance}`}
             disabled={pending}
           />
           <PriceWithSuggestInput
-            value={
-              initialFormData?.mainchainrate
-                ? (initialFormData.mainchainrate / 1e8).toFixed(8)
-                : ""
-            }
-            onChange={() => {}} // No-op since formAction handles submission
+            value={mainchainRate}
+            onChange={setMainchainRate}
             tradingPairData={tradingPairData}
             shouldShowHelpText={shouldShowHelpText}
             label="BTC Per Dispense"
-            name="mainchainrate"
+            name="mainchainrate_display"
             priceDescription="The amount of BTC required per dispensed portion."
             showPairFlip={false}
           />
           <Field>
-            <Label htmlFor="give_quantity" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="give_quantity_display" className="text-sm font-medium text-gray-700">
               Dispense Amount <span className="text-red-500">*</span>
             </Label>
             <Input
-              id="give_quantity"
+              id="give_quantity_display"
               type="text"
-              name="give_quantity"
-              defaultValue={
-                initialFormData?.give_quantity
-                  ? isDivisible
-                    ? (initialFormData.give_quantity / 1e8).toFixed(8)
-                    : initialFormData.give_quantity.toString()
-                  : isDivisible
-                  ? "1.00000000"
-                  : "1"
-              }
+              name="give_quantity_display"
+              value={giveQuantity}
+              onChange={(e) => setGiveQuantity(e.target.value)}
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
               placeholder={isDivisible ? "0.00000000" : "0"}
@@ -165,4 +233,4 @@ export function DispenserForm({ formAction, initialFormData, asset }: DispenserF
       </div>
     </div>
   );
-}
+});

@@ -86,7 +86,7 @@ export default function ViewBalance(): ReactElement {
             id: "dispense",
             name: "Dispense",
             description: "Trigger an open asset dispenser",
-            path: `${CONSTANTS.PATHS.COMPOSE}/dispense`,
+            path: `${CONSTANTS.PATHS.COMPOSE}/dispenser/dispense`,
           },
         ]
       : [

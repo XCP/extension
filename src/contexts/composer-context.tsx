@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import type { ApiResponse } from "@/utils/blockchain/counterparty";
 import axios from "axios";
 
@@ -17,7 +17,7 @@ interface ComposerContextType<T> {
   compose: (formData: FormData, composeTransaction: (data: any) => Promise<ApiResponse>, sourceAddress?: string) => Promise<void>;
   sign: (apiResponse: ApiResponse, signFn: () => Promise<void>) => Promise<void>;
   reset: () => void;
-  revertToForm: () => void; // New method
+  revertToForm: () => void;
 }
 
 const ComposerContext = createContext<ComposerContextType<any> | undefined>(undefined);
@@ -49,6 +49,22 @@ export function ComposerProvider<T>({ children, initialFormData = null }: Compos
   const [state, setState] = useState(initialState);
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const previousStepRef = useRef<"form" | "review" | "success" | null>(null);
+
+  // Track step changes
+  useEffect(() => {
+    previousStepRef.current = state.step;
+  }, [state.step]);
+
+  // Auto-dismiss errors after 10 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 10000); // 10 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const compose = useCallback(
     async (formData: FormData, composeTransaction: (data: any) => Promise<ApiResponse>, sourceAddress?: string) => {
@@ -62,7 +78,6 @@ export function ComposerProvider<T>({ children, initialFormData = null }: Compos
           ...data,
           sourceAddress,
         });
-        console.log("Compose success, response:", response);
         setError(null);
         setState({
           step: "review",
@@ -78,6 +93,15 @@ export function ComposerProvider<T>({ children, initialFormData = null }: Compos
           errorMessage = err.message;
         }
         setError(errorMessage);
+        
+        // Preserve the form data when there's an error
+        const rawData = Object.fromEntries(formData);
+        const data = rawData as unknown as T;
+        setState(prevState => ({
+          ...prevState,
+          step: "form",
+          formData: data,
+        }));
       } finally {
         setIsPending(false);
       }
@@ -116,9 +140,15 @@ export function ComposerProvider<T>({ children, initialFormData = null }: Compos
   );
 
   const reset = useCallback(() => {
+    console.log("Resetting composer state");
     setError(null);
-    setState(initialState);
-  }, [initialState]);
+    setIsPending(false);
+    setState({
+      step: "form",
+      formData: null,
+      apiResponse: null,
+    });
+  }, []);
 
   const revertToForm = useCallback(() => {
     setError(null);
@@ -129,9 +159,15 @@ export function ComposerProvider<T>({ children, initialFormData = null }: Compos
     }));
   }, []);
 
+  // Effect to reset form data when arriving at form step from anywhere except review
   useEffect(() => {
-    console.log("Current state:", state);
-  }, [state]);
+    if (state.step === "form" && previousStepRef.current !== "review" && previousStepRef.current !== null) {
+      setState(prevState => ({
+        ...prevState,
+        formData: null,
+      }));
+    }
+  }, [state.step]);
 
   return (
     <ComposerContext.Provider value={{ state, error, isPending, compose, sign, reset, revertToForm }}>

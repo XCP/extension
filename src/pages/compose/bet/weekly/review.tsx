@@ -1,7 +1,7 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
 
-interface ReviewBetProps {
+interface WeeklyReviewBetProps {
   apiResponse: any;
   onSign: () => void;
   onBack: () => void;
@@ -9,7 +9,7 @@ interface ReviewBetProps {
   setError: (error: string | null) => void;
 }
 
-export function ReviewBet({ apiResponse, onSign, onBack, error, setError }: ReviewBetProps) {
+export function WeeklyReviewBet({ apiResponse, onSign, onBack, error, setError }: WeeklyReviewBetProps) {
   const { result } = apiResponse;
 
   const formatQuantity = (quantity: number) =>
@@ -61,6 +61,9 @@ export function ReviewBet({ apiResponse, onSign, onBack, error, setError }: Revi
     { label: "Leverage", value: result.params.leverage },
     ...(result.params.target_value
       ? [{ label: "Target Value", value: result.params.target_value }]
+      : []),
+    ...(result.params.market_id
+      ? [{ label: "Market", value: result.params.market_id }]
       : []),
   ];
 

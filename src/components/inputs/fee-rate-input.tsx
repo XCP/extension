@@ -15,7 +15,7 @@ import { useFeeRates, FeeRateOption } from "@/hooks/useFeeRates";
 interface FeeRateInputProps {
   showHelpText?: boolean;
   disabled?: boolean;
-  onFeeRateChange?: (satPerVbyte: number) => void; // New prop
+  onFeeRateChange?: (satPerVbyte: number) => void; // Kept for components that need to share the value
 }
 
 type LocalFeeRateOption = FeeRateOption | "custom";
@@ -30,6 +30,11 @@ export function FeeRateInput({
   const [customInput, setCustomInput] = useState<string>("1");
   const [internalError, setInternalError] = useState<string | null>(null);
   const isInitial = useRef(true);
+
+  // Calculate the current fee rate value based on selection
+  const currentFeeRate = selectedOption === "custom" 
+    ? parseFloat(customInput) || 1 
+    : feeRates && uniquePresetOptions.find(opt => opt.id === selectedOption)?.value || 1;
 
   useEffect(() => {
     if (feeRates && isInitial.current) {
@@ -104,6 +109,8 @@ export function FeeRateInput({
         <div className="mt-1">
           <p>Loading fee rates…</p>
         </div>
+        {/* Always include the hidden input even when loading */}
+        <input type="hidden" name="sat_per_vbyte" value="1" />
       </Field>
     );
   }
@@ -177,37 +184,42 @@ export function FeeRateInput({
             )}
           </div>
         ) : (
-          feeRates && (
-            <Listbox value={feeOptions.find((opt) => opt.id === selectedOption)} onChange={handleOptionSelect}>
-              <ListboxButton
-                className="w-full p-2 text-left rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
-                disabled={disabled}
-              >
-                {({ value }) => (
-                  <div className="flex justify-between">
-                    <span>{value?.name}</span>
-                    {value?.id !== "custom" && (
-                      <span className="text-gray-500">{value.value} sat/vB</span>
-                    )}
-                  </div>
-                )}
-              </ListboxButton>
-              <ListboxOptions className="w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
-                {feeOptions.map((option) => (
-                  <ListboxOption key={option.id} value={option} className="p-2 cursor-pointer hover:bg-gray-100">
-                    {({ selected }) => (
-                      <div className="flex justify-between">
-                        <span className={selected ? "font-medium" : ""}>{option.name}</span>
-                        {option.id !== "custom" && (
-                          <span className="text-gray-500">{option.value} sat/vB</span>
-                        )}
-                      </div>
-                    )}
-                  </ListboxOption>
-                ))}
-              </ListboxOptions>
-            </Listbox>
-          )
+          <>
+            {/* Hidden input that will be included in form submission when using dropdown */}
+            <input type="hidden" name="sat_per_vbyte" value={currentFeeRate.toString()} />
+            
+            {feeRates && (
+              <Listbox value={feeOptions.find((opt) => opt.id === selectedOption)} onChange={handleOptionSelect}>
+                <ListboxButton
+                  className="w-full p-2 text-left rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+                  disabled={disabled}
+                >
+                  {({ value }) => (
+                    <div className="flex justify-between">
+                      <span>{value?.name}</span>
+                      {value?.id !== "custom" && (
+                        <span className="text-gray-500">{value.value} sat/vB</span>
+                      )}
+                    </div>
+                  )}
+                </ListboxButton>
+                <ListboxOptions className="w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                  {feeOptions.map((option) => (
+                    <ListboxOption key={option.id} value={option} className="p-2 cursor-pointer hover:bg-gray-100">
+                      {({ selected }) => (
+                        <div className="flex justify-between">
+                          <span className={selected ? "font-medium" : ""}>{option.name}</span>
+                          {option.id !== "custom" && (
+                            <span className="text-gray-500">{option.value} sat/vB</span>
+                          )}
+                        </div>
+                      )}
+                    </ListboxOption>
+                  ))}
+                </ListboxOptions>
+              </Listbox>
+            )}
+          </>
         )}
       </div>
       {showHelpText && (

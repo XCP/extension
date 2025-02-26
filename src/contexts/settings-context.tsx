@@ -22,6 +22,7 @@ const defaultSettings: KeychainSettings = {
   allowUnconfirmedTxs: false,
   autoLockTimer: '5m',
   enableMPMA: false,
+  enableAdvancedBroadcasts: false,
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
 };
 

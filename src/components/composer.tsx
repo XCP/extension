@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useCallback, useMemo } from "react";
+import { useEffect, useCallback, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { FiHelpCircle, FiX, FiRefreshCw } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
+import { ErrorAlert } from "@/components/error-alert";
 import { SuccessScreen } from "@/components/screens/success-screen";
 import { useComposer } from "@/contexts/composer-context";
 import { useHeader } from "@/contexts/header-context";
@@ -48,19 +49,26 @@ export function Composer<T>({
   headerCallbacks,
 }: ComposerProps<T>): ReactElement {
   const navigate = useNavigate();
-  const { activeWallet, activeAddress, signTransaction, broadcastTransaction } = useWallet(); // Updated to include signTransaction
+  const { activeWallet, activeAddress, signTransaction, broadcastTransaction, unlockWallet } = useWallet();
   const { isLoading, showLoading, hideLoading } = useLoading();
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings } = useSettings();
   const { state, error, isPending, compose, sign, reset, revertToForm } = useComposer<T>();
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [password, setPassword] = useState("");
+  const [unlockError, setUnlockError] = useState<string | null>(null);
 
   const formAction = useCallback(
     (formData: FormData) => {
       if (activeAddress) {
-        compose(formData, composeTransaction, activeAddress.address);
+        const loadingId = showLoading("Composing transaction...");
+        compose(formData, composeTransaction, activeAddress.address)
+          .finally(() => {
+            hideLoading(loadingId);
+          });
       }
     },
-    [compose, composeTransaction, activeAddress]
+    [compose, composeTransaction, activeAddress, showLoading, hideLoading]
   );
 
   const signAction = useCallback(async () => {
@@ -69,9 +77,19 @@ export function Composer<T>({
     const loadingId = showLoading("Signing and broadcasting transaction...");
     try {
       const rawTxHex = state.apiResponse.result.rawtransaction;
-      const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
-      await broadcastTransaction(signedTxHex);
-      sign(state.apiResponse, async () => {});
+      try {
+        const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
+        await broadcastTransaction(signedTxHex);
+        sign(state.apiResponse, async () => {});
+      } catch (err) {
+        // Check if the error is due to wallet being locked
+        if (err instanceof Error && err.message.includes("Wallet is locked")) {
+          hideLoading(loadingId);
+          setShowPasswordModal(true);
+          return; // Exit early, we'll handle this via the password modal
+        }
+        throw err; // Re-throw if it's not a wallet lock error
+      }
     } catch (err) {
       console.error("Sign action error:", err);
       let errorMessage = "Failed to sign and broadcast transaction";
@@ -92,6 +110,38 @@ export function Composer<T>({
     hideLoading,
     sign,
   ]);
+
+  const handleUnlockAndSign = async () => {
+    if (!activeWallet || !password) return;
+    
+    const loadingId = showLoading("Authorizing transaction...");
+    try {
+      // First unlock the wallet
+      await unlockWallet(activeWallet.id, password);
+      
+      // Then retry the sign action
+      if (state.apiResponse && activeAddress) {
+        const rawTxHex = state.apiResponse.result.rawtransaction;
+        const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
+        await broadcastTransaction(signedTxHex);
+        sign(state.apiResponse, async () => {});
+      }
+      
+      // Clear the password and close the modal
+      setPassword("");
+      setShowPasswordModal(false);
+      setUnlockError(null);
+    } catch (err) {
+      console.error("Authorization error:", err);
+      let errorMessage = "Failed to authorize transaction";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setUnlockError(errorMessage);
+    } finally {
+      hideLoading(loadingId);
+    }
+  };
 
   const handleBack = useCallback(() => {
     if (state.step === "review") {
@@ -189,7 +239,7 @@ export function Composer<T>({
 
   return (
     <div>
-      {error && <div style={{ color: "red" }}>{error}</div>}
+      {error && <ErrorAlert message={error} onClose={() => reset()} />}
       {state.step === "form" && (
         <FormComponent formAction={formAction} initialFormData={state.formData || null} />
       )}
@@ -203,7 +253,61 @@ export function Composer<T>({
         />
       )}
       {state.step === "success" && state.apiResponse && (
-        <SuccessScreen apiResponse={state.apiResponse} onReset={onBackSuccess} />
+        <SuccessScreen apiResponse={state.apiResponse} onReset={onResetForm} />
+      )}
+      
+      {/* Password Modal for Transaction Authorization */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <h1 className="text-xl font-bold mb-5 flex justify-between items-center">
+              <span>Authorize Transaction</span>
+            </h1>
+            
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+              Please enter your password to authorize this transaction.
+            </p>
+            
+            {unlockError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg" role="alert">
+                {unlockError}
+              </div>
+            )}
+            
+            <div className="space-y-4">
+              <div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+              </div>
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPassword("");
+                    setUnlockError(null);
+                  }}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUnlockAndSign}
+                  disabled={!password}
+                  className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 ${!password ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  Authorize
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

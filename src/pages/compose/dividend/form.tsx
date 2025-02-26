@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { AssetSelectInput } from "@/components/inputs/asset-select-input";
@@ -33,34 +33,54 @@ export function DividendForm({
 }: DividendFormProps): ReactElement {
   const { pending } = useFormStatus();
   const amountRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   
   const { data: assetInfo, error: assetError } = useAssetDetails(asset);
-  const { data: dividendAssetInfo } = useAssetDetails(
+  const [selectedDividendAsset, setSelectedDividendAsset] = useState<string>(
     initialFormData?.dividend_asset || "XCP"
   );
+  const { data: dividendAssetInfo } = useAssetDetails(selectedDividendAsset);
 
   // Focus amount input on mount
   useEffect(() => {
     amountRef.current?.focus();
   }, []);
 
-  // Format amount based on dividend asset divisibility
-  useEffect(() => {
-    const input = document.querySelector("input[name='quantity_per_unit']") as HTMLInputElement;
-    if (input && input.value && dividendAssetInfo?.assetInfo) {
-      const numValue = Number(input.value);
-      if (!isNaN(numValue)) {
-        const formattedValue = dividendAssetInfo.assetInfo.divisible
-          ? formatAmount({
-              value: numValue,
-              minimumFractionDigits: 8,
-              maximumFractionDigits: 8,
-            })
-          : Math.round(numValue).toString();
-        input.value = formattedValue;
+  // Handle form submission
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (formRef.current) {
+      const formData = new FormData(formRef.current);
+      
+      // Get the quantity_per_unit value
+      const quantityPerUnitStr = formData.get('quantity_per_unit') as string;
+      
+      // Convert to the proper format based on divisibility
+      if (quantityPerUnitStr && dividendAssetInfo?.assetInfo) {
+        const numValue = parseFloat(quantityPerUnitStr.replace(/,/g, ''));
+        
+        if (!isNaN(numValue)) {
+          // If divisible, convert to satoshis (multiply by 100000000)
+          // If not divisible, round to integer
+          const processedValue = dividendAssetInfo.assetInfo.divisible
+            ? Math.round(numValue * 100000000).toString()
+            : Math.round(numValue).toString();
+          
+          // Replace the value in the form data
+          formData.set('quantity_per_unit', processedValue);
+        }
       }
+      
+      // Submit the processed form data
+      formAction(formData);
     }
-  }, [dividendAssetInfo?.assetInfo?.divisible]);
+  };
+
+  // Handle dividend asset change
+  const handleDividendAssetChange = (asset: string) => {
+    setSelectedDividendAsset(asset);
+  };
 
   return (
     <div className="space-y-4">
@@ -68,17 +88,17 @@ export function DividendForm({
       {assetError && <div className="text-red-500">Failed to fetch asset details.</div>}
       
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-        <form action={formAction} className="space-y-4">
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
           <input type="hidden" name="asset" value={asset} />
+          <input type="hidden" name="dividend_asset" value={selectedDividendAsset} />
           
           <AssetSelectInput
-            selectedAsset={initialFormData?.dividend_asset || "XCP"}
-            onChange={() => {}} // No-op since formAction handles submission
+            selectedAsset={selectedDividendAsset}
+            onChange={handleDividendAssetChange}
             label="Dividend Asset"
             required
             shouldShowHelpText={shouldShowHelpText}
             description="The asset to pay dividends in (e.g., XCP)."
-            name="dividend_asset"
             disabled={pending}
           />
 
@@ -101,6 +121,8 @@ export function DividendForm({
             {shouldShowHelpText && (
               <Description className="mt-2 text-sm text-gray-500">
                 Amount of dividend asset to be paid per unit of the source asset.
+                {dividendAssetInfo?.assetInfo && dividendAssetInfo.assetInfo.divisible && 
+                  " This value will be converted to satoshis (multiplied by 10^8) when submitted."}
               </Description>
             )}
           </Field>

@@ -124,6 +124,26 @@ export default function AdvancedSettings(): ReactElement {
 
       <Field>
         <div className="flex items-center justify-between">
+          <Label className="font-bold">Advanced Broadcasts</Label>
+          <Switch
+            defaultChecked={settings.enableAdvancedBroadcasts}
+            onChange={(checked) => updateSettings({ enableAdvancedBroadcasts: checked })}
+            className={`${settings.enableAdvancedBroadcasts ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
+          >
+            <span
+              className={`${
+                settings.enableAdvancedBroadcasts ? "translate-x-6" : "translate-x-1"
+              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+            />
+          </Switch>
+        </div>
+        <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+          Show advanced options for broadcast transactions (value and fee fraction).
+        </Description>
+      </Field>
+
+      <Field>
+        <div className="flex items-center justify-between">
           <Label className="font-bold">Use Unconfirmed TXs</Label>
           <Switch
             defaultChecked={settings.allowUnconfirmedTxs}
@@ -138,7 +158,7 @@ export default function AdvancedSettings(): ReactElement {
           </Switch>
         </div>
         <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-          Enable this to chain transactions that haven’t been confirmed yet.
+          Enable this to chain transactions that haven't been confirmed yet.
         </Description>
       </Field>
 

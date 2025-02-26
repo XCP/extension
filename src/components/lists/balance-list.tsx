@@ -184,7 +184,7 @@ export const BalanceList = (): ReactElement => {
 
   return (
     <div className="space-y-2">
-      <div className="relative mb-2">
+      <div className="relative mb-3">
         <input
           type="text"
           className="w-full p-2 pl-8 pr-8 border rounded-lg bg-white"
@@ -219,16 +219,14 @@ export const BalanceList = (): ReactElement => {
           {otherBalances.map((balance) => (
             <BalanceItemComponent token={balance} key={balance.asset} />
           ))}
-          <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-4">
+          <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-1">
             {hasMore ? (
               isFetchingMore ? (
                 <Spinner className="py-4" />
               ) : (
                 <div className="text-sm text-gray-500">Scroll to load more...</div>
               )
-            ) : (
-              <div className="text-sm text-gray-500">{allBalances.length > 0 ? "No more balances" : ""}</div>
-            )}
+            ) : null}
           </div>
         </>
       )}

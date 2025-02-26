@@ -3,6 +3,7 @@ import { FaSpinner } from "react-icons/fa";
 import { Layout } from '@/components/layout';
 import { useWallet } from '@/contexts/wallet-context';
 import { AuthRequired } from '@/middleware/auth-required';
+import { DebugOverlay } from '@/components/debug';
 
 // Core Pages
 import Index from '@/pages/index';
@@ -29,6 +30,7 @@ import ViewUtxo from '@/pages/assets/view-utxo';
 
 // Compose pages
 import ComposeBet from '@/pages/compose/bet/page';
+import ComposeWeeklyBet from '@/pages/compose/bet/weekly/page';
 import ComposeBroadcast from '@/pages/compose/broadcast/page';
 import ComposeBroadcastAddressOptions from '@/pages/compose/broadcast/address-options/page';
 import ComposeBTCPay from '@/pages/compose/order/btcpay/page';
@@ -93,6 +95,7 @@ export default function App() {
 
   return (
     <>
+      <DebugOverlay />
       <Routes>
         {/* Root route logic:
             - If no wallet exists, go to onboarding.
@@ -147,6 +150,7 @@ export default function App() {
             <Route path="/asset/:asset" element={<ViewAsset />} />
             <Route path="/balance/:asset" element={<ViewBalance />} />
             <Route path="/compose/bet" element={<ComposeBet />} />
+            <Route path="/compose/weekly-bet" element={<ComposeWeeklyBet />} />
             <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
             <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptions />} />
             <Route path="/compose/btcpay" element={<ComposeBTCPay />} />

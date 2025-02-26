@@ -121,6 +121,12 @@ const CONSTANTS = {
           description: "Create a new bet on the network",
           path: "/compose/bet",
         },
+        {
+          id: "place-weekly-bet",
+          name: "Weekly Market Bet",
+          description: "Bet on weekly market movements",
+          path: "/compose/weekly-bet",
+        },
       ],
     },
   ] as ActionGroup[],

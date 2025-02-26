@@ -29,9 +29,6 @@ export async function signTransaction(
 ): Promise<string> {
   if (!wallet) throw new Error('Wallet not provided');
   if (!targetAddress) throw new Error('Target address not provided');
-  
-  console.log("Using wallet addresses:", wallet.addresses);
-  console.log("Target address:", targetAddress);
 
   const privateKeyBytes = hexToBytes(privateKeyHex);
   const pubkeyBytes = getPublicKey(privateKeyBytes, true);

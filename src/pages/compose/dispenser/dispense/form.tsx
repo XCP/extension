@@ -65,6 +65,9 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
   const [isFetchingDispenser, setIsFetchingDispenser] = useState<boolean>(false);
   const [dispenserError, setDispenserError] = useState<string | null>(null);
   const [btcBalance, setBtcBalance] = useState<string>("0");
+  const [dispenserAddress, setDispenserAddress] = useState<string>(initialFormData?.dispenser || "");
+  const [selectedPriceLevelIndex, setSelectedPriceLevelIndex] = useState<number | null>(null);
+  const [numberOfDispenses, setNumberOfDispenses] = useState<string>("1");
 
   // Fetch dispenser details when address changes
   useEffect(() => {
@@ -113,8 +116,15 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
       }
     };
 
-    fetchDispenserDetails(initialFormData?.dispenser || "");
-  }, [initialFormData?.dispenser]);
+    fetchDispenserDetails(dispenserAddress);
+  }, [dispenserAddress]);
+
+  // Select the first price level by default when price levels change
+  useEffect(() => {
+    if (priceLevels.length > 0 && selectedPriceLevelIndex === null) {
+      setSelectedPriceLevelIndex(0);
+    }
+  }, [priceLevels, selectedPriceLevelIndex]);
 
   // Fetch BTC balance
   useEffect(() => {
@@ -165,8 +175,34 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
   const calculateMaxDispenses = (satoshirate: number) => {
     if (!satoshirate) return 0;
     const balanceInSatoshis = toBigNumber(btcBalance).times(1e8);
-    const adjustedBalance = balanceInSatoshis.times(0.999);
+    const adjustedBalance = balanceInSatoshis.times(0.99);
     return Math.floor(adjustedBalance.div(satoshirate).toNumber());
+  };
+
+  const handleMaxDispenses = () => {
+    if (selectedPriceLevelIndex === null || priceLevels.length === 0) return;
+    
+    const selectedOption = paymentOptions[selectedPriceLevelIndex];
+    const maxDispenses = calculateMaxDispenses(selectedOption.satoshirate);
+    
+    const selectedDispensers = priceLevels[selectedPriceLevelIndex].dispensers;
+    let minRemainingDispenses = Number.MAX_SAFE_INTEGER;
+    
+    for (const dispenser of selectedDispensers) {
+      const isDivisible = dispenser.asset_info?.divisible ?? false;
+      const divisor = isDivisible ? 1e8 : 1;
+      const remainingDispenses = Math.floor(dispenser.give_remaining / dispenser.give_quantity);
+      if (remainingDispenses < minRemainingDispenses) {
+        minRemainingDispenses = remainingDispenses;
+      }
+    }
+    
+    const finalMaxDispenses = Math.min(
+      maxDispenses, 
+      minRemainingDispenses === Number.MAX_SAFE_INTEGER ? maxDispenses : minRemainingDispenses
+    );
+    
+    setNumberOfDispenses(finalMaxDispenses.toString());
   };
 
   return (
@@ -189,6 +225,8 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
               className="mt-1 block w-full p-2 rounded-md border"
               required
               disabled={pending || isFetchingDispenser}
+              onChange={(e) => setDispenserAddress(e.target.value)}
+              onBlur={(e) => setDispenserAddress(e.target.value)}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
               Enter the dispenser address to send BTC to.
@@ -208,17 +246,15 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
                     htmlFor={`priceLevel-${option.index}`}
                     className={`relative flex items-start gap-3 bg-gray-50 p-4 rounded-md border cursor-pointer ${
                       pending ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
+                    } ${selectedPriceLevelIndex === option.index ? "ring-2 ring-blue-500" : ""}`}
                   >
                     <input
                       type="radio"
                       id={`priceLevel-${option.index}`}
                       name="selectedPriceLevelIndex"
                       value={option.index}
-                      defaultdefaultChecked={
-                        initialFormData?.quantity &&
-                        initialFormData.quantity === option.satoshirate * (Number(initialFormData.quantity) || 1)
-                      }
+                      checked={selectedPriceLevelIndex === option.index}
+                      onChange={() => setSelectedPriceLevelIndex(option.index)}
                       className="form-radio text-blue-600 absolute right-5 top-5"
                       disabled={pending}
                     />
@@ -249,30 +285,52 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
                 ))}
               </div>
 
-              {priceLevels.length > 0 && (
-                <AmountWithMaxInput
-                  asset="Dispenses"
-                  availableBalance={btcBalance}
-                  value={
-                    initialFormData?.quantity && initialFormData.quantity > 0
-                      ? Math.round(
-                          initialFormData.quantity /
-                            (paymentOptions.find((o) => o.satoshirate === initialFormData.quantity)?.satoshirate || 1)
-                        ).toString()
-                      : "1"
-                  }
-                  onChange={() => {}} // No-op since formAction handles submission
-                  sat_per_vbyte={initialFormData?.sat_per_vbyte || 1}
-                  setError={setDispenserError}
-                  shouldShowHelpText={shouldShowHelpText}
-                  sourceAddress={activeAddress}
-                  maxAmount={calculateMaxDispenses(paymentOptions[0]?.satoshirate || 0).toString()}
-                  label="Times to Dispense"
-                  name="numberOfDispenses"
-                  description="Number of times to trigger the dispenser"
-                  disabled={pending}
+              {/* Hidden input to store the satoshirate of the selected price level */}
+              {selectedPriceLevelIndex !== null && (
+                <input
+                  type="hidden"
+                  name="satoshirate"
+                  value={paymentOptions[selectedPriceLevelIndex]?.satoshirate || 0}
                 />
               )}
+              
+              <AmountWithMaxInput
+                asset="Dispenses"
+                availableBalance={btcBalance}
+                value={numberOfDispenses}
+                onChange={(value) => setNumberOfDispenses(value)}
+                sat_per_vbyte={initialFormData?.sat_per_vbyte || 1}
+                setError={setDispenserError}
+                shouldShowHelpText={shouldShowHelpText}
+                sourceAddress={activeAddress}
+                maxAmount={calculateMaxDispenses(
+                  selectedPriceLevelIndex !== null 
+                    ? paymentOptions[selectedPriceLevelIndex]?.satoshirate || 0 
+                    : paymentOptions[0]?.satoshirate || 0
+                ).toString()}
+                label="Times to Dispense"
+                name="numberOfDispenses"
+                description="Number of times to trigger the dispenser"
+                disabled={pending}
+                onMaxClick={handleMaxDispenses}
+                disableMaxButton={false}
+              />
+              
+              {/* Hidden input to convert numberOfDispenses to quantity for the API */}
+              <input
+                type="hidden"
+                name="quantity"
+                value={selectedPriceLevelIndex !== null 
+                  ? Number(numberOfDispenses) * paymentOptions[selectedPriceLevelIndex].satoshirate 
+                  : 0}
+              />
+              
+              {/* Hidden input to ensure dispenser address is included in form data */}
+              <input
+                type="hidden"
+                name="dispenser"
+                value={dispenserAddress}
+              />
             </>
           )}
 

@@ -24,6 +24,7 @@ export interface KeychainSettings {
   allowUnconfirmedTxs: boolean;
   autoLockTimer: AutoLockTimer;
   enableMPMA: boolean;
+  enableAdvancedBroadcasts: boolean;
   pinnedAssets: string[];
 }
 
@@ -40,6 +41,7 @@ const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
   allowUnconfirmedTxs: false,
   autoLockTimer: '5m',
   enableMPMA: false,
+  enableAdvancedBroadcasts: false,
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
 };
 

@@ -1,4 +1,5 @@
 import { useParams } from "react-router-dom";
+import { useMemo } from "react";
 import { DispenserForm } from "./form";
 import { ReviewDispenser } from "./review";
 import { Composer } from "@/components/composer";
@@ -10,12 +11,23 @@ export function ComposeDispenserPage() {
   const { asset: assetParam } = useParams<{ asset?: string }>();
   const asset = assetParam ? decodeURIComponent(assetParam) : "";
 
+  // Memoize the component props to prevent unnecessary re-renders
+  const formComponent = useMemo(
+    () => (props: any) => <DispenserForm {...props} asset={asset} />,
+    [asset]
+  );
+
+  const reviewComponent = useMemo(
+    () => (props: any) => <ReviewDispenser {...props} asset={asset} />,
+    [asset]
+  );
+
   return (
     <div className="p-4">
       <Composer<DispenserOptions>
         initialTitle="Dispenser"
-        FormComponent={(props) => <DispenserForm {...props} asset={asset} />}
-        ReviewComponent={(props) => <ReviewDispenser {...props} asset={asset} />}
+        FormComponent={formComponent}
+        ReviewComponent={reviewComponent}
         composeTransaction={composeDispenser}
       />
     </div>
