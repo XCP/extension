@@ -1,21 +1,29 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
 
+/**
+ * Props for the ReviewDispense component.
+ */
 interface ReviewDispenseProps {
-  apiResponse: any;
+  apiResponse: any; // Consider typing this more strictly based on your API response shape
   onSign: () => void;
   onBack: () => void;
   error: string | null;
-  setError: (error: string | null) => void;
+  isSigning: boolean; // Passed from useActionState in Composer
   formData?: any;
 }
 
+/**
+ * Displays a review screen for dispense transactions.
+ * @param {ReviewDispenseProps} props - Component props
+ * @returns {ReactElement} Review UI for dispense transaction
+ */
 export function ReviewDispense({ 
   apiResponse, 
   onSign, 
   onBack,
   error,
-  setError,
+  isSigning,
   formData 
 }: ReviewDispenseProps) {
   const { result } = apiResponse;
@@ -49,7 +57,7 @@ export function ReviewDispense({
       onBack={onBack}
       customFields={customFields}
       error={error}
-      setError={setError}
+      isSigning={isSigning}
     />
   );
 }

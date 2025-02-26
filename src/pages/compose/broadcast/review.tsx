@@ -1,19 +1,27 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 
+/**
+ * Props for the ReviewBroadcast component.
+ */
 interface ReviewBroadcastProps {
-  apiResponse: any;
+  apiResponse: any; // Consider typing this more strictly based on your API response shape
   onSign: () => void;
   onBack: () => void;
   error: string | null;
-  setError: (error: string | null) => void;
+  isSigning: boolean; // Passed from useActionState in Composer
 }
 
+/**
+ * Displays a review screen for broadcast transactions.
+ * @param {ReviewBroadcastProps} props - Component props
+ * @returns {ReactElement} Review UI for broadcast transaction
+ */
 export function ReviewBroadcast({ 
   apiResponse, 
   onSign, 
   onBack,
   error,
-  setError 
+  isSigning
 }: ReviewBroadcastProps) {
   const { result } = apiResponse;
 
@@ -31,7 +39,7 @@ export function ReviewBroadcast({
       onBack={onBack}
       customFields={customFields}
       error={error}
-      setError={setError}
+      isSigning={isSigning}
     />
   );
 }

@@ -1,20 +1,28 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
 
+/**
+ * Props for the ReviewUtxoDetach component.
+ */
 interface ReviewUtxoDetachProps {
-  apiResponse: any;
+  apiResponse: any; // Consider typing this more strictly based on your API response shape
   onSign: () => void;
   onBack: () => void;
   error: string | null;
-  setError: (error: string | null) => void;
+  isSigning: boolean; // Passed from useActionState in Composer
 }
 
+/**
+ * Displays a review screen for UTXO detach transactions.
+ * @param {ReviewUtxoDetachProps} props - Component props
+ * @returns {ReactElement} Review UI for UTXO detach transaction
+ */
 export function ReviewUtxoDetach({ 
   apiResponse, 
   onSign, 
   onBack,
   error,
-  setError 
+  isSigning
 }: ReviewUtxoDetachProps) {
   const { result } = apiResponse;
 
@@ -42,7 +50,7 @@ export function ReviewUtxoDetach({
       onBack={onBack}
       customFields={customFields}
       error={error}
-      setError={setError}
+      isSigning={isSigning}
     />
   );
 }

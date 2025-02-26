@@ -1,20 +1,28 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
 
+/**
+ * Props for the ReviewDividend component.
+ */
 interface ReviewDividendProps {
-  apiResponse: any;
+  apiResponse: any; // Consider typing this more strictly based on your API response shape
   onSign: () => void;
   onBack: () => void;
   error: string | null;
-  setError: (error: string | null) => void;
+  isSigning: boolean; // Passed from useActionState in Composer
 }
 
+/**
+ * Displays a review screen for dividend transactions.
+ * @param {ReviewDividendProps} props - Component props
+ * @returns {ReactElement} Review UI for dividend transaction
+ */
 export function ReviewDividend({ 
   apiResponse, 
   onSign, 
   onBack,
   error,
-  setError 
+  isSigning
 }: ReviewDividendProps) {
   const { result } = apiResponse;
 
@@ -33,7 +41,7 @@ export function ReviewDividend({
       onBack={onBack}
       customFields={customFields}
       error={error}
-      setError={setError}
+      isSigning={isSigning}
     />
   );
 }

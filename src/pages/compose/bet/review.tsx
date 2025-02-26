@@ -1,15 +1,23 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
 
+/**
+ * Props for the ReviewBet component.
+ */
 interface ReviewBetProps {
-  apiResponse: any;
+  apiResponse: any; // Consider typing this more strictly based on your API response shape
   onSign: () => void;
   onBack: () => void;
   error: string | null;
-  setError: (error: string | null) => void;
+  isSigning: boolean; // Passed from useActionState in Composer
 }
 
-export function ReviewBet({ apiResponse, onSign, onBack, error, setError }: ReviewBetProps) {
+/**
+ * Displays a review screen for betting transactions.
+ * @param {ReviewBetProps} props - Component props
+ * @returns {ReactElement} Review UI for bet transaction
+ */
+export function ReviewBet({ apiResponse, onSign, onBack, error, isSigning }: ReviewBetProps) {
   const { result } = apiResponse;
 
   const formatQuantity = (quantity: number) =>
@@ -71,7 +79,7 @@ export function ReviewBet({ apiResponse, onSign, onBack, error, setError }: Revi
       onBack={onBack}
       customFields={customFields}
       error={error}
-      setError={setError}
+      isSigning={isSigning}
     />
   );
 }

@@ -1,19 +1,27 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 
+/**
+ * Props for the ReviewBTCPay component.
+ */
 interface ReviewBTCPayProps {
-  apiResponse: any;
+  apiResponse: any; // Consider typing this more strictly based on your API response shape
   onSign: () => void;
   onBack: () => void;
   error: string | null;
-  setError: (error: string | null) => void;
+  isSigning: boolean; // Passed from useActionState in Composer
 }
 
+/**
+ * Displays a review screen for BTC payment transactions.
+ * @param {ReviewBTCPayProps} props - Component props
+ * @returns {ReactElement} Review UI for BTC payment transaction
+ */
 export function ReviewBTCPay({ 
   apiResponse, 
   onSign, 
   onBack,
   error,
-  setError 
+  isSigning
 }: ReviewBTCPayProps) {
   const { result } = apiResponse;
 
@@ -28,7 +36,7 @@ export function ReviewBTCPay({
       onBack={onBack}
       customFields={customFields}
       error={error}
-      setError={setError}
+      isSigning={isSigning}
     />
   );
 }

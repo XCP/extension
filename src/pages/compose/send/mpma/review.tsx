@@ -1,20 +1,28 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
 
+/**
+ * Props for the ReviewSendMpma component.
+ */
 interface ReviewSendMpmaProps {
-  apiResponse: any;
+  apiResponse: any; // Consider typing this more strictly based on your API response shape
   onSign: () => void;
   onBack: () => void;
   error: string | null;
-  setError: (error: string | null) => void;
+  isSigning: boolean; // Passed from useActionState in Composer
 }
 
+/**
+ * Displays a review screen for multi-asset send transactions.
+ * @param {ReviewSendMpmaProps} props - Component props
+ * @returns {ReactElement} Review UI for multi-asset send transaction
+ */
 export function ReviewSendMpma({ 
   apiResponse, 
   onSign, 
   onBack,
   error,
-  setError 
+  isSigning
 }: ReviewSendMpmaProps) {
   const { result } = apiResponse;
 
@@ -51,7 +59,7 @@ export function ReviewSendMpma({
       onBack={onBack}
       customFields={customFields}
       error={error}
-      setError={setError}
+      isSigning={isSigning}
     />
   );
 }

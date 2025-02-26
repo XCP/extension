@@ -3,20 +3,28 @@ import { formatAmount } from "@/utils/format";
 import { useState } from "react";
 import { FaExchangeAlt } from "react-icons/fa";
 
+/**
+ * Props for the ReviewOrder component.
+ */
 interface ReviewOrderProps {
-  apiResponse: any;
+  apiResponse: any; // Consider typing this more strictly based on your API response shape
   onSign: () => void;
   onBack: () => void;
   error: string | null;
-  setError: (error: string | null) => void;
+  isSigning: boolean; // Passed from useActionState in Composer
 }
 
+/**
+ * Displays a review screen for order transactions.
+ * @param {ReviewOrderProps} props - Component props
+ * @returns {ReactElement} Review UI for order transaction
+ */
 export function ReviewOrder({ 
   apiResponse, 
   onSign, 
   onBack,
   error,
-  setError 
+  isSigning
 }: ReviewOrderProps) {
   const { result } = apiResponse;
   const [isPriceFlipped, setIsPriceFlipped] = useState(false);
@@ -81,7 +89,7 @@ export function ReviewOrder({
       onBack={onBack}
       customFields={customFields}
       error={error}
-      setError={setError}
+      isSigning={isSigning}
     />
   );
 }

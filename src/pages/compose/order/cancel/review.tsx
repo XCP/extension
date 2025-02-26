@@ -1,19 +1,27 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 
+/**
+ * Props for the ReviewCancel component.
+ */
 interface ReviewCancelProps {
-  apiResponse: any;
+  apiResponse: any; // Consider typing this more strictly based on your API response shape
   onSign: () => void;
   onBack: () => void;
   error: string | null;
-  setError: (error: string | null) => void;
+  isSigning: boolean; // Passed from useActionState in Composer
 }
 
+/**
+ * Displays a review screen for order cancellation transactions.
+ * @param {ReviewCancelProps} props - Component props
+ * @returns {ReactElement} Review UI for order cancellation transaction
+ */
 export function ReviewCancel({ 
   apiResponse, 
   onSign, 
   onBack,
   error,
-  setError 
+  isSigning
 }: ReviewCancelProps) {
   const { result } = apiResponse;
 
@@ -28,7 +36,7 @@ export function ReviewCancel({
       onBack={onBack}
       customFields={customFields}
       error={error}
-      setError={setError}
+      isSigning={isSigning}
     />
   );
 }

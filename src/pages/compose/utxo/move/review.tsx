@@ -1,19 +1,27 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 
+/**
+ * Props for the ReviewUtxoMove component.
+ */
 interface ReviewUtxoMoveProps {
-  apiResponse: any;
+  apiResponse: any; // Consider typing this more strictly based on your API response shape
   onSign: () => void;
   onBack: () => void;
   error: string | null;
-  setError: (error: string | null) => void;
+  isSigning: boolean; // Passed from useActionState in Composer
 }
 
+/**
+ * Displays a review screen for UTXO move transactions.
+ * @param {ReviewUtxoMoveProps} props - Component props
+ * @returns {ReactElement} Review UI for UTXO move transaction
+ */
 export function ReviewUtxoMove({ 
   apiResponse, 
   onSign, 
   onBack,
   error,
-  setError 
+  isSigning
 }: ReviewUtxoMoveProps) {
   const { result } = apiResponse;
 
@@ -29,7 +37,7 @@ export function ReviewUtxoMove({
       onBack={onBack}
       customFields={customFields}
       error={error}
-      setError={setError}
+      isSigning={isSigning}
     />
   );
 }

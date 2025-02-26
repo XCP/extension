@@ -1,20 +1,28 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
 
+/**
+ * Props for the ReviewIssuanceLockSupply component.
+ */
 interface ReviewIssuanceLockSupplyProps {
-  apiResponse: any;
+  apiResponse: any; // Consider typing this more strictly based on your API response shape
   onSign: () => void;
   onBack: () => void;
   error: string | null;
-  setError: (error: string | null) => void;
+  isSigning: boolean; // Passed from useActionState in Composer
 }
 
+/**
+ * Displays a review screen for asset supply locking transactions.
+ * @param {ReviewIssuanceLockSupplyProps} props - Component props
+ * @returns {ReactElement} Review UI for supply locking transaction
+ */
 export function ReviewIssuanceLockSupply({
   apiResponse,
   onSign,
   onBack,
   error,
-  setError
+  isSigning
 }: ReviewIssuanceLockSupplyProps) {
   const { result } = apiResponse;
   const isDivisible = result.params.asset_info.divisible;
