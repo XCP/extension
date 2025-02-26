@@ -10,7 +10,6 @@ interface ReviewDispenseProps {
   onBack: () => void;
   error: string | null;
   isSigning: boolean; // Passed from useActionState in Composer
-  formData?: any;
 }
 
 /**
@@ -24,30 +23,20 @@ export function ReviewDispense({
   onBack,
   error,
   isSigning,
-  formData 
 }: ReviewDispenseProps) {
-  const { result } = apiResponse;
-  const extra = formData?.extra || {};
-  const { totalAssets = [], totalBtcAmount = 0 } = extra;
+  const { result } = apiResponse || {};
+  
+  // Calculate BTC amount from the API response using formatAmount utility
+  const btcAmount = result?.params?.quantity 
+    ? `${formatAmount({
+        value: Number(result.params.quantity) / 1e8,
+        maximumFractionDigits: 8,
+        minimumFractionDigits: 8
+      })} BTC`
+    : "Amount not available";
 
   const customFields = [
-    { label: "Dispenser Address", value: result.params.dispenser },
-    {
-      label: "Assets You Get",
-      value: totalAssets
-        .map((asset: any) =>
-          `${formatAmount({
-            value: Number(asset.quantity),
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 8,
-          })} ${asset.asset_info?.asset_longname ?? asset.asset}`
-        )
-        .join(", "),
-    },
-    {
-      label: "Total BTC Amount",
-      value: `${(Number(result.params.quantity) / 1e8).toFixed(8)} BTC`,
-    },
+    { label: "Amount", value: btcAmount },
   ];
 
   return (

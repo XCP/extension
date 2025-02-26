@@ -1,4 +1,5 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
+import { useSettings } from "@/contexts/settings-context";
 
 /**
  * Props for the ReviewBroadcast component.
@@ -24,13 +25,19 @@ export function ReviewBroadcast({
   isSigning
 }: ReviewBroadcastProps) {
   const { result } = apiResponse;
-
+  const { settings } = useSettings();
+  const showAdvancedOptions = settings?.enableAdvancedBroadcasts ?? false;
+  
+  // Base fields always shown
   const customFields = [
     { label: "Message", value: result.params.text },
-    ...(result.params.value !== "0" && result.params.value !== 0
-      ? [{ label: "Value", value: result.params.value }]
-      : []),
   ];
+  
+  // Add value and fee_fraction fields if advanced options are enabled
+  if (showAdvancedOptions) {
+    customFields.push({ label: "Value", value: result.params.value });
+    customFields.push({ label: "Fee Fraction", value: result.params.fee_fraction });
+  }
 
   return (
     <ReviewScreen

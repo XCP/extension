@@ -139,10 +139,13 @@ export function AmountWithMaxInput({
   };
 
   const handleMaxClick = () => {
-    if (disableMaxButton) {
-      onMaxClick?.();
+    if (disableMaxButton && onMaxClick) {
+      console.log("Calling custom onMaxClick handler");
+      onMaxClick();
       return;
     }
+    
+    console.log("Calling default handleMaxButtonClick");
     handleMaxButtonClick();
   };
 
@@ -167,7 +170,7 @@ export function AmountWithMaxInput({
         <Button
           variant="input"
           onClick={handleMaxClick}
-          disabled={loading || disabled || disableMaxButton}
+          disabled={loading || disabled || (disableMaxButton && !onMaxClick)}
           aria-label={loading ? "Calculating maximum amount..." : "Use maximum available amount"}
           className="absolute right-1 top-1/2 transform -translate-y-1/2 px-2 py-1 text-sm"
         >

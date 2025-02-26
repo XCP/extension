@@ -54,6 +54,8 @@ interface DispenseFormProps {
 
 /**
  * Form for dispensing from a dispenser using React 19 Actions.
+ * @param {DispenseFormProps} props - Component props
+ * @returns {ReactElement} Dispense form UI
  */
 export function DispenseForm({ formAction, initialFormData }: DispenseFormProps): ReactElement {
   const { activeAddress, activeWallet } = useWallet();
@@ -66,8 +68,25 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
   const [dispenserError, setDispenserError] = useState<string | null>(null);
   const [btcBalance, setBtcBalance] = useState<string>("0");
   const [dispenserAddress, setDispenserAddress] = useState<string>(initialFormData?.dispenser || "");
-  const [selectedPriceLevelIndex, setSelectedPriceLevelIndex] = useState<number | null>(null);
-  const [numberOfDispenses, setNumberOfDispenses] = useState<string>("1");
+  const [selectedPriceLevelIndex, setSelectedPriceLevelIndex] = useState<number | null>(() => {
+    const formData = initialFormData as any;
+    if (formData?.selectedPriceLevelIndex !== undefined) {
+      return Number(formData.selectedPriceLevelIndex);
+    }
+    return null;
+  });
+  
+  // Initialize with default value of "1", but try to calculate from quantity if available
+  const [numberOfDispenses, setNumberOfDispenses] = useState<string>(() => {
+    if (initialFormData?.quantity) {
+      // Try to extract satoshirate from form data
+      const formData = initialFormData as any;
+      if (formData.satoshirate && Number(formData.satoshirate) > 0) {
+        return Math.floor(Number(initialFormData.quantity) / Number(formData.satoshirate)).toString();
+      }
+    }
+    return "1";
+  });
 
   // Fetch dispenser details when address changes
   useEffect(() => {
@@ -108,6 +127,7 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
           .map(([satoshirate, dispensers]) => ({ satoshirate, dispensers }))
           .sort((a, b) => a.satoshirate - b.satoshirate);
         setPriceLevels(priceLevelsArray);
+        console.log("Fetched Price Levels:", JSON.stringify(priceLevelsArray, null, 2));
       } catch (err) {
         console.error("Error fetching dispenser details:", err);
         setDispenserError("Error fetching dispenser details.");
@@ -123,6 +143,11 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
   useEffect(() => {
     if (priceLevels.length > 0 && selectedPriceLevelIndex === null) {
       setSelectedPriceLevelIndex(0);
+    } else if (priceLevels.length > 0 && selectedPriceLevelIndex !== null) {
+      // Ensure the selected index is valid for the current price levels
+      if (selectedPriceLevelIndex >= priceLevels.length) {
+        setSelectedPriceLevelIndex(0);
+      }
     }
   }, [priceLevels, selectedPriceLevelIndex]);
 
@@ -133,6 +158,7 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
       try {
         const { availableBalance } = await fetchAssetDetailsAndBalance("BTC", activeAddress.address);
         setBtcBalance(availableBalance);
+        console.log("BTC Balance:", availableBalance);
       } catch (err) {
         console.error("Failed to fetch BTC balance:", err);
         setBtcBalance("0");
@@ -146,6 +172,22 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
     const input = document.querySelector("input[name='dispenserAddress']") as HTMLInputElement;
     input?.focus();
   }, []);
+
+  // Update numberOfDispenses when price levels change and we have a satoshirate from initialFormData
+  useEffect(() => {
+    if (priceLevels.length > 0 && initialFormData?.quantity && selectedPriceLevelIndex !== null) {
+      const formData = initialFormData as any;
+      // If we have a satoshirate in the form data, use it to calculate the number of dispenses
+      if (formData.satoshirate && Number(formData.satoshirate) > 0) {
+        const calculatedDispenses = Math.floor(
+          Number(initialFormData.quantity) / Number(formData.satoshirate)
+        ).toString();
+        if (calculatedDispenses !== numberOfDispenses) {
+          setNumberOfDispenses(calculatedDispenses);
+        }
+      }
+    }
+  }, [priceLevels, initialFormData, selectedPriceLevelIndex, numberOfDispenses]);
 
   const paymentOptions: PaymentOption[] = priceLevels.map((priceLevel, index) => {
     let assets: { asset: string; quantity: string; asset_info?: DispenserDetails["asset_info"] }[] = [];
@@ -175,34 +217,55 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
   const calculateMaxDispenses = (satoshirate: number) => {
     if (!satoshirate) return 0;
     const balanceInSatoshis = toBigNumber(btcBalance).times(1e8);
-    const adjustedBalance = balanceInSatoshis.times(0.99);
+    const adjustedBalance = balanceInSatoshis.times(0.99); // 99% to account for fees
     return Math.floor(adjustedBalance.div(satoshirate).toNumber());
   };
 
   const handleMaxDispenses = () => {
-    if (selectedPriceLevelIndex === null || priceLevels.length === 0) return;
-    
-    const selectedOption = paymentOptions[selectedPriceLevelIndex];
-    const maxDispenses = calculateMaxDispenses(selectedOption.satoshirate);
-    
-    const selectedDispensers = priceLevels[selectedPriceLevelIndex].dispensers;
-    let minRemainingDispenses = Number.MAX_SAFE_INTEGER;
-    
-    for (const dispenser of selectedDispensers) {
-      const isDivisible = dispenser.asset_info?.divisible ?? false;
-      const divisor = isDivisible ? 1e8 : 1;
-      const remainingDispenses = Math.floor(dispenser.give_remaining / dispenser.give_quantity);
-      if (remainingDispenses < minRemainingDispenses) {
-        minRemainingDispenses = remainingDispenses;
-      }
+    console.log("handleMaxDispenses called");
+    if (selectedPriceLevelIndex === null || priceLevels.length === 0) {
+      console.log("No price level selected or no price levels available");
+      setDispenserError("Please select a price level first");
+      return;
     }
-    
-    const finalMaxDispenses = Math.min(
-      maxDispenses, 
-      minRemainingDispenses === Number.MAX_SAFE_INTEGER ? maxDispenses : minRemainingDispenses
-    );
-    
-    setNumberOfDispenses(finalMaxDispenses.toString());
+
+    try {
+      const selectedOption = paymentOptions[selectedPriceLevelIndex];
+      console.log("Selected price level:", selectedPriceLevelIndex);
+      console.log("Selected option:", JSON.stringify(selectedOption));
+      
+      const maxAffordableDispenses = calculateMaxDispenses(selectedOption.satoshirate);
+      console.log("Max Affordable Dispenses:", maxAffordableDispenses);
+
+      const selectedDispensers = priceLevels[selectedPriceLevelIndex].dispensers;
+      let minRemainingDispenses = Number.MAX_SAFE_INTEGER;
+
+      for (const dispenser of selectedDispensers) {
+        const remainingDispenses = Math.floor(
+          Number(dispenser.give_remaining_normalized) / Number(dispenser.give_quantity_normalized)
+        );
+        console.log(
+          `Dispenser ${dispenser.asset}: give_remaining_normalized=${dispenser.give_remaining_normalized}, give_quantity_normalized=${dispenser.give_quantity_normalized}, remainingDispenses=${remainingDispenses}`
+        );
+        if (remainingDispenses < minRemainingDispenses) {
+          minRemainingDispenses = remainingDispenses;
+        }
+      }
+
+      console.log("Min Remaining Dispenses:", minRemainingDispenses);
+
+      const finalMaxDispenses = Math.min(
+        maxAffordableDispenses,
+        minRemainingDispenses === Number.MAX_SAFE_INTEGER ? maxAffordableDispenses : minRemainingDispenses
+      );
+
+      console.log("Final Max Dispenses:", finalMaxDispenses);
+      setNumberOfDispenses(finalMaxDispenses.toString());
+      console.log("Set numberOfDispenses to:", finalMaxDispenses);
+    } catch (error) {
+      console.error("Error in handleMaxDispenses:", error);
+      setDispenserError("Error calculating max dispenses");
+    }
   };
 
   return (
@@ -291,9 +354,10 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
                   type="hidden"
                   name="satoshirate"
                   value={paymentOptions[selectedPriceLevelIndex]?.satoshirate || 0}
+                  data-testid="satoshirate-input"
                 />
               )}
-              
+
               <AmountWithMaxInput
                 asset="Dispenses"
                 availableBalance={btcBalance}
@@ -304,8 +368,8 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
                 shouldShowHelpText={shouldShowHelpText}
                 sourceAddress={activeAddress}
                 maxAmount={calculateMaxDispenses(
-                  selectedPriceLevelIndex !== null 
-                    ? paymentOptions[selectedPriceLevelIndex]?.satoshirate || 0 
+                  selectedPriceLevelIndex !== null
+                    ? paymentOptions[selectedPriceLevelIndex]?.satoshirate || 0
                     : paymentOptions[0]?.satoshirate || 0
                 ).toString()}
                 label="Times to Dispense"
@@ -313,24 +377,29 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
                 description="Number of times to trigger the dispenser"
                 disabled={pending}
                 onMaxClick={handleMaxDispenses}
-                disableMaxButton={false}
+                disableMaxButton={true}
               />
-              
+
               {/* Hidden input to convert numberOfDispenses to quantity for the API */}
               <input
                 type="hidden"
                 name="quantity"
-                value={selectedPriceLevelIndex !== null 
-                  ? Number(numberOfDispenses) * paymentOptions[selectedPriceLevelIndex].satoshirate 
-                  : 0}
+                value={
+                  selectedPriceLevelIndex !== null
+                    ? Number(numberOfDispenses) * paymentOptions[selectedPriceLevelIndex].satoshirate
+                    : 0
+                }
               />
-              
-              {/* Hidden input to ensure dispenser address is included in form data */}
+
+              {/* Hidden input to store the number of dispenses for form state persistence */}
               <input
                 type="hidden"
-                name="dispenser"
-                value={dispenserAddress}
+                name="numberOfDispenses"
+                value={numberOfDispenses}
               />
+
+              {/* Hidden input to ensure dispenser address is included in form data */}
+              <input type="hidden" name="dispenser" value={dispenserAddress} />
             </>
           )}
 

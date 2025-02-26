@@ -88,7 +88,7 @@ const CONSTANTS = {
       actions: [
         {
           id: "compose-broadcast",
-          name: "Make Broadcast",
+          name: "Broadcast Text",
           description: "Broadcast a message to the network",
           path: "/compose/broadcast",
         },
@@ -120,12 +120,6 @@ const CONSTANTS = {
           name: "Place Bet",
           description: "Create a new bet on the network",
           path: "/compose/bet",
-        },
-        {
-          id: "place-weekly-bet",
-          name: "Weekly Market Bet",
-          description: "Bet on weekly market movements",
-          path: "/compose/weekly-bet",
         },
       ],
     },

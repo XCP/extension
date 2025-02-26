@@ -21,6 +21,8 @@ interface BroadcastFormProps {
 
 /**
  * Form for composing a broadcast transaction using React 19 Actions.
+ * @param {BroadcastFormProps} props - Component props
+ * @returns {ReactElement} Broadcast form UI
  */
 export function BroadcastForm({ formAction, initialFormData }: BroadcastFormProps): ReactElement {
   const { activeAddress, activeWallet } = useWallet();
@@ -35,24 +37,6 @@ export function BroadcastForm({ formAction, initialFormData }: BroadcastFormProp
     textarea?.focus();
   }, []);
 
-  // Prepare form submission to handle defaults
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    
-    // Ensure value defaults to "0" if empty
-    if (!formData.get('value') || formData.get('value') === '') {
-      formData.set('value', '0');
-    }
-    
-    // Ensure fee_fraction defaults to "0" if empty
-    if (!formData.get('fee_fraction') || formData.get('fee_fraction') === '') {
-      formData.set('fee_fraction', '0');
-    }
-    
-    formAction(formData);
-  };
-
   return (
     <div className="space-y-4">
       {activeAddress && (
@@ -63,7 +47,17 @@ export function BroadcastForm({ formAction, initialFormData }: BroadcastFormProp
         />
       )}
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-        <form action={formAction} onSubmit={handleSubmit} className="space-y-4">
+        <form action={formData => {
+          // Ensure defaults for optional fields
+          if (!formData.get("value") || formData.get("value") === "") {
+            formData.set("value", "0");
+          }
+          if (!formData.get("fee_fraction") || formData.get("fee_fraction") === "") {
+            formData.set("fee_fraction", "0");
+          }
+          
+          formAction(formData);
+        }} className="space-y-4">
           <Field>
             <Label htmlFor="text" className="block text-sm font-medium text-gray-700">
               Message <span className="text-red-500">*</span>
@@ -81,7 +75,7 @@ export function BroadcastForm({ formAction, initialFormData }: BroadcastFormProp
               Enter the message you want to broadcast.
             </Description>
           </Field>
-          
+
           {showAdvancedOptions && (
             <>
               <Field>
@@ -103,7 +97,7 @@ export function BroadcastForm({ formAction, initialFormData }: BroadcastFormProp
                   Optional numeric value if publishing data.
                 </Description>
               </Field>
-              
+
               <Field>
                 <Label htmlFor="fee_fraction" className="block text-sm font-medium text-gray-700">
                   Fee Fraction
@@ -125,7 +119,7 @@ export function BroadcastForm({ formAction, initialFormData }: BroadcastFormProp
               </Field>
             </>
           )}
-          
+
           {/* Add hidden inputs for when advanced options are disabled */}
           {!showAdvancedOptions && (
             <>
@@ -135,7 +129,7 @@ export function BroadcastForm({ formAction, initialFormData }: BroadcastFormProp
           )}
 
           <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-          
+
           <Button type="submit" color="blue" fullWidth disabled={pending}>
             {pending ? "Submitting..." : "Continue"}
           </Button>

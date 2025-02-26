@@ -221,8 +221,8 @@ export function BetForm({ formAction, initialFormData }: BetFormProps): ReactEle
               type="text"
               name="wager_quantity"
               defaultValue={
-                initialFormData && assetDetails
-                  ? isDivisible
+                initialFormData
+                  ? isDivisible && initialFormData.wager_quantity
                     ? (initialFormData.wager_quantity / 1e8).toFixed(8)
                     : initialFormData.wager_quantity.toString()
                   : ""
@@ -245,8 +245,8 @@ export function BetForm({ formAction, initialFormData }: BetFormProps): ReactEle
               type="text"
               name="counterwager_quantity"
               defaultValue={
-                initialFormData && assetDetails
-                  ? isDivisible
+                initialFormData
+                  ? isDivisible && initialFormData.counterwager_quantity
                     ? (initialFormData.counterwager_quantity / 1e8).toFixed(8)
                     : initialFormData.counterwager_quantity.toString()
                   : ""

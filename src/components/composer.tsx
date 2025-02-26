@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
   useActionState,
+  useTransition,
   type ReactElement,
 } from "react";
 import { FiHelpCircle, FiX, FiRefreshCw } from "react-icons/fi";
@@ -42,7 +43,7 @@ interface ComposerProps<T> {
     onSign: () => void;
     onBack: () => void;
     error: string | null;
-    isSigning: boolean; // Updated to match ReviewScreenProps
+    isSigning: boolean;
   }) => ReactElement;
   composeTransaction: (data: T) => Promise<ApiResponse>;
   headerCallbacks?: HeaderCallbacks;
@@ -80,6 +81,7 @@ export function Composer<T>({
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [password, setPassword] = useState("");
   const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [, startTransition] = useTransition(); // Add useTransition for manual control
 
   // Form action state for composing the transaction
   const [composeError, formAction, isComposing] = useActionState(
@@ -130,6 +132,17 @@ export function Composer<T>({
     },
     null
   );
+
+  /**
+   * Handles signing with transition to satisfy useActionState context.
+   */
+  const handleSignAction = useCallback(() => {
+    if (state.apiResponse) {
+      startTransition(() => {
+        signAction(state.apiResponse as ApiResponse);
+      });
+    }
+  }, [state.apiResponse, signAction]);
 
   /**
    * Unlocks the wallet and retries signing the transaction.
@@ -296,7 +309,7 @@ export function Composer<T>({
       {state.step === "review" && state.apiResponse && (
         <ReviewComponent
           apiResponse={state.apiResponse}
-          onSign={() => state.apiResponse && signAction(state.apiResponse)} // Type guard added
+          onSign={handleSignAction} // Use the transition-wrapped handler
           onBack={handleBack}
           error={signError}
           isSigning={isSigning}
