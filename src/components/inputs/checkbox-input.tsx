@@ -1,4 +1,5 @@
 import { Checkbox, Field, Label } from '@headlessui/react';
+import { useState } from 'react';
 
 interface CheckboxInputProps {
   name: string;
@@ -15,15 +16,24 @@ export function CheckboxInput({
   defaultChecked = false,
   onChange,
 }: CheckboxInputProps) {
+  const [isChecked, setIsChecked] = useState(defaultChecked);
+  
+  const handleChange = (checked: boolean) => {
+    setIsChecked(checked);
+    if (onChange) {
+      onChange(checked);
+    }
+  };
+
   return (
     <Field>
       <div className="flex items-center gap-3">
         <Checkbox
-          checked={defaultChecked}
+          checked={isChecked}
           name={name}
           value="yes"
           disabled={disabled}
-          onChange={onChange}
+          onChange={handleChange}
           className={`
             group relative flex size-4 items-center justify-center rounded 
             border bg-white transition-colors

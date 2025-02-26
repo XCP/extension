@@ -60,7 +60,7 @@ const CONSTANTS = {
         },
         {
           id: "mint-supply",
-          name: "Mint Asset",
+          name: "Start Mint",
           description: "Mint new token supply",
           path: "/compose/fairminter",
         },

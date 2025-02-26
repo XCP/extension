@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { FaChevronDown, FaCheck } from "react-icons/fa";
 import {
@@ -64,6 +64,9 @@ export function FairminterForm({
     : initialFormData?.burn_payment
     ? FAIRMINTER_MODELS.XCP_FEE_BURNED
     : FAIRMINTER_MODELS.XCP_FEE_TO_ISSUER;
+    
+  // Add state to track the selected mint method
+  const [selectedMintMethod, setSelectedMintMethod] = useState<FairminterModel>(initialMintMethod);
 
   // Focus asset input on mount
   useEffect(() => {
@@ -71,49 +74,77 @@ export function FairminterForm({
     input?.focus();
   }, []);
 
+  // Create a wrapper for formAction that handles the selected mint method
+  const enhancedFormAction = (formData: FormData) => {
+    // Create a new FormData to avoid modifying the original
+    const processedFormData = new FormData();
+    
+    // Copy all fields from the original FormData
+    for (const [key, value] of formData.entries()) {
+      processedFormData.append(key, value);
+    }
+    
+    // Set the burn_payment field based on the selected mint method
+    if (selectedMintMethod === FAIRMINTER_MODELS.MINER_FEE_ONLY) {
+      processedFormData.set('burn_payment', 'false');
+    } else if (selectedMintMethod === FAIRMINTER_MODELS.XCP_FEE_BURNED) {
+      processedFormData.set('burn_payment', 'true');
+    } else {
+      // For XCP_FEE_TO_ISSUER, we don't set burn_payment (it will be null/undefined)
+      processedFormData.delete('burn_payment');
+    }
+    
+    // Ensure boolean fields are properly set
+    // If a checkbox is not checked, it won't be included in the FormData
+    // So we need to explicitly set these fields to false if they're not present
+    const booleanFields = ['divisible', 'lock_description', 'lock_quantity'];
+    booleanFields.forEach(field => {
+      if (!processedFormData.has(field)) {
+        processedFormData.set(field, 'false');
+      } else {
+        // Convert 'yes' value to 'true'
+        if (processedFormData.get(field) === 'yes') {
+          processedFormData.set(field, 'true');
+        }
+      }
+    });
+    
+    // Pass the processed FormData to the original formAction
+    formAction(processedFormData);
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-      <form action={formAction} className="space-y-4">
+      <form action={enhancedFormAction} className="space-y-4">
         <Field>
           <Label htmlFor="mintMethod" className="block text-sm font-medium text-gray-700">
             Mint Method <span className="text-red-500">*</span>
           </Label>
-          <Listbox name="mintMethod" defaultValue={initialMintMethod} disabled={pending}>
-            <ListboxButton className="relative w-full p-2 text-left bg-gray-50 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed">
-              <span className="block truncate">
-                {FAIRMINTER_MODEL_OPTIONS.find((option) => option.value === initialMintMethod)?.label}
-              </span>
-              <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                <FaChevronDown className="w-5 h-5 text-gray-500" aria-hidden="true" />
-              </span>
-            </ListboxButton>
-            <ListboxOptions className="absolute w-full mt-1 overflow-auto bg-white rounded-md shadow-lg max-h-60 ring-1 ring-black ring-opacity-5 focus:outline-none">
-              {FAIRMINTER_MODEL_OPTIONS.map((option) => (
-                <ListboxOption
-                  key={option.value}
-                  value={option.value}
-                  className={({ focus }) =>
-                    `${focus ? "text-white bg-blue-600" : "text-gray-900"} cursor-pointer select-none relative py-2 pl-3 pr-9`
-                  }
-                >
-                  {({ selected, focus }) => (
-                    <>
-                      <span className={`${selected ? "font-semibold" : "font-normal"} block truncate`}>
-                        {option.label}
-                      </span>
-                      {selected && (
-                        <span
-                          className={`${focus ? "text-white" : "text-blue-600"} absolute inset-y-0 right-0 flex items-center pr-4`}
-                        >
-                          <FaCheck className="w-5 h-5" aria-hidden="true" />
-                        </span>
-                      )}
-                    </>
-                  )}
-                </ListboxOption>
-              ))}
-            </ListboxOptions>
-          </Listbox>
+          <div className="mt-1">
+            <Listbox value={FAIRMINTER_MODEL_OPTIONS.find(option => option.value === selectedMintMethod)} onChange={(option) => setSelectedMintMethod(option.value)} disabled={pending}>
+              <ListboxButton
+                className="w-full p-2 text-left rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                disabled={pending}
+              >
+                <span>{FAIRMINTER_MODEL_OPTIONS.find(option => option.value === selectedMintMethod)?.label}</span>
+              </ListboxButton>
+              <ListboxOptions className="w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto z-10">
+                {FAIRMINTER_MODEL_OPTIONS.map((option) => (
+                  <ListboxOption 
+                    key={option.value} 
+                    value={option} 
+                    className="p-2 cursor-pointer hover:bg-gray-100"
+                  >
+                    {({ selected }) => (
+                      <div className="flex justify-between">
+                        <span className={selected ? "font-medium" : ""}>{option.label}</span>
+                      </div>
+                    )}
+                  </ListboxOption>
+                ))}
+              </ListboxOptions>
+            </Listbox>
+          </div>
           <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
             Select the mint method for your fairminter.
           </Description>
@@ -135,7 +166,7 @@ export function FairminterForm({
             The name of the asset to be minted.
           </Description>
         </Field>
-        {initialMintMethod === FAIRMINTER_MODELS.MINER_FEE_ONLY && (
+        {selectedMintMethod === FAIRMINTER_MODELS.MINER_FEE_ONLY && (
           <Field>
             <Label htmlFor="max_mint_per_tx" className="block text-sm font-medium text-gray-700">
               Mint per TX <span className="text-red-500">*</span>
@@ -154,7 +185,7 @@ export function FairminterForm({
             </Description>
           </Field>
         )}
-        {initialMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
+        {selectedMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
           <>
             <Field>
               <Label htmlFor="quantity_by_price" className="block text-sm font-medium text-gray-700">
@@ -318,7 +349,7 @@ export function FairminterForm({
                     Commission (fraction between 0 and less than 1) to be paid.
                   </Description>
                 </Field>
-                {initialMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
+                {selectedMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
                   <>
                     <Field>
                       <Label htmlFor="soft_cap" className="block text-sm font-medium text-gray-700">

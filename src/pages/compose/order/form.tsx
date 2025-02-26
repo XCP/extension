@@ -46,11 +46,13 @@ export function OrderForm({
   const shouldShowHelpText = settings?.showHelpText ?? false;
   const { pending } = useFormStatus();
 
+  const [type, setType] = useState<"buy" | "sell">(initialFormData?.give_quantity ? "sell" : "buy");
+  const [price, setPrice] = useState<string>("");
+  
   const { data: giveAssetDetails } = useAssetDetails(giveAsset);
   const { data: orderAssetDetails } = useAssetDetails(initialFormData?.get_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
   const { data: getAssetDetails } = useAssetDetails(type === "buy" ? giveAsset : initialFormData?.get_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
 
-  const [type, setType] = useState<"buy" | "sell">(initialFormData?.give_quantity ? "sell" : "buy");
   const [tabLoading, setTabLoading] = useState(false);
   const [isPairFlipped, setIsPairFlipped] = useState(false);
   const [tradingPairData, setTradingPairData] = useState<TradingPairData | null>(null);
@@ -94,6 +96,11 @@ export function OrderForm({
     setTabLoading(true);
     setType(newType);
     setTimeout(() => setTabLoading(false), 150);
+  };
+
+  // Handle price change
+  const handlePriceChange = (newPrice: string) => {
+    setPrice(newPrice);
   };
 
   const isBuy = type === "buy";
@@ -160,8 +167,8 @@ export function OrderForm({
               setError={setError}
               shouldShowHelpText={shouldShowHelpText}
               sourceAddress={activeAddress}
-              maxAmount={isBuy ? (initialFormData?.price ? toBigNumber(orderAssetBalance).dividedBy(toBigNumber(initialFormData.price)).toFixed(isGetAssetDivisible ? 8 : 0) : "") : availableBalance}
-              disableMaxButton={!isBuy || !initialFormData?.price}
+              maxAmount={isBuy ? (price ? toBigNumber(orderAssetBalance).dividedBy(toBigNumber(price)).toFixed(isGetAssetDivisible ? 8 : 0) : "") : availableBalance}
+              disableMaxButton={!isBuy || !price}
               label="Amount"
               name="amount"
               description={`Amount to ${isBuy ? "buy" : "sell"}. ${isBuy ? (isGetAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.") : (isGiveAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.")}`}
@@ -174,8 +181,8 @@ export function OrderForm({
               shouldShowHelpText={shouldShowHelpText}
             />
             <PriceWithSuggestInput
-              value=""
-              onChange={() => {}} // No-op since formAction handles submission
+              value={price}
+              onChange={handlePriceChange}
               tradingPairData={tradingPairData}
               shouldShowHelpText={shouldShowHelpText}
               label="Price"

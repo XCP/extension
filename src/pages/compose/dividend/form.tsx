@@ -6,9 +6,9 @@ import { Field, Label, Description, Input } from "@headlessui/react";
 import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { Button } from "@/components/button";
-import { AssetHeader } from "@/components/headers/asset-header";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
+import { toBigNumber, toSatoshis } from "@/utils/numeric";
 import type { ReactElement } from "react";
 
 export interface DividendFormData {
@@ -25,15 +25,29 @@ interface DividendFormProps {
   shouldShowHelpText: boolean;
 }
 
+// Custom form action button component that uses useFormStatus
+function FormActionButton() {
+  const { pending } = useFormStatus();
+  
+  return (
+    <Button
+      type="submit"
+      color="blue"
+      fullWidth
+      disabled={pending}
+    >
+      {pending ? "Submitting..." : "Continue"}
+    </Button>
+  );
+}
+
 export function DividendForm({ 
   formAction, 
   asset, 
   initialFormData, 
   shouldShowHelpText 
 }: DividendFormProps): ReactElement {
-  const { pending } = useFormStatus();
   const amountRef = useRef<HTMLInputElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
   
   const { data: assetInfo, error: assetError } = useAssetDetails(asset);
   const [selectedDividendAsset, setSelectedDividendAsset] = useState<string>(
@@ -46,35 +60,28 @@ export function DividendForm({
     amountRef.current?.focus();
   }, []);
 
-  // Handle form submission
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  // Create a server action wrapper that processes the form data
+  const processedFormAction = async (formData: FormData) => {
+    // Get the quantity_per_unit value
+    const quantityPerUnitStr = formData.get('quantity_per_unit') as string;
     
-    if (formRef.current) {
-      const formData = new FormData(formRef.current);
+    // Convert to the proper format based on divisibility
+    if (quantityPerUnitStr && dividendAssetInfo?.assetInfo) {
+      const cleanedValue = quantityPerUnitStr.replace(/,/g, '');
       
-      // Get the quantity_per_unit value
-      const quantityPerUnitStr = formData.get('quantity_per_unit') as string;
-      
-      // Convert to the proper format based on divisibility
-      if (quantityPerUnitStr && dividendAssetInfo?.assetInfo) {
-        const numValue = parseFloat(quantityPerUnitStr.replace(/,/g, ''));
-        
-        if (!isNaN(numValue)) {
-          // If divisible, convert to satoshis (multiply by 100000000)
-          // If not divisible, round to integer
-          const processedValue = dividendAssetInfo.assetInfo.divisible
-            ? Math.round(numValue * 100000000).toString()
-            : Math.round(numValue).toString();
-          
-          // Replace the value in the form data
-          formData.set('quantity_per_unit', processedValue);
-        }
+      if (dividendAssetInfo.assetInfo.divisible) {
+        // For divisible assets, convert to satoshis (multiply by 10^8)
+        const satoshiValue = toSatoshis(cleanedValue);
+        formData.set('quantity_per_unit', satoshiValue);
+      } else {
+        // For non-divisible assets, round to integer
+        const intValue = toBigNumber(cleanedValue).integerValue().toString();
+        formData.set('quantity_per_unit', intValue);
       }
-      
-      // Submit the processed form data
-      formAction(formData);
     }
+    
+    // Submit the processed form data
+    formAction(formData);
   };
 
   // Handle dividend asset change
@@ -84,11 +91,18 @@ export function DividendForm({
 
   return (
     <div className="space-y-4">
-      {asset && assetInfo && <AssetHeader assetInfo={assetInfo.assetInfo} className="mb-6" />}
+      {asset && (
+        <div className="mb-6 p-4 bg-white rounded-lg shadow">
+          <h2 className="text-xl font-semibold">{asset}</h2>
+          {assetInfo?.assetInfo?.description && (
+            <p className="text-gray-600 mt-1">{assetInfo.assetInfo.description}</p>
+          )}
+        </div>
+      )}
       {assetError && <div className="text-red-500">Failed to fetch asset details.</div>}
       
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-        <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+        <form action={processedFormAction} className="space-y-4">
           <input type="hidden" name="asset" value={asset} />
           <input type="hidden" name="dividend_asset" value={selectedDividendAsset} />
           
@@ -99,7 +113,6 @@ export function DividendForm({
             required
             shouldShowHelpText={shouldShowHelpText}
             description="The asset to pay dividends in (e.g., XCP)."
-            disabled={pending}
           />
 
           <Field>
@@ -116,27 +129,19 @@ export function DividendForm({
               required
               min="0"
               step="any"
-              disabled={pending}
             />
             {shouldShowHelpText && (
               <Description className="mt-2 text-sm text-gray-500">
                 Amount of dividend asset to be paid per unit of the source asset.
-                {dividendAssetInfo?.assetInfo && dividendAssetInfo.assetInfo.divisible && 
+                {dividendAssetInfo?.assetInfo?.divisible && 
                   " This value will be converted to satoshis (multiplied by 10^8) when submitted."}
               </Description>
             )}
           </Field>
 
-          <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
+          <FeeRateInput showHelpText={shouldShowHelpText} />
 
-          <Button
-            type="submit"
-            color="blue"
-            fullWidth
-            disabled={pending}
-          >
-            {pending ? "Submitting..." : "Continue"}
-          </Button>
+          <FormActionButton />
         </form>
       </div>
     </div>
