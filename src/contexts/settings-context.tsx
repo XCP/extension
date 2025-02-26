@@ -1,13 +1,16 @@
 import React, {
   createContext,
-  useState,
-  useContext,
   useCallback,
   useEffect,
+  useState,
+  type ReactElement,
   type ReactNode,
-} from 'react';
-import { getKeychainSettings, updateKeychainSettings, KeychainSettings } from '@/utils/storage';
+} from "react";
+import { getKeychainSettings, updateKeychainSettings, type KeychainSettings } from "@/utils/storage";
 
+/**
+ * Context value for settings management.
+ */
 interface SettingsContextValue {
   settings: KeychainSettings;
   updateSettings: (newSettings: Partial<KeychainSettings>) => Promise<void>;
@@ -20,23 +23,29 @@ const defaultSettings: KeychainSettings = {
   showHelpText: false,
   analyticsAllowed: true,
   allowUnconfirmedTxs: false,
-  autoLockTimer: '5m',
+  autoLockTimer: "5m",
   enableMPMA: false,
   enableAdvancedBroadcasts: false,
-  pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
+  pinnedAssets: ["XCP", "PEPECASH", "BITCRYSTALS", "BITCORN", "CROPS", "MINTS"],
 };
 
 const SettingsContext = createContext<SettingsContextValue | undefined>(undefined);
 
-export function SettingsProvider({ children }: { children: ReactNode }) {
+/**
+ * Provides settings context to the application using React 19's <Context>.
+ * @param {Object} props - Component props
+ * @param {ReactNode} props.children - Child components
+ * @returns {ReactElement} Context provider
+ */
+export function SettingsProvider({ children }: { children: ReactNode }): ReactElement {
   const [settings, setSettings] = useState<KeychainSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadSettings = useCallback(async () => {
     try {
       setIsLoading(true);
-      const s = await getKeychainSettings();
-      setSettings(s);
+      const storedSettings = await getKeychainSettings();
+      setSettings(storedSettings);
     } finally {
       setIsLoading(false);
     }
@@ -46,31 +55,33 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     loadSettings();
   }, [loadSettings]);
 
-  const updateSettingsHandler = useCallback(
-    async (newSettings: Partial<KeychainSettings>) => {
-      try {
-        setIsLoading(true);
-        await updateKeychainSettings(newSettings);
-        const updated = await getKeychainSettings();
-        setSettings(updated);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    []
-  );
+  const updateSettingsHandler = useCallback(async (newSettings: Partial<KeychainSettings>) => {
+    try {
+      setIsLoading(true);
+      await updateKeychainSettings(newSettings);
+      const updated = await getKeychainSettings();
+      setSettings(updated);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   return (
-    <SettingsContext.Provider value={{ settings, updateSettings: updateSettingsHandler, isLoading }}>
+    <SettingsContext value={{ settings, updateSettings: updateSettingsHandler, isLoading }}>
       {children}
-    </SettingsContext.Provider>
+    </SettingsContext>
   );
 }
 
+/**
+ * Hook to access settings context using React 19's `use`.
+ * @returns {SettingsContextValue} Settings context value
+ * @throws {Error} If used outside SettingsProvider
+ */
 export function useSettings(): SettingsContextValue {
-  const context = useContext(SettingsContext);
+  const context = React.use(SettingsContext);
   if (!context) {
-    throw new Error('useSettings must be used within a SettingsProvider');
+    throw new Error("useSettings must be used within a SettingsProvider");
   }
   return context;
 }

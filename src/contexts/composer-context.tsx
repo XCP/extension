@@ -1,45 +1,84 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
-import type { ApiResponse } from "@/utils/blockchain/counterparty";
 import axios from "axios";
+import React, {
+  createContext,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type ReactElement,
+  type ReactNode,
+} from "react";
+import type { ApiResponse } from "@/utils/blockchain/counterparty";
 
+/**
+ * Composer state shape.
+ */
 interface ComposerState<T> {
   step: "form" | "review" | "success";
   formData: T | null;
   apiResponse: ApiResponse | null;
 }
 
+/**
+ * Context type for composer functionality.
+ */
 interface ComposerContextType<T> {
   state: ComposerState<T>;
-  error: string | null;
-  isPending: boolean;
-  compose: (formData: FormData, composeTransaction: (data: any) => Promise<ApiResponse>, sourceAddress?: string) => Promise<void>;
-  sign: (apiResponse: ApiResponse, signFn: () => Promise<void>) => Promise<void>;
+  compose: (
+    formData: FormData,
+    composeTransaction: (data: any) => Promise<ApiResponse>,
+    sourceAddress?: string
+  ) => void;
+  sign: (apiResponse: ApiResponse, signFn: () => Promise<void>) => void;
   reset: () => void;
   revertToForm: () => void;
+  isPending: boolean;
+}
+
+/**
+ * Props for ComposerProvider.
+ */
+interface ComposerProviderProps<T> {
+  children: ReactNode;
+  initialFormData?: T | null;
+}
+
+/**
+ * Extended API response with optional broadcast data.
+ */
+interface ExtendedApiResponse extends ApiResponse {
+  broadcast?: { txid: string; fees?: number };
 }
 
 const ComposerContext = createContext<ComposerContextType<any> | undefined>(undefined);
 
-export function useComposer<T>() {
-  const context = useContext(ComposerContext);
+/**
+ * Hook to access composer context using React 19's `use` API.
+ * @template T - Type of form data
+ * @returns {ComposerContextType<T>} Composer context value
+ * @throws {Error} If used outside ComposerProvider
+ */
+export function useComposer<T>(): ComposerContextType<T> {
+  const context = React.use(ComposerContext);
   if (!context) {
     throw new Error("useComposer must be used within a ComposerProvider");
   }
   return context as ComposerContextType<T>;
 }
 
-interface ComposerProviderProps<T> {
-  children: React.ReactNode;
-  initialFormData?: T | null;
-}
-
-interface ExtendedApiResponse extends ApiResponse {
-  broadcast?: { txid: string; fees?: number };
-}
-
-export function ComposerProvider<T>({ children, initialFormData = null }: ComposerProviderProps<T>) {
+/**
+ * Provides composer context for transaction composition workflow using React 19 features.
+ * @template T - Type of form data
+ * @param {ComposerProviderProps<T>} props - Component props
+ * @returns {ReactElement} Context provider
+ */
+export function ComposerProvider<T>({
+  children,
+  initialFormData = null,
+}: ComposerProviderProps<T>): ReactElement {
   const initialState: ComposerState<T> = {
     step: "form",
     formData: initialFormData,
@@ -47,8 +86,7 @@ export function ComposerProvider<T>({ children, initialFormData = null }: Compos
   };
 
   const [state, setState] = useState(initialState);
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, setIsPending] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const previousStepRef = useRef<"form" | "review" | "success" | null>(null);
 
   // Track step changes
@@ -56,122 +94,87 @@ export function ComposerProvider<T>({ children, initialFormData = null }: Compos
     previousStepRef.current = state.step;
   }, [state.step]);
 
-  // Auto-dismiss errors after 10 seconds
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => {
-        setError(null);
-      }, 10000); // 10 seconds
-      return () => clearTimeout(timer);
-    }
-  }, [error]);
-
   const compose = useCallback(
-    async (formData: FormData, composeTransaction: (data: any) => Promise<ApiResponse>, sourceAddress?: string) => {
-      setIsPending(true);
-      try {
-        if (!formData) throw new Error("No form data provided.");
-        if (!composeTransaction) throw new Error("Compose transaction function not provided.");
-        const rawData = Object.fromEntries(formData);
-        const data = rawData as unknown as T;
-        const response = await composeTransaction({
-          ...data,
-          sourceAddress,
-        });
-        setError(null);
-        setState({
-          step: "review",
-          formData: data,
-          apiResponse: response,
-        });
-      } catch (err) {
-        console.error("Compose error:", err);
-        let errorMessage = "An error occurred while composing the transaction.";
-        if (axios.isAxiosError(err) && err.response?.data?.error) {
-          errorMessage = err.response.data.error;
-        } else if (err instanceof Error) {
-          errorMessage = err.message;
+    (
+      formData: FormData,
+      composeTransaction: (data: any) => Promise<ApiResponse>,
+      sourceAddress?: string
+    ) => {
+      startTransition(async () => {
+        try {
+          if (!formData) throw new Error("No form data provided.");
+          if (!composeTransaction) throw new Error("Compose transaction function not provided.");
+          const rawData = Object.fromEntries(formData);
+          const data = rawData as unknown as T;
+          const response = await composeTransaction({ ...data, sourceAddress });
+          setState({ step: "review", formData: data, apiResponse: response });
+        } catch (err) {
+          console.error("Compose error:", err);
+          let errorMessage = "An error occurred while composing the transaction.";
+          if (axios.isAxiosError(err) && err.response?.data?.error) {
+            errorMessage = err.response.data.error;
+          } else if (err instanceof Error) {
+            errorMessage = err.message;
+          }
+          const rawData = Object.fromEntries(formData);
+          const data = rawData as unknown as T;
+          setState((prev) => ({ ...prev, step: "form", formData: data }));
+          throw new Error(errorMessage); // Let consumers handle the error
         }
-        setError(errorMessage);
-        
-        // Preserve the form data when there's an error
-        const rawData = Object.fromEntries(formData);
-        const data = rawData as unknown as T;
-        setState(prevState => ({
-          ...prevState,
-          step: "form",
-          formData: data,
-        }));
-      } finally {
-        setIsPending(false);
-      }
+      });
     },
     []
   );
 
   const sign = useCallback(
-    async (apiResponse: ApiResponse, signFn: () => Promise<void>) => {
-      setIsPending(true);
-      try {
-        if (!apiResponse) throw new Error("No transaction composed.");
-        if (!signFn) throw new Error("Sign function not provided.");
-        await signFn();
-        console.log("Sign success");
-        setError(null);
-        setState({
-          step: "success",
-          formData: state.formData,
-          apiResponse: apiResponse as ExtendedApiResponse,
-        });
-      } catch (err) {
-        console.error("Sign error:", err);
-        let errorMessage = "An error occurred while signing the transaction.";
-        if (axios.isAxiosError(err) && err.response?.data?.error) {
-          errorMessage = err.response.data.error;
-        } else if (err instanceof Error) {
-          errorMessage = err.message;
+    (apiResponse: ApiResponse, signFn: () => Promise<void>) => {
+      startTransition(async () => {
+        try {
+          if (!apiResponse) throw new Error("No transaction composed.");
+          if (!signFn) throw new Error("Sign function not provided.");
+          await signFn();
+          console.log("Sign success");
+          setState({
+            step: "success",
+            formData: state.formData,
+            apiResponse: apiResponse as ExtendedApiResponse,
+          });
+        } catch (err) {
+          console.error("Sign error:", err);
+          let errorMessage = "An error occurred while signing the transaction.";
+          if (axios.isAxiosError(err) && err.response?.data?.error) {
+            errorMessage = err.response.data.error;
+          } else if (err instanceof Error) {
+            errorMessage = err.message;
+          }
+          throw new Error(errorMessage); // Let consumers handle the error
         }
-        setError(errorMessage);
-      } finally {
-        setIsPending(false);
-      }
+      });
     },
     [state.formData]
   );
 
   const reset = useCallback(() => {
     console.log("Resetting composer state");
-    setError(null);
-    setIsPending(false);
-    setState({
-      step: "form",
-      formData: null,
-      apiResponse: null,
-    });
+    setState({ step: "form", formData: null, apiResponse: null });
   }, []);
 
   const revertToForm = useCallback(() => {
-    setError(null);
-    setState((prevState) => ({
-      ...prevState,
-      step: "form",
-      apiResponse: null, // Clear apiResponse but keep formData
-    }));
+    setState((prev) => ({ ...prev, step: "form", apiResponse: null }));
   }, []);
 
-  // Effect to reset form data when arriving at form step from anywhere except review
+  // Reset form data when arriving at form step from non-review steps
   useEffect(() => {
-    if (state.step === "form" && previousStepRef.current !== "review" && previousStepRef.current !== null) {
-      setState(prevState => ({
-        ...prevState,
-        formData: null,
-      }));
+    if (
+      state.step === "form" &&
+      previousStepRef.current !== "review" &&
+      previousStepRef.current !== null
+    ) {
+      setState((prev) => ({ ...prev, formData: null }));
     }
   }, [state.step]);
 
-  return (
-    <ComposerContext.Provider value={{ state, error, isPending, compose, sign, reset, revertToForm }}>
-      {children}
-    </ComposerContext.Provider>
-  );
+  const value = { state, compose, sign, reset, revertToForm, isPending };
+
+  return <ComposerContext value={value}>{children}</ComposerContext>;
 }

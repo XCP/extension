@@ -1,14 +1,27 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, type ReactNode, type ReactElement } from 'react';
-import { getWalletService } from '@/services/walletService';
-import { AddressType } from '@/utils/blockchain/bitcoin';
-import type { Wallet, Address } from '@/utils/wallet';
+import React, {
+  createContext,
+  useCallback,
+  useEffect,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
+import { getWalletService } from "@/services/walletService";
+import { AddressType } from "@/utils/blockchain/bitcoin";
+import type { Wallet, Address } from "@/utils/wallet";
 
+/**
+ * Authentication state enum.
+ */
 enum AuthState {
-  Onboarding = 'ONBOARDING_NEEDED',
-  Locked = 'LOCKED',
-  Unlocked = 'UNLOCKED',
+  Onboarding = "ONBOARDING_NEEDED",
+  Locked = "LOCKED",
+  Unlocked = "UNLOCKED",
 }
 
+/**
+ * Wallet context state.
+ */
 interface WalletState {
   authState: AuthState;
   wallets: Wallet[];
@@ -18,6 +31,9 @@ interface WalletState {
   loaded: boolean;
 }
 
+/**
+ * Context type for wallet management.
+ */
 interface WalletContextType {
   authState: AuthState;
   wallets: Wallet[];
@@ -31,8 +47,18 @@ interface WalletContextType {
   setActiveAddress: (address: Address | null) => Promise<void>;
   addAddress: (walletId: string) => Promise<Address>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
-  createAndUnlockMnemonicWallet: (mnemonic: string, password: string, name?: string, addressType?: AddressType) => Promise<Wallet>;
-  createAndUnlockPrivateKeyWallet: (privateKey: string, password: string, name?: string, addressType?: AddressType) => Promise<Wallet>;
+  createAndUnlockMnemonicWallet: (
+    mnemonic: string,
+    password: string,
+    name?: string,
+    addressType?: AddressType
+  ) => Promise<Wallet>;
+  createAndUnlockPrivateKeyWallet: (
+    privateKey: string,
+    password: string,
+    name?: string,
+    addressType?: AddressType
+  ) => Promise<Wallet>;
   resetAllWallets: (password: string) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<string>;
@@ -47,6 +73,9 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
+/**
+ * Wraps an async function with state refresh.
+ */
 const withRefresh = <T extends (...args: any[]) => Promise<any>>(
   fn: T,
   refresh: () => Promise<void>
@@ -56,6 +85,12 @@ const withRefresh = <T extends (...args: any[]) => Promise<any>>(
   return result;
 };
 
+/**
+ * Provides wallet context to the application using React 19's <Context>.
+ * @param {Object} props - Component props
+ * @param {ReactNode} props.children - Child components
+ * @returns {ReactElement} Context provider
+ */
 export function WalletProvider({ children }: { children: ReactNode }): ReactElement {
   const walletService = getWalletService();
   const [walletState, setWalletState] = useState<WalletState>({
@@ -93,9 +128,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         newState.authState = anyUnlocked ? AuthState.Unlocked : AuthState.Locked;
       }
 
-      if (!walletsEqual) {
-        newState.wallets = allWallets;
-      }
+      if (!walletsEqual) newState.wallets = allWallets;
 
       if (allWallets.length > 0) {
         let active = await walletService.getActiveWallet();
@@ -138,7 +171,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         setWalletState(newState);
       }
     } catch (error) {
-      console.error('Error refreshing wallet state:', error);
+      console.error("Error refreshing wallet state:", error);
       setWalletState((prev) => ({ ...prev, loaded: true }));
     } finally {
       refreshInProgress.current = false;
@@ -165,7 +198,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         }));
         if (newActiveAddress) await walletService.setLastActiveAddress(newActiveAddress.address);
       } else {
-        await walletService.setActiveWallet('');
+        await walletService.setActiveWallet("");
         setWalletState((prev) => ({ ...prev, activeWallet: null, activeAddress: null }));
       }
     },
@@ -233,11 +266,16 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     broadcastTransaction: walletService.broadcastTransaction,
   };
 
-  return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
+  return <WalletContext value={value}>{children}</WalletContext>;
 }
 
+/**
+ * Hook to access wallet context using React 19's `use`.
+ * @returns {WalletContextType} Wallet context value
+ * @throws {Error} If used outside WalletProvider
+ */
 export function useWallet(): WalletContextType {
-  const context = useContext(WalletContext);
-  if (!context) throw new Error('useWallet must be used within a WalletProvider');
+  const context = React.use(WalletContext);
+  if (!context) throw new Error("useWallet must be used within a WalletProvider");
   return context;
 }

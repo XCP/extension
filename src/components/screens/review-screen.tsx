@@ -1,10 +1,13 @@
-import React, { useState } from "react";
+import React, { type ReactElement } from "react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { formatAddress, formatAmount } from "@/utils/format";
 
+/**
+ * Props for the ReviewScreen component.
+ */
 interface ReviewScreenProps {
-  apiResponse: any;
+  apiResponse: any; // Consider typing this more strictly based on your API response shape
   onSign: () => void;
   onBack: () => void;
   customFields: {
@@ -12,31 +15,33 @@ interface ReviewScreenProps {
     value: string | number;
     rightElement?: React.ReactNode;
   }[];
-  error: string | null;
-  setError: (error: string | null) => void;
+  error: string | null; // Managed by useActionState in Composer
+  isSigning: boolean; // Passed from useActionState in Composer
 }
 
+/**
+ * Displays a transaction review screen with details and actions.
+ * @param {ReviewScreenProps} props - Component props
+ * @returns {ReactElement} Review UI with transaction details
+ */
 export function ReviewScreen({
   apiResponse,
   onSign,
   onBack,
   customFields,
   error,
-  setError,
-}: ReviewScreenProps) {
-  const [isSigning, setIsSigning] = useState(false);
+  isSigning,
+}: ReviewScreenProps): ReactElement {
   const { result } = apiResponse;
 
   const handleSignClick = () => {
-    setIsSigning(true);
     onSign();
-    setIsSigning(false);
   };
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
       <h3 className="text-lg font-bold">Review Transaction</h3>
-      {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
+      {error && <ErrorAlert message={error} onClose={() => {}} />}
       <div className="space-y-4">
         <div className="space-y-1">
           <span className="font-semibold text-gray-700">From:</span>
@@ -84,7 +89,9 @@ export function ReviewScreen({
         </details>
       </div>
       <div className="flex space-x-4">
-        <Button onClick={onBack} color="gray">Back</Button>
+        <Button onClick={onBack} color="gray">
+          Back
+        </Button>
         <Button onClick={handleSignClick} color="blue" fullWidth disabled={isSigning}>
           {isSigning ? "Signing..." : "Sign & Broadcast"}
         </Button>
