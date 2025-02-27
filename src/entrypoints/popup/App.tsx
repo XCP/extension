@@ -48,6 +48,7 @@ import ComposeIssuanceResetSupply from '@/pages/compose/issuance/reset-supply/pa
 import ComposeIssuanceTransferOwnership from '@/pages/compose/issuance/transfer-ownership/page';
 import ComposeIssuanceUpdateDescription from '@/pages/compose/issuance/update-description/page';
 import ComposeFairminter from '@/pages/compose/fairminter/page';
+import ComposeFairmint from '@/pages/compose/fairminter/fairmint/page';
 import ComposeSend from '@/pages/compose/send/page';
 import ComposeSweep from '@/pages/compose/sweep/page';
 import ComposeUtxoAttach from '@/pages/compose/utxo/attach/page';
@@ -172,6 +173,7 @@ export default function App() {
             <Route path="/compose/issuance/update-description/:asset" element={<ComposeIssuanceUpdateDescription />} />
             <Route path="/compose/issuance/destroy/:asset" element={<ComposeDestroy />} />
             <Route path="/compose/fairminter/:asset?" element={<ComposeFairminter />} />
+            <Route path="/compose/fairmint/:asset?" element={<ComposeFairmint />} />
             <Route path="/compose/utxo/attach/:asset" element={<ComposeUtxoAttach />} />
             <Route path="/compose/utxo/detach/:txid" element={<ComposeUtxoDetach />} />
             <Route path="/compose/utxo/move/:txid" element={<ComposeUtxoMove />} />

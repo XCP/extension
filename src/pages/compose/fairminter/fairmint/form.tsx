@@ -2,7 +2,9 @@ import React, { useState, useRef, useEffect, Suspense } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { BalanceHeader } from "@/components/headers/balance-header";
+import { AddressHeader } from "@/components/headers/address-header";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
@@ -22,24 +24,22 @@ interface FairmintFormProps {
 }
 
 export function FairmintForm({ onSubmit, initialFormData, initialAsset = "" }: FairmintFormProps) {
-  const { activeAddress } = useWallet();
+  const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText ?? false;
-  const { error: assetError, data: assetDetails } = useAssetDetails(initialFormData?.asset || initialAsset);
-  const [pending, setPending] = useState(false);
-
   const [formData, setFormData] = useState<FairmintFormDataInternal>(() => {
-    const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
+    // Don't use BTC or XCP as the initial asset
+    const initialAssetValue = initialFormData?.asset || initialAsset;
+    const isSpecialAsset = initialAssetValue === "BTC" || initialAssetValue === "XCP";
+    
     return {
-      asset: initialFormData?.asset || initialAsset,
-      quantity: initialFormData?.quantity ? (isDivisible ? formatAmount({
-        value: initialFormData.quantity / 1e8,
-        maximumFractionDigits: 8,
-        minimumFractionDigits: 8
-      }) : initialFormData.quantity.toString()) : "",
+      asset: isSpecialAsset ? "" : initialAssetValue,
+      quantity: initialFormData?.quantity ? initialFormData.quantity.toString() : "",
       sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
     };
   });
+  const { error: assetError, data: assetDetails } = useAssetDetails(formData.asset);
+  const [pending, setPending] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -50,8 +50,13 @@ export function FairmintForm({ onSubmit, initialFormData, initialAsset = "" }: F
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
     if (!formData.asset) {
       setLocalError("Please enter an asset name.");
+      return;
+    }
+    if (formData.asset === "BTC" || formData.asset === "XCP") {
+      setLocalError("BTC and XCP cannot be used for fairmint operations. Please select a different asset.");
       return;
     }
     if (!formData.quantity || Number(formData.quantity) <= 0) {
@@ -86,6 +91,15 @@ export function FairmintForm({ onSubmit, initialFormData, initialAsset = "" }: F
 
   return (
     <div className="space-y-4">
+      {/* Show the active address information */}
+      {activeAddress && (
+        <AddressHeader 
+          address={activeAddress.address} 
+          walletName={activeWallet?.name}
+          className="mb-4" 
+        />
+      )}
+
       <Suspense fallback={null}>
         {assetError ? (
           <div className="text-red-500 mb-4">{assetError.message}</div>
@@ -107,32 +121,25 @@ export function FairmintForm({ onSubmit, initialFormData, initialAsset = "" }: F
           />
         ) : null}
       </Suspense>
+
       {localError && <div className="text-red-500 mb-2">{localError}</div>}
       <div className="bg-white rounded-lg shadow-lg p-4">
         <form onSubmit={handleSubmit} className="space-y-6">
-          <Field>
-            <Label className="text-sm font-medium text-gray-700">
-              Asset <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              ref={inputRef}
-              type="text"
-              name="asset"
-              value={formData.asset}
-              onChange={(e) => setFormData({ ...formData, asset: e.target.value.trim() })}
-              required
-              placeholder="Enter asset name"
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Enter the asset you want to perform a fair mint for.
-            </Description>
-          </Field>
+          <AssetSelectInput
+            selectedAsset={formData.asset}
+            onChange={(asset) => setFormData({ ...formData, asset })}
+            label="Asset"
+            required
+            shouldShowHelpText={shouldShowHelpText}
+            description="Select the asset for the fairmint operation. BTC and XCP cannot be fairminted."
+          />
+
           <Field>
             <Label className="text-sm font-medium text-gray-700">
               Quantity <span className="text-red-500">*</span>
             </Label>
             <Input
+              ref={inputRef}
               type="text"
               name="quantity"
               value={formData.quantity}

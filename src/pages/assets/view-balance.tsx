@@ -67,6 +67,7 @@ export default function ViewBalance(): ReactElement {
   const getActions = (): Action[] => {
     if (!asset || !assetDetails) return [];
     const isBTC = asset === "BTC";
+    const isXCP = asset === "XCP";
 
     return isBTC
       ? [
@@ -87,6 +88,33 @@ export default function ViewBalance(): ReactElement {
             name: "Dispense",
             description: "Trigger an open asset dispenser",
             path: `${CONSTANTS.PATHS.COMPOSE}/dispenser/dispense`,
+          },
+          {
+            id: "fairmint",
+            name: "Fairmint",
+            description: "Start a fair distribution mint",
+            path: `${CONSTANTS.PATHS.COMPOSE}/fairmint/BTC`,
+          },
+        ]
+      : isXCP
+      ? [
+          {
+            id: "send",
+            name: "Send",
+            description: "Send this asset to another address",
+            path: `${CONSTANTS.PATHS.COMPOSE}/send/${asset}`,
+          },
+          {
+            id: "order",
+            name: "DEX Order",
+            description: "Create a new order on the DEX",
+            path: `${CONSTANTS.PATHS.COMPOSE}/order/${asset}`,
+          },
+          {
+            id: "fairmint",
+            name: "Fairmint",
+            description: "Start a fair distribution mint",
+            path: `${CONSTANTS.PATHS.COMPOSE}/fairmint`,
           },
         ]
       : [
@@ -121,6 +149,12 @@ export default function ViewBalance(): ReactElement {
             description: "Permanently destroy token supply",
             path: `${CONSTANTS.PATHS.COMPOSE}/destroy/${asset}`,
             variant: "destructive",
+          },
+          {
+            id: "fairmint",
+            name: "Fairmint",
+            description: "Start a fair distribution mint",
+            path: `${CONSTANTS.PATHS.COMPOSE}/fairmint`,
           },
         ];
   };

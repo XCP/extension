@@ -560,11 +560,13 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
 
 export async function composeFairmint(options: FairmintOptions): Promise<ApiResponse> {
   const { sourceAddress, asset, quantity = 0, sat_per_vbyte, max_fee } = options;
+  
   const paramsObj = {
     asset,
     quantity: quantity.toString(),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
+  
   return composeTransaction('fairmint', paramsObj, sourceAddress, sat_per_vbyte);
 }
 

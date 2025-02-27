@@ -84,15 +84,17 @@ export function BlockHeightInput({
           placeholder={placeholder}
           disabled={disabled}
         />
-        <Button
-          variant="input"
-          onClick={handleNowButtonClick}
-          disabled={disabled}
-          aria-label="Use current block height"
-          className="absolute right-1 top-1/2 transform -translate-y-1/2 px-2 py-1 text-sm"
-        >
-          Now
-        </Button>
+        <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
+          <Button
+            variant="input"
+            onClick={handleNowButtonClick}
+            disabled={disabled || loading}
+            aria-label="Use current block height"
+            className="px-2 py-1 text-sm"
+          >
+            Now
+          </Button>
+        </div>
       </div>
       {shouldShowHelpText && (
         <Description id={`${name}-description`} className="mt-2 text-sm text-gray-500">
