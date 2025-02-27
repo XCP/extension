@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaPlus } from "react-icons/fa";
 import { Button } from "@/components/button";
@@ -40,7 +42,7 @@ export default function AddressSelection(): ReactElement {
   /**
    * Handles adding a new address to the active wallet.
    */
-  const handleAddAddress = async () => {
+  const handleAddAddress = useCallback(async () => {
     if (!activeWallet?.id || activeWallet.type !== "mnemonic") return;
     if (activeWallet.addresses.length >= CONSTANTS.MAX_ADDRESSES) {
       setError(`Maximum number of addresses (${CONSTANTS.MAX_ADDRESSES}) reached`);
@@ -60,12 +62,12 @@ export default function AddressSelection(): ReactElement {
       console.error("Failed to add address:", err);
       setError("Failed to add address. Please try again.");
     }
-  };
+  }, [activeWallet, walletLocked, addAddress, navigate]);
 
   /**
    * Handles selecting an address and navigating to the index.
    */
-  const handleSelectAddress = async (address: Address) => {
+  const handleSelectAddress = useCallback(async (address: Address) => {
     try {
       await setActiveAddress(address);
       navigate(CONSTANTS.PATHS.INDEX);
@@ -73,7 +75,7 @@ export default function AddressSelection(): ReactElement {
       console.error("Failed to select address:", err);
       setError("Failed to select address. Please try again.");
     }
-  };
+  }, [setActiveAddress, navigate]);
 
   // Configure header
   useEffect(() => {
