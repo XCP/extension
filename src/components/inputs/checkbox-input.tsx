@@ -1,12 +1,14 @@
 import { Checkbox, Field, Label } from '@headlessui/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface CheckboxInputProps {
   name: string;
   label: string;
   disabled?: boolean;
   defaultChecked?: boolean;
+  checked?: boolean;
   onChange?: (checked: boolean) => void;
+  id?: string;
 }
 
 export function CheckboxInput({
@@ -14,12 +16,26 @@ export function CheckboxInput({
   label,
   disabled = false,
   defaultChecked = false,
+  checked,
   onChange,
+  id,
 }: CheckboxInputProps) {
   const [isChecked, setIsChecked] = useState(defaultChecked);
+  // Generate a unique ID if none is provided
+  const checkboxId = id || `checkbox-${name}`;
   
+  // If component is controlled (checked prop is provided), update internal state
+  useEffect(() => {
+    if (checked !== undefined) {
+      setIsChecked(checked);
+    }
+  }, [checked]);
+
   const handleChange = (checked: boolean) => {
-    setIsChecked(checked);
+    // Only update internal state if not controlled
+    if (checked === undefined) {
+      setIsChecked(checked);
+    }
     if (onChange) {
       onChange(checked);
     }
@@ -31,6 +47,7 @@ export function CheckboxInput({
         <Checkbox
           checked={isChecked}
           name={name}
+          id={checkboxId}
           value="yes"
           disabled={disabled}
           onChange={handleChange}
@@ -59,7 +76,7 @@ export function CheckboxInput({
             />
           </svg>
         </Checkbox>
-        <Label className={`text-xs ${disabled ? 'text-gray-500' : 'text-gray-700'}`}>
+        <Label htmlFor={checkboxId} className={`text-xs ${disabled ? 'text-gray-500' : 'text-gray-700'}`}>
           {label}
         </Label>
       </div>

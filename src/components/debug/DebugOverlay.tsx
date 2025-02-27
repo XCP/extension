@@ -226,6 +226,8 @@ export function DebugOverlay() {
               <div className="mt-2">
                 <input
                   type="password"
+                  id="debug-password"
+                  name="debug-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"

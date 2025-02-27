@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useState, ChangeEvent } from "react";
+import React, { useState, ChangeEvent, useEffect, useCallback } from "react";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
@@ -56,13 +56,13 @@ export function AmountWithMaxInput({
   onMaxClick,
 }: AmountWithMaxInputProps) {
   const [loading, setLoading] = useState(false);
-
+  
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
     setError(null);
   };
-
-  const handleMaxButtonClick = async () => {
+  
+  const handleMaxButtonClick = useCallback(async () => {
     if (!sourceAddress || disabled) return;
     const sourceAddr = sourceAddress.address;
 
@@ -141,16 +141,33 @@ export function AmountWithMaxInput({
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    sourceAddress, 
+    disabled, 
+    asset, 
+    maxAmount, 
+    destinationCount, 
+    onChange, 
+    setError, 
+    destination, 
+    availableBalance, 
+    memo, 
+    sat_per_vbyte
+  ]);
 
   const handleMaxClick = async () => {
     if (onMaxClick) {
       onMaxClick();
-      return;
     }
 
     if (!sourceAddress?.address) {
       setError("Source address is required to calculate max amount");
+      return;
+    }
+
+    // For BTC, use the more complex calculation that accounts for fees
+    if (asset === "BTC") {
+      await handleMaxButtonClick();
       return;
     }
 

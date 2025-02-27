@@ -111,6 +111,7 @@ export function PriceWithSuggestInput({
       <div className="relative">
         <input
           type="text"
+          id={name}
           name={name}
           value={displayValue}
           onChange={handleInputChange}

@@ -344,6 +344,8 @@ export function Composer<T>({
               <div>
                 <input
                   type="password"
+                  id="composer-password"
+                  name="composer-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"

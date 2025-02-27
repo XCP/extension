@@ -34,7 +34,7 @@ function ImportWallet() {
   const MIN_PASSWORD_LENGTH = 8;
 
   const [state, formAction, isPending] = useActionState(
-    async (_, formData: FormData) => {
+    async (_: unknown, formData: FormData) => {
       const mnemonicWords = Array.from({ length: 12 }, (_, i) => formData.get(`word-${i}`) as string);
       const mnemonic = mnemonicWords.join(" ").trim();
       const password = formData.get("password") as string;
@@ -140,7 +140,7 @@ function ImportWallet() {
         <form action={formAction} className="space-y-4" aria-describedby="import-instructions">
           <div className="bg-gray-100 p-2 rounded-md mb-4" role="region" aria-label="Recovery phrase input">
             <ol className="list-none p-0 m-0 grid grid-flow-col grid-cols-2 grid-rows-6 gap-2" aria-label="Recovery phrase words">
-              {Array(12).fill(null).map((_, index) => (
+              {[...Array(12)].map((_, index) => (
                 <li key={index} className="bg-white rounded p-1 flex items-center relative" aria-label={`Word ${index + 1}`}>
                   <span className="absolute left-2 w-6 text-right mr-2 text-gray-500" aria-hidden="true">
                     {index + 1}.
@@ -162,6 +162,7 @@ function ImportWallet() {
           </div>
           <CheckboxInput
             name="confirmed"
+            id="confirmed-checkbox"
             label="I have saved my secret recovery phrase"
             disabled={!allWordsPopulated() || isPending}
             defaultChecked={isConfirmed}

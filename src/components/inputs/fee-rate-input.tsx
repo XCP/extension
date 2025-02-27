@@ -64,26 +64,48 @@ export function FeeRateInput({
   const handleCustomInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const trimmed = e.target.value.trim();
     setInternalError(null);
+    
+    // Allow empty input temporarily while typing
     if (trimmed === "") {
       setCustomInput("");
       return;
     }
+    
+    // Only allow valid numeric input with at most one decimal point
+    const parts = trimmed.split(".");
+    if (parts.length > 2) {
+      return; // Ignore input with multiple decimal points
+    }
+    
+    // Validate the input is a number
     const num = parseFloat(trimmed);
-    if (isNaN(num) || num < 1) {
+    if (isNaN(num)) {
+      return; // Ignore non-numeric input
+    }
+    
+    // Enforce minimum fee rate
+    if (num < 1) {
       setCustomInput("1");
       setInternalError("Fee rate must be at least 1 sat/vB.");
       onFeeRateChange?.(1); // Notify parent of corrected value
-    } else {
-      const parts = trimmed.split(".");
-      if (parts.length === 2 && parts[1].length > 1) {
-        setCustomInput(formatAmount({
-          value: num,
-          maximumFractionDigits: 1,
-          minimumFractionDigits: 1
-        }));
-      }
-      onFeeRateChange?.(num); // Notify parent of custom value
+      return;
     }
+    
+    // Update the input value
+    setCustomInput(trimmed);
+    
+    // Format with at most one decimal place for display
+    if (parts.length === 2 && parts[1].length > 1) {
+      const formattedValue = formatAmount({
+        value: num,
+        maximumFractionDigits: 1,
+        minimumFractionDigits: 0
+      });
+      setCustomInput(formattedValue);
+    }
+    
+    // Notify parent of the new value
+    onFeeRateChange?.(num);
   };
 
   const handleOptionSelect = (option: { id: LocalFeeRateOption; name: string; value: number }) => {

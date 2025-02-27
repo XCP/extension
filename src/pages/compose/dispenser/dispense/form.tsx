@@ -356,6 +356,7 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
               {selectedPriceLevelIndex !== null && (
                 <input
                   type="hidden"
+                  id="satoshirate-input"
                   name="satoshirate"
                   value={paymentOptions[selectedPriceLevelIndex]?.satoshirate || 0}
                   data-testid="satoshirate-input"
@@ -387,6 +388,7 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
               {/* Hidden input to convert numberOfDispenses to quantity for the API */}
               <input
                 type="hidden"
+                id="quantity-input"
                 name="quantity"
                 value={
                   selectedPriceLevelIndex !== null
@@ -398,12 +400,13 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
               {/* Hidden input to store the number of dispenses for form state persistence */}
               <input
                 type="hidden"
+                id="numberOfDispenses-hidden"
                 name="numberOfDispenses"
                 value={numberOfDispenses}
               />
 
               {/* Hidden input to ensure dispenser address is included in form data */}
-              <input type="hidden" name="dispenser" value={dispenserAddress} />
+              <input type="hidden" id="dispenser-input" name="dispenser" value={dispenserAddress} />
             </>
           )}
 

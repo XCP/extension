@@ -158,7 +158,7 @@ function CreateWallet() {
             name="confirmed"
             label="I have saved my secret recovery phrase."
             disabled={!isRecoveryPhraseVisible || isPending}
-            defaultChecked={isConfirmed}
+            checked={isConfirmed}
             onChange={handleCheckboxChange}
           />
           {isConfirmed && (

@@ -101,6 +101,8 @@ export const AssetList = (): JSX.Element => {
       <div className="relative mb-3">
         <input
           type="text"
+          id="asset-search"
+          name="asset-search"
           className="w-full p-2 pl-8 pr-8 border rounded-lg bg-white"
           placeholder="Search assets..."
           value={searchQuery}

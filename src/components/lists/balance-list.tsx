@@ -191,6 +191,8 @@ export const BalanceList = (): ReactElement => {
       <div className="relative mb-3">
         <input
           type="text"
+          id="balance-search"
+          name="balance-search"
           className="w-full p-2 pl-8 pr-8 border rounded-lg bg-white"
           placeholder="Search balances..."
           value={searchQuery}
