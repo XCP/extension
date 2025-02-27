@@ -11,6 +11,7 @@ import {
 } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { useFeeRates, FeeRateOption } from "@/hooks/useFeeRates";
+import { formatAmount } from "@/utils/format";
 
 interface FeeRateInputProps {
   showHelpText?: boolean;
@@ -60,13 +61,13 @@ export function FeeRateInput({
     ? [...uniquePresetOptions, { id: "custom", name: "Custom", value: parseFloat(customInput) || 1 }]
     : [{ id: "custom", name: "Custom", value: parseFloat(customInput) || 1 }];
 
-  const handleCustomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCustomInput(e.target.value);
+  const handleCustomInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const trimmed = e.target.value.trim();
     setInternalError(null);
-  };
-
-  const handleCustomBlur = () => {
-    const trimmed = customInput.trim();
+    if (trimmed === "") {
+      setCustomInput("");
+      return;
+    }
     const num = parseFloat(trimmed);
     if (isNaN(num) || num < 1) {
       setCustomInput("1");
@@ -75,7 +76,11 @@ export function FeeRateInput({
     } else {
       const parts = trimmed.split(".");
       if (parts.length === 2 && parts[1].length > 1) {
-        setCustomInput(num.toFixed(1));
+        setCustomInput(formatAmount({
+          value: num,
+          maximumFractionDigits: 1,
+          minimumFractionDigits: 1
+        }));
       }
       onFeeRateChange?.(num); // Notify parent of custom value
     }
@@ -126,8 +131,7 @@ export function FeeRateInput({
             name="sat_per_vbyte"
             type="number"
             value={customInput}
-            onChange={handleCustomChange}
-            onBlur={handleCustomBlur}
+            onChange={handleCustomInputChange}
             min="1"
             step="0.1"
             required
@@ -165,8 +169,7 @@ export function FeeRateInput({
               name="sat_per_vbyte"
               type="number"
               value={customInput}
-              onChange={handleCustomChange}
-              onBlur={handleCustomBlur}
+              onChange={handleCustomInputChange}
               min="1"
               step="0.1"
               required

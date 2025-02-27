@@ -12,6 +12,7 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import type { OrderOptions } from "@/utils/blockchain/counterparty";
 import { toBigNumber } from "@/utils/numeric";
+import { formatAmount } from "@/utils/format";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import type { ReactElement } from "react";
@@ -167,7 +168,11 @@ export function OrderForm({
               setError={setError}
               shouldShowHelpText={shouldShowHelpText}
               sourceAddress={activeAddress}
-              maxAmount={isBuy ? (price ? toBigNumber(orderAssetBalance).dividedBy(toBigNumber(price)).toFixed(isGetAssetDivisible ? 8 : 0) : "") : availableBalance}
+              maxAmount={isBuy ? (price ? formatAmount({
+                value: toBigNumber(orderAssetBalance).dividedBy(toBigNumber(price)).toNumber(),
+                maximumFractionDigits: isGetAssetDivisible ? 8 : 0,
+                minimumFractionDigits: 0
+              }) : "") : availableBalance}
               disableMaxButton={!isBuy || !price}
               label="Amount"
               name="amount"

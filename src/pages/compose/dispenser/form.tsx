@@ -12,6 +12,7 @@ import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-in
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { formatAmount } from "@/utils/format";
 import { toSatoshis } from "@/utils/numeric";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
@@ -52,21 +53,33 @@ export const DispenserForm = memo(function DispenserForm({
   const [escrowQuantity, setEscrowQuantity] = useState<string>(
     initialFormData?.escrow_quantity
       ? (assetDetails?.assetInfo?.divisible ?? true)
-        ? (initialFormData.escrow_quantity / 1e8).toFixed(8)
+        ? formatAmount({
+            value: initialFormData.escrow_quantity / 1e8,
+            maximumFractionDigits: 8,
+            minimumFractionDigits: 8
+          })
         : initialFormData.escrow_quantity.toString()
       : ""
   );
   
   const [mainchainRate, setMainchainRate] = useState<string>(
     initialFormData?.mainchainrate
-      ? (initialFormData.mainchainrate / 1e8).toFixed(8)
+      ? formatAmount({
+          value: initialFormData.mainchainrate / 1e8,
+          maximumFractionDigits: 8,
+          minimumFractionDigits: 8
+        })
       : ""
   );
   
   const [giveQuantity, setGiveQuantity] = useState<string>(
     initialFormData?.give_quantity
       ? (assetDetails?.assetInfo?.divisible ?? true)
-        ? (initialFormData.give_quantity / 1e8).toFixed(8)
+        ? formatAmount({
+            value: initialFormData.give_quantity / 1e8,
+            maximumFractionDigits: 8,
+            minimumFractionDigits: 8
+          })
         : initialFormData.give_quantity.toString()
       : (assetDetails?.assetInfo?.divisible ?? true) ? "1.00000000" : "1"
   );

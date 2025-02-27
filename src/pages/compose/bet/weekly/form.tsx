@@ -6,6 +6,7 @@ import { Field, Label, Input, Listbox, ListboxButton, ListboxOption, ListboxOpti
 import { Button } from "@/components/button";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { formatAmount } from "@/utils/format";
 import type { ReactElement } from "react";
 
 // Hardcoded feed address for weekly market bets
@@ -124,10 +125,22 @@ export function WeeklyBetForm({ formAction }: BetFormProps): ReactElement {
   };
 
   const wagerFloat = parseFloat(wagerAmount) || 0;
-  const counterwager = calculateCounterwager(wagerFloat, selectedChoice).toFixed(4); // Round to 4 decimals
+  const counterwager = formatAmount({
+    value: calculateCounterwager(wagerFloat, selectedChoice),
+    maximumFractionDigits: 4,
+    minimumFractionDigits: 4
+  }); // Round to 4 decimals
   const totalPot = wagerFloat + parseFloat(counterwager);
-  const feeAmount = (totalPot * FEE_FRACTION).toFixed(8);
-  const payout = (totalPot - parseFloat(feeAmount)).toFixed(8);
+  const feeAmount = formatAmount({
+    value: totalPot * FEE_FRACTION,
+    maximumFractionDigits: 8,
+    minimumFractionDigits: 8
+  });
+  const payout = formatAmount({
+    value: totalPot - parseFloat(feeAmount),
+    maximumFractionDigits: 8,
+    minimumFractionDigits: 8
+  });
 
   // Update betting window status every minute
   useEffect(() => {
@@ -278,7 +291,11 @@ export function WeeklyBetForm({ formAction }: BetFormProps): ReactElement {
                 <>
                   Counterwager: {counterwager} XCP (required from {selectedChoice.name === "Yes" ? "No" : "Yes"} bettor)
                   <br />
-                  Total pot: {totalPot.toFixed(8)} XCP | Feed fee: {feeAmount} XCP | Payout: {payout} XCP
+                  Total pot: {formatAmount({
+                    value: totalPot,
+                    maximumFractionDigits: 8,
+                    minimumFractionDigits: 8
+                  })} XCP | Feed fee: {feeAmount} XCP | Payout: {payout} XCP
                 </>
               ) : ""}
             </p>

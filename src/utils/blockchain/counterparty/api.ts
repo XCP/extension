@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { fetchBTCBalance } from '@/utils/blockchain/bitcoin';
+import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
+import { formatAmount } from '@/utils/format';
 
 export interface AssetInfo {
   asset: string;
@@ -405,7 +406,11 @@ export async function fetchAssetDetailsAndBalance(
     // Fetch BTC balance.
     const balanceSats = await fetchBTCBalance(address);
     const balanceBTC = balanceSats / 1e8;
-    availableBalance = balanceBTC.toFixed(8);
+    availableBalance = formatAmount({
+      value: balanceBTC,
+      maximumFractionDigits: 8,
+      minimumFractionDigits: 8
+    });
   } else {
     try {
       // Fetch asset details from Counterparty API.

@@ -8,6 +8,7 @@ import { BalanceHeader } from "@/components/headers/balance-header";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { formatAmount } from "@/utils/format";
 import type { BetOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 import { FiCheck } from "react-icons/fi";
@@ -223,7 +224,11 @@ export function BetForm({ formAction, initialFormData }: BetFormProps): ReactEle
               defaultValue={
                 initialFormData
                   ? isDivisible && initialFormData.wager_quantity
-                    ? (initialFormData.wager_quantity / 1e8).toFixed(8)
+                    ? formatAmount({
+                        value: initialFormData.wager_quantity / 1e8,
+                        maximumFractionDigits: 8,
+                        minimumFractionDigits: 8
+                      })
                     : initialFormData.wager_quantity.toString()
                   : ""
               }
@@ -247,7 +252,11 @@ export function BetForm({ formAction, initialFormData }: BetFormProps): ReactEle
               defaultValue={
                 initialFormData
                   ? isDivisible && initialFormData.counterwager_quantity
-                    ? (initialFormData.counterwager_quantity / 1e8).toFixed(8)
+                    ? formatAmount({
+                        value: initialFormData.counterwager_quantity / 1e8,
+                        maximumFractionDigits: 8,
+                        minimumFractionDigits: 8
+                      })
                     : initialFormData.counterwager_quantity.toString()
                   : ""
               }

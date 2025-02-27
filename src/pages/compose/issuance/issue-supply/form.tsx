@@ -7,6 +7,7 @@ import { Button } from "@/components/button";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
+import { formatAmount } from "@/utils/format";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -68,7 +69,11 @@ export function IssueSupplyForm({
             id="quantity"
             name="quantity"
             type="text"
-            defaultValue={initialFormData?.quantity ? (initialFormData.divisible ? (initialFormData.quantity / 1e8).toFixed(8) : initialFormData.quantity.toString()) : ""}
+            defaultValue={initialFormData?.quantity ? (initialFormData.divisible ? formatAmount({
+              value: initialFormData.quantity / 1e8,
+              maximumFractionDigits: 8,
+              minimumFractionDigits: 8
+            }) : initialFormData.quantity.toString()) : ""}
             className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
             required
             disabled={pending}

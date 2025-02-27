@@ -49,7 +49,11 @@ export function PriceWithSuggestInput({
       if (value) {
         const priceValue = parseFloat(value);
         if (!isNaN(priceValue) && priceValue !== 0) {
-          const invertedPrice = (1 / priceValue).toFixed(8);
+          const invertedPrice = formatAmount({
+            value: 1 / priceValue,
+            maximumFractionDigits: 8,
+            minimumFractionDigits: 8
+          });
           onChange(invertedPrice);
         }
       }
@@ -69,17 +73,16 @@ export function PriceWithSuggestInput({
     }
   };
 
-  const handleSuggestPrice = () => {
-    if (tradingPairData?.last_trade_price) {
-      let suggestedPrice = toBigNumber(tradingPairData.last_trade_price);
-
-      if (showPairFlip && isPairFlipped) {
-        if (!suggestedPrice.isZero()) {
-          suggestedPrice = toBigNumber(1).dividedBy(suggestedPrice);
-        }
-      }
-
-      onChange(suggestedPrice.toFixed(8));
+  const handleSuggestClick = () => {
+    if (!tradingPairData?.last_trade_price) return;
+    
+    const suggestedPrice = Number(tradingPairData.last_trade_price);
+    if (!isNaN(suggestedPrice)) {
+      onChange(formatAmount({
+        value: suggestedPrice,
+        maximumFractionDigits: 8,
+        minimumFractionDigits: 8
+      }));
     }
   };
 
@@ -118,7 +121,7 @@ export function PriceWithSuggestInput({
         {tradingPairData?.last_trade_price && (
           <Button
             variant="input"
-            onClick={handleSuggestPrice}
+            onClick={handleSuggestClick}
             aria-label="Use suggested price from last trade"
           >
             Min

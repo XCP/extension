@@ -11,6 +11,7 @@ import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchAssetDetailsAndBalance } from "@/utils/blockchain/counterparty";
+import { formatAmount } from "@/utils/format";
 import type { AttachOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -110,7 +111,11 @@ export function UtxoAttachForm({
             value={
               initialFormData?.quantity
                 ? isDivisible
-                  ? (initialFormData.quantity / 1e8).toFixed(8)
+                  ? formatAmount({
+                      value: initialFormData.quantity / 1e8,
+                      maximumFractionDigits: 8,
+                      minimumFractionDigits: 8
+                    })
                   : initialFormData.quantity.toString()
                 : ""
             }

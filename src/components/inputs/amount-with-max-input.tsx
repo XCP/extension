@@ -4,6 +4,7 @@ import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
 import { composeSend } from "@/utils/blockchain/counterparty";
+import { formatAmount } from "@/utils/format";
 import {
   toSatoshis,
   fromSatoshis,
@@ -68,7 +69,11 @@ export function AmountWithMaxInput({
     if (asset !== "BTC") {
       const maxNum = Number(maxAmount);
       if (!isNaN(maxNum)) {
-        const perDestination = (maxNum / destinationCount).toFixed(8);
+        const perDestination = formatAmount({
+          value: maxNum / destinationCount,
+          maximumFractionDigits: 8,
+          minimumFractionDigits: 8
+        });
         onChange(perDestination);
       }
       return;
@@ -138,15 +143,35 @@ export function AmountWithMaxInput({
     }
   };
 
-  const handleMaxClick = () => {
-    if (disableMaxButton && onMaxClick) {
-      console.log("Calling custom onMaxClick handler");
+  const handleMaxClick = async () => {
+    if (onMaxClick) {
       onMaxClick();
       return;
     }
-    
-    console.log("Calling default handleMaxButtonClick");
-    handleMaxButtonClick();
+
+    if (!sourceAddress?.address) {
+      setError("Source address is required to calculate max amount");
+      return;
+    }
+
+    try {
+      let maxNum = parseFloat(maxAmount || availableBalance);
+      
+      // If we have multiple destinations, divide the max amount
+      if (destinationCount && destinationCount > 1) {
+        const perDestination = formatAmount({
+          value: maxNum / destinationCount,
+          maximumFractionDigits: 8,
+          minimumFractionDigits: 8
+        });
+        onChange(perDestination);
+      } else {
+        onChange(maxAmount || availableBalance);
+      }
+    } catch (error) {
+      console.error("Error calculating max amount:", error);
+      setError("Error calculating max amount");
+    }
   };
 
   return (

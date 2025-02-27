@@ -6,6 +6,7 @@ import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { formatAmount } from "@/utils/format";
 import { FairmintOptions } from "@/utils/blockchain/counterparty";
 
 interface FairmintFormDataInternal {
@@ -25,12 +26,17 @@ export function FairmintForm({ onSubmit, initialFormData, initialAsset = "" }: F
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText ?? false;
   const { error: assetError, data: assetDetails } = useAssetDetails(initialFormData?.asset || initialAsset);
+  const [pending, setPending] = useState(false);
 
   const [formData, setFormData] = useState<FairmintFormDataInternal>(() => {
     const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
     return {
       asset: initialFormData?.asset || initialAsset,
-      quantity: initialFormData?.quantity ? (isDivisible ? (initialFormData.quantity / 1e8).toFixed(8) : initialFormData.quantity.toString()) : "",
+      quantity: initialFormData?.quantity ? (isDivisible ? formatAmount({
+        value: initialFormData.quantity / 1e8,
+        maximumFractionDigits: 8,
+        minimumFractionDigits: 8
+      }) : initialFormData.quantity.toString()) : "",
       sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
     };
   });
@@ -57,6 +63,7 @@ export function FairmintForm({ onSubmit, initialFormData, initialAsset = "" }: F
       return;
     }
     setLocalError(null);
+    setPending(true);
 
     const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
     const quantityNum = Number(formData.quantity);
@@ -67,7 +74,14 @@ export function FairmintForm({ onSubmit, initialFormData, initialAsset = "" }: F
       quantity: isDivisible ? Math.round(quantityNum * 1e8) : Math.round(quantityNum),
       sat_per_vbyte: formData.sat_per_vbyte,
     };
-    onSubmit(submissionData);
+    
+    try {
+      onSubmit(submissionData);
+    } catch (error) {
+      setLocalError(error instanceof Error ? error.message : "An error occurred");
+    } finally {
+      setPending(false);
+    }
   };
 
   return (

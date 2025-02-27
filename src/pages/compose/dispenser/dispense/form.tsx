@@ -322,8 +322,12 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
                       disabled={pending}
                     />
                     <div className="text-sm space-y-2">
-                      <div>
-                        <strong>Pay Per Dispense:</strong> {option.btcAmount.toFixed(8)} BTC
+                      <div className="text-sm text-gray-600 mt-1">
+                        <strong>Pay Per Dispense:</strong> {formatAmount({
+                          value: option.btcAmount,
+                          maximumFractionDigits: 8,
+                          minimumFractionDigits: 8
+                        })} BTC
                       </div>
                       <div>
                         <strong>Get Per Dispense:</strong>

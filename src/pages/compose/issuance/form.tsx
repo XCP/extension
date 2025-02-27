@@ -7,6 +7,7 @@ import { Button } from "@/components/button";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
+import { formatAmount } from "@/utils/format";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -71,7 +72,11 @@ export function IssuanceForm({
             defaultValue={
               initialFormData?.quantity
                 ? initialFormData.divisible
-                  ? (initialFormData.quantity / 1e8).toFixed(8)
+                  ? formatAmount({
+                      value: initialFormData.quantity / 1e8,
+                      maximumFractionDigits: 8,
+                      minimumFractionDigits: 8
+                    })
                   : initialFormData.quantity.toString()
                 : ""
             }

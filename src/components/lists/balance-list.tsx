@@ -112,7 +112,11 @@ export const BalanceList = (): ReactElement => {
         const balanceBTC = balanceSats / 1e8;
         const btcBalance: TokenBalance = {
           asset: "BTC",
-          quantity_normalized: balanceBTC.toFixed(8),
+          quantity_normalized: formatAmount({
+            value: balanceBTC,
+            maximumFractionDigits: 8,
+            minimumFractionDigits: 8
+          }),
           asset_info: { asset_longname: null, description: "Bitcoin", issuer: "", divisible: true, locked: true, supply: "21000000" },
         };
         if (!isCancelled) upsertBalance(btcBalance);
