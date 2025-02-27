@@ -1,79 +1,69 @@
-import React, { createContext, useEffect, useState, type ReactElement, type ReactNode } from "react";
-import { fetchFromCoinGecko, fetchFromBinance, fetchFromCoinbase } from "@/utils/blockchain/bitcoin";
+import React, { createContext, useState, useEffect, type ReactNode } from "react";
+import { getBtcPrice } from "@/utils/blockchain/bitcoin";
 
 /**
- * Shape of price data from APIs.
- */
-interface PriceData {
-  bitcoin: { usd: number };
-}
-
-/**
- * Context value for price data.
+ * Context value for BTC price data.
  */
 interface PriceContextValue {
   btcPrice: number | null;
+  error: string | null;
 }
 
 const PriceContext = createContext<PriceContextValue | undefined>(undefined);
 
-const priceFetchers: Array<() => Promise<PriceData>> = [
-  fetchFromCoinGecko,
-  fetchFromBinance,
-  fetchFromCoinbase,
-];
+// Cache for BTC price with 5-minute TTL
+let cachedPrice: { value: number; timestamp: number } | null = null;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 /**
- * Fetches BTC price from multiple sources with fallback.
- * @param {Array<() => Promise<PriceData>>} fetchers - List of price fetcher functions
- * @returns {Promise<number | null>} BTC price or null if all fail
+ * Provides BTC price context to the application, fetching every 5 minutes with caching.
+ * @param {Object} props - Component props.
+ * @param {ReactNode} props.children - Child components.
+ * @returns {React.ReactElement} Context provider component.
  */
-const getFirstSuccessfulPrice = async (
-  fetchers: Array<() => Promise<PriceData>>
-): Promise<number | null> => {
-  for (const fetcher of fetchers) {
-    try {
-      const data = await fetcher();
-      const price = data.bitcoin?.usd;
-      if (typeof price === "number") return price;
-    } catch {
-      continue;
-    }
-  }
-  return null;
-};
-
-/**
- * Provides BTC price context to the application using React 19's <Context>.
- * @param {Object} props - Component props
- * @param {ReactNode} props.children - Child components
- * @returns {ReactElement} Context provider
- */
-export const PriceProvider = ({ children }: { children: ReactNode }): ReactElement => {
+export const PriceProvider = ({ children }: { children: ReactNode }): React.ReactElement => {
   const [btcPrice, setBtcPrice] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const updatePrices = () => {
-    getFirstSuccessfulPrice(priceFetchers)
-      .then(setBtcPrice)
-      .catch(() => setBtcPrice(null));
+  const fetchPrice = async () => {
+    // Check cache first
+    if (cachedPrice && Date.now() - cachedPrice.timestamp < CACHE_TTL) {
+      setBtcPrice(cachedPrice.value);
+      setError(null);
+      return;
+    }
+
+    const price = await getBtcPrice();
+    if (price !== null) {
+      cachedPrice = { value: price, timestamp: Date.now() };
+      setBtcPrice(price);
+      setError(null);
+    } else {
+      setBtcPrice(null);
+      setError("Failed to fetch BTC price");
+    }
   };
 
   useEffect(() => {
-    updatePrices();
-    const intervalId = setInterval(updatePrices, 60_000);
+    fetchPrice();
+    const intervalId = setInterval(fetchPrice, CACHE_TTL); // Fetch every 5 minutes
     return () => clearInterval(intervalId);
   }, []);
 
-  return <PriceContext value={{ btcPrice }}>{children}</PriceContext>;
+  return (
+    <PriceContext value={{ btcPrice, error }}>
+      {children}
+    </PriceContext>
+  );
 };
 
 /**
- * Hook to access price context using React 19's `use`.
- * @returns {PriceContextValue} Price context value
- * @throws {Error} If used outside PriceProvider
+ * Hook to access BTC price context.
+ * @returns {PriceContextValue} Current BTC price and error state.
+ * @throws {Error} If used outside a PriceProvider.
  */
 export const usePrices = (): PriceContextValue => {
-  const context = React.use(PriceContext);
+  const context = React.useContext(PriceContext);
   if (!context) {
     throw new Error("usePrices must be used within a PriceProvider");
   }

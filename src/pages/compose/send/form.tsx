@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
@@ -15,18 +15,12 @@ import { toSatoshis } from "@/utils/numeric";
 import type { SendOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
-/**
- * Props for the SendForm component, aligned with Composer's formAction.
- */
 interface SendFormProps {
   formAction: (formData: FormData) => void;
   initialAsset?: string;
   initialFormData: SendOptions | null;
 }
 
-/**
- * Form for sending assets using React 19 Actions.
- */
 export function SendForm({
   formAction,
   initialAsset,
@@ -41,63 +35,65 @@ export function SendForm({
   const { pending } = useFormStatus();
   const [formError, setFormError] = useState<string | null>(null);
 
-  const isDivisible = initialFormData?.asset === "BTC" || assetDetails?.assetInfo?.divisible;
+  const isDivisible = useMemo(() => {
+    if (initialFormData?.asset === "BTC" || initialAsset === "BTC") return true;
+    return assetDetails?.assetInfo?.divisible || false;
+  }, [initialFormData?.asset, initialAsset, assetDetails?.assetInfo]);
 
-  // Local state for amount input
-  const [amount, setAmount] = useState<string>(
-    initialFormData?.quantity
-      ? isDivisible
-        ? formatAmount({
-            value: initialFormData.quantity / 1e8,
-            maximumFractionDigits: 8,
-            minimumFractionDigits: 8
-          })
-        : initialFormData.quantity.toString()
-      : ""
+  const normalizeAmountForDisplay = (quantity: number | undefined): string => {
+    if (!quantity && quantity !== 0) return ""; // Handle null/undefined, allow 0
+    if (isDivisible) {
+      return formatAmount({
+        value: quantity / 1e8,
+        maximumFractionDigits: 8,
+        minimumFractionDigits: 0,
+      });
+    }
+    return quantity.toString();
+  };
+
+  const [amount, setAmount] = useState<string>(() =>
+    normalizeAmountForDisplay(initialFormData?.quantity)
   );
 
-  // Local state for fee rate - still needed for AmountWithMaxInput
   const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 1);
 
-  // Focus destination input on mount
+  // Sync amount when initialFormData changes
+  useEffect(() => {
+    const normalized = normalizeAmountForDisplay(initialFormData?.quantity);
+    if (normalized !== amount) {
+      setAmount(normalized);
+    }
+  }, [initialFormData, isDivisible]); // Depend on full object
+
   useEffect(() => {
     const input = document.querySelector("input[name='destination']") as HTMLInputElement;
     input?.focus();
   }, []);
 
-  // Custom form action to include the dynamic amount
   const handleFormAction = (formData: FormData) => {
     if (amount) {
-      // Use toSatoshis for divisible assets, raw amount for non-divisible
       const quantity = isDivisible ? toSatoshis(amount) : amount;
       formData.set("quantity", quantity);
     }
     formAction(formData);
   };
 
-  // Handle amount change
   const handleAmountChange = (value: string) => {
     setAmount(value);
-    // Clear form error when amount changes
     if (formError) setFormError(null);
   };
 
-  // Check if amount is valid for enabling the submit button
   const isAmountValid = (): boolean => {
-    if (!amount || amount.trim() === '') return false;
-    
-    // For divisible assets, check if amount is a valid number > 0
+    if (!amount || amount.trim() === "") return false;
     if (isDivisible) {
       const numAmount = parseFloat(amount);
       return !isNaN(numAmount) && numAmount > 0;
     }
-    
-    // For non-divisible assets, check if it's a valid integer > 0
     const intAmount = parseInt(amount, 10);
     return !isNaN(intAmount) && intAmount > 0 && intAmount.toString() === amount.trim();
   };
 
-  // Determine if the submit button should be disabled
   const isSubmitDisabled = pending || !isAmountValid();
 
   return (
@@ -133,7 +129,7 @@ export function SendForm({
             </Description>
           </Field>
           <input type="hidden" name="asset" value={initialFormData?.asset || initialAsset || "BTC"} />
-          
+
           <AmountWithMaxInput
             asset={initialFormData?.asset || initialAsset || "BTC"}
             availableBalance={assetDetails?.availableBalance || "0"}
@@ -153,7 +149,7 @@ export function SendForm({
             }
             disabled={pending}
           />
-          
+
           {(initialFormData?.asset || initialAsset) !== "BTC" && (
             <Field>
               <Label className="text-sm font-medium text-gray-700">Memo</Label>
@@ -177,10 +173,10 @@ export function SendForm({
             onFeeRateChange={setSatPerVbyte}
           />
 
-          <Button 
-            type="submit" 
-            color="blue" 
-            fullWidth 
+          <Button
+            type="submit"
+            color="blue"
+            fullWidth
             disabled={isSubmitDisabled}
           >
             {pending ? "Submitting..." : "Continue"}

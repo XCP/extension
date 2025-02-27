@@ -8,7 +8,7 @@ import { Spinner } from "@/components/spinner";
 import { FaSearch, FaTimes } from "react-icons/fa";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 
-export const AssetList = (): JSX.Element => {
+export const AssetList = (): React.ReactElement => {
   const { activeAddress } = useWallet();
   const [ownedAssets, setOwnedAssets] = useState<OwnedAsset[]>([]);
   const [isLoading, setIsLoading] = useState(false);

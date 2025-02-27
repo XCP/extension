@@ -1,57 +1,76 @@
 /**
- * Interface for a price data object.
+ * Interface for Bitcoin price data.
  */
-interface PriceData {
+export interface PriceData {
   bitcoin: { usd: number };
 }
 
 /**
- * Fetches the Bitcoin price in USD from CoinGecko.
- *
- * @returns A Promise that resolves to a PriceData object.
- * @throws Error if the response is invalid.
- */
-export const fetchFromCoinGecko = async (): Promise<PriceData> => {
-  const response = await fetch(
-    'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd'
-  );
-  const data = await response.json();
-  if (!data.bitcoin || typeof data.bitcoin.usd !== 'number') {
-    throw new Error('Invalid data format from CoinGecko');
-  }
-  return data;
-};
-
-/**
- * Fetches the Bitcoin price from Binance.
- *
- * @returns A Promise that resolves to a PriceData object.
- * @throws Error if the response is invalid.
- */
-export const fetchFromBinance = async (): Promise<PriceData> => {
-  const response = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
-  const data = await response.json();
-  if (!data || !data.price) {
-    throw new Error('Invalid data from Binance');
-  }
-  return {
-    bitcoin: { usd: parseFloat(data.price) },
-  };
-};
-
-/**
- * Fetches the Bitcoin price from Coinbase.
- *
- * @returns A Promise that resolves to a PriceData object.
- * @throws Error if the response is invalid.
+ * Fetches Bitcoin price from Coinbase API.
+ * @returns {Promise<PriceData>} Price data in USD.
+ * @throws {Error} If the API response is invalid.
  */
 export const fetchFromCoinbase = async (): Promise<PriceData> => {
-  const response = await fetch('https://api.coinbase.com/v2/prices/spot?currency=USD');
+  const response = await fetch("https://api.coinbase.com/v2/prices/spot?currency=USD");
   const data = await response.json();
   if (!data || !data.data || !data.data.amount) {
-    throw new Error('Invalid data from Coinbase');
+    throw new Error("Invalid data from Coinbase");
   }
-  return {
-    bitcoin: { usd: parseFloat(data.data.amount) },
-  };
+  return { bitcoin: { usd: parseFloat(data.data.amount) } };
+};
+
+/**
+ * Fetches Bitcoin price from Kraken API.
+ * @returns {Promise<PriceData>} Price data in USD.
+ * @throws {Error} If the API response is invalid.
+ */
+export const fetchFromKraken = async (): Promise<PriceData> => {
+  const response = await fetch("https://api.kraken.com/0/public/Ticker?pair=XBTUSD");
+  const data = await response.json();
+  if (!data.result || !data.result.XXBTZUSD || !data.result.XXBTZUSD.c) {
+    throw new Error("Invalid data from Kraken");
+  }
+  return { bitcoin: { usd: parseFloat(data.result.XXBTZUSD.c[0]) } };
+};
+
+/**
+ * Fetches Bitcoin price from Mempool.space API.
+ * @returns {Promise<PriceData>} Price data in USD.
+ * @throws {Error} If the API response is invalid.
+ */
+export const fetchFromMempool = async (): Promise<PriceData> => {
+  const response = await fetch("https://mempool.space/api/v1/prices");
+  const data = await response.json();
+  if (!data || typeof data.USD !== "number") {
+    throw new Error("Invalid data from Mempool.space");
+  }
+  return { bitcoin: { usd: data.USD } };
+};
+
+// Ordered list of price fetcher functions
+const priceFetchers = [
+  fetchFromCoinbase,
+  fetchFromKraken,
+  fetchFromMempool,
+];
+
+/**
+ * Fetches Bitcoin price concurrently from multiple APIs, returning the first successful result.
+ * @param {Array<() => Promise<PriceData>>} fetchers - List of price fetcher functions.
+ * @returns {Promise<number | null>} Bitcoin price in USD or null if all fail.
+ */
+export const getBtcPrice = async (
+  fetchers: Array<() => Promise<PriceData>> = priceFetchers
+): Promise<number | null> => {
+  const promises = fetchers.map(async (fetcher) => {
+    const data = await fetcher();
+    const price = data.bitcoin?.usd;
+    if (typeof price !== "number") throw new Error(`${fetcher.name} returned invalid price`);
+    return price;
+  });
+
+  return Promise.any(promises).catch(() => {
+    console.error("All BTC price fetchers failed");
+    return null;
+  });
 };
