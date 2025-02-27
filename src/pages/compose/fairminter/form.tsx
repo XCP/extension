@@ -65,6 +65,7 @@ export function FairminterForm({
   const [error, setError] = useState<string | null>(null);
   const [startBlock, setStartBlock] = useState(initialFormData?.start_block?.toString() || "");
   const [endBlock, setEndBlock] = useState(initialFormData?.end_block?.toString() || "");
+  const [softCapDeadlineBlock, setSoftCapDeadlineBlock] = useState(initialFormData?.soft_cap_deadline_block?.toString() || "");
 
   const initialMintMethod = initialFormData?.burn_payment === false
     ? FAIRMINTER_MODELS.MINER_FEE_ONLY
@@ -108,6 +109,10 @@ export function FairminterForm({
     
     if (endBlock) {
       processedFormData.set('end_block', endBlock);
+    }
+    
+    if (softCapDeadlineBlock) {
+      processedFormData.set('soft_cap_deadline_block', softCapDeadlineBlock);
     }
     
     // Ensure boolean fields are properly set
@@ -380,26 +385,16 @@ export function FairminterForm({
                           Minimum amount required for the sale to succeed.
                         </Description>
                       </Field>
-                      <Field>
-                        <Label
-                          htmlFor="soft_cap_deadline_block"
-                          className="block text-sm font-medium text-gray-700"
-                        >
-                          Soft Cap Deadline Block
-                        </Label>
-                        <Input
-                          id="soft_cap_deadline_block"
-                          name="soft_cap_deadline_block"
-                          type="text"
-                          defaultValue={initialFormData?.soft_cap_deadline_block?.toString() || ""}
-                          className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
-                          placeholder="0"
-                          disabled={pending}
-                        />
-                        <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                          The block by which the soft cap must be reached.
-                        </Description>
-                      </Field>
+                      <BlockHeightInput
+                        name="soft_cap_deadline_block"
+                        label="Soft Cap Deadline Block"
+                        value={softCapDeadlineBlock}
+                        onChange={setSoftCapDeadlineBlock}
+                        setError={setError}
+                        shouldShowHelpText={shouldShowHelpText}
+                        description="The block by which the soft cap must be reached."
+                        disabled={pending}
+                      />
                     </>
                   )}
                 </DisclosurePanel>
