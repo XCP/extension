@@ -7,6 +7,7 @@ import { Button } from "@/components/button";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+import { ErrorAlert } from "@/components/error-alert";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
@@ -33,7 +34,21 @@ export function SendForm({
     initialFormData?.asset || initialAsset || "BTC"
   );
   const { pending } = useFormStatus();
-  const [formError, setFormError] = useState<string | null>(null);
+  
+  // Single error state to handle all errors
+  const [error, setError] = useState<{ message: string; } | null>(null);
+
+  // Set asset details error when it occurs
+  useEffect(() => {
+    if (assetDetailsError) {
+      setError({
+        message: `Failed to fetch details for asset ${initialFormData?.asset || initialAsset || "BTC"}. ${assetDetailsError.message || "Please try again later."}`
+      });
+    } else {
+      // Clear error if it was an asset details error
+      setError(null);
+    }
+  }, [assetDetailsError, initialFormData?.asset, initialAsset]);
 
   const isDivisible = useMemo(() => {
     if (initialFormData?.asset === "BTC" || initialAsset === "BTC") return true;
@@ -81,7 +96,8 @@ export function SendForm({
 
   const handleAmountChange = (value: string) => {
     setAmount(value);
-    if (formError) setFormError(null);
+    // Clear error when amount changes
+    setError(null);
   };
 
   const isAmountValid = (): boolean => {
@@ -108,8 +124,13 @@ export function SendForm({
           className="mt-1 mb-5"
         />
       )}
-      {assetDetailsError && <div className="text-red-500 mb-2">Failed to fetch asset details.</div>}
       <div className="bg-white rounded-lg shadow-lg p-4">
+        {error && (
+          <ErrorAlert
+            message={error.message}
+            onClose={() => setError(null)}
+          />
+        )}
         <form action={handleFormAction} className="space-y-6">
           <Field>
             <Label className="text-sm font-medium text-gray-700">
@@ -136,7 +157,7 @@ export function SendForm({
             value={amount}
             onChange={handleAmountChange}
             sat_per_vbyte={satPerVbyte}
-            setError={setFormError}
+            setError={(message) => message ? setError({ message }) : setError(null)}
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.availableBalance || "0"}
             shouldShowHelpText={shouldShowHelpText}

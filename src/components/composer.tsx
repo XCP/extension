@@ -11,7 +11,6 @@ import React, {
 } from "react";
 import { FiHelpCircle, FiX, FiRefreshCw } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { ErrorAlert } from "@/components/error-alert";
 import { SuccessScreen } from "@/components/screens/success-screen";
 import { useComposer } from "@/contexts/composer-context";
 import { useHeader } from "@/contexts/header-context";
@@ -37,6 +36,7 @@ interface ComposerProps<T> {
   FormComponent: (props: {
     formAction: (formData: FormData) => void;
     initialFormData: T | null;
+    error?: string | null;
   }) => ReactElement;
   ReviewComponent: (props: {
     apiResponse: ApiResponse;
@@ -58,12 +58,6 @@ interface ApiResponse extends CounterpartyApiResponse {
   };
 }
 
-/**
- * Manages a transaction composition workflow with form, review, and success steps using React 19 Actions.
- * @template T - Type of form data
- * @param {ComposerProps<T>} props - Component props
- * @returns {ReactElement} Composer UI with modal for wallet authorization
- */
 export function Composer<T>({
   initialTitle,
   FormComponent,
@@ -81,7 +75,7 @@ export function Composer<T>({
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [password, setPassword] = useState("");
   const [unlockError, setUnlockError] = useState<string | null>(null);
-  const [, startTransition] = useTransition(); // Add useTransition for manual control
+  const [, startTransition] = useTransition();
 
   // Form action state for composing the transaction
   const [composeError, formAction, isComposing] = useActionState(
@@ -89,14 +83,11 @@ export function Composer<T>({
       if (!activeAddress) return "No active address available";
       const loadingId = showLoading("Composing transaction...");
       try {
-        // Pass the loadingId and hideLoading function to compose
-        // The compose function will handle hiding the loading indicator when done
         compose(formData, composeTransaction, activeAddress.address, loadingId, hideLoading);
         return null; // Success
       } catch (err) {
         let errorMessage = "Failed to compose transaction";
         if (err instanceof Error) errorMessage = err.message;
-        // Always hide loading on error in the action handler
         hideLoading(loadingId);
         return errorMessage;
       }
@@ -135,9 +126,6 @@ export function Composer<T>({
     null
   );
 
-  /**
-   * Handles signing with transition to satisfy useActionState context.
-   */
   const handleSignAction = useCallback(() => {
     if (state.apiResponse) {
       startTransition(() => {
@@ -146,9 +134,6 @@ export function Composer<T>({
     }
   }, [state.apiResponse, signAction]);
 
-  /**
-   * Unlocks the wallet and retries signing the transaction.
-   */
   const handleUnlockAndSign = useCallback(async () => {
     if (!activeWallet || !password || !state.apiResponse || !activeAddress) return;
 
@@ -183,9 +168,6 @@ export function Composer<T>({
     hideLoading,
   ]);
 
-  /**
-   * Navigates back based on the current step.
-   */
   const handleBack = useCallback(() => {
     if (state.step === "review") {
       revertToForm();
@@ -195,17 +177,11 @@ export function Composer<T>({
     }
   }, [state.step, revertToForm, reset, navigate]);
 
-  /**
-   * Cancels the transaction and returns to index.
-   */
   const handleCancel = useCallback(() => {
     reset();
     navigate("/index");
   }, [reset, navigate]);
 
-  /**
-   * Toggles help text visibility in settings.
-   */
   const toggleHelp = useCallback(
     () => updateSettings({ showHelpText: !settings?.showHelpText }),
     [settings?.showHelpText, updateSettings]
@@ -213,29 +189,17 @@ export function Composer<T>({
 
   const effectiveToggleHelp = headerCallbacks?.onToggleHelp || toggleHelp;
 
-  /**
-   * Resets composer and navigates to index on success back.
-   */
   const onBackSuccess = useCallback(() => {
     reset();
     navigate("/index");
   }, [reset, navigate]);
 
-  /**
-   * Resets the composer state to initial form.
-   */
   const onResetForm = useCallback(() => {
     reset();
   }, [reset]);
 
-  /**
-   * Default back navigation behavior.
-   */
   const onBackDefault = useCallback(() => navigate(-1), [navigate]);
 
-  /**
-   * Memoized header configuration based on composer state.
-   */
   const headerConfig = useMemo(() => {
     if (isLoading || isPending || isComposing || isSigning) {
       return {
@@ -302,18 +266,19 @@ export function Composer<T>({
 
   return (
     <div>
-      {(composeError || signError) && (
-        <ErrorAlert message={composeError || signError || "An error occurred"} onClose={reset} />
-      )}
       {state.step === "form" && (
-        <FormComponent formAction={formAction} initialFormData={state.formData || null} />
+        <FormComponent
+          formAction={formAction}
+          initialFormData={state.formData || null}
+          error={state.error || composeError} // Use state.error if available, fallback to composeError
+        />
       )}
       {state.step === "review" && state.apiResponse && (
         <ReviewComponent
           apiResponse={state.apiResponse}
-          onSign={handleSignAction} // Use the transition-wrapped handler
+          onSign={handleSignAction}
           onBack={handleBack}
-          error={signError}
+          error={state.error || signError}
           isSigning={isSigning}
         />
       )}
@@ -321,7 +286,6 @@ export function Composer<T>({
         <SuccessScreen apiResponse={state.apiResponse} onReset={onResetForm} />
       )}
 
-      {/* Password Modal for Transaction Authorization */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">

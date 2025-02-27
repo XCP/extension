@@ -14,12 +14,13 @@ import React, {
 import type { ApiResponse } from "@/utils/blockchain/counterparty";
 
 /**
- * Composer state shape.
+ * Composer state shape with error handling.
  */
 interface ComposerState<T> {
   step: "form" | "review" | "success";
   formData: T | null;
   apiResponse: ApiResponse | null;
+  error: string | null; // Add error to state
 }
 
 /**
@@ -57,12 +58,6 @@ interface ExtendedApiResponse extends ApiResponse {
 
 const ComposerContext = createContext<ComposerContextType<any> | undefined>(undefined);
 
-/**
- * Hook to access composer context using React 19's `use` API.
- * @template T - Type of form data
- * @returns {ComposerContextType<T>} Composer context value
- * @throws {Error} If used outside ComposerProvider
- */
 export function useComposer<T>(): ComposerContextType<T> {
   const context = React.use(ComposerContext);
   if (!context) {
@@ -71,12 +66,6 @@ export function useComposer<T>(): ComposerContextType<T> {
   return context as ComposerContextType<T>;
 }
 
-/**
- * Provides composer context for transaction composition workflow using React 19 features.
- * @template T - Type of form data
- * @param {ComposerProviderProps<T>} props - Component props
- * @returns {ReactElement} Context provider
- */
 export function ComposerProvider<T>({
   children,
   initialFormData = null,
@@ -85,13 +74,13 @@ export function ComposerProvider<T>({
     step: "form",
     formData: initialFormData,
     apiResponse: null,
+    error: null, // Initialize error as null
   };
 
   const [state, setState] = useState(initialState);
   const [isPending, startTransition] = useTransition();
   const previousStepRef = useRef<"form" | "review" | "success" | null>(null);
 
-  // Track step changes
   useEffect(() => {
     previousStepRef.current = state.step;
   }, [state.step]);
@@ -112,23 +101,30 @@ export function ComposerProvider<T>({
           const rawData = Object.fromEntries(formData);
           const data = rawData as unknown as T;
           const response = await composeTransaction({ ...data, sourceAddress });
-          setState({ step: "review", formData: data, apiResponse: response });
+          setState({
+            step: "review",
+            formData: data,
+            apiResponse: response,
+            error: null, // Clear error on success
+          });
         } catch (err) {
           console.error("Compose error:", err);
           let errorMessage = "An error occurred while composing the transaction.";
           if (axios.isAxiosError(err) && err.response?.data?.error) {
-            errorMessage = err.response.data.error;
+            errorMessage = err.response.data.error.replace(/\[|\]|'/g, ""); // Clean up error message
           } else if (err instanceof Error) {
             errorMessage = err.message;
           }
           const rawData = Object.fromEntries(formData);
           const data = rawData as unknown as T;
-          setState((prev) => ({ ...prev, step: "form", formData: data }));
-          // Don't hide loading here as the error will be handled by the caller
+          setState({
+            step: "form",
+            formData: data,
+            apiResponse: null,
+            error: errorMessage, // Set error in state instead of throwing
+          });
           shouldHideLoading = false;
-          throw new Error(errorMessage); // Let consumers handle the error
         } finally {
-          // Hide loading if loadingId and hideLoadingFn are provided and we should hide loading
           if (loadingId && hideLoadingFn && shouldHideLoading) {
             hideLoadingFn(loadingId);
           }
@@ -150,16 +146,17 @@ export function ComposerProvider<T>({
             step: "success",
             formData: state.formData,
             apiResponse: apiResponse as ExtendedApiResponse,
+            error: null,
           });
         } catch (err) {
           console.error("Sign error:", err);
           let errorMessage = "An error occurred while signing the transaction.";
           if (axios.isAxiosError(err) && err.response?.data?.error) {
-            errorMessage = err.response.data.error;
+            errorMessage = err.response.data.error.replace(/\[|\]|'/g, "");
           } else if (err instanceof Error) {
             errorMessage = err.message;
           }
-          throw new Error(errorMessage); // Let consumers handle the error
+          setState((prev) => ({ ...prev, error: errorMessage }));
         }
       });
     },
@@ -168,21 +165,20 @@ export function ComposerProvider<T>({
 
   const reset = useCallback(() => {
     console.log("Resetting composer state");
-    setState({ step: "form", formData: null, apiResponse: null });
+    setState({ step: "form", formData: null, apiResponse: null, error: null });
   }, []);
 
   const revertToForm = useCallback(() => {
-    setState((prev) => ({ ...prev, step: "form", apiResponse: null }));
+    setState((prev) => ({ ...prev, step: "form", apiResponse: null, error: null }));
   }, []);
 
-  // Reset form data when arriving at form step from non-review steps
   useEffect(() => {
     if (
       state.step === "form" &&
       previousStepRef.current !== "review" &&
       previousStepRef.current !== null
     ) {
-      setState((prev) => ({ ...prev, formData: null }));
+      setState((prev) => ({ ...prev, formData: null, error: null }));
     }
   }, [state.step]);
 
