@@ -10,6 +10,8 @@ import { useSettings } from "@/contexts/settings-context";
 import { formatAmount } from "@/utils/format";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { AssetHeader } from "@/components/headers/asset-header";
+import { AddressHeader } from "@/components/headers/address-header";
+import { useWallet } from "@/contexts/wallet-context";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -31,6 +33,7 @@ export function IssuanceForm({
   initialParentAsset,
 }: IssuanceFormProps): ReactElement {
   const { settings } = useSettings();
+  const { activeAddress } = useWallet();
   const shouldShowHelpText = settings?.showHelpText ?? false;
   const { pending } = useFormStatus();
   const { data: parentAssetDetails } = useAssetDetails(initialParentAsset || "");
@@ -41,9 +44,12 @@ export function IssuanceForm({
     input?.focus();
   }, []);
 
+  const showAsset = initialParentAsset && parentAssetDetails?.assetInfo;
+  const showAddress = !showAsset && activeAddress;
+
   return (
     <div className="space-y-4">
-      {initialParentAsset && parentAssetDetails?.assetInfo && (
+      {showAsset && parentAssetDetails?.assetInfo && (
         <AssetHeader
           assetInfo={{
             asset: initialParentAsset,
@@ -54,6 +60,14 @@ export function IssuanceForm({
             locked: parentAssetDetails.assetInfo.locked ?? false,
             supply: parentAssetDetails.assetInfo.supply
           }}
+          className="mt-1 mb-5"
+        />
+      )}
+      
+      {showAddress && (
+        <AddressHeader
+          address={activeAddress.address}
+          walletName={activeAddress.label || activeAddress.walletName}
           className="mt-1 mb-5"
         />
       )}

@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect, Suspense } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
-import { BalanceHeader } from "@/components/headers/balance-header";
 import { AddressHeader } from "@/components/headers/address-header";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { AssetSelectInput } from "@/components/inputs/asset-select-input";
+import { FairminterSelectInput } from "@/components/inputs/fairminter-select-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
@@ -38,7 +37,24 @@ export function FairmintForm({ onSubmit, initialFormData, initialAsset = "" }: F
       sat_per_vbyte: initialFormData?.sat_per_vbyte || 1,
     };
   });
-  const { error: assetError, data: assetDetails } = useAssetDetails(formData.asset);
+  
+  // Only fetch asset details when an asset is selected
+  const { error: assetError, data: assetDetails } = useAssetDetails(
+    formData.asset || "", // Pass empty string if no asset selected
+    {
+      // These callbacks run in the useAssetDetails hook
+      onLoadStart: () => {
+        if (!formData.asset || !activeAddress?.address) {
+          return false; // Return false to skip fetching
+        }
+        return true; // Proceed with fetching
+      },
+      onLoadEnd: () => {
+        // Handle any post-load logic if needed
+      }
+    }
+  );
+  
   const [pending, setPending] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -52,7 +68,7 @@ export function FairmintForm({ onSubmit, initialFormData, initialAsset = "" }: F
     e.preventDefault();
     
     if (!formData.asset) {
-      setLocalError("Please enter an asset name.");
+      setLocalError("Please select a fairminter asset.");
       return;
     }
     if (formData.asset === "BTC" || formData.asset === "XCP") {
@@ -100,38 +116,21 @@ export function FairmintForm({ onSubmit, initialFormData, initialAsset = "" }: F
         />
       )}
 
-      <Suspense fallback={null}>
-        {assetError ? (
-          <div className="text-red-500 mb-4">{assetError.message}</div>
-        ) : assetDetails && formData.asset ? (
-          <BalanceHeader
-            balance={{
-              asset: formData.asset,
-              asset_info: assetDetails?.assetInfo || { 
-                asset_longname: null,
-                divisible: false,
-                locked: false,
-                description: '',
-                issuer: '',
-                supply: '0'
-              },
-              quantity_normalized: (assetDetails?.availableBalance || 0).toString()
-            }}
-            className="mt-1 mb-5"
-          />
-        ) : null}
-      </Suspense>
+      {/* Display error message if any */}
+      {formData.asset && assetError && (
+        <div className="text-red-500 mb-4">{assetError.message}</div>
+      )}
 
       {localError && <div className="text-red-500 mb-2">{localError}</div>}
       <div className="bg-white rounded-lg shadow-lg p-4">
         <form onSubmit={handleSubmit} className="space-y-6">
-          <AssetSelectInput
+          <FairminterSelectInput
             selectedAsset={formData.asset}
             onChange={(asset) => setFormData({ ...formData, asset })}
-            label="Asset"
+            label="Fairminter Asset"
             required
             shouldShowHelpText={shouldShowHelpText}
-            description="Select the asset for the fairmint operation. BTC and XCP cannot be fairminted."
+            description="Select an available fairminter asset with 'open' status"
           />
 
           <Field>

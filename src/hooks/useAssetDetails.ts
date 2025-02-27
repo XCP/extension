@@ -60,10 +60,15 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
      * Fetches asset data from the blockchain and updates the cache and state.
      */
     async function fetchData() {
-      if (!asset || !activeAddress?.address) {
+      // Early return if asset is empty or active address is not available
+      if (!asset || asset.trim() === '') {
+        return;
+      }
+      
+      if (!activeAddress?.address) {
         setState(prev => ({
           ...prev,
-          error: new Error("Asset or address not available"),
+          error: new Error("Address not available"),
           isLoading: false,
         }));
         return;
@@ -131,6 +136,16 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
           options?.onLoadEnd?.();
         }
       }
+    }
+
+    // Skip fetching if asset is empty
+    if (!asset || asset.trim() === '') {
+      setState({
+        isLoading: false,
+        error: null,
+        data: null,
+      });
+      return;
     }
 
     // Fetch data if no cached balance or if cached balance is incomplete
