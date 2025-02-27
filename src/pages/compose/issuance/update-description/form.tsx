@@ -52,17 +52,16 @@ export function UpdateDescriptionForm({
   return (
     <div className="space-y-4">
       <AssetHeader
-        assetInfo={
-          assetDetails?.assetInfo || {
-            asset_longname: null,
-            divisible: false,
-            locked: false,
-            description: "",
-            issuer: "",
-            supply: "0",
-          }
-        }
-        className="mb-5"
+        assetInfo={{
+          asset: asset,
+          asset_longname: assetDetails?.assetInfo?.asset_longname || null,
+          description: assetDetails?.assetInfo?.description,
+          issuer: assetDetails?.assetInfo?.issuer,
+          divisible: assetDetails?.assetInfo?.divisible ?? false,
+          locked: assetDetails?.assetInfo?.locked ?? false,
+          supply: assetDetails?.assetInfo?.supply
+        }}
+        className="mt-1 mb-5"
       />
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
         <form action={formAction} className="space-y-4">

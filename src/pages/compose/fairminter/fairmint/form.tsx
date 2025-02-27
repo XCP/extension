@@ -103,7 +103,7 @@ export function FairmintForm({ onSubmit, initialFormData, initialAsset = "" }: F
               },
               quantity_normalized: (assetDetails?.availableBalance || 0).toString()
             }}
-            className="mb-4"
+            className="mt-1 mb-5"
           />
         ) : null}
       </Suspense>

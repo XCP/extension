@@ -89,14 +89,16 @@ export function Composer<T>({
       if (!activeAddress) return "No active address available";
       const loadingId = showLoading("Composing transaction...");
       try {
-        compose(formData, composeTransaction, activeAddress.address);
+        // Pass the loadingId and hideLoading function to compose
+        // The compose function will handle hiding the loading indicator when done
+        compose(formData, composeTransaction, activeAddress.address, loadingId, hideLoading);
         return null; // Success
       } catch (err) {
         let errorMessage = "Failed to compose transaction";
         if (err instanceof Error) errorMessage = err.message;
-        return errorMessage;
-      } finally {
+        // Always hide loading on error in the action handler
         hideLoading(loadingId);
+        return errorMessage;
       }
     },
     null

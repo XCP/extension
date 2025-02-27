@@ -37,7 +37,7 @@ export function BTCPayForm({ formAction, initialFormData }: BTCPayFormProps): Re
   return (
     <div className="space-y-4">
       {activeAddress && (
-        <AddressHeader address={activeAddress.address} walletName={activeWallet?.name} className="mb-4" />
+        <AddressHeader address={activeAddress.address} walletName={activeWallet?.name} className="mt-1 mb-5" />
       )}
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
         <form action={formAction} className="space-y-4">

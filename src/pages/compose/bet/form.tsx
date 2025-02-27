@@ -130,7 +130,7 @@ export function BetForm({ formAction, initialFormData }: BetFormProps): ReactEle
             quantity_normalized: assetDetails.availableBalance,
             asset_info: assetDetails.assetInfo || undefined,
           }}
-          className="mb-5"
+          className="mt-1 mb-5"
         />
       ) : null}
       <div className="bg-white rounded-lg shadow-lg p-4">

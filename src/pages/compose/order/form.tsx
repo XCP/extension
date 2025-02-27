@@ -115,7 +115,7 @@ export function OrderForm({
             quantity_normalized: giveAssetDetails.availableBalance,
             asset_info: giveAssetDetails.assetInfo || undefined,
           }}
-          className="mb-2"
+          className="mt-1 mb-3"
         />
       )}
       <div className="flex justify-between items-center mb-2">

@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
-import { AddressHeader } from "@/components/headers/address-header";
+import { BalanceHeader } from "@/components/headers/balance-header";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useWallet } from "@/contexts/wallet-context";
 import { useSettings } from "@/contexts/settings-context";
+import { useAssetDetails } from "@/hooks/useAssetDetails";
 import type { MoveOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -18,6 +19,7 @@ interface UtxoMoveFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: MoveOptions | null;
   initialUtxo?: string;
+  initialAsset?: string;
 }
 
 /**
@@ -27,11 +29,13 @@ export function UtxoMoveForm({
   formAction,
   initialFormData,
   initialUtxo,
+  initialAsset = "BTC",
 }: UtxoMoveFormProps): ReactElement {
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText ?? false;
   const { pending } = useFormStatus();
+  const { data: assetDetails } = useAssetDetails(initialAsset);
 
   // Focus destination input on mount
   useEffect(() => {
@@ -41,8 +45,22 @@ export function UtxoMoveForm({
 
   return (
     <div className="space-y-4">
-      {activeAddress && (
-        <AddressHeader address={activeAddress.address} walletName={activeWallet?.name} className="mb-5" />
+      {initialAsset && assetDetails && (
+        <BalanceHeader
+          balance={{
+            asset: initialAsset,
+            asset_info: {
+              asset_longname: assetDetails.assetInfo?.asset_longname || null,
+              description: assetDetails.assetInfo?.description,
+              issuer: assetDetails.assetInfo?.issuer,
+              divisible: assetDetails.assetInfo?.divisible ?? false,
+              locked: assetDetails.assetInfo?.locked ?? false,
+              supply: assetDetails.assetInfo?.supply
+            },
+            quantity_normalized: assetDetails.availableBalance
+          }}
+          className="mt-1 mb-5"
+        />
       )}
       <div className="bg-white rounded-lg shadow-lg p-4">
         <form action={formAction} className="space-y-6">

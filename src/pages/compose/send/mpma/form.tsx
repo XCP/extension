@@ -72,7 +72,7 @@ export function SendMpmaForm({
               .join(", "),
             asset_info: Object.values(balances).map((b) => b.assetInfo)[0], // Use first asset info
           }}
-          className="mb-4"
+          className="mt-1 mb-5"
         />
       )}
       <div className="bg-white rounded-lg shadow-lg p-4">

@@ -61,7 +61,7 @@ export function TransferOwnershipForm({
           issuer: assetDetails?.assetInfo?.issuer ?? "",
           supply: assetDetails?.assetInfo?.supply ?? "0"
         }}
-        className="mb-5"
+        className="mt-1 mb-5"
       />
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
         <form action={formAction} className="space-y-4">

@@ -43,7 +43,7 @@ export function BroadcastForm({ formAction, initialFormData }: BroadcastFormProp
         <AddressHeader
           address={activeAddress.address}
           walletName={activeWallet?.name ?? ""}
-          className="mb-4"
+          className="mt-1 mb-5"
         />
       )}
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">

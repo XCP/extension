@@ -30,7 +30,9 @@ interface ComposerContextType<T> {
   compose: (
     formData: FormData,
     composeTransaction: (data: any) => Promise<ApiResponse>,
-    sourceAddress?: string
+    sourceAddress?: string,
+    loadingId?: string,
+    hideLoadingFn?: (id: string) => void
   ) => void;
   sign: (apiResponse: ApiResponse, signFn: () => Promise<void>) => void;
   reset: () => void;
@@ -98,9 +100,12 @@ export function ComposerProvider<T>({
     (
       formData: FormData,
       composeTransaction: (data: any) => Promise<ApiResponse>,
-      sourceAddress?: string
+      sourceAddress?: string,
+      loadingId?: string,
+      hideLoadingFn?: (id: string) => void
     ) => {
       startTransition(async () => {
+        let shouldHideLoading = true;
         try {
           if (!formData) throw new Error("No form data provided.");
           if (!composeTransaction) throw new Error("Compose transaction function not provided.");
@@ -119,7 +124,14 @@ export function ComposerProvider<T>({
           const rawData = Object.fromEntries(formData);
           const data = rawData as unknown as T;
           setState((prev) => ({ ...prev, step: "form", formData: data }));
+          // Don't hide loading here as the error will be handled by the caller
+          shouldHideLoading = false;
           throw new Error(errorMessage); // Let consumers handle the error
+        } finally {
+          // Hide loading if loadingId and hideLoadingFn are provided and we should hide loading
+          if (loadingId && hideLoadingFn && shouldHideLoading) {
+            hideLoadingFn(loadingId);
+          }
         }
       });
     },

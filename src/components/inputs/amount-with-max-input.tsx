@@ -158,6 +158,7 @@ export function AmountWithMaxInput({
   const handleMaxClick = async () => {
     if (onMaxClick) {
       onMaxClick();
+      return;
     }
 
     if (!sourceAddress?.address) {

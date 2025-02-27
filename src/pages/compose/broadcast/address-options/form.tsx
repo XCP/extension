@@ -58,7 +58,7 @@ export function AddressOptionsForm({ formAction, initialFormData }: AddressOptio
         <AddressHeader
           address={activeAddress.address}
           walletName={activeWallet?.name ?? ""}
-          className="mb-6"
+          className="mt-1 mb-5"
         />
       )}
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">

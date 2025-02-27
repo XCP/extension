@@ -134,13 +134,13 @@ export default function ViewBalance(): ReactElement {
     asset: asset || "",
     asset_info: {
       asset_longname: assetDetails.assetInfo?.asset_longname || null,
-      description: assetDetails.assetInfo?.description,
-      issuer: assetDetails.assetInfo?.issuer,
+      description: assetDetails.assetInfo?.description || "",
+      issuer: assetDetails.assetInfo?.issuer || "",
       divisible: assetDetails.isDivisible,
-      locked: assetDetails.assetInfo?.locked,
-      supply: assetDetails.assetInfo?.supply,
+      locked: assetDetails.assetInfo?.locked ?? false,
+      supply: assetDetails.assetInfo?.supply || "0"
     },
-    quantity_normalized: assetDetails.availableBalance,
+    quantity_normalized: assetDetails.availableBalance || "0",
   };
 
   return (

@@ -271,7 +271,7 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
   return (
     <div className="space-y-4">
       {activeAddress && (
-        <AddressHeader address={activeAddress.address} walletName={activeWallet?.name} className="mb-4" />
+        <AddressHeader address={activeAddress.address} walletName={activeWallet?.name} className="mt-1 mb-5" />
       )}
       {dispenserError && <div className="text-red-500 mb-2">{dispenserError}</div>}
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
@@ -322,7 +322,7 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
                       disabled={pending}
                     />
                     <div className="text-sm space-y-2">
-                      <div className="text-sm text-gray-600 mt-1">
+                      <div className="text-sm text-gray-600">
                         <strong>Pay Per Dispense:</strong> {formatAmount({
                           value: option.btcAmount,
                           maximumFractionDigits: 8,
@@ -382,7 +382,7 @@ export function DispenseForm({ formAction, initialFormData }: DispenseFormProps)
                 description="Number of times to trigger the dispenser"
                 disabled={pending}
                 onMaxClick={handleMaxDispenses}
-                disableMaxButton={true}
+                disableMaxButton={false}
               />
 
               {/* Hidden input to convert numberOfDispenses to quantity for the API */}

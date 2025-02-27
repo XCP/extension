@@ -81,6 +81,12 @@ const CONSTANTS = {
           description: "Close an existing dispenser",
           path: "/compose/dispenser/close",
         },
+        {
+          id: "close-dispenser-by-hash",
+          name: "Close Dispenser by Hash",
+          description: "Close a dispenser using its transaction hash",
+          path: "/compose/dispenser/close-by-hash",
+        },
       ],
     },
     {

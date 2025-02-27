@@ -9,6 +9,7 @@ import { Button } from "@/components/button";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
 import { toBigNumber, toSatoshis } from "@/utils/numeric";
+import { AssetHeader } from "@/components/headers/asset-header";
 import type { ReactElement } from "react";
 
 export interface DividendFormData {
@@ -89,17 +90,26 @@ export function DividendForm({
     setSelectedDividendAsset(asset);
   };
 
+  if (assetError || !assetInfo?.assetInfo) {
+    return (
+      <div className="p-4 text-red-500">
+        Unable to load asset details. Please ensure the asset exists and you have the necessary
+        permissions.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {asset && (
-        <div className="mb-6 p-4 bg-white rounded-lg shadow">
-          <h2 className="text-xl font-semibold">{asset}</h2>
-          {assetInfo?.assetInfo?.description && (
-            <p className="text-gray-600 mt-1">{assetInfo.assetInfo.description}</p>
-          )}
-        </div>
-      )}
-      {assetError && <div className="text-red-500">Failed to fetch asset details.</div>}
+      <AssetHeader
+        assetInfo={{
+          ...assetInfo.assetInfo,
+          asset: asset,
+          divisible: assetInfo.assetInfo.divisible ?? false,
+          locked: assetInfo.assetInfo.locked ?? false
+        }}
+        className="mt-1 mb-5"
+      />
       
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
         <form action={processedFormAction} className="space-y-4">

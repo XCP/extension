@@ -3,9 +3,9 @@ import { ReviewScreen } from "@/components/screens/review-screen";
 import type { ApiResponse } from "@/utils/blockchain/counterparty";
 
 /**
- * Props for the ReviewDispenserClose component.
+ * Props for the ReviewDispenserCloseByHash component.
  */
-interface ReviewDispenserCloseProps {
+interface ReviewDispenserCloseByHashProps {
   apiResponse: ApiResponse;
   onSign: () => void;
   onBack: () => void;
@@ -14,15 +14,15 @@ interface ReviewDispenserCloseProps {
 }
 
 /**
- * Review screen for dispenser close transactions.
+ * Review screen for dispenser close by hash transactions.
  */
-export function ReviewDispenserClose({ 
+export function ReviewDispenserCloseByHash({ 
   apiResponse, 
   onSign, 
   onBack,
   error,
   isSigning
-}: ReviewDispenserCloseProps): ReactElement {
+}: ReviewDispenserCloseByHashProps): ReactElement {
   const { result } = apiResponse;
 
   // Use type assertion for the specific dispenser close params

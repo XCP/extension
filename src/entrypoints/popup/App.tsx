@@ -38,6 +38,7 @@ import ComposeCancel from '@/pages/compose/order/cancel/page';
 import ComposeDestroy from '@/pages/compose/issuance/destroy-supply/page';
 import ComposeDispenser from '@/pages/compose/dispenser/page';
 import ComposeDispenserClose from '@/pages/compose/dispenser/close/page';
+import ComposeDispenserCloseByHash from '@/pages/compose/dispenser/close-by-hash/page';
 import ComposeDispenserDispense from '@/pages/compose/dispenser/dispense/page';
 import ComposeDividend from '@/pages/compose/dividend/page';
 import ComposeIssuance from '@/pages/compose/issuance/page';
@@ -159,6 +160,7 @@ export default function App() {
             <Route path="/compose/sweep/:address?" element={<ComposeSweep />} />
             <Route path="/compose/destroy/:asset" element={<ComposeDestroy />} />
             <Route path="/compose/dispenser/close/:asset?" element={<ComposeDispenserClose />} />
+            <Route path="/compose/dispenser/close-by-hash/:tx_hash?" element={<ComposeDispenserCloseByHash />} />
             <Route path="/compose/dispenser/:asset" element={<ComposeDispenser />} />
             <Route path="/compose/dispenser/dispense/:address?" element={<ComposeDispenserDispense />} />
             <Route path="/compose/dividend/:asset" element={<ComposeDividend />} />

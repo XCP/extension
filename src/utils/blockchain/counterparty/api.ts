@@ -685,6 +685,42 @@ export async function fetchAddressDispensers(
   }
 }
 
+/**
+ * Fetches detailed information about a specific dispenser.
+ *
+ * @param txHash - The transaction hash of the dispenser.
+ * @param options - Optional parameters.
+ * @returns A promise that resolves to the dispenser details or null if not found.
+ */
+export async function fetchDispenserByHash(
+  txHash: string,
+  options: {
+    verbose?: boolean;
+  } = {}
+): Promise<Dispenser | null> {
+  try {
+    const verbose = options.verbose ?? true;
+
+    const response = await axios.get(
+      `https://api.counterparty.io:4000/v2/dispensers/${txHash}`,
+      {
+        params: {
+          verbose: verbose,
+        },
+      }
+    );
+
+    if (!response.data.result) {
+      return null;
+    }
+
+    return response.data.result;
+  } catch (error) {
+    console.error('Error fetching dispenser details:', error);
+    return null;
+  }
+}
+
 export interface OwnedAsset {
   asset: string;
   asset_longname: string | null;

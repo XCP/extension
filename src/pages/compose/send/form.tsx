@@ -109,7 +109,7 @@ export function SendForm({
             quantity_normalized: assetDetails.availableBalance,
             asset_info: assetDetails.assetInfo || undefined,
           }}
-          className="mb-5"
+          className="mt-1 mb-5"
         />
       )}
       {assetDetailsError && <div className="text-red-500 mb-2">Failed to fetch asset details.</div>}

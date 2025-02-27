@@ -10,7 +10,7 @@ import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchAssetDetailsAndBalance } from "@/utils/blockchain/counterparty";
+import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
 import type { AttachOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
@@ -36,9 +36,8 @@ export function UtxoAttachForm({
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText ?? false;
   const { pending } = useFormStatus();
-
-  const [availableBalance, setAvailableBalance] = useState<string>("0");
-  const [assetInfo, setAssetInfo] = useState<any>(null);
+  const asset = initialFormData?.asset || initialAsset || "";
+  const { data: assetDetails } = useAssetDetails(asset);
 
   // Focus utxo input on mount
   useEffect(() => {
@@ -46,36 +45,25 @@ export function UtxoAttachForm({
     input?.focus();
   }, []);
 
-  // Fetch asset balance
-  useEffect(() => {
-    const fetchBalance = async () => {
-      if (!activeAddress?.address || !initialFormData?.asset) return;
-      try {
-        const { availableBalance, assetInfo } = await fetchAssetDetailsAndBalance(
-          initialFormData.asset,
-          activeAddress.address
-        );
-        setAvailableBalance(availableBalance);
-        setAssetInfo(assetInfo);
-      } catch (err) {
-        console.error("Failed to fetch balance:", err);
-      }
-    };
-    fetchBalance();
-  }, [activeAddress?.address, initialFormData?.asset]);
-
-  const isDivisible = assetInfo?.divisible ?? true;
+  const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
 
   return (
     <div className="space-y-4">
-      {activeAddress && assetInfo && (
+      {asset && assetDetails && (
         <BalanceHeader
           balance={{
-            asset: initialFormData?.asset || initialAsset,
-            quantity_normalized: availableBalance,
-            asset_info: assetInfo,
+            asset: asset,
+            asset_info: {
+              asset_longname: assetDetails.assetInfo?.asset_longname || null,
+              description: assetDetails.assetInfo?.description,
+              issuer: assetDetails.assetInfo?.issuer,
+              divisible: assetDetails.assetInfo?.divisible ?? false,
+              locked: assetDetails.assetInfo?.locked ?? false,
+              supply: assetDetails.assetInfo?.supply
+            },
+            quantity_normalized: assetDetails.availableBalance
           }}
-          className="mb-5"
+          className="mt-1 mb-5"
         />
       )}
       <div className="bg-white rounded-lg shadow-lg p-4">
@@ -107,7 +95,7 @@ export function UtxoAttachForm({
           />
           <AmountWithMaxInput
             asset={initialFormData?.asset || initialAsset || "XCP"}
-            availableBalance={availableBalance}
+            availableBalance={assetDetails?.availableBalance || "0"}
             value={
               initialFormData?.quantity
                 ? isDivisible
@@ -123,7 +111,7 @@ export function UtxoAttachForm({
             sat_per_vbyte={initialFormData?.sat_per_vbyte || 1}
             setError={() => {}} // No-op since Composer handles errors
             sourceAddress={activeAddress}
-            maxAmount={availableBalance}
+            maxAmount={assetDetails?.availableBalance || "0"}
             shouldShowHelpText={shouldShowHelpText}
             label="Quantity"
             name="quantity"

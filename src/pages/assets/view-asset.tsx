@@ -8,6 +8,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAsset } from "@/utils/format";
+import { AssetHeader } from "@/components/headers/asset-header";
 import type { ReactElement } from "react";
 
 /**
@@ -69,7 +70,7 @@ export default function ViewAsset(): ReactElement {
     const actions: Action[] = [];
     const isOwner = assetDetails.assetInfo.issuer === activeAddress?.address;
     const isLocked = assetDetails.assetInfo.locked;
-    const totalSupply = assetDetails.assetInfo.supply_normalized || "0";
+    const totalSupply = assetDetails.assetInfo.supply || "0";
     const hasSupply = Number(totalSupply) > 0;
     const issuerBalance = assetDetails.availableBalance || "0";
     const canResetSupply = !isLocked && isOwner && (!hasSupply || issuerBalance === totalSupply);
@@ -144,12 +145,17 @@ export default function ViewAsset(): ReactElement {
   return (
     <div className="p-4 space-y-6" role="main" aria-labelledby="asset-title">
       <div className="bg-white rounded-lg p-4 shadow-sm">
-        <h2 id="asset-title" className="text-lg font-semibold text-gray-900">
-          {formatAsset(asset || "", { assetInfo: assetDetails.assetInfo })}
-        </h2>
-        <p className="text-sm text-gray-500 mt-1">
-          {assetDetails.assetInfo?.description || "No description"}
-        </p>
+        <AssetHeader
+          assetInfo={{
+            asset: asset || "",
+            asset_longname: assetDetails.assetInfo?.asset_longname || null,
+            description: assetDetails.assetInfo?.description,
+            issuer: assetDetails.assetInfo?.issuer,
+            divisible: assetDetails.assetInfo?.divisible ?? false,
+            locked: assetDetails.assetInfo?.locked ?? false,
+            supply: assetDetails.assetInfo?.supply
+          }}
+        />
       </div>
       <div className="space-y-2">
         {getActions().map((action) => (
@@ -177,7 +183,7 @@ export default function ViewAsset(): ReactElement {
           <div className="flex justify-between">
             <span className="text-sm text-gray-500">Supply</span>
             <span className="text-sm text-gray-900">
-              {assetDetails.assetInfo?.supply_normalized || "0"}
+              {assetDetails.assetInfo?.supply || "0"}
             </span>
           </div>
           <div className="flex justify-between">

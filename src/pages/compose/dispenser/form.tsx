@@ -183,7 +183,7 @@ export const DispenserForm = memo(function DispenserForm({
               supply: "0",
             },
           }}
-          className="mb-5"
+          className="mt-1 mb-5"
         />
       )}
       {assetError && <div className="text-red-500 mb-2">{assetError.message}</div>}
