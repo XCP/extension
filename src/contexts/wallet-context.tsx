@@ -6,6 +6,7 @@ import React, {
   type ReactElement,
   type ReactNode,
 } from "react";
+import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import { getWalletService } from "@/services/walletService";
 import { AddressType } from "@/utils/blockchain/bitcoin";
 import type { Wallet, Address } from "@/utils/wallet";
@@ -69,6 +70,7 @@ interface WalletContextType {
   removeWallet: (walletId: string) => Promise<void>;
   signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
+  isWalletLocked: () => Promise<boolean>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -180,6 +182,22 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
 
   useEffect(() => {
     refreshWalletState();
+
+    // Listen for wallet lock events from background
+    const handleLockMessage = ({ data }: { data: { locked: boolean } }) => {
+      if (data.locked) {
+        setWalletState((prev) => ({
+          ...prev,
+          authState: AuthState.Locked,
+          walletLocked: true,
+        }));
+      }
+    };
+    onMessage('walletLocked', handleLockMessage);
+
+    return () => {
+      // Cleanup not strictly needed with webext-bridge as it handles message cleanup internally
+    };
   }, [refreshWalletState]);
 
   const setActiveWallet = useCallback(
@@ -216,6 +234,12 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
   const setLastActiveTime = useCallback(() => {
     walletService.setLastActiveTime();
   }, [walletService]);
+
+  const isWalletLocked = useCallback(async () => {
+    const activeWalletId = walletState.activeWallet?.id;
+    if (!activeWalletId) return true; // No active wallet means locked
+    return !(await walletService.isAnyWalletUnlocked());
+  }, [walletService, walletState.activeWallet]);
 
   const value: WalletContextType = {
     authState: walletState.authState,
@@ -264,6 +288,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     removeWallet: withRefresh(walletService.removeWallet, refreshWalletState),
     signTransaction: walletService.signTransaction,
     broadcastTransaction: walletService.broadcastTransaction,
+    isWalletLocked,
   };
 
   return <WalletContext value={value}>{children}</WalletContext>;

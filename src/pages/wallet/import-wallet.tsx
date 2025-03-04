@@ -165,7 +165,7 @@ function ImportWallet() {
             id="confirmed-checkbox"
             label="I have saved my secret recovery phrase"
             disabled={!allWordsPopulated() || isPending}
-            defaultChecked={isConfirmed}
+            checked={isConfirmed}
             onChange={handleCheckboxChange}
           />
           {isConfirmed && (

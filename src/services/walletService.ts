@@ -1,4 +1,5 @@
 import { defineProxyService } from '@webext-core/proxy-service';
+import { sendMessage } from 'webext-bridge/background'; // Import for background context
 import { AddressType } from '@/utils/blockchain/bitcoin';
 import { walletManager, settingsManager, type Wallet, type Address } from '@/utils/wallet';
 
@@ -63,7 +64,11 @@ function createWalletService(): WalletService {
     unlockWallet: async (walletId, password) => {
       await walletManager.unlockWallet(walletId, password);
     },
-    lockAllWallets: async () => walletManager.lockAllWallets(),
+    lockAllWallets: async () => {
+      await walletManager.lockAllWallets();
+      // Notify popup of lock event
+      await sendMessage('walletLocked', { locked: true }, 'popup');
+    },
     createMnemonicWallet: async (mnemonic, password, name, addressType) => {
       return walletManager.createMnemonicWallet(mnemonic, password, name, addressType);
     },

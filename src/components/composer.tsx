@@ -10,7 +10,9 @@ import React, {
   type ReactElement,
 } from "react";
 import { FiHelpCircle, FiX, FiRefreshCw } from "react-icons/fi";
+import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import { useNavigate } from "react-router-dom";
+import { AuthorizationModal } from "@/components/modals/authorization-modal";
 import { SuccessScreen } from "@/components/screens/success-screen";
 import { useComposer } from "@/contexts/composer-context";
 import { useHeader } from "@/contexts/header-context";
@@ -66,15 +68,13 @@ export function Composer<T>({
   headerCallbacks,
 }: ComposerProps<T>): ReactElement {
   const navigate = useNavigate();
-  const { activeWallet, activeAddress, signTransaction, broadcastTransaction, unlockWallet } =
+  const { activeWallet, activeAddress, signTransaction, broadcastTransaction, unlockWallet, isWalletLocked } =
     useWallet();
   const { isLoading, showLoading, hideLoading } = useLoading();
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings } = useSettings();
   const { state, compose, sign, reset, revertToForm, isPending } = useComposer<T>();
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [password, setPassword] = useState("");
-  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [, startTransition] = useTransition();
 
   // Form action state for composing the transaction
@@ -102,22 +102,20 @@ export function Composer<T>({
       const loadingId = showLoading("Signing and broadcasting transaction...");
       try {
         const rawTxHex = apiResponse.result.rawtransaction;
-        try {
-          const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
-          await broadcastTransaction(signedTxHex);
-          sign(apiResponse, async () => {});
-          return null; // Success
-        } catch (err) {
-          if (err instanceof Error && err.message.includes("Wallet is locked")) {
-            setShowPasswordModal(true);
-            return "Wallet locked, authorization required";
-          }
-          throw err;
-        }
+        const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
+        await broadcastTransaction(signedTxHex);
+        sign(apiResponse, async () => {});
+        return null; // Success
       } catch (err) {
         console.error("Sign action error:", err);
         let errorMessage = "Failed to sign and broadcast transaction";
-        if (err instanceof Error) errorMessage = err.message;
+        if (err instanceof Error) {
+          errorMessage = err.message;
+          if (errorMessage.includes("Wallet is locked")) {
+            setShowAuthModal(true);
+            return "Wallet locked, authorization required";
+          }
+        }
         return errorMessage;
       } finally {
         hideLoading(loadingId);
@@ -126,16 +124,20 @@ export function Composer<T>({
     null
   );
 
-  const handleSignAction = useCallback(() => {
+  const handleSignAction = useCallback(async () => {
     if (state.apiResponse) {
+      if (await isWalletLocked()) {
+        setShowAuthModal(true);
+        return;
+      }
       startTransition(() => {
         signAction(state.apiResponse as ApiResponse);
       });
     }
-  }, [state.apiResponse, signAction]);
+  }, [state.apiResponse, signAction, isWalletLocked]);
 
-  const handleUnlockAndSign = useCallback(async () => {
-    if (!activeWallet || !password || !state.apiResponse || !activeAddress) return;
+  const handleUnlockAndSign = useCallback(async (password: string) => {
+    if (!activeWallet || !state.apiResponse || !activeAddress) return;
 
     const loadingId = showLoading("Authorizing transaction...");
     try {
@@ -144,21 +146,16 @@ export function Composer<T>({
       const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
       await broadcastTransaction(signedTxHex);
       sign(state.apiResponse, async () => {});
-      setPassword("");
-      setShowPasswordModal(false);
-      setUnlockError(null);
+      setShowAuthModal(false);
     } catch (err) {
       console.error("Authorization error:", err);
-      let errorMessage = "Failed to authorize transaction";
-      if (err instanceof Error) errorMessage = err.message;
-      setUnlockError(errorMessage);
+      throw err; // Let the modal handle the error display
     } finally {
       hideLoading(loadingId);
     }
   }, [
     activeWallet,
     activeAddress,
-    password,
     unlockWallet,
     state.apiResponse,
     signTransaction,
@@ -264,13 +261,22 @@ export function Composer<T>({
     return () => setHeaderProps(null);
   }, [headerConfig, setHeaderProps]);
 
+  useEffect(() => {
+    // Listen for wallet lock events from background
+    onMessage('walletLocked', ({ data }) => {
+      if (data.locked) {
+        setShowAuthModal(true);
+      }
+    });
+  }, []);
+
   return (
     <div>
       {state.step === "form" && (
         <FormComponent
           formAction={formAction}
           initialFormData={state.formData || null}
-          error={state.error || composeError} // Use state.error if available, fallback to composeError
+          error={state.error || composeError}
         />
       )}
       {state.step === "review" && state.apiResponse && (
@@ -286,64 +292,11 @@ export function Composer<T>({
         <SuccessScreen apiResponse={state.apiResponse} onReset={onResetForm} />
       )}
 
-      {showPasswordModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h1 className="text-xl font-bold mb-5 flex justify-between items-center">
-              <span>Authorize Transaction</span>
-            </h1>
-
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-              Please enter your password to authorize this transaction.
-            </p>
-
-            {unlockError && (
-              <div
-                className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg"
-                role="alert"
-              >
-                {unlockError}
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <input
-                  type="password"
-                  id="composer-password"
-                  name="composer-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  autoFocus
-                />
-              </div>
-
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => {
-                    setShowPasswordModal(false);
-                    setPassword("");
-                    setUnlockError(null);
-                  }}
-                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleUnlockAndSign}
-                  disabled={!password}
-                  className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 ${
-                    !password ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-                >
-                  Authorize
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {showAuthModal && (
+        <AuthorizationModal
+          onUnlock={handleUnlockAndSign}
+          onCancel={() => setShowAuthModal(false)}
+        />
       )}
     </div>
   );

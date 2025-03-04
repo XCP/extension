@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { FiChevronDown } from "react-icons/fi";
@@ -20,6 +20,8 @@ const ImportPrivateKey = () => {
 
   const [addressType, setAddressType] = useState<AddressType>(AddressType.P2PKH);
   const [submissionError, setSubmissionError] = useState("");
+  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [password, setPassword] = useState("");
   const privateKeyInputRef = useRef<HTMLInputElement>(null);
   const walletExists = wallets.length > 0;
 
@@ -61,11 +63,24 @@ const ImportPrivateKey = () => {
     privateKeyInputRef.current?.focus();
   }, []);
 
+  const handleCheckboxChange = (checked: boolean) => {
+    setIsConfirmed(checked);
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+  };
+
+  const handleAddressTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setAddressType(e.target.value as AddressType);
+  };
+
+  const isPasswordValid = password.length >= MIN_PASSWORD_LENGTH;
+
   async function handleFormAction(formData: FormData) {
     setSubmissionError("");
 
     const privateKey = formData.get("private-key") as string;
-    const isConfirmed = formData.get("confirmed") === "on";
     const password = formData.get("password") as string;
 
     if (!privateKey) {
@@ -97,7 +112,7 @@ const ImportPrivateKey = () => {
 
     try {
       const suggestedType = determineAddressType(privateKey);
-      setAddressType(suggestedType); // Update UI, though submission uses formData
+      setAddressType(suggestedType);
       await createAndUnlockPrivateKeyWallet(privateKey.trim(), password, undefined, addressType);
       navigate(PATHS.SUCCESS);
     } catch (error) {
@@ -115,10 +130,6 @@ const ImportPrivateKey = () => {
       setSubmissionError(errorMessage);
     }
   }
-
-  const handleAddressTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setAddressType(e.target.value as AddressType);
-  };
 
   return (
     <div className="flex-grow overflow-y-auto p-4" role="main" aria-labelledby="import-private-key-title">
@@ -139,6 +150,8 @@ const ImportPrivateKey = () => {
               label="I have backed up this private key"
               defaultChecked={false}
               disabled={pending}
+              checked={isConfirmed}
+              onChange={handleCheckboxChange}
             />
           </div>
           <div className="mb-4">
@@ -163,14 +176,19 @@ const ImportPrivateKey = () => {
               />
             </div>
           </div>
-          <PasswordInput
-            name="password"
-            placeholder={walletExists ? "Confirm password" : "Create password"}
-            disabled={pending}
-          />
-          <Button type="submit" disabled={pending} fullWidth>
-            {pending ? "Importing..." : "Continue"}
-          </Button>
+          {isConfirmed && (
+            <>
+              <PasswordInput
+                name="password"
+                placeholder={walletExists ? "Confirm password" : "Create password"}
+                disabled={pending}
+                onChange={handlePasswordChange}
+              />
+              <Button type="submit" disabled={pending || !isPasswordValid} fullWidth>
+                {pending ? "Importing..." : "Continue"}
+              </Button>
+            </>
+          )}
         </form>
       </div>
     </div>
