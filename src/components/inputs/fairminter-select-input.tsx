@@ -7,6 +7,8 @@ import {
   ComboboxOption,
 } from "@headlessui/react";
 import { FiChevronDown, FiCheck } from "react-icons/fi";
+import { COUNTERPARTY_API_BASE } from '@/config';
+import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 interface Fairminter {
   tx_hash: string;
@@ -47,10 +49,9 @@ export function FairminterSelectInput({
       setError(null);
       
       try {
+        const settings = await getKeychainSettings();
         // Fetch fairminters with status "open"
-        const response = await fetch(
-          "https://api.counterparty.io:4000/v2/fairminters?status=open&verbose=true"
-        );
+        const response = await fetch(`${settings.counterpartyApiBase}/v2/fairminters?status=open&verbose=true`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch fairminters: ${response.statusText}`);

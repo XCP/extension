@@ -1,4 +1,4 @@
-import { defineUnlistedScript } from 'wxt/sandbox';
+import { defineUnlistedScript } from '#imports';
 import { getProviderService } from '@/services/providerService';
 
 export default defineUnlistedScript(() => {

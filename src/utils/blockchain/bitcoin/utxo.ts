@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 /**
  * Interface representing an Unspent Transaction Output (UTXO).
@@ -68,8 +69,9 @@ export function getUtxoByTxid(utxos: UTXO[], txid: string, vout: number): UTXO |
  */
 export async function fetchPreviousRawTransaction(txid: string): Promise<string | null> {
   try {
+    const settings = await getKeychainSettings();
     const response = await axios.get<{ result: any }>(
-      `https://api.counterparty.io:4000/v2/bitcoin/transactions/${txid}`
+      `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
     );
 
     if (response.data && response.data.result && response.data.result.hex) {

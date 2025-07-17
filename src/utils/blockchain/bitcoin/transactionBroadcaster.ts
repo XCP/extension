@@ -1,5 +1,5 @@
 import axios, { AxiosResponse } from 'axios';
-import { getKeychainSettings } from '@/utils/storage';
+import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 export interface TransactionResponse {
   txid: string;
@@ -8,7 +8,7 @@ export interface TransactionResponse {
 
 interface BroadcastEndpoint {
   name: string;
-  getUrl: (signedTxHex: string) => string;
+  getUrl: (signedTxHex: string) => string | Promise<string>;
   getData: (signedTxHex: string) => any;
   headers: Record<string, string>;
 }
@@ -16,9 +16,10 @@ interface BroadcastEndpoint {
 const broadcastEndpoints: BroadcastEndpoint[] = [
   {
     name: 'counterparty',
-    getUrl: (signedTxHex: string) => {
+    getUrl: async (signedTxHex: string) => {
+      const settings = await getKeychainSettings();
       const encoded = encodeURIComponent(signedTxHex);
-      return `https://api.counterparty.io:4000/v2/bitcoin/transactions?signedhex=${encoded}`;
+      return `${settings.counterpartyApiBase}/v2/bitcoin/transactions?signedhex=${encoded}`;
     },
     getData: () => null,
     headers: { 'Content-Type': 'application/json' },
@@ -84,8 +85,9 @@ export async function broadcastTransaction(signedTxHex: string): Promise<Transac
   let lastError: Error | null = null;
   for (const endpoint of broadcastEndpoints) {
     try {
+      const url = await endpoint.getUrl(signedTxHex);
       const response = await axios.post(
-        endpoint.getUrl(signedTxHex),
+        url,
         endpoint.getData(signedTxHex),
         { headers: endpoint.headers }
       );

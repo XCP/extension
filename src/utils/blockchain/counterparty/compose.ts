@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 export interface SignedTxEstimatedSize {
   vsize: number;
@@ -206,13 +207,19 @@ export interface MoveOptions extends BaseComposeOptions {
   utxo_value?: string;
 }
 
+async function getApiBase() {
+  const settings = await getKeychainSettings();
+  return settings.counterpartyApiBase;
+}
+
 export async function composeTransaction<T>(
   endpoint: string,
   paramsObj: T,
   sourceAddress: string,
   sat_per_vbyte: number
 ): Promise<ApiResponse> {
-  const apiUrl = `https://api.counterparty.io:4000/v2/addresses/${sourceAddress}/compose/${endpoint}`;
+  const base = await getApiBase();
+  const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
   
   const params = new URLSearchParams({
     ...paramsObj as any,
@@ -381,7 +388,8 @@ export async function composeDividend(options: DividendOptions): Promise<ApiResp
 }
 
 export async function getDividendEstimateXcpFee(sourceAddress: string, asset: string): Promise<number> {
-  const apiUrl = `https://api.counterparty.io:4000/v2/addresses/${sourceAddress}/compose/dividend/estimatexcpfees`;
+  const base = await getApiBase();
+  const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/dividend/estimatexcpfees`;
   const params = new URLSearchParams({ asset });
   const response = await axios.get<{ result: number }>(`${apiUrl}?${params.toString()}`);
   return response.data.result;
@@ -503,7 +511,8 @@ export async function composeSweep(options: SweepOptions): Promise<ApiResponse> 
 }
 
 export async function getSweepEstimateXcpFee(sourceAddress: string): Promise<number> {
-  const apiUrl = `https://api.counterparty.io:4000/v2/addresses/${sourceAddress}/compose/sweep/estimatexcpfees`;
+  const base = await getApiBase();
+  const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/sweep/estimatexcpfees`;
   const response = await axios.get<{ result: number }>(apiUrl);
   return response.data.result;
 }
@@ -591,7 +600,8 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
 }
 
 export async function getAttachEstimateXcpFee(sourceAddress: string): Promise<number> {
-  const apiUrl = `https://api.counterparty.io:4000/v2/addresses/${sourceAddress}/compose/attach/estimatexcpfees`;
+  const base = await getApiBase();
+  const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/attach/estimatexcpfees`;
   const response = await axios.get<{ result: number }>(apiUrl);
   return response.data.result;
 }

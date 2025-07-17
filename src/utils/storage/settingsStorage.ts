@@ -27,6 +27,7 @@ export interface KeychainSettings {
   enableAdvancedBroadcasts: boolean;
   transactionDryRun: boolean;
   pinnedAssets: string[];
+  counterpartyApiBase: string;
 }
 
 /**
@@ -45,6 +46,7 @@ const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
   enableAdvancedBroadcasts: false,
   transactionDryRun: process.env.NODE_ENV === 'development',
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
+  counterpartyApiBase: 'https://api.counterparty.io:4000',
 };
 
 /**

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock wxt/storage with a factory function
-vi.mock('wxt/storage', () => {
+vi.mock('#imports', () => {
   let store: any[] = []; // In-memory store for the mock
   const mockGetValue = vi.fn(async () => [...store]);
   const mockSetValue = vi.fn(async (value: any[]) => {
@@ -38,7 +38,7 @@ import {
   clearAllRecords,
   StoredRecord,
 } from '@/utils/storage';
-import * as mockedStorage from 'wxt/storage';
+import * as mockedStorage from '#imports';
 
 describe('storage.ts', () => {
   beforeEach(async () => {

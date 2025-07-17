@@ -3,6 +3,7 @@ import { Transaction, SigHash, OutScript } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 import { signECDSA } from '@scure/btc-signer/utils';
+import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 /**
  * Re-implementation of concatBytes.
@@ -234,11 +235,14 @@ async function fetchPreviousRawTransaction(txid: string): Promise<string> {
   const endpoints = [
     { url: `https://blockstream.info/api/tx/${txid}/hex`, transform: (d: string) => d.trim() },
     { url: `https://mempool.space/api/tx/${txid}/hex`, transform: (d: string) => d.trim() },
-    { url: `https://api.counterparty.io:4000/v2/bitcoin/transactions/${txid}`, transform: (d: any) => d.result.hex },
+    { url: async () => {
+      const settings = await getKeychainSettings();
+      return `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`;
+    }, transform: (d: any) => d.result.hex },
   ];
   for (const endpoint of endpoints) {
     try {
-      const response = await axios.get<any>(endpoint.url);
+      const response = await axios.get<any>(typeof endpoint.url === 'function' ? await endpoint.url() : endpoint.url);
       return endpoint.transform(response.data);
     } catch (_) {
       continue;
