@@ -1,4 +1,5 @@
 import axios, { AxiosResponse } from 'axios';
+import { getKeychainSettings } from '@/utils/storage';
 
 export interface TransactionResponse {
   txid: string;
@@ -55,7 +56,6 @@ const formatResponse = (endpoint: BroadcastEndpoint, response: AxiosResponse): T
   throw new Error('Unknown endpoint response format');
 };
 
-const isDevelopment = process.env.NODE_ENV === 'development';
 const MOCK_TXID_PREFIX = 'dev_mock_tx_';
 const FORCE_ERROR_HEX = 'FORCE_ERROR';
 
@@ -66,7 +66,9 @@ const generateMockTxid = (signedTxHex: string): string => {
 };
 
 export async function broadcastTransaction(signedTxHex: string): Promise<TransactionResponse> {
-  if (isDevelopment) {
+  const settings = await getKeychainSettings();
+  
+  if (settings.transactionDryRun) {
     await new Promise(resolve => setTimeout(resolve, 500));
     
     if (signedTxHex.includes(FORCE_ERROR_HEX)) {

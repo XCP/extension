@@ -201,6 +201,26 @@ export default function AdvancedSettings(): ReactElement {
           Choose whether to share usage data.
         </Description>
       </Field>
+
+      <Field>
+        <div className="flex items-center justify-between">
+          <Label className="font-bold">Transaction Dry Run</Label>
+          <Switch
+            defaultChecked={settings.transactionDryRun}
+            onChange={(checked) => updateSettings({ transactionDryRun: checked })}
+            className={`${settings.transactionDryRun ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
+          >
+            <span
+              className={`${
+                settings.transactionDryRun ? "translate-x-6" : "translate-x-1"
+              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+            />
+          </Switch>
+        </div>
+        <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+          When enabled, transactions will be simulated instead of being broadcast to the network.
+        </Description>
+      </Field>
     </div>
   );
 }

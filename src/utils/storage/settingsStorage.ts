@@ -25,6 +25,7 @@ export interface KeychainSettings {
   autoLockTimer: AutoLockTimer;
   enableMPMA: boolean;
   enableAdvancedBroadcasts: boolean;
+  transactionDryRun: boolean;
   pinnedAssets: string[];
 }
 
@@ -42,6 +43,7 @@ const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
   autoLockTimer: '5m',
   enableMPMA: false,
   enableAdvancedBroadcasts: false,
+  transactionDryRun: process.env.NODE_ENV === 'development',
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
 };
 

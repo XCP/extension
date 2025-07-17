@@ -34,3 +34,6 @@ userData/
 userData/created/
 userData/imported/
 userData/onboarding/
+
+scan.py
+output.txt
