@@ -55,6 +55,10 @@ describe('settingsStorage.ts', () => {
         allowUnconfirmedTxs: false,
         autoLockTimer: '5m',
         enableMPMA: false,
+        enableAdvancedBroadcasts: false,
+        transactionDryRun: false,
+        pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
+        counterpartyApiBase: 'https://api.counterparty.io:4000',
       });
       const stored = await getRecordById('keychain-settings');
       expect(stored).toBeDefined();
@@ -71,6 +75,10 @@ describe('settingsStorage.ts', () => {
         allowUnconfirmedTxs: true,
         autoLockTimer: '15m',
         enableMPMA: true,
+        enableAdvancedBroadcasts: false,
+        transactionDryRun: false,
+        pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
+        counterpartyApiBase: 'https://api.counterparty.io:4000',
       };
       await addRecord({ id: 'keychain-settings', ...customSettings });
       const settings = await getKeychainSettings();
@@ -137,6 +145,10 @@ describe('settingsStorage.ts', () => {
         allowUnconfirmedTxs: false,
         autoLockTimer: '5m',
         enableMPMA: false,
+        enableAdvancedBroadcasts: false,
+        transactionDryRun: false,
+        pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
+        counterpartyApiBase: 'https://api.counterparty.io:4000',
       };
       await addRecord({ id: 'keychain-settings', ...initialSettings });
       await updateKeychainSettings({ showHelpText: true });

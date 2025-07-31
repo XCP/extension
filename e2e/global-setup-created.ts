@@ -28,7 +28,8 @@ async function globalSetupCreated() {
   await page.waitForURL(/#\/create-wallet$/);
   await page.getByText(/View 12-word Secret Phrase/).click();
   await page.getByLabel(/I have saved my secret recovery phrase/).check();
-  await page.fill('input[id="password"]', 'TestPassword123!');
+  // Use name selector instead of id for password input
+  await page.fill('input[name="password"]', 'TestPassword123!');
   await page.getByRole('button', { name: /Continue/i }).click();
   await page.waitForURL(/#\/index$/);
   await page.waitForSelector('text=bc1q');

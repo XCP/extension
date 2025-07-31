@@ -1,48 +1,35 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { AddressType } from '@/utils/blockchain/bitcoin';
 import {
+  getAllRecords,
   addRecord,
+  updateRecord,
+  removeRecord,
+} from '@/utils/storage';
+import {
   getAllEncryptedWallets,
   addEncryptedWallet,
   updateEncryptedWallet,
   removeEncryptedWallet,
   EncryptedWalletRecord,
-} from '@/utils/storage';
+} from '../walletStorage';
 
-// Mock the storage module
-vi.mock('@/utils/storage', () => {
-  let store: any[] = [];
-  return {
-    getAllRecords: async () => [...store],
-    addRecord: async (record: any) => {
-      if (store.some((r) => r.id === record.id)) {
-        throw new Error(`Record with ID "${record.id}" already exists.`);
-      }
-      store.push({ ...record });
-    },
-    updateRecord: async (record: any) => {
-      const index = store.findIndex((r) => r.id === record.id);
-      if (index === -1) {
-        throw new Error(`Record with ID "${record.id}" not found.`);
-      }
-      store[index] = { ...record };
-    },
-    removeRecord: async (id: string) => {
-      store = store.filter((r) => r.id !== id);
-    },
-    clearAllRecords: async () => {
-      store = [];
-    },
-  };
-});
+vi.mock('@/utils/storage', () => ({
+  getAllRecords: vi.fn(),
+  addRecord: vi.fn(),
+  updateRecord: vi.fn(),
+  removeRecord: vi.fn(),
+  clearAllRecords: vi.fn(),
+}));
 
 describe('walletStorage.ts', () => {
-  beforeEach(async () => {
-    await (await import('../storage')).clearAllRecords(); // Reset storage
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
   describe('getAllEncryptedWallets', () => {
     it('should return an empty array when no wallets exist', async () => {
+      (getAllRecords as Mock).mockResolvedValue([]);
       const wallets = await getAllEncryptedWallets();
       expect(wallets).toEqual([]);
     });
@@ -52,7 +39,7 @@ describe('walletStorage.ts', () => {
         id: '1',
         name: 'Mnemonic Wallet',
         type: 'mnemonic',
-        addressType: 'P2WPKH',
+        addressType: AddressType.P2WPKH,
         encryptedSecret: 'encrypted-mnemonic',
       };
       const pkWallet: EncryptedWalletRecord = {
@@ -67,9 +54,7 @@ describe('walletStorage.ts', () => {
         name: 'Other',
         type: 'other',
       };
-      await addRecord(mnemonicWallet);
-      await addRecord(pkWallet);
-      await addRecord(otherRecord);
+      (getAllRecords as Mock).mockResolvedValue([mnemonicWallet, pkWallet, otherRecord]);
       const wallets = await getAllEncryptedWallets();
       expect(wallets).toEqual([mnemonicWallet, pkWallet]);
       expect(wallets.length).toBe(2);
@@ -85,10 +70,9 @@ describe('walletStorage.ts', () => {
         addressType: AddressType.P2WPKH,
         encryptedSecret: 'encrypted-secret',
       };
+      (addRecord as Mock).mockResolvedValue(undefined);
       await addEncryptedWallet(wallet);
-      const wallets = await getAllEncryptedWallets();
-      expect(wallets).toContainEqual(wallet);
-      expect(wallets.length).toBe(1);
+      expect(addRecord).toHaveBeenCalledWith(wallet);
     });
 
     it('should throw an error for duplicate wallet ID', async () => {
@@ -99,7 +83,9 @@ describe('walletStorage.ts', () => {
         addressType: AddressType.P2WPKH,
         encryptedSecret: 'encrypted-secret',
       };
+      (addRecord as Mock).mockResolvedValue(undefined);
       await addEncryptedWallet(wallet);
+      (addRecord as Mock).mockRejectedValue(new Error('Record with ID "1" already exists.'));
       await expect(addEncryptedWallet(wallet)).rejects.toThrow(
         'Record with ID "1" already exists.'
       );
@@ -115,16 +101,16 @@ describe('walletStorage.ts', () => {
         addressType: AddressType.P2PKH,
         encryptedSecret: 'encrypted-secret',
       };
+      (addRecord as Mock).mockResolvedValue(undefined);
       await addEncryptedWallet(wallet);
       const updatedWallet: EncryptedWalletRecord = {
         ...wallet,
         name: 'Updated Wallet',
         addressCount: 5,
       };
+      (updateRecord as Mock).mockResolvedValue(undefined);
       await updateEncryptedWallet(updatedWallet);
-      const wallets = await getAllEncryptedWallets();
-      expect(wallets).toContainEqual(updatedWallet);
-      expect(wallets.length).toBe(1);
+      expect(updateRecord).toHaveBeenCalledWith(updatedWallet);
     });
 
     it('should throw an error for non-existent wallet ID', async () => {
@@ -135,6 +121,7 @@ describe('walletStorage.ts', () => {
         addressType: AddressType.P2WPKH,
         encryptedSecret: 'encrypted-secret',
       };
+      (updateRecord as Mock).mockRejectedValue(new Error('Record with ID "nonexistent" not found.'));
       await expect(updateEncryptedWallet(wallet)).rejects.toThrow(
         'Record with ID "nonexistent" not found.'
       );
@@ -157,9 +144,14 @@ describe('walletStorage.ts', () => {
         addressType: AddressType.P2PKH,
         encryptedSecret: 'encrypted-secret-2',
       };
+      (addRecord as Mock).mockResolvedValue(undefined);
       await addEncryptedWallet(wallet1);
+      (addRecord as Mock).mockResolvedValue(undefined);
       await addEncryptedWallet(wallet2);
+      (removeRecord as Mock).mockResolvedValue(undefined);
       await removeEncryptedWallet('1');
+      expect(removeRecord).toHaveBeenCalledWith('1');
+      (getAllRecords as Mock).mockResolvedValue([wallet2]);
       const wallets = await getAllEncryptedWallets();
       expect(wallets).toEqual([wallet2]);
       expect(wallets.length).toBe(1);
@@ -173,8 +165,12 @@ describe('walletStorage.ts', () => {
         addressType: AddressType.P2WPKH,
         encryptedSecret: 'encrypted-secret',
       };
+      (addRecord as Mock).mockResolvedValue(undefined);
       await addEncryptedWallet(wallet);
+      (removeRecord as Mock).mockResolvedValue(undefined);
       await removeEncryptedWallet('nonexistent');
+      expect(removeRecord).toHaveBeenCalledWith('nonexistent');
+      (getAllRecords as Mock).mockResolvedValue([wallet]);
       const wallets = await getAllEncryptedWallets();
       expect(wallets).toEqual([wallet]);
       expect(wallets.length).toBe(1);

@@ -77,6 +77,40 @@ export async function getKeychainSettings(): Promise<KeychainSettings> {
   };
 
   delete (settings as any).id;
+
+  // Migration: If no autoLockTimer, set based on autoLockTimeout
+  if (!settings.autoLockTimer) {
+    const minutes = settings.autoLockTimeout / (60 * 1000);
+    if ([1, 5, 15, 30].includes(minutes)) {
+      settings.autoLockTimer = `${minutes}m` as AutoLockTimer;
+    } else {
+      // Invalid or 0 -> default to 5m
+      settings.autoLockTimer = '5m';
+      settings.autoLockTimeout = 5 * 60 * 1000;
+    }
+    // Persist migration
+    await updateKeychainSettings({ autoLockTimer: settings.autoLockTimer, autoLockTimeout: settings.autoLockTimeout });
+  }
+
+  // Handle invalid autoLockTimer
+  if (!['1m', '5m', '15m', '30m'].includes(settings.autoLockTimer)) {
+    settings.autoLockTimer = '5m';
+    settings.autoLockTimeout = 5 * 60 * 1000;
+    await updateKeychainSettings({ autoLockTimer: '5m', autoLockTimeout: 5 * 60 * 1000 });
+  }
+
+  // Ensure consistency between autoLockTimer and autoLockTimeout
+  const expectedTimeout = {
+    '1m': 1 * 60 * 1000,
+    '5m': 5 * 60 * 1000,
+    '15m': 15 * 60 * 1000,
+    '30m': 30 * 60 * 1000,
+  }[settings.autoLockTimer];
+  if (settings.autoLockTimeout !== expectedTimeout) {
+    settings.autoLockTimeout = expectedTimeout;
+    await updateKeychainSettings({ autoLockTimeout: expectedTimeout });
+  }
+
   return settings;
 }
 

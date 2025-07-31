@@ -143,7 +143,6 @@ export function OrderForm({
         </div>
         <button
           type="button"
-          onClick={() => console.log("Settings clicked")}
           className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           aria-label="Order Settings"
           disabled={pending}

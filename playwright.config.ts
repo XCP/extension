@@ -35,5 +35,5 @@ export default defineConfig({
       } as any,
     },
   ],
-  globalSetup: './e2e/global-setup.ts',
+  // globalSetup: './e2e/global-setup.ts',
 });

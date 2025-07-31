@@ -7,7 +7,6 @@ import {
   ComboboxOption,
 } from "@headlessui/react";
 import { FiChevronDown, FiCheck } from "react-icons/fi";
-import { COUNTERPARTY_API_BASE } from '@/config';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 interface Fairminter {

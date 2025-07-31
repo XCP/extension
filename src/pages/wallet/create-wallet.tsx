@@ -53,12 +53,23 @@ function CreateWallet() {
       }
 
       try {
+        console.log("[CreateWallet] Starting wallet creation with mnemonic length:", mnemonic.split(' ').length);
+        console.log("[CreateWallet] Password length:", password.length);
+        
         await createAndUnlockMnemonicWallet(mnemonic, password);
+        
+        console.log("[CreateWallet] Wallet created successfully, navigating to success page");
         navigate(PATHS.SUCCESS);
         return { error: null };
       } catch (err) {
-        console.error("Error creating wallet:", err);
-        return { error: "Failed to create wallet. Please try again." };
+        console.error("[CreateWallet] Error creating wallet:", err);
+        console.error("[CreateWallet] Error type:", err?.constructor?.name);
+        console.error("[CreateWallet] Error message:", err?.message);
+        console.error("[CreateWallet] Error stack:", err?.stack);
+        
+        // Try to get more specific error message
+        const errorMessage = err?.message || "Failed to create wallet. Please try again.";
+        return { error: errorMessage };
       }
     },
     { error: null }

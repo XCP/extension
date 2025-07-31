@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { AddressType } from '@/utils/blockchain/bitcoin';
 import {
   getAllEncryptedWallets,
@@ -8,20 +8,20 @@ import {
   EncryptedWalletRecord,
 } from '@/utils/storage';
 
-// Mock the entire '@/utils/storage' module, including walletStorage exports
+let store: EncryptedWalletRecord[] = [];
+
 vi.mock('@/utils/storage', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/utils/storage')>();
-  let store: any[] = [];
   return {
-    ...actual, // Include real walletStorage exports
+    ...actual,
     getAllRecords: async () => [...store],
-    addRecord: async (record: any) => {
+    addRecord: async (record: EncryptedWalletRecord) => {
       if (store.some((r) => r.id === record.id)) {
         throw new Error(`Record with ID "${record.id}" already exists.`);
       }
       store.push({ ...record });
     },
-    updateRecord: async (record: any) => {
+    updateRecord: async (record: EncryptedWalletRecord) => {
       const index = store.findIndex((r) => r.id === record.id);
       if (index === -1) {
         throw new Error(`Record with ID "${record.id}" not found.`);
@@ -39,7 +39,12 @@ vi.mock('@/utils/storage', async (importOriginal) => {
 
 describe('walletStorage.ts', () => {
   beforeEach(async () => {
-    await (await import('@/utils/storage')).clearAllRecords(); // Reset storage
+    store = [];
+    await (await import('@/utils/storage')).clearAllRecords();
+  });
+
+  afterEach(async () => {
+    await (await import('@/utils/storage')).clearAllRecords();
   });
 
   describe('getAllEncryptedWallets', () => {

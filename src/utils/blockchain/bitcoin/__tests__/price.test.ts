@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchFromCoinGecko } from '@/utils/blockchain/bitcoin/price';
+import { fetchFromCoinbase } from '@/utils/blockchain/bitcoin/price';
 
 describe('Bitcoin Price Utilities', () => {
   const originalFetch = globalThis.fetch;
@@ -10,13 +10,13 @@ describe('Bitcoin Price Utilities', () => {
     globalThis.fetch = originalFetch;
   });
 
-  it('should fetch price from CoinGecko successfully', async () => {
-    const mockResponse = { bitcoin: { usd: 30000 } };
+  it('should fetch price from Coinbase successfully', async () => {
+    const mockResponse = { data: { amount: '30000' } };
     (globalThis.fetch as any).mockResolvedValue({
       ok: true,
       json: async () => mockResponse,
     });
-    const data = await fetchFromCoinGecko();
+    const data = await fetchFromCoinbase();
     expect(data.bitcoin.usd).toBe(30000);
   });
 
@@ -25,6 +25,6 @@ describe('Bitcoin Price Utilities', () => {
       ok: true,
       json: async () => ({}),
     });
-    await expect(fetchFromCoinGecko()).rejects.toThrow();
+    await expect(fetchFromCoinbase()).rejects.toThrow('Invalid data from Coinbase');
   });
 });
