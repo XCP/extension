@@ -75,20 +75,23 @@ The extension uses a custom testing approach due to its unique architecture:
 
 ### Running Tests
 ```bash
-# Run with new improved setup
-node e2e/run-tests.js
+# Run E2E tests (main test suite)
+npm test
 
-# Or directly with new config
-npx playwright test --config playwright.config.v2.ts
+# Run specific test types
+npm run test:unit     # Unit tests (Vitest)
+npm run test:e2e      # E2E tests (Playwright)
+npm run test:all      # Build + E2E tests
 ```
 
 ### Key Testing Considerations
-1. **Proxy Services**: Tests must wait for background service and proxy connections to initialize
-2. **Storage**: Uses `chrome.storage.local` instead of cookies - standard Playwright storage state doesn't work
+1. **Extension Architecture**: Tests use `chromium.launchPersistentContext()` for proper extension service initialization
+2. **Storage**: Uses `chrome.storage.local` instead of cookies - requires extension environment
 3. **Authentication**: Session-based with encrypted storage, not cookie-based
-4. **Test Helpers**: See `e2e/helpers/` for auth and initialization utilities
+4. **Sequential Execution**: Tests run sequentially to avoid browser context conflicts
 
-### Test Structure
-- `e2e/helpers/extension-init.ts`: Ensures extension services are ready
-- `e2e/helpers/auth-helpers.ts`: Handles wallet creation and unlock flows
-- `e2e/fixtures-v2.ts`: Provides `authenticatedPage` fixture for tests that need wallet access
+### Test Organization
+- All E2E tests in `/e2e` directory as flat `.spec.ts` files
+- Test data stored in `test-results/` (git-ignored)
+- Screenshots automatically saved to `test-results/screenshots/` on failure
+- No complex projects or global setup - simple and reliable

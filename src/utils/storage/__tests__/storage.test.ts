@@ -28,6 +28,7 @@ describe('storage.ts', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     store = [];
+    // Clear the internal cache by calling clearAllRecords
     await clearAllRecords();
   });
 

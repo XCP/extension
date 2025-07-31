@@ -82,16 +82,9 @@ const withRefresh = <T extends (...args: any[]) => Promise<any>>(
   fn: T,
   refresh: () => Promise<void>
 ) => async (...args: Parameters<T>): Promise<Awaited<ReturnType<T>>> => {
-  console.log("[WalletContext] Calling wrapped function:", fn.name || "anonymous");
-  try {
-    const result = await fn(...args);
-    console.log("[WalletContext] Function succeeded, refreshing state");
-    await refresh();
-    return result;
-  } catch (error) {
-    console.error("[WalletContext] Function failed:", error);
-    throw error;
-  }
+  const result = await fn(...args);
+  await refresh();
+  return result;
 };
 
 /**

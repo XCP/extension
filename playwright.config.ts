@@ -2,38 +2,17 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: true,
-  reporter: 'html',
-  use: {
-    headless: false,
-    viewport: { width: 1280, height: 720 },
-    launchOptions: {
-      args: ['--disable-dev-shm-usage', '--disable-gpu', '--no-sandbox'],
-      timeout: 60000,
-    },
+  fullyParallel: false, // Run tests sequentially for extension stability
+  reporter: [['list'], ['html']], // List for console output, HTML for detailed reports
+  timeout: 60000, // 1 minute per test
+  expect: {
+    timeout: 10000, // 10 seconds for assertions
   },
-  projects: [
-    {
-      name: 'onboarding',
-      testMatch: 'onboarding/*.spec.ts',
-      use: { userDataDir: 'userData/onboarding' } as any,
-    },
-    {
-      name: 'created',
-      testMatch: 'created/*.spec.ts',
-      use: {
-        userDataDir: 'userData/created',
-        storageState: 'userData/created/state.json',
-      } as any,
-    },
-    {
-      name: 'imported',
-      testMatch: 'imported/*.spec.ts',
-      use: {
-        userDataDir: 'userData/imported',
-        storageState: 'userData/imported/state.json',
-      } as any,
-    },
-  ],
-  // globalSetup: './e2e/global-setup.ts',
+  use: {
+    headless: false, // Extensions need headed mode
+    viewport: { width: 400, height: 600 }, // Extension popup size
+    video: 'retain-on-failure', // Record video only on failure
+    screenshot: 'only-on-failure', // Screenshot only on failure
+  },
+  // No projects, no global setup - just clean test execution
 });
