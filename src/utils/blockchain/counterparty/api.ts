@@ -784,3 +784,157 @@ export async function fetchOwnedAssets(
     return [];
   }
 }
+
+/**
+ * Interface representing a bet from the Counterparty API
+ */
+export interface Bet {
+  tx_index: number;
+  tx_hash: string;
+  block_index: number;
+  source: string;
+  feed_address: string;
+  bet_type: number;
+  deadline: number;
+  wager_quantity: number;
+  wager_remaining: number;
+  counterwager_quantity: number;
+  counterwager_remaining: number;
+  target_value: number;
+  leverage: number;
+  expiration: number;
+  expire_index: number;
+  fee_fraction_int: number;
+  status: string;
+}
+
+/**
+ * Interface representing the response from the bets API endpoint
+ */
+export interface BetsResponse {
+  result: Bet[];
+  next_cursor: string | null;
+  result_count: number;
+}
+
+/**
+ * Interface representing aggregated open interest for bets
+ */
+export interface OpenInterest {
+  yesTotal: number;  // Total XCP wagered on "Yes" (bet_type 2)
+  noTotal: number;   // Total XCP wagered on "No" (bet_type 3)
+  betsCount: number; // Total number of bets
+}
+
+/**
+ * Fetches bets for a given feed address with optional status filter
+ * 
+ * @param feedAddress - The feed address to fetch bets for
+ * @param options - Optional parameters for filtering
+ * @returns A promise that resolves to a BetsResponse object
+ */
+export async function fetchBets(
+  feedAddress: string,
+  options: {
+    status?: 'open' | 'filled' | 'cancelled' | 'expired';
+    limit?: number;
+    offset?: number;
+    verbose?: boolean;
+  } = {}
+): Promise<BetsResponse> {
+  try {
+    const verbose = options.verbose ?? true;
+
+    const base = await getApiBase();
+    const params = new URLSearchParams();
+    
+    if (options.status) params.append('status', options.status);
+    if (options.limit) params.append('limit', options.limit.toString());
+    if (options.offset) params.append('offset', options.offset.toString());
+    params.append('verbose', verbose.toString());
+
+    const response = await axios.get(
+      `${base}/v2/addresses/${feedAddress}/bets?${params.toString()}`
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching bets:', error);
+    return {
+      result: [],
+      next_cursor: null,
+      result_count: 0
+    };
+  }
+}
+
+/**
+ * Calculates open interest from an array of bets
+ * 
+ * @param bets - Array of Bet objects
+ * @param targetValue - Optional target value to filter by
+ * @returns OpenInterest object with aggregated totals
+ */
+export function calculateOpenInterest(bets: Bet[], targetValue?: number): OpenInterest {
+  let yesTotal = 0;
+  let noTotal = 0;
+  let betsCount = 0;
+  
+  for (const bet of bets) {
+    // If targetValue is specified, only count bets with matching target value
+    if (targetValue !== undefined && bet.target_value !== targetValue) {
+      continue;
+    }
+    
+    // Only count open or filled bets (not expired/cancelled)
+    if (bet.status !== 'open' && bet.status !== 'filled') {
+      continue;
+    }
+    
+    // bet_type 2 = Equal (betting "Yes" - value will equal target)
+    // bet_type 3 = NotEqual (betting "No" - value won't equal target)
+    if (bet.bet_type === 2) {
+      yesTotal += bet.wager_quantity / 1e8; // Convert satoshis to XCP
+    } else if (bet.bet_type === 3) {
+      noTotal += bet.wager_quantity / 1e8;
+    }
+    betsCount++;
+  }
+  
+  return {
+    yesTotal,
+    noTotal,
+    betsCount
+  };
+}
+
+/**
+ * Fetches open interest for a feed address
+ * 
+ * @param feedAddress - The feed address to calculate open interest for
+ * @param targetValue - Optional target value to filter by
+ * @returns A promise that resolves to OpenInterest totals
+ */
+export async function fetchOpenInterest(
+  feedAddress: string,
+  targetValue?: number
+): Promise<OpenInterest> {
+  try {
+    // Fetch all open and filled bets
+    const openBets = await fetchBets(feedAddress, { status: 'open' });
+    const filledBets = await fetchBets(feedAddress, { status: 'filled' });
+    
+    // Combine both arrays
+    const allBets = [...openBets.result, ...filledBets.result];
+    
+    // Calculate and return open interest
+    return calculateOpenInterest(allBets, targetValue);
+  } catch (error) {
+    console.error('Error fetching open interest:', error);
+    return {
+      yesTotal: 0,
+      noTotal: 0,
+      betsCount: 0
+    };
+  }
+}

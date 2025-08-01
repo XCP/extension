@@ -157,6 +157,26 @@ describe('counterparty/compose.ts', () => {
         expect.any(Object)
       );
     });
+
+    it('should include encoding parameter when provided', async () => {
+      mockedAxios.get.mockResolvedValue({ data: mockApiResponse });
+
+      const params = { asset: 'XCP', quantity: '100000000' };
+      await composeTransaction('send', params, mockAddress, mockSatPerVbyte, 'taproot');
+
+      const urlWithParams = mockedAxios.get.mock.calls[0][0] as string;
+      expect(urlWithParams).toContain('encoding=taproot');
+    });
+
+    it('should not include encoding parameter when not provided', async () => {
+      mockedAxios.get.mockResolvedValue({ data: mockApiResponse });
+
+      const params = { asset: 'XCP', quantity: '100000000' };
+      await composeTransaction('send', params, mockAddress, mockSatPerVbyte);
+
+      const urlWithParams = mockedAxios.get.mock.calls[0][0] as string;
+      expect(urlWithParams).not.toContain('encoding=');
+    });
   });
 
   describe('composeBet', () => {
@@ -238,6 +258,27 @@ describe('counterparty/compose.ts', () => {
       expect(urlWithParams).not.toContain('target_value');
       expect(urlWithParams).not.toContain('max_fee');
     });
+
+    it('should pass encoding parameter when provided', async () => {
+      mockedAxios.get.mockResolvedValue({ data: mockApiResponse });
+
+      const options: BetOptions = {
+        sourceAddress: mockAddress,
+        feed_address: 'bc1qfeed123',
+        bet_type: 0,
+        deadline: 1640995200,
+        wager_quantity: 100000000,
+        counterwager_quantity: 100000000,
+        expiration: 100,
+        sat_per_vbyte: mockSatPerVbyte,
+        encoding: 'opreturn',
+      };
+
+      await composeBet(options);
+
+      const urlWithParams = mockedAxios.get.mock.calls[0][0] as string;
+      expect(urlWithParams).toContain('encoding=opreturn');
+    });
   });
 
   describe('composeBroadcast', () => {
@@ -280,6 +321,26 @@ describe('counterparty/compose.ts', () => {
       expect(urlWithParams).toContain('value=0'); // Default
       expect(urlWithParams).toContain('fee_fraction=0'); // Default
       expect(urlWithParams).toMatch(/timestamp=\d+/); // Generated timestamp
+    });
+
+    it('should include inscription and mime_type when provided', async () => {
+      mockedAxios.get.mockResolvedValue({ data: mockApiResponse });
+
+      const options: BroadcastOptions = {
+        sourceAddress: mockAddress,
+        text: 'Test message with inscription',
+        sat_per_vbyte: mockSatPerVbyte,
+        encoding: 'taproot',
+        inscription: 'VGhpcyBpcyBhIHRlc3QgaW5zY3JpcHRpb24=', // Base64 encoded
+        mime_type: 'text/plain',
+      };
+
+      await composeBroadcast(options);
+
+      const urlWithParams = mockedAxios.get.mock.calls[0][0] as string;
+      expect(urlWithParams).toContain('encoding=taproot');
+      expect(urlWithParams).toContain('inscription=VGhpcyBpcyBhIHRlc3QgaW5zY3JpcHRpb24%3D');
+      expect(urlWithParams).toContain('mime_type=text%2Fplain');
     });
   });
 
@@ -570,6 +631,52 @@ describe('counterparty/compose.ts', () => {
       expect(urlWithParams).toContain('lock=true');
       expect(urlWithParams).toContain('reset=true');
     });
+
+    it('should include inscription and mime_type for NFT-like issuance', async () => {
+      mockedAxios.get.mockResolvedValue({ data: mockApiResponse });
+
+      const options: IssuanceOptions = {
+        sourceAddress: mockAddress,
+        asset: 'MYNFT',
+        quantity: 1,
+        divisible: false,
+        lock: true,
+        reset: false,
+        sat_per_vbyte: mockSatPerVbyte,
+        encoding: 'taproot',
+        inscription: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+        mime_type: 'image/png',
+      };
+
+      await composeIssuance(options);
+
+      const urlWithParams = mockedAxios.get.mock.calls[0][0] as string;
+      expect(urlWithParams).toContain('encoding=taproot');
+      expect(urlWithParams).toContain('inscription=');
+      expect(urlWithParams).toContain('mime_type=image%2Fpng');
+    });
+
+    it('should pass encoding without inscription', async () => {
+      mockedAxios.get.mockResolvedValue({ data: mockApiResponse });
+
+      const options: IssuanceOptions = {
+        sourceAddress: mockAddress,
+        asset: 'NEWTOKEN',
+        quantity: 1000000000,
+        divisible: true,
+        lock: false,
+        reset: false,
+        sat_per_vbyte: mockSatPerVbyte,
+        encoding: 'multisig',
+      };
+
+      await composeIssuance(options);
+
+      const urlWithParams = mockedAxios.get.mock.calls[0][0] as string;
+      expect(urlWithParams).toContain('encoding=multisig');
+      expect(urlWithParams).not.toContain('inscription=');
+      expect(urlWithParams).not.toContain('mime_type=');
+    });
   });
 
   describe('composeMPMA', () => {
@@ -706,6 +813,24 @@ describe('counterparty/compose.ts', () => {
       expect(urlWithParams).not.toContain('memo=');
       expect(urlWithParams).not.toContain('memo_is_hex=');
     });
+
+    it('should pass encoding parameter when provided', async () => {
+      mockedAxios.get.mockResolvedValue({ data: mockApiResponse });
+
+      const options: SendOptions = {
+        sourceAddress: mockAddress,
+        destination: 'bc1qdest123',
+        asset: 'XCP',
+        quantity: 100000000,
+        sat_per_vbyte: mockSatPerVbyte,
+        encoding: 'opreturn',
+      };
+
+      await composeSend(options);
+
+      const urlWithParams = mockedAxios.get.mock.calls[0][0] as string;
+      expect(urlWithParams).toContain('encoding=opreturn');
+    });
   });
 
   describe('composeSweep', () => {
@@ -835,8 +960,32 @@ describe('counterparty/compose.ts', () => {
       expect(urlWithParams).toContain('price=0'); // Default
       expect(urlWithParams).toContain('quantity_by_price=1'); // Default
       expect(urlWithParams).toContain('divisible=true'); // Default
-      expect(urlWithParams).toContain('encoding=auto'); // Default
       expect(urlWithParams).toContain('allow_unconfirmed_inputs=true'); // Default
+    });
+
+    it('should include inscription and mime_type when provided', async () => {
+      mockedAxios.get.mockResolvedValue({ data: mockApiResponse });
+
+      const options: FairminterOptions = {
+        sourceAddress: mockAddress,
+        asset: 'FAIRNFT',
+        price: 100000000,
+        quantity_by_price: 1,
+        hard_cap: 100,
+        sat_per_vbyte: mockSatPerVbyte,
+        encoding: 'taproot',
+        inscription: 'eyJuYW1lIjoiRmFpciBORlQiLCJkZXNjcmlwdGlvbiI6IkEgZmFpciBtaW50ZWQGB0In0=',
+        mime_type: 'application/json',
+        description: 'Fair NFT Collection',
+      };
+
+      await composeFairminter(options);
+
+      const urlWithParams = mockedAxios.get.mock.calls[0][0] as string;
+      expect(urlWithParams).toContain('encoding=taproot');
+      expect(urlWithParams).toContain('inscription=');
+      expect(urlWithParams).toContain('mime_type=application%2Fjson');
+      expect(urlWithParams).toContain('description=Fair+NFT+Collection');
     });
   });
 
@@ -874,6 +1023,78 @@ describe('counterparty/compose.ts', () => {
 
       const urlWithParams = mockedAxios.get.mock.calls[0][0] as string;
       expect(urlWithParams).toContain('quantity=0'); // Default
+    });
+  });
+
+  // Edge case tests for encoding and inscription parameters
+  describe('encoding and inscription edge cases', () => {
+    it('should handle inscription without mime_type in broadcast', async () => {
+      mockedAxios.get.mockResolvedValue({ data: mockApiResponse });
+
+      const options: BroadcastOptions = {
+        sourceAddress: mockAddress,
+        text: 'Test',
+        sat_per_vbyte: mockSatPerVbyte,
+        inscription: 'VGVzdCBkYXRh',
+        // mime_type is missing
+      };
+
+      await composeBroadcast(options);
+
+      const urlWithParams = mockedAxios.get.mock.calls[0][0] as string;
+      expect(urlWithParams).toContain('inscription=VGVzdCBkYXRh');
+      expect(urlWithParams).not.toContain('mime_type=');
+    });
+
+    it('should handle mime_type without inscription in issuance', async () => {
+      mockedAxios.get.mockResolvedValue({ data: mockApiResponse });
+
+      const options: IssuanceOptions = {
+        sourceAddress: mockAddress,
+        asset: 'TEST',
+        quantity: 1,
+        divisible: false,
+        lock: false,
+        reset: false,
+        sat_per_vbyte: mockSatPerVbyte,
+        mime_type: 'image/png',
+        // inscription is missing
+      };
+
+      await composeIssuance(options);
+
+      const urlWithParams = mockedAxios.get.mock.calls[0][0] as string;
+      expect(urlWithParams).toContain('mime_type=image%2Fpng');
+      expect(urlWithParams).not.toContain('inscription=');
+    });
+
+    it('should handle all encoding types correctly', async () => {
+      const encodingTypes: Array<'auto' | 'opreturn' | 'multisig' | 'pubkeyhash' | 'taproot'> = [
+        'auto',
+        'opreturn',
+        'multisig',
+        'pubkeyhash',
+        'taproot',
+      ];
+
+      for (const encoding of encodingTypes) {
+        vi.clearAllMocks();
+        mockedAxios.get.mockResolvedValue({ data: mockApiResponse });
+
+        const options: SendOptions = {
+          sourceAddress: mockAddress,
+          destination: 'bc1qdest123',
+          asset: 'XCP',
+          quantity: 1,
+          sat_per_vbyte: mockSatPerVbyte,
+          encoding,
+        };
+
+        await composeSend(options);
+
+        const urlWithParams = mockedAxios.get.mock.calls[0][0] as string;
+        expect(urlWithParams).toContain(`encoding=${encoding}`);
+      }
     });
   });
 

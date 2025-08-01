@@ -152,8 +152,8 @@ export default function AddressTypeSettings(): ReactElement {
       >
         {CONSTANTS.AVAILABLE_ADDRESS_TYPES.map((type) => {
           const typeLabel = getAddressTypeDescription(type);
-          const isDisabled = type === AddressType.P2TR || isUpdating;
-          const disabledReason = type === AddressType.P2TR ? "Taproot is not yet supported" : isUpdating ? "Updating..." : undefined;
+          const isDisabled = isUpdating;
+          const disabledReason = isUpdating ? "Updating..." : undefined;
 
           return (
             <RadioGroup.Option

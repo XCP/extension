@@ -7,18 +7,77 @@ import { Button } from "@/components/button";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
+import { fetchOpenInterest } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
 
 // Hardcoded feed address for weekly market bets
 const WEEKLY_FEED_ADDRESS = "WEEKLY_MARKET_FEED_ADDRESS";
 
-// Market open time: Monday 9:30 AM EST
+// Market open time: Monday 9:30 AM ET (Eastern Time - follows NYSE)
 const getNextMondayOpen = (): Date => {
   const now = new Date();
   const nextMonday = new Date(now);
   nextMonday.setDate(now.getDate() + ((1 + 7 - now.getDay()) % 7 || 7));
-  nextMonday.setUTCHours(14, 30, 0, 0); // 9:30 AM EST = 14:30 UTC
+  
+  // NYSE opens at 9:30 AM ET (Eastern Time)
+  // This is 14:30 UTC during EST (Nov-Mar) and 13:30 UTC during EDT (Mar-Nov)
+  // Using a simple check for DST based on the Monday we're calculating
+  const testDate = new Date(nextMonday);
+  testDate.setHours(12, 0, 0, 0); // Noon to avoid edge cases
+  const jan = new Date(testDate.getFullYear(), 0, 1);
+  const jul = new Date(testDate.getFullYear(), 6, 1);
+  const janOffset = jan.getTimezoneOffset();
+  const julOffset = jul.getTimezoneOffset();
+  const isDST = testDate.getTimezoneOffset() < Math.max(janOffset, julOffset);
+  
+  nextMonday.setUTCHours(isDST ? 13 : 14, 30, 0, 0);
   return nextMonday;
+};
+
+// Get betting window times in user's local timezone
+const getBettingWindowTimes = () => {
+  const saturday = new Date();
+  saturday.setUTCDate(saturday.getUTCDate() + (6 - saturday.getUTCDay()));
+  saturday.setUTCHours(0, 0, 0, 0);
+  
+  const monday = new Date();
+  monday.setUTCDate(monday.getUTCDate() + ((1 + 7 - monday.getUTCDay()) % 7));
+  monday.setUTCHours(14, 30, 0, 0);
+  
+  const formatter = new Intl.DateTimeFormat('default', {
+    weekday: 'long',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short'
+  });
+  
+  return {
+    start: formatter.format(saturday),
+    end: formatter.format(monday)
+  };
+};
+
+// Get next Friday close time (when betting opens again)
+const getNextFridayClose = (): Date => {
+  const now = new Date();
+  const friday = new Date(now);
+  
+  // Calculate days until Friday (5)
+  const daysUntilFriday = (5 - now.getDay() + 7) % 7 || 7;
+  friday.setDate(now.getDate() + daysUntilFriday);
+  
+  // NYSE closes at 4:00 PM ET
+  // This is 21:00 UTC during EST (Nov-Mar) and 20:00 UTC during EDT (Mar-Nov)
+  const testDate = new Date(friday);
+  testDate.setHours(12, 0, 0, 0);
+  const jan = new Date(testDate.getFullYear(), 0, 1);
+  const jul = new Date(testDate.getFullYear(), 6, 1);
+  const janOffset = jan.getTimezoneOffset();
+  const julOffset = jul.getTimezoneOffset();
+  const isDST = testDate.getTimezoneOffset() < Math.max(janOffset, julOffset);
+  
+  friday.setUTCHours(isDST ? 20 : 21, 0, 0, 0);
+  return friday;
 };
 
 // Check if current time is within betting window (Saturday 00:00 UTC to Monday 14:30 UTC)
@@ -85,26 +144,11 @@ export function WeeklyBetForm({ formAction }: BetFormProps): ReactElement {
   });
   const [wagerAmount, setWagerAmount] = useState<string>("");
   const [isWindowOpen, setIsWindowOpen] = useState<boolean>(isBettingWindowOpen());
-  const [selectedMarket, setSelectedMarket] = useState<Market>(mockApiResponse.markets[0]);
-  const [markets] = useState<Market[]>(mockApiResponse.markets); // Mock API data
-
-  // Comment out a sample API call (for future integration)
-  /*
-  const [markets, setMarkets] = useState<Market[]>([]);
-  useEffect(() => {
-    const fetchOdds = async () => {
-      try {
-        const response = await fetch("/api/market-odds");
-        const data = await response.json();
-        setMarkets(data.markets);
-        setSelectedMarket(data.markets[0]); // Default to first market
-      } catch (error) {
-        console.error("Failed to fetch market odds:", error);
-      }
-    };
-    fetchOdds();
-  }, []);
-  */
+  const [bettingWindowTimes] = useState(getBettingWindowTimes());
+  const [selectedMarket] = useState<Market>(mockApiResponse.markets[0]); // Always S&P 500
+  const [markets] = useState<Market[]>(mockApiResponse.markets); // Keep for future use
+  const [openInterest, setOpenInterest] = useState<{ yesTotal: number; noTotal: number; betsCount: number } | null>(null);
+  const [loadingOpenInterest, setLoadingOpenInterest] = useState(true);
 
   // Odds and fee constants based on selected market
   const YES_ODDS = selectedMarket.yesOdds;
@@ -150,6 +194,24 @@ export function WeeklyBetForm({ formAction }: BetFormProps): ReactElement {
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch open interest when component mounts
+  useEffect(() => {
+    const loadOpenInterest = async () => {
+      try {
+        setLoadingOpenInterest(true);
+        // Fetch open interest for the current week's target value (e.g., 1)
+        const interest = await fetchOpenInterest(WEEKLY_FEED_ADDRESS, 1);
+        setOpenInterest(interest);
+      } catch (error) {
+        console.error('Failed to fetch open interest:', error);
+      } finally {
+        setLoadingOpenInterest(false);
+      }
+    };
+
+    loadOpenInterest();
+  }, []);
+
   const enhancedFormAction = (formData: FormData) => {
     const processedFormData = new FormData();
     if (isNaN(wagerFloat) || wagerFloat <= 0) {
@@ -169,7 +231,7 @@ export function WeeklyBetForm({ formAction }: BetFormProps): ReactElement {
     processedFormData.append("counterwager_quantity", counterwagerSatoshis.toString());
     processedFormData.append("target_value", "1"); // Always 1
     processedFormData.append("leverage", "5040"); // 1x leverage
-    processedFormData.append("expiration", "10080"); // ~1 week in blocks
+    processedFormData.append("expiration", "20160"); // ~2 weeks in blocks - ensures resolution time
     processedFormData.append("sat_per_vbyte", "1"); // Default fee rate
 
     formAction(processedFormData);
@@ -193,20 +255,24 @@ export function WeeklyBetForm({ formAction }: BetFormProps): ReactElement {
         <form action={enhancedFormAction} className="space-y-6">
           <div className="text-center">
             <h2 className="text-lg font-medium text-gray-900">{selectedMarket.question}</h2>
-            <p className="text-sm text-gray-500">
-              Betting open: Saturday 00:00 UTC - Monday 14:30 UTC
-            </p>
-            <p className="text-sm text-gray-500">
-              Deadline: {getNextMondayOpen().toLocaleString()}
-            </p>
+            {isWindowOpen ? (
+              <p className="text-sm text-gray-500">
+                Betting deadline: {getNextMondayOpen().toLocaleString()}
+              </p>
+            ) : (
+              <p className="text-sm text-gray-500">
+                Betting opens: {getNextFridayClose().toLocaleString()} (after market close)
+              </p>
+            )}
           </div>
 
+          {/* Market selector - commented out for single market
           <Field>
             <Label className="text-sm font-medium text-gray-700">
               Select Market <span className="text-red-500">*</span>
             </Label>
             <div className="mt-1">
-              <Listbox value={selectedMarket} onChange={setSelectedMarket} disabled={pending || !isWindowOpen}>
+              <Listbox value={selectedMarket} onChange={setSelectedMarket} disabled={pending}>
                 <ListboxButton
                   className="w-full p-2 text-left rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
                 >
@@ -233,19 +299,35 @@ export function WeeklyBetForm({ formAction }: BetFormProps): ReactElement {
               Odds (Trailing 10 weeks): {Math.round(YES_ODDS * 100)}% Yes, {Math.round(NO_ODDS * 100)}% No | 5% feed fee applies
             </p>
           </Field>
+          */}
 
-          {!isWindowOpen && (
-            <div className="text-red-500 text-center">
-              Betting is currently closed. Please wait until the weekend.
+          <div className="text-sm text-gray-500 text-center space-y-2">
+            <div>
+              <div>Bet 1 XCP on Yes → Win {formatAmount({ value: (1 + YES_TO_NO_RATIO) * 0.95, maximumFractionDigits: 2, minimumFractionDigits: 2 })} XCP</div>
+              <div>Bet 1 XCP on No → Win {formatAmount({ value: (1 + NO_TO_YES_RATIO) * 0.95, maximumFractionDigits: 2, minimumFractionDigits: 2 })} XCP</div>
+              <div className="text-xs mt-1">(Odds based on past 10-weeks history)</div>
             </div>
-          )}
+            
+            {openInterest && !loadingOpenInterest && (
+              <div className="border-t pt-2 mt-2">
+                <div className="font-medium text-gray-700">Current Open Interest</div>
+                <div>Yes: {formatAmount({ value: openInterest.yesTotal, maximumFractionDigits: 2, minimumFractionDigits: 2 })} XCP</div>
+                <div>No: {formatAmount({ value: openInterest.noTotal, maximumFractionDigits: 2, minimumFractionDigits: 2 })} XCP</div>
+                <div className="text-xs">({openInterest.betsCount} active bets)</div>
+              </div>
+            )}
+            
+            {loadingOpenInterest && (
+              <div className="text-xs">Loading open interest...</div>
+            )}
+          </div>
 
           <Field>
             <Label className="text-sm font-medium text-gray-700">
               Your Prediction <span className="text-red-500">*</span>
             </Label>
             <div className="mt-1">
-              <Listbox value={selectedChoice} onChange={setSelectedChoice} disabled={pending || !isWindowOpen}>
+              <Listbox value={selectedChoice} onChange={setSelectedChoice} disabled={pending}>
                 <ListboxButton
                   className="w-full p-2 text-left rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
                 >
@@ -284,7 +366,7 @@ export function WeeklyBetForm({ formAction }: BetFormProps): ReactElement {
               step="0.00000001"
               placeholder="Enter XCP amount"
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-              disabled={pending || !isWindowOpen}
+              disabled={pending}
             />
             <p className="mt-2 text-sm text-gray-500">
               {wagerAmount && !isNaN(wagerFloat) ? (
@@ -300,6 +382,12 @@ export function WeeklyBetForm({ formAction }: BetFormProps): ReactElement {
               ) : ""}
             </p>
           </Field>
+
+          {!isWindowOpen && (
+            <div className="text-red-500 text-center text-sm">
+              Betting is currently closed.
+            </div>
+          )}
 
           <Button
             type="submit"

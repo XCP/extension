@@ -117,7 +117,7 @@ export class WalletManager {
     mnemonic: string,
     password: string,
     name?: string,
-    addressType: AddressType = AddressType.P2WPKH
+    addressType: AddressType = AddressType.P2TR
   ): Promise<Wallet> {
     if (this.wallets.length >= MAX_WALLETS) {
       throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
@@ -156,7 +156,7 @@ export class WalletManager {
     privateKey: string,
     password: string,
     name?: string,
-    addressType: AddressType = AddressType.P2WPKH
+    addressType: AddressType = AddressType.P2TR
   ): Promise<Wallet> {
     if (this.wallets.length >= MAX_WALLETS) {
       throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
@@ -412,7 +412,7 @@ export class WalletManager {
     mnemonic: string,
     password: string,
     name?: string,
-    addressType: AddressType = AddressType.P2WPKH
+    addressType: AddressType = AddressType.P2TR
   ): Promise<Wallet> {
     if (!name) {
       name = `Wallet ${this.wallets.length + 1}`;
@@ -427,7 +427,7 @@ export class WalletManager {
     privateKey: string,
     password: string,
     name?: string,
-    addressType: AddressType = AddressType.P2WPKH
+    addressType: AddressType = AddressType.P2TR
   ): Promise<Wallet> {
     if (!name) {
       name = `Wallet ${this.wallets.length + 1}`;
