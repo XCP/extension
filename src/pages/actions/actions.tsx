@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaChevronRight } from "react-icons/fa";
 import { useHeader } from "@/contexts/header-context";
+import { useWallet } from "@/contexts/wallet-context";
+import { AddressType } from "@/utils/blockchain/bitcoin/address";
 import type { ReactElement } from "react";
 
 /**
@@ -27,11 +29,52 @@ interface ActionGroup {
 /**
  * Constants for navigation paths and action groups.
  */
-const CONSTANTS = {
-  PATHS: {
-    BACK: "/index",
-  } as const,
-  ACTION_GROUPS: [
+const PATHS = {
+  BACK: "/index",
+} as const;
+
+const getActionGroups = (isTaprootWallet: boolean): ActionGroup[] => {
+  const addressActions: Action[] = [
+    {
+      id: "compose-broadcast",
+      name: "Broadcast Text",
+      description: "Broadcast plain-text message on Bitcoin",
+      path: "/compose/broadcast",
+    },
+  ];
+  
+  // Add Broadcast Inscription option for Taproot wallets
+  if (isTaprootWallet) {
+    addressActions.push({
+      id: "compose-broadcast-inscription",
+      name: "Broadcast Inscription",
+      description: "Broadcast inscribed media file on Bitcoin",
+      path: "/compose/broadcast/inscription",
+    });
+  }
+  
+  addressActions.push(
+    {
+      id: "compose-sweep",
+      name: "Sweep Address",
+      description: "Transfer all funds from an address",
+      path: "/compose/sweep",
+    },
+    {
+      id: "compose-broadcast-address-options",
+      name: "Update Options",
+      description: "Set address options like requiring memos",
+      path: "/compose/broadcast/address-options",
+    },
+    {
+      id: "consolidate",
+      name: "Recover Bitcoin",
+      description: "Find and consolidate bare multisig UTXOs",
+      path: "/consolidate",
+    }
+  );
+
+  return [
     {
       title: "Basic Actions",
       actions: [
@@ -97,32 +140,7 @@ const CONSTANTS = {
     },
     {
       title: "Address",
-      actions: [
-        {
-          id: "compose-broadcast",
-          name: "Broadcast Text",
-          description: "Broadcast a message to the network",
-          path: "/compose/broadcast",
-        },
-        {
-          id: "compose-sweep",
-          name: "Sweep Address",
-          description: "Transfer all funds from an address",
-          path: "/compose/sweep",
-        },
-        {
-          id: "compose-broadcast-address-options",
-          name: "Update Options",
-          description: "Set address options like requiring memos",
-          path: "/compose/broadcast/address-options",
-        },
-        {
-          id: "consolidate",
-          name: "Recover Bitcoin",
-          description: "Find and consolidate bare multisig UTXOs",
-          path: "/consolidate",
-        },
-      ],
+      actions: addressActions,
     },
     {
       title: "Betting",
@@ -135,8 +153,8 @@ const CONSTANTS = {
         },
       ],
     },
-  ] as ActionGroup[],
-} as const;
+  ];
+};
 
 /**
  * ActionsScreen component displays a list of actionable wallet operations.
@@ -154,12 +172,19 @@ const CONSTANTS = {
 export default function ActionsScreen(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
+  const { activeWallet } = useWallet();
+  
+  // Check if active wallet uses taproot addresses
+  const isTaprootWallet = activeWallet?.addressType === AddressType.P2TR;
+
+  // Get dynamic action groups based on wallet type
+  const actionGroups = getActionGroups(isTaprootWallet);
 
   // Configure header
   useEffect(() => {
     setHeaderProps({
       title: "Actions",
-      onBack: () => navigate(CONSTANTS.PATHS.BACK),
+      onBack: () => navigate(PATHS.BACK),
     });
   }, [setHeaderProps, navigate]);
 
@@ -178,7 +203,7 @@ export default function ActionsScreen(): ReactElement {
       </h2>
       <div className="flex-1 overflow-auto no-scrollbar p-4">
         <div className="space-y-6">
-          {CONSTANTS.ACTION_GROUPS.map((group) => (
+          {actionGroups.map((group) => (
             <div key={group.title} className="space-y-2">
               <h2 className="text-sm font-medium text-gray-500 px-4">{group.title}</h2>
               {group.actions.map((action) => (

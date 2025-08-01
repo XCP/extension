@@ -18,9 +18,7 @@ const CONSTANTS = {
   PATHS: {
     BACK: "/settings",
   } as const,
-  AVAILABLE_ADDRESS_TYPES: Object.values(AddressType).filter(
-    (type) => type !== AddressType.Counterwallet
-  ),
+  AVAILABLE_ADDRESS_TYPES: Object.values(AddressType),
 } as const;
 
 /**
@@ -128,6 +126,8 @@ export default function AddressTypeSettings(): ReactElement {
         return "Nested SegWit (P2SH-P2WPKH)";
       case AddressType.P2TR:
         return "Taproot (P2TR)";
+      case AddressType.Counterwallet:
+          return "CounterWallet (P2PKH)";
       default:
         return type;
     }
@@ -152,8 +152,9 @@ export default function AddressTypeSettings(): ReactElement {
       >
         {CONSTANTS.AVAILABLE_ADDRESS_TYPES.map((type) => {
           const typeLabel = getAddressTypeDescription(type);
-          const isDisabled = isUpdating;
-          const disabledReason = isUpdating ? "Updating..." : undefined;
+          const isCounterwallet = activeWallet?.addressType === AddressType.Counterwallet;
+          const isDisabled = isUpdating || (isCounterwallet && type !== AddressType.Counterwallet);
+          const disabledReason = isUpdating ? "Updating..." : (isCounterwallet && type !== AddressType.Counterwallet) ? "Create new wallet to use this address type" : undefined;
 
           return (
             <RadioGroup.Option

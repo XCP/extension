@@ -32,6 +32,7 @@ import ViewUtxo from '@/pages/assets/view-utxo';
 import ComposeBet from '@/pages/compose/bet/page';
 import ComposeWeeklyBet from '@/pages/compose/bet/weekly/page';
 import ComposeBroadcast from '@/pages/compose/broadcast/page';
+import ComposeBroadcastInscription from '@/pages/compose/broadcast/inscription/page';
 import ComposeBroadcastAddressOptions from '@/pages/compose/broadcast/address-options/page';
 import ComposeBTCPay from '@/pages/compose/order/btcpay/page';
 import ComposeCancel from '@/pages/compose/order/cancel/page';
@@ -154,6 +155,7 @@ export default function App() {
             <Route path="/compose/bet" element={<ComposeBet />} />
             <Route path="/compose/weekly-bet" element={<ComposeWeeklyBet />} />
             <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
+            <Route path="/compose/broadcast/inscription" element={<ComposeBroadcastInscription />} />
             <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptions />} />
             <Route path="/compose/btcpay" element={<ComposeBTCPay />} />
             <Route path="/compose/cancel/:hash?" element={<ComposeCancel />} />

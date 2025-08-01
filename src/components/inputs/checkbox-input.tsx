@@ -31,13 +31,13 @@ export function CheckboxInput({
     }
   }, [checked]);
 
-  const handleChange = (checked: boolean) => {
+  const handleChange = (newChecked: boolean) => {
     // Only update internal state if not controlled
     if (checked === undefined) {
-      setIsChecked(checked);
+      setIsChecked(newChecked);
     }
     if (onChange) {
-      onChange(checked);
+      onChange(newChecked);
     }
   };
 

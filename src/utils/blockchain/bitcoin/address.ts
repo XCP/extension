@@ -9,16 +9,16 @@ import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
  * Enum representing the different supported Bitcoin address types.
  */
 export enum AddressType {
-  /** Legacy address (Pay-to-PubKey-Hash) */
-  P2PKH = 'p2pkh',
-  /** Nested SegWit (P2WPKH nested in P2SH) */
-  P2SH_P2WPKH = 'p2sh-p2wpkh',
-  /** Native SegWit (Pay-to-Witness-PubKey-Hash) */
-  P2WPKH = 'p2wpkh',
-  /** Taproot (Pay-to-Taproot) */
-  P2TR = 'p2tr',
   /** Counterwallet style (P2PKH with custom derivation) */
   Counterwallet = 'counterwallet',
+  /** Taproot (Pay-to-Taproot) */
+  P2TR = 'p2tr',
+  /** Native SegWit (Pay-to-Witness-PubKey-Hash) */
+  P2WPKH = 'p2wpkh',
+  /** Nested SegWit (P2WPKH nested in P2SH) */
+  P2SH_P2WPKH = 'p2sh-p2wpkh',
+  /** Legacy address (Pay-to-PubKey-Hash) */
+  P2PKH = 'p2pkh',
 }
 
 // Create a base58check encoder instance using SHA-256.

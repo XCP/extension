@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Field, Label, Description, Textarea, Input, Switch } from "@headlessui/react";
+import { Field, Label, Description, Textarea, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { AddressHeader } from "@/components/headers/address-header";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+import { InscribeSwitch } from "@/components/inputs/inscribe-switch";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressType } from "@/utils/blockchain/bitcoin/address";
@@ -32,11 +33,11 @@ export function BroadcastForm({ formAction, initialFormData }: BroadcastFormProp
   const showAdvancedOptions = settings?.enableAdvancedBroadcasts ?? false;
   const { pending } = useFormStatus();
   
-  // Check if active address is taproot
-  const isTaprootAddress = activeAddress?.addressType === AddressType.P2TR;
+  // Check if active wallet uses taproot addresses
+  const isTaprootAddress = activeWallet?.addressType === AddressType.P2TR;
   
-  // State for inscription mode
-  const [inscribeEnabled, setInscribeEnabled] = useState(false);
+  // State for inscription mode - default to true for Taproot addresses
+  const [inscribeEnabled, setInscribeEnabled] = useState(isTaprootAddress);
 
   // Focus textarea on mount
   useEffect(() => {
@@ -94,6 +95,15 @@ export function BroadcastForm({ formAction, initialFormData }: BroadcastFormProp
             </Description>
           </Field>
 
+          {isTaprootAddress && (
+            <InscribeSwitch
+              checked={inscribeEnabled}
+              onChange={setInscribeEnabled}
+              showHelpText={shouldShowHelpText}
+              disabled={pending}
+            />
+          )}
+
           {showAdvancedOptions && (
             <>
               <Field>
@@ -144,35 +154,6 @@ export function BroadcastForm({ formAction, initialFormData }: BroadcastFormProp
               <input type="hidden" name="value" value="0" />
               <input type="hidden" name="fee_fraction" value="0" />
             </>
-          )}
-
-          {isTaprootAddress && (
-            <Field>
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <Label className="text-sm font-medium text-gray-700">
-                    Inscribe
-                  </Label>
-                  <Description className={shouldShowHelpText ? "text-sm text-gray-500" : "hidden"}>
-                    Store message as a Taproot inscription (on-chain)
-                  </Description>
-                </div>
-                <Switch
-                  checked={inscribeEnabled}
-                  onChange={setInscribeEnabled}
-                  className={`${
-                    inscribeEnabled ? 'bg-blue-600' : 'bg-gray-200'
-                  } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
-                  disabled={pending}
-                >
-                  <span
-                    className={`${
-                      inscribeEnabled ? 'translate-x-6' : 'translate-x-1'
-                    } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-                  />
-                </Switch>
-              </div>
-            </Field>
           )}
           
           {/* Hidden input for encoding */}

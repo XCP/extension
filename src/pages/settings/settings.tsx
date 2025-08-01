@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaChevronRight } from "react-icons/fa";
+import { Button } from "@/components/button";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressType } from "@/utils/blockchain/bitcoin";
@@ -80,13 +81,15 @@ export default function Settings(): ReactElement {
         return "Native SegWit (P2WPKH)";
       case AddressType.P2TR:
         return "Taproot (P2TR)";
+      case AddressType.Counterwallet:
+        return "CounterWallet (P2PKH)";
       default:
         return "";
     }
   };
 
   const settingOptions: SettingOption[] = [
-    ...(activeWallet?.type === "mnemonic" && activeWallet?.addressType !== AddressType.Counterwallet
+    ...(activeWallet?.type === "mnemonic"
       ? [
           {
             id: "addressType",

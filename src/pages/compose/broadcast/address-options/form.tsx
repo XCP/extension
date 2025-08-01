@@ -76,7 +76,7 @@ export function AddressOptionsForm({ formAction, initialFormData }: AddressOptio
               name="requireMemo"
               label="Require Memo for Incoming Transactions"
               disabled={pending}
-              defaultChecked={isChecked}
+              checked={isChecked}
               onChange={handleCheckboxChange}
             />
           </Field>
