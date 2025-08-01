@@ -74,7 +74,7 @@ export async function fetchPreviousRawTransaction(txid: string): Promise<string 
       `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
     );
 
-    if (response.data && response.data.result && response.data.result.hex) {
+    if (response.data && response.data.result && response.data.result.hasOwnProperty('hex') && response.data.result.hex !== undefined) {
       return response.data.result.hex;
     } else {
       console.error(`Raw transaction hex not found for txid: ${txid}`);

@@ -21,9 +21,9 @@ export const fetchFromMempoolSpace = async (): Promise<FeeRates> => {
   }
   const data = await response.json();
   if (
-    typeof data.fastestFee !== 'number' ||
-    typeof data.halfHourFee !== 'number' ||
-    typeof data.hourFee !== 'number'
+    typeof data.fastestFee !== 'number' || isNaN(data.fastestFee) ||
+    typeof data.halfHourFee !== 'number' || isNaN(data.halfHourFee) ||
+    typeof data.hourFee !== 'number' || isNaN(data.hourFee)
   ) {
     throw new Error('Invalid data format from mempool.space');
   }
@@ -53,9 +53,9 @@ export const fetchFromBlockstream = async (): Promise<FeeRates> => {
   const halfHourFee = data["3"];
   const hourFee = data["6"];
   if (
-    typeof fastestFee !== 'number' ||
-    typeof halfHourFee !== 'number' ||
-    typeof hourFee !== 'number'
+    typeof fastestFee !== 'number' || isNaN(fastestFee) ||
+    typeof halfHourFee !== 'number' || isNaN(halfHourFee) ||
+    typeof hourFee !== 'number' || isNaN(hourFee)
   ) {
     throw new Error('Invalid data format from blockstream.info');
   }
@@ -81,9 +81,9 @@ export const getFeeRates = async (): Promise<FeeRates> => {
       const rates = await fetcher();
       // Check that the returned rates are valid.
       if (
-        typeof rates.fastestFee === 'number' &&
-        typeof rates.halfHourFee === 'number' &&
-        typeof rates.hourFee === 'number'
+        typeof rates.fastestFee === 'number' && !isNaN(rates.fastestFee) &&
+        typeof rates.halfHourFee === 'number' && !isNaN(rates.halfHourFee) &&
+        typeof rates.hourFee === 'number' && !isNaN(rates.hourFee)
       ) {
         return rates;
       }

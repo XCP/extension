@@ -29,7 +29,15 @@ export const toBigNumber = (value: string | number | BigNumber | null | undefine
       return new BigNumber(defaultValue);
     }
     // Always convert to string first to prevent precision loss
-    return new BigNumber(value.toString());
+    const result = new BigNumber(value.toString());
+    
+    // Check if the result is NaN and fallback to default
+    if (result.isNaN()) {
+      console.error("Error converting to BigNumber:", `Invalid input: ${value}`);
+      return new BigNumber(defaultValue);
+    }
+    
+    return result;
   } catch (error) {
     console.error("Error converting to BigNumber:", error);
     return new BigNumber(defaultValue);
@@ -64,6 +72,12 @@ export const isValidPositiveNumber = (
   const { allowZero = false, maxDecimals = 8 } = options;
 
   try {
+    // First check if it's a valid number format before converting
+    const testNum = new BigNumber(value);
+    if (testNum.isNaN()) {
+      return false;
+    }
+    
     const num = toBigNumber(value);
     if (allowZero) {
       if (num.isLessThan(0)) return false;

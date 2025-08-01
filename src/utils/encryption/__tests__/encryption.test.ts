@@ -1,189 +1,320 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  getAllEncryptedWallets,
-  addEncryptedWallet,
-  updateEncryptedWallet,
-  removeEncryptedWallet,
-  EncryptedWalletRecord,
-} from '@/utils/storage';
+  encryptString,
+  decryptString,
+  DecryptionError,
+} from '../encryption';
 
-let store: EncryptedWalletRecord[] = [];
+// Mock crypto API for testing
+const mockCrypto = {
+  getRandomValues: vi.fn((array) => {
+    // Generate deterministic but "random-looking" values for testing
+    for (let i = 0; i < array.length; i++) {
+      array[i] = Math.floor(Math.random() * 256);
+    }
+    return array;
+  }),
+  subtle: {
+    importKey: vi.fn(),
+    deriveBits: vi.fn(),
+    deriveKey: vi.fn(),
+    encrypt: vi.fn(),
+    decrypt: vi.fn(),
+    sign: vi.fn(),
+    verify: vi.fn(),
+  },
+};
 
-vi.mock('@/utils/storage', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/utils/storage')>();
-  return {
-    ...actual,
-    getAllRecords: async () => [...store],
-    addRecord: async (record: EncryptedWalletRecord) => {
-      if (store.some((r) => r.id === record.id)) {
-        throw new Error(`Record with ID "${record.id}" already exists.`);
-      }
-      store.push({ ...record });
-    },
-    updateRecord: async (record: EncryptedWalletRecord) => {
-      const index = store.findIndex((r) => r.id === record.id);
-      if (index === -1) {
-        throw new Error(`Record with ID "${record.id}" not found.`);
-      }
-      store[index] = { ...record };
-    },
-    removeRecord: async (id: string) => {
-      store = store.filter((r) => r.id !== id);
-    },
-    clearAllRecords: async () => {
-      store = [];
-    },
-  };
-});
+// Set up global crypto mock using vi.stubGlobal
+vi.stubGlobal('crypto', mockCrypto);
 
-describe('walletStorage.ts', () => {
-  beforeEach(async () => {
-    store = [];
-    await (await import('@/utils/storage')).clearAllRecords();
+// Test data
+const testPassword = 'testPassword123';
+const testPlaintext = 'This is test data to encrypt';
+const emptyPassword = '';
+const emptyPlaintext = '';
+
+describe('encryption.ts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  afterEach(async () => {
-    await (await import('@/utils/storage')).clearAllRecords();
+  describe('encryptString', () => {
+    it('should throw error for empty password', async () => {
+      await expect(encryptString(testPlaintext, emptyPassword)).rejects.toThrow(
+        'Password cannot be empty'
+      );
+    });
+
+    it('should throw error for empty plaintext', async () => {
+      await expect(encryptString(emptyPlaintext, testPassword)).rejects.toThrow(
+        'Plaintext cannot be empty'
+      );
+    });
+
+    it('should return JSON string with expected structure', async () => {
+      // Mock the crypto operations
+      mockCrypto.subtle.importKey.mockResolvedValue({} as CryptoKey);
+      mockCrypto.subtle.deriveBits.mockResolvedValue(new ArrayBuffer(32));
+      mockCrypto.subtle.deriveKey.mockResolvedValue({} as CryptoKey);
+      mockCrypto.subtle.encrypt.mockResolvedValue(new ArrayBuffer(32));
+      mockCrypto.subtle.sign.mockResolvedValue(new ArrayBuffer(32));
+
+      const result = await encryptString(testPlaintext, testPassword);
+      
+      expect(typeof result).toBe('string');
+      
+      const parsed = JSON.parse(result);
+      expect(parsed).toHaveProperty('version');
+      expect(parsed).toHaveProperty('iterations');
+      expect(parsed).toHaveProperty('encryptedData');
+      expect(parsed).toHaveProperty('authSignature');
+      expect(parsed.version).toBe(1);
+      expect(parsed.iterations).toBe(420690);
+    });
+
+    it('should call crypto operations with correct parameters', async () => {
+      mockCrypto.subtle.importKey.mockResolvedValue({} as CryptoKey);
+      mockCrypto.subtle.deriveBits.mockResolvedValue(new ArrayBuffer(32));
+      mockCrypto.subtle.deriveKey.mockResolvedValue({} as CryptoKey);
+      mockCrypto.subtle.encrypt.mockResolvedValue(new ArrayBuffer(32));
+      mockCrypto.subtle.sign.mockResolvedValue(new ArrayBuffer(32));
+
+      await encryptString(testPlaintext, testPassword);
+
+      expect(mockCrypto.subtle.importKey).toHaveBeenCalled();
+      expect(mockCrypto.subtle.deriveBits).toHaveBeenCalled();
+      expect(mockCrypto.subtle.deriveKey).toHaveBeenCalled();
+      expect(mockCrypto.subtle.encrypt).toHaveBeenCalled();
+      expect(mockCrypto.subtle.sign).toHaveBeenCalled();
+    });
   });
 
-  describe('getAllEncryptedWallets', () => {
-    it('should return an empty array when no wallets exist', async () => {
-      const wallets = await getAllEncryptedWallets();
-      expect(wallets).toEqual([]);
+  describe('decryptString', () => {
+    it('should throw DecryptionError for empty password', async () => {
+      const validPayload = JSON.stringify({
+        version: 1,
+        iterations: 420690,
+        encryptedData: 'dGVzdA==',
+        authSignature: 'dGVzdA==',
+      });
+
+      await expect(decryptString(validPayload, emptyPassword)).rejects.toThrow(
+        DecryptionError
+      );
+      await expect(decryptString(validPayload, emptyPassword)).rejects.toThrow(
+        'Password cannot be empty'
+      );
     });
 
-    it('should return only mnemonic and privateKey wallets', async () => {
-      const mnemonicWallet: EncryptedWalletRecord = {
-        id: '1',
-        name: 'Mnemonic Wallet',
-        type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
-        encryptedSecret: 'encrypted-mnemonic',
-      };
-      const pkWallet: EncryptedWalletRecord = {
-        id: '2',
-        name: 'PK Wallet',
-        type: 'privateKey',
-        addressType: AddressType.P2PKH,
-        encryptedSecret: 'encrypted-pk',
-      };
-      const otherRecord = {
-        id: '3',
-        name: 'Other',
-        type: 'other',
-      };
-      await addEncryptedWallet(mnemonicWallet);
-      await addEncryptedWallet(pkWallet);
-      await (await import('@/utils/storage')).addRecord(otherRecord); // Use mocked addRecord directly
-      const wallets = await getAllEncryptedWallets();
-      expect(wallets).toEqual([mnemonicWallet, pkWallet]);
-      expect(wallets.length).toBe(2);
-    });
-  });
-
-  describe('addEncryptedWallet', () => {
-    it('should add a new encrypted wallet record', async () => {
-      const wallet: EncryptedWalletRecord = {
-        id: '1',
-        name: 'Test Wallet',
-        type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
-        encryptedSecret: 'encrypted-secret',
-      };
-      await addEncryptedWallet(wallet);
-      const wallets = await getAllEncryptedWallets();
-      expect(wallets).toContainEqual(wallet);
-      expect(wallets.length).toBe(1);
+    it('should throw DecryptionError for empty payload', async () => {
+      await expect(decryptString('', testPassword)).rejects.toThrow(
+        DecryptionError
+      );
+      await expect(decryptString('', testPassword)).rejects.toThrow(
+        'Encrypted payload cannot be empty'
+      );
     });
 
-    it('should throw an error for duplicate wallet ID', async () => {
-      const wallet: EncryptedWalletRecord = {
-        id: '1',
-        name: 'Test Wallet',
-        type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
-        encryptedSecret: 'encrypted-secret',
-      };
-      await addEncryptedWallet(wallet);
-      await expect(addEncryptedWallet(wallet)).rejects.toThrow(
-        'Record with ID "1" already exists.'
+    it('should throw DecryptionError for invalid JSON', async () => {
+      const invalidJson = 'not-valid-json';
+
+      await expect(decryptString(invalidJson, testPassword)).rejects.toThrow(
+        DecryptionError
+      );
+      await expect(decryptString(invalidJson, testPassword)).rejects.toThrow(
+        'Invalid encrypted payload (not valid JSON)'
+      );
+    });
+
+    it('should throw DecryptionError for unsupported version', async () => {
+      const unsupportedVersion = JSON.stringify({
+        version: 999,
+        iterations: 420690,
+        encryptedData: 'dGVzdA==',
+        authSignature: 'dGVzdA==',
+      });
+
+      await expect(decryptString(unsupportedVersion, testPassword)).rejects.toThrow(
+        DecryptionError
+      );
+      await expect(decryptString(unsupportedVersion, testPassword)).rejects.toThrow(
+        'Unsupported encryption version: 999'
+      );
+    });
+
+    it('should throw DecryptionError for incomplete data', async () => {
+      const incompleteData = JSON.stringify({
+        version: 1,
+        iterations: 420690,
+        encryptedData: 'dGVzdA==', // Too short
+        authSignature: 'dGVzdA==',
+      });
+
+      await expect(decryptString(incompleteData, testPassword)).rejects.toThrow(
+        DecryptionError
+      );
+      await expect(decryptString(incompleteData, testPassword)).rejects.toThrow(
+        'Invalid encrypted payload (incomplete data)'
+      );
+    });
+
+    it('should throw DecryptionError for invalid authentication', async () => {
+      // Create a payload with enough data length
+      const longEnoughData = 'A'.repeat(100); // Base64 that decodes to sufficient length
+      const invalidAuth = JSON.stringify({
+        version: 1,
+        iterations: 420690,
+        encryptedData: btoa(longEnoughData),
+        authSignature: 'dGVzdA==',
+      });
+
+      mockCrypto.subtle.importKey.mockResolvedValue({} as CryptoKey);
+      mockCrypto.subtle.deriveBits.mockResolvedValue(new ArrayBuffer(32));
+      mockCrypto.subtle.deriveKey.mockResolvedValue({} as CryptoKey);
+      mockCrypto.subtle.verify.mockResolvedValue(false); // Invalid auth
+
+      await expect(decryptString(invalidAuth, testPassword)).rejects.toThrow(
+        DecryptionError
+      );
+      await expect(decryptString(invalidAuth, testPassword)).rejects.toThrow(
+        'Invalid password or corrupted data'
+      );
+    });
+
+    it('should successfully decrypt with valid payload and password', async () => {
+      const longEnoughData = 'A'.repeat(100);
+      const validPayload = JSON.stringify({
+        version: 1,
+        iterations: 420690,
+        encryptedData: btoa(longEnoughData),
+        authSignature: 'dGVzdA==',
+      });
+
+      const decryptedData = new TextEncoder().encode(testPlaintext);
+
+      mockCrypto.subtle.importKey.mockResolvedValue({} as CryptoKey);
+      mockCrypto.subtle.deriveBits.mockResolvedValue(new ArrayBuffer(32));
+      mockCrypto.subtle.deriveKey.mockResolvedValue({} as CryptoKey);
+      mockCrypto.subtle.verify.mockResolvedValue(true);
+      mockCrypto.subtle.decrypt.mockResolvedValue(decryptedData.buffer);
+
+      const result = await decryptString(validPayload, testPassword);
+
+      expect(result).toBe(testPlaintext);
+      expect(mockCrypto.subtle.verify).toHaveBeenCalled();
+      expect(mockCrypto.subtle.decrypt).toHaveBeenCalled();
+    });
+
+    it('should handle crypto operation failures', async () => {
+      const longEnoughData = 'A'.repeat(100);
+      const validPayload = JSON.stringify({
+        version: 1,
+        iterations: 420690,
+        encryptedData: btoa(longEnoughData),
+        authSignature: 'dGVzdA==',
+      });
+
+      mockCrypto.subtle.importKey.mockRejectedValue(new Error('Crypto error'));
+
+      await expect(decryptString(validPayload, testPassword)).rejects.toThrow(
+        DecryptionError
+      );
+      await expect(decryptString(validPayload, testPassword)).rejects.toThrow(
+        'Failed to decrypt data'
       );
     });
   });
 
-  describe('updateEncryptedWallet', () => {
-    it('should update an existing wallet record', async () => {
-      const wallet: EncryptedWalletRecord = {
-        id: '1',
-        name: 'Original Wallet',
-        type: 'privateKey',
-        addressType: AddressType.P2PKH,
-        encryptedSecret: 'encrypted-secret',
-      };
-      await addEncryptedWallet(wallet);
-      const updatedWallet: EncryptedWalletRecord = {
-        ...wallet,
-        name: 'Updated Wallet',
-        addressCount: 5,
-      };
-      await updateEncryptedWallet(updatedWallet);
-      const wallets = await getAllEncryptedWallets();
-      expect(wallets).toContainEqual(updatedWallet);
-      expect(wallets.length).toBe(1);
-    });
+  describe('DecryptionError', () => {
+    it('should create proper error instance', () => {
+      const message = 'Test decryption error';
+      const error = new DecryptionError(message);
 
-    it('should throw an error for non-existent wallet ID', async () => {
-      const wallet: EncryptedWalletRecord = {
-        id: 'nonexistent',
-        name: 'Test Wallet',
-        type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
-        encryptedSecret: 'encrypted-secret',
-      };
-      await expect(updateEncryptedWallet(wallet)).rejects.toThrow(
-        'Record with ID "nonexistent" not found.'
-      );
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toBeInstanceOf(DecryptionError);
+      expect(error.name).toBe('DecryptionError');
+      expect(error.message).toBe(message);
     });
   });
 
-  describe('removeEncryptedWallet', () => {
-    it('should remove an existing wallet record', async () => {
-      const wallet1: EncryptedWalletRecord = {
-        id: '1',
-        name: 'Wallet 1',
-        type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
-        encryptedSecret: 'encrypted-secret-1',
-      };
-      const wallet2: EncryptedWalletRecord = {
-        id: '2',
-        name: 'Wallet 2',
-        type: 'privateKey',
-        addressType: AddressType.P2PKH,
-        encryptedSecret: 'encrypted-secret-2',
-      };
-      await addEncryptedWallet(wallet1);
-      await addEncryptedWallet(wallet2);
-      await removeEncryptedWallet('1');
-      const wallets = await getAllEncryptedWallets();
-      expect(wallets).toEqual([wallet2]);
-      expect(wallets.length).toBe(1);
+  describe('integration scenarios', () => {
+    it('should handle various plaintext types', async () => {
+      const testCases = [
+        'Simple text',
+        'Text with special chars: !@#$%^&*()',
+        'Unicode text: 测试文本 🚀',
+        JSON.stringify({ key: 'value', number: 123 }),
+        'Very long text: ' + 'x'.repeat(1000),
+      ];
+
+      mockCrypto.subtle.importKey.mockResolvedValue({} as CryptoKey);
+      mockCrypto.subtle.deriveBits.mockResolvedValue(new ArrayBuffer(32));
+      mockCrypto.subtle.deriveKey.mockResolvedValue({} as CryptoKey);
+      mockCrypto.subtle.encrypt.mockResolvedValue(new ArrayBuffer(32));
+      mockCrypto.subtle.sign.mockResolvedValue(new ArrayBuffer(32));
+
+      for (const testCase of testCases) {
+        const result = await encryptString(testCase, testPassword);
+        expect(typeof result).toBe('string');
+        expect(() => JSON.parse(result)).not.toThrow();
+      }
     });
 
-    it('should do nothing for a non-existent wallet ID', async () => {
-      const wallet: EncryptedWalletRecord = {
-        id: '1',
-        name: 'Test Wallet',
-        type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
-        encryptedSecret: 'encrypted-secret',
-      };
-      await addEncryptedWallet(wallet);
-      await removeEncryptedWallet('nonexistent');
-      const wallets = await getAllEncryptedWallets();
-      expect(wallets).toEqual([wallet]);
-      expect(wallets.length).toBe(1);
+    it('should handle various password types', async () => {
+      const passwords = [
+        'simple',
+        'with spaces',
+        'with-dashes_and_underscores',
+        'with123numbers',
+        'withSpecialChars!@#$%',
+        'Unicode密码',
+        'very'.repeat(100) + 'long',
+      ];
+
+      mockCrypto.subtle.importKey.mockResolvedValue({} as CryptoKey);
+      mockCrypto.subtle.deriveBits.mockResolvedValue(new ArrayBuffer(32));
+      mockCrypto.subtle.deriveKey.mockResolvedValue({} as CryptoKey);
+      mockCrypto.subtle.encrypt.mockResolvedValue(new ArrayBuffer(32));
+      mockCrypto.subtle.sign.mockResolvedValue(new ArrayBuffer(32));
+
+      for (const password of passwords) {
+        const result = await encryptString(testPlaintext, password);
+        expect(typeof result).toBe('string');
+      }
+    });
+  });
+
+  describe('crypto configuration', () => {
+    it('should use correct crypto parameters', async () => {
+      mockCrypto.subtle.importKey.mockResolvedValue({} as CryptoKey);
+      mockCrypto.subtle.deriveBits.mockResolvedValue(new ArrayBuffer(32));
+      mockCrypto.subtle.deriveKey.mockResolvedValue({} as CryptoKey);
+      mockCrypto.subtle.encrypt.mockResolvedValue(new ArrayBuffer(32));
+      mockCrypto.subtle.sign.mockResolvedValue(new ArrayBuffer(32));
+
+      await encryptString(testPlaintext, testPassword);
+
+      // Verify PBKDF2 parameters
+      expect(mockCrypto.subtle.deriveBits).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'PBKDF2',
+          iterations: 420690,
+          hash: 'SHA-256',
+        }),
+        expect.any(Object),
+        256
+      );
+
+      // Verify AES-GCM parameters
+      expect(mockCrypto.subtle.encrypt).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'AES-GCM',
+          tagLength: 128,
+        }),
+        expect.any(Object),
+        expect.any(Object)
+      );
     });
   });
 });

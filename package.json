@@ -11,10 +11,9 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
-    "test": "npm run test:e2e",
-    "test:unit": "vitest",
+    "test": "vitest",
+    "test:unit": "vitest run src",
     "test:e2e": "playwright test",
-    "test:all": "npm run build && npm run test:e2e",
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare"
   },

@@ -171,7 +171,7 @@ test('can access wallet settings', async () => {
     await page.waitForTimeout(1000);
     
     console.log('URL after clicking settings:', page.url());
-    await page.screenshot({ path: 'wallet-settings.png' });
+    await page.screenshot({ path: 'test-results/screenshots/wallet-settings.png' });
     
     // Look for settings options
     const settingsOptions = page.locator('text=/address|security|backup|private/i');

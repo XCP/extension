@@ -13,6 +13,13 @@ let blockHeightCache: BlockHeightCache | null = null;
 const CACHE_DURATION_MS = 10 * 60 * 1000; // 10 minutes
 
 /**
+ * Clears the block height cache. Useful for testing.
+ */
+export const clearBlockHeightCache = (): void => {
+  blockHeightCache = null;
+};
+
+/**
  * Fetch block height from Blockstream API
  */
 export const fetchFromBlockstream = async (): Promise<number> => {
@@ -75,9 +82,18 @@ const blockHeightFetchers: Array<() => Promise<number>> = [
  * @throws Error if all sources fail
  */
 export const fetchBlockHeightRace = async (): Promise<number> => {
-  const fetchPromises = blockHeightFetchers.map(fetcher => fetcher());
+  const fetchPromises = blockHeightFetchers.map(async (fetcher) => {
+    try {
+      return await fetcher();
+    } catch (error) {
+      // Convert rejections to a special rejected value so we can track failures
+      throw error;
+    }
+  });
+
   try {
-    return await Promise.race(fetchPromises);
+    // Use Promise.any which returns the first fulfilled promise, ignoring rejections until all reject
+    return await Promise.any(fetchPromises);
   } catch (error) {
     console.error('Error in block height race:', error);
     throw new Error('Failed to fetch block height from any source');

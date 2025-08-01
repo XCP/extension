@@ -35,7 +35,7 @@ export class CounterwalletMnemonic {
   private random: Uint32Array;
 
   constructor(words: string[]) {
-    if (words.length % 3 !== 0) {
+    if (words.length === 0 || words.length % 3 !== 0) {
       throw new Error('Invalid number of words (must be multiple of 3).');
     }
     const n = counterwalletWordlist.length;

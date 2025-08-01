@@ -1,4 +1,4 @@
-import { getSettings } from '@/utils/settings';
+import { settingsManager } from '@/utils/wallet/settingsManager';
 
 // Define types for window.fathom and window.currentVirtualPath
 declare global {
@@ -55,10 +55,11 @@ export const sanitizePath = (path: string): string => {
 };
 
 // Initialize the Fathom tracker
-window.fathom = (() => {
+if (typeof window !== 'undefined') {
+  window.fathom = (() => {
   // Helper function to check if analytics is allowed
   async function checkAnalyticsAllowed(): Promise<boolean> {
-    const settings = await getSettings();
+    const settings = await settingsManager.loadSettings();
     return settings.analyticsAllowed;
   }
 
@@ -163,19 +164,22 @@ window.fathom = (() => {
       // No-op implementation as per original script
     },
   };
-})();
+  })();
+}
 
 // Export tracking functions that check analytics settings
 export const trackEvent = async (eventId: string, opts?: { _value?: number }) => {
-  const analyticsAllowed = await getSettings().then((settings) => settings.analyticsAllowed);
-  if (analyticsAllowed) {
+  if (typeof window === 'undefined') return;
+  const settings = await settingsManager.loadSettings();
+  if (settings.analyticsAllowed) {
     window.fathom?.trackEvent(eventId, opts);
   }
 };
 
 export const trackPageview = async (opts?: { url?: string; referrer?: string }) => {
-  const analyticsAllowed = await getSettings().then((settings) => settings.analyticsAllowed);
-  if (analyticsAllowed) {
+  if (typeof window === 'undefined') return;
+  const settings = await settingsManager.loadSettings();
+  if (settings.analyticsAllowed) {
     window.fathom?.trackPageview(opts);
   }
 };

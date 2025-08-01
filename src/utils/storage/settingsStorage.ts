@@ -33,7 +33,7 @@ export interface KeychainSettings {
 /**
  * Default settings for new installations.
  */
-const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
+export const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
   lastActiveWalletId: undefined,
   lastActiveAddress: undefined,
   autoLockTimeout: 5 * 60 * 1000, // 5 minutes
@@ -78,8 +78,8 @@ export async function getKeychainSettings(): Promise<KeychainSettings> {
 
   delete (settings as any).id;
 
-  // Migration: If no autoLockTimer, set based on autoLockTimeout
-  if (!settings.autoLockTimer) {
+  // Migration: If no autoLockTimer in stored record, set based on autoLockTimeout
+  if (!storedRecord.autoLockTimer) {
     const minutes = settings.autoLockTimeout / (60 * 1000);
     if ([1, 5, 15, 30].includes(minutes)) {
       settings.autoLockTimer = `${minutes}m` as AutoLockTimer;
@@ -89,14 +89,14 @@ export async function getKeychainSettings(): Promise<KeychainSettings> {
       settings.autoLockTimeout = 5 * 60 * 1000;
     }
     // Persist migration
-    await updateKeychainSettings({ autoLockTimer: settings.autoLockTimer, autoLockTimeout: settings.autoLockTimeout });
+    await updateKeychainSettings({ autoLockTimer: settings.autoLockTimer, autoLockTimeout: settings.autoLockTimeout }, settings);
   }
 
   // Handle invalid autoLockTimer
   if (!['1m', '5m', '15m', '30m'].includes(settings.autoLockTimer)) {
     settings.autoLockTimer = '5m';
     settings.autoLockTimeout = 5 * 60 * 1000;
-    await updateKeychainSettings({ autoLockTimer: '5m', autoLockTimeout: 5 * 60 * 1000 });
+    await updateKeychainSettings({ autoLockTimer: '5m', autoLockTimeout: 5 * 60 * 1000 }, settings);
   }
 
   // Ensure consistency between autoLockTimer and autoLockTimeout
@@ -108,7 +108,7 @@ export async function getKeychainSettings(): Promise<KeychainSettings> {
   }[settings.autoLockTimer];
   if (settings.autoLockTimeout !== expectedTimeout) {
     settings.autoLockTimeout = expectedTimeout;
-    await updateKeychainSettings({ autoLockTimeout: expectedTimeout });
+    await updateKeychainSettings({ autoLockTimeout: expectedTimeout }, settings);
   }
 
   return settings;
@@ -119,10 +119,11 @@ export async function getKeychainSettings(): Promise<KeychainSettings> {
  * Adjusts autoLockTimeout based on autoLockTimer if provided.
  *
  * @param newSettings - Partial settings to update.
+ * @param currentSettings - Optional current settings to avoid re-fetching (prevents recursion)
  * @returns A Promise that resolves when the update is complete.
  */
-export async function updateKeychainSettings(newSettings: Partial<KeychainSettings>): Promise<void> {
-  const current = await getKeychainSettings();
+export async function updateKeychainSettings(newSettings: Partial<KeychainSettings>, currentSettings?: KeychainSettings): Promise<void> {
+  const current = currentSettings || await getKeychainSettings();
   let updated: KeychainSettings = { ...current, ...newSettings };
 
   if (newSettings.autoLockTimer) {

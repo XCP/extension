@@ -65,7 +65,7 @@ export const getBtcPrice = async (
   const promises = fetchers.map(async (fetcher) => {
     const data = await fetcher();
     const price = data.bitcoin?.usd;
-    if (typeof price !== "number") throw new Error(`${fetcher.name} returned invalid price`);
+    if (typeof price !== "number" || isNaN(price)) throw new Error(`${fetcher.name} returned invalid price`);
     return price;
   });
 

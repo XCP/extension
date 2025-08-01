@@ -44,17 +44,24 @@ const broadcastEndpoints: BroadcastEndpoint[] = [
   },
 ];
 
-const formatResponse = (endpoint: BroadcastEndpoint, response: AxiosResponse): TransactionResponse => {
-  if (endpoint.name === 'counterparty') {
-    return { txid: response.data?.result };
+const formatResponse = (endpoint: BroadcastEndpoint, response: AxiosResponse): TransactionResponse | null => {
+  try {
+    if (endpoint.name === 'counterparty') {
+      const txid = response.data?.result;
+      return txid ? { txid } : null;
+    }
+    if (endpoint.name === 'blockcypher') {
+      const txid = response.data?.tx?.hash;
+      return txid ? { txid, fees: response.data?.tx?.fees } : null;
+    }
+    if (endpoint.name === 'blockstream' || endpoint.name === 'mempool') {
+      const txid = typeof response.data === 'string' ? response.data.trim() : null;
+      return txid ? { txid } : null;
+    }
+    return null;
+  } catch (error) {
+    return null;
   }
-  if (endpoint.name === 'blockcypher') {
-    return { txid: response.data?.tx?.hash, fees: response.data?.tx?.fees };
-  }
-  if (endpoint.name === 'blockstream' || endpoint.name === 'mempool') {
-    return { txid: response.data?.trim() };
-  }
-  throw new Error('Unknown endpoint response format');
 };
 
 const MOCK_TXID_PREFIX = 'dev_mock_tx_';
@@ -93,7 +100,7 @@ export async function broadcastTransaction(signedTxHex: string): Promise<Transac
       );
       if (response.status >= 200 && response.status < 300) {
         const formatted = formatResponse(endpoint, response);
-        if (formatted.txid) {
+        if (formatted && formatted.txid) {
           return formatted;
         }
       }

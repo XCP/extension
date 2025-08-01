@@ -12,50 +12,89 @@ export interface StoredRecord {
 /**
  * Defines a storage item for an array of records.
  * Uses the key 'local:appRecords' in local storage with a fallback of an empty array.
+ * In test environments, uses a unique key to avoid test interference.
  */
-const localRecords = storage.defineItem<StoredRecord[]>('local:appRecords', {
+const storageKey = typeof process !== 'undefined' && process.env.NODE_ENV === 'test' 
+  ? `local:appRecords_test`
+  : 'local:appRecords';
+
+
+const localRecords = storage.defineItem<StoredRecord[]>(storageKey, {
   fallback: [],
 });
 
-// In-memory cache to reduce redundant storage reads.
-// Initialized as null and populated on first access.
-let cachedRecords: StoredRecord[] | null = null;
+// Simple in-memory cache with invalidation
+let recordsCache: StoredRecord[] | null = null;
+let cacheTimestamp: number = 0;
+const CACHE_TTL = 5000; // 5 seconds TTL to balance performance vs freshness
 
 /**
- * Internal helper to fetch records from storage, utilizing an in-memory cache.
- * If the cache is null, it retrieves from storage and caches the result.
- * Handles storage failures gracefully by falling back to an empty array.
+ * Internal helper to fetch records from storage with smart caching.
+ * Uses a short-lived cache to avoid repeated storage reads within a short timeframe.
  *
+ * @param forceRefresh - If true, bypasses cache and fetches from storage
  * @returns A Promise resolving to the array of stored records.
  */
-async function getCachedRecords(): Promise<StoredRecord[]> {
-  if (cachedRecords === null) {
-    try {
-      cachedRecords = await localRecords.getValue();
-    } catch (err) {
-      // Log error for debugging but don't fail the operation
-      console.error('Failed to fetch records from storage:', err);
-      cachedRecords = []; // Fallback to empty array on failure
-    }
+async function getRecords(forceRefresh = false): Promise<StoredRecord[]> {
+  const now = Date.now();
+  
+  // Return cached data if fresh and not forced refresh
+  if (!forceRefresh && recordsCache && (now - cacheTimestamp) < CACHE_TTL) {
+    return recordsCache;
   }
-  return cachedRecords;
+
+  try {
+    const records = await localRecords.getValue();
+    // Update cache
+    recordsCache = records;
+    cacheTimestamp = now;
+    return records;
+  } catch (err) {
+    // Log error for debugging but don't fail the operation
+    console.error('Failed to fetch records from storage:', err);
+    // Return cached data if available, otherwise empty array
+    return recordsCache || [];
+  }
 }
 
 /**
- * Internal helper to update the cache and persist changes to storage.
- * Ensures the cache stays in sync with persistent storage.
+ * Internal helper to persist changes to storage and update cache.
  *
  * @param records - The updated array of records to persist.
  * @throws Error if storage write fails, allowing callers to handle persistence issues.
  */
-async function updateAndPersistRecords(records: StoredRecord[]): Promise<void> {
-  cachedRecords = records;
+async function persistRecords(records: StoredRecord[]): Promise<void> {
   try {
     await localRecords.setValue(records);
+    // Update cache immediately after successful write
+    recordsCache = records;
+    cacheTimestamp = Date.now();
   } catch (err) {
     console.error('Failed to persist records to storage:', err);
     throw new Error('Storage update failed'); // Propagate error for caller awareness
   }
+}
+
+/**
+ * Invalidates the cache, forcing next read to fetch from storage.
+ * Useful when external changes to storage are expected.
+ */
+export function invalidateCache(): void {
+  recordsCache = null;
+  cacheTimestamp = 0;
+}
+
+/**
+ * Watch for changes to records in storage and automatically invalidate cache.
+ * Useful when multiple extension contexts might modify the same storage.
+ * 
+ * @returns Function to stop watching
+ */
+export function watchStorageChanges(): (() => void) {
+  return localRecords.watch(() => {
+    // Invalidate cache when storage changes externally
+    invalidateCache();
+  });
 }
 
 /**
@@ -65,18 +104,17 @@ async function updateAndPersistRecords(records: StoredRecord[]): Promise<void> {
  * @returns A Promise resolving to an array of stored records.
  */
 export async function getAllRecords(): Promise<StoredRecord[]> {
-  return structuredClone(await getCachedRecords());
+  return structuredClone(await getRecords());
 }
 
 /**
  * Retrieves a record by its ID.
- * Uses the cached records for efficient lookup.
  *
  * @param id - The record ID to find.
  * @returns A Promise resolving to the found record, or undefined if not found.
  */
 export async function getRecordById(id: string): Promise<StoredRecord | undefined> {
-  const records = await getCachedRecords();
+  const records = await getRecords();
   return records.find((r) => r.id === id);
 }
 
@@ -88,12 +126,12 @@ export async function getRecordById(id: string): Promise<StoredRecord | undefine
  * @throws Error if a record with the same ID already exists.
  */
 export async function addRecord(record: StoredRecord): Promise<void> {
-  const records = await getCachedRecords();
+  const records = await getRecords();
   if (records.some((r) => r.id === record.id)) {
     throw new Error(`Record with ID "${record.id}" already exists.`);
   }
-  records.push(record); // Append to the in-memory array
-  await updateAndPersistRecords(records);
+  records.push(record);
+  await persistRecords(records);
 }
 
 /**
@@ -104,13 +142,13 @@ export async function addRecord(record: StoredRecord): Promise<void> {
  * @throws Error if no record with the matching ID is found.
  */
 export async function updateRecord(record: StoredRecord): Promise<void> {
-  const records = await getCachedRecords();
+  const records = await getRecords();
   const index = records.findIndex((r) => r.id === record.id);
   if (index === -1) {
     throw new Error(`Record with ID "${record.id}" not found.`);
   }
-  records[index] = record; // Replace the existing record
-  await updateAndPersistRecords(records);
+  records[index] = record;
+  await persistRecords(records);
 }
 
 /**
@@ -120,23 +158,22 @@ export async function updateRecord(record: StoredRecord): Promise<void> {
  * @param id - The ID of the record to remove.
  */
 export async function removeRecord(id: string): Promise<void> {
-  const records = await getCachedRecords();
+  const records = await getRecords();
   const index = records.findIndex((r) => r.id === id);
-  if (index === -1) return; // No-op if record isn’t found
-  records.splice(index, 1); // Remove in-place for efficiency
-  await updateAndPersistRecords(records);
+  if (index === -1) return; // No-op if record isn't found
+  records.splice(index, 1);
+  await persistRecords(records);
 }
 
 /**
  * Clears all records from storage.
- * Resets both the cache and persistent storage.
+ * Resets persistent storage to empty array.
  */
 export async function clearAllRecords(): Promise<void> {
-  cachedRecords = null; // Reset cache immediately
   try {
-    await localRecords.removeValue();
+    await persistRecords([]); // Use persistRecords to clear and update cache
   } catch (err) {
-    // Log failure but don’t throw, as cache is already cleared
+    // Log failure but don't throw
     console.error('Failed to clear records from storage:', err);
   }
 }

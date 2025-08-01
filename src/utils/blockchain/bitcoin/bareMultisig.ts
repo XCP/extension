@@ -231,7 +231,7 @@ async function fetchBareMultisigUTXOs(address: string): Promise<UTXO[]> {
 /**
  * Fetch a previous transaction's raw hex given its txid.
  */
-async function fetchPreviousRawTransaction(txid: string): Promise<string> {
+async function fetchPreviousRawTransaction(txid: string): Promise<string | null> {
   const endpoints = [
     { url: `https://blockstream.info/api/tx/${txid}/hex`, transform: (d: string) => d.trim() },
     { url: `https://mempool.space/api/tx/${txid}/hex`, transform: (d: string) => d.trim() },
@@ -248,7 +248,7 @@ async function fetchPreviousRawTransaction(txid: string): Promise<string> {
       continue;
     }
   }
-  return '';
+  return null;
 }
 
 /**
