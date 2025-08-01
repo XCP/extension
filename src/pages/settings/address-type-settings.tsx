@@ -150,7 +150,13 @@ export default function AddressTypeSettings(): ReactElement {
         className="space-y-2"
         disabled={isUpdating}
       >
-        {CONSTANTS.AVAILABLE_ADDRESS_TYPES.map((type) => {
+        {CONSTANTS.AVAILABLE_ADDRESS_TYPES.filter((type) => {
+          // Only show Counterwallet if it's the current address type
+          if (type === AddressType.Counterwallet) {
+            return activeWallet?.addressType === AddressType.Counterwallet;
+          }
+          return true;
+        }).map((type) => {
           const typeLabel = getAddressTypeDescription(type);
           const isCounterwallet = activeWallet?.addressType === AddressType.Counterwallet;
           const isDisabled = isUpdating || (isCounterwallet && type !== AddressType.Counterwallet);

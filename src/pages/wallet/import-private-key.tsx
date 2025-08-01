@@ -18,7 +18,7 @@ const ImportPrivateKey = () => {
   const { wallets, createAndUnlockPrivateKeyWallet, verifyPassword } = useWallet();
   const { pending } = useFormStatus();
 
-  const [addressType, setAddressType] = useState<AddressType>(AddressType.P2PKH);
+  const [addressType, setAddressType] = useState<AddressType>(AddressType.P2TR);
   const [submissionError, setSubmissionError] = useState("");
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [password, setPassword] = useState("");
@@ -34,6 +34,7 @@ const ImportPrivateKey = () => {
     { value: AddressType.P2PKH, label: "Legacy" },
     { value: AddressType.P2SH_P2WPKH, label: "Nested SegWit" },
     { value: AddressType.P2WPKH, label: "Native SegWit" },
+    { value: AddressType.P2TR, label: "Taproot" },
   ] as const;
 
   const isValidPrivateKey = (key: string): boolean =>
@@ -49,8 +50,8 @@ const ImportPrivateKey = () => {
       : isWIFCompressed(key)
       ? AddressType.P2SH_P2WPKH
       : isHexPrivateKey(key)
-      ? AddressType.P2PKH
-      : AddressType.P2PKH;
+      ? AddressType.P2TR
+      : AddressType.P2TR;
 
   useEffect(() => {
     setHeaderProps({

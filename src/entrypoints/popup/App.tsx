@@ -3,7 +3,6 @@ import { FaSpinner } from "react-icons/fa";
 import { Layout } from '@/components/layout';
 import { useWallet } from '@/contexts/wallet-context';
 import { AuthRequired } from '@/middleware/auth-required';
-import { DebugOverlay } from '@/components/debug';
 
 // Core Pages
 import Index from '@/pages/index';
@@ -78,6 +77,9 @@ import SecuritySettings from '@/pages/settings/security-settings';
 import ConnectedSitesSettings from '@/pages/settings/connected-sites-settings';
 import PinnedAssetsSettings from '@/pages/settings/pinned-assets-settings';
 
+// Market page
+import Market from '@/pages/market';
+
 export default function App() {
   const { wallets, walletLocked, loaded } = useWallet();
 
@@ -97,9 +99,7 @@ export default function App() {
   const walletExists = wallets.length > 0;
 
   return (
-    <>
-      <DebugOverlay />
-      <Routes>
+    <Routes>
         {/* Root route logic:
             - If no wallet exists, go to onboarding.
             - If a wallet exists but is locked, go to unlock-wallet.
@@ -130,6 +130,7 @@ export default function App() {
         <Route element={<AuthRequired />}>
           <Route element={<Layout showFooter={true} />}>
             <Route path="/index" element={<Index />} />
+            <Route path="/market" element={<Market />} />
             <Route path="/actions" element={<Actions />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
@@ -186,7 +187,6 @@ export default function App() {
 
         {/* Catch-all route */}
         <Route path="*" element={<NotFound />} />
-      </Routes>
-    </>
+    </Routes>
   );
 }

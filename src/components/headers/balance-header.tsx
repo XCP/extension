@@ -32,18 +32,15 @@ interface BalanceHeaderProps {
  * @returns JSX.Element
  */
 export const BalanceHeader = ({ balance, className = '' }: BalanceHeaderProps) => {
-  const { subheadings, setBalanceHeader } = useHeader();
-  const cached = subheadings.balances[balance.asset];
+  const { setBalanceHeader } = useHeader();
 
-  // Update cache if props differ from cached data
+  // Update cache with the current balance data
   useEffect(() => {
-    if (!cached || JSON.stringify(cached) !== JSON.stringify(balance)) {
-      setBalanceHeader(balance.asset, balance);
-    }
-  }, [balance, cached, setBalanceHeader]);
+    setBalanceHeader(balance.asset, balance);
+  }, [balance, setBalanceHeader]);
 
-  // Use cached data if available, otherwise fall back to props
-  const displayBalance = cached ?? balance;
+  // Always use props data as the source of truth
+  const displayBalance = balance;
 
   // Format the balance based on divisibility
   const formattedBalance = displayBalance.quantity_normalized

@@ -27,7 +27,7 @@ export function Consolidate() {
   useEffect(() => {
     if (step === 'form') {
       setHeaderProps({
-        title: "Consolidate",
+        title: "Recovery Tool",
         onBack: () => navigate(-1),
         rightButton: {
           icon: <FiHelpCircle className="w-4 h-4" />,

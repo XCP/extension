@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { FaExternalLinkAlt, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
+import { Spinner } from "@/components/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchTransactions, type TransactionResponse, type Transaction } from "@/utils/blockchain/counterparty";
@@ -141,7 +142,7 @@ export default function AddressHistory(): ReactElement {
     </div>
   );
 
-  if (isLoading) return <div className="p-4 text-gray-500">Loading transactions...</div>;
+  if (isLoading) return <Spinner message="Loading transactions..." />;
   if (error) return <ErrorAlert message={error} onClose={() => setError(null)} />;
 
   return (

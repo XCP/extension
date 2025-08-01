@@ -35,7 +35,7 @@ interface UseAssetDetailsOptions {
  */
 export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions) {
   const { activeAddress } = useWallet();
-  const { subheadings, setBalanceHeader } = useHeader();
+  const { subheadings, setBalanceHeader, clearBalances } = useHeader();
   const [state, setState] = useState<{
     isLoading: boolean;
     error: Error | null;
@@ -48,11 +48,34 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
 
   // Ref to track if fetch is still valid
   const fetchDataRef = useRef(false);
-
-  // Memoize the cached balance for the specific asset to stabilize the reference
-  const cachedBalance = useMemo(() => subheadings.balances[asset], [subheadings.balances, asset]);
+  
+  // Ref to track the previous address
+  const prevAddressRef = useRef<string | undefined>();
+  
+  // Reset state when address changes
+  useEffect(() => {
+    if (prevAddressRef.current && prevAddressRef.current !== activeAddress?.address) {
+      setState({
+        isLoading: false,
+        error: null,
+        data: null,
+      });
+    }
+  }, [activeAddress?.address]);
 
   useEffect(() => {
+    // Clear balance cache if address changed
+    if (prevAddressRef.current && prevAddressRef.current !== activeAddress?.address) {
+      clearBalances();
+      // Reset state to force re-fetch
+      setState({
+        isLoading: false,
+        error: null,
+        data: null,
+      });
+    }
+    prevAddressRef.current = activeAddress?.address;
+
     let isMounted = true;
     fetchDataRef.current = true;
 
@@ -148,8 +171,13 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
       return;
     }
 
-    // Fetch data if no cached balance or if cached balance is incomplete
-    if (!cachedBalance || !cachedBalance.quantity_normalized) {
+    // Get current cached balance
+    const cachedBalance = subheadings.balances[asset];
+    
+    // Always fetch data when address changes or no data exists
+    const addressChanged = prevAddressRef.current && prevAddressRef.current !== activeAddress?.address;
+    
+    if (addressChanged || !cachedBalance || !cachedBalance.quantity_normalized) {
       fetchData();
     } else if (!state.data) {
       // Use cached data if available and state hasn't been set yet
@@ -170,7 +198,7 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
       isMounted = false;
       fetchDataRef.current = false;
     };
-  }, [asset, activeAddress?.address, cachedBalance, setBalanceHeader, options]);
+  }, [asset, activeAddress?.address, subheadings.balances, setBalanceHeader, clearBalances, options]);
 
   return state;
 }
