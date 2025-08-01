@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useActionState } from "react";
+import { useEffect, useState, useActionState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSync, FaEyeSlash } from "react-icons/fa";
 import { Button } from "@/components/button";
@@ -23,6 +23,7 @@ function CreateWallet() {
   const [isRecoveryPhraseVisible, setIsRecoveryPhraseVisible] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [password, setPassword] = useState("");
+  const passwordInputRef = useRef<HTMLInputElement>(null);
 
   const PATHS = {
     BACK: walletExists ? "/add-wallet" : "/onboarding",
@@ -91,6 +92,12 @@ function CreateWallet() {
 
   const handleCheckboxChange = (checked: boolean) => {
     setIsConfirmed(checked);
+    if (checked) {
+      // Focus password input when checkbox is checked
+      setTimeout(() => {
+        passwordInputRef.current?.focus();
+      }, 50);
+    }
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,6 +171,7 @@ function CreateWallet() {
           {isConfirmed && (
             <>
               <PasswordInput
+                innerRef={passwordInputRef}
                 name="password"
                 placeholder={
                   walletExists ? "Confirm your password" : "Create a password"

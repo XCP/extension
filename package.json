@@ -11,7 +11,7 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
-    "test": "vitest",
+    "test": "vitest run src && playwright test",
     "test:unit": "vitest run src",
     "test:e2e": "playwright test",
     "compile": "tsc --noEmit",

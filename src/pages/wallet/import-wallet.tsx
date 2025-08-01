@@ -26,6 +26,7 @@ function ImportWallet() {
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [password, setPassword] = useState("");
   const inputRefs = useRef<(HTMLInputElement | null)[]>(Array(12).fill(null));
+  const passwordInputRef = useRef<HTMLInputElement>(null);
 
   const PATHS = {
     BACK: walletExists ? "/add-wallet" : "/onboarding",
@@ -122,6 +123,12 @@ function ImportWallet() {
 
   const handleCheckboxChange = (checked: boolean) => {
     setIsConfirmed(checked);
+    if (checked) {
+      // Focus password input when checkbox is checked
+      setTimeout(() => {
+        passwordInputRef.current?.focus();
+      }, 50);
+    }
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -171,6 +178,7 @@ function ImportWallet() {
           {isConfirmed && (
             <>
               <PasswordInput
+                innerRef={passwordInputRef}
                 name="password"
                 placeholder={walletExists ? "Confirm your password" : "Create a password"}
                 disabled={isPending}
