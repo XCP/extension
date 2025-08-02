@@ -7,10 +7,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a Counterparty Web3 Wallet browser extension built with:
 - WXT (Web Extension Toolkit) for cross-browser extension development
 - React 19 with TypeScript
-- Tailwind CSS for styling
-- Vite as the build tool
-- Vitest for unit testing
-- Playwright for E2E testing
+- Tailwind CSS v4 with Vite plugin integration
+- Vite as the build tool with advanced optimization
+- Vitest for unit testing (24+ test suites)
+- Playwright for E2E testing with extension-specific patterns
+- React Router v7 for navigation and routing
+- @headlessui/react for accessible UI components
+- @hello-pangea/dnd for drag-and-drop functionality
+- react-idle-timer for auto-lock implementation
+- Fathom Analytics for privacy-aware usage tracking
 
 ## Development Commands
 
@@ -27,6 +32,9 @@ npm run zip:firefox      # Create Firefox ZIP package
 
 # Testing & Quality
 npm test                 # Run Vitest unit tests
+npm run test:unit        # Run unit tests only
+npm run test:e2e         # Run E2E tests only
+npm run test:all         # Build + run all tests
 npm run compile          # TypeScript type checking
 ```
 
@@ -35,39 +43,87 @@ npm run compile          # TypeScript type checking
 ### Core Services Architecture
 The extension uses a service-based architecture with proxy services for cross-context communication:
 
-- **Background Service** (`src/entrypoints/background.ts`): Manages wallet operations and provider API
+- **Background Service** (`src/entrypoints/background.ts`): Manages wallet operations and provider API with keep-alive mechanism
 - **Wallet Service** (`src/services/walletService.ts`): Core wallet functionality via proxy service pattern
-- **Provider Service** (`src/services/providerService.ts`): Web3 provider API for dApp integration
+- **Provider Service** (`src/services/providerService.ts`): EIP-1193-like Web3 provider API for dApp integration
+- **Content Script** (`src/entrypoints/content.ts`): Selective injection on xcp.io domains for provider access
 
 ### Key Contexts & Components
 
-1. **Wallet Management** (`src/contexts/wallet-context.tsx`):
-   - Authentication states: Onboarding, Locked, Unlocked
-   - Active wallet/address management
-   - Password-based encryption using wallet encryption utilities
+1. **Context Architecture** (7 contexts for state management):
+   - **Wallet Context** (`src/contexts/wallet-context.tsx`): Authentication states and wallet management
+   - **Composer Context** (`src/contexts/composer-context.tsx`): Transaction composition workflow
+   - **Settings Context** (`src/contexts/settings-context.tsx`): Application preferences
+   - **Price Context** (`src/contexts/price-context.tsx`): Bitcoin price feeds
+   - **Loading Context** (`src/contexts/loading-context.tsx`): Global loading states
+   - **Header Context** (`src/contexts/header-context.tsx`): Header UI state
 
 2. **Blockchain Integration** (`src/utils/blockchain/`):
    - Bitcoin utilities: address generation, UTXO management, transaction signing
-   - Counterparty API integration for token operations
-   - Support for multiple address types (Legacy, Native SegWit, Taproot)
+   - Counterparty API (`src/utils/blockchain/counterparty/api.ts`): 40+ endpoints for tokens, orders, dispensers
+   - External APIs: Price feeds, fee rates, block height, transaction broadcasting
+   - Support for multiple address types (Legacy, Native SegWit, Nested SegWit, Taproot, Counterwallet)
 
 3. **Storage Layer** (`src/utils/storage/`):
    - Encrypted wallet storage with browser.storage.local
-   - Settings persistence
+   - Settings persistence with migration support
    - Session management for auto-lock functionality
+   - Caching layer with invalidation patterns
+
+4. **Custom Hooks** (`src/hooks/`):
+   - `useConsolidateAndBroadcast`: Bare multisig consolidation
+   - `useAssetDetails`: Asset metadata fetching
+   - `useFeeRates`: Dynamic fee estimation
+   - `useBlockHeight`: Current block tracking
+   - `useSearchQuery`: Asset/balance filtering
 
 ### Testing Structure
-- Unit tests use Vitest with test files alongside source files (`__tests__` directories)
-- E2E tests in `/e2e` directory with separate Playwright projects for onboarding, created, and imported wallet states
-- Test utilities include encryption tests, storage tests, and blockchain utility tests
+- **Unit Tests**: 24+ test suites using Vitest
+  - Test files in `__tests__` directories alongside source
+  - Coverage for encryption, storage, blockchain utilities, wallet management
+  - WXT testing utilities for extension-specific testing
+- **E2E Tests**: Playwright with extension context
+  - Tests in `/e2e` directory as flat `.spec.ts` files
+  - Persistent context testing for service worker initialization
+  - Test data references in `e2e/test-data/`
+  - Screenshots on failure to `test-results/screenshots/`
 
 ## Important Implementation Notes
 
-1. **Security**: All wallet data is encrypted using the encryption utilities in `src/utils/encryption/`
-2. **Address Types**: The wallet supports Legacy (P2PKH), Native SegWit (P2WPKH), and Taproot (P2TR) addresses
-3. **State Management**: Uses React Context API with custom hooks for wallet state
-4. **Background Keep-Alive**: Background script includes a keep-alive mechanism to prevent service worker termination
-5. **Cross-Context Communication**: Uses webext-bridge for message passing between contexts
+1. **Security**: 
+   - Multi-layer encryption with PBKDF2 (420,690 iterations) + AES-GCM
+   - Version control and tampering protection in encrypted payloads
+   - In-memory secret storage (never persisted when unlocked)
+   - Privacy-aware analytics with Fathom (path sanitization, user consent)
+
+2. **Address Types**: 
+   - Legacy (P2PKH), Native SegWit (P2WPKH), Nested SegWit (P2SH-P2WPKH)
+   - Taproot (P2TR), Counterwallet (special derivation path)
+   - Automatic script generation per address type
+
+3. **State Management**: 
+   - 7 specialized React contexts for different domains
+   - Complex form-to-transaction workflow in Composer context
+   - Session-based authentication with auto-lock
+
+4. **Background Keep-Alive**: 
+   - Service worker keep-alive to prevent termination
+   - Alarm-based heartbeat mechanism
+
+5. **Cross-Context Communication**: 
+   - webext-bridge for background-popup-content messaging
+   - Proxy service pattern for wallet operations
+
+6. **Routing Architecture**:
+   - React Router v7 with 50+ route definitions
+   - AuthRequired middleware for route protection
+   - Authentication-based redirects and guards
+
+7. **External Integrations**:
+   - Counterparty API with comprehensive endpoint coverage
+   - Bitcoin network APIs for fees, prices, broadcasting
+   - Fathom Analytics with privacy controls
+   - XCP.io domain-specific content script injection
 
 ## E2E Testing
 
@@ -176,3 +232,30 @@ npm run test:all      # Build + E2E tests
    - Empty strings in session storage return as null (security measure)
    - Private keys can be provided as hex (with/without 0x prefix) or WIF format
    - Counterwallet addresses use special derivation path for compatibility
+
+## Development Environment
+
+### Configuration Files
+- **wxt.config.ts**: Extension manifest and permissions configuration
+- **vite.config.mts**: Build optimization and module handling
+- **tailwind.config.js**: Tailwind v4 with Vite plugin
+- **tsconfig.json**: TypeScript configuration with strict mode
+
+### Performance Optimizations
+- Service worker keep-alive mechanism
+- Lazy loading with code splitting
+- Storage caching with invalidation
+- Bundle optimization for extension size
+- Console removal in production builds
+
+### Error Handling Patterns
+- Centralized error component (`src/components/error-alert.tsx`)
+- Graceful API degradation and fallbacks
+- Form validation with user-friendly messages
+- Extension reload recovery mechanisms
+
+### Analytics & Privacy
+- Fathom Analytics integration (`src/utils/fathom.ts`)
+- User consent required for tracking
+- Path sanitization for sensitive data
+- No personal data collection
