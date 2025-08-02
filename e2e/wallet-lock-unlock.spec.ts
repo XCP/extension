@@ -3,10 +3,10 @@ import path from 'path';
 
 const TEST_PASSWORD = 'test123456';
 
-async function setupExtension() {
+async function setupExtension(testName: string) {
   const extensionPath = path.resolve('.output/chrome-mv3');
   
-  const context = await chromium.launchPersistentContext('test-results/wallet-lock-unlock', {
+  const context = await chromium.launchPersistentContext(`test-results/wallet-lock-unlock-${testName}`, {
     headless: false,
     args: [
       `--disable-extensions-except=${extensionPath}`,
@@ -43,23 +43,23 @@ async function createInitialWallet(page: Page) {
     await page.getByText('View 12-word Secret Phrase').click();
     await page.waitForTimeout(1000);
     
-    // Check the backup checkbox
-    await page.getByLabel(/I have saved my secret recovery phrase/).check();
+    // Check the backup checkbox - it's a label that clicks the checkbox
+    await page.getByText('I have saved my secret recovery phrase.').click();
     await page.waitForTimeout(500);
     
     // Set password
     await page.locator('input[name="password"]').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: /Continue/i }).click();
+    await page.getByRole('button', { name: 'Continue' }).click();
     
-    // Wait for main page
-    await page.waitForURL(/index/, { timeout: 10000 });
+    // Wait for navigation - the URL uses hash routing
+    await page.waitForURL(url => url.href.includes('#/index') || url.href.endsWith('popup.html'), { timeout: 10000 });
   } else {
     // Check if we need to unlock
     const needsUnlock = page.url().includes('unlock');
     if (needsUnlock) {
       await page.locator('input[name="password"]').fill(TEST_PASSWORD);
-      await page.getByRole('button', { name: /unlock/i }).click();
-      await page.waitForURL(/index/, { timeout: 10000 });
+      await page.getByRole('button', { name: 'Unlock Wallet' }).click();
+      await page.waitForURL(url => url.href.includes('#/index') || url.href.endsWith('popup.html'), { timeout: 10000 });
     }
   }
 }
@@ -68,8 +68,9 @@ test.describe('Wallet Lock and Unlock', () => {
   let page: Page;
   let context: any;
 
-  test.beforeEach(async () => {
-    const setup = await setupExtension();
+  test.beforeEach(async ({ }, testInfo) => {
+    const testName = testInfo.title.replace(/[^a-z0-9]/gi, '-');
+    const setup = await setupExtension(testName);
     page = setup.page;
     context = setup.context;
   });
@@ -82,33 +83,20 @@ test.describe('Wallet Lock and Unlock', () => {
     // Ensure we have a wallet created
     await createInitialWallet(page);
     
-    // Find the lock button in the header (right button) - it might be an icon button
-    const lockButton = page.locator('button').filter({ has: page.locator('svg') }).last();
-    const isVisible = await lockButton.isVisible().catch(() => false);
-    
-    if (!isVisible) {
-      // Try alternative selector
-      const altLockButton = page.getByRole('button', { name: /lock/i });
-      if (await altLockButton.isVisible().catch(() => false)) {
-        await altLockButton.click();
-      } else {
-        throw new Error('Lock button not found');
-      }
-    } else {
-      await lockButton.click();
-    }
+    // Click the lock button in the header
+    await page.click('button[aria-label="Lock Wallet"]');
     
     // Should be redirected to unlock screen
-    await page.waitForURL(/unlock/, { timeout: 5000 });
-    await expect(page.getByText(/unlock/i)).toBeVisible();
+    await page.waitForURL('**/unlock-wallet', { timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'XCP Wallet' })).toBeVisible();
     await expect(page.locator('input[name="password"]')).toBeVisible();
   });
 
   test('unlock wallet with correct password', async () => {
     // Ensure we have a wallet and lock it
     await createInitialWallet(page);
-    await page.click('button[aria-label="Lock wallet"]');
-    await page.waitForSelector('text=Unlock Wallet');
+    await page.click('button[aria-label="Lock Wallet"]');
+    await page.waitForURL(url => url.href.includes('#/unlock-wallet'));
     
     // Enter correct password
     await page.fill('input[type="password"]', TEST_PASSWORD);
@@ -116,99 +104,118 @@ test.describe('Wallet Lock and Unlock', () => {
     
     // Should be back on main page
     await page.waitForSelector('text=/Assets|Balances/');
-    await expect(page.locator('button[aria-label="Lock wallet"]')).toBeVisible();
+    await expect(page.locator('button[aria-label="Lock Wallet"]')).toBeVisible();
   });
 
   test('unlock wallet with incorrect password shows error', async () => {
     // Ensure we have a wallet and lock it
     await createInitialWallet(page);
-    await page.click('button[aria-label="Lock wallet"]');
-    await page.waitForSelector('text=Unlock Wallet');
+    await page.click('button[aria-label="Lock Wallet"]');
+    await page.waitForURL(url => url.href.includes('#/unlock-wallet'));
     
     // Enter incorrect password
     await page.fill('input[type="password"]', 'wrongpassword');
     await page.click('button:has-text("Unlock")');
     
     // Should show error message
-    await expect(page.locator('text=/Invalid password|Incorrect password/')).toBeVisible();
+    await expect(page.locator('text="Invalid password. Please try again."')).toBeVisible();
     
     // Should still be on unlock screen
-    await expect(page.locator('text=Unlock Wallet')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'XCP Wallet' })).toBeVisible();
+    await expect(page.locator('input[name="password"]')).toBeVisible();
   });
 
   test('lock all wallets option', async () => {
     // Ensure we have a wallet
     await createInitialWallet(page);
     
-    // Access wallet menu
-    await page.click('button[aria-label="Wallet options"]');
+    // Wait for main page to be ready
+    await page.waitForSelector('text=/Assets|Balances/', { timeout: 10000 });
     
-    // Look for "Lock All Wallets" option
-    const lockAllOption = page.locator('text=Lock All Wallets');
-    if (await lockAllOption.isVisible()) {
-      await lockAllOption.click();
-      
-      // Should be redirected to unlock screen
-      await page.waitForSelector('text=Unlock Wallet');
-      await expect(page.locator('input[type="password"]')).toBeVisible();
-    } else {
-      // If not in menu, the lock button in header locks all wallets
-      await page.click('button[aria-label="Lock wallet"]');
-      await page.waitForSelector('text=Unlock Wallet');
-    }
+    // The lock button in the header locks all wallets
+    await page.click('button[aria-label="Lock Wallet"]');
+    
+    // Wait for navigation to unlock page
+    await page.waitForTimeout(1000);
+    
+    // Should show unlock page with XCP Wallet title and password input
+    await page.waitForSelector('text=XCP Wallet', { timeout: 10000 });
+    await expect(page.locator('input[type="password"][placeholder="Enter your password"]')).toBeVisible();
+    
+    // Verify we're on the unlock page
+    const unlockButton = page.locator('button[aria-label="Unlock Wallet"]');
+    await expect(unlockButton).toBeVisible();
   });
 
   test('wallet auto-lock settings', async () => {
     // Ensure we have a wallet
     await createInitialWallet(page);
     
-    // Navigate to settings
-    await page.click('button[aria-label="Settings"]');
-    await page.waitForSelector('text=Settings');
+    // Wait for main page to be ready
+    await page.waitForSelector('text=/Assets|Balances/', { timeout: 10000 });
     
-    // Look for security settings
-    await page.click('text=Security');
+    // Navigate to settings using footer button
+    const footer = page.locator('.border-t.border-gray-300').filter({ has: page.locator('.grid.grid-cols-4') });
+    await footer.locator('button').nth(3).click(); // Settings is the 4th button
+    await page.waitForURL('**/settings', { timeout: 10000 });
     
-    // Should see auto-lock options
-    await expect(page.locator('text=/Auto-lock|Lock timeout/')).toBeVisible();
+    // Click on Advanced settings option
+    await page.locator('div[role="button"][aria-label="Advanced"]').click();
+    await page.waitForURL('**/settings/advanced', { timeout: 10000 });
+    
+    // Should see auto-lock timer setting
+    await expect(page.locator('text="Auto-Lock Timer"')).toBeVisible();
     
     // Check available timeout options
-    const timeoutOptions = ['1 minute', '5 minutes', '15 minutes', '30 minutes', 'Disabled'];
+    const timeoutOptions = ['1 Minute', '5 Minutes', '15 Minutes', '30 Minutes'];
     for (const option of timeoutOptions) {
       const optionLocator = page.locator(`text="${option}"`);
-      if (await optionLocator.isVisible()) {
-        console.log(`Auto-lock option available: ${option}`);
-      }
+      await expect(optionLocator).toBeVisible();
     }
+    
+    // Verify we can select an option
+    const firstOption = page.locator('div[role="radio"]').first();
+    await firstOption.click();
+    await page.waitForTimeout(500);
   });
 
-  test('reset wallet option when locked', async () => {
-    // Ensure we have a wallet and lock it
+  test('reset wallet option in settings', async () => {
+    // Ensure we have a wallet
     await createInitialWallet(page);
-    await page.click('button[aria-label="Lock wallet"]');
-    await page.waitForSelector('text=Unlock Wallet');
     
-    // Look for reset wallet option
-    const resetButton = page.locator('text=/Forgot password|Reset wallet/i');
-    if (await resetButton.isVisible()) {
-      await resetButton.click();
-      
-      // Should show reset wallet confirmation
-      await expect(page.locator('text=/Reset.*wallet|permanently delete/i')).toBeVisible();
-      
-      // Don't actually reset - just verify the option exists
-      const cancelButton = page.locator('button:has-text("Cancel")');
-      if (await cancelButton.isVisible()) {
-        await cancelButton.click();
-      }
-    }
+    // Wait for main page to be ready
+    await page.waitForSelector('text=/Assets|Balances/', { timeout: 10000 });
+    
+    // Navigate to settings using footer button
+    const footer = page.locator('.border-t.border-gray-300').filter({ has: page.locator('.grid.grid-cols-4') });
+    await footer.locator('button').nth(3).click(); // Settings is the 4th button
+    await page.waitForURL('**/settings', { timeout: 10000 });
+    
+    // Scroll to bottom to find reset wallet button
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(500);
+    
+    // Look for reset wallet button
+    const resetButton = page.locator('button[aria-label="Reset Wallet"]');
+    await expect(resetButton).toBeVisible();
+    
+    // Click reset wallet
+    await resetButton.click();
+    await page.waitForURL('**/reset-wallet', { timeout: 10000 });
+    
+    // Should show reset wallet confirmation page
+    await page.waitForTimeout(500);
+    
+    // Go back without resetting
+    await page.goBack();
+    await page.waitForURL('**/settings', { timeout: 10000 });
   });
 
   test('multiple unlock attempts', async () => {
     // Ensure we have a wallet and lock it
     await createInitialWallet(page);
-    await page.click('button[aria-label="Lock wallet"]');
-    await page.waitForSelector('text=Unlock Wallet');
+    await page.click('button[aria-label="Lock Wallet"]');
+    await page.waitForURL(url => url.href.includes('#/unlock-wallet'));
     
     // Try multiple incorrect passwords
     for (let i = 0; i < 3; i++) {
@@ -234,17 +241,25 @@ test.describe('Wallet Lock and Unlock', () => {
     // Ensure we have a wallet
     await createInitialWallet(page);
     
+    // Wait for main page to be ready
+    await page.waitForSelector('text=/Assets|Balances/', { timeout: 10000 });
+    
     // Lock the wallet
-    await page.click('button[aria-label="Lock wallet"]');
-    await page.waitForSelector('text=Unlock Wallet');
+    await page.click('button[aria-label="Lock Wallet"]');
+    await page.waitForTimeout(1000);
+    
+    // Should be on unlock screen with XCP Wallet title
+    await page.waitForSelector('text=XCP Wallet', { timeout: 10000 });
     
     // Reload the page
     await page.reload();
     await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1000);
     
-    // Should still be on unlock screen
-    await expect(page.locator('text=Unlock Wallet')).toBeVisible();
-    await expect(page.locator('input[type="password"]')).toBeVisible();
+    // Should still be on unlock screen after reload
+    await expect(page.locator('text=XCP Wallet')).toBeVisible();
+    await expect(page.locator('input[type="password"][placeholder="Enter your password"]')).toBeVisible();
+    await expect(page.locator('button[aria-label="Unlock Wallet"]')).toBeVisible();
   });
 
   test('unlock state persists on reload', async () => {
@@ -252,14 +267,16 @@ test.describe('Wallet Lock and Unlock', () => {
     await createInitialWallet(page);
     
     // Verify we're on main page (unlocked)
-    await expect(page.locator('text=/Assets|Balances/')).toBeVisible();
+    // Verify we're on main page (check for one of the tab buttons)
+    await expect(page.locator('button[aria-label="View Assets"]')).toBeVisible();
     
     // Reload the page
     await page.reload();
     await page.waitForLoadState('networkidle');
     
     // Should still be unlocked and on main page
-    await expect(page.locator('text=/Assets|Balances/')).toBeVisible();
-    await expect(page.locator('button[aria-label="Lock wallet"]')).toBeVisible();
+    // Verify we're on main page (check for one of the tab buttons)
+    await expect(page.locator('button[aria-label="View Assets"]')).toBeVisible();
+    await expect(page.locator('button[aria-label="Lock Wallet"]')).toBeVisible();
   });
 });

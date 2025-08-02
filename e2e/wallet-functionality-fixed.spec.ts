@@ -29,7 +29,7 @@ async function createWalletAndGetPage() {
   const hasCreateWallet = await page.getByText('Create Wallet').isVisible();
   
   if (hasCreateWallet) {
-    console.log('Creating new wallet...');
+    // console.log('Creating new wallet...');
     await page.getByText('Create Wallet').click();
     await page.waitForTimeout(1000);
     await page.getByText('View 12-word Secret Phrase').click();
@@ -42,7 +42,7 @@ async function createWalletAndGetPage() {
   } else {
     const needsUnlock = page.url().includes('unlock');
     if (needsUnlock) {
-      console.log('Unlocking wallet...');
+      // console.log('Unlocking wallet...');
       await page.locator('input[name="password"]').fill('TestPassword123!');
       await page.getByRole('button', { name: /unlock/i }).click();
       await page.waitForURL(/index/, { timeout: 10000 });
@@ -55,7 +55,7 @@ async function createWalletAndGetPage() {
 test('wallet main page shows content', async () => {
   const { page, context } = await createWalletAndGetPage();
   
-  console.log('Checking wallet main page...');
+  // console.log('Checking wallet main page...');
   
   // Should be on main wallet page
   expect(page.url()).toContain('#/index');
@@ -65,7 +65,7 @@ test('wallet main page shows content', async () => {
   
   // Get all text content to see what's available
   const pageText = await page.evaluate(() => document.body.innerText);
-  console.log('Page content (first 300 chars):', pageText.substring(0, 300));
+  // console.log('Page content (first 300 chars):', pageText.substring(0, 300));
   
   // Look for any Bitcoin address pattern (more flexible)
   const addressPatterns = [
@@ -80,22 +80,22 @@ test('wallet main page shows content', async () => {
     const count = await addressElement.count();
     if (count > 0) {
       const address = await addressElement.first().textContent();
-      console.log('Found address:', address);
+      // console.log('Found address:', address);
       foundAddress = true;
       break;
     }
   }
   
   if (!foundAddress) {
-    console.log('No address found, checking for any crypto-looking strings...');
+    // console.log('No address found, checking for any crypto-looking strings...');
     // Look for long alphanumeric strings that might be addresses
     const cryptoStrings = page.locator('text=/[a-zA-Z0-9]{25,}/');
     const cryptoCount = await cryptoStrings.count();
-    console.log('Found', cryptoCount, 'potential crypto strings');
+    // console.log('Found', cryptoCount, 'potential crypto strings');
     
     for (let i = 0; i < Math.min(cryptoCount, 3); i++) {
       const str = await cryptoStrings.nth(i).textContent();
-      console.log(`Crypto string ${i + 1}:`, str);
+      // console.log(`Crypto string ${i + 1}:`, str);
     }
   }
   
@@ -103,10 +103,10 @@ test('wallet main page shows content', async () => {
   const balanceKeywords = ['BTC', 'Bitcoin', 'Balance', '$', '0.00'];
   for (const keyword of balanceKeywords) {
     const hasKeyword = await page.locator(`text=${keyword}`).count() > 0;
-    console.log(`Has "${keyword}":`, hasKeyword);
+    // console.log(`Has "${keyword}":`, hasKeyword);
   }
   
-  console.log('✅ Wallet main page loaded and analyzed');
+  // console.log('✅ Wallet main page loaded and analyzed');
   
   await context.close();
 });
@@ -114,23 +114,23 @@ test('wallet main page shows content', async () => {
 test('can navigate to send page', async () => {
   const { page, context } = await createWalletAndGetPage();
   
-  console.log('Testing send navigation...');
+  // console.log('Testing send navigation...');
   
   // Look for Send button more specifically
   const sendButton = page.getByRole('button', { name: 'Send' }).first();
   const hasSendButton = await sendButton.isVisible();
-  console.log('Has Send button:', hasSendButton);
+  // console.log('Has Send button:', hasSendButton);
   
   if (hasSendButton) {
     await sendButton.click();
     await page.waitForTimeout(2000);
     
     const currentUrl = page.url();
-    console.log('URL after clicking Send:', currentUrl);
+    // console.log('URL after clicking Send:', currentUrl);
     
     // Check if we're on a send-related page
     const isOnSendPage = currentUrl.includes('send') || currentUrl.includes('compose');
-    console.log('Successfully navigated to send page:', isOnSendPage);
+    // console.log('Successfully navigated to send page:', isOnSendPage);
     
     if (isOnSendPage) {
       // Take screenshot of send page
@@ -140,11 +140,11 @@ test('can navigate to send page', async () => {
       const hasDestinationField = await page.locator('input[name*="destination"], input[name*="address"], input[name*="to"]').count() > 0;
       const hasAmountField = await page.locator('input[name*="amount"], input[name*="value"]').count() > 0;
       
-      console.log('Has destination field:', hasDestinationField);
-      console.log('Has amount field:', hasAmountField);
+      // console.log('Has destination field:', hasDestinationField);
+      // console.log('Has amount field:', hasAmountField);
       
       if (hasDestinationField && hasAmountField) {
-        console.log('✅ Send page has expected form fields');
+        // console.log('✅ Send page has expected form fields');
       }
     }
   }
@@ -155,19 +155,19 @@ test('can navigate to send page', async () => {
 test('can explore assets section', async () => {
   const { page, context } = await createWalletAndGetPage();
   
-  console.log('Testing assets navigation...');
+  // console.log('Testing assets navigation...');
   
   // Be more specific with assets button to avoid multiple matches
   const assetsButton = page.getByRole('button', { name: 'View Assets' });
   const hasAssetsButton = await assetsButton.isVisible();
-  console.log('Has "View Assets" button:', hasAssetsButton);
+  // console.log('Has "View Assets" button:', hasAssetsButton);
   
   if (hasAssetsButton) {
     await assetsButton.click();
     await page.waitForTimeout(2000);
     
     const currentUrl = page.url();
-    console.log('URL after clicking Assets:', currentUrl);
+    // console.log('URL after clicking Assets:', currentUrl);
     
     await page.screenshot({ path: 'test-results/screenshots/assets-page.png' });
     
@@ -175,10 +175,10 @@ test('can explore assets section', async () => {
     const assetKeywords = ['Asset', 'Token', 'BTC', 'Balance'];
     for (const keyword of assetKeywords) {
       const count = await page.locator(`text=${keyword}`).count();
-      console.log(`"${keyword}" appears ${count} times`);
+      // console.log(`"${keyword}" appears ${count} times`);
     }
     
-    console.log('✅ Successfully navigated to assets section');
+    // console.log('✅ Successfully navigated to assets section');
   }
   
   await context.close();

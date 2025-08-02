@@ -41,13 +41,13 @@ test('receive send history buttons', async () => {
   // Test Receive button
   const receiveButton = page.getByText('Receive');
   if (await receiveButton.isVisible()) {
-    console.log('Testing Receive button...');
+    // console.log('Testing Receive button...');
     await receiveButton.click();
     await page.waitForTimeout(1000);
     
     // Should show QR code
     const hasQR = await page.locator('canvas, img[alt*="QR"], [class*="qr"]').isVisible().catch(() => false);
-    console.log('Shows QR code:', hasQR);
+    // console.log('Shows QR code:', hasQR);
     
     // Go back
     await page.goBack();
@@ -57,13 +57,13 @@ test('receive send history buttons', async () => {
   // Test Send button
   const sendButton = page.getByText('Send');
   if (await sendButton.isVisible()) {
-    console.log('Testing Send button...');
+    // console.log('Testing Send button...');
     await sendButton.click();
     await page.waitForTimeout(1000);
     
     // Should be on send page
     const onSendPage = page.url().includes('send') || await page.getByText(/Recipient|Destination/i).isVisible().catch(() => false);
-    console.log('On send page:', onSendPage);
+    // console.log('On send page:', onSendPage);
     
     // Go back
     await page.goBack();
@@ -73,13 +73,13 @@ test('receive send history buttons', async () => {
   // Test History button
   const historyButton = page.getByText('History');
   if (await historyButton.isVisible()) {
-    console.log('Testing History button...');
+    // console.log('Testing History button...');
     await historyButton.click();
     await page.waitForTimeout(1000);
     
     // Should be on history page
     const onHistoryPage = page.url().includes('history') || await page.getByText(/Transaction|History/i).isVisible().catch(() => false);
-    console.log('On history page:', onHistoryPage);
+    // console.log('On history page:', onHistoryPage);
   }
   
   await context.close();
@@ -130,24 +130,24 @@ test('assets and balances tabs', async () => {
   
   // Test Assets tab
   if (await assetsButton.isVisible()) {
-    console.log('Clicking Assets tab...');
+    // console.log('Clicking Assets tab...');
     await assetsButton.click();
     await page.waitForTimeout(1000);
     
     // Should show search
     const hasSearch = await page.locator('input[placeholder*="Search"]').isVisible().catch(() => false);
-    console.log('Shows search on Assets:', hasSearch);
+    // console.log('Shows search on Assets:', hasSearch);
   }
   
   // Test Balances tab
   if (await balancesButton.isVisible()) {
-    console.log('Clicking Balances tab...');
+    // console.log('Clicking Balances tab...');
     await balancesButton.click();
     await page.waitForTimeout(1000);
     
     // Should show BTC balance
     const hasBTC = await page.getByText('BTC').isVisible().catch(() => false);
-    console.log('Shows BTC on Balances:', hasBTC);
+    // console.log('Shows BTC on Balances:', hasBTC);
   }
   
   await context.close();
@@ -188,40 +188,61 @@ test('footer navigation', async () => {
     await page.waitForURL(/index/, { timeout: 10000 });
   }
   
-  // Find footer buttons - they're usually at the bottom
-  const footer = page.locator('footer, [class*="footer"], nav').last();
+  // Make sure we're on /index where footer is shown
+  const currentUrl = page.url();
+  if (!currentUrl.includes('/index')) {
+    await page.goto(`chrome-extension://${extensionId}/popup.html#/index`);
+    await page.waitForLoadState('networkidle');
+  }
+  
+  // Wait for footer to be visible
+  await page.waitForTimeout(1000);
+  
+  // Find the footer by its styling
+  const footer = page.locator('.p-2.bg-white.border-t').first();
   const footerButtons = await footer.locator('button').all();
   
-  console.log(`Found ${footerButtons.length} footer buttons`);
+  // console.log(`Found ${footerButtons.length} footer buttons`);
   
-  if (footerButtons.length >= 4) {
-    // Test Market button (should be 2nd)
-    console.log('Testing Market button...');
-    await footerButtons[1].click();
-    await page.waitForTimeout(1000);
-    const onMarket = page.url().includes('market') || await page.getByText(/Market|XCP DEX/i).isVisible().catch(() => false);
-    console.log('On Market page:', onMarket);
+  if (footerButtons.length === 4) {
+    // Test all 4 footer buttons in order: Wallet, Market, Actions, Settings
     
-    // Test Actions button (should be 3rd)
-    console.log('Testing Actions button...');
-    await footerButtons[2].click();
-    await page.waitForTimeout(1000);
-    const onActions = page.url().includes('actions') || await page.getByText(/Actions|Broadcast/i).isVisible().catch(() => false);
-    console.log('On Actions page:', onActions);
-    
-    // Test Settings button (should be 4th)
-    console.log('Testing Settings button...');
-    await footerButtons[3].click();
-    await page.waitForTimeout(1000);
-    const onSettings = page.url().includes('settings') || await page.getByText(/Settings|Security/i).isVisible().catch(() => false);
-    console.log('On Settings page:', onSettings);
-    
-    // Go back to wallet (1st button)
-    console.log('Going back to wallet...');
+    // First button: Wallet/Index
+    // console.log('Testing Wallet button (1st)...');
     await footerButtons[0].click();
     await page.waitForTimeout(1000);
-    const backOnIndex = page.url().includes('index');
-    console.log('Back on index:', backOnIndex);
+    expect(page.url()).toContain('/index');
+    // console.log('✓ Wallet button works');
+    
+    // Second button: Market
+    // console.log('Testing Market button (2nd)...');
+    await footerButtons[1].click();
+    await page.waitForTimeout(1000);
+    expect(page.url()).toContain('/market');
+    // console.log('✓ Market button works');
+    
+    // Third button: Actions
+    // console.log('Testing Actions button (3rd)...');
+    await footerButtons[2].click();
+    await page.waitForTimeout(1000);
+    expect(page.url()).toContain('/actions');
+    // console.log('✓ Actions button works');
+    
+    // Fourth button: Settings
+    // console.log('Testing Settings button (4th)...');
+    await footerButtons[3].click();
+    await page.waitForTimeout(1000);
+    expect(page.url()).toContain('/settings');
+    // console.log('✓ Settings button works');
+    
+    // Go back to index
+    // console.log('Returning to index...');
+    await footerButtons[0].click();
+    await page.waitForTimeout(1000);
+    expect(page.url()).toContain('/index');
+    // console.log('✓ All footer buttons tested successfully');
+  } else {
+    throw new Error(`Expected 4 footer buttons but found ${footerButtons.length}`);
   }
   
   await context.close();

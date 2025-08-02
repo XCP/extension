@@ -39,12 +39,12 @@ test('import wallet with test mnemonic', async () => {
   const hasImportOption = await page.getByText('Restore Wallet').isVisible();
   
   if (!hasImportOption) {
-    console.log('Wallet already exists, this test requires fresh state');
+    // console.log('Wallet already exists, this test requires fresh state');
     await context.close();
     return;
   }
   
-  console.log('Starting wallet import with test mnemonic...');
+  // console.log('Starting wallet import with test mnemonic...');
   
   // Click restore wallet
   await page.getByText('Restore Wallet').click();
@@ -79,12 +79,12 @@ test('import wallet with test mnemonic', async () => {
   let foundAddress = false;
   if (await fullAddressElement.count() > 0) {
     const fullAddress = await fullAddressElement.first().textContent();
-    console.log('Found full address:', fullAddress);
+    // console.log('Found full address:', fullAddress);
     expect(fullAddress).toBe(EXPECTED_ADDRESSES.P2WPKH);
     foundAddress = true;
   } else if (await truncatedAddressElement.count() > 0) {
     const truncatedAddress = await truncatedAddressElement.first().textContent();
-    console.log('Found truncated address:', truncatedAddress);
+    // console.log('Found truncated address:', truncatedAddress);
     // Verify it starts with bc1q and ends correctly
     expect(truncatedAddress).toMatch(/^bc1q/);
     foundAddress = true;
@@ -126,7 +126,7 @@ test('switch address types with imported wallet', async () => {
   // Check if we need to import wallet first
   const hasImportOption = await page.getByText('Restore Wallet').isVisible();
   if (hasImportOption) {
-    console.log('Need to import wallet first...');
+    // console.log('Need to import wallet first...');
     await page.getByText('Restore Wallet').click();
     await page.waitForTimeout(1000);
     
@@ -149,14 +149,14 @@ test('switch address types with imported wallet', async () => {
     // Unlock wallet if needed
     const needsUnlock = page.url().includes('unlock');
     if (needsUnlock) {
-      console.log('Unlocking wallet...');
+      // console.log('Unlocking wallet...');
       await page.locator('input[name="password"]').fill('TestPassword123!');
       await page.getByRole('button', { name: /unlock/i }).click();
       await page.waitForURL(/index/, { timeout: 10000 });
     }
   }
   
-  console.log('Testing address type switching...');
+  // console.log('Testing address type switching...');
   
   // Take a screenshot to see current state
   await page.screenshot({ path: 'test-results/screenshots/before-settings-click.png' });
@@ -182,7 +182,7 @@ test('switch address types with imported wallet', async () => {
     try {
       const element = page.locator(selector).first();
       if (await element.count() > 0) {
-        console.log(`Found settings element with selector: ${selector}`);
+        // console.log(`Found settings element with selector: ${selector}`);
         await element.click();
         settingsClicked = true;
         break;
@@ -193,13 +193,13 @@ test('switch address types with imported wallet', async () => {
   }
   
   if (!settingsClicked) {
-    console.log('Could not find settings button, trying to find any clickable elements...');
+    // console.log('Could not find settings button, trying to find any clickable elements...');
     const buttons = await page.locator('button').all();
-    console.log(`Found ${buttons.length} buttons`);
+    // console.log(`Found ${buttons.length} buttons`);
     for (let i = 0; i < buttons.length; i++) {
       const text = await buttons[i].textContent();
       const ariaLabel = await buttons[i].getAttribute('aria-label');
-      console.log(`Button ${i}: text="${text}", aria-label="${ariaLabel}"`);
+      // console.log(`Button ${i}: text="${text}", aria-label="${ariaLabel}"`);
     }
     
     // Take screenshot to debug
@@ -211,19 +211,19 @@ test('switch address types with imported wallet', async () => {
   
   // For now, just verify we can access settings and take a screenshot
   // The actual address type switching UI may need to be implemented or may work differently
-  console.log('Current URL:', page.url());
+  // console.log('Current URL:', page.url());
   await page.screenshot({ path: 'test-results/screenshots/wallet-settings-page.png' });
   
   // Look for any address-related settings
   const addressSettings = page.locator('text=/address|Address/i');
   const hasAddressSettings = await addressSettings.count() > 0;
-  console.log('Has address-related settings:', hasAddressSettings);
+  // console.log('Has address-related settings:', hasAddressSettings);
   
   if (hasAddressSettings) {
-    console.log('Found address settings options');
+    // console.log('Found address settings options');
     // Future: implement actual address type switching when UI is available
   } else {
-    console.log('Address type switching may not be implemented in the UI yet');
+    // console.log('Address type switching may not be implemented in the UI yet');
   }
   
   } catch (error) {
@@ -246,7 +246,7 @@ test('verify mnemonic-derived addresses are deterministic', async () => {
   try {
   const pathToExtension = path.resolve('.output/chrome-mv3');
   
-  console.log('Testing deterministic address generation...');
+  // console.log('Testing deterministic address generation...');
   
   context = await chromium.launchPersistentContext('test-results/wallet-import-deterministic', {
     headless: false,
@@ -275,7 +275,7 @@ test('verify mnemonic-derived addresses are deterministic', async () => {
     // Wait for the button to be visible with a timeout
     await restoreWalletButton.waitFor({ state: 'visible', timeout: 5000 });
   } catch (error) {
-    console.log('Restore Wallet button not found - wallet may already exist');
+    // console.log('Restore Wallet button not found - wallet may already exist');
     await page.screenshot({ path: 'test-results/screenshots/deterministic-test-error.png' });
     await context.close();
     return;
@@ -293,7 +293,7 @@ test('verify mnemonic-derived addresses are deterministic', async () => {
     await page.waitForTimeout(1000);
   } catch (error) {
     // Import button might not appear, continue
-    console.log('Import Wallet button not found, continuing...');
+    // console.log('Import Wallet button not found, continuing...');
   }
   
   const mnemonicInput = page.locator('textarea[placeholder*="Enter your 12"]');
@@ -311,7 +311,7 @@ test('verify mnemonic-derived addresses are deterministic', async () => {
   try {
     await page.waitForURL(/index/, { timeout: 15000 });
   } catch (error) {
-    console.log('Failed to navigate to index page');
+    // console.log('Failed to navigate to index page');
     await page.screenshot({ path: 'test-results/screenshots/deterministic-test-navigation-error.png' });
     throw error;
   }
@@ -328,32 +328,32 @@ test('verify mnemonic-derived addresses are deterministic', async () => {
   try {
     await page.waitForSelector('text=/^bc1q/', { timeout: 5000 });
   } catch (error) {
-    console.log('No Bitcoin address found on page');
+    // console.log('No Bitcoin address found on page');
     await page.screenshot({ path: 'test-results/screenshots/deterministic-test-no-address.png' });
   }
   
   if (await fullAddressElement.count() > 0) {
     const address = await fullAddressElement.first().textContent();
-    console.log('Deterministic test - Found full address:', address);
+    // console.log('Deterministic test - Found full address:', address);
     expect(address).toBe(EXPECTED_ADDRESSES.P2WPKH);
     foundAddress = true;
   } else if (await truncatedAddressElement.count() > 0) {
     const address = await truncatedAddressElement.first().textContent();
-    console.log('Deterministic test - Found truncated address:', address);
+    // console.log('Deterministic test - Found truncated address:', address);
     expect(address).toMatch(/^bc1q/);
     foundAddress = true;
   } else {
     // Try to find any element that might contain the address
     const possibleAddressElements = await page.locator('text=/bc1q/').all();
-    console.log(`Found ${possibleAddressElements.length} elements containing 'bc1q'`);
+    // console.log(`Found ${possibleAddressElements.length} elements containing 'bc1q'`);
     for (const element of possibleAddressElements) {
       const text = await element.textContent();
-      console.log('Possible address element:', text);
+      // console.log('Possible address element:', text);
     }
   }
   
   expect(foundAddress).toBe(true);
-  console.log('✅ Deterministic address generation verified');
+  // console.log('✅ Deterministic address generation verified');
   
   await page.screenshot({ path: 'test-results/screenshots/deterministic-test.png' });
   } catch (error) {

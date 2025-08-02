@@ -48,11 +48,11 @@ test('lock and unlock wallet', async () => {
   }
   
   // Now test locking
-  console.log('Testing lock functionality...');
+  // console.log('Testing lock functionality...');
   
   // Find the lock button - it's typically the last button in the header
   const headerButtons = await page.locator('header button, nav button').all();
-  console.log(`Found ${headerButtons.length} header buttons`);
+  // console.log(`Found ${headerButtons.length} header buttons`);
   
   if (headerButtons.length > 0) {
     // Click the last button (should be lock)
@@ -61,7 +61,7 @@ test('lock and unlock wallet', async () => {
     
     // Check if we're on unlock page
     const isOnUnlock = page.url().includes('unlock');
-    console.log('Redirected to unlock page:', isOnUnlock);
+    // console.log('Redirected to unlock page:', isOnUnlock);
     
     if (isOnUnlock) {
       // Test unlocking with wrong password
@@ -71,7 +71,7 @@ test('lock and unlock wallet', async () => {
       
       // Should show error
       const hasError = await page.getByText(/incorrect|invalid|wrong/i).isVisible().catch(() => false);
-      console.log('Shows error for wrong password:', hasError);
+      // console.log('Shows error for wrong password:', hasError);
       
       // Now unlock with correct password
       await page.locator('input[name="password"]').clear();
@@ -80,7 +80,7 @@ test('lock and unlock wallet', async () => {
       
       // Should redirect back to index
       await page.waitForURL(/index/, { timeout: 5000 });
-      console.log('Successfully unlocked!');
+      // console.log('Successfully unlocked!');
     }
   }
   
@@ -137,7 +137,7 @@ test('lock persists on reload', async () => {
     
     // Verify we're locked
     const isLocked = page.url().includes('unlock');
-    console.log('Wallet locked:', isLocked);
+    // console.log('Wallet locked:', isLocked);
     
     if (isLocked) {
       // Reload page
@@ -146,7 +146,7 @@ test('lock persists on reload', async () => {
       
       // Should still be locked
       const stillLocked = page.url().includes('unlock');
-      console.log('Still locked after reload:', stillLocked);
+      // console.log('Still locked after reload:', stillLocked);
       expect(stillLocked).toBe(true);
     }
   }

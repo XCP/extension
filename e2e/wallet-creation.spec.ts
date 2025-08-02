@@ -20,14 +20,14 @@ test('can navigate to create wallet page', async () => {
   }
   
   const extensionId = serviceWorker.url().split('/')[2];
-  console.log('Extension ID:', extensionId);
+  // console.log('Extension ID:', extensionId);
 
   // Open extension popup
   const page = await context.newPage();
   
   // Set up console logging
   page.on('console', msg => {
-    console.log(`[Console ${msg.type()}]:`, msg.text());
+    // console.log(`[Console ${msg.type()}]:`, msg.text());
   });
   
   await page.goto(`chrome-extension://${extensionId}/popup.html`);
@@ -37,30 +37,30 @@ test('can navigate to create wallet page', async () => {
   await expect(page.getByText('Create Wallet')).toBeVisible();
   
   // Click Create Wallet
-  console.log('Clicking Create Wallet...');
+  // console.log('Clicking Create Wallet...');
   await page.getByText('Create Wallet').click();
   
   // Wait for navigation
   await page.waitForTimeout(2000);
   
   // Check current URL
-  console.log('Current URL:', page.url());
+  // console.log('Current URL:', page.url());
   
   // Take screenshot
   await page.screenshot({ path: 'test-results/screenshots/create-wallet-page.png' });
   
   // Check if we're on the create wallet page
   const isOnCreatePage = page.url().includes('create-wallet');
-  console.log('On create wallet page:', isOnCreatePage);
+  // console.log('On create wallet page:', isOnCreatePage);
   
   if (isOnCreatePage) {
     // Look for recovery phrase section
     const hasRecoverySection = await page.getByText('Your Recovery Phrase').isVisible();
-    console.log('Has recovery phrase section:', hasRecoverySection);
+    // console.log('Has recovery phrase section:', hasRecoverySection);
     
     // Look for the reveal button
     const hasRevealButton = await page.getByText('View 12-word Secret Phrase').isVisible();
-    console.log('Has reveal button:', hasRevealButton);
+    // console.log('Has reveal button:', hasRevealButton);
   }
   
   await context.close();
@@ -88,7 +88,7 @@ test('can reveal recovery phrase and show password field', async () => {
   // Set up error logging
   page.on('console', msg => {
     if (msg.type() === 'error') {
-      console.log(`[Error]:`, msg.text());
+      // console.log(`[Error]:`, msg.text());
     }
   });
   
@@ -100,12 +100,12 @@ test('can reveal recovery phrase and show password field', async () => {
   await page.waitForTimeout(1000);
   
   // Click to reveal phrase
-  console.log('Revealing recovery phrase...');
+  // console.log('Revealing recovery phrase...');
   await page.getByText('View 12-word Secret Phrase').click();
   await page.waitForTimeout(1000);
   
   // Check confirmation checkbox
-  console.log('Checking confirmation...');
+  // console.log('Checking confirmation...');
   const checkbox = page.getByLabel(/I have saved my secret recovery phrase/);
   await expect(checkbox).toBeVisible();
   await checkbox.check();
@@ -116,14 +116,14 @@ test('can reveal recovery phrase and show password field', async () => {
   // Check if password field is visible
   const passwordField = page.locator('input[name="password"]');
   const isPasswordVisible = await passwordField.isVisible();
-  console.log('Password field visible:', isPasswordVisible);
+  // console.log('Password field visible:', isPasswordVisible);
   
   await page.screenshot({ path: 'test-results/screenshots/recovery-phrase-revealed.png' });
   
   if (isPasswordVisible) {
-    console.log('✅ Successfully revealed phrase and showed password field');
+    // console.log('✅ Successfully revealed phrase and showed password field');
   } else {
-    console.log('❌ Password field not visible');
+    // console.log('❌ Password field not visible');
   }
   
   await context.close();

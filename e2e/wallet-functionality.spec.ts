@@ -29,7 +29,7 @@ async function createWalletAndGetPage() {
   const hasCreateWallet = await page.getByText('Create Wallet').isVisible();
   
   if (hasCreateWallet) {
-    console.log('Creating new wallet...');
+    // console.log('Creating new wallet...');
     // Create wallet
     await page.getByText('Create Wallet').click();
     await page.waitForTimeout(1000);
@@ -48,11 +48,11 @@ async function createWalletAndGetPage() {
     // Wait for success
     await page.waitForURL(/index/, { timeout: 10000 });
   } else {
-    console.log('Wallet already exists, checking if unlocked...');
+    // console.log('Wallet already exists, checking if unlocked...');
     // Check if we need to unlock
     const needsUnlock = page.url().includes('unlock');
     if (needsUnlock) {
-      console.log('Unlocking wallet...');
+      // console.log('Unlocking wallet...');
       await page.locator('input[name="password"]').fill('TestPassword123!');
       await page.getByRole('button', { name: /unlock/i }).click();
       await page.waitForURL(/index/, { timeout: 10000 });
@@ -65,7 +65,7 @@ async function createWalletAndGetPage() {
 test('wallet shows address and balance', async () => {
   const { page, context } = await createWalletAndGetPage();
   
-  console.log('Checking wallet main page...');
+  // console.log('Checking wallet main page...');
   
   // Should be on main wallet page
   expect(page.url()).toContain('#/index');
@@ -73,29 +73,29 @@ test('wallet shows address and balance', async () => {
   // Look for wallet address (truncated format like bc1qxl...gjy8td)
   const addressElement = page.locator('text=/^bc1q[a-z0-9]{2,3}\\.\\.\\.[a-z0-9]{6}$/');
   const hasAddress = await addressElement.count() > 0;
-  console.log('Has truncated address:', hasAddress);
+  // console.log('Has truncated address:', hasAddress);
   
   if (hasAddress) {
     const address = await addressElement.first().textContent();
-    console.log('Wallet address:', address);
+    // console.log('Wallet address:', address);
   } else {
     // Alternative: look for any address-like pattern
     const anyAddress = page.locator('text=/bc1q[a-z0-9.]{10,}/');
     const count = await anyAddress.count();
     if (count > 0) {
       const address = await anyAddress.first().textContent();
-      console.log('Found address pattern:', address);
+      // console.log('Found address pattern:', address);
     }
   }
   
   // Look for balance (might be 0 for new wallet)
   const balanceElements = page.locator('text=/\\d+(\\.\\d+)? BTC/');
   const hasBalance = await balanceElements.count() > 0;
-  console.log('Has balance display:', hasBalance);
+  // console.log('Has balance display:', hasBalance);
   
   if (hasBalance) {
     const balance = await balanceElements.first().textContent();
-    console.log('Balance:', balance);
+    // console.log('Balance:', balance);
   }
   
   await page.screenshot({ path: 'test-results/screenshots/wallet-main-page.png' });
@@ -106,12 +106,12 @@ test('wallet shows address and balance', async () => {
 test('can navigate to different sections', async () => {
   const { page, context } = await createWalletAndGetPage();
   
-  console.log('Testing navigation...');
+  // console.log('Testing navigation...');
   
   // Check what navigation options are available
   const navButtons = page.locator('button, a').filter({ hasText: /send|receive|settings|assets/i });
   const navCount = await navButtons.count();
-  console.log('Found', navCount, 'navigation elements');
+  // console.log('Found', navCount, 'navigation elements');
   
   // Test navigation to different sections
   const sections = ['Send', 'Assets', 'Settings'];
@@ -127,15 +127,15 @@ test('can navigate to different sections', async () => {
     }
     
     const isVisible = await navElement.isVisible();
-    console.log(`${section} navigation visible:`, isVisible);
+    // console.log(`${section} navigation visible:`, isVisible);
     
     if (isVisible) {
-      console.log(`Navigating to ${section}...`);
+      // console.log(`Navigating to ${section}...`);
       await navElement.click();
       await page.waitForTimeout(1000);
       
       const currentUrl = page.url();
-      console.log(`URL after clicking ${section}:`, currentUrl);
+      // console.log(`URL after clicking ${section}:`, currentUrl);
       
       await page.screenshot({ path: `test-results/screenshots/navigation-${section.toLowerCase()}.png` });
       
@@ -156,7 +156,7 @@ test('can navigate to different sections', async () => {
 test('can access wallet settings', async () => {
   const { page, context } = await createWalletAndGetPage();
   
-  console.log('Testing wallet settings access...');
+  // console.log('Testing wallet settings access...');
   
   // Look for settings or menu button
   const settingsButton = page.getByRole('button', { name: /settings|menu/i })
@@ -164,25 +164,25 @@ test('can access wallet settings', async () => {
     .or(page.locator('[aria-label*="menu" i]'));
   
   const hasSettings = await settingsButton.count() > 0;
-  console.log('Has settings button:', hasSettings);
+  // console.log('Has settings button:', hasSettings);
   
   if (hasSettings && await settingsButton.first().isVisible()) {
     await settingsButton.first().click();
     await page.waitForTimeout(1000);
     
-    console.log('URL after clicking settings:', page.url());
+    // console.log('URL after clicking settings:', page.url());
     await page.screenshot({ path: 'test-results/screenshots/wallet-settings.png' });
     
     // Look for settings options
     const settingsOptions = page.locator('text=/address|security|backup|private/i');
     const optionsCount = await settingsOptions.count();
-    console.log('Found', optionsCount, 'settings options');
+    // console.log('Found', optionsCount, 'settings options');
     
     if (optionsCount > 0) {
-      console.log('✅ Successfully accessed wallet settings');
+      // console.log('✅ Successfully accessed wallet settings');
     }
   } else {
-    console.log('No settings button found on main page');
+    // console.log('No settings button found on main page');
   }
   
   await context.close();

@@ -14,14 +14,14 @@ test('extension loads', async () => {
   });
 
   // Wait for extension to load
-  console.log('Waiting for service worker...');
+  // console.log('Waiting for service worker...');
   let serviceWorker = context.serviceWorkers()[0];
   if (!serviceWorker) {
     serviceWorker = await context.waitForEvent('serviceworker');
   }
   
   const extensionId = serviceWorker.url().split('/')[2];
-  console.log('Extension ID:', extensionId);
+  // console.log('Extension ID:', extensionId);
 
   // Open extension popup
   const page = await context.newPage();
@@ -35,11 +35,11 @@ test('extension loads', async () => {
   
   // Just check that we can access the page
   const title = await page.title();
-  console.log('Page title:', title);
+  // console.log('Page title:', title);
   
   // Check if there's any content
   const bodyText = await page.evaluate(() => document.body.innerText);
-  console.log('Page content (first 100 chars):', bodyText.substring(0, 100));
+  // console.log('Page content (first 100 chars):', bodyText.substring(0, 100));
   
   await context.close();
 });

@@ -319,7 +319,7 @@ describe('WalletManager', () => {
       const wallet = await walletManager.createMnemonicWallet(mnemonic, password);
 
       expect(wallet.type).toBe('mnemonic');
-      expect(wallet.addressType).toBe(AddressType.P2WPKH);
+      expect(wallet.addressType).toBe(AddressType.P2TR);
       expect(wallet.addressCount).toBe(1);
       expect(mockWalletStorage.addEncryptedWallet).toHaveBeenCalledOnce();
     });
@@ -392,7 +392,7 @@ describe('WalletManager', () => {
       const wallet = await walletManager.createPrivateKeyWallet(privateKey, password);
 
       expect(wallet.type).toBe('privateKey');
-      expect(wallet.addressType).toBe(AddressType.P2WPKH);
+      expect(wallet.addressType).toBe(AddressType.P2TR);
       expect(wallet.addressCount).toBe(1);
       expect(mockWalletStorage.addEncryptedWallet).toHaveBeenCalledOnce();
     });

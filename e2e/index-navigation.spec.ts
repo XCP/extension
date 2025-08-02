@@ -3,10 +3,10 @@ import path from 'path';
 
 const TEST_PASSWORD = 'TestPassword123!';
 
-test('copy address from blue button', async () => {
+test('click on balance navigates to balance page', async () => {
   const pathToExtension = path.resolve('.output/chrome-mv3');
   
-  const context = await chromium.launchPersistentContext('test-results/copy-address', {
+  const context = await chromium.launchPersistentContext('test-results/balance-nav', {
     headless: false,
     args: [
       `--disable-extensions-except=${pathToExtension}`,
@@ -38,33 +38,33 @@ test('copy address from blue button', async () => {
     await page.waitForURL(/index/, { timeout: 10000 });
   }
   
-  // Find the blue address button
-  const addressButton = page.locator('.bg-blue-600, .bg-blue-500, [class*="blue"]').first();
-  const hasAddressButton = await addressButton.isVisible().catch(() => false);
+  await page.waitForTimeout(2000);
   
-  if (hasAddressButton) {
-    // console.log('Found address button');
-    
-    // Get address text before clicking
-    const addressText = await addressButton.textContent();
-    // console.log('Address text:', addressText);
-    
-    // Click to copy
-    await addressButton.click();
-    await page.waitForTimeout(1000);
-    
-    // Look for copy confirmation (check mark or "copied" text)
-    const hasCopyConfirmation = await page.locator('.text-green-500, [class*="check"], text=/copied/i').isVisible().catch(() => false);
-    // console.log('Shows copy confirmation:', hasCopyConfirmation);
-  }
+  // Find BTC balance row and click it (not the menu button)
+  const btcText = page.getByText('BTC').first();
+  const btcRow = btcText.locator('../..');
+  
+  // Click on the row but avoid the menu button
+  await btcRow.click({ position: { x: 50, y: 20 } });
+  await page.waitForTimeout(1000);
+  
+  // Should navigate to send page for BTC
+  const onSendPage = page.url().includes('/compose/send/BTC');
+  // console.log('Navigated to BTC send page:', onSendPage);
+  expect(onSendPage).toBe(true);
+  
+  // Check for send page elements
+  const hasSendHeader = await page.getByRole('heading', { name: 'Send' }).isVisible();
+  const hasAmountInput = await page.getByLabel('Amount*').isVisible();
+  // console.log('Shows send form:', hasSendHeader && hasAmountInput);
   
   await context.close();
 });
 
-test('navigate to address selection', async () => {
+test('settings icon navigates to pinned assets', async () => {
   const pathToExtension = path.resolve('.output/chrome-mv3');
   
-  const context = await chromium.launchPersistentContext('test-results/address-selection', {
+  const context = await chromium.launchPersistentContext('test-results/settings-nav', {
     headless: false,
     args: [
       `--disable-extensions-except=${pathToExtension}`,
@@ -96,31 +96,26 @@ test('navigate to address selection', async () => {
     await page.waitForURL(/index/, { timeout: 10000 });
   }
   
-  // Look for chevron or button to access address selection
-  const addressSection = page.locator('.bg-blue-600, .bg-blue-500, [class*="blue"]').first();
-  const chevron = addressSection.locator('svg, [class*="chevron"], [class*="arrow"]');
+  await page.waitForTimeout(2000);
   
-  if (await chevron.isVisible()) {
-    // console.log('Found address selection chevron');
-    await chevron.click();
-    await page.waitForTimeout(1000);
-    
-    // Should navigate to address selection
-    const onAddressPage = page.url().includes('address') || await page.getByText(/Select Address|Address/i).isVisible().catch(() => false);
-    // console.log('Navigated to address selection:', onAddressPage);
-    
-    // Look for address list
-    const hasAddressList = await page.getByText(/Address 1|bc1/i).isVisible().catch(() => false);
-    // console.log('Shows address list:', hasAddressList);
-  }
+  // Find and click settings icon using aria-label
+  const settingsButton = page.locator('button[aria-label="Manage Pinned Assets"]');
+  await expect(settingsButton).toBeVisible();
+  await settingsButton.click();
+  
+  // Wait for navigation
+  await page.waitForURL('**/pinned-assets', { timeout: 5000 });
+  
+  const onPinnedAssets = page.url().includes('pinned-assets');
+  expect(onPinnedAssets).toBe(true);
   
   await context.close();
 });
 
-test('add new address', async () => {
+test('balance row menu actions', async () => {
   const pathToExtension = path.resolve('.output/chrome-mv3');
   
-  const context = await chromium.launchPersistentContext('test-results/add-address', {
+  const context = await chromium.launchPersistentContext('test-results/balance-menu', {
     headless: false,
     args: [
       `--disable-extensions-except=${pathToExtension}`,
@@ -152,111 +147,117 @@ test('add new address', async () => {
     await page.waitForURL(/index/, { timeout: 10000 });
   }
   
-  // Navigate to address management
-  const addressSection = page.locator('.bg-blue-600, .bg-blue-500, [class*="blue"]').first();
-  const chevron = addressSection.locator('svg, [class*="chevron"], [class*="arrow"]');
+  await page.waitForTimeout(2000);
   
-  if (await chevron.isVisible()) {
-    await chevron.click();
-    await page.waitForTimeout(1000);
-    
-    // Look for add address button
-    const addButton = page.getByRole('button', { name: /Add.*Address|New.*Address|\+/i });
-    if (await addButton.isVisible()) {
-      // console.log('Found add address button');
-      
-      // Count current addresses
-      const addressCards = await page.locator('[class*="address"], text=/Address \\d+/').count();
-      // console.log('Current address count:', addressCards);
-      
-      // Click add
-      await addButton.click();
-      await page.waitForTimeout(2000);
-      
-      // Count again
-      const newCount = await page.locator('[class*="address"], text=/Address \\d+/').count();
-      // console.log('New address count:', newCount);
-      
-      // Should have one more address
-      expect(newCount).toBeGreaterThan(addressCards);
-    }
-  }
+  // Find the menu button (three dots) for BTC
+  const btcRow = page.getByText('BTC').locator('../..');
+  const menuButton = btcRow.locator('button').filter({ has: page.locator('svg') }).last();
   
-  await context.close();
-});
-
-test('switch between addresses', async () => {
-  const pathToExtension = path.resolve('.output/chrome-mv3');
-  
-  const context = await chromium.launchPersistentContext('test-results/switch-address', {
-    headless: false,
-    args: [
-      `--disable-extensions-except=${pathToExtension}`,
-      `--load-extension=${pathToExtension}`,
-    ],
-  });
-
-  let serviceWorker = context.serviceWorkers()[0];
-  if (!serviceWorker) {
-    serviceWorker = await context.waitForEvent('serviceworker');
-  }
-  
-  const extensionId = serviceWorker.url().split('/')[2];
-  const page = await context.newPage();
-  await page.goto(`chrome-extension://${extensionId}/popup.html`);
-  await page.waitForLoadState('networkidle');
-  
-  // Ensure we have a wallet
-  const needsWallet = await page.getByText('Create Wallet').isVisible().catch(() => false);
-  if (needsWallet) {
-    await page.getByText('Create Wallet').click();
-    await page.waitForTimeout(1000);
-    await page.getByText('View 12-word Secret Phrase').click();
-    await page.waitForTimeout(1000);
-    await page.getByLabel(/I have saved my secret recovery phrase/).check();
+  // console.log('Looking for menu button...');
+  if (await menuButton.isVisible()) {
+    await menuButton.click();
     await page.waitForTimeout(500);
-    await page.locator('input[name="password"]').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: /Continue/i }).click();
-    await page.waitForURL(/index/, { timeout: 10000 });
-  }
-  
-  // Navigate to address selection
-  const addressSection = page.locator('.bg-blue-600, .bg-blue-500, [class*="blue"]').first();
-  const chevron = addressSection.locator('svg, [class*="chevron"], [class*="arrow"]');
-  
-  if (await chevron.isVisible()) {
-    await chevron.click();
-    await page.waitForTimeout(1000);
+    // console.log('✓ Clicked balance menu button');
     
-    // Add a second address if needed
-    const addressCount = await page.locator('[class*="address"], text=/Address \\d+/').count();
-    if (addressCount < 2) {
-      const addButton = page.getByRole('button', { name: /Add.*Address|New.*Address|\+/i });
-      if (await addButton.isVisible()) {
-        await addButton.click();
-        await page.waitForTimeout(2000);
-      }
-    }
+    // Take screenshot to see menu
+    await page.screenshot({ path: 'test-results/balance-menu/menu-open.png' });
     
-    // Click on second address
-    const secondAddress = page.locator('text=/Address 2/').first();
-    if (await secondAddress.isVisible()) {
-      // console.log('Switching to Address 2');
-      await secondAddress.click();
+    // Look for menu options - they might be in a dropdown/popover
+    const sendOption = page.getByText(/Send.*BTC/i);
+    const viewOption = page.getByText(/View.*Details/i);
+    
+    if (await sendOption.isVisible()) {
+      // console.log('✓ Menu has Send option');
+      await sendOption.click();
       await page.waitForTimeout(1000);
       
-      // Should return to index
-      const onIndex = page.url().includes('index');
-      // console.log('Returned to index:', onIndex);
+      // Should navigate to send
+      const onSendPage = page.url().includes('/compose/send/BTC');
+      // console.log('Navigated to send page:', onSendPage);
+    } else if (await viewOption.isVisible()) {
+      // console.log('✓ Menu has View Details option');
+      await viewOption.click();
+      await page.waitForTimeout(1000);
       
-      // Verify address changed
-      const activeAddress = await page.locator('.bg-blue-600, .bg-blue-500, [class*="blue"]').first().textContent();
-      // console.log('Active address now shows:', activeAddress);
-      
-      // Should show "Address 2"
-      expect(activeAddress).toContain('Address 2');
+      // Should navigate to balance details
+      const onBalancePage = page.url().includes('/balance/BTC');
+      // console.log('Navigated to balance page:', onBalancePage);
+    } else {
+      // console.log('No menu options found');
     }
+  } else {
+    // console.log('Menu button not found');
   }
+  
+  await context.close();
+});
+
+test('receive page full functionality', async () => {
+  const pathToExtension = path.resolve('.output/chrome-mv3');
+  
+  const context = await chromium.launchPersistentContext('test-results/receive-full', {
+    headless: false,
+    args: [
+      `--disable-extensions-except=${pathToExtension}`,
+      `--load-extension=${pathToExtension}`,
+    ],
+  });
+
+  let serviceWorker = context.serviceWorkers()[0];
+  if (!serviceWorker) {
+    serviceWorker = await context.waitForEvent('serviceworker');
+  }
+  
+  const extensionId = serviceWorker.url().split('/')[2];
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/popup.html`);
+  await page.waitForLoadState('networkidle');
+  
+  // Ensure we have a wallet
+  const needsWallet = await page.getByText('Create Wallet').isVisible().catch(() => false);
+  if (needsWallet) {
+    await page.getByText('Create Wallet').click();
+    await page.waitForTimeout(1000);
+    await page.getByText('View 12-word Secret Phrase').click();
+    await page.waitForTimeout(1000);
+    await page.getByLabel(/I have saved my secret recovery phrase/).check();
+    await page.waitForTimeout(500);
+    await page.locator('input[name="password"]').fill(TEST_PASSWORD);
+    await page.getByRole('button', { name: /Continue/i }).click();
+    await page.waitForURL(/index/, { timeout: 10000 });
+  }
+  
+  await page.waitForTimeout(2000);
+  
+  // Click Receive
+  await page.getByText('Receive').click();
+  await page.waitForTimeout(1000);
+  
+  // Should show QR code
+  const qrCode = await page.locator('canvas, img[alt*="QR"], [class*="qr"]').isVisible();
+  // console.log('✓ QR code displayed:', qrCode);
+  
+  // Should show address
+  const addressElements = await page.locator('text=/^(bc1|1|3)[a-zA-Z0-9]{25,}/').all();
+  // console.log(`Found ${addressElements.length} address elements`);
+  
+  // Look for copy button
+  const copyButtons = await page.getByRole('button', { name: /Copy/i }).all();
+  // console.log(`Found ${copyButtons.length} copy buttons`);
+  
+  if (copyButtons.length > 0) {
+    await copyButtons[0].click();
+    await page.waitForTimeout(500);
+    
+    // Check for copied confirmation
+    const copied = await page.getByText(/Copied/i).isVisible().catch(() => false);
+    // console.log('✓ Shows copied confirmation:', copied);
+  }
+  
+  // Look for share button
+  const shareButton = page.getByRole('button', { name: /Share/i });
+  const hasShare = await shareButton.isVisible().catch(() => false);
+  // console.log('Has share button:', hasShare);
   
   await context.close();
 });

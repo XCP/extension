@@ -44,10 +44,10 @@ test('access wallet management from header', async () => {
   const headerButton = page.locator('header button').first();
   
   if (await walletButton.isVisible()) {
-    console.log('Found wallet button with text');
+    // console.log('Found wallet button with text');
     await walletButton.click();
   } else if (await headerButton.isVisible()) {
-    console.log('Clicking first header button');
+    // console.log('Clicking first header button');
     await headerButton.click();
   }
   
@@ -55,16 +55,16 @@ test('access wallet management from header', async () => {
   
   // Should see wallet menu or page
   const onWalletPage = page.url().includes('wallet');
-  console.log('Navigated to wallet page:', onWalletPage);
+  // console.log('Navigated to wallet page:', onWalletPage);
   
   if (onWalletPage) {
     // We're already on the wallet management page
     const hasWalletList = await page.getByText(/Wallet 1/i).isVisible().catch(() => false);
-    console.log('Shows wallet list:', hasWalletList);
+    // console.log('Shows wallet list:', hasWalletList);
     
     // Check for "Add Wallet" button
     const hasAddWallet = await page.getByText('Add Wallet').isVisible().catch(() => false);
-    console.log('Has Add Wallet button:', hasAddWallet);
+    // console.log('Has Add Wallet button:', hasAddWallet);
   }
   
   await context.close();
@@ -95,7 +95,7 @@ test('import wallet with mnemonic', async () => {
   const hasImportWallet = await page.getByText('Import Wallet').isVisible().catch(() => false);
   
   if (hasImportWallet) {
-    console.log('Starting import process...');
+    // console.log('Starting import process...');
     await page.getByText('Import Wallet').click();
     await page.waitForTimeout(1000);
     
@@ -118,13 +118,13 @@ test('import wallet with mnemonic', async () => {
     
     // Wait for success
     await page.waitForURL(/index/, { timeout: 10000 });
-    console.log('Wallet imported successfully!');
+    // console.log('Wallet imported successfully!');
     
     // Verify we're on main page
     const hasBalance = await page.getByText(/BTC|Balance/i).isVisible().catch(() => false);
-    console.log('Shows balance:', hasBalance);
+    // console.log('Shows balance:', hasBalance);
   } else {
-    console.log('Import option not available - wallet may already exist');
+    // console.log('Import option not available - wallet may already exist');
   }
   
   await context.close();
@@ -176,13 +176,13 @@ test('add multiple wallets', async () => {
       // Look for add wallet button  
       const addButton = page.getByText('Add Wallet');
       if (await addButton.isVisible()) {
-        console.log('Found Add Wallet button');
+        // console.log('Found Add Wallet button');
         await addButton.click();
         await page.waitForTimeout(1000);
         
         // Should see options
         const hasCreateOption = await page.getByText('Create New Wallet').isVisible().catch(() => false);
-        console.log('Shows wallet creation options:', hasCreateOption);
+        // console.log('Shows wallet creation options:', hasCreateOption);
         
         if (hasCreateOption) {
           await page.getByText('Create New Wallet').click();
@@ -199,7 +199,7 @@ test('add multiple wallets', async () => {
           // Should return to wallet list with 2 wallets
           await page.waitForTimeout(2000);
           const wallet2 = await page.getByText('Wallet 2').isVisible().catch(() => false);
-          console.log('Second wallet created:', wallet2);
+          // console.log('Second wallet created:', wallet2);
         }
       }
     }
