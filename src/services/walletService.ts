@@ -38,7 +38,7 @@ interface WalletService {
   signMessage: (message: string, address: string) => Promise<{ signature: string; address: string }>;
   getLastActiveAddress: () => Promise<string | undefined>;
   setLastActiveAddress: (address: string) => Promise<void>;
-  setLastActiveTime: () => void;
+  setLastActiveTime: () => Promise<void>;
   isAnyWalletUnlocked: () => Promise<boolean>;
   createAndUnlockMnemonicWallet: (
     mnemonic: string,
@@ -120,7 +120,7 @@ function createWalletService(): WalletService {
       await walletManager.updateWalletPinnedAssets(pinnedAssets);
     },
     getUnencryptedMnemonic: async (walletId) => {
-      return walletManager.getUnencryptedMnemonic(walletId);
+      return await walletManager.getUnencryptedMnemonic(walletId);
     },
     getPrivateKey: async (walletId, derivationPath) => {
       return walletManager.getPrivateKey(walletId, derivationPath);
@@ -129,7 +129,7 @@ function createWalletService(): WalletService {
       await walletManager.removeWallet(walletId);
     },
     getPreviewAddressForType: async (walletId, addressType) => {
-      return walletManager.getPreviewAddressForType(walletId, addressType);
+      return await walletManager.getPreviewAddressForType(walletId, addressType);
     },
     signTransaction: async (rawTxHex, sourceAddress) => {
       return walletManager.signTransaction(rawTxHex, sourceAddress);
@@ -149,7 +149,7 @@ function createWalletService(): WalletService {
       // Don't emit accountsChanged here - it's handled in wallet-context
       // which emits to all connected sites
     },
-    setLastActiveTime: () => walletManager.setLastActiveTime(),
+    setLastActiveTime: async () => await walletManager.setLastActiveTime(),
     isAnyWalletUnlocked: async () => walletManager.isAnyWalletUnlocked(),
     createAndUnlockMnemonicWallet: async (mnemonic, password, name, addressType) => {
       return walletManager.createAndUnlockMnemonicWallet(mnemonic, password, name, addressType);

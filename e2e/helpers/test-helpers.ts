@@ -36,9 +36,6 @@ export async function launchExtension(testName: string): Promise<ExtensionContex
   const ciTimeoutMultiplier = isCI ? 2 : 1;  // Double timeouts in CI
   const ciRetryMultiplier = isCI ? 1.5 : 1;  // More retries in CI
   
-  console.log(`[Test Helper] Launching extension for test: ${testName}`);
-  console.log(`[Test Helper] CI Mode: ${isCI}`);
-  console.log(`[Test Helper] Extension path: ${pathToExtension}`);
   
   // Launch browser with extension with retry logic
   let context;
@@ -47,7 +44,6 @@ export async function launchExtension(testName: string): Promise<ExtensionContex
   
   while (attempts < maxAttempts) {
     try {
-      console.log(`[Test Helper] Browser launch attempt ${attempts + 1}/${maxAttempts}`);
       
       context = await chromium.launchPersistentContext(`test-results/${testName}`, {
         headless: false,  // Always use headed mode (with xvfb in CI)
@@ -64,8 +60,6 @@ export async function launchExtension(testName: string): Promise<ExtensionContex
         // Increase timeout for CI
         timeout: 30000 * ciTimeoutMultiplier,
       });
-      
-      console.log(`[Test Helper] Browser context launched successfully`);
       break; // Success, exit loop
     } catch (error) {
       attempts++;
@@ -75,7 +69,6 @@ export async function launchExtension(testName: string): Promise<ExtensionContex
       }
       // Wait longer before retry in CI
       const retryDelay = isCI ? 3000 : 2000;
-      console.log(`[Test Helper] Waiting ${retryDelay}ms before retry...`);
       await new Promise(resolve => setTimeout(resolve, retryDelay));
     }
   }
@@ -85,7 +78,6 @@ export async function launchExtension(testName: string): Promise<ExtensionContex
   }
 
   // Wait for extension to load with multiple strategies
-  console.log(`[Test Helper] Waiting for extension to initialize...`);
   
   let extensionId: string | null = null;
   let serviceWorker = null;
@@ -95,59 +87,46 @@ export async function launchExtension(testName: string): Promise<ExtensionContex
   const eventTimeout = isCI ? 20000 : 10000;  // Longer timeout in CI
   
   // Initial wait to let the extension start
-  console.log(`[Test Helper] Initial wait for extension to start...`);
   await new Promise(resolve => setTimeout(resolve, 3000));
   
   // Strategy 1: Wait for service worker
   while (!serviceWorker && retries < maxRetries) {
     retries++;
-    console.log(`[Test Helper] Service worker check ${retries}/${maxRetries}`);
-    
     // Check if service worker already exists
     const workers = context.serviceWorkers();
-    console.log(`[Test Helper] Current service workers: ${workers.length}`);
     
     if (workers.length > 0) {
       serviceWorker = workers[0];
       const swUrl = serviceWorker.url();
-      console.log(`[Test Helper] Service worker found: ${swUrl}`);
       // Try to extract extension ID from service worker URL
       const match = swUrl.match(/chrome-extension:\/\/([^\/]+)/);
       if (match) {
         extensionId = match[1];
-        console.log(`[Test Helper] Extracted extension ID from service worker: ${extensionId}`);
       }
       break;
     }
     
     // Try waiting for service worker event
     try {
-      console.log(`[Test Helper] Waiting for serviceworker event (timeout: ${eventTimeout}ms)...`);
       serviceWorker = await context.waitForEvent('serviceworker', { timeout: eventTimeout });
       const swUrl = serviceWorker.url();
-      console.log(`[Test Helper] Service worker event received: ${swUrl}`);
       // Try to extract extension ID from service worker URL
       const match = swUrl.match(/chrome-extension:\/\/([^\/]+)/);
       if (match) {
         extensionId = match[1];
-        console.log(`[Test Helper] Extracted extension ID from service worker event: ${extensionId}`);
       }
       break;
     } catch (e) {
-      console.log(`[Test Helper] Service worker event timeout - will retry`);
     }
     
     // Check pages for extension URLs (fallback)
     const pages = context.pages();
-    console.log(`[Test Helper] Checking ${pages.length} pages for extension URLs...`);
     for (const p of pages) {
       const url = p.url();
       if (url.includes('chrome-extension://')) {
-        console.log(`[Test Helper] Found extension URL in page: ${url}`);
         const match = url.match(/chrome-extension:\/\/([^\/]+)/);
         if (match) {
           extensionId = match[1];
-          console.log(`[Test Helper] Extracted extension ID from page: ${extensionId}`);
           break;
         }
       }
@@ -157,21 +136,17 @@ export async function launchExtension(testName: string): Promise<ExtensionContex
     
     // Check background pages (another fallback)
     const backgroundPages = context.backgroundPages();
-    console.log(`[Test Helper] Checking ${backgroundPages.length} background pages...`);
     if (backgroundPages.length > 0) {
       const bgUrl = backgroundPages[0].url();
-      console.log(`[Test Helper] Found background page: ${bgUrl}`);
       const match = bgUrl.match(/chrome-extension:\/\/([^\/]+)/);
       if (match) {
         extensionId = match[1];
-        console.log(`[Test Helper] Extracted extension ID from background: ${extensionId}`);
         break;
       }
     }
     
     // Wait before next retry
     if (retries < maxRetries) {
-      console.log(`[Test Helper] Waiting ${retryDelay}ms before next check...`);
       await new Promise(resolve => setTimeout(resolve, retryDelay));
     }
   }
@@ -180,12 +155,10 @@ export async function launchExtension(testName: string): Promise<ExtensionContex
   if (serviceWorker && !extensionId) {
     const swUrl = serviceWorker.url();
     extensionId = swUrl.split('/')[2];
-    console.log(`[Test Helper] Extension ID from service worker: ${extensionId}`);
   }
   
   // Final fallback: Try to navigate to chrome://extensions and get ID
   if (!extensionId && isCI) {
-    console.log(`[Test Helper] Final fallback: Creating test page to trigger extension load...`);
     const tempPage = await context.newPage();
     
     // Give extension more time to initialize
@@ -196,7 +169,6 @@ export async function launchExtension(testName: string): Promise<ExtensionContex
     if (workers.length > 0) {
       const swUrl = workers[0].url();
       extensionId = swUrl.split('/')[2];
-      console.log(`[Test Helper] Extension ID found after creating page: ${extensionId}`);
     }
     
     await tempPage.close();
@@ -210,13 +182,9 @@ export async function launchExtension(testName: string): Promise<ExtensionContex
     throw new Error('Could not determine extension ID after all retries and fallback strategies');
   }
   
-  console.log(`[Test Helper] Successfully identified extension ID: ${extensionId}`);
-  
   // Create new page and navigate to extension
   const page = await context.newPage();
   const popupUrl = `chrome-extension://${extensionId}/popup.html`;
-  
-  console.log(`[Test Helper] Navigating to extension popup: ${popupUrl}`);
   
   // Try navigation with retry for CI reliability
   let navAttempts = 0;
@@ -226,7 +194,6 @@ export async function launchExtension(testName: string): Promise<ExtensionContex
     try {
       await page.goto(popupUrl, { timeout: 30000 * ciTimeoutMultiplier });
       await page.waitForLoadState('networkidle', { timeout: 30000 * ciTimeoutMultiplier });
-      console.log(`[Test Helper] Extension successfully loaded and ready`);
       break;
     } catch (error) {
       navAttempts++;
@@ -567,7 +534,6 @@ export async function cleanup(context: BrowserContext): Promise<void> {
         await page.close();
       } catch (e) {
         // Page might already be closed
-        console.log(`[Test Helper] Page already closed or error closing:`, (e as any).message);
       }
     }
     
