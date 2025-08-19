@@ -64,7 +64,7 @@ interface WalletContextType {
   resetAllWallets: (password: string) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<string>;
-  setLastActiveTime: () => void;
+  setLastActiveTime: () => Promise<void>;
   verifyPassword: (password: string) => Promise<boolean>;
   updateWalletAddressType: (walletId: string, newType: AddressType) => Promise<void>;
   getPreviewAddressForType: (walletId: string, addressType: AddressType) => Promise<string>;
@@ -250,8 +250,8 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     [walletService, walletState.activeAddress]
   );
 
-  const setLastActiveTime = useCallback(() => {
-    walletService.setLastActiveTime();
+  const setLastActiveTime = useCallback(async () => {
+    await walletService.setLastActiveTime();
   }, [walletService]);
 
   const isWalletLocked = useCallback(async () => {

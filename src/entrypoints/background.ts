@@ -1,11 +1,42 @@
-import { registerWalletService } from '@/services/walletService';
+import { registerWalletService, getWalletService } from '@/services/walletService';
 import { registerProviderService, getProviderService } from '@/services/providerService';
 import { analyzePhishingRisk, shouldBlockConnection } from '@/utils/security/phishingDetection';
 import { requestSigner } from '@/utils/security/requestSigning';
+import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/sessionManager';
 
-export default defineBackground(() => {
+export default defineBackground(async () => {
   registerWalletService();
   registerProviderService();
+  
+  // Check session recovery state on startup
+  try {
+    const recoveryState = await checkSessionRecovery();
+    console.log('Session recovery state:', recoveryState);
+    
+    if (recoveryState === SessionRecoveryState.LOCKED) {
+      // Session expired or doesn't exist - ensure everything is locked
+      const walletService = getWalletService();
+      await walletService.lockAllWallets();
+    } else if (recoveryState === SessionRecoveryState.NEEDS_REAUTH) {
+      // Valid session but secrets lost - notify popup to show auth modal
+      // The popup will handle this when it checks wallet state
+      console.log('Session valid but re-authentication needed');
+    }
+  } catch (error) {
+    console.error('Session recovery check failed:', error);
+    // Continue execution even if session recovery fails
+  }
+  
+  // Set up alarm listener for session expiry
+  if (chrome?.alarms?.onAlarm) {
+    chrome.alarms.onAlarm.addListener(async (alarm) => {
+      if (alarm.name === 'session-expiry') {
+        console.log('Session expired via alarm');
+        const walletService = getWalletService();
+        await walletService.lockAllWallets();
+      }
+    });
+  }
 
   // Keep-alive mechanism to prevent service worker termination
   const KEEP_ALIVE_INTERVAL = 25000; // 25 seconds (less than Chrome's 30s timeout)

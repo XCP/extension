@@ -156,7 +156,7 @@ describe('WalletContext', () => {
     vi.mocked(settingsManager.loadSettings).mockResolvedValue(mockSettings);
     vi.mocked(settingsManager.getSettings).mockReturnValue(mockSettings);
     // Default wallet is locked
-    vi.mocked(sessionManager.getUnlockedSecret).mockReturnValue(null);
+    vi.mocked(sessionManager.getUnlockedSecret).mockResolvedValue(null);
   });
 
   describe('Initial State', () => {

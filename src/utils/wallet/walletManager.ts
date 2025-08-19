@@ -34,13 +34,13 @@ export class WalletManager {
   private wallets: Wallet[] = [];
   private activeWalletId: string | null = null;
 
-  public setLastActiveTime(): void {
-    sessionManager.setLastActiveTime();
+  public async setLastActiveTime(): Promise<void> {
+    await sessionManager.setLastActiveTime();
   }
 
   public async isAnyWalletUnlocked(): Promise<boolean> {
     for (const w of this.wallets) {
-      if (sessionManager.getUnlockedSecret(w.id)) {
+      if (await sessionManager.getUnlockedSecret(w.id)) {
         return true;
       }
     }
@@ -49,8 +49,8 @@ export class WalletManager {
 
   public async loadWallets(): Promise<void> {
     const encryptedRecords = await getAllEncryptedWallets();
-    this.wallets = encryptedRecords.map((rec: EncryptedWalletRecord) => {
-      const unlockedSecret = sessionManager.getUnlockedSecret(rec.id);
+    this.wallets = await Promise.all(encryptedRecords.map(async (rec: EncryptedWalletRecord) => {
+      const unlockedSecret = await sessionManager.getUnlockedSecret(rec.id);
       let addresses: Address[] = [];
       if (unlockedSecret) {
         if (rec.type === 'mnemonic') {
@@ -77,7 +77,7 @@ export class WalletManager {
         addressCount: rec.addressCount || 1,
         addresses,
       };
-    });
+    }));
     const settings: KeychainSettings = await settingsManager.loadSettings();
     if (settings.lastActiveWalletId && this.getWalletById(settings.lastActiveWalletId)) {
       this.activeWalletId = settings.lastActiveWalletId;
@@ -106,8 +106,8 @@ export class WalletManager {
     return this.getWalletById(walletId);
   }
 
-  public getUnencryptedMnemonic(walletId: string): string {
-    const secret = sessionManager.getUnlockedSecret(walletId);
+  public async getUnencryptedMnemonic(walletId: string): Promise<string> {
+    const secret = await sessionManager.getUnlockedSecret(walletId);
     if (!secret) throw new Error("Wallet secret not found or locked");
     return secret;
   }
@@ -225,13 +225,36 @@ export class WalletManager {
         wallet.addressCount = 1;
       }
       this.activeWalletId = walletId;
+      
+      // Initialize session with timeout from settings
+      const settings = await settingsManager.getSettings();
+      const timeout = settings?.autoLockTimeout || 5 * 60 * 1000; // Default 5 minutes
+      await sessionManager.initializeSession(timeout);
+      
+      // Set up session expiry alarm
+      await this.scheduleSessionExpiry(timeout);
     } catch (err) {
       if (err instanceof DecryptionError) throw err;
       throw new Error('Invalid password or corrupted data.');
     }
   }
+  
+  private async scheduleSessionExpiry(timeout: number): Promise<void> {
+    // Check if chrome.alarms is available
+    if (!chrome?.alarms) {
+      return; // Silently skip if alarms not available (e.g., in tests)
+    }
+    
+    // Clear any existing alarm
+    await chrome.alarms.clear('session-expiry');
+    
+    // Schedule new alarm for when session should expire
+    await chrome.alarms.create('session-expiry', {
+      when: Date.now() + timeout
+    });
+  }
 
-  public lockWallet(walletId: string): void {
+  public async lockWallet(walletId: string): Promise<void> {
     sessionManager.clearUnlockedSecret(walletId);
     const wallet = this.getWalletById(walletId);
     if (wallet) {
@@ -239,9 +262,14 @@ export class WalletManager {
     }
   }
 
-  public lockAllWallets(): void {
-    sessionManager.clearAllUnlockedSecrets();
+  public async lockAllWallets(): Promise<void> {
+    await sessionManager.clearAllUnlockedSecrets();
     this.wallets.forEach((wallet) => (wallet.addresses = []));
+    
+    // Clear session expiry alarm
+    if (chrome?.alarms) {
+      await chrome.alarms.clear('session-expiry');
+    }
   }
 
   public async addAddress(walletId: string): Promise<Address> {
@@ -249,12 +277,12 @@ export class WalletManager {
     if (!wallet) throw new Error('Wallet not found.');
     if (wallet.type !== 'mnemonic')
       throw new Error('Can only add addresses to a mnemonic wallet.');
-    if (!sessionManager.getUnlockedSecret(walletId))
+    const mnemonic = await sessionManager.getUnlockedSecret(walletId);
+    if (!mnemonic)
       throw new Error('Wallet is locked. Please unlock first.');
     if (wallet.addressCount >= MAX_ADDRESSES_PER_WALLET) {
       throw new Error(`Cannot exceed ${MAX_ADDRESSES_PER_WALLET} addresses.`);
     }
-    const mnemonic = sessionManager.getUnlockedSecret(walletId)!;
     const index = wallet.addressCount;
     const newAddr = this.deriveMnemonicAddress(mnemonic, wallet.addressType, index);
     wallet.addresses.push(newAddr);
@@ -321,13 +349,13 @@ export class WalletManager {
   public async resetAllWallets(password: string): Promise<void> {
     const valid = await this.verifyPassword(password);
     if (!valid) throw new Error('Invalid password');
-    this.lockAllWallets();
+    await this.lockAllWallets();
     const all = await getAllEncryptedWallets();
     for (const rec of all) {
       await removeEncryptedWallet(rec.id);
     }
     this.wallets = [];
-    sessionManager.clearAllUnlockedSecrets();
+    await sessionManager.clearAllUnlockedSecrets();
     this.activeWalletId = null;
   }
 
@@ -348,7 +376,7 @@ export class WalletManager {
         await updateEncryptedWallet(rec);
       }
     }
-    this.lockAllWallets();
+    await this.lockAllWallets();
   }
 
   public async updateWalletAddressType(walletId: string, newType: AddressType): Promise<void> {
@@ -357,7 +385,7 @@ export class WalletManager {
     if (wallet.type !== 'mnemonic') {
       throw new Error('Only mnemonic wallets can change address type.');
     }
-    const mnemonic = sessionManager.getUnlockedSecret(walletId);
+    const mnemonic = await sessionManager.getUnlockedSecret(walletId);
     if (!mnemonic) {
       throw new Error('Wallet is locked. Please unlock first.');
     }
@@ -394,7 +422,7 @@ export class WalletManager {
   public async getPrivateKey(walletId: string, derivationPath?: string): Promise<string> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found.');
-    const secret = sessionManager.getUnlockedSecret(walletId);
+    const secret = await sessionManager.getUnlockedSecret(walletId);
     if (!secret) throw new Error('Wallet is locked.');
     if (wallet.type === 'mnemonic') {
       const path =
@@ -437,8 +465,8 @@ export class WalletManager {
     return newWallet;
   }
 
-  public getPreviewAddressForType(walletId: string, addressType: AddressType): string {
-    const secret = sessionManager.getUnlockedSecret(walletId);
+  public async getPreviewAddressForType(walletId: string, addressType: AddressType): Promise<string> {
+    const secret = await sessionManager.getUnlockedSecret(walletId);
     if (!secret) {
       throw new Error('Wallet is locked');
     }
