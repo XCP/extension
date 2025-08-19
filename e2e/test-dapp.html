@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XCP Wallet Test dApp</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        .status {
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            font-family: monospace;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .button-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 1rem 0;
+        }
+        button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        button.secondary {
+            background: #6c757d;
+        }
+        button.secondary:hover {
+            background: #545b62;
+        }
+        .results {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+            min-height: 100px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .section {
+            margin: 2rem 0;
+            padding-top: 1rem;
+            border-top: 1px solid #dee2e6;
+        }
+        h2 {
+            color: #495057;
+            font-size: 1.2rem;
+        }
+        .address {
+            background: #f8f9fa;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 XCP Wallet Provider Test dApp</h1>
+        
+        <div id="status" class="status info">Checking for XCP Wallet...</div>
+        
+        <div class="section">
+            <h2>Connection</h2>
+            <div class="button-group">
+                <button id="connect">Connect Wallet (xcp_requestAccounts)</button>
+                <button id="connectLegacy">Connect (Legacy enable())</button>
+                <button id="getAccounts">Get Accounts (xcp_accounts)</button>
+                <button id="disconnect" disabled>Disconnect</button>
+            </div>
+            <div id="accountInfo"></div>
+        </div>
+        
+        <div class="section">
+            <h2>Provider Info</h2>
+            <div class="button-group">
+                <button id="checkConnection">Check Connection Status</button>
+                <button id="getChainId">Get Chain ID</button>
+                <button id="getNetwork">Get Network</button>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Phase 2 Methods - Transaction Operations</h2>
+            <div class="button-group">
+                <button id="composeSend" disabled>Compose Send</button>
+                <button id="composeOrder" disabled>Compose Order</button>
+                <button id="signTransaction" disabled>Sign Transaction</button>
+                <button id="broadcastTransaction" disabled>Broadcast Transaction</button>
+                <button id="signMessage" disabled>Sign Message</button>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Phase 3 Methods - Data Fetching</h2>
+            <div class="button-group">
+                <button id="getBalances" disabled>Get Balances</button>
+                <button id="getAssets" disabled>Get Assets</button>
+                <button id="getHistory" disabled>Get History</button>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Phase 3 Methods - Additional Compose</h2>
+            <div class="button-group">
+                <button id="composeDispenser" disabled>Compose Dispenser</button>
+                <button id="composeDividend" disabled>Compose Dividend</button>
+                <button id="composeIssuance" disabled>Compose Issuance</button>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Test Results</h2>
+            <div id="results" class="results">Test results will appear here...</div>
+        </div>
+        
+        <div class="section">
+            <h2>Event Logs</h2>
+            <div id="events" class="results">Event logs will appear here...</div>
+        </div>
+    </div>
+
+    <script>
+        const status = document.getElementById('status');
+        const results = document.getElementById('results');
+        const events = document.getElementById('events');
+        const accountInfo = document.getElementById('accountInfo');
+        let connectedAccount = null;
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+            results.innerHTML = `[${timestamp}] ${message}\n` + results.innerHTML;
+            console.log(message);
+        }
+        
+        function logEvent(eventName, data) {
+            const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+            events.innerHTML = `[${timestamp}] Event: ${eventName}\nData: ${JSON.stringify(data, null, 2)}\n\n` + events.innerHTML;
+        }
+        
+        async function updateConnectionStatus() {
+            if (!window.xcpwallet) return;
+            
+            try {
+                const isConnected = window.xcpwallet.isConnected();
+                const accounts = await window.xcpwallet.request({ method: 'xcp_accounts' });
+                
+                if (accounts.length > 0) {
+                    connectedAccount = accounts[0];
+                    accountInfo.innerHTML = `<div class="address">Connected: ${connectedAccount}</div>`;
+                    document.getElementById('disconnect').disabled = false;
+                    // Enable Phase 2 methods
+                    document.getElementById('composeSend').disabled = false;
+                    document.getElementById('composeOrder').disabled = false;
+                    document.getElementById('signTransaction').disabled = false;
+                    document.getElementById('broadcastTransaction').disabled = false;
+                    document.getElementById('signMessage').disabled = false;
+                    // Phase 3 now enabled
+                    document.getElementById('getBalances').disabled = false;
+                    document.getElementById('getAssets').disabled = false;
+                    document.getElementById('getHistory').disabled = false;
+                    document.getElementById('composeDispenser').disabled = false;
+                    document.getElementById('composeDividend').disabled = false;
+                    document.getElementById('composeIssuance').disabled = false;
+                } else {
+                    connectedAccount = null;
+                    accountInfo.innerHTML = '<div class="address">Not connected</div>';
+                    document.getElementById('disconnect').disabled = true;
+                    // Disable all transaction methods
+                    document.getElementById('composeSend').disabled = true;
+                    document.getElementById('composeOrder').disabled = true;
+                    document.getElementById('signTransaction').disabled = true;
+                    document.getElementById('broadcastTransaction').disabled = true;
+                    document.getElementById('signMessage').disabled = true;
+                    document.getElementById('getBalances').disabled = true;
+                    document.getElementById('getAssets').disabled = true;
+                    document.getElementById('getHistory').disabled = true;
+                    document.getElementById('composeDispenser').disabled = true;
+                    document.getElementById('composeDividend').disabled = true;
+                    document.getElementById('composeIssuance').disabled = true;
+                }
+                
+                log(`Connection status - isConnected: ${isConnected}, accounts: ${accounts.length}`);
+            } catch (error) {
+                log(`Error checking connection: ${error.message}`, 'error');
+            }
+        }
+        
+        // Check if provider is available
+        if (typeof window.xcpwallet !== 'undefined') {
+            status.className = 'status success';
+            status.textContent = '✅ XCP Wallet detected! Provider is available.';
+            log('XCP Wallet provider detected');
+            
+            // Check also for window.counterparty alias
+            if (typeof window.counterparty !== 'undefined') {
+                log('window.counterparty alias also available');
+            }
+            
+            // Set up event listeners
+            window.xcpwallet.on('accountsChanged', (accounts) => {
+                logEvent('accountsChanged', accounts);
+                updateConnectionStatus();
+            });
+            
+            window.xcpwallet.on('disconnect', () => {
+                logEvent('disconnect', null);
+                updateConnectionStatus();
+            });
+            
+            window.xcpwallet.on('connect', (info) => {
+                logEvent('connect', info);
+                updateConnectionStatus();
+            });
+            
+            // Initial connection check
+            updateConnectionStatus();
+            
+            // Button handlers
+            document.getElementById('connect').onclick = async () => {
+                try {
+                    log('Requesting accounts...');
+                    const accounts = await window.xcpwallet.request({
+                        method: 'xcp_requestAccounts'
+                    });
+                    log(`Connected! Accounts: ${JSON.stringify(accounts)}`);
+                    updateConnectionStatus();
+                } catch (error) {
+                    log(`Connection failed: ${error.message}`, 'error');
+                }
+            };
+            
+            document.getElementById('connectLegacy').onclick = async () => {
+                try {
+                    log('Using legacy enable() method...');
+                    const accounts = await window.xcpwallet.enable();
+                    log(`Connected! Accounts: ${JSON.stringify(accounts)}`);
+                    updateConnectionStatus();
+                } catch (error) {
+                    log(`Connection failed: ${error.message}`, 'error');
+                }
+            };
+            
+            document.getElementById('getAccounts').onclick = async () => {
+                try {
+                    const accounts = await window.xcpwallet.request({
+                        method: 'xcp_accounts'
+                    });
+                    log(`Current accounts: ${JSON.stringify(accounts)}`);
+                } catch (error) {
+                    log(`Error getting accounts: ${error.message}`, 'error');
+                }
+            };
+            
+            document.getElementById('disconnect').onclick = async () => {
+                try {
+                    // Note: There's no standard disconnect method in EIP-1193
+                    // This would typically be handled in the wallet's UI
+                    log('Disconnect should be done from wallet settings');
+                } catch (error) {
+                    log(`Error: ${error.message}`, 'error');
+                }
+            };
+            
+            document.getElementById('checkConnection').onclick = () => {
+                const isConnected = window.xcpwallet.isConnected();
+                log(`isConnected(): ${isConnected}`);
+            };
+            
+            document.getElementById('getChainId').onclick = async () => {
+                try {
+                    const chainId = await window.xcpwallet.request({
+                        method: 'xcp_chainId'
+                    });
+                    log(`Chain ID: ${chainId}`);
+                } catch (error) {
+                    log(`Error getting chain ID: ${error.message}`, 'error');
+                }
+            };
+            
+            document.getElementById('getNetwork').onclick = async () => {
+                try {
+                    const network = await window.xcpwallet.request({
+                        method: 'xcp_getNetwork'
+                    });
+                    log(`Network: ${network}`);
+                } catch (error) {
+                    log(`Error getting network: ${error.message}`, 'error');
+                }
+            };
+            
+            // Phase 2 methods - Transaction Operations
+            document.getElementById('composeSend').onclick = async () => {
+                try {
+                    log('Composing send transaction...');
+                    const sendTx = await window.xcpwallet.request({
+                        method: 'xcp_composeSend',
+                        params: [{
+                            destination: 'bc1qtest123456789',
+                            asset: 'XCP',
+                            quantity: 100000000,
+                            memo: 'Test send',
+                            fee_rate: 1
+                        }]
+                    });
+                    log(`Send transaction composed: ${JSON.stringify(sendTx, null, 2)}`);
+                } catch (error) {
+                    log(`Error composing send: ${error.message}`, 'error');
+                }
+            };
+            
+            document.getElementById('composeOrder').onclick = async () => {
+                try {
+                    log('Composing DEX order...');
+                    const order = await window.xcpwallet.request({
+                        method: 'xcp_composeOrder',
+                        params: [{
+                            give_asset: 'XCP',
+                            give_quantity: 100000000,
+                            get_asset: 'PEPECASH',
+                            get_quantity: 1000,
+                            expiration: 1000,
+                            fee_rate: 1
+                        }]
+                    });
+                    log(`Order composed: ${JSON.stringify(order, null, 2)}`);
+                } catch (error) {
+                    log(`Error composing order: ${error.message}`, 'error');
+                }
+            };
+            
+            document.getElementById('signTransaction').onclick = async () => {
+                try {
+                    // First compose a transaction to sign
+                    log('Composing transaction to sign...');
+                    const composedTx = await window.xcpwallet.request({
+                        method: 'xcp_composeSend',
+                        params: [{
+                            destination: 'bc1qtest123456789',
+                            asset: 'XCP',
+                            quantity: 100000000,
+                            fee_rate: 1
+                        }]
+                    });
+                    
+                    log('Requesting transaction signature...');
+                    const signedTx = await window.xcpwallet.request({
+                        method: 'xcp_signTransaction',
+                        params: [composedTx.rawtransaction]
+                    });
+                    log(`Transaction signed: ${JSON.stringify(signedTx, null, 2)}`);
+                } catch (error) {
+                    log(`Error signing transaction: ${error.message}`, 'error');
+                }
+            };
+            
+            document.getElementById('broadcastTransaction').onclick = async () => {
+                try {
+                    log('Note: You need a signed transaction first');
+                    // This would normally use a previously signed transaction
+                    const signedTx = prompt('Enter signed transaction hex:');
+                    if (signedTx) {
+                        const result = await window.xcpwallet.request({
+                            method: 'xcp_broadcastTransaction',
+                            params: [signedTx]
+                        });
+                        log(`Transaction broadcast: ${JSON.stringify(result, null, 2)}`);
+                    }
+                } catch (error) {
+                    log(`Error broadcasting transaction: ${error.message}`, 'error');
+                }
+            };
+            
+            document.getElementById('signMessage').onclick = async () => {
+                try {
+                    const message = 'Test message to sign';
+                    log(`Requesting signature for: "${message}"`);
+                    const signature = await window.xcpwallet.request({
+                        method: 'xcp_signMessage',
+                        params: [message, connectedAccount]
+                    });
+                    log(`Signature: ${signature}`);
+                } catch (error) {
+                    log(`Error signing message: ${error.message}`, 'error');
+                }
+            };
+            
+            // Phase 3 methods (not yet implemented)
+            document.getElementById('getBalances').onclick = async () => {
+                try {
+                    log('Fetching balances...');
+                    const balances = await window.xcpwallet.request({
+                        method: 'xcp_getBalances'
+                    });
+                    log(`Balances: ${JSON.stringify(balances, null, 2)}`);
+                } catch (error) {
+                    log(`Error getting balances: ${error.message}`, 'error');
+                }
+            };
+            
+            document.getElementById('getAssets').onclick = async () => {
+                try {
+                    log('Fetching assets...');
+                    const assets = await window.xcpwallet.request({
+                        method: 'xcp_getAssets'
+                    });
+                    log(`Assets: ${JSON.stringify(assets, null, 2)}`);
+                } catch (error) {
+                    log(`Error getting assets: ${error.message}`, 'error');
+                }
+            };
+            
+            document.getElementById('getHistory').onclick = async () => {
+                try {
+                    log('Fetching history...');
+                    const history = await window.xcpwallet.request({
+                        method: 'xcp_getHistory'
+                    });
+                    log(`History: ${JSON.stringify(history, null, 2)}`);
+                } catch (error) {
+                    log(`Error getting history: ${error.message}`, 'error');
+                }
+            };
+            
+            // Phase 3 Additional Compose Methods
+            document.getElementById('composeDispenser').onclick = async () => {
+                try {
+                    log('Composing dispenser...');
+                    const dispenser = await window.xcpwallet.request({
+                        method: 'xcp_composeDispenser',
+                        params: [{
+                            asset: 'TESTTOKEN',
+                            give_quantity: 100,
+                            escrow_quantity: 10000,
+                            mainchainrate: 100000000, // 1 BTC per token
+                            fee_rate: 1
+                        }]
+                    });
+                    log(`Dispenser composed: ${JSON.stringify(dispenser, null, 2)}`);
+                } catch (error) {
+                    log(`Error composing dispenser: ${error.message}`, 'error');
+                }
+            };
+            
+            document.getElementById('composeDividend').onclick = async () => {
+                try {
+                    log('Composing dividend...');
+                    const dividend = await window.xcpwallet.request({
+                        method: 'xcp_composeDividend',
+                        params: [{
+                            asset: 'TESTTOKEN',
+                            dividend_asset: 'XCP',
+                            quantity_per_unit: 100000, // 0.001 XCP per token
+                            fee_rate: 1
+                        }]
+                    });
+                    log(`Dividend composed: ${JSON.stringify(dividend, null, 2)}`);
+                } catch (error) {
+                    log(`Error composing dividend: ${error.message}`, 'error');
+                }
+            };
+            
+            document.getElementById('composeIssuance').onclick = async () => {
+                try {
+                    log('Composing issuance...');
+                    const issuance = await window.xcpwallet.request({
+                        method: 'xcp_composeIssuance',
+                        params: [{
+                            asset: 'A' + Math.random().toString().slice(2, 15), // Random numeric asset
+                            quantity: 1000000,
+                            divisible: true,
+                            description: 'Test token created via Web3 provider',
+                            fee_rate: 1
+                        }]
+                    });
+                    log(`Issuance composed: ${JSON.stringify(issuance, null, 2)}`);
+                } catch (error) {
+                    log(`Error composing issuance: ${error.message}`, 'error');
+                }
+            };
+            
+        } else {
+            status.className = 'status error';
+            status.textContent = '❌ XCP Wallet not detected. Please install the extension.';
+            log('XCP Wallet provider not found', 'error');
+            
+            // Disable all buttons
+            document.querySelectorAll('button').forEach(btn => {
+                btn.disabled = true;
+            });
+        }
+        
+        // Also listen for provider initialization event
+        window.addEventListener('xcp-wallet#initialized', () => {
+            log('Received xcp-wallet#initialized event');
+            location.reload(); // Reload to detect the provider
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XCP Wallet Provider Test Suite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .app-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 12px 12px 0 0;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #1a202c;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            color: #718096;
+        }
+        
+        .connection-status {
+            background: #f7fafc;
+            border-radius: 0 0 12px 12px;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .status-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #fc8181;
+        }
+        
+        .status-indicator.connected {
+            background: #48bb78;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(72, 187, 120, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(72, 187, 120, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(72, 187, 120, 0); }
+        }
+        
+        .account-address {
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 0.875rem;
+            color: #4a5568;
+            background: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+        }
+        
+        .connect-button {
+            padding: 0.75rem 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .connect-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .connect-button:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        
+        .test-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .test-panel.full-width {
+            grid-column: span 2;
+        }
+        
+        .panel-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .test-inputs {
+            display: grid;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .input-group label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #4a5568;
+        }
+        
+        .input-group input,
+        .input-group textarea {
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+        
+        .input-group input:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .test-section {
+            margin-bottom: 2rem;
+        }
+        
+        .test-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 1rem;
+        }
+        
+        .test-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.75rem;
+        }
+        
+        .test-button {
+            padding: 0.625rem 1rem;
+            background: #f7fafc;
+            color: #2d3748;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .test-button:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .test-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .test-button.loading {
+            background: #fbb6ce;
+            color: white;
+            border-color: #fbb6ce;
+        }
+        
+        .results-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .result-item {
+            background: #f7fafc;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .result-item.error {
+            background: #fed7d7;
+        }
+        
+        .result-item.success {
+            background: #c6f6d5;
+        }
+        
+        .result-method {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+        
+        .result-content {
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 0.75rem;
+            color: #4a5568;
+            white-space: pre-wrap;
+            word-break: break-all;
+            background: white;
+            padding: 0.5rem;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .event-log {
+            background: #1a202c;
+            color: #48bb78;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 0.75rem;
+            padding: 1rem;
+            border-radius: 6px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .event-entry {
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #2d3748;
+        }
+        
+        .timestamp {
+            color: #718096;
+            font-size: 0.7rem;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .test-panel.full-width {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <h1>🚀 XCP Wallet Provider Test Suite</h1>
+            <p>Comprehensive testing interface for XCP Wallet Web3 provider methods</p>
+        </div>
+        
+        <div class="connection-status">
+            <div class="status-info">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <div>
+                    <div id="connectionText">Not Connected</div>
+                    <div id="accountInfo" class="account-address" style="display: none;"></div>
+                </div>
+            </div>
+            <button id="mainConnectBtn" class="connect-button">Connect Wallet</button>
+        </div>
+        
+        <div class="main-content">
+            <!-- Test Parameters Panel -->
+            <div class="test-panel">
+                <h2 class="panel-title">📝 Test Parameters</h2>
+                <div class="test-inputs">
+                    <div class="input-group">
+                        <label>Destination Address</label>
+                        <input type="text" id="testAddress" placeholder="bc1q..." />
+                    </div>
+                    <div class="input-group">
+                        <label>Amount</label>
+                        <input type="text" id="testAmount" value="1000" placeholder="1000" />
+                    </div>
+                    <div class="input-group">
+                        <label>Asset</label>
+                        <input type="text" id="testAsset" value="XCP" placeholder="XCP" />
+                    </div>
+                    <div class="input-group">
+                        <label>Message to Sign</label>
+                        <input type="text" id="testMessage" value="Hello from XCP Wallet!" />
+                    </div>
+                    <div class="input-group">
+                        <label>Transaction Hex (for signing)</label>
+                        <textarea id="testTxHex" rows="3" placeholder="Raw transaction hex..."></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Test Methods Panel -->
+            <div class="test-panel">
+                <h2 class="panel-title">🧪 Test Methods</h2>
+                
+                <div class="test-section">
+                    <h3>Account Methods</h3>
+                    <div class="test-buttons">
+                        <button class="test-button" data-method="xcp_accounts">xcp_accounts</button>
+                        <button class="test-button" data-method="xcp_requestAccounts">xcp_requestAccounts</button>
+                        <button class="test-button" data-method="xcp_disconnect">xcp_disconnect</button>
+                    </div>
+                </div>
+                
+                <div class="test-section">
+                    <h3>Network Methods</h3>
+                    <div class="test-buttons">
+                        <button class="test-button" data-method="xcp_chainId">xcp_chainId</button>
+                        <button class="test-button" data-method="xcp_getNetwork">xcp_getNetwork</button>
+                    </div>
+                </div>
+                
+                <div class="test-section">
+                    <h3>Data Methods</h3>
+                    <div class="test-buttons">
+                        <button class="test-button" data-method="xcp_getBalances">xcp_getBalances</button>
+                        <button class="test-button" data-method="xcp_getAssets">xcp_getAssets</button>
+                        <button class="test-button" data-method="xcp_getHistory">xcp_getHistory</button>
+                    </div>
+                </div>
+                
+                <div class="test-section">
+                    <h3>Compose Methods</h3>
+                    <div class="test-buttons">
+                        <button class="test-button" data-method="xcp_composeSend">composeSend</button>
+                        <button class="test-button" data-method="xcp_composeOrder">composeOrder</button>
+                        <button class="test-button" data-method="xcp_composeIssuance">composeIssuance</button>
+                        <button class="test-button" data-method="xcp_composeDispenser">composeDispenser</button>
+                        <button class="test-button" data-method="xcp_composeDividend">composeDividend</button>
+                    </div>
+                </div>
+                
+                <div class="test-section">
+                    <h3>Signing Methods</h3>
+                    <div class="test-buttons">
+                        <button class="test-button" data-method="xcp_signMessage">signMessage</button>
+                        <button class="test-button" data-method="xcp_signTransaction">signTransaction</button>
+                        <button class="test-button" data-method="xcp_broadcastTransaction">broadcastTx</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Results Panel -->
+            <div class="test-panel">
+                <h2 class="panel-title">📊 Test Results</h2>
+                <div id="results" class="results-container">
+                    <div class="result-item">
+                        <div class="result-method">Ready to test...</div>
+                        <div class="result-content">Click any test button to begin</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Event Logs Panel -->
+            <div class="test-panel">
+                <h2 class="panel-title">📡 Event Logs</h2>
+                <div id="eventLog" class="event-log">
+                    <div class="event-entry">
+                        <span class="timestamp">[00:00:00]</span> Waiting for events...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // State management
+        const state = {
+            provider: null,
+            isConnected: false,
+            account: null,
+            results: {},
+            lastSignedTx: null
+        };
+        
+        // DOM elements
+        const elements = {
+            statusIndicator: document.getElementById('statusIndicator'),
+            connectionText: document.getElementById('connectionText'),
+            accountInfo: document.getElementById('accountInfo'),
+            mainConnectBtn: document.getElementById('mainConnectBtn'),
+            results: document.getElementById('results'),
+            eventLog: document.getElementById('eventLog'),
+            testAddress: document.getElementById('testAddress'),
+            testAmount: document.getElementById('testAmount'),
+            testAsset: document.getElementById('testAsset'),
+            testMessage: document.getElementById('testMessage'),
+            testTxHex: document.getElementById('testTxHex')
+        };
+        
+        // Utility functions
+        function getTimestamp() {
+            return new Date().toISOString().split('T')[1].split('.')[0];
+        }
+        
+        function logEvent(eventName, data) {
+            const entry = document.createElement('div');
+            entry.className = 'event-entry';
+            entry.innerHTML = `
+                <span class="timestamp">[${getTimestamp()}]</span> 
+                <strong>${eventName}</strong>
+                ${data ? `<br/>${JSON.stringify(data, null, 2)}` : ''}
+            `;
+            elements.eventLog.insertBefore(entry, elements.eventLog.firstChild);
+        }
+        
+        function addResult(method, result, isError = false) {
+            const resultItem = document.createElement('div');
+            resultItem.className = `result-item ${isError ? 'error' : 'success'}`;
+            resultItem.innerHTML = `
+                <div class="result-method">${method}</div>
+                <div class="result-content">${
+                    isError ? `Error: ${result}` : JSON.stringify(result, null, 2)
+                }</div>
+            `;
+            elements.results.insertBefore(resultItem, elements.results.firstChild);
+            
+            // Keep only last 10 results
+            while (elements.results.children.length > 10) {
+                elements.results.removeChild(elements.results.lastChild);
+            }
+        }
+        
+        function updateConnectionUI() {
+            if (state.isConnected && state.account) {
+                elements.statusIndicator.classList.add('connected');
+                elements.connectionText.textContent = 'Connected';
+                elements.accountInfo.textContent = state.account;
+                elements.accountInfo.style.display = 'block';
+                elements.mainConnectBtn.textContent = 'Disconnect';
+                elements.mainConnectBtn.onclick = disconnect;
+            } else {
+                elements.statusIndicator.classList.remove('connected');
+                elements.connectionText.textContent = 'Not Connected';
+                elements.accountInfo.style.display = 'none';
+                elements.mainConnectBtn.textContent = 'Connect Wallet';
+                elements.mainConnectBtn.onclick = connect;
+            }
+            
+            // Update button states
+            document.querySelectorAll('.test-button').forEach(btn => {
+                const method = btn.dataset.method;
+                const requiresConnection = ![
+                    'xcp_accounts', 
+                    'xcp_requestAccounts', 
+                    'xcp_chainId', 
+                    'xcp_getNetwork'
+                ].includes(method);
+                
+                btn.disabled = !state.provider || (requiresConnection && !state.isConnected);
+            });
+        }
+        
+        async function checkConnection() {
+            if (!state.provider) return;
+            
+            try {
+                const accounts = await state.provider.request({ method: 'xcp_accounts' });
+                state.isConnected = accounts.length > 0;
+                state.account = accounts[0] || null;
+                
+                if (state.account) {
+                    elements.testAddress.value = state.account;
+                }
+            } catch (error) {
+                state.isConnected = false;
+                state.account = null;
+            }
+            
+            updateConnectionUI();
+        }
+        
+        async function connect() {
+            if (!state.provider) {
+                addResult('connect', 'No provider available', true);
+                return;
+            }
+            
+            try {
+                const accounts = await state.provider.request({ 
+                    method: 'xcp_requestAccounts' 
+                });
+                state.isConnected = accounts.length > 0;
+                state.account = accounts[0] || null;
+                updateConnectionUI();
+                addResult('xcp_requestAccounts', accounts);
+            } catch (error) {
+                addResult('xcp_requestAccounts', error.message, true);
+            }
+        }
+        
+        async function disconnect() {
+            if (!state.provider) return;
+            
+            try {
+                await state.provider.request({ method: 'xcp_disconnect' });
+                state.isConnected = false;
+                state.account = null;
+                updateConnectionUI();
+                addResult('xcp_disconnect', 'Disconnected successfully');
+            } catch (error) {
+                addResult('xcp_disconnect', error.message, true);
+            }
+        }
+        
+        // Test method handlers
+        const testMethods = {
+            xcp_accounts: async () => {
+                return await state.provider.request({ method: 'xcp_accounts' });
+            },
+            
+            xcp_requestAccounts: async () => {
+                const accounts = await state.provider.request({ 
+                    method: 'xcp_requestAccounts' 
+                });
+                await checkConnection();
+                return accounts;
+            },
+            
+            xcp_disconnect: async () => {
+                await state.provider.request({ method: 'xcp_disconnect' });
+                await checkConnection();
+                return 'Disconnected';
+            },
+            
+            xcp_chainId: async () => {
+                return await state.provider.request({ method: 'xcp_chainId' });
+            },
+            
+            xcp_getNetwork: async () => {
+                return await state.provider.request({ method: 'xcp_getNetwork' });
+            },
+            
+            xcp_getBalances: async () => {
+                return await state.provider.request({ method: 'xcp_getBalances' });
+            },
+            
+            xcp_getAssets: async () => {
+                return await state.provider.request({ method: 'xcp_getAssets' });
+            },
+            
+            xcp_getHistory: async () => {
+                return await state.provider.request({ method: 'xcp_getHistory' });
+            },
+            
+            xcp_composeSend: async () => {
+                return await state.provider.request({
+                    method: 'xcp_composeSend',
+                    params: [{
+                        source: state.account,
+                        destination: elements.testAddress.value || state.account,
+                        asset: elements.testAsset.value,
+                        quantity: elements.testAmount.value
+                    }]
+                });
+            },
+            
+            xcp_composeOrder: async () => {
+                return await state.provider.request({
+                    method: 'xcp_composeOrder',
+                    params: [{
+                        source: state.account,
+                        give_asset: 'XCP',
+                        give_quantity: '1000000',
+                        get_asset: 'PEPECASH',
+                        get_quantity: '1000000000',
+                        expiration: 1000,
+                        fee_required: 0
+                    }]
+                });
+            },
+            
+            xcp_composeIssuance: async () => {
+                return await state.provider.request({
+                    method: 'xcp_composeIssuance',
+                    params: [{
+                        source: state.account,
+                        asset: 'TESTASSET' + Date.now(),
+                        quantity: 1000000,
+                        divisible: true,
+                        description: 'Test asset from XCP Wallet'
+                    }]
+                });
+            },
+            
+            xcp_composeDispenser: async () => {
+                return await state.provider.request({
+                    method: 'xcp_composeDispenser',
+                    params: [{
+                        source: state.account,
+                        asset: elements.testAsset.value,
+                        give_quantity: 100,
+                        escrow_quantity: 10000,
+                        mainchainrate: 100000,
+                        status: 0
+                    }]
+                });
+            },
+            
+            xcp_composeDividend: async () => {
+                return await state.provider.request({
+                    method: 'xcp_composeDividend',
+                    params: [{
+                        source: state.account,
+                        asset: elements.testAsset.value,
+                        dividend_asset: 'XCP',
+                        quantity_per_unit: 1
+                    }]
+                });
+            },
+            
+            xcp_signMessage: async () => {
+                return await state.provider.request({
+                    method: 'xcp_signMessage',
+                    params: [elements.testMessage.value, state.account]
+                });
+            },
+            
+            xcp_signTransaction: async () => {
+                const txHex = elements.testTxHex.value;
+                if (!txHex) throw new Error('Please enter a transaction hex');
+                
+                const result = await state.provider.request({
+                    method: 'xcp_signTransaction',
+                    params: [txHex]
+                });
+                
+                state.lastSignedTx = result;
+                return result;
+            },
+            
+            xcp_broadcastTransaction: async () => {
+                const signedTx = state.lastSignedTx;
+                if (!signedTx) throw new Error('Please sign a transaction first');
+                
+                return await state.provider.request({
+                    method: 'xcp_broadcastTransaction',
+                    params: [signedTx]
+                });
+            }
+        };
+        
+        // Initialize
+        function init() {
+            // Check for provider
+            if (typeof window.xcpwallet !== 'undefined') {
+                state.provider = window.xcpwallet;
+                logEvent('Provider detected', { available: true });
+                
+                // Set up event listeners
+                state.provider.on('accountsChanged', (accounts) => {
+                    logEvent('accountsChanged', accounts);
+                    checkConnection();
+                });
+                
+                state.provider.on('disconnect', () => {
+                    logEvent('disconnect', null);
+                    checkConnection();
+                });
+                
+                state.provider.on('connect', (info) => {
+                    logEvent('connect', info);
+                    checkConnection();
+                });
+                
+                // Initial connection check
+                checkConnection();
+                
+                // Set up test buttons
+                document.querySelectorAll('.test-button').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const method = btn.dataset.method;
+                        const handler = testMethods[method];
+                        
+                        if (!handler) {
+                            addResult(method, 'Method not implemented', true);
+                            return;
+                        }
+                        
+                        btn.classList.add('loading');
+                        btn.disabled = true;
+                        
+                        try {
+                            const result = await handler();
+                            addResult(method, result);
+                        } catch (error) {
+                            addResult(method, error.message, true);
+                        } finally {
+                            btn.classList.remove('loading');
+                            updateConnectionUI();
+                        }
+                    });
+                });
+            } else {
+                logEvent('Provider not found', { 
+                    error: 'window.xcpwallet is undefined',
+                    hint: 'Make sure XCP Wallet extension is installed' 
+                });
+                elements.mainConnectBtn.disabled = true;
+            }
+        }
+        
+        // Wait for DOM and provider
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+        
+        // Also listen for provider initialization event
+        window.addEventListener('xcp-wallet#initialized', init);
+    </script>
+</body>
+</html>

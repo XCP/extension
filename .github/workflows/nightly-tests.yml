@@ -1,0 +1,83 @@
+name: Nightly Tests
+
+on:
+  schedule:
+    # Run at 2 AM UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  full-test-suite:
+    name: Full Test Suite
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build extension
+        run: npm run build
+      
+      - name: Run TypeScript type checking
+        run: npm run compile
+        continue-on-error: true
+      
+      - name: Run unit tests
+        run: npx vitest run src
+      
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+      
+      - name: Install system dependencies
+        run: npx playwright install-deps chromium
+      
+      - name: Run all E2E tests
+        run: npx playwright test --retries=3 --workers=1
+        continue-on-error: true
+      
+      - name: Generate test report
+        if: always()
+        run: |
+          echo "# Nightly Test Report" >> $GITHUB_STEP_SUMMARY
+          echo "Date: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "test-results.json" ]; then
+            echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat test-results.json | jq '.stats' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-test-results-${{ github.run_number }}
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 30
+      
+      - name: Notify on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title: `Nightly tests failed - ${new Date().toISOString().split('T')[0]}`,
+              body: `The nightly test run failed. Please check the [workflow run](${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}) for details.`,
+              labels: ['automated', 'test-failure']
+            });

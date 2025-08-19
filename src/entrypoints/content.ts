@@ -1,0 +1,103 @@
+import { defineContentScript, injectScript } from '#imports';
+
+export default defineContentScript({
+  matches: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*', 'file:///*'],
+  async main(ctx) {
+    // Set up message relay between page and background
+    window.addEventListener('message', async (event) => {
+      // Only accept messages from the same window
+      if (event.source !== window) return;
+      
+      // Check for XCP wallet messages
+      if (event.data?.target === 'xcp-wallet-content' && event.data?.type === 'XCP_WALLET_REQUEST') {
+        console.debug('Content script sending message to background:', {
+          type: 'PROVIDER_REQUEST',
+          origin: window.location.origin,
+          data: event.data.data,
+          extensionId: browser.runtime.id
+        });
+        
+        try {
+          // Forward to background script with unique identifier
+          const response = await browser.runtime.sendMessage({
+            type: 'PROVIDER_REQUEST',
+            origin: window.location.origin,
+            data: event.data.data,
+            xcpWalletVersion: '2.0', // Unique identifier for this version
+            timestamp: Date.now() // Add timestamp to satisfy other extension if needed
+          });
+          
+          console.debug('Content script received response from background:', response);
+          
+          // Handle the response properly
+          if (!response) {
+            // No response from background
+            window.postMessage({
+              target: 'xcp-wallet-injected',
+              type: 'XCP_WALLET_RESPONSE',
+              id: event.data.id,
+              error: {
+                message: 'No response from extension background',
+                code: -32603
+              }
+            }, window.location.origin);
+          } else if (response.success) {
+            // Successful response
+            window.postMessage({
+              target: 'xcp-wallet-injected',
+              type: 'XCP_WALLET_RESPONSE',
+              id: event.data.id,
+              data: {
+                method: response.method || event.data.data.method,
+                result: response.result
+              }
+            }, window.location.origin);
+          } else {
+            // Error response
+            window.postMessage({
+              target: 'xcp-wallet-injected',
+              type: 'XCP_WALLET_RESPONSE',
+              id: event.data.id,
+              error: response.error || {
+                message: 'Unknown error',
+                code: -32603
+              }
+            }, window.location.origin);
+          }
+        } catch (error) {
+          // Send error back to page
+          window.postMessage({
+            target: 'xcp-wallet-injected',
+            type: 'XCP_WALLET_RESPONSE',
+            id: event.data.id,
+            error: {
+              message: (error as any).message || 'Unknown error',
+              code: (error as any).code || -1
+            }
+          }, window.location.origin);
+        }
+      }
+    });
+
+    // Listen for provider events from background
+    browser.runtime.onMessage.addListener((message) => {
+      if (message.type === 'PROVIDER_EVENT') {
+        window.postMessage({
+          target: 'xcp-wallet-injected',
+          type: 'XCP_WALLET_EVENT',
+          event: message.event,
+          data: message.data
+        }, window.location.origin);
+      }
+    });
+
+    try {
+      await injectScript("/injected.js", {
+        keepInDom: true,
+      });
+      console.log('Injected XCP Wallet provider successfully.');
+    } catch (error) {
+      console.error('Failed to inject XCP Wallet provider:', error);
+    }
+  },
+});

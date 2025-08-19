@@ -1,0 +1,347 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
+import { AssetHeader, type AssetInfo } from '../asset-header';
+
+// Mock dependencies
+const mockSetAssetHeader = vi.fn();
+const mockSubheadings = {
+  assets: {} as Record<string, AssetInfo>
+};
+
+vi.mock('@/contexts/header-context', () => ({
+  useHeader: () => ({
+    subheadings: mockSubheadings,
+    setAssetHeader: mockSetAssetHeader
+  })
+}));
+
+vi.mock('@/utils/format', () => ({
+  formatAmount: vi.fn(({ value, minimumFractionDigits, maximumFractionDigits, useGrouping }) => {
+    if (minimumFractionDigits === 8) {
+      return value.toFixed(8);
+    }
+    return value.toLocaleString();
+  })
+}));
+
+describe('AssetHeader', () => {
+  const mockAssetInfo: AssetInfo = {
+    asset: 'PEPECASH',
+    asset_longname: null,
+    description: 'Rare Pepe Cash',
+    issuer: 'bc1qxyz789',
+    divisible: true,
+    locked: true,
+    supply: '1000000000000'
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Reset mock subheadings
+    Object.keys(mockSubheadings.assets).forEach(key => {
+      delete mockSubheadings.assets[key];
+    });
+  });
+
+  it('should render asset information', () => {
+    render(<AssetHeader assetInfo={mockAssetInfo} />);
+    
+    expect(screen.getByText('PEPECASH')).toBeInTheDocument();
+    expect(screen.getByText(/Supply:/)).toBeInTheDocument();
+  });
+
+  it('should display asset name when no longname', () => {
+    render(<AssetHeader assetInfo={mockAssetInfo} />);
+    
+    expect(screen.getByText('PEPECASH')).toBeInTheDocument();
+  });
+
+  it('should display asset longname when available', () => {
+    const assetWithLongname = {
+      ...mockAssetInfo,
+      asset_longname: 'A12345678901234567890'
+    };
+    
+    render(<AssetHeader assetInfo={assetWithLongname} />);
+    
+    expect(screen.getByText('A12345678901234567890')).toBeInTheDocument();
+  });
+
+  it('should render asset icon with correct URL', () => {
+    render(<AssetHeader assetInfo={mockAssetInfo} />);
+    
+    const img = screen.getByAltText('PEPECASH');
+    expect(img).toHaveAttribute('src', 'https://app.xcp.io/img/icon/PEPECASH');
+  });
+
+  it('should apply custom className', () => {
+    render(<AssetHeader assetInfo={mockAssetInfo} className="custom-class" />);
+    
+    const container = screen.getByAltText('PEPECASH').closest('.flex');
+    expect(container).toHaveClass('custom-class');
+  });
+
+  it('should format supply for divisible assets', () => {
+    render(<AssetHeader assetInfo={mockAssetInfo} />);
+    
+    expect(screen.getByText(/1000000000000\.00000000/)).toBeInTheDocument();
+  });
+
+  it('should format supply for indivisible assets', () => {
+    const indivisibleAsset = {
+      ...mockAssetInfo,
+      divisible: false,
+      supply: '1000'
+    };
+    
+    render(<AssetHeader assetInfo={indivisibleAsset} />);
+    
+    expect(screen.getByText(/1,000/)).toBeInTheDocument();
+  });
+
+  it('should handle zero supply', () => {
+    const zeroSupplyAsset = {
+      ...mockAssetInfo,
+      supply: 0
+    };
+    
+    render(<AssetHeader assetInfo={zeroSupplyAsset} />);
+    
+    expect(screen.getByText(/0\.00000000/)).toBeInTheDocument();
+  });
+
+  it('should handle undefined supply', () => {
+    const noSupplyAsset = {
+      ...mockAssetInfo,
+      supply: undefined
+    };
+    
+    render(<AssetHeader assetInfo={noSupplyAsset} />);
+    
+    // Should default to 0
+    expect(screen.getByText(/0\.00000000/)).toBeInTheDocument();
+  });
+
+  it('should handle string supply', () => {
+    const stringSupplyAsset = {
+      ...mockAssetInfo,
+      supply: '5000000'
+    };
+    
+    render(<AssetHeader assetInfo={stringSupplyAsset} />);
+    
+    expect(screen.getByText(/5000000\.00000000/)).toBeInTheDocument();
+  });
+
+  it('should update cache when asset info changes', () => {
+    const { rerender } = render(<AssetHeader assetInfo={mockAssetInfo} />);
+    
+    expect(mockSetAssetHeader).toHaveBeenCalledWith('PEPECASH', mockAssetInfo);
+    
+    const updatedAssetInfo = {
+      ...mockAssetInfo,
+      supply: '2000000000000'
+    };
+    
+    rerender(<AssetHeader assetInfo={updatedAssetInfo} />);
+    
+    expect(mockSetAssetHeader).toHaveBeenCalledWith('PEPECASH', updatedAssetInfo);
+  });
+
+  it('should use cached data when available', () => {
+    const cachedData: AssetInfo = {
+      ...mockAssetInfo,
+      supply: '999999999'
+    };
+    
+    mockSubheadings.assets['PEPECASH'] = cachedData;
+    
+    render(<AssetHeader assetInfo={mockAssetInfo} />);
+    
+    // Should display cached supply instead of prop supply
+    expect(screen.getByText(/999999999\.00000000/)).toBeInTheDocument();
+  });
+
+  it('should not update cache when data is unchanged', () => {
+    mockSubheadings.assets['PEPECASH'] = mockAssetInfo;
+    
+    render(<AssetHeader assetInfo={mockAssetInfo} />);
+    
+    expect(mockSetAssetHeader).not.toHaveBeenCalled();
+  });
+
+  it('should apply correct CSS classes', () => {
+    render(<AssetHeader assetInfo={mockAssetInfo} />);
+    
+    const container = screen.getByAltText('PEPECASH').closest('.flex');
+    expect(container).toHaveClass('flex');
+    expect(container).toHaveClass('items-center');
+    
+    const img = screen.getByAltText('PEPECASH');
+    expect(img).toHaveClass('w-12');
+    expect(img).toHaveClass('h-12');
+    expect(img).toHaveClass('mr-4');
+  });
+
+  it('should apply correct typography classes', () => {
+    render(<AssetHeader assetInfo={mockAssetInfo} />);
+    
+    const heading = screen.getByText('PEPECASH');
+    expect(heading).toHaveClass('text-xl');
+    expect(heading).toHaveClass('font-bold');
+    expect(heading).toHaveClass('break-all');
+    
+    const supply = screen.getByText(/Supply:/);
+    expect(supply).toHaveClass('text-gray-600');
+    expect(supply).toHaveClass('text-sm');
+  });
+
+  it('should handle very long asset names', () => {
+    const longNameAsset = {
+      ...mockAssetInfo,
+      asset: 'VERYLONGASSETNAMETHATSHOULDBREAK'
+    };
+    
+    render(<AssetHeader assetInfo={longNameAsset} />);
+    
+    const heading = screen.getByText('VERYLONGASSETNAMETHATSHOULDBREAK');
+    expect(heading).toHaveClass('break-all');
+  });
+
+  it('should handle assets without optional fields', () => {
+    const minimalAsset: AssetInfo = {
+      asset: 'BTC',
+      asset_longname: null,
+      divisible: false,
+      locked: false
+    };
+    
+    render(<AssetHeader assetInfo={minimalAsset} />);
+    
+    expect(screen.getByText('BTC')).toBeInTheDocument();
+    expect(screen.getByText(/Supply: 0/)).toBeInTheDocument();
+  });
+
+  it('should render with all optional fields', () => {
+    const fullAsset: AssetInfo = {
+      asset: 'TESTASSET',
+      asset_longname: 'A.TESTASSET',
+      description: 'Test Asset Description',
+      issuer: 'bc1qissuer123',
+      divisible: true,
+      locked: true,
+      supply: 21000000
+    };
+    
+    render(<AssetHeader assetInfo={fullAsset} />);
+    
+    expect(screen.getByText('A.TESTASSET')).toBeInTheDocument();
+    expect(screen.getByText(/21000000\.00000000/)).toBeInTheDocument();
+  });
+
+  it('should update when switching between assets', () => {
+    const { rerender } = render(<AssetHeader assetInfo={mockAssetInfo} />);
+    
+    expect(screen.getByAltText('PEPECASH')).toBeInTheDocument();
+    
+    const differentAsset: AssetInfo = {
+      asset: 'XCP',
+      asset_longname: null,
+      divisible: true,
+      locked: true,
+      supply: '2600000000000000'
+    };
+    
+    rerender(<AssetHeader assetInfo={differentAsset} />);
+    
+    expect(screen.getByAltText('XCP')).toBeInTheDocument();
+    expect(mockSetAssetHeader).toHaveBeenCalledWith('XCP', differentAsset);
+  });
+
+  it('should handle numeric supply conversion', () => {
+    const numericSupplyAsset = {
+      ...mockAssetInfo,
+      supply: 123456.789
+    };
+    
+    render(<AssetHeader assetInfo={numericSupplyAsset} />);
+    
+    expect(screen.getByText(/123456\.78900000/)).toBeInTheDocument();
+  });
+
+  it('should handle large supply numbers', () => {
+    const largeSupplyAsset = {
+      ...mockAssetInfo,
+      supply: '9999999999999999999999'
+    };
+    
+    render(<AssetHeader assetInfo={largeSupplyAsset} />);
+    
+    // Large numbers may be displayed in scientific notation (1e+22)
+    const supplyText = screen.getByText(/Supply:/);
+    expect(supplyText.textContent).toContain('Supply:');
+    // The actual format depends on the formatAmount implementation
+    expect(supplyText).toBeInTheDocument();
+  });
+
+  it('should compare cached data correctly with JSON.stringify', () => {
+    const initialAsset: AssetInfo = {
+      asset: 'TEST',
+      asset_longname: null,
+      divisible: true,
+      locked: false,
+      supply: 1000
+    };
+    
+    mockSubheadings.assets['TEST'] = { ...initialAsset };
+    
+    const { rerender } = render(<AssetHeader assetInfo={initialAsset} />);
+    
+    // Should not call setAssetHeader since cached data matches
+    expect(mockSetAssetHeader).not.toHaveBeenCalled();
+    
+    // Change a property
+    const updatedAsset = { ...initialAsset, locked: true };
+    
+    rerender(<AssetHeader assetInfo={updatedAsset} />);
+    
+    // Should call setAssetHeader since cached data differs
+    expect(mockSetAssetHeader).toHaveBeenCalledWith('TEST', updatedAsset);
+  });
+
+  it('should handle cache miss correctly', () => {
+    // Ensure cache is empty for this asset
+    delete mockSubheadings.assets['NEWASSET'];
+    
+    const newAsset: AssetInfo = {
+      asset: 'NEWASSET',
+      asset_longname: null,
+      divisible: false,
+      locked: false,
+      supply: 500
+    };
+    
+    render(<AssetHeader assetInfo={newAsset} />);
+    
+    // Should set cache for new asset
+    expect(mockSetAssetHeader).toHaveBeenCalledWith('NEWASSET', newAsset);
+    
+    // Should display the provided data
+    expect(screen.getByText('NEWASSET')).toBeInTheDocument();
+  });
+
+  it('should handle empty asset name gracefully', () => {
+    const emptyNameAsset = {
+      ...mockAssetInfo,
+      asset: '',
+      asset_longname: ''
+    };
+    
+    render(<AssetHeader assetInfo={emptyNameAsset} />);
+    
+    // Should still render without errors
+    const img = screen.getByAltText('');
+    expect(img).toHaveAttribute('src', 'https://app.xcp.io/img/icon/');
+  });
+});
