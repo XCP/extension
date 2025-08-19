@@ -33,11 +33,12 @@ export const createPrivateKeyWallet = (overrides?: Partial<Wallet>): Wallet => (
  */
 export const defaultMocks = {
   sessionManager: {
-    setLastActiveTime: vi.fn(),
-    getUnlockedSecret: vi.fn(),
+    setLastActiveTime: vi.fn().mockResolvedValue(undefined),
+    getUnlockedSecret: vi.fn().mockResolvedValue(null),
     storeUnlockedSecret: vi.fn(),
     clearUnlockedSecret: vi.fn(),
-    clearAllUnlockedSecrets: vi.fn(),
+    clearAllUnlockedSecrets: vi.fn().mockResolvedValue(undefined),
+    initializeSession: vi.fn().mockResolvedValue(undefined),
   },
   settingsManager: {
     loadSettings: vi.fn().mockResolvedValue({
@@ -153,10 +154,10 @@ export const mockSuccessfulUnlock = (
   wallet: Wallet,
   secret: string = 'test mnemonic'
 ) => {
-  mocks.sessionManager.getUnlockedSecret.mockReturnValue(null);
+  mocks.sessionManager.getUnlockedSecret.mockResolvedValue(null);
   mocks.encryption.decryptMnemonic.mockResolvedValue(secret);
   mocks.sessionManager.storeUnlockedSecret.mockImplementation(() => {
-    mocks.sessionManager.getUnlockedSecret.mockReturnValue(secret);
+    mocks.sessionManager.getUnlockedSecret.mockResolvedValue(secret);
   });
 };
 

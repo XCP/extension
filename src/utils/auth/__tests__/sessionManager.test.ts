@@ -9,23 +9,46 @@ import {
 } from '../sessionManager';
 
 describe('sessionManager', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Mock chrome.storage.session with valid session metadata
+    const validSessionMetadata = {
+      sessionMetadata: {
+        unlockedAt: Date.now(),
+        timeout: 5 * 60 * 1000, // 5 minutes
+        lastActiveTime: Date.now(),
+      }
+    };
+    
+    global.chrome = {
+      storage: {
+        session: {
+          get: vi.fn().mockResolvedValue(validSessionMetadata),
+          set: vi.fn().mockResolvedValue(undefined),
+          remove: vi.fn().mockResolvedValue(undefined),
+        },
+      },
+      alarms: {
+        create: vi.fn().mockResolvedValue(undefined),
+        clear: vi.fn().mockResolvedValue(true),
+      },
+    } as any;
+    
     // Clear all secrets before each test
-    clearAllUnlockedSecrets();
+    await clearAllUnlockedSecrets();
     vi.clearAllMocks();
   });
 
   describe('storeUnlockedSecret', () => {
-    it('should store a secret for a wallet ID', () => {
+    it('should store a secret for a wallet ID', async () => {
       const walletId = 'wallet-123';
       const secret = 'my-secret-passphrase';
 
       storeUnlockedSecret(walletId, secret);
       
-      expect(getUnlockedSecret(walletId)).toBe(secret);
+      expect(await getUnlockedSecret(walletId)).toBe(secret);
     });
 
-    it('should overwrite existing secret for same wallet ID', () => {
+    it('should overwrite existing secret for same wallet ID', async () => {
       const walletId = 'wallet-123';
       const firstSecret = 'first-secret';
       const secondSecret = 'second-secret';
@@ -33,41 +56,41 @@ describe('sessionManager', () => {
       storeUnlockedSecret(walletId, firstSecret);
       storeUnlockedSecret(walletId, secondSecret);
       
-      expect(getUnlockedSecret(walletId)).toBe(secondSecret);
+      expect(await getUnlockedSecret(walletId)).toBe(secondSecret);
     });
 
-    it('should handle empty string secrets correctly', () => {
+    it('should handle empty string secrets correctly', async () => {
       const walletId = 'wallet-123';
       const secret = '';
 
       storeUnlockedSecret(walletId, secret);
       
       // Empty string should be stored and retrieved as-is
-      expect(getUnlockedSecret(walletId)).toBe('');
+      expect(await getUnlockedSecret(walletId)).toBe('');
     });
 
-    it('should throw error for null walletId', () => {
+    it('should throw error for null walletId', async () => {
       expect(() => storeUnlockedSecret('', 'secret')).toThrow('walletId is required');
     });
 
-    it('should throw error for null secret', () => {
+    it('should throw error for null secret', async () => {
       expect(() => storeUnlockedSecret('wallet-123', null as any)).toThrow('secret cannot be null or undefined');
     });
 
-    it('should throw error for undefined secret', () => {
+    it('should throw error for undefined secret', async () => {
       expect(() => storeUnlockedSecret('wallet-123', undefined as any)).toThrow('secret cannot be null or undefined');
     });
 
-    it('should handle special characters in secrets', () => {
+    it('should handle special characters in secrets', async () => {
       const walletId = 'wallet-123';
       const secret = 'secret!@#$%^&*()_+-={}[]|\\:";\'<>?,./';
 
       storeUnlockedSecret(walletId, secret);
       
-      expect(getUnlockedSecret(walletId)).toBe(secret);
+      expect(await getUnlockedSecret(walletId)).toBe(secret);
     });
 
-    it('should store multiple secrets for different wallet IDs', () => {
+    it('should store multiple secrets for different wallet IDs', async () => {
       const wallet1 = 'wallet-1';
       const wallet2 = 'wallet-2';
       const secret1 = 'secret-1';
@@ -76,52 +99,52 @@ describe('sessionManager', () => {
       storeUnlockedSecret(wallet1, secret1);
       storeUnlockedSecret(wallet2, secret2);
       
-      expect(getUnlockedSecret(wallet1)).toBe(secret1);
-      expect(getUnlockedSecret(wallet2)).toBe(secret2);
+      expect(await getUnlockedSecret(wallet1)).toBe(secret1);
+      expect(await getUnlockedSecret(wallet2)).toBe(secret2);
     });
   });
 
   describe('getUnlockedSecret', () => {
-    it('should return null for non-existent wallet ID', () => {
-      expect(getUnlockedSecret('non-existent')).toBeNull();
+    it('should return null for non-existent wallet ID', async () => {
+      expect(await getUnlockedSecret('non-existent')).toBeNull();
     });
 
-    it('should return null for empty wallet ID', () => {
-      expect(getUnlockedSecret('')).toBeNull();
+    it('should return null for empty wallet ID', async () => {
+      expect(await getUnlockedSecret('')).toBeNull();
     });
 
-    it('should return stored secret correctly', () => {
+    it('should return stored secret correctly', async () => {
       const walletId = 'wallet-123';
       const secret = 'stored-secret';
 
       storeUnlockedSecret(walletId, secret);
       
-      expect(getUnlockedSecret(walletId)).toBe(secret);
+      expect(await getUnlockedSecret(walletId)).toBe(secret);
     });
 
-    it('should handle wallet IDs with special characters', () => {
+    it('should handle wallet IDs with special characters', async () => {
       const walletId = 'wallet-!@#$%^&*()';
       const secret = 'special-wallet-secret';
 
       storeUnlockedSecret(walletId, secret);
       
-      expect(getUnlockedSecret(walletId)).toBe(secret);
+      expect(await getUnlockedSecret(walletId)).toBe(secret);
     });
   });
 
   describe('clearUnlockedSecret', () => {
-    it('should clear a specific wallet secret', () => {
+    it('should clear a specific wallet secret', async () => {
       const walletId = 'wallet-123';
       const secret = 'secret-to-clear';
 
       storeUnlockedSecret(walletId, secret);
-      expect(getUnlockedSecret(walletId)).toBe(secret);
+      expect(await getUnlockedSecret(walletId)).toBe(secret);
 
       clearUnlockedSecret(walletId);
-      expect(getUnlockedSecret(walletId)).toBeNull();
+      expect(await getUnlockedSecret(walletId)).toBeNull();
     });
 
-    it('should not affect other wallet secrets when clearing one', () => {
+    it('should not affect other wallet secrets when clearing one', async () => {
       const wallet1 = 'wallet-1';
       const wallet2 = 'wallet-2';
       const secret1 = 'secret-1';
@@ -132,15 +155,15 @@ describe('sessionManager', () => {
 
       clearUnlockedSecret(wallet1);
 
-      expect(getUnlockedSecret(wallet1)).toBeNull();
-      expect(getUnlockedSecret(wallet2)).toBe(secret2);
+      expect(await getUnlockedSecret(wallet1)).toBeNull();
+      expect(await getUnlockedSecret(wallet2)).toBe(secret2);
     });
 
-    it('should handle clearing non-existent wallet ID gracefully', () => {
+    it('should handle clearing non-existent wallet ID gracefully', async () => {
       expect(() => clearUnlockedSecret('non-existent')).not.toThrow();
     });
 
-    it('should overwrite secret with zeros before deletion for security', () => {
+    it('should overwrite secret with zeros before deletion for security', async () => {
       const walletId = 'wallet-123';
       const secret = 'sensitive-secret';
 
@@ -148,29 +171,29 @@ describe('sessionManager', () => {
       clearUnlockedSecret(walletId);
 
       // The secret should be gone
-      expect(getUnlockedSecret(walletId)).toBeNull();
+      expect(await getUnlockedSecret(walletId)).toBeNull();
     });
 
-    it('should handle empty string secrets when clearing', () => {
+    it('should handle empty string secrets when clearing', async () => {
       const walletId = 'wallet-123';
       const secret = '';
 
       storeUnlockedSecret(walletId, secret);
       // Empty string should be stored and retrieved correctly
-      expect(getUnlockedSecret(walletId)).toBe('');
+      expect(await getUnlockedSecret(walletId)).toBe('');
       
       clearUnlockedSecret(walletId);
-      expect(getUnlockedSecret(walletId)).toBeNull();
+      expect(await getUnlockedSecret(walletId)).toBeNull();
     });
 
-    it('should handle clearing with null walletId gracefully', () => {
+    it('should handle clearing with null walletId gracefully', async () => {
       expect(() => clearUnlockedSecret('')).not.toThrow();
       expect(() => clearUnlockedSecret(null as any)).not.toThrow();
     });
   });
 
   describe('clearAllUnlockedSecrets', () => {
-    it('should clear all stored secrets', () => {
+    it('should clear all stored secrets', async () => {
       const wallet1 = 'wallet-1';
       const wallet2 = 'wallet-2';
       const wallet3 = 'wallet-3';
@@ -182,34 +205,34 @@ describe('sessionManager', () => {
       storeUnlockedSecret(wallet2, secret2);
       storeUnlockedSecret(wallet3, secret3);
 
-      clearAllUnlockedSecrets();
+      await clearAllUnlockedSecrets();
 
-      expect(getUnlockedSecret(wallet1)).toBeNull();
-      expect(getUnlockedSecret(wallet2)).toBeNull();
-      expect(getUnlockedSecret(wallet3)).toBeNull();
+      expect(await getUnlockedSecret(wallet1)).toBeNull();
+      expect(await getUnlockedSecret(wallet2)).toBeNull();
+      expect(await getUnlockedSecret(wallet3)).toBeNull();
     });
 
-    it('should handle clearing when no secrets are stored', () => {
-      expect(() => clearAllUnlockedSecrets()).not.toThrow();
+    it('should handle clearing when no secrets are stored', async () => {
+      await expect(clearAllUnlockedSecrets()).resolves.not.toThrow();
     });
 
-    it('should work correctly after storing new secrets post-clear', () => {
+    it('should work correctly after storing new secrets post-clear', async () => {
       const walletId = 'wallet-123';
       const firstSecret = 'first-secret';
       const secondSecret = 'second-secret';
 
       storeUnlockedSecret(walletId, firstSecret);
-      clearAllUnlockedSecrets();
+      await clearAllUnlockedSecrets();
       storeUnlockedSecret(walletId, secondSecret);
 
-      expect(getUnlockedSecret(walletId)).toBe(secondSecret);
+      expect(await getUnlockedSecret(walletId)).toBe(secondSecret);
     });
   });
 
   describe('setLastActiveTime and getLastActiveTime', () => {
-    it('should set and get last active time', () => {
+    it('should set and get last active time', async () => {
       const beforeTime = Date.now();
-      setLastActiveTime();
+      await setLastActiveTime();
       const afterTime = Date.now();
       const storedTime = getLastActiveTime();
 
@@ -217,22 +240,22 @@ describe('sessionManager', () => {
       expect(storedTime).toBeLessThanOrEqual(afterTime);
     });
 
-    it('should update last active time when called multiple times', () => {
-      setLastActiveTime();
+    it('should update last active time when called multiple times', async () => {
+      await setLastActiveTime();
       const firstTime = getLastActiveTime();
 
       // Wait a small amount to ensure time difference
       vi.useFakeTimers();
       vi.advanceTimersByTime(100);
-      setLastActiveTime();
+      await setLastActiveTime();
       const secondTime = getLastActiveTime();
       vi.useRealTimers();
 
       expect(secondTime).toBeGreaterThan(firstTime);
     });
 
-    it('should return a valid timestamp', () => {
-      setLastActiveTime();
+    it('should return a valid timestamp', async () => {
+      await setLastActiveTime();
       const timestamp = getLastActiveTime();
 
       expect(typeof timestamp).toBe('number');
@@ -240,7 +263,7 @@ describe('sessionManager', () => {
       expect(timestamp).toBeLessThanOrEqual(Date.now());
     });
 
-    it('should have initial timestamp set on module load', () => {
+    it('should have initial timestamp set on module load', async () => {
       const timestamp = getLastActiveTime();
       
       expect(typeof timestamp).toBe('number');
@@ -249,24 +272,24 @@ describe('sessionManager', () => {
   });
 
   describe('edge cases and security', () => {
-    it('should handle extremely long secrets', () => {
+    it('should handle extremely long secrets', async () => {
       const walletId = 'wallet-long';
       const longSecret = 'a'.repeat(10000); // 10KB secret
       
       storeUnlockedSecret(walletId, longSecret);
-      expect(getUnlockedSecret(walletId)).toBe(longSecret);
+      expect(await getUnlockedSecret(walletId)).toBe(longSecret);
       
       clearUnlockedSecret(walletId);
-      expect(getUnlockedSecret(walletId)).toBeNull();
+      expect(await getUnlockedSecret(walletId)).toBeNull();
     });
 
-    it('should handle null and undefined walletId in getUnlockedSecret', () => {
-      expect(getUnlockedSecret('')).toBeNull();
-      expect(getUnlockedSecret(null as any)).toBeNull();
-      expect(getUnlockedSecret(undefined as any)).toBeNull();
+    it('should handle null and undefined walletId in getUnlockedSecret', async () => {
+      expect(await getUnlockedSecret('')).toBeNull();
+      expect(await getUnlockedSecret(null as any)).toBeNull();
+      expect(await getUnlockedSecret(undefined as any)).toBeNull();
     });
 
-    it('should handle concurrent access to same wallet', () => {
+    it('should handle concurrent access to same wallet', async () => {
       const walletId = 'concurrent-wallet';
       const secrets = ['secret1', 'secret2', 'secret3'];
       
@@ -274,10 +297,10 @@ describe('sessionManager', () => {
       secrets.forEach(secret => storeUnlockedSecret(walletId, secret));
       
       // Should have the last value
-      expect(getUnlockedSecret(walletId)).toBe('secret3');
+      expect(await getUnlockedSecret(walletId)).toBe('secret3');
     });
 
-    it('should handle large number of wallets', () => {
+    it('should handle large number of wallets', async () => {
       const walletCount = 1000;
       const wallets = Array.from({ length: walletCount }, (_, i) => ({
         id: `wallet-${i}`,
@@ -289,35 +312,108 @@ describe('sessionManager', () => {
       
       // Verify random samples
       const samples = [0, 250, 500, 750, 999];
-      samples.forEach(i => {
-        expect(getUnlockedSecret(wallets[i].id)).toBe(wallets[i].secret);
-      });
+      for (const i of samples) {
+        expect(await getUnlockedSecret(wallets[i].id)).toBe(wallets[i].secret);
+      }
       
       // Clear all
-      clearAllUnlockedSecrets();
-      samples.forEach(i => {
-        expect(getUnlockedSecret(wallets[i].id)).toBeNull();
+      await clearAllUnlockedSecrets();
+      for (const i of samples) {
+        expect(await getUnlockedSecret(wallets[i].id)).toBeNull();
+      }
+    });
+  });
+
+  describe('session expiry and persistence', () => {
+    it('should expire session when timeout is exceeded', async () => {
+      const walletId = 'test-wallet';
+      const secret = 'test-secret';
+      
+      // Mock expired session
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({
+        sessionMetadata: {
+          unlockedAt: Date.now() - 10 * 60 * 1000, // 10 minutes ago
+          timeout: 5 * 60 * 1000, // 5 minute timeout
+          lastActiveTime: Date.now() - 10 * 60 * 1000, // 10 minutes ago
+        }
       });
+      
+      storeUnlockedSecret(walletId, secret);
+      
+      // Should return null due to expired session
+      expect(await getUnlockedSecret(walletId)).toBeNull();
+    });
+
+    it('should not expire session within timeout period', async () => {
+      const walletId = 'test-wallet';
+      const secret = 'test-secret';
+      
+      // Mock valid session (2 minutes old, 5 minute timeout)
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({
+        sessionMetadata: {
+          unlockedAt: Date.now() - 2 * 60 * 1000,
+          timeout: 5 * 60 * 1000,
+          lastActiveTime: Date.now() - 2 * 60 * 1000,
+        }
+      });
+      
+      storeUnlockedSecret(walletId, secret);
+      
+      // Should return secret as session is still valid
+      expect(await getUnlockedSecret(walletId)).toBe(secret);
+    });
+
+    it('should clear session metadata when session expires', async () => {
+      const walletId = 'test-wallet';
+      const secret = 'test-secret';
+      
+      // Mock expired session
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({
+        sessionMetadata: {
+          unlockedAt: Date.now() - 10 * 60 * 1000,
+          timeout: 5 * 60 * 1000,
+          lastActiveTime: Date.now() - 10 * 60 * 1000,
+        }
+      });
+      
+      storeUnlockedSecret(walletId, secret);
+      await getUnlockedSecret(walletId);
+      
+      // Should have cleared session metadata
+      expect(global.chrome.storage.session.remove).toHaveBeenCalledWith('sessionMetadata');
+    });
+
+    it('should reschedule alarm when activity is detected', async () => {
+      await setLastActiveTime();
+      
+      // Should clear and create new alarm
+      expect(global.chrome.alarms.clear).toHaveBeenCalledWith('session-expiry');
+      expect(global.chrome.alarms.create).toHaveBeenCalledWith(
+        'session-expiry',
+        expect.objectContaining({
+          when: expect.any(Number)
+        })
+      );
     });
   });
 
   describe('integration scenarios', () => {
-    it('should handle full session lifecycle', () => {
+    it('should handle full session lifecycle', async () => {
       const walletId = 'integration-wallet';
       const secret = 'integration-secret';
 
       // Initial state
-      expect(getUnlockedSecret(walletId)).toBeNull();
+      expect(await getUnlockedSecret(walletId)).toBeNull();
 
       // Store secret
       storeUnlockedSecret(walletId, secret);
-      expect(getUnlockedSecret(walletId)).toBe(secret);
+      expect(await getUnlockedSecret(walletId)).toBe(secret);
 
       // Update activity
       const beforeActivity = getLastActiveTime();
       vi.useFakeTimers();
       vi.advanceTimersByTime(1000);
-      setLastActiveTime();
+      await setLastActiveTime();
       const afterActivity = getLastActiveTime();
       vi.useRealTimers();
       
@@ -325,10 +421,10 @@ describe('sessionManager', () => {
 
       // Clear secret
       clearUnlockedSecret(walletId);
-      expect(getUnlockedSecret(walletId)).toBeNull();
+      expect(await getUnlockedSecret(walletId)).toBeNull();
     });
 
-    it('should handle multiple concurrent wallet sessions', () => {
+    it('should handle multiple concurrent wallet sessions', async () => {
       const wallets = Array.from({ length: 5 }, (_, i) => ({
         id: `wallet-${i}`,
         secret: `secret-${i}`,
@@ -340,26 +436,93 @@ describe('sessionManager', () => {
       });
 
       // Verify all are stored
-      wallets.forEach(({ id, secret }) => {
-        expect(getUnlockedSecret(id)).toBe(secret);
-      });
+      for (const { id, secret } of wallets) {
+        expect(await getUnlockedSecret(id)).toBe(secret);
+      }
 
       // Clear some secrets
       clearUnlockedSecret(wallets[0].id);
       clearUnlockedSecret(wallets[2].id);
 
       // Verify selective clearing
-      expect(getUnlockedSecret(wallets[0].id)).toBeNull();
-      expect(getUnlockedSecret(wallets[1].id)).toBe(wallets[1].secret);
-      expect(getUnlockedSecret(wallets[2].id)).toBeNull();
-      expect(getUnlockedSecret(wallets[3].id)).toBe(wallets[3].secret);
-      expect(getUnlockedSecret(wallets[4].id)).toBe(wallets[4].secret);
+      expect(await getUnlockedSecret(wallets[0].id)).toBeNull();
+      expect(await getUnlockedSecret(wallets[1].id)).toBe(wallets[1].secret);
+      expect(await getUnlockedSecret(wallets[2].id)).toBeNull();
+      expect(await getUnlockedSecret(wallets[3].id)).toBe(wallets[3].secret);
+      expect(await getUnlockedSecret(wallets[4].id)).toBe(wallets[4].secret);
 
       // Clear all remaining
-      clearAllUnlockedSecrets();
-      wallets.forEach(({ id }) => {
-        expect(getUnlockedSecret(id)).toBeNull();
+      await clearAllUnlockedSecrets();
+      for (const { id } of wallets) {
+        expect(await getUnlockedSecret(id)).toBeNull();
+      }
+    });
+  });
+
+  describe('session recovery', () => {
+    it('should detect LOCKED state when no session exists', async () => {
+      // Mock no session metadata
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({});
+      
+      const { checkSessionRecovery, SessionRecoveryState } = await import('../sessionManager');
+      const state = await checkSessionRecovery();
+      
+      expect(state).toBe(SessionRecoveryState.LOCKED);
+    });
+
+    it('should detect LOCKED state when session is expired', async () => {
+      // Mock expired session
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({
+        sessionMetadata: {
+          unlockedAt: Date.now() - 10 * 60 * 1000,
+          timeout: 5 * 60 * 1000,
+          lastActiveTime: Date.now() - 10 * 60 * 1000,
+        }
       });
+      
+      const { checkSessionRecovery, SessionRecoveryState } = await import('../sessionManager');
+      const state = await checkSessionRecovery();
+      
+      expect(state).toBe(SessionRecoveryState.LOCKED);
+      expect(global.chrome.storage.session.remove).toHaveBeenCalledWith('sessionMetadata');
+    });
+
+    it('should detect NEEDS_REAUTH when session valid but no secrets', async () => {
+      // Mock valid session
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({
+        sessionMetadata: {
+          unlockedAt: Date.now(),
+          timeout: 5 * 60 * 1000,
+          lastActiveTime: Date.now(),
+        }
+      });
+      
+      // Clear all secrets first
+      await clearAllUnlockedSecrets();
+      
+      const { checkSessionRecovery, SessionRecoveryState } = await import('../sessionManager');
+      const state = await checkSessionRecovery();
+      
+      expect(state).toBe(SessionRecoveryState.NEEDS_REAUTH);
+    });
+
+    it('should detect VALID when session and secrets are present', async () => {
+      // Mock valid session
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({
+        sessionMetadata: {
+          unlockedAt: Date.now(),
+          timeout: 5 * 60 * 1000,
+          lastActiveTime: Date.now(),
+        }
+      });
+      
+      // Store a secret
+      storeUnlockedSecret('wallet-123', 'secret');
+      
+      const { checkSessionRecovery, SessionRecoveryState } = await import('../sessionManager');
+      const state = await checkSessionRecovery();
+      
+      expect(state).toBe(SessionRecoveryState.VALID);
     });
   });
 });

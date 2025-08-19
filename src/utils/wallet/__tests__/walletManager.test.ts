@@ -27,6 +27,9 @@ import * as sessionManager from '@/utils/auth/sessionManager';
 import { settingsManager } from '@/utils/wallet/settingsManager';
 import { getAllEncryptedWallets } from '@/utils/storage/walletStorage';
 import { getAddressFromMnemonic, getDerivationPathForAddressType } from '@/utils/blockchain/bitcoin';
+import { HDKey } from '@scure/bip32';
+import { mnemonicToSeedSync } from '@scure/bip39';
+import { bytesToHex } from '@noble/hashes/utils';
 
 describe('WalletManager', () => {
   let walletManager: WalletManager;
@@ -36,15 +39,29 @@ describe('WalletManager', () => {
     vi.clearAllMocks();
     mocks = setupMocks();
     
+    // Mock chrome.alarms API
+    global.chrome = {
+      ...global.chrome,
+      alarms: {
+        create: vi.fn().mockResolvedValue(undefined),
+        clear: vi.fn().mockResolvedValue(true),
+        onAlarm: {
+          addListener: vi.fn(),
+        },
+      },
+    } as any;
+    
     // Setup the actual mocked module functions
     vi.mocked(sessionManager.setLastActiveTime).mockImplementation(mocks.sessionManager.setLastActiveTime);
     vi.mocked(sessionManager.getUnlockedSecret).mockImplementation(mocks.sessionManager.getUnlockedSecret);
     vi.mocked(sessionManager.storeUnlockedSecret).mockImplementation(mocks.sessionManager.storeUnlockedSecret);
     vi.mocked(sessionManager.clearUnlockedSecret).mockImplementation(mocks.sessionManager.clearUnlockedSecret);
     vi.mocked(sessionManager.clearAllUnlockedSecrets).mockImplementation(mocks.sessionManager.clearAllUnlockedSecrets);
+    vi.mocked(sessionManager.initializeSession).mockImplementation(mocks.sessionManager.initializeSession || vi.fn().mockResolvedValue(undefined));
     
     vi.mocked(settingsManager.loadSettings).mockImplementation(mocks.settingsManager.loadSettings);
     vi.mocked(settingsManager.updateSettings).mockImplementation(mocks.settingsManager.updateSettings);
+    vi.mocked(settingsManager.getSettings).mockImplementation(mocks.settingsManager.getSettings || vi.fn().mockReturnValue({ autoLockTimeout: 5 * 60 * 1000 }));
     
     vi.mocked(getAllEncryptedWallets).mockImplementation(mocks.walletStorage.getAllEncryptedWallets);
     vi.mocked(getAddressFromMnemonic).mockImplementation(mocks.bitcoin.getAddressFromMnemonic);
@@ -182,7 +199,7 @@ describe('WalletManager', () => {
       
       // Mock one wallet as unlocked
       vi.mocked(sessionManager.getUnlockedSecret).mockImplementation((id) =>
-        id === wallets[0].id ? 'secret' : null
+        Promise.resolve(id === wallets[0].id ? 'secret' : null)
       );
       
       const result = await walletManager.isAnyWalletUnlocked();
@@ -193,7 +210,7 @@ describe('WalletManager', () => {
       const wallets = createMultipleWallets(2);
       walletManager['wallets'] = wallets;
       
-      vi.mocked(sessionManager.getUnlockedSecret).mockReturnValue(null);
+      vi.mocked(sessionManager.getUnlockedSecret).mockResolvedValue(null);
       
       const result = await walletManager.isAnyWalletUnlocked();
       expect(result).toBe(false);
@@ -201,17 +218,17 @@ describe('WalletManager', () => {
   });
 
   describe('Address Preview', () => {
-    it('should get preview address for type', () => {
+    it('should get preview address for type', async () => {
       const wallet = createTestWallet();
       walletManager['wallets'] = [wallet];
       
       // Mock the wallet being unlocked with a mnemonic
       const mnemonic = 'test mnemonic phrase';
-      mocks.sessionManager.getUnlockedSecret.mockReturnValue(mnemonic);
+      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(mnemonic);
       mocks.bitcoin.getAddressFromMnemonic.mockReturnValue('bc1qpreview');
       mocks.bitcoin.getDerivationPathForAddressType.mockReturnValue("m/84'/0'/0'");
       
-      const preview = walletManager.getPreviewAddressForType(wallet.id, AddressType.P2WPKH);
+      const preview = await walletManager.getPreviewAddressForType(wallet.id, AddressType.P2WPKH);
       
       expect(preview).toBe('bc1qpreview');
       expect(mocks.bitcoin.getAddressFromMnemonic).toHaveBeenCalledWith(
@@ -221,58 +238,158 @@ describe('WalletManager', () => {
       );
     });
 
-    it('should throw error for locked wallet', () => {
+    it('should throw error for locked wallet', async () => {
       const wallet = createTestWallet();
       walletManager['wallets'] = [wallet];
       
-      mocks.sessionManager.getUnlockedSecret.mockReturnValue(null);
+      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(null);
       
-      expect(() => {
-        walletManager.getPreviewAddressForType(wallet.id, AddressType.P2WPKH);
-      }).toThrow('Wallet is locked');
+      await expect(
+        walletManager.getPreviewAddressForType(wallet.id, AddressType.P2WPKH)
+      ).rejects.toThrow('Wallet is locked');
     });
 
-    it('should throw error for non-existent wallet', () => {
+    it('should throw error for non-existent wallet', async () => {
       // For a non-existent wallet, sessionManager.getUnlockedSecret returns null
       // which causes 'Wallet is locked' error to be thrown first
-      expect(() => {
-        walletManager.getPreviewAddressForType('non-existent', AddressType.P2WPKH);
-      }).toThrow('Wallet is locked');
+      await expect(
+        walletManager.getPreviewAddressForType('non-existent', AddressType.P2WPKH)
+      ).rejects.toThrow('Wallet is locked');
+    });
+  });
+
+  describe('Session Alarm Management', () => {
+    it('should schedule session expiry alarm when unlocking wallet', async () => {
+      const wallet = createTestWallet();
+      const password = 'test-password';
+      
+      // Add wallet to manager
+      walletManager['wallets'] = [wallet];
+      
+      // Mock storage
+      mocks.walletStorage.getAllEncryptedWallets.mockResolvedValue([
+        {
+          id: wallet.id,
+          type: 'mnemonic',
+          encryptedSecret: 'encrypted',
+          addressType: wallet.addressType,
+          addressCount: 1,
+        }
+      ]);
+      
+      // Mock HD key derivation
+      const mockHDKey = {
+        publicKey: new Uint8Array([1, 2, 3]),
+        derive: vi.fn().mockReturnThis(),
+      } as any as HDKey;
+      vi.mocked(HDKey.fromMasterSeed).mockReturnValue(mockHDKey);
+      vi.mocked(mnemonicToSeedSync).mockReturnValue(Buffer.from('test-seed'));
+      vi.mocked(bytesToHex).mockReturnValue('test-pubkey-hex');
+      
+      // Mock successful unlock
+      mocks.encryption.decryptMnemonic.mockResolvedValue('test mnemonic');
+      mocks.settingsManager.getSettings.mockReturnValue({ autoLockTimeout: 5 * 60 * 1000 });
+      mocks.sessionManager.initializeSession.mockResolvedValue(undefined);
+      mocks.sessionManager.storeUnlockedSecret.mockImplementation(() => {});
+      mocks.bitcoin.getAddressFromMnemonic.mockReturnValue('test-address');
+      mocks.bitcoin.getDerivationPathForAddressType.mockReturnValue("m/84'/0'/0'");
+      
+      await walletManager.unlockWallet(wallet.id, password);
+      
+      // Should have initialized session
+      expect(mocks.sessionManager.initializeSession).toHaveBeenCalledWith(5 * 60 * 1000);
+      
+      // Should have scheduled alarm
+      expect(global.chrome.alarms.clear).toHaveBeenCalledWith('session-expiry');
+      expect(global.chrome.alarms.create).toHaveBeenCalledWith(
+        'session-expiry',
+        expect.objectContaining({
+          when: expect.any(Number)
+        })
+      );
+    });
+
+    it('should clear session expiry alarm when locking all wallets', async () => {
+      await walletManager.lockAllWallets();
+      
+      // Should have cleared the alarm
+      expect(global.chrome.alarms.clear).toHaveBeenCalledWith('session-expiry');
+    });
+
+    it('should use default timeout if settings unavailable', async () => {
+      const wallet = createTestWallet();
+      const password = 'test-password';
+      
+      // Add wallet to manager
+      walletManager['wallets'] = [wallet];
+      
+      // Mock storage
+      mocks.walletStorage.getAllEncryptedWallets.mockResolvedValue([
+        {
+          id: wallet.id,
+          type: 'mnemonic',
+          encryptedSecret: 'encrypted',
+          addressType: wallet.addressType,
+          addressCount: 1,
+        }
+      ]);
+      
+      // Mock HD key derivation
+      const mockHDKey = {
+        publicKey: new Uint8Array([1, 2, 3]),
+        derive: vi.fn().mockReturnThis(),
+      } as any as HDKey;
+      vi.mocked(HDKey.fromMasterSeed).mockReturnValue(mockHDKey);
+      vi.mocked(mnemonicToSeedSync).mockReturnValue(Buffer.from('test-seed'));
+      vi.mocked(bytesToHex).mockReturnValue('test-pubkey-hex');
+      
+      // Mock settings returning null
+      mocks.settingsManager.getSettings.mockReturnValue(null);
+      mocks.encryption.decryptMnemonic.mockResolvedValue('test mnemonic');
+      mocks.sessionManager.initializeSession.mockResolvedValue(undefined);
+      mocks.sessionManager.storeUnlockedSecret.mockImplementation(() => {});
+      mocks.bitcoin.getAddressFromMnemonic.mockReturnValue('test-address');
+      mocks.bitcoin.getDerivationPathForAddressType.mockReturnValue("m/84'/0'/0'");
+      
+      await walletManager.unlockWallet(wallet.id, password);
+      
+      // Should use default 5 minute timeout
+      expect(mocks.sessionManager.initializeSession).toHaveBeenCalledWith(5 * 60 * 1000);
     });
   });
 
   describe('Mnemonic Access', () => {
-    it('should get unencrypted mnemonic for unlocked wallet', () => {
+    it('should get unencrypted mnemonic for unlocked wallet', async () => {
       const wallet = createTestWallet({ type: 'mnemonic' });
       walletManager['wallets'] = [wallet];
       
       const mnemonic = 'test mnemonic phrase';
-      mocks.sessionManager.getUnlockedSecret.mockReturnValue(mnemonic);
+      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(mnemonic);
       
-      const result = walletManager.getUnencryptedMnemonic(wallet.id);
+      const result = await walletManager.getUnencryptedMnemonic(wallet.id);
       
       expect(result).toBe(mnemonic);
     });
 
-    it('should throw error for locked wallet', () => {
+    it('should throw error for locked wallet', async () => {
       const wallet = createTestWallet();
       walletManager['wallets'] = [wallet];
       
-      mocks.sessionManager.getUnlockedSecret.mockReturnValue(null);
+      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(null);
       
-      expect(() => {
-        walletManager.getUnencryptedMnemonic(wallet.id);
-      }).toThrow('Wallet secret not found or locked');
+      await expect(
+        walletManager.getUnencryptedMnemonic(wallet.id)
+      ).rejects.toThrow('Wallet secret not found or locked');
     });
 
-    it('should get secret for private key wallet', () => {
+    it('should get secret for private key wallet', async () => {
       const wallet = createPrivateKeyWallet();
       walletManager['wallets'] = [wallet];
       
       const privateKeyData = JSON.stringify({ key: 'private-key-hex', compressed: true });
-      mocks.sessionManager.getUnlockedSecret.mockReturnValue(privateKeyData);
+      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(privateKeyData);
       
-      const result = walletManager.getUnencryptedMnemonic(wallet.id);
+      const result = await walletManager.getUnencryptedMnemonic(wallet.id);
       
       expect(result).toBe(privateKeyData);
     });
