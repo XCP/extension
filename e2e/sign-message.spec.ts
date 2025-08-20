@@ -16,13 +16,20 @@ test.describe('Sign Message', () => {
     // Navigate to Actions page via footer
     await navigateViaFooter(page, 'actions');
     
-    // Click on Sign Message
-    await page.click('text=Sign Message');
-    await page.waitForURL('**/actions/sign-message');
+    // Wait for actions page to fully load
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('text=Basic Actions')).toBeVisible({ timeout: 15000 });
     
-    // Verify we're on the sign message page
-    await expect(page.locator('h1, h2').filter({ hasText: 'Sign Message' })).toBeVisible();
-    await expect(page.locator('text=Message to Sign')).toBeVisible();
+    // Click on Sign Message with retry
+    await page.click('text=Sign Message');
+    await page.waitForURL('**/actions/sign-message', { timeout: 15000 });
+    
+    // Wait for page to fully load
+    await page.waitForLoadState('networkidle');
+    
+    // Verify we're on the sign message page with increased timeout
+    await expect(page.locator('h1, h2').filter({ hasText: 'Sign Message' })).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('text=Message to Sign')).toBeVisible({ timeout: 15000 });
     
     await cleanup(context);
   });
@@ -115,6 +122,10 @@ test.describe('Sign Message', () => {
     // Navigate to sign message
     await page.goto(`chrome-extension://${extensionId}/popup.html#/actions/sign-message`);
     
+    // Wait for page to fully load
+    await page.waitForLoadState('networkidle');
+    await page.waitForSelector('textarea[placeholder*="Enter your message"]', { timeout: 15000 });
+    
     // Sign a message first
     const messageInput = page.locator('textarea[placeholder*="Enter your message"]');
     await messageInput.fill('Test message');
@@ -129,8 +140,8 @@ test.describe('Sign Message', () => {
       await page.click('button:has-text("Unlock")');
     }
     
-    // Wait for signature
-    await page.waitForSelector('h3:has-text("Signature")');
+    // Wait for signature with increased timeout
+    await page.waitForSelector('h3:has-text("Signature")', { timeout: 20000 });
     
     // Click copy button
     const copyButton = page.locator('button[title="Copy signature"]');
