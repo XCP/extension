@@ -72,8 +72,13 @@ test.describe('Verify Message', () => {
     const { context, page, extensionId } = await launchExtension('verify-message-valid');
     await setupWallet(page);
     
-    // First, we need to create a valid signature
-    // Navigate to sign message page to create one
+    // First, get the address from the index page
+    await page.goto(`chrome-extension://${extensionId}/popup.html#/index`);
+    await page.waitForTimeout(1000); // Wait for page to load
+    const addressElement = page.locator('.font-mono').first();
+    const address = await addressElement.textContent();
+    
+    // Navigate to sign message page to create a signature
     await page.goto(`chrome-extension://${extensionId}/popup.html#/actions/sign-message`);
     
     const testMessage = 'Test verification message';
@@ -92,13 +97,9 @@ test.describe('Verify Message', () => {
     // Wait for signature to appear
     await page.waitForSelector('text=Signed', { timeout: 10000 });
     
-    // Get the address from the page - it's shown in the header
-    const addressElement = page.locator('.font-mono').first();
-    const address = await addressElement.textContent();
-    
     // Get the signature from the disabled textarea
-    const signatureElement = page.locator('textarea[disabled]').filter({ hasText: /^(?!Signature will).*/ });
-    const signature = await signatureElement.textContent();
+    const signatureTextarea = page.locator('textarea[disabled]').first();
+    const signature = await signatureTextarea.inputValue();
     
     // Now navigate to verify page
     await page.goto(`chrome-extension://${extensionId}/popup.html#/actions/verify-message`);
