@@ -7,7 +7,23 @@ import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage';
 // Mock dependencies
 vi.mock('@/utils/storage', () => ({
   getKeychainSettings: vi.fn(),
-  updateKeychainSettings: vi.fn()
+  updateKeychainSettings: vi.fn(),
+  DEFAULT_KEYCHAIN_SETTINGS: {
+    lastActiveWalletId: undefined,
+    lastActiveAddress: undefined,
+    autoLockTimeout: 5 * 60 * 1000, // 5 minutes
+    connectedWebsites: [],
+    showHelpText: false,
+    analyticsAllowed: true,
+    allowUnconfirmedTxs: true,
+    autoLockTimer: '5m',
+    enableMPMA: false,
+    enableAdvancedBroadcasts: false,
+    transactionDryRun: false,
+    pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
+    counterpartyApiBase: 'https://api.counterparty.io:4000',
+    defaultOrderExpiration: 8064,
+  }
 }));
 vi.mock('webext-bridge/popup', () => ({
   sendMessage: vi.fn()
