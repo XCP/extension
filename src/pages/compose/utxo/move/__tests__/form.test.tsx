@@ -4,6 +4,12 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { UtxoMoveForm } from '../form';
 import { MemoryRouter } from 'react-router-dom';
 
+// Mock Browser.runtime.connect to fix webext-bridge error
+vi.mock('webext-bridge/popup', () => ({
+  sendMessage: vi.fn(),
+  onMessage: vi.fn(),
+}));
+
 // Mock contexts
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
@@ -18,6 +24,25 @@ vi.mock('@/contexts/settings-context', () => ({
   })
 }));
 
+vi.mock('@/contexts/header-context', () => ({
+  useHeader: () => ({
+    setBalanceHeader: vi.fn(),
+    setAddressHeader: vi.fn(),
+    clearHeaders: vi.fn(),
+    subheadings: {
+      addresses: {},
+      balances: {}
+    }
+  })
+}));
+
+vi.mock('@/contexts/loading-context', () => ({
+  useLoading: () => ({
+    setLoading: vi.fn(),
+    loading: false
+  })
+}));
+
 // Mock API call
 vi.mock('@/utils/blockchain/counterparty', () => ({
   fetchUtxoBalances: vi.fn().mockResolvedValue({
@@ -25,6 +50,21 @@ vi.mock('@/utils/blockchain/counterparty', () => ({
       { asset: 'TESTTOKEN', quantity_normalized: '100' },
       { asset: 'XCP', quantity_normalized: '50' }
     ]
+  })
+}));
+
+// Mock address validation and fee rates
+vi.mock('@/utils/blockchain/bitcoin', () => ({
+  isValidBitcoinAddress: vi.fn((address) => {
+    // Allow test addresses
+    return address.startsWith('bc1q') || address.startsWith('1') || address.startsWith('3');
+  }),
+  getFeeRates: vi.fn().mockResolvedValue({
+    fastestFee: 3,
+    halfHourFee: 2,
+    hourFee: 1,
+    economyFee: 0.5,
+    minimumFee: 0.1
   })
 }));
 
@@ -61,7 +101,7 @@ describe('UtxoMoveForm', () => {
 
     // Check for address header
     expect(screen.getByText('Test Wallet')).toBeInTheDocument();
-    expect(screen.getByText(/bc1qtest123/i)).toBeInTheDocument();
+    expect(screen.getByText(/bc1qte.*est123/i)).toBeInTheDocument();
 
     // Check for Output display
     expect(screen.getByText('Output')).toBeInTheDocument();
@@ -73,7 +113,7 @@ describe('UtxoMoveForm', () => {
 
     // Check for form inputs
     expect(screen.getByLabelText(/Destination/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Fee Rate/i)).toBeInTheDocument();
+    expect(screen.getByText(/Fee Rate/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Continue/i })).toBeInTheDocument();
   });
 
@@ -85,7 +125,7 @@ describe('UtxoMoveForm', () => {
     );
 
     // Should show truncated UTXO format
-    expect(screen.getByText(/abc123...456:0/)).toBeInTheDocument();
+    expect(screen.getByText(/abc123de.*f456:0/)).toBeInTheDocument();
   });
 
   it('should navigate to UTXO details when Output is clicked', async () => {
@@ -218,11 +258,8 @@ describe('UtxoMoveForm', () => {
     );
 
     const destinationInput = screen.getByLabelText(/Destination/i);
-    const feeRateInput = screen.getByLabelText(/Fee Rate/i);
     
     await user.type(destinationInput, 'bc1qdestination123');
-    await user.clear(feeRateInput);
-    await user.type(feeRateInput, '3');
 
     const form = screen.getByRole('button', { name: /Continue/i }).closest('form');
     fireEvent.submit(form!);
@@ -239,6 +276,6 @@ describe('UtxoMoveForm', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/The address to move the UTXO to/i)).toBeInTheDocument();
+    expect(screen.getByText(/Enter the recipient's Bitcoin address/i)).toBeInTheDocument();
   });
 });
