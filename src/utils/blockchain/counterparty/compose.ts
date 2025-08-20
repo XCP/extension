@@ -167,7 +167,6 @@ export interface SweepOptions extends BaseComposeOptions {
   destination: string;
   flags: number;
   memo?: string;
-  allow_unconfirmed_inputs?: boolean;
 }
 
 export interface FairminterOptions extends BaseComposeOptions {
@@ -188,7 +187,6 @@ export interface FairminterOptions extends BaseComposeOptions {
   divisible?: boolean;
   description?: string;
   pubkeys?: string;
-  allow_unconfirmed_inputs?: boolean;
   inscription?: string;  // Base64 encoded inscription data
   mime_type?: string;   // MIME type for inscription (e.g., 'image/png', 'text/plain')
 }
@@ -230,11 +228,14 @@ export async function composeTransaction<T>(
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
   
+  // Get user's unconfirmed transaction preference
+  const settings = await getKeychainSettings();
+  
   const params = new URLSearchParams({
     ...paramsObj as any,
     sat_per_vbyte: sat_per_vbyte.toString(),
     exclude_utxos_with_balances: 'true',
-    allow_unconfirmed_inputs: 'true',
+    allow_unconfirmed_inputs: settings.allowUnconfirmedTxs.toString(),
     disable_utxo_locks: 'true',
     verbose: 'true',
     ...(encoding && { encoding }),
@@ -257,11 +258,14 @@ export async function composeUtxoTransaction<T>(
   const base = await getApiBase();
   const apiUrl = `${base}/v2/utxos/${sourceUtxo}/compose/${endpoint}`;
   
+  // Get user's unconfirmed transaction preference
+  const settings = await getKeychainSettings();
+  
   const params = new URLSearchParams({
     ...paramsObj as any,
     sat_per_vbyte: sat_per_vbyte.toString(),
     exclude_utxos_with_balances: 'true',
-    allow_unconfirmed_inputs: 'true',
+    allow_unconfirmed_inputs: settings.allowUnconfirmedTxs.toString(),
     disable_utxo_locks: 'true',
     verbose: 'true',
     ...(encoding && { encoding }),
@@ -549,14 +553,12 @@ export async function composeSweep(options: SweepOptions): Promise<ApiResponse> 
     memo = '',
     sat_per_vbyte,
     max_fee,
-    allow_unconfirmed_inputs = false,
     encoding,
   } = options;
   const paramsObj = {
     destination,
     flags: flags.toString(),
     memo,
-    allow_unconfirmed_inputs: allow_unconfirmed_inputs.toString(),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('sweep', paramsObj, sourceAddress, sat_per_vbyte, encoding);
@@ -592,7 +594,6 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
     sat_per_vbyte,
     max_fee,
     pubkeys,
-    allow_unconfirmed_inputs = true,
     inscription,
     mime_type,
   } = options;
@@ -616,7 +617,6 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
     ...(pubkeys && { pubkeys }),
     ...(inscription && { inscription }),
     ...(mime_type && { mime_type }),
-    allow_unconfirmed_inputs: allow_unconfirmed_inputs.toString(),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('fairminter', paramsObj, sourceAddress, sat_per_vbyte, encoding);

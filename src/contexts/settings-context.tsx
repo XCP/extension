@@ -24,7 +24,7 @@ const defaultSettings: KeychainSettings = {
   connectedWebsites: [],
   showHelpText: false,
   analyticsAllowed: true,
-  allowUnconfirmedTxs: false,
+  allowUnconfirmedTxs: true,
   autoLockTimer: "5m",
   enableMPMA: false,
   enableAdvancedBroadcasts: false,

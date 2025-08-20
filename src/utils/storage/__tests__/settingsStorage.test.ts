@@ -132,7 +132,7 @@ describe('settingsStorage.ts', () => {
         connectedWebsites: ['example.com'],
         showHelpText: false,
         analyticsAllowed: true,
-        allowUnconfirmedTxs: false,
+        allowUnconfirmedTxs: true,
         autoLockTimer: '5m',
         enableMPMA: false,
         enableAdvancedBroadcasts: false,
