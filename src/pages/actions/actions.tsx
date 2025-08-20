@@ -81,7 +81,7 @@ const getActionGroups = (isTaprootWallet: boolean): ActionGroup[] => {
         {
           id: "sign-message",
           name: "Sign Message",
-          description: "Sign a message with your private key",
+          description: "Sign a message with your address",
           path: "/actions/sign-message",
         },
         {
@@ -89,12 +89,6 @@ const getActionGroups = (isTaprootWallet: boolean): ActionGroup[] => {
           name: "Verify Message",
           description: "Verify a signed message",
           path: "/actions/verify-message",
-        },
-        {
-          id: "sign-broadcast",
-          name: "Sign & Broadcast Transaction",
-          description: "Sign and broadcast a raw transaction",
-          path: "/actions/sign-broadcast",
         },
       ],
     },

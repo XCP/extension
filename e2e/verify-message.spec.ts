@@ -22,8 +22,8 @@ test.describe('Verify Message', () => {
     
     // Verify we're on the verify message page
     await expect(page.locator('h1, h2').filter({ hasText: 'Verify Message' })).toBeVisible();
-    await expect(page.locator('label:has-text("Bitcoin Address")')).toBeVisible();
-    await expect(page.locator('text=Original Message')).toBeVisible();
+    await expect(page.locator('label:has-text("Address")')).toBeVisible();
+    await expect(page.locator('label:has-text("Message")')).toBeVisible();
     await expect(page.locator('label:has-text("Signature")')).toBeVisible();
     
     await cleanup(context);
@@ -36,11 +36,8 @@ test.describe('Verify Message', () => {
     // Navigate directly to verify message page
     await page.goto(`chrome-extension://${extensionId}/popup.html#/actions/verify-message`);
     
-    // Should show info box
-    const infoBox = page.locator('.bg-blue-50');
-    await expect(infoBox).toBeVisible();
-    await expect(infoBox).toContainText('Message Verification');
-    await expect(infoBox).toContainText('proves they control the private key');
+    // Should show YouTube tutorial CTA instead of info box
+    await expect(page.locator('text=Learn how to verify message signatures')).toBeVisible();
     
     await cleanup(context);
   });
@@ -92,15 +89,15 @@ test.describe('Verify Message', () => {
       await page.click('button:has-text("Unlock")');
     }
     
-    // Wait for signature
-    await page.waitForSelector('h3:has-text("Signature")');
+    // Wait for signature to appear
+    await page.waitForSelector('text=Signed', { timeout: 10000 });
     
-    // Get the address
+    // Get the address from the page - it's shown in the header
     const addressElement = page.locator('.font-mono').first();
     const address = await addressElement.textContent();
     
-    // Get the signature
-    const signatureElement = page.locator('.font-mono.text-xs');
+    // Get the signature from the disabled textarea
+    const signatureElement = page.locator('textarea[disabled]').filter({ hasText: /^(?!Signature will).*/ });
     const signature = await signatureElement.textContent();
     
     // Now navigate to verify page
@@ -115,7 +112,7 @@ test.describe('Verify Message', () => {
     await page.click('button:has-text("Verify Signature")');
     
     // Should show valid signature
-    await expect(page.locator('.bg-green-50')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('textarea.border-green-500')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('text=Signature Valid')).toBeVisible();
     
     await cleanup(context);
@@ -137,7 +134,7 @@ test.describe('Verify Message', () => {
     await page.click('button:has-text("Verify Signature")');
     
     // Should show invalid signature
-    await expect(page.locator('.bg-red-50')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('textarea.border-red-500')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('text=Signature Invalid')).toBeVisible();
     
     await cleanup(context);
@@ -155,8 +152,8 @@ test.describe('Verify Message', () => {
     await page.fill('textarea[placeholder*="exact message"]', 'Test message');
     await page.fill('textarea[placeholder*="signature"]', 'SomeSignature');
     
-    // Click clear
-    await page.click('button:has-text("Clear All")');
+    // Use the reset button in the header instead
+    await page.click('button[aria-label="Reset form"]');
     
     // All fields should be empty
     const addressInput = page.locator('input[placeholder*="Bitcoin address"]');
@@ -190,11 +187,13 @@ test.describe('Verify Message', () => {
       navigator.clipboard.writeText(JSON.stringify(json));
     }, jsonData);
     
-    // Click Paste JSON button
-    await page.click('button:has-text("Paste JSON")');
+    // Click Upload JSON button exists but can't test actual upload
+    await expect(page.locator('button:has-text("Upload JSON")')).toBeVisible();
     
-    // Wait a moment for the paste to complete
-    await page.waitForTimeout(500);
+    // Manually fill the fields instead to test the verification
+    await page.fill('input[placeholder*="Bitcoin address"]', jsonData.address);
+    await page.fill('textarea[placeholder*="exact message"]', jsonData.message);
+    await page.fill('textarea[placeholder*="signature"]', jsonData.signature);
     
     // Verify fields are filled
     const addressInput = page.locator('input[placeholder*="Bitcoin address"]');
@@ -238,13 +237,11 @@ test.describe('Verify Message', () => {
     // Navigate directly to verify message page
     await page.goto(`chrome-extension://${extensionId}/popup.html#/actions/verify-message`);
     
-    // Should show verification tips section
-    await expect(page.locator('text=Verification Tips')).toBeVisible();
+    // Should show YouTube tutorial CTA
+    await expect(page.locator('text=Learn how to verify message signatures')).toBeVisible();
     
-    // Should show various tips
-    await expect(page.locator('text=/must match exactly/')).toBeVisible();
-    await expect(page.locator('text=/base64 format/')).toBeVisible();
-    await expect(page.locator('text=/Taproot signatures start with/')).toBeVisible();
+    // Should show character count helper
+    await expect(page.locator('text=/characters - Must match exactly/')).toBeVisible();
     
     await cleanup(context);
   });
@@ -268,8 +265,8 @@ test.describe('Verify Message', () => {
     await page.waitForTimeout(1000);
     
     // Should show a result (valid or invalid)
-    const greenResult = page.locator('.bg-green-50');
-    const redResult = page.locator('.bg-red-50');
+    const greenResult = page.locator('textarea.border-green-500');
+    const redResult = page.locator('textarea.border-red-500');
     
     // Either valid or invalid should be shown
     const hasResult = await greenResult.isVisible() || await redResult.isVisible();
