@@ -4,28 +4,29 @@ import { analyzePhishingRisk, shouldBlockConnection } from '@/utils/security/phi
 import { requestSigner } from '@/utils/security/requestSigning';
 import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/sessionManager';
 
-export default defineBackground(async () => {
+export default defineBackground(() => {
   registerWalletService();
   registerProviderService();
   
-  // Check session recovery state on startup
-  try {
-    const recoveryState = await checkSessionRecovery();
+  // Check session recovery state on startup (non-blocking)
+  checkSessionRecovery().then(recoveryState => {
     console.log('Session recovery state:', recoveryState);
     
     if (recoveryState === SessionRecoveryState.LOCKED) {
       // Session expired or doesn't exist - ensure everything is locked
       const walletService = getWalletService();
-      await walletService.lockAllWallets();
+      walletService.lockAllWallets().catch(error => {
+        console.error('Failed to lock wallets during session recovery:', error);
+      });
     } else if (recoveryState === SessionRecoveryState.NEEDS_REAUTH) {
       // Valid session but secrets lost - notify popup to show auth modal
       // The popup will handle this when it checks wallet state
       console.log('Session valid but re-authentication needed');
     }
-  } catch (error) {
+  }).catch(error => {
     console.error('Session recovery check failed:', error);
     // Continue execution even if session recovery fails
-  }
+  });
   
   // Set up alarm listener for session expiry
   if (chrome?.alarms?.onAlarm) {

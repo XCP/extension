@@ -90,8 +90,13 @@ function createWalletService(): WalletService {
     },
     lockAllWallets: async () => {
       await walletManager.lockAllWallets();
-      // Notify popup of lock event
-      await sendMessage('walletLocked', { locked: true }, 'popup');
+      // Notify popup of lock event (if it's open)
+      try {
+        await sendMessage('walletLocked', { locked: true }, 'popup');
+      } catch (error) {
+        // Popup might not be open, which is fine
+        console.debug('Could not notify popup of lock event:', error);
+      }
       // Emit disconnect event to connected dApps
       const emitEvent = (globalThis as any).emitProviderEvent;
       if (emitEvent) {
