@@ -213,7 +213,6 @@ export interface DetachOptions extends BaseComposeOptions {
 export interface MoveOptions extends BaseComposeOptions {
   sourceUtxo: string; // The UTXO to move from (txid:vout)
   destination: string; // Address to create new UTXO at
-  utxo_value?: number; // Optional value for the new UTXO
 }
 
 async function getApiBase() {
@@ -673,10 +672,9 @@ export async function composeDetach(options: DetachOptions): Promise<ApiResponse
 }
 
 export async function composeMove(options: MoveOptions): Promise<ApiResponse> {
-  const { sourceUtxo, destination, utxo_value, sat_per_vbyte, encoding } = options;
+  const { sourceUtxo, destination, sat_per_vbyte, encoding } = options;
   const paramsObj = {
     destination,
-    ...(utxo_value !== undefined ? { utxo_value: utxo_value.toString() } : {}),
   };
-  return composeUtxoTransaction('move', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  return composeUtxoTransaction('movetoutxo', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
 }

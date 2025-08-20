@@ -66,7 +66,7 @@ export function CancelForm({
             <Textarea
               id="offer_hash"
               name="offer_hash"
-              defaultValue={initialFormData?.offer_hash || initialHash || ""}
+              defaultValue={initialHash || initialFormData?.offer_hash || ""}
               rows={3}
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
