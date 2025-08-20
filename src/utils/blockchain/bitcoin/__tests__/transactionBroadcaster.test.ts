@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { broadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 import axios from 'axios';
-import { getKeychainSettings } from '@/utils/storage/settingsStorage';
+import { getKeychainSettings, DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage';
 
 vi.mock('axios');
 vi.mock('@/utils/storage/settingsStorage');
@@ -14,23 +14,8 @@ describe('Transaction Broadcaster Utilities', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default mock for all tests
-    vi.mocked(getKeychainSettings).mockResolvedValue({
-      lastActiveWalletId: undefined,
-      lastActiveAddress: undefined,
-      autoLockTimeout: 5 * 60 * 1000,
-      connectedWebsites: [],
-      showHelpText: false,
-      analyticsAllowed: true,
-      allowUnconfirmedTxs: false,
-      autoLockTimer: '5m',
-      enableMPMA: false,
-      enableAdvancedBroadcasts: false,
-      transactionDryRun: false,
-      pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
-      counterpartyApiBase: 'https://api.counterparty.io:4000',
-      defaultOrderExpiration: 1000
-    });
+    // Default mock for all tests - use DEFAULT_KEYCHAIN_SETTINGS as base
+    vi.mocked(getKeychainSettings).mockResolvedValue(DEFAULT_KEYCHAIN_SETTINGS);
   });
 
   afterEach(() => {
@@ -40,20 +25,8 @@ describe('Transaction Broadcaster Utilities', () => {
   describe('broadcastTransaction in dry run mode', () => {
     beforeEach(() => {
       vi.mocked(getKeychainSettings).mockResolvedValue({
-        lastActiveWalletId: undefined,
-        lastActiveAddress: undefined,
-        autoLockTimeout: 5 * 60 * 1000,
-        connectedWebsites: [],
-        showHelpText: false,
-        analyticsAllowed: true,
-        allowUnconfirmedTxs: false,
-        autoLockTimer: '5m',
-        enableMPMA: false,
-        enableAdvancedBroadcasts: false,
-        transactionDryRun: true,
-        pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
-        counterpartyApiBase: 'https://api.counterparty.io:4000',
-        defaultOrderExpiration: 1000
+        ...DEFAULT_KEYCHAIN_SETTINGS,
+        transactionDryRun: true, // Enable dry run for this test suite
       });
     });
 
@@ -304,20 +277,8 @@ describe('Transaction Broadcaster Utilities', () => {
       // Clear the default mock and set a new one before the test
       vi.mocked(getKeychainSettings).mockClear();
       vi.mocked(getKeychainSettings).mockResolvedValue({
-        lastActiveWalletId: undefined,
-        lastActiveAddress: undefined,
-        autoLockTimeout: 5 * 60 * 1000,
-        connectedWebsites: [],
-        showHelpText: false,
-        analyticsAllowed: true,
-        allowUnconfirmedTxs: false,
-        autoLockTimer: '5m',
-        enableMPMA: false,
-        enableAdvancedBroadcasts: false,
-        transactionDryRun: false,
-        pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
-        counterpartyApiBase: 'https://custom.api.com',
-        defaultOrderExpiration: 1000
+        ...DEFAULT_KEYCHAIN_SETTINGS,
+        counterpartyApiBase: 'https://custom.api.com', // Custom API for this test
       });
 
       mockAxios.post.mockResolvedValue({
@@ -358,22 +319,7 @@ describe('Transaction Broadcaster Utilities', () => {
       // Test status 202 (Accepted)
       vi.clearAllMocks();
       // Re-setup the settings mock after clearing
-      vi.mocked(getKeychainSettings).mockResolvedValue({
-        lastActiveWalletId: undefined,
-        lastActiveAddress: undefined,
-        autoLockTimeout: 5 * 60 * 1000,
-        connectedWebsites: [],
-        showHelpText: false,
-        analyticsAllowed: true,
-        allowUnconfirmedTxs: false,
-        autoLockTimer: '5m',
-        enableMPMA: false,
-        enableAdvancedBroadcasts: false,
-        transactionDryRun: false,
-        pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
-        counterpartyApiBase: 'https://api.counterparty.io:4000',
-        defaultOrderExpiration: 1000
-      });
+      vi.mocked(getKeychainSettings).mockResolvedValue(DEFAULT_KEYCHAIN_SETTINGS);
       // Test blockstream format for 202
       mockAxios.post
         .mockRejectedValueOnce(new Error('First failed'))  // counterparty fails

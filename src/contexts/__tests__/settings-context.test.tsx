@@ -2,11 +2,28 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { SettingsProvider, useSettings } from '../settings-context';
 import { sendMessage } from 'webext-bridge/popup';
+import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage';
 
 // Mock dependencies
 vi.mock('@/utils/storage', () => ({
   getKeychainSettings: vi.fn(),
-  updateKeychainSettings: vi.fn()
+  updateKeychainSettings: vi.fn(),
+  DEFAULT_KEYCHAIN_SETTINGS: {
+    lastActiveWalletId: undefined,
+    lastActiveAddress: undefined,
+    autoLockTimeout: 5 * 60 * 1000, // 5 minutes
+    connectedWebsites: [],
+    showHelpText: false,
+    analyticsAllowed: true,
+    allowUnconfirmedTxs: true,
+    autoLockTimer: '5m',
+    enableMPMA: false,
+    enableAdvancedBroadcasts: false,
+    transactionDryRun: false,
+    pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
+    counterpartyApiBase: 'https://api.counterparty.io:4000',
+    defaultOrderExpiration: 8064,
+  }
 }));
 vi.mock('webext-bridge/popup', () => ({
   sendMessage: vi.fn()
@@ -16,22 +33,7 @@ vi.mock('webext-bridge/popup', () => ({
 import { getKeychainSettings, updateKeychainSettings } from '@/utils/storage';
 
 describe('SettingsContext', () => {
-  const defaultSettings = {
-    lastActiveWalletId: undefined,
-    lastActiveAddress: undefined,
-    autoLockTimeout: 5 * 60 * 1000, // Updated to match context
-    connectedWebsites: [],
-    showHelpText: false,
-    analyticsAllowed: true, // Updated to match context
-    allowUnconfirmedTxs: false,
-    autoLockTimer: '5m' as const,
-    enableMPMA: false,
-    enableAdvancedBroadcasts: false,
-    transactionDryRun: false,
-    pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'], // Updated to match context
-    counterpartyApiBase: 'https://api.counterparty.io:4000', // Updated to match context
-    defaultOrderExpiration: 1000
-  };
+  const defaultSettings = DEFAULT_KEYCHAIN_SETTINGS;
 
   beforeEach(() => {
     vi.clearAllMocks();
