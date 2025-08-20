@@ -83,18 +83,7 @@ export function FeeRateInput({
       return; // Ignore non-numeric input
     }
     
-    // Enforce minimum fee rate
-    if (num < 0.1) {
-      setCustomInput("0.1");
-      setInternalError("Fee rate must be at least 0.1 sat/vB.");
-      onFeeRateChange?.(0.1); // Notify parent of corrected value
-      return;
-    }
-    
-    // Update the input value
-    setCustomInput(trimmed);
-    
-    // Format with at most one decimal place for display
+    // Enforce maximum one decimal place during typing
     if (parts.length === 2 && parts[1].length > 1) {
       const formattedValue = formatAmount({
         value: num,
@@ -102,10 +91,48 @@ export function FeeRateInput({
         minimumFractionDigits: 0
       });
       setCustomInput(formattedValue);
+      onFeeRateChange?.(parseFloat(formattedValue));
+      return;
     }
     
-    // Notify parent of the new value
-    onFeeRateChange?.(num);
+    // Update the input value without minimum validation (allow temporary invalid values during editing)
+    setCustomInput(trimmed);
+    
+    // Only notify parent if value is >= 0.1, otherwise don't trigger updates
+    if (num >= 0.1) {
+      onFeeRateChange?.(num);
+    }
+  };
+
+  const handleCustomInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const trimmed = e.target.value.trim();
+    
+    // Handle empty input or invalid values on blur
+    if (trimmed === "" || isNaN(parseFloat(trimmed))) {
+      setCustomInput("0.1");
+      setInternalError("Fee rate must be at least 0.1 sat/vB.");
+      onFeeRateChange?.(0.1);
+      return;
+    }
+    
+    const num = parseFloat(trimmed);
+    
+    // Enforce minimum fee rate on blur
+    if (num < 0.1) {
+      setCustomInput("0.1");
+      setInternalError("Fee rate must be at least 0.1 sat/vB.");
+      onFeeRateChange?.(0.1);
+      return;
+    }
+    
+    // Format the final value and notify parent
+    const formattedValue = formatAmount({
+      value: num,
+      maximumFractionDigits: 1,
+      minimumFractionDigits: 0
+    });
+    setCustomInput(formattedValue);
+    onFeeRateChange?.(parseFloat(formattedValue));
   };
 
   const handleOptionSelect = (option: { id: LocalFeeRateOption; name: string; value: number }) => {
@@ -154,6 +181,7 @@ export function FeeRateInput({
             type="number"
             value={customInput}
             onChange={handleCustomInputChange}
+            onBlur={handleCustomInputBlur}
             min="0.1"
             step="0.1"
             required
@@ -192,6 +220,7 @@ export function FeeRateInput({
               type="number"
               value={customInput}
               onChange={handleCustomInputChange}
+              onBlur={handleCustomInputBlur}
               min="0.1"
               step="0.1"
               required
