@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaCheckCircle, FaTimesCircle, FaInfoCircle } from "react-icons/fa";
+import { FaCheckCircle, FaUpload, FaRedo } from "react-icons/fa";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
+import { YouTubeTutorialCTA } from "@/components/youtube-tutorial-cta";
 import { useHeader } from "@/contexts/header-context";
 import { verifyMessage } from "@/utils/blockchain/bitcoin";
 import type { ReactElement } from "react";
@@ -24,11 +25,24 @@ export default function VerifyMessage(): ReactElement {
   const [verificationResult, setVerificationResult] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  // Configure header
+  const handleClear = () => {
+    setAddress("");
+    setMessage("");
+    setSignature("");
+    setVerificationResult(null);
+    setError(null);
+  };
+  
+  // Configure header with reset button
   useEffect(() => {
     setHeaderProps({
       title: "Verify Message",
       onBack: () => navigate("/actions"),
+      rightButton: {
+        ariaLabel: "Reset form",
+        icon: <FaRedo className="w-3 h-3" />,
+        onClick: handleClear,
+      },
     });
     return () => setHeaderProps(null);
   }, [setHeaderProps, navigate]);
@@ -65,63 +79,47 @@ export default function VerifyMessage(): ReactElement {
     }
   };
   
-  const handlePasteJSON = async () => {
-    try {
-      const clipboardText = await navigator.clipboard.readText();
-      const data = JSON.parse(clipboardText);
+  const handleUploadJSON = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
       
-      if (data.address) setAddress(data.address);
-      if (data.message) setMessage(data.message);
-      if (data.signature) setSignature(data.signature);
-      
-      setError(null);
-    } catch (err) {
-      setError("Failed to parse JSON from clipboard. Make sure it's valid JSON with address, message, and signature fields.");
-    }
-  };
-  
-  const handleClear = () => {
-    setAddress("");
-    setMessage("");
-    setSignature("");
-    setVerificationResult(null);
-    setError(null);
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        
+        if (data.address) setAddress(data.address);
+        if (data.message) setMessage(data.message);
+        if (data.signature) setSignature(data.signature);
+        
+        setError(null);
+      } catch (err) {
+        setError("Failed to parse JSON file. Make sure it's valid JSON with address, message, and signature fields.");
+      }
+    };
+    input.click();
   };
   
   return (
     <div className="p-4 space-y-4">
-      {/* Info Box */}
-      <div className="bg-blue-50 rounded-lg p-3 flex gap-2">
-        <FaInfoCircle className="text-blue-600 mt-0.5 flex-shrink-0" />
-        <div className="text-sm text-blue-800">
-          <div className="font-medium">Message Verification</div>
-          <div className="text-xs mt-1">
-            Verify that a message was signed by the owner of a Bitcoin address. 
-            This proves they control the private key without revealing it.
-          </div>
-        </div>
-      </div>
-      
       {/* Quick Actions */}
       <div className="flex gap-2">
-        <Button
-          onClick={handlePasteJSON}
-          color="gray"
+        <button
+          onClick={handleUploadJSON}
+          className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
         >
-          Paste JSON
-        </Button>
-        <Button
-          onClick={handleClear}
-          color="gray"
-        >
-          Clear All
-        </Button>
+          <FaUpload className="w-4 h-4 mr-2" aria-hidden="true" />
+          Upload JSON
+        </button>
       </div>
       
       {/* Address Input */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Bitcoin Address
+          Address
         </label>
         <input
           type="text"
@@ -135,14 +133,14 @@ export default function VerifyMessage(): ReactElement {
       {/* Message Input */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Original Message
+          Message
         </label>
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Enter the exact message that was signed..."
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          rows={4}
+          rows={3}
         />
         <div className="mt-2 text-xs text-gray-500">
           {message.length} characters - Must match exactly
@@ -158,9 +156,27 @@ export default function VerifyMessage(): ReactElement {
           value={signature}
           onChange={(e) => setSignature(e.target.value)}
           placeholder="Enter the signature (base64 or hex format)..."
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-xs"
+          className={`w-full p-3 border rounded-lg font-mono text-xs transition-colors ${
+            verificationResult !== null && !error
+              ? verificationResult
+                ? "border-green-500 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                : "border-red-500 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          }`}
           rows={3}
         />
+        {verificationResult !== null && !error && (
+          <div className="mt-2 flex items-center gap-1">
+            {verificationResult ? (
+              <>
+                <FaCheckCircle className="text-green-600 text-sm" />
+                <span className="text-xs text-green-600">Signature Valid</span>
+              </>
+            ) : (
+              <span className="text-xs text-red-600">Signature Invalid - Does not match the message and address provided</span>
+            )}
+          </div>
+        )}
       </div>
       
       {/* Verify Button */}
@@ -178,54 +194,11 @@ export default function VerifyMessage(): ReactElement {
         <ErrorAlert message={error} onClose={() => setError(null)} />
       )}
       
-      {/* Verification Result */}
-      {verificationResult !== null && !error && (
-        <div className={`rounded-lg p-4 ${
-          verificationResult 
-            ? "bg-green-50 border-2 border-green-200" 
-            : "bg-red-50 border-2 border-red-200"
-        }`}>
-          <div className="flex items-center gap-3">
-            {verificationResult ? (
-              <>
-                <FaCheckCircle className="text-green-600 text-2xl" />
-                <div>
-                  <div className="font-medium text-green-900">Signature Valid</div>
-                  <div className="text-sm text-green-700 mt-1">
-                    The signature is valid and was created by the owner of address:
-                  </div>
-                  <div className="font-mono text-xs text-green-800 mt-1 break-all">
-                    {address}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <FaTimesCircle className="text-red-600 text-2xl" />
-                <div>
-                  <div className="font-medium text-red-900">Signature Invalid</div>
-                  <div className="text-sm text-red-700 mt-1">
-                    The signature does not match the message and address provided.
-                    Please check that all fields are entered correctly.
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-      
-      {/* Help Section */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-gray-900 mb-2">Verification Tips</h3>
-        <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
-          <li>The message must match exactly, including spaces and punctuation</li>
-          <li>Signatures are typically in base64 format (65 bytes when decoded)</li>
-          <li>Taproot signatures start with "tr:" followed by hex characters</li>
-          <li>You can paste a JSON object with address, message, and signature fields</li>
-          <li>Case matters for the message, but not for the address</li>
-        </ul>
-      </div>
+      {/* YouTube Tutorial */}
+      <YouTubeTutorialCTA 
+        text="Learn how to verify message signatures" 
+        url="" 
+      />
     </div>
   );
 }

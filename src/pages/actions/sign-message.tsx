@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaCopy, FaCheck, FaInfoCircle, FaLock } from "react-icons/fa";
+import { FaCopy, FaCheck, FaLock, FaCheckCircle, FaInfoCircle, FaRedo } from "react-icons/fa";
+import { FiDownload } from "react-icons/fi";
 import { Button } from "@/components/button";
 import { Spinner } from "@/components/spinner";
 import { ErrorAlert } from "@/components/error-alert";
 import { AuthorizationModal } from "@/components/modals/authorization-modal";
+import { YouTubeTutorialCTA } from "@/components/youtube-tutorial-cta";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { signMessage, getSigningCapabilities } from "@/utils/blockchain/bitcoin";
@@ -25,14 +27,23 @@ export default function SignMessage(): ReactElement {
   const [signature, setSignature] = useState("");
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copiedField, setCopiedField] = useState<'message' | 'signature' | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   
-  // Configure header
+  // Configure header with reset button (always icon-only)
   useEffect(() => {
     setHeaderProps({
       title: "Sign Message",
       onBack: () => navigate("/actions"),
+      rightButton: {
+        ariaLabel: "Reset form",
+        icon: <FaRedo className="w-3 h-3" />,
+        onClick: () => {
+          setMessage("");
+          setSignature("");
+          setError(null);
+        },
+      },
     });
     return () => setHeaderProps(null);
   }, [setHeaderProps, navigate]);
@@ -103,23 +114,30 @@ export default function SignMessage(): ReactElement {
   
   const handleCopy = async (text: string, field: 'message' | 'signature' | 'json') => {
     try {
-      let copyText = text;
-      
       if (field === 'json') {
-        // Create JSON format for easy sharing
-        copyText = JSON.stringify({
+        // Create JSON format and download as file
+        const jsonData = {
           address: activeAddress?.address,
           message: message,
           signature: signature,
           timestamp: new Date().toISOString()
-        }, null, 2);
+        };
+        const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `signature-${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        await navigator.clipboard.writeText(text);
+        setCopiedField(field);
+        setTimeout(() => setCopiedField(null), 1500);
       }
-      
-      await navigator.clipboard.writeText(copyText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      setError("Failed to copy to clipboard");
+      setError("Failed to perform action");
     }
   };
   
@@ -140,39 +158,20 @@ export default function SignMessage(): ReactElement {
   
   return (
     <div className="p-4 space-y-4">
-      {/* Address Info */}
-      <div className="bg-white rounded-lg shadow-sm p-4">
-        <div className="text-sm text-gray-600 mb-1">Signing with address:</div>
-        <div className="font-mono text-sm text-gray-900 break-all">{activeAddress.address}</div>
-        <div className="mt-2 flex items-center gap-2">
-          <span className="text-xs text-gray-500">Type: {addressType || "Unknown"}</span>
-          {signingCapabilities.canSign ? (
-            <span className="text-xs text-green-600"> Signing supported</span>
-          ) : (
-            <span className="text-xs text-red-600"> Signing not supported</span>
-          )}
-        </div>
-      </div>
-      
-      {/* Signing Info */}
-      {signingCapabilities.notes && (
-        <div className="bg-blue-50 rounded-lg p-3 flex gap-2">
-          <FaInfoCircle className="text-blue-600 mt-0.5 flex-shrink-0" />
-          <div className="text-sm text-blue-800">
-            <div className="font-medium">{signingCapabilities.method}</div>
-            <div className="text-xs mt-1">{signingCapabilities.notes}</div>
-          </div>
-        </div>
-      )}
-      
       {/* Message Input */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Message to Sign
+          Message
         </label>
         <textarea
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={(e) => {
+            setMessage(e.target.value);
+            // Reset signature if message changes after signing
+            if (signature) {
+              setSignature("");
+            }
+          }}
           placeholder="Enter your message here..."
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           rows={4}
@@ -185,85 +184,122 @@ export default function SignMessage(): ReactElement {
           {message && (
             <button
               onClick={() => handleCopy(message, 'message')}
-              className="text-xs text-blue-600 hover:text-blue-700"
+              className={`text-xs transition-all duration-200 cursor-pointer flex items-center gap-1 ${
+                copiedField === 'message' 
+                  ? 'text-green-600 hover:text-green-700' 
+                  : 'text-blue-600 hover:text-blue-700'
+              }`}
             >
-              Copy message
+              {copiedField === 'message' ? (
+                <>
+                  <FaCheck className="w-3 h-3" />
+                  Copied!
+                </>
+              ) : (
+                'Copy message'
+              )}
             </button>
+          )}
+        </div>
+        
+        {/* Signature Output */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Signature
+          </label>
+          <textarea
+            value={signature}
+            placeholder="Signature will appear here after signing..."
+            className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50"
+            rows={4}
+            disabled
+            readOnly
+          />
+          <div className="h-1" aria-hidden="true">&nbsp;</div>
+          {signature && (
+            <div className="mt-2 flex justify-between items-center">
+              <span className="text-xs text-green-600 flex items-center gap-1">
+                <FaCheckCircle className="w-3 h-3" />
+                Signed
+              </span>
+              <button
+                onClick={() => handleCopy(signature, 'signature')}
+                className={`text-xs transition-all duration-200 cursor-pointer flex items-center gap-1 ${
+                  copiedField === 'signature' 
+                    ? 'text-green-600 hover:text-green-700' 
+                    : 'text-blue-600 hover:text-blue-700'
+                }`}
+              >
+                {copiedField === 'signature' ? (
+                  <>
+                    <FaCheck className="w-3 h-3" />
+                    Copied!
+                  </>
+                ) : (
+                  'Copy signature'
+                )}
+              </button>
+            </div>
           )}
         </div>
       </div>
       
-      {/* Sign Button */}
-      <Button
-        onClick={() => handleSign()}
-        color="blue"
-        disabled={!signingCapabilities.canSign || !message.trim() || isSigning}
-        fullWidth
-      >
-        {isSigning ? (
-          <div className="flex items-center justify-center gap-2">
-            <Spinner />
-            Signing...
-          </div>
-        ) : (
-          <div className="flex items-center justify-center gap-2">
-            <FaLock className="w-4 h-4" />
-            Sign Message
-          </div>
-        )}
-      </Button>
+      {/* Sign Button - only show if not signed */}
+      {!signature && (
+        <Button
+          onClick={() => handleSign()}
+          color="blue"
+          disabled={!signingCapabilities.canSign || !message.trim() || isSigning}
+          fullWidth
+        >
+          {isSigning ? (
+            <div className="flex items-center justify-center gap-2">
+              <Spinner />
+              Signing...
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-2">
+              <FaLock className="w-4 h-4" />
+              Sign Message
+            </div>
+          )}
+        </Button>
+      )}
       
       {/* Error Display */}
       {error && (
         <ErrorAlert message={error} onClose={() => setError(null)} />
       )}
       
-      {/* Signature Display */}
+      {/* Actions for Signature */}
       {signature && (
-        <div className="bg-white rounded-lg shadow-sm p-4 space-y-3">
-          <div className="flex justify-between items-center">
-            <h3 className="text-sm font-medium text-gray-900">Signature</h3>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleCopy(signature, 'signature')}
-                className="text-blue-600 hover:text-blue-700"
-                title="Copy signature"
-              >
-                {copied ? (
-                  <FaCheck className="w-4 h-4" />
-                ) : (
-                  <FaCopy className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-          </div>
-          
-          <div className="bg-gray-50 rounded p-3">
-            <div className="font-mono text-xs text-gray-800 break-all">
-              {signature}
-            </div>
-          </div>
-          
-          <div className="pt-2 border-t border-gray-200">
-            <button
-              onClick={() => handleCopy('', 'json')}
-              className="w-full text-sm text-blue-600 hover:text-blue-700"
-            >
-              Copy as JSON (address + message + signature)
-            </button>
-          </div>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => {
+              setMessage("");
+              setSignature("");
+              setError(null);
+            }}
+            color="gray"
+            className="!py-2 !px-3 !text-sm"
+          >
+            Reset
+          </Button>
+          <Button
+            onClick={() => handleCopy('', 'json')}
+            color="blue"
+            fullWidth
+          >
+            Download JSON
+          </Button>
         </div>
       )}
       
-      {/* How to Verify */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-gray-900 mb-2">How to Verify</h3>
-        <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
-          <li>Share your address, message, and signature</li>
-          <li>The recipient can verify using any Bitcoin wallet or tool</li>
-          <li>Verification proves you control the private key for this address</li>
-        </ol>
-      </div>
+      {/* YouTube Tutorial */}
+      <YouTubeTutorialCTA 
+        text="Learn how to sign and verify messages" 
+        url="" 
+      />
       
       {/* Authorization Modal */}
       {showAuthModal && (
