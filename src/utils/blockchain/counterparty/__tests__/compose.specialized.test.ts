@@ -525,4 +525,62 @@ describe('Compose Specialized Operations', () => {
       }
     });
   });
+
+  describe('composeMove', () => {
+    const defaultParams = {
+      sourceUtxo: 'abc123def456:0',
+      destination: 'bc1qdestination',
+    };
+
+    it('should compose move transaction', async () => {
+      const { composeMove } = await import('../compose');
+      
+      const result = await composeMove({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+      });
+
+      expect(result).toEqual(createMockComposeResult());
+      
+      const expectedUrl = `${mockApiBase}/v2/utxos/${defaultParams.sourceUtxo}/compose/movetoutxo`;
+      const actualCall = mockedAxios.get.mock.calls[0];
+      expect(actualCall[0]).toContain(expectedUrl);
+    });
+
+    it('should include destination parameter', async () => {
+      const { composeMove } = await import('../compose');
+      
+      await composeMove({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+      });
+
+      const actualCall = mockedAxios.get.mock.calls[0];
+      const url = actualCall[0] as string;
+      expect(url).toContain('destination=bc1qdestination');
+    });
+
+    it('should handle moving from different UTXOs', async () => {
+      const { composeMove } = await import('../compose');
+      const utxos = ['utxo1:0', 'utxo2:1', 'utxo3:0'];
+      
+      for (const sourceUtxo of utxos) {
+        vi.clearAllMocks();
+        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        
+        const params = { ...defaultParams, sourceUtxo };
+        await composeMove({
+          sourceAddress: mockAddress,
+          sat_per_vbyte: mockSatPerVbyte,
+          ...params,
+        });
+        
+        const actualCall = mockedAxios.get.mock.calls[0];
+        const url = actualCall[0] as string;
+        expect(url).toContain(`/v2/utxos/${sourceUtxo}/compose/movetoutxo`);
+      }
+    });
+  });
 });

@@ -85,3 +85,28 @@ export async function fetchPreviousRawTransaction(txid: string): Promise<string 
     return null;
   }
 }
+
+/**
+ * Fetches detailed Bitcoin transaction information for a given txid.
+ *
+ * @param txid - Transaction ID in hex.
+ * @returns A promise that resolves to the Bitcoin transaction details or null if not found.
+ */
+export async function fetchBitcoinTransaction(txid: string): Promise<any | null> {
+  try {
+    const settings = await getKeychainSettings();
+    const response = await axios.get<{ result: any }>(
+      `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
+    );
+
+    if (response.data && response.data.result) {
+      return response.data.result;
+    } else {
+      console.error(`Transaction details not found for txid: ${txid}`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`Error fetching Bitcoin transaction for txid ${txid}:`, error);
+    return null;
+  }
+}

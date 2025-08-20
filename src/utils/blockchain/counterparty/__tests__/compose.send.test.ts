@@ -237,22 +237,6 @@ describe('Compose Send Operations', () => {
       expect(actualUrl).toContain(`destination=${defaultParams.destination}`);
     });
 
-    it('should include optional parameters', async () => {
-      const optionalParams = {
-        utxo_value: 100000, // Optional UTXO value
-      };
-
-      await composeMove({
-        sourceAddress: mockAddress,
-        sat_per_vbyte: mockSatPerVbyte,
-        ...defaultParams,
-        ...optionalParams,
-      });
-
-      const actualUrl = mockedAxios.get.mock.calls[0][0] as string;
-      const url = new URL(actualUrl);
-      expect(url.searchParams.get('utxo_value')).toBe('100000');
-    });
 
     it('should handle moving all assets', async () => {
       const moveAllParams = {

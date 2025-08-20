@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
+import { getAttachEstimateXcpFee } from "@/utils/blockchain/counterparty";
 
 /**
  * Props for the ReviewUtxoAttach component.
@@ -24,7 +26,45 @@ export function ReviewUtxoAttach({
   error,
   isSigning
 }: ReviewUtxoAttachProps) {
+  // Handle case where apiResponse is null/undefined (e.g., after an error)
+  if (!apiResponse || !apiResponse.result) {
+    return (
+      <div className="p-4">
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <p className="text-red-700">Unable to review transaction. Please go back and try again.</p>
+        </div>
+        <button 
+          onClick={onBack}
+          className="mt-4 w-full bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600"
+        >
+          Back
+        </button>
+      </div>
+    );
+  }
+  
   const { result } = apiResponse;
+  const [xcpFeeEstimate, setXcpFeeEstimate] = useState<number | null>(null);
+  const [feeLoading, setFeeLoading] = useState(true);
+
+  // Fetch XCP fee estimate on mount
+  useEffect(() => {
+    const fetchFeeEstimate = async () => {
+      try {
+        const sourceAddress = result.params.source;
+        if (sourceAddress) {
+          const fee = await getAttachEstimateXcpFee(sourceAddress);
+          setXcpFeeEstimate(fee);
+        }
+      } catch (err) {
+        console.error("Failed to fetch XCP fee estimate:", err);
+      } finally {
+        setFeeLoading(false);
+      }
+    };
+
+    fetchFeeEstimate();
+  }, [result.params.source]);
 
   const customFields = [
     { label: "Asset", value: result.params.asset || "N/A" },
@@ -37,8 +77,20 @@ export function ReviewUtxoAttach({
           maximumFractionDigits: 8,
         })} ${result.params.asset}` : "N/A",
     },
-    ...(result.params.destination_vout !== undefined ? 
-      [{ label: "Destination Output", value: result.params.destination_vout.toString() }] : []),
+    {
+      label: "XCP Fee",
+      value: feeLoading 
+        ? "Loading..." 
+        : xcpFeeEstimate !== null 
+          ? `${formatAmount({
+              value: xcpFeeEstimate / 1e8,
+              minimumFractionDigits: 8,
+              maximumFractionDigits: 8,
+            })} XCP`
+          : "Unable to estimate",
+    },
+    ...(result.params.destination_vout !== undefined && result.params.destination_vout !== null ? 
+      [{ label: "Destination Output", value: String(result.params.destination_vout) }] : []),
   ];
 
   return (

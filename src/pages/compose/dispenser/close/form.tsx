@@ -38,7 +38,7 @@ export function DispenserCloseForm({
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
   const { data: assetDetails, error: assetDetailsError } = useAssetDetails(
-    initialFormData?.asset || initialAsset || "BTC"
+    initialAsset || initialFormData?.asset || "BTC"
   );
   const { pending } = useFormStatus();
   const [selectedTxHash, setSelectedTxHash] = useState<string | null>(null);
@@ -46,7 +46,7 @@ export function DispenserCloseForm({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const asset = initialFormData?.asset || initialAsset || "";
+  const asset = initialAsset || initialFormData?.asset || "";
 
   // Set composer error when it occurs
   useEffect(() => {

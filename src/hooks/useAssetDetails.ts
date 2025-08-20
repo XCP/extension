@@ -15,7 +15,7 @@ export interface AssetDetails {
   utxoBalances?: Array<{
     txid: string;
     amount: string;
-  }>;
+  }> | undefined;
 }
 
 /**
@@ -42,7 +42,7 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
     isDivisible: cachedBalance.asset_info?.divisible ?? true,
     assetInfo: cachedBalance.asset_info || null,
     availableBalance: cachedBalance.quantity_normalized || '0',
-    utxoBalances: [],
+    utxoBalances: undefined, // Mark as not fetched yet
   } : null;
   
   const [state, setState] = useState<{
@@ -200,20 +200,18 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
     const addressChanged = prevAddressRef.current && prevAddressRef.current !== activeAddress?.address;
     const assetChanged = prevAssetRef.current && prevAssetRef.current !== asset;
     
-    if (addressChanged || assetChanged || !cachedBalance || !cachedBalance.quantity_normalized) {
+    // Check if we have UTXOs in state - undefined means never fetched, empty array means fetched but none exist
+    const hasUtxoData = state.data?.utxoBalances !== undefined;
+    
+    // Always fetch UTXOs for non-BTC assets on mount
+    const shouldFetchUtxos = asset !== 'BTC' && !hasUtxoData;
+    
+    if (addressChanged || assetChanged || !state.data || shouldFetchUtxos) {
+      // Always fetch full data including UTXOs
       fetchData();
-    } else if (!state.data) {
-      // Use cached data if available and state hasn't been set yet
-      setState(prevState => ({
-        isLoading: false,
-        error: null,
-        data: {
-          isDivisible: cachedBalance.asset_info?.divisible ?? true,
-          assetInfo: cachedBalance.asset_info || null,
-          availableBalance: cachedBalance.quantity_normalized || '0',
-          utxoBalances: prevState.data?.utxoBalances || [],
-        },
-      }));
+    } else if (!cachedBalance || !cachedBalance.quantity_normalized) {
+      // Fetch if no cached balance
+      fetchData();
     }
 
     // Cleanup function to prevent updates on unmounted component
