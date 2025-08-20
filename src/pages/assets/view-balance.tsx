@@ -105,16 +105,16 @@ export default function ViewBalance(): ReactElement {
             path: `${CONSTANTS.PATHS.COMPOSE}/send/${asset}`,
           },
           {
-            id: "order",
-            name: "DEX Order",
-            description: "Create a new order on the DEX",
-            path: `${CONSTANTS.PATHS.COMPOSE}/order/${asset}`,
-          },
-          {
             id: "dispenser",
             name: "Dispenser",
             description: "Create a new dispenser for this asset",
             path: `${CONSTANTS.PATHS.COMPOSE}/dispenser/${asset}`,
+          },
+          {
+            id: "order",
+            name: "DEX Order",
+            description: "Create a new order on the DEX",
+            path: `${CONSTANTS.PATHS.COMPOSE}/order/${asset}`,
           },
           {
             id: "attach",
@@ -139,16 +139,16 @@ export default function ViewBalance(): ReactElement {
             path: `${CONSTANTS.PATHS.COMPOSE}/send/${asset}`,
           },
           {
-            id: "order",
-            name: "DEX Order",
-            description: "Create a new order on the DEX",
-            path: `${CONSTANTS.PATHS.COMPOSE}/order/${asset}`,
-          },
-          {
             id: "dispenser",
             name: "Dispenser",
             description: "Create a new dispenser for this asset",
             path: `${CONSTANTS.PATHS.COMPOSE}/dispenser/${asset}`,
+          },
+          {
+            id: "order",
+            name: "DEX Order",
+            description: "Create a new order on the DEX",
+            path: `${CONSTANTS.PATHS.COMPOSE}/order/${asset}`,
           },
           {
             id: "attach",
@@ -187,8 +187,8 @@ export default function ViewBalance(): ReactElement {
 
   return (
     <div className="p-4 space-y-6" role="main" aria-labelledby="balance-title">
-      <div>
-        <BalanceHeader balance={balanceData} />
+      <div className="space-y-4">
+        <BalanceHeader balance={balanceData} className="mt-1 mb-5" />
       </div>
       <div className="space-y-2">
         {getActions().map((action) => (

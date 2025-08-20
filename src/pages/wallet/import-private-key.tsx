@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { FiX } from "react-icons/fi";
 import { 
   Field, 
   Label, 
@@ -37,6 +38,7 @@ const ImportPrivateKey = () => {
 
   const PATHS = {
     BACK: walletExists ? "/add-wallet" : "/onboarding",
+    CLOSE: "/index",
     SUCCESS: "/index",
   } as const;
   const MIN_PASSWORD_LENGTH = 8;
@@ -67,6 +69,11 @@ const ImportPrivateKey = () => {
     setHeaderProps({
       title: "Import Key",
       onBack: () => navigate(PATHS.BACK),
+      rightButton: {
+        icon: <FiX className="w-4 h-4" aria-hidden="true" />,
+        onClick: () => navigate(PATHS.CLOSE),
+        ariaLabel: 'Close',
+      },
     });
   }, [setHeaderProps, navigate, walletExists]);
 

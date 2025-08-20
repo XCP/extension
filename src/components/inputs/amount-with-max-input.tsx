@@ -195,8 +195,7 @@ export function AmountWithMaxInput({
   return (
     <Field>
       <Label htmlFor={name} className="text-sm font-medium text-gray-700">
-        {label}
-        <span className="text-red-500">*</span>
+        {label} <span className="text-red-500">*</span>
       </Label>
       <div className="mt-1 relative rounded-md shadow-sm">
         <Input

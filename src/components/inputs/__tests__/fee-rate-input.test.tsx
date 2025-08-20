@@ -168,13 +168,13 @@ describe('FeeRateInput', () => {
     it('should show help text when showHelpText is true', () => {
       render(<FeeRateInput showHelpText />);
       
-      expect(screen.getByText('Pre-populated with current rates (min 0.1 sat/vB).')).toBeInTheDocument();
+      expect(screen.getByText('Populated with network rates (min 0.1 sat/vB).')).toBeInTheDocument();
     });
 
     it('should not show help text when showHelpText is false', () => {
       render(<FeeRateInput showHelpText={false} />);
       
-      expect(screen.queryByText('Pre-populated with current rates (min 0.1 sat/vB).')).not.toBeInTheDocument();
+      expect(screen.queryByText('Populated with network rates (min 0.1 sat/vB).')).not.toBeInTheDocument();
     });
   });
 
