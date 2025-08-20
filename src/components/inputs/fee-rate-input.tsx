@@ -249,7 +249,7 @@ export function FeeRateInput({
       </div>
       {showHelpText && (
         <Description className="mt-2 text-sm text-gray-500">
-          Pre-populated with current rates (min 0.1 sat/vB).
+          Populated with network rates (min 0.1 sat/vB).
         </Description>
       )}
       {internalError && (
