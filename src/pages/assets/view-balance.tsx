@@ -187,8 +187,8 @@ export default function ViewBalance(): ReactElement {
 
   return (
     <div className="p-4 space-y-6" role="main" aria-labelledby="balance-title">
-      <div>
-        <BalanceHeader balance={balanceData} />
+      <div className="space-y-4">
+        <BalanceHeader balance={balanceData} className="mt-1 mb-5" />
       </div>
       <div className="space-y-2">
         {getActions().map((action) => (

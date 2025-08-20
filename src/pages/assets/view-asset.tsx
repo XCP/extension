@@ -212,8 +212,9 @@ export default function ViewAsset(): ReactElement {
 
   return (
     <div className="p-4 space-y-6" role="main" aria-labelledby="asset-title">
-      <div>
+      <div className="space-y-4">
         <AssetHeader
+          className="mt-1 mb-5"
           assetInfo={{
             asset: asset || "",
             asset_longname: assetDetails.assetInfo?.asset_longname || null,
