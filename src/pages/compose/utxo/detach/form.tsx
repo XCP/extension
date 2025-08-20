@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
@@ -10,6 +11,8 @@ import { DestinationInput } from "@/components/inputs/destination-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useWallet } from "@/contexts/wallet-context";
 import { useSettings } from "@/contexts/settings-context";
+import { fetchUtxoBalances, type UtxoBalance } from "@/utils/blockchain/counterparty";
+import { formatTxid } from "@/utils/format";
 import type { DetachOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -34,31 +37,38 @@ export function UtxoDetachForm({
   error: composerError,
   showHelpText,
 }: UtxoDetachFormProps): ReactElement {
+  const navigate = useNavigate();
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
   const { pending } = useFormStatus();
-  const [error, setError] = useState<{ message: string; } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [destination, setDestination] = useState(initialFormData?.destination || "");
   const [destinationValid, setDestinationValid] = useState(true); // Optional field, so default to true
+  const [utxoBalances, setUtxoBalances] = useState<UtxoBalance[]>([]);
   const destinationRef = useRef<HTMLInputElement>(null);
 
   // Set composer error when it occurs
   useEffect(() => {
     if (composerError) {
-      setError({ message: composerError });
+      setError(composerError);
     }
   }, [composerError]);
 
-  // Focus UTXO input on mount if not pre-filled
+  // Focus destination input on mount and fetch UTXO balances
   useEffect(() => {
-    if (!initialUtxo) {
-      const input = document.querySelector("input[name='sourceUtxo']") as HTMLInputElement;
-      input?.focus();
-    } else {
-      destinationRef.current?.focus();
+    destinationRef.current?.focus();
+    
+    // Fetch UTXO balances if we have a UTXO
+    const utxo = initialUtxo || initialFormData?.sourceUtxo;
+    if (utxo) {
+      fetchUtxoBalances(utxo).then(response => {
+        setUtxoBalances(response.result || []);
+      }).catch(err => {
+        console.error('Failed to fetch UTXO balances:', err);
+      });
     }
-  }, [initialUtxo]);
+  }, [initialUtxo, initialFormData?.sourceUtxo]);
 
   return (
     <div className="space-y-4">
@@ -66,42 +76,39 @@ export function UtxoDetachForm({
         <AddressHeader address={activeAddress.address} walletName={activeWallet?.name} className="mt-1 mb-5" />
       )}
       <div className="bg-white rounded-lg shadow-lg p-4">
-        {error && (
+        {(error || composerError) && (
           <ErrorAlert
-            message={error.message}
+            message={error || composerError || "An error occurred"}
             onClose={() => setError(null)}
           />
         )}
         <form action={formAction} className="space-y-6">
-          {/* Warning about detaching ALL assets */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
-            <p className="text-sm text-yellow-700">
-              <strong>Warning:</strong> This operation will detach ALL assets from the specified UTXO. 
-              You cannot selectively detach assets.
-            </p>
-          </div>
+          {/* Hidden UTXO input - always passed to formAction */}
+          <input 
+            type="hidden" 
+            name="sourceUtxo" 
+            value={initialUtxo || initialFormData?.sourceUtxo || ""}
+          />
           
-          <Field>
-            <Label className="text-sm font-medium text-gray-700">
-              Source UTXO <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              type="text"
-              name="sourceUtxo"
-              defaultValue={initialUtxo || initialFormData?.sourceUtxo || ""}
-              required
-              disabled={!!initialUtxo}
-              placeholder="Enter UTXO (txid:vout)"
-              className={`
-                mt-1 block w-full p-2 rounded-md border
-                ${initialUtxo ? 'bg-gray-100 cursor-not-allowed' : 'bg-gray-50'}
-                focus:ring-blue-500 focus:border-blue-500
-              `}
-            />
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              The UTXO containing the assets you want to detach (format: txid:vout).
-            </Description>
-          </Field>
+          {/* UTXO Display - styled like an input */}
+          {(initialUtxo || initialFormData?.sourceUtxo) && (
+            <div>
+              <label className="text-sm font-medium text-gray-700">Output <span className="text-red-500">*</span></label>
+              <div 
+                onClick={() => navigate(`/utxo/${initialUtxo || initialFormData?.sourceUtxo}`)}
+                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+                role="button"
+                tabIndex={0}
+              >
+                <span className="text-sm font-mono text-blue-600 hover:text-blue-800">
+                  {formatTxid(initialUtxo || initialFormData?.sourceUtxo || '')}
+                </span>
+                <span className="text-sm text-gray-500">
+                  {utxoBalances.length} {utxoBalances.length === 1 ? 'Balance' : 'Balances'}
+                </span>
+              </div>
+            </div>
+          )}
           
           <input type="hidden" name="destination" value={destination} />
           <DestinationInput
@@ -114,7 +121,7 @@ export function UtxoDetachForm({
             disabled={pending}
             showHelpText={shouldShowHelpText}
             name="destination_display"
-            label="Destination Address (Optional)"
+            label="Destination (Optional)"
             helpText="The address to detach assets to. If not provided, assets will be detached to the UTXO's owner address."
           />
 

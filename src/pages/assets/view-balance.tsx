@@ -7,6 +7,7 @@ import { Spinner } from "@/components/spinner";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { useHeader } from "@/contexts/header-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { formatTxid } from "@/utils/format";
 import type { TokenBalance } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -55,7 +56,7 @@ export default function ViewBalance(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: "Balance",
-      onBack: () => navigate(-1),
+      onBack: () => navigate("/"),
     });
     return () => setHeaderProps(null);
   }, [setHeaderProps, navigate]);
@@ -235,7 +236,7 @@ export default function ViewBalance(): ReactElement {
                 tabIndex={0}
                 aria-label={`View UTXO ${utxo.txid}`}
               >
-                <span className="text-sm font-mono text-gray-500">{utxo.txid}</span>
+                <span className="text-sm font-mono text-gray-500">{formatTxid(utxo.txid)}</span>
                 <span className="text-sm text-gray-900">{utxo.amount}</span>
               </div>
             ))}

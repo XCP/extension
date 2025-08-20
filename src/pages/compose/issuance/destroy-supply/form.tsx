@@ -42,7 +42,7 @@ export function DestroySupplyForm({
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
   const { pending } = useFormStatus();
   const { activeAddress } = useWallet();
-  const asset = initialFormData?.asset || initialAsset || "";
+  const asset = initialAsset || initialFormData?.asset || "";
   const { data: assetDetails, error: assetDetailsError } = useAssetDetails(asset);
   
   // Single error state to handle all errors

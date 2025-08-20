@@ -7,7 +7,6 @@ import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
@@ -41,30 +40,27 @@ export function UtxoAttachForm({
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
   const { pending } = useFormStatus();
-  const [error, setError] = useState<{ message: string; } | null>(null);
-  const asset = initialFormData?.asset || initialAsset || "";
+  const [error, setError] = useState<string | null>(null);
+  // Always use initialAsset first, as it comes from the route params
+  const asset = initialAsset || initialFormData?.asset || "";
   const { data: assetDetails } = useAssetDetails(asset);
+  
+  // Local state for quantity to handle Max button
+  const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
+  const [quantity, setQuantity] = useState("");
 
   // Set composer error when it occurs
   useEffect(() => {
     if (composerError) {
-      setError({ message: composerError });
+      setError(composerError);
     }
   }, [composerError]);
 
-  // Focus asset input on mount
+  // Focus quantity input on mount
   useEffect(() => {
-    const input = document.querySelector("input[name='asset']") as HTMLInputElement;
-    if (!input) {
-      // If asset is pre-selected, focus on quantity
-      const quantityInput = document.querySelector("input[name='quantity']") as HTMLInputElement;
-      quantityInput?.focus();
-    } else {
-      input?.focus();
-    }
+    const quantityInput = document.querySelector("input[name='quantity']") as HTMLInputElement;
+    quantityInput?.focus();
   }, []);
-
-  const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
 
   return (
     <div className="space-y-4">
@@ -86,66 +82,47 @@ export function UtxoAttachForm({
         />
       )}
       <div className="bg-white rounded-lg shadow-lg p-4">
-        {error && (
+        {(error || composerError) && (
           <ErrorAlert
-            message={error.message}
+            message={error || composerError || "An error occurred"}
             onClose={() => setError(null)}
           />
         )}
         <form action={formAction} className="space-y-6">
-          {/* Note about UTXO attachment */}
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-            <p className="text-sm text-blue-700">
-              <strong>Note:</strong> This operation will attach assets from your address to a new UTXO.
-              After attaching, the assets will be locked to the UTXO and can only be moved by detaching or moving the UTXO.
-            </p>
-          </div>
-          <AssetSelectInput
-            selectedAsset={initialFormData?.asset || initialAsset || "XCP"}
-            onChange={() => {}} // No-op since formAction handles submission
-            label="Asset"
-            required
-            shouldShowHelpText={shouldShowHelpText}
-            description="Select the asset to attach to the UTXO."
+          {/* Hidden asset input - passed from navigation */}
+          <input 
+            type="hidden" 
+            name="asset" 
+            value={asset}
           />
           <AmountWithMaxInput
-            asset={initialFormData?.asset || initialAsset || "XCP"}
+            asset={initialAsset || initialFormData?.asset || "XCP"}
             availableBalance={assetDetails?.availableBalance || "0"}
-            value={
-              initialFormData?.quantity
-                ? isDivisible
-                  ? formatAmount({
-                      value: initialFormData.quantity / 1e8,
-                      maximumFractionDigits: 8,
-                      minimumFractionDigits: 8
-                    })
-                  : initialFormData.quantity.toString()
-                : ""
-            }
-            onChange={() => {}} // No-op since formAction handles submission
+            value={quantity}
+            onChange={setQuantity}
             sat_per_vbyte={initialFormData?.sat_per_vbyte || 0.1}
             setError={() => {}} // No-op since Composer handles errors
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.availableBalance || "0"}
             shouldShowHelpText={shouldShowHelpText}
-            label="Quantity"
+            label="Amount"
             name="quantity"
             description={
               isDivisible
-                ? "Enter the quantity to attach (up to 8 decimal places)."
-                : "Enter a whole number quantity."
+                ? "Enter the amount to attach (up to 8 decimal places)."
+                : "Enter a whole number amount."
             }
             disabled={pending}
           />
           
-          {/* Display XCP fee estimate */}
-          <div className="text-sm text-gray-600">
-            <p>This operation requires an XCP fee for attaching assets to a UTXO.</p>
-          </div>
-
           <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
           
-          <Button type="submit" color="blue" fullWidth disabled={pending}>
+          <Button 
+            type="submit" 
+            color="blue" 
+            fullWidth 
+            disabled={pending || !quantity || quantity === "0" || parseFloat(quantity) <= 0}
+          >
             {pending ? "Submitting..." : "Continue"}
           </Button>
         </form>

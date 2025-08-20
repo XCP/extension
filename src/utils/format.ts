@@ -101,6 +101,21 @@ export function formatAsset(
 }
 
 /**
+ * Formats a transaction ID (txid) by shortening it for display.
+ *
+ * @param txid - The full transaction ID to format
+ * @param shorten - Whether to shorten the txid (defaults to true)
+ * @returns The formatted transaction ID
+ * @example
+ * formatTxid("3b1f8c6a7d9e5f2a8c4e6b0d3f7a9c1e5b8d2f6a") // "3b1f8c...8d2f6a"
+ */
+export function formatTxid(txid: string, shorten: boolean = true): string {
+  if (!shorten) return txid;
+  // Show more characters for txids since they're typically longer and more unique
+  return `${txid.slice(0, 8)}...${txid.slice(-6)}`;
+}
+
+/**
  * Formats a Unix timestamp into a human-readable date string.
  *
  * @param timestamp - Unix timestamp in seconds

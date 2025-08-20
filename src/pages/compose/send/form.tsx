@@ -44,7 +44,7 @@ export function SendForm({
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
   const enableMPMA = settings?.enableMPMA ?? false;
   const { data: assetDetails, error: assetDetailsError } = useAssetDetails(
-    initialFormData?.asset || initialAsset || "BTC"
+    initialAsset || initialFormData?.asset || "BTC"
   );
   const { pending } = useFormStatus();
   
@@ -68,18 +68,18 @@ export function SendForm({
   useEffect(() => {
     if (assetDetailsError) {
       setError({
-        message: `Failed to fetch details for asset ${initialFormData?.asset || initialAsset || "BTC"}. ${assetDetailsError.message || "Please try again later."}`
+        message: `Failed to fetch details for asset ${initialAsset || initialFormData?.asset || "BTC"}. ${assetDetailsError.message || "Please try again later."}`
       });
     } else if (!composerError) {
       // Clear error if it was an asset details error and there's no composer error
       setError(null);
     }
-  }, [assetDetailsError, initialFormData?.asset, initialAsset, composerError]);
+  }, [assetDetailsError, initialAsset, initialFormData?.asset, composerError]);
 
   const isDivisible = useMemo(() => {
-    if (initialFormData?.asset === "BTC" || initialAsset === "BTC") return true;
+    if (initialAsset === "BTC" || initialFormData?.asset === "BTC") return true;
     return assetDetails?.assetInfo?.divisible || false;
-  }, [initialFormData?.asset, initialAsset, assetDetails?.assetInfo]);
+  }, [initialAsset, initialFormData?.asset, assetDetails?.assetInfo]);
 
   const normalizeAmountForDisplay = (quantity: number | undefined): string => {
     if (!quantity && quantity !== 0) return ""; // Handle null/undefined, allow 0
@@ -151,7 +151,7 @@ export function SendForm({
         assetDetails ? (
           <BalanceHeader
             balance={{
-              asset: initialFormData?.asset || initialAsset || "BTC",
+              asset: initialAsset || initialFormData?.asset || "BTC",
               quantity_normalized: assetDetails.availableBalance,
               asset_info: assetDetails.assetInfo || undefined,
             }}
@@ -173,16 +173,16 @@ export function SendForm({
             destinations={destinations}
             onChange={setDestinations}
             onValidationChange={setDestinationsValid}
-            asset={initialFormData?.asset || initialAsset || "BTC"}
+            asset={initialAsset || initialFormData?.asset || "BTC"}
             enableMPMA={enableMPMA}
             required
             disabled={pending}
             showHelpText={shouldShowHelpText}
           />
-          <input type="hidden" name="asset" value={initialFormData?.asset || initialAsset || "BTC"} />
+          <input type="hidden" name="asset" value={initialAsset || initialFormData?.asset || "BTC"} />
 
           <AmountWithMaxInput
-            asset={initialFormData?.asset || initialAsset || "BTC"}
+            asset={initialAsset || initialFormData?.asset || "BTC"}
             availableBalance={assetDetails?.availableBalance || "0"}
             value={amount}
             onChange={handleAmountChange}
@@ -201,7 +201,7 @@ export function SendForm({
             disabled={pending}
           />
 
-          {(initialFormData?.asset || initialAsset) !== "BTC" && (
+          {(initialAsset || initialFormData?.asset) !== "BTC" && (
             <Field>
               <Label className="text-sm font-medium text-gray-700">Memo</Label>
               <Input
