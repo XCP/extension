@@ -5,6 +5,7 @@ import { createProviderService, resolvePendingRequest } from '../providerService
 import { approvalQueue } from '@/utils/provider/approvalQueue';
 import { requestCleanup } from '@/utils/provider/requestCleanup';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
+import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 import * as walletService from '../walletService';
 
 // Mock dependencies
@@ -56,20 +57,9 @@ describe('Provider Service Lifecycle Tests', () => {
     fakeBrowser.action.setBadgeBackgroundColor = vi.fn().mockResolvedValue(undefined);
     
     vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-      connectedWebsites: [],
-      lastActiveWalletId: undefined,
-      lastActiveAddress: undefined,
-      autoLockTimeout: 5 * 60 * 1000,
-      showHelpText: false,
-      analyticsAllowed: true,
-      allowUnconfirmedTxs: false,
-      autoLockTimer: '5m',
-      enableMPMA: false,
-      pinnedAssets: [],
-      defaultOrderExpiration: 1000,
-      enableAdvancedBroadcasts: false,
-      transactionDryRun: false,
-      counterpartyApiBase: 'https://api.counterparty.io'
+      ...DEFAULT_KEYCHAIN_SETTINGS,
+      connectedWebsites: [], // Clear connections for testing
+      pinnedAssets: [], // Clear pinned assets for testing
     } as any);
     
     providerService = createProviderService();
@@ -232,20 +222,9 @@ describe('Provider Service Lifecycle Tests', () => {
       
       // Mark as connected
       vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
+        ...DEFAULT_KEYCHAIN_SETTINGS,
         connectedWebsites: [origin],
-        lastActiveWalletId: undefined,
-        lastActiveAddress: undefined,
-        autoLockTimeout: 5 * 60 * 1000,
-        showHelpText: false,
-        analyticsAllowed: true,
-        allowUnconfirmedTxs: false,
-        autoLockTimer: '5m',
-        enableMPMA: false,
-        pinnedAssets: [],
-        defaultOrderExpiration: 1000,
-        enableAdvancedBroadcasts: false,
-        transactionDryRun: false,
-        counterpartyApiBase: 'https://api.counterparty.io'
+        pinnedAssets: [], // Clear for test
       } as any);
       
       // Simulate multiple rapid requests

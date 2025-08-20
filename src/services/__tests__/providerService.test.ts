@@ -2,8 +2,7 @@ import { describe, it, expect, beforeEach, beforeAll, vi, afterEach } from 'vite
 import { fakeBrowser } from 'wxt/testing';
 import { createProviderService, resolvePendingRequest } from '../providerService';
 import * as walletService from '../walletService';
-import * as settingsStorage from '@/utils/storage/settingsStorage';
-import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
+import * as settingsStorage from '@/utils/storage';
 import * as approvalQueue from '@/utils/provider/approvalQueue';
 import * as rateLimiter from '@/utils/provider/rateLimiter';
 import * as fathom from '@/utils/fathom';
@@ -57,7 +56,7 @@ describe('ProviderService', () => {
     
     // Setup default mocks using the default settings constant
     vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-      ...DEFAULT_KEYCHAIN_SETTINGS,
+      ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
       connectedWebsites: [] // Override specific properties as needed
     });
     
@@ -116,7 +115,7 @@ describe('ProviderService', () => {
     vi.mocked(walletService.getWalletService).mockReturnValue(mockWalletService as any);
     
     // Setup settings mocks - default to no connected sites
-    // (Already set up above with DEFAULT_KEYCHAIN_SETTINGS)
+    // (Already set up above with settingsStorage.DEFAULT_KEYCHAIN_SETTINGS)
     vi.mocked(settingsStorage.updateKeychainSettings).mockResolvedValue(undefined);
     
     // Setup other mocks
@@ -166,7 +165,7 @@ describe('ProviderService', () => {
       it('should return accounts if already connected', async () => {
         // Setup: site is already connected
         vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-          ...DEFAULT_KEYCHAIN_SETTINGS,
+          ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
           connectedWebsites: ['https://test.com']
         });
         
@@ -231,7 +230,7 @@ describe('ProviderService', () => {
       
       it('should return accounts if connected and wallet unlocked', async () => {
         vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-          ...DEFAULT_KEYCHAIN_SETTINGS,
+          ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
           connectedWebsites: ['https://connected.com']
         });
         
@@ -246,7 +245,7 @@ describe('ProviderService', () => {
       
       it('should return empty array if wallet is locked', async () => {
         vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-          ...DEFAULT_KEYCHAIN_SETTINGS,
+          ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
           connectedWebsites: ['https://connected.com']
         });
         
@@ -364,7 +363,7 @@ describe('ProviderService', () => {
       
       it('should require active address', async () => {
         vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-          ...DEFAULT_KEYCHAIN_SETTINGS,
+          ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
           connectedWebsites: ['https://connected.com']
         });
         
@@ -405,7 +404,7 @@ describe('ProviderService', () => {
       
       it('should require parameters', async () => {
         vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-          ...DEFAULT_KEYCHAIN_SETTINGS,
+          ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
           connectedWebsites: ['https://connected.com']
         });
         
@@ -438,7 +437,7 @@ describe('ProviderService', () => {
       
       it('should require active address', async () => {
         vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-          ...DEFAULT_KEYCHAIN_SETTINGS,
+          ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
           connectedWebsites: ['https://connected.com']
         });
         
@@ -535,7 +534,7 @@ describe('ProviderService', () => {
   describe('isConnected', () => {
     it('should return true if origin is in connected websites', async () => {
       vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-        ...DEFAULT_KEYCHAIN_SETTINGS,
+        ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
         connectedWebsites: ['https://connected.com']
       });
       
@@ -552,7 +551,7 @@ describe('ProviderService', () => {
   describe('disconnect', () => {
     it('should remove origin from connected websites', async () => {
       const mockSettings = {
-        ...DEFAULT_KEYCHAIN_SETTINGS,
+        ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
         connectedWebsites: ['https://site1.com', 'https://site2.com']
       };
       
@@ -568,7 +567,7 @@ describe('ProviderService', () => {
     
     it('should handle disconnect even if origin was not connected', async () => {
       const mockSettings = {
-        ...DEFAULT_KEYCHAIN_SETTINGS,
+        ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
         connectedWebsites: ['https://site1.com']
       };
       

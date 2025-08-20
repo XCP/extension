@@ -19,24 +19,20 @@ vi.mock('webext-bridge/background', () => ({
 }));
 
 // Mock storage first to prevent infinite loops
-vi.mock('@/utils/storage/settingsStorage', () => ({
-  getKeychainSettings: vi.fn().mockResolvedValue({
-    lastActiveWalletId: 'wallet1',
-    lastActiveAddress: undefined,
-    connectedWebsites: [],
-    autoLockTimeout: 300000,
-    showHelpText: false,
-    analyticsAllowed: false,
-    allowUnconfirmedTxs: false,
-    autoLockTimer: '5m',
-    enableMPMA: false,
-    enableAdvancedBroadcasts: false,
-    transactionDryRun: false,
-    pinnedAssets: [],
-    counterpartyApiBase: 'https://api.counterparty.io',
-    defaultOrderExpiration: 1000
-  }),
-}));
+vi.mock('@/utils/storage/settingsStorage', async () => {
+  const actual = await vi.importActual<typeof import('@/utils/storage/settingsStorage')>('@/utils/storage/settingsStorage');
+  return {
+    ...actual,
+    getKeychainSettings: vi.fn().mockResolvedValue({
+      ...actual.DEFAULT_KEYCHAIN_SETTINGS,
+      lastActiveWalletId: 'wallet1',
+      autoLockTimeout: 300000,
+      analyticsAllowed: false,
+      pinnedAssets: [],
+      counterpartyApiBase: 'https://api.counterparty.io',
+    }),
+  };
+});
 
 // Mock dependencies
 vi.mock('@/utils/wallet/walletManager', () => ({
@@ -129,7 +125,7 @@ describe('WalletContext', () => {
     connectedWebsites: [],
     showHelpText: false,
     analyticsAllowed: false,
-    allowUnconfirmedTxs: false,
+    allowUnconfirmedTxs: true,
     autoLockTimer: '5m' as const,
     enableMPMA: false,
     enableAdvancedBroadcasts: false,
