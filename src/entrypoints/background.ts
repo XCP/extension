@@ -183,7 +183,8 @@ export default defineBackground(() => {
     if (message.type === 'RESOLVE_PROVIDER_REQUEST' && message.requestId) {
       const resolvePendingRequest = (globalThis as any).resolvePendingRequest;
       if (resolvePendingRequest) {
-        resolvePendingRequest(message.requestId, message.approved);
+        // Pass along updatedParams if they were provided
+        resolvePendingRequest(message.requestId, message.approved, message.updatedParams);
       }
       sendResponse({ success: true });
       return true;
