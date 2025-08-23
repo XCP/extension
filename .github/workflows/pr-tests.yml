@@ -80,7 +80,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        batch: [1, 2, 3, 4]
+        batch: [1, 2, 3, 4, 5]
     
     steps:
       - name: Checkout code
@@ -114,14 +114,29 @@ jobs:
       - name: Run E2E tests (Batch ${{ matrix.batch }})
         timeout-minutes: 15  # Set a reasonable timeout per batch
         run: |
-          if [ "${{ matrix.batch }}" == "1" ]; then
-            npx playwright test e2e/wallet-*.spec.ts --workers=1 --retries=1
-          elif [ "${{ matrix.batch }}" == "2" ]; then
-            npx playwright test e2e/sign-message.spec.ts e2e/verify-message.spec.ts e2e/message-signing.spec.ts --workers=1 --retries=1
-          elif [ "${{ matrix.batch }}" == "3" ]; then
-            npx playwright test e2e/advanced-features.spec.ts e2e/index.spec.ts e2e/navigation.spec.ts --workers=1 --retries=1
+          # Dynamically discover all test files and distribute them across batches
+          TOTAL_BATCHES=5
+          CURRENT_BATCH=${{ matrix.batch }}
+          
+          # Get all test files, sorted for consistency
+          ALL_FILES=$(find e2e -name "*.spec.ts" -type f | sort)
+          
+          # Count total files
+          TOTAL_FILES=$(echo "$ALL_FILES" | wc -l)
+          FILES_PER_BATCH=$(( (TOTAL_FILES + TOTAL_BATCHES - 1) / TOTAL_BATCHES ))
+          START_LINE=$(( (CURRENT_BATCH - 1) * FILES_PER_BATCH + 1 ))
+          END_LINE=$(( START_LINE + FILES_PER_BATCH - 1 ))
+          
+          # Get files for this batch using sed
+          BATCH_FILES=$(echo "$ALL_FILES" | sed -n "${START_LINE},${END_LINE}p" | tr '\n' ' ')
+          
+          # Run tests for this batch
+          if [ -n "$BATCH_FILES" ]; then
+            echo "Running tests for batch $CURRENT_BATCH (lines $START_LINE-$END_LINE of $TOTAL_FILES):"
+            echo "$BATCH_FILES"
+            npx playwright test $BATCH_FILES --workers=1 --retries=1
           else
-            npx playwright test e2e/provider.spec.ts e2e/accessibility.spec.ts e2e/compose.spec.ts --workers=1 --retries=1
+            echo "No tests to run for batch $CURRENT_BATCH"
           fi
         env:
           CI: true

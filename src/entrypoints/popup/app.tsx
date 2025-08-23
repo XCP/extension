@@ -35,6 +35,7 @@ import ViewTransaction from '@/pages/transaction/view-transaction';
 // Provider pages
 import ApproveConnection from '@/pages/provider/approve-connection';
 import ApproveTransaction from '@/pages/provider/approve-transaction';
+import ApproveCompose from '@/pages/provider/approve-compose';
 import ApprovalQueue from '@/pages/provider/approval-queue';
 import PhishingWarning from '@/pages/provider/phishing-warning-page';
 
@@ -204,6 +205,7 @@ export default function App() {
             {/* Provider approval routes */}
             <Route path="/provider/approve-connection" element={<ApproveConnection />} />
             <Route path="/provider/approve-transaction" element={<ApproveTransaction />} />
+            <Route path="/provider/approve-compose" element={<ApproveCompose />} />
             <Route path="/provider/approval-queue" element={<ApprovalQueue />} />
             <Route path="/provider/phishing-warning" element={<PhishingWarning />} />
           </Route>

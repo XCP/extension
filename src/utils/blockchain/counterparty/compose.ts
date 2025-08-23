@@ -241,10 +241,20 @@ export async function composeTransaction<T>(
     ...(encoding && { encoding }),
   });
 
-  const response = await axios.get<ApiResponse>(`${apiUrl}?${params.toString()}`, {
-    headers: { 'Content-Type': 'application/json' },
-  });
-  return response.data;
+  try {
+    const response = await axios.get<ApiResponse>(`${apiUrl}?${params.toString()}`, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error('Compose transaction failed:', {
+      endpoint,
+      params: Object.fromEntries(params),
+      url: `${apiUrl}?${params.toString()}`,
+      error: error.response?.data || error.message
+    });
+    throw error;
+  }
 }
 
 // New function for UTXO-based compose transactions (detach, move)

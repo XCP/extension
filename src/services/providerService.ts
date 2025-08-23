@@ -548,24 +548,36 @@ export function createProviderService(): ProviderService {
               reject(new Error('User denied the request'));
             }
           }, 5 * 60 * 1000);
-        }).then(async (approved) => {
+        }).then(async (result: any) => {
+          // Check if result is an object with updatedParams or just a boolean
+          const approved = typeof result === 'object' && result !== null ? result.approved : result;
+          const finalParams = typeof result === 'object' && result !== null && result.updatedParams ? 
+            { ...orderParams, ...result.updatedParams } : orderParams;
+          
           if (!approved) {
             throw new Error('User denied the request');
           }
           
-          // User approved - compose the transaction
+          // User approved - compose the transaction with potentially updated params
+          console.log('Composing order with final params:', {
+            originalParams: orderParams,
+            updatedParams: result.updatedParams,
+            finalParams,
+            address: activeAddress.address
+          });
+          
           const composeResult = await composeTransaction(
             'order',
             {
-              give_asset: orderParams.give_asset,
-              give_quantity: orderParams.give_quantity,
-              get_asset: orderParams.get_asset,
-              get_quantity: orderParams.get_quantity,
-              expiration: orderParams.expiration || 1000,
+              give_asset: finalParams.give_asset,
+              give_quantity: finalParams.give_quantity,
+              get_asset: finalParams.get_asset,
+              get_quantity: finalParams.get_quantity,
+              expiration: finalParams.expiration || 1000,
             },
             activeAddress.address,
-            orderParams.fee_rate || 1,
-            orderParams.encoding
+            finalParams.fee_rate || 1,
+            finalParams.encoding
           );
           
           return {
@@ -926,7 +938,7 @@ export function createProviderService(): ProviderService {
 }
 
 // Export for use in approval UI - this needs to be called from background context
-export function resolvePendingRequest(requestId: string, approved: boolean) {
+export function resolvePendingRequest(requestId: string, approved: boolean, updatedParams?: any) {
   const pending = pendingRequests.get(requestId);
   if (pending) {
     // Get the request details for tracking
@@ -961,7 +973,8 @@ export function resolvePendingRequest(requestId: string, approved: boolean) {
     updateBadge();
     
     if (approved) {
-      pending.resolve(true);
+      // If there are updated params, pass them along with the approval
+      pending.resolve(updatedParams ? { approved: true, updatedParams } : true);
     } else {
       pending.reject(new Error('User denied the request'));
     }

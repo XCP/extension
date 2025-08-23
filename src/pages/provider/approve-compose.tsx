@@ -5,13 +5,18 @@ import { Button } from '@/components/button';
 import { ErrorAlert } from '@/components/error-alert';
 import { formatAmount, formatAddress } from '@/utils/format';
 import { useWallet } from '@/contexts/wallet-context';
+import { useSettings } from '@/contexts/settings-context';
+import { FeeRateInput } from '@/components/inputs/fee-rate-input';
 
 export default function ApproveCompose() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { activeAddress, activeWallet } = useWallet();
+  const { settings } = useSettings();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string>('');
+  const [feeRate, setFeeRate] = useState<number>(1); // Will be updated by FeeRateInput
+  const [orderExpiration, setOrderExpiration] = useState<number>(0);
 
   const origin = searchParams.get('origin') || '';
   const requestId = searchParams.get('requestId') || '';
@@ -41,7 +46,11 @@ export default function ApproveCompose() {
     if (!activeWallet || !activeAddress) {
       navigate('/');
     }
-  }, [activeWallet, activeAddress, navigate]);
+    
+    // Set default order expiration from settings or use max (8064 blocks)
+    const defaultExpiration = settings?.defaultOrderExpiration || 8064;
+    setOrderExpiration(defaultExpiration);
+  }, [activeWallet, activeAddress, navigate, settings]);
 
   const formatQuantity = (quantity: number | string, isDivisible?: boolean) => {
     const qty = typeof quantity === 'string' ? parseFloat(quantity) : quantity;
@@ -84,7 +93,7 @@ export default function ApproveCompose() {
             warning: parseFloat(params.give_quantity) > 100000000 // Warn for large amounts
           },
           { label: 'Getting', value: `${formatQuantity(params.get_quantity, true)} ${params.get_asset}` },
-          { label: 'Expiration', value: `${params.expiration || 1000} blocks` }
+          { label: 'Requested Expiration', value: `${params.expiration || 1000} blocks` }
         );
         break;
 
@@ -136,7 +145,7 @@ export default function ApproveCompose() {
         );
     }
 
-    details.push({ label: 'Fee Rate', value: `${params.fee_rate || 1} sat/vbyte` });
+    details.push({ label: 'Requested Fee Rate', value: `${params.fee_rate || 1} sat/vbyte` });
 
     return details;
   };
@@ -145,11 +154,23 @@ export default function ApproveCompose() {
     setIsProcessing(true);
     setError('');
     try {
-      // Send message to background script to resolve the request
+      // Override the params with user-controlled values
+      const updatedParams = { ...params };
+      
+      // Always use user's fee rate
+      updatedParams.fee_rate = feeRate;
+      
+      // For orders, use user's expiration setting
+      if (params.type === 'order') {
+        updatedParams.expiration = orderExpiration;
+      }
+      
+      // Send message to background script to resolve the request with updated params
       await browser.runtime.sendMessage({
         type: 'RESOLVE_PROVIDER_REQUEST',
         requestId,
-        approved: true
+        approved: true,
+        updatedParams
       });
       // Close the popup
       window.close();
@@ -238,6 +259,50 @@ export default function ApproveCompose() {
             </div>
           </div>
 
+          {/* User Controls */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h3 className="text-sm font-medium text-gray-700 mb-4">Your Settings</h3>
+            
+            {/* Fee Rate Input */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fee Rate
+              </label>
+              <FeeRateInput
+                onFeeRateChange={setFeeRate}
+                disabled={isProcessing}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                You control the fee rate for this transaction
+              </p>
+            </div>
+
+            {/* Order Expiration (only for orders) */}
+            {params.type === 'order' && (
+              <div>
+                <label htmlFor="expiration" className="block text-sm font-medium text-gray-700 mb-1">
+                  Order Expiration
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="expiration"
+                    type="number"
+                    value={orderExpiration}
+                    onChange={(e) => setOrderExpiration(Math.min(8064, Math.max(1, parseInt(e.target.value) || 0)))}
+                    min="1"
+                    max="8064"
+                    disabled={isProcessing}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                  <span className="text-sm text-gray-500">blocks</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Max: 8064 blocks (~8 weeks). Site requested: {params.expiration || 1000} blocks
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* From Address */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h3 className="text-sm font-medium text-gray-700 mb-3">From Wallet</h3>
@@ -277,10 +342,10 @@ export default function ApproveCompose() {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h3 className="text-sm font-medium text-blue-900 mb-2">What happens next?</h3>
             <ul className="text-xs text-blue-700 space-y-1">
-              <li>• A transaction will be created with these details</li>
+              <li>• A transaction will be created with YOUR fee rate and settings</li>
               <li>• You may be asked to sign the transaction</li>
               <li>• The site can then broadcast it to the network</li>
-              <li>• Transaction fees will be paid from your wallet</li>
+              <li>• Transaction fees ({feeRate} sat/vbyte) will be paid from your wallet</li>
             </ul>
           </div>
         </div>
