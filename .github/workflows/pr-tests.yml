@@ -119,28 +119,20 @@ jobs:
           CURRENT_BATCH=${{ matrix.batch }}
           
           # Get all test files, sorted for consistency
-          TEST_FILES=$(find e2e -name "*.spec.ts" -type f | sort)
+          ALL_FILES=$(find e2e -name "*.spec.ts" -type f | sort)
           
-          # Convert to array
-          IFS=$'\n' read -d '' -r -a FILES_ARRAY <<< "$TEST_FILES"
-          
-          # Calculate which files belong to this batch
-          TOTAL_FILES=${#FILES_ARRAY[@]}
+          # Count total files
+          TOTAL_FILES=$(echo "$ALL_FILES" | wc -l)
           FILES_PER_BATCH=$(( (TOTAL_FILES + TOTAL_BATCHES - 1) / TOTAL_BATCHES ))
-          START_INDEX=$(( (CURRENT_BATCH - 1) * FILES_PER_BATCH ))
-          END_INDEX=$(( START_INDEX + FILES_PER_BATCH ))
+          START_LINE=$(( (CURRENT_BATCH - 1) * FILES_PER_BATCH + 1 ))
+          END_LINE=$(( START_LINE + FILES_PER_BATCH - 1 ))
           
-          # Get files for this batch
-          BATCH_FILES=""
-          for i in $(seq $START_INDEX $(( END_INDEX - 1 ))); do
-            if [ $i -lt $TOTAL_FILES ]; then
-              BATCH_FILES="$BATCH_FILES ${FILES_ARRAY[$i]}"
-            fi
-          done
+          # Get files for this batch using sed
+          BATCH_FILES=$(echo "$ALL_FILES" | sed -n "${START_LINE},${END_LINE}p" | tr '\n' ' ')
           
           # Run tests for this batch
           if [ -n "$BATCH_FILES" ]; then
-            echo "Running tests for batch $CURRENT_BATCH:"
+            echo "Running tests for batch $CURRENT_BATCH (lines $START_LINE-$END_LINE of $TOTAL_FILES):"
             echo "$BATCH_FILES"
             npx playwright test $BATCH_FILES --workers=1 --retries=1
           else
