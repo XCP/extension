@@ -55,6 +55,7 @@ export function OrderForm({
   const [activeTab, setActiveTab] = useState<"buy" | "sell" | "settings">(initialFormData?.give_quantity ? "sell" : "buy");
   const [previousTab, setPreviousTab] = useState<"buy" | "sell">(initialFormData?.give_quantity ? "sell" : "buy");
   const [price, setPrice] = useState<string>("");
+  const [amount, setAmount] = useState<string>(initialFormData?.give_quantity?.toString() || initialFormData?.get_quantity?.toString() || "");
   const [error, setError] = useState<{ message: string; } | null>(null);
   const [customExpiration, setCustomExpiration] = useState<number | undefined>(undefined);
   const [customFeeRequired, setCustomFeeRequired] = useState<number>(0);
@@ -115,6 +116,7 @@ export function OrderForm({
       setTabLoading(true);
       setTimeout(() => setTabLoading(false), 150);
       setPreviousTab(newTab); // Remember the last buy/sell tab
+      setAmount(""); // Reset amount when switching between buy/sell
     }
     setActiveTab(newTab);
   };
@@ -206,8 +208,8 @@ export function OrderForm({
             <AmountWithMaxInput
               asset={giveAsset}
               availableBalance={isBuy ? "" : availableBalance}
-              value={initialFormData?.give_quantity?.toString() || initialFormData?.get_quantity?.toString() || ""}
-              onChange={() => {}} // No-op since formAction handles submission
+              value={amount}
+              onChange={setAmount}
               sat_per_vbyte={initialFormData?.sat_per_vbyte || 0.1}
               setError={(message) => message ? setError({ message }) : setError(null)}
               shouldShowHelpText={shouldShowHelpText}
@@ -217,7 +219,7 @@ export function OrderForm({
                 maximumFractionDigits: isGetAssetDivisible ? 8 : 0,
                 minimumFractionDigits: 0
               }) : "") : availableBalance}
-              disableMaxButton={!isBuy || !price}
+              disableMaxButton={isBuy && !price}
               label="Amount"
               name="amount"
               description={`Amount to ${isBuy ? "buy" : "sell"}. ${isBuy ? (isGetAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.") : (isGiveAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.")}`}
