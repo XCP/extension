@@ -153,6 +153,7 @@ export interface OrderOptions extends BaseComposeOptions {
   get_asset: string;
   get_quantity: number;
   expiration: number;
+  fee_required?: number;
 }
 
 export interface SendOptions extends BaseComposeOptions {
@@ -526,6 +527,7 @@ export async function composeOrder(options: OrderOptions): Promise<ApiResponse> 
     get_asset,
     get_quantity,
     expiration,
+    fee_required = 0,
     sat_per_vbyte,
     max_fee,
     encoding,
@@ -536,7 +538,7 @@ export async function composeOrder(options: OrderOptions): Promise<ApiResponse> 
     get_asset,
     get_quantity: get_quantity.toString(),
     expiration: expiration.toString(),
-    fee_required: '0',
+    fee_required: fee_required.toString(),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('order', paramsObj, sourceAddress, sat_per_vbyte, encoding);

@@ -7,6 +7,9 @@ import type { ReactElement } from 'react';
 interface OrderSettingsProps {
   customExpiration?: number;
   onExpirationChange: (blocks: number | undefined) => void;
+  customFeeRequired?: number;
+  onFeeRequiredChange?: (satoshis: number) => void;
+  isBuyingBTC?: boolean;
 }
 
 // Common expiration presets (in blocks)
@@ -21,11 +24,15 @@ const EXPIRATION_PRESETS = [
 
 export function OrderSettings({ 
   customExpiration,
-  onExpirationChange 
+  onExpirationChange,
+  customFeeRequired = 0,
+  onFeeRequiredChange,
+  isBuyingBTC = false
 }: OrderSettingsProps): ReactElement {
   const { settings, updateSettings } = useSettings();
   const [expiration, setExpiration] = useState<number>(customExpiration || settings?.defaultOrderExpiration || 8064);
   const [customValue, setCustomValue] = useState<string>('');
+  const [feeRequired, setFeeRequired] = useState<number>(customFeeRequired);
 
   // Update local state when settings change
   useEffect(() => {
@@ -64,6 +71,17 @@ export function OrderSettings({
     if (days < 1) return `${(days * 24).toFixed(0)}h`;
     if (days < 7) return `${days.toFixed(1)}d`;
     return `${(days / 7).toFixed(1)}w`;
+  };
+
+  const handleFeeRequiredChange = (value: string) => {
+    // Only allow numbers
+    if (/^\d*$/.test(value) && value.length <= 10) {
+      const numValue = parseInt(value || '0', 10);
+      setFeeRequired(numValue);
+      if (onFeeRequiredChange) {
+        onFeeRequiredChange(numValue);
+      }
+    }
   };
 
   return (
@@ -107,6 +125,34 @@ export function OrderSettings({
             />
           </div>
         </div>
+
+        {/* Fee Required Section - Only show when buying BTC */}
+        {isBuyingBTC && (
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="font-semibold">Fee Required</h3>
+              <span className="text-sm text-gray-500">
+                {feeRequired === 0 ? "No minimum fee" : `${feeRequired} sats (~${(feeRequired / 250).toFixed(1)} sat/vB)`}
+              </span>
+            </div>
+            
+            <div className="mb-3">
+              <p className="text-sm text-gray-600">
+                The minimum tx fee required for a BTCPay to match this order (in satoshis).
+              </p>
+            </div>
+            
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={feeRequired}
+                onChange={(e) => handleFeeRequiredChange(e.target.value)}
+                placeholder="Enter fee in satoshis (default: 0)"
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

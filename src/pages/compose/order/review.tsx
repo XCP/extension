@@ -80,6 +80,9 @@ export function ReviewOrder({
     ...(result.params.expiration !== 8064
       ? [{ label: "Expiration", value: `${result.params.expiration} blocks` }]
       : []),
+    ...(result.params.fee_required && Number(result.params.fee_required) > 0
+      ? [{ label: "Fee Required", value: `${result.params.fee_required} satoshis` }]
+      : []),
   ];
 
   return (
