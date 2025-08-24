@@ -197,7 +197,27 @@ export function OrderForm({
               onClose={() => setError(null)}
             />
           )}
-          <form action={formAction} className="space-y-4">
+          <form action={(formData) => {
+            // Calculate give_quantity and get_quantity based on amount, price, and order type
+            const amountValue = parseFloat(amount) || 0;
+            const priceValue = parseFloat(price) || 0;
+            
+            if (amountValue > 0 && priceValue > 0) {
+              if (isBuy) {
+                // Buying: give quote asset, get base asset
+                const giveQty = amountValue * priceValue;
+                formData.set('give_quantity', (giveQty * 1e8).toFixed(0)); // Convert to satoshis
+                formData.set('get_quantity', (amountValue * 1e8).toFixed(0)); // Convert to satoshis
+              } else {
+                // Selling: give base asset, get quote asset  
+                const getQty = amountValue * priceValue;
+                formData.set('give_quantity', (amountValue * 1e8).toFixed(0)); // Convert to satoshis
+                formData.set('get_quantity', (getQty * 1e8).toFixed(0)); // Convert to satoshis
+              }
+            }
+            
+            formAction(formData);
+          }} className="space-y-4">
             <input type="hidden" name="type" value={activeTab} />
             <input type="hidden" name="give_asset" value={isBuy ? quoteAsset : giveAsset} />
             <input type="hidden" name="get_asset" value={isBuy ? giveAsset : quoteAsset} />
@@ -225,6 +245,7 @@ export function OrderForm({
               description={`Amount to ${isBuy ? "buy" : "sell"}. ${isBuy ? (isGetAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.") : (isGiveAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.")}`}
               disabled={pending}
             />
+            <input type="hidden" name="quote_asset" value={quoteAsset} />
             <AssetSelectInput
               selectedAsset={quoteAsset}
               onChange={setQuoteAsset}
