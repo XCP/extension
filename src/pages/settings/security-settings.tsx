@@ -134,16 +134,16 @@ export default function SecuritySettings(): ReactElement {
             </div>
           )}
           
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm space-y-6">
+          <div className="bg-white rounded-lg shadow-lg p-4 space-y-4">
             <Field>
-              <Label className="font-bold text-gray-700">Current Password</Label>
+              <Label className="text-sm font-medium text-gray-700">Current Password</Label>
               <Input
                 id="currentPassword"
                 type="password"
                 value={passwordForm.currentPassword}
                 onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
                 onKeyDown={handleKeyDown}
-                className="w-full p-3 border border-gray-300 rounded-lg mt-2 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
                 disabled={isLoading}
                 aria-label="Current Password"
               />
@@ -155,14 +155,14 @@ export default function SecuritySettings(): ReactElement {
             </Field>
             
             <Field>
-              <Label className="font-bold text-gray-700">New Password</Label>
+              <Label className="text-sm font-medium text-gray-700">New Password</Label>
               <Input
                 id="newPassword"
                 type="password"
                 value={passwordForm.newPassword}
                 onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
                 onKeyDown={handleKeyDown}
-                className="w-full p-3 border border-gray-300 rounded-lg mt-2 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
                 disabled={isLoading}
                 aria-label="New Password"
               />
@@ -174,14 +174,14 @@ export default function SecuritySettings(): ReactElement {
             </Field>
             
             <Field>
-              <Label className="font-bold text-gray-700">Confirm New Password</Label>
+              <Label className="text-sm font-medium text-gray-700">Confirm New Password</Label>
               <Input
                 id="confirmPassword"
                 type="password"
                 value={passwordForm.confirmPassword}
                 onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                 onKeyDown={handleKeyDown}
-                className="w-full p-3 border border-gray-300 rounded-lg mt-2 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
                 disabled={isLoading}
                 aria-label="Confirm New Password"
               />
@@ -198,7 +198,6 @@ export default function SecuritySettings(): ReactElement {
               fullWidth
               disabled={isLoading || !isFormValid()}
               aria-label="Change Password"
-              className="mt-6"
             >
               {isLoading ? "Changing Password..." : "Change Password"}
             </Button>
