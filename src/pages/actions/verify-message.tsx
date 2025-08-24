@@ -116,8 +116,9 @@ export default function VerifyMessage(): ReactElement {
         </button>
       </div>
       
-      {/* Address Input */}
+      {/* Combined Input Box */}
       <div className="bg-white rounded-lg shadow-sm p-4">
+        {/* Address Input */}
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Address
         </label>
@@ -125,58 +126,58 @@ export default function VerifyMessage(): ReactElement {
           type="text"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          placeholder="Enter the Bitcoin address (e.g., 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa)"
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-        />
-      </div>
-      
-      {/* Message Input */}
-      <div className="bg-white rounded-lg shadow-sm p-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Message
-        </label>
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Enter the exact message that was signed..."
+          placeholder="Enter the Bitcoin address"
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          rows={3}
         />
-        <div className="mt-2 text-xs text-gray-500">
-          {message.length} characters - Must match exactly
-        </div>
-      </div>
-      
-      {/* Signature Input */}
-      <div className="bg-white rounded-lg shadow-sm p-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Signature
-        </label>
-        <textarea
-          value={signature}
-          onChange={(e) => setSignature(e.target.value)}
-          placeholder="Enter the signature (base64 or hex format)..."
-          className={`w-full p-3 border rounded-lg font-mono text-xs transition-colors ${
-            verificationResult !== null && !error
-              ? verificationResult
-                ? "border-green-500 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                : "border-red-500 focus:ring-2 focus:ring-red-500 focus:border-red-500"
-              : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          }`}
-          rows={3}
-        />
-        {verificationResult !== null && !error && (
-          <div className="mt-2 flex items-center gap-1">
-            {verificationResult ? (
-              <>
-                <FaCheckCircle className="text-green-600 text-sm" />
-                <span className="text-xs text-green-600">Signature Valid</span>
-              </>
-            ) : (
-              <span className="text-xs text-red-600">Signature Invalid - Does not match the message and address provided</span>
-            )}
+        
+        {/* Message Input */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Message
+          </label>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Enter the exact message that was signed..."
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            rows={3}
+          />
+          <div className="mt-2 text-xs text-gray-500">
+            {message.length} characters - Must match exactly
           </div>
-        )}
+        </div>
+        
+        {/* Signature Input */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Signature
+          </label>
+          <textarea
+            value={signature}
+            onChange={(e) => setSignature(e.target.value)}
+            placeholder="Enter the signature (base64 or hex format)..."
+            className={`w-full p-3 border rounded-lg transition-colors ${
+              verificationResult !== null && !error
+                ? verificationResult
+                  ? "border-green-500 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  : "border-red-500 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            }`}
+            rows={3}
+          />
+          {verificationResult !== null && !error && (
+            <div className="mt-2 flex items-center gap-1">
+              {verificationResult ? (
+                <>
+                  <FaCheckCircle className="text-green-600 text-sm" />
+                  <span className="text-xs text-green-600">Signature Valid</span>
+                </>
+              ) : (
+                <span className="text-xs text-red-600">Signature Invalid - Does not match the message and address provided</span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
       
       {/* Verify Button */}

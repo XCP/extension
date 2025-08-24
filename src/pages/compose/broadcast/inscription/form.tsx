@@ -130,7 +130,7 @@ export function BroadcastInscriptionForm({ formAction, initialFormData ,
         }} className="space-y-4">
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
             <p className="text-sm text-yellow-700">
-              This will inscribe your file on Bitcoin. However, XCP Wallet does not track Ordinal inscriptions and may spend inscribed satoshis after their creation.
+              This <em>will</em> inscribe your file on Bitcoin. However, XCP Wallet does not track Ordinal inscriptions and may spend inscribed satoshis after their creation.
             </p>
           </div>
           

@@ -77,10 +77,10 @@ export function ReviewScreen({
         {customFields.map((field, idx) => (
           <div key={idx} className="space-y-1">
             <span className="font-semibold text-gray-700">{field.label}:</span>
-            <div className="bg-gray-50 p-2 rounded text-gray-900">
+            <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
               {typeof field.value === 'string' || typeof field.value === 'number' ? (
                 <div className="flex justify-between items-center">
-                  <span>{field.value}</span>
+                  <span className="break-all">{field.value}</span>
                   {field.rightElement}
                 </div>
               ) : (
