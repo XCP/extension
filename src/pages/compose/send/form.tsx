@@ -195,7 +195,7 @@ export function SendForm({
             name="quantity"
             description={
               isDivisible
-                ? "Enter the amount to send (up to 8 decimal places)."
+                ? "Enter the amount to send."
                 : "Enter a whole number amount."
             }
             disabled={pending}
