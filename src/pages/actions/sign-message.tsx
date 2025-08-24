@@ -174,7 +174,7 @@ export default function SignMessage(): ReactElement {
           }}
           placeholder="Enter your message here..."
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          rows={4}
+          rows={5}
           disabled={!signingCapabilities.canSign || isSigning}
         />
         <div className="mt-2 flex justify-between items-center">
@@ -211,7 +211,7 @@ export default function SignMessage(): ReactElement {
             value={signature}
             placeholder="Signature will appear here after signing..."
             className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50"
-            rows={4}
+            rows={3}
             disabled
             readOnly
           />
@@ -281,7 +281,6 @@ export default function SignMessage(): ReactElement {
               setError(null);
             }}
             color="gray"
-            className="!py-2 !px-3 !text-sm"
           >
             Reset
           </Button>

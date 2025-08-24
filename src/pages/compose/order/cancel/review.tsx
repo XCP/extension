@@ -26,7 +26,7 @@ export function ReviewCancel({
   const { result } = apiResponse;
 
   const customFields = [
-    { label: "Offer Hash", value: result.params.offer_hash },
+    { label: "Order Hash", value: result.params.offer_hash },
   ];
 
   return (

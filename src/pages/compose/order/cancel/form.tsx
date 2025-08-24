@@ -61,7 +61,7 @@ export function CancelForm({
         <form action={formAction} className="space-y-4">
           <Field>
             <Label htmlFor="offer_hash" className="block text-sm font-medium text-gray-700">
-              Offer Hash <span className="text-red-500">*</span>
+              Order Hash <span className="text-red-500">*</span>
             </Label>
             <Textarea
               id="offer_hash"
