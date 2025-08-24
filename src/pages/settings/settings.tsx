@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaChevronRight } from "react-icons/fa";
+import { FiHelpCircle } from "react-icons/fi";
 import { Button } from "@/components/button";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
@@ -31,6 +32,7 @@ const CONSTANTS = {
     SECURITY: "/settings/security",
     RESET_WALLET: "/reset-wallet",
     PINNED_ASSETS: "/settings/pinned-assets",
+    HELP_URL: "https://youtube.com", // Placeholder for now
   } as const,
   EXTERNAL_LINKS: {
     TERMS: "https://www.xcp.io/terms",
@@ -58,11 +60,16 @@ export default function Settings(): ReactElement {
   const { setHeaderProps } = useHeader();
   const { activeWallet } = useWallet();
 
-  // Configure header
+  // Configure header with help button
   useEffect(() => {
     setHeaderProps({
       title: "Settings",
       onBack: () => navigate(CONSTANTS.PATHS.BACK),
+      rightButton: {
+        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        onClick: () => window.open(CONSTANTS.PATHS.HELP_URL, "_blank"),
+        ariaLabel: "Help",
+      },
     });
   }, [setHeaderProps, navigate]);
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiX, FiGlobe } from "react-icons/fi";
+import { FiX, FiGlobe, FiHelpCircle } from "react-icons/fi";
 import { FaSync } from "react-icons/fa";
 import { Button } from "@/components/button";
 import { useHeader } from "@/contexts/header-context";
@@ -16,6 +16,7 @@ import type { ReactElement } from "react";
 const CONSTANTS = {
   PATHS: {
     BACK: "/settings",
+    HELP_URL: "https://youtube.com", // Placeholder for now
   } as const,
 } as const;
 
@@ -110,7 +111,7 @@ export default function ConnectedSites(): ReactElement {
   }, [connectedSites, loadConnections]);
 
 
-  // Configure header with reset button when sites exist
+  // Configure header with reset button when sites exist, help button otherwise
   useEffect(() => {
     setHeaderProps({
       title: "Connected Sites",
@@ -119,7 +120,11 @@ export default function ConnectedSites(): ReactElement {
         icon: <FaSync aria-hidden="true" />,
         onClick: handleDisconnectAll,
         ariaLabel: "Disconnect all sites",
-      } : undefined,
+      } : {
+        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        onClick: () => window.open(CONSTANTS.PATHS.HELP_URL, "_blank"),
+        ariaLabel: "Help",
+      },
     });
   }, [setHeaderProps, navigate, connectedSites.length, handleDisconnectAll]);
 

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSearch, FaTimes } from "react-icons/fa";
+import { FiHelpCircle } from "react-icons/fi";
 import { TbPinned, TbPinnedFilled } from "react-icons/tb";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { Button } from "@/components/button";
@@ -19,6 +20,7 @@ import type { ReactElement } from "react";
 const CONSTANTS = {
   PATHS: {
     BACK: -1,
+    HELP_URL: "https://youtube.com", // Placeholder for now
   } as const,
 };
 
@@ -42,11 +44,16 @@ export default function PinnedAssetsSettings(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
 
-  // Configure header
+  // Configure header with help button
   useEffect(() => {
     setHeaderProps({
       title: "Pinned Assets",
       onBack: () => navigate(CONSTANTS.PATHS.BACK),
+      rightButton: {
+        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        onClick: () => window.open(CONSTANTS.PATHS.HELP_URL, "_blank"),
+        ariaLabel: "Help",
+      },
     });
   }, [setHeaderProps, navigate]);
 
