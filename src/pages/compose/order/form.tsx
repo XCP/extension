@@ -13,7 +13,7 @@ import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-in
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import type { OrderOptions } from "@/utils/blockchain/counterparty";
-import { toBigNumber } from "@/utils/numeric";
+import { toBigNumber, toSatoshis } from "@/utils/numeric";
 import { formatAmount } from "@/utils/format";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { HeaderSkeleton } from "@/components/skeleton";
@@ -199,21 +199,34 @@ export function OrderForm({
           )}
           <form action={(formData) => {
             // Calculate give_quantity and get_quantity based on amount, price, and order type
-            const amountValue = parseFloat(amount) || 0;
-            const priceValue = parseFloat(price) || 0;
+            // Using BigNumber to avoid floating-point precision issues
+            const amountBN = toBigNumber(amount);
+            const priceBN = toBigNumber(price);
             
-            if (amountValue > 0 && priceValue > 0) {
+            if (amountBN.isGreaterThan(0) && priceBN.isGreaterThan(0)) {
               if (isBuy) {
                 // Buying: give quote asset, get base asset
-                const giveQty = amountValue * priceValue;
-                formData.set('give_quantity', (giveQty * 1e8).toFixed(0)); // Convert to satoshis
-                formData.set('get_quantity', (amountValue * 1e8).toFixed(0)); // Convert to satoshis
+                // give_quantity = amount * price (in quote asset)
+                // get_quantity = amount (in base asset)
+                const giveQty = amountBN.multipliedBy(priceBN);
+                const getQty = amountBN;
+                
+                formData.set('give_quantity', toSatoshis(giveQty));
+                formData.set('get_quantity', toSatoshis(getQty));
               } else {
-                // Selling: give base asset, get quote asset  
-                const getQty = amountValue * priceValue;
-                formData.set('give_quantity', (amountValue * 1e8).toFixed(0)); // Convert to satoshis
-                formData.set('get_quantity', (getQty * 1e8).toFixed(0)); // Convert to satoshis
+                // Selling: give base asset, get quote asset
+                // give_quantity = amount (in base asset)
+                // get_quantity = amount * price (in quote asset)
+                const giveQty = amountBN;
+                const getQty = amountBN.multipliedBy(priceBN);
+                
+                formData.set('give_quantity', toSatoshis(giveQty));
+                formData.set('get_quantity', toSatoshis(getQty));
               }
+            } else {
+              // If amount or price is 0 or invalid, set quantities to 0
+              formData.set('give_quantity', '0');
+              formData.set('get_quantity', '0');
             }
             
             formAction(formData);
