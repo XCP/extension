@@ -40,7 +40,7 @@ export default function ConnectedSites(): ReactElement {
   const [connectedSites, setConnectedSites] = useState<ConnectedSite[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadConnections = async () => {
+  const loadConnections = useCallback(async () => {
     try {
       setLoading(true);
       console.log('Loading connected sites from settings...');
@@ -59,7 +59,7 @@ export default function ConnectedSites(): ReactElement {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   /**
    * Disconnects a site.
@@ -93,13 +93,13 @@ export default function ConnectedSites(): ReactElement {
       
       // Call provider service for each site in background
       const providerService = getProviderService();
-      Promise.all(
-        sitesToDisconnect.map(site => 
-          providerService.disconnect(site.origin).catch(err => 
-            console.error(`Failed to disconnect ${site.origin}:`, err)
-          )
-        )
-      ).catch(() => {
+      const disconnectPromises = sitesToDisconnect.map(site => 
+        providerService.disconnect(site.origin).catch(err => {
+          console.error(`Failed to disconnect ${site.origin}:`, err);
+        })
+      );
+      
+      Promise.all(disconnectPromises).catch(() => {
         // If something went wrong, reload to ensure UI is in sync
         loadConnections();
       });
@@ -107,7 +107,7 @@ export default function ConnectedSites(): ReactElement {
       console.error('Failed to disconnect all sites:', error);
       loadConnections(); // Reload on error
     }
-  }, [connectedSites]);
+  }, [connectedSites, loadConnections]);
 
 
   // Configure header with reset button when sites exist
@@ -126,7 +126,7 @@ export default function ConnectedSites(): ReactElement {
   // Load connections on mount
   useEffect(() => {
     loadConnections();
-  }, []);
+  }, [loadConnections]);
 
   if (loading) {
     return (
