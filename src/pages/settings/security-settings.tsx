@@ -134,7 +134,7 @@ export default function SecuritySettings(): ReactElement {
             </div>
           )}
           
-          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-6">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm space-y-6">
             <Field>
               <Label className="font-bold text-gray-700">Current Password</Label>
               <Input
