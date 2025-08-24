@@ -164,10 +164,10 @@ export default function Index(): ReactElement {
         <div className="flex items-center space-x-2">
           <button
             onClick={() => navigate(CONSTANTS.PATHS.PINNED_ASSETS)}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+            className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
             aria-label="Manage Pinned Assets"
           >
-            <TbPinned className="w-4 h-4 text-gray-600" aria-hidden="true" />
+            <TbPinned className="w-5 h-5 text-gray-600" aria-hidden="true" />
           </button>
           {!isTabView && (
             <button
