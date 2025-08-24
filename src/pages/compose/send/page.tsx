@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { SendForm } from "./form";
 import { ReviewSend } from "./review";
 import { Composer } from "@/components/composer";
-import { composeSend, composeMPMA } from "@/utils/blockchain/counterparty";
+import { composeSend, composeMPMA, isHexMemo, stripHexPrefix } from "@/utils/blockchain/counterparty";
 import type { SendOptions, MPMAOptions, ApiResponse } from "@/utils/blockchain/counterparty";
 
 interface ExtendedSendOptions extends SendOptions {
@@ -14,6 +14,15 @@ export function ComposeSend() {
 
   // Wrapper function that determines which compose function to use
   const composeTransaction = async (data: ExtendedSendOptions): Promise<ApiResponse> => {
+    // Auto-detect hex memo and process it
+    let processedMemo = data.memo;
+    let memoIsHex = false;
+    
+    if (data.memo && isHexMemo(data.memo)) {
+      processedMemo = stripHexPrefix(data.memo);
+      memoIsHex = true;
+    }
+    
     // Check if we have multiple destinations (MPMA)
     if (data.destinations && data.destinations.includes(',')) {
       // Parse multiple destinations
@@ -26,9 +35,9 @@ export function ComposeSend() {
         destinations: destArray,
         quantities: destArray.map(() => data.quantity.toString()), // Same quantity for all
         sat_per_vbyte: data.sat_per_vbyte,
-        ...(data.memo && { 
-          memos: destArray.map(() => data.memo as string),
-          memos_are_hex: destArray.map(() => data.memo_is_hex || false)
+        ...(processedMemo && { 
+          memos: destArray.map(() => processedMemo as string),
+          memos_are_hex: destArray.map(() => memoIsHex)
         })
       };
       
@@ -38,8 +47,15 @@ export function ComposeSend() {
       response.result.name = 'mpma';
       return response;
     } else {
-      // Single destination - use regular send
-      const response = await composeSend(data);
+      // Single destination - use regular send with processed memo
+      const sendOptions = {
+        ...data,
+        ...(processedMemo && { 
+          memo: processedMemo,
+          memo_is_hex: memoIsHex
+        })
+      };
+      const response = await composeSend(sendOptions);
       response.result.name = 'send';
       return response;
     }
