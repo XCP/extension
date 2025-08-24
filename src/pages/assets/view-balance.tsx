@@ -112,16 +112,16 @@ export default function ViewBalance(): ReactElement {
             path: `${CONSTANTS.PATHS.COMPOSE}/send/${asset}`,
           },
           {
-            id: "dispenser",
-            name: "Dispenser",
-            description: "Create a new dispenser for this asset",
-            path: `${CONSTANTS.PATHS.COMPOSE}/dispenser/${asset}`,
-          },
-          {
             id: "order",
             name: "DEX Order",
             description: "Create a new order on the DEX",
             path: `${CONSTANTS.PATHS.COMPOSE}/order/${asset}`,
+          },
+          {
+            id: "dispenser",
+            name: "Dispenser",
+            description: "Create a new dispenser for this asset",
+            path: `${CONSTANTS.PATHS.COMPOSE}/dispenser/${asset}`,
           },
           {
             id: "attach",
@@ -146,16 +146,16 @@ export default function ViewBalance(): ReactElement {
             path: `${CONSTANTS.PATHS.COMPOSE}/send/${asset}`,
           },
           {
-            id: "dispenser",
-            name: "Dispenser",
-            description: "Create a new dispenser for this asset",
-            path: `${CONSTANTS.PATHS.COMPOSE}/dispenser/${asset}`,
-          },
-          {
             id: "order",
             name: "DEX Order",
             description: "Create a new order on the DEX",
             path: `${CONSTANTS.PATHS.COMPOSE}/order/${asset}`,
+          },
+          {
+            id: "dispenser",
+            name: "Dispenser",
+            description: "Create a new dispenser for this asset",
+            path: `${CONSTANTS.PATHS.COMPOSE}/dispenser/${asset}`,
           },
           {
             id: "attach",
