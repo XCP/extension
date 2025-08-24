@@ -275,8 +275,10 @@ describe('Compose Specialized Operations', () => {
 
       const actualCall = mockedAxios.get.mock.calls[0];
       const url = actualCall[0] as string;
-      expect(url).toContain('memos=memo1%2Cmemo2');
-      expect(url).toContain('memos_are_hex=false%2Cfalse');
+      expect(url).toContain('memos[]=memo1');
+      expect(url).toContain('memos[]=memo2');
+      expect(url).toContain('memos_are_hex[]=');
+      expect(url).toContain('memos_are_hex[]=');
     });
 
     it('should handle different message data', async () => {
