@@ -219,6 +219,55 @@ async function getApiBase() {
   return settings.counterpartyApiBase;
 }
 
+// Helper function for endpoints that need array parameters
+async function composeTransactionWithArrays<T>(
+  endpoint: string,
+  paramsObj: T,
+  arrayParams: { [key: string]: any[] | undefined },
+  sourceAddress: string,
+  sat_per_vbyte: number,
+  encoding?: string
+): Promise<ApiResponse> {
+  const base = await getApiBase();
+  const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
+  
+  // Get user's unconfirmed transaction preference
+  const settings = await getKeychainSettings();
+  
+  const params = new URLSearchParams({
+    ...paramsObj as any,
+    sat_per_vbyte: sat_per_vbyte.toString(),
+    exclude_utxos_with_balances: 'true',
+    allow_unconfirmed_inputs: settings.allowUnconfirmedTxs.toString(),
+    disable_utxo_locks: 'true',
+    verbose: 'true',
+    ...(encoding && { encoding }),
+  });
+  
+  // Build URL with array notation for array params
+  let url = `${apiUrl}?${params.toString()}`;
+  
+  for (const [key, values] of Object.entries(arrayParams)) {
+    if (values && Array.isArray(values)) {
+      for (const value of values) {
+        url += `&${key}[]=${encodeURIComponent(value || '')}`;
+      }
+    }
+  }
+  
+  try {
+    const response = await axios.get<ApiResponse>(url, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error);
+    }
+    throw error;
+  }
+}
+
 export async function composeTransaction<T>(
   endpoint: string,
   paramsObj: T,
@@ -508,12 +557,25 @@ export async function composeMPMA(options: MPMAOptions): Promise<ApiResponse> {
   ) {
     throw new Error('Assets, destinations, and quantities must be arrays of the same length.');
   }
+  
+  // Special handling for memos - need to use array notation in URL
+  if (memos && memos.length > 0) {
+    return composeTransactionWithArrays('mpma', {
+      assets: assets.join(','),
+      destinations: destinations.join(','),
+      quantities: quantities.join(','),
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    }, {
+      memos,
+      memos_are_hex
+    }, sourceAddress, sat_per_vbyte, encoding);
+  }
+  
+  // No memos - use regular approach
   const paramsObj = {
     assets: assets.join(','),
     destinations: destinations.join(','),
     quantities: quantities.join(','),
-    ...(memos && memos.length > 0 && { memos: memos.join(',') }),
-    ...(memos_are_hex && memos_are_hex.length > 0 && { memos_are_hex: memos_are_hex.join(',') }),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('mpma', paramsObj, sourceAddress, sat_per_vbyte, encoding);

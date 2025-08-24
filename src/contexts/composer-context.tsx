@@ -113,7 +113,8 @@ export function ComposerProvider<T>({
           console.error("Compose error:", err);
           let errorMessage = "An error occurred while composing the transaction.";
           if (axios.isAxiosError(err) && err.response?.data?.error) {
-            errorMessage = err.response.data.error.replace(/\[|\]|'/g, ""); // Clean up error message
+            // Pass the API error message directly to the user
+            errorMessage = err.response.data.error;
           } else if (err instanceof Error) {
             errorMessage = err.message;
           }

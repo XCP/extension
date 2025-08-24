@@ -18,7 +18,7 @@ test.describe('Sign Message', () => {
     
     // Wait for actions page to fully load
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('text=Basic Actions')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('text=Tools')).toBeVisible({ timeout: 15000 });
     
     // Click on Sign Message with retry
     await page.click('text=Sign Message');

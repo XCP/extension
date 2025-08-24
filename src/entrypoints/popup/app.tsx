@@ -62,6 +62,7 @@ import ComposeIssuanceUpdateDescription from '@/pages/compose/issuance/update-de
 import ComposeFairminter from '@/pages/compose/fairminter/page';
 import ComposeFairmint from '@/pages/compose/fairminter/fairmint/page';
 import ComposeSend from '@/pages/compose/send/page';
+import ComposeMPMA from '@/pages/compose/send/mpma/page';
 import ComposeSweep from '@/pages/compose/sweep/page';
 import ComposeUtxoAttach from '@/pages/compose/utxo/attach/page';
 import ComposeUtxoDetach from '@/pages/compose/utxo/detach/page';
@@ -177,6 +178,7 @@ export default function App() {
             <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptions />} />
             <Route path="/compose/btcpay" element={<ComposeBTCPay />} />
             <Route path="/compose/cancel/:hash?" element={<ComposeCancel />} />
+            <Route path="/compose/send/mpma" element={<ComposeMPMA />} />
             <Route path="/compose/send/:asset" element={<ComposeSend />} />
             <Route path="/compose/sweep/:address?" element={<ComposeSweep />} />
             <Route path="/compose/destroy/:asset" element={<ComposeDestroy />} />

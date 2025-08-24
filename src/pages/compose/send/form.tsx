@@ -10,6 +10,7 @@ import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { DestinationInput } from "@/components/inputs/destination-input";
 import { DestinationsInput } from "@/components/inputs/destinations-input";
+import { MemoInput } from "@/components/inputs/memo-input";
 import { ErrorAlert } from "@/components/error-alert";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
@@ -56,6 +57,10 @@ export function SendForm({
     { id: Date.now(), address: initialFormData?.destination || "" }
   ]);
   const [destinationsValid, setDestinationsValid] = useState(false);
+  
+  // Memo state and validation
+  const [memo, setMemo] = useState(initialFormData?.memo || "");
+  const [memoValid, setMemoValid] = useState(true);
 
   // Set composer error when it occurs
   useEffect(() => {
@@ -124,6 +129,11 @@ export function SendForm({
       formData.set("destination", destinations[0].address);
     }
     
+    // Add memo to form data
+    if (memo) {
+      formData.set("memo", memo);
+    }
+    
     formAction(formData);
   };
 
@@ -143,7 +153,7 @@ export function SendForm({
     return !isNaN(intAmount) && intAmount > 0 && intAmount.toString() === amount.trim();
   };
 
-  const isSubmitDisabled = pending || !isAmountValid() || !destinationsValid;
+  const isSubmitDisabled = pending || !isAmountValid() || !destinationsValid || !memoValid;
 
   return (
     <div className="space-y-4">
@@ -195,27 +205,23 @@ export function SendForm({
             name="quantity"
             description={
               isDivisible
-                ? "Enter the amount to send (up to 8 decimal places)."
+                ? "Enter the amount to send."
                 : "Enter a whole number amount."
             }
             disabled={pending}
+            destinationCount={destinations.length}
+            destination={destinations.length === 1 ? destinations[0].address : undefined}
+            memo={memo}
           />
 
           {(initialAsset || initialFormData?.asset) !== "BTC" && (
-            <Field>
-              <Label className="text-sm font-medium text-gray-700">Memo</Label>
-              <Input
-                type="text"
-                name="memo"
-                defaultValue={initialFormData?.memo || ""}
-                placeholder="Optional memo"
-                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-                disabled={pending}
-              />
-              <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                Optional memo to include with the transaction.
-              </Description>
-            </Field>
+            <MemoInput
+              value={memo}
+              onChange={setMemo}
+              onValidationChange={setMemoValid}
+              disabled={pending}
+              showHelpText={shouldShowHelpText}
+            />
           )}
 
           <FeeRateInput

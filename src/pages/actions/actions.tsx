@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { FaChevronRight } from "react-icons/fa";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { useSettings } from "@/contexts/settings-context";
 import { AddressType } from "@/utils/blockchain/bitcoin";
 import type { ReactElement } from "react";
 
@@ -33,7 +34,7 @@ const PATHS = {
   BACK: "/index",
 } as const;
 
-const getActionGroups = (isTaprootWallet: boolean): ActionGroup[] => {
+const getActionGroups = (isTaprootWallet: boolean, enableMPMA: boolean): ActionGroup[] => {
   const addressActions: Action[] = [
     {
       id: "compose-broadcast",
@@ -74,23 +75,36 @@ const getActionGroups = (isTaprootWallet: boolean): ActionGroup[] => {
     }
   );
 
+  // Build Tools section actions
+  const toolsActions: Action[] = [
+    {
+      id: "sign-message",
+      name: "Sign Message",
+      description: "Sign a message with your address",
+      path: "/actions/sign-message",
+    },
+    {
+      id: "verify-message",
+      name: "Verify Message",
+      description: "Verify a signed message",
+      path: "/actions/verify-message",
+    },
+  ];
+  
+  // Add Upload MPMA if enabled
+  if (enableMPMA) {
+    toolsActions.push({
+      id: "upload-mpma",
+      name: "Upload MPMA",
+      description: "Multi-Party Multi-Asset transaction",
+      path: "/compose/send/mpma",
+    });
+  }
+
   return [
     {
-      title: "Basic Actions",
-      actions: [
-        {
-          id: "sign-message",
-          name: "Sign Message",
-          description: "Sign a message with your address",
-          path: "/actions/sign-message",
-        },
-        {
-          id: "verify-message",
-          name: "Verify Message",
-          description: "Verify a signed message",
-          path: "/actions/verify-message",
-        },
-      ],
+      title: "Tools",
+      actions: toolsActions,
     },
     {
       title: "Assets",
@@ -173,12 +187,16 @@ export default function ActionsScreen(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeWallet } = useWallet();
+  const { settings } = useSettings();
   
   // Check if active wallet uses taproot addresses
   const isTaprootWallet = activeWallet?.addressType === AddressType.P2TR;
+  
+  // Check if MPMA is enabled
+  const enableMPMA = settings?.enableMPMA ?? false;
 
-  // Get dynamic action groups based on wallet type
-  const actionGroups = getActionGroups(isTaprootWallet);
+  // Get dynamic action groups based on wallet type and settings
+  const actionGroups = getActionGroups(isTaprootWallet, enableMPMA);
 
   // Configure header
   useEffect(() => {
