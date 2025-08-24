@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCheck } from "react-icons/fa";
 import { RadioGroup } from "@headlessui/react";
@@ -42,12 +42,24 @@ export default function AddressTypeSettings(): ReactElement {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<AddressType | null>(null);
+  const originalAddressType = useRef<AddressType | null>(null);
+  const hasChangedType = useRef(false);
 
-  // Configure header
+  // Configure header with dynamic back navigation
   useEffect(() => {
+    const handleBack = () => {
+      // If address type was changed, go to index
+      if (hasChangedType.current) {
+        navigate("/index");
+      } else {
+        // Otherwise go back to settings
+        navigate(CONSTANTS.PATHS.BACK);
+      }
+    };
+    
     setHeaderProps({
       title: "Address Type",
-      onBack: () => navigate(CONSTANTS.PATHS.BACK),
+      onBack: handleBack,
     });
   }, [setHeaderProps, navigate]);
 
@@ -84,9 +96,15 @@ export default function AddressTypeSettings(): ReactElement {
     fetchAddresses();
   }, [activeWallet, getPreviewAddressForType]);
 
-  // Sync selected type with active wallet
+  // Sync selected type with active wallet and store original
   useEffect(() => {
-    if (activeWallet) setSelectedType(activeWallet.addressType);
+    if (activeWallet) {
+      setSelectedType(activeWallet.addressType);
+      // Store the original address type on mount
+      if (originalAddressType.current === null) {
+        originalAddressType.current = activeWallet.addressType;
+      }
+    }
   }, [activeWallet]);
 
   /**
@@ -96,6 +114,12 @@ export default function AddressTypeSettings(): ReactElement {
   const handleAddressTypeChange = async (newType: AddressType) => {
     if (!activeWallet) return;
 
+    // Update selected type immediately for instant UI response
+    setSelectedType(newType);
+    
+    // Track that a change has been made
+    hasChangedType.current = newType !== originalAddressType.current;
+
     try {
       await updateWalletAddressType(activeWallet.id, newType);
       const previewAddress = await getPreviewAddressForType(activeWallet.id, newType);
@@ -104,6 +128,9 @@ export default function AddressTypeSettings(): ReactElement {
     } catch (err) {
       console.error("Error updating address type:", err);
       setError(err instanceof Error ? err.message : "Failed to update address type");
+      // Revert selection on error
+      setSelectedType(activeWallet.addressType);
+      hasChangedType.current = activeWallet.addressType !== originalAddressType.current;
     }
   };
 
