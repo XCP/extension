@@ -11,8 +11,8 @@ import {
   FaHistory,
   FaExternalLinkAlt,
   FaLock,
-  FaCog,
 } from "react-icons/fa";
+import { TbPinned } from "react-icons/tb";
 import { RadioGroup } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { AssetList } from "@/components/lists/asset-list";
@@ -167,7 +167,7 @@ export default function Index(): ReactElement {
             className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
             aria-label="Manage Pinned Assets"
           >
-            <FaCog className="w-4 h-4 text-gray-600" aria-hidden="true" />
+            <TbPinned className="w-4 h-4 text-gray-600" aria-hidden="true" />
           </button>
           {!isTabView && (
             <button
