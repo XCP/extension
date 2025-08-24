@@ -57,6 +57,8 @@ export function OrderForm({
   const [price, setPrice] = useState<string>("");
   const [error, setError] = useState<{ message: string; } | null>(null);
   const [customExpiration, setCustomExpiration] = useState<number | undefined>(undefined);
+  const [customFeeRequired, setCustomFeeRequired] = useState<number>(0);
+  const [quoteAsset, setQuoteAsset] = useState<string>(initialFormData?.get_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
   
   // Set composer error when it occurs
   useEffect(() => {
@@ -66,8 +68,8 @@ export function OrderForm({
   }, [composerError]);
   
   const { data: giveAssetDetails } = useAssetDetails(giveAsset);
-  const { data: orderAssetDetails } = useAssetDetails(initialFormData?.get_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
-  const { data: getAssetDetails } = useAssetDetails(activeTab === "buy" ? giveAsset : initialFormData?.get_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
+  const { data: orderAssetDetails } = useAssetDetails(quoteAsset);
+  const { data: getAssetDetails } = useAssetDetails(activeTab === "buy" ? giveAsset : quoteAsset);
 
   const [tabLoading, setTabLoading] = useState(false);
   const [isPairFlipped, setIsPairFlipped] = useState(false);
@@ -90,11 +92,11 @@ export function OrderForm({
   // Fetch trading pair data
   useEffect(() => {
     const fetchTradingPairData = async () => {
-      if (!giveAsset || !initialFormData?.get_asset) return;
+      if (!giveAsset || !quoteAsset) return;
 
       try {
-        const give = activeTab === "buy" ? initialFormData?.get_asset : giveAsset;
-        const get = activeTab === "buy" ? giveAsset : initialFormData?.get_asset;
+        const give = activeTab === "buy" ? quoteAsset : giveAsset;
+        const get = activeTab === "buy" ? giveAsset : quoteAsset;
         const response = await axios.get(`https://app.xcp.io/api/v1/swap/${give}/${get}`);
         const lastTradePrice = response.data?.data?.trading_pair?.last_trade_price || null;
         const tradingPairName = response.data?.data?.trading_pair?.name || "";
@@ -106,7 +108,7 @@ export function OrderForm({
     };
 
     fetchTradingPairData();
-  }, [giveAsset, initialFormData?.get_asset, activeTab]);
+  }, [giveAsset, quoteAsset, activeTab]);
 
   const handleTabChange = (newTab: "buy" | "sell" | "settings") => {
     if (newTab !== "settings") {
@@ -181,6 +183,9 @@ export function OrderForm({
         <OrderSettings 
           customExpiration={customExpiration}
           onExpirationChange={setCustomExpiration}
+          customFeeRequired={customFeeRequired}
+          onFeeRequiredChange={setCustomFeeRequired}
+          isBuyingBTC={previousTab === "buy" && giveAsset === "BTC"}
         />
       ) : (
         <div className="bg-white rounded-lg shadow-lg p-4">
@@ -192,9 +197,12 @@ export function OrderForm({
           )}
           <form action={formAction} className="space-y-4">
             <input type="hidden" name="type" value={activeTab} />
-            <input type="hidden" name="give_asset" value={isBuy ? (initialFormData?.get_asset || (giveAsset === "XCP" ? "BTC" : "XCP")) : giveAsset} />
-            <input type="hidden" name="get_asset" value={isBuy ? giveAsset : (initialFormData?.get_asset || (giveAsset === "XCP" ? "BTC" : "XCP"))} />
+            <input type="hidden" name="give_asset" value={isBuy ? quoteAsset : giveAsset} />
+            <input type="hidden" name="get_asset" value={isBuy ? giveAsset : quoteAsset} />
             <input type="hidden" name="expiration" value={customExpiration || settings?.defaultOrderExpiration || 8064} />
+            {isBuy && giveAsset === "BTC" && (
+              <input type="hidden" name="fee_required" value={customFeeRequired} />
+            )}
             <AmountWithMaxInput
               asset={giveAsset}
               availableBalance={isBuy ? "" : availableBalance}
@@ -216,8 +224,8 @@ export function OrderForm({
               disabled={pending}
             />
             <AssetSelectInput
-              selectedAsset={initialFormData?.get_asset || (giveAsset === "XCP" ? "BTC" : "XCP")}
-              onChange={() => {}} // No-op since formAction handles submission
+              selectedAsset={quoteAsset}
+              onChange={setQuoteAsset}
               label="Quote"
               shouldShowHelpText={shouldShowHelpText}
             />
@@ -228,7 +236,7 @@ export function OrderForm({
               shouldShowHelpText={shouldShowHelpText}
               label="Price"
               name="price"
-              priceDescription={`Price per unit in ${initialFormData?.get_asset || (giveAsset === "XCP" ? "BTC" : "XCP")}`}
+              priceDescription={`Price per unit in ${quoteAsset}`}
               showPairFlip={true}
               isPairFlipped={isPairFlipped}
               setIsPairFlipped={setIsPairFlipped}

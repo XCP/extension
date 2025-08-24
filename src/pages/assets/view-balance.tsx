@@ -79,6 +79,12 @@ export default function ViewBalance(): ReactElement {
             path: `${CONSTANTS.PATHS.COMPOSE}/send/BTC`,
           },
           {
+            id: "order",
+            name: "DEX Order",
+            description: "Create a new order on the DEX",
+            path: `${CONSTANTS.PATHS.COMPOSE}/order/BTC`,
+          },
+          {
             id: "btcpay",
             name: "BTCPay",
             description: "Pay for an order match with BTC",
