@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCheck } from "react-icons/fa";
+import { FiHelpCircle } from "react-icons/fi";
 import { RadioGroup } from "@headlessui/react";
 import { ErrorAlert } from "@/components/error-alert";
+import { Spinner } from "@/components/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressType } from "@/utils/blockchain/bitcoin";
@@ -17,6 +19,7 @@ import type { ReactElement } from "react";
 const CONSTANTS = {
   PATHS: {
     BACK: "/settings",
+    HELP_URL: "https://youtube.com", // Placeholder for now
   } as const,
   AVAILABLE_ADDRESS_TYPES: Object.values(AddressType),
 } as const;
@@ -39,15 +42,33 @@ export default function AddressTypeSettings(): ReactElement {
   const { setHeaderProps } = useHeader();
   const { activeWallet, updateWalletAddressType, getPreviewAddressForType } = useWallet();
   const [addresses, setAddresses] = useState<{ [key: string]: string }>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<AddressType | null>(null);
+  const originalAddressType = useRef<AddressType | null>(null);
+  const hasChangedType = useRef(false);
+  const isChanging = useRef(false);
 
-  // Configure header
+  // Configure header with dynamic back navigation and help button
   useEffect(() => {
+    const handleBack = () => {
+      // If address type was changed, go to index
+      if (hasChangedType.current) {
+        navigate("/index");
+      } else {
+        // Otherwise go back to settings
+        navigate(CONSTANTS.PATHS.BACK);
+      }
+    };
+    
     setHeaderProps({
       title: "Address Type",
-      onBack: () => navigate(CONSTANTS.PATHS.BACK),
+      onBack: handleBack,
+      rightButton: {
+        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        onClick: () => window.open(CONSTANTS.PATHS.HELP_URL, "_blank"),
+        ariaLabel: "Help",
+      },
     });
   }, [setHeaderProps, navigate]);
 
@@ -55,11 +76,15 @@ export default function AddressTypeSettings(): ReactElement {
   useEffect(() => {
     const fetchAddresses = async () => {
       if (!activeWallet) {
-        setIsLoading(false);
+        setIsInitialLoading(false);
         return;
       }
 
-      setIsLoading(true);
+      // Only show loading on initial mount, not when wallet changes due to address type update
+      if (!isChanging.current) {
+        setIsInitialLoading(true);
+      }
+      
       try {
         const addressMap: { [key: string]: string } = {};
         for (const type of CONSTANTS.AVAILABLE_ADDRESS_TYPES) {
@@ -77,16 +102,23 @@ export default function AddressTypeSettings(): ReactElement {
         console.error("Error fetching addresses:", err);
         setError(err instanceof Error ? err.message : "Failed to fetch addresses");
       } finally {
-        setIsLoading(false);
+        setIsInitialLoading(false);
+        isChanging.current = false;
       }
     };
 
     fetchAddresses();
   }, [activeWallet, getPreviewAddressForType]);
 
-  // Sync selected type with active wallet
+  // Sync selected type with active wallet and store original
   useEffect(() => {
-    if (activeWallet) setSelectedType(activeWallet.addressType);
+    if (activeWallet) {
+      setSelectedType(activeWallet.addressType);
+      // Store the original address type on mount
+      if (originalAddressType.current === null) {
+        originalAddressType.current = activeWallet.addressType;
+      }
+    }
   }, [activeWallet]);
 
   /**
@@ -94,7 +126,16 @@ export default function AddressTypeSettings(): ReactElement {
    * @param newType - The new address type to set.
    */
   const handleAddressTypeChange = async (newType: AddressType) => {
-    if (!activeWallet) return;
+    if (!activeWallet || isChanging.current) return;
+
+    // Update selected type immediately for instant UI response
+    setSelectedType(newType);
+    
+    // Track that a change has been made
+    hasChangedType.current = newType !== originalAddressType.current;
+    
+    // Set flag to prevent loading state during the update
+    isChanging.current = true;
 
     try {
       await updateWalletAddressType(activeWallet.id, newType);
@@ -104,6 +145,10 @@ export default function AddressTypeSettings(): ReactElement {
     } catch (err) {
       console.error("Error updating address type:", err);
       setError(err instanceof Error ? err.message : "Failed to update address type");
+      // Revert selection on error
+      setSelectedType(activeWallet.addressType);
+      hasChangedType.current = activeWallet.addressType !== originalAddressType.current;
+      isChanging.current = false;
     }
   };
 
@@ -129,8 +174,14 @@ export default function AddressTypeSettings(): ReactElement {
     }
   };
 
-  if (isLoading) return <div className="p-4 text-center text-gray-500">Loading...</div>;
-  if (error) return <ErrorAlert message={error} onClose={() => setError(null)} />;
+  if (isInitialLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Spinner />
+      </div>
+    );
+  }
+  
   if (!activeWallet) {
     return <div className="p-4 text-center text-gray-500">No wallet available</div>;
   }
@@ -140,6 +191,7 @@ export default function AddressTypeSettings(): ReactElement {
       <h2 id="address-type-settings-title" className="sr-only">
         Address Type Settings
       </h2>
+      {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
       <RadioGroup
         value={selectedType}
         onChange={handleAddressTypeChange}
