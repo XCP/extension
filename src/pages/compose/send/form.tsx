@@ -209,6 +209,9 @@ export function SendForm({
                 : "Enter a whole number amount."
             }
             disabled={pending}
+            destinationCount={destinations.length}
+            destination={destinations.length === 1 ? destinations[0].address : undefined}
+            memo={memo}
           />
 
           {(initialAsset || initialFormData?.asset) !== "BTC" && (
