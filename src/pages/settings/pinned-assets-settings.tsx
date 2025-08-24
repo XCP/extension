@@ -235,7 +235,7 @@ export default function PinnedAssetsSettings(): ReactElement {
       <div className="h-full flex flex-col">
         {pinnedAssets.length > 0 ? (
           <>
-            <h3 className="text-lg font-semibold mb-2">Pinned Assets</h3>
+            <h3 className="text-lg font-semibold mb-2">Pinned</h3>
             {showHelpText && (
               <p className="text-sm text-gray-500 mb-2">
                 Pin up to 10 assets to the top of your main screen. Drag to reorder.

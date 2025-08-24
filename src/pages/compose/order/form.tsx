@@ -53,6 +53,7 @@ export function OrderForm({
   const { pending } = useFormStatus();
 
   const [activeTab, setActiveTab] = useState<"buy" | "sell" | "settings">(initialFormData?.give_quantity ? "sell" : "buy");
+  const [previousTab, setPreviousTab] = useState<"buy" | "sell">(initialFormData?.give_quantity ? "sell" : "buy");
   const [price, setPrice] = useState<string>("");
   const [error, setError] = useState<{ message: string; } | null>(null);
   const [customExpiration, setCustomExpiration] = useState<number | undefined>(undefined);
@@ -111,6 +112,7 @@ export function OrderForm({
     if (newTab !== "settings") {
       setTabLoading(true);
       setTimeout(() => setTabLoading(false), 150);
+      setPreviousTab(newTab); // Remember the last buy/sell tab
     }
     setActiveTab(newTab);
   };
@@ -143,7 +145,7 @@ export function OrderForm({
           <button
             type="button"
             className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none ${
-              activeTab === "buy" ? "underline" : ""
+              activeTab === "buy" || (activeTab === "settings" && previousTab === "buy") ? "underline" : ""
             }`}
             onClick={() => handleTabChange("buy")}
             disabled={pending}
@@ -153,7 +155,7 @@ export function OrderForm({
           <button
             type="button"
             className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none ${
-              activeTab === "sell" ? "underline" : ""
+              activeTab === "sell" || (activeTab === "settings" && previousTab === "sell") ? "underline" : ""
             }`}
             onClick={() => handleTabChange("sell")}
             disabled={pending}
@@ -166,11 +168,11 @@ export function OrderForm({
           className={`p-2 hover:bg-gray-100 rounded-full transition-colors ${
             activeTab === "settings" ? "bg-gray-100" : ""
           }`}
-          onClick={() => handleTabChange("settings")}
+          onClick={() => activeTab === "settings" ? handleTabChange(previousTab) : handleTabChange("settings")}
           disabled={pending}
           aria-label="Order Settings"
         >
-          <FaCog className="w-5 h-5 text-gray-600" aria-hidden="true" />
+          <FaCog className="w-4 h-4 text-gray-600" aria-hidden="true" />
         </button>
       </div>
       {tabLoading ? (
