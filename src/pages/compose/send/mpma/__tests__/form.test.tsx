@@ -3,9 +3,21 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MPMAForm } from '../form';
 
-// Mock the fetchAssetDetails function
+// Mock the counterparty functions
 vi.mock('@/utils/blockchain/counterparty', () => ({
-  fetchAssetDetails: vi.fn().mockResolvedValue({ divisible: true })
+  fetchAssetDetails: vi.fn().mockResolvedValue({ divisible: true }),
+  isHexMemo: vi.fn((memo: string) => {
+    if (!memo) return false;
+    const cleanMemo = memo.startsWith('0x') ? memo.slice(2) : memo;
+    return cleanMemo.length % 2 === 0 && /^[0-9a-fA-F]+$/.test(cleanMemo);
+  }),
+  stripHexPrefix: vi.fn((hex: string) => {
+    return hex.startsWith('0x') ? hex.slice(2) : hex;
+  }),
+  isValidMemoLength: vi.fn((memo: string, isHex: boolean) => {
+    const byteLength = isHex ? Math.ceil(memo.length / 2) : new TextEncoder().encode(memo).length;
+    return byteLength <= 34;
+  })
 }));
 
 // Mock the contexts
@@ -45,7 +57,8 @@ describe('MPMAForm', () => {
     render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
-    const csvData = 'bc1qaddress1,XCP,1.5,Test memo\nbc1qaddress2,BTC,0.001';
+    // Use valid Bitcoin addresses
+    const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,Test memo\nbc1q7s0a9l2vwafftqys6f3csm45x90wvxrg2ycp9z,BTC,0.001';
     
     fireEvent.paste(textArea, {
       clipboardData: {
@@ -54,8 +67,8 @@ describe('MPMAForm', () => {
     });
     
     await waitFor(() => {
-      expect(screen.getByText(/bc1qaddress1\.\.\./)).toBeInTheDocument();
-      expect(screen.getByText(/1.5 XCP/)).toBeInTheDocument();
+      // Address shows first 10 chars
+      expect(screen.getByText(/bc1qar0srr\.\.\. → 1.5 XCP/)).toBeInTheDocument();
     });
   });
 
@@ -63,7 +76,7 @@ describe('MPMAForm', () => {
     render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
-    const csvData = 'Address,Asset,Quantity,Memo\nbc1qaddress1,XCP,1.5,Test memo';
+    const csvData = 'Address,Asset,Quantity,Memo\nbc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,Test memo';
     
     fireEvent.paste(textArea, {
       clipboardData: {
@@ -72,7 +85,7 @@ describe('MPMAForm', () => {
     });
     
     await waitFor(() => {
-      expect(screen.getByText(/bc1qaddress1\.\.\./)).toBeInTheDocument();
+      expect(screen.getByText(/bc1qar0srr\.\.\. → 1.5 XCP/)).toBeInTheDocument();
       expect(screen.queryByText(/Address\.\.\./)).not.toBeInTheDocument();
     });
   });
@@ -98,7 +111,7 @@ describe('MPMAForm', () => {
     render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
-    const csvData = 'bc1qaddress1,XCP,invalid';
+    const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,invalid';
     
     fireEvent.paste(textArea, {
       clipboardData: {
@@ -116,7 +129,7 @@ describe('MPMAForm', () => {
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
     const longMemo = 'This is a very long memo that exceeds the 34 byte limit';
-    const csvData = `bc1qaddress1,XCP,1.5,"${longMemo}"`;
+    const csvData = `bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,"${longMemo}"`;
     
     fireEvent.paste(textArea, {
       clipboardData: {
@@ -132,7 +145,7 @@ describe('MPMAForm', () => {
   it('handles file upload', async () => {
     render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
     
-    const file = new File(['bc1qaddress1,XCP,1.5'], 'test.csv', { type: 'text/csv' });
+    const file = new File(['bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5'], 'test.csv', { type: 'text/csv' });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     
     Object.defineProperty(input, 'files', {
@@ -151,7 +164,7 @@ describe('MPMAForm', () => {
     render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
-    const csvData = 'bc1qaddress1,XCP,1.5,Memo1\nbc1qaddress2,BTC,0.001,Memo2';
+    const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,Memo1\nbc1q7s0a9l2vwafftqys6f3csm45x90wvxrg2ycp9z,BTC,0.001,Memo2';
     
     fireEvent.paste(textArea, {
       clipboardData: {
@@ -160,9 +173,9 @@ describe('MPMAForm', () => {
     });
     
     await waitFor(() => {
-      expect(screen.getByText('Preview (first 5)')).toBeInTheDocument();
-      expect(screen.getByText(/bc1qaddress1\.\.\. → 1.5 XCP/)).toBeInTheDocument();
-      expect(screen.getByText(/bc1qaddress2\.\.\. → 0.001 BTC/)).toBeInTheDocument();
+      expect(screen.getByText('Preview (First 5)')).toBeInTheDocument();
+      expect(screen.getByText(/bc1qar0srr\.\.\. → 1.5 XCP/)).toBeInTheDocument();
+      expect(screen.getByText(/bc1q7s0a9l\.\.\. → 0.001 BTC/)).toBeInTheDocument();
     });
   });
 
@@ -170,8 +183,18 @@ describe('MPMAForm', () => {
     render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
-    const rows = Array.from({ length: 7 }, (_, i) => 
-      `bc1qaddress${i},XCP,${i + 1}`
+    // Generate valid addresses - these are example valid bech32 addresses
+    const validAddresses = [
+      'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
+      'bc1q7s0a9l2vwafftqys6f3csm45x90wvxrg2ycp9z',
+      'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+      'bc1q3lhplvnhfqruue9w6t9m68a3scjmna0l8fmk5c',
+      'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+      'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3',
+      'bc1q5h4k7fn8rspfzkwsx6f6pjmfh7fy3d0rudj0t8'
+    ];
+    const rows = validAddresses.map((addr, i) => 
+      `${addr},XCP,${i + 1}`
     ).join('\n');
     
     fireEvent.paste(textArea, {
@@ -196,7 +219,7 @@ describe('MPMAForm', () => {
     render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
-    const csvData = 'bc1qaddress1,XCP,1.5';
+    const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5';
     
     fireEvent.paste(textArea, {
       clipboardData: {
@@ -214,7 +237,7 @@ describe('MPMAForm', () => {
     render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
-    const csvData = 'bc1qaddress1,XCP,1.5,"Hello, World"';
+    const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,"Hello, World"';
     
     fireEvent.paste(textArea, {
       clipboardData: {
