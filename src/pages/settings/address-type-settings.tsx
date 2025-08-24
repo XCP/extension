@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { FaCheck } from "react-icons/fa";
 import { RadioGroup } from "@headlessui/react";
 import { ErrorAlert } from "@/components/error-alert";
+import { Spinner } from "@/components/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressType } from "@/utils/blockchain/bitcoin";
@@ -166,7 +167,14 @@ export default function AddressTypeSettings(): ReactElement {
     }
   };
 
-  if (isInitialLoading) return <div className="p-4 text-center text-gray-500">Loading...</div>;
+  if (isInitialLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Spinner />
+      </div>
+    );
+  }
+  
   if (!activeWallet) {
     return <div className="p-4 text-center text-gray-500">No wallet available</div>;
   }
