@@ -11,8 +11,8 @@ import {
   FaHistory,
   FaExternalLinkAlt,
   FaLock,
-  FaCog,
 } from "react-icons/fa";
+import { TbPinned } from "react-icons/tb";
 import { RadioGroup } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { AssetList } from "@/components/lists/asset-list";
@@ -164,10 +164,10 @@ export default function Index(): ReactElement {
         <div className="flex items-center space-x-2">
           <button
             onClick={() => navigate(CONSTANTS.PATHS.PINNED_ASSETS)}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+            className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
             aria-label="Manage Pinned Assets"
           >
-            <FaCog className="w-4 h-4 text-gray-600" aria-hidden="true" />
+            <TbPinned className="w-5 h-5 text-gray-600" aria-hidden="true" />
           </button>
           {!isTabView && (
             <button
@@ -200,12 +200,14 @@ export default function Index(): ReactElement {
   return (
     <div className="flex flex-col h-full" role="main" aria-labelledby="index-title">
       <h2 id="index-title" className="sr-only">Wallet Dashboard</h2>
-      <div className="flex-grow overflow-y-auto no-scrollbar p-4">
-        {content}
-        <div style={{ display: activeTab === "Balances" ? "block" : "none" }}>
+      <div className="flex flex-col flex-grow min-h-0">
+        <div className="p-4 pb-0 flex-shrink-0">
+          {content}
+        </div>
+        <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "Balances" ? "block" : "none" }}>
           <BalanceList />
         </div>
-        <div style={{ display: activeTab === "Assets" ? "block" : "none" }}>
+        <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "Assets" ? "block" : "none" }}>
           <AssetList />
         </div>
       </div>

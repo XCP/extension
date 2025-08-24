@@ -11,11 +11,11 @@ interface OrderSettingsProps {
 
 // Common expiration presets (in blocks)
 const EXPIRATION_PRESETS = [
+  { label: '1 Hour', blocks: 6 },
   { label: '1 Day', blocks: 144 },
   { label: '1 Week', blocks: 1008 },
   { label: '2 Weeks', blocks: 2016 },
   { label: '1 Month', blocks: 4320 },
-  { label: '2 Months', blocks: 8640 },
   { label: 'Max', blocks: 8064 },
 ];
 

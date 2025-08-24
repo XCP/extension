@@ -144,13 +144,13 @@ test.describe('Advanced Features', () => {
     await page.locator('div[role="button"][aria-label="Security"]').click();
     await page.waitForURL('**/settings/security', { timeout: 10000 });
     
-    // Should have change password option - be more specific to avoid strict mode violation
-    await expect(page.getByRole('heading', { name: /Change Password|Update Password/i })).toBeVisible();
+    // Should be on security settings page - check for password fields instead of heading
+    await expect(page.getByLabel('Current Password')).toBeVisible();
     
-    // Fill in password change form
-    const currentPasswordInput = page.locator('input[placeholder*="current"], input[placeholder*="Current"]').first();
-    const newPasswordInput = page.locator('input[placeholder*="new"], input[placeholder*="New"]').nth(0);
-    const confirmPasswordInput = page.locator('input[placeholder*="confirm"], input[placeholder*="Confirm"]').first();
+    // Fill in password change form - use aria-label or id selectors
+    const currentPasswordInput = page.locator('input#currentPassword');
+    const newPasswordInput = page.locator('input#newPassword');
+    const confirmPasswordInput = page.locator('input#confirmPassword');
     
     if (await currentPasswordInput.isVisible()) {
       await currentPasswordInput.fill(TEST_PASSWORD);

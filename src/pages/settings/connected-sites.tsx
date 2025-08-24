@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiX, FiGlobe, FiClock } from "react-icons/fi";
+import { FiX, FiGlobe } from "react-icons/fi";
+import { FaSync } from "react-icons/fa";
 import { Button } from "@/components/button";
 import { useHeader } from "@/contexts/header-context";
-import { useSettings } from "@/contexts/settings-context";
-import { getKeychainSettings } from "@/utils/storage/settingsStorage";
-import { trackEvent } from "@/utils/fathom";
+import { getKeychainSettings, updateKeychainSettings } from "@/utils/storage/settingsStorage";
 import { getProviderService } from "@/services/providerService";
 import type { ReactElement } from "react";
 
@@ -41,20 +40,7 @@ export default function ConnectedSites(): ReactElement {
   const [connectedSites, setConnectedSites] = useState<ConnectedSite[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Configure header
-  useEffect(() => {
-    setHeaderProps({
-      title: "Connected Sites",
-      onBack: () => navigate(CONSTANTS.PATHS.BACK),
-    });
-  }, [setHeaderProps, navigate]);
-
-  // Load connections on mount
-  useEffect(() => {
-    loadConnections();
-  }, []);
-
-  const loadConnections = async () => {
+  const loadConnections = useCallback(async () => {
     try {
       setLoading(true);
       console.log('Loading connected sites from settings...');
@@ -73,56 +59,74 @@ export default function ConnectedSites(): ReactElement {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   /**
    * Disconnects a site.
    */
   const handleDisconnectSite = async (origin: string) => {
-    const hostname = new URL(origin).hostname;
-    if (!confirm(`Disconnect ${hostname}?\n\nThis site will need to request permission again to access your wallet.`)) {
-      return;
-    }
-
     try {
-      // Track the disconnect event
-      await trackEvent('site_disconnect');
+      // Update UI immediately for instant feedback
+      setConnectedSites(prev => prev.filter(site => site.origin !== origin));
       
-      // Use provider service to disconnect and emit events
+      // Call provider service in background (for proper cleanup/events)
       const providerService = getProviderService();
-      await providerService.disconnect(origin);
-      
-      // Reload connections
-      await loadConnections();
+      providerService.disconnect(origin).catch(error => {
+        console.error('Provider disconnect error:', error);
+        // Reload if there was an error to ensure UI is in sync
+        loadConnections();
+      });
     } catch (error) {
       console.error('Failed to disconnect site:', error);
+      loadConnections(); // Reload on error
     }
   };
 
   /**
    * Disconnects all sites.
    */
-  const handleDisconnectAll = async () => {
-    if (!confirm('Disconnect all sites?\n\nAll connected sites will need to request permission again.')) {
-      return;
-    }
-
+  const handleDisconnectAll = useCallback(async () => {
     try {
-      // Track the disconnect all event
-      await trackEvent('disconnect_all_sites');
+      // Update UI immediately for instant feedback
+      const sitesToDisconnect = [...connectedSites];
+      setConnectedSites([]);
       
-      // Use provider service to disconnect each site
+      // Call provider service for each site in background
       const providerService = getProviderService();
-      await Promise.all(
-        connectedSites.map(site => providerService.disconnect(site.origin))
+      const disconnectPromises = sitesToDisconnect.map(site => 
+        providerService.disconnect(site.origin).catch(err => {
+          console.error(`Failed to disconnect ${site.origin}:`, err);
+        })
       );
       
-      await loadConnections();
+      Promise.all(disconnectPromises).catch(() => {
+        // If something went wrong, reload to ensure UI is in sync
+        loadConnections();
+      });
     } catch (error) {
       console.error('Failed to disconnect all sites:', error);
+      loadConnections(); // Reload on error
     }
-  };
+  }, [connectedSites, loadConnections]);
 
+
+  // Configure header with reset button when sites exist
+  useEffect(() => {
+    setHeaderProps({
+      title: "Connected Sites",
+      onBack: () => navigate(CONSTANTS.PATHS.BACK),
+      rightButton: connectedSites.length > 0 ? {
+        icon: <FaSync aria-hidden="true" />,
+        onClick: handleDisconnectAll,
+        ariaLabel: "Disconnect all sites",
+      } : undefined,
+    });
+  }, [setHeaderProps, navigate, connectedSites.length, handleDisconnectAll]);
+
+  // Load connections on mount
+  useEffect(() => {
+    loadConnections();
+  }, [loadConnections]);
 
   if (loading) {
     return (
@@ -137,22 +141,10 @@ export default function ConnectedSites(): ReactElement {
   }
 
   return (
-    <div className="p-4 space-y-4" role="main" aria-labelledby="connected-sites-title">
+    <div className={connectedSites.length === 0 ? 'h-full flex items-center justify-center' : 'p-4 space-y-4'} role="main" aria-labelledby="connected-sites-title">
       <h2 id="connected-sites-title" className="sr-only">
         Connected Sites
       </h2>
-      
-      {/* Header with disconnect all button */}
-      {connectedSites.length > 0 && (
-        <div className="flex justify-end">
-          <Button
-            color="red"
-            onClick={handleDisconnectAll}
-          >
-            Disconnect All
-          </Button>
-        </div>
-      )}
 
       {connectedSites.length === 0 ? (
         <div className="bg-gray-50 rounded-lg p-8 text-center">
@@ -190,17 +182,6 @@ export default function ConnectedSites(): ReactElement {
           ))}
         </div>
       )}
-
-      {/* Info section */}
-      <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-        <h3 className="text-sm font-medium text-blue-900 mb-2">About Connected Sites</h3>
-        <ul className="text-xs text-blue-700 space-y-1">
-          <li>• Sites connect to your wallet and can see your active address</li>
-          <li>• When you switch addresses, connected sites are notified</li>
-          <li>• Sites must request approval for each transaction</li>
-          <li>• You can disconnect sites at any time</li>
-        </ul>
-      </div>
     </div>
   );
 }

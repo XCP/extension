@@ -134,14 +134,7 @@ export default function SecuritySettings(): ReactElement {
             </div>
           )}
           
-          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-6">
-            <div className="text-center mb-4">
-              <h3 className="text-xl font-bold text-gray-800">Change Password</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Update your wallet password to keep your funds secure
-              </p>
-            </div>
-            
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm space-y-6">
             <Field>
               <Label className="font-bold text-gray-700">Current Password</Label>
               <Input
@@ -211,7 +204,7 @@ export default function SecuritySettings(): ReactElement {
             </Button>
           </div>
           
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <p className="text-sm text-yellow-800">
               <strong>Security Tip:</strong> Use a strong, unique password that you don't use for any other accounts. Consider using a password manager.
             </p>

@@ -106,7 +106,7 @@ export default function AdvancedSettings(): ReactElement {
         <div className="flex items-center justify-between">
           <Label className="font-bold">Enable MPMA Sends</Label>
           <Switch
-            defaultChecked={settings.enableMPMA}
+            checked={settings.enableMPMA}
             onChange={(checked) => updateSettings({ enableMPMA: checked })}
             className={`${settings.enableMPMA ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
           >
@@ -126,7 +126,7 @@ export default function AdvancedSettings(): ReactElement {
         <div className="flex items-center justify-between">
           <Label className="font-bold">Advanced Broadcasts</Label>
           <Switch
-            defaultChecked={settings.enableAdvancedBroadcasts}
+            checked={settings.enableAdvancedBroadcasts}
             onChange={(checked) => updateSettings({ enableAdvancedBroadcasts: checked })}
             className={`${settings.enableAdvancedBroadcasts ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
           >
@@ -146,7 +146,7 @@ export default function AdvancedSettings(): ReactElement {
         <div className="flex items-center justify-between">
           <Label className="font-bold">Use Unconfirmed TXs</Label>
           <Switch
-            defaultChecked={settings.allowUnconfirmedTxs}
+            checked={settings.allowUnconfirmedTxs}
             onChange={(checked) => updateSettings({ allowUnconfirmedTxs: checked })}
             className={`${settings.allowUnconfirmedTxs ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
           >
@@ -166,7 +166,7 @@ export default function AdvancedSettings(): ReactElement {
         <div className="flex items-center justify-between">
           <Label className="font-bold">Show/Hide Help Text</Label>
           <Switch
-            defaultChecked={settings.showHelpText}
+            checked={settings.showHelpText}
             onChange={(checked) => updateSettings({ showHelpText: checked })}
             className={`${settings.showHelpText ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
           >
@@ -186,7 +186,7 @@ export default function AdvancedSettings(): ReactElement {
         <div className="flex items-center justify-between">
           <Label className="font-bold">Anonymous Analytics</Label>
           <Switch
-            defaultChecked={settings.analyticsAllowed}
+            checked={settings.analyticsAllowed}
             onChange={(checked) => updateSettings({ analyticsAllowed: checked })}
             className={`${settings.analyticsAllowed ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
           >
@@ -202,25 +202,27 @@ export default function AdvancedSettings(): ReactElement {
         </Description>
       </Field>
 
-      <Field>
-        <div className="flex items-center justify-between">
-          <Label className="font-bold">Transaction Dry Run</Label>
-          <Switch
-            defaultChecked={settings.transactionDryRun}
-            onChange={(checked) => updateSettings({ transactionDryRun: checked })}
-            className={`${settings.transactionDryRun ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
-          >
-            <span
-              className={`${
-                settings.transactionDryRun ? "translate-x-6" : "translate-x-1"
-              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-            />
-          </Switch>
-        </div>
-        <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-          When enabled, transactions will be simulated instead of being broadcast to the network.
-        </Description>
-      </Field>
+      {process.env.NODE_ENV === 'development' && (
+        <Field>
+          <div className="flex items-center justify-between">
+            <Label className="font-bold">Transaction Dry Run</Label>
+            <Switch
+              checked={settings.transactionDryRun}
+              onChange={(checked) => updateSettings({ transactionDryRun: checked })}
+              className={`${settings.transactionDryRun ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
+            >
+              <span
+                className={`${
+                  settings.transactionDryRun ? "translate-x-6" : "translate-x-1"
+                } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+              />
+            </Switch>
+          </div>
+          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+            When enabled, transactions will be simulated instead of being broadcast to the network.
+          </Description>
+        </Field>
+      )}
     </div>
   );
 }
