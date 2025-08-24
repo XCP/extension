@@ -61,14 +61,10 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
   }, [loadSettings]);
 
   const updateSettingsHandler = useCallback(async (newSettings: Partial<KeychainSettings>) => {
-    try {
-      setIsLoading(true);
-      await updateKeychainSettings(newSettings);
-      const updated = await getKeychainSettings();
-      setSettings(updated);
-    } finally {
-      setIsLoading(false);
-    }
+    // Update state immediately for instant UI response
+    setSettings(prev => ({ ...prev, ...newSettings }));
+    // Then persist to storage in background
+    await updateKeychainSettings(newSettings);
   }, []);
 
   return (
