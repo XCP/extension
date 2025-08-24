@@ -200,12 +200,14 @@ export default function Index(): ReactElement {
   return (
     <div className="flex flex-col h-full" role="main" aria-labelledby="index-title">
       <h2 id="index-title" className="sr-only">Wallet Dashboard</h2>
-      <div className="flex-grow overflow-y-auto no-scrollbar p-4">
-        {content}
-        <div style={{ display: activeTab === "Balances" ? "block" : "none" }}>
+      <div className="flex flex-col flex-grow min-h-0">
+        <div className="p-4 pb-0 flex-shrink-0">
+          {content}
+        </div>
+        <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "Balances" ? "block" : "none" }}>
           <BalanceList />
         </div>
-        <div style={{ display: activeTab === "Assets" ? "block" : "none" }}>
+        <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "Assets" ? "block" : "none" }}>
           <AssetList />
         </div>
       </div>

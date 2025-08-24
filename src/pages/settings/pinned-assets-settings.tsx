@@ -268,7 +268,7 @@ export default function PinnedAssetsSettings(): ReactElement {
       <h2 id="pinned-assets-title" className="sr-only">
         Pinned Assets Settings
       </h2>
-      <div className="flex-1 p-4">
+      <div className="p-4">
         {error && (
           <div className="mb-4">
             <ErrorAlert message={error} onClose={() => setError(null)} />
@@ -296,7 +296,9 @@ export default function PinnedAssetsSettings(): ReactElement {
           )}
         </div>
         
-        {renderContent()}
+        <div className="overflow-y-auto">
+          {renderContent()}
+        </div>
       </div>
     </div>
   );
