@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCheck } from "react-icons/fa";
+import { FiHelpCircle } from "react-icons/fi";
 import { RadioGroup } from "@headlessui/react";
 import { ErrorAlert } from "@/components/error-alert";
 import { Spinner } from "@/components/spinner";
@@ -18,6 +19,7 @@ import type { ReactElement } from "react";
 const CONSTANTS = {
   PATHS: {
     BACK: "/settings",
+    HELP_URL: "https://youtube.com", // Placeholder for now
   } as const,
   AVAILABLE_ADDRESS_TYPES: Object.values(AddressType),
 } as const;
@@ -47,7 +49,7 @@ export default function AddressTypeSettings(): ReactElement {
   const hasChangedType = useRef(false);
   const isChanging = useRef(false);
 
-  // Configure header with dynamic back navigation
+  // Configure header with dynamic back navigation and help button
   useEffect(() => {
     const handleBack = () => {
       // If address type was changed, go to index
@@ -62,6 +64,11 @@ export default function AddressTypeSettings(): ReactElement {
     setHeaderProps({
       title: "Address Type",
       onBack: handleBack,
+      rightButton: {
+        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        onClick: () => window.open(CONSTANTS.PATHS.HELP_URL, "_blank"),
+        ariaLabel: "Help",
+      },
     });
   }, [setHeaderProps, navigate]);
 
