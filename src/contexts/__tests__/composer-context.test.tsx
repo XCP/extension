@@ -3,6 +3,21 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { ComposerProvider, useComposer } from '../composer-context';
 import type { ApiResponse } from '@/utils/blockchain/counterparty';
 
+// Mock wallet context to avoid webext-bridge dependency in tests
+vi.mock('@/contexts/wallet-context', () => ({
+  useWallet: () => ({
+    activeAddress: { address: 'test-address' },
+    activeWallet: { id: 'test-wallet' },
+    authState: 'UNLOCKED',
+    walletLocked: false,
+  }),
+}));
+
+// Mock the API module
+vi.mock('@/utils/blockchain/counterparty/api', () => ({
+  fetchAssetDetails: vi.fn().mockResolvedValue(null),
+}));
+
 describe('ComposerContext', () => {
   const mockComposeTransaction = vi.fn();
   const mockSignFunction = vi.fn();
