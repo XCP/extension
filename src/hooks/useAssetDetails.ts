@@ -34,7 +34,7 @@ interface UseAssetDetailsOptions {
  * @returns Object containing isLoading, error, and data properties
  */
 export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions) {
-  const { activeAddress } = useWallet();
+  const { activeAddress, activeWallet } = useWallet();
   const { subheadings, setBalanceHeader, clearBalances } = useHeader();
   // Initialize with cached data if available
   const cachedBalance = subheadings.balances[asset];
@@ -58,24 +58,31 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
   // Ref to track if fetch is still valid
   const fetchDataRef = useRef(false);
   
-  // Ref to track the previous address and asset
+  // Ref to track the previous wallet, address and asset
+  const prevWalletRef = useRef<string | undefined>(undefined);
   const prevAddressRef = useRef<string | undefined>(undefined);
   const prevAssetRef = useRef<string | undefined>(undefined);
   
-  // Reset state when address changes
+  // Reset state when wallet or address changes
   useEffect(() => {
-    if (prevAddressRef.current && prevAddressRef.current !== activeAddress?.address) {
+    const walletChanged = prevWalletRef.current && prevWalletRef.current !== activeWallet?.id;
+    const addressChanged = prevAddressRef.current && prevAddressRef.current !== activeAddress?.address;
+    
+    if (walletChanged || addressChanged) {
       setState({
         isLoading: false,
         error: null,
         data: null,
       });
     }
-  }, [activeAddress?.address]);
+  }, [activeWallet?.id, activeAddress?.address]);
 
   useEffect(() => {
-    // Clear balance cache if address changed
-    if (prevAddressRef.current && prevAddressRef.current !== activeAddress?.address) {
+    // Clear balance cache if wallet or address changed
+    const hasWalletChanged = prevWalletRef.current && prevWalletRef.current !== activeWallet?.id;
+    const hasAddressChanged = prevAddressRef.current && prevAddressRef.current !== activeAddress?.address;
+    
+    if (hasWalletChanged || hasAddressChanged) {
       clearBalances();
       // Reset state to force re-fetch
       setState({
@@ -84,6 +91,8 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
         data: null,
       });
     }
+    
+    prevWalletRef.current = activeWallet?.id;
     prevAddressRef.current = activeAddress?.address;
     prevAssetRef.current = asset;
 
@@ -196,7 +205,8 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
     // Get current cached balance
     const cachedBalance = subheadings.balances[asset];
     
-    // Always fetch data when address or asset changes, or no data exists
+    // Always fetch data when wallet, address or asset changes, or no data exists
+    const walletChanged = prevWalletRef.current && prevWalletRef.current !== activeWallet?.id;
     const addressChanged = prevAddressRef.current && prevAddressRef.current !== activeAddress?.address;
     const assetChanged = prevAssetRef.current && prevAssetRef.current !== asset;
     
@@ -206,7 +216,7 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
     // Always fetch UTXOs for non-BTC assets on mount
     const shouldFetchUtxos = asset !== 'BTC' && !hasUtxoData;
     
-    if (addressChanged || assetChanged || !state.data || shouldFetchUtxos) {
+    if (walletChanged || addressChanged || assetChanged || !state.data || shouldFetchUtxos) {
       // Always fetch full data including UTXOs
       fetchData();
     } else if (!cachedBalance || !cachedBalance.quantity_normalized) {
@@ -219,7 +229,7 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
       isMounted = false;
       fetchDataRef.current = false;
     };
-  }, [asset, activeAddress?.address, subheadings.balances[asset], setBalanceHeader, clearBalances]);
+  }, [asset, activeWallet?.id, activeAddress?.address, subheadings.balances[asset], setBalanceHeader, clearBalances]);
 
   return state;
 }
