@@ -239,17 +239,7 @@ export function BetForm({ formAction, initialFormData ,
             <Input
               type="text"
               name="wager_quantity"
-              defaultValue={
-                initialFormData
-                  ? isDivisible && initialFormData.wager_quantity
-                    ? formatAmount({
-                        value: initialFormData.wager_quantity / 1e8,
-                        maximumFractionDigits: 8,
-                        minimumFractionDigits: 8
-                      })
-                    : initialFormData.wager_quantity.toString()
-                  : ""
-              }
+              defaultValue={initialFormData?.wager_quantity?.toString() || ""}
               required
               placeholder="Enter wager quantity"
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
@@ -267,17 +257,7 @@ export function BetForm({ formAction, initialFormData ,
             <Input
               type="text"
               name="counterwager_quantity"
-              defaultValue={
-                initialFormData
-                  ? isDivisible && initialFormData.counterwager_quantity
-                    ? formatAmount({
-                        value: initialFormData.counterwager_quantity / 1e8,
-                        maximumFractionDigits: 8,
-                        minimumFractionDigits: 8
-                      })
-                    : initialFormData.counterwager_quantity.toString()
-                  : ""
-              }
+              defaultValue={initialFormData?.counterwager_quantity?.toString() || ""}
               required
               placeholder="Enter counterwager quantity"
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"

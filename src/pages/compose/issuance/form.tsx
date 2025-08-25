@@ -115,17 +115,7 @@ export function IssuanceForm({
               id="quantity"
               name="quantity"
               type="text"
-              defaultValue={
-                initialFormData?.quantity
-                  ? initialFormData.divisible
-                    ? formatAmount({
-                        value: initialFormData.quantity / 1e8,
-                        maximumFractionDigits: 8,
-                        minimumFractionDigits: 8
-                      })
-                    : initialFormData.quantity.toString()
-                  : ""
-              }
+              defaultValue={initialFormData?.quantity?.toString() || ""}
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
               required
               disabled={pending}
