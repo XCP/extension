@@ -30,6 +30,25 @@ interface MempoolDispense {
   tx_hash: string;
 }
 
+// Extended dispenser type with verbose fields
+interface VerboseDispenser {
+  tx_hash: string;
+  source: string;
+  asset: string;
+  status: number;
+  give_remaining: number;
+  give_remaining_normalized: string;
+  give_quantity?: number;
+  satoshirate?: number;
+  asset_info?: {
+    asset_longname: string | null;
+    description: string;
+    issuer: string | null;
+    divisible: boolean;
+    locked: boolean;
+  };
+}
+
 /**
  * Displays a review screen for dispense transactions.
  * @param {ReviewDispenseProps} props - Component props
@@ -70,25 +89,30 @@ export function ReviewDispense({
         });
         
         if (dispensers && dispensers.length > 0) {
+          // Cast to VerboseDispenser type for verbose response
+          const verboseDispensers = dispensers as VerboseDispenser[];
+          
           // Sort by satoshirate then by asset name to find which will trigger
-          const sorted = [...dispensers].sort((a: any, b: any) => {
-            if (a.satoshirate !== b.satoshirate) {
-              return a.satoshirate - b.satoshirate;
+          const sorted = [...verboseDispensers].sort((a, b) => {
+            const aSatoshirate = a.satoshirate || 0;
+            const bSatoshirate = b.satoshirate || 0;
+            if (aSatoshirate !== bSatoshirate) {
+              return aSatoshirate - bSatoshirate;
             }
             return a.asset.localeCompare(b.asset);
           });
           
           // Find the dispenser that will actually trigger based on BTC amount
-          const triggeredDispenser = sorted.find((d: any) => d.satoshirate <= btcQuantity);
+          const triggeredDispenser = sorted.find(d => (d.satoshirate || 0) <= btcQuantity);
           
           if (triggeredDispenser) {
             const isDivisible = triggeredDispenser.asset_info?.divisible ?? false;
             const divisor = isDivisible ? 1e8 : 1;
             setDispenserInfo({
               asset: triggeredDispenser.asset,
-              give_quantity_normalized: (triggeredDispenser.give_quantity / divisor).toString(),
-              satoshirate: triggeredDispenser.satoshirate,
-              asset_longname: triggeredDispenser.asset_info?.asset_longname,
+              give_quantity_normalized: triggeredDispenser.give_quantity ? (triggeredDispenser.give_quantity / divisor).toString() : "0",
+              satoshirate: triggeredDispenser.satoshirate || 0,
+              asset_longname: triggeredDispenser.asset_info?.asset_longname || undefined,
               tx_hash: triggeredDispenser.tx_hash,
             });
             
