@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
@@ -215,22 +215,7 @@ export function DispenseForm({ formAction, initialFormData ,
     input?.focus();
   }, []);
 
-  // Only set initial numberOfDispenses from formData once when dispensers are first loaded
-  const [hasSetInitialDispenses, setHasSetInitialDispenses] = useState(false);
-  useEffect(() => {
-    if (!hasSetInitialDispenses && dispenserOptions.length > 0 && initialFormData?.quantity && selectedDispenserIndex !== null) {
-      const formData = initialFormData as any;
-      // If we have a satoshirate in the form data, use it to calculate the number of dispenses
-      if (formData.satoshirate && Number(formData.satoshirate) > 0) {
-        const calculatedDispenses = toNumber(roundDown(divide(initialFormData.quantity, formData.satoshirate))).toString();
-        setNumberOfDispenses(calculatedDispenses);
-        setHasSetInitialDispenses(true);
-      }
-    }
-  }, [dispenserOptions.length, selectedDispenserIndex, initialFormData, hasSetInitialDispenses]); // Track if we've set initial value
-
-
-  const calculateMaxDispenses = (satoshirate: number) => {
+  const calculateMaxDispenses = useCallback((satoshirate: number) => {
     if (!satoshirate) return 0;
     const balanceInSatoshis = multiply(btcBalance, 1e8);
     
@@ -252,7 +237,58 @@ export function DispenseForm({ formAction, initialFormData ,
     // Each dispense costs satoshirate, and we need to send that amount as BTC payment
     // So max dispenses = available balance / satoshirate
     return toNumber(roundDown(divide(availableForDispenses, satoshirate)));
-  };
+  }, [btcBalance, initialFormData?.sat_per_vbyte]);
+
+  // Only set initial numberOfDispenses from formData once when dispensers are first loaded
+  const [hasSetInitialDispenses, setHasSetInitialDispenses] = useState(false);
+  useEffect(() => {
+    if (!hasSetInitialDispenses && dispenserOptions.length > 0 && initialFormData?.quantity && selectedDispenserIndex !== null) {
+      const formData = initialFormData as any;
+      // If we have a satoshirate in the form data, use it to calculate the number of dispenses
+      if (formData.satoshirate && Number(formData.satoshirate) > 0) {
+        const calculatedDispenses = toNumber(roundDown(divide(initialFormData.quantity, formData.satoshirate))).toString();
+        setNumberOfDispenses(calculatedDispenses);
+        setHasSetInitialDispenses(true);
+      }
+    }
+  }, [dispenserOptions.length, selectedDispenserIndex, initialFormData, hasSetInitialDispenses]); // Track if we've set initial value
+
+  // When switching dispensers, check if current numberOfDispenses is still valid
+  const previousDispenserIndexRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (selectedDispenserIndex !== null && 
+        previousDispenserIndexRef.current !== null && 
+        selectedDispenserIndex !== previousDispenserIndexRef.current) {
+      
+      const selectedOption = dispenserOptions[selectedDispenserIndex];
+      if (selectedOption) {
+        // Calculate max for the newly selected dispenser
+        const newMax = calculateMaxDispenses(selectedOption.satoshirate || 0);
+        const currentNumber = parseInt(numberOfDispenses) || 1;
+        
+        // If current number exceeds the new max, update it to the new max
+        if (currentNumber > newMax && newMax > 0) {
+          setNumberOfDispenses(newMax.toString());
+          setDispenserError(null); // Clear any errors since we're auto-adjusting
+        }
+        
+        // Also check if the dispenser has limited remaining dispenses
+        const remainingDispenses = toNumber(
+          roundDown(divide(selectedOption.dispenser.give_remaining_normalized, selectedOption.dispenser.give_quantity_normalized))
+        );
+        
+        if (currentNumber > remainingDispenses) {
+          setNumberOfDispenses(remainingDispenses.toString());
+          if (remainingDispenses === 0) {
+            setDispenserError("This dispenser is empty and cannot be triggered.");
+          } else {
+            setDispenserError(null);
+          }
+        }
+      }
+    }
+    previousDispenserIndexRef.current = selectedDispenserIndex;
+  }, [selectedDispenserIndex, dispenserOptions, numberOfDispenses, calculateMaxDispenses]); // Include calculateMaxDispenses
 
   // Calculate which dispensers will trigger based on BTC amount
   const getTriggeredDispensers = (btcAmountSats: number): DispenserOption[] => {
