@@ -179,7 +179,7 @@ export function ReviewDispense({
     if (allTriggeredDispensers.length > 1) {
       customFields.push(
         { 
-          label: "Dispensers Triggered", 
+          label: "Dispensers", 
           value: allTriggeredDispensers.length.toString() 
         },
         { 
@@ -213,24 +213,12 @@ export function ReviewDispense({
       );
     }
     
-    // Add dispenser TX hashes if available
+    // Add dispenser TX hash only for single dispenser
     if (allTriggeredDispensers.length === 1 && allTriggeredDispensers[0].tx_hash) {
       customFields.push({
         label: "Dispenser TX Hash",
         value: allTriggeredDispensers[0].tx_hash
       });
-    } else if (allTriggeredDispensers.length > 1) {
-      // For multiple dispensers, could list all tx hashes but might be too verbose
-      const txHashes = allTriggeredDispensers
-        .filter(d => d.tx_hash)
-        .map(d => d.tx_hash)
-        .slice(0, 3); // Limit to first 3
-      if (txHashes.length > 0) {
-        customFields.push({
-          label: "Dispenser TX Hashes",
-          value: txHashes.join('\n')
-        });
-      }
     }
     
     // Add mempool warning if there are competing transactions
