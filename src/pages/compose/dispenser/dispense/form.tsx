@@ -215,19 +215,19 @@ export function DispenseForm({ formAction, initialFormData ,
     input?.focus();
   }, []);
 
-  // Update numberOfDispenses when dispenser options change and we have a satoshirate from initialFormData
+  // Only set initial numberOfDispenses from formData once when dispensers are first loaded
+  const [hasSetInitialDispenses, setHasSetInitialDispenses] = useState(false);
   useEffect(() => {
-    if (dispenserOptions.length > 0 && initialFormData?.quantity && selectedDispenserIndex !== null) {
+    if (!hasSetInitialDispenses && dispenserOptions.length > 0 && initialFormData?.quantity && selectedDispenserIndex !== null) {
       const formData = initialFormData as any;
       // If we have a satoshirate in the form data, use it to calculate the number of dispenses
       if (formData.satoshirate && Number(formData.satoshirate) > 0) {
         const calculatedDispenses = toNumber(roundDown(divide(initialFormData.quantity, formData.satoshirate))).toString();
-        if (calculatedDispenses !== numberOfDispenses) {
-          setNumberOfDispenses(calculatedDispenses);
-        }
+        setNumberOfDispenses(calculatedDispenses);
+        setHasSetInitialDispenses(true);
       }
     }
-  }, [dispenserOptions, initialFormData, selectedDispenserIndex, numberOfDispenses]);
+  }, [dispenserOptions.length, selectedDispenserIndex, initialFormData, hasSetInitialDispenses]); // Track if we've set initial value
 
 
   const calculateMaxDispenses = (satoshirate: number) => {
