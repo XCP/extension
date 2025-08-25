@@ -262,6 +262,12 @@ export function WeeklyBetForm({ formAction ,
         />
       ) : null}
       <div className="bg-white rounded-lg shadow-lg p-4">
+        {error && (
+          <ErrorAlert
+            message={error.message}
+            onClose={() => setError(null)}
+          />
+        )}
         <form action={enhancedFormAction} className="space-y-6">
           <div className="text-center">
             <h2 className="text-lg font-medium text-gray-900">{selectedMarket.question}</h2>

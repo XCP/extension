@@ -99,6 +99,20 @@ export const DispenserForm = memo(function DispenserForm({
     }
   }, [composerError]);
 
+  // Set asset error when it occurs
+  useEffect(() => {
+    if (assetError) {
+      setError({ message: assetError.message || "Failed to load asset details" });
+    }
+  }, [assetError]);
+  
+  // Check if trying to create dispenser for BTC
+  useEffect(() => {
+    if (asset === "BTC") {
+      setError({ message: "Cannot create a dispenser for BTC" });
+    }
+  }, [asset]);
+
   // Fetch asset details and trading pair data
   useEffect(() => {
     const fetchDetails = async () => {
@@ -152,6 +166,20 @@ export const DispenserForm = memo(function DispenserForm({
 
   // Custom form action wrapper to convert values before submission
   const handleFormAction = useCallback((formData: FormData) => {
+    // Validate before submission
+    if (asset === "BTC") {
+      setError({ message: "Cannot create a dispenser for BTC" });
+      return;
+    }
+    
+    const cleanEscrow = parseFloat(getCleanValue(escrowQuantity));
+    const cleanGive = parseFloat(getCleanValue(giveQuantity));
+    
+    if (!isNaN(cleanEscrow) && !isNaN(cleanGive) && cleanEscrow < cleanGive) {
+      setError({ message: "Escrow quantity must be greater than or equal to give quantity" });
+      return;
+    }
+    
     // Create a new FormData object to avoid modifying the original
     const processedFormData = new FormData();
     
@@ -196,11 +224,13 @@ export const DispenserForm = memo(function DispenserForm({
           <HeaderSkeleton className="mt-1 mb-5" variant="balance" />
         )
       )}
-      {assetError && <div className="text-red-500 mb-2">{assetError.message}</div>}
-      {(error || composerError) && (
-        <ErrorAlert message={error?.message || composerError || ""} />
-      )}
       <div className="bg-white rounded-lg shadow-lg p-4">
+        {error && (
+          <ErrorAlert 
+            message={error.message} 
+            onClose={() => setError(null)}
+          />
+        )}
         <form action={handleFormAction} className="space-y-6">
           <AmountWithMaxInput
             asset={asset}

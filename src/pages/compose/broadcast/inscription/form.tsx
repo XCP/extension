@@ -52,6 +52,13 @@ export function BroadcastInscriptionForm({ formAction, initialFormData ,
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   
+  // Set composer error when it occurs
+  useEffect(() => {
+    if (composerError) {
+      setError({ message: composerError });
+    }
+  }, [composerError]);
+  
   // Handle file selection
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -104,6 +111,12 @@ export function BroadcastInscriptionForm({ formAction, initialFormData ,
         />
       )}
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
+        {error && (
+          <ErrorAlert
+            message={error.message}
+            onClose={() => setError(null)}
+          />
+        )}
         <form action={async formData => {
           if (!selectedFile) {
             return;

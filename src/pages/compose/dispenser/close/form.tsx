@@ -44,14 +44,14 @@ export function DispenserCloseForm({
   const [selectedTxHash, setSelectedTxHash] = useState<string | null>(null);
   const [dispensers, setDispensers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string } | null>(null);
 
   const asset = initialAsset || initialFormData?.asset || "";
 
   // Set composer error when it occurs
   useEffect(() => {
     if (composerError) {
-      setError(composerError);
+      setError({ message: composerError });
     }
   }, [composerError]);
 
@@ -71,7 +71,7 @@ export function DispenserCloseForm({
         setDispensers(fetchedDispensers);
       } catch (err) {
         console.error("Failed to load dispensers:", err);
-        setError("Failed to load dispensers. Please try again.");
+        setError({ message: "Failed to load dispensers. Please try again." });
       } finally {
         setIsLoading(false);
       }
@@ -113,10 +113,14 @@ export function DispenserCloseForm({
       )}
       {assetDetailsError && <div className="text-red-500 mb-2">Failed to fetch asset details.</div>}
       <div className="bg-white rounded-lg shadow-lg p-4">
+        {error && (
+          <ErrorAlert
+            message={error.message}
+            onClose={() => setError(null)}
+          />
+        )}
         {isLoading ? (
           <div className="py-4 text-center">Loading dispensers...</div>
-        ) : error ? (
-          <div className="py-4 text-center text-red-500">{error}</div>
         ) : (
           <form action={formAction} className="space-y-6">
             <Field>

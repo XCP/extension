@@ -41,6 +41,13 @@ export function AddressOptionsForm({ formAction, initialFormData ,
   const initialRequireMemo = initialFormData?.text === `options ${ADDRESS_OPTION_REQUIRE_MEMO}`;
   const [isChecked, setIsChecked] = useState(initialRequireMemo || false);
 
+  // Set composer error when it occurs
+  useEffect(() => {
+    if (composerError) {
+      setError({ message: composerError });
+    }
+  }, [composerError]);
+
   const handleCheckboxChange = (checked: boolean) => {
     setIsChecked(checked);
   };
@@ -69,6 +76,12 @@ export function AddressOptionsForm({ formAction, initialFormData ,
         />
       )}
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
+        {error && (
+          <ErrorAlert
+            message={error.message}
+            onClose={() => setError(null)}
+          />
+        )}
         <form action={handleFormAction} className="space-y-4">
           <Field>
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
