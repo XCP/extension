@@ -113,8 +113,6 @@ export function SendForm({
 
 
   const handleFormAction = (formData: FormData) => {
-    // Just pass the user-friendly amount value
-    // Normalization will happen at the context level
     if (amount) {
       formData.set("quantity", amount);
     }

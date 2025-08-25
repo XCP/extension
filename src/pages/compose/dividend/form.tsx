@@ -80,8 +80,6 @@ export function DividendForm({
     // Get the quantity_per_unit value
     const quantityPerUnitStr = formData.get('quantity_per_unit') as string;
     
-    // Just pass the user-friendly value
-    // Normalization will happen at the context level
     if (quantityPerUnitStr) {
       const cleanedValue = quantityPerUnitStr.replace(/,/g, '');
       formData.set('quantity_per_unit', cleanedValue);

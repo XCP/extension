@@ -144,7 +144,6 @@ export const DispenserForm = memo(function DispenserForm({
   }, [initialFormData, assetDetails?.assetInfo?.divisible]);
 
   // Clean user input values (remove commas, extra spaces)
-  // Normalization to satoshis is handled by the composer context
   const getCleanValue = (value: string): string => {
     if (!value) return "";
     // Remove commas and extra spaces but keep the user-friendly decimal format
@@ -166,7 +165,6 @@ export const DispenserForm = memo(function DispenserForm({
     // Add the asset parameter
     processedFormData.append("asset", asset);
     
-    // Add the cleaned values (normalization happens at composer context level)
     processedFormData.append("escrow_quantity", getCleanValue(escrowQuantity));
     processedFormData.append("mainchainrate", getCleanValue(mainchainRate));
     processedFormData.append("give_quantity", getCleanValue(giveQuantity));

@@ -220,7 +220,6 @@ export function OrderForm({
             formData.set('quote_asset', quoteAsset);
             
             // Calculate give_quantity and get_quantity based on buy/sell
-            // The normalization layer will handle converting to satoshis
             const amountBN = toBigNumber(amount);
             const priceBN = toBigNumber(price);
             

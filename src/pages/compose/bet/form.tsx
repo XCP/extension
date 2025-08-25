@@ -83,8 +83,6 @@ export function BetForm({ formAction, initialFormData ,
     const unixTimestamp = Math.floor(deadlineDate.getTime() / 1000);
     processedFormData.set('deadline', unixTimestamp.toString());
     
-    // Just pass the user-friendly values
-    // Normalization will happen at the context level
     const wager = formData.get('wager_quantity');
     if (wager) {
       processedFormData.set('wager_quantity', wager.toString());

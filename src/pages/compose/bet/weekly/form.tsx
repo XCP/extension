@@ -231,7 +231,6 @@ export function WeeklyBetForm({ formAction ,
       return;
     }
 
-    // Pass user-friendly values - normalization happens at context level
     const counterwagerAmount = calculateCounterwager(wagerFloat, selectedChoice);
 
     // Preset parameters

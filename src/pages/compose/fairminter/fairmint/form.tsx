@@ -128,7 +128,6 @@ export function FairmintForm({
     const isDivisible = assetDetails?.assetInfo?.divisible ?? selectedFairminter?.divisible ?? true;
     
     // For free mints, quantity is 0; for paid mints, use the entered quantity
-    // Normalization to satoshis is handled by the composer context
     const quantityToSubmit = isFreeMint ? "0" : formData.quantity;
 
     // Create FormData object with the calculated values
