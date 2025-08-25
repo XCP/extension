@@ -136,7 +136,7 @@ export function DispenserCloseByHashForm({
                   <p>Source: {selectedDispenser.source}</p>
                 </div>
               )}
-              {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+              {error && <p className="mt-2 text-sm text-red-500">{error.message}</p>}
               <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
                 Enter the transaction hash of the dispenser you want to close.
               </Description>
