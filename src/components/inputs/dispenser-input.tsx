@@ -7,6 +7,7 @@ import {
   fetchAddressDispensers,
   type DispenseOptions 
 } from "@/utils/blockchain/counterparty";
+import { isValidBitcoinAddress } from "@/utils/blockchain/bitcoin";
 
 // ============================================================================
 // Types
@@ -50,17 +51,25 @@ export function DispenserInput({
   const [dispenserOptions, setDispenserOptions] = useState<DispenserOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Check if current value is a valid address
+  const isValidAddress = value ? isValidBitcoinAddress(value) : false;
+  const showInvalidBorder = value && !isValidAddress;
 
-  // Fetch dispenser details when address changes
+  // Fetch dispenser details only when we have a valid address
   useEffect(() => {
-    const fetchDispensers = async () => {
-      if (!value.trim()) {
-        setDispenserOptions([]);
-        setError(null);
-        if (onError) onError(null);
-        return;
-      }
+    // Clear state when address is invalid or empty
+    if (!isValidAddress) {
+      setDispenserOptions([]);
+      setError(null);
+      if (onError) onError(null);
+      setIsLoading(false);
+      if (onLoadingChange) onLoadingChange(false);
+      return;
+    }
 
+    // Valid address - proceed with fetching
+    const fetchDispensers = async () => {
       setIsLoading(true);
       if (onLoadingChange) onLoadingChange(true);
       setError(null);
@@ -120,7 +129,7 @@ export function DispenserInput({
     };
 
     fetchDispensers();
-  }, [value, onError, onLoadingChange]);
+  }, [value, isValidAddress, onError, onLoadingChange]);
 
   // Auto-select first dispenser when options change
   useEffect(() => {
@@ -151,7 +160,9 @@ export function DispenserInput({
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="mt-1 block w-full p-2 rounded-md border"
+          className={`mt-1 block w-full p-2 rounded-md border ${
+            showInvalidBorder ? "border-red-500" : ""
+          }`}
           required={required}
           disabled={disabled || isLoading}
         />
