@@ -38,7 +38,6 @@ interface DispenserOption {
   satoshirate: number;
   btcAmount: number;
   index: number;
-  isLegacyMulti?: boolean;
 }
 
 /**
@@ -142,33 +141,21 @@ export function DispenseForm({ formAction, initialFormData ,
           return a.asset.localeCompare(b.asset);
         });
 
-        // Check if this is a legacy multi-dispenser setup
-        const priceGroups = new Map<number, DispenserDetails[]>();
-        for (const dispenser of processedDispensers) {
-          if (!priceGroups.has(dispenser.satoshirate)) {
-            priceGroups.set(dispenser.satoshirate, []);
+        // Sort dispensers by price (satoshirate) from low to high, then by asset name
+        const sortedDispensers = [...processedDispensers].sort((a, b) => {
+          if (a.satoshirate !== b.satoshirate) {
+            return a.satoshirate - b.satoshirate;
           }
-          priceGroups.get(dispenser.satoshirate)!.push(dispenser);
-        }
-        
-        // Filter out dispensers with same price, keeping only the first by asset name
-        const priceMap = new Map<number, DispenserDetails>();
-        const legacyMultiPrices = new Set<number>();
-        
-        for (const [price, dispensersAtPrice] of priceGroups) {
-          if (dispensersAtPrice.length > 1) {
-            legacyMultiPrices.add(price);
-          }
-          priceMap.set(price, dispensersAtPrice[0]); // Keep first by asset name
-        }
+          // If same price, sort by asset name
+          return a.asset.localeCompare(b.asset);
+        });
 
-        // Create dispenser options with legacy flag
-        const options: DispenserOption[] = Array.from(priceMap.values()).map((dispenser, index) => ({
+        // Create dispenser options for each dispenser
+        const options: DispenserOption[] = sortedDispensers.map((dispenser, index) => ({
           dispenser,
           satoshirate: dispenser.satoshirate,
           btcAmount: dispenser.satoshirate / 1e8,
-          index,
-          isLegacyMulti: legacyMultiPrices.has(dispenser.satoshirate)
+          index
         }));
 
         setDispenserOptions(options);
@@ -357,9 +344,7 @@ export function DispenseForm({ formAction, initialFormData ,
                       pending ? "opacity-50 cursor-not-allowed" : ""
                     } ${
                       selectedDispenserIndex === option.index 
-                        ? option.isLegacyMulti 
-                          ? "ring-2 ring-yellow-500 border-yellow-500" 
-                          : "ring-2 ring-blue-500"
+                        ? "ring-2 ring-blue-500"
                         : ""
                     }`}
                   >
@@ -393,11 +378,6 @@ export function DispenseForm({ formAction, initialFormData ,
                           </div>
                         </div>
                       </div>
-                      {option.isLegacyMulti && (
-                        <div className="mt-2 text-xs text-yellow-600 bg-yellow-50 p-2 rounded">
-                          ⚠️ Legacy multi-dispenser: Will only dispense {option.dispenser.asset} (first alphabetically)
-                        </div>
-                      )}
                       <div className="flex justify-between items-center mt-2">
                         <div className="flex gap-2 text-xs text-gray-600">
                           <span>

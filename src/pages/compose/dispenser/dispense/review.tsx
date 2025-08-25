@@ -69,9 +69,7 @@ export function ReviewDispense({
   // Extract dispenser address from the transaction outputs
   const dispenserAddress = result?.params?.destination;
   const btcQuantity = result?.params?.quantity || 0;
-  const numberOfDispenses = btcQuantity > 0 && dispenserInfo?.satoshirate 
-    ? Math.floor(btcQuantity / dispenserInfo.satoshirate)
-    : 0;
+  const [allTriggeredDispensers, setAllTriggeredDispensers] = useState<VerboseDispenser[]>([]);
   
   // Fetch dispenser details and check mempool
   useEffect(() => {
@@ -92,18 +90,16 @@ export function ReviewDispense({
           // Cast to VerboseDispenser type for verbose response
           const verboseDispensers = dispensers as VerboseDispenser[];
           
-          // Sort by satoshirate then by asset name to find which will trigger
-          const sorted = [...verboseDispensers].sort((a, b) => {
-            const aSatoshirate = a.satoshirate || 0;
-            const bSatoshirate = b.satoshirate || 0;
-            if (aSatoshirate !== bSatoshirate) {
-              return aSatoshirate - bSatoshirate;
-            }
-            return a.asset.localeCompare(b.asset);
-          });
+          // Find ALL dispensers that will trigger based on BTC amount
+          const triggered = verboseDispensers.filter(d => (d.satoshirate || 0) <= btcQuantity);
           
-          // Find the dispenser that will actually trigger based on BTC amount
-          const triggeredDispenser = sorted.find(d => (d.satoshirate || 0) <= btcQuantity);
+          // Sort by asset name (alphabetically) as that's the order they process
+          const sorted = [...triggered].sort((a, b) => a.asset.localeCompare(b.asset));
+          
+          setAllTriggeredDispensers(sorted);
+          
+          // Set the first triggered dispenser for backward compatibility
+          const triggeredDispenser = sorted[0];
           
           if (triggeredDispenser) {
             const isDivisible = triggeredDispenser.asset_info?.divisible ?? false;
@@ -160,36 +156,81 @@ export function ReviewDispense({
 
   const customFields = [];
   
-  // Add expected outcome if we have dispenser info
-  if (!isLoadingInfo && dispenserInfo && numberOfDispenses > 0) {
-    const totalReceived = Number(dispenserInfo.give_quantity_normalized) * numberOfDispenses;
-    const assetName = dispenserInfo.asset_longname || dispenserInfo.asset;
+  // Add expected outcome if we have triggered dispensers
+  if (!isLoadingInfo && allTriggeredDispensers.length > 0) {
+    // Calculate what will be received from all dispensers
+    const receivedAssets = allTriggeredDispensers.map(dispenser => {
+      const isDivisible = dispenser.asset_info?.divisible ?? false;
+      const divisor = isDivisible ? 1e8 : 1;
+      const satoshirate = dispenser.satoshirate || 0;
+      const numberOfDispenses = satoshirate > 0 ? Math.floor(btcQuantity / satoshirate) : 0;
+      const giveQuantity = (dispenser.give_quantity || 0) / divisor;
+      const totalReceived = giveQuantity * numberOfDispenses;
+      const assetName = dispenser.asset_info?.asset_longname || dispenser.asset;
+      
+      return `${formatAmount({
+        value: totalReceived,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 8
+      })} ${assetName}`;
+    });
     
-    customFields.push(
-      { 
-        label: "# of Dispenses", 
-        value: numberOfDispenses.toString() 
-      },
-      { 
-        label: "You Receive", 
-        value: `${formatAmount({
-          value: totalReceived,
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 8
-        })} ${assetName}` 
-      },
-      { 
-        label: "BTC Payment", 
-        value: `${btcAmount} BTC` 
-      }
-    );
+    // If multiple dispensers trigger, show all assets
+    if (allTriggeredDispensers.length > 1) {
+      customFields.push(
+        { 
+          label: "Dispensers Triggered", 
+          value: allTriggeredDispensers.length.toString() 
+        },
+        { 
+          label: "You Receive", 
+          value: receivedAssets.join('\n')
+        },
+        { 
+          label: "BTC Payment", 
+          value: `${btcAmount} BTC` 
+        }
+      );
+    } else {
+      // Single dispenser
+      const dispenser = allTriggeredDispensers[0];
+      const satoshirate = dispenser.satoshirate || 0;
+      const numberOfDispenses = satoshirate > 0 ? Math.floor(btcQuantity / satoshirate) : 0;
+      
+      customFields.push(
+        { 
+          label: "# of Dispenses", 
+          value: numberOfDispenses.toString() 
+        },
+        { 
+          label: "You Receive", 
+          value: receivedAssets[0]
+        },
+        { 
+          label: "BTC Payment", 
+          value: `${btcAmount} BTC` 
+        }
+      );
+    }
     
-    // Add dispenser TX hash if available
-    if (dispenserInfo.tx_hash) {
+    // Add dispenser TX hashes if available
+    if (allTriggeredDispensers.length === 1 && allTriggeredDispensers[0].tx_hash) {
       customFields.push({
         label: "Dispenser TX Hash",
-        value: dispenserInfo.tx_hash
+        value: allTriggeredDispensers[0].tx_hash
       });
+    } else if (allTriggeredDispensers.length > 1) {
+      // For multiple dispensers, could list all tx hashes but might be too verbose
+      const txHashes = allTriggeredDispensers
+        .filter(d => d.tx_hash)
+        .map(d => d.tx_hash)
+        .slice(0, 3); // Limit to first 3
+      if (txHashes.length > 0) {
+        customFields.push({
+          label: "Dispenser TX Hashes",
+          value: txHashes.join('\n')
+        });
+      }
     }
     
     // Add mempool warning if there are competing transactions
@@ -207,8 +248,8 @@ export function ReviewDispense({
         value: `${mempoolDispenses.length} pending transaction(s) competing for this dispenser:\n${competingTxs}\n\nThe dispenser may be depleted before your transaction confirms.`
       });
     }
-  } else if (!isLoadingInfo && !dispenserInfo) {
-    // Only show basic payment info if we couldn't fetch dispenser details
+  } else if (!isLoadingInfo && allTriggeredDispensers.length === 0) {
+    // Only show basic payment info if we couldn't fetch dispenser details or none trigger
     customFields.push(
       { 
         label: "BTC Payment", 
