@@ -133,6 +133,9 @@ export function Composer<T>({
   const { state, compose, sign, reset, revertToForm, clearError, setError, isPending } = useComposer<T>();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [localShowHelpText, setLocalShowHelpText] = useState<boolean | null>(null); // null means use global setting
+  
+  // Track the current compose type to reset when switching between different compose forms
+  const currentComposeType = useRef<string | null>(null);
 
   // Form action state for composing the transaction
   const [composeError, formAction, isComposing] = useActionState(
@@ -143,6 +146,13 @@ export function Composer<T>({
         // Auto-detect compose type from form data
         const rawData = Object.fromEntries(formData);
         const detectedType = getComposeType(rawData);
+        
+        // Check if compose type has changed and reset if needed
+        if (currentComposeType.current && currentComposeType.current !== detectedType) {
+          reset();
+        }
+        currentComposeType.current = detectedType;
+        
         compose(formData, composeTransaction, activeAddress.address, loadingId, hideLoading, detectedType);
         return null; // Success
       } catch (err) {
@@ -400,6 +410,7 @@ export function Composer<T>({
   }, []);
 
   // Clear error when component unmounts
+  // Note: We don't reset() here because that would clear form data when going between steps
   useEffect(() => {
     return () => {
       clearError();
