@@ -231,16 +231,14 @@ export function WeeklyBetForm({ formAction ,
       return;
     }
 
-    // Convert to satoshis (XCP is divisible, 1 XCP = 10^8 satoshis)
-    const wagerSatoshis = Math.round(wagerFloat * 1e8);
-    const counterwagerSatoshis = Math.round(calculateCounterwager(wagerFloat, selectedChoice) * 1e8);
+    const counterwagerAmount = calculateCounterwager(wagerFloat, selectedChoice);
 
     // Preset parameters
     processedFormData.append("feed_address", WEEKLY_FEED_ADDRESS);
     processedFormData.append("bet_type", selectedChoice.bet_type.toString());
     processedFormData.append("deadline", Math.floor(getNextMondayOpen().getTime() / 1000).toString());
-    processedFormData.append("wager_quantity", wagerSatoshis.toString());
-    processedFormData.append("counterwager_quantity", counterwagerSatoshis.toString());
+    processedFormData.append("wager_quantity", wagerFloat.toString());
+    processedFormData.append("counterwager_quantity", counterwagerAmount.toString());
     processedFormData.append("target_value", "1"); // Always 1
     processedFormData.append("leverage", "5040"); // 1x leverage
     processedFormData.append("expiration", "20160"); // ~2 weeks in blocks - ensures resolution time

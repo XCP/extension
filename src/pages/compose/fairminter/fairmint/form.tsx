@@ -128,14 +128,13 @@ export function FairmintForm({
     const isDivisible = assetDetails?.assetInfo?.divisible ?? selectedFairminter?.divisible ?? true;
     
     // For free mints, quantity is 0; for paid mints, use the entered quantity
-    const quantityToSubmit = isFreeMint ? 0 : Number(formData.quantity);
-    const quantityNum = isDivisible ? Math.round(quantityToSubmit * 1e8) : Math.round(quantityToSubmit);
+    const quantityToSubmit = isFreeMint ? "0" : formData.quantity;
 
     // Create FormData object with the calculated values
     const formDataToSubmit = new FormData();
     formDataToSubmit.append("sourceAddress", activeAddress?.address || "");
     formDataToSubmit.append("asset", formData.asset);
-    formDataToSubmit.append("quantity", quantityNum.toString());
+    formDataToSubmit.append("quantity", quantityToSubmit);
     formDataToSubmit.append("sat_per_vbyte", formData.sat_per_vbyte.toString());
     
     try {

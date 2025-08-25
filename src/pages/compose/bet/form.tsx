@@ -83,23 +83,14 @@ export function BetForm({ formAction, initialFormData ,
     const unixTimestamp = Math.floor(deadlineDate.getTime() / 1000);
     processedFormData.set('deadline', unixTimestamp.toString());
     
-    // Convert wager and counterwager to satoshis if the asset is divisible
-    if (isDivisible) {
-      const wager = formData.get('wager_quantity');
-      if (wager) {
-        const wagerFloat = parseFloat(wager.toString());
-        if (!isNaN(wagerFloat)) {
-          processedFormData.set('wager_quantity', Math.round(wagerFloat * 1e8).toString());
-        }
-      }
-      
-      const counterwager = formData.get('counterwager_quantity');
-      if (counterwager) {
-        const counterwagerFloat = parseFloat(counterwager.toString());
-        if (!isNaN(counterwagerFloat)) {
-          processedFormData.set('counterwager_quantity', Math.round(counterwagerFloat * 1e8).toString());
-        }
-      }
+    const wager = formData.get('wager_quantity');
+    if (wager) {
+      processedFormData.set('wager_quantity', wager.toString());
+    }
+    
+    const counterwager = formData.get('counterwager_quantity');
+    if (counterwager) {
+      processedFormData.set('counterwager_quantity', counterwager.toString());
     }
     
     // Set the fee rate from state

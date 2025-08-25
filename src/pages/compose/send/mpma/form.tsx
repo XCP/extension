@@ -8,7 +8,6 @@ import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { formatAmount } from "@/utils/format";
-import { toSatoshis } from "@/utils/numeric";
 import { fetchAssetDetails, isHexMemo, stripHexPrefix, isValidMemoLength } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -138,7 +137,7 @@ export function MPMAForm({
         parsedRows.push({
           address,
           asset,
-          quantity: isDivisible ? toSatoshis(quantity) : quantity,
+          quantity: quantity,
           memo,
           isDivisible,
           originalQuantity: quantity
