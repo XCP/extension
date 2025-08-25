@@ -89,10 +89,11 @@ const NORMALIZATION_CONFIG: Record<string, {
     assetFields: { quantity: 'asset' }
   },
   dispenser: {
-    quantityFields: ['give_quantity', 'escrow_quantity'],
+    quantityFields: ['give_quantity', 'escrow_quantity', 'mainchainrate'],
     assetFields: { 
       give_quantity: 'asset',
-      escrow_quantity: 'asset'
+      escrow_quantity: 'asset',
+      mainchainrate: 'BTC'  // mainchainrate is always in BTC (satoshis)
     }
   },
   dispense: {
@@ -175,7 +176,10 @@ async function normalizeFormData(
     if (value === null || value === undefined || value === '') continue;
     
     const assetField = config.assetFields[quantityField];
-    const asset = formData.get(assetField) as string;
+    // Handle special case where assetField is a hardcoded asset like 'BTC'
+    const asset = (assetField === 'BTC' || assetField === 'XCP') 
+      ? assetField 
+      : formData.get(assetField) as string;
     
     if (!asset) continue;
     
