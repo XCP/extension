@@ -33,6 +33,7 @@ interface AmountWithMaxInputProps {
   memo?: string;
   disableMaxButton?: boolean;
   onMaxClick?: () => void;
+  hasError?: boolean;
 }
 
 export function AmountWithMaxInput({
@@ -54,6 +55,7 @@ export function AmountWithMaxInput({
   memo = "",
   disableMaxButton = false,
   onMaxClick,
+  hasError = false,
 }: AmountWithMaxInputProps) {
   const [loading, setLoading] = useState(false);
   
@@ -205,7 +207,11 @@ export function AmountWithMaxInput({
           value={value}
           onChange={handleInputChange}
           autoComplete="off"
-          className="mt-1 block w-full p-2 rounded-md border bg-gray-50 pr-16 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className={`mt-1 block w-full p-2 rounded-md border bg-gray-50 pr-16 focus:ring-2 disabled:bg-gray-100 disabled:cursor-not-allowed ${
+            hasError 
+              ? "border-red-500 focus:border-red-500 focus:ring-red-500" 
+              : "focus:ring-blue-500 focus:border-blue-500"
+          }`}
           placeholder="0.00000000"
           disabled={disabled}
         />
