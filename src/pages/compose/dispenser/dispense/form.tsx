@@ -90,6 +90,7 @@ export function DispenseForm({ formAction, initialFormData ,
     }
     return "1";
   });
+  const [btcAmount, setBtcAmount] = useState<string>("");
 
   // Set composer error when it occurs
   useEffect(() => {
@@ -239,6 +240,17 @@ export function DispenseForm({ formAction, initialFormData ,
     const balanceInSatoshis = toBigNumber(btcBalance).times(1e8);
     const adjustedBalance = balanceInSatoshis.times(0.99); // 99% to account for fees
     return Math.floor(adjustedBalance.div(satoshirate).toNumber());
+  };
+
+  // Calculate which dispensers will trigger based on BTC amount
+  const getTriggeredDispensers = (btcAmountSats: number): DispenserOption[] => {
+    return dispenserOptions.filter(option => {
+      // A dispenser triggers if the BTC amount >= its satoshirate
+      return btcAmountSats >= option.satoshirate;
+    }).sort((a, b) => {
+      // Sort by asset name (alphabetically) as that's the order they process
+      return a.dispenser.asset.localeCompare(b.dispenser.asset);
+    });
   };
 
   const handleMaxDispenses = () => {
