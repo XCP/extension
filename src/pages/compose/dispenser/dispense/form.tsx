@@ -225,7 +225,8 @@ export function DispenseForm({ formAction, initialFormData ,
   const calculateMaxDispenses = (satoshirate: number) => {
     if (!satoshirate) return 0;
     const balanceInSatoshis = toBigNumber(btcBalance).times(1e8);
-    const adjustedBalance = balanceInSatoshis.times(0.99); // 99% to account for fees
+    // Use 95% of balance to account for fees more conservatively
+    const adjustedBalance = balanceInSatoshis.times(0.95);
     return Math.floor(adjustedBalance.div(satoshirate).toNumber());
   };
 
