@@ -105,6 +105,13 @@ export const DispenserForm = memo(function DispenserForm({
       setError({ message: assetError.message || "Failed to load asset details" });
     }
   }, [assetError]);
+  
+  // Check if trying to create dispenser for BTC
+  useEffect(() => {
+    if (asset === "BTC") {
+      setError({ message: "Cannot create a dispenser for BTC" });
+    }
+  }, [asset]);
 
   // Fetch asset details and trading pair data
   useEffect(() => {
@@ -159,6 +166,20 @@ export const DispenserForm = memo(function DispenserForm({
 
   // Custom form action wrapper to convert values before submission
   const handleFormAction = useCallback((formData: FormData) => {
+    // Validate before submission
+    if (asset === "BTC") {
+      setError({ message: "Cannot create a dispenser for BTC" });
+      return;
+    }
+    
+    const cleanEscrow = parseFloat(getCleanValue(escrowQuantity));
+    const cleanGive = parseFloat(getCleanValue(giveQuantity));
+    
+    if (!isNaN(cleanEscrow) && !isNaN(cleanGive) && cleanEscrow < cleanGive) {
+      setError({ message: "Escrow quantity must be greater than or equal to give quantity" });
+      return;
+    }
+    
     // Create a new FormData object to avoid modifying the original
     const processedFormData = new FormData();
     
