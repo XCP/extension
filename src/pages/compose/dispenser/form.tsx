@@ -99,6 +99,13 @@ export const DispenserForm = memo(function DispenserForm({
     }
   }, [composerError]);
 
+  // Set asset error when it occurs
+  useEffect(() => {
+    if (assetError) {
+      setError({ message: assetError.message || "Failed to load asset details" });
+    }
+  }, [assetError]);
+
   // Fetch asset details and trading pair data
   useEffect(() => {
     const fetchDetails = async () => {
@@ -197,9 +204,9 @@ export const DispenserForm = memo(function DispenserForm({
         )
       )}
       <div className="bg-white rounded-lg shadow-lg p-4">
-        {(error || composerError || assetError) && (
+        {error && (
           <ErrorAlert 
-            message={error?.message || composerError || assetError?.message || ""} 
+            message={error.message} 
             onClose={() => setError(null)}
           />
         )}
