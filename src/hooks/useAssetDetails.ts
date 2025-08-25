@@ -35,7 +35,7 @@ interface UseAssetDetailsOptions {
  */
 export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions) {
   const { activeAddress, activeWallet } = useWallet();
-  const { subheadings, setBalanceHeader, clearBalances } = useHeader();
+  const { subheadings, setBalanceHeader, clearAllCaches } = useHeader();
   // Initialize with cached data if available
   const cachedBalance = subheadings.balances[asset];
   const initialData = cachedBalance && cachedBalance.quantity_normalized ? {
@@ -83,7 +83,7 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
     const hasAddressChanged = prevAddressRef.current && prevAddressRef.current !== activeAddress?.address;
     
     if (hasWalletChanged || hasAddressChanged) {
-      clearBalances();
+      clearAllCaches();
       // Reset state to force re-fetch
       setState({
         isLoading: false,
@@ -229,7 +229,7 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
       isMounted = false;
       fetchDataRef.current = false;
     };
-  }, [asset, activeWallet?.id, activeAddress?.address, subheadings.balances[asset], setBalanceHeader, clearBalances]);
+  }, [asset, activeWallet?.id, activeAddress?.address, subheadings.balances[asset], setBalanceHeader, clearAllCaches]);
 
   return state;
 }
