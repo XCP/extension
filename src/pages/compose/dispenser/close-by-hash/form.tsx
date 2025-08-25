@@ -32,12 +32,12 @@ export function DispenserCloseByHashForm({
   const [txHash, setTxHash] = useState<string>(initialTxHash || initialFormData?.open_address || "");
   const [selectedDispenser, setSelectedDispenser] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string } | null>(null);
 
   // Set composer error when it occurs
   useEffect(() => {
     if (composerError) {
-      setError(composerError);
+      setError({ message: composerError });
     }
   }, [composerError]);
 
@@ -82,12 +82,12 @@ export function DispenserCloseByHashForm({
         setError(null);
       } else {
         setSelectedDispenser(null);
-        setError("No open dispenser found for this hash.");
+        setError({ message: "No open dispenser found for this hash." });
       }
     } catch (err) {
       console.error("Failed to fetch dispenser:", err);
       setSelectedDispenser(null);
-      setError("Failed to fetch dispenser. Please check the hash and try again.");
+      setError({ message: "Failed to fetch dispenser. Please check the hash and try again." });
     } finally {
       setIsLoading(false);
     }
@@ -103,10 +103,14 @@ export function DispenserCloseByHashForm({
         />
       )}
       <div className="bg-white rounded-lg shadow-lg p-4">
+        {error && (
+          <ErrorAlert
+            message={error.message}
+            onClose={() => setError(null)}
+          />
+        )}
         {isLoading ? (
           <div className="py-4 text-center">Loading dispenser details...</div>
-        ) : error ? (
-          <div className="py-4 text-center text-red-500">{error}</div>
         ) : (
           <form action={formAction} className="space-y-6">
             <Field>

@@ -289,6 +289,12 @@ export function DispenseForm({ formAction, initialFormData ,
       )}
       {dispenserError && <div className="text-red-500 mb-2">{dispenserError}</div>}
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
+        {error && (
+          <ErrorAlert
+            message={error.message}
+            onClose={() => setError(null)}
+          />
+        )}
         <form action={formAction} className="space-y-4">
           <Field>
             <Label htmlFor="dispenserAddress" className="block text-sm font-medium text-gray-700">

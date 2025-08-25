@@ -196,11 +196,13 @@ export const DispenserForm = memo(function DispenserForm({
           <HeaderSkeleton className="mt-1 mb-5" variant="balance" />
         )
       )}
-      {assetError && <div className="text-red-500 mb-2">{assetError.message}</div>}
-      {(error || composerError) && (
-        <ErrorAlert message={error?.message || composerError || ""} />
-      )}
       <div className="bg-white rounded-lg shadow-lg p-4">
+        {(error || composerError || assetError) && (
+          <ErrorAlert 
+            message={error?.message || composerError || assetError?.message || ""} 
+            onClose={() => setError(null)}
+          />
+        )}
         <form action={handleFormAction} className="space-y-6">
           <AmountWithMaxInput
             asset={asset}

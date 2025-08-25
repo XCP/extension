@@ -53,10 +53,13 @@ export function IssueSupplyForm({
 
   return (
     <div className="space-y-4">
-      {(error || composerError) && (
-        <ErrorAlert message={error?.message || composerError || ""} />
-      )}
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
+        {(error || composerError) && (
+          <ErrorAlert 
+            message={error?.message || composerError || ""} 
+            onClose={() => setError(null)}
+          />
+        )}
         <form action={formAction} className="space-y-4">
         <Field>
           <Label htmlFor="asset" className="block text-sm font-medium text-gray-700">

@@ -58,6 +58,12 @@ export function CancelForm({
         <AddressHeader address={activeAddress.address} walletName={activeWallet?.name} className="mt-1 mb-5" />
       )}
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
+        {error && (
+          <ErrorAlert
+            message={error.message}
+            onClose={() => setError(null)}
+          />
+        )}
         <form action={formAction} className="space-y-4">
           <Field>
             <Label htmlFor="offer_hash" className="block text-sm font-medium text-gray-700">

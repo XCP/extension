@@ -40,7 +40,7 @@ export function UtxoAttachForm({
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
   const { pending } = useFormStatus();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string } | null>(null);
   // Always use initialAsset first, as it comes from the route params
   const asset = initialAsset || initialFormData?.asset || "";
   const { data: assetDetails } = useAssetDetails(asset);
@@ -52,7 +52,7 @@ export function UtxoAttachForm({
   // Set composer error when it occurs
   useEffect(() => {
     if (composerError) {
-      setError(composerError);
+      setError({ message: composerError });
     }
   }, [composerError]);
 
@@ -82,9 +82,9 @@ export function UtxoAttachForm({
         />
       )}
       <div className="bg-white rounded-lg shadow-lg p-4">
-        {(error || composerError) && (
+        {error && (
           <ErrorAlert
-            message={error || composerError || "An error occurred"}
+            message={error.message}
             onClose={() => setError(null)}
           />
         )}

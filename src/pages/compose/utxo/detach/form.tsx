@@ -42,7 +42,7 @@ export function UtxoDetachForm({
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
   const { pending } = useFormStatus();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string } | null>(null);
   const [destination, setDestination] = useState(initialFormData?.destination || "");
   const [destinationValid, setDestinationValid] = useState(true); // Optional field, so default to true
   const [utxoBalances, setUtxoBalances] = useState<UtxoBalance[]>([]);
@@ -51,7 +51,7 @@ export function UtxoDetachForm({
   // Set composer error when it occurs
   useEffect(() => {
     if (composerError) {
-      setError(composerError);
+      setError({ message: composerError });
     }
   }, [composerError]);
 
@@ -76,9 +76,9 @@ export function UtxoDetachForm({
         <AddressHeader address={activeAddress.address} walletName={activeWallet?.name} className="mt-1 mb-5" />
       )}
       <div className="bg-white rounded-lg shadow-lg p-4">
-        {(error || composerError) && (
+        {error && (
           <ErrorAlert
-            message={error || composerError || "An error occurred"}
+            message={error.message}
             onClose={() => setError(null)}
           />
         )}

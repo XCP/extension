@@ -66,6 +66,13 @@ export function BetForm({ formAction, initialFormData ,
 
   const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
 
+  // Set composer error when it occurs
+  useEffect(() => {
+    if (composerError) {
+      setError({ message: composerError });
+    }
+  }, [composerError]);
+
   // Create a wrapper for formAction that handles data conversion
   const enhancedFormAction = (formData: FormData) => {
     // Create a new FormData to avoid modifying the original
@@ -139,6 +146,12 @@ export function BetForm({ formAction, initialFormData ,
         />
       ) : null}
       <div className="bg-white rounded-lg shadow-lg p-4">
+        {error && (
+          <ErrorAlert
+            message={error.message}
+            onClose={() => setError(null)}
+          />
+        )}
         <form action={enhancedFormAction} className="space-y-6">
           <Field>
             <Label className="text-sm font-medium text-gray-700">

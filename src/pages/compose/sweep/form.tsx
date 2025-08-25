@@ -31,11 +31,12 @@ interface SweepFormProps {
   showHelpText?: boolean;
 }
 
-export function SweepForm({ formAction, initialFormData, error, showHelpText }: SweepFormProps): ReactElement {
+export function SweepForm({ formAction, initialFormData, error: composerError, showHelpText }: SweepFormProps): ReactElement {
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
   const { pending } = useFormStatus();
+  const [error, setError] = useState<{ message: string } | null>(null);
   const [destination, setDestination] = useState(initialFormData?.destination || "");
   const [destinationValid, setDestinationValid] = useState(false);
   const destinationRef = useRef<HTMLInputElement>(null);
@@ -44,13 +45,25 @@ export function SweepForm({ formAction, initialFormData, error, showHelpText }: 
     destinationRef.current?.focus();
   }, []);
 
+  // Set composer error when it occurs
+  useEffect(() => {
+    if (composerError) {
+      setError({ message: composerError });
+    }
+  }, [composerError]);
+
   return (
     <div className="space-y-4">
       {activeAddress && (
         <AddressHeader address={activeAddress.address} walletName={activeWallet?.name} className="mt-1 mb-5" />
       )}
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-        {error && <ErrorAlert message={error} />}
+        {error && (
+          <ErrorAlert 
+            message={error.message} 
+            onClose={() => setError(null)}
+          />
+        )}
         <form action={formAction} className="space-y-4">
           <Field>
             <Label className="block text-sm font-medium text-gray-700">

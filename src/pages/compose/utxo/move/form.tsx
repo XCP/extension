@@ -42,7 +42,7 @@ export function UtxoMoveForm({
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
   const { pending } = useFormStatus();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string } | null>(null);
   const [destination, setDestination] = useState(initialFormData?.destination || "");
   const [destinationValid, setDestinationValid] = useState(false);
   const [utxoBalances, setUtxoBalances] = useState<UtxoBalance[]>([]);
@@ -51,7 +51,7 @@ export function UtxoMoveForm({
   // Set composer error when it occurs
   useEffect(() => {
     if (composerError) {
-      setError(composerError);
+      setError({ message: composerError });
     }
   }, [composerError]);
 
@@ -80,9 +80,9 @@ export function UtxoMoveForm({
         />
       )}
       <div className="bg-white rounded-lg shadow-lg p-4">
-        {(error || composerError) && (
+        {error && (
           <ErrorAlert
-            message={error || composerError || "An error occurred"}
+            message={error.message}
             onClose={() => setError(null)}
           />
         )}

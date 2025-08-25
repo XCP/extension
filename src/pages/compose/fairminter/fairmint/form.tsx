@@ -66,7 +66,14 @@ export function FairmintForm({
   );
   
   const [pending, setPending] = useState(false);
-  const [localError, setLocalError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Set composer error when it occurs
+  useEffect(() => {
+    if (composerError) {
+      setError({ message: composerError });
+    }
+  }, [composerError]);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -92,18 +99,18 @@ export function FairmintForm({
     e.preventDefault();
     
     if (!formData.asset) {
-      setLocalError("Please select a fairminter asset.");
+      setError({ message: "Please select a fairminter asset." });
       return;
     }
     if (formData.asset === "BTC" || formData.asset === "XCP") {
-      setLocalError("BTC and XCP cannot be used for fairmint operations. Please select a different asset.");
+      setError({ message: "BTC and XCP cannot be used for fairmint operations. Please select a different asset." });
       return;
     }
     
     // Only validate quantity for paid mints
     if (!isFreeMint) {
       if (!formData.quantity || Number(formData.quantity) <= 0) {
-        setLocalError("Please enter a valid quantity greater than zero.");
+        setError({ message: "Please enter a valid quantity greater than zero." });
         return;
       }
       
@@ -112,17 +119,17 @@ export function FairmintForm({
         const quantityByPrice = parseFloat(selectedFairminter.quantity_by_price_normalized);
         const enteredQuantity = Number(formData.quantity);
         if (quantityByPrice > 0 && enteredQuantity % quantityByPrice !== 0) {
-          setLocalError(`Quantity must be a multiple of ${quantityByPrice} (lot size)`);
+          setError({ message: `Quantity must be a multiple of ${quantityByPrice} (lot size)` });
           return;
         }
       }
     }
     
     if (formData.sat_per_vbyte <= 0) {
-      setLocalError("Fee rate must be greater than zero.");
+      setError({ message: "Fee rate must be greater than zero." });
       return;
     }
-    setLocalError(null);
+    setError(null);
     setPending(true);
 
     const isDivisible = assetDetails?.assetInfo?.divisible ?? selectedFairminter?.divisible ?? true;
@@ -142,7 +149,7 @@ export function FairmintForm({
         formAction(formDataToSubmit);
       });
     } catch (error) {
-      setLocalError(error instanceof Error ? error.message : "An error occurred");
+      setError({ message: error instanceof Error ? error.message : "An error occurred" });
     } finally {
       setPending(false);
     }
@@ -164,8 +171,13 @@ export function FairmintForm({
         <div className="text-red-500 mb-4">{assetError.message}</div>
       )}
 
-      {localError && <div className="text-red-500 mb-2">{localError}</div>}
       <div className="bg-white rounded-lg shadow-lg p-4">
+        {error && (
+          <ErrorAlert
+            message={error.message}
+            onClose={() => setError(null)}
+          />
+        )}
         <form onSubmit={handleSubmit} className="space-y-6">
           <FairminterSelectInput
             selectedAsset={formData.asset}

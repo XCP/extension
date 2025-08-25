@@ -38,6 +38,13 @@ export function ResetSupplyForm({
   const { pending } = useFormStatus();
   const [error, setError] = useState<{ message: string; } | null>(null);
 
+  // Set composer error when it occurs
+  useEffect(() => {
+    if (composerError) {
+      setError({ message: composerError });
+    }
+  }, [composerError]);
+
   if (assetError || !assetDetails) {
     return <div className="p-4 text-red-500">Error loading asset details: {assetError?.message}</div>;
   }
@@ -58,8 +65,11 @@ export function ResetSupplyForm({
           undone.
         </p>
       </div>
-      {(error || composerError) && (
-        <ErrorAlert message={error?.message || composerError || ""} />
+      {error && (
+        <ErrorAlert 
+          message={error.message} 
+          onClose={() => setError(null)}
+        />
       )}
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="asset" value={asset} />

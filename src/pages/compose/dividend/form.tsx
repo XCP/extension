@@ -115,11 +115,13 @@ export function DividendForm({
         className="mt-1 mb-5"
       />
       
-      {(error || composerError) && (
-        <ErrorAlert message={error?.message || composerError || ""} />
-      )}
-      
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
+        {(error || composerError) && (
+          <ErrorAlert 
+            message={error?.message || composerError || ""} 
+            onClose={() => setError(null)}
+          />
+        )}
         <form action={processedFormAction} className="space-y-4">
           <input type="hidden" name="asset" value={asset} />
           <input type="hidden" name="dividend_asset" value={selectedDividendAsset} />
