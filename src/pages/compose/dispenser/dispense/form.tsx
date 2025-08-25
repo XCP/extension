@@ -12,7 +12,17 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchAddressDispensers, fetchAssetDetailsAndBalance, type DispenseOptions } from "@/utils/blockchain/counterparty";
 import { formatAmount } from "@/utils/format";
-import { toBigNumber } from "@/utils/numeric";
+import { 
+  toBigNumber, 
+  multiply, 
+  subtract, 
+  divide, 
+  roundUp, 
+  roundDown, 
+  isLessThanOrEqualToZero, 
+  toNumber,
+  BigNumber 
+} from "@/utils/numeric";
 import type { ReactElement } from "react";
 
 interface DispenserDetails {
@@ -84,7 +94,7 @@ export function DispenseForm({ formAction, initialFormData ,
       // Try to extract satoshirate from form data
       const formData = initialFormData as any;
       if (formData.satoshirate && Number(formData.satoshirate) > 0) {
-        return Math.floor(Number(initialFormData.quantity) / Number(formData.satoshirate)).toString();
+        return toNumber(roundDown(divide(initialFormData.quantity, formData.satoshirate))).toString();
       }
     }
     return "1";
@@ -211,9 +221,7 @@ export function DispenseForm({ formAction, initialFormData ,
       const formData = initialFormData as any;
       // If we have a satoshirate in the form data, use it to calculate the number of dispenses
       if (formData.satoshirate && Number(formData.satoshirate) > 0) {
-        const calculatedDispenses = Math.floor(
-          Number(initialFormData.quantity) / Number(formData.satoshirate)
-        ).toString();
+        const calculatedDispenses = toNumber(roundDown(divide(initialFormData.quantity, formData.satoshirate))).toString();
         if (calculatedDispenses !== numberOfDispenses) {
           setNumberOfDispenses(calculatedDispenses);
         }
@@ -224,24 +232,26 @@ export function DispenseForm({ formAction, initialFormData ,
 
   const calculateMaxDispenses = (satoshirate: number) => {
     if (!satoshirate) return 0;
-    const balanceInSatoshis = toBigNumber(btcBalance).times(1e8);
+    const balanceInSatoshis = multiply(btcBalance, 1e8);
     
     // Calculate estimated fee: 250 vbytes is average tx size
     const avgTxSize = 250; // vbytes
     const feeRate = initialFormData?.sat_per_vbyte || 1; // sats per vbyte
-    const estimatedFee = avgTxSize * feeRate;
+    const estimatedFee = multiply(avgTxSize, feeRate);
     
     // Add 75% safety margin to the fee estimate
     const safetyMargin = 1.75;
-    const totalFeeReserve = Math.ceil(estimatedFee * safetyMargin);
+    const totalFeeReserve = roundUp(multiply(estimatedFee, safetyMargin));
     
-    // Subtract fee reserve from balance
-    const adjustedBalance = balanceInSatoshis.minus(totalFeeReserve);
+    // Available balance for dispenses = total balance - fee reserve
+    const availableForDispenses = subtract(balanceInSatoshis, totalFeeReserve);
     
     // If balance after fees is negative or zero, return 0
-    if (adjustedBalance.lte(0)) return 0;
+    if (isLessThanOrEqualToZero(availableForDispenses)) return 0;
     
-    return Math.floor(adjustedBalance.div(satoshirate).toNumber());
+    // Each dispense costs satoshirate, and we need to send that amount as BTC payment
+    // So max dispenses = available balance / satoshirate
+    return toNumber(roundDown(divide(availableForDispenses, satoshirate)));
   };
 
   // Calculate which dispensers will trigger based on BTC amount
@@ -283,8 +293,8 @@ export function DispenseForm({ formAction, initialFormData ,
       }
 
       const dispenser = selectedOption.dispenser;
-      const remainingDispenses = Math.floor(
-        Number(dispenser.give_remaining_normalized) / Number(dispenser.give_quantity_normalized)
+      const remainingDispenses = toNumber(
+        roundDown(divide(dispenser.give_remaining_normalized, dispenser.give_quantity_normalized))
       );
       console.log(
         `Dispenser ${dispenser.asset}: give_remaining_normalized=${dispenser.give_remaining_normalized}, give_quantity_normalized=${dispenser.give_quantity_normalized}, remainingDispenses=${remainingDispenses}`
@@ -403,7 +413,9 @@ export function DispenseForm({ formAction, initialFormData ,
                             })} Per Dispense
                           </span>
                           <span>
-                            {Math.floor(Number(option.dispenser.give_remaining_normalized) / Number(option.dispenser.give_quantity_normalized)) || 0} Remaining
+                            {toNumber(
+                              roundDown(divide(option.dispenser.give_remaining_normalized, option.dispenser.give_quantity_normalized))
+                            ) || 0} Remaining
                           </span>
                         </div>
                         <span className="text-xs text-green-600">Open</span>
