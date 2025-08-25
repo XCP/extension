@@ -225,8 +225,22 @@ export function DispenseForm({ formAction, initialFormData ,
   const calculateMaxDispenses = (satoshirate: number) => {
     if (!satoshirate) return 0;
     const balanceInSatoshis = toBigNumber(btcBalance).times(1e8);
-    // Use 95% of balance to account for fees more conservatively
-    const adjustedBalance = balanceInSatoshis.times(0.95);
+    
+    // Calculate estimated fee: 250 vbytes is average tx size
+    const avgTxSize = 250; // vbytes
+    const feeRate = initialFormData?.sat_per_vbyte || 1; // sats per vbyte
+    const estimatedFee = avgTxSize * feeRate;
+    
+    // Add 75% safety margin to the fee estimate
+    const safetyMargin = 1.75;
+    const totalFeeReserve = Math.ceil(estimatedFee * safetyMargin);
+    
+    // Subtract fee reserve from balance
+    const adjustedBalance = balanceInSatoshis.minus(totalFeeReserve);
+    
+    // If balance after fees is negative or zero, return 0
+    if (adjustedBalance.lte(0)) return 0;
+    
     return Math.floor(adjustedBalance.div(satoshirate).toNumber());
   };
 
