@@ -47,7 +47,7 @@ export function UtxoAttachForm({
   
   // Local state for quantity to handle Max button
   const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
-  const [quantity, setQuantity] = useState("");
+  const [quantity, setQuantity] = useState(initialFormData?.quantity?.toString() || "");
 
   // Set composer error when it occurs
   useEffect(() => {

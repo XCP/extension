@@ -56,38 +56,18 @@ export const DispenserForm = memo(function DispenserForm({
   const [tradingPairData, setTradingPairData] = useState<TradingPairData | null>(null);
   
   // Add state for form values
+  // Note: initialFormData contains user-entered values (not normalized to satoshis)
   const [escrowQuantity, setEscrowQuantity] = useState<string>(
-    initialFormData?.escrow_quantity
-      ? (assetDetails?.assetInfo?.divisible ?? true)
-        ? formatAmount({
-            value: initialFormData.escrow_quantity / 1e8,
-            maximumFractionDigits: 8,
-            minimumFractionDigits: 8
-          })
-        : initialFormData.escrow_quantity.toString()
-      : ""
+    initialFormData?.escrow_quantity?.toString() || ""
   );
   
   const [mainchainRate, setMainchainRate] = useState<string>(
-    initialFormData?.mainchainrate
-      ? formatAmount({
-          value: initialFormData.mainchainrate / 1e8,
-          maximumFractionDigits: 8,
-          minimumFractionDigits: 8
-        })
-      : ""
+    initialFormData?.mainchainrate?.toString() || ""
   );
   
   const [giveQuantity, setGiveQuantity] = useState<string>(
-    initialFormData?.give_quantity
-      ? (assetDetails?.assetInfo?.divisible ?? true)
-        ? formatAmount({
-            value: initialFormData.give_quantity / 1e8,
-            maximumFractionDigits: 8,
-            minimumFractionDigits: 8
-          })
-        : initialFormData.give_quantity.toString()
-      : (assetDetails?.assetInfo?.divisible ?? true) ? "1.00000000" : "1"
+    initialFormData?.give_quantity?.toString() || 
+    ((assetDetails?.assetInfo?.divisible ?? true) ? "1.00000000" : "1")
   );
 
   const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
@@ -153,6 +133,11 @@ export const DispenserForm = memo(function DispenserForm({
       setEscrowQuantity("");
       setMainchainRate("");
       setGiveQuantity((assetDetails?.assetInfo?.divisible ?? true) ? "1.00000000" : "1");
+    } else if (initialFormData !== null && prevInitialFormDataRef.current !== initialFormData) {
+      // Update form values when initialFormData changes (e.g., after error)
+      setEscrowQuantity(initialFormData.escrow_quantity?.toString() || "");
+      setMainchainRate(initialFormData.mainchainrate?.toString() || "");
+      setGiveQuantity(initialFormData.give_quantity?.toString() || "");
     }
     prevInitialFormDataRef.current = initialFormData;
   }, [initialFormData, assetDetails?.assetInfo?.divisible]);

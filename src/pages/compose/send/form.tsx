@@ -85,31 +85,18 @@ export function SendForm({
     return assetDetails?.assetInfo?.divisible || false;
   }, [initialAsset, initialFormData?.asset, assetDetails?.assetInfo]);
 
-  const normalizeAmountForDisplay = (quantity: number | undefined): string => {
-    if (!quantity && quantity !== 0) return ""; // Handle null/undefined, allow 0
-    if (isDivisible) {
-      return formatAmount({
-        value: quantity / 1e8,
-        maximumFractionDigits: 8,
-        minimumFractionDigits: 0,
-      });
-    }
-    return quantity.toString();
-  };
-
-  const [amount, setAmount] = useState<string>(() =>
-    normalizeAmountForDisplay(initialFormData?.quantity)
+  const [amount, setAmount] = useState<string>(
+    initialFormData?.quantity?.toString() || ""
   );
 
   const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
 
   // Sync amount when initialFormData changes
   useEffect(() => {
-    const normalized = normalizeAmountForDisplay(initialFormData?.quantity);
-    if (normalized !== amount) {
-      setAmount(normalized);
+    if (initialFormData?.quantity !== undefined) {
+      setAmount(initialFormData.quantity.toString());
     }
-  }, [initialFormData, isDivisible]); // Depend on full object
+  }, [initialFormData?.quantity]);
 
 
   const handleFormAction = (formData: FormData) => {
