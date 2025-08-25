@@ -10,7 +10,7 @@ import { useSettings } from "@/contexts/settings-context";
 import { ErrorAlert } from "@/components/error-alert";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
-import { toBigNumber, toSatoshis } from "@/utils/numeric";
+import { toBigNumber } from "@/utils/numeric";
 import { AssetHeader } from "@/components/headers/asset-header";
 import type { ReactElement } from "react";
 
@@ -80,22 +80,14 @@ export function DividendForm({
     // Get the quantity_per_unit value
     const quantityPerUnitStr = formData.get('quantity_per_unit') as string;
     
-    // Convert to the proper format based on divisibility
-    if (quantityPerUnitStr && dividendAssetInfo?.assetInfo) {
+    // Just pass the user-friendly value
+    // Normalization will happen at the context level
+    if (quantityPerUnitStr) {
       const cleanedValue = quantityPerUnitStr.replace(/,/g, '');
-      
-      if (dividendAssetInfo.assetInfo.divisible) {
-        // For divisible assets, convert to satoshis (multiply by 10^8)
-        const satoshiValue = toSatoshis(cleanedValue);
-        formData.set('quantity_per_unit', satoshiValue);
-      } else {
-        // For non-divisible assets, round to integer
-        const intValue = toBigNumber(cleanedValue).integerValue().toString();
-        formData.set('quantity_per_unit', intValue);
-      }
+      formData.set('quantity_per_unit', cleanedValue);
     }
     
-    // Submit the processed form data
+    // Submit the form data
     formAction(formData);
   };
 

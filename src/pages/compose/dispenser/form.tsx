@@ -15,7 +15,6 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
-import { toSatoshis } from "@/utils/numeric";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -144,17 +143,12 @@ export const DispenserForm = memo(function DispenserForm({
     prevInitialFormDataRef.current = initialFormData;
   }, [initialFormData, assetDetails?.assetInfo?.divisible]);
 
-  // Convert decimal values to integers for API submission
-  const getFormattedValue = (value: string, isValueDivisible: boolean): string => {
+  // Clean user input values (remove commas, extra spaces)
+  // Normalization to satoshis is handled by the composer context
+  const getCleanValue = (value: string): string => {
     if (!value) return "";
-    
-    if (isValueDivisible) {
-      // For divisible assets, convert to satoshis (multiply by 10^8)
-      return toSatoshis(value);
-    }
-    
-    // For non-divisible assets, use as is
-    return value;
+    // Remove commas and extra spaces but keep the user-friendly decimal format
+    return value.replace(/[,\s]/g, '');
   };
 
   // Custom form action wrapper to convert values before submission
@@ -172,14 +166,14 @@ export const DispenserForm = memo(function DispenserForm({
     // Add the asset parameter
     processedFormData.append("asset", asset);
     
-    // Add the converted values
-    processedFormData.append("escrow_quantity", getFormattedValue(escrowQuantity, isDivisible));
-    processedFormData.append("mainchainrate", getFormattedValue(mainchainRate, true)); // BTC is always divisible
-    processedFormData.append("give_quantity", getFormattedValue(giveQuantity, isDivisible));
+    // Add the cleaned values (normalization happens at composer context level)
+    processedFormData.append("escrow_quantity", getCleanValue(escrowQuantity));
+    processedFormData.append("mainchainrate", getCleanValue(mainchainRate));
+    processedFormData.append("give_quantity", getCleanValue(giveQuantity));
     
     // Call the original formAction with the processed data
     formAction(processedFormData);
-  }, [asset, escrowQuantity, mainchainRate, giveQuantity, isDivisible, formAction]);
+  }, [asset, escrowQuantity, mainchainRate, giveQuantity, formAction]);
 
   return (
     <div className="space-y-4">

@@ -13,7 +13,7 @@ import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-in
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import type { OrderOptions } from "@/utils/blockchain/counterparty";
-import { toBigNumber, toSatoshis } from "@/utils/numeric";
+import { toBigNumber } from "@/utils/numeric";
 import { formatAmount } from "@/utils/format";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { HeaderSkeleton } from "@/components/skeleton";
@@ -219,8 +219,8 @@ export function OrderForm({
             formData.set('type', activeTab);
             formData.set('quote_asset', quoteAsset);
             
-            // Calculate API values (give_quantity and get_quantity) separately
-            // Using BigNumber to avoid floating-point precision issues
+            // Calculate give_quantity and get_quantity based on buy/sell
+            // The normalization layer will handle converting to satoshis
             const amountBN = toBigNumber(amount);
             const priceBN = toBigNumber(price);
             
@@ -232,8 +232,8 @@ export function OrderForm({
                 const giveQty = amountBN.multipliedBy(priceBN);
                 const getQty = amountBN;
                 
-                formData.set('give_quantity', toSatoshis(giveQty));
-                formData.set('get_quantity', toSatoshis(getQty));
+                formData.set('give_quantity', giveQty.toString());
+                formData.set('get_quantity', getQty.toString());
               } else {
                 // Selling: give base asset, get quote asset
                 // give_quantity = amount (in base asset)
@@ -241,8 +241,8 @@ export function OrderForm({
                 const giveQty = amountBN;
                 const getQty = amountBN.multipliedBy(priceBN);
                 
-                formData.set('give_quantity', toSatoshis(giveQty));
-                formData.set('get_quantity', toSatoshis(getQty));
+                formData.set('give_quantity', giveQty.toString());
+                formData.set('get_quantity', getQty.toString());
               }
             } else {
               // If amount or price is 0 or invalid, set quantities to 0

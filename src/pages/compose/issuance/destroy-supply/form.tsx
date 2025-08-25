@@ -13,7 +13,7 @@ import { useSettings } from "@/contexts/settings-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useWallet } from "@/contexts/wallet-context";
 import { formatAmount } from "@/utils/format";
-import { toSatoshis } from "@/utils/numeric";
+// toSatoshis import removed - normalization handled by composer context
 import type { DestroyOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -106,9 +106,9 @@ export function DestroySupplyForm({
   const handleFormAction = (formData: FormData) => {
     if (amount) {
       // Remove any formatting (commas, spaces) from the amount
+      // Normalization to satoshis is handled by the composer context
       const cleanAmount = amount.replace(/[,\s]/g, '');
-      const quantity = isDivisible ? toSatoshis(cleanAmount) : cleanAmount;
-      formData.set("quantity", quantity);
+      formData.set("quantity", cleanAmount);
     }
     // Ensure tag is always present, even if empty
     if (!formData.get("tag")) {

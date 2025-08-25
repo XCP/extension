@@ -16,7 +16,6 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
-import { toSatoshis } from "@/utils/numeric";
 import type { SendOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -114,9 +113,10 @@ export function SendForm({
 
 
   const handleFormAction = (formData: FormData) => {
+    // Just pass the user-friendly amount value
+    // Normalization will happen at the context level
     if (amount) {
-      const quantity = isDivisible ? toSatoshis(amount) : amount;
-      formData.set("quantity", quantity);
+      formData.set("quantity", amount);
     }
     
     // Add all destinations to form data
