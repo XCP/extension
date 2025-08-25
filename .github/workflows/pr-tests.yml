@@ -80,7 +80,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        batch: [1, 2, 3, 4, 5]
+        # Using 10 parallel batches for ~18 test files (1-2 tests per batch)
+        # This maximizes parallelization within GitHub Actions concurrent job limits
+        batch: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     
     steps:
       - name: Checkout code
@@ -115,7 +117,7 @@ jobs:
         timeout-minutes: 15  # Set a reasonable timeout per batch
         run: |
           # Dynamically discover all test files and distribute them across batches
-          TOTAL_BATCHES=5
+          TOTAL_BATCHES=10
           CURRENT_BATCH=${{ matrix.batch }}
           
           # Get all test files, sorted for consistency
