@@ -91,6 +91,7 @@ interface HeaderContextType {
   setAssetHeader: (asset: string, info: AssetInfo) => void;
   setBalanceHeader: (asset: string, balance: TokenBalance) => void;
   clearBalances: () => void;
+  clearAllCaches: () => void;
 }
 
 const EMPTY_HEADER_PROPS: HeaderProps = { title: "", useLogoTitle: false };
@@ -107,7 +108,8 @@ type HeaderAction =
   | { type: "SET_ADDRESS"; payload: { address: string; walletName?: string; formatted: string } }
   | { type: "SET_ASSET"; payload: AssetInfo }
   | { type: "SET_BALANCE"; payload: TokenBalance }
-  | { type: "CLEAR_BALANCES" };
+  | { type: "CLEAR_BALANCES" }
+  | { type: "CLEAR_ALL_CACHES" };
 
 /**
  * Compares two HeaderProps objects for equality.
@@ -195,6 +197,15 @@ function headerReducer(state: HeaderState, action: HeaderAction): HeaderState {
           balances: {},
         },
       };
+    case "CLEAR_ALL_CACHES":
+      return {
+        ...state,
+        subheadings: {
+          addresses: {},
+          assets: {},
+          balances: {},
+        },
+      };
     default:
       return state;
   }
@@ -238,6 +249,10 @@ export function HeaderProvider({ children }: HeaderProviderProps): ReactElement 
     dispatch({ type: "CLEAR_BALANCES" });
   }, []);
 
+  const clearAllCaches = useCallback(() => {
+    dispatch({ type: "CLEAR_ALL_CACHES" });
+  }, []);
+
   const value = useMemo(
     () => ({
       headerProps: state.mainHeader,
@@ -247,8 +262,9 @@ export function HeaderProvider({ children }: HeaderProviderProps): ReactElement 
       setAssetHeader,
       setBalanceHeader,
       clearBalances,
+      clearAllCaches,
     }),
-    [state, setHeaderProps, setAddressHeader, setAssetHeader, setBalanceHeader, clearBalances]
+    [state, setHeaderProps, setAddressHeader, setAssetHeader, setBalanceHeader, clearBalances, clearAllCaches]
   );
 
   return <HeaderContext value={value}>{children}</HeaderContext>;
