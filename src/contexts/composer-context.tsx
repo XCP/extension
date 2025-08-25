@@ -11,6 +11,7 @@ import React, {
   type ReactElement,
   type ReactNode,
 } from "react";
+import { useWallet } from "@/contexts/wallet-context";
 import type { ApiResponse } from "@/utils/blockchain/counterparty";
 
 /**
@@ -72,6 +73,9 @@ export function ComposerProvider<T>({
   children,
   initialFormData = null,
 }: ComposerProviderProps<T>): ReactElement {
+  const { activeAddress } = useWallet();
+  const previousAddressRef = useRef<string | undefined>(activeAddress?.address);
+  
   const initialState: ComposerState<T> = {
     step: "form",
     formData: initialFormData,
@@ -86,6 +90,24 @@ export function ComposerProvider<T>({
   useEffect(() => {
     previousStepRef.current = state.step;
   }, [state.step]);
+
+  // Reset composer state when address changes
+  useEffect(() => {
+    if (
+      activeAddress?.address && 
+      previousAddressRef.current && 
+      activeAddress.address !== previousAddressRef.current
+    ) {
+      // Address changed - reset composer state to clean slate
+      setState({
+        step: "form",
+        formData: null,
+        apiResponse: null,
+        error: null,
+      });
+    }
+    previousAddressRef.current = activeAddress?.address;
+  }, [activeAddress?.address]);
 
   const compose = useCallback(
     (

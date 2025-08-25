@@ -26,12 +26,20 @@ interface TradingPairData {
   name: string;
 }
 
+// Extended type for form data that includes user-facing fields
+interface OrderFormData extends OrderOptions {
+  type?: "buy" | "sell";
+  amount?: string;
+  price?: string;
+  quote_asset?: string;
+}
+
 /**
  * Props for the OrderForm component, aligned with Composer's formAction.
  */
 interface OrderFormProps {
   formAction: (formData: FormData) => void;
-  initialFormData: OrderOptions | null;
+  initialFormData: OrderFormData | null;
   giveAsset: string;
   error?: string | null;
   showHelpText?: boolean;
@@ -52,14 +60,21 @@ export function OrderForm({
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
   const { pending } = useFormStatus();
 
-  const [activeTab, setActiveTab] = useState<"buy" | "sell" | "settings">(initialFormData?.give_quantity ? "sell" : "buy");
-  const [previousTab, setPreviousTab] = useState<"buy" | "sell">(initialFormData?.give_quantity ? "sell" : "buy");
-  const [price, setPrice] = useState<string>("");
-  const [amount, setAmount] = useState<string>(initialFormData?.give_quantity?.toString() || initialFormData?.get_quantity?.toString() || "");
+  // Determine initial tab based on whether we have form data
+  const [activeTab, setActiveTab] = useState<"buy" | "sell" | "settings">(
+    initialFormData?.type === "sell" ? "sell" : initialFormData?.type === "buy" ? "buy" : "buy"
+  );
+  const [previousTab, setPreviousTab] = useState<"buy" | "sell">(
+    initialFormData?.type === "sell" ? "sell" : "buy"
+  );
+  
+  // Use user-facing values from initialFormData if available
+  const [price, setPrice] = useState<string>(initialFormData?.price || "");
+  const [amount, setAmount] = useState<string>(initialFormData?.amount || "");
   const [error, setError] = useState<{ message: string; } | null>(null);
-  const [customExpiration, setCustomExpiration] = useState<number | undefined>(undefined);
-  const [customFeeRequired, setCustomFeeRequired] = useState<number>(0);
-  const [quoteAsset, setQuoteAsset] = useState<string>(initialFormData?.get_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
+  const [customExpiration, setCustomExpiration] = useState<number | undefined>(initialFormData?.expiration || undefined);
+  const [customFeeRequired, setCustomFeeRequired] = useState<number>(initialFormData?.fee_required || 0);
+  const [quoteAsset, setQuoteAsset] = useState<string>(initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
   
   // Set composer error when it occurs
   useEffect(() => {
@@ -198,7 +213,13 @@ export function OrderForm({
             />
           )}
           <form action={(formData) => {
-            // Calculate give_quantity and get_quantity based on amount, price, and order type
+            // Store user-facing values for form persistence
+            formData.set('amount', amount);
+            formData.set('price', price);
+            formData.set('type', activeTab);
+            formData.set('quote_asset', quoteAsset);
+            
+            // Calculate API values (give_quantity and get_quantity) separately
             // Using BigNumber to avoid floating-point precision issues
             const amountBN = toBigNumber(amount);
             const priceBN = toBigNumber(price);
@@ -231,7 +252,6 @@ export function OrderForm({
             
             formAction(formData);
           }} className="space-y-4">
-            <input type="hidden" name="type" value={activeTab} />
             <input type="hidden" name="give_asset" value={isBuy ? quoteAsset : giveAsset} />
             <input type="hidden" name="get_asset" value={isBuy ? giveAsset : quoteAsset} />
             <input type="hidden" name="expiration" value={customExpiration || settings?.defaultOrderExpiration || 8064} />
@@ -258,7 +278,6 @@ export function OrderForm({
               description={`Amount to ${isBuy ? "buy" : "sell"}. ${isBuy ? (isGetAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.") : (isGiveAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.")}`}
               disabled={pending}
             />
-            <input type="hidden" name="quote_asset" value={quoteAsset} />
             <AssetSelectInput
               selectedAsset={quoteAsset}
               onChange={setQuoteAsset}
