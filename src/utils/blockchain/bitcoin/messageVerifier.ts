@@ -30,7 +30,7 @@ if (!hashes.hmacSha256) {
 }
 
 /**
- * Recover public key from signature using noble/secp256k1 v2
+ * Recover public key from signature using noble/secp256k1 v3
  */
 function recoverPublicKey(
   messageHash: Uint8Array,
@@ -42,16 +42,15 @@ function recoverPublicKey(
     const r = signature.slice(1, 33);
     const s = signature.slice(33, 65);
     
-    // Use the recoverPublicKey function from noble/secp256k1 v3
-    // Combine r and s into compact signature
-    const sigBytes = new Uint8Array(64);
-    sigBytes.set(r, 0);
-    sigBytes.set(s, 32);
+    // Create signature with recovery byte for recoverPublicKey
+    // v3 expects: recovery (1 byte) + r (32 bytes) + s (32 bytes)
+    const sigWithRecovery = new Uint8Array(65);
+    sigWithRecovery[0] = recovery;
+    sigWithRecovery.set(r, 1);
+    sigWithRecovery.set(s, 33);
     
-    // Recover the public key - v3 doesn't support recovery parameter directly
-    // This is a limitation of the v3 API - in production you'd need a workaround
-    // For now, we'll use the signature as-is
-    const pubKey = secp256k1.recoverPublicKey(sigBytes, messageHash, { prehash: true });
+    // Recover the public key using the recovered format
+    const pubKey = secp256k1.recoverPublicKey(sigWithRecovery, messageHash, { prehash: true });
     return pubKey; // Already compressed bytes
   } catch (error) {
     console.error('Public key recovery failed:', error);

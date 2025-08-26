@@ -22,10 +22,10 @@
 #### @noble/secp256k1 v3.0.0  
 - [x] Update HMAC setup from `etc.hmacSha256Sync` to `hashes.hmacSha256`
 - [x] Add `hashes.sha256` setup
-- [ ] ~~Change `randomPrivateKey` to `randomSecretKey`~~ Not used
+- [x] Change `randomPrivateKey` to `randomSecretKey` in @noble/curves
 - [x] Add `{prehash: true}` where needed
 - [x] Update signature format handling
-- [x] Note: Recovery parameter removed from v3 API
+- [x] Fixed recovery parameter using `format: 'recovered'`
 
 #### @noble/curves v2.0.0
 - [x] ~~Add .js extension~~ Not needed with Vite bundler
@@ -40,29 +40,32 @@
 ## Files to Update
 
 ### High Priority (Core Crypto)
-- [ ] src/utils/blockchain/bitcoin/privateKey.ts
-- [ ] src/utils/blockchain/bitcoin/transactionSigner.ts
-- [ ] src/utils/blockchain/bitcoin/messageSigner.ts
-- [ ] src/utils/blockchain/bitcoin/messageVerifier.ts
-- [ ] src/utils/blockchain/bitcoin/bareMultisig.ts
-- [ ] src/utils/security/requestSigning.ts
+- [x] src/utils/blockchain/bitcoin/privateKey.ts
+- [x] src/utils/blockchain/bitcoin/transactionSigner.ts
+- [x] src/utils/blockchain/bitcoin/messageSigner.ts
+- [x] src/utils/blockchain/bitcoin/messageVerifier.ts
+- [x] src/utils/blockchain/bitcoin/bareMultisig.ts
+- [x] src/utils/security/requestSigning.ts
 
 ### Medium Priority (Utilities)
-- [ ] src/utils/blockchain/bitcoin/address.ts
-- [ ] src/utils/wallet/walletManager.ts
-- [ ] src/utils/blockchain/counterwallet/mnemonic.ts
+- [x] src/utils/blockchain/bitcoin/address.ts
+- [x] src/utils/wallet/walletManager.ts
+- [x] src/utils/blockchain/counterwallet/mnemonic.ts
 
 ### Test Files
-- [ ] src/utils/blockchain/bitcoin/__tests__/*.test.ts
-- [ ] src/utils/wallet/__tests__/*.test.ts
+- [x] src/utils/blockchain/bitcoin/__tests__/*.test.ts
+- [x] src/utils/wallet/__tests__/*.test.ts
+- [x] src/utils/security/__tests__/requestSigning.test.ts
 
 ## Testing Checklist
 - [x] TypeScript compilation - PASSED
-- [ ] Wallet creation/import
-- [ ] Address generation
-- [ ] Transaction signing
-- [ ] Message signing/verification (Note: Recovery simplified due to v3 limitations)
-- [ ] Bare multisig operations
+- [x] Wallet encryption/decryption - PASSED
+- [x] Message signing/verification - PASSED (with proper recovery)
+- [x] Request signing - PASSED
+- [ ] Wallet creation/import (manual testing needed)
+- [ ] Address generation (manual testing needed)
+- [ ] Transaction signing (manual testing needed)
+- [ ] Bare multisig operations (manual testing needed)
 
 ## Migration Summary
 
@@ -75,10 +78,11 @@
 - ✅ Fixed `randomPrivateKey` → `randomSecretKey`
 - ✅ TypeScript compilation successful
 
-### Known Limitations
-- ⚠️ secp256k1 v3 removed recovery parameter from API
-- ⚠️ Message signing recovery simplified (hardcoded to 0)
-- ⚠️ May need proper recovery implementation for production
+### Key Fixes Applied
+- ✅ Used `format: 'recovered'` for proper recovery parameter in message signing
+- ✅ Fixed `randomSecretKey` to provide required seed parameter (48 bytes)
+- ✅ Properly handle signature format (65 bytes with recovery)
+- ✅ Updated recoverPublicKey to work with v3 API
 
 ### Notes
 - Branch: migrate/paulmillr-v2

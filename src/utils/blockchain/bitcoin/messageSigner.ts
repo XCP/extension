@@ -105,20 +105,16 @@ export async function signMessageLegacy(
   const formattedMessage = formatMessageForSigning(message);
   const messageHash = sha256(sha256(formattedMessage));
   
-  // Sign the message with recovery (v3 returns compact signature)
-  const sigBytes = secp256k1.sign(messageHash, privateKey, { prehash: true });
+  // Sign the message with recovery (v3 supports 'recovered' format)
+  const sigBytes = secp256k1.sign(messageHash, privateKey, { 
+    prehash: true,
+    format: 'recovered' 
+  });
   
-  // Parse the compact signature to get r and s
-  const r = sigBytes.slice(0, 32);
-  const s = sigBytes.slice(32, 64);
-  
-  // For recovery in Bitcoin message signing, we need a recovery value
-  // secp256k1 v3 doesn't expose recovery directly, so we use a workaround
-  // Recovery is typically 0 or 1 for compressed keys
-  const pubKey = secp256k1.getPublicKey(privateKey, compressed);
-  // Simple approach: use recovery = 0 for now
-  // In production, you'd need to implement proper recovery detection
-  const recovery = 0;
+  // With 'recovered' format, signature is 65 bytes: recovery (1) + r (32) + s (32)
+  const recovery = sigBytes[0];
+  const r = sigBytes.slice(1, 33);
+  const s = sigBytes.slice(33, 65);
   
   // Calculate recovery flag
   // Flag byte: 27 + recovery_id + (compressed ? 4 : 0)
@@ -152,16 +148,16 @@ export async function signMessageSegwit(
   const formattedMessage = formatMessageForSigning(message);
   const messageHash = sha256(sha256(formattedMessage));
   
-  // Sign the message with recovery (v3 returns compact signature)
-  const sigBytes = secp256k1.sign(messageHash, privateKey, { prehash: true });
+  // Sign the message with recovery (v3 supports 'recovered' format)
+  const sigBytes = secp256k1.sign(messageHash, privateKey, { 
+    prehash: true,
+    format: 'recovered' 
+  });
   
-  // Parse the compact signature
-  const r = sigBytes.slice(0, 32);
-  const s = sigBytes.slice(32, 64);
-  
-  // Simple recovery value for secp256k1 v3
-  // In production, proper recovery detection would be needed
-  const recovery = 0;
+  // With 'recovered' format, signature is 65 bytes: recovery (1) + r (32) + s (32)
+  const recovery = sigBytes[0];
+  const r = sigBytes.slice(1, 33);
+  const s = sigBytes.slice(33, 65);
   
   // Calculate recovery flag for SegWit
   // P2WPKH: 39 + recovery_id
@@ -201,7 +197,7 @@ export async function signMessageTaproot(
   const formattedMessage = formatMessageForSigning(message);
   const messageHash = sha256(sha256(formattedMessage));
   
-  // Create signature with recovery (v3 returns compact signature)
+  // Create signature (v3 returns compact signature by default for Taproot)
   const sigBytes = secp256k1.sign(messageHash, privateKey, { prehash: true });
   
   // Convert to hex

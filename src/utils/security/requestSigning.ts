@@ -41,7 +41,9 @@ class RequestSigner {
         this.publicKey = hex.decode(stored.signingKeys.publicKey);
       } else {
         // Generate new keys for this extension instance
-        this.privateKey = secp256k1.utils.randomSecretKey();
+        const randomSeed = new Uint8Array(48);
+        crypto.getRandomValues(randomSeed);
+        this.privateKey = secp256k1.utils.randomSecretKey(randomSeed);
         this.publicKey = secp256k1.getPublicKey(this.privateKey);
         
         // Store keys (in a real implementation, these might be derived from user's wallet)
@@ -55,7 +57,9 @@ class RequestSigner {
     } catch (error) {
       console.error('Failed to initialize signing keys:', error);
       // Generate ephemeral keys for this session
-      this.privateKey = secp256k1.utils.randomSecretKey();
+      const randomSeed = new Uint8Array(48);
+      crypto.getRandomValues(randomSeed);
+      this.privateKey = secp256k1.utils.randomSecretKey(randomSeed);
       this.publicKey = secp256k1.getPublicKey(this.privateKey);
     }
   }
