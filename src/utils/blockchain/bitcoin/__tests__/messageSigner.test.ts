@@ -2,19 +2,24 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { signMessage, getSigningCapabilities, verifyMessage } from '@/utils/blockchain/bitcoin';
 import { AddressType } from '@/utils/blockchain/bitcoin';
 import * as secp256k1 from '@noble/secp256k1';
+import { hashes } from '@noble/secp256k1';
 import { hmac } from '@noble/hashes/hmac';
-import { sha256 } from '@noble/hashes/sha256';
+import { sha256 } from '@noble/hashes/sha2';
 
 // Initialize secp256k1 for tests
 beforeAll(() => {
-  if (!secp256k1.etc.hmacSha256Sync) {
-    secp256k1.etc.hmacSha256Sync = (
-      key: Uint8Array,
-      ...messages: Uint8Array[]
-    ): Uint8Array => {
-      const h = hmac.create(sha256, key);
-      for (const msg of messages) h.update(msg);
-      return h.digest();
+  
+  if (!hashes.hmacSha256) {
+    hashes.hmacSha256 = (key: Uint8Array, msg: Uint8Array): Uint8Array => {
+      return hmac(sha256, key, msg);
+    };
+    hashes.sha256 = sha256;
+    
+    hashes.hmacSha256Async = async (key: Uint8Array, msg: Uint8Array): Promise<Uint8Array> => {
+      return hmac(sha256, key, msg);
+    };
+    hashes.sha256Async = async (msg: Uint8Array): Promise<Uint8Array> => {
+      return sha256(msg);
     };
   }
 });

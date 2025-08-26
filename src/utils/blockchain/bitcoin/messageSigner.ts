@@ -5,23 +5,30 @@
  * and simplified Taproot signing
  */
 
-import { sha256 } from '@noble/hashes/sha256';
+import { sha256 } from '@noble/hashes/sha2';
 import { hmac } from '@noble/hashes/hmac';
 import * as btc from '@scure/btc-signer';
 import { hex, base64 } from '@scure/base';
+import { bytesToHex } from '@noble/hashes/utils';
 import * as secp256k1 from '@noble/secp256k1';
 import type { AddressType } from '../bitcoin';
 
-// Required initialization for @noble/secp256k1 v2
-// Set up the HMAC function needed for deterministic signatures
-if (!secp256k1.etc.hmacSha256Sync) {
-  secp256k1.etc.hmacSha256Sync = (
-    key: Uint8Array,
-    ...messages: Uint8Array[]
-  ): Uint8Array => {
-    const h = hmac.create(sha256, key);
-    for (const msg of messages) h.update(msg);
-    return h.digest();
+// Required initialization for @noble/secp256k1 v3
+// Set up the HMAC and SHA256 functions needed for deterministic signatures
+import { hashes } from '@noble/secp256k1';
+
+if (!hashes.hmacSha256) {
+  hashes.hmacSha256 = (key: Uint8Array, msg: Uint8Array): Uint8Array => {
+    return hmac(sha256, key, msg);
+  };
+  hashes.sha256 = sha256;
+  
+  // Also set async versions if needed
+  hashes.hmacSha256Async = async (key: Uint8Array, msg: Uint8Array): Promise<Uint8Array> => {
+    return hmac(sha256, key, msg);
+  };
+  hashes.sha256Async = async (msg: Uint8Array): Promise<Uint8Array> => {
+    return sha256(msg);
   };
 }
 
@@ -33,7 +40,7 @@ const BITCOIN_MESSAGE_MAGIC = '\x18Bitcoin Signed Message:\n';
 /**
  * Format message for signing according to Bitcoin standard
  */
-function formatMessageForSigning(message: string): Uint8Array {
+export function formatMessageForSigning(message: string): Uint8Array {
   const messageBytes = new TextEncoder().encode(message);
   const messageLengthBytes = encodeVarInt(messageBytes.length);
   
@@ -98,16 +105,16 @@ export async function signMessageLegacy(
   const formattedMessage = formatMessageForSigning(message);
   const messageHash = sha256(sha256(formattedMessage));
   
-  // Sign the message with recovery
-  const sig = secp256k1.sign(messageHash, privateKey);
+  // Sign the message with recovery (v3 supports 'recovered' format)
+  const sigBytes = secp256k1.sign(messageHash, privateKey, { 
+    prehash: true,
+    format: 'recovered' 
+  });
   
-  // For recovery, we need to try both possible recovery values (0 or 1)
-  // @noble/secp256k1 v2 includes recovery in the signature
-  const recovery = sig.recovery || 0;
-  
-  // Get r and s as bigints
-  const r = sig.r;
-  const s = sig.s;
+  // With 'recovered' format, signature is 65 bytes: recovery (1) + r (32) + s (32)
+  const recovery = sigBytes[0];
+  const r = sigBytes.slice(1, 33);
+  const s = sigBytes.slice(33, 65);
   
   // Calculate recovery flag
   // Flag byte: 27 + recovery_id + (compressed ? 4 : 0)
@@ -120,21 +127,9 @@ export async function signMessageLegacy(
   const finalSignature = new Uint8Array(65);
   finalSignature[0] = recoveryFlag;
   
-  // Convert r and s to 32-byte arrays
-  const rBytes = new Uint8Array(32);
-  const sBytes = new Uint8Array(32);
-  
-  // r and s are bigints, convert to bytes
-  const rHex = r.toString(16).padStart(64, '0');
-  const sHex = s.toString(16).padStart(64, '0');
-  
-  for (let i = 0; i < 32; i++) {
-    rBytes[i] = parseInt(rHex.slice(i * 2, i * 2 + 2), 16);
-    sBytes[i] = parseInt(sHex.slice(i * 2, i * 2 + 2), 16);
-  }
-  
-  finalSignature.set(rBytes, 1);
-  finalSignature.set(sBytes, 33);
+  // r and s are already byte arrays
+  finalSignature.set(r, 1);
+  finalSignature.set(s, 33);
   
   // Return base64 encoded signature
   return base64.encode(finalSignature);
@@ -153,13 +148,16 @@ export async function signMessageSegwit(
   const formattedMessage = formatMessageForSigning(message);
   const messageHash = sha256(sha256(formattedMessage));
   
-  // Sign the message with recovery
-  const sig = secp256k1.sign(messageHash, privateKey);
+  // Sign the message with recovery (v3 supports 'recovered' format)
+  const sigBytes = secp256k1.sign(messageHash, privateKey, { 
+    prehash: true,
+    format: 'recovered' 
+  });
   
-  // Get r and s values
-  const r = sig.r;
-  const s = sig.s;
-  const recovery = sig.recovery || 0;
+  // With 'recovered' format, signature is 65 bytes: recovery (1) + r (32) + s (32)
+  const recovery = sigBytes[0];
+  const r = sigBytes.slice(1, 33);
+  const s = sigBytes.slice(33, 65);
   
   // Calculate recovery flag for SegWit
   // P2WPKH: 39 + recovery_id
@@ -175,14 +173,9 @@ export async function signMessageSegwit(
   const finalSignature = new Uint8Array(65);
   finalSignature[0] = recoveryFlag;
   
-  // Convert r and s to bytes
-  const rHex = r.toString(16).padStart(64, '0');
-  const sHex = s.toString(16).padStart(64, '0');
-  const rBytes = hex.decode(rHex);
-  const sBytes = hex.decode(sHex);
-  
-  finalSignature.set(rBytes, 1);
-  finalSignature.set(sBytes, 33);
+  // r and s are already byte arrays
+  finalSignature.set(r, 1);
+  finalSignature.set(s, 33);
   
   // Return base64 encoded signature
   return base64.encode(finalSignature);
@@ -204,12 +197,12 @@ export async function signMessageTaproot(
   const formattedMessage = formatMessageForSigning(message);
   const messageHash = sha256(sha256(formattedMessage));
   
-  // Create signature with recovery
-  const sig = secp256k1.sign(messageHash, privateKey);
+  // Create signature (v3 returns compact signature by default for Taproot)
+  const sigBytes = secp256k1.sign(messageHash, privateKey, { prehash: true });
   
   // Convert to hex
-  const rHex = sig.r.toString(16).padStart(64, '0');
-  const sHex = sig.s.toString(16).padStart(64, '0');
+  const rHex = bytesToHex(sigBytes.slice(0, 32));
+  const sHex = bytesToHex(sigBytes.slice(32, 64));
   
   // For Taproot, we return a hex signature with a special prefix
   // to indicate it's a Taproot signature
@@ -323,4 +316,3 @@ export function getSigningCapabilities(addressType: AddressType | string): {
 }
 
 // Export helper function for use in verifier
-export { formatMessageForSigning };
