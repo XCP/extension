@@ -12,12 +12,11 @@ test.describe('Compose Dispense', () => {
   });
 
   test('should compose dispense transaction', async () => {
-    const { page } = extensionContext;
+    const { page, extensionId } = extensionContext;
     
-    // Navigate to compose dispense
-    await page.click('text=Assets');
-    await page.click('text=BTC');
-    await page.click('text=Dispense');
+    // Navigate directly to compose dispense page
+    await page.goto(`chrome-extension://${extensionId}/popup.html#/compose/dispenser/dispense`);
+    await page.waitForLoadState('networkidle');
     
     // Should show dispenser address input
     await expect(page.locator('label:has-text("Dispenser Address")')).toBeVisible();
@@ -56,12 +55,11 @@ test.describe('Compose Dispense', () => {
   });
 
   test('should handle multiple dispensers at same address', async () => {
-    const { page } = extensionContext;
+    const { page, extensionId } = extensionContext;
     
-    // Navigate to compose dispense
-    await page.click('text=Assets');
-    await page.click('text=BTC');
-    await page.click('text=Dispense');
+    // Navigate directly to compose dispense page
+    await page.goto(`chrome-extension://${extensionId}/popup.html#/compose/dispenser/dispense`);
+    await page.waitForLoadState('networkidle');
     
     // Enter address with multiple dispensers
     await page.fill('input[name="dispenserAddress"]', 'bc1qmultiple');
@@ -91,12 +89,11 @@ test.describe('Compose Dispense', () => {
   });
 
   test('should calculate max dispenses correctly', async () => {
-    const { page } = extensionContext;
+    const { page, extensionId } = extensionContext;
     
-    // Navigate to compose dispense
-    await page.click('text=Assets');
-    await page.click('text=BTC');
-    await page.click('text=Dispense');
+    // Navigate directly to compose dispense page
+    await page.goto(`chrome-extension://${extensionId}/popup.html#/compose/dispenser/dispense`);
+    await page.waitForLoadState('networkidle');
     
     // Enter dispenser address
     await page.fill('input[name="dispenserAddress"]', 'bc1qdispenser');
@@ -124,12 +121,11 @@ test.describe('Compose Dispense', () => {
   });
 
   test('should show error for insufficient balance', async () => {
-    const { page } = extensionContext;
+    const { page, extensionId } = extensionContext;
     
-    // Navigate to compose dispense
-    await page.click('text=Assets');
-    await page.click('text=BTC');
-    await page.click('text=Dispense');
+    // Navigate directly to compose dispense page
+    await page.goto(`chrome-extension://${extensionId}/popup.html#/compose/dispenser/dispense`);
+    await page.waitForLoadState('networkidle');
     
     // Enter expensive dispenser address
     await page.fill('input[name="dispenserAddress"]', 'bc1qexpensive');
@@ -155,13 +151,12 @@ test.describe('Compose Dispense', () => {
   });
 
   test('should display multiple assets on review when multiple dispensers trigger', async () => {
-    const { page } = extensionContext;
+    const { page, extensionId } = extensionContext;
     
     // This would require setting up a scenario where BTC amount is enough to trigger multiple dispensers
-    // Navigate to compose dispense
-    await page.click('text=Assets');
-    await page.click('text=BTC');
-    await page.click('text=Dispense');
+    // Navigate directly to compose dispense page
+    await page.goto(`chrome-extension://${extensionId}/popup.html#/compose/dispenser/dispense`);
+    await page.waitForLoadState('networkidle');
     
     // Enter address with multiple low-cost dispensers
     await page.fill('input[name="dispenserAddress"]', 'bc1qkqqphrs38ryju5725erdqqsa74alx9keh8z78t');
@@ -196,12 +191,11 @@ test.describe('Compose Dispense', () => {
   });
 
   test('should allow editing times to dispense after clicking max', async () => {
-    const { page } = extensionContext;
+    const { page, extensionId } = extensionContext;
     
-    // Navigate to compose dispense
-    await page.click('text=Assets');
-    await page.click('text=BTC');
-    await page.click('text=Dispense');
+    // Navigate directly to compose dispense page
+    await page.goto(`chrome-extension://${extensionId}/popup.html#/compose/dispenser/dispense`);
+    await page.waitForLoadState('networkidle');
     
     // Enter dispenser address
     await page.fill('input[name="dispenserAddress"]', 'bc1qdispenser');

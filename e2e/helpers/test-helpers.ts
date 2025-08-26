@@ -214,12 +214,12 @@ export async function launchExtension(testName: string): Promise<ExtensionContex
  * @param password - Password for the wallet (defaults to TEST_PASSWORD)
  */
 export async function createWallet(page: Page, password: string = TEST_PASSWORD): Promise<void> {
-  // Click Create Wallet
-  await page.getByText('Create Wallet').click();
+  // Click Create Wallet button - use more specific selector
+  await page.getByRole('button', { name: /Create wallet/i }).click();
   await page.waitForTimeout(1000);
   
-  // Reveal phrase
-  await page.getByText('View 12-word Secret Phrase').click();
+  // Reveal phrase - click the div with role="button" that contains the text
+  await page.getByRole('button', { name: /Reveal recovery phrase/i }).click();
   await page.waitForTimeout(1000);
   
   // Confirm and submit
