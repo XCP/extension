@@ -5,7 +5,7 @@
  * originated from the legitimate extension and haven't been tampered with.
  */
 
-import { sha256 } from '@noble/hashes/sha256';
+import { sha256 } from '@noble/hashes/sha2';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { hex } from '@scure/base';
 
@@ -41,7 +41,7 @@ class RequestSigner {
         this.publicKey = hex.decode(stored.signingKeys.publicKey);
       } else {
         // Generate new keys for this extension instance
-        this.privateKey = secp256k1.utils.randomPrivateKey();
+        this.privateKey = secp256k1.utils.randomSecretKey();
         this.publicKey = secp256k1.getPublicKey(this.privateKey);
         
         // Store keys (in a real implementation, these might be derived from user's wallet)
@@ -55,7 +55,7 @@ class RequestSigner {
     } catch (error) {
       console.error('Failed to initialize signing keys:', error);
       // Generate ephemeral keys for this session
-      this.privateKey = secp256k1.utils.randomPrivateKey();
+      this.privateKey = secp256k1.utils.randomSecretKey();
       this.publicKey = secp256k1.getPublicKey(this.privateKey);
     }
   }
@@ -79,8 +79,8 @@ class RequestSigner {
     const message = this.createSigningMessage(origin, method, params, timestamp, nonce);
     const messageHash = sha256(message);
     
-    // Sign the message hash
-    const signature = secp256k1.sign(messageHash, this.privateKey!);
+    // Sign the message hash (v2 requires prehash option for hashed messages)
+    const signature = secp256k1.sign(messageHash, this.privateKey!, { prehash: true });
     
     return {
       origin,
@@ -88,7 +88,7 @@ class RequestSigner {
       params,
       timestamp,
       nonce,
-      signature: hex.encode(signature.toCompactRawBytes()),
+      signature: hex.encode(signature),
       publicKey: hex.encode(this.publicKey!)
     };
   }
@@ -114,7 +114,7 @@ class RequestSigner {
         const signatureBytes = hex.decode(signature);
         const publicKeyBytes = hex.decode(publicKey);
         
-        return secp256k1.verify(signatureBytes, messageHash, publicKeyBytes);
+        return secp256k1.verify(signatureBytes, messageHash, publicKeyBytes, { prehash: true });
       } catch (hexError) {
         console.warn('Invalid signature or public key format:', hexError);
         return false;
