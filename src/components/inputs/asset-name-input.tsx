@@ -26,7 +26,7 @@ interface AssetNameInputProps {
  * @param isSubasset Whether this is a subasset
  * @returns Object with isValid flag and optional error message
  */
-function validateAssetName(assetName: string, isSubasset: boolean): { isValid: boolean; error?: string } {
+export function validateAssetName(assetName: string, isSubasset: boolean): { isValid: boolean; error?: string } {
   if (!assetName) {
     return { isValid: false, error: "Asset name is required" };
   }
@@ -87,7 +87,7 @@ function validateAssetName(assetName: string, isSubasset: boolean): { isValid: b
 /**
  * Validates a parent asset (or regular asset) name
  */
-function validateParentAsset(assetName: string): { isValid: boolean; error?: string } {
+export function validateParentAsset(assetName: string): { isValid: boolean; error?: string } {
   // Cannot be reserved names
   if (assetName === 'BTC' || assetName === 'XCP') {
     return { isValid: false, error: "Cannot use reserved asset names" };
