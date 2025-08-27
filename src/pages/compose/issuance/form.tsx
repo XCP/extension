@@ -248,7 +248,7 @@ export function IssuanceForm({
               <Label className="block text-sm font-medium text-gray-700 mb-2">
                 Inscription File <span className="text-red-500">*</span>
               </Label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
                 <input
                   ref={fileInputRef}
                   id="inscription-file"
@@ -273,23 +273,13 @@ export function IssuanceForm({
                     <button
                       type="button"
                       onClick={() => {
-                        fileInputRef.current?.click();
-                      }}
-                      className="text-xs text-blue-600 hover:text-blue-700"
-                      disabled={pending}
-                    >
-                      Choose different file
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
                         setSelectedFile(null);
                         setFileError(null);
                         if (fileInputRef.current) {
                           fileInputRef.current.value = '';
                         }
                       }}
-                      className="text-xs text-red-600 hover:text-red-700 ml-3"
+                      className="text-xs text-red-600 hover:text-red-700"
                     >
                       Remove file
                     </button>
@@ -332,7 +322,7 @@ export function IssuanceForm({
                 name="description"
                 defaultValue={initialFormData?.description || ""}
                 className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
-                rows={3}
+                rows={4}
                 disabled={pending}
               />
               <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>

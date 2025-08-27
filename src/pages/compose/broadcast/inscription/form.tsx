@@ -132,7 +132,7 @@ export function BroadcastInscriptionForm({ formAction, initialFormData ,
             <Label className="block text-sm font-medium text-gray-700 mb-2">
               Your File <span className="text-red-500">*</span>
             </Label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
               <input
                 ref={fileInputRef}
                 id="file"
@@ -158,23 +158,13 @@ export function BroadcastInscriptionForm({ formAction, initialFormData ,
                   <button
                     type="button"
                     onClick={() => {
-                      fileInputRef.current?.click();
-                    }}
-                    className="text-xs text-blue-600 hover:text-blue-700"
-                    disabled={pending}
-                  >
-                    Choose different file
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
                       setSelectedFile(null);
                       setFileError(null);
                       if (fileInputRef.current) {
                         fileInputRef.current.value = '';
                       }
                     }}
-                    className="text-xs text-red-600 hover:text-red-700 ml-3"
+                    className="text-xs text-red-600 hover:text-red-700"
                   >
                     Remove file
                   </button>
