@@ -55,6 +55,7 @@ export function IssuanceForm({
   const [inscribeEnabled, setInscribeEnabled] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [description, setDescription] = useState(initialFormData?.description || "");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { data: parentAssetDetails } = useAssetDetails(initialParentAsset || "");
   
@@ -165,16 +166,21 @@ export function IssuanceForm({
         )}
         <form action={async formData => {
           // If inscribing, convert file to base64 and set as description
-          if (inscribeEnabled && selectedFile) {
-            try {
-              const base64Data = await fileToBase64(selectedFile);
-              formData.set("description", base64Data);
-              formData.set("mime_type", selectedFile.type);
-              formData.set("encoding", "taproot");
-            } catch (error) {
-              setFileError("Failed to process file");
-              return;
+          if (inscribeEnabled) {
+            if (selectedFile) {
+              try {
+                const base64Data = await fileToBase64(selectedFile);
+                formData.set("description", base64Data);
+                formData.set("mime_type", selectedFile.type);
+                formData.set("encoding", "taproot");
+              } catch (error) {
+                setFileError("Failed to process file");
+                return;
+              }
             }
+          } else {
+            // Use the text description if not inscribing
+            formData.set("description", description);
           }
           
           formAction(formData);
@@ -320,7 +326,8 @@ export function IssuanceForm({
               <Textarea
                 id="description"
                 name="description"
-                defaultValue={initialFormData?.description || ""}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
                 className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
                 rows={4}
                 disabled={pending}
