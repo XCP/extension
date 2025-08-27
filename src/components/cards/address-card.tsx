@@ -15,7 +15,7 @@ export function AddressCard({ address, selected, onSelect }: AddressCardProps) {
       className={({ active }) =>
         `${
           selected ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-100'
-        } relative flex cursor-pointer rounded-lg px-4 py-3 border focus:outline-none ${
+        } relative flex cursor-pointer rounded-lg px-4 py-3 border border-gray-300 focus:outline-none ${
           active ? 'ring-2 ring-blue-500 ring-opacity-60' : ''
         }`
       }

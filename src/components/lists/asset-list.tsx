@@ -103,7 +103,7 @@ export const AssetList = (): React.ReactElement => {
           type="text"
           id="asset-search"
           name="asset-search"
-          className="w-full p-2 pl-8 pr-8 border rounded-lg bg-white"
+          className="w-full p-2 pl-8 pr-8 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           placeholder="Search assets..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
