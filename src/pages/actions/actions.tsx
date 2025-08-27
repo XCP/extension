@@ -180,11 +180,11 @@ export default function ActionsScreen(): ReactElement {
   const { settings } = useSettings();
   
   // Check if active wallet uses SegWit addresses (P2WPKH, P2SH-P2WPKH, or P2TR)
-  const isSegwitWallet = activeWallet?.addressType && [
+  const isSegwitWallet = activeWallet?.addressType ? [
     AddressType.P2WPKH,
     AddressType.P2SH_P2WPKH,
     AddressType.P2TR
-  ].includes(activeWallet.addressType);
+  ].includes(activeWallet.addressType) : false;
   
   // Check if MPMA is enabled
   const enableMPMA = settings?.enableMPMA ?? false;
