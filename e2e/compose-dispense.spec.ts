@@ -15,8 +15,8 @@ test.describe('Compose Dispense', () => {
     // Should show dispenser address input
     await expect(page.locator('label:has-text("Dispenser Address")')).toBeVisible();
     
-    // Enter a dispenser address
-    await page.fill('input[name="dispenserAddress"]', 'bc1qkqqphrs38ryju5725erdqqsa74alx9keh8z78t');
+    // Enter a real dispenser address that has multiple assets
+    await page.fill('input[name="dispenserAddress"]', '1BigDeaLFejyJiK6rLaj4LYCikD5CfYyhp');
     
     // Wait for dispensers to load
     await page.waitForTimeout(2000);
@@ -162,8 +162,8 @@ test.describe('Compose Dispense', () => {
     await page.goto(`chrome-extension://${extensionId}/popup.html#/compose/dispenser/dispense`);
     await page.waitForLoadState('networkidle');
     
-    // Enter address with multiple low-cost dispensers
-    await page.fill('input[name="dispenserAddress"]', 'bc1qkqqphrs38ryju5725erdqqsa74alx9keh8z78t');
+    // Enter address with multiple low-cost dispensers (real address with multiple assets)
+    await page.fill('input[name="dispenserAddress"]', '1BigDeaLFejyJiK6rLaj4LYCikD5CfYyhp');
     await page.waitForTimeout(1000);
     
     // Select a dispenser
