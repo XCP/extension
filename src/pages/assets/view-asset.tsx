@@ -195,6 +195,12 @@ export default function ViewAsset(): ReactElement {
         path: `${CONSTANTS.PATHS.COMPOSE}/issuance/update-description/${asset}`,
       },
       {
+        id: "lock-description",
+        name: "Lock Description", 
+        description: "Permanently lock the asset description",
+        path: `${CONSTANTS.PATHS.COMPOSE}/issuance/lock-description/${asset}`,
+      },
+      {
         id: "transfer-ownership",
         name: "Transfer Ownership",
         description: "Transfer asset ownership to another address",

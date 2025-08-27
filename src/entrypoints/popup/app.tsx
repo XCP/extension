@@ -59,6 +59,7 @@ import ComposeIssuanceLockSupply from '@/pages/compose/issuance/lock-supply/page
 import ComposeIssuanceResetSupply from '@/pages/compose/issuance/reset-supply/page';
 import ComposeIssuanceTransferOwnership from '@/pages/compose/issuance/transfer-ownership/page';
 import ComposeIssuanceUpdateDescription from '@/pages/compose/issuance/update-description/page';
+import ComposeIssuanceLockDescription from '@/pages/compose/issuance/lock-description/page';
 import ComposeFairminter from '@/pages/compose/fairminter/page';
 import ComposeFairmint from '@/pages/compose/fairminter/fairmint/page';
 import ComposeSend from '@/pages/compose/send/page';
@@ -193,6 +194,7 @@ export default function App() {
             <Route path="/compose/issuance/reset-supply/:asset" element={<ComposeIssuanceResetSupply />} />
             <Route path="/compose/issuance/transfer-ownership/:asset" element={<ComposeIssuanceTransferOwnership />} />
             <Route path="/compose/issuance/update-description/:asset" element={<ComposeIssuanceUpdateDescription />} />
+            <Route path="/compose/issuance/lock-description/:asset" element={<ComposeIssuanceLockDescription />} />
             <Route path="/compose/issuance/destroy/:asset" element={<ComposeDestroy />} />
             <Route path="/compose/fairminter/:asset?" element={<ComposeFairminter />} />
             <Route path="/compose/fairmint/:asset?" element={<ComposeFairmint />} />
