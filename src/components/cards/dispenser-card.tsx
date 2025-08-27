@@ -76,7 +76,7 @@ export function DispenserCard({
     <label
       htmlFor={`dispenser-${option.index}`}
       className={`
-        relative flex items-start gap-3 bg-gray-50 p-4 rounded-md border cursor-pointer
+        relative flex items-start gap-3 bg-gray-50 p-4 rounded-md border border-gray-300 cursor-pointer
         ${disabled ? "opacity-50 cursor-not-allowed" : ""}
         ${isSelected ? "ring-2 ring-blue-500" : ""}
       `}

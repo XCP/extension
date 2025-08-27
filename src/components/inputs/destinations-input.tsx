@@ -143,8 +143,8 @@ export function DestinationsInput({
                 ? "Enter destination address"
                 : `Enter destination address ${index + 1}`
             }
-            className={`block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500 ${
-              validationErrors[destination.id] ? "border-red-500" : ""
+            className={`block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              validationErrors[destination.id] ? "border-red-500" : "border-gray-300"
             } ${
               (showAddButton && index === 0) || canRemove ? "pr-12" : "pr-2"
             }`}

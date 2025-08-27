@@ -181,7 +181,7 @@ const ImportPrivateKey = () => {
                       );
                     }}
                   </ListboxButton>
-                  <ListboxOptions className="w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto z-10">
+                  <ListboxOptions className="w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto z-10">
                     {ADDRESS_TYPES.map((type) => (
                       <ListboxOption 
                         key={type.value} 
