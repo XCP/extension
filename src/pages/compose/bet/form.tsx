@@ -178,7 +178,7 @@ export function BetForm({ formAction, initialFormData ,
             <div className="mt-1">
               <Listbox value={selectedBetType} onChange={setSelectedBetType} disabled={pending}>
                 <ListboxButton
-                  className="w-full p-2 text-left rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
                   disabled={pending}
                 >
                   <span>{selectedBetType.name}</span>
