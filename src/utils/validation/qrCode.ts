@@ -35,7 +35,13 @@ export function validateQRCodeText(text: string): QRCodeValidationResult {
   }
 
   // Check for potential XSS in URLs
-  if (text.toLowerCase().startsWith('http') || text.toLowerCase().startsWith('javascript:')) {
+  const lowerText = text.trim().toLowerCase();
+  if (
+    lowerText.startsWith('http') ||
+    lowerText.startsWith('javascript:') ||
+    lowerText.startsWith('data:') ||
+    lowerText.startsWith('vbscript:')
+  ) {
     const urlResult = validateQRCodeURL(text);
     if (!urlResult.isValid) {
       return urlResult;

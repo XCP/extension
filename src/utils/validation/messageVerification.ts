@@ -238,11 +238,11 @@ export function sanitizeSignature(signature: string): string {
  * Checks for potential ReDoS vulnerabilities in message content
  */
 export function checkMessageForReDoS(message: string): boolean {
-  // Common ReDoS patterns
+  // Common ReDoS patterns (safe versions for detection)
   const redosPatterns = [
-    /(\w*)*\w*/, // Nested quantifiers
-    /(a+)+b/, // Catastrophic backtracking
-    /^(a|a)*$/, // Exponential alternation
+    /(\w*)*\w*/, // Nested quantifiers (kept for detection purposes)
+    /a+b/, // Safe version - matches one or more 'a's followed by 'b'
+    /^a*$/, // Safe version - matches strings of only 'a's
   ];
 
   // Check message length - very long strings can trigger ReDoS

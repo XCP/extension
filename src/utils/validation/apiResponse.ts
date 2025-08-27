@@ -141,9 +141,24 @@ export function validateBalanceResponse(response: any, endpoint: string): Valida
 
   try {
     let balance: number | null = null;
+    
+    // Parse endpoint URL to extract hostname for secure comparison
+    let hostname: string;
+    try {
+      const url = new URL(endpoint);
+      hostname = url.hostname;
+    } catch (e) {
+      return { isValid: false, error: 'Invalid endpoint URL' };
+    }
+    
+    // Define allowed hosts for each API provider
+    const blockstreamHosts = ['blockstream.info', 'mempool.space'];
+    const blockcypherHosts = ['blockcypher.com', 'api.blockcypher.com'];
+    const blockchainInfoHosts = ['blockchain.info', 'api.blockchain.info'];
+    const sochainHosts = ['sochain.com', 'api.sochain.com', 'chain.so'];
 
     // Handle different API formats
-    if (endpoint.includes('blockstream.info') || endpoint.includes('mempool.space')) {
+    if (blockstreamHosts.includes(hostname)) {
       if (!response.chain_stats || typeof response.chain_stats !== 'object') {
         return { isValid: false, error: 'Missing chain_stats in response' };
       }
@@ -168,9 +183,9 @@ export function validateBalanceResponse(response: any, endpoint: string): Valida
       }
 
       balance = funded - spent + memFunded - memSpent;
-    } else if (endpoint.includes('blockcypher.com') || endpoint.includes('blockchain.info')) {
+    } else if (blockcypherHosts.includes(hostname) || blockchainInfoHosts.includes(hostname)) {
       balance = parseBalanceValue(response.final_balance);
-    } else if (endpoint.includes('sochain.com')) {
+    } else if (sochainHosts.includes(hostname)) {
       if (!response.data || typeof response.data !== 'object') {
         return { isValid: false, error: 'Missing data object in sochain response' };
       }
