@@ -18,6 +18,7 @@ import { AssetHeader } from "@/components/headers/asset-header";
 import { AddressHeader } from "@/components/headers/address-header";
 import { HeaderSkeleton } from "@/components/skeleton";
 import { useWallet } from "@/contexts/wallet-context";
+import { AddressType } from "@/utils/blockchain/bitcoin";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
