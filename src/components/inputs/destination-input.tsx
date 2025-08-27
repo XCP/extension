@@ -65,8 +65,8 @@ export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputPro
           required={required}
           placeholder={placeholder}
           disabled={disabled}
-          className={`mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500 ${
-            isInvalid ? "border-red-500" : ""
+          className={`mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 ${
+            isInvalid ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
           } ${className}`}
         />
         {showHelpText && helpText && (

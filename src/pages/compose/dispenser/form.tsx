@@ -254,7 +254,7 @@ export const DispenserForm = memo(function DispenserForm({
               name="give_quantity_display"
               value={giveQuantity}
               onChange={(e) => setGiveQuantity(e.target.value)}
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
               placeholder={isDivisible ? "0.00000000" : "0"}
               disabled={pending}

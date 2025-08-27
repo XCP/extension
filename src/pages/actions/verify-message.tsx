@@ -120,7 +120,7 @@ export default function VerifyMessage(): ReactElement {
       <div className="bg-white rounded-lg shadow-sm p-4">
         {/* Address Input */}
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Address
+          Address <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
@@ -133,7 +133,7 @@ export default function VerifyMessage(): ReactElement {
         {/* Message Input */}
         <div className="mt-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Message
+            Message <span className="text-red-500">*</span>
           </label>
           <textarea
             value={message}
@@ -150,7 +150,7 @@ export default function VerifyMessage(): ReactElement {
         {/* Signature Input */}
         <div className="mt-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Signature
+            Signature <span className="text-red-500">*</span>
           </label>
           <textarea
             value={signature}

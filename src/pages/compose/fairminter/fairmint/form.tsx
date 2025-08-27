@@ -213,7 +213,7 @@ export function FairmintForm({
                 onChange={(e) => setFormData({ ...formData, quantity: e.target.value.trim() })}
                 required
                 placeholder={selectedFairminter?.divisible ? "0.00000000" : "0"}
-                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
               />
               <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
                 Enter the quantity to mint {selectedFairminter?.divisible ? "(up to 8 decimal places)" : "(whole numbers only)"}.

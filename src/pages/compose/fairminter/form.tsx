@@ -164,7 +164,7 @@ export function FairminterForm({
             <div className="mt-1">
               <Listbox value={FAIRMINTER_MODEL_OPTIONS.find(option => option.value === selectedMintMethod)} onChange={(option) => setSelectedMintMethod(option.value)} disabled={pending}>
                 <ListboxButton
-                  className="w-full p-2 text-left rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   disabled={pending}
                 >
                   <span>{FAIRMINTER_MODEL_OPTIONS.find(option => option.value === selectedMintMethod)?.label}</span>
@@ -199,7 +199,7 @@ export function FairminterForm({
               name="asset"
               type="text"
               defaultValue={initialFormData?.asset || (asset ? `${asset}.` : "")}
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
               disabled={pending}
             />
@@ -217,7 +217,7 @@ export function FairminterForm({
                 name="max_mint_per_tx"
                 type="text"
                 defaultValue={initialFormData?.max_mint_per_tx?.toString() || ""}
-                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
                 disabled={pending}
               />
@@ -237,7 +237,7 @@ export function FairminterForm({
                   name="quantity_by_price"
                   type="text"
                   defaultValue={initialFormData?.quantity_by_price?.toString() || ""}
-                  className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                  className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   disabled={pending}
                 />
                 <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
@@ -253,7 +253,7 @@ export function FairminterForm({
                   name="price"
                   type="text"
                   defaultValue={initialFormData?.price?.toString() || ""}
-                  className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                  className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                   disabled={pending}
                 />
@@ -277,7 +277,7 @@ export function FairminterForm({
               id="description"
               name="description"
               defaultValue={initialFormData?.description || ""}
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               rows={2}
               disabled={pending}
             />
@@ -300,7 +300,7 @@ export function FairminterForm({
               name="hard_cap"
               type="text"
               defaultValue={initialFormData?.hard_cap?.toString() || ""}
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
@@ -352,7 +352,7 @@ export function FairminterForm({
                       name="premint_quantity"
                       type="text"
                       defaultValue={initialFormData?.premint_quantity?.toString() || "0"}
-                      className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                      className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       disabled={pending}
                     />
                     <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
@@ -371,7 +371,7 @@ export function FairminterForm({
                       name="minted_asset_commission"
                       type="text"
                       defaultValue={initialFormData?.minted_asset_commission?.toString() || "0.0"}
-                      className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                      className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       disabled={pending}
                     />
                     <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
@@ -389,7 +389,7 @@ export function FairminterForm({
                           name="soft_cap"
                           type="text"
                           defaultValue={initialFormData?.soft_cap?.toString() || ""}
-                          className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                          className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           placeholder="0"
                           disabled={pending}
                         />

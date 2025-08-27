@@ -280,7 +280,6 @@ export function IssuanceForm({
           )}
 
           <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-          
           <Button type="submit" color="blue" fullWidth disabled={pending || !isAssetNameValid || (inscribeEnabled && !selectedFile)}>
             {pending ? "Submitting..." : "Continue"}
           </Button>

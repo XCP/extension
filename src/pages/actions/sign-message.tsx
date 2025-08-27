@@ -161,7 +161,7 @@ export default function SignMessage(): ReactElement {
       {/* Message Input */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Message
+          Message <span className="text-red-500">*</span>
         </label>
         <textarea
           value={message}
