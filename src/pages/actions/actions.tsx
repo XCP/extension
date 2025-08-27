@@ -38,21 +38,11 @@ const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean): ActionGr
   const addressActions: Action[] = [
     {
       id: "compose-broadcast",
-      name: "Broadcast Text",
-      description: "Broadcast plain-text message on Bitcoin",
+      name: "Broadcast",
+      description: "Broadcast message or inscription on Bitcoin",
       path: "/compose/broadcast",
     },
   ];
-  
-  // Add Broadcast Inscription option for SegWit wallets
-  if (isSegwitWallet) {
-    addressActions.push({
-      id: "compose-broadcast-inscription",
-      name: "Broadcast Inscription",
-      description: "Broadcast inscribed media file on Bitcoin",
-      path: "/compose/broadcast/inscription",
-    });
-  }
   
   addressActions.push(
     {

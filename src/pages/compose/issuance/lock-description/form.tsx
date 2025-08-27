@@ -9,7 +9,7 @@ import { useSettings } from "@/contexts/settings-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import { AssetHeader } from "@/components/headers/asset-header";
-import { Description } from "@headlessui/react";
+import { Field, Description } from "@headlessui/react";
 import type { ReactElement } from "react";
 
 /**
@@ -121,10 +121,14 @@ export function LockDescriptionForm({
           <input type="hidden" name="quantity" value="0" />
           <input type="hidden" name="description" value="LOCK" />
           
-          <Description className={shouldShowHelpText ? "text-sm text-gray-500" : "hidden"}>
-            This action will permanently lock the description for {asset}. 
-            The current description "{currentDescription || "(empty)"}" will be the final description forever.
-          </Description>
+          {shouldShowHelpText && (
+            <Field>
+              <Description className="text-sm text-gray-500">
+                This action will permanently lock the description for {asset}. 
+                The current description "{currentDescription || "(empty)"}" will be the final description forever.
+              </Description>
+            </Field>
+          )}
 
           <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
           
