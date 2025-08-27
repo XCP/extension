@@ -245,8 +245,8 @@ export function IssuanceForm({
           </div>
           {inscribeEnabled ? (
             <Field>
-              <Label className="block text-sm font-medium text-gray-700 mb-2">
-                Inscription File <span className="text-red-500">*</span>
+              <Label className="block text-sm font-medium text-gray-700 mb-1">
+                Inscription <span className="text-red-500">*</span>
               </Label>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
                 <input
