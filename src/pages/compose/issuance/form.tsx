@@ -189,12 +189,11 @@ export function IssuanceForm({
               name="description"
               defaultValue={initialFormData?.description || ""}
               className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
-              rows={2}
+              rows={3}
               disabled={pending}
-              maxLength={250}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              A textual description for the asset (max 250 characters).
+              A textual description for the asset.
             </Description>
           </Field>
 
