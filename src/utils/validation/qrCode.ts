@@ -40,7 +40,9 @@ export function validateQRCodeText(text: string): QRCodeValidationResult {
     lowerText.startsWith('http') ||
     lowerText.startsWith('javascript:') ||
     lowerText.startsWith('data:') ||
-    lowerText.startsWith('vbscript:')
+    lowerText.startsWith('vbscript:') ||
+    lowerText.startsWith('file:') ||
+    lowerText.startsWith('ftp:')
   ) {
     const urlResult = validateQRCodeURL(text);
     if (!urlResult.isValid) {
@@ -84,17 +86,17 @@ export function validateQRCodeText(text: string): QRCodeValidationResult {
 function validateQRCodeURL(url: string): QRCodeValidationResult {
   const warnings: string[] = [];
   
+  // Check for dangerous protocols first (before URL parsing which might fail)
+  const dangerousProtocols = [
+    'javascript:', 'data:', 'vbscript:', 'file:', 'ftp:'
+  ];
+  
+  if (dangerousProtocols.some(proto => url.toLowerCase().startsWith(proto))) {
+    return { isValid: false, error: 'Dangerous protocol detected in QR code URL' };
+  }
+  
   try {
     const urlObj = new URL(url.toLowerCase());
-    
-    // Check for dangerous protocols
-    const dangerousProtocols = [
-      'javascript:', 'data:', 'vbscript:', 'file:', 'ftp:'
-    ];
-    
-    if (dangerousProtocols.some(proto => url.toLowerCase().startsWith(proto))) {
-      return { isValid: false, error: 'Dangerous protocol detected in QR code URL' };
-    }
     
     // Check for localhost/private IPs
     const hostname = urlObj.hostname.toLowerCase();
@@ -120,7 +122,8 @@ function validateQRCodeURL(url: string): QRCodeValidationResult {
     }
     
     // Check for suspicious paths
-    if (urlObj.pathname.includes('..') || urlObj.pathname.includes('%2e%2e')) {
+    const decodedPath = decodeURIComponent(urlObj.pathname);
+    if (decodedPath.includes('..') || urlObj.pathname.includes('%2e%2e')) {
       return { isValid: false, error: 'Path traversal detected in QR code URL' };
     }
     
@@ -161,12 +164,13 @@ export function sanitizeQRCodeText(text: string): string {
   // Remove control characters except newlines and tabs
   let sanitized = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
   
-  // Remove null bytes
+  // Remove null bytes (redundant but explicit)
   sanitized = sanitized.replace(/\x00/g, '');
   
   // Trim whitespace
   sanitized = sanitized.trim();
   
+  // Don't return empty string for single dots or other valid content
   return sanitized;
 }
 
