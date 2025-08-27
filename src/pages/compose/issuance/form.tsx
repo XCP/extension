@@ -43,7 +43,7 @@ export function IssuanceForm({
   showHelpText,
 }: IssuanceFormProps): ReactElement {
   const { settings } = useSettings();
-  const { activeAddress } = useWallet();
+  const { activeAddress, activeWallet } = useWallet();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
   const { pending } = useFormStatus();
   const [error, setError] = useState<{ message: string; } | null>(null);
