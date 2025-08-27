@@ -50,7 +50,8 @@ describe('FileUploadInput', () => {
     );
     
     expect(screen.getByText('test.txt')).toBeInTheDocument();
-    expect(screen.getByText('Size: 1.00 KB')).toBeInTheDocument();
+    // The text includes the file type, so we need to check for partial text
+    expect(screen.getByText(/Size: 1\.00 KB/)).toBeInTheDocument();
     expect(screen.getByText('Remove file')).toBeInTheDocument();
   });
 
@@ -177,7 +178,8 @@ describe('CSVUploadInput', () => {
       />
     );
     
-    expect(screen.getByText('Upload CSV')).toBeInTheDocument();
+    // There are multiple elements with 'Upload CSV' text (label and button), so be more specific
+    expect(screen.getByRole('button', { name: /Upload CSV/i })).toBeInTheDocument();
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     expect(input.accept).toBe('.csv');
   });
