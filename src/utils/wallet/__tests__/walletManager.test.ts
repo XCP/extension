@@ -17,7 +17,7 @@ vi.mock('@/utils/storage/walletStorage');
 vi.mock('@/utils/encryption');
 vi.mock('@/utils/blockchain/bitcoin');
 vi.mock('@/utils/blockchain/counterwallet');
-vi.mock('@noble/hashes/sha256');
+vi.mock('@noble/hashes/sha2');
 vi.mock('@noble/hashes/utils');
 vi.mock('@scure/bip32');
 vi.mock('@scure/bip39');
