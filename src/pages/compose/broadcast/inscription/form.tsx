@@ -129,72 +129,82 @@ export function BroadcastInscriptionForm({ formAction, initialFormData ,
           </div>
           
           <Field>
-            <Label className="block text-sm font-medium text-gray-700">
+            <Label className="block text-sm font-medium text-gray-700 mb-2">
               Your File <span className="text-red-500">*</span>
             </Label>
-            <div className="mt-1">
-              {/* Hidden file input */}
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
               <input
                 ref={fileInputRef}
                 id="file"
                 name="file"
                 type="file"
                 onChange={handleFileChange}
-                className="sr-only"
+                className="hidden"
                 required
                 disabled={pending}
               />
               
-              {/* Custom file upload button */}
-              <label
-                htmlFor="file"
-                className={`
-                  flex items-center justify-center w-full px-4 py-2 
-                  text-sm font-medium rounded-md cursor-pointer
-                  transition-colors duration-200
-                  ${pending 
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                  }
-                  focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500
-                `}
-              >
-                {selectedFile ? (
-                  <span className="truncate">{selectedFile.name}</span>
-                ) : (
-                  <span>Choose file to inscribe</span>
-                )}
-              </label>
+              {selectedFile ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm font-medium text-gray-700">{selectedFile.name}</span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Size: {(selectedFile.size / 1024).toFixed(2)} KB
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-700"
+                    disabled={pending}
+                  >
+                    Choose different file
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setFileError(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                      }
+                    }}
+                    className="text-xs text-red-600 hover:text-red-700 ml-3"
+                  >
+                    Remove file
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={pending}
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    Choose File
+                  </button>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Max file size: 400KB
+                  </p>
+                </>
+              )}
             </div>
-            
-            {/* File info and errors */}
-            {selectedFile && !fileError && (
-              <div className="mt-2 flex items-center justify-between text-sm">
-                <span className="text-xs text-gray-600">
-                  Size: {(selectedFile.size / 1024).toFixed(2)} KB
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedFile(null);
-                    if (fileInputRef.current) {
-                      fileInputRef.current.value = '';
-                    }
-                  }}
-                  className="text-blue-600 hover:text-blue-800"
-                  disabled={pending}
-                >
-                  Change
-                </button>
-              </div>
-            )}
             
             {fileError && (
               <p className="mt-2 text-sm text-red-600">{fileError}</p>
             )}
             
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Select an image, text, or other media file to inscribe on Bitcoin. Maximum size: 400KB.
+              Select a file to inscribe on Bitcoin. The file will be permanently stored on-chain.
             </Description>
           </Field>
 
