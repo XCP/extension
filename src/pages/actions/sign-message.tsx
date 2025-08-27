@@ -174,7 +174,7 @@ export default function SignMessage(): ReactElement {
           }}
           placeholder="Enter your message here..."
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          rows={5}
+          rows={4}
           disabled={!signingCapabilities.canSign || isSigning}
         />
         <div className="mt-2 flex justify-between items-center">

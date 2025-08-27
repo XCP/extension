@@ -43,7 +43,6 @@ import PhishingWarning from '@/pages/provider/phishing-warning-page';
 import ComposeBet from '@/pages/compose/bet/page';
 import ComposeWeeklyBet from '@/pages/compose/bet/weekly/page';
 import ComposeBroadcast from '@/pages/compose/broadcast/page';
-import ComposeBroadcastInscription from '@/pages/compose/broadcast/inscription/page';
 import ComposeBroadcastAddressOptions from '@/pages/compose/broadcast/address-options/page';
 import ComposeBTCPay from '@/pages/compose/order/btcpay/page';
 import ComposeCancel from '@/pages/compose/order/cancel/page';
@@ -59,6 +58,7 @@ import ComposeIssuanceLockSupply from '@/pages/compose/issuance/lock-supply/page
 import ComposeIssuanceResetSupply from '@/pages/compose/issuance/reset-supply/page';
 import ComposeIssuanceTransferOwnership from '@/pages/compose/issuance/transfer-ownership/page';
 import ComposeIssuanceUpdateDescription from '@/pages/compose/issuance/update-description/page';
+import ComposeIssuanceLockDescription from '@/pages/compose/issuance/lock-description/page';
 import ComposeFairminter from '@/pages/compose/fairminter/page';
 import ComposeFairmint from '@/pages/compose/fairminter/fairmint/page';
 import ComposeSend from '@/pages/compose/send/page';
@@ -174,7 +174,6 @@ export default function App() {
             <Route path="/compose/bet" element={<ComposeBet />} />
             <Route path="/compose/weekly-bet" element={<ComposeWeeklyBet />} />
             <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
-            <Route path="/compose/broadcast/inscription" element={<ComposeBroadcastInscription />} />
             <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptions />} />
             <Route path="/compose/btcpay" element={<ComposeBTCPay />} />
             <Route path="/compose/cancel/:hash?" element={<ComposeCancel />} />
@@ -193,6 +192,7 @@ export default function App() {
             <Route path="/compose/issuance/reset-supply/:asset" element={<ComposeIssuanceResetSupply />} />
             <Route path="/compose/issuance/transfer-ownership/:asset" element={<ComposeIssuanceTransferOwnership />} />
             <Route path="/compose/issuance/update-description/:asset" element={<ComposeIssuanceUpdateDescription />} />
+            <Route path="/compose/issuance/lock-description/:asset" element={<ComposeIssuanceLockDescription />} />
             <Route path="/compose/issuance/destroy/:asset" element={<ComposeDestroy />} />
             <Route path="/compose/fairminter/:asset?" element={<ComposeFairminter />} />
             <Route path="/compose/fairmint/:asset?" element={<ComposeFairmint />} />

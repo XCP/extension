@@ -140,7 +140,7 @@ export default function VerifyMessage(): ReactElement {
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Enter the exact message that was signed..."
             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            rows={3}
+            rows={4}
           />
           <div className="mt-2 text-xs text-gray-500">
             {message.length} characters - Must match exactly

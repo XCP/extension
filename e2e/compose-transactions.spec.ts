@@ -233,8 +233,8 @@ test.describe('Compose Transactions', () => {
     // Navigate to Actions
     await navigateViaFooter(page, 'actions');
     
-    // Click Broadcast Text
-    await page.locator('text="Broadcast Text"').click();
+    // Click Broadcast
+    await page.locator('text="Broadcast"').first().click();
     await page.waitForURL('**/compose/broadcast', { timeout: 10000 });
     
     // Fill in broadcast form

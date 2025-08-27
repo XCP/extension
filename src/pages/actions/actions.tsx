@@ -34,25 +34,15 @@ const PATHS = {
   BACK: "/index",
 } as const;
 
-const getActionGroups = (isTaprootWallet: boolean, enableMPMA: boolean): ActionGroup[] => {
+const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean): ActionGroup[] => {
   const addressActions: Action[] = [
     {
       id: "compose-broadcast",
-      name: "Broadcast Text",
-      description: "Broadcast plain-text message on Bitcoin",
+      name: "Broadcast",
+      description: "Broadcast message or inscription on Bitcoin",
       path: "/compose/broadcast",
     },
   ];
-  
-  // Add Broadcast Inscription option for Taproot wallets
-  if (isTaprootWallet) {
-    addressActions.push({
-      id: "compose-broadcast-inscription",
-      name: "Broadcast Inscription",
-      description: "Broadcast inscribed media file on Bitcoin",
-      path: "/compose/broadcast/inscription",
-    });
-  }
   
   addressActions.push(
     {
@@ -189,14 +179,18 @@ export default function ActionsScreen(): ReactElement {
   const { activeWallet } = useWallet();
   const { settings } = useSettings();
   
-  // Check if active wallet uses taproot addresses
-  const isTaprootWallet = activeWallet?.addressType === AddressType.P2TR;
+  // Check if active wallet uses SegWit addresses (P2WPKH, P2SH-P2WPKH, or P2TR)
+  const isSegwitWallet = activeWallet?.addressType ? [
+    AddressType.P2WPKH,
+    AddressType.P2SH_P2WPKH,
+    AddressType.P2TR
+  ].includes(activeWallet.addressType) : false;
   
   // Check if MPMA is enabled
   const enableMPMA = settings?.enableMPMA ?? false;
 
   // Get dynamic action groups based on wallet type and settings
-  const actionGroups = getActionGroups(isTaprootWallet, enableMPMA);
+  const actionGroups = getActionGroups(isSegwitWallet, enableMPMA);
 
   // Configure header
   useEffect(() => {

@@ -189,6 +189,12 @@ export default function ViewAsset(): ReactElement {
 
     actions.push(
       {
+        id: "lock-description",
+        name: "Lock Description", 
+        description: "Permanently lock the asset description",
+        path: `${CONSTANTS.PATHS.COMPOSE}/issuance/lock-description/${asset}`,
+      },
+      {
         id: "update-description",
         name: "Update Description",
         description: "Update the asset description",
