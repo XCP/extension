@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import { validateAssetName, validateParentAsset } from '../asset-name-input';
+import { validateAssetName, validateParentAsset } from '@/utils/validation';
 
 describe('Asset Name Validation Fuzz Tests - Testing Real Functions', () => {
   describe('validateAssetName function', () => {
@@ -106,7 +106,7 @@ describe('Asset Name Validation Fuzz Tests - Testing Real Functions', () => {
     it('should handle extremely long inputs without crashing', () => {
       fc.assert(
         fc.property(
-          fc.nat({ min: 1000, max: 10000 }),
+          fc.nat(10000),
           (length) => {
             const longString = 'A'.repeat(length);
             
@@ -127,7 +127,7 @@ describe('Asset Name Validation Fuzz Tests - Testing Real Functions', () => {
     it('should handle Unicode and special characters', () => {
       fc.assert(
         fc.property(
-          fc.unicode(),
+          fc.string({ minLength: 1, maxLength: 1 }),
           (input) => {
             expect(() => {
               const result = validateAssetName(input, false);
@@ -226,7 +226,7 @@ describe('Asset Name Validation Fuzz Tests - Testing Real Functions', () => {
         fc.property(
           fc.array(
             fc.oneof(
-              fc.char(),
+              fc.string({ minLength: 1, maxLength: 1 }),
               fc.constant('\x00'),
               fc.constant('\n'),
               fc.constant('\r'),

@@ -7,7 +7,7 @@ import fc from 'fast-check';
 import {
   parseCSVLine,
   isHeaderRow,
-  validateBitcoinAddress,
+  validateBitcoinAddressFormat,
   validateQuantity,
   detectCSVInjection,
   parseCSV,
@@ -128,7 +128,7 @@ describe('CSV Parser Fuzz Tests', () => {
     });
   });
 
-  describe('validateBitcoinAddress', () => {
+  describe('validateBitcoinAddressFormat', () => {
     it('should validate known address formats', () => {
       const validAddresses = [
         '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', // P2PKH
@@ -138,7 +138,7 @@ describe('CSV Parser Fuzz Tests', () => {
       ];
 
       validAddresses.forEach(address => {
-        expect(validateBitcoinAddress(address)).toBe(true);
+        expect(validateBitcoinAddressFormat(address)).toBe(true);
       });
     });
 
@@ -153,7 +153,7 @@ describe('CSV Parser Fuzz Tests', () => {
       ];
 
       invalidAddresses.forEach(address => {
-        expect(validateBitcoinAddress(address)).toBe(false);
+        expect(validateBitcoinAddressFormat(address)).toBe(false);
       });
     });
 
@@ -163,7 +163,7 @@ describe('CSV Parser Fuzz Tests', () => {
           fc.string(),
           (input) => {
             expect(() => {
-              validateBitcoinAddress(input);
+              validateBitcoinAddressFormat(input);
             }).not.toThrow();
           }
         ),
@@ -176,7 +176,7 @@ describe('CSV Parser Fuzz Tests', () => {
     it('should validate numeric quantities', () => {
       fc.assert(
         fc.property(
-          fc.float({ min: 0.000001, max: 1000000, noNaN: true }),
+          fc.float({ min: Math.fround(0.000001), max: Math.fround(1000000), noNaN: true }),
           (num) => {
             const str = num.toString();
             const result = validateQuantity(str);

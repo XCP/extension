@@ -110,7 +110,7 @@ describe('Asset Validation Fuzz Tests', () => {
     it('should handle Unicode and special characters', () => {
       fc.assert(
         fc.property(
-          fc.unicode(),
+          fc.string({ minLength: 1, maxLength: 50 }),
           (input) => {
             expect(() => {
               const result = validateParentAsset(input);

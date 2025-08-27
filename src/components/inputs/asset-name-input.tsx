@@ -83,13 +83,6 @@ function validateAssetNameInternal(assetName: string, isSubasset: boolean): { is
   return { isValid: true };
 }
 
-/**
- * Validates a parent asset (or regular asset) name
- * Delegates to utility function
- */
-export function validateParentAsset(assetName: string): { isValid: boolean; error?: string } {
-  return validateParentUtil(assetName);
-}
 
 // Keep internal version if needed
 function validateParentAssetInternal(assetName: string): { isValid: boolean; error?: string } {

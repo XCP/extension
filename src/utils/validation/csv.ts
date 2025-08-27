@@ -27,6 +27,8 @@ export interface CSVParseResult {
  * Handles: "quoted, values", unquoted, "mixed", values
  */
 export function parseCSVLine(line: string): string[] {
+  if (!line) return [];
+  
   const result: string[] = [];
   let current = '';
   let inQuotes = false;
@@ -53,10 +55,8 @@ export function parseCSVLine(line: string): string[] {
     }
   }
   
-  // Add last field
-  if (current || line.endsWith(',')) {
-    result.push(current.trim());
-  }
+  // Always add the last field
+  result.push(current.trim());
   
   return result;
 }
@@ -74,9 +74,9 @@ export function isHeaderRow(line: string): boolean {
 }
 
 /**
- * Validate a Bitcoin address (basic validation)
+ * Validate a Bitcoin address (basic validation for CSV processing)
  */
-export function validateBitcoinAddress(address: string): boolean {
+export function validateBitcoinAddressFormat(address: string): boolean {
   if (!address) return false;
   
   // Legacy (P2PKH) - starts with 1
@@ -85,15 +85,16 @@ export function validateBitcoinAddress(address: string): boolean {
   // P2SH - starts with 3
   if (/^3[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(address)) return true;
   
-  // Native SegWit (P2WPKH) - starts with bc1q
-  if (/^bc1q[a-z0-9]{39,59}$/.test(address)) return true;
+  // Native SegWit (P2WPKH) - starts with bc1q (42 chars total)
+  if (/^bc1q[a-z0-9]{38}$/.test(address)) return true;
   
-  // Taproot (P2TR) - starts with bc1p
+  // Taproot (P2TR) - starts with bc1p (62 chars total)
   if (/^bc1p[a-z0-9]{58}$/.test(address)) return true;
   
   // Testnet addresses
   if (/^[mn2][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(address)) return true;
-  if (/^tb1[qp][a-z0-9]{39,59}$/.test(address)) return true;
+  if (/^tb1q[a-z0-9]{38}$/.test(address)) return true; // Testnet P2WPKH
+  if (/^tb1p[a-z0-9]{58}$/.test(address)) return true; // Testnet P2TR
   
   return false;
 }
@@ -106,12 +107,19 @@ export function validateQuantity(quantity: string): { valid: boolean; value?: nu
     return { valid: false, error: 'Quantity is required' };
   }
   
-  // Check for injection attempts
-  if (/[=@+\-]/.test(quantity[0])) {
+  const trimmed = quantity.trim();
+  
+  // Check for injection attempts at the start
+  if (trimmed && '=@+-'.includes(trimmed[0])) {
     return { valid: false, error: 'Invalid quantity format' };
   }
   
-  const num = parseFloat(quantity);
+  // Check if it's a valid number format first
+  if (!/^-?\d*\.?\d+$/.test(trimmed)) {
+    return { valid: false, error: 'Quantity must be a number' };
+  }
+  
+  const num = parseFloat(trimmed);
   
   if (isNaN(num)) {
     return { valid: false, error: 'Quantity must be a number' };
@@ -234,7 +242,7 @@ export function parseCSV(text: string, options?: {
     }
     
     // Validate address
-    if (opts.validateAddresses && !validateBitcoinAddress(address)) {
+    if (opts.validateAddresses && !validateBitcoinAddressFormat(address)) {
       return {
         success: false,
         error: `Invalid Bitcoin address: ${address}`,

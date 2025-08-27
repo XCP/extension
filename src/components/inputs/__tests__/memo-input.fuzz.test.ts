@@ -37,7 +37,7 @@ describe('Memo Input Validation Fuzz Tests', () => {
     it('should correctly identify hex strings', () => {
       fc.assert(
         fc.property(
-          fc.hexString(),
+          fc.string().filter(s => /^[0-9a-fA-F]*$/.test(s) && s.length > 0),
           (hex) => {
             // Even-length hex strings should be detected as hex
             const evenHex = hex.length % 2 === 0 ? hex : hex + '0';
@@ -96,8 +96,8 @@ describe('Memo Input Validation Fuzz Tests', () => {
       fc.assert(
         fc.property(
           fc.tuple(
-            fc.hexString(),
-            fc.nat({ min: 1, max: 200 })
+            fc.string().filter(s => /^[0-9a-fA-F]*$/.test(s) && s.length > 0),
+            fc.nat(200)
           ),
           ([hex, maxBytes]) => {
             const evenHex = hex.length % 2 === 0 ? hex : hex + '0';
@@ -119,7 +119,7 @@ describe('Memo Input Validation Fuzz Tests', () => {
         fc.property(
           fc.tuple(
             fc.string(),
-            fc.nat({ min: 1, max: 200 })
+            fc.nat(200)
           ),
           ([text, maxBytes]) => {
             const encoder = new TextEncoder();
@@ -159,7 +159,7 @@ describe('Memo Input Validation Fuzz Tests', () => {
     it('should correctly strip hex prefixes', () => {
       fc.assert(
         fc.property(
-          fc.hexString(),
+          fc.string().filter(s => /^[0-9a-fA-F]*$/.test(s) && s.length > 0),
           (hex) => {
             expect(stripHexPrefix(hex)).toBe(hex);
             expect(stripHexPrefix('0x' + hex)).toBe(hex);
@@ -297,7 +297,7 @@ describe('Memo Input Validation Fuzz Tests', () => {
     it('should handle large memos efficiently', () => {
       fc.assert(
         fc.property(
-          fc.nat({ min: 1000, max: 10000 }),
+          fc.nat(10000),
           (size) => {
             const largeMemo = 'a'.repeat(size);
             const largeHex = 'ab'.repeat(size);

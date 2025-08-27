@@ -19,7 +19,7 @@ describe('Memo Validation Fuzz Tests', () => {
     it('should correctly identify hex strings', () => {
       fc.assert(
         fc.property(
-          fc.hexaString(),
+          fc.string().filter(s => /^[0-9a-fA-F]*$/.test(s) && s.length > 0),
           (hex) => {
             // Even-length hex should be valid
             const evenHex = hex.length % 2 === 0 ? hex : hex + '0';
@@ -74,7 +74,7 @@ describe('Memo Validation Fuzz Tests', () => {
     it('should strip hex prefixes correctly', () => {
       fc.assert(
         fc.property(
-          fc.hexaString(),
+          fc.string().filter(s => /^[0-9a-fA-F]*$/.test(s) && s.length > 0),
           (hex) => {
             expect(stripHexPrefix(hex)).toBe(hex);
             expect(stripHexPrefix('0x' + hex)).toBe(hex);
@@ -97,7 +97,7 @@ describe('Memo Validation Fuzz Tests', () => {
       fc.assert(
         fc.property(
           fc.tuple(
-            fc.hexaString(),
+            fc.string().filter(s => /^[0-9a-fA-F]*$/.test(s) && s.length > 0),
             fc.integer({ min: 1, max: 200 })
           ),
           ([hex, maxBytes]) => {

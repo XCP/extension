@@ -82,6 +82,11 @@ export const isValidPositiveNumber = (
   const { allowZero = false, maxDecimals = 8 } = options;
 
   try {
+    // Check for formula injection attempts
+    if (/^[=@+\-]/.test(value.trim())) {
+      return false;
+    }
+
     // First check if it's a valid number format before converting
     const testNum = new BigNumber(value);
     if (testNum.isNaN()) {

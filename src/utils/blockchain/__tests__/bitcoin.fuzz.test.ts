@@ -5,13 +5,9 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { 
-  validateBitcoinAddress,
-  AddressType,
-  getAddressType,
-  validatePrivateKey,
-  isValidWIF,
-  normalizePrivateKey
-} from '../bitcoin';
+  isValidBitcoinAddress,
+  isWIF
+} from '@/utils/blockchain/bitcoin';
 
 // Mock implementations for testing
 const validateBitcoinAddress = (address: string): boolean => {
@@ -202,8 +198,8 @@ describe('Bitcoin Address Validation Fuzz Tests', () => {
       fc.assert(
         fc.property(
           fc.oneof(
-            fc.hexaString({ minLength: 64, maxLength: 64 }),
-            fc.hexaString({ minLength: 64, maxLength: 64 }).map(s => '0x' + s)
+            fc.string({ minLength: 64, maxLength: 64 }).filter(s => /^[0-9a-fA-F]{64}$/.test(s)),
+            fc.string({ minLength: 64, maxLength: 64 }).filter(s => /^[0-9a-fA-F]{64}$/.test(s)).map(s => '0x' + s)
           ),
           (key) => {
             expect(validatePrivateKey(key)).toBe(true);
@@ -217,8 +213,8 @@ describe('Bitcoin Address Validation Fuzz Tests', () => {
       fc.assert(
         fc.property(
           fc.oneof(
-            fc.hexaString({ minLength: 1, maxLength: 63 }), // Too short
-            fc.hexaString({ minLength: 65, maxLength: 100 }), // Too long
+            fc.string({ minLength: 1, maxLength: 63 }).filter(s => /^[0-9a-fA-F]*$/.test(s) && s.length > 0), // Too short
+            fc.string({ minLength: 65, maxLength: 100 }).filter(s => /^[0-9a-fA-F]*$/.test(s) && s.length > 0), // Too long
             fc.string().filter(s => !/^[0-9a-fA-F]*$/.test(s)) // Non-hex
           ),
           (key) => {
@@ -247,7 +243,7 @@ describe('Bitcoin Address Validation Fuzz Tests', () => {
     it('should normalize private keys consistently', () => {
       fc.assert(
         fc.property(
-          fc.hexaString({ minLength: 64, maxLength: 64 }),
+          fc.string({ minLength: 64, maxLength: 64 }).filter(s => /^[0-9a-fA-F]{64}$/.test(s)),
           (hex) => {
             const variations = [
               hex,
@@ -366,8 +362,8 @@ describe('Bitcoin Address Validation Fuzz Tests', () => {
       fc.assert(
         fc.property(
           fc.tuple(
-            fc.nat({ min: 1, max: 10000 }), // Transaction size in bytes
-            fc.nat({ min: 1, max: 1000 })    // Fee rate in sat/byte
+            fc.nat(10000), // Transaction size in bytes
+            fc.nat(1000)    // Fee rate in sat/byte
           ),
           ([size, rate]) => {
             const fee = size * rate;
@@ -419,7 +415,7 @@ describe('Bitcoin Address Validation Fuzz Tests', () => {
     it('should handle very long strings efficiently', () => {
       fc.assert(
         fc.property(
-          fc.nat({ min: 1000, max: 10000 }),
+          fc.nat(10000),
           (length) => {
             const longString = 'a'.repeat(length);
             
