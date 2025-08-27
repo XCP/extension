@@ -163,7 +163,7 @@ export function BetForm({ formAction, initialFormData ,
               defaultValue={initialFormData?.feed_address || ""}
               required
               placeholder="Enter feed address"
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
@@ -220,7 +220,7 @@ export function BetForm({ formAction, initialFormData ,
                     setDeadlineDate(newDate);
                   }
                 }}
-                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={pending}
               />
               <div className="mt-2 text-sm text-gray-500">
@@ -242,7 +242,7 @@ export function BetForm({ formAction, initialFormData ,
               defaultValue={initialFormData?.wager_quantity?.toString() || ""}
               required
               placeholder="Enter wager quantity"
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
@@ -260,7 +260,7 @@ export function BetForm({ formAction, initialFormData ,
               defaultValue={initialFormData?.counterwager_quantity?.toString() || ""}
               required
               placeholder="Enter counterwager quantity"
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
@@ -278,7 +278,7 @@ export function BetForm({ formAction, initialFormData ,
               defaultValue={initialFormData?.expiration?.toString() || ""}
               required
               placeholder="Enter expiration blocks"
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
@@ -296,7 +296,7 @@ export function BetForm({ formAction, initialFormData ,
               defaultValue={initialFormData?.leverage?.toString() || "5040"}
               required
               placeholder="e.g., 5040"
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
@@ -314,7 +314,7 @@ export function BetForm({ formAction, initialFormData ,
               defaultValue={initialFormData?.target_value?.toString() || ""}
               required
               placeholder="Enter target value"
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>

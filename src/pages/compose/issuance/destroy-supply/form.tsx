@@ -165,7 +165,7 @@ export function DestroySupplyForm({
                 name="asset"
                 type="text"
                 defaultValue={initialFormData?.asset || ""}
-                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
                 required
                 placeholder="Enter asset name"
                 disabled={pending}
@@ -205,7 +205,7 @@ export function DestroySupplyForm({
               name="tag"
               type="text"
               defaultValue={initialFormData?.tag || ""}
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
               disabled={pending}
               maxLength={34}
               placeholder="Optional reference or note (max 34 characters)"

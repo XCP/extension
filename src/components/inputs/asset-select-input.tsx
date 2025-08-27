@@ -122,7 +122,7 @@ export function AssetSelectInput({
                   </div>
                 )}
                 <ComboboxInput
-                  className={`uppercase w-full border rounded-md bg-gray-50 py-2 text-sm leading-5 text-gray-900 focus:ring-2 focus:ring-blue-500 ${
+                  className={`uppercase w-full border border-gray-300 rounded-md bg-gray-50 py-2 text-sm leading-5 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     selectedAsset ? "pl-10" : "pl-3"
                   } pr-10`}
                   onChange={(event) => handleSearch(event.target.value)}

@@ -381,7 +381,7 @@ export function WeeklyBetForm({ formAction ,
               min="0.00000001"
               step="0.00000001"
               placeholder="Enter XCP amount"
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
               disabled={pending}
             />
             <p className="mt-2 text-sm text-gray-500">

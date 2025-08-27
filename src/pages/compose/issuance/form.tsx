@@ -116,7 +116,7 @@ export function IssuanceForm({
               name="quantity"
               type="text"
               defaultValue={initialFormData?.quantity?.toString() || ""}
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
               required
               disabled={pending}
             />
@@ -146,7 +146,7 @@ export function IssuanceForm({
               id="description"
               name="description"
               defaultValue={initialFormData?.description || ""}
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
               rows={2}
               disabled={pending}
             />
