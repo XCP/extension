@@ -22,18 +22,6 @@ interface BroadcastInscriptionFormProps {
   showHelpText?: boolean;
 }
 
-// Supported MIME types for inscriptions
-const SUPPORTED_MIME_TYPES = [
-  'image/png',
-  'image/jpeg', 
-  'image/gif',
-  'image/webp',
-  'image/svg+xml',
-  'text/plain',
-  'text/html',
-  'application/json',
-  'application/pdf',
-];
 
 /**
  * Form for composing a broadcast inscription transaction
@@ -69,16 +57,9 @@ export function BroadcastInscriptionForm({ formAction, initialFormData ,
       return;
     }
     
-    // Check file size (max 400KB for now)
+    // Check file size (max 400KB for practical reasons)
     if (file.size > 400 * 1024) {
       setFileError("File size must be less than 400KB");
-      setSelectedFile(null);
-      return;
-    }
-    
-    // Check MIME type
-    if (!SUPPORTED_MIME_TYPES.includes(file.type)) {
-      setFileError(`Unsupported file type. Supported types: ${SUPPORTED_MIME_TYPES.join(', ')}`);
       setSelectedFile(null);
       return;
     }
@@ -158,7 +139,6 @@ export function BroadcastInscriptionForm({ formAction, initialFormData ,
                 id="file"
                 name="file"
                 type="file"
-                accept={SUPPORTED_MIME_TYPES.join(',')}
                 onChange={handleFileChange}
                 className="sr-only"
                 required

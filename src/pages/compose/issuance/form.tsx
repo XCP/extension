@@ -91,18 +91,6 @@ export function IssuanceForm({
   const showAsset = initialParentAsset && parentAssetDetails?.assetInfo;
   const showAddress = !showAsset && activeAddress;
   
-  // Supported MIME types for inscriptions
-  const SUPPORTED_MIME_TYPES = [
-    'image/png',
-    'image/jpeg', 
-    'image/gif',
-    'image/webp',
-    'image/svg+xml',
-    'text/plain',
-    'text/html',
-    'application/json',
-  ];
-  
   // Handle file selection
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -113,16 +101,9 @@ export function IssuanceForm({
       return;
     }
     
-    // Check file size (max 400KB)
+    // Check file size (max 400KB for practical reasons)
     if (file.size > 400 * 1024) {
       setFileError("File size must be less than 400KB");
-      setSelectedFile(null);
-      return;
-    }
-    
-    // Check MIME type
-    if (!SUPPORTED_MIME_TYPES.includes(file.type)) {
-      setFileError(`Unsupported file type. Supported: images, text, JSON`);
       setSelectedFile(null);
       return;
     }
@@ -272,7 +253,6 @@ export function IssuanceForm({
                   id="inscription-file"
                   name="inscription-file"
                   type="file"
-                  accept={SUPPORTED_MIME_TYPES.join(',')}
                   onChange={handleFileChange}
                   className="sr-only"
                   disabled={pending}
