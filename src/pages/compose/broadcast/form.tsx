@@ -36,11 +36,15 @@ export function BroadcastForm({ formAction, initialFormData, error: composerErro
   const showAdvancedOptions = settings?.enableAdvancedBroadcasts ?? false;
   const { pending } = useFormStatus();
   
-  // Check if active wallet uses taproot addresses
-  const isTaprootAddress = activeWallet?.addressType === AddressType.P2TR;
+  // Check if active wallet uses SegWit addresses (P2WPKH, P2SH-P2WPKH, or P2TR)
+  const isSegwitAddress = activeWallet?.addressType && [
+    AddressType.P2WPKH,
+    AddressType.P2SH_P2WPKH, 
+    AddressType.P2TR
+  ].includes(activeWallet.addressType);
   
-  // State for inscription mode - default to true for Taproot addresses
-  const [inscribeEnabled, setInscribeEnabled] = useState(isTaprootAddress);
+  // State for inscription mode - default to false (off by default)
+  const [inscribeEnabled, setInscribeEnabled] = useState(false);
   
   // Error state
   const [error, setError] = useState<{ message: string; } | null>(null);
@@ -114,7 +118,7 @@ export function BroadcastForm({ formAction, initialFormData, error: composerErro
             </Description>
           </Field>
 
-          {isTaprootAddress && (
+          {isSegwitAddress && (
             <InscribeSwitch
               checked={inscribeEnabled}
               onChange={setInscribeEnabled}
