@@ -8,3 +8,6 @@ export * from './apiResponse';
 export * from './messageVerification';
 export * from './transactionParsing';
 export * from './qrCode';
+export * from './scriptValidation';
+export * from './psbtValidation';
+export * from './cryptographicValidation';
