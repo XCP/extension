@@ -12,6 +12,20 @@ interface ParsedTransaction {
 }
 
 /**
+ * Sanitize a string value for safe display
+ */
+function sanitizeString(value: any): string {
+  if (value === undefined || value === null) {
+    return '';
+  }
+  
+  const str = String(value);
+  
+  // Remove null bytes and control characters
+  return str.replace(/\x00/g, '').replace(/[\x01-\x1F\x7F]/g, '');
+}
+
+/**
  * Parse a raw transaction hex to extract human-readable details
  * This is critical for security - users must see what they're signing
  */
@@ -33,14 +47,14 @@ export function parseTransaction(rawTxHex: string, params?: any): ParsedTransact
         parsed.asset = params.asset;
         parsed.amount = formatQuantity(params.quantity, params.divisible);
         parsed.details = {
-          memo: params.memo || 'None',
+          memo: sanitizeString(params.memo) || 'None',
           fee: params.fee || 'Standard'
         };
       } else if (params.type === 'order' || params.method === 'order') {
         parsed.type = 'Create DEX Order';
         parsed.details = {
-          'Giving': `${formatQuantity(params.give_quantity, true)} ${params.give_asset}`,
-          'Getting': `${formatQuantity(params.get_quantity, true)} ${params.get_asset}`,
+          'Giving': `${formatQuantity(params.give_quantity, true)} ${sanitizeString(params.give_asset) || 'Unknown'}`,
+          'Getting': `${formatQuantity(params.get_quantity, true)} ${sanitizeString(params.get_asset) || 'Unknown'}`,
           'Expiration': `${params.expiration || 1000} blocks`,
           'Fee': params.fee || 'Standard'
         };
@@ -60,7 +74,7 @@ export function parseTransaction(rawTxHex: string, params?: any): ParsedTransact
         parsed.details = {
           'Give Quantity': formatQuantity(params.give_quantity, true),
           'Escrow Amount': formatQuantity(params.escrow_quantity, true),
-          'BTC Rate': `${params.mainchainrate} satoshis`,
+          'BTC Rate': params.mainchainrate ? `${params.mainchainrate} satoshis` : 'Unknown',
           'Status': params.status === '0' ? 'Open' : 'Closed'
         };
       } else if (params.type === 'dividend' || params.method === 'dividend') {
@@ -105,15 +119,50 @@ export function parseTransaction(rawTxHex: string, params?: any): ParsedTransact
 function formatQuantity(quantity: number | string, divisible?: boolean): string {
   if (quantity === undefined || quantity === null) return 'Unknown';
   
-  const qty = typeof quantity === 'string' ? parseFloat(quantity) : quantity;
+  // Parse the quantity
+  let qty: number;
+  if (typeof quantity === 'string') {
+    qty = parseFloat(quantity);
+  } else {
+    qty = quantity;
+  }
+  
+  // Handle invalid numbers
+  if (!isFinite(qty) || isNaN(qty)) {
+    return 'Invalid';
+  }
+  
+  // Handle extreme values
+  if (Math.abs(qty) > Number.MAX_SAFE_INTEGER) {
+    return 'Value too large';
+  }
+  
+  // Handle negative values (which shouldn't happen in valid transactions)
+  if (qty < 0) {
+    return 'Invalid (negative)';
+  }
   
   if (divisible === false) {
-    return qty.toString();
+    // For non-divisible assets, ensure we're dealing with integers
+    return Math.floor(qty).toString();
   }
   
   // Assume 8 decimals for divisible assets (standard for XCP)
   const normalized = qty / 100000000;
-  return normalized.toFixed(8).replace(/\.?0+$/, '');
+  
+  // Prevent scientific notation by using toFixed with appropriate precision
+  // and handle very small values
+  if (Math.abs(normalized) < 0.00000001) {
+    return '0';
+  }
+  
+  // Format without scientific notation
+  let formatted = normalized.toFixed(8);
+  
+  // Remove trailing zeros and unnecessary decimal point
+  formatted = formatted.replace(/\.?0+$/, '');
+  
+  return formatted;
 }
 
 /**
