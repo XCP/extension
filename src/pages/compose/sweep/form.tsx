@@ -72,7 +72,7 @@ export function SweepForm({ formAction, initialFormData, error: composerError, s
             <Select
               name="flags"
               defaultValue={initialFormData?.flags || FLAG_BALANCES | FLAG_OWNERSHIP}
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={pending}
             >
               {sweepTypeOptions.map((option) => (
@@ -106,7 +106,7 @@ export function SweepForm({ formAction, initialFormData, error: composerError, s
               type="text"
               name="memo"
               defaultValue={initialFormData?.memo || ""}
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={pending}
             />
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>

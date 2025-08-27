@@ -245,7 +245,7 @@ export function FeeRateInput({
             {feeRates && (
               <Listbox value={feeOptions.find((opt) => opt.id === selectedOption)} onChange={handleOptionSelect}>
                 <ListboxButton
-                  className="w-full p-2 text-left rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
                   disabled={disabled}
                 >
                   {({ value }) => (

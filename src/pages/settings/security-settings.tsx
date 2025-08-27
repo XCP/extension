@@ -143,7 +143,7 @@ export default function SecuritySettings(): ReactElement {
                 value={passwordForm.currentPassword}
                 onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
                 onKeyDown={handleKeyDown}
-                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
                 disabled={isLoading}
                 aria-label="Current Password"
               />
@@ -162,7 +162,7 @@ export default function SecuritySettings(): ReactElement {
                 value={passwordForm.newPassword}
                 onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
                 onKeyDown={handleKeyDown}
-                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
                 disabled={isLoading}
                 aria-label="New Password"
               />
@@ -181,7 +181,7 @@ export default function SecuritySettings(): ReactElement {
                 value={passwordForm.confirmPassword}
                 onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                 onKeyDown={handleKeyDown}
-                className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
                 disabled={isLoading}
                 aria-label="Confirm New Password"
               />

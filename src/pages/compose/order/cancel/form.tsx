@@ -74,7 +74,7 @@ export function CancelForm({
               name="offer_hash"
               defaultValue={initialHash || initialFormData?.offer_hash || ""}
               rows={3}
-              className="mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
               disabled={pending}
             />

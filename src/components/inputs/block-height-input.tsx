@@ -80,7 +80,7 @@ export function BlockHeightInput({
           value={value}
           onChange={handleInputChange}
           autoComplete="off"
-          className="mt-1 block w-full p-2 rounded-md border bg-gray-50 pr-16 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 pr-16 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           placeholder={placeholder}
           disabled={disabled}
         />

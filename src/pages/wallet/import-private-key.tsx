@@ -170,7 +170,7 @@ const ImportPrivateKey = () => {
               <div className="mt-1">
                 <input type="hidden" name="address-type" value={addressType} />
                 <Listbox value={addressType} onChange={setAddressType} disabled={pending}>
-                  <ListboxButton className="w-full p-2 text-left rounded-md border border-gray-200 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500">
+                  <ListboxButton className="w-full p-2 text-left rounded-md border border-gray-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500">
                     {({ value }) => {
                       const selected = ADDRESS_TYPES.find(type => type.value === value);
                       return (
