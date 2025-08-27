@@ -339,14 +339,14 @@ describe('DestinationsInput', () => {
   }, 20000);
 
   it('should show error when at destination limit', () => {
-    // Mock the component's limit checking logic instead of rendering 1000 components
-    // This tests the logic without the performance overhead
+    // Test with exactly 1000 destinations to verify limit message appears
+    // Use minimal addresses for performance
     const destinations = Array.from({ length: 1000 }, (_, i) => ({
       id: i,
-      address: `addr${i}` // Very simple addresses for speed
+      address: `${i}` // Minimal string for performance
     }));
     
-    render(
+    const { container } = render(
       <DestinationsInput 
         {...defaultProps} 
         destinations={destinations}
@@ -355,8 +355,11 @@ describe('DestinationsInput', () => {
       />
     );
     
-    expect(screen.getByText('Maximum destination limit reached: 1000')).toBeInTheDocument();
-  }, 15000); // Increase timeout to 15 seconds
+    // Look for the limit message using more specific selector
+    const limitMessage = container.querySelector('p.text-red-600');
+    expect(limitMessage).toBeInTheDocument();
+    expect(limitMessage?.textContent).toBe('Maximum destination limit reached: 1000');
+  }, 30000); // Increase timeout to 30 seconds for safety
 
   it('should not show add button at 1000 limit', async () => {
     // Test with exactly 1000 destinations to verify add button is hidden

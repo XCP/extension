@@ -74,7 +74,8 @@ vi.mock('@/contexts/composer-context', () => ({
     revertToForm: mockRevertToForm,
     clearError: mockClearError,
     setError: mockSetError,
-    isPending: false
+    isPending: false,
+    getComposeType: vi.fn(() => 'send') // Add missing getComposeType function
   })
 }));
 

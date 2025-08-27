@@ -181,3 +181,90 @@ export const isLessThanSatoshis = (value: string | number, threshold: string | n
 export const isLessThanOrEqualToSatoshis = (value: string | number, threshold: string | number): boolean => {
   return toBigNumber(value).isLessThanOrEqualTo(toBigNumber(threshold));
 };
+
+/**
+ * Multiplies a value by another value
+ *
+ * @param multiplicand - The value to multiply
+ * @param multiplier - The value to multiply by
+ * @returns The product as a BigNumber
+ */
+export const multiply = (multiplicand: string | number | BigNumber, multiplier: string | number | BigNumber): BigNumber => {
+  return toBigNumber(multiplicand).times(toBigNumber(multiplier));
+};
+
+/**
+ * Subtracts one value from another
+ *
+ * @param minuend - The value to subtract from
+ * @param subtrahend - The value to subtract
+ * @returns The difference as a BigNumber
+ */
+export const subtract = (minuend: string | number | BigNumber, subtrahend: string | number | BigNumber): BigNumber => {
+  return toBigNumber(minuend).minus(toBigNumber(subtrahend));
+};
+
+/**
+ * Divides one value by another
+ *
+ * @param dividend - The value to divide
+ * @param divisor - The value to divide by
+ * @returns The quotient as a BigNumber
+ */
+export const divide = (dividend: string | number | BigNumber, divisor: string | number | BigNumber): BigNumber => {
+  return toBigNumber(dividend).div(toBigNumber(divisor));
+};
+
+/**
+ * Rounds a value to an integer using specified rounding mode
+ *
+ * @param value - The value to round
+ * @param roundingMode - The rounding mode (default: ROUND_DOWN)
+ * @returns The rounded integer as a BigNumber
+ */
+export const toInteger = (value: string | number | BigNumber, roundingMode = BigNumber.ROUND_DOWN): BigNumber => {
+  return toBigNumber(value).integerValue(roundingMode);
+};
+
+/**
+ * Rounds up a value to an integer (ceiling)
+ *
+ * @param value - The value to round up
+ * @returns The rounded integer as a BigNumber
+ */
+export const roundUp = (value: string | number | BigNumber): BigNumber => {
+  return toBigNumber(value).integerValue(BigNumber.ROUND_CEIL);
+};
+
+/**
+ * Rounds down a value to an integer (floor)
+ *
+ * @param value - The value to round down
+ * @returns The rounded integer as a BigNumber
+ */
+export const roundDown = (value: string | number | BigNumber): BigNumber => {
+  return toBigNumber(value).integerValue(BigNumber.ROUND_FLOOR);
+};
+
+/**
+ * Checks if a value is less than or equal to zero
+ *
+ * @param value - The value to check
+ * @returns Boolean indicating if value is less than or equal to zero
+ */
+export const isLessThanOrEqualToZero = (value: string | number | BigNumber): boolean => {
+  return toBigNumber(value).isLessThanOrEqualTo(0);
+};
+
+/**
+ * Converts a BigNumber to a number
+ *
+ * @param value - The BigNumber to convert
+ * @returns The value as a number
+ */
+export const toNumber = (value: string | number | BigNumber): number => {
+  return toBigNumber(value).toNumber();
+};
+
+// Export BigNumber for cases where direct access to constants is needed
+export { BigNumber };

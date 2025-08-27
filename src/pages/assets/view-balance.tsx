@@ -85,12 +85,6 @@ export default function ViewBalance(): ReactElement {
             path: `${CONSTANTS.PATHS.COMPOSE}/order/BTC`,
           },
           {
-            id: "btcpay",
-            name: "BTCPay",
-            description: "Pay for an order match with BTC",
-            path: `${CONSTANTS.PATHS.COMPOSE}/btcpay`,
-          },
-          {
             id: "dispense",
             name: "Dispense",
             description: "Trigger an open asset dispenser",
@@ -101,6 +95,12 @@ export default function ViewBalance(): ReactElement {
             name: "Fairmint",
             description: "Start a fair distribution mint",
             path: `${CONSTANTS.PATHS.COMPOSE}/fairmint/BTC`,
+          },
+          {
+            id: "btcpay",
+            name: "BTCPay",
+            description: "Pay for an order match with BTC",
+            path: `${CONSTANTS.PATHS.COMPOSE}/btcpay`,
           },
         ]
       : isXCP

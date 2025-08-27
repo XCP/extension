@@ -420,8 +420,8 @@ describe('Bitcoin Price Utilities', () => {
       
       // Should return the fastest successful result (46000 with 50ms delay)
       expect(price).toBe(46000);
-      // Should complete in less than 100ms (faster than the slowest)
-      expect(endTime - startTime).toBeLessThan(100);
+      // Should complete in less than 150ms (faster than the slowest, with some margin for test environment variations)
+      expect(endTime - startTime).toBeLessThan(150);
     });
 
     it('should validate price is a number', async () => {

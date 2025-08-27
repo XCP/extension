@@ -855,6 +855,44 @@ export async function fetchDispenserByHash(
   }
 }
 
+/**
+ * Fetches dispenses for a specific dispenser transaction
+ * @param dispenserHash The transaction hash of the dispenser
+ * @param options Optional parameters including show_unconfirmed
+ * @returns Promise with dispenses array
+ */
+export async function fetchDispenserDispenses(
+  dispenserHash: string,
+  options: {
+    show_unconfirmed?: boolean;
+    verbose?: boolean;
+    limit?: number;
+  } = {}
+): Promise<{ dispenses: any[] }> {
+  try {
+    const base = await getApiBase();
+    const response = await axios.get(
+      `${base}/v2/dispensers/${dispenserHash}/dispenses`,
+      {
+        params: {
+          show_unconfirmed: options.show_unconfirmed ?? false,
+          verbose: options.verbose ?? false,
+          limit: options.limit,
+        },
+      }
+    );
+
+    if (!response.data.result) {
+      return { dispenses: [] };
+    }
+
+    return { dispenses: response.data.result };
+  } catch (error) {
+    console.error('Error fetching dispenser dispenses:', error);
+    return { dispenses: [] };
+  }
+}
+
 export interface OwnedAsset {
   asset: string;
   asset_longname: string | null;

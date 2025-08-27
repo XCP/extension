@@ -79,10 +79,14 @@ export function ReviewScreen({
             <span className="font-semibold text-gray-700">{field.label}:</span>
             <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
               {typeof field.value === 'string' || typeof field.value === 'number' ? (
-                <div className="flex justify-between items-center">
-                  <span className="break-all">{field.value}</span>
-                  {field.rightElement}
-                </div>
+                field.value.toString().includes('\n') ? (
+                  <div className="whitespace-pre-line">{field.value}</div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <span className="break-all">{field.value}</span>
+                    {field.rightElement}
+                  </div>
+                )
               ) : (
                 field.value
               )}

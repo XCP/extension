@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useMemo,
   useState,
+  useRef,
   useActionState,
   type ReactElement,
 } from "react";
@@ -60,62 +61,6 @@ interface ApiResponse extends CounterpartyApiResponse {
   };
 }
 
-/**
- * Map of Options type names to compose types for normalization
- */
-const OPTIONS_TO_COMPOSE_TYPE: Record<string, string> = {
-  'SendOptions': 'send',
-  'ExtendedSendOptions': 'send',
-  'OrderOptions': 'order',
-  'IssuanceOptions': 'issuance',
-  'DestroyOptions': 'destroy',
-  'DispenserOptions': 'dispenser',
-  'DispenseOptions': 'dispense',
-  'DividendOptions': 'dividend',
-  'BurnOptions': 'burn',
-  'BetOptions': 'bet',
-  'BroadcastOptions': 'broadcast',
-  'SweepOptions': 'sweep',
-  'FairminterOptions': 'fairminter',
-  'FairmintOptions': 'fairmint',
-  'AttachOptions': 'attach',
-  'DetachOptions': 'detach',
-  'MoveOptions': 'move',
-  'BTCPayOptions': 'btcpay',
-  'CancelOptions': 'cancel',
-  'MPMAOptions': 'mpma',
-  'MPMAData': 'mpma',
-};
-
-/**
- * Gets the compose type from the generic type name
- */
-function getComposeType<T>(data: T): string | undefined {
-  // Try to get the constructor name from the prototype chain
-  const typeName = (data as any)?.constructor?.name;
-  if (typeName && OPTIONS_TO_COMPOSE_TYPE[typeName]) {
-    return OPTIONS_TO_COMPOSE_TYPE[typeName];
-  }
-  
-  // Fallback: try to infer from the data shape
-  if (data && typeof data === 'object') {
-    // Check for specific fields that identify the type
-    if ('give_asset' in data && 'get_asset' in data) return 'order';
-    if ('destination' in data && 'asset' in data && 'quantity' in data) return 'send';
-    if ('asset' in data && 'divisible' in data) return 'issuance';
-    if ('dispenser' in data) return 'dispense';
-    if ('give_quantity' in data && 'escrow_quantity' in data) return 'dispenser';
-    if ('dividend_asset' in data) return 'dividend';
-    if ('wager_quantity' in data) return 'bet';
-    if ('text' in data && !('destination' in data)) return 'broadcast';
-    if ('flags' in data) return 'sweep';
-    if ('order_match_id' in data) return 'btcpay';
-    if ('offer_hash' in data) return 'cancel';
-    // Add more patterns as needed
-  }
-  
-  return undefined;
-}
 
 export function Composer<T>({
   initialTitle,
@@ -130,9 +75,12 @@ export function Composer<T>({
   const { isLoading, showLoading, hideLoading } = useLoading();
   const { setHeaderProps } = useHeader();
   const { settings } = useSettings();
-  const { state, compose, sign, reset, revertToForm, clearError, setError, isPending } = useComposer<T>();
+  const { state, compose, sign, reset, revertToForm, clearError, setError, isPending, getComposeType } = useComposer<T>();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [localShowHelpText, setLocalShowHelpText] = useState<boolean | null>(null); // null means use global setting
+  
+  // Track the current compose type to reset when switching between different compose forms
+  const currentComposeType = useRef<string | null>(null);
 
   // Form action state for composing the transaction
   const [composeError, formAction, isComposing] = useActionState(
@@ -143,6 +91,13 @@ export function Composer<T>({
         // Auto-detect compose type from form data
         const rawData = Object.fromEntries(formData);
         const detectedType = getComposeType(rawData);
+        
+        // Check if compose type has changed and reset if needed
+        if (currentComposeType.current && currentComposeType.current !== detectedType) {
+          reset();
+        }
+        currentComposeType.current = detectedType || null;
+        
         compose(formData, composeTransaction, activeAddress.address, loadingId, hideLoading, detectedType);
         return null; // Success
       } catch (err) {
@@ -400,6 +355,7 @@ export function Composer<T>({
   }, []);
 
   // Clear error when component unmounts
+  // Note: We don't reset() here because that would clear form data when going between steps
   useEffect(() => {
     return () => {
       clearError();

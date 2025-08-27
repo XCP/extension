@@ -45,6 +45,7 @@ interface ComposerContextType<T> {
   clearError: () => void;
   setError: (error: string) => void;
   isPending: boolean;
+  getComposeType: (formData: Record<string, any>) => string | undefined;
 }
 
 /**
@@ -232,6 +233,7 @@ export function ComposerProvider<T>({
   const [state, setState] = useState(initialState);
   const [isPending, startTransition] = useTransition();
   const previousStepRef = useRef<"form" | "review" | "success" | null>(null);
+  const previousComposeTypeRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     previousStepRef.current = state.step;
@@ -409,7 +411,64 @@ export function ComposerProvider<T>({
     }
   }, [state.step]);
 
-  const value = { state, compose, sign, reset, revertToForm, clearError, setError, isPending };
+  // Map of Options type names to compose types for normalization
+  const OPTIONS_TO_COMPOSE_TYPE: Record<string, string> = {
+    'SendOptions': 'send',
+    'ExtendedSendOptions': 'send',
+    'OrderOptions': 'order',
+    'IssuanceOptions': 'issuance',
+    'DestroyOptions': 'destroy',
+    'DispenserOptions': 'dispenser',
+    'DispenseOptions': 'dispense',
+    'DividendOptions': 'dividend',
+    'BurnOptions': 'burn',
+    'BetOptions': 'bet',
+    'BroadcastOptions': 'broadcast',
+    'SweepOptions': 'sweep',
+    'FairminterOptions': 'fairminter',
+    'FairmintOptions': 'fairmint',
+    'AttachOptions': 'attach',
+    'DetachOptions': 'detach',
+    'MoveOptions': 'move',
+    'BTCPayOptions': 'btcpay',
+    'CancelOptions': 'cancel',
+    'MPMAOptions': 'mpma',
+    'MPMAData': 'mpma',
+  };
+
+  // Method to detect compose type from form data
+  const getComposeType = useCallback((formData: Record<string, any>): string | undefined => {
+    // Try to get the constructor name from the prototype chain
+    const typeName = (formData as any)?.constructor?.name;
+    if (typeName && OPTIONS_TO_COMPOSE_TYPE[typeName]) {
+      return OPTIONS_TO_COMPOSE_TYPE[typeName];
+    }
+    
+    // Check for explicit __type field (if passed from form)
+    if (formData.__type && typeof formData.__type === 'string') {
+      const typeField = formData.__type;
+      if (OPTIONS_TO_COMPOSE_TYPE[typeField]) {
+        return OPTIONS_TO_COMPOSE_TYPE[typeField];
+      }
+    }
+    
+    // Fallback: Check for specific fields that identify the type
+    if ('give_asset' in formData && 'get_asset' in formData) return 'order';
+    if ('destination' in formData && 'asset' in formData && 'quantity' in formData) return 'send';
+    if ('asset_name' in formData || ('asset' in formData && 'quantity' in formData && 'description' in formData)) return 'issuance';
+    if ('dispenser' in formData || 'dispenserAddress' in formData) return 'dispense';
+    if ('give_quantity' in formData && 'escrow_quantity' in formData) return 'dispenser';
+    if ('dividend_asset' in formData) return 'dividend';
+    if ('wager_quantity' in formData) return 'bet';
+    if ('text' in formData && !('destination' in formData)) return 'broadcast';
+    if ('flags' in formData) return 'sweep';
+    if ('order_match_id' in formData) return 'btcpay';
+    if ('offer_hash' in formData) return 'cancel';
+    
+    return undefined;
+  }, []);
+
+  const value = { state, compose, sign, reset, revertToForm, clearError, setError, isPending, getComposeType };
 
   return <ComposerContext value={value}>{children}</ComposerContext>;
 }

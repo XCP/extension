@@ -214,11 +214,13 @@ export async function launchExtension(testName: string): Promise<ExtensionContex
  * @param password - Password for the wallet (defaults to TEST_PASSWORD)
  */
 export async function createWallet(page: Page, password: string = TEST_PASSWORD): Promise<void> {
-  // Click Create Wallet
+  // Click Create Wallet button - wait for it to be visible first
+  await page.waitForSelector('text=Create Wallet', { timeout: 5000 });
   await page.getByText('Create Wallet').click();
   await page.waitForTimeout(1000);
   
-  // Reveal phrase
+  // Reveal phrase - click the area that contains "View 12-word Secret Phrase"
+  await page.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
   await page.getByText('View 12-word Secret Phrase').click();
   await page.waitForTimeout(1000);
   
