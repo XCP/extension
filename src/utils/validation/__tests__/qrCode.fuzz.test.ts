@@ -237,9 +237,9 @@ describe('QR Code Validation Fuzz Testing', () => {
             
             if (width === undefined) {
               expect(result.isValid).toBe(true); // Optional parameter
-            } else if (!Number.isFinite(width) || width <= 0) {
+            } else if (!Number.isFinite(width) || width! <= 0) {
               expect(result.isValid).toBe(false);
-            } else if (width > 10000) {
+            } else if (width! > 10000) {
               expect(result.isValid).toBe(false);
               expect(result.error).toContain('too large');
             }
