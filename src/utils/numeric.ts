@@ -93,6 +93,11 @@ export const isValidPositiveNumber = (
       return false;
     }
     
+    // Check for infinity (positive or negative)
+    if (!testNum.isFinite()) {
+      return false;
+    }
+    
     const num = toBigNumber(value);
     if (allowZero) {
       if (num.isLessThan(0)) return false;

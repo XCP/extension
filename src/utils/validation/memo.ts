@@ -11,9 +11,11 @@ export function isHexMemo(value: string): boolean {
   
   const trimmed = value.trim();
   
-  // Check if it starts with 0x
+  // Check if it starts with 0x - must have even number of hex digits after 0x
   if (trimmed.startsWith('0x')) {
-    return /^0x[0-9a-fA-F]*$/.test(trimmed);
+    const hexPart = trimmed.slice(2);
+    // 0x alone is not valid, needs actual hex data
+    return hexPart.length > 0 && /^[0-9a-fA-F]+$/.test(hexPart) && hexPart.length % 2 === 0;
   }
   
   // Pure hex must have even length for valid byte encoding
@@ -114,11 +116,21 @@ export function validateMemo(memo: string, options?: {
 export function hexToText(hex: string): string | null {
   try {
     const cleanHex = stripHexPrefix(hex);
+    
+    // Empty hex string represents empty text
+    if (cleanHex === '') return '';
+    
+    // Check for odd length
     if (cleanHex.length % 2 !== 0) return null;
+    
+    // Validate hex characters before parsing
+    if (!/^[0-9a-fA-F]+$/.test(cleanHex)) return null;
     
     const bytes = new Uint8Array(cleanHex.length / 2);
     for (let i = 0; i < cleanHex.length; i += 2) {
-      bytes[i / 2] = parseInt(cleanHex.substr(i, 2), 16);
+      const byte = parseInt(cleanHex.substr(i, 2), 16);
+      if (isNaN(byte)) return null;
+      bytes[i / 2] = byte;
     }
     
     const decoder = new TextDecoder('utf-8', { fatal: true });
@@ -132,6 +144,9 @@ export function hexToText(hex: string): string | null {
  * Convert text to hex string
  */
 export function textToHex(text: string): string {
+  // Empty string returns empty hex
+  if (!text) return '';
+  
   const encoder = new TextEncoder();
   const bytes = encoder.encode(text);
   return Array.from(bytes)

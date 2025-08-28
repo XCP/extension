@@ -119,8 +119,17 @@ describe('Numeric Utilities Fuzz Tests', () => {
           // Skip scientific notation in edge cases for this test
           if (str.includes('e-')) return true;
           
+          // The function correctly validates decimal places (default max is 8)
+          // We need to check how many decimal places the number string has
+          const decimalPlaces = str.includes('.') ? str.split('.')[1].length : 0;
           const result = isValidPositiveNumber(str, { allowZero: false });
-          expect(result).toBe(true);
+          
+          if (decimalPlaces <= 8) {
+            expect(result).toBe(true);
+          } else {
+            // Numbers with more than 8 decimal places should be rejected
+            expect(result).toBe(false);
+          }
         }
       ), { numRuns: 500 });
     });
