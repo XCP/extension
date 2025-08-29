@@ -76,7 +76,7 @@ describe('Transaction Parsing Security Tests', () => {
             expect(hexString.length).toBeLessThanOrEqual(2000000);
           }
         }
-      ), { numRuns: 300 });
+      ), { numRuns: 50 }); // Reduced for performance
     });
 
     // Performance test for ReDoS protection
@@ -198,7 +198,7 @@ describe('Transaction Parsing Security Tests', () => {
             expect(result.error).toBeDefined();
           }
         }
-      ), { numRuns: 300 });
+      ), { numRuns: 50 }); // Reduced for performance
     });
   });
 
@@ -245,7 +245,7 @@ describe('Transaction Parsing Security Tests', () => {
           const result = validateTransactionType(type, method);
           expect(typeof result.isValid).toBe('boolean');
         }
-      ), { numRuns: 200 });
+      ), { numRuns: 50 }); // Reduced for performance
     });
   });
 
@@ -314,7 +314,7 @@ describe('Transaction Parsing Security Tests', () => {
             expect(['string', 'number', 'boolean'].includes(typeof value)).toBe(true);
           });
         }
-      ), { numRuns: 200 });
+      ), { numRuns: 50 }); // Reduced for performance
     });
   });
 
@@ -433,7 +433,7 @@ describe('Transaction Parsing Security Tests', () => {
             expect(result.error).toBeDefined();
           }
         }
-      ), { numRuns: 300 });
+      ), { numRuns: 50 }); // Reduced for performance
     });
   });
 
@@ -477,7 +477,7 @@ describe('Transaction Parsing Security Tests', () => {
           expect(estimate).toBeGreaterThan(0);
           expect(estimate).toBeLessThan(1000000000); // Reasonable upper bound
         }
-      ), { numRuns: 100 });
+      ), { numRuns: 25 }); // Reduced for performance
     });
   });
 

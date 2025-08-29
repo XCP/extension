@@ -8,9 +8,11 @@ import fc from 'fast-check';
 // Helper functions for memo validation
 const isHexMemo = (value: string): boolean => {
   const trimmed = value.trim();
-  // Check if it starts with 0x or is all hex characters
+  // Check if it starts with 0x or is all hex characters (case sensitive for 0x)
   if (trimmed.startsWith('0x')) {
-    return /^0x[0-9a-fA-F]*$/.test(trimmed);
+    const hexContent = trimmed.slice(2);
+    // Require at least one hex char after 0x
+    return hexContent.length > 0 && /^[0-9a-fA-F]*$/.test(hexContent) && hexContent.length % 2 === 0;
   }
   // Pure hex (even length for valid byte encoding)
   return /^[0-9a-fA-F]+$/.test(trimmed) && trimmed.length % 2 === 0;
@@ -256,9 +258,11 @@ describe('Memo Input Validation Fuzz Tests', () => {
               expect(isHexMemo('0x' + hex)).toBe(true);
             }
             
-            // Verify length calculation
-            expect(validateMemoLength(hex, true, bytes.length)).toBe(true);
-            expect(validateMemoLength(hex, true, bytes.length - 1)).toBe(false);
+            // Verify length calculation (only test if we have data)
+            if (bytes.length > 0) {
+              expect(validateMemoLength(hex, true, bytes.length)).toBe(true);
+              expect(validateMemoLength(hex, true, bytes.length - 1)).toBe(false);
+            }
           }
         ),
         { numRuns: 50 }

@@ -20,40 +20,39 @@ export function validateParentAsset(assetName: string): { isValid: boolean; erro
   if (assetName.startsWith('A')) {
     const numberPart = assetName.substring(1);
     
-    // Must be all digits
-    if (!/^\d+$/.test(numberPart)) {
-      return { isValid: false, error: "Invalid numeric asset format" };
-    }
-    
-    // Check if it's in valid range (26^12 to 256^8 - 1)
-    try {
-      const value = BigInt(numberPart);
-      const min = BigInt(26) ** BigInt(12);
-      const max = BigInt(256) ** BigInt(8) - BigInt(1);
-      
-      if (value < min || value > max) {
-        return { isValid: false, error: "Numeric asset out of valid range" };
+    // If it's all digits, validate as numeric asset
+    if (/^\d+$/.test(numberPart)) {
+      // Check if it's in valid range (26^12 to 256^8 - 1)
+      try {
+        const value = BigInt(numberPart);
+        const min = BigInt(26) ** BigInt(12);
+        const max = BigInt(256) ** BigInt(8) - BigInt(1);
+        
+        if (value < min || value > max) {
+          return { isValid: false, error: "Numeric asset out of valid range" };
+        }
+        
+        return { isValid: true };
+      } catch {
+        return { isValid: false, error: "Invalid numeric asset" };
       }
-      
-      return { isValid: true };
-    } catch {
-      return { isValid: false, error: "Invalid numeric asset" };
     }
+    // Otherwise, fall through to named asset validation which will reject it
   }
   
   // Named assets: 4-12 characters, B-Z start, only A-Z
   if (!/^[B-Z][A-Z]{3,11}$/.test(assetName)) {
     if (assetName.length < 4) {
-      return { isValid: false, error: "Asset name must be at least 4 characters" };
+      return { isValid: false, error: "Asset name too short (min 4 characters)" };
     }
     if (assetName.length > 12) {
-      return { isValid: false, error: "Asset name cannot exceed 12 characters" };
+      return { isValid: false, error: "Asset name too long (max 12 characters)" };
     }
     if (!/^[A-Z]+$/.test(assetName)) {
-      return { isValid: false, error: "Asset name can only contain uppercase letters A-Z" };
+      return { isValid: false, error: "Asset names must contain only A-Z" };
     }
     if (assetName.startsWith('A')) {
-      return { isValid: false, error: "Named assets cannot start with 'A' (reserved for numeric assets)" };
+      return { isValid: false, error: "Non-numeric assets cannot start with 'A'" };
     }
     return { isValid: false, error: "Invalid asset name format" };
   }
@@ -72,7 +71,7 @@ export function validateSubasset(fullName: string, parentAsset?: string): { isVa
   // Must contain exactly one dot
   const parts = fullName.split('.');
   if (parts.length !== 2) {
-    return { isValid: false, error: "Subasset must be in PARENT.CHILD format" };
+    return { isValid: false, error: "Invalid subasset format" };
   }
 
   const [parent, child] = parts;
@@ -93,14 +92,14 @@ export function validateSubasset(fullName: string, parentAsset?: string): { isVa
     return { isValid: false, error: "Subasset name cannot be empty" };
   }
 
+  // Maximum length for child (250 chars max)
+  if (child.length > 250) {
+    return { isValid: false, error: "Subasset name is too long (max 250 characters)" };
+  }
+
   // Child can contain: a-zA-Z0-9.-_@!
   if (!/^[a-zA-Z0-9.\-_@!]+$/.test(child)) {
     return { isValid: false, error: "Subasset name contains invalid characters" };
-  }
-
-  // Maximum length for child
-  if (child.length > 250) {
-    return { isValid: false, error: "Subasset name is too long (max 250 characters)" };
   }
 
   return { isValid: true };

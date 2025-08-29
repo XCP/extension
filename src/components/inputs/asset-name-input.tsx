@@ -33,7 +33,7 @@ function validateAssetNameInternal(assetName: string, isSubasset: boolean): { is
   if (isSubasset) {
     // Full subasset validation (PARENT.CHILD format)
     if (!assetName.includes('.')) {
-      return { isValid: false, error: "Subasset must be in PARENT.CHILD format" };
+      return { isValid: false, error: "Invalid subasset format" };
     }
     
     const parts = assetName.split('.');

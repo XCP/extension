@@ -197,6 +197,9 @@ describe('Asset Validation Fuzz Tests', () => {
 
       testCases.forEach(({ child, shouldBeValid }) => {
         const result = validateSubasset(`${validParent}.${child}`);
+        if (result.isValid !== shouldBeValid) {
+          console.log('Failed:', { child, shouldBeValid, actual: result.isValid, error: result.error });
+        }
         expect(result.isValid).toBe(shouldBeValid);
       });
     });
