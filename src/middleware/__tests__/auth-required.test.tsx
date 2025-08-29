@@ -34,7 +34,8 @@ describe('AuthRequired Middleware', () => {
       authState: 'UNLOCKED',
       wallets: [{ id: 'wallet1' }],
       activeWallet: { id: 'wallet1', name: 'Test Wallet' },
-      activeAddress: { address: 'bc1qtest', name: 'Test Address' }
+      activeAddress: { address: 'bc1qtest', name: 'Test Address' },
+      loaded: true
     } as any);
 
     render(<TestApp />);
@@ -47,7 +48,8 @@ describe('AuthRequired Middleware', () => {
       authState: 'LOCKED',
       wallets: [{ id: 'wallet1' }],
       activeWallet: null,
-      activeAddress: null
+      activeAddress: null,
+      loaded: true
     } as any);
 
     render(<TestApp />);
@@ -61,7 +63,8 @@ describe('AuthRequired Middleware', () => {
       authState: 'ONBOARDING_NEEDED',
       wallets: [],
       activeWallet: null,
-      activeAddress: null
+      activeAddress: null,
+      loaded: true
     } as any);
 
     render(<TestApp />);
@@ -75,7 +78,8 @@ describe('AuthRequired Middleware', () => {
       authState: 'UNLOCKED',
       wallets: [{ id: 'wallet1' }],
       activeWallet: { id: 'wallet1', name: 'Test Wallet' },
-      activeAddress: { address: 'bc1qtest', name: 'Test Address' }
+      activeAddress: { address: 'bc1qtest', name: 'Test Address' },
+      loaded: true
     } as any);
 
     render(<TestApp initialRoute="/protected" />);
@@ -88,7 +92,8 @@ describe('AuthRequired Middleware', () => {
       authState: 'LOCKED',
       wallets: [{ id: 'wallet1' }],
       activeWallet: null,
-      activeAddress: null
+      activeAddress: null,
+      loaded: true
     } as any);
 
     render(<TestApp initialRoute="/protected" />);
@@ -103,7 +108,8 @@ describe('AuthRequired Middleware', () => {
       authState: 'LOCKED',
       wallets: [{ id: 'wallet1' }],
       activeWallet: null,
-      activeAddress: null
+      activeAddress: null,
+      loaded: true
     } as any);
 
     const { unmount } = render(<TestApp />);
@@ -115,7 +121,8 @@ describe('AuthRequired Middleware', () => {
       authState: 'UNLOCKED',
       wallets: [{ id: 'wallet1' }],
       activeWallet: { id: 'wallet1', name: 'Test Wallet' },
-      activeAddress: { address: 'bc1qtest', name: 'Test Address' }
+      activeAddress: { address: 'bc1qtest', name: 'Test Address' },
+      loaded: true
     } as any);
 
     render(<TestApp />);
@@ -127,7 +134,8 @@ describe('AuthRequired Middleware', () => {
       authState: 'LOCKED',
       wallets: [{ id: 'wallet1' }],
       activeWallet: null,
-      activeAddress: null
+      activeAddress: null,
+      loaded: true
     } as any);
 
     const TestAppWithState = () => (
@@ -155,10 +163,11 @@ describe('AuthRequired Middleware', () => {
 
   it('should handle loading state', () => {
     mockUseWallet.mockReturnValue({
-      authState: 'LOADING',
+      authState: 'ONBOARDING_NEEDED',
       wallets: [],
       activeWallet: null,
-      activeAddress: null
+      activeAddress: null,
+      loaded: false
     } as any);
 
     const { container } = render(<TestApp />);
@@ -172,7 +181,8 @@ describe('AuthRequired Middleware', () => {
       authState: undefined as any,
       wallets: [],
       activeWallet: null,
-      activeAddress: null
+      activeAddress: null,
+      loaded: true
     } as any);
 
     render(<TestApp />);
@@ -201,7 +211,8 @@ describe('AuthRequired Middleware', () => {
       authState: 'UNLOCKED',
       wallets: [{ id: 'wallet1' }],
       activeWallet: { id: 'wallet1', name: 'Test Wallet' },
-      activeAddress: { address: 'bc1qtest', name: 'Test Address' }
+      activeAddress: { address: 'bc1qtest', name: 'Test Address' },
+      loaded: true
     } as any);
 
     render(<DeepTestApp />);
