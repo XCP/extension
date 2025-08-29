@@ -12,6 +12,11 @@ export function AuthRequired() {
   useAuthGuard();
 
   useEffect(() => {
+    // Don't navigate while loading
+    if (authState === 'LOADING') {
+      return;
+    }
+    
     // Simple, direct navigation based on auth state
     if (authState === 'LOCKED' && wallets.length > 0) {
       navigate('/unlock-wallet', { 
