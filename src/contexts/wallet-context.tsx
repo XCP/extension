@@ -187,10 +187,14 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     // Listen for wallet lock events from background
     const handleLockMessage = ({ data }: { data: { locked: boolean } }) => {
       if (data.locked) {
+        console.log('[WalletContext] Received lock event from background');
+        // Immediately update state to trigger navigation
         setWalletState((prev) => ({
           ...prev,
           authState: AuthState.Locked,
           walletLocked: true,
+          activeWallet: null,
+          activeAddress: null,
         }));
       }
     };
@@ -199,7 +203,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     return () => {
       // Cleanup not strictly needed with webext-bridge as it handles message cleanup internally
     };
-  }, [refreshWalletState]);
+  }, [refreshWalletState, walletService]); // Removed walletState.authState to prevent re-runs
 
   const setActiveWallet = useCallback(
     async (wallet: Wallet | null, useLastActive?: boolean) => {
@@ -271,10 +275,19 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }),
-    lockAll: withRefresh(walletService.lockAllWallets, async () => {
-      await refreshWalletState();
-      setWalletState((prev) => ({ ...prev, authState: AuthState.Locked }));
-    }),
+    lockAll: async () => {
+      // Immediately set state to locked to trigger navigation
+      setWalletState((prev) => ({
+        ...prev,
+        authState: AuthState.Locked,
+        walletLocked: true,
+        activeWallet: null,
+        activeAddress: null,
+      }));
+      
+      // Then actually lock in the background
+      await walletService.lockAllWallets();
+    },
     setActiveWallet,
     setActiveAddress,
     addAddress: withRefresh(walletService.addAddress, refreshWalletState),
