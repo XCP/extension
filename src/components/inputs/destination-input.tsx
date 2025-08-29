@@ -29,7 +29,7 @@ export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputPro
       className = "",
       name = "destination",
       label = "Destination",
-      helpText = "Enter the recipient's Bitcoin address.",
+      helpText = "Enter recipient's address.",
     },
     ref
   ) => {

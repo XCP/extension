@@ -99,7 +99,7 @@ export function MemoInput({
       
       {showHelpText && (
         <Description id="memo-description" className="mt-2 text-sm text-gray-500">
-          Optional memo to include with the transaction. Maximum {MAX_MEMO_LENGTH} bytes.
+          Optional memo to include.
         </Description>
       )}
     </Field>
