@@ -15,12 +15,12 @@ describe('API Response Validation Security Tests', () => {
     it('should accept valid UTXO array', () => {
       const validUTXOs = [
         {
-          txid: 'a1b2c3d4e5f6a789012345678901234567890123456789012345678901234567890',
+          txid: 'a1b2c3d4e5f67890123456789012345678901234567890123456789012345678',
           vout: 0,
           status: {
             confirmed: true,
             block_height: 800000,
-            block_hash: 'b2c3d4e5f6a789012345678901234567890123456789012345678901234567890a1',
+            block_hash: 'b2c3d4e5f67890123456789012345678901234567890123456789012345678ab',
             block_time: 1640995200,
           },
           value: 100000,
@@ -58,12 +58,12 @@ describe('API Response Validation Security Tests', () => {
 
     it('should reject negative vout', () => {
       const invalidUTXO = [{
-        txid: 'a1b2c3d4e5f6a789012345678901234567890123456789012345678901234567890',
+        txid: 'a1b2c3d4e5f67890123456789012345678901234567890123456789012345678',
         vout: -1,
         status: {
           confirmed: true,
           block_height: 800000,
-          block_hash: 'b2c3d4e5f6a789012345678901234567890123456789012345678901234567890a1',
+          block_hash: 'b2c3d4e5f67890123456789012345678901234567890123456789012345678ab',
           block_time: 1640995200,
         },
         value: 100000,
@@ -76,12 +76,12 @@ describe('API Response Validation Security Tests', () => {
 
     it('should reject excessive value', () => {
       const invalidUTXO = [{
-        txid: 'a1b2c3d4e5f6a789012345678901234567890123456789012345678901234567890',
+        txid: 'a1b2c3d4e5f67890123456789012345678901234567890123456789012345678',
         vout: 0,
         status: {
           confirmed: true,
           block_height: 800000,
-          block_hash: 'b2c3d4e5f6a789012345678901234567890123456789012345678901234567890a1',
+          block_hash: 'b2c3d4e5f67890123456789012345678901234567890123456789012345678ab',
           block_time: 1640995200,
         },
         value: 2100000000000001, // Exceeds max Bitcoin supply
@@ -94,12 +94,12 @@ describe('API Response Validation Security Tests', () => {
 
     it('should reject too many UTXOs', () => {
       const tooManyUTXOs = Array.from({ length: 10001 }, (_, i) => ({
-        txid: 'a1b2c3d4e5f6a789012345678901234567890123456789012345678901234567890',
+        txid: 'a1b2c3d4e5f67890123456789012345678901234567890123456789012345678',
         vout: i,
         status: {
           confirmed: true,
           block_height: 800000,
-          block_hash: 'b2c3d4e5f6a789012345678901234567890123456789012345678901234567890a1',
+          block_hash: 'b2c3d4e5f67890123456789012345678901234567890123456789012345678ab',
           block_time: 1640995200,
         },
         value: 100000,
@@ -130,12 +130,12 @@ describe('API Response Validation Security Tests', () => {
     it('should handle prototype pollution attempts safely', () => {
       const maliciousUTXO = [{
         '__proto__': { polluted: true },
-        txid: 'a1b2c3d4e5f6a789012345678901234567890123456789012345678901234567890',
+        txid: 'a1b2c3d4e5f67890123456789012345678901234567890123456789012345678',
         vout: 0,
         status: {
           confirmed: true,
           block_height: 800000,
-          block_hash: 'b2c3d4e5f6a789012345678901234567890123456789012345678901234567890a1',
+          block_hash: 'b2c3d4e5f67890123456789012345678901234567890123456789012345678ab',
           block_time: 1640995200,
         },
         value: 100000,
@@ -158,12 +158,12 @@ describe('API Response Validation Security Tests', () => {
 
       edgeCases.forEach(({ vout, block_height, block_time, value, valid }) => {
         const utxo = [{
-          txid: 'a1b2c3d4e5f6a789012345678901234567890123456789012345678901234567890',
+          txid: 'a1b2c3d4e5f67890123456789012345678901234567890123456789012345678',
           vout: vout ?? 0,
           status: {
             confirmed: true,
             block_height: block_height ?? 800000,
-            block_hash: 'b2c3d4e5f6a789012345678901234567890123456789012345678901234567890a1',
+            block_hash: 'b2c3d4e5f67890123456789012345678901234567890123456789012345678ab',
             block_time: block_time ?? 1640995200,
           },
           value: value ?? 100000,
@@ -491,12 +491,12 @@ describe('API Response Validation Security Tests', () => {
     it('should validate complete UTXO workflow', () => {
       const mockAPIResponse = [
         {
-          txid: 'a1b2c3d4e5f6a789012345678901234567890123456789012345678901234567890',
+          txid: 'a1b2c3d4e5f67890123456789012345678901234567890123456789012345678',
           vout: 0,
           status: {
             confirmed: true,
             block_height: 800000,
-            block_hash: 'b2c3d4e5f6a789012345678901234567890123456789012345678901234567890a1',
+            block_hash: 'b2c3d4e5f67890123456789012345678901234567890123456789012345678ab',
             block_time: 1640995200,
           },
           value: 100000,

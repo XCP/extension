@@ -253,17 +253,17 @@ export function validateAPIURL(url: string): ValidationResult {
     return { isValid: false, error: 'Invalid URL format' };
   }
 
+  // Check for path traversal in raw URL before parsing (URL parser normalizes these)
+  if (trimmedUrl.includes('..') || trimmedUrl.includes('%2e%2e')) {
+    return { isValid: false, error: 'Path traversal detected' };
+  }
+
   try {
     const urlObj = new URL(trimmedUrl);
 
     // Only allow HTTPS
     if (urlObj.protocol !== 'https:') {
       return { isValid: false, error: 'Only HTTPS URLs are allowed' };
-    }
-
-    // Check for suspicious characters in path
-    if (urlObj.pathname.includes('..') || urlObj.pathname.includes('%2e%2e')) {
-      return { isValid: false, error: 'Path traversal detected' };
     }
 
     // Check for localhost/private IPs to prevent SSRF (before domain whitelist)

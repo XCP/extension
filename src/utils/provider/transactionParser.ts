@@ -179,8 +179,11 @@ export function validateTransactionSafety(parsed: ParsedTransaction): {
     warnings.push('⚠️ Cannot determine transaction type - proceed with caution');
   }
   
-  if (parsed.amount && parseFloat(parsed.amount) > 1000000) {
-    warnings.push('⚠️ Large amount transfer detected');
+  if (parsed.amount) {
+    const amount = parseFloat(parsed.amount);
+    if (!isNaN(amount) && amount > 1000000) {
+      warnings.push('⚠️ Large amount transfer detected');
+    }
   }
   
   if (parsed.details['Transfer To']) {

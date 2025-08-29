@@ -142,7 +142,7 @@ function validateQRCodeURL(url: string): QRCodeValidationResult {
  */
 function detectPrivateData(text: string): boolean {
   const sensitivePatterns = [
-    /\b[A-Z0-9]{64}\b/,  // Potential private key (64 hex chars)
+    /\b[A-Fa-f0-9]{64}\b/,  // Potential private key (64 hex chars)
     /\b[5KL][1-9A-HJ-NP-Za-km-z]{50,51}\b/, // WIF private key
     /\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b.*\b[5KL][1-9A-HJ-NP-Za-km-z]{50,51}\b/, // Address + private key
     /password.*[:=]\s*\w+/i,
@@ -215,19 +215,19 @@ export function validateQRCodeLogo(logoSrc?: string): QRCodeValidationResult {
   
   const trimmed = logoSrc.trim();
   
-  // Check for dangerous protocols
-  if (/^(javascript|data|vbscript|file):/i.test(trimmed)) {
+  // For data URLs, validate the format first
+  if (/^data:/i.test(trimmed)) {
+    return validateDataURL(trimmed);
+  }
+  
+  // Check for dangerous protocols (excluding data: which is handled above)
+  if (/^(javascript|vbscript|file):/i.test(trimmed)) {
     return { isValid: false, error: 'Dangerous protocol in logo source' };
   }
   
   // Check for path traversal
   if (trimmed.includes('..') || trimmed.includes('%2e%2e')) {
     return { isValid: false, error: 'Path traversal detected in logo source' };
-  }
-  
-  // For data URLs, validate the format
-  if (trimmed.startsWith('data:')) {
-    return validateDataURL(trimmed);
   }
   
   return { isValid: true };
@@ -361,7 +361,7 @@ export function checkQRCodePerformance(
   const estimatedMemory = estimateQRCodeMemory(text, width);
   
   // Memory concerns
-  if (estimatedMemory > 100 * 1024 * 1024) { // 100MB
+  if (estimatedMemory > 50 * 1024 * 1024) { // 50MB
     warnings.push('QR code generation may use excessive memory');
   }
   

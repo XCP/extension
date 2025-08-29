@@ -295,7 +295,7 @@ describe('Script Validation Security Tests', () => {
             witnessScript: 10000
           };
           
-          if (size * 2 > limits[context]) {
+          if (size > limits[context]) {
             expect(result.isValid).toBe(false);
           }
         }

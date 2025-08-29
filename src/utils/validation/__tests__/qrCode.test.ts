@@ -239,16 +239,16 @@ describe('QR Code Validation Security Tests', () => {
 
     it('should reject dangerous protocols', () => {
       const dangerousProtocols = [
-        'javascript:alert(1)',
-        'data:text/html,<script>alert(1)</script>',
-        'vbscript:msgbox(1)',
-        'file:///etc/passwd'
+        { src: 'javascript:alert(1)', error: 'Dangerous protocol in logo source' },
+        { src: 'data:text/html,<script>alert(1)</script>', error: 'Invalid data URL format' }, // Non-image data URL
+        { src: 'vbscript:msgbox(1)', error: 'Dangerous protocol in logo source' },
+        { src: 'file:///etc/passwd', error: 'Dangerous protocol in logo source' }
       ];
 
-      dangerousProtocols.forEach(src => {
+      dangerousProtocols.forEach(({ src, error }) => {
         const result = validateQRCodeLogo(src);
         expect(result.isValid).toBe(false);
-        expect(result.error).toBe('Dangerous protocol in logo source');
+        expect(result.error).toBe(error);
       });
     });
 
@@ -576,7 +576,7 @@ describe('QR Code Validation Security Tests', () => {
         expect(result.isValid).toBe(true);
         
         if (shouldDetect) {
-          expect(result.warnings).toContain('Text may contain private information');
+          expect(result.warnings || []).toContain('Text may contain private information');
         } else {
           expect(result.warnings || []).not.toContain('Text may contain private information');
         }
