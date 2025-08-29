@@ -4,7 +4,7 @@ import { useWallet } from '@/contexts/wallet-context';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 
 export function AuthRequired() {
-  const { authState, wallets } = useWallet();
+  const { authState, wallets, loaded } = useWallet();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -13,7 +13,7 @@ export function AuthRequired() {
 
   useEffect(() => {
     // Don't navigate while loading
-    if (authState === 'LOADING') {
+    if (!loaded) {
       return;
     }
     
@@ -26,7 +26,7 @@ export function AuthRequired() {
     } else if (authState === 'ONBOARDING_NEEDED' || wallets.length === 0) {
       navigate('/onboarding', { replace: true });
     }
-  }, [authState, wallets.length, navigate, location.pathname]);
+  }, [authState, wallets.length, navigate, location.pathname, loaded]);
 
   // Only render outlet when fully authenticated
   return authState === 'UNLOCKED' ? <Outlet /> : null;
