@@ -299,7 +299,7 @@ describe('DestinationsInput', () => {
       />
     );
     
-    expect(screen.getByText("Enter the recipient's Bitcoin address.")).toBeInTheDocument();
+    expect(screen.getByText("Enter recipient's address.")).toBeInTheDocument();
   });
 
   it('should show MPMA help text when enabled', () => {

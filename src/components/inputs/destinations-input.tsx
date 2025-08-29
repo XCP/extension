@@ -186,7 +186,7 @@ export function DestinationsInput({
             ? `Enter the addresses to send to. Each destination will receive the same amount. Duplicate addresses are not allowed. (${destinations.length}/1000 destinations)`
             : enableMPMA && asset !== "BTC"
               ? "Enter the address to send to. Paste multiple addresses (one per line) to send to multiple destinations. (Max: 1000)"
-              : "Enter the recipient's Bitcoin address."}
+              : "Enter recipient's address."}
         </Description>
       )}
       {destinations.length >= 900 && destinations.length < 1000 && (

@@ -142,7 +142,7 @@ describe('DestinationInput', () => {
   it('should show help text when showHelpText is true', () => {
     render(<DestinationInput value="" onChange={vi.fn()} showHelpText={true} />);
     
-    expect(screen.getByText("Enter the recipient's Bitcoin address.")).toBeInTheDocument();
+    expect(screen.getByText("Enter recipient's address.")).toBeInTheDocument();
   });
 
   it('should show custom help text', () => {
@@ -154,7 +154,7 @@ describe('DestinationInput', () => {
   it('should not show help text when showHelpText is false', () => {
     render(<DestinationInput value="" onChange={vi.fn()} showHelpText={false} />);
     
-    expect(screen.queryByText("Enter the recipient's Bitcoin address.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Enter recipient's address.")).not.toBeInTheDocument();
   });
 
   it('should use default placeholder', () => {

@@ -276,6 +276,6 @@ describe('UtxoMoveForm', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/Enter the recipient's Bitcoin address/i)).toBeInTheDocument();
+    expect(screen.getByText(/Enter recipient's address/i)).toBeInTheDocument();
   });
 });
