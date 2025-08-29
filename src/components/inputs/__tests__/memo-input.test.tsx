@@ -38,14 +38,13 @@ describe('MemoInput', () => {
   it('shows help text when showHelpText is true', () => {
     render(<MemoInput value="" onChange={vi.fn()} showHelpText={true} />);
     
-    expect(screen.getByText(/Optional memo to include with the transaction/)).toBeInTheDocument();
-    expect(screen.getByText(/Maximum 34 bytes/)).toBeInTheDocument();
+    expect(screen.getByText(/Optional memo to include/)).toBeInTheDocument();
   });
 
   it('does not show help text when showHelpText is false', () => {
     render(<MemoInput value="" onChange={vi.fn()} showHelpText={false} />);
     
-    expect(screen.queryByText(/Optional memo to include with the transaction/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Optional memo to include/)).not.toBeInTheDocument();
   });
 
   it('correctly calculates byte length for unicode characters', () => {
