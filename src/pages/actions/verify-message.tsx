@@ -5,7 +5,6 @@ import { useNavigate } from "react-router-dom";
 import { FaCheckCircle, FaUpload, FaRedo } from "react-icons/fa";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
-import { YouTubeTutorialCTA } from "@/components/youtube-tutorial-cta";
 import { useHeader } from "@/contexts/header-context";
 import { verifyMessage } from "@/utils/blockchain/bitcoin";
 import type { ReactElement } from "react";
@@ -196,10 +195,12 @@ export default function VerifyMessage(): ReactElement {
       )}
       
       {/* YouTube Tutorial */}
-      <YouTubeTutorialCTA 
-        text="Learn how to verify message signatures" 
-        url="" 
-      />
+      <Button 
+        variant="youtube"
+        href=""
+      >
+        Learn how to verify message signatures
+      </Button>
     </div>
   );
 }

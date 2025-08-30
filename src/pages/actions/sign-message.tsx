@@ -8,7 +8,6 @@ import { Button } from "@/components/button";
 import { Spinner } from "@/components/spinner";
 import { ErrorAlert } from "@/components/error-alert";
 import { AuthorizationModal } from "@/components/modals/authorization-modal";
-import { YouTubeTutorialCTA } from "@/components/youtube-tutorial-cta";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { signMessage, getSigningCapabilities } from "@/utils/blockchain/bitcoin";
@@ -295,10 +294,12 @@ export default function SignMessage(): ReactElement {
       )}
       
       {/* YouTube Tutorial */}
-      <YouTubeTutorialCTA 
-        text="Learn how to sign and verify messages" 
-        url="" 
-      />
+      <Button 
+        variant="youtube"
+        href=""
+      >
+        Learn how to sign and verify messages
+      </Button>
       
       {/* Authorization Modal */}
       {showAuthModal && (

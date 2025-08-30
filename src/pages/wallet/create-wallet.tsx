@@ -7,7 +7,6 @@ import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { PasswordInput } from "@/components/inputs/password-input";
-import { YouTubeTutorialCTA } from "@/components/youtube-tutorial-cta";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { generateNewMnemonic } from "@/utils/blockchain/bitcoin";
@@ -192,10 +191,12 @@ function CreateWallet() {
         </form>
       </div>
       {!isConfirmed && (
-        <YouTubeTutorialCTA 
-          text="Watch Tutorial: How to Create a Wallet" 
-          url="https://youtu.be/x-2KrLSq0mk"
-        />
+        <Button 
+          variant="youtube"
+          href="https://youtu.be/x-2KrLSq0mk"
+        >
+          Watch Tutorial: How to Create a Wallet
+        </Button>
       )}
     </div>
   );
