@@ -1,6 +1,8 @@
 /**
  * Options for formatting numeric amounts.
  */
+import { fromSatoshis } from './numeric';
+
 export interface AmountFormatterOptions {
   value: number | null | undefined;
   currency?: string;
@@ -162,5 +164,25 @@ export function formatTimeAgo(timestamp: number): string {
     return months === 1 ? '1 month ago' : `${months} months ago`;
   } else {
     return years === 1 ? '1 year ago' : `${years} years ago`;
+  }
+}
+
+/**
+ * Formats a Bitcoin fee amount for display
+ * @param satoshis - The fee amount in satoshis
+ * @returns A formatted string with appropriate units (sats, k sats, or BTC)
+ */
+export function formatFee(satoshis: number): string {
+  if (satoshis < 1000) {
+    return `${satoshis} sats`;
+  } else if (satoshis < 100000) {
+    return `${(satoshis / 1000).toFixed(1)}k sats`;
+  } else {
+    const btc = fromSatoshis(satoshis, true);
+    return `${formatAmount({
+      value: btc,
+      minimumFractionDigits: 6,
+      maximumFractionDigits: 6
+    })} BTC`;
   }
 }

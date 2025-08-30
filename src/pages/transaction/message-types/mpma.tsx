@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { formatAmount, formatAddress } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty";
 
 /**
@@ -47,8 +48,8 @@ export function mpma(tx: Transaction): Array<{ label: string; value: string | Re
   
   // Process each asset group
   Object.entries(assetGroups).forEach(([asset, data]) => {
-    const displayQuantity = data.isDivisible ? data.quantity / 1e8 : data.quantity;
-    const displayTotal = data.isDivisible ? data.totalQuantity / 1e8 : data.totalQuantity;
+    const displayQuantity = data.isDivisible ? fromSatoshis(data.quantity, true) : data.quantity;
+    const displayTotal = data.isDivisible ? fromSatoshis(data.totalQuantity, true) : data.totalQuantity;
     
     fields.push({
       label: `${asset} Recipients (${data.destinations.length})`,

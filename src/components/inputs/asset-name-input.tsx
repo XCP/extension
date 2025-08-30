@@ -2,6 +2,7 @@ import React, { forwardRef, useEffect, useState, useRef } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty";
 import { useWallet } from "@/contexts/wallet-context";
+import { validateAssetName, validateParentAsset } from "@/utils/validation";
 
 interface AssetNameInputProps {
   value: string;
@@ -20,13 +21,11 @@ interface AssetNameInputProps {
   autoFocus?: boolean;
 }
 
-/**
- * Validates asset name according to Counterparty rules.
- * @param assetName The asset name to validate
- * @param isSubasset Whether this is a subasset
- * @returns Object with isValid flag and optional error message
- */
-function validateAssetName(assetName: string, isSubasset: boolean): { isValid: boolean; error?: string } {
+// The component uses the validation from utils internally
+// No need to re-export since consumers should use @/utils/validation directly
+
+// Keep the original function for internal use if needed
+function validateAssetNameInternal(assetName: string, isSubasset: boolean): { isValid: boolean; error?: string } {
   if (!assetName) {
     return { isValid: false, error: "Asset name is required" };
   }
@@ -34,7 +33,7 @@ function validateAssetName(assetName: string, isSubasset: boolean): { isValid: b
   if (isSubasset) {
     // Full subasset validation (PARENT.CHILD format)
     if (!assetName.includes('.')) {
-      return { isValid: false, error: "Subasset must be in PARENT.CHILD format" };
+      return { isValid: false, error: "Invalid subasset format" };
     }
     
     const parts = assetName.split('.');
@@ -84,10 +83,9 @@ function validateAssetName(assetName: string, isSubasset: boolean): { isValid: b
   return { isValid: true };
 }
 
-/**
- * Validates a parent asset (or regular asset) name
- */
-function validateParentAsset(assetName: string): { isValid: boolean; error?: string } {
+
+// Keep internal version if needed
+function validateParentAssetInternal(assetName: string): { isValid: boolean; error?: string } {
   // Cannot be reserved names
   if (assetName === 'BTC' || assetName === 'XCP') {
     return { isValid: false, error: "Cannot use reserved asset names" };

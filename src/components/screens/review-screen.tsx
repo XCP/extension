@@ -2,6 +2,7 @@ import React, { type ReactElement, useState, useEffect } from "react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { formatAddress, formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 
 /**
  * Props for the ReviewScreen component.
@@ -97,7 +98,7 @@ export function ReviewScreen({
           <span className="font-semibold text-gray-700">Fee:</span>
           <div className="bg-gray-50 p-2 rounded text-gray-900">
             {formatAmount({
-              value: result.btc_fee / 1e8,
+              value: fromSatoshis(result.btc_fee, true),
               minimumFractionDigits: 8,
               maximumFractionDigits: 8,
             })}{" "}

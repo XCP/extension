@@ -4,6 +4,7 @@ import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 import { signECDSA } from '@scure/btc-signer/utils';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
+import { toSatoshis } from '@/utils/numeric';
 
 /**
  * Re-implementation of concatBytes.
@@ -123,7 +124,7 @@ export async function consolidateBareMultisig(
 
   let totalInputAmount = 0n;
   for (const utxo of utxos) {
-    const amountSats = BigInt(Math.round(utxo.amount * 1e8));
+    const amountSats = BigInt(toSatoshis(utxo.amount));
 
     let prevTxHex = prevTxCache.get(utxo.txid);
     if (!prevTxHex) {

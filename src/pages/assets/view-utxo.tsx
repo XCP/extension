@@ -10,6 +10,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import { fetchUtxoBalances, type UtxoBalance } from "@/utils/blockchain/counterparty";
 import { fetchBitcoinTransaction } from "@/utils/blockchain/bitcoin/utxo";
 import { formatTxid, formatAmount, formatTimeAgo } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 import type { ReactElement } from "react";
 
 /**
@@ -185,7 +186,7 @@ export default function ViewUtxo(): ReactElement {
                   <span className="text-sm text-gray-500">BTC Value</span>
                   <span className="text-sm text-gray-900">
                     {formatAmount({
-                      value: btcTxData.vout_list[btcTxData.vout].value_int / 1e8,
+                      value: fromSatoshis(btcTxData.vout_list[btcTxData.vout].value_int, true),
                       maximumFractionDigits: 8,
                       minimumFractionDigits: 0
                     })} BTC

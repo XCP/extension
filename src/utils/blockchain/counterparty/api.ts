@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { fetchBTCBalance } from '@/utils/blockchain/bitcoin';
 import { formatAmount } from '@/utils/format';
+import { fromSatoshis } from '@/utils/numeric';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 export interface AssetInfo {
@@ -432,7 +433,7 @@ export async function fetchAssetDetailsAndBalance(
 
     // Fetch BTC balance.
     const balanceSats = await fetchBTCBalance(address);
-    const balanceBTC = balanceSats / 1e8;
+    const balanceBTC = fromSatoshis(balanceSats, true);
     availableBalance = formatAmount({
       value: balanceBTC,
       maximumFractionDigits: 8,
@@ -1047,9 +1048,9 @@ export function calculateOpenInterest(bets: Bet[], targetValue?: number): OpenIn
     // bet_type 2 = Equal (betting "Yes" - value will equal target)
     // bet_type 3 = NotEqual (betting "No" - value won't equal target)
     if (bet.bet_type === 2) {
-      yesTotal += bet.wager_quantity / 1e8; // Convert satoshis to XCP
+      yesTotal += fromSatoshis(bet.wager_quantity, true); // Convert satoshis to XCP
     } else if (bet.bet_type === 3) {
-      noTotal += bet.wager_quantity / 1e8;
+      noTotal += fromSatoshis(bet.wager_quantity, true);
     }
     betsCount++;
   }

@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty";
 
 /**
@@ -23,7 +24,7 @@ export function attach(tx: Transaction): Array<{ label: string; value: string | 
     {
       label: "Quantity",
       value: `${formatAmount({
-        value: isDivisible ? params.quantity / 1e8 : params.quantity,
+        value: isDivisible ? fromSatoshis(params.quantity, true) : params.quantity,
         minimumFractionDigits: isDivisible ? 8 : 0,
         maximumFractionDigits: isDivisible ? 8 : 0,
       })} ${params.asset}`,

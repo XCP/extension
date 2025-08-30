@@ -145,39 +145,3 @@ export const isValidBase58Address = (address: string): boolean => {
   }
 };
 
-/**
- * Checks whether a string is a valid Bitcoin address (any type).
- * Supports P2PKH, P2SH, P2WPKH (bech32), and P2TR (bech32m).
- *
- * @param address - The address to validate.
- * @returns True if valid; otherwise false.
- */
-export const isValidBitcoinAddress = (address: string): boolean => {
-  // Check Base58 addresses (P2PKH and P2SH)
-  if (isValidBase58Address(address)) {
-    return true;
-  }
-  
-  // Check Bech32 addresses (P2WPKH and P2TR)
-  try {
-    if (address.startsWith('bc1') || address.startsWith('tb1')) {
-      // Try bech32 (for P2WPKH)
-      try {
-        const decoded = bech32.decode(address as `${string}1${string}`, 90);
-        return decoded.prefix === 'bc' || decoded.prefix === 'tb';
-      } catch {
-        // Try bech32m (for P2TR)
-        try {
-          const decoded = bech32m.decode(address as `${string}1${string}`, 90);
-          return decoded.prefix === 'bc' || decoded.prefix === 'tb';
-        } catch {
-          return false;
-        }
-      }
-    }
-  } catch {
-    return false;
-  }
-  
-  return false;
-};

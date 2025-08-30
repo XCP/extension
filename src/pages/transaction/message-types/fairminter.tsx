@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty";
 
 /**
@@ -39,7 +40,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
       fields.push({
         label: "Max Mint per TX",
         value: formatAmount({
-          value: isDivisible ? params.max_mint_per_tx / 1e8 : params.max_mint_per_tx,
+          value: isDivisible ? fromSatoshis(params.max_mint_per_tx, true) : params.max_mint_per_tx,
           minimumFractionDigits: isDivisible ? 8 : 0,
           maximumFractionDigits: isDivisible ? 8 : 0,
         }),
@@ -55,7 +56,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
       fields.push({
         label: "Price per Mint",
         value: `${formatAmount({
-          value: params.price / 1e8,
+          value: fromSatoshis(params.price, true),
           minimumFractionDigits: 8,
           maximumFractionDigits: 8,
         })} XCP`,
@@ -66,7 +67,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
       fields.push({
         label: "Quantity per Price",
         value: formatAmount({
-          value: isDivisible ? params.quantity_by_price / 1e8 : params.quantity_by_price,
+          value: isDivisible ? fromSatoshis(params.quantity_by_price, true) : params.quantity_by_price,
           minimumFractionDigits: isDivisible ? 8 : 0,
           maximumFractionDigits: isDivisible ? 8 : 0,
         }),
@@ -79,7 +80,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
     fields.push({
       label: "Hard Cap",
       value: formatAmount({
-        value: isDivisible ? params.hard_cap / 1e8 : params.hard_cap,
+        value: isDivisible ? fromSatoshis(params.hard_cap, true) : params.hard_cap,
         minimumFractionDigits: isDivisible ? 8 : 0,
         maximumFractionDigits: isDivisible ? 8 : 0,
       }),
@@ -90,7 +91,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
     fields.push({
       label: "Soft Cap",
       value: formatAmount({
-        value: isDivisible ? params.soft_cap / 1e8 : params.soft_cap,
+        value: isDivisible ? fromSatoshis(params.soft_cap, true) : params.soft_cap,
         minimumFractionDigits: isDivisible ? 8 : 0,
         maximumFractionDigits: isDivisible ? 8 : 0,
       }),
@@ -102,7 +103,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
     fields.push({
       label: "Premint",
       value: formatAmount({
-        value: isDivisible ? params.premint_quantity / 1e8 : params.premint_quantity,
+        value: isDivisible ? fromSatoshis(params.premint_quantity, true) : params.premint_quantity,
         minimumFractionDigits: isDivisible ? 8 : 0,
         maximumFractionDigits: isDivisible ? 8 : 0,
       }),

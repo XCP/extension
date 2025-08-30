@@ -1,3 +1,5 @@
+import { toSatoshis } from '@/utils/numeric';
+
 /**
  * Fetches the Bitcoin balance (in satoshis) for a given address by querying multiple API endpoints.
  * The function returns as soon as one of the endpoints successfully returns a balance.
@@ -86,7 +88,7 @@ function parseBTCBalance(endpoint: string, data: any): number | null {
     }
     // Format from sochain.com.
     if (endpoint.includes('sochain.com')) {
-      return Math.round(Number(data.data.confirmed_balance) * 1e8);
+      return Number(toSatoshis(Number(data.data.confirmed_balance)));
     }
   } catch (err) {
     console.warn(`Error parsing response from ${endpoint}:`, err);

@@ -9,6 +9,7 @@ import { Spinner } from "@/components/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { fetchTransaction, type Transaction } from "@/utils/blockchain/counterparty";
 import { formatDate, formatAmount, formatTimeAgo } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 import { getMessageHandler } from "./message-types";
 import type { ReactElement } from "react";
 
@@ -82,7 +83,7 @@ export default function ViewTransaction(): ReactElement {
   const customFields = handler ? handler(transaction) : [];
 
   // Calculate BTC fee if available
-  const btcFee = transaction.fee ? transaction.fee / 1e8 : null;
+  const btcFee = transaction.fee ? fromSatoshis(transaction.fee, true) : null;
 
   return (
     <div className="flex flex-col h-full">
@@ -174,7 +175,7 @@ export default function ViewTransaction(): ReactElement {
                   {transaction.btc_amount_normalized ? 
                     `${transaction.btc_amount_normalized} BTC` : 
                     `${formatAmount({
-                      value: transaction.btc_amount / 1e8,
+                      value: fromSatoshis(transaction.btc_amount, true),
                       minimumFractionDigits: 8,
                       maximumFractionDigits: 8,
                     })} BTC`

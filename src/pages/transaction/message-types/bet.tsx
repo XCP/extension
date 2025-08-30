@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { formatAmount, formatDate } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty";
 
 /**
@@ -37,7 +38,7 @@ export function bet(tx: Transaction): Array<{ label: string; value: string | Rea
   fields.push({
     label: "Wager",
     value: `${formatAmount({
-      value: params.wager_quantity / 1e8,
+      value: fromSatoshis(params.wager_quantity, true),
       minimumFractionDigits: 8,
       maximumFractionDigits: 8,
     })} XCP`,
@@ -47,7 +48,7 @@ export function bet(tx: Transaction): Array<{ label: string; value: string | Rea
   fields.push({
     label: "Counterwager",
     value: `${formatAmount({
-      value: params.counterwager_quantity / 1e8,
+      value: fromSatoshis(params.counterwager_quantity, true),
       minimumFractionDigits: 8,
       maximumFractionDigits: 8,
     })} XCP`,

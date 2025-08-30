@@ -9,6 +9,7 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { formatAmount } from "@/utils/format";
 import { fetchAssetDetails, isHexMemo, stripHexPrefix, isValidMemoLength } from "@/utils/blockchain/counterparty";
+import { validateBitcoinAddress } from "@/utils/validation";
 import type { ReactElement } from "react";
 
 interface ParsedRow {
@@ -52,10 +53,6 @@ export function MPMAForm({
     }
   }, [composerError]);
 
-  const validateAddress = (address: string): boolean => {
-    // Basic Bitcoin address validation (simplified)
-    return /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,62}$/.test(address);
-  };
 
   const processCSV = async (text: string) => {
     setIsProcessing(true);
@@ -94,8 +91,9 @@ export function MPMAForm({
         const [address, asset, quantity, memo] = parts;
         
         // Validate address
-        if (!validateAddress(address)) {
-          throw new Error(`Line ${lineNum}: Invalid Bitcoin address: ${address}`);
+        const addressValidation = validateBitcoinAddress(address);
+        if (!addressValidation.isValid) {
+          throw new Error(`Line ${lineNum}: Invalid Bitcoin address: ${address}. ${addressValidation.error || ''}`);
         }
         
         // Validate asset

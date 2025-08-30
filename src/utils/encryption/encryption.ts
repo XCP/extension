@@ -128,6 +128,7 @@ export async function decryptString(
   const ciphertext = new Uint8Array(combined.slice(2 * CRYPTO_CONFIG.SALT_BYTES + CRYPTO_CONFIG.IV_BYTES));
 
   try {
+    // Always perform all crypto operations to prevent timing attacks
     const masterKey = await deriveMasterKey(password, encryptionSalt, parsed.iterations);
     const encryptionKey = await deriveEncryptionKey(masterKey, encryptionSalt);
     const authKey = await deriveAuthenticationKey(masterKey, authSalt);
@@ -139,15 +140,30 @@ export async function decryptString(
       base64ToBuffer(parsed.authSignature),
       authMessageBytes
     );
-    if (!valid) {
+    
+    // Always attempt decryption to maintain constant timing
+    let decryptedBuffer: ArrayBuffer | null = null;
+    let decryptionError: Error | null = null;
+    
+    try {
+      decryptedBuffer = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv, tagLength: CRYPTO_CONFIG.TAG_LENGTH },
+        encryptionKey,
+        ciphertext
+      );
+    } catch (err) {
+      decryptionError = err instanceof Error ? err : new Error(String(err));
+    }
+    
+    // Add small random delay to mask any remaining timing differences
+    const randomDelay = crypto.getRandomValues(new Uint8Array(1))[0] / 255 * 10; // 0-10ms
+    await new Promise(resolve => setTimeout(resolve, randomDelay));
+    
+    // Check validation after all operations complete
+    if (!valid || decryptionError || !decryptedBuffer) {
       throw new DecryptionError('Invalid password or corrupted data');
     }
 
-    const decryptedBuffer = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv, tagLength: CRYPTO_CONFIG.TAG_LENGTH },
-      encryptionKey,
-      ciphertext
-    );
     return decoder.decode(decryptedBuffer);
   } catch (err) {
     console.error('Decryption failed:', err);

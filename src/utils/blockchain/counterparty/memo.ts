@@ -1,34 +1,25 @@
 /**
- * Utility functions for handling memos in transactions
+ * Memo utilities for Counterparty transactions
+ * Wraps the centralized validation utilities with Counterparty-specific defaults
  */
 
-/**
- * Detects if a memo string is in hexadecimal format
- * @param memo The memo string to check
- * @returns true if the memo appears to be hex, false otherwise
- */
-export function isHexMemo(memo: string): boolean {
-  if (!memo) return false;
-  
-  // Remove 0x prefix if present
-  const cleanMemo = memo.startsWith('0x') || memo.startsWith('0X') 
-    ? memo.slice(2) 
-    : memo;
-  
-  // Empty string after removing prefix is not hex
-  if (cleanMemo.length === 0) return false;
-  
-  // Check if it's a valid hex string:
-  // - Must have even length (hex bytes are pairs)
-  // - Must only contain hex characters (0-9, a-f, A-F)
-  return cleanMemo.length % 2 === 0 && /^[0-9a-fA-F]+$/.test(cleanMemo);
-}
+import {
+  isHexMemo as _isHexMemo,
+  stripHexPrefix as _stripHexPrefix,
+  getMemoByteLength as _getMemoByteLength,
+  validateMemoLength as _validateMemoLength,
+  validateMemo as _validateMemo,
+  hexToText as _hexToText,
+  textToHex as _textToHex
+} from '@/utils/validation';
 
-/**
- * Strips the 0x prefix from a hex string if present
- * @param hex The hex string
- * @returns The hex string without 0x prefix
- */
+// Re-export most utilities unchanged
+export const isHexMemo = _isHexMemo;
+export const validateMemo = _validateMemo;
+export const hexToText = _hexToText;
+export const textToHex = _textToHex;
+
+// Counterparty-specific hex prefix stripping (handles both cases)
 export function stripHexPrefix(hex: string): string {
   if (hex.startsWith('0x') || hex.startsWith('0X')) {
     return hex.slice(2);
@@ -36,30 +27,20 @@ export function stripHexPrefix(hex: string): string {
   return hex;
 }
 
-/**
- * Gets the byte length of a memo string
- * @param memo The memo string
- * @param isHex Whether the memo is in hex format
- * @returns The byte length of the memo
- */
-export function getMemoByteLength(memo: string, isHex: boolean): number {
-  if (isHex) {
-    const cleanHex = stripHexPrefix(memo);
-    // Each pair of hex characters represents one byte
-    return Math.ceil(cleanHex.length / 2);
-  } else {
-    // For text, use UTF-8 encoding to get byte length
-    return new TextEncoder().encode(memo).length;
-  }
+// Counterparty default is 34 bytes, not 80
+export function isValidMemoLength(memo: string, isHex: boolean, maxBytes: number = 34): boolean {
+  return _validateMemoLength(memo, isHex, maxBytes);
 }
 
-/**
- * Validates if a memo is within the allowed byte limit
- * @param memo The memo string
- * @param isHex Whether the memo is in hex format
- * @param maxBytes Maximum allowed bytes (default 34 for Counterparty)
- * @returns true if valid, false otherwise
- */
-export function isValidMemoLength(memo: string, isHex: boolean, maxBytes: number = 34): boolean {
-  return getMemoByteLength(memo, isHex) <= maxBytes;
+// Handle odd-length hex for backward compatibility
+export function getMemoByteLength(memo: string, isHex: boolean): number {
+  if (!memo) return 0;
+  
+  if (isHex) {
+    const hexContent = stripHexPrefix(memo);
+    // For backward compatibility with tests, round up odd-length hex
+    return Math.ceil(hexContent.length / 2);
+  } else {
+    return _getMemoByteLength(memo, false);
+  }
 }

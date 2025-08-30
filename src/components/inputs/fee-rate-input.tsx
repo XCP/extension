@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/button";
 import { useFeeRates, FeeRateOption } from "@/hooks/useFeeRates";
 import { formatAmount } from "@/utils/format";
+import { validateFeeRate } from "@/utils/validation";
 
 interface FeeRateInputProps {
   showHelpText?: boolean;
@@ -77,7 +78,7 @@ export function FeeRateInput({
       return; // Ignore input with multiple decimal points
     }
     
-    // Validate the input is a number
+    // Basic format check - allow typing but don't validate yet
     const num = parseFloat(trimmed);
     if (isNaN(num)) {
       return; // Ignore non-numeric input
@@ -98,32 +99,36 @@ export function FeeRateInput({
     // Update the input value without minimum validation (allow temporary invalid values during editing)
     setCustomInput(trimmed);
     
-    // Only notify parent if value is >= 0.1, otherwise don't trigger updates
-    if (num >= 0.1) {
-      onFeeRateChange?.(num);
+    // Use validation utility to check if value is valid before notifying parent
+    const validation = validateFeeRate(num, { minRate: 0.1, warnHighFee: false });
+    if (validation.isValid && validation.satsPerVByte) {
+      onFeeRateChange?.(validation.satsPerVByte);
     }
   };
 
   const handleCustomInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const trimmed = e.target.value.trim();
     
-    // Handle empty input or invalid values on blur
-    if (trimmed === "" || isNaN(parseFloat(trimmed))) {
+    // Handle empty input
+    if (trimmed === "") {
       setCustomInput("0.1");
-      setInternalError("Fee rate must be at least 0.1 sat/vB.");
+      setInternalError("Fee rate is required");
       onFeeRateChange?.(0.1);
       return;
     }
     
-    const num = parseFloat(trimmed);
+    // Validate using the fee validation utility
+    const validation = validateFeeRate(trimmed, { minRate: 0.1, maxRate: 5000 });
     
-    // Enforce minimum fee rate on blur
-    if (num < 0.1) {
+    if (!validation.isValid) {
+      // Use the error message from validation or default
+      setInternalError(validation.error || "Invalid fee rate");
       setCustomInput("0.1");
-      setInternalError("Fee rate must be at least 0.1 sat/vB.");
       onFeeRateChange?.(0.1);
       return;
     }
+    
+    const num = validation.satsPerVByte || 0.1;
     
     // Format the final value and notify parent
     const formattedValue = formatAmount({
