@@ -102,8 +102,8 @@ export function validateCSVQuantity(quantity: string): { valid: boolean; value?:
     return { valid: false, error: 'Invalid quantity format' };
   }
   
-  // Check if it's a valid number format first
-  if (!/^-?\d*\.?\d+$/.test(trimmed)) {
+  // Check if it's a valid number format first (including scientific notation)
+  if (!/^-?\d*\.?\d+([eE][+-]?\d+)?$/.test(trimmed)) {
     return { valid: false, error: 'Quantity must be a number' };
   }
   

@@ -26,8 +26,8 @@ export function isHexMemo(value: string): boolean {
  * Strip hex prefix from a string
  */
 export function stripHexPrefix(hex: string): string {
-  const lowerStart = hex.toLowerCase();
-  if (lowerStart.startsWith('0x')) {
+  // Only strip lowercase '0x', not uppercase '0X'
+  if (hex.startsWith('0x')) {
     return hex.slice(2);
   }
   return hex;
