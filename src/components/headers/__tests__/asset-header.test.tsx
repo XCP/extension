@@ -184,16 +184,19 @@ describe('AssetHeader', () => {
     expect(container).toHaveClass('flex');
     expect(container).toHaveClass('items-center');
     
+    // Check the image container div has the mr-4 class
+    const imageContainer = container?.querySelector('.relative.w-12.h-12.mr-4');
+    expect(imageContainer).toBeInTheDocument();
+    
     const img = screen.getByAltText('PEPECASH');
     expect(img).toHaveClass('w-12');
     expect(img).toHaveClass('h-12');
-    expect(img).toHaveClass('mr-4');
   });
 
   it('should apply correct typography classes', () => {
     render(<AssetHeader assetInfo={mockAssetInfo} />);
     
-    const heading = screen.getByText('PEPECASH');
+    const heading = screen.getByRole('heading', { name: 'PEPECASH' });
     expect(heading).toHaveClass('text-xl');
     expect(heading).toHaveClass('font-bold');
     expect(heading).toHaveClass('break-all');
@@ -225,7 +228,8 @@ describe('AssetHeader', () => {
     
     render(<AssetHeader assetInfo={minimalAsset} />);
     
-    expect(screen.getByText('BTC')).toBeInTheDocument();
+    // Use getByRole to get the heading specifically
+    expect(screen.getByRole('heading', { name: 'BTC' })).toBeInTheDocument();
     expect(screen.getByText(/Supply: 0/)).toBeInTheDocument();
   });
 

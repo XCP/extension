@@ -145,16 +145,19 @@ describe('BalanceHeader', () => {
     expect(container).toHaveClass('flex');
     expect(container).toHaveClass('items-center');
     
+    // Check the image container div has the mr-4 class
+    const imageContainer = container?.querySelector('.relative.w-12.h-12.mr-4');
+    expect(imageContainer).toBeInTheDocument();
+    
     const img = screen.getByAltText('PEPECASH');
     expect(img).toHaveClass('w-12');
     expect(img).toHaveClass('h-12');
-    expect(img).toHaveClass('mr-4');
   });
 
   it('should apply correct typography classes', () => {
     render(<BalanceHeader balance={mockBalance} />);
     
-    const heading = screen.getByText('PEPECASH');
+    const heading = screen.getByRole('heading', { name: 'PEPECASH' });
     expect(heading).toHaveClass('font-bold');
     expect(heading).toHaveClass('break-all');
     
@@ -171,7 +174,8 @@ describe('BalanceHeader', () => {
     
     render(<BalanceHeader balance={shortNameBalance} />);
     
-    const heading = screen.getByText('XCP');
+    // Use getByRole to get the heading specifically
+    const heading = screen.getByRole('heading', { name: 'XCP' });
     expect(heading).toHaveClass('text-xl');
   });
 
@@ -235,7 +239,8 @@ describe('BalanceHeader', () => {
     
     render(<BalanceHeader balance={minimalBalance} />);
     
-    expect(screen.getByText('BTC')).toBeInTheDocument();
+    // Use getByRole to get the heading specifically
+    expect(screen.getByRole('heading', { name: 'BTC' })).toBeInTheDocument();
     // Without asset_info, divisibility defaults to undefined, so formatAmount uses default
     expect(screen.getByText(/Available:/)).toBeInTheDocument();
   });
