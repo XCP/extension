@@ -214,10 +214,18 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
           lastActiveAddress && wallet.addresses.some((addr) => addr.address === lastActiveAddress)
             ? wallet.addresses.find((addr) => addr.address === lastActiveAddress) ?? wallet.addresses[0]
             : wallet.addresses[0];
+        
+        // When switching wallets, maintain unlocked state if ANY wallet is unlocked
+        // This prevents redirect to lock screen when switching between wallets
+        const anyUnlocked = await walletService.isAnyWalletUnlocked();
+        
         setWalletState((prev) => ({
           ...prev,
           activeWallet: wallet,
           activeAddress: newActiveAddress ?? null,
+          // Keep unlocked state if any wallet is unlocked
+          authState: anyUnlocked ? AuthState.Unlocked : prev.authState,
+          walletLocked: !anyUnlocked,
         }));
         if (newActiveAddress) await walletService.setLastActiveAddress(newActiveAddress.address);
       } else {

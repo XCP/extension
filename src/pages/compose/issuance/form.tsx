@@ -59,6 +59,13 @@ export function IssuanceForm({
   const [description, setDescription] = useState(initialFormData?.description || "");
   const { data: parentAssetDetails } = useAssetDetails(initialParentAsset || "");
   
+  // Update asset name when initialParentAsset changes (navigation from different asset)
+  useEffect(() => {
+    if (initialParentAsset && !initialFormData?.asset) {
+      setAssetName(`${initialParentAsset}.`);
+    }
+  }, [initialParentAsset, initialFormData?.asset]);
+  
   // Check if active wallet uses SegWit addresses
   const isSegwitAddress = activeWallet?.addressType && [
     AddressType.P2WPKH,

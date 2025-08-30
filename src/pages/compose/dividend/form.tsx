@@ -4,13 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { AssetSelectInput } from "@/components/inputs/asset-select-input";
+import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { Button } from "@/components/button";
 import { useSettings } from "@/contexts/settings-context";
+import { useWallet } from "@/contexts/wallet-context";
 import { ErrorAlert } from "@/components/error-alert";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
 import { toBigNumber } from "@/utils/numeric";
+import { fetchTokenBalance } from "@/utils/blockchain/counterparty/api";
 import { AssetHeader } from "@/components/headers/asset-header";
 import type { ReactElement } from "react";
 
@@ -54,7 +57,6 @@ export function DividendForm({
 }: DividendFormProps): ReactElement {
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
-  const amountRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<{ message: string; } | null>(null);
   
   const { data: assetInfo, error: assetError } = useAssetDetails(asset);
@@ -62,6 +64,11 @@ export function DividendForm({
     initialFormData?.dividend_asset || "XCP"
   );
   const { data: dividendAssetInfo } = useAssetDetails(selectedDividendAsset);
+  const [dividendAssetBalance, setDividendAssetBalance] = useState<string>("0");
+  const [quantityPerUnit, setQuantityPerUnit] = useState<string>(
+    initialFormData?.quantity_per_unit || ""
+  );
+  const { activeAddress } = useWallet();
 
   // Set composer error when it occurs
   useEffect(() => {
@@ -70,20 +77,54 @@ export function DividendForm({
     }
   }, [composerError]);
 
-  // Focus amount input on mount
+  // Fetch dividend asset balance when it changes
   useEffect(() => {
-    amountRef.current?.focus();
-  }, []);
+    const fetchBalance = async () => {
+      if (activeAddress?.address && selectedDividendAsset) {
+        try {
+          const balance = await fetchTokenBalance(
+            activeAddress.address,
+            selectedDividendAsset,
+            { verbose: true }
+          );
+          if (balance?.quantity_normalized) {
+            setDividendAssetBalance(balance.quantity_normalized);
+          }
+        } catch (err) {
+          console.error("Failed to fetch dividend asset balance:", err);
+          setDividendAssetBalance("0");
+        }
+      }
+    };
+    fetchBalance();
+  }, [activeAddress?.address, selectedDividendAsset]);
+
+  // Calculate max amount per unit (dividend balance / asset supply)
+  const calculateMaxAmountPerUnit = () => {
+    if (!assetInfo?.assetInfo?.supply || !dividendAssetBalance) {
+      return "0";
+    }
+    
+    const supply = assetInfo.assetInfo.divisible 
+      ? Number(assetInfo.assetInfo.supply) / 100000000
+      : Number(assetInfo.assetInfo.supply);
+    
+    if (supply === 0) return "0";
+    
+    const balance = Number(dividendAssetBalance);
+    const maxPerUnit = balance / supply;
+    
+    return formatAmount({
+      value: maxPerUnit,
+      maximumFractionDigits: 8,
+      minimumFractionDigits: 8
+    });
+  };
 
   // Create a server action wrapper that processes the form data
   const processedFormAction = async (formData: FormData) => {
-    // Get the quantity_per_unit value
-    const quantityPerUnitStr = formData.get('quantity_per_unit') as string;
-    
-    if (quantityPerUnitStr) {
-      const cleanedValue = quantityPerUnitStr.replace(/,/g, '');
-      formData.set('quantity_per_unit', cleanedValue);
-    }
+    // Set the quantity_per_unit value from state
+    formData.set('quantity_per_unit', quantityPerUnit);
     
     // Submit the form data
     formAction(formData);
@@ -135,29 +176,21 @@ export function DividendForm({
             description="The asset to pay dividends in (e.g., XCP)."
           />
 
-          <Field>
-            <Label htmlFor="quantity_per_unit" className="block text-sm font-medium text-gray-700">
-              Amount Per Unit<span className="text-red-500">*</span>
-            </Label>
-            <Input
-              ref={amountRef}
-              id="quantity_per_unit"
-              name="quantity_per_unit"
-              type="number"
-              defaultValue={initialFormData?.quantity_per_unit || ""}
-              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-              required
-              min="0"
-              step="any"
-            />
-            {shouldShowHelpText && (
-              <Description className="mt-2 text-sm text-gray-500">
-                Amount of dividend asset to be paid per unit of the source asset.
-                {dividendAssetInfo?.assetInfo?.divisible && 
-                  " This value will be converted to satoshis (multiplied by 10^8) when submitted."}
-              </Description>
-            )}
-          </Field>
+          <AmountWithMaxInput
+            asset={selectedDividendAsset}
+            availableBalance={dividendAssetBalance}
+            value={quantityPerUnit}
+            onChange={setQuantityPerUnit}
+            sat_per_vbyte={1} // Not used for non-BTC assets
+            setError={(msg) => setError(msg ? { message: msg } : null)}
+            shouldShowHelpText={shouldShowHelpText}
+            sourceAddress={activeAddress}
+            maxAmount={calculateMaxAmountPerUnit()}
+            label="Amount Per Unit"
+            name="quantity_per_unit"
+            description={`Amount of ${selectedDividendAsset} to be paid per unit of ${asset}. Max: ${dividendAssetBalance} ${selectedDividendAsset} ÷ ${assetInfo?.assetInfo?.supply ? (assetInfo.assetInfo.divisible ? Number(assetInfo.assetInfo.supply) / 100000000 : Number(assetInfo.assetInfo.supply)) : 0} ${asset} supply`}
+            disableMaxButton={false}
+          />
 
           <FeeRateInput showHelpText={shouldShowHelpText} />
 

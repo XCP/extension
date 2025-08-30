@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCheck } from "react-icons/fa";
 import { FiHelpCircle } from "react-icons/fi";
-import { Switch, Field, Label, Description, RadioGroup } from "@headlessui/react";
+import { Switch, Field, Label, Description, RadioGroup, Input } from "@headlessui/react";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
+import { validateCounterpartyApi } from "@/utils/validation";
 import type { AutoLockTimer } from "@/utils/storage";
 import type { ReactElement } from "react";
 
@@ -43,6 +44,16 @@ export default function AdvancedSettings(): ReactElement {
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings, isLoading } = useSettings();
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
+  const [apiUrl, setApiUrl] = useState("");
+  const [apiUrlError, setApiUrlError] = useState<string | null>(null);
+  const [isValidatingApi, setIsValidatingApi] = useState(false);
+
+  // Initialize API URL from settings
+  useEffect(() => {
+    if (settings?.counterpartyApiBase) {
+      setApiUrl(settings.counterpartyApiBase);
+    }
+  }, [settings?.counterpartyApiBase]);
 
   // Configure header
   useEffect(() => {
@@ -56,6 +67,34 @@ export default function AdvancedSettings(): ReactElement {
       },
     });
   }, [setHeaderProps, navigate]);
+
+  // Handle API URL validation and update
+  const handleApiUrlValidation = async (url: string): Promise<boolean> => {
+    setIsValidatingApi(true);
+    setApiUrlError(null);
+
+    const result = await validateCounterpartyApi(url);
+    
+    if (result.isValid) {
+      // Success - update the setting
+      await updateSettings({ counterpartyApiBase: url });
+      setApiUrlError(null);
+      setIsValidatingApi(false);
+      return true;
+    } else {
+      setApiUrlError(result.error || "Failed to validate API");
+      setIsValidatingApi(false);
+      return false;
+    }
+  };
+
+  // Handle API URL change
+  const handleApiUrlChange = async () => {
+    if (apiUrl === settings.counterpartyApiBase) {
+      return; // No change
+    }
+    await handleApiUrlValidation(apiUrl);
+  };
 
   if (isLoading || !settings) return <div className="p-4 text-center text-gray-500">Loading...</div>;
 
@@ -144,6 +183,26 @@ export default function AdvancedSettings(): ReactElement {
 
       <Field>
         <div className="flex items-center justify-between">
+          <Label className="font-bold">Use Advanced Betting</Label>
+          <Switch
+            checked={settings.enableAdvancedBetting}
+            onChange={(checked) => updateSettings({ enableAdvancedBetting: checked })}
+            className={`${settings.enableAdvancedBetting ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
+          >
+            <span
+              className={`${
+                settings.enableAdvancedBetting ? "translate-x-6" : "translate-x-1"
+              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+            />
+          </Switch>
+        </div>
+        <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+          Show betting options in the actions menu.
+        </Description>
+      </Field>
+
+      <Field>
+        <div className="flex items-center justify-between">
           <Label className="font-bold">Use Unconfirmed TXs</Label>
           <Switch
             checked={settings.allowUnconfirmedTxs}
@@ -199,6 +258,33 @@ export default function AdvancedSettings(): ReactElement {
         </div>
         <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
           Choose whether to share usage data.
+        </Description>
+      </Field>
+
+      <Field>
+        <Label className="font-bold">Counterparty API URL</Label>
+        <div className="mt-2 space-y-2">
+          <Input
+            type="url"
+            value={apiUrl}
+            onChange={(e) => setApiUrl(e.target.value)}
+            onBlur={handleApiUrlChange}
+            disabled={isValidatingApi}
+            placeholder="https://api.counterparty.io:4000"
+            className="w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+          />
+          {isValidatingApi && (
+            <p className="text-sm text-gray-500">Validating API endpoint...</p>
+          )}
+          {apiUrlError && (
+            <p className="text-sm text-red-500">{apiUrlError}</p>
+          )}
+          {!apiUrlError && !isValidatingApi && apiUrl === settings.counterpartyApiBase && (
+            <p className="text-sm text-green-500">✓ API endpoint is valid</p>
+          )}
+        </div>
+        <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+          The Counterparty API endpoint URL. Must be a mainnet API server.
         </Description>
       </Field>
 

@@ -3,7 +3,15 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
-import { Field, Label, Description, Select } from "@headlessui/react";
+import { 
+  Field, 
+  Label, 
+  Description,
+  Listbox,
+  ListboxButton,
+  ListboxOption,
+  ListboxOptions
+} from "@headlessui/react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { AddressHeader } from "@/components/headers/address-header";
@@ -42,6 +50,9 @@ export function SweepForm({ formAction, initialFormData, error: composerError, s
   const [destinationValid, setDestinationValid] = useState(false);
   const [memo, setMemo] = useState(initialFormData?.memo || "");
   const [memoValid, setMemoValid] = useState(true);
+  const [selectedSweepType, setSelectedSweepType] = useState(
+    sweepTypeOptions.find(opt => opt.value === (initialFormData?.flags || (FLAG_BALANCES | FLAG_OWNERSHIP))) || sweepTypeOptions[2]
+  );
   const destinationRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -72,21 +83,32 @@ export function SweepForm({ formAction, initialFormData, error: composerError, s
             <Label className="block text-sm font-medium text-gray-700">
               Sweep Type <span className="text-red-500">*</span>
             </Label>
-            <Select
-              name="flags"
-              defaultValue={initialFormData?.flags || FLAG_BALANCES | FLAG_OWNERSHIP}
-              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              disabled={pending}
-            >
-              {sweepTypeOptions.map((option) => (
-                <option key={option.id} value={option.value}>
-                  {option.name}
-                </option>
-              ))}
-            </Select>
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Choose whether to sweep asset balances only, asset ownership only, or both.
-            </Description>
+            <div className="mt-1">
+              {/* Hidden input for form submission */}
+              <input type="hidden" name="flags" value={selectedSweepType.value} />
+              
+              <Listbox value={selectedSweepType} onChange={setSelectedSweepType} disabled={pending}>
+                <ListboxButton className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {selectedSweepType.name}
+                </ListboxButton>
+                <ListboxOptions className="w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                  {sweepTypeOptions.map((option) => (
+                    <ListboxOption 
+                      key={option.id} 
+                      value={option} 
+                      className="p-2 cursor-pointer hover:bg-gray-100 data-[selected]:bg-gray-100 data-[selected]:font-medium"
+                    >
+                      {option.name}
+                    </ListboxOption>
+                  ))}
+                </ListboxOptions>
+              </Listbox>
+            </div>
+            {shouldShowHelpText && (
+              <Description className="mt-2 text-sm text-gray-500">
+                Choose whether to sweep asset balances only, asset ownership only, or both.
+              </Description>
+            )}
           </Field>
 
           <input type="hidden" name="destination" value={destination} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHelpCircle } from "react-icons/fi";
 import { Field, Label, Input, Description } from "@headlessui/react";
@@ -44,6 +44,7 @@ export default function SecuritySettings(): ReactElement {
   const [success, setSuccess] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
+  const currentPasswordRef = useRef<HTMLInputElement>(null);
 
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
@@ -62,6 +63,11 @@ export default function SecuritySettings(): ReactElement {
       },
     });
   }, [setHeaderProps, navigate]);
+
+  // Focus current password input on mount
+  useEffect(() => {
+    currentPasswordRef.current?.focus();
+  }, []);
 
   /**
    * Validates the password length.
@@ -138,6 +144,7 @@ export default function SecuritySettings(): ReactElement {
             <Field>
               <Label className="text-sm font-medium text-gray-700">Current Password</Label>
               <Input
+                ref={currentPasswordRef}
                 id="currentPassword"
                 type="password"
                 value={passwordForm.currentPassword}

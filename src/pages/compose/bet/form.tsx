@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { BalanceHeader } from "@/components/headers/balance-header";
+import { DestinationInput } from "@/components/inputs/destination-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
@@ -53,6 +54,9 @@ export function BetForm({ formAction, initialFormData ,
   const [selectedBetType, setSelectedBetType] = useState<BetTypeOption>(
     betTypeOptions.find(option => option.id === initialFormData?.bet_type) || betTypeOptions[0]
   );
+  const [feedAddress, setFeedAddress] = useState(initialFormData?.feed_address || "");
+  const [feedAddressValid, setFeedAddressValid] = useState(false);
+  const feedAddressRef = useRef<HTMLInputElement>(null);
   const [deadlineDate, setDeadlineDate] = useState<Date>(() => {
     // If we have an initial deadline (unix timestamp), convert it to a Date
     if (initialFormData?.deadline) {
@@ -127,8 +131,7 @@ export function BetForm({ formAction, initialFormData ,
 
   // Focus feed_address input on mount
   useEffect(() => {
-    const input = document.querySelector("input[name='feed_address']") as HTMLInputElement;
-    input?.focus();
+    feedAddressRef.current?.focus();
   }, []);
 
   return (
@@ -153,23 +156,20 @@ export function BetForm({ formAction, initialFormData ,
           />
         )}
         <form action={enhancedFormAction} className="space-y-6">
-          <Field>
-            <Label className="text-sm font-medium text-gray-700">
-              Feed Address <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              type="text"
-              name="feed_address"
-              defaultValue={initialFormData?.feed_address || ""}
-              required
-              placeholder="Enter feed address"
-              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              disabled={pending}
-            />
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Enter the address of the feed you want to bet on.
-            </Description>
-          </Field>
+          <input type="hidden" name="feed_address" value={feedAddress} />
+          <DestinationInput
+            ref={feedAddressRef}
+            value={feedAddress}
+            onChange={setFeedAddress}
+            onValidationChange={setFeedAddressValid}
+            placeholder="Enter feed address"
+            required
+            disabled={pending}
+            showHelpText={shouldShowHelpText}
+            name="feed_address_display"
+            label="Feed Address"
+            helpText="Enter the address of the feed you want to bet on."
+          />
 
           <Field>
             <Label className="text-sm font-medium text-gray-700">
@@ -328,7 +328,7 @@ export function BetForm({ formAction, initialFormData ,
             onFeeRateChange={setSatPerVbyte}
           />
 
-          <Button type="submit" color="blue" fullWidth disabled={pending}>
+          <Button type="submit" color="blue" fullWidth disabled={pending || !feedAddressValid}>
             {pending ? "Submitting..." : "Continue"}
           </Button>
         </form>

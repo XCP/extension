@@ -85,7 +85,9 @@ describe('AssetHeader', () => {
   it('should format supply for divisible assets', () => {
     render(<AssetHeader assetInfo={mockAssetInfo} />);
     
-    expect(screen.getByText(/1000000000000\.00000000/)).toBeInTheDocument();
+    // Divisible assets divide supply by 10^8
+    // 1000000000000 / 100000000 = 10000
+    expect(screen.getByText(/10000\.00000000/)).toBeInTheDocument();
   });
 
   it('should format supply for indivisible assets', () => {
@@ -131,7 +133,9 @@ describe('AssetHeader', () => {
     
     render(<AssetHeader assetInfo={stringSupplyAsset} />);
     
-    expect(screen.getByText(/5000000\.00000000/)).toBeInTheDocument();
+    // Divisible assets divide supply by 10^8
+    // 5000000 / 100000000 = 0.05
+    expect(screen.getByText(/0\.05000000/)).toBeInTheDocument();
   });
 
   it('should update cache when asset info changes', () => {
@@ -160,7 +164,9 @@ describe('AssetHeader', () => {
     render(<AssetHeader assetInfo={mockAssetInfo} />);
     
     // Should display cached supply instead of prop supply
-    expect(screen.getByText(/999999999\.00000000/)).toBeInTheDocument();
+    // Divisible assets divide supply by 10^8
+    // 999999999 / 100000000 = 9.99999999
+    expect(screen.getByText(/9\.99999999/)).toBeInTheDocument();
   });
 
   it('should not update cache when data is unchanged', () => {
@@ -237,7 +243,9 @@ describe('AssetHeader', () => {
     render(<AssetHeader assetInfo={fullAsset} />);
     
     expect(screen.getByText('A.TESTASSET')).toBeInTheDocument();
-    expect(screen.getByText(/21000000\.00000000/)).toBeInTheDocument();
+    // Divisible assets divide supply by 10^8
+    // 21000000 / 100000000 = 0.21
+    expect(screen.getByText(/0\.21000000/)).toBeInTheDocument();
   });
 
   it('should update when switching between assets', () => {
@@ -267,7 +275,9 @@ describe('AssetHeader', () => {
     
     render(<AssetHeader assetInfo={numericSupplyAsset} />);
     
-    expect(screen.getByText(/123456\.78900000/)).toBeInTheDocument();
+    // Divisible assets divide supply by 10^8
+    // 123456.789 / 100000000 = 0.00123457 (rounded)
+    expect(screen.getByText(/0\.00123457/)).toBeInTheDocument();
   });
 
   it('should handle large supply numbers', () => {

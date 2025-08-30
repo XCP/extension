@@ -25,6 +25,7 @@ export interface KeychainSettings {
   autoLockTimer: AutoLockTimer;
   enableMPMA: boolean;
   enableAdvancedBroadcasts: boolean;
+  enableAdvancedBetting: boolean;
   transactionDryRun: boolean;
   pinnedAssets: string[];
   counterpartyApiBase: string;
@@ -45,6 +46,7 @@ export const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
   autoLockTimer: '5m',
   enableMPMA: false,
   enableAdvancedBroadcasts: false,
+  enableAdvancedBetting: false,
   transactionDryRun: process.env.NODE_ENV === 'development',
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
   counterpartyApiBase: 'https://api.counterparty.io:4000',

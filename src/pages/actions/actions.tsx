@@ -34,7 +34,7 @@ const PATHS = {
   BACK: "/index",
 } as const;
 
-const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean): ActionGroup[] => {
+const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean, enableAdvancedBetting: boolean): ActionGroup[] => {
   const addressActions: Action[] = [
     {
       id: "compose-broadcast",
@@ -91,7 +91,7 @@ const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean): ActionGr
     });
   }
 
-  return [
+  const groups: ActionGroup[] = [
     {
       title: "Tools",
       actions: toolsActions,
@@ -146,7 +146,11 @@ const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean): ActionGr
       title: "Address",
       actions: addressActions,
     },
-    {
+  ];
+
+  // Conditionally add betting section if enabled
+  if (enableAdvancedBetting) {
+    groups.push({
       title: "Betting",
       actions: [
         {
@@ -156,8 +160,10 @@ const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean): ActionGr
           path: "/compose/bet",
         },
       ],
-    },
-  ];
+    });
+  }
+
+  return groups;
 };
 
 /**
@@ -188,9 +194,12 @@ export default function ActionsScreen(): ReactElement {
   
   // Check if MPMA is enabled
   const enableMPMA = settings?.enableMPMA ?? false;
+  
+  // Check if Advanced Betting is enabled
+  const enableAdvancedBetting = settings?.enableAdvancedBetting ?? false;
 
   // Get dynamic action groups based on wallet type and settings
-  const actionGroups = getActionGroups(isSegwitWallet, enableMPMA);
+  const actionGroups = getActionGroups(isSegwitWallet, enableMPMA, enableAdvancedBetting);
 
   // Configure header
   useEffect(() => {
