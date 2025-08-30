@@ -6,7 +6,7 @@ import { Field, Label, Description, Textarea } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { InscribeSwitch } from "@/components/inputs/inscribe-switch";
+import { SettingSwitch } from "@/components/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
@@ -122,11 +122,13 @@ export function UpdateDescriptionForm({
           
           {/* Only show inscribe switch for SegWit addresses */}
           {isSegwitAddress && (
-            <InscribeSwitch
+            <SettingSwitch
+              label="Inscribe?"
+              description="Store message as a Taproot inscription (on-chain)"
               checked={inscribeEnabled}
               onChange={setInscribeEnabled}
-              disabled={pending}
               showHelpText={shouldShowHelpText}
+              disabled={pending}
             />
           )}
           
