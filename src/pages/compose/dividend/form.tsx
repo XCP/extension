@@ -10,6 +10,7 @@ import { Button } from "@/components/button";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { ErrorAlert } from "@/components/error-alert";
+import { Spinner } from "@/components/spinner";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
 import { toBigNumber } from "@/utils/numeric";
@@ -59,7 +60,7 @@ export function DividendForm({
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
   const [error, setError] = useState<{ message: string; } | null>(null);
   
-  const { data: assetInfo, error: assetError } = useAssetDetails(asset);
+  const { data: assetInfo, error: assetError, isLoading: assetLoading } = useAssetDetails(asset);
   const [selectedDividendAsset, setSelectedDividendAsset] = useState<string>(
     initialFormData?.dividend_asset || "XCP"
   );
@@ -134,6 +135,10 @@ export function DividendForm({
   const handleDividendAssetChange = (asset: string) => {
     setSelectedDividendAsset(asset);
   };
+
+  if (assetLoading) {
+    return <Spinner message="Loading asset details..." />;
+  }
 
   if (assetError || !assetInfo?.assetInfo) {
     return (

@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Textarea } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
+import { Spinner } from "@/components/spinner";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { SettingSwitch } from "@/components/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
@@ -40,7 +41,7 @@ export function UpdateDescriptionForm({
   const { settings } = useSettings();
   const { activeWallet } = useWallet();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
-  const { error: assetError, data: assetDetails } = useAssetDetails(asset);
+  const { error: assetError, data: assetDetails, isLoading: assetLoading } = useAssetDetails(asset);
   const { pending } = useFormStatus();
   const [error, setError] = useState<{ message: string; } | null>(null);
   const [inscribeEnabled, setInscribeEnabled] = useState(false);
@@ -84,6 +85,10 @@ export function UpdateDescriptionForm({
       textarea?.focus();
     }
   }, [inscribeEnabled]);
+
+  if (assetLoading) {
+    return <Spinner message="Loading asset details..." />;
+  }
 
   if (assetError || !assetDetails) {
     return (

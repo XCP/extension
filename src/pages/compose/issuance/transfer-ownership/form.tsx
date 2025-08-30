@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
+import { Spinner } from "@/components/spinner";
 import { AssetHeader } from "@/components/headers/asset-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
@@ -35,7 +36,7 @@ export function TransferOwnershipForm({
 }: TransferOwnershipFormProps): ReactElement {
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
-  const { error: assetError, data: assetDetails } = useAssetDetails(asset);
+  const { error: assetError, data: assetDetails, isLoading: assetLoading } = useAssetDetails(asset);
   const { pending } = useFormStatus();
   const [error, setError] = useState<{ message: string; } | null>(null);
   const [destination, setDestination] = useState(initialFormData?.transfer_destination || "");
@@ -53,6 +54,10 @@ export function TransferOwnershipForm({
   useEffect(() => {
     destinationRef.current?.focus();
   }, []);
+
+  if (assetLoading) {
+    return <Spinner message="Loading asset details..." />;
+  }
 
   if (assetError || !assetDetails) {
     return (

@@ -136,7 +136,7 @@ export default function Settings(): ReactElement {
     <div className="flex flex-col h-full" role="main" aria-labelledby="settings-title">
       <div className="flex-1 overflow-auto no-scrollbar">
         <div className="p-4">
-          <h2 id="settings-title" className="text-lg font-semibold mb-4">
+          <h2 id="settings-title" className="text-sm font-medium text-gray-500 px-4 mb-2">
             Settings
           </h2>
           <div className="space-y-2">
@@ -161,7 +161,7 @@ export default function Settings(): ReactElement {
           </div>
 
           <div className="mt-8">
-            <h3 className="text-sm font-medium text-gray-900 px-4 mb-2">About XCP Wallet</h3>
+            <h3 className="text-sm font-medium text-gray-500 px-4 mb-2">About XCP Wallet</h3>
             <div className="bg-white rounded">
               <div className="p-4 border-b">
                 <div className="text-sm">Version {CONSTANTS.VERSION}</div>
