@@ -31,7 +31,7 @@ export function validateBitcoinAddress(address: string): AddressValidationResult
   }
 
   // P2PKH - Legacy (mainnet starts with 1)
-  if (/^1[a-km-zA-HJ-NP-Z1-9]{26,33}$/.test(cleaned)) {
+  if (/^1[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(cleaned)) {
     return { isValid: true, addressType: 'P2PKH', network: 'mainnet' };
   }
 
@@ -40,18 +40,18 @@ export function validateBitcoinAddress(address: string): AddressValidationResult
     return { isValid: true, addressType: 'P2SH', network: 'mainnet' };
   }
 
-  // P2WPKH - Native SegWit (mainnet starts with bc1q)
+  // P2WPKH - Native SegWit (mainnet starts with bc1q, shorter format)
   if (/^bc1q[a-z0-9]{38}$/.test(cleaned)) {
     return { isValid: true, addressType: 'P2WPKH', network: 'mainnet' };
   }
 
-  // P2TR - Taproot (mainnet starts with bc1p)
-  if (/^bc1p[a-z0-9]{58}$/.test(cleaned) || /^bc1p[a-z0-9]{38}$/.test(cleaned)) {
+  // P2TR - Taproot (mainnet starts with bc1p, 42 or 62 chars total)
+  if (/^bc1p[a-z0-9]{38}$/.test(cleaned) || /^bc1p[a-z0-9]{58}$/.test(cleaned)) {
     return { isValid: true, addressType: 'P2TR', network: 'mainnet' };
   }
 
-  // P2WSH - Native SegWit Script (mainnet starts with bc1q, longer)
-  if (/^bc1q[a-z0-9]{59}$/.test(cleaned) || /^bc1q[a-z0-9]{79}$/.test(cleaned)) {
+  // P2WSH - Native SegWit Script (mainnet starts with bc1q, 62 chars total)
+  if (/^bc1q[a-z0-9]{58}$/.test(cleaned)) {
     return { isValid: true, addressType: 'P2WSH', network: 'mainnet' };
   }
 
