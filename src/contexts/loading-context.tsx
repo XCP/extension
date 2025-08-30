@@ -130,27 +130,3 @@ export function useLoading(): LoadingContextType {
   return context;
 }
 
-/**
- * Props for Spinner component.
- */
-interface SpinnerProps {
-  className?: string;
-}
-
-/**
- * Displays a loading spinner when loading is active.
- * @param {SpinnerProps} props - Component props
- * @returns {ReactElement | null} Spinner or null if not loading
- */
-export function Spinner({ className = "" }: SpinnerProps): ReactElement | null {
-  const { isLoading, currentMessage } = useLoading();
-  if (!isLoading) return null;
-  return (
-    <div className={`flex flex-col items-center justify-center h-full ${className}`}>
-      <FaSpinner className="animate-spin text-4xl text-blue-500" />
-      {currentMessage && (
-        <p className="mt-4 text-gray-600 text-center font-medium">{currentMessage}</p>
-      )}
-    </div>
-  );
-}

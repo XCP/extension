@@ -26,11 +26,11 @@ describe('useFeeRates', () => {
     const { result } = renderHook(() => useFeeRates());
 
     // Initially loading
-    expect(result.current.loading).toBe(true);
+    expect(result.current.isLoading).toBe(true);
     expect(result.current.feeRates).toBeNull();
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     expect(getFeeRates).toHaveBeenCalled();
@@ -45,7 +45,7 @@ describe('useFeeRates', () => {
     const { result } = renderHook(() => useFeeRates());
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     expect(result.current.feeRates).toBeNull();
@@ -56,7 +56,7 @@ describe('useFeeRates', () => {
     const { result } = renderHook(() => useFeeRates());
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     expect(result.current.uniquePresetOptions).toHaveLength(3);
@@ -90,7 +90,7 @@ describe('useFeeRates', () => {
     const { result } = renderHook(() => useFeeRates());
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     // Should only have 2 unique values (30 and 20)
@@ -100,7 +100,7 @@ describe('useFeeRates', () => {
   it('should handle autoFetch false', async () => {
     const { result } = renderHook(() => useFeeRates(false));
 
-    expect(result.current.loading).toBe(false);
+    expect(result.current.isLoading).toBe(false);
     expect(result.current.feeRates).toBeNull();
     expect(getFeeRates).not.toHaveBeenCalled();
   });

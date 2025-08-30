@@ -5,7 +5,7 @@ import { getWalletService } from '@/services/walletService';
 export default function ApproveTransaction() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [transactionDetails, setTransactionDetails] = useState<any>(null);
   const [error, setError] = useState<string>('');
 
@@ -29,7 +29,7 @@ export default function ApproveTransaction() {
   }, [rawTx]);
 
   const handleApprove = async () => {
-    setLoading(true);
+    setIsLoading(true);
     try {
       // Send approval to background
       await browser.runtime.sendMessage({
@@ -42,7 +42,7 @@ export default function ApproveTransaction() {
       window.close();
     } catch (err) {
       setError('Failed to approve transaction');
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -121,17 +121,17 @@ export default function ApproveTransaction() {
         <div className="flex space-x-3">
           <button
             onClick={handleReject}
-            disabled={loading}
+            disabled={isLoading}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50"
           >
             Reject
           </button>
           <button
             onClick={handleApprove}
-            disabled={loading}
+            disabled={isLoading}
             className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? 'Signing...' : 'Sign Transaction'}
+            {isLoading ? 'Signing...' : 'Sign Transaction'}
           </button>
         </div>
       </div>

@@ -58,7 +58,7 @@ export function AmountWithMaxInput({
   onMaxClick,
   hasError = false,
 }: AmountWithMaxInputProps) {
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
@@ -84,7 +84,7 @@ export function AmountWithMaxInput({
 
     try {
       setError(null);
-      setLoading(true);
+      setIsLoading(true);
 
       const estimationDestination =
         destination && isValidBase58Address(destination)
@@ -142,7 +142,7 @@ export function AmountWithMaxInput({
         setError("Failed to estimate max amount.");
       }
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   }, [
     sourceAddress, 
@@ -219,8 +219,8 @@ export function AmountWithMaxInput({
         <Button
           variant="input"
           onClick={handleMaxClick}
-          disabled={loading || disabled || (disableMaxButton && !onMaxClick)}
-          aria-label={loading ? "Calculating maximum amount..." : "Use maximum available amount"}
+          disabled={isLoading || disabled || (disableMaxButton && !onMaxClick)}
+          aria-label={isLoading ? "Calculating maximum amount..." : "Use maximum available amount"}
           className="absolute right-1 top-1/2 transform -translate-y-1/2 px-2 py-1 text-sm"
         >
           Max

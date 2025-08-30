@@ -39,11 +39,11 @@ export default function ConnectedSites(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const [connectedSites, setConnectedSites] = useState<ConnectedSite[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadConnections = useCallback(async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       console.log('Loading connected sites from settings...');
       const settings = await getKeychainSettings();
       console.log('Connected websites:', settings.connectedWebsites);
@@ -58,7 +58,7 @@ export default function ConnectedSites(): ReactElement {
     } catch (error) {
       console.error('Failed to load connections:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   }, []);
 
@@ -133,7 +133,7 @@ export default function ConnectedSites(): ReactElement {
     loadConnections();
   }, [loadConnections]);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-4">
         <div className="animate-pulse space-y-4">

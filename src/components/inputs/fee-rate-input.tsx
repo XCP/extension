@@ -27,7 +27,7 @@ export function FeeRateInput({
   disabled = false,
   onFeeRateChange,
 }: FeeRateInputProps) {
-  const { feeRates, loading, error: fetchError, uniquePresetOptions } = useFeeRates(true);
+  const { feeRates, isLoading, error: fetchError, uniquePresetOptions } = useFeeRates(true);
   const [selectedOption, setSelectedOption] = useState<LocalFeeRateOption>("fast");
   const [customInput, setCustomInput] = useState<string>("0.1");
   const [internalError, setInternalError] = useState<string | null>(null);
@@ -159,7 +159,7 @@ export function FeeRateInput({
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Field>
         <Label className="block text-sm font-medium text-gray-700">

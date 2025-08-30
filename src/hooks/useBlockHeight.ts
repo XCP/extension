@@ -21,21 +21,21 @@ export function useBlockHeight(options: UseBlockHeightOptions = {}) {
   } = options;
   
   const [blockHeight, setBlockHeight] = useState<number | null>(null);
-  const [loading, setLoading] = useState<boolean>(autoFetch);
+  const [isLoading, setIsLoading] = useState<boolean>(autoFetch);
   const [error, setError] = useState<string | null>(null);
 
   const fetchBlockHeight = async (forceRefresh = false) => {
-    setLoading(true);
+    setIsLoading(true);
     setError(null);
     
     try {
       const height = await getCurrentBlockHeight(forceRefresh);
       setBlockHeight(height);
-      setLoading(false);
+      setIsLoading(false);
     } catch (err: any) {
       console.error('Error fetching block height:', err);
       setError(err.message || 'Unable to fetch current block height.');
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -44,7 +44,7 @@ export function useBlockHeight(options: UseBlockHeightOptions = {}) {
     if (autoFetch) {
       fetchBlockHeight();
     } else {
-      setLoading(false);
+      setIsLoading(false);
     }
   }, [autoFetch]);
 
@@ -61,7 +61,7 @@ export function useBlockHeight(options: UseBlockHeightOptions = {}) {
 
   return { 
     blockHeight, 
-    loading, 
+    isLoading, 
     error, 
     refresh: () => fetchBlockHeight(true) 
   };

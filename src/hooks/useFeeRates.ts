@@ -11,7 +11,7 @@ export interface FeeOption {
 
 export function useFeeRates(autoFetch = true) {
   const [feeRates, setFeeRates] = useState<FeeRates | null>(null);
-  const [loading, setLoading] = useState<boolean>(autoFetch);
+  const [isLoading, setIsLoading] = useState<boolean>(autoFetch);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -19,15 +19,15 @@ export function useFeeRates(autoFetch = true) {
       getFeeRates()
         .then((rates) => {
           setFeeRates(rates);
-          setLoading(false);
+          setIsLoading(false);
         })
         .catch((err) => {
           console.error(err);
           setError('Unable to fetch fee rates.');
-          setLoading(false);
+          setIsLoading(false);
         });
     } else {
-      setLoading(false);
+      setIsLoading(false);
     }
   }, [autoFetch]);
 
@@ -47,5 +47,5 @@ export function useFeeRates(autoFetch = true) {
     return presets;
   }, [feeRates]);
 
-  return { feeRates, loading, error, uniquePresetOptions };
+  return { feeRates, isLoading, error, uniquePresetOptions };
 }

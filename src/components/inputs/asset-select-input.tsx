@@ -7,6 +7,7 @@ import {
   ComboboxOption,
 } from "@headlessui/react";
 import { FiChevronDown, FiCheck } from "react-icons/fi";
+import { FaSpinner } from "react-icons/fa";
 import { useWallet } from "@/contexts/wallet-context";
 import { useSettings } from "@/contexts/settings-context";
 
@@ -37,6 +38,7 @@ export function AssetSelectInput({
   const [query, setQuery] = useState("");
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const { activeWallet } = useWallet();
   const { settings } = useSettings();
 
@@ -57,6 +59,7 @@ export function AssetSelectInput({
         return;
       }
       setIsInitialLoad(false);
+      setIsLoading(true);
       try {
         const response = await fetch(
           `https://app.xcp.io/api/v1/search?type=assets&query=${query}`
@@ -65,6 +68,9 @@ export function AssetSelectInput({
         setAssets(data.assets);
       } catch (error) {
         console.error("Failed to fetch assets:", error);
+        setAssets([]);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -133,10 +139,17 @@ export function AssetSelectInput({
                 className="absolute inset-y-0 right-0 flex items-center justify-center px-1 m-1 w-11"
                 onClick={handleComboboxButtonClick}
               >
-                <FiChevronDown
-                  className="h-5 w-5 text-gray-400"
-                  aria-hidden="true"
-                />
+                {isLoading ? (
+                  <FaSpinner
+                    className="h-4 w-4 text-gray-400 animate-spin"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <FiChevronDown
+                    className="h-5 w-5 text-gray-400"
+                    aria-hidden="true"
+                  />
+                )}
               </ComboboxButton>
             </div>
             {assets.length > 0 && (

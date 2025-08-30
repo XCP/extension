@@ -43,11 +43,19 @@ vi.mock('@/contexts/header-context', () => ({
 }));
 
 const mockIsLoading = vi.fn();
+const mockCurrentMessage = vi.fn();
 vi.mock('@/contexts/loading-context', () => ({
   useLoading: () => ({
-    isLoading: mockIsLoading()
-  }),
-  Spinner: () => <div data-testid="spinner">Loading...</div>
+    isLoading: mockIsLoading(),
+    currentMessage: mockCurrentMessage()
+  })
+}));
+
+// Mock the Spinner component
+vi.mock('@/components/spinner', () => ({
+  Spinner: ({ message }: { message?: string }) => (
+    <div data-testid="spinner">{message || 'Loading...'}</div>
+  )
 }));
 
 describe('Layout', () => {
@@ -75,6 +83,7 @@ describe('Layout', () => {
 
   it('should render spinner when loading', () => {
     mockIsLoading.mockReturnValue(true);
+    mockCurrentMessage.mockReturnValue('Loading...');
     render(<Layout />);
     
     expect(screen.getByTestId('spinner')).toBeInTheDocument();

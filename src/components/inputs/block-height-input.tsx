@@ -32,7 +32,7 @@ export function BlockHeightInput({
   placeholder = "Enter block height",
 }: BlockHeightInputProps) {
   // Use our custom hook with autoFetch set to false
-  const { blockHeight, loading, error, refresh } = useBlockHeight({ autoFetch: false });
+  const { blockHeight, isLoading, error, refresh } = useBlockHeight({ autoFetch: false });
   
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
@@ -40,7 +40,7 @@ export function BlockHeightInput({
   };
   
   const handleNowButtonClick = async () => {
-    if (disabled || loading) return;
+    if (disabled || isLoading) return;
     
     try {
       // Clear any previous errors
@@ -88,7 +88,7 @@ export function BlockHeightInput({
           <Button
             variant="input"
             onClick={handleNowButtonClick}
-            disabled={disabled || loading}
+            disabled={disabled || isLoading}
             aria-label="Use current block height"
             className="px-2 py-1 text-sm"
           >

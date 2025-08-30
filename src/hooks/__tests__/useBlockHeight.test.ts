@@ -24,11 +24,11 @@ describe('useBlockHeight', () => {
     const { result } = renderHook(() => useBlockHeight());
 
     // Initially loading
-    expect(result.current.loading).toBe(true);
+    expect(result.current.isLoading).toBe(true);
     expect(result.current.blockHeight).toBeNull();
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     expect(getCurrentBlockHeight).toHaveBeenCalled();
@@ -43,7 +43,7 @@ describe('useBlockHeight', () => {
     const { result } = renderHook(() => useBlockHeight());
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     expect(result.current.blockHeight).toBeNull();
@@ -103,7 +103,7 @@ describe('useBlockHeight', () => {
   it('should not fetch on mount when autoFetch is false', async () => {
     const { result } = renderHook(() => useBlockHeight({ autoFetch: false }));
 
-    expect(result.current.loading).toBe(false);
+    expect(result.current.isLoading).toBe(false);
     expect(result.current.blockHeight).toBeNull();
     expect(getCurrentBlockHeight).not.toHaveBeenCalled();
   });
@@ -114,7 +114,7 @@ describe('useBlockHeight', () => {
     const { result } = renderHook(() => useBlockHeight());
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     expect(result.current.blockHeight).toBe(0);
@@ -142,7 +142,7 @@ describe('useBlockHeight', () => {
     const { result } = renderHook(() => useBlockHeight());
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     // Rapid refresh calls
@@ -162,7 +162,7 @@ describe('useBlockHeight', () => {
     const { result } = renderHook(() => useBlockHeight());
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
     expect(result.current.error).toBe('Unable to fetch current block height.');
