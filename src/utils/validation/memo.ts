@@ -11,8 +11,8 @@ export function isHexMemo(value: string): boolean {
   
   const trimmed = value.trim();
   
-  // Check if it starts with 0x - must have even number of hex digits after 0x
-  if (trimmed.startsWith('0x')) {
+  // Check if it starts with 0x or 0X - must have even number of hex digits after prefix
+  if (trimmed.toLowerCase().startsWith('0x')) {
     const hexPart = trimmed.slice(2);
     // 0x alone is not valid, needs actual hex data
     return hexPart.length > 0 && /^[0-9a-fA-F]+$/.test(hexPart) && hexPart.length % 2 === 0;
@@ -26,7 +26,11 @@ export function isHexMemo(value: string): boolean {
  * Strip hex prefix from a string
  */
 export function stripHexPrefix(hex: string): string {
-  return hex.startsWith('0x') ? hex.slice(2) : hex;
+  const lowerStart = hex.toLowerCase();
+  if (lowerStart.startsWith('0x')) {
+    return hex.slice(2);
+  }
+  return hex;
 }
 
 /**

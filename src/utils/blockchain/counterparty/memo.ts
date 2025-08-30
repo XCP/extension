@@ -1,18 +1,39 @@
 /**
- * Re-export memo validation functions from the centralized validation utilities
- * This maintains backward compatibility while consolidating validation logic
+ * Memo utilities for Counterparty transactions
+ * Wraps the centralized validation utilities with Counterparty-specific defaults
  */
 
-export { 
-  isHexMemo,
-  stripHexPrefix,
-  getMemoByteLength,
-  validateMemoLength as isValidMemoLength, // Rename for backward compatibility
-  validateMemo,
-  hexToText,
-  textToHex
+import {
+  isHexMemo as _isHexMemo,
+  stripHexPrefix as _stripHexPrefix,
+  getMemoByteLength as _getMemoByteLength,
+  validateMemoLength as _validateMemoLength,
+  validateMemo as _validateMemo,
+  hexToText as _hexToText,
+  textToHex as _textToHex
 } from '@/utils/validation';
 
-// Note: The validation utility uses 80 bytes as default max length
-// while Counterparty typically uses 34 bytes. Callers should specify
-// maxBytes parameter explicitly when needed.
+// Re-export with same names
+export const isHexMemo = _isHexMemo;
+export const stripHexPrefix = _stripHexPrefix;
+export const validateMemo = _validateMemo;
+export const hexToText = _hexToText;
+export const textToHex = _textToHex;
+
+// Counterparty default is 34 bytes, not 80
+export function isValidMemoLength(memo: string, isHex: boolean, maxBytes: number = 34): boolean {
+  return _validateMemoLength(memo, isHex, maxBytes);
+}
+
+// Handle odd-length hex for backward compatibility
+export function getMemoByteLength(memo: string, isHex: boolean): number {
+  if (!memo) return 0;
+  
+  if (isHex) {
+    const hexContent = stripHexPrefix(memo);
+    // For backward compatibility with tests, round up odd-length hex
+    return Math.ceil(hexContent.length / 2);
+  } else {
+    return _getMemoByteLength(memo, false);
+  }
+}
