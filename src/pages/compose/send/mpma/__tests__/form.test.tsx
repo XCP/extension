@@ -58,7 +58,7 @@ describe('MPMAForm', () => {
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
     // Use valid Bitcoin addresses
-    const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,Test memo\nbc1q7s0a9l2vwafftqys6f3csm45x90wvxrg2ycp9z,BTC,0.001';
+    const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,Test memo\nbc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4,BTC,0.001';
     
     fireEvent.paste(textArea, {
       clipboardData: {
@@ -164,7 +164,7 @@ describe('MPMAForm', () => {
     render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
-    const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,Memo1\nbc1q7s0a9l2vwafftqys6f3csm45x90wvxrg2ycp9z,BTC,0.001,Memo2';
+    const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,Memo1\nbc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4,BTC,0.001,Memo2';
     
     fireEvent.paste(textArea, {
       clipboardData: {
@@ -175,7 +175,7 @@ describe('MPMAForm', () => {
     await waitFor(() => {
       expect(screen.getByText('Preview (First 5)')).toBeInTheDocument();
       expect(screen.getByText(/bc1qar0srr\.\.\. → 1.5 XCP/)).toBeInTheDocument();
-      expect(screen.getByText(/bc1q7s0a9l\.\.\. → 0.001 BTC/)).toBeInTheDocument();
+      expect(screen.getByText(/bc1qw508d6\.\.\. → 0.001 BTC/)).toBeInTheDocument();
     });
   });
 
@@ -186,12 +186,12 @@ describe('MPMAForm', () => {
     // Generate valid addresses - these are example valid bech32 addresses
     const validAddresses = [
       'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
-      'bc1q7s0a9l2vwafftqys6f3csm45x90wvxrg2ycp9z',
+      'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
       'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
-      'bc1q3lhplvnhfqruue9w6t9m68a3scjmna0l8fmk5c',
+      'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu',
       'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
       'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3',
-      'bc1q5h4k7fn8rspfzkwsx6f6pjmfh7fy3d0rudj0t8'
+      'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq'
     ];
     const rows = validAddresses.map((addr, i) => 
       `${addr},XCP,${i + 1}`

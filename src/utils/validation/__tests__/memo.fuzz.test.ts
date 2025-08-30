@@ -39,7 +39,11 @@ describe('Memo Validation Fuzz Tests', () => {
     it('should reject non-hex strings', () => {
       fc.assert(
         fc.property(
-          fc.string().filter(s => !/^[0-9a-fA-F]*$/.test(s)),
+          fc.string().filter(s => {
+            const trimmed = s.trim();
+            // Exclude strings that become valid hex after trimming
+            return trimmed !== '' && !/^[0-9a-fA-F]*$/.test(trimmed);
+          }),
           (text) => {
             if (!text.startsWith('0x')) {
               expect(isHexMemo(text)).toBe(false);
