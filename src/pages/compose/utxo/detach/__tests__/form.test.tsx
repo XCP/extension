@@ -143,7 +143,7 @@ describe('UtxoDetachForm', () => {
     const destinationInput = screen.getByLabelText(/Destination \(Optional\)/i);
     const continueButton = screen.getByRole('button', { name: /Continue/i });
 
-    await user.type(destinationInput, 'bc1qoptionaldest123');
+    await user.type(destinationInput, '1CounterpartyXXXXXXXXXXXXXXXUWLpVr');
     
     await waitFor(() => {
       expect(continueButton).toBeEnabled();
