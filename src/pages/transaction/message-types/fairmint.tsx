@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty";
 
 /**
@@ -23,7 +24,7 @@ export function fairmint(tx: Transaction): Array<{ label: string; value: string 
     {
       label: "Quantity Minted",
       value: `${formatAmount({
-        value: isDivisible ? params.quantity / 1e8 : params.quantity,
+        value: isDivisible ? fromSatoshis(params.quantity, true) : params.quantity,
         minimumFractionDigits: isDivisible ? 8 : 0,
         maximumFractionDigits: isDivisible ? 8 : 0,
       })} ${params.asset}`,
@@ -32,7 +33,7 @@ export function fairmint(tx: Transaction): Array<{ label: string; value: string 
   
   // Commission if applicable
   if (params.commission !== undefined && params.commission > 0) {
-    const commissionAmount = isDivisible ? params.commission / 1e8 : params.commission;
+    const commissionAmount = isDivisible ? fromSatoshis(params.commission, true) : params.commission;
     fields.push({
       label: "Commission Paid",
       value: `${formatAmount({
@@ -48,15 +49,15 @@ export function fairmint(tx: Transaction): Array<{ label: string; value: string 
     fields.push({
       label: "XCP Paid",
       value: `${formatAmount({
-        value: params.paid / 1e8,
+        value: fromSatoshis(params.paid, true),
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
       })} XCP`,
     });
     
     // Calculate effective price
-    const quantity = isDivisible ? params.quantity / 1e8 : params.quantity;
-    const effectivePrice = params.paid / 1e8 / quantity;
+    const quantity = isDivisible ? fromSatoshis(params.quantity, true) : params.quantity;
+    const effectivePrice = fromSatoshis(params.paid, true) / quantity;
     fields.push({
       label: "Effective Price",
       value: `${formatAmount({

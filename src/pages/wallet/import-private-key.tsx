@@ -20,6 +20,7 @@ import { YouTubeTutorialCTA } from "@/components/youtube-tutorial-cta";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressType } from "@/utils/blockchain/bitcoin";
+import { validatePrivateKeyFormat, detectPrivateKeyFormat } from "@/utils/validation";
 
 const ImportPrivateKey = () => {
   const navigate = useNavigate();
@@ -49,21 +50,6 @@ const ImportPrivateKey = () => {
     { value: AddressType.P2TR, label: "Taproot", hint: "bc1p..." },
   ] as const;
 
-  const isValidPrivateKey = (key: string): boolean =>
-    /^[0-9a-fA-F]{64}$|^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(key.trim());
-  const isWIFUncompressed = (key: string): boolean =>
-    key.startsWith("5") && /^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(key);
-  const isWIFCompressed = (key: string): boolean =>
-    (key.startsWith("K") || key.startsWith("L")) && /^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(key);
-  const isHexPrivateKey = (key: string): boolean => /^[0-9a-fA-F]{64}$/.test(key);
-  const determineAddressType = (key: string): AddressType =>
-    isWIFUncompressed(key)
-      ? AddressType.P2PKH
-      : isWIFCompressed(key)
-      ? AddressType.P2SH_P2WPKH
-      : isHexPrivateKey(key)
-      ? AddressType.P2TR
-      : AddressType.P2TR;
 
   useEffect(() => {
     setHeaderProps({
@@ -92,7 +78,14 @@ const ImportPrivateKey = () => {
   };
   
   const handlePrivateKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPrivateKeyValue(e.target.value);
+    const value = e.target.value;
+    setPrivateKeyValue(value);
+    
+    // Auto-detect and suggest address type based on private key format
+    const validation = validatePrivateKeyFormat(value);
+    if (validation.isValid && validation.suggestedAddressType) {
+      setAddressType(validation.suggestedAddressType);
+    }
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -111,8 +104,10 @@ const ImportPrivateKey = () => {
       setSubmissionError("Private key is required.");
       return;
     }
-    if (!isValidPrivateKey(privateKey)) {
-      setSubmissionError("Invalid private key format. Please enter a valid WIF or hexadecimal key.");
+    
+    const validation = validatePrivateKeyFormat(privateKey);
+    if (!validation.isValid) {
+      setSubmissionError(validation.error || "Invalid private key format.");
       return;
     }
     if (!isConfirmed) {
@@ -135,9 +130,9 @@ const ImportPrivateKey = () => {
     }
 
     try {
-      const suggestedType = determineAddressType(privateKey);
-      setAddressType(suggestedType);
-      await createAndUnlockPrivateKeyWallet(privateKey.trim(), password, undefined, addressType);
+      // Use the validated address type or the user-selected one
+      const finalAddressType = validation.suggestedAddressType || addressType;
+      await createAndUnlockPrivateKeyWallet(privateKey.trim(), password, undefined, finalAddressType);
       navigate(PATHS.SUCCESS);
     } catch (error) {
       let errorMessage = "Failed to import private key. ";

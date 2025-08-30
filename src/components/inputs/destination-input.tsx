@@ -1,6 +1,6 @@
 import React, { forwardRef } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { isValidBitcoinAddress } from "@/utils/blockchain/bitcoin";
+import { isValidBitcoinAddress } from "@/utils/validation";
 
 interface DestinationInputProps {
   value: string;

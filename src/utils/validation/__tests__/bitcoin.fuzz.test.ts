@@ -133,7 +133,7 @@ describe('Bitcoin Validation Fuzz Tests', () => {
       validAmounts.forEach(({ amount, expected }) => {
         const result = validateBitcoinAmount(amount, { unit: 'satoshis' });
         expect(result.isValid).toBe(true);
-        expect(result.btc).toBe(expected);
+        expect(result.normalized).toBe(expected);
       });
     });
 
@@ -220,7 +220,7 @@ describe('Bitcoin Validation Fuzz Tests', () => {
             if (result.isValid) {
               expect(result.satoshis).toBe(satoshis);
               // Check round-trip conversion
-              const backToBtc = parseFloat(result.btc!);
+              const backToBtc = parseFloat(result.normalized!);
               expect(Math.abs(backToBtc - parseFloat(btc))).toBeLessThan(1e-8);
             }
           }

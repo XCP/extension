@@ -13,6 +13,7 @@ import {
   isLessThanOrEqualToSatoshis,
   isLessThanSatoshis
 } from "@/utils/numeric";
+import { isDustAmount } from "@/utils/validation";
 
 interface AmountWithMaxInputProps {
   asset: string;
@@ -124,9 +125,9 @@ export function AmountWithMaxInput({
         throw new Error("Insufficient balance to cover transaction fee.");
       }
 
-      const dustLimit = "546"; // Integer string
       const amountPerDestination = divideSatoshis(candidate, destinationCount);
-      if (isLessThanSatoshis(amountPerDestination, dustLimit)) {
+      const amountPerDestSatoshis = parseInt(amountPerDestination);
+      if (isDustAmount(amountPerDestSatoshis)) {
         throw new Error("Amount per destination after fee is below dust limit.");
       }
       const finalAmount = fromSatoshis(amountPerDestination); // Returns BTC string

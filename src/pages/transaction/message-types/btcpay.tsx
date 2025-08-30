@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty";
 
 /**
@@ -9,7 +10,7 @@ export function btcpay(tx: Transaction): Array<{ label: string; value: string | 
   const params = tx.unpacked_data?.params;
   if (!params) return [];
   
-  const btcAmount = params.btc_amount / 1e8;
+  const btcAmount = fromSatoshis(params.btc_amount, true);
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {

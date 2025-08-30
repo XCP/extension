@@ -8,6 +8,7 @@ import { fetchBTCBalance } from "@/utils/blockchain/bitcoin";
 import { fetchTokenBalance, fetchTokenBalances } from "@/utils/blockchain/counterparty";
 import type { TokenBalance } from "@/utils/blockchain/counterparty";
 import { formatAmount, formatAsset } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 import { FaSearch, FaTimes } from "react-icons/fa";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 import { useSettings } from "@/contexts/settings-context";
@@ -108,7 +109,7 @@ export const BalanceList = (): ReactElement => {
       setIsInitialLoading(true);
       try {
         const balanceSats = await fetchBTCBalance(activeAddress.address);
-        const balanceBTC = balanceSats / 1e8;
+        const balanceBTC = fromSatoshis(balanceSats, true);
         const btcBalance: TokenBalance = {
           asset: "BTC",
           quantity_normalized: formatAmount({

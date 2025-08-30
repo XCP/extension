@@ -1,5 +1,6 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 import { useState } from "react";
 import { FaExchangeAlt } from "react-icons/fa";
 
@@ -50,7 +51,7 @@ export function ReviewOrder({
     {
       label: "Give",
       value: `${formatAmount({
-        value: Number(result.params.give_quantity) / 1e8,
+        value: fromSatoshis(result.params.give_quantity, true),
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
       })} ${result.params.give_asset}`,
@@ -58,7 +59,7 @@ export function ReviewOrder({
     {
       label: "Get",
       value: `${formatAmount({
-        value: Number(result.params.get_quantity) / 1e8,
+        value: fromSatoshis(result.params.get_quantity, true),
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
       })} ${result.params.get_asset}`,

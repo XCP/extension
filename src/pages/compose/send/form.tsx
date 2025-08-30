@@ -16,6 +16,7 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
+import { validateQuantity } from "@/utils/validation";
 import type { SendOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -130,12 +131,13 @@ export function SendForm({
 
   const isAmountValid = (): boolean => {
     if (!amount || amount.trim() === "") return false;
-    if (isDivisible) {
-      const numAmount = parseFloat(amount);
-      return !isNaN(numAmount) && numAmount > 0;
-    }
-    const intAmount = parseInt(amount, 10);
-    return !isNaN(intAmount) && intAmount > 0 && intAmount.toString() === amount.trim();
+    
+    const validation = validateQuantity(amount, {
+      divisible: isDivisible,
+      allowZero: false
+    });
+    
+    return validation.isValid;
   };
 
   const isSubmitDisabled = pending || !isAmountValid() || !destinationsValid || !memoValid;

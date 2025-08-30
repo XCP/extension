@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 import { getAttachEstimateXcpFee } from "@/utils/blockchain/counterparty";
 
 /**
@@ -72,7 +73,7 @@ export function ReviewUtxoAttach({
       label: "Quantity",
       value: result.params.quantity && result.params.asset ? 
         `${formatAmount({
-          value: Number(result.params.quantity) / 1e8,
+          value: fromSatoshis(result.params.quantity, true),
           minimumFractionDigits: 8,
           maximumFractionDigits: 8,
         })} ${result.params.asset}` : "N/A",
@@ -83,7 +84,7 @@ export function ReviewUtxoAttach({
         ? "Loading..." 
         : xcpFeeEstimate !== null 
           ? `${formatAmount({
-              value: xcpFeeEstimate / 1e8,
+              value: fromSatoshis(xcpFeeEstimate, true),
               minimumFractionDigits: 8,
               maximumFractionDigits: 8,
             })} XCP`

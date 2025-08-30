@@ -3,6 +3,8 @@
  * Pure functions with no external dependencies
  */
 
+import { validateBitcoinAddress } from './bitcoin';
+
 export interface CSVRow {
   address: string;
   asset: string;
@@ -75,34 +77,20 @@ export function isHeaderRow(line: string): boolean {
 
 /**
  * Validate a Bitcoin address (basic validation for CSV processing)
+ * Uses the bitcoin validation utility for consistency
  */
 export function validateBitcoinAddressFormat(address: string): boolean {
   if (!address) return false;
   
-  // Legacy (P2PKH) - starts with 1
-  if (/^1[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(address)) return true;
-  
-  // P2SH - starts with 3
-  if (/^3[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(address)) return true;
-  
-  // Native SegWit (P2WPKH) - starts with bc1q (42 chars total)
-  if (/^bc1q[a-z0-9]{38}$/.test(address)) return true;
-  
-  // Taproot (P2TR) - starts with bc1p (62 chars total)
-  if (/^bc1p[a-z0-9]{58}$/.test(address)) return true;
-  
-  // Testnet addresses
-  if (/^[mn2][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(address)) return true;
-  if (/^tb1q[a-z0-9]{38}$/.test(address)) return true; // Testnet P2WPKH
-  if (/^tb1p[a-z0-9]{58}$/.test(address)) return true; // Testnet P2TR
-  
-  return false;
+  // Use the bitcoin validation utility which has comprehensive address validation
+  const result = validateBitcoinAddress(address);
+  return result.isValid;
 }
 
 /**
- * Validate a quantity value
+ * Validate a CSV quantity value
  */
-export function validateQuantity(quantity: string): { valid: boolean; value?: number; error?: string } {
+export function validateCSVQuantity(quantity: string): { valid: boolean; value?: number; error?: string } {
   if (!quantity || quantity.trim() === '') {
     return { valid: false, error: 'Quantity is required' };
   }
@@ -260,7 +248,7 @@ export function parseCSV(text: string, options?: {
     }
     
     // Validate quantity
-    const quantityValidation = validateQuantity(quantity);
+    const quantityValidation = validateCSVQuantity(quantity);
     if (!quantityValidation.valid) {
       return {
         success: false,

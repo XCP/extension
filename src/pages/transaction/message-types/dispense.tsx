@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty";
 
 /**
@@ -11,7 +12,7 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
   
   if (!dispenseEvent?.params) {
     // Fallback to transaction root data
-    const btcAmount = (tx.btc_amount || 0) / 1e8;
+    const btcAmount = fromSatoshis(tx.btc_amount || 0, true);
     return [
       {
         label: "Dispenser Address",
@@ -34,11 +35,11 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
   // Calculate effective price per unit
   const quantityReceived = params.dispense_quantity_normalized ? 
     parseFloat(params.dispense_quantity_normalized) :
-    (params.dispense_quantity || 0) / (isDivisible ? 1e8 : 1);
+    isDivisible ? fromSatoshis(params.dispense_quantity || 0, true) : (params.dispense_quantity || 0);
   
   const btcPaid = params.btc_amount_normalized ?
     parseFloat(params.btc_amount_normalized) :
-    (params.btc_amount || 0) / 1e8;
+    fromSatoshis(params.btc_amount || 0, true);
     
   const pricePerUnit = quantityReceived > 0 ? btcPaid / quantityReceived : 0;
   

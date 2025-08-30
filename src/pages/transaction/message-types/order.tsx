@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { FaExchangeAlt } from "react-icons/fa";
 import { formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty";
 
 /**
@@ -68,17 +69,17 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
   const getIsDivisible = params.get_asset_info?.divisible ?? true;
   
   const giveQuantity = giveIsDivisible ? 
-    params.give_quantity / 1e8 : 
+    fromSatoshis(params.give_quantity, true) : 
     params.give_quantity;
   const getQuantity = getIsDivisible ? 
-    params.get_quantity / 1e8 : 
+    fromSatoshis(params.get_quantity, true) : 
     params.get_quantity;
   
   const giveRemaining = params.give_remaining !== undefined ?
-    (giveIsDivisible ? params.give_remaining / 1e8 : params.give_remaining) :
+    (giveIsDivisible ? fromSatoshis(params.give_remaining, true) : params.give_remaining) :
     giveQuantity;
   const getRemaining = params.get_remaining !== undefined ?
-    (getIsDivisible ? params.get_remaining / 1e8 : params.get_remaining) :
+    (getIsDivisible ? fromSatoshis(params.get_remaining, true) : params.get_remaining) :
     getQuantity;
   
   // Calculate fill percentage
@@ -190,7 +191,7 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
     fields.push({
       label: "Fee Required",
       value: `${formatAmount({
-        value: params.fee_required / 1e8,
+        value: fromSatoshis(params.fee_required, true),
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
       })} BTC`,
@@ -201,7 +202,7 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
     fields.push({
       label: "Fee Provided",
       value: `${formatAmount({
-        value: params.fee_provided / 1e8,
+        value: fromSatoshis(params.fee_provided, true),
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
       })} BTC`,

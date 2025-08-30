@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 import { fetchAddressDispensers, fetchDispenserDispenses } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -106,7 +107,7 @@ export function ReviewDispense({
             const divisor = isDivisible ? 1e8 : 1;
             setDispenserInfo({
               asset: triggeredDispenser.asset,
-              give_quantity_normalized: triggeredDispenser.give_quantity ? (triggeredDispenser.give_quantity / divisor).toString() : "0",
+              give_quantity_normalized: triggeredDispenser.give_quantity ? (fromSatoshis(triggeredDispenser.give_quantity, true) / (isDivisible ? 1 : 1e8)).toString() : "0",
               satoshirate: triggeredDispenser.satoshirate || 0,
               asset_longname: triggeredDispenser.asset_info?.asset_longname || undefined,
               tx_hash: triggeredDispenser.tx_hash,
@@ -149,7 +150,7 @@ export function ReviewDispense({
   
   // Calculate BTC amount from the API response
   const btcAmount = formatAmount({
-    value: btcQuantity / 1e8,
+    value: fromSatoshis(btcQuantity, true),
     maximumFractionDigits: 8,
     minimumFractionDigits: 8
   });
@@ -164,7 +165,7 @@ export function ReviewDispense({
       const divisor = isDivisible ? 1e8 : 1;
       const satoshirate = dispenser.satoshirate || 0;
       const numberOfDispenses = satoshirate > 0 ? Math.floor(btcQuantity / satoshirate) : 0;
-      const giveQuantity = (dispenser.give_quantity || 0) / divisor;
+      const giveQuantity = (fromSatoshis(dispenser.give_quantity || 0, true) / (isDivisible ? 1 : 1e8));
       const totalReceived = giveQuantity * numberOfDispenses;
       const assetName = dispenser.asset_info?.asset_longname || dispenser.asset;
       
@@ -225,7 +226,7 @@ export function ReviewDispense({
     if (mempoolDispenses.length > 0) {
       const competingTxs = mempoolDispenses.map(tx => 
         `• ${tx.source.substring(0, 6)}...${tx.source.substring(tx.source.length - 4)} - ${formatAmount({
-          value: tx.btc_amount / 1e8,
+          value: fromSatoshis(tx.btc_amount, true),
           minimumFractionDigits: 8,
           maximumFractionDigits: 8
         })} BTC${tx.fee_rate ? ` @ ${tx.fee_rate} sat/vB` : ''}`

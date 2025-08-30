@@ -142,11 +142,29 @@ export const toSatoshis = (value: BigNumber | string | number): string => {
  * Converts satoshis to BTC (divides by 1e8)
  *
  * @param satoshis - The value in satoshis
- * @returns The value in BTC as a string
+ * @param options - Conversion options
+ * @param options.asNumber - If true, returns a number instead of string (default: false)
+ * @param options.removeTrailingZeros - If true, removes trailing zeros from string result (default: false)
+ * @returns The value in BTC as a string or number
  */
-export const fromSatoshis = (satoshis: BigNumber | string | number): string => {
-  return toBigNumber(satoshis).dividedBy(1e8).toFixed(8);
-};
+export function fromSatoshis(satoshis: BigNumber | string | number, options?: { asNumber?: false; removeTrailingZeros?: boolean }): string;
+export function fromSatoshis(satoshis: BigNumber | string | number, options: { asNumber: true; removeTrailingZeros?: never }): number;
+export function fromSatoshis(satoshis: BigNumber | string | number, asNumber: true): number; // Backward compatibility overload
+export function fromSatoshis(satoshis: BigNumber | string | number, optionsOrAsNumber: boolean | { asNumber?: boolean; removeTrailingZeros?: boolean } = false): string | number {
+  // Handle backward compatibility with boolean parameter
+  const options = typeof optionsOrAsNumber === 'boolean' 
+    ? { asNumber: optionsOrAsNumber, removeTrailingZeros: false }
+    : { asNumber: false, removeTrailingZeros: false, ...optionsOrAsNumber };
+  
+  const result = toBigNumber(satoshis).dividedBy(1e8);
+  
+  if (options.asNumber) {
+    return result.toNumber();
+  }
+  
+  const str = result.toFixed(8);
+  return options.removeTrailingZeros ? str.replace(/\.?0+$/, '') : str;
+}
 
 /**
  * Subtracts one satoshi value from another, returning an integer result

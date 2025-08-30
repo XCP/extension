@@ -68,13 +68,14 @@ export function validateSubasset(fullName: string, parentAsset?: string): { isVa
     return { isValid: false, error: "Subasset name is required" };
   }
 
-  // Must contain exactly one dot
-  const parts = fullName.split('.');
-  if (parts.length !== 2) {
-    return { isValid: false, error: "Invalid subasset format" };
+  // Must contain at least one dot separating parent and child
+  const dotIndex = fullName.indexOf('.');
+  if (dotIndex === -1) {
+    return { isValid: false, error: "Invalid subasset format - must contain a dot" };
   }
-
-  const [parent, child] = parts;
+  
+  const parent = fullName.substring(0, dotIndex);
+  const child = fullName.substring(dotIndex + 1);
 
   // If parentAsset is provided, must match
   if (parentAsset && parent !== parentAsset) {
@@ -88,18 +89,33 @@ export function validateSubasset(fullName: string, parentAsset?: string): { isVa
   }
 
   // Validate child name
-  if (!child) {
+  if (!child || child.length < 1) {
     return { isValid: false, error: "Subasset name cannot be empty" };
   }
 
-  // Maximum length for child (250 chars max)
-  if (child.length > 250) {
+  // Maximum length for full subasset (250 chars max)
+  if (fullName.length > 250) {
     return { isValid: false, error: "Subasset name is too long (max 250 characters)" };
   }
 
   // Child can contain: a-zA-Z0-9.-_@!
   if (!/^[a-zA-Z0-9.\-_@!]+$/.test(child)) {
     return { isValid: false, error: "Subasset name contains invalid characters" };
+  }
+
+  // Can't start with a period
+  if (child.startsWith('.')) {
+    return { isValid: false, error: "Subasset name cannot start with a period" };
+  }
+
+  // Can't end with a period
+  if (child.endsWith('.')) {
+    return { isValid: false, error: "Subasset name cannot end with a period" };
+  }
+
+  // Can't have consecutive periods
+  if (child.includes('..')) {
+    return { isValid: false, error: "Subasset name cannot contain consecutive periods" };
   }
 
   return { isValid: true };

@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty";
 
 /**
@@ -9,7 +10,7 @@ export function dividend(tx: Transaction): Array<{ label: string; value: string 
   const params = tx.unpacked_data?.params;
   if (!params) return [];
   
-  const quantityPerUnit = params.quantity_per_unit / 1e8;
+  const quantityPerUnit = fromSatoshis(params.quantity_per_unit, true);
   const isDivisibleAsset = params.asset_info?.divisible ?? true;
   const isDivisibleDividend = params.dividend_asset_info?.divisible ?? true;
   
@@ -41,7 +42,7 @@ export function dividend(tx: Transaction): Array<{ label: string; value: string 
     fields.push({
       label: "Total Distributed",
       value: `${formatAmount({
-        value: params.total_distributed / (isDivisibleDividend ? 1e8 : 1),
+        value: isDivisibleDividend ? fromSatoshis(params.total_distributed, true) : params.total_distributed,
         minimumFractionDigits: isDivisibleDividend ? 8 : 0,
         maximumFractionDigits: isDivisibleDividend ? 8 : 0,
       })} ${params.dividend_asset}`,

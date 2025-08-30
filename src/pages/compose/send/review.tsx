@@ -1,6 +1,7 @@
 import React, { type ReactElement, type ReactNode } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 
 /**
  * Props for the ReviewSend component.
@@ -31,7 +32,7 @@ export function ReviewSend({
   const formatQuantity = (quantity: number, isDivisible: boolean) =>
     isDivisible
       ? formatAmount({
-          value: quantity / 1e8,
+          value: fromSatoshis(quantity, true),
           minimumFractionDigits: 8,
           maximumFractionDigits: 8,
         })

@@ -1,5 +1,6 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 
 /**
  * Props for the ReviewDispenser component.
@@ -32,7 +33,7 @@ export function ReviewDispenser({
   const formatQuantity = (quantity: number) =>
     assetDivisible
       ? formatAmount({
-          value: quantity / 1e8,
+          value: fromSatoshis(quantity, true),
           minimumFractionDigits: 8,
           maximumFractionDigits: 8,
         })
@@ -50,7 +51,7 @@ export function ReviewDispenser({
     {
       label: "Per Dispense",
       value: `${formatAmount({
-        value: Number(result.params.mainchainrate) / 1e8,
+        value: fromSatoshis(result.params.mainchainrate, true),
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
       })} BTC`,
@@ -59,7 +60,7 @@ export function ReviewDispenser({
       label: "Bitcoin Total",
       value: `${formatAmount({
         value: (Number(result.params.escrow_quantity) / Number(result.params.give_quantity)) * 
-               (Number(result.params.mainchainrate) / 1e8),
+               fromSatoshis(result.params.mainchainrate, true),
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
       })} BTC`,

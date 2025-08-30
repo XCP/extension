@@ -1,5 +1,6 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 
 interface ReviewDestroyProps {
   apiResponse: any;
@@ -23,7 +24,7 @@ export function ReviewDestroy({
   const formatQuantity = (quantity: number) =>
     assetDivisible
       ? formatAmount({
-          value: quantity / 1e8,
+          value: fromSatoshis(quantity, true),
           minimumFractionDigits: 8,
           maximumFractionDigits: 8,
         })

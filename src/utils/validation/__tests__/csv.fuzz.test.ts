@@ -8,11 +8,11 @@ import {
   parseCSVLine,
   isHeaderRow,
   validateBitcoinAddressFormat,
-  validateQuantity,
+  validateCSVQuantity,
   detectCSVInjection,
   parseCSV,
   sanitizeCSVValue
-} from '../csv';
+} from '@/utils/validation/csv';
 
 describe('CSV Parser Fuzz Tests', () => {
   describe('parseCSVLine', () => {
@@ -172,14 +172,14 @@ describe('CSV Parser Fuzz Tests', () => {
     });
   });
 
-  describe('validateQuantity', () => {
+  describe('validateCSVQuantity', () => {
     it('should validate numeric quantities', () => {
       fc.assert(
         fc.property(
           fc.float({ min: Math.fround(0.000001), max: Math.fround(1000000), noNaN: true }),
           (num) => {
             const str = num.toString();
-            const result = validateQuantity(str);
+            const result = validateCSVQuantity(str);
             
             if (num > 0) {
               expect(result.valid).toBe(true);
@@ -202,20 +202,20 @@ describe('CSV Parser Fuzz Tests', () => {
       ];
 
       injectionQuantities.forEach(qty => {
-        const result = validateQuantity(qty);
+        const result = validateCSVQuantity(qty);
         expect(result.valid).toBe(false);
       });
     });
 
     it('should handle edge cases', () => {
-      expect(validateQuantity('').valid).toBe(false);
-      expect(validateQuantity('0').valid).toBe(false);
-      expect(validateQuantity('-1').valid).toBe(false);
-      expect(validateQuantity('abc').valid).toBe(false);
-      expect(validateQuantity('Infinity').valid).toBe(false);
-      expect(validateQuantity('NaN').valid).toBe(false);
-      expect(validateQuantity(Number.MAX_SAFE_INTEGER.toString()).valid).toBe(true);
-      expect(validateQuantity((Number.MAX_SAFE_INTEGER + 1).toString()).valid).toBe(false);
+      expect(validateCSVQuantity('').valid).toBe(false);
+      expect(validateCSVQuantity('0').valid).toBe(false);
+      expect(validateCSVQuantity('-1').valid).toBe(false);
+      expect(validateCSVQuantity('abc').valid).toBe(false);
+      expect(validateCSVQuantity('Infinity').valid).toBe(false);
+      expect(validateCSVQuantity('NaN').valid).toBe(false);
+      expect(validateCSVQuantity(Number.MAX_SAFE_INTEGER.toString()).valid).toBe(true);
+      expect(validateCSVQuantity((Number.MAX_SAFE_INTEGER + 1).toString()).valid).toBe(false);
     });
   });
 

@@ -7,7 +7,7 @@ import {
   fetchAddressDispensers,
   type DispenseOptions 
 } from "@/utils/blockchain/counterparty";
-import { isValidBitcoinAddress } from "@/utils/blockchain/bitcoin";
+import { isValidBitcoinAddress } from "@/utils/validation";
 
 // ============================================================================
 // Types

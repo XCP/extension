@@ -5,11 +5,11 @@ import { DestinationInput } from '../destination-input';
 import React from 'react';
 
 // Mock the bitcoin validation utility
-vi.mock('@/utils/blockchain/bitcoin', () => ({
+vi.mock('@/utils/validation', () => ({
   isValidBitcoinAddress: vi.fn()
 }));
 
-import { isValidBitcoinAddress } from '@/utils/blockchain/bitcoin';
+import { isValidBitcoinAddress } from '@/utils/validation';
 
 describe('DestinationInput', () => {
   const mockIsValidBitcoinAddress = isValidBitcoinAddress as any;

@@ -1,5 +1,6 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 
 /**
  * Props for the ReviewBet component.
@@ -22,7 +23,7 @@ export function ReviewBet({ apiResponse, onSign, onBack, error, isSigning }: Rev
 
   const formatQuantity = (quantity: number) =>
     formatAmount({
-      value: quantity / 1e8,
+      value: fromSatoshis(quantity, true),
       minimumFractionDigits: 8,
       maximumFractionDigits: 8,
     });

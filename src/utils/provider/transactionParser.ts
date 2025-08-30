@@ -1,4 +1,5 @@
 import { Buffer } from 'buffer';
+import { fromSatoshis, toBigNumber } from '@/utils/numeric';
 
 interface ParsedTransaction {
   type: string;
@@ -148,16 +149,16 @@ function formatQuantity(quantity: number | string, divisible?: boolean): string 
   }
   
   // Assume 8 decimals for divisible assets (standard for XCP)
-  const normalized = qty / 100000000;
+  const normalized = fromSatoshis(qty);
   
-  // Prevent scientific notation by using toFixed with appropriate precision
-  // and handle very small values
-  if (Math.abs(normalized) < 0.00000001) {
+  // Parse the normalized value to handle very small values
+  const numValue = parseFloat(normalized);
+  if (Math.abs(numValue) < 0.00000001) {
     return '0';
   }
   
   // Format without scientific notation
-  let formatted = normalized.toFixed(8);
+  let formatted = normalized;
   
   // Remove trailing zeros and unnecessary decimal point
   formatted = formatted.replace(/\.?0+$/, '');

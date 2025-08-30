@@ -4,6 +4,7 @@ import { FiGlobe, FiAlertTriangle, FiX } from 'react-icons/fi';
 import { Button } from '@/components/button';
 import { ErrorAlert } from '@/components/error-alert';
 import { formatAmount, formatAddress } from '@/utils/format';
+import { fromSatoshis, toBigNumber } from '@/utils/numeric';
 import { useWallet } from '@/contexts/wallet-context';
 import { useSettings } from '@/contexts/settings-context';
 import { FeeRateInput } from '@/components/inputs/fee-rate-input';
@@ -53,16 +54,16 @@ export default function ApproveCompose() {
   }, [activeWallet, activeAddress, navigate, settings]);
 
   const formatQuantity = (quantity: number | string, isDivisible?: boolean) => {
-    const qty = typeof quantity === 'string' ? parseFloat(quantity) : quantity;
+    const qty = toBigNumber(quantity);
     
     if (isDivisible === false) {
-      return qty.toString();
+      return qty.integerValue().toString();
     }
     
     // Assume 8 decimals for divisible assets (standard for XCP)
-    const normalized = qty / 100000000;
+    const normalized = fromSatoshis(qty.toString());
     return formatAmount({
-      value: normalized,
+      value: parseFloat(normalized),
       minimumFractionDigits: 8,
       maximumFractionDigits: 8,
     });
@@ -90,7 +91,7 @@ export default function ApproveCompose() {
           { 
             label: 'Giving', 
             value: `${formatQuantity(params.give_quantity, true)} ${params.give_asset}`,
-            warning: parseFloat(params.give_quantity) > 100000000 // Warn for large amounts
+            warning: toBigNumber(params.give_quantity).isGreaterThan(100000000) // Warn for large amounts
           },
           { label: 'Getting', value: `${formatQuantity(params.get_quantity, true)} ${params.get_asset}` },
           { label: 'Requested Expiration', value: `${params.expiration || 1000} blocks` }

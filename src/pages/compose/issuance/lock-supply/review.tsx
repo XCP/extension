@@ -1,5 +1,6 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 
 /**
  * Props for the ReviewIssuanceLockSupply component.
@@ -28,7 +29,7 @@ export function ReviewIssuanceLockSupply({
   const isDivisible = result.params.asset_info.divisible;
 
   const formatAssetAmount = (value: string | number): string => {
-    const numericValue = isDivisible ? Number(value) / 1e8 : Number(value);
+    const numericValue = isDivisible ? fromSatoshis(value, true) : Number(value);
     return formatAmount({
       value: numericValue,
       minimumFractionDigits: isDivisible ? 8 : 0,

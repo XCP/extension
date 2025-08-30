@@ -3,25 +3,17 @@
  * Security-focused validation for Bitcoin operations
  */
 
-import BigNumber from 'bignumber.js';
+import { toBigNumber, BigNumber } from '@/utils/numeric';
+import { AmountValidationResult, DUST_LIMIT, MAX_SATOSHIS, SATOSHIS_PER_BTC } from './amount';
 
-// Bitcoin constants
-export const DUST_LIMIT = 546; // satoshis
-export const MAX_SATOSHIS = 2100000000000000; // 21 million BTC in satoshis
-export const SATOSHIS_PER_BTC = 100000000;
+// Re-export constants for backward compatibility
+export { DUST_LIMIT, MAX_SATOSHIS, SATOSHIS_PER_BTC };
 
 export interface AddressValidationResult {
   isValid: boolean;
   error?: string;
   addressType?: string;
   network?: 'mainnet' | 'testnet' | 'regtest';
-}
-
-export interface AmountValidationResult {
-  isValid: boolean;
-  error?: string;
-  satoshis?: number;
-  btc?: string;
 }
 
 /**
@@ -96,6 +88,14 @@ export function validateBitcoinAddress(address: string): AddressValidationResult
 }
 
 /**
+ * Simple boolean check for Bitcoin address validity
+ * Wrapper around validateBitcoinAddress for convenience
+ */
+export function isValidBitcoinAddress(address: string): boolean {
+  return validateBitcoinAddress(address).isValid;
+}
+
+/**
  * Validate a Bitcoin amount
  */
 export function validateBitcoinAmount(
@@ -121,7 +121,7 @@ export function validateBitcoinAmount(
     if (!isFinite(amount)) {
       return { isValid: false, error: 'Amount must be finite' };
     }
-    value = new BigNumber(amount);
+    value = toBigNumber(amount);
   } else if (typeof amount === 'string') {
     const trimmed = amount.trim();
     
@@ -140,7 +140,7 @@ export function validateBitcoinAmount(
     }
 
     try {
-      value = new BigNumber(trimmed);
+      value = toBigNumber(trimmed);
     } catch (e) {
       return { isValid: false, error: 'Invalid number format' };
     }
@@ -203,7 +203,7 @@ export function validateBitcoinAmount(
   return {
     isValid: true,
     satoshis: satoshis.toNumber(),
-    btc: btcAmount.toFixed(8)
+    normalized: btcAmount.toFixed(8)
   };
 }
 

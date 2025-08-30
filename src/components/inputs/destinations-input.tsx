@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { FiPlus, FiMinus } from "react-icons/fi";
-import { isValidBitcoinAddress } from "@/utils/blockchain/bitcoin";
+import { isValidBitcoinAddress } from "@/utils/validation";
 
 interface Destination {
   id: number;

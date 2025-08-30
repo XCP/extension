@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { formatAddress, formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 
 interface ConsolidationReviewProps {
   apiResponse: {
@@ -63,7 +64,7 @@ export const ConsolidationReview = ({
     const estimatedSize = estimateTransactionSize(utxoData.count, 1);
     // Fee (in satoshis) = estimatedSize * feeRate (sat/vB)
     const feeSats = estimatedSize * params.feeRateSatPerVByte;
-    feeBtc = feeSats / 1e8; // convert sats to BTC
+    feeBtc = fromSatoshis(feeSats, true); // convert sats to BTC using numeric utility
     netTotalBtc = consolidatingBtc - feeBtc;
   }
 
