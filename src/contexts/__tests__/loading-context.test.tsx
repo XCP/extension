@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, renderHook, waitFor } from '@testing-library/react';
-import { LoadingProvider, useLoading, Spinner } from '../loading-context';
+import { LoadingProvider, useLoading } from '../loading-context';
+import { Spinner } from '../../components/spinner';
 import React from 'react';
 
 describe('LoadingContext', () => {
@@ -328,14 +329,14 @@ describe('LoadingContext', () => {
   describe('Loading UI', () => {
     it('should render loading spinner when loading', async () => {
       const TestComponent = () => {
-        const { showLoading } = useLoading();
+        const { showLoading, isLoading, currentMessage } = useLoading();
         React.useEffect(() => {
           showLoading('Testing');
         }, [showLoading]);
         return (
           <div>
             <div>Content</div>
-            <Spinner />
+            {isLoading && <Spinner message={currentMessage} />}
           </div>
         );
       };
@@ -358,11 +359,11 @@ describe('LoadingContext', () => {
 
     it('should show loading message in UI', async () => {
       const TestComponent = () => {
-        const { showLoading } = useLoading();
+        const { showLoading, isLoading, currentMessage } = useLoading();
         React.useEffect(() => {
           showLoading('Processing transaction...');
         }, [showLoading]);
-        return <Spinner />;
+        return isLoading ? <Spinner message={currentMessage} /> : null;
       };
 
       render(

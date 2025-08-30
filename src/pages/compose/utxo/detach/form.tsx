@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Field, Label, Description, Input } from "@headlessui/react";
+import { FaSpinner } from "react-icons/fa";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { AddressHeader } from "@/components/headers/address-header";
@@ -46,6 +47,7 @@ export function UtxoDetachForm({
   const [destination, setDestination] = useState(initialFormData?.destination || "");
   const [destinationValid, setDestinationValid] = useState(true); // Optional field, so default to true
   const [utxoBalances, setUtxoBalances] = useState<UtxoBalance[]>([]);
+  const [isLoadingBalances, setIsLoadingBalances] = useState(false);
   const destinationRef = useRef<HTMLInputElement>(null);
 
   // Set composer error when it occurs
@@ -62,10 +64,14 @@ export function UtxoDetachForm({
     // Fetch UTXO balances if we have a UTXO
     const utxo = initialUtxo || initialFormData?.sourceUtxo;
     if (utxo) {
+      setIsLoadingBalances(true);
       fetchUtxoBalances(utxo).then(response => {
         setUtxoBalances(response.result || []);
       }).catch(err => {
         console.error('Failed to fetch UTXO balances:', err);
+        setUtxoBalances([]);
+      }).finally(() => {
+        setIsLoadingBalances(false);
       });
     }
   }, [initialUtxo, initialFormData?.sourceUtxo]);
@@ -104,7 +110,14 @@ export function UtxoDetachForm({
                   {formatTxid(initialUtxo || initialFormData?.sourceUtxo || '')}
                 </span>
                 <span className="text-sm text-gray-500">
-                  {utxoBalances.length} {utxoBalances.length === 1 ? 'Balance' : 'Balances'}
+                  {isLoadingBalances ? (
+                    <span className="flex items-center gap-1">
+                      <FaSpinner className="animate-spin h-3 w-3" />
+                      Loading...
+                    </span>
+                  ) : (
+                    `${utxoBalances.length} ${utxoBalances.length === 1 ? 'Balance' : 'Balances'}`
+                  )}
                 </span>
               </div>
             </div>

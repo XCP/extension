@@ -13,7 +13,7 @@ export default function ApprovalQueue() {
   const { setHeaderProps } = useHeader();
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   const getRequestTitle = (request: ApprovalRequest) => {
     switch (request.type) {
@@ -55,7 +55,7 @@ export default function ApprovalQueue() {
       try {
         const queue = await providerService.getApprovalQueue();
         setRequests(queue);
-        setLoading(false);
+        setIsLoading(false);
         
         // If queue is empty on load, close the window
         if (queue.length === 0) {
@@ -63,7 +63,7 @@ export default function ApprovalQueue() {
         }
       } catch (error) {
         console.error('Failed to load approval queue:', error);
-        setLoading(false);
+        setIsLoading(false);
       }
     };
     
@@ -184,7 +184,7 @@ export default function ApprovalQueue() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen p-4">
         <div className="text-center">
