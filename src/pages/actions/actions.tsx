@@ -38,7 +38,7 @@ const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean, enableAdv
   const addressActions: Action[] = [
     {
       id: "compose-broadcast",
-      name: "Broadcast",
+      name: isSegwitWallet ? "Broadcast" : "Broadcast Text",
       description: "Broadcast message or inscription on Bitcoin",
       path: "/compose/broadcast",
     },
@@ -111,13 +111,11 @@ const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean, enableAdv
           description: "Mint new token supply",
           path: "/compose/fairminter",
         },
-        {
-          id: "fairmint",
-          name: "Fairmint",
-          description: "Start a fair distribution mint",
-          path: "/compose/fairmint",
-        },
       ],
+    },
+    {
+      title: "Address",
+      actions: addressActions,
     },
     {
       title: "DEX",
@@ -141,10 +139,6 @@ const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean, enableAdv
           path: "/compose/dispenser/close-by-hash",
         },
       ],
-    },
-    {
-      title: "Address",
-      actions: addressActions,
     },
   ];
 
