@@ -18,7 +18,7 @@ export const ErrorAlert = ({ message, onClose }: ErrorAlertProps) => {
         <Button
           variant="menu"
           onClick={onClose}
-          className="absolute top-2 right-2"
+          className="absolute top-2 right-2 z-10"
           aria-label="Dismiss error message"
         >
           <IoClose className="h-4 w-4 text-red-700" aria-hidden="true" />
