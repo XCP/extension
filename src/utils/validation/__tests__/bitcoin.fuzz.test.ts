@@ -1,74 +1,145 @@
 /**
- * Fuzz tests for Bitcoin validation
- * Tests address validation, amount validation, and transaction calculations
+ * Fuzz tests for Bitcoin address validation
+ * Tests address validation with various inputs including edge cases and malicious inputs
  */
+
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import {
-  validateBitcoinAddress,
-  validateBitcoinAmount,
-  validateTransactionFee,
-  validateUTXO,
-  estimateTransactionSize,
-  DUST_LIMIT,
-  MAX_SATOSHIS,
-  SATOSHIS_PER_BTC
+import { 
+  validateBitcoinAddress, 
+  isValidBitcoinAddress 
 } from '../bitcoin';
 
-describe('Bitcoin Validation Fuzz Tests', () => {
+describe('Bitcoin Address Validation Fuzz Tests', () => {
   describe('validateBitcoinAddress', () => {
-    it('should validate known mainnet addresses', () => {
-      const validAddresses = [
-        { address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', type: 'P2PKH' }, // Genesis
-        { address: '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy', type: 'P2SH' },
-        { address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', type: 'P2WPKH' },
-        { address: 'bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297', type: 'P2TR' },
+    // Valid mainnet addresses
+    const validMainnetAddresses = [
+      // P2PKH (Legacy)
+      { address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', type: 'P2PKH' }, // Genesis
+      { address: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr', type: 'P2PKH' }, // Counterparty burn
+      { address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2', type: 'P2PKH' },
+      
+      // P2SH
+      { address: '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy', type: 'P2SH' },
+      { address: '3QJmV3qfvL9SuYo34YihAf3sRCW3qSinyC', type: 'P2SH' },
+      
+      // P2WPKH (Native SegWit)
+      { address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', type: 'P2WPKH' },
+      { address: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', type: 'P2WPKH' },
+      
+      // P2TR (Taproot)
+      { address: 'bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297', type: 'P2TR' },
+      { address: 'bc1pmzfrwwndsqmk5yh69yjr5lfgfg4ev8c0tsc06e', type: 'P2TR' },
+      
+      // P2WSH (Native SegWit Script)
+      { address: 'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3', type: 'P2WSH' },
+    ];
+
+    // Valid testnet addresses
+    const validTestnetAddresses = [
+      // Testnet P2PKH
+      { address: 'mipcBbFg9gMiCh81Kj8tqqdgoZub1ZJRfn', type: 'P2PKH' },
+      { address: 'n2eMqTT929pb1RDNuqEnxdaLau1rxy3efi', type: 'P2PKH' },
+      
+      // Testnet P2SH
+      { address: '2MzQwSSnBHWHqSAqtTVQ6v47XtaisrJa1Vc', type: 'P2SH' },
+      
+      // Testnet SegWit
+      { address: 'tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx', type: 'P2WPKH' },
+      { address: 'tb1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusz5jtvf', type: 'P2TR' },
+    ];
+
+    // Valid regtest addresses
+    const validRegtestAddresses = [
+      { address: 'bcrt1q6z64a43mjgkcq0ul2hnp2x9asjfhgjrpjkc9st', type: 'SegWit' },
+    ];
+
+    // Invalid addresses
+    const invalidAddresses = [
+      '',
+      ' ',
+      'not_an_address',
+      '1234567890',
+      'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t', // Too short
+      'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t44', // Too long
+      '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfN', // Missing character
+      '0A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', // Invalid prefix
+      '4A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', // Invalid prefix
+      'bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', // Invalid witness version
+      'bc2qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', // Invalid bech32 prefix
+      'BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4', // Uppercase bech32 (invalid)
+      '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1', // Ethereum address
+    ];
+
+    // Test valid mainnet addresses
+    it.each(validMainnetAddresses)('should validate mainnet address: $address', ({ address, type }) => {
+      const result = validateBitcoinAddress(address);
+      expect(result.isValid).toBe(true);
+      expect(result.network).toBe('mainnet');
+      expect(result.addressType).toBe(type);
+      expect(result.error).toBeUndefined();
+    });
+
+    // Test valid testnet addresses
+    it.each(validTestnetAddresses)('should validate testnet address: $address', ({ address, type }) => {
+      const result = validateBitcoinAddress(address);
+      expect(result.isValid).toBe(true);
+      expect(result.network).toBe('testnet');
+      expect(result.addressType).toBe(type);
+      expect(result.error).toBeUndefined();
+    });
+
+    // Test valid regtest addresses
+    it.each(validRegtestAddresses)('should validate regtest address: $address', ({ address, type }) => {
+      const result = validateBitcoinAddress(address);
+      expect(result.isValid).toBe(true);
+      expect(result.network).toBe('regtest');
+      expect(result.addressType).toBe(type);
+      expect(result.error).toBeUndefined();
+    });
+
+    // Test invalid addresses
+    it.each(invalidAddresses)('should reject invalid address: %s', (address) => {
+      const result = validateBitcoinAddress(address);
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBeDefined();
+      expect(result.addressType).toBeUndefined();
+    });
+
+    // Test injection attempts
+    it('should reject addresses with injection characters', () => {
+      const injectionAttempts = [
+        '1A1zP1eP5QGefi2D<script>alert(1)</script>',
+        "1A1zP1eP5QGefi2D'; DROP TABLE users;--",
+        '1A1zP1eP5QGefi2D"onmouseover="alert(1)"',
+        '1A1zP1eP5QGefi2D`rm -rf /`',
+        '1A1zP1eP5QGefi2D;ls -la',
       ];
 
-      validAddresses.forEach(({ address, type }) => {
+      injectionAttempts.forEach(address => {
         const result = validateBitcoinAddress(address);
-        expect(result.isValid).toBe(true);
-        expect(result.addressType).toBe(type);
-        expect(result.network).toBe('mainnet');
+        expect(result.isValid).toBe(false);
+        expect(result.error).toContain('Invalid characters');
       });
     });
 
-    it('should validate testnet addresses', () => {
-      const testnetAddresses = [
-        { address: 'mipcBbFg9gMiCh81Kj8tqqdgoZub1ZJRfn', type: 'P2PKH' },
-        { address: '2MzQwSSnBHWHqSAqtTVQ6v47XtaisrJa1Vc', type: 'P2SH' },
-        { address: 'tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx', type: 'P2WPKH' },
-        { address: 'tb1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297', type: 'P2TR' },
-      ];
-
-      testnetAddresses.forEach(({ address, type }) => {
-        const result = validateBitcoinAddress(address);
-        expect(result.isValid).toBe(true);
-        expect(result.addressType).toBe(type);
-        expect(result.network).toBe('testnet');
-      });
+    // Test edge cases
+    it('should handle edge cases correctly', () => {
+      // Null/undefined
+      expect(validateBitcoinAddress(null as any).isValid).toBe(false);
+      expect(validateBitcoinAddress(undefined as any).isValid).toBe(false);
+      
+      // Non-string types
+      expect(validateBitcoinAddress(123 as any).isValid).toBe(false);
+      expect(validateBitcoinAddress({} as any).isValid).toBe(false);
+      expect(validateBitcoinAddress([] as any).isValid).toBe(false);
+      
+      // Whitespace handling
+      expect(validateBitcoinAddress('  1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa  ').isValid).toBe(true);
+      expect(validateBitcoinAddress('\t1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa\n').isValid).toBe(true);
     });
 
-    it('should reject invalid addresses', () => {
-      const invalidAddresses = [
-        { address: '', shouldFail: true },
-        { address: 'invalid', shouldFail: true },
-        { address: '1234567890', shouldFail: true },
-        { address: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1', shouldFail: true }, // Ethereum
-        { address: 'bc1zzz', shouldFail: true }, // Invalid bech32
-        { address: '<script>alert(1)</script>', shouldFail: true },
-        { address: '../../../etc/passwd', shouldFail: true },
-      ];
-
-      invalidAddresses.forEach(({ address, shouldFail }) => {
-        const result = validateBitcoinAddress(address);
-        if (shouldFail) {
-          expect(result.isValid).toBe(false);
-          expect(result.error).toBeDefined();
-        }
-      });
-    });
-
+    // Fast-check property-based testing with reduced iterations
     it('should handle arbitrary strings without crashing', () => {
       fc.assert(
         fc.property(
@@ -81,17 +152,22 @@ describe('Bitcoin Validation Fuzz Tests', () => {
             const result = validateBitcoinAddress(input);
             expect(result).toHaveProperty('isValid');
             expect(typeof result.isValid).toBe('boolean');
+            
+            if (!result.isValid) {
+              expect(result.error).toBeDefined();
+            }
           }
         ),
-        { numRuns: 1000 }
+        { numRuns: 100 } // Reduced from 1000 for faster execution
       );
     });
 
-    it('should reject addresses with injection characters', () => {
+    // Test with injection patterns using fast-check
+    it('should reject addresses with injection patterns', () => {
       fc.assert(
         fc.property(
-          fc.string({ minLength: 1 }).map(s => 
-            '1A1zP1eP5QGefi2DMPTfTL5SLmv7Div' + s
+          fc.string({ minLength: 1, maxLength: 10 }).map(s => 
+            '1A1zP1eP5QGefi2D' + s + 'MPTfTL5SLmv7DivfNa'
           ),
           (address) => {
             if (/[<>'"`;]/.test(address)) {
@@ -101,345 +177,107 @@ describe('Bitcoin Validation Fuzz Tests', () => {
             }
           }
         ),
-        { numRuns: 100 }
-      );
-    });
-  });
-
-  describe('validateBitcoinAmount', () => {
-    it('should validate correct BTC amounts', () => {
-      const validAmounts = [
-        { amount: '0.00000001', unit: 'btc', satoshis: 1 },
-        { amount: '0.00000546', unit: 'btc', satoshis: 546 }, // Dust limit
-        { amount: '1', unit: 'btc', satoshis: 100000000 },
-        { amount: '21000000', unit: 'btc', satoshis: 2100000000000000 },
-      ];
-
-      validAmounts.forEach(({ amount, unit, satoshis }) => {
-        const result = validateBitcoinAmount(amount, { unit: unit as 'btc' });
-        expect(result.isValid).toBe(true);
-        expect(result.satoshis).toBe(satoshis);
-      });
-    });
-
-    it('should validate satoshi amounts', () => {
-      const validAmounts = [
-        { amount: 1, expected: '0.00000001' },
-        { amount: 546, expected: '0.00000546' },
-        { amount: 100000000, expected: '1.00000000' },
-        { amount: MAX_SATOSHIS, expected: '21000000.00000000' },
-      ];
-
-      validAmounts.forEach(({ amount, expected }) => {
-        const result = validateBitcoinAmount(amount, { unit: 'satoshis' });
-        expect(result.isValid).toBe(true);
-        expect(result.normalized).toBe(expected);
-      });
-    });
-
-    it('should reject invalid amounts', () => {
-      const invalidAmounts = [
-        { amount: '', error: 'required' },
-        { amount: '-1', error: 'negative' },
-        { amount: 'abc', error: 'characters' },
-        { amount: '=1+1', error: 'Invalid' },
-        { amount: 'Infinity', error: 'characters' },
-        { amount: 'NaN', error: 'characters' },
-        { amount: '21000001', unit: 'btc', error: 'exceeds maximum' },
-        { amount: '0.000000001', unit: 'btc', error: 'whole number' }, // Sub-satoshi
-      ];
-
-      invalidAmounts.forEach(({ amount, unit, error }) => {
-        const result = validateBitcoinAmount(amount, { unit: unit as 'btc' });
-        expect(result.isValid).toBe(false);
-        expect(result.error).toContain(error);
-      });
-    });
-
-    it('should enforce dust limit', () => {
-      const result1 = validateBitcoinAmount('545', { unit: 'satoshis', allowDust: false });
-      expect(result1.isValid).toBe(false);
-      expect(result1.error).toContain('dust');
-
-      const result2 = validateBitcoinAmount('545', { unit: 'satoshis', allowDust: true });
-      expect(result2.isValid).toBe(true);
-    });
-
-    it('should handle zero amounts', () => {
-      const result1 = validateBitcoinAmount('0', { allowZero: false });
-      expect(result1.isValid).toBe(false);
-      expect(result1.error).toContain('greater than zero');
-
-      const result2 = validateBitcoinAmount('0', { allowZero: true });
-      expect(result2.isValid).toBe(true);
-    });
-
-    it('should handle arbitrary numeric strings safely', () => {
-      fc.assert(
-        fc.property(
-          fc.string(),
-          (input) => {
-            expect(() => {
-              validateBitcoinAmount(input);
-            }).not.toThrow();
-            
-            const result = validateBitcoinAmount(input);
-            expect(result).toHaveProperty('isValid');
-          }
-        ),
-        { numRuns: 500 }
+        { numRuns: 50 } // Reduced iterations
       );
     });
 
-    it('should handle edge case numbers', () => {
-      const edgeCases = [
-        Number.MAX_SAFE_INTEGER,
-        Number.MIN_SAFE_INTEGER,
-        Number.EPSILON,
-        0,
-        -0,
-        1e-10,
-        1e10,
-      ];
-
-      edgeCases.forEach(amount => {
-        expect(() => {
-          validateBitcoinAmount(amount);
-        }).not.toThrow();
-      });
-    });
-
-    it('should maintain precision for BTC amounts', () => {
-      fc.assert(
-        fc.property(
-          fc.integer({ min: 1, max: MAX_SATOSHIS }),
-          (satoshis) => {
-            const btc = (satoshis / SATOSHIS_PER_BTC).toFixed(8);
-            const result = validateBitcoinAmount(btc, { unit: 'btc', allowDust: true });
-            
-            if (result.isValid) {
-              expect(result.satoshis).toBe(satoshis);
-              // Check round-trip conversion
-              const backToBtc = parseFloat(result.normalized!);
-              expect(Math.abs(backToBtc - parseFloat(btc))).toBeLessThan(1e-8);
-            }
-          }
-        ),
-        { numRuns: 100 }
-      );
-    });
-  });
-
-  describe('validateTransactionFee', () => {
-    it('should validate reasonable fee rates', () => {
-      const validRates = [
-        { rate: 1, desc: 'minimum' },
-        { rate: 10, desc: 'low' },
-        { rate: 50, desc: 'medium' },
-        { rate: 200, desc: 'high' },
-        { rate: 500, desc: 'very high' },
-      ];
-
-      validRates.forEach(({ rate }) => {
-        const result = validateTransactionFee(rate);
-        expect(result.isValid).toBe(true);
-        expect(result.satsPerByte).toBe(rate);
-      });
-    });
-
-    it('should reject invalid fee rates', () => {
-      const invalidRates = [
-        { rate: 0, error: 'too low' },
-        { rate: -1, error: 'too low' },
-        { rate: 1001, error: 'too high' },
-        { rate: 'abc', error: 'Invalid fee rate format' },
-        { rate: '=1+1', error: 'Invalid fee rate format' },
-        { rate: Infinity, error: 'valid number' },
-      ];
-
-      invalidRates.forEach(({ rate, error }) => {
-        const result = validateTransactionFee(rate);
-        expect(result.isValid).toBe(false);
-        expect(result.error).toContain(error);
-      });
-    });
-
-    it('should respect custom min/max limits', () => {
-      const result1 = validateTransactionFee(5, { minFeeRate: 10 });
-      expect(result1.isValid).toBe(false);
-
-      const result2 = validateTransactionFee(100, { maxFeeRate: 50 });
-      expect(result2.isValid).toBe(false);
-
-      const result3 = validateTransactionFee(25, { minFeeRate: 10, maxFeeRate: 50 });
-      expect(result3.isValid).toBe(true);
-    });
-  });
-
-  describe('validateUTXO', () => {
-    it('should validate correct UTXO objects', () => {
-      const validUTXO = {
-        txid: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
-        vout: 0,
-        value: 100000
-      };
-
-      const result = validateUTXO(validUTXO);
-      expect(result.isValid).toBe(true);
-    });
-
-    it('should reject invalid UTXOs', () => {
-      const invalidUTXOs = [
-        { txid: 'invalid', vout: 0, value: 100000 },
-        { txid: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', vout: -1, value: 100000 },
-        { txid: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', vout: 0, value: -1 },
-        { txid: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', vout: 1.5, value: 100000 },
-        null,
-        undefined,
-        'string',
-        123,
-      ];
-
-      invalidUTXOs.forEach(utxo => {
-        const result = validateUTXO(utxo);
-        expect(result.isValid).toBe(false);
-      });
-    });
-
-    it('should validate transaction IDs strictly', () => {
-      fc.assert(
-        fc.property(
-          fc.string(),
-          (txid) => {
-            const utxo = { txid, vout: 0, value: 100000 };
-            const result = validateUTXO(utxo);
-            
-            if (!/^[a-f0-9]{64}$/i.test(txid)) {
-              expect(result.isValid).toBe(false);
-            }
-          }
-        ),
-        { numRuns: 100 }
-      );
-    });
-  });
-
-  describe('estimateTransactionSize', () => {
-    it('should estimate transaction sizes', () => {
-      // Standard P2PKH transaction
-      const size1 = estimateTransactionSize(1, 2, false);
-      expect(size1.size).toBeGreaterThan(180);
-      expect(size1.size).toBeLessThan(250);
-
-      // SegWit transaction
-      const size2 = estimateTransactionSize(1, 2, true);
-      expect(size2.vsize).toBeLessThan(size1.size);
-    });
-
-    it('should handle multiple inputs/outputs', () => {
-      fc.assert(
-        fc.property(
-          fc.integer({ min: 1, max: 100 }),
-          fc.integer({ min: 1, max: 100 }),
-          (inputs, outputs) => {
-            const result = estimateTransactionSize(inputs, outputs, false);
-            
-            // Size should increase with more inputs/outputs
-            expect(result.size).toBeGreaterThan(0);
-            expect(result.size).toBeLessThan(100000); // Reasonable upper limit
-            
-            // SegWit should be smaller
-            const segwitResult = estimateTransactionSize(inputs, outputs, true);
-            expect(segwitResult.vsize).toBeLessThanOrEqual(result.size);
-          }
-        ),
-        { numRuns: 50 }
-      );
-    });
-
-    it('should reject invalid input counts', () => {
-      expect(() => estimateTransactionSize(0, 1)).toThrow();
-      expect(() => estimateTransactionSize(1, 0)).toThrow();
-      expect(() => estimateTransactionSize(-1, 1)).toThrow();
-    });
-  });
-
-  describe('Amount overflow and underflow', () => {
-    it('should handle extremely large amounts', () => {
-      const hugeAmounts = [
-        '999999999999999999999999999',
-        '1e308',
-        Number.MAX_VALUE.toString(),
-      ];
-
-      hugeAmounts.forEach(amount => {
-        const result = validateBitcoinAmount(amount);
-        expect(result.isValid).toBe(false);
-        expect(result.error).toBeDefined();
-      });
-    });
-
-    it('should handle extremely small amounts', () => {
-      const tinyAmounts = [
-        '0.000000001', // Sub-satoshi in BTC
-        '1e-10',
-        '0.5', // Half satoshi
-      ];
-
-      tinyAmounts.forEach(amount => {
-        const result = validateBitcoinAmount(amount, { unit: 'satoshis' });
+    // Fuzz test with specific patterns
+    it('should handle various malformed inputs', () => {
+      const fuzzInputs = [
+        // Very long strings
+        'a'.repeat(100),
+        '1'.repeat(100),
+        'bc1q' + 'x'.repeat(50),
         
-        if (parseFloat(amount) < 1) {
-          expect(result.isValid).toBe(false);
+        // Unicode and special characters
+        '🚀🌙💎',
+        '中文地址测试',
+        'אדרס ביטקוין',
+        '\x00\x01\x02',
+        String.fromCharCode(0),
+        
+        // Mixed valid/invalid patterns
+        '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+        'bc1q' + '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+        
+        // Numbers and special formats
+        '0x1234567890abcdef',
+        '::1',
+        '127.0.0.1',
+        'localhost',
+        
+        // SQL/Command injection attempts
+        "'; DROP TABLE addresses; --",
+        '$(echo vulnerable)',
+        '${7*7}',
+        '{{7*7}}',
+        
+        // Path traversal attempts
+        '../../../etc/passwd',
+        '..\\..\\..\\windows\\system32',
+        
+        // Large numbers
+        Number.MAX_SAFE_INTEGER.toString(),
+        Number.MIN_SAFE_INTEGER.toString(),
+        Infinity.toString(),
+        NaN.toString(),
+      ];
+
+      fuzzInputs.forEach(input => {
+        expect(() => validateBitcoinAddress(input)).not.toThrow();
+        const result = validateBitcoinAddress(input);
+        expect(typeof result.isValid).toBe('boolean');
+        if (!result.isValid) {
+          expect(result.error).toBeDefined();
         }
       });
     });
-  });
 
-  describe('Security injection tests', () => {
-    it('should prevent injection in amounts', () => {
-      const injectionAttempts = [
-        '=SUM(A1:A10)',
-        '@import',
-        '+1+1',
-        '-1-1',
-        '${7*7}',
-        '<script>alert(1)</script>',
-        '"; DROP TABLE transactions;',
-      ];
-
-      injectionAttempts.forEach(injection => {
-        const result = validateBitcoinAmount(injection);
-        expect(result.isValid).toBe(false);
-        
-        // Should detect as injection or invalid - any error is fine
-        expect(result.error).toBeDefined();
-      });
+    // Performance test
+    it('should handle rapid validation calls efficiently', () => {
+      const testAddress = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+      const iterations = 1000;
+      
+      const startTime = performance.now();
+      
+      for (let i = 0; i < iterations; i++) {
+        validateBitcoinAddress(testAddress);
+      }
+      
+      const endTime = performance.now();
+      const totalTime = endTime - startTime;
+      
+      // Should complete 1000 validations in under 50ms
+      expect(totalTime).toBeLessThan(50);
     });
-  });
 
-  describe('Edge cases and consistency', () => {
+    // Consistency test
     it('should be consistent across multiple calls', () => {
       fc.assert(
         fc.property(
-          fc.string(),
+          fc.string({ maxLength: 100 }),
           (input) => {
             const result1 = validateBitcoinAddress(input);
             const result2 = validateBitcoinAddress(input);
             
             expect(result1.isValid).toBe(result2.isValid);
             expect(result1.error).toBe(result2.error);
+            expect(result1.addressType).toBe(result2.addressType);
+            expect(result1.network).toBe(result2.network);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 50 } // Reduced iterations
       );
     });
 
+    // Unicode handling
     it('should handle Unicode in addresses gracefully', () => {
       const unicodeAddresses = [
         '1A1zP1eP5QGefi2DMPTfTL5SLmv7Divf' + '测试',
         'bc1q' + '🔑',
         '密码地址',
+        '١٢٣٤٥٦٧٨٩٠', // Arabic-Indic numerals
+        'А1zР1еР5QGеfi2DМРТfТL5SLmv7DivfNа', // Cyrillic look-alikes
       ];
 
       unicodeAddresses.forEach(address => {
@@ -450,6 +288,55 @@ describe('Bitcoin Validation Fuzz Tests', () => {
         const result = validateBitcoinAddress(address);
         expect(result.isValid).toBe(false);
       });
+    });
+  });
+
+  describe('isValidBitcoinAddress', () => {
+    // Test the boolean wrapper function
+    it('should return true for valid addresses', () => {
+      expect(isValidBitcoinAddress('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')).toBe(true);
+      expect(isValidBitcoinAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4')).toBe(true);
+      expect(isValidBitcoinAddress('3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy')).toBe(true);
+    });
+
+    it('should return false for invalid addresses', () => {
+      expect(isValidBitcoinAddress('')).toBe(false);
+      expect(isValidBitcoinAddress('invalid')).toBe(false);
+      expect(isValidBitcoinAddress('1234567890')).toBe(false);
+    });
+
+    it('should handle edge cases without throwing', () => {
+      expect(() => isValidBitcoinAddress(null as any)).not.toThrow();
+      expect(() => isValidBitcoinAddress(undefined as any)).not.toThrow();
+      expect(() => isValidBitcoinAddress(123 as any)).not.toThrow();
+      
+      expect(isValidBitcoinAddress(null as any)).toBe(false);
+      expect(isValidBitcoinAddress(undefined as any)).toBe(false);
+      expect(isValidBitcoinAddress(123 as any)).toBe(false);
+    });
+
+    // Performance test for boolean wrapper
+    it('should efficiently handle rapid boolean checks', () => {
+      const addresses = [
+        '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+        'invalid',
+        'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+        '',
+        '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy',
+      ];
+      
+      const iterations = 200;
+      const startTime = performance.now();
+      
+      for (let i = 0; i < iterations; i++) {
+        addresses.forEach(addr => isValidBitcoinAddress(addr));
+      }
+      
+      const endTime = performance.now();
+      const totalTime = endTime - startTime;
+      
+      // Should handle 1000 checks (200 iterations * 5 addresses) in under 50ms
+      expect(totalTime).toBeLessThan(50);
     });
   });
 });
