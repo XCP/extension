@@ -42,7 +42,11 @@ describe('Numeric Utilities Fuzz Tests', () => {
     it('should handle malformed inputs safely', () => {
       fc.assert(fc.property(
         fc.oneof(
-          fc.string().filter(s => !s.match(/^-?\d*\.?\d*$/)), // Invalid number strings
+          fc.string().filter(s => {
+            // After removing spaces and commas, check if it's still invalid
+            const cleaned = s.replace(/[,\s]/g, '');
+            return !cleaned.match(/^-?\d*\.?\d*$/) || cleaned === '';
+          }),
           fc.constant(null),
           fc.constant(undefined),
           fc.constant(''),
