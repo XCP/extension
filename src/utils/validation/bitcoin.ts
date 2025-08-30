@@ -70,11 +70,11 @@ function validateBech32Address(address: string): AddressValidationResult {
     let encoding: 'bech32' | 'bech32m' = 'bech32';
     
     try {
-      decoded = bech32.decode(lowerAddress);
+      decoded = bech32.decode(lowerAddress as `${string}1${string}`);
     } catch {
       // If bech32 fails, try bech32m (for witness v1+)
       try {
-        decoded = bech32m.decode(lowerAddress);
+        decoded = bech32m.decode(lowerAddress as `${string}1${string}`);
         encoding = 'bech32m';
       } catch {
         return { isValid: false, error: 'Invalid bech32 encoding or checksum' };
