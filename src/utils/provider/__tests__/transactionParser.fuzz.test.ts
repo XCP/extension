@@ -239,7 +239,7 @@ describe('Transaction Parser Fuzz Testing', () => {
       fc.assert(
         fc.property(
           fc.oneof(
-            fc.float({ min: 1000001, max: Math.fround(1e15) }),
+            fc.float({ min: 1000001, max: Math.fround(1e15), noNaN: true }),
             fc.bigInt({ min: BigInt(1000001), max: BigInt('100000000000000000000') })
           ).map(String),
           (amount) => {
