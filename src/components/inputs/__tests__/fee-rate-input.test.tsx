@@ -39,7 +39,7 @@ describe('FeeRateInput', () => {
     it('should show loading state when fee rates are loading', () => {
       mockUseFeeRates.mockReturnValue({
         feeRates: null,
-        loading: true,
+        isLoading: true,
         error: null,
         uniquePresetOptions: []
       });
@@ -54,7 +54,7 @@ describe('FeeRateInput', () => {
     it('should show custom input when fee rates fail to load', () => {
       mockUseFeeRates.mockReturnValue({
         feeRates: null,
-        loading: false,
+        isLoading: false,
         error: 'Failed to fetch fee rates',
         uniquePresetOptions: []
       });
@@ -86,7 +86,7 @@ describe('FeeRateInput', () => {
     beforeEach(() => {
       mockUseFeeRates.mockReturnValue({
         feeRates: mockFeeRates,
-        loading: false,
+        isLoading: false,
         error: null,
         uniquePresetOptions: mockPresetOptions
       });
@@ -127,7 +127,7 @@ describe('FeeRateInput', () => {
     beforeEach(() => {
       mockUseFeeRates.mockReturnValue({
         feeRates: mockFeeRates,
-        loading: false,
+        isLoading: false,
         error: null,
         uniquePresetOptions: mockPresetOptions
       });
@@ -159,7 +159,7 @@ describe('FeeRateInput', () => {
     beforeEach(() => {
       mockUseFeeRates.mockReturnValue({
         feeRates: mockFeeRates,
-        loading: false,
+        isLoading: false,
         error: null,
         uniquePresetOptions: mockPresetOptions
       });
@@ -196,7 +196,7 @@ describe('FeeRateInput', () => {
     beforeEach(() => {
       mockUseFeeRates.mockReturnValue({
         feeRates: mockFeeRates,
-        loading: false,
+        isLoading: false,
         error: null,
         uniquePresetOptions: mockPresetOptions
       });

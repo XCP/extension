@@ -32,7 +32,7 @@ describe('BlockHeightInput', () => {
     vi.clearAllMocks();
     mockUseBlockHeight.mockReturnValue({
       blockHeight: null,
-      loading: false,
+      isLoading: false,
       error: null,
       refresh: vi.fn()
     });
@@ -99,7 +99,7 @@ describe('BlockHeightInput', () => {
     
     mockUseBlockHeight.mockReturnValue({
       blockHeight: 850123,
-      loading: false,
+      isLoading: false,
       error: null,
       refresh
     });
@@ -118,7 +118,7 @@ describe('BlockHeightInput', () => {
   it('should disable Now button while loading', () => {
     mockUseBlockHeight.mockReturnValue({
       blockHeight: null,
-      loading: true,
+      isLoading: true,
       error: null,
       refresh: vi.fn()
     });
@@ -134,7 +134,7 @@ describe('BlockHeightInput', () => {
     
     mockUseBlockHeight.mockReturnValue({
       blockHeight: null,
-      loading: false,
+      isLoading: false,
       error: 'Network error',
       refresh: vi.fn()
     });
@@ -150,7 +150,7 @@ describe('BlockHeightInput', () => {
     
     mockUseBlockHeight.mockReturnValue({
       blockHeight: null,
-      loading: false,
+      isLoading: false,
       error: null,
       refresh
     });
@@ -228,7 +228,7 @@ describe('BlockHeightInput', () => {
     
     mockUseBlockHeight.mockReturnValue({
       blockHeight: null,
-      loading: false,
+      isLoading: false,
       error: null,
       refresh
     });
@@ -246,7 +246,7 @@ describe('BlockHeightInput', () => {
     
     mockUseBlockHeight.mockReturnValue({
       blockHeight: null,
-      loading: true,
+      isLoading: true,
       error: null,
       refresh
     });
@@ -265,7 +265,7 @@ describe('BlockHeightInput', () => {
     
     mockUseBlockHeight.mockReturnValue({
       blockHeight: null,
-      loading: false,
+      isLoading: false,
       error: null,
       refresh
     });
@@ -299,7 +299,7 @@ describe('BlockHeightInput', () => {
     
     mockUseBlockHeight.mockReturnValue({
       blockHeight: 850000,
-      loading: false,
+      isLoading: false,
       error: null,
       refresh
     });
