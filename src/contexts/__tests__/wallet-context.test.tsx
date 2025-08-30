@@ -129,6 +129,7 @@ describe('WalletContext', () => {
     autoLockTimer: '5m' as const,
     enableMPMA: false,
     enableAdvancedBroadcasts: false,
+    enableAdvancedBetting: false,
     transactionDryRun: false,
     pinnedAssets: [] as string[],
     counterpartyApiBase: 'https://api.counterparty.io',

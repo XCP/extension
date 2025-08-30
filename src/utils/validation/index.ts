@@ -7,3 +7,4 @@ export * from './fee';
 export * from './amount';
 export * from './bitcoin';
 export * from './csv';
+export * from './api';

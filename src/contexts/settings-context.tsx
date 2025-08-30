@@ -28,6 +28,7 @@ const defaultSettings: KeychainSettings = {
   autoLockTimer: "5m",
   enableMPMA: false,
   enableAdvancedBroadcasts: false,
+  enableAdvancedBetting: false,
   transactionDryRun: false,
   pinnedAssets: ["XCP", "PEPECASH", "BITCRYSTALS", "BITCORN", "CROPS", "MINTS"],
   counterpartyApiBase: 'https://api.counterparty.io:4000',

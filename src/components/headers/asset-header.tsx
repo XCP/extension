@@ -42,6 +42,11 @@ export const AssetHeader = ({ assetInfo, className = '' }: AssetHeaderProps) => 
   // Use cached data if available, otherwise fall back to props
   const displayInfo = cached ?? assetInfo;
 
+  // Convert supply from satoshi-like units to actual units for divisible assets
+  const displaySupply = displayInfo.divisible 
+    ? Number(displayInfo.supply || 0) / 100000000 
+    : Number(displayInfo.supply || 0);
+
   return (
     <div className={`flex items-center ${className}`}>
       <img
@@ -56,7 +61,7 @@ export const AssetHeader = ({ assetInfo, className = '' }: AssetHeaderProps) => 
         <p className="text-gray-600 text-sm">
           Supply:{' '}
           {formatAmount({
-            value: Number(displayInfo.supply || 0), // Default to 0 if supply is undefined
+            value: displaySupply,
             minimumFractionDigits: displayInfo.divisible ? 8 : 0,
             maximumFractionDigits: displayInfo.divisible ? 8 : 0,
             useGrouping: true,

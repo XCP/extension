@@ -36,8 +36,15 @@ interface UseAssetDetailsOptions {
 export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions) {
   const { activeAddress, activeWallet } = useWallet();
   const { subheadings, setBalanceHeader, clearAllCaches } = useHeader();
-  // Initialize with cached data if available
-  const cachedBalance = subheadings.balances[asset];
+  
+  // Ref to track the previous wallet, address and asset
+  const prevWalletRef = useRef<string | undefined>(undefined);
+  const prevAddressRef = useRef<string | undefined>(undefined);
+  const prevAssetRef = useRef<string | undefined>(undefined);
+  
+  // Only use cached data if we're querying the same asset as before
+  // This prevents stale cache from being used when navigating to a different asset
+  const cachedBalance = (prevAssetRef.current === asset) ? subheadings.balances[asset] : null;
   const initialData = cachedBalance && cachedBalance.quantity_normalized ? {
     isDivisible: cachedBalance.asset_info?.divisible ?? true,
     assetInfo: cachedBalance.asset_info || null,
@@ -57,11 +64,6 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
 
   // Ref to track if fetch is still valid
   const fetchDataRef = useRef(false);
-  
-  // Ref to track the previous wallet, address and asset
-  const prevWalletRef = useRef<string | undefined>(undefined);
-  const prevAddressRef = useRef<string | undefined>(undefined);
-  const prevAssetRef = useRef<string | undefined>(undefined);
   
   // Reset state when wallet or address changes
   useEffect(() => {
