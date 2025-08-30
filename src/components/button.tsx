@@ -1,8 +1,9 @@
 import React from 'react';
 import { Button as HeadlessButton } from '@headlessui/react';
+import { FaYoutube } from 'react-icons/fa';
 
 export type ButtonColor = 'blue' | 'gray' | 'green' | 'red';
-export type ButtonVariant = 'solid' | 'transparent' | 'icon' | 'header' | 'menu' | 'menu-item' | 'input';
+export type ButtonVariant = 'solid' | 'transparent' | 'icon' | 'header' | 'menu' | 'menu-item' | 'input' | 'youtube';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   color?: ButtonColor;
@@ -10,6 +11,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   fullWidth?: boolean;
   className?: string;
+  href?: string; // For youtube variant
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
@@ -19,8 +21,27 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   className,
   fullWidth = false,
   disabled = false,
+  href,
   ...props
 }, ref) => {
+  // If youtube variant, render as YouTube CTA
+  if (variant === 'youtube') {
+    const youtubeHref = href || 'https://youtube.com/';
+    return (
+      <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <a
+          href={youtubeHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-3 text-gray-700 hover:text-red-600 transition-colors"
+          aria-label={`${children} - Opens in new tab`}
+        >
+          <FaYoutube className="text-2xl text-red-600" aria-hidden="true" />
+          <span className="font-medium">{children}</span>
+        </a>
+      </div>
+    );
+  }
   const baseStyles = (() => {
     switch (variant) {
       case 'menu':

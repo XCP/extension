@@ -16,7 +16,6 @@ import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { PasswordInput } from "@/components/inputs/password-input";
-import { YouTubeTutorialCTA } from "@/components/youtube-tutorial-cta";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressType } from "@/utils/blockchain/bitcoin";
@@ -231,10 +230,12 @@ const ImportPrivateKey = () => {
         </form>
       </div>
       {!isConfirmed && (
-        <YouTubeTutorialCTA 
-          text="Watch Tutorial: How to Import a Private Key" 
-          url="https://youtu.be/FxJKsmdtU-8"
-        />
+        <Button 
+          variant="youtube"
+          href="https://youtu.be/FxJKsmdtU-8"
+        >
+          Watch Tutorial: How to Import a Private Key
+        </Button>
       )}
     </div>
   );

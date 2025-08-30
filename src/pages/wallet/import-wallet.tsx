@@ -10,7 +10,6 @@ import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { PasswordInput } from "@/components/inputs/password-input";
-import { YouTubeTutorialCTA } from "@/components/youtube-tutorial-cta";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressType } from "@/utils/blockchain/bitcoin";
@@ -245,10 +244,12 @@ function ImportWallet() {
         </form>
       </div>
       {!isConfirmed && (
-        <YouTubeTutorialCTA 
-          text="Watch Tutorial: How to Import a Wallet" 
-          url="https://youtu.be/pGj3vl8zaUA"
-        />
+        <Button 
+          variant="youtube"
+          href="https://youtu.be/pGj3vl8zaUA"
+        >
+          Watch Tutorial: How to Import a Wallet
+        </Button>
       )}
     </div>
   );
