@@ -64,7 +64,7 @@ export default function AdvancedSettings(): ReactElement {
   const shouldShowHelpText = isHelpTextOverride ? !settings.showHelpText : settings.showHelpText;
 
   return (
-    <div className="space-y-6 p-4" role="main" aria-labelledby="advanced-settings-title">
+    <div className="space-y-6 p-4 mb-2" role="main" aria-labelledby="advanced-settings-title">
       <h2 id="advanced-settings-title" className="sr-only">
         Advanced Settings
       </h2>
