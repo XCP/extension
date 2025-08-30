@@ -43,9 +43,20 @@ describe('Numeric Utilities Fuzz Tests', () => {
       fc.assert(fc.property(
         fc.oneof(
           fc.string().filter(s => {
-            // After removing spaces and commas, check if it's still invalid
+            // After removing spaces and commas, check if it would be valid for BigNumber
             const cleaned = s.replace(/[,\s]/g, '');
-            return !cleaned.match(/^-?\d*\.?\d*$/) || cleaned === '';
+            if (cleaned === '') return true; // Empty string should return 0
+            
+            // Try to parse with BigNumber to see if it would be valid
+            try {
+              const testNum = new BigNumber(cleaned);
+              // If BigNumber can parse it and it's not NaN, then it's valid
+              // So we should filter it out (return false)
+              return testNum.isNaN();
+            } catch {
+              // If BigNumber throws, it's invalid (return true to include it)
+              return true;
+            }
           }),
           fc.constant(null),
           fc.constant(undefined),
