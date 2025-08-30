@@ -31,24 +31,35 @@ export function validateBitcoinAddress(address: string): AddressValidationResult
     return { isValid: false, error: 'Invalid characters in address' };
   }
 
-  // P2PKH - Legacy (mainnet starts with 1)
+  // P2PKH - Legacy (mainnet starts with 1, total 26-35 chars)
+  // Most common length is 34 chars
   if (/^1[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(cleaned)) {
-    return { isValid: true, addressType: 'P2PKH', network: 'mainnet' };
+    if (cleaned.length >= 26 && cleaned.length <= 35) {
+      return { isValid: true, addressType: 'P2PKH', network: 'mainnet' };
+    }
   }
 
-  // P2SH - Pay to Script Hash (mainnet starts with 3)
+  // P2SH - Pay to Script Hash (mainnet starts with 3, total 26-35 chars)
   if (/^3[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(cleaned)) {
-    return { isValid: true, addressType: 'P2SH', network: 'mainnet' };
+    if (cleaned.length >= 26 && cleaned.length <= 35) {
+      return { isValid: true, addressType: 'P2SH', network: 'mainnet' };
+    }
   }
 
-  // P2WPKH - Native SegWit (mainnet starts with bc1q, 42 chars)
-  if (/^bc1q[a-z0-9]{38}$/.test(cleaned)) {
+  // P2WPKH - Native SegWit (mainnet starts with bc1q, exactly 42 chars)
+  // The 'q' represents witness version 0
+  if (cleaned.length === 42 && /^bc1q[a-z0-9]{38}$/.test(cleaned)) {
     return { isValid: true, addressType: 'P2WPKH', network: 'mainnet' };
   }
 
   // P2TR - Taproot (mainnet starts with bc1p, 42 or 62 chars)
-  if (/^bc1p[a-z0-9]{38}$/.test(cleaned) || /^bc1p[a-z0-9]{58}$/.test(cleaned)) {
-    return { isValid: true, addressType: 'P2TR', network: 'mainnet' };
+  // The 'p' represents witness version 1
+  if ((cleaned.length === 42 || cleaned.length === 62) && /^bc1p[a-z0-9]{38,58}$/.test(cleaned)) {
+    // Additional check to ensure proper length match
+    if ((cleaned.length === 42 && cleaned.match(/^bc1p[a-z0-9]{38}$/)) ||
+        (cleaned.length === 62 && cleaned.match(/^bc1p[a-z0-9]{58}$/))) {
+      return { isValid: true, addressType: 'P2TR', network: 'mainnet' };
+    }
   }
 
   // P2WSH - Native SegWit Script (mainnet starts with bc1q, 62 chars)
@@ -58,20 +69,27 @@ export function validateBitcoinAddress(address: string): AddressValidationResult
 
   // Testnet P2PKH/P2SH (starts with m, n, or 2)
   if (/^[mn][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(cleaned)) {
-    return { isValid: true, addressType: 'P2PKH', network: 'testnet' };
+    if (cleaned.length >= 26 && cleaned.length <= 35) {
+      return { isValid: true, addressType: 'P2PKH', network: 'testnet' };
+    }
   }
   
   if (/^2[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(cleaned)) {
-    return { isValid: true, addressType: 'P2SH', network: 'testnet' };
+    if (cleaned.length >= 26 && cleaned.length <= 35) {
+      return { isValid: true, addressType: 'P2SH', network: 'testnet' };
+    }
   }
 
   // Testnet SegWit (starts with tb1)
-  if (/^tb1q[a-z0-9]{38}$/.test(cleaned)) {
+  if (cleaned.length === 42 && /^tb1q[a-z0-9]{38}$/.test(cleaned)) {
     return { isValid: true, addressType: 'P2WPKH', network: 'testnet' };
   }
 
-  if (/^tb1p[a-z0-9]{58}$/.test(cleaned)) {
-    return { isValid: true, addressType: 'P2TR', network: 'testnet' };
+  if ((cleaned.length === 42 || cleaned.length === 62) && /^tb1p[a-z0-9]{38,58}$/.test(cleaned)) {
+    if ((cleaned.length === 42 && cleaned.match(/^tb1p[a-z0-9]{38}$/)) ||
+        (cleaned.length === 62 && cleaned.match(/^tb1p[a-z0-9]{58}$/))) {
+      return { isValid: true, addressType: 'P2TR', network: 'testnet' };
+    }
   }
 
   // Regtest addresses

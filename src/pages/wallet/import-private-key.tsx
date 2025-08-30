@@ -20,7 +20,7 @@ import { YouTubeTutorialCTA } from "@/components/youtube-tutorial-cta";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressType } from "@/utils/blockchain/bitcoin";
-import { validatePrivateKeyFormat, detectPrivateKeyFormat } from "@/utils/validation";
+import { validatePrivateKeyFormat } from "@/utils/validation";
 
 const ImportPrivateKey = () => {
   const navigate = useNavigate();
@@ -80,12 +80,6 @@ const ImportPrivateKey = () => {
   const handlePrivateKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setPrivateKeyValue(value);
-    
-    // Auto-detect and suggest address type based on private key format
-    const validation = validatePrivateKeyFormat(value);
-    if (validation.isValid && validation.suggestedAddressType) {
-      setAddressType(validation.suggestedAddressType);
-    }
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -130,9 +124,8 @@ const ImportPrivateKey = () => {
     }
 
     try {
-      // Use the validated address type or the user-selected one
-      const finalAddressType = validation.suggestedAddressType || addressType;
-      await createAndUnlockPrivateKeyWallet(privateKey.trim(), password, undefined, finalAddressType);
+      // Always use the user-selected address type from the dropdown
+      await createAndUnlockPrivateKeyWallet(privateKey.trim(), password, undefined, addressType);
       navigate(PATHS.SUCCESS);
     } catch (error) {
       let errorMessage = "Failed to import private key. ";

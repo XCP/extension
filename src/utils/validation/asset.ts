@@ -68,6 +68,11 @@ export function validateSubasset(fullName: string, parentAsset?: string): { isVa
     return { isValid: false, error: "Subasset name is required" };
   }
 
+  // Check for consecutive periods first (invalid format)
+  if (fullName.includes('..')) {
+    return { isValid: false, error: "Invalid subasset format" };
+  }
+  
   // Must contain at least one dot separating parent and child
   const dotIndex = fullName.indexOf('.');
   if (dotIndex === -1) {
@@ -111,11 +116,6 @@ export function validateSubasset(fullName: string, parentAsset?: string): { isVa
   // Can't end with a period
   if (child.endsWith('.')) {
     return { isValid: false, error: "Subasset name cannot end with a period" };
-  }
-
-  // Can't have consecutive periods
-  if (child.includes('..')) {
-    return { isValid: false, error: "Subasset name cannot contain consecutive periods" };
   }
 
   return { isValid: true };
