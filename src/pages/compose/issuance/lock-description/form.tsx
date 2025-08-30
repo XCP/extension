@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
+import { Spinner } from "@/components/spinner";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
@@ -37,7 +38,7 @@ export function LockDescriptionForm({
 }: LockDescriptionFormProps): ReactElement {
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
-  const { error: assetError, data: assetDetails } = useAssetDetails(asset);
+  const { error: assetError, data: assetDetails, isLoading: assetLoading } = useAssetDetails(asset);
   const { pending } = useFormStatus();
   const [error, setError] = useState<{ message: string; } | null>(null);
 
@@ -47,6 +48,10 @@ export function LockDescriptionForm({
       setError({ message: composerError });
     }
   }, [composerError]);
+
+  if (assetLoading) {
+    return <Spinner message="Loading asset details..." />;
+  }
 
   if (assetError || !assetDetails) {
     return (
