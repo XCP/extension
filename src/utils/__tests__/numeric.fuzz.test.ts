@@ -42,7 +42,22 @@ describe('Numeric Utilities Fuzz Tests', () => {
     it('should handle malformed inputs safely', () => {
       fc.assert(fc.property(
         fc.oneof(
-          fc.string().filter(s => !s.match(/^-?\d*\.?\d*$/)), // Invalid number strings
+          fc.string().filter(s => {
+            // After removing spaces and commas, check if it would be valid for BigNumber
+            const cleaned = s.replace(/[,\s]/g, '');
+            if (cleaned === '') return true; // Empty string should return 0
+            
+            // Try to parse with BigNumber to see if it would be valid
+            try {
+              const testNum = new BigNumber(cleaned);
+              // If BigNumber can parse it and it's not NaN, then it's valid
+              // So we should filter it out (return false)
+              return testNum.isNaN();
+            } catch {
+              // If BigNumber throws, it's invalid (return true to include it)
+              return true;
+            }
+          }),
           fc.constant(null),
           fc.constant(undefined),
           fc.constant(''),

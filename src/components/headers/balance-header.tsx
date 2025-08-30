@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useHeader } from '@/contexts/header-context';
 import { formatAmount } from '@/utils/format';
 
@@ -33,6 +33,9 @@ interface BalanceHeaderProps {
  */
 export const BalanceHeader = ({ balance, className = '' }: BalanceHeaderProps) => {
   const { setBalanceHeader } = useHeader();
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const prevAssetRef = useRef<string | null>(null);
 
   // Update cache with the current balance data
   useEffect(() => {
@@ -41,6 +44,18 @@ export const BalanceHeader = ({ balance, className = '' }: BalanceHeaderProps) =
 
   // Always use props data as the source of truth
   const displayBalance = balance;
+
+  // Reset image state when asset changes
+  useEffect(() => {
+    if (prevAssetRef.current !== displayBalance.asset) {
+      // Only reset if asset actually changed
+      if (prevAssetRef.current !== null) {
+        setImageLoaded(false);
+        setImageError(false);
+      }
+      prevAssetRef.current = displayBalance.asset;
+    }
+  }, [displayBalance.asset]);
 
   // Format the balance based on divisibility
   const formattedBalance = displayBalance.quantity_normalized
@@ -65,13 +80,36 @@ export const BalanceHeader = ({ balance, className = '' }: BalanceHeaderProps) =
       ? 'text-lg'
       : 'text-xl';
 
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+    setImageError(false);
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
+    setImageLoaded(true);
+  };
+
   return (
     <div className={`flex items-center ${className}`}>
-      <img
-        src={`https://app.xcp.io/img/icon/${displayBalance.asset}`}
-        alt={displayBalance.asset}
-        className="w-12 h-12 mr-4"
-      />
+      <div className="relative w-12 h-12 mr-4">
+        {/* Placeholder/fallback */}
+        {(!imageLoaded || imageError) && (
+          <div className="absolute inset-0 bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs font-semibold">
+            {displayBalance.asset.slice(0, 3)}
+          </div>
+        )}
+        {/* Actual image */}
+        <img
+          src={`https://app.xcp.io/img/icon/${displayBalance.asset}`}
+          alt={displayBalance.asset}
+          className={`absolute inset-0 w-12 h-12 transition-opacity duration-200 ${
+            imageLoaded && !imageError ? 'opacity-100' : 'opacity-0'
+          }`}
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+        />
+      </div>
       <div>
         <h2 className={`${textSizeClass} font-bold break-all`}>{displayName}</h2>
         <p className="text-sm text-gray-600">Available: {formattedBalance}</p>

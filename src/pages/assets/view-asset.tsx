@@ -211,9 +211,19 @@ export default function ViewAsset(): ReactElement {
     return actions;
   };
 
-  if (isLoading) return <Spinner message="Loading asset details..." />;
-  if (error || !assetDetails) {
+  // Show spinner only on initial load or when there's no cached data
+  if (isLoading && !assetDetails) {
+    return <Spinner message="Loading asset details..." />;
+  }
+  
+  // Only show error if there's an actual error and no cached data to display
+  if (error && !assetDetails) {
     return <div className="p-4 text-center text-gray-600">Failed to load asset information</div>;
+  }
+  
+  // If we don't have data yet and not loading, return empty div to prevent flash
+  if (!assetDetails) {
+    return <div />;
   }
 
   return (
