@@ -77,11 +77,14 @@ export default function AdvancedSettings(): ReactElement {
           onValidationSuccess={async (url) => {
             await updateSettings({ counterpartyApiBase: url });
           }}
+          showHelpText={shouldShowHelpText}
           className="mt-2"
         />
-        <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-          The Counterparty API endpoint URL. Must be a mainnet API server.
-        </Description>
+        {shouldShowHelpText && (
+          <Description className="mt-2 text-sm text-gray-500">
+            The Counterparty API endpoint URL. Must be a mainnet API server.
+          </Description>
+        )}
       </Field>
 
       <Field>

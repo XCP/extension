@@ -10,6 +10,7 @@ interface ApiUrlInputProps {
   onValidationSuccess: (url: string) => Promise<void>;
   disabled?: boolean;
   className?: string;
+  showHelpText?: boolean;
 }
 
 export const ApiUrlInput = ({ 
@@ -17,7 +18,8 @@ export const ApiUrlInput = ({
   onChange, 
   onValidationSuccess,
   disabled = false,
-  className = ''
+  className = '',
+  showHelpText = true
 }: ApiUrlInputProps) => {
   const [localValue, setLocalValue] = useState(value);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +66,15 @@ export const ApiUrlInput = ({
 
   const isDefault = localValue === DEFAULT_KEYCHAIN_SETTINGS.counterpartyApiBase;
 
+  // Determine border color based on state
+  const getBorderClass = () => {
+    if (!showHelpText) {
+      if (error) return 'border-red-500 focus:border-red-500 focus:ring-red-500';
+      if (showSuccess && !isValidating) return 'border-green-500 focus:border-green-500 focus:ring-green-500';
+    }
+    return 'border-gray-300 focus:border-blue-500 focus:ring-blue-500';
+  };
+
   return (
     <div className={`space-y-2 ${className}`}>
       <div className="flex gap-2">
@@ -78,7 +89,7 @@ export const ApiUrlInput = ({
           onBlur={handleBlur}
           disabled={disabled || isValidating}
           placeholder="https://api.counterparty.io:4000"
-          className="flex-1 p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+          className={`flex-1 p-2 rounded-md border bg-gray-50 focus:ring-2 disabled:opacity-50 transition-colors ${getBorderClass()}`}
         />
         <button
           onClick={handleReset}
@@ -91,17 +102,21 @@ export const ApiUrlInput = ({
         </button>
       </div>
       
-      {isValidating && (
-        <p className="text-sm text-gray-500">Validating API endpoint...</p>
-      )}
-      {error && (
-        <p className="text-sm text-red-500">❌ {error}</p>
-      )}
-      {showSuccess && !isValidating && (
-        <p className="text-sm text-green-500">✓ API endpoint validated and saved successfully</p>
-      )}
-      {isDefault && !error && !isValidating && !showSuccess && (
-        <p className="text-sm text-gray-500">Using default API endpoint</p>
+      {showHelpText && (
+        <>
+          {isValidating && (
+            <p className="text-sm text-gray-500">Validating API endpoint...</p>
+          )}
+          {error && (
+            <p className="text-sm text-red-500">❌ {error}</p>
+          )}
+          {showSuccess && !isValidating && (
+            <p className="text-sm text-green-500">✓ API endpoint validated and saved successfully</p>
+          )}
+          {isDefault && !error && !isValidating && !showSuccess && (
+            <p className="text-sm text-gray-500">Using default API endpoint</p>
+          )}
+        </>
       )}
     </div>
   );
