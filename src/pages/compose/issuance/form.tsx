@@ -9,7 +9,7 @@ import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { AssetNameInput } from "@/components/inputs/asset-name-input";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { InscribeSwitch } from "@/components/inputs/inscribe-switch";
+import { SettingSwitch } from "@/components/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
 import { useSettings } from "@/contexts/settings-context";
 import { formatAmount } from "@/utils/format";
@@ -278,7 +278,9 @@ export function IssuanceForm({
           )}
           
           {isSegwitAddress && (
-            <InscribeSwitch
+            <SettingSwitch
+              label="Inscribe?"
+              description="Store message as a Taproot inscription (on-chain)"
               checked={inscribeEnabled}
               onChange={setInscribeEnabled}
               showHelpText={shouldShowHelpText}

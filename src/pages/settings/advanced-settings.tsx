@@ -4,10 +4,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCheck } from "react-icons/fa";
 import { FiHelpCircle } from "react-icons/fi";
-import { Switch, Field, Label, Description, RadioGroup, Input } from "@headlessui/react";
+import { Field, Label, Description, RadioGroup } from "@headlessui/react";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
-import { validateCounterpartyApi } from "@/utils/validation";
+import { ApiUrlInput } from "@/components/inputs/api-url-input";
+import { SettingSwitch } from "@/components/inputs/setting-switch";
 import type { AutoLockTimer } from "@/utils/storage";
 import type { ReactElement } from "react";
 
@@ -44,16 +45,6 @@ export default function AdvancedSettings(): ReactElement {
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings, isLoading } = useSettings();
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
-  const [apiUrl, setApiUrl] = useState("");
-  const [apiUrlError, setApiUrlError] = useState<string | null>(null);
-  const [isValidatingApi, setIsValidatingApi] = useState(false);
-
-  // Initialize API URL from settings
-  useEffect(() => {
-    if (settings?.counterpartyApiBase) {
-      setApiUrl(settings.counterpartyApiBase);
-    }
-  }, [settings?.counterpartyApiBase]);
 
   // Configure header
   useEffect(() => {
@@ -68,34 +59,6 @@ export default function AdvancedSettings(): ReactElement {
     });
   }, [setHeaderProps, navigate]);
 
-  // Handle API URL validation and update
-  const handleApiUrlValidation = async (url: string): Promise<boolean> => {
-    setIsValidatingApi(true);
-    setApiUrlError(null);
-
-    const result = await validateCounterpartyApi(url);
-    
-    if (result.isValid) {
-      // Success - update the setting
-      await updateSettings({ counterpartyApiBase: url });
-      setApiUrlError(null);
-      setIsValidatingApi(false);
-      return true;
-    } else {
-      setApiUrlError(result.error || "Failed to validate API");
-      setIsValidatingApi(false);
-      return false;
-    }
-  };
-
-  // Handle API URL change
-  const handleApiUrlChange = async () => {
-    if (apiUrl === settings.counterpartyApiBase) {
-      return; // No change
-    }
-    await handleApiUrlValidation(apiUrl);
-  };
-
   if (isLoading || !settings) return <div className="p-4 text-center text-gray-500">Loading...</div>;
 
   const shouldShowHelpText = isHelpTextOverride ? !settings.showHelpText : settings.showHelpText;
@@ -105,6 +68,22 @@ export default function AdvancedSettings(): ReactElement {
       <h2 id="advanced-settings-title" className="sr-only">
         Advanced Settings
       </h2>
+      
+      <Field>
+        <Label className="font-bold">Counterparty API</Label>
+        <ApiUrlInput
+          value={settings.counterpartyApiBase}
+          onChange={() => {}}
+          onValidationSuccess={async (url) => {
+            await updateSettings({ counterpartyApiBase: url });
+          }}
+          className="mt-2"
+        />
+        <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+          The Counterparty API endpoint URL. Must be a mainnet API server.
+        </Description>
+      </Field>
+
       <Field>
         <Label className="font-bold">Auto-Lock Timer</Label>
         <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
@@ -141,173 +120,62 @@ export default function AdvancedSettings(): ReactElement {
         </RadioGroup>
       </Field>
 
-      <Field>
-        <div className="flex items-center justify-between">
-          <Label className="font-bold">Enable MPMA Sends</Label>
-          <Switch
-            checked={settings.enableMPMA}
-            onChange={(checked) => updateSettings({ enableMPMA: checked })}
-            className={`${settings.enableMPMA ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
-          >
-            <span
-              className={`${
-                settings.enableMPMA ? "translate-x-6" : "translate-x-1"
-              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-            />
-          </Switch>
-        </div>
-        <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-          Enable multi-destination sends (MPMA) for supported assets.
-        </Description>
-      </Field>
+      <SettingSwitch
+        label="Use Unconfirmed TXs"
+        description="Enable this to chain transactions that haven't been confirmed yet."
+        checked={settings.allowUnconfirmedTxs}
+        onChange={(checked) => updateSettings({ allowUnconfirmedTxs: checked })}
+        showHelpText={shouldShowHelpText}
+      />
 
-      <Field>
-        <div className="flex items-center justify-between">
-          <Label className="font-bold">Advanced Broadcasts</Label>
-          <Switch
-            checked={settings.enableAdvancedBroadcasts}
-            onChange={(checked) => updateSettings({ enableAdvancedBroadcasts: checked })}
-            className={`${settings.enableAdvancedBroadcasts ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
-          >
-            <span
-              className={`${
-                settings.enableAdvancedBroadcasts ? "translate-x-6" : "translate-x-1"
-              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-            />
-          </Switch>
-        </div>
-        <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-          Show advanced options for broadcast transactions (value and fee fraction).
-        </Description>
-      </Field>
+      <SettingSwitch
+        label="Enable MPMA Sends"
+        description="Enable multi-destination sends (MPMA) for supported assets."
+        checked={settings.enableMPMA}
+        onChange={(checked) => updateSettings({ enableMPMA: checked })}
+        showHelpText={shouldShowHelpText}
+      />
 
-      <Field>
-        <div className="flex items-center justify-between">
-          <Label className="font-bold">Use Advanced Betting</Label>
-          <Switch
-            checked={settings.enableAdvancedBetting}
-            onChange={(checked) => updateSettings({ enableAdvancedBetting: checked })}
-            className={`${settings.enableAdvancedBetting ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
-          >
-            <span
-              className={`${
-                settings.enableAdvancedBetting ? "translate-x-6" : "translate-x-1"
-              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-            />
-          </Switch>
-        </div>
-        <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-          Show betting options in the actions menu.
-        </Description>
-      </Field>
+      <SettingSwitch
+        label="Advanced Broadcasts"
+        description="Show advanced options for broadcast transactions (value and fee fraction)."
+        checked={settings.enableAdvancedBroadcasts}
+        onChange={(checked) => updateSettings({ enableAdvancedBroadcasts: checked })}
+        showHelpText={shouldShowHelpText}
+      />
 
-      <Field>
-        <div className="flex items-center justify-between">
-          <Label className="font-bold">Use Unconfirmed TXs</Label>
-          <Switch
-            checked={settings.allowUnconfirmedTxs}
-            onChange={(checked) => updateSettings({ allowUnconfirmedTxs: checked })}
-            className={`${settings.allowUnconfirmedTxs ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
-          >
-            <span
-              className={`${
-                settings.allowUnconfirmedTxs ? "translate-x-6" : "translate-x-1"
-              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-            />
-          </Switch>
-        </div>
-        <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-          Enable this to chain transactions that haven't been confirmed yet.
-        </Description>
-      </Field>
+      <SettingSwitch
+        label="Advanced Betting"
+        description="Show betting options in the actions menu."
+        checked={settings.enableAdvancedBetting}
+        onChange={(checked) => updateSettings({ enableAdvancedBetting: checked })}
+        showHelpText={shouldShowHelpText}
+      />
 
-      <Field>
-        <div className="flex items-center justify-between">
-          <Label className="font-bold">Show/Hide Help Text</Label>
-          <Switch
-            checked={settings.showHelpText}
-            onChange={(checked) => updateSettings({ showHelpText: checked })}
-            className={`${settings.showHelpText ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
-          >
-            <span
-              className={`${
-                settings.showHelpText ? "translate-x-6" : "translate-x-1"
-              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-            />
-          </Switch>
-        </div>
-        <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-          Show or hide help text by default.
-        </Description>
-      </Field>
+      <SettingSwitch
+        label="Show/Hide Help Text"
+        description="Show or hide help text by default."
+        checked={settings.showHelpText}
+        onChange={(checked) => updateSettings({ showHelpText: checked })}
+        showHelpText={shouldShowHelpText}
+      />
 
-      <Field>
-        <div className="flex items-center justify-between">
-          <Label className="font-bold">Anonymous Analytics</Label>
-          <Switch
-            checked={settings.analyticsAllowed}
-            onChange={(checked) => updateSettings({ analyticsAllowed: checked })}
-            className={`${settings.analyticsAllowed ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
-          >
-            <span
-              className={`${
-                settings.analyticsAllowed ? "translate-x-6" : "translate-x-1"
-              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-            />
-          </Switch>
-        </div>
-        <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-          Choose whether to share usage data.
-        </Description>
-      </Field>
-
-      <Field>
-        <Label className="font-bold">Counterparty API URL</Label>
-        <div className="mt-2 space-y-2">
-          <Input
-            type="url"
-            value={apiUrl}
-            onChange={(e) => setApiUrl(e.target.value)}
-            onBlur={handleApiUrlChange}
-            disabled={isValidatingApi}
-            placeholder="https://api.counterparty.io:4000"
-            className="w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
-          />
-          {isValidatingApi && (
-            <p className="text-sm text-gray-500">Validating API endpoint...</p>
-          )}
-          {apiUrlError && (
-            <p className="text-sm text-red-500">{apiUrlError}</p>
-          )}
-          {!apiUrlError && !isValidatingApi && apiUrl === settings.counterpartyApiBase && (
-            <p className="text-sm text-green-500">✓ API endpoint is valid</p>
-          )}
-        </div>
-        <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-          The Counterparty API endpoint URL. Must be a mainnet API server.
-        </Description>
-      </Field>
+      <SettingSwitch
+        label="Anonymous Analytics"
+        description="Choose whether to share usage data."
+        checked={settings.analyticsAllowed}
+        onChange={(checked) => updateSettings({ analyticsAllowed: checked })}
+        showHelpText={shouldShowHelpText}
+      />
 
       {process.env.NODE_ENV === 'development' && (
-        <Field>
-          <div className="flex items-center justify-between">
-            <Label className="font-bold">Transaction Dry Run</Label>
-            <Switch
-              checked={settings.transactionDryRun}
-              onChange={(checked) => updateSettings({ transactionDryRun: checked })}
-              className={`${settings.transactionDryRun ? "bg-blue-600" : "bg-gray-200"} p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
-            >
-              <span
-                className={`${
-                  settings.transactionDryRun ? "translate-x-6" : "translate-x-1"
-                } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-              />
-            </Switch>
-          </div>
-          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-            When enabled, transactions will be simulated instead of being broadcast to the network.
-          </Description>
-        </Field>
+        <SettingSwitch
+          label="Transaction Dry Run"
+          description="When enabled, transactions will be simulated instead of being broadcast to the network."
+          checked={settings.transactionDryRun}
+          onChange={(checked) => updateSettings({ transactionDryRun: checked })}
+          showHelpText={shouldShowHelpText}
+        />
       )}
     </div>
   );

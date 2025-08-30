@@ -7,7 +7,7 @@ import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { AddressHeader } from "@/components/headers/address-header";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { InscribeSwitch } from "@/components/inputs/inscribe-switch";
+import { SettingSwitch } from "@/components/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
@@ -170,7 +170,9 @@ export function BroadcastForm({ formAction, initialFormData, error: composerErro
           )}
 
           {isSegwitAddress && (
-            <InscribeSwitch
+            <SettingSwitch
+              label="Inscribe?"
+              description="Store message as a Taproot inscription (on-chain)"
               checked={inscribeEnabled}
               onChange={setInscribeEnabled}
               showHelpText={shouldShowHelpText}
