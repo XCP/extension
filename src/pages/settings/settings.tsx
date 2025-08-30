@@ -134,11 +134,11 @@ export default function Settings(): ReactElement {
 
   return (
     <div className="flex flex-col h-full" role="main" aria-labelledby="settings-title">
-      <h2 id="settings-title" className="sr-only">
-        Settings
-      </h2>
       <div className="flex-1 overflow-auto no-scrollbar">
         <div className="p-4">
+          <h2 id="settings-title" className="text-lg font-semibold mb-4">
+            Settings
+          </h2>
           <div className="space-y-2">
             {settingOptions.map((option) => (
               <div
