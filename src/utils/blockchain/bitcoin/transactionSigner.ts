@@ -104,7 +104,9 @@ export async function signTransaction(
       throw new Error(`Output not found in previous transaction for input ${i}: ${txidHex}:${input.index}`);
     }
     
-    prevOutputScripts.push(prevOutput.script);
+    if (prevOutput.script) {
+      prevOutputScripts.push(prevOutput.script);
+    }
     
     const inputData: any = {
       txid: input.txid,
@@ -119,8 +121,12 @@ export async function signTransaction(
         script: prevOutput.script,
         amount: prevOutput.amount,
       };
-      if (wallet.addressType === AddressType.P2SH_P2WPKH && 'redeemScript' in payment && payment.redeemScript) {
-        inputData.redeemScript = payment.redeemScript;
+      if (wallet.addressType === AddressType.P2SH_P2WPKH) {
+        // Generate redeem script for nested SegWit
+        const redeemScript = p2wpkh(pubkeyBytes).script;
+        if (redeemScript) {
+          inputData.redeemScript = redeemScript;
+        }
       }
     }
     tx.addInput(inputData);

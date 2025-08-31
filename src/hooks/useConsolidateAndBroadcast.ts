@@ -22,10 +22,11 @@ export function useConsolidateAndBroadcast() {
     setIsProcessing(true);
     try {
       // Get the private key using wallet context
-      const { key: privateKey } = await getPrivateKey(
+      const privateKeyResult = await getPrivateKey(
         activeWallet.id,
         activeAddress.path // Use the derivation path from activeAddress
       );
+      const privateKey = privateKeyResult.key;
 
       // Get signed transaction hex using the retrieved private key
       const signedTxHex = await consolidateBareMultisig(

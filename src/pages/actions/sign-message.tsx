@@ -89,10 +89,12 @@ export default function SignMessage(): ReactElement {
       
       // Get private key using wallet context
       // This handles both mnemonic and private key wallets correctly
-      const { key: privateKeyHex, compressed } = await getPrivateKey(
+      const privateKeyResult = await getPrivateKey(
         activeWallet.id,
         activeAddress.path
       );
+      const privateKeyHex = privateKeyResult.key;
+      const compressed = privateKeyResult.compressed;
       
       // Sign the message
       const result = await signMessage(

@@ -63,7 +63,7 @@ interface WalletContextType {
   ) => Promise<Wallet>;
   resetAllWallets: (password: string) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
-  getPrivateKey: (walletId: string, derivationPath?: string) => Promise<string>;
+  getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ key: string; compressed: boolean }>;
   setLastActiveTime: () => Promise<void>;
   verifyPassword: (password: string) => Promise<boolean>;
   updateWalletAddressType: (walletId: string, newType: AddressType) => Promise<void>;
