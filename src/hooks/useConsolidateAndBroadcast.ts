@@ -22,7 +22,7 @@ export function useConsolidateAndBroadcast() {
     setIsProcessing(true);
     try {
       // Get the private key using wallet context
-      const privateKey = await getPrivateKey(
+      const { key: privateKey } = await getPrivateKey(
         activeWallet.id,
         activeAddress.path // Use the derivation path from activeAddress
       );

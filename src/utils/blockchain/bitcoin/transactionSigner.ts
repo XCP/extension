@@ -1,8 +1,13 @@
-import { Transaction, p2pkh, p2wpkh, p2sh, p2tr, SigHash } from '@scure/btc-signer';
+import { Transaction, p2pkh, p2wpkh, p2sh, p2tr, SigHash, Address as BtcAddress } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
-import { AddressType } from '@/utils/blockchain/bitcoin/address';
-import { fetchUTXOs, getUtxoByTxid, fetchPreviousRawTransaction } from '@/utils/blockchain/bitcoin/utxo';
+import { 
+  AddressType, 
+  fetchUTXOs, 
+  getUtxoByTxid, 
+  fetchPreviousRawTransaction,
+  signAllInputsWithUncompressedKey 
+} from '@/utils/blockchain/bitcoin';
 import type { Wallet, Address } from '@/utils/wallet';
 
 function paymentScript(pubkeyBytes: Uint8Array, addressType: AddressType) {
@@ -25,14 +30,14 @@ export async function signTransaction(
   rawTransaction: string,
   wallet: Wallet,
   targetAddress: Address,
-  privateKeyHex: string
+  privateKeyHex: string,
+  compressed: boolean = true
 ): Promise<string> {
   if (!wallet) throw new Error('Wallet not provided');
   if (!targetAddress) throw new Error('Target address not provided');
 
   const privateKeyBytes = hexToBytes(privateKeyHex);
-  const pubkeyBytes = getPublicKey(privateKeyBytes, true);
-  const payment = paymentScript(pubkeyBytes, wallet.addressType);
+  const pubkeyBytes = getPublicKey(privateKeyBytes, compressed);
   
   // Retry fetching UTXOs with a small delay to handle timing issues
   let utxos = await fetchUTXOs(targetAddress.address);
@@ -56,8 +61,11 @@ export async function signTransaction(
     allowUnknownInputs: true,
     allowUnknownOutputs: true,
     allowLegacyWitnessUtxo: true,
-    disableScriptCheck: true
+    disableScriptCheck: true,
+    allowUnknown: true
   });
+
+  const prevOutputScripts: Uint8Array[] = [];
 
   for (let i = 0; i < parsedTx.inputsLength; i++) {
     const input = parsedTx.getInput(i);
@@ -95,6 +103,9 @@ export async function signTransaction(
     if (!prevOutput) {
       throw new Error(`Output not found in previous transaction for input ${i}: ${txidHex}:${input.index}`);
     }
+    
+    prevOutputScripts.push(prevOutput.script);
+    
     const inputData: any = {
       txid: input.txid,
       index: input.index,
@@ -123,7 +134,16 @@ export async function signTransaction(
     });
   }
 
-  tx.sign(privateKeyBytes);
+  // Sign the transaction
+  if (!compressed && (wallet.addressType === AddressType.P2PKH || wallet.addressType === AddressType.Counterwallet)) {
+    // Uncompressed P2PKH requires custom signing
+    signAllInputsWithUncompressedKey(tx, privateKeyBytes, pubkeyBytes, prevOutputScripts);
+  } else {
+    // Standard signing for all compressed keys
+    tx.sign(privateKeyBytes);
+  }
+  
   tx.finalize();
+  
   return tx.hex;
 }

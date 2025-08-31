@@ -56,7 +56,9 @@ export function validateFeeRate(
   // Parse the fee rate
   let rate: BigNumber;
   try {
-    rate = toBigNumber(feeRate);
+    // Convert to string first to handle decimals properly
+    const feeRateStr = typeof feeRate === 'string' ? feeRate : feeRate.toString();
+    rate = toBigNumber(feeRateStr);
   } catch (e) {
     return { isValid: false, error: 'Invalid fee rate format' };
   }
@@ -76,16 +78,18 @@ export function validateFeeRate(
     return { isValid: false, error: 'Fee rate cannot be zero' };
   }
 
-  // Check minimum
-  if (rate.isLessThan(minRate)) {
+  // Check minimum - convert minRate to BigNumber for proper comparison
+  const minRateBN = toBigNumber(minRate.toString());
+  if (rate.isLessThan(minRateBN)) {
     return { 
       isValid: false, 
       error: `Fee rate too low (minimum: ${minRate} sat/vB)` 
     };
   }
 
-  // Check maximum
-  if (rate.isGreaterThan(maxRate)) {
+  // Check maximum - convert maxRate to BigNumber for proper comparison
+  const maxRateBN = toBigNumber(maxRate.toString());
+  if (rate.isGreaterThan(maxRateBN)) {
     return { 
       isValid: false, 
       error: `Fee rate too high (maximum: ${maxRate} sat/vB)` 
