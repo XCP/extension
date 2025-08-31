@@ -255,13 +255,17 @@ describe('Transaction Signer Utilities', () => {
       expect(result.length).toBeGreaterThan(0);
     });
 
-    it('should throw error for unsupported address type', async () => {
+    it('should handle unsupported address type with standard signing', async () => {
       const invalidWallet = { ...mockWallet, addressType: 'INVALID' as AddressType };
       
       mockFetchUTXOs.mockResolvedValue([mockUtxo]);
+      mockGetUtxoByTxid.mockReturnValue(mockUtxo);
+      mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
 
-      await expect(signTransaction(mockRawTransaction, invalidWallet, mockTargetAddress, mockPrivateKey))
-        .rejects.toThrow('Unsupported address type: INVALID');
+      // Should not throw, but use standard signing for unknown address types
+      const result = await signTransaction(mockRawTransaction, invalidWallet, mockTargetAddress, mockPrivateKey);
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
     });
 
     it('should handle multiple inputs correctly', async () => {

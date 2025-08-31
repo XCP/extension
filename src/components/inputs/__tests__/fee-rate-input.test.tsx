@@ -61,7 +61,7 @@ describe('FeeRateInput', () => {
 
       render(<FeeRateInput />);
       
-      const input = screen.getByRole('spinbutton');
+      const input = screen.getByRole('textbox');
       expect(input).toBeInTheDocument();
       expect(input).toHaveAttribute('name', 'sat_per_vbyte');
     });
