@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaExclamationTriangle } from "react-icons/fa";
@@ -86,12 +86,12 @@ export default function ShowPrivateKey(): ReactElement {
 
     try {
       await unlockWallet(walletId, password);
-      const privKey =
+      const privKeyData =
         walletType === "privateKey"
           ? await getPrivateKey(walletId)
           : await getPrivateKey(walletId, addressPath);
-      if (!privKey) throw new Error("Failed to retrieve private key");
-      setPrivateKey(privKey);
+      if (!privKeyData) throw new Error("Failed to retrieve private key");
+      setPrivateKey(privKeyData.key);
       setIsConfirmed(true);
     } catch (err) {
       console.error("Error revealing private key:", err);

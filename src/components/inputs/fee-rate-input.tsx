@@ -84,11 +84,11 @@ export function FeeRateInput({
       return; // Ignore non-numeric input
     }
     
-    // Enforce maximum one decimal place during typing
-    if (parts.length === 2 && parts[1].length > 1) {
+    // Enforce maximum two decimal places during typing
+    if (parts.length === 2 && parts[1].length > 2) {
       const formattedValue = formatAmount({
         value: num,
-        maximumFractionDigits: 1,
+        maximumFractionDigits: 2,
         minimumFractionDigits: 0
       });
       setCustomInput(formattedValue);
@@ -133,7 +133,7 @@ export function FeeRateInput({
     // Format the final value and notify parent
     const formattedValue = formatAmount({
       value: num,
-      maximumFractionDigits: 1,
+      maximumFractionDigits: 2,
       minimumFractionDigits: 0
     });
     setCustomInput(formattedValue);
@@ -183,12 +183,11 @@ export function FeeRateInput({
         <div className="mt-1">
           <Input
             name="sat_per_vbyte"
-            type="number"
+            type="text"
+            inputMode="decimal"
             value={customInput}
             onChange={handleCustomInputChange}
             onBlur={handleCustomInputBlur}
-            min="0.1"
-            step="0.1"
             required
             disabled={disabled}
             invalid={!!internalError}
@@ -222,12 +221,11 @@ export function FeeRateInput({
           <div className="relative">
             <Input
               name="sat_per_vbyte"
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={customInput}
               onChange={handleCustomInputChange}
               onBlur={handleCustomInputBlur}
-              min="0.1"
-              step="0.1"
               required
               disabled={disabled}
               invalid={!!internalError}

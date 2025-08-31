@@ -2,96 +2,10 @@ import axios from 'axios';
 import { Transaction, SigHash, OutScript } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
-import { signECDSA } from '@scure/btc-signer/utils';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 import { toSatoshis } from '@/utils/numeric';
+import { hybridSignTransaction } from '@/utils/blockchain/bitcoin';
 
-/**
- * Re-implementation of concatBytes.
- * Concatenates an arbitrary number of Uint8Arrays into a single Uint8Array.
- */
-function concatBytes(...arrays: Uint8Array[]): Uint8Array {
-  const totalLength = arrays.reduce((acc, arr) => acc + arr.length, 0);
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const arr of arrays) {
-    result.set(arr, offset);
-    offset += arr.length;
-  }
-  return result;
-}
-
-/**
- * Signs a single input using the legacy (non-witness) preimage routine.
- * This routine bypasses the built-in signing (which only handles compressed keys)
- * by calling the internal preimage routine (via a cast to any) and then signing with
- * an uncompressed public key.
- */
-function customSignInput(
-  tx: Transaction,
-  idx: number,
-  privateKey: Uint8Array,
-  sighash: number = SigHash.ALL
-): void {
-  const input = tx.getInput(idx);
-  if (!input.redeemScript)
-    throw new Error(`Missing redeemScript for input ${idx}`);
-
-  // Access the transaction's legacy preimage routine.
-  // preimageLegacy is a private method so we cast tx as any.
-  const preimageLegacy = (tx as any).preimageLegacy;
-  if (typeof preimageLegacy !== 'function')
-    throw new Error('preimageLegacy method not accessible');
-  const hash: Uint8Array = preimageLegacy.call(tx, idx, input.redeemScript, sighash);
-
-  // Sign the hash using signECDSA (imported directly).
-  const sig: Uint8Array = signECDSA(hash, privateKey, (tx as any).opts.lowR);
-
-  // Append the sighash type byte.
-  const sigWithHash: Uint8Array = concatBytes(
-    sig,
-    new Uint8Array([sighash !== SigHash.DEFAULT ? sighash : 0])
-  );
-
-  // Get the uncompressed public key.
-  const uncompressedPubKey: Uint8Array = getPublicKey(privateKey, false);
-
-  // Update this input's partial signature so that finalize() later produces the correct unlocking script.
-  tx.updateInput(idx, { partialSig: [[uncompressedPubKey, sigWithHash]] }, true);
-}
-
-/**
- * Hybrid signing:
- * First attempt the built-in tx.sign(), then for any still-unsigned inputs whose redeem
- * script contains our uncompressed public key, use customSignInput().
- */
-function hybridSignTransaction(
-  tx: Transaction,
-  privateKey: Uint8Array,
-  publicKeyCompressed: Uint8Array,
-  publicKeyUncompressed: Uint8Array
-): void {
-  // Attempt built-in signing.
-  try {
-    tx.sign(privateKey);
-  } catch (e) {
-    console.error('Library sign encountered errors; proceeding with hybrid signing:', e);
-  }
-  // Now iterate over inputs that remain unsigned.
-  for (let i = 0; i < tx.inputsLength; i++) {
-    const input = tx.getInput(i);
-    if (input.partialSig && input.partialSig.length > 0) continue;
-    if (!input.redeemScript) continue;
-    const decoded = OutScript.decode(input.redeemScript);
-    // Only handle bare multisig inputs.
-    if (decoded.type !== 'ms') continue;
-    const pubkeysHex = decoded.pubkeys.map((pk: Uint8Array) => bytesToHex(pk));
-    // If the redeem script contains our uncompressed key, call our custom signing.
-    if (pubkeysHex.includes(bytesToHex(publicKeyUncompressed))) {
-      customSignInput(tx, i, privateKey, SigHash.ALL);
-    }
-  }
-}
 
 /**
  * Main consolidator function.
@@ -170,8 +84,37 @@ export async function consolidateBareMultisig(
 
   tx.addOutputAddress(targetAddress, outputAmount);
 
-  // Hybrid sign: first try built-in signing, then custom-sign any inputs that need uncompressed keys.
-  hybridSignTransaction(tx, privateKeyBytes, publicKeyCompressed, publicKeyUncompressed);
+  // Collect redeem scripts for each input (for bare multisig, the redeemScript is the scriptPubKey)
+  const prevOutputScripts: Uint8Array[] = [];
+  for (let i = 0; i < tx.inputsLength; i++) {
+    const input = tx.getInput(i);
+    if (!input.redeemScript) {
+      throw new Error(`Missing redeemScript for input ${i}`);
+    }
+    prevOutputScripts.push(input.redeemScript);
+  }
+
+  // Check function to determine if an input needs uncompressed signing
+  const checkForUncompressed = (idx: number): boolean => {
+    const input = tx.getInput(idx);
+    if (!input.redeemScript) return false;
+    
+    const decoded = OutScript.decode(input.redeemScript);
+    if (decoded.type !== 'ms') return false;
+    
+    const pubkeysHex = decoded.pubkeys.map((pk: Uint8Array) => bytesToHex(pk));
+    return pubkeysHex.includes(bytesToHex(publicKeyUncompressed));
+  };
+
+  // Use hybrid signing from shared utility
+  hybridSignTransaction(
+    tx,
+    privateKeyBytes,
+    publicKeyCompressed,
+    publicKeyUncompressed,
+    prevOutputScripts,
+    checkForUncompressed
+  );
 
   // Finalize the transaction (build final unlocking scripts).
   tx.finalize();
