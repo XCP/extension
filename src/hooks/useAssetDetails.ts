@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchBTCBalance } from "@/utils/blockchain/bitcoin";
+import { fetchBTCBalanceDetailed } from "@/utils/blockchain/bitcoin";
 import { fetchAssetDetailsAndBalance, fetchTokenUtxos } from "@/utils/blockchain/counterparty";
 import { AssetInfo } from '@/types/asset';
 
@@ -130,10 +130,11 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
         let result: AssetDetails;
 
         if (asset === 'BTC') {
-          const balanceSats = await fetchBTCBalance(activeAddress.address);
+          const balanceInfo = await fetchBTCBalanceDetailed(activeAddress.address);
+          // Use total (confirmed + unconfirmed) for available balance
           result = {
             isDivisible: true,
-            availableBalance: (balanceSats / 1e8).toString(),
+            availableBalance: (balanceInfo.total / 1e8).toString(),
             assetInfo: {
               asset_longname: null,
               description: 'Bitcoin',

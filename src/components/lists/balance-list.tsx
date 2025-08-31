@@ -4,22 +4,28 @@ import { useNavigate } from "react-router-dom";
 import { Spinner } from "@/components/spinner";
 import { BalanceMenu } from "@/components/menus/balance-menu";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchBTCBalance } from "@/utils/blockchain/bitcoin";
+import { fetchBTCBalanceDetailed, type BTCBalanceInfo } from "@/utils/blockchain/bitcoin";
 import { fetchTokenBalance, fetchTokenBalances } from "@/utils/blockchain/counterparty";
 import type { TokenBalance } from "@/utils/blockchain/counterparty";
 import { formatAmount, formatAsset } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 import { FaSearch, FaTimes } from "react-icons/fa";
+import { ImSpinner8 } from "react-icons/im";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 import { useSettings } from "@/contexts/settings-context";
 
-const BalanceItemComponent = ({ token }: { token: TokenBalance }): ReactElement => {
+interface ExtendedTokenBalance extends TokenBalance {
+  unconfirmed_quantity?: string;
+}
+
+const BalanceItemComponent = ({ token }: { token: ExtendedTokenBalance }): ReactElement => {
   const navigate = useNavigate();
   const imageUrl = `https://app.xcp.io/img/icon/${token.asset}`;
   const handleClick = () => {
     navigate(`/compose/send/${encodeURIComponent(token.asset)}`);
   };
-  const isDivisible = token.asset_info?.divisible ?? false;
+  const isDivisible = token.asset === "BTC" ? true : (token.asset_info?.divisible ?? false);
+  const hasUnconfirmed = token.unconfirmed_quantity && Number(token.unconfirmed_quantity) !== 0;
 
   return (
     <div
@@ -34,12 +40,26 @@ const BalanceItemComponent = ({ token }: { token: TokenBalance }): ReactElement 
           {formatAsset(token.asset, { assetInfo: token.asset_info, shorten: true })}
         </div>
         <div className="text-sm text-gray-500">
-          {formatAmount({
-            value: Number(token.quantity_normalized),
-            minimumFractionDigits: isDivisible ? 8 : 0,
-            maximumFractionDigits: isDivisible ? 8 : 0,
-            useGrouping: true,
-          })}
+          <span>
+            {formatAmount({
+              value: Number(token.quantity_normalized),
+              minimumFractionDigits: isDivisible ? 8 : 0,
+              maximumFractionDigits: isDivisible ? 8 : 0,
+              useGrouping: true,
+            })}
+          </span>
+          {hasUnconfirmed && (
+            <span className="ml-2 text-xs text-amber-600 flex items-center inline-flex">
+              <ImSpinner8 className="animate-spin mr-1 h-2 w-2" />
+              {Number(token.unconfirmed_quantity) > 0 ? '+' : ''}
+              {formatAmount({
+                value: Number(token.unconfirmed_quantity),
+                minimumFractionDigits: isDivisible ? 8 : 0,
+                maximumFractionDigits: isDivisible ? 8 : 0,
+                useGrouping: true,
+              })}
+            </span>
+          )}
         </div>
       </div>
       <div className="absolute top-2 right-2">
@@ -70,7 +90,7 @@ const SearchResultComponent = ({ asset }: { asset: { symbol: string } }): ReactE
 export const BalanceList = (): ReactElement => {
   const { activeWallet, activeAddress } = useWallet();
   const { settings } = useSettings();
-  const [allBalances, setAllBalances] = useState<TokenBalance[]>([]);
+  const [allBalances, setAllBalances] = useState<ExtendedTokenBalance[]>([]);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
@@ -84,7 +104,7 @@ export const BalanceList = (): ReactElement => {
     setInitialLoaded(false);
   }, [settings?.pinnedAssets]);
 
-  const upsertBalance = useCallback((balance: TokenBalance) => {
+  const upsertBalance = useCallback((balance: ExtendedTokenBalance) => {
     if (!balance?.asset || !balance?.quantity_normalized) return;
     setAllBalances((prev) => {
       const idx = prev.findIndex((b) => b.asset.toUpperCase() === balance.asset.toUpperCase());
@@ -108,15 +128,21 @@ export const BalanceList = (): ReactElement => {
     const loadInitialBalances = async () => {
       setIsInitialLoading(true);
       try {
-        const balanceSats = await fetchBTCBalance(activeAddress.address);
-        const balanceBTC = fromSatoshis(balanceSats, true);
-        const btcBalance: TokenBalance = {
+        const balanceInfo = await fetchBTCBalanceDetailed(activeAddress.address);
+        const confirmedBTC = fromSatoshis(balanceInfo.confirmed, true);
+        const unconfirmedBTC = fromSatoshis(balanceInfo.unconfirmed, true);
+        const btcBalance: ExtendedTokenBalance = {
           asset: "BTC",
           quantity_normalized: formatAmount({
-            value: balanceBTC,
+            value: confirmedBTC,
             maximumFractionDigits: 8,
             minimumFractionDigits: 8
           }),
+          unconfirmed_quantity: unconfirmedBTC !== 0 ? formatAmount({
+            value: unconfirmedBTC,
+            maximumFractionDigits: 8,
+            minimumFractionDigits: 8
+          }) : undefined,
           asset_info: { asset_longname: null, description: "Bitcoin", issuer: "", divisible: true, locked: true, supply: "21000000" },
         };
         if (!isCancelled) upsertBalance(btcBalance);
