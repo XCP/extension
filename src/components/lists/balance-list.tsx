@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Spinner } from "@/components/spinner";
 import { BalanceMenu } from "@/components/menus/balance-menu";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchBTCBalanceDetailed, type BTCBalanceInfo } from "@/utils/blockchain/bitcoin";
+import { fetchBTCBalanceDetailed, fetchMempoolTransactions, type BTCBalanceInfo } from "@/utils/blockchain/bitcoin";
 import { fetchTokenBalance, fetchTokenBalances } from "@/utils/blockchain/counterparty";
 import type { TokenBalance } from "@/utils/blockchain/counterparty";
 import { formatAmount, formatAsset } from "@/utils/format";
@@ -16,6 +16,7 @@ import { useSettings } from "@/contexts/settings-context";
 
 interface ExtendedTokenBalance extends TokenBalance {
   unconfirmed_quantity?: string;
+  pending_tx_count?: number;
 }
 
 const BalanceItemComponent = ({ token }: { token: ExtendedTokenBalance }): ReactElement => {
@@ -49,7 +50,8 @@ const BalanceItemComponent = ({ token }: { token: ExtendedTokenBalance }): React
             })}
           </span>
           {hasUnconfirmed && (
-            <span className="ml-2 text-xs text-amber-600 flex items-center inline-flex">
+            <span className="ml-2 text-xs text-amber-600 flex items-center inline-flex" 
+                  title={token.pending_tx_count ? `${token.pending_tx_count} pending transaction${token.pending_tx_count > 1 ? 's' : ''}` : 'Pending transaction'}>
               <ImSpinner8 className="animate-spin mr-1 h-2 w-2" />
               {Number(token.unconfirmed_quantity) > 0 ? '+' : ''}
               {formatAmount({
@@ -128,9 +130,13 @@ export const BalanceList = (): ReactElement => {
     const loadInitialBalances = async () => {
       setIsInitialLoading(true);
       try {
-        const balanceInfo = await fetchBTCBalanceDetailed(activeAddress.address);
+        const balanceInfo = await fetchBTCBalanceDetailed(activeAddress.address, 5000, true);
         const confirmedBTC = fromSatoshis(balanceInfo.confirmed, true);
         const unconfirmedBTC = fromSatoshis(balanceInfo.unconfirmed, true);
+        
+        // Count pending transactions if we have them
+        const pendingTxCount = balanceInfo.pendingTxs?.length || 0;
+        
         const btcBalance: ExtendedTokenBalance = {
           asset: "BTC",
           quantity_normalized: formatAmount({
@@ -143,6 +149,7 @@ export const BalanceList = (): ReactElement => {
             maximumFractionDigits: 8,
             minimumFractionDigits: 8
           }) : undefined,
+          pending_tx_count: pendingTxCount > 0 ? pendingTxCount : undefined,
           asset_info: { asset_longname: null, description: "Bitcoin", issuer: "", divisible: true, locked: true, supply: "21000000" },
         };
         if (!isCancelled) upsertBalance(btcBalance);
