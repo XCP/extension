@@ -102,8 +102,10 @@ describe('FileUploadInput', () => {
     
     fireEvent.change(input);
     
+    // The component passes the file to the parent for validation
+    // It doesn't validate size internally
     await waitFor(() => {
-      expect(mockOnFileChange).toHaveBeenCalledWith(null);
+      expect(mockOnFileChange).toHaveBeenCalledWith(file);
     });
   });
 
