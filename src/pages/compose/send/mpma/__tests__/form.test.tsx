@@ -50,7 +50,7 @@ vi.mock('@/contexts/wallet-context', () => ({
 // Mock settings context
 vi.mock('@/contexts/settings-context', () => ({
   useSettings: () => ({
-    settings: { showHelpText: false },
+    settings: { showHelpText: true },
     updateSettings: vi.fn(),
     isLoading: false
   })
@@ -67,6 +67,20 @@ vi.mock('@/contexts/loading-context', () => ({
     hideLoading: vi.fn(),
     loading: false,
     setLoading: vi.fn()
+  })
+}));
+
+// Mock header context
+vi.mock('@/contexts/header-context', () => ({
+  useHeader: () => ({
+    headerProps: { title: "", useLogoTitle: false },
+    setHeaderProps: vi.fn(),
+    subheadings: { addresses: {}, assets: {}, balances: {} },
+    setAddressHeader: vi.fn(),
+    setAssetHeader: vi.fn(),
+    setBalanceHeader: vi.fn(),
+    clearBalances: vi.fn(),
+    clearAllCaches: vi.fn()
   })
 }));
 
