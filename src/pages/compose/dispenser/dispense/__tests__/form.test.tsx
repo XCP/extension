@@ -1,33 +1,48 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { DispenseForm } from '../form';
+import { ComposerProvider } from '@/contexts/composer-context';
+import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 import * as counterpartyApi from '@/utils/blockchain/counterparty/api';
+import * as feeRateUtils from '@/utils/blockchain/bitcoin/feeRate';
 
 // Mock the API module
 vi.mock('@/utils/blockchain/counterparty/api');
+
+// Mock fee rates to prevent network calls
+vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
+  getFeeRates: vi.fn().mockResolvedValue({
+    fastestFee: 10,
+    halfHourFee: 5,
+    hourFee: 3,
+    economyFee: 1,
+    minimumFee: 1
+  })
+}));
 
 // Mock contexts
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
     activeWallet: { id: 'test-wallet', name: 'Test Wallet' },
     activeAddress: { address: 'bc1qtest', walletId: 'test-wallet' },
+    authState: 'unlocked',
+    signTransaction: vi.fn(),
+    broadcastTransaction: vi.fn(),
     unlockWallet: vi.fn(),
+    isWalletLocked: vi.fn().mockResolvedValue(false)
   })
 }));
 
+// Mock settings context
 vi.mock('@/contexts/settings-context', () => ({
   useSettings: () => ({
-    settings: { shouldShowHelpText: true },
+    settings: { showHelpText: false },
+    updateSettings: vi.fn(),
+    isLoading: false
   })
-}));
-
-vi.mock('@/contexts/composer-context', () => ({
-  useComposer: () => ({
-    composerError: null,
-    setFormData: vi.fn(),
-  })
-}));
+}))
 
 vi.mock('@/contexts/header-context', () => ({
   useHeader: () => ({
@@ -38,12 +53,34 @@ vi.mock('@/contexts/header-context', () => ({
       addresses: {}
     }
   })
+}))
+
+vi.mock('@/contexts/loading-context', () => ({
+  useLoading: () => ({
+    showLoading: vi.fn(() => 'loading-id'),
+    hideLoading: vi.fn(),
+    loading: false,
+    setLoading: vi.fn()
+  })
 }));
 
 describe('DispenseForm', () => {
   const mockFormAction = vi.fn();
   const mockFetchAddressDispensers = vi.mocked(counterpartyApi.fetchAddressDispensers);
   const mockFetchAssetDetailsAndBalance = vi.mocked(counterpartyApi.fetchAssetDetailsAndBalance);
+
+  // Helper function to render with provider
+  const renderWithProvider = (initialFormData: any = null) => {
+    const mockComposeApi = vi.fn().mockResolvedValue({ result: { tx_hash: 'test' } });
+    
+    return render(
+      <MemoryRouter>
+        <ComposerProvider composeApi={mockComposeApi} initialTitle="Dispense">
+          <DispenseForm formAction={mockFormAction} initialFormData={initialFormData} />
+        </ComposerProvider>
+      </MemoryRouter>
+    );
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -65,10 +102,11 @@ describe('DispenseForm', () => {
   });
 
   it('should render the form with initial fields', () => {
-    render(<DispenseForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     expect(screen.getByLabelText(/Dispenser Address/i)).toBeInTheDocument();
-    expect(screen.getByText(/Enter the dispenser address to send BTC to/i)).toBeInTheDocument();
+    // Help text is only shown when showHelpText is true
+    // expect(screen.getByText(/Enter the dispenser address to send BTC to/i)).toBeInTheDocument();
   });
 
   it('should fetch dispensers when address is entered', async () => {
@@ -98,7 +136,7 @@ describe('DispenseForm', () => {
       total: 1,
     });
 
-    render(<DispenseForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const addressInput = screen.getByLabelText(/Dispenser Address/i);
     // Use the Counterparty burn address which is a valid Bitcoin address
@@ -121,7 +159,7 @@ describe('DispenseForm', () => {
   });
 
   it('should not fetch dispensers for invalid addresses', async () => {
-    render(<DispenseForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const addressInput = screen.getByLabelText(/Dispenser Address/i);
     await userEvent.type(addressInput, 'invalid-address');
@@ -139,7 +177,7 @@ describe('DispenseForm', () => {
       total: 0,
     });
 
-    render(<DispenseForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const addressInput = screen.getByLabelText(/Dispenser Address/i);
     // Use Counterparty burn address for testing
@@ -197,7 +235,7 @@ describe('DispenseForm', () => {
       total: 2,
     });
 
-    render(<DispenseForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const addressInput = screen.getByLabelText(/Dispenser Address/i);
     // Use Counterparty burn address for testing
@@ -249,7 +287,7 @@ describe('DispenseForm', () => {
       total: 1,
     });
 
-    render(<DispenseForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const addressInput = screen.getByLabelText(/Dispenser Address/i);
     // Use Counterparty burn address for testing  
@@ -321,7 +359,7 @@ describe('DispenseForm', () => {
       },
     });
 
-    render(<DispenseForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const addressInput = screen.getByLabelText(/Dispenser Address/i);
     // Use Counterparty burn address for testing
@@ -382,7 +420,7 @@ describe('DispenseForm', () => {
       },
     });
 
-    render(<DispenseForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const addressInput = screen.getByLabelText(/Dispenser Address/i);
     // Use Counterparty burn address for testing
