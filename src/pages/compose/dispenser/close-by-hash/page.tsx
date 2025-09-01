@@ -14,7 +14,7 @@ export function ComposeDispenserCloseByHash() {
         initialTitle="Close"
         FormComponent={(props) => <DispenserCloseByHashForm {...props} initialTxHash={tx_hash} />}
         ReviewComponent={ReviewDispenserCloseByHash}
-        composeApi={composeDispenser}
+        composeApiMethod={composeDispenser}
       />
     </div>
   );

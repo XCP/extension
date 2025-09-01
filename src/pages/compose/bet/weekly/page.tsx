@@ -11,7 +11,7 @@ export function ComposeWeeklyBet() {
         initialTitle="Weekly Bet"
         FormComponent={WeeklyBetForm}
         ReviewComponent={WeeklyReviewBet}
-        composeApi={composeBet}
+        composeApiMethod={composeBet}
       />
     </div>
   );

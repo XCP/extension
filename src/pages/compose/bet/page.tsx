@@ -11,7 +11,7 @@ export function ComposeBet() {
         initialTitle="Bet"
         FormComponent={BetForm}
         ReviewComponent={ReviewBet}
-        composeApi={composeBet}
+        composeApiMethod={composeBet}
       />
     </div>
   );

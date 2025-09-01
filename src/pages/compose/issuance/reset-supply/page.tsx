@@ -20,7 +20,7 @@ export function ComposeIssuanceResetSupply() {
         initialTitle="Reset Supply"
         FormComponent={(props) => <ResetSupplyForm {...props} asset={asset} />}
         ReviewComponent={ReviewIssuanceResetSupply}
-        composeApi={composeIssuance}
+        composeApiMethod={composeIssuance}
       />
     </div>
   );

@@ -11,7 +11,7 @@ export function ComposeDispense() {
         initialTitle="Dispense"
         FormComponent={DispenseForm}
         ReviewComponent={ReviewDispense}
-        composeApi={composeDispense}
+        composeApiMethod={composeDispense}
       />
     </div>
   );

@@ -14,7 +14,7 @@ export function ComposeUtxoMove() {
         initialTitle="Move UTXO"
         FormComponent={(props) => <UtxoMoveForm {...props} initialUtxo={txid || ""} />}
         ReviewComponent={ReviewUtxoMove}
-        composeApi={composeMove}
+        composeApiMethod={composeMove}
       />
     </div>
   );

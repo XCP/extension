@@ -11,7 +11,7 @@ export function ComposeBTCPay() {
         initialTitle="BTCPay"
         FormComponent={BTCPayForm}
         ReviewComponent={ReviewBTCPay}
-        composeApi={composeBTCPay}
+        composeApiMethod={composeBTCPay}
       />
     </div>
   );

@@ -14,7 +14,7 @@ export function ComposeIssuance() {
         initialTitle="Issue Asset"
         FormComponent={(props) => <IssuanceForm {...props} initialParentAsset={asset} />}
         ReviewComponent={ReviewIssuance}
-        composeApi={composeIssuance}
+        composeApiMethod={composeIssuance}
       />
     </div>
   );

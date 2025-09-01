@@ -11,7 +11,7 @@ export function ComposeBroadcast() {
         initialTitle="Broadcast"
         FormComponent={BroadcastForm}
         ReviewComponent={ReviewBroadcast}
-        composeApi={composeBroadcast}
+        composeApiMethod={composeBroadcast}
       />
     </div>
   );

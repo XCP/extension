@@ -29,7 +29,7 @@ interface ComposerProps<T> {
     error: string | null;
     isSigning: boolean;
   }) => ReactElement;
-  composeApi: (data: T) => Promise<ApiResponse>;
+  composeApiMethod: (data: T) => Promise<ApiResponse>;
   headerCallbacks?: {
     onBack?: () => void;
     onToggleHelp?: () => void;
@@ -44,7 +44,7 @@ function ComposerInner<T>({
   FormComponent,
   ReviewComponent,
   headerCallbacks,
-}: Omit<ComposerProps<T>, "composeApi">): ReactElement {
+}: Omit<ComposerProps<T>, "composeApiMethod">): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const {
@@ -206,12 +206,12 @@ export function Composer<T>({
   initialTitle,
   FormComponent,
   ReviewComponent,
-  composeApi,
+  composeApiMethod,
   headerCallbacks,
 }: ComposerProps<T>): ReactElement {
   return (
     <ComposerProvider<T>
-      composeApi={composeApi}
+      composeApi={composeApiMethod}
       initialTitle={initialTitle}
     >
       <ComposerInner<T>

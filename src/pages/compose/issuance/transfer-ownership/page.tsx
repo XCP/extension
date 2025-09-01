@@ -19,7 +19,7 @@ export function ComposeIssuanceTransferOwnership() {
         initialTitle="Transfer Asset"
         FormComponent={(props) => <TransferOwnershipForm {...props} asset={asset} />}
         ReviewComponent={ReviewIssuanceTransferOwnership}
-        composeApi={composeIssuance}
+        composeApiMethod={composeIssuance}
       />
     </div>
   );

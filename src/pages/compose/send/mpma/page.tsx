@@ -45,7 +45,7 @@ export function ComposeMPMA() {
         initialTitle="MPMA Send"
         FormComponent={MPMAForm}
         ReviewComponent={ReviewMPMA}
-        composeApi={composeTransaction}
+        composeApiMethod={composeTransaction}
       />
     </div>
   );

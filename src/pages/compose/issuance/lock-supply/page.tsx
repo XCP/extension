@@ -20,7 +20,7 @@ export function ComposeIssuanceLockSupply() {
         initialTitle="Lock Supply"
         FormComponent={(props) => <LockSupplyForm {...props} asset={asset} />}
         ReviewComponent={ReviewIssuanceLockSupply}
-        composeApi={composeIssuance}
+        composeApiMethod={composeIssuance}
       />
     </div>
   );

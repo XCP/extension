@@ -14,7 +14,7 @@ export function ComposeCancel() {
         initialTitle="Cancel"
         FormComponent={(props) => <CancelForm {...props} initialHash={hash} />}
         ReviewComponent={ReviewCancel}
-        composeApi={composeCancel}
+        composeApiMethod={composeCancel}
       />
     </div>
   );
