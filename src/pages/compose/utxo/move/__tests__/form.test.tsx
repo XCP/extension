@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { useSettings } from '@/contexts/settings-context';
+import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 import { UtxoMoveForm } from '../form';
 import { MemoryRouter } from 'react-router-dom';
 import { ComposerProvider } from '@/contexts/composer-context';
@@ -130,7 +131,9 @@ describe('UtxoMoveForm', () => {
     // Reset settings mock to default
     const mockUseSettings = vi.mocked(useSettings);
     mockUseSettings.mockReturnValue({
-      settings: { showHelpText: false }
+      settings: { ...DEFAULT_KEYCHAIN_SETTINGS, showHelpText: false },
+      updateSettings: vi.fn(),
+      isLoading: false
     });
   });
 
@@ -309,7 +312,9 @@ describe('UtxoMoveForm', () => {
     // Temporarily mock settings to enable help text
     const mockUseSettings = vi.mocked(useSettings);
     mockUseSettings.mockReturnValueOnce({
-      settings: { showHelpText: true }
+      settings: { ...DEFAULT_KEYCHAIN_SETTINGS, showHelpText: true },
+      updateSettings: vi.fn(),
+      isLoading: false
     });
 
     render(
