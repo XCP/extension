@@ -14,7 +14,7 @@ export function ComposeFairmint() {
         initialTitle="Fairmint"
         FormComponent={(props) => <FairmintForm {...props} initialAsset={asset || ""} />}
         ReviewComponent={ReviewFairmint}
-        composeTransaction={composeFairmint}
+        composeApi={composeFairmint}
       />
     </div>
   );

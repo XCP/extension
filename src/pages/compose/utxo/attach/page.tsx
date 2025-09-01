@@ -23,7 +23,7 @@ export function ComposeUtxoAttach() {
           />
         )}
         ReviewComponent={ReviewUtxoAttach}
-        composeTransaction={composeAttach}
+        composeApi={composeAttach}
       />
     </div>
   );

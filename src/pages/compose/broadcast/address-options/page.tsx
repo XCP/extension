@@ -11,7 +11,7 @@ export function ComposeBroadcastAddressOptions() {
         initialTitle="Broadcast"
         FormComponent={AddressOptionsForm}
         ReviewComponent={ReviewAddressOptions}
-        composeTransaction={composeBroadcast}
+        composeApi={composeBroadcast}
       />
     </div>
   );

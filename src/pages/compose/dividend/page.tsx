@@ -15,7 +15,7 @@ export function ComposeDividendPage() {
         initialTitle="Dividend"
         FormComponent={(props) => <DividendForm {...props} asset={asset} />}
         ReviewComponent={ReviewDividend}
-        composeTransaction={composeDividend}
+        composeApi={composeDividend}
       />
     </div>
   );

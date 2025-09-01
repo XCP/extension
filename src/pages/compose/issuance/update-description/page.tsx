@@ -29,7 +29,7 @@ export function ComposeIssuanceUpdateDescription() {
         initialTitle="Update Asset"
         FormComponent={(props) => <UpdateDescriptionForm {...props} asset={asset} />}
         ReviewComponent={ReviewIssuanceUpdateDescription}
-        composeTransaction={composeIssuance}
+        composeApi={composeIssuance}
       />
     </div>
   );

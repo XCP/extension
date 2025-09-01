@@ -14,7 +14,7 @@ export function ComposeFairminterPage() {
         initialTitle="Fairminter"
         FormComponent={(props) => <FairminterForm {...props} asset={asset || ''} />}
         ReviewComponent={ReviewFairminter}
-        composeTransaction={composeFairminter}
+        composeApi={composeFairminter}
       />
     </div>
   );

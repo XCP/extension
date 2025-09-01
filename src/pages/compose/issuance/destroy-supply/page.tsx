@@ -19,7 +19,7 @@ export function ComposeDestroy() {
           />
         )}
         ReviewComponent={ReviewDestroy}
-        composeTransaction={composeDestroy}
+        composeApi={composeDestroy}
       />
     </div>
   );

@@ -67,7 +67,7 @@ export function ComposeSend() {
         initialTitle="Send"
         FormComponent={(props) => <SendForm {...props} initialAsset={asset || "BTC"} />}
         ReviewComponent={ReviewSend}
-        composeTransaction={composeTransaction}
+        composeApi={composeTransaction}
       />
     </div>
   );

@@ -19,7 +19,7 @@ export function ComposeIssuanceIssueSupply() {
         initialTitle="Issue Additional Supply"
         FormComponent={IssueSupplyForm}
         ReviewComponent={ReviewIssuanceIssueSupply}
-        composeTransaction={composeIssuance}
+        composeApi={composeIssuance}
       />
     </div>
   );

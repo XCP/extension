@@ -11,7 +11,7 @@ export function ComposeBroadcast() {
         initialTitle="Broadcast"
         FormComponent={BroadcastForm}
         ReviewComponent={ReviewBroadcast}
-        composeTransaction={composeBroadcast}
+        composeApi={composeBroadcast}
       />
     </div>
   );

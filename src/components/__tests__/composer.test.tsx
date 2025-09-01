@@ -160,7 +160,7 @@ describe('Composer', () => {
     initialTitle: 'Test Transaction',
     FormComponent: MockFormComponent,
     ReviewComponent: MockReviewComponent,
-    composeTransaction: mockComposeApi
+    composeApi: mockComposeApi
   };
 
   // Helper function to render with provider

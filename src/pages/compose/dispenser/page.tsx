@@ -28,7 +28,7 @@ export function ComposeDispenserPage() {
         initialTitle="Dispenser"
         FormComponent={formComponent}
         ReviewComponent={reviewComponent}
-        composeTransaction={composeDispenser}
+        composeApi={composeDispenser}
       />
     </div>
   );

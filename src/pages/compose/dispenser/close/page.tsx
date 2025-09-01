@@ -15,7 +15,7 @@ export function ComposeDispenserClose() {
         initialTitle="Close"
         FormComponent={(props) => <DispenserCloseForm {...props} initialAsset={asset} />}
         ReviewComponent={ReviewDispenserClose}
-        composeTransaction={composeDispenser}
+        composeApi={composeDispenser}
       />
     </div>
   );

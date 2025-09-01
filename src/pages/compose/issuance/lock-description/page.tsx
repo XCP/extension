@@ -29,7 +29,7 @@ export function ComposeLockDescription() {
           <LockDescriptionForm {...props} asset={asset} />
         )}
         ReviewComponent={ReviewLockDescription}
-        composeTransaction={composeIssuance}
+        composeApi={composeIssuance}
       />
     </div>
   );

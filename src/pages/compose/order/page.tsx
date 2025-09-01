@@ -15,7 +15,7 @@ export function ComposeOrderPage() {
         initialTitle="Dex Order"
         FormComponent={(props) => <OrderForm {...props} giveAsset={giveAsset} />}
         ReviewComponent={ReviewOrder}
-        composeTransaction={composeOrder}
+        composeApi={composeOrder}
       />
     </div>
   );
