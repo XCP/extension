@@ -120,7 +120,7 @@ export function DispenseForm({
   const feeRate = initialFormData?.sat_per_vbyte || DEFAULT_FEE_RATE;
   
   // State management
-  const [error, setError] = useState<{ message: string } | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [dispenserAddress, setDispenserAddress] = useState(
     initialFormData?.dispenser || ""
   );
@@ -173,7 +173,7 @@ export function DispenseForm({
   // Set composer error
   useEffect(() => {
     if (state.error) {
-      setError({ message: state.error });
+      setValidationError(state.error);
     }
   }, [state.error]);
 
@@ -217,7 +217,7 @@ export function DispenseForm({
       // Check against new max
       if (currentNumber > maxDispenses && maxDispenses > 0) {
         setNumberOfDispenses(maxDispenses.toString());
-        setError(null);
+        setValidationError(null);
       }
       
       // Check if dispenser is empty
@@ -225,7 +225,7 @@ export function DispenseForm({
         selectedDispenser.dispenser
       );
       if (remainingDispenses === 0) {
-        setError({ message: "This dispenser is empty and cannot be triggered." });
+        setValidationError("This dispenser is empty and cannot be triggered.");
       }
     }
     previousIndexRef.current = selectedDispenserIndex;
@@ -234,7 +234,7 @@ export function DispenseForm({
   // Handle max button click
   const handleMaxClick = useCallback(() => {
     if (!selectedDispenser) {
-      setError({ message: "Please select a dispenser first" });
+      setValidationError("Please select a dispenser first");
       return;
     }
 
@@ -244,22 +244,20 @@ export function DispenseForm({
       );
       
       if (remainingDispenses === 0) {
-        setError({ message: "This dispenser is empty and cannot be triggered." });
+        setValidationError("This dispenser is empty and cannot be triggered.");
       } else {
         const requiredBTC = selectedDispenser.satoshirate / SATOSHIS_PER_BTC;
-        setError({
-          message: `Insufficient BTC balance. You need at least ${formatAmount({
+        setValidationError(`Insufficient BTC balance. You need at least ${formatAmount({
             value: requiredBTC,
             minimumFractionDigits: 8,
             maximumFractionDigits: 8
-          })} BTC to trigger this dispenser once.`
-        });
+          })} BTC to trigger this dispenser once.`);
       }
       return;
     }
 
     setNumberOfDispenses(maxDispenses.toString());
-    setError(null);
+    setValidationError(null);
   }, [selectedDispenser, maxDispenses]);
 
   // Handle dispenser selection change
@@ -268,8 +266,8 @@ export function DispenseForm({
     setSelectedDispenser(option);
   }, []);
 
-  // Combined error message
-  const errorMessage = error?.message || dispenserError || null;
+  // Combined error message - validation errors and dispenser fetch errors
+  const errorMessage = validationError || dispenserError || null;
 
   return (
     <ComposeForm
@@ -284,11 +282,11 @@ export function DispenseForm({
         )
       }
     >
-          {/* Error Alert */}
+          {/* Local validation errors */}
           {errorMessage && (
             <ErrorAlert
               message={errorMessage}
-              onClose={() => setError(null)}
+              onClose={() => setValidationError(null)}
             />
           )}
 
@@ -315,7 +313,7 @@ export function DispenseForm({
                 value={numberOfDispenses}
                 onChange={setNumberOfDispenses}
                 sat_per_vbyte={feeRate}
-                setError={(msg) => setError(msg ? { message: msg } : null)}
+                setError={setValidationError}
                 shouldShowHelpText={showHelpText}
                 sourceAddress={activeAddress}
                 maxAmount={maxDispenses.toString()}
