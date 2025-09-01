@@ -65,7 +65,7 @@ describe('DispenseForm', () => {
   });
 
   it('should render the form with initial fields', () => {
-    render(<DispenseForm formAction={mockFormAction} initialFormData={null} showHelpText={true} />);
+    render(<DispenseForm formAction={mockFormAction} initialFormData={null} />);
     
     expect(screen.getByLabelText(/Dispenser Address/i)).toBeInTheDocument();
     expect(screen.getByText(/Enter the dispenser address to send BTC to/i)).toBeInTheDocument();

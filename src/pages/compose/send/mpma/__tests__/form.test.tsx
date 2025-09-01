@@ -251,7 +251,7 @@ describe('MPMAForm', () => {
   });
 
   it('shows help text when enabled', () => {
-    render(<MPMAForm formAction={mockFormAction} initialFormData={null} showHelpText={true} />);
+    render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
     
     expect(screen.getByText(/Each line should contain/)).toBeInTheDocument();
     expect(screen.getByText(/\(Memo is optional\.\)/)).toBeInTheDocument();
