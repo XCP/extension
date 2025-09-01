@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { ComposeForm } from "@/components/forms/compose-form";
-import { ErrorAlert } from "@/components/error-alert";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { useComposer } from "@/contexts/composer-context";
+import { ErrorAlert } from "@/components/error-alert";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
 import type { AttachOptions } from "@/utils/blockchain/counterparty";
@@ -37,7 +37,7 @@ export function UtxoAttachForm({
   const { data: assetDetails } = useAssetDetails(asset);
   
   // Local error state management
-  const [error, setError] = useState<{ message: string } | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   
   // Form state
   const [quantity, setQuantity] = useState(initialFormData?.quantity?.toString() || "");
@@ -77,11 +77,11 @@ export function UtxoAttachForm({
       }
       submitDisabled={!quantity || quantity === "0" || parseFloat(quantity) <= 0}
     >
-      {error && (
+      {validationError && (
         <div className="mb-4">
           <ErrorAlert
-            message={error.message}
-            onClose={() => setError(null)}
+            message={validationError}
+            onClose={() => setValidationError(null)}
           />
         </div>
       )}

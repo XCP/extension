@@ -5,10 +5,10 @@ import { useNavigate } from "react-router-dom";
 import { FaSpinner } from "react-icons/fa";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { ComposeForm } from "@/components/forms/compose-form";
-import { ErrorAlert } from "@/components/error-alert";
 import { AddressHeader } from "@/components/headers/address-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
 import { useComposer } from "@/contexts/composer-context";
+import { ErrorAlert } from "@/components/error-alert";
 import { fetchUtxoBalances, type UtxoBalance } from "@/utils/blockchain/counterparty";
 import { formatTxid } from "@/utils/format";
 import type { MoveOptions } from "@/utils/blockchain/counterparty";
@@ -33,7 +33,7 @@ export function UtxoMoveForm({
 }: UtxoMoveFormProps): ReactElement {
   const navigate = useNavigate();
   const { activeAddress, activeWallet, settings, showHelpText } = useComposer();
-  const [error, setError] = useState<{ message: string } | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [destination, setDestination] = useState(initialFormData?.destination || "");
   const [destinationValid, setDestinationValid] = useState(false);
   const [utxoBalances, setUtxoBalances] = useState<UtxoBalance[]>([]);
@@ -75,11 +75,11 @@ export function UtxoMoveForm({
       }
       submitDisabled={!destinationValid}
     >
-      {error && (
+      {validationError && (
         <div className="mb-4">
           <ErrorAlert
-            message={error.message}
-            onClose={() => setError(null)}
+            message={validationError}
+            onClose={() => setValidationError(null)}
           />
         </div>
       )}

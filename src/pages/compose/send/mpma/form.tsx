@@ -2,11 +2,11 @@
 
 import { useEffect, useState, useRef } from "react";
 import { ComposeForm } from "@/components/forms/compose-form";
-import { ErrorAlert } from "@/components/error-alert";
 import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
 import { fetchAssetDetails, isHexMemo, stripHexPrefix, isValidMemoLength } from "@/utils/blockchain/counterparty";
 import { validateBitcoinAddress } from "@/utils/validation";
+import { ErrorAlert } from "@/components/error-alert";
 import type { ReactElement } from "react";
 
 interface ParsedRow {
@@ -31,7 +31,7 @@ export function MPMAForm({
   const { activeAddress, activeWallet, settings, showHelpText } = useComposer();
   
   // Error state management
-  const [error, setError] = useState<{ message: string } | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   
   // Form state
   const [csvData, setCsvData] = useState<ParsedRow[]>([]);
@@ -47,7 +47,7 @@ export function MPMAForm({
   // Handlers
   const processCSV = async (text: string) => {
     setIsProcessing(true);
-    setError(null);
+    setValidationError(null);
     
     try {
       const lines = text.trim().split('\n');
@@ -140,7 +140,7 @@ export function MPMAForm({
       setCsvData(parsedRows);
       
     } catch (err) {
-      setError({ message: err instanceof Error ? err.message : 'Failed to parse CSV' });
+      setValidationError(err instanceof Error ? err.message : 'Failed to parse CSV');
       setCsvData([]);
       setUploadedFileName("");
     } finally {
@@ -153,7 +153,7 @@ export function MPMAForm({
     if (!file) return;
     
     if (!file.name.endsWith('.csv')) {
-      setError({ message: 'Please select a CSV file' });
+      setValidationError('Please select a CSV file');
       return;
     }
     
@@ -165,7 +165,7 @@ export function MPMAForm({
       await processCSV(text);
     };
     reader.onerror = () => {
-      setError({ message: 'Failed to read file' });
+      setValidationError('Failed to read file');
       setUploadedFileName("");
     };
     reader.readAsText(file);
@@ -215,11 +215,11 @@ export function MPMAForm({
       submitDisabled={isSubmitDisabled}
       submitText={isProcessing ? "Validating..." : "Continue"}
     >
-      {error && (
+      {validationError && (
         <div className="mb-4">
           <ErrorAlert
-            message={error.message}
-            onClose={() => setError(null)}
+            message={validationError}
+            onClose={() => setValidationError(null)}
           />
         </div>
       )}

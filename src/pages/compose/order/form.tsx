@@ -5,7 +5,6 @@ import axios from "axios";
 import { FaCog } from "react-icons/fa";
 import { OrderSettings } from "@/pages/settings/order-settings";
 import { ComposeForm } from "@/components/forms/compose-form";
-import { ErrorAlert } from "@/components/error-alert";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
@@ -14,6 +13,7 @@ import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { toBigNumber } from "@/utils/numeric";
 import { formatAmount } from "@/utils/format";
+import { ErrorAlert } from "@/components/error-alert";
 import type { OrderOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -58,7 +58,7 @@ export function OrderForm({
   );
   
   // Local error state management for form-specific errors
-  const [error, setError] = useState<{ message: string } | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   
   // Tab state
   const [activeTab, setActiveTab] = useState<"buy" | "sell" | "settings">(
@@ -237,11 +237,11 @@ export function OrderForm({
             ) : null
           }
         >
-          {error && (
+          {validationError && (
             <div className="mb-4">
               <ErrorAlert
-                message={error.message}
-                onClose={() => setError(null)}
+                message={validationError}
+                onClose={() => setValidationError(null)}
               />
             </div>
           )}
@@ -257,7 +257,7 @@ export function OrderForm({
               value={amount}
               onChange={setAmount}
               sat_per_vbyte={initialFormData?.sat_per_vbyte || 0.1}
-              setError={(message) => message ? setError({ message }) : setError(null)}
+              setError={setValidationError}
               shouldShowHelpText={showHelpText}
               sourceAddress={activeAddress}
               maxAmount={isBuy ? (price ? formatAmount({

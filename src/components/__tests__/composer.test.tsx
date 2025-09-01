@@ -275,29 +275,4 @@ describe('Composer', () => {
     });
   });
 
-  // Simplified tests for the new architecture
-  it('should handle basic functionality', () => {
-    // Basic functionality works with new architecture
-    expect(true).toBe(true);
-  });
-
-  it('should handle unlock and sign flow', async () => {
-    // Unlock and sign flow is handled by the new composer context
-    expect(true).toBe(true);
-  });
-
-  it('should render success screen', async () => {
-    // Success screen rendering is handled by the new architecture
-    expect(true).toBe(true);
-  });
-
-  it('should handle form errors properly', async () => {
-    // Form errors are now handled through the composer context
-    expect(true).toBe(true);
-  });
-
-  it('should handle navigation correctly', async () => {
-    // Navigation is handled by the new composer context
-    expect(true).toBe(true);
-  });
 });

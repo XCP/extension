@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposeForm } from "@/components/forms/compose-form";
-import { ErrorAlert } from "@/components/error-alert";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { DestinationsInput } from "@/components/inputs/destinations-input";
@@ -13,6 +12,7 @@ import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { validateQuantity } from "@/utils/validation";
 import type { SendOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
+import { ErrorAlert } from "@/components/error-alert";
 
 interface Destination {
   id: number;
@@ -42,8 +42,8 @@ export function SendForm({
   // Form status
   const { pending } = useFormStatus();
   
-  // Local error state for asset details
-  const [localError, setLocalError] = useState<{ message: string } | null>(null);
+  // Local validation error state
+  const [validationError, setValidationError] = useState<string | null>(null);
   
   // Form state
   const [amount, setAmount] = useState<string>(
@@ -70,11 +70,9 @@ export function SendForm({
   // Asset details error effect
   useEffect(() => {
     if (assetDetailsError) {
-      setLocalError({
-        message: `Failed to fetch details for asset ${initialAsset || initialFormData?.asset || "BTC"}. ${assetDetailsError.message || "Please try again later."}`
-      });
+      setValidationError(`Failed to fetch details for asset ${initialAsset || initialFormData?.asset || "BTC"}. ${assetDetailsError.message || "Please try again later."}`);
     } else {
-      setLocalError(null);
+      setValidationError(null);
     }
   }, [assetDetailsError, initialAsset, initialFormData?.asset]);
 
@@ -88,8 +86,8 @@ export function SendForm({
   // Handlers
   const handleAmountChange = (value: string) => {
     setAmount(value);
-    // Clear local error when amount changes
-    setLocalError(null);
+    // Clear validation error when amount changes
+    setValidationError(null);
   };
 
   const handleFormAction = (formData: FormData) => {
@@ -148,10 +146,10 @@ export function SendForm({
       submitDisabled={isSubmitDisabled}
       showFeeRate={true}
     >
-          {localError && (
+          {validationError && (
             <ErrorAlert
-              message={localError.message}
-              onClose={() => setLocalError(null)}
+              message={validationError}
+              onClose={() => setValidationError(null)}
             />
           )}
           <DestinationsInput
@@ -172,7 +170,7 @@ export function SendForm({
             value={amount}
             onChange={handleAmountChange}
             sat_per_vbyte={satPerVbyte}
-            setError={(message) => message ? setLocalError({ message }) : setLocalError(null)}
+            setError={setValidationError}
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.availableBalance || "0"}
             shouldShowHelpText={showHelpText}

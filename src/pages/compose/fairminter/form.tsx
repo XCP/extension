@@ -18,10 +18,10 @@ import {
   DisclosurePanel,
 } from "@headlessui/react";
 import { ComposeForm } from "@/components/forms/compose-form";
-import { ErrorAlert } from "@/components/error-alert";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { BlockHeightInput } from "@/components/inputs/block-height-input";
 import { AddressHeader } from "@/components/headers/address-header";
+import { ErrorAlert } from "@/components/error-alert";
 import { useComposer } from "@/contexts/composer-context";
 import type { FairminterOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
@@ -152,10 +152,12 @@ export function FairminterForm({
       submitText="Continue"
     >
           {localError && (
-            <ErrorAlert
-              message={localError.message}
-              onClose={() => setLocalError(null)}
-            />
+            <div className="mb-4">
+              <ErrorAlert
+                message={localError.message}
+                onClose={() => setLocalError(null)}
+              />
+            </div>
           )}
           <Field>
             <Label htmlFor="mintMethod" className="block text-sm font-medium text-gray-700">
