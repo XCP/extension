@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Input, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
+import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
 import { fetchOpenInterest } from "@/utils/blockchain/counterparty/api";
@@ -119,7 +119,6 @@ const mockApiResponse = {
 
 interface BetFormProps {
   formAction: (formData: FormData) => void;
-  error?: string | null;
 }
 
 interface BetChoice {
@@ -136,12 +135,11 @@ interface Market {
   noOdds: number;
 }
 
-export function WeeklyBetForm({ formAction ,
-  error: composerError,
-}: BetFormProps): ReactElement {
+export function WeeklyBetForm({ formAction }: BetFormProps): ReactElement {
+  // Get everything from composer context
+  const { showHelpText } = useComposer();
   const { error: assetError, data: assetDetails } = useAssetDetails("XCP");
   const { pending } = useFormStatus();
-  const [error, setError] = useState<{ message: string; } | null>(null);
   const [selectedChoice, setSelectedChoice] = useState<BetChoice>({
     id: 1,
     name: "Yes",
@@ -191,12 +189,6 @@ export function WeeklyBetForm({ formAction ,
     minimumFractionDigits: 8
   });
 
-  // Set composer error when it occurs
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
 
   // Update betting window status every minute
   useEffect(() => {
@@ -248,27 +240,27 @@ export function WeeklyBetForm({ formAction ,
   };
 
   return (
-    <div className="space-y-4">
-      {assetError ? (
-        <div className="text-red-500 mb-4">{assetError.message}</div>
-      ) : assetDetails ? (
-        <BalanceHeader
-          balance={{
-            asset: "XCP",
-            quantity_normalized: assetDetails.availableBalance,
-            asset_info: assetDetails.assetInfo || undefined,
-          }}
-          className="mt-1 mb-5"
-        />
-      ) : null}
-      <div className="bg-white rounded-lg shadow-lg p-4">
-        {error && (
-          <ErrorAlert
-            message={error.message}
-            onClose={() => setError(null)}
+    <ComposeForm
+      formAction={enhancedFormAction}
+      header={
+        assetError ? (
+          <div className="text-red-500 mb-4">{assetError.message}</div>
+        ) : assetDetails ? (
+          <BalanceHeader
+            balance={{
+              asset: "XCP",
+              quantity_normalized: assetDetails.availableBalance,
+              asset_info: assetDetails.assetInfo || undefined,
+            }}
+            className="mt-1 mb-5"
           />
-        )}
-        <form action={enhancedFormAction} className="space-y-6">
+        ) : null
+      }
+      submitText="Place Bet"
+      submitDisabled={!isWindowOpen}
+      formClassName="space-y-6"
+      showFeeRate={false}
+    >
           <div className="text-center">
             <h2 className="text-lg font-medium text-gray-900">{selectedMarket.question}</h2>
             {isWindowOpen ? (
@@ -405,16 +397,6 @@ export function WeeklyBetForm({ formAction ,
             </div>
           )}
 
-          <Button
-            type="submit"
-            color="blue"
-            fullWidth
-            disabled={pending || !isWindowOpen}
-          >
-            {pending ? "Submitting..." : "Place Bet"}
-          </Button>
-        </form>
-      </div>
-    </div>
+    </ComposeForm>
   );
 }

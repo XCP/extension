@@ -1,19 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useFormStatus } from "react-dom";
 import axios from "axios";
 import { FaCog } from "react-icons/fa";
 import { OrderSettings } from "@/pages/settings/order-settings";
-import { Button } from "@/components/button";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { ErrorAlert } from "@/components/error-alert";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { AssetSelectInput } from "@/components/inputs/asset-select-input";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
 import { BalanceHeader } from "@/components/headers/balance-header";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
+import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { toBigNumber } from "@/utils/numeric";
 import { formatAmount } from "@/utils/format";
@@ -40,8 +37,6 @@ interface OrderFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: OrderFormData | null;
   giveAsset: string;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 /**
@@ -51,13 +46,9 @@ export function OrderForm({
   formAction,
   initialFormData,
   giveAsset,
-  error: composerError,
-  showHelpText,
 }: OrderFormProps): ReactElement {
   // Context hooks
-  const { activeAddress } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  const { activeAddress, activeWallet, settings, showHelpText } = useComposer();
   
   // Data fetching hooks
   const { data: giveAssetDetails } = useAssetDetails(giveAsset);
@@ -66,10 +57,7 @@ export function OrderForm({
     (initialFormData?.type === "buy" || (!initialFormData?.type && true)) ? giveAsset : (initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"))
   );
   
-  // Form status
-  const { pending } = useFormStatus();
-  
-  // Error state management
+  // Local error state management for form-specific errors
   const [error, setError] = useState<{ message: string } | null>(null);
   
   // Tab state
@@ -100,12 +88,7 @@ export function OrderForm({
   const orderAssetBalance = orderAssetDetails?.availableBalance ?? "0";
   const isBuy = activeTab === "buy";
   
-  // Effects - composer error first
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
+  // Effects
 
   // Focus amount input on mount
   useEffect(() => {
@@ -153,18 +136,6 @@ export function OrderForm({
 
   return (
     <div className="space-y-4">
-      {activeAddress ? (
-        giveAssetDetails ? (
-          <BalanceHeader
-            balance={{
-              asset: giveAsset,
-              quantity_normalized: giveAssetDetails.availableBalance,
-              asset_info: giveAssetDetails.assetInfo || undefined,
-            }}
-            className="mt-1 mb-3"
-          />
-        ) : null
-      ) : null}
       <div className="flex justify-between items-center mb-2">
         <div className="flex space-x-4">
           <button
@@ -173,7 +144,7 @@ export function OrderForm({
               activeTab === "buy" || (activeTab === "settings" && previousTab === "buy") ? "underline" : ""
             }`}
             onClick={() => handleTabChange("buy")}
-            disabled={pending}
+            disabled={false}
           >
             Buy
           </button>
@@ -183,7 +154,7 @@ export function OrderForm({
               activeTab === "sell" || (activeTab === "settings" && previousTab === "sell") ? "underline" : ""
             }`}
             onClick={() => handleTabChange("sell")}
-            disabled={pending}
+            disabled={false}
           >
             Sell
           </button>
@@ -194,7 +165,7 @@ export function OrderForm({
             activeTab === "settings" ? "bg-gray-100" : ""
           }`}
           onClick={() => activeTab === "settings" ? handleTabChange(previousTab) : handleTabChange("settings")}
-          disabled={pending}
+          disabled={false}
           aria-label="Order Settings"
         >
           <FaCog className="w-4 h-4 text-gray-600" aria-hidden="true" />
@@ -211,14 +182,8 @@ export function OrderForm({
           isBuyingBTC={previousTab === "buy" && giveAsset === "BTC"}
         />
       ) : (
-        <div className="bg-white rounded-lg shadow-lg p-4">
-          {error && (
-            <ErrorAlert
-              message={error.message}
-              onClose={() => setError(null)}
-            />
-          )}
-          <form action={(formData) => {
+        <ComposeForm
+          formAction={(formData) => {
             // Store user-facing values for form persistence
             formData.set('amount', amount);
             formData.set('price', price);
@@ -256,7 +221,30 @@ export function OrderForm({
             }
             
             formAction(formData);
-          }} className="space-y-4">
+          }}
+          header={
+            activeAddress ? (
+              giveAssetDetails ? (
+                <BalanceHeader
+                  balance={{
+                    asset: giveAsset,
+                    quantity_normalized: giveAssetDetails.availableBalance,
+                    asset_info: giveAssetDetails.assetInfo || undefined,
+                  }}
+                  className="mt-1 mb-3"
+                />
+              ) : null
+            ) : null
+          }
+        >
+          {error && (
+            <div className="mb-4">
+              <ErrorAlert
+                message={error.message}
+                onClose={() => setError(null)}
+              />
+            </div>
+          )}
             <input type="hidden" name="give_asset" value={isBuy ? quoteAsset : giveAsset} />
             <input type="hidden" name="get_asset" value={isBuy ? giveAsset : quoteAsset} />
             <input type="hidden" name="expiration" value={customExpiration || settings?.defaultOrderExpiration || 8064} />
@@ -270,7 +258,7 @@ export function OrderForm({
               onChange={setAmount}
               sat_per_vbyte={initialFormData?.sat_per_vbyte || 0.1}
               setError={(message) => message ? setError({ message }) : setError(null)}
-              shouldShowHelpText={shouldShowHelpText}
+              shouldShowHelpText={showHelpText}
               sourceAddress={activeAddress}
               maxAmount={isBuy ? (price ? formatAmount({
                 value: toBigNumber(orderAssetBalance).dividedBy(toBigNumber(price)).toNumber(),
@@ -281,19 +269,19 @@ export function OrderForm({
               label="Amount"
               name="amount"
               description={`Amount to ${isBuy ? "buy" : "sell"}. ${isBuy ? (isGetAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.") : (isGiveAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.")}`}
-              disabled={pending}
+              disabled={false}
             />
             <AssetSelectInput
               selectedAsset={quoteAsset}
               onChange={setQuoteAsset}
               label="Quote"
-              shouldShowHelpText={shouldShowHelpText}
+              shouldShowHelpText={showHelpText}
             />
             <PriceWithSuggestInput
               value={price}
               onChange={handlePriceChange}
               tradingPairData={tradingPairData}
-              shouldShowHelpText={shouldShowHelpText}
+              shouldShowHelpText={showHelpText}
               label="Price"
               name="price"
               priceDescription={`Price per unit in ${quoteAsset}`}
@@ -301,14 +289,7 @@ export function OrderForm({
               isPairFlipped={isPairFlipped}
               setIsPairFlipped={setIsPairFlipped}
             />
-
-            <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-            
-            <Button type="submit" color="blue" fullWidth disabled={pending}>
-              {pending ? "Submitting..." : "Continue"}
-            </Button>
-          </form>
-        </div>
+        </ComposeForm>
       )}
     </div>
   );

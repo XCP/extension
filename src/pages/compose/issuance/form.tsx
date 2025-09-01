@@ -3,18 +3,15 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input, Textarea } from "@headlessui/react";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { AssetNameInput } from "@/components/inputs/asset-name-input";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { SettingSwitch } from "@/components/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
 import { AssetHeader } from "@/components/headers/asset-header";
 import { AddressHeader } from "@/components/headers/address-header";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
+import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { toBigNumber } from "@/utils/numeric";
 import { AddressType } from "@/utils/blockchain/bitcoin";
@@ -28,8 +25,6 @@ interface IssuanceFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: IssuanceOptions | null;
   initialParentAsset?: string;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 /**
@@ -39,22 +34,15 @@ export function IssuanceForm({
   formAction,
   initialFormData,
   initialParentAsset,
-  error: composerError,
-  showHelpText,
 }: IssuanceFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  const { activeAddress, activeWallet, showHelpText } = useComposer();
   
   // Data fetching hooks
   const { data: parentAssetDetails } = useAssetDetails(initialParentAsset || "");
   
   // Form status
   const { pending } = useFormStatus();
-  
-  // Error state management
-  const [error, setError] = useState<{ message: string } | null>(null);
   
   // Form state
   const [assetName, setAssetName] = useState(initialFormData?.asset || (initialParentAsset ? `${initialParentAsset}.` : ""));
@@ -94,12 +82,6 @@ export function IssuanceForm({
     }
   };
 
-  // Effects - composer error first
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
   
   // Update asset name when initialParentAsset changes
   useEffect(() => {
@@ -134,60 +116,58 @@ export function IssuanceForm({
   };
 
   return (
-    <div className="space-y-4">
-      {initialParentAsset && (
-        parentAssetDetails?.assetInfo ? (
-          <AssetHeader
-            assetInfo={{
-              asset: initialParentAsset,
-              asset_longname: parentAssetDetails.assetInfo.asset_longname || null,
-              description: parentAssetDetails.assetInfo.description,
-              issuer: parentAssetDetails.assetInfo.issuer,
-              divisible: parentAssetDetails.assetInfo.divisible ?? false,
-              locked: parentAssetDetails.assetInfo.locked ?? false,
-              supply: parentAssetDetails.assetInfo.supply
-            }}
-            className="mt-1 mb-5"
-          />
-        ) : null
-      )}
-      
-      {showAddress && (
-        <AddressHeader
-          address={activeAddress.address}
-          walletName={activeAddress.name}
-          className="mt-1 mb-5"
-        />
-      )}
-      
-      <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-        {(error || composerError) && (
-          <ErrorAlert 
-            message={error?.message || composerError || ""} 
-            onClose={() => setError(null)}
-          />
-        )}
-        <form action={async formData => {
-          // If inscribing, convert file to base64 and set as description
-          if (inscribeEnabled) {
-            if (selectedFile) {
-              try {
-                const base64Data = await fileToBase64(selectedFile);
-                formData.set("description", base64Data);
-                formData.set("mime_type", selectedFile.type);
-                formData.set("encoding", "taproot");
-              } catch (error) {
-                setFileError("Failed to process file");
-                return;
-              }
+    <ComposeForm
+      formAction={async formData => {
+        // If inscribing, convert file to base64 and set as description
+        if (inscribeEnabled) {
+          if (selectedFile) {
+            try {
+              const base64Data = await fileToBase64(selectedFile);
+              formData.set("description", base64Data);
+              formData.set("mime_type", selectedFile.type);
+              formData.set("encoding", "taproot");
+            } catch (error) {
+              setFileError("Failed to process file");
+              return;
             }
-          } else {
-            // Use the text description if not inscribing
-            formData.set("description", description);
           }
+        } else {
+          // Use the text description if not inscribing
+          formData.set("description", description);
+        }
+        
+        formAction(formData);
+      }}
+      header={
+        <>
+          {initialParentAsset && (
+            parentAssetDetails?.assetInfo ? (
+              <AssetHeader
+                assetInfo={{
+                  asset: initialParentAsset,
+                  asset_longname: parentAssetDetails.assetInfo.asset_longname || null,
+                  description: parentAssetDetails.assetInfo.description,
+                  issuer: parentAssetDetails.assetInfo.issuer,
+                  divisible: parentAssetDetails.assetInfo.divisible ?? false,
+                  locked: parentAssetDetails.assetInfo.locked ?? false,
+                  supply: parentAssetDetails.assetInfo.supply
+                }}
+                className="mt-1 mb-5"
+              />
+            ) : null
+          )}
           
-          formAction(formData);
-        }} className="space-y-4">
+          {showAddress && (
+            <AddressHeader
+              address={activeAddress.address}
+              walletName={activeAddress.name}
+              className="mt-1 mb-5"
+            />
+          )}
+        </>
+      }
+      submitDisabled={!isAssetNameValid || (inscribeEnabled && !selectedFile)}
+    >
           <AssetNameInput
             name="asset"
             value={assetName}
@@ -196,7 +176,7 @@ export function IssuanceForm({
             isSubasset={!!initialParentAsset}
             parentAsset={initialParentAsset}
             disabled={pending}
-            showHelpText={shouldShowHelpText}
+            showHelpText={showHelpText}
             required
             autoFocus
           />
@@ -206,8 +186,8 @@ export function IssuanceForm({
             value={amount}
             onChange={setAmount}
             sat_per_vbyte={0}
-            setError={(msg) => setError(msg ? { message: msg } : null)}
-            shouldShowHelpText={shouldShowHelpText}
+            setError={(msg) => {}}
+            shouldShowHelpText={showHelpText}
             sourceAddress={activeAddress}
             maxAmount={getMaxAmount()}
             label="Amount"
@@ -261,7 +241,7 @@ export function IssuanceForm({
               disabled={pending}
               maxSizeKB={400}
               helpText="Upload a file to inscribe as the asset's description. The file content will be stored permanently on-chain."
-              showHelpText={shouldShowHelpText}
+              showHelpText={showHelpText}
             />
           ) : (
             <Field>
@@ -277,9 +257,11 @@ export function IssuanceForm({
                 rows={4}
                 disabled={pending}
               />
-              <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                A textual description for the asset.
-              </Description>
+              {showHelpText && (
+                <Description className="mt-2 text-sm text-gray-500">
+                  A textual description for the asset.
+                </Description>
+              )}
             </Field>
           )}
           
@@ -289,17 +271,11 @@ export function IssuanceForm({
               description="Store message as a Taproot inscription (on-chain)"
               checked={inscribeEnabled}
               onChange={setInscribeEnabled}
-              showHelpText={shouldShowHelpText}
+              showHelpText={showHelpText}
               disabled={pending}
             />
           )}
 
-          <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-          <Button type="submit" color="blue" fullWidth disabled={pending || !isAssetNameValid || (inscribeEnabled && !selectedFile)}>
-            {pending ? "Submitting..." : "Continue"}
-          </Button>
-        </form>
-      </div>
-    </div>
+    </ComposeForm>
   );
 }

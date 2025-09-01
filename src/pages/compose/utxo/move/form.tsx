@@ -1,17 +1,14 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useFormStatus } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { FaSpinner } from "react-icons/fa";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { Button } from "@/components/button";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { ErrorAlert } from "@/components/error-alert";
 import { AddressHeader } from "@/components/headers/address-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { useWallet } from "@/contexts/wallet-context";
-import { useSettings } from "@/contexts/settings-context";
+import { useComposer } from "@/contexts/composer-context";
 import { fetchUtxoBalances, type UtxoBalance } from "@/utils/blockchain/counterparty";
 import { formatTxid } from "@/utils/format";
 import type { MoveOptions } from "@/utils/blockchain/counterparty";
@@ -24,8 +21,6 @@ interface UtxoMoveFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: MoveOptions | null;
   initialUtxo?: string;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 /**
@@ -35,14 +30,9 @@ export function UtxoMoveForm({
   formAction,
   initialFormData,
   initialUtxo,
-  error: composerError,
-  showHelpText,
 }: UtxoMoveFormProps): ReactElement {
   const navigate = useNavigate();
-  const { activeAddress, activeWallet } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
-  const { pending } = useFormStatus();
+  const { activeAddress, activeWallet, settings, showHelpText } = useComposer();
   const [error, setError] = useState<{ message: string } | null>(null);
   const [destination, setDestination] = useState(initialFormData?.destination || "");
   const [destinationValid, setDestinationValid] = useState(false);
@@ -50,12 +40,7 @@ export function UtxoMoveForm({
   const [isLoadingBalances, setIsLoadingBalances] = useState(false);
   const destinationRef = useRef<HTMLInputElement>(null);
 
-  // Set composer error when it occurs
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
+  // Effects
 
   // Focus destination input on mount and fetch UTXO balances
   useEffect(() => {
@@ -77,22 +62,27 @@ export function UtxoMoveForm({
   }, [initialUtxo, initialFormData?.sourceUtxo]);
 
   return (
-    <div className="space-y-4">
-      {activeAddress && (
-        <AddressHeader
-          address={activeAddress.address}
-          walletName={activeWallet?.name ?? ""}
-          className="mt-1 mb-5"
-        />
-      )}
-      <div className="bg-white rounded-lg shadow-lg p-4">
-        {error && (
+    <ComposeForm
+      formAction={formAction}
+      header={
+        activeAddress && (
+          <AddressHeader
+            address={activeAddress.address}
+            walletName={activeWallet?.name ?? ""}
+            className="mt-1 mb-5"
+          />
+        )
+      }
+      submitDisabled={!destinationValid}
+    >
+      {error && (
+        <div className="mb-4">
           <ErrorAlert
             message={error.message}
             onClose={() => setError(null)}
           />
-        )}
-        <form action={formAction} className="space-y-6">
+        </div>
+      )}
           {/* Hidden UTXO input - always passed to formAction */}
           <input 
             type="hidden" 
@@ -135,18 +125,11 @@ export function UtxoMoveForm({
             onValidationChange={setDestinationValid}
             placeholder="Enter destination address"
             required
-            disabled={pending}
-            showHelpText={shouldShowHelpText}
+            disabled={false}
+            showHelpText={showHelpText}
             name="destination_display"
           />
 
-          <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-          
-          <Button type="submit" color="blue" fullWidth disabled={pending || !destinationValid}>
-            {pending ? "Submitting..." : "Continue"}
-          </Button>
-        </form>
-      </div>
-    </div>
+    </ComposeForm>
   );
 }

@@ -3,14 +3,11 @@
 import { useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { Button } from "@/components/button";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { ErrorAlert } from "@/components/error-alert";
-import { useSettings } from "@/contexts/settings-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { useWallet } from "@/contexts/wallet-context";
+import { useComposer } from "@/contexts/composer-context";
 import { validateQuantity } from "@/utils/validation";
 import type { DestroyOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
@@ -22,8 +19,6 @@ interface DestroySupplyFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: DestroyOptions | null;
   initialAsset?: string;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 /**
@@ -33,13 +28,9 @@ export function DestroySupplyForm({
   formAction,
   initialFormData,
   initialAsset,
-  error: composerError,
-  showHelpText,
 }: DestroySupplyFormProps): ReactElement {
   // Context hooks
-  const { activeAddress } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  const { activeAddress, showHelpText } = useComposer();
   
   // Data fetching hooks
   const asset = initialAsset || initialFormData?.asset || "";
@@ -47,9 +38,6 @@ export function DestroySupplyForm({
   
   // Form status
   const { pending } = useFormStatus();
-  
-  // Error state management
-  const [error, setError] = useState<{ message: string } | null>(null);
   
   // Form state
   const [amount, setAmount] = useState<string>(
@@ -62,24 +50,6 @@ export function DestroySupplyForm({
     return assetDetails?.assetInfo?.divisible || false;
   }, [assetDetails?.assetInfo]);
 
-  // Effects - composer error first
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
-
-  // Asset details error effect
-  useEffect(() => {
-    if (assetDetailsError) {
-      setError({
-        message: `Failed to fetch details for asset ${asset}. ${assetDetailsError.message || "Please try again later."}`
-      });
-    } else if (!composerError) {
-      // Clear error if it was an asset details error and there's no composer error
-      setError(null);
-    }
-  }, [assetDetailsError, asset, composerError]);
 
   // Sync amount when initialFormData changes
   useEffect(() => {
@@ -97,8 +67,6 @@ export function DestroySupplyForm({
   // Handlers
   const handleAmountChange = (value: string) => {
     setAmount(value);
-    // Clear error when amount changes
-    setError(null);
   };
 
   const handleFormAction = (formData: FormData) => {
@@ -126,12 +94,12 @@ export function DestroySupplyForm({
     return validation.isValid;
   };
 
-  const isSubmitDisabled = pending || !isAmountValid() || !asset;
 
   return (
-    <div className="space-y-4">
-      {asset && (
-        assetDetails ? (
+    <ComposeForm
+      formAction={handleFormAction}
+      header={
+        asset && assetDetails ? (
           <BalanceHeader
             balance={{
               asset: asset,
@@ -148,16 +116,10 @@ export function DestroySupplyForm({
             className="mt-1 mb-5"
           />
         ) : null
-      )}
-      
-      <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-        {error && (
-          <ErrorAlert
-            message={error.message}
-            onClose={() => setError(null)}
-          />
-        )}
-        <form action={handleFormAction} className="space-y-4">
+      }
+      submitText="Destroy Supply"
+      submitDisabled={!isAmountValid() || !asset}
+    >
           {/* Hidden asset field when pre-selected */}
           {initialAsset ? (
             <input type="hidden" name="asset" value={initialAsset} />
@@ -176,9 +138,11 @@ export function DestroySupplyForm({
                 placeholder="Enter asset name"
                 disabled={pending}
               />
-              <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                The name of the asset to destroy supply from.
-              </Description>
+              {showHelpText && (
+                <Description className="mt-2 text-sm text-gray-500">
+                  The name of the asset to destroy supply from.
+                </Description>
+              )}
             </Field>
           )}
 
@@ -188,10 +152,10 @@ export function DestroySupplyForm({
             value={amount}
             onChange={handleAmountChange}
             sat_per_vbyte={satPerVbyte}
-            setError={(message) => message ? setError({ message }) : setError(null)}
+            setError={(message) => {}}
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.availableBalance || "0"}
-            shouldShowHelpText={shouldShowHelpText}
+            shouldShowHelpText={showHelpText}
             label="Amount to Destroy"
             name="quantity"
             description={
@@ -216,18 +180,13 @@ export function DestroySupplyForm({
               maxLength={34}
               placeholder="Optional reference or note (max 34 characters)"
             />
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Optional tag to attach to this destroy action. This can be used for notes, references, or any metadata up to 34 characters.
-            </Description>
+            {showHelpText && (
+              <Description className="mt-2 text-sm text-gray-500">
+                Optional tag to attach to this destroy action. This can be used for notes, references, or any metadata up to 34 characters.
+              </Description>
+            )}
           </Field>
 
-          <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-          
-          <Button type="submit" color="red" fullWidth disabled={isSubmitDisabled}>
-            {pending ? "Destroying..." : "Destroy Supply"}
-          </Button>
-        </form>
-      </div>
-    </div>
+    </ComposeForm>
   );
 }

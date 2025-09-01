@@ -4,12 +4,10 @@ import { useEffect, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { FiCheck } from "react-icons/fi";
 import { Field, Label, Description, Input, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { useSettings } from "@/contexts/settings-context";
+import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount, formatDateToLocal } from "@/utils/format";
 import type { BetOptions } from "@/utils/blockchain/counterparty";
@@ -21,8 +19,6 @@ import type { ReactElement } from "react";
 interface BetFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: BetOptions | null;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 // Bet type options
@@ -42,21 +38,15 @@ const betTypeOptions: BetTypeOption[] = [
 export function BetForm({ 
   formAction, 
   initialFormData,
-  error: composerError,
-  showHelpText,
 }: BetFormProps): ReactElement {
-  // Context hooks
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  // Get everything from composer context
+  const { showHelpText } = useComposer<BetOptions>();
   
   // Data fetching hooks
   const { error: assetError, data: assetDetails } = useAssetDetails("XCP");
   
   // Form status
   const { pending } = useFormStatus();
-  
-  // Error state management
-  const [error, setError] = useState<{ message: string } | null>(null);
 
   // Form state
   const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
@@ -81,13 +71,6 @@ export function BetForm({
   
   // Computed values
   const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
-
-  // Effects - composer error first
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
 
   // Focus feed_address input on mount
   useEffect(() => {
@@ -130,27 +113,26 @@ export function BetForm({
   };
 
   return (
-    <div className="space-y-4">
-      {assetError ? (
-        <div className="text-red-500 mb-4">{assetError.message}</div>
-      ) : assetDetails ? (
-        <BalanceHeader
-          balance={{
-            asset: "XCP",
-            quantity_normalized: assetDetails.availableBalance,
-            asset_info: assetDetails.assetInfo || undefined,
-          }}
-          className="mt-1 mb-5"
-        />
-      ) : null}
-      <div className="bg-white rounded-lg shadow-lg p-4">
-        {error && (
-          <ErrorAlert
-            message={error.message}
-            onClose={() => setError(null)}
+    <ComposeForm
+      formAction={enhancedFormAction}
+      header={
+        assetError ? (
+          <div className="text-red-500 mb-4">{assetError.message}</div>
+        ) : assetDetails ? (
+          <BalanceHeader
+            balance={{
+              asset: "XCP",
+              quantity_normalized: assetDetails.availableBalance,
+              asset_info: assetDetails.assetInfo || undefined,
+            }}
+            className="mt-1 mb-5"
           />
-        )}
-        <form action={enhancedFormAction} className="space-y-6">
+        ) : null
+      }
+      submitText="Continue"
+      submitDisabled={!feedAddressValid}
+      formClassName="space-y-6"
+    >
           <input type="hidden" name="feed_address" value={feedAddress} />
           <DestinationInput
             ref={feedAddressRef}
@@ -160,7 +142,7 @@ export function BetForm({
             placeholder="Enter feed address"
             required
             disabled={pending}
-            showHelpText={shouldShowHelpText}
+            showHelpText={showHelpText}
             name="feed_address_display"
             label="Feed Address"
             helpText="Enter the address of the feed you want to bet on."
@@ -195,9 +177,11 @@ export function BetForm({
                 </ListboxOptions>
               </Listbox>
             </div>
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Select the bet type (Equal or Not Equal).
-            </Description>
+            {showHelpText && (
+              <Description className="mt-2 text-sm text-gray-500">
+                Select the bet type (Equal or Not Equal).
+              </Description>
+            )}
           </Field>
 
           <Field>
@@ -222,9 +206,11 @@ export function BetForm({
                 Selected: {formatDateToLocal(deadlineDate)}
               </div>
             </div>
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Select the deadline date and time for the bet (will be converted to a Unix timestamp).
-            </Description>
+            {showHelpText && (
+              <Description className="mt-2 text-sm text-gray-500">
+                Select the deadline date and time for the bet (will be converted to a Unix timestamp).
+              </Description>
+            )}
           </Field>
 
           <Field>
@@ -240,9 +226,11 @@ export function BetForm({
               className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={pending}
             />
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Enter the XCP wager amount (up to 8 decimal places).
-            </Description>
+            {showHelpText && (
+              <Description className="mt-2 text-sm text-gray-500">
+                Enter the XCP wager amount (up to 8 decimal places).
+              </Description>
+            )}
           </Field>
 
           <Field>
@@ -258,9 +246,11 @@ export function BetForm({
               className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={pending}
             />
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Enter the XCP counterwager amount (up to 8 decimal places).
-            </Description>
+            {showHelpText && (
+              <Description className="mt-2 text-sm text-gray-500">
+                Enter the XCP counterwager amount (up to 8 decimal places).
+              </Description>
+            )}
           </Field>
 
           <Field>
@@ -276,9 +266,11 @@ export function BetForm({
               className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={pending}
             />
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Enter the number of blocks until the bet expires.
-            </Description>
+            {showHelpText && (
+              <Description className="mt-2 text-sm text-gray-500">
+                Enter the number of blocks until the bet expires.
+              </Description>
+            )}
           </Field>
 
           <Field>
@@ -294,9 +286,11 @@ export function BetForm({
               className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={pending}
             />
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Enter the leverage factor (default is 5040).
-            </Description>
+            {showHelpText && (
+              <Description className="mt-2 text-sm text-gray-500">
+                Enter the leverage factor (default is 5040).
+              </Description>
+            )}
           </Field>
 
           <Field>
@@ -312,22 +306,13 @@ export function BetForm({
               className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={pending}
             />
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Enter the target value for Equal/NotEqual bets.
-            </Description>
+            {showHelpText && (
+              <Description className="mt-2 text-sm text-gray-500">
+                Enter the target value for Equal/NotEqual bets.
+              </Description>
+            )}
           </Field>
 
-          <FeeRateInput 
-            showHelpText={shouldShowHelpText} 
-            disabled={pending} 
-            onFeeRateChange={setSatPerVbyte}
-          />
-
-          <Button type="submit" color="blue" fullWidth disabled={pending || !feedAddressValid}>
-            {pending ? "Submitting..." : "Continue"}
-          </Button>
-        </form>
-      </div>
-    </div>
+    </ComposeForm>
   );
 }

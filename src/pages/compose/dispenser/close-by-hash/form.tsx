@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Textarea } from "@headlessui/react";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { AddressHeader } from "@/components/headers/address-header";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
+import { useComposer } from "@/contexts/composer-context";
 import { fetchDispenserByHash } from "@/utils/blockchain/counterparty";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
@@ -15,20 +12,14 @@ interface DispenserCloseByHashFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: DispenserOptions | null;
   initialTxHash?: string;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 export function DispenserCloseByHashForm({
   formAction,
   initialFormData,
   initialTxHash,
-  error: composerError,
-  showHelpText,
 }: DispenserCloseByHashFormProps): ReactElement {
-  const { activeAddress, activeWallet } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  const { activeAddress, activeWallet, settings, showHelpText, state } = useComposer();
   const { pending } = useFormStatus();
   const [txHash, setTxHash] = useState<string>(initialTxHash || initialFormData?.open_address || "");
   const [selectedDispenser, setSelectedDispenser] = useState<any | null>(null);
@@ -37,10 +28,10 @@ export function DispenserCloseByHashForm({
 
   // Set composer error when it occurs
   useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
+    if (state.error) {
+      setError({ message: state.error });
     }
-  }, [composerError]);
+  }, [state.error]);
 
   // Fetch dispenser data when initialTxHash is provided or when txHash changes
   useEffect(() => {
@@ -95,25 +86,21 @@ export function DispenserCloseByHashForm({
   };
 
   return (
-    <div className="space-y-4">
-      {activeAddress && (
-        <AddressHeader
-          address={activeAddress.address}
-          walletName={activeWallet?.name ?? ""}
-          className="mt-1 mb-5"
-        />
-      )}
-      <div className="bg-white rounded-lg shadow-lg p-4">
-        {error && (
-          <ErrorAlert
-            message={error.message}
-            onClose={() => setError(null)}
+    <ComposeForm
+      formAction={formAction}
+      header={
+        activeAddress && (
+          <AddressHeader
+            address={activeAddress.address}
+            walletName={activeWallet?.name ?? ""}
+            className="mt-1 mb-5"
           />
-        )}
-        {isLoading ? (
-          <div className="py-4 text-center">Loading dispenser details...</div>
-        ) : (
-          <form action={formAction} className="space-y-6">
+        )
+      }
+    >
+      {isLoading ? (
+        <div className="py-4 text-center">Loading dispenser details...</div>
+      ) : (
             <Field>
               <Label htmlFor="open_address" className="block text-sm font-medium text-gray-700">
                 Transaction Hash <span className="text-red-500">*</span>
@@ -137,20 +124,15 @@ export function DispenserCloseByHashForm({
                   <p>Source: {selectedDispenser.source}</p>
                 </div>
               )}
-              <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                Enter the transaction hash of the dispenser you want to close.
-              </Description>
+              {showHelpText && (
+                <Description className="mt-2 text-sm text-gray-500">
+                  Enter the transaction hash of the dispenser you want to close.
+                </Description>
+              )}
               <input type="hidden" name="asset" value={selectedDispenser?.asset || ""} />
             </Field>
 
-            <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-            
-            <Button type="submit" color="blue" fullWidth disabled={pending || !selectedDispenser}>
-              {pending ? "Submitting..." : "Continue"}
-            </Button>
-          </form>
-        )}
-      </div>
-    </div>
+      )}
+    </ComposeForm>
   );
 }

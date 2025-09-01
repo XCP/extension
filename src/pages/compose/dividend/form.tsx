@@ -2,16 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Field, Label, Description, Input } from "@headlessui/react";
-import { AssetSelectInput } from "@/components/inputs/asset-select-input";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { Spinner } from "@/components/spinner";
 import { AssetHeader } from "@/components/headers/asset-header";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
+import { AssetSelectInput } from "@/components/inputs/asset-select-input";
+import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
+import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
 import { toBigNumber, calculateMaxDividendPerUnit } from "@/utils/numeric";
@@ -29,37 +25,16 @@ interface DividendFormProps {
   formAction: (formData: FormData) => void;
   asset: string;
   initialFormData: any;
-  showHelpText?: boolean;
-  error?: string | null;
 }
 
-// Custom form action button component that uses useFormStatus
-function FormActionButton() {
-  const { pending } = useFormStatus();
-  
-  return (
-    <Button
-      type="submit"
-      color="blue"
-      fullWidth
-      disabled={pending}
-    >
-      {pending ? "Submitting..." : "Continue"}
-    </Button>
-  );
-}
 
 export function DividendForm({ 
   formAction, 
   asset, 
-  initialFormData, 
-  showHelpText,
-  error: composerError,
+  initialFormData
 }: DividendFormProps): ReactElement {
   // Context hooks
-  const { activeAddress } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  const { activeAddress, settings, showHelpText, state } = useComposer();
   
   // Data fetching hooks
   const { data: assetInfo, error: assetError, isLoading: assetLoading } = useAssetDetails(asset);
@@ -79,10 +54,10 @@ export function DividendForm({
 
   // Effects - composer error first
   useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
+    if (state.error) {
+      setError({ message: state.error });
     }
-  }, [composerError]);
+  }, [state.error]);
 
   // Fetch dividend asset balance when it changes
   useEffect(() => {
@@ -152,25 +127,20 @@ export function DividendForm({
   }
 
   return (
-    <div className="space-y-4">
-      <AssetHeader
-        assetInfo={{
-          ...assetInfo.assetInfo,
-          asset: asset,
-          divisible: assetInfo.assetInfo.divisible ?? false,
-          locked: assetInfo.assetInfo.locked ?? false
-        }}
-        className="mt-1 mb-5"
-      />
-      
-      <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-        {(error || composerError) && (
-          <ErrorAlert 
-            message={error?.message || composerError || ""} 
-            onClose={() => setError(null)}
-          />
-        )}
-        <form action={processedFormAction} className="space-y-4">
+    <ComposeForm
+      formAction={processedFormAction}
+      header={
+        <AssetHeader
+          assetInfo={{
+            ...assetInfo.assetInfo,
+            asset: asset,
+            divisible: assetInfo.assetInfo.divisible ?? false,
+            locked: assetInfo.assetInfo.locked ?? false
+          }}
+          className="mt-1 mb-5"
+        />
+      }
+    >
           <input type="hidden" name="asset" value={asset} />
           <input type="hidden" name="dividend_asset" value={selectedDividendAsset} />
           
@@ -179,7 +149,7 @@ export function DividendForm({
             onChange={handleDividendAssetChange}
             label="Dividend Asset"
             required
-            shouldShowHelpText={shouldShowHelpText}
+            shouldShowHelpText={showHelpText}
             description="The asset to pay dividends in (e.g., XCP)."
           />
 
@@ -190,7 +160,7 @@ export function DividendForm({
             onChange={setQuantityPerUnit}
             sat_per_vbyte={1} // Not used for non-BTC assets
             setError={(msg) => setError(msg ? { message: msg } : null)}
-            shouldShowHelpText={shouldShowHelpText}
+            shouldShowHelpText={showHelpText}
             sourceAddress={activeAddress}
             maxAmount={calculateMaxAmountPerUnit()}
             label="Amount Per Unit"
@@ -199,11 +169,6 @@ export function DividendForm({
             disableMaxButton={false}
           />
 
-          <FeeRateInput showHelpText={shouldShowHelpText} />
-
-          <FormActionButton />
-        </form>
-      </div>
-    </div>
+    </ComposeForm>
   );
 }

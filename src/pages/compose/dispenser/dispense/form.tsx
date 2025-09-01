@@ -2,14 +2,11 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useFormStatus } from "react-dom";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { AddressHeader } from "@/components/headers/address-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { DispenserInput, type DispenserOption } from "@/components/inputs/dispenser-input";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
+import { useComposer } from "@/contexts/composer-context";
 import { 
   fetchAssetDetailsAndBalance, 
   type DispenseOptions 
@@ -33,8 +30,6 @@ import type { ReactElement } from "react";
 interface DispenseFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: DispenseOptions | null;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 // ============================================================================
@@ -116,17 +111,11 @@ function useBtcBalance(address: string | undefined) {
 
 export function DispenseForm({ 
   formAction, 
-  initialFormData,
-  error: composerError,
-  showHelpText,
+  initialFormData
 }: DispenseFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet } = useWallet();
-  const { settings } = useSettings();
+  const { activeAddress, activeWallet, settings, showHelpText, state } = useComposer();
   const { pending } = useFormStatus();
-  
-  // Derived state
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
   const feeRate = initialFormData?.sat_per_vbyte || DEFAULT_FEE_RATE;
   
   // State management
@@ -182,10 +171,10 @@ export function DispenseForm({
 
   // Set composer error
   useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
+    if (state.error) {
+      setError({ message: state.error });
     }
-  }, [composerError]);
+  }, [state.error]);
 
   // Focus input on mount
   useEffect(() => {
@@ -282,27 +271,18 @@ export function DispenseForm({
   const errorMessage = error?.message || dispenserError || null;
 
   return (
-    <div className="space-y-4">
-      {activeAddress && (
-        <AddressHeader 
-          address={activeAddress.address} 
-          walletName={activeWallet?.name} 
-          className="mt-1 mb-5" 
-        />
-      )}
-      
-      <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-        {errorMessage && (
-          <ErrorAlert
-            message={errorMessage}
-            onClose={() => {
-              setError(null);
-              setDispenserError(null);
-            }}
+    <ComposeForm
+      formAction={formAction}
+      header={
+        activeAddress && (
+          <AddressHeader 
+            address={activeAddress.address} 
+            walletName={activeWallet?.name} 
+            className="mt-1 mb-5" 
           />
-        )}
-        
-        <form action={formAction} className="space-y-4">
+        )
+      }
+    >
           {/* Dispenser Input Component */}
           <DispenserInput
             value={dispenserAddress}
@@ -311,7 +291,7 @@ export function DispenseForm({
             onSelectionChange={handleDispenserSelectionChange}
             initialFormData={initialFormData}
             disabled={pending}
-            showHelpText={shouldShowHelpText}
+            showHelpText={showHelpText}
             required={true}
             onError={setDispenserError}
             onLoadingChange={setIsLoadingDispensers}
@@ -327,7 +307,7 @@ export function DispenseForm({
                 onChange={setNumberOfDispenses}
                 sat_per_vbyte={feeRate}
                 setError={(msg) => setError(msg ? { message: msg } : null)}
-                shouldShowHelpText={shouldShowHelpText}
+                shouldShowHelpText={showHelpText}
                 sourceAddress={activeAddress}
                 maxAmount={maxDispenses.toString()}
                 label="Times to Dispense"
@@ -352,15 +332,6 @@ export function DispenseForm({
             </>
           )}
 
-          {/* Fee Rate Input */}
-          <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-
-          {/* Submit Button */}
-          <Button type="submit" color="blue" fullWidth disabled={pending}>
-            {pending ? "Submitting..." : "Continue"}
-          </Button>
-        </form>
-      </div>
-    </div>
+    </ComposeForm>
   );
 }

@@ -1,15 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { Button } from "@/components/button";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { ErrorAlert } from "@/components/error-alert";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
+import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
 import type { AttachOptions } from "@/utils/blockchain/counterparty";
@@ -22,8 +19,6 @@ interface UtxoAttachFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: AttachOptions | null;
   initialAsset: string;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 /**
@@ -33,22 +28,15 @@ export function UtxoAttachForm({
   formAction,
   initialFormData,
   initialAsset,
-  error: composerError,
-  showHelpText,
 }: UtxoAttachFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  const { activeAddress, activeWallet, settings, showHelpText } = useComposer();
   
   // Data fetching hooks
   const asset = initialAsset || initialFormData?.asset || "";
   const { data: assetDetails } = useAssetDetails(asset);
   
-  // Form status
-  const { pending } = useFormStatus();
-  
-  // Error state management
+  // Local error state management
   const [error, setError] = useState<{ message: string } | null>(null);
   
   // Form state
@@ -57,12 +45,7 @@ export function UtxoAttachForm({
   // Computed values
   const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
 
-  // Effects - composer error first
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
+  // Effects
 
   // Focus quantity input on mount
   useEffect(() => {
@@ -71,32 +54,37 @@ export function UtxoAttachForm({
   }, []);
 
   return (
-    <div className="space-y-4">
-      {asset && assetDetails && (
-        <BalanceHeader
-          balance={{
-            asset: asset,
-            asset_info: {
-              asset_longname: assetDetails.assetInfo?.asset_longname || null,
-              description: assetDetails.assetInfo?.description,
-              issuer: assetDetails.assetInfo?.issuer,
-              divisible: assetDetails.assetInfo?.divisible ?? false,
-              locked: assetDetails.assetInfo?.locked ?? false,
-              supply: assetDetails.assetInfo?.supply
-            },
-            quantity_normalized: assetDetails.availableBalance
-          }}
-          className="mt-1 mb-5"
-        />
-      )}
-      <div className="bg-white rounded-lg shadow-lg p-4">
-        {error && (
+    <ComposeForm
+      formAction={formAction}
+      header={
+        asset && assetDetails && (
+          <BalanceHeader
+            balance={{
+              asset: asset,
+              asset_info: {
+                asset_longname: assetDetails.assetInfo?.asset_longname || null,
+                description: assetDetails.assetInfo?.description,
+                issuer: assetDetails.assetInfo?.issuer,
+                divisible: assetDetails.assetInfo?.divisible ?? false,
+                locked: assetDetails.assetInfo?.locked ?? false,
+                supply: assetDetails.assetInfo?.supply
+              },
+              quantity_normalized: assetDetails.availableBalance
+            }}
+            className="mt-1 mb-5"
+          />
+        )
+      }
+      submitDisabled={!quantity || quantity === "0" || parseFloat(quantity) <= 0}
+    >
+      {error && (
+        <div className="mb-4">
           <ErrorAlert
             message={error.message}
             onClose={() => setError(null)}
           />
-        )}
-        <form action={formAction} className="space-y-6">
+        </div>
+      )}
           {/* Hidden asset input - passed from navigation */}
           <input 
             type="hidden" 
@@ -112,7 +100,7 @@ export function UtxoAttachForm({
             setError={() => {}} // No-op since Composer handles errors
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.availableBalance || "0"}
-            shouldShowHelpText={shouldShowHelpText}
+            shouldShowHelpText={showHelpText}
             label="Amount"
             name="quantity"
             description={
@@ -120,21 +108,8 @@ export function UtxoAttachForm({
                 ? "Enter the amount to attach (up to 8 decimal places)."
                 : "Enter a whole number amount."
             }
-            disabled={pending}
+            disabled={false}
           />
-          
-          <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-          
-          <Button 
-            type="submit" 
-            color="blue" 
-            fullWidth 
-            disabled={pending || !quantity || quantity === "0" || parseFloat(quantity) <= 0}
-          >
-            {pending ? "Submitting..." : "Continue"}
-          </Button>
-        </form>
-      </div>
-    </div>
+    </ComposeForm>
   );
 }

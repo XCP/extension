@@ -3,14 +3,11 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Textarea, Input } from "@headlessui/react";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { AddressHeader } from "@/components/headers/address-header";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { SettingSwitch } from "@/components/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
+import { useComposer } from "@/contexts/composer-context";
 import { AddressType } from "@/utils/blockchain/bitcoin";
 import type { BroadcastOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
@@ -21,8 +18,6 @@ import type { ReactElement } from "react";
 interface BroadcastFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: BroadcastOptions | null;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 /**
@@ -32,21 +27,14 @@ interface BroadcastFormProps {
  */
 export function BroadcastForm({ 
   formAction, 
-  initialFormData, 
-  error: composerError, 
-  showHelpText 
+  initialFormData
 }: BroadcastFormProps): ReactElement {
-  // Context hooks
-  const { activeAddress, activeWallet } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  // Get everything from composer context
+  const { activeAddress, activeWallet, settings, showHelpText } = useComposer<BroadcastOptions>();
   const showAdvancedOptions = settings?.enableAdvancedBroadcasts ?? false;
   
   // Form status
   const { pending } = useFormStatus();
-  
-  // Error state management
-  const [error, setError] = useState<{ message: string } | null>(null);
   
   // Form state
   const [textContent, setTextContent] = useState(initialFormData?.text || "");
@@ -63,13 +51,6 @@ export function BroadcastForm({
     AddressType.P2TR
   ].includes(activeWallet.addressType);
   
-  // Effects - composer error first
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
-
   // Focus textarea on mount (only if not inscribing)
   useEffect(() => {
     if (!inscribeEnabled) {
@@ -102,22 +83,8 @@ export function BroadcastForm({
   };
 
   return (
-    <div className="space-y-4">
-      {activeAddress && (
-        <AddressHeader
-          address={activeAddress.address}
-          walletName={activeWallet?.name ?? ""}
-          className="mt-1 mb-5"
-        />
-      )}
-      <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-        {error && (
-          <ErrorAlert
-            message={error.message}
-            onClose={() => setError(null)}
-          />
-        )}
-        <form action={async formData => {
+    <ComposeForm
+      formAction={async formData => {
           // Ensure defaults for optional fields
           if (!formData.get("value") || formData.get("value") === "") {
             formData.set("value", "0");
@@ -145,7 +112,20 @@ export function BroadcastForm({
           }
           
           formAction(formData);
-        }} className="space-y-4">
+        }}
+        header={
+          activeAddress && (
+            <AddressHeader
+              address={activeAddress.address}
+              walletName={activeWallet?.name ?? ""}
+              className="mt-1 mb-5"
+            />
+          )
+        }
+        submitText="Continue"
+        submitDisabled={(inscribeEnabled && !selectedFile) || (!inscribeEnabled && !textContent)}
+        formClassName="space-y-4"
+      >
           {inscribeEnabled ? (
             <InscriptionUploadInput
               required
@@ -155,7 +135,7 @@ export function BroadcastForm({
               disabled={pending}
               maxSizeKB={400}
               helpText="Upload a file to inscribe as the broadcast message. The file content will be stored permanently on-chain. To broadcast text, upload a .txt file."
-              showHelpText={shouldShowHelpText}
+              showHelpText={showHelpText}
             />
           ) : (
             <Field>
@@ -172,9 +152,11 @@ export function BroadcastForm({
                 rows={4}
                 disabled={pending}
               />
-              <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                Enter the message you want to broadcast.
-              </Description>
+              {showHelpText && (
+                <Description className="mt-2 text-sm text-gray-500">
+                  Enter the message you want to broadcast.
+                </Description>
+              )}
             </Field>
           )}
 
@@ -184,7 +166,7 @@ export function BroadcastForm({
               description="Store message as a Taproot inscription (on-chain)"
               checked={inscribeEnabled}
               onChange={setInscribeEnabled}
-              showHelpText={shouldShowHelpText}
+              showHelpText={showHelpText}
               disabled={pending}
             />
           )}
@@ -206,9 +188,11 @@ export function BroadcastForm({
                   placeholder="0"
                   disabled={pending}
                 />
-                <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                  Optional numeric value if publishing data.
-                </Description>
+                {showHelpText && (
+                  <Description className="mt-2 text-sm text-gray-500">
+                    Optional numeric value if publishing data.
+                  </Description>
+                )}
               </Field>
 
               <Field>
@@ -226,9 +210,11 @@ export function BroadcastForm({
                   placeholder="0"
                   disabled={pending}
                 />
-                <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                  Optional fee fraction for paid broadcasts (e.g., 0.05 for 5%).
-                </Description>
+                {showHelpText && (
+                  <Description className="mt-2 text-sm text-gray-500">
+                    Optional fee fraction for paid broadcasts (e.g., 0.05 for 5%).
+                  </Description>
+                )}
               </Field>
             </>
           )}
@@ -244,13 +230,6 @@ export function BroadcastForm({
           {/* Hidden input for encoding */}
           {inscribeEnabled && <input type="hidden" name="encoding" value="taproot" />}
 
-          <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-
-          <Button type="submit" color="blue" fullWidth disabled={pending || (inscribeEnabled && !selectedFile) || (!inscribeEnabled && !textContent)}>
-            {pending ? "Submitting..." : "Continue"}
-          </Button>
-        </form>
-      </div>
-    </div>
+    </ComposeForm>
   );
 }

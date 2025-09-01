@@ -2,15 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Field, Label, Description, Textarea } from "@headlessui/react";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { AddressHeader } from "@/components/headers/address-header";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
+import { useComposer } from "@/contexts/composer-context";
 import type { BTCPayOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
-import { useFormStatus } from "react-dom";
 
 /**
  * Props for the BTCPayForm component, aligned with Composer's formAction.
@@ -18,8 +14,6 @@ import { useFormStatus } from "react-dom";
 interface BTCPayFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: BTCPayOptions | null;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 /**
@@ -28,26 +22,9 @@ interface BTCPayFormProps {
 export function BTCPayForm({ 
   formAction, 
   initialFormData,
-  error: composerError,
-  showHelpText,
 }: BTCPayFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
-  
-  // Form status
-  const { pending } = useFormStatus();
-  
-  // Error state management
-  const [error, setError] = useState<{ message: string } | null>(null);
-
-  // Effects - composer error first
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
+  const { activeAddress, activeWallet, settings, showHelpText } = useComposer();
 
   // Focus order_match_id textarea on mount
   useEffect(() => {
@@ -56,18 +33,14 @@ export function BTCPayForm({
   }, []);
 
   return (
-    <div className="space-y-4">
-      {activeAddress && (
-        <AddressHeader address={activeAddress.address} walletName={activeWallet?.name} className="mt-1 mb-5" />
-      )}
-      <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-        {error && (
-          <ErrorAlert
-            message={error.message}
-            onClose={() => setError(null)}
-          />
-        )}
-        <form action={formAction} className="space-y-4">
+    <ComposeForm
+      formAction={formAction}
+      header={
+        activeAddress && (
+          <AddressHeader address={activeAddress.address} walletName={activeWallet?.name} className="mt-1 mb-5" />
+        )
+      }
+    >
           <Field>
             <Label htmlFor="order_match_id" className="block text-sm font-medium text-gray-700">
               Order Match ID <span className="text-red-500">*</span>
@@ -79,20 +52,15 @@ export function BTCPayForm({
               rows={3}
               className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
-              disabled={pending}
+              disabled={false}
             />
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Enter the ID of the order match you want to pay for.
-            </Description>
+            {showHelpText && (
+              <Description className="mt-2 text-sm text-gray-500">
+                Enter the ID of the order match you want to pay for.
+              </Description>
+            )}
           </Field>
 
-          <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-          
-          <Button type="submit" color="blue" fullWidth disabled={pending}>
-            {pending ? "Submitting..." : "Continue"}
-          </Button>
-        </form>
-      </div>
-    </div>
+    </ComposeForm>
   );
 }

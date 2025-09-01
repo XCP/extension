@@ -1,5 +1,8 @@
 import BigNumber from "bignumber.js";
 
+// Constants
+const SATOSHI_DIVISOR = 100000000;
+
 // Configure BigNumber globally
 BigNumber.config({
   DECIMAL_PLACES: 8,
@@ -306,8 +309,12 @@ export const toNumber = (value: string | number | BigNumber): number => {
  * normalizeAssetSupply("100", false) // 100 (non-divisible)
  */
 export function normalizeAssetSupply(supply: string | number, isDivisible: boolean): number {
-  const supplyNum = Number(supply);
-  return isDivisible ? supplyNum / 100000000 : supplyNum;
+  const supplyBN = toBigNumber(supply);
+  if (isDivisible) {
+    // Use safe division with BigNumber for divisible assets
+    return supplyBN.dividedBy(SATOSHI_DIVISOR).toNumber();
+  }
+  return supplyBN.toNumber();
 }
 
 /**

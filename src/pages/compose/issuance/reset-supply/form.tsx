@@ -2,11 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { useSettings } from "@/contexts/settings-context";
+import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
@@ -18,8 +16,6 @@ interface ResetSupplyFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: IssuanceOptions | null;
   asset: string;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 /**
@@ -29,28 +25,15 @@ export function ResetSupplyForm({
   formAction,
   initialFormData,
   asset,
-  error: composerError,
-  showHelpText,
 }: ResetSupplyFormProps): ReactElement {
   // Context hooks
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  const { showHelpText } = useComposer();
   
   // Data fetching hooks
   const { error: assetError, data: assetDetails } = useAssetDetails(asset);
   
   // Form status
   const { pending } = useFormStatus();
-  
-  // Error state management
-  const [error, setError] = useState<{ message: string } | null>(null);
-
-  // Effects - composer error first
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
 
   // Early returns
   if (assetError || !assetDetails) {
@@ -58,7 +41,9 @@ export function ResetSupplyForm({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
+    <ComposeForm
+      formAction={formAction}
+    >
       <div className="mb-4 p-3 bg-gray-50 rounded-md">
         <h3 className="text-sm font-medium text-gray-700">Asset Details</h3>
         <div className="mt-2 text-sm text-gray-600">
@@ -73,13 +58,6 @@ export function ResetSupplyForm({
           undone.
         </p>
       </div>
-      {error && (
-        <ErrorAlert 
-          message={error.message} 
-          onClose={() => setError(null)}
-        />
-      )}
-      <form action={formAction} className="space-y-4">
         <input type="hidden" name="asset" value={asset} />
         <input type="hidden" name="quantity" value="0" />
         <CheckboxInput
@@ -88,12 +66,6 @@ export function ResetSupplyForm({
           disabled={pending}
         />
 
-        <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-        
-        <Button type="submit" color="blue" fullWidth disabled={pending}>
-          {pending ? "Submitting..." : "Continue"}
-        </Button>
-      </form>
-    </div>
+    </ComposeForm>
   );
 }
