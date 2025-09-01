@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { Field, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { Spinner } from "@/components/spinner";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+import { AssetHeader } from "@/components/headers/asset-header";
 import { useSettings } from "@/contexts/settings-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
-import { AssetHeader } from "@/components/headers/asset-header";
-import { Field, Description } from "@headlessui/react";
 import type { ReactElement } from "react";
 
 /**

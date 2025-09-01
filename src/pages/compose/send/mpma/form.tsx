@@ -34,26 +34,34 @@ export function MPMAForm({
   error: composerError,
   showHelpText,
 }: MPMAFormProps): ReactElement {
+  // Context hooks
   const { activeAddress } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
-  const { pending } = useFormStatus();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Form status
+  const { pending } = useFormStatus();
+  
+  // Error state management
   const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Form state
   const [csvData, setCsvData] = useState<ParsedRow[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string>("");
   const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
   
-  // Set composer error when it occurs
+  // Refs
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });
     }
   }, [composerError]);
 
-
+  // Handlers
   const processCSV = async (text: string) => {
     setIsProcessing(true);
     setError(null);

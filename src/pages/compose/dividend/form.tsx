@@ -7,15 +7,15 @@ import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { Button } from "@/components/button";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
 import { ErrorAlert } from "@/components/error-alert";
 import { Spinner } from "@/components/spinner";
+import { AssetHeader } from "@/components/headers/asset-header";
+import { useSettings } from "@/contexts/settings-context";
+import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
-import { toBigNumber } from "@/utils/numeric";
+import { toBigNumber, calculateMaxDividendPerUnit } from "@/utils/numeric";
 import { fetchTokenBalance } from "@/utils/blockchain/counterparty/api";
-import { AssetHeader } from "@/components/headers/asset-header";
 import type { ReactElement } from "react";
 
 export interface DividendFormData {
@@ -56,22 +56,28 @@ export function DividendForm({
   showHelpText,
   error: composerError,
 }: DividendFormProps): ReactElement {
+  // Context hooks
+  const { activeAddress } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
-  const [error, setError] = useState<{ message: string; } | null>(null);
   
+  // Data fetching hooks
   const { data: assetInfo, error: assetError, isLoading: assetLoading } = useAssetDetails(asset);
+  const { data: dividendAssetInfo } = useAssetDetails(initialFormData?.dividend_asset || "XCP");
+  
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Form state
   const [selectedDividendAsset, setSelectedDividendAsset] = useState<string>(
     initialFormData?.dividend_asset || "XCP"
   );
-  const { data: dividendAssetInfo } = useAssetDetails(selectedDividendAsset);
   const [dividendAssetBalance, setDividendAssetBalance] = useState<string>("0");
   const [quantityPerUnit, setQuantityPerUnit] = useState<string>(
     initialFormData?.quantity_per_unit || ""
   );
-  const { activeAddress } = useWallet();
 
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });
@@ -100,29 +106,29 @@ export function DividendForm({
     fetchBalance();
   }, [activeAddress?.address, selectedDividendAsset]);
 
-  // Calculate max amount per unit (dividend balance / asset supply)
+  // Handlers
   const calculateMaxAmountPerUnit = () => {
     if (!assetInfo?.assetInfo?.supply || !dividendAssetBalance) {
       return "0";
     }
     
-    const supply = assetInfo.assetInfo.divisible 
-      ? Number(assetInfo.assetInfo.supply) / 100000000
-      : Number(assetInfo.assetInfo.supply);
-    
-    if (supply === 0) return "0";
-    
-    const balance = Number(dividendAssetBalance);
-    const maxPerUnit = balance / supply;
+    const maxPerUnitBN = calculateMaxDividendPerUnit(
+      dividendAssetBalance,
+      assetInfo.assetInfo.supply,
+      assetInfo.assetInfo.divisible ?? false
+    );
     
     return formatAmount({
-      value: maxPerUnit,
+      value: maxPerUnitBN.toNumber(),
       maximumFractionDigits: 8,
       minimumFractionDigits: 8
     });
   };
 
-  // Create a server action wrapper that processes the form data
+  const handleDividendAssetChange = (asset: string) => {
+    setSelectedDividendAsset(asset);
+  };
+
   const processedFormAction = async (formData: FormData) => {
     // Set the quantity_per_unit value from state
     formData.set('quantity_per_unit', quantityPerUnit);
@@ -130,12 +136,8 @@ export function DividendForm({
     // Submit the form data
     formAction(formData);
   };
-
-  // Handle dividend asset change
-  const handleDividendAssetChange = (asset: string) => {
-    setSelectedDividendAsset(asset);
-  };
-
+  
+  // Early returns
   if (assetLoading) {
     return <Spinner message="Loading asset details..." />;
   }

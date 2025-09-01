@@ -36,20 +36,28 @@ export function UtxoAttachForm({
   error: composerError,
   showHelpText,
 }: UtxoAttachFormProps): ReactElement {
+  // Context hooks
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
-  const { pending } = useFormStatus();
-  const [error, setError] = useState<{ message: string } | null>(null);
-  // Always use initialAsset first, as it comes from the route params
+  
+  // Data fetching hooks
   const asset = initialAsset || initialFormData?.asset || "";
   const { data: assetDetails } = useAssetDetails(asset);
   
-  // Local state for quantity to handle Max button
-  const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
+  // Form status
+  const { pending } = useFormStatus();
+  
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Form state
   const [quantity, setQuantity] = useState(initialFormData?.quantity?.toString() || "");
+  
+  // Computed values
+  const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
 
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });

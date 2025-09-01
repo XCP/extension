@@ -63,25 +63,31 @@ export function FairminterForm({
   error: composerError,
   showHelpText,
 }: FairminterFormProps): ReactElement {
+  // Context hooks
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  
+  // Form status
   const { pending } = useFormStatus();
-  const [error, setError] = useState<{ message: string; } | null>(null);
+  
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Form state
   const [startBlock, setStartBlock] = useState(initialFormData?.start_block?.toString() || "");
   const [endBlock, setEndBlock] = useState(initialFormData?.end_block?.toString() || "");
   const [softCapDeadlineBlock, setSoftCapDeadlineBlock] = useState(initialFormData?.soft_cap_deadline_block?.toString() || "");
-
+  
+  // Mint method state
   const initialMintMethod = initialFormData?.burn_payment === false
     ? FAIRMINTER_MODELS.MINER_FEE_ONLY
     : initialFormData?.burn_payment
     ? FAIRMINTER_MODELS.XCP_FEE_BURNED
     : FAIRMINTER_MODELS.XCP_FEE_TO_ISSUER;
-    
-  // Add state to track the selected mint method
   const [selectedMintMethod, setSelectedMintMethod] = useState<FairminterModel>(initialMintMethod);
 
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });
@@ -94,7 +100,7 @@ export function FairminterForm({
     input?.focus();
   }, []);
 
-  // Create a wrapper for formAction that handles the selected mint method
+  // Handlers
   const enhancedFormAction = (formData: FormData) => {
     // Create a new FormData to avoid modifying the original
     const processedFormData = new FormData();

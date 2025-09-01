@@ -33,12 +33,17 @@ export function IssueSupplyForm({
   error: composerError,
   showHelpText,
 }: IssueSupplyFormProps): ReactElement {
+  // Context hooks
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  
+  // Form status
   const { pending } = useFormStatus();
-  const [error, setError] = useState<{ message: string; } | null>(null);
+  
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
 
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });

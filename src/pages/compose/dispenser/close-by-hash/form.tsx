@@ -1,4 +1,4 @@
-import React, { useState, useEffect, type ReactElement } from "react";
+import React, { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Textarea } from "@headlessui/react";
 import { Button } from "@/components/button";
@@ -9,6 +9,7 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchDispenserByHash } from "@/utils/blockchain/counterparty";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty";
+import type { ReactElement } from "react";
 
 interface DispenserCloseByHashFormProps {
   formAction: (formData: FormData) => void;

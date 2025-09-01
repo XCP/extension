@@ -25,17 +25,24 @@ interface BTCPayFormProps {
 /**
  * Form for submitting a BTC payment for an order match using React 19 Actions.
  */
-export function BTCPayForm({ formAction, initialFormData ,
+export function BTCPayForm({ 
+  formAction, 
+  initialFormData,
   error: composerError,
   showHelpText,
 }: BTCPayFormProps): ReactElement {
+  // Context hooks
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  
+  // Form status
   const { pending } = useFormStatus();
-  const [error, setError] = useState<{ message: string; } | null>(null);
+  
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
 
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });

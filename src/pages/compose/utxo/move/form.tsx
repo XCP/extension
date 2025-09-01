@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { Field, Label, Description, Input } from "@headlessui/react";
 import { FaSpinner } from "react-icons/fa";
+import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { AddressHeader } from "@/components/headers/address-header";

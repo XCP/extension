@@ -30,30 +30,40 @@ interface BroadcastFormProps {
  * @param {BroadcastFormProps} props - Component props
  * @returns {ReactElement} Broadcast form UI
  */
-export function BroadcastForm({ formAction, initialFormData, error: composerError, showHelpText }: BroadcastFormProps): ReactElement {
+export function BroadcastForm({ 
+  formAction, 
+  initialFormData, 
+  error: composerError, 
+  showHelpText 
+}: BroadcastFormProps): ReactElement {
+  // Context hooks
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
   const showAdvancedOptions = settings?.enableAdvancedBroadcasts ?? false;
+  
+  // Form status
   const { pending } = useFormStatus();
   
-  // Check if active wallet uses SegWit addresses (P2WPKH, P2SH-P2WPKH, or P2TR)
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Form state
+  const [textContent, setTextContent] = useState(initialFormData?.text || "");
+  
+  // Inscription state
+  const [inscribeEnabled, setInscribeEnabled] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  
+  // Computed values
   const isSegwitAddress = activeWallet?.addressType && [
     AddressType.P2WPKH,
     AddressType.P2SH_P2WPKH, 
     AddressType.P2TR
   ].includes(activeWallet.addressType);
   
-  // State for inscription mode - default to false (off by default)
-  const [inscribeEnabled, setInscribeEnabled] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState<string | null>(null);
-  const [textContent, setTextContent] = useState(initialFormData?.text || "");
-  
-  // Error state
-  const [error, setError] = useState<{ message: string; } | null>(null);
-  
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });
@@ -68,7 +78,7 @@ export function BroadcastForm({ formAction, initialFormData, error: composerErro
     }
   }, [inscribeEnabled]);
   
-  // Handle file selection
+  // Handlers
   const handleFileChange = (file: File | null) => {
     setFileError(null);
     if (file && file.size > 400 * 1024) {
@@ -78,7 +88,6 @@ export function BroadcastForm({ formAction, initialFormData, error: composerErro
     setSelectedFile(file);
   };
   
-  // Convert file to base64
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();

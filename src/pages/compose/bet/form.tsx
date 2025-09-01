@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
+import { FiCheck } from "react-icons/fi";
 import { Field, Label, Description, Input, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
@@ -10,10 +11,9 @@ import { DestinationInput } from "@/components/inputs/destination-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { formatAmount } from "@/utils/format";
+import { formatAmount, formatDateToLocal } from "@/utils/format";
 import type { BetOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
-import { FiCheck } from "react-icons/fi";
 
 /**
  * Props for the BetForm component, aligned with Composer's formAction.
@@ -39,24 +39,32 @@ const betTypeOptions: BetTypeOption[] = [
 /**
  * Form for composing a bet transaction using React 19 Actions.
  */
-export function BetForm({ formAction, initialFormData ,
+export function BetForm({ 
+  formAction, 
+  initialFormData,
   error: composerError,
   showHelpText,
 }: BetFormProps): ReactElement {
+  // Context hooks
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  
+  // Data fetching hooks
   const { error: assetError, data: assetDetails } = useAssetDetails("XCP");
+  
+  // Form status
   const { pending } = useFormStatus();
-  const [error, setError] = useState<{ message: string; } | null>(null);
+  
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
 
-  // Local state for form values
+  // Form state
   const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
   const [selectedBetType, setSelectedBetType] = useState<BetTypeOption>(
     betTypeOptions.find(option => option.id === initialFormData?.bet_type) || betTypeOptions[0]
   );
   const [feedAddress, setFeedAddress] = useState(initialFormData?.feed_address || "");
   const [feedAddressValid, setFeedAddressValid] = useState(false);
-  const feedAddressRef = useRef<HTMLInputElement>(null);
   const [deadlineDate, setDeadlineDate] = useState<Date>(() => {
     // If we have an initial deadline (unix timestamp), convert it to a Date
     if (initialFormData?.deadline) {
@@ -67,17 +75,27 @@ export function BetForm({ formAction, initialFormData ,
     date.setDate(date.getDate() + 7);
     return date;
   });
-
+  
+  // Refs
+  const feedAddressRef = useRef<HTMLInputElement>(null);
+  
+  // Computed values
   const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
 
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });
     }
   }, [composerError]);
 
-  // Create a wrapper for formAction that handles data conversion
+  // Focus feed_address input on mount
+  useEffect(() => {
+    feedAddressRef.current?.focus();
+  }, []);
+
+  // Handlers
+
   const enhancedFormAction = (formData: FormData) => {
     // Create a new FormData to avoid modifying the original
     const processedFormData = new FormData();
@@ -110,29 +128,6 @@ export function BetForm({ formAction, initialFormData ,
     // Pass the processed FormData to the original formAction
     formAction(processedFormData);
   };
-
-  // Format date for display
-  const formatDate = (date: Date): string => {
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  // Set composer error when it occurs
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
-
-  // Focus feed_address input on mount
-  useEffect(() => {
-    feedAddressRef.current?.focus();
-  }, []);
 
   return (
     <div className="space-y-4">
@@ -224,7 +219,7 @@ export function BetForm({ formAction, initialFormData ,
                 disabled={pending}
               />
               <div className="mt-2 text-sm text-gray-500">
-                Selected: {formatDate(deadlineDate)}
+                Selected: {formatDateToLocal(deadlineDate)}
               </div>
             </div>
             <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>

@@ -1,4 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback, Suspense, startTransition } from "react";
+"use client";
+
+import React, { useState, useRef, useEffect, useCallback, startTransition } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
@@ -32,10 +34,12 @@ export function FairmintForm({
   error: composerError,
   showHelpText = false
 }: FairmintFormProps) {
+  // Context hooks
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
-  const [selectedFairminter, setSelectedFairminter] = useState<Fairminter | undefined>(undefined);
+  
+  // Form state
   const [formData, setFormData] = useState<FairmintFormDataInternal>(() => {
     // Don't use BTC or XCP as the initial asset
     const initialAssetValue = initialFormData?.asset || initialAsset;
@@ -47,8 +51,13 @@ export function FairmintForm({
       sat_per_vbyte: initialFormData?.sat_per_vbyte || 0.1,
     };
   });
+  const [selectedFairminter, setSelectedFairminter] = useState<Fairminter | undefined>(undefined);
+  const [pending, setPending] = useState(false);
   
-  // Only fetch asset details when an asset is selected
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Data fetching hooks
   const { error: assetError, data: assetDetails } = useAssetDetails(
     formData.asset || "", // Pass empty string if no asset selected
     {
@@ -65,32 +74,30 @@ export function FairmintForm({
     }
   );
   
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<{ message: string } | null>(null);
+  // Refs
+  const inputRef = useRef<HTMLInputElement>(null);
   
-  // Set composer error when it occurs
+  // Computed values
+  const isFreeMint = selectedFairminter ? parseFloat(selectedFairminter.price_normalized) === 0 : false;
+  
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });
     }
   }, [composerError]);
 
-  const inputRef = useRef<HTMLInputElement>(null);
-
+  // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Determine if this is a free mint (price = 0)
-  const isFreeMint = selectedFairminter ? parseFloat(selectedFairminter.price_normalized) === 0 : false;
-
-  // Stable callback for handling fairminter selection
+  // Handlers
   const handleFairminterChange = useCallback((asset: string, fairminter?: Fairminter) => {
     setFormData(prev => ({ ...prev, asset }));
     setSelectedFairminter(fairminter);
   }, []);
 
-  // Stable callback for handling fee rate changes
   const handleFeeRateChange = useCallback((satPerVbyte: number) => {
     setFormData(prev => ({ ...prev, sat_per_vbyte: satPerVbyte }));
   }, []);

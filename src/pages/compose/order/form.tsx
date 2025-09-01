@@ -1,7 +1,8 @@
 "use client";
 
-import axios from "axios";
 import { useEffect, useState } from "react";
+import { useFormStatus } from "react-dom";
+import axios from "axios";
 import { FaCog } from "react-icons/fa";
 import { OrderSettings } from "@/pages/settings/order-settings";
 import { Button } from "@/components/button";
@@ -10,16 +11,14 @@ import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
+import { BalanceHeader } from "@/components/headers/balance-header";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import type { OrderOptions } from "@/utils/blockchain/counterparty";
+import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { toBigNumber } from "@/utils/numeric";
 import { formatAmount } from "@/utils/format";
-import { BalanceHeader } from "@/components/headers/balance-header";
-import { HeaderSkeleton } from "@/components/skeleton";
-import { useAssetDetails } from "@/hooks/useAssetDetails";
+import type { OrderOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
-import { useFormStatus } from "react-dom";
 
 interface TradingPairData {
   last_trade_price: string | null;
@@ -55,47 +54,58 @@ export function OrderForm({
   error: composerError,
   showHelpText,
 }: OrderFormProps): ReactElement {
+  // Context hooks
   const { activeAddress } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  
+  // Data fetching hooks
+  const { data: giveAssetDetails } = useAssetDetails(giveAsset);
+  const { data: orderAssetDetails } = useAssetDetails(initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
+  const { data: getAssetDetails } = useAssetDetails(
+    (initialFormData?.type === "buy" || (!initialFormData?.type && true)) ? giveAsset : (initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"))
+  );
+  
+  // Form status
   const { pending } = useFormStatus();
-
-  // Determine initial tab based on whether we have form data
+  
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Tab state
   const [activeTab, setActiveTab] = useState<"buy" | "sell" | "settings">(
     initialFormData?.type === "sell" ? "sell" : initialFormData?.type === "buy" ? "buy" : "buy"
   );
   const [previousTab, setPreviousTab] = useState<"buy" | "sell">(
     initialFormData?.type === "sell" ? "sell" : "buy"
   );
+  const [tabLoading, setTabLoading] = useState(false);
   
-  // Use user-facing values from initialFormData if available
+  // Form state
   const [price, setPrice] = useState<string>(initialFormData?.price || "");
   const [amount, setAmount] = useState<string>(initialFormData?.amount || "");
-  const [error, setError] = useState<{ message: string; } | null>(null);
   const [customExpiration, setCustomExpiration] = useState<number | undefined>(initialFormData?.expiration || undefined);
   const [customFeeRequired, setCustomFeeRequired] = useState<number>(initialFormData?.fee_required || 0);
   const [quoteAsset, setQuoteAsset] = useState<string>(initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
   
-  // Set composer error when it occurs
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
-  
-  const { data: giveAssetDetails } = useAssetDetails(giveAsset);
-  const { data: orderAssetDetails } = useAssetDetails(quoteAsset);
-  const { data: getAssetDetails } = useAssetDetails(activeTab === "buy" ? giveAsset : quoteAsset);
-
-  const [tabLoading, setTabLoading] = useState(false);
+  // Trading state
   const [isPairFlipped, setIsPairFlipped] = useState(false);
   const [tradingPairData, setTradingPairData] = useState<TradingPairData | null>(null);
-
+  
+  // Computed values
   const isGiveAssetDivisible = giveAssetDetails?.isDivisible ?? true;
   const isOrderAssetDivisible = orderAssetDetails?.isDivisible ?? true;
   const isGetAssetDivisible = getAssetDetails?.isDivisible ?? true;
   const availableBalance = giveAssetDetails?.availableBalance ?? "0";
   const orderAssetBalance = orderAssetDetails?.availableBalance ?? "0";
+  const isBuy = activeTab === "buy";
+  
+  // Effects - composer error first
+  useEffect(() => {
+    if (composerError) {
+      setError({ message: composerError });
+    }
+  }, [composerError]);
 
   // Focus amount input on mount
   useEffect(() => {
@@ -111,8 +121,8 @@ export function OrderForm({
       if (!giveAsset || !quoteAsset) return;
 
       try {
-        const give = activeTab === "buy" ? quoteAsset : giveAsset;
-        const get = activeTab === "buy" ? giveAsset : quoteAsset;
+        const give = isBuy ? quoteAsset : giveAsset;
+        const get = isBuy ? giveAsset : quoteAsset;
         const response = await axios.get(`https://app.xcp.io/api/v1/swap/${give}/${get}`);
         const lastTradePrice = response.data?.data?.trading_pair?.last_trade_price || null;
         const tradingPairName = response.data?.data?.trading_pair?.name || "";
@@ -124,8 +134,9 @@ export function OrderForm({
     };
 
     fetchTradingPairData();
-  }, [giveAsset, quoteAsset, activeTab]);
+  }, [giveAsset, quoteAsset, isBuy]);
 
+  // Handlers
   const handleTabChange = (newTab: "buy" | "sell" | "settings") => {
     if (newTab !== "settings") {
       setTabLoading(true);
@@ -136,12 +147,9 @@ export function OrderForm({
     setActiveTab(newTab);
   };
 
-  // Handle price change
   const handlePriceChange = (newPrice: string) => {
     setPrice(newPrice);
   };
-
-  const isBuy = activeTab === "buy";
 
   return (
     <div className="space-y-4">
@@ -155,9 +163,7 @@ export function OrderForm({
             }}
             className="mt-1 mb-3"
           />
-        ) : (
-          <HeaderSkeleton className="mt-1 mb-3" variant="balance" />
-        )
+        ) : null
       ) : null}
       <div className="flex justify-between items-center mb-2">
         <div className="flex space-x-4">

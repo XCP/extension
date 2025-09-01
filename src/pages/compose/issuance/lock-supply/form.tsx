@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useFormStatus } from "react-dom";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
-import { useFormStatus } from "react-dom";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
@@ -32,19 +32,27 @@ export function LockSupplyForm({
   error: composerError,
   showHelpText,
 }: LockSupplyFormProps): ReactElement {
+  // Context hooks
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  
+  // Data fetching hooks
   const { error: assetError, data: assetDetails } = useAssetDetails(asset);
+  
+  // Form status
   const { pending } = useFormStatus();
-  const [error, setError] = useState<{ message: string; } | null>(null);
+  
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
 
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });
     }
   }, [composerError]);
 
+  // Early returns
   if (assetError || !assetDetails) {
     return <div className="p-4 text-red-500">Error loading asset details: {assetError?.message}</div>;
   }

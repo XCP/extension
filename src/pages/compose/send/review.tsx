@@ -1,7 +1,7 @@
-import React, { type ReactElement, type ReactNode } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
+import type { ReactElement, ReactNode } from "react";
 
 /**
  * Props for the ReviewSend component.

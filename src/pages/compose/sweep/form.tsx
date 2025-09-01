@@ -1,4 +1,3 @@
-// SweepForm.tsx
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -40,12 +39,24 @@ interface SweepFormProps {
   showHelpText?: boolean;
 }
 
-export function SweepForm({ formAction, initialFormData, error: composerError, showHelpText }: SweepFormProps): ReactElement {
+export function SweepForm({ 
+  formAction, 
+  initialFormData, 
+  error: composerError, 
+  showHelpText 
+}: SweepFormProps): ReactElement {
+  // Context hooks
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  
+  // Form status
   const { pending } = useFormStatus();
+  
+  // Error state management
   const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Form state
   const [destination, setDestination] = useState(initialFormData?.destination || "");
   const [destinationValid, setDestinationValid] = useState(false);
   const [memo, setMemo] = useState(initialFormData?.memo || "");
@@ -53,18 +64,21 @@ export function SweepForm({ formAction, initialFormData, error: composerError, s
   const [selectedSweepType, setSelectedSweepType] = useState(
     sweepTypeOptions.find(opt => opt.value === (initialFormData?.flags || (FLAG_BALANCES | FLAG_OWNERSHIP))) || sweepTypeOptions[2]
   );
+  
+  // Refs
   const destinationRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    destinationRef.current?.focus();
-  }, []);
-
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });
     }
   }, [composerError]);
+
+  // Focus destination input on mount
+  useEffect(() => {
+    destinationRef.current?.focus();
+  }, []);
 
   return (
     <div className="space-y-4">

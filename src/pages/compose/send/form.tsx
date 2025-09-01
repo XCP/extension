@@ -2,20 +2,16 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
-import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { BalanceHeader } from "@/components/headers/balance-header";
-import { HeaderSkeleton } from "@/components/skeleton";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { DestinationInput } from "@/components/inputs/destination-input";
 import { DestinationsInput } from "@/components/inputs/destinations-input";
 import { MemoInput } from "@/components/inputs/memo-input";
 import { ErrorAlert } from "@/components/error-alert";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { formatAmount } from "@/utils/format";
 import { validateQuantity } from "@/utils/validation";
 import type { SendOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
@@ -40,17 +36,28 @@ export function SendForm({
   error: composerError,
   showHelpText,
 }: SendFormProps): ReactElement {
+  // Context hooks
   const { activeAddress } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
   const enableMPMA = settings?.enableMPMA ?? false;
+  
+  // Data fetching hooks
   const { data: assetDetails, error: assetDetailsError } = useAssetDetails(
     initialAsset || initialFormData?.asset || "BTC"
   );
+  
+  // Form status
   const { pending } = useFormStatus();
   
-  // Single error state to handle all errors
-  const [error, setError] = useState<{ message: string; } | null>(null);
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Form state
+  const [amount, setAmount] = useState<string>(
+    initialFormData?.quantity?.toString() || ""
+  );
+  const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
   
   // Destinations state for MPMA
   const [destinations, setDestinations] = useState<Destination[]>(() => [
@@ -61,15 +68,21 @@ export function SendForm({
   // Memo state and validation
   const [memo, setMemo] = useState(initialFormData?.memo || "");
   const [memoValid, setMemoValid] = useState(true);
+  
+  // Computed values
+  const isDivisible = useMemo(() => {
+    if (initialAsset === "BTC" || initialFormData?.asset === "BTC") return true;
+    return assetDetails?.assetInfo?.divisible || false;
+  }, [initialAsset, initialFormData?.asset, assetDetails?.assetInfo]);
 
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });
     }
   }, [composerError]);
 
-  // Set asset details error when it occurs
+  // Asset details error effect
   useEffect(() => {
     if (assetDetailsError) {
       setError({
@@ -81,17 +94,6 @@ export function SendForm({
     }
   }, [assetDetailsError, initialAsset, initialFormData?.asset, composerError]);
 
-  const isDivisible = useMemo(() => {
-    if (initialAsset === "BTC" || initialFormData?.asset === "BTC") return true;
-    return assetDetails?.assetInfo?.divisible || false;
-  }, [initialAsset, initialFormData?.asset, assetDetails?.assetInfo]);
-
-  const [amount, setAmount] = useState<string>(
-    initialFormData?.quantity?.toString() || ""
-  );
-
-  const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
-
   // Sync amount when initialFormData changes
   useEffect(() => {
     if (initialFormData?.quantity !== undefined) {
@@ -99,6 +101,12 @@ export function SendForm({
     }
   }, [initialFormData?.quantity]);
 
+  // Handlers
+  const handleAmountChange = (value: string) => {
+    setAmount(value);
+    // Clear error when amount changes
+    setError(null);
+  };
 
   const handleFormAction = (formData: FormData) => {
     if (amount) {
@@ -123,12 +131,7 @@ export function SendForm({
     formAction(formData);
   };
 
-  const handleAmountChange = (value: string) => {
-    setAmount(value);
-    // Clear error when amount changes
-    setError(null);
-  };
-
+  // Validation helpers
   const isAmountValid = (): boolean => {
     if (!amount || amount.trim() === "") return false;
     
@@ -154,9 +157,7 @@ export function SendForm({
             }}
             className="mt-1 mb-5"
           />
-        ) : (
-          <HeaderSkeleton className="mt-1 mb-5" variant="balance" />
-        )
+        ) : null
       ) : null}
       <div className="bg-white rounded-lg shadow-lg p-4">
         {error && (

@@ -1,8 +1,8 @@
+import { useState } from "react";
+import { FaExchangeAlt } from "react-icons/fa";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
-import { useState } from "react";
-import { FaExchangeAlt } from "react-icons/fa";
 
 /**
  * Props for the ReviewOrder component.

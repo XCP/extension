@@ -6,13 +6,11 @@ import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { BalanceHeader } from "@/components/headers/balance-header";
-import { HeaderSkeleton } from "@/components/skeleton";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { ErrorAlert } from "@/components/error-alert";
 import { useSettings } from "@/contexts/settings-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useWallet } from "@/contexts/wallet-context";
-import { formatAmount } from "@/utils/format";
 import { validateQuantity } from "@/utils/validation";
 import type { DestroyOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
@@ -38,24 +36,40 @@ export function DestroySupplyForm({
   error: composerError,
   showHelpText,
 }: DestroySupplyFormProps): ReactElement {
+  // Context hooks
+  const { activeAddress } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
-  const { pending } = useFormStatus();
-  const { activeAddress } = useWallet();
+  
+  // Data fetching hooks
   const asset = initialAsset || initialFormData?.asset || "";
   const { data: assetDetails, error: assetDetailsError } = useAssetDetails(asset);
   
-  // Single error state to handle all errors
-  const [error, setError] = useState<{ message: string; } | null>(null);
+  // Form status
+  const { pending } = useFormStatus();
+  
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Form state
+  const [amount, setAmount] = useState<string>(
+    initialFormData?.quantity?.toString() || ""
+  );
+  const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
+  
+  // Computed values
+  const isDivisible = useMemo(() => {
+    return assetDetails?.assetInfo?.divisible || false;
+  }, [assetDetails?.assetInfo]);
 
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });
     }
   }, [composerError]);
 
-  // Set asset details error when it occurs
+  // Asset details error effect
   useEffect(() => {
     if (assetDetailsError) {
       setError({
@@ -66,16 +80,6 @@ export function DestroySupplyForm({
       setError(null);
     }
   }, [assetDetailsError, asset, composerError]);
-
-  const isDivisible = useMemo(() => {
-    return assetDetails?.assetInfo?.divisible || false;
-  }, [assetDetails?.assetInfo]);
-
-  const [amount, setAmount] = useState<string>(
-    initialFormData?.quantity?.toString() || ""
-  );
-
-  const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
 
   // Sync amount when initialFormData changes
   useEffect(() => {
@@ -90,6 +94,13 @@ export function DestroySupplyForm({
     input?.focus();
   }, [initialAsset]);
 
+  // Handlers
+  const handleAmountChange = (value: string) => {
+    setAmount(value);
+    // Clear error when amount changes
+    setError(null);
+  };
+
   const handleFormAction = (formData: FormData) => {
     if (amount) {
       // Remove any formatting (commas, spaces) from the amount
@@ -103,12 +114,7 @@ export function DestroySupplyForm({
     formAction(formData);
   };
 
-  const handleAmountChange = (value: string) => {
-    setAmount(value);
-    // Clear error when amount changes
-    setError(null);
-  };
-
+  // Validation helpers
   const isAmountValid = (): boolean => {
     if (!amount || amount.trim() === "") return false;
     
@@ -141,9 +147,7 @@ export function DestroySupplyForm({
             }}
             className="mt-1 mb-5"
           />
-        ) : (
-          <HeaderSkeleton className="mt-1 mb-5" variant="balance" />
-        )
+        ) : null
       )}
       
       <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">

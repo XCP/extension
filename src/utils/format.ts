@@ -168,6 +168,24 @@ export function formatTimeAgo(timestamp: number): string {
 }
 
 /**
+ * Formats a date object for local display with readable format
+ * Used primarily for displaying deadlines and timestamps in a user-friendly way
+ * @param date - The date object to format  
+ * @returns A formatted date string (e.g., "Nov 15, 2023, 02:30 PM")
+ * @example
+ * formatDateToLocal(new Date(2023, 10, 15, 14, 30)) // "Nov 15, 2023, 02:30 PM"
+ */
+export function formatDateToLocal(date: Date): string {
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/**
  * Formats a Bitcoin fee amount for display
  * @param satoshis - The fee amount in satoshis
  * @returns A formatted string with appropriate units (sats, k sats, or BTC)

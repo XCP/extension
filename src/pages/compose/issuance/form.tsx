@@ -11,14 +11,12 @@ import { AssetNameInput } from "@/components/inputs/asset-name-input";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { SettingSwitch } from "@/components/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
-import { useSettings } from "@/contexts/settings-context";
-import { formatAmount } from "@/utils/format";
-import { toBigNumber } from "@/utils/numeric";
-import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { AssetHeader } from "@/components/headers/asset-header";
 import { AddressHeader } from "@/components/headers/address-header";
-import { HeaderSkeleton } from "@/components/skeleton";
+import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { toBigNumber } from "@/utils/numeric";
 import { AddressType } from "@/utils/blockchain/bitcoin";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
@@ -44,37 +42,43 @@ export function IssuanceForm({
   error: composerError,
   showHelpText,
 }: IssuanceFormProps): ReactElement {
-  const { settings } = useSettings();
+  // Context hooks
   const { activeAddress, activeWallet } = useWallet();
+  const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  
+  // Data fetching hooks
+  const { data: parentAssetDetails } = useAssetDetails(initialParentAsset || "");
+  
+  // Form status
   const { pending } = useFormStatus();
-  const [error, setError] = useState<{ message: string; } | null>(null);
+  
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Form state
   const [assetName, setAssetName] = useState(initialFormData?.asset || (initialParentAsset ? `${initialParentAsset}.` : ""));
   const [isAssetNameValid, setIsAssetNameValid] = useState(false);
   const [amount, setAmount] = useState(initialFormData?.quantity?.toString() || "");
   const [isDivisible, setIsDivisible] = useState(initialFormData?.divisible ?? false);
+  const [description, setDescription] = useState(initialFormData?.description || "");
+  
+  // Inscription state
   const [inscribeEnabled, setInscribeEnabled] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
-  const [description, setDescription] = useState(initialFormData?.description || "");
-  const { data: parentAssetDetails } = useAssetDetails(initialParentAsset || "");
   
-  // Update asset name when initialParentAsset changes (navigation from different asset)
-  useEffect(() => {
-    if (initialParentAsset && !initialFormData?.asset) {
-      setAssetName(`${initialParentAsset}.`);
-    }
-  }, [initialParentAsset, initialFormData?.asset]);
-  
-  // Check if active wallet uses SegWit addresses
+  // Computed values
   const isSegwitAddress = activeWallet?.addressType && [
     AddressType.P2WPKH,
     AddressType.P2SH_P2WPKH,
     AddressType.P2TR
   ].includes(activeWallet.addressType);
   
+  const showAsset = initialParentAsset && parentAssetDetails?.assetInfo;
+  const showAddress = !showAsset && activeAddress;
+  
   // Calculate maximum amount based on divisibility
-  // MAX_INT in Counterparty is 2^63 - 1
   const MAX_INT_STR = "9223372036854775807";
   const getMaxAmount = () => {
     if (isDivisible) {
@@ -90,17 +94,21 @@ export function IssuanceForm({
     }
   };
 
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });
     }
   }, [composerError]);
-
-  const showAsset = initialParentAsset && parentAssetDetails?.assetInfo;
-  const showAddress = !showAsset && activeAddress;
   
-  // Handle file selection
+  // Update asset name when initialParentAsset changes
+  useEffect(() => {
+    if (initialParentAsset && !initialFormData?.asset) {
+      setAssetName(`${initialParentAsset}.`);
+    }
+  }, [initialParentAsset, initialFormData?.asset]);
+  
+  // Handlers
   const handleFileChange = (file: File | null) => {
     setFileError(null);
     if (file && file.size > 400 * 1024) {
@@ -141,9 +149,7 @@ export function IssuanceForm({
             }}
             className="mt-1 mb-5"
           />
-        ) : (
-          <HeaderSkeleton className="mt-1 mb-5" variant="asset" />
-        )
+        ) : null
       )}
       
       {showAddress && (

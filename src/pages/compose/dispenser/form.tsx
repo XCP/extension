@@ -1,20 +1,18 @@
 "use client";
 
-import axios from "axios";
 import { useEffect, useState, useRef, memo, useCallback } from "react";
 import { useFormStatus } from "react-dom";
+import axios from "axios";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { BalanceHeader } from "@/components/headers/balance-header";
-import { HeaderSkeleton } from "@/components/skeleton";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { formatAmount } from "@/utils/format";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -45,41 +43,47 @@ export const DispenserForm = memo(function DispenserForm({
   error: composerError,
   showHelpText 
 }: DispenserFormProps): ReactElement {
+  // Context hooks
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
-  const { error: assetError, data: assetDetails } = useAssetDetails(asset);
-  const { pending } = useFormStatus();
-  const [error, setError] = useState<{ message: string; } | null>(null);
-
-  const [availableBalance, setAvailableBalance] = useState<string>("0");
-  const [tradingPairData, setTradingPairData] = useState<TradingPairData | null>(null);
   
-  // Add state for form values
-  // Note: initialFormData contains user-entered values (not normalized to satoshis)
+  // Data fetching hooks
+  const { error: assetError, data: assetDetails } = useAssetDetails(asset);
+  
+  // Form status
+  const { pending } = useFormStatus();
+  
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
+
+  // Form state
   const [escrowQuantity, setEscrowQuantity] = useState<string>(
     initialFormData?.escrow_quantity?.toString() || ""
   );
-  
   const [mainchainRate, setMainchainRate] = useState<string>(
     initialFormData?.mainchainrate?.toString() || ""
   );
-  
   const [giveQuantity, setGiveQuantity] = useState<string>(
     initialFormData?.give_quantity?.toString() || 
     ((assetDetails?.assetInfo?.divisible ?? true) ? "1.00000000" : "1")
   );
-
+  
+  // Asset state
+  const [availableBalance, setAvailableBalance] = useState<string>("0");
+  const [tradingPairData, setTradingPairData] = useState<TradingPairData | null>(null);
+  
+  // Computed values
   const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
 
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });
     }
   }, [composerError]);
 
-  // Set asset error when it occurs
+  // Asset error effect
   useEffect(() => {
     if (assetError) {
       setError({ message: assetError.message || "Failed to load asset details" });
@@ -125,7 +129,6 @@ export const DispenserForm = memo(function DispenserForm({
   }, []);
 
   // Reset form fields when initialFormData changes to null
-  // Using a ref to track previous initialFormData state to prevent unnecessary resets
   const prevInitialFormDataRef = useRef(initialFormData);
   useEffect(() => {
     // Only reset if initialFormData changed from non-null to null
@@ -142,14 +145,8 @@ export const DispenserForm = memo(function DispenserForm({
     prevInitialFormDataRef.current = initialFormData;
   }, [initialFormData, assetDetails?.assetInfo?.divisible]);
 
-  // Clean user input values (remove commas, extra spaces)
-  const getCleanValue = (value: string): string => {
-    if (!value) return "";
-    // Remove commas and extra spaces but keep the user-friendly decimal format
-    return value.replace(/[,\s]/g, '');
-  };
+  // Handlers
 
-  // Custom form action wrapper to convert values before submission
   const handleFormAction = useCallback((formData: FormData) => {
     // Validate before submission
     if (asset === "BTC") {
@@ -157,8 +154,8 @@ export const DispenserForm = memo(function DispenserForm({
       return;
     }
     
-    const cleanEscrow = parseFloat(getCleanValue(escrowQuantity));
-    const cleanGive = parseFloat(getCleanValue(giveQuantity));
+    const cleanEscrow = parseFloat(escrowQuantity || "0");
+    const cleanGive = parseFloat(giveQuantity || "0");
     
     if (!isNaN(cleanEscrow) && !isNaN(cleanGive) && cleanEscrow < cleanGive) {
       setError({ message: "Escrow quantity must be greater than or equal to give quantity" });
@@ -178,9 +175,9 @@ export const DispenserForm = memo(function DispenserForm({
     // Add the asset parameter
     processedFormData.append("asset", asset);
     
-    processedFormData.append("escrow_quantity", getCleanValue(escrowQuantity));
-    processedFormData.append("mainchainrate", getCleanValue(mainchainRate));
-    processedFormData.append("give_quantity", getCleanValue(giveQuantity));
+    processedFormData.append("escrow_quantity", escrowQuantity);
+    processedFormData.append("mainchainrate", mainchainRate);
+    processedFormData.append("give_quantity", giveQuantity);
     
     // Call the original formAction with the processed data
     formAction(processedFormData);
@@ -205,9 +202,7 @@ export const DispenserForm = memo(function DispenserForm({
             }}
             className="mt-1 mb-5"
           />
-        ) : (
-          <HeaderSkeleton className="mt-1 mb-5" variant="balance" />
-        )
+        ) : null
       )}
       <div className="bg-white rounded-lg shadow-lg p-4">
         {error && (

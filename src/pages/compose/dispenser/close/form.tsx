@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactElement } from "react";
+import { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { FiChevronDown, FiCheck } from "react-icons/fi";
 import { Field, Label, Description, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
@@ -12,6 +12,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { fetchAddressDispensers } from "@/utils/blockchain/counterparty";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty";
+import type { ReactElement } from "react";
 
 /**
  * Props for the DispenserCloseForm component, aligned with Composer's formAction.
@@ -34,21 +35,33 @@ export function DispenserCloseForm({
   error: composerError,
   showHelpText,
 }: DispenserCloseFormProps): ReactElement {
+  // Context hooks
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  
+  // Data fetching hooks
   const { data: assetDetails, error: assetDetailsError } = useAssetDetails(
     initialAsset || initialFormData?.asset || "BTC"
   );
+  
+  // Form status
   const { pending } = useFormStatus();
+  
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Form state
   const [selectedTxHash, setSelectedTxHash] = useState<string | null>(null);
   const [dispensers, setDispensers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<{ message: string } | null>(null);
-
+  
+  // Computed values
   const asset = initialAsset || initialFormData?.asset || "";
+  const relevantDispensers = asset ? dispensers.filter((d) => d.asset === asset) : dispensers;
+  const selectedDispenser = relevantDispensers.find((d) => d.tx_hash === selectedTxHash);
 
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });
@@ -80,9 +93,7 @@ export function DispenserCloseForm({
     loadDispensers();
   }, [activeAddress]);
 
-  const relevantDispensers = asset ? dispensers.filter((d) => d.asset === asset) : dispensers;
-  const selectedDispenser = relevantDispensers.find((d) => d.tx_hash === selectedTxHash);
-
+  // Handlers  
   const AssetIcon = ({ asset }: { asset: string }): ReactElement => (
     <img
       src={`https://app.xcp.io/img/icon/${asset}`}

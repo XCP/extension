@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { Field, Label, Description, Input } from "@headlessui/react";
 import { FaSpinner } from "react-icons/fa";
+import { Field, Label, Description, Input } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { AddressHeader } from "@/components/headers/address-header";
@@ -38,19 +38,28 @@ export function UtxoDetachForm({
   error: composerError,
   showHelpText,
 }: UtxoDetachFormProps): ReactElement {
-  const navigate = useNavigate();
+  // Context hooks
   const { activeAddress, activeWallet } = useWallet();
   const { settings } = useSettings();
   const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  const navigate = useNavigate();
+  
+  // Form status
   const { pending } = useFormStatus();
+  
+  // Error state management
   const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Form state
   const [destination, setDestination] = useState(initialFormData?.destination || "");
   const [destinationValid, setDestinationValid] = useState(true); // Optional field, so default to true
   const [utxoBalances, setUtxoBalances] = useState<UtxoBalance[]>([]);
   const [isLoadingBalances, setIsLoadingBalances] = useState(false);
+  
+  // Refs
   const destinationRef = useRef<HTMLInputElement>(null);
 
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
     if (composerError) {
       setError({ message: composerError });
