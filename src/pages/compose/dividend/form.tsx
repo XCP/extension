@@ -193,7 +193,7 @@ export function DividendForm({
             maxAmount={calculateMaxAmountPerUnit()}
             label="Amount Per Unit"
             name="quantity_per_unit"
-            description={`Amount of ${selectedDividendAsset} to be paid per unit of ${asset}. Max: ${dividendAssetBalance} ${selectedDividendAsset} ÷ ${assetInfo?.assetInfo?.supply ? (assetInfo.assetInfo.divisible ? Number(assetInfo.assetInfo.supply) / 100000000 : Number(assetInfo.assetInfo.supply)) : 0} ${asset} supply`}
+            description={`Amount of ${selectedDividendAsset} to be paid per unit of ${asset}`}
             disableMaxButton={false}
           />
 
