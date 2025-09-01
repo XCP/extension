@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposeForm } from "@/components/forms/compose-form";
+import { ErrorAlert } from "@/components/error-alert";
 import { AddressHeader } from "@/components/headers/address-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { DispenserInput, type DispenserOption } from "@/components/inputs/dispenser-input";
@@ -283,6 +284,14 @@ export function DispenseForm({
         )
       }
     >
+          {/* Error Alert */}
+          {errorMessage && (
+            <ErrorAlert
+              message={errorMessage}
+              onClose={() => setError(null)}
+            />
+          )}
+
           {/* Dispenser Input Component */}
           <DispenserInput
             value={dispenserAddress}
