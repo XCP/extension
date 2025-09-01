@@ -39,7 +39,7 @@ const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean, enableAdv
     {
       id: "compose-broadcast",
       name: isSegwitWallet ? "Broadcast" : "Broadcast Text",
-      description: "Broadcast message or inscription on Bitcoin",
+      description: isSegwitWallet ? "Broadcast message or inscription" : "Broadcast message from address",
       path: "/compose/broadcast",
     },
   ];
@@ -48,7 +48,7 @@ const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean, enableAdv
     {
       id: "compose-sweep",
       name: "Sweep Address",
-      description: "Transfer all funds from an address",
+      description: "Transfer every asset and balance",
       path: "/compose/sweep",
     },
     {
@@ -102,13 +102,13 @@ const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean, enableAdv
         {
           id: "issue-asset",
           name: "Issue Asset",
-          description: "Create a new token",
+          description: "Create a new asset",
           path: "/compose/issuance",
         },
         {
           id: "mint-supply",
           name: "Start Mint",
-          description: "Mint new token supply",
+          description: "Create a fairminter",
           path: "/compose/fairminter",
         },
       ],

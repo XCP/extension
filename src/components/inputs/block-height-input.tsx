@@ -47,11 +47,11 @@ export function BlockHeightInput({
       setError?.(null);
       
       // Fetch the current block height using our hook's refresh function
-      await refresh();
+      const currentHeight = await refresh();
       
       // If we got a block height, update the input value
-      if (blockHeight !== null) {
-        onChange(blockHeight.toString());
+      if (currentHeight !== null && currentHeight !== undefined) {
+        onChange(currentHeight.toString());
       }
     } catch (err: any) {
       // This should be handled by the hook, but just in case
@@ -72,7 +72,7 @@ export function BlockHeightInput({
       <Label htmlFor={name} className="text-sm font-medium text-gray-700">
         {label}
       </Label>
-      <div className="mt-1 relative rounded-md shadow-sm">
+      <div className="mt-1 relative rounded-md">
         <Input
           type="text"
           name={name}

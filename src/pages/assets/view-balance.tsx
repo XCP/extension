@@ -93,7 +93,7 @@ export default function ViewBalance(): ReactElement {
           {
             id: "fairmint",
             name: "Fairmint",
-            description: "Start a fair distribution mint",
+            description: "Trigger an open asset fairminter",
             path: `${CONSTANTS.PATHS.COMPOSE}/fairmint/BTC`,
           },
           {
@@ -122,6 +122,12 @@ export default function ViewBalance(): ReactElement {
             name: "Dispenser",
             description: "Create a new dispenser for this asset",
             path: `${CONSTANTS.PATHS.COMPOSE}/dispenser/${asset}`,
+          },
+          {
+            id: "fairmint",
+            name: "Fairmint",
+            description: "Trigger an open asset fairminter",
+            path: `${CONSTANTS.PATHS.COMPOSE}/fairmint/XCP`,
           },
           {
             id: "attach",

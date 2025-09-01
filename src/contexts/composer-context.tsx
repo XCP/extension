@@ -97,6 +97,10 @@ const NORMALIZATION_CONFIG: Record<string, {
       mainchainrate: 'BTC'  // mainchainrate is always in BTC (satoshis)
     }
   },
+  fairmint: {
+    quantityFields: ['quantity'],
+    assetFields: { quantity: 'asset' }
+  },
   dispense: {
     quantityFields: ['quantity'],
     assetFields: { quantity: 'asset' }  // Note: asset is derived from dispenser
@@ -119,10 +123,6 @@ const NORMALIZATION_CONFIG: Record<string, {
   fairminter: {
     quantityFields: ['premint_quantity'],
     assetFields: { premint_quantity: 'asset' }
-  },
-  fairmint: {
-    quantityFields: ['quantity'],
-    assetFields: { quantity: 'asset' }
   },
   attach: {
     quantityFields: ['quantity'],
