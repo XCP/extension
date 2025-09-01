@@ -160,14 +160,14 @@ describe('Composer', () => {
     initialTitle: 'Test Transaction',
     FormComponent: MockFormComponent,
     ReviewComponent: MockReviewComponent,
-    composeApi: mockComposeApi
+    composeTransaction: mockComposeApi
   };
 
   // Helper function to render with provider
   const renderWithProvider = (props = defaultProps) => {
     return render(
       <MemoryRouter>
-        <ComposerProvider composeApi={props.composeApi} initialTitle={props.initialTitle}>
+        <ComposerProvider composeApi={mockComposeApi} initialTitle={props.initialTitle}>
           <Composer {...props} />
         </ComposerProvider>
       </MemoryRouter>
