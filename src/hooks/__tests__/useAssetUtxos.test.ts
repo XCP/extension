@@ -18,10 +18,12 @@ vi.mock('@/contexts/wallet-context', () => ({
 describe('useAssetUtxos', () => {
   const mockUtxosResponse = [
     {
+      asset: 'XCP',
       utxo: 'txid1:0',
       quantity_normalized: '100.50000000'
     },
     {
+      asset: 'XCP',
       utxo: 'txid2:1',
       quantity_normalized: '250.25000000'
     }
