@@ -1,4 +1,4 @@
-import { Wallet } from '@/utils/wallet';
+import { Wallet } from './walletManager';
 import { KeychainSettings } from '@/utils/storage';
 
 export interface Keychain {

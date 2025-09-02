@@ -1,5 +1,5 @@
 import { getAllRecords, addRecord, updateRecord, removeRecord, StoredRecord } from '@/utils/storage/storage';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/types';
 
 /**
  * Interface for encrypted wallet records stored in local storage.
@@ -7,7 +7,7 @@ import { AddressType } from '@/utils/blockchain/bitcoin';
 export interface EncryptedWalletRecord extends StoredRecord {
   name: string;
   type: 'mnemonic' | 'privateKey';
-  addressType: AddressType;
+  addressType: AddressFormat;
   addressCount?: number; // Number of derived addresses (defaults to 0 if omitted)
   encryptedSecret: string;
   previewAddress?: string;

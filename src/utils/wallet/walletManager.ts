@@ -6,7 +6,8 @@ import * as sessionManager from '@/utils/auth/sessionManager';
 import { settingsManager } from '@/utils/wallet/settingsManager';
 import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, removeEncryptedWallet, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
 import { encryptMnemonic, decryptMnemonic, encryptPrivateKey, decryptPrivateKey, DecryptionError } from '@/utils/encryption';
-import { AddressType, getAddressFromMnemonic, getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, getDerivationPathForAddressType, signMessage } from '@/utils/blockchain/bitcoin';
+import { getAddressFromMnemonic, getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, getDerivationPathForAddressType, signMessage } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/types';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
 import { KeychainSettings } from '@/utils/storage/settingsStorage';
 import { signTransaction as btcSignTransaction, broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin';
@@ -22,7 +23,7 @@ export interface Wallet {
   id: string;
   name: string;
   type: 'mnemonic' | 'privateKey';
-  addressType: AddressType;
+  addressType: AddressFormat;
   addressCount: number;
   addresses: Address[];
 }
@@ -116,7 +117,7 @@ export class WalletManager {
     mnemonic: string,
     password: string,
     name?: string,
-    addressType: AddressType = AddressType.P2TR
+    addressType: AddressFormat = AddressFormat.P2TR
   ): Promise<Wallet> {
     if (this.wallets.length >= MAX_WALLETS) {
       throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
@@ -155,7 +156,7 @@ export class WalletManager {
     privateKey: string,
     password: string,
     name?: string,
-    addressType: AddressType = AddressType.P2TR
+    addressType: AddressFormat = AddressFormat.P2TR
   ): Promise<Wallet> {
     if (this.wallets.length >= MAX_WALLETS) {
       throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
@@ -379,7 +380,7 @@ export class WalletManager {
     await this.lockAllWallets();
   }
 
-  public async updateWalletAddressType(walletId: string, newType: AddressType): Promise<void> {
+  public async updateWalletAddressType(walletId: string, newType: AddressFormat): Promise<void> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found');
     if (wallet.type !== 'mnemonic') {
@@ -445,7 +446,7 @@ export class WalletManager {
     mnemonic: string,
     password: string,
     name?: string,
-    addressType: AddressType = AddressType.P2TR
+    addressType: AddressFormat = AddressFormat.P2TR
   ): Promise<Wallet> {
     if (!name) {
       name = `Wallet ${this.wallets.length + 1}`;
@@ -460,7 +461,7 @@ export class WalletManager {
     privateKey: string,
     password: string,
     name?: string,
-    addressType: AddressType = AddressType.P2TR
+    addressType: AddressFormat = AddressFormat.P2TR
   ): Promise<Wallet> {
     if (!name) {
       name = `Wallet ${this.wallets.length + 1}`;
@@ -471,7 +472,7 @@ export class WalletManager {
     return newWallet;
   }
 
-  public async getPreviewAddressForType(walletId: string, addressType: AddressType): Promise<string> {
+  public async getPreviewAddressForType(walletId: string, addressType: AddressFormat): Promise<string> {
     const secret = await sessionManager.getUnlockedSecret(walletId);
     if (!secret) {
       throw new Error('Wallet is locked');
@@ -522,8 +523,8 @@ export class WalletManager {
     return signMessage(message, privateKeyHex, wallet.addressType, compressed);
   }
 
-  private async generateWalletId(mnemonic: string, addressType: AddressType): Promise<string> {
-    const seed = addressType === AddressType.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
+  private async generateWalletId(mnemonic: string, addressType: AddressFormat): Promise<string> {
+    const seed = addressType === AddressFormat.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
     const derivationPath = getDerivationPathForAddressType(addressType);
     const pathParts = derivationPath.split('/').slice(0, -1).join('/');
     const root = HDKey.fromMasterSeed(seed);
@@ -539,17 +540,17 @@ export class WalletManager {
     return bytesToHex(finalHash);
   }
 
-  private async generateWalletIdFromPrivateKey(privateKeyHex: string, addressType: AddressType): Promise<string> {
+  private async generateWalletIdFromPrivateKey(privateKeyHex: string, addressType: AddressFormat): Promise<string> {
     const pubkeyCompressed = getPublicKeyFromPrivateKey(privateKeyHex, true);
     const combined = utf8ToBytes(pubkeyCompressed + addressType);
     const hash = sha256(combined);
     return bytesToHex(hash);
   }
 
-  private deriveMnemonicAddress(mnemonic: string, addressType: AddressType, index: number): Address {
+  private deriveMnemonicAddress(mnemonic: string, addressType: AddressFormat, index: number): Address {
     const path = `${getDerivationPathForAddressType(addressType)}/${index}`;
     const address = getAddressFromMnemonic(mnemonic, path, addressType);
-    const seed = addressType === AddressType.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
+    const seed = addressType === AddressFormat.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
     const root = HDKey.fromMasterSeed(seed);
     const child = root.derive(path);
     if (!child.publicKey) {
@@ -564,7 +565,7 @@ export class WalletManager {
     };
   }
 
-  private deriveAddressFromPrivateKey(privKeyData: string, addressType: AddressType): Address {
+  private deriveAddressFromPrivateKey(privKeyData: string, addressType: AddressFormat): Address {
     const { key: privateKeyHex, compressed } = JSON.parse(privKeyData);
     const address = getAddressFromPrivateKey(privateKeyHex, addressType, compressed);
     const pubKey = getPublicKeyFromPrivateKey(privateKeyHex, compressed);

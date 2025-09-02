@@ -8,7 +8,7 @@ import { AddressHeader } from "@/components/headers/address-header";
 import { SettingSwitch } from "@/components/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
 import { useComposer } from "@/contexts/composer-context";
-import { AddressType } from "@/utils/blockchain/bitcoin";
+import { AddressFormat, isSegwitFormat } from '@/types';
 import type { BroadcastOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -45,11 +45,7 @@ export function BroadcastForm({
   const [fileError, setFileError] = useState<string | null>(null);
   
   // Computed values
-  const isSegwitAddress = activeWallet?.addressType && [
-    AddressType.P2WPKH,
-    AddressType.P2SH_P2WPKH, 
-    AddressType.P2TR
-  ].includes(activeWallet.addressType);
+  const isSegwitAddress = activeWallet?.addressType && isSegwitFormat(activeWallet.addressType);
   
   // Focus textarea on mount (only if not inscribing)
   useEffect(() => {

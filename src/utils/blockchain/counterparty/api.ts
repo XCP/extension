@@ -13,6 +13,7 @@ export interface AssetInfo {
   locked: boolean;
   supply?: string | number;
   supply_normalized: string;
+  fair_minting?: boolean;
 } 
 
 /**

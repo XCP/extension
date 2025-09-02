@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { FaSpinner } from "react-icons/fa";
 import { Layout } from '@/components/layout';
 import { useWallet } from '@/contexts/wallet-context';
-import { AuthRequired } from '@/middleware/auth-required';
+import { AuthRequired } from '@/components/router/auth-required';
 
 // Auth
 import Onboarding from '@/pages/auth/onboarding';

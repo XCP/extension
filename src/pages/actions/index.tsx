@@ -6,7 +6,7 @@ import { FaChevronRight } from "react-icons/fa";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useSettings } from "@/contexts/settings-context";
-import { AddressType } from "@/utils/blockchain/bitcoin";
+import { AddressFormat, isSegwitFormat } from '@/types';
 import type { ReactElement } from "react";
 
 /**
@@ -180,11 +180,7 @@ export default function ActionsScreen(): ReactElement {
   const { settings } = useSettings();
   
   // Check if active wallet uses SegWit addresses (P2WPKH, P2SH-P2WPKH, or P2TR)
-  const isSegwitWallet = activeWallet?.addressType ? [
-    AddressType.P2WPKH,
-    AddressType.P2SH_P2WPKH,
-    AddressType.P2TR
-  ].includes(activeWallet.addressType) : false;
+  const isSegwitWallet = activeWallet?.addressType ? isSegwitFormat(activeWallet.addressType) : false;
   
   // Check if MPMA is enabled
   const enableMPMA = settings?.enableMPMA ?? false;

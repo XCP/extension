@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { signMessage, getSigningCapabilities, verifyMessage } from '@/utils/blockchain/bitcoin';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/types';
 import * as secp256k1 from '@noble/secp256k1';
 import { hashes } from '@noble/secp256k1';
 import { hmac } from '@noble/hashes/hmac';
@@ -34,7 +34,7 @@ describe('messageSign', () => {
       const result = await signMessage(
         testMessage,
         testPrivateKey,
-        AddressType.P2PKH,
+        AddressFormat.P2PKH,
         true
       );
       
@@ -48,7 +48,7 @@ describe('messageSign', () => {
       const result = await signMessage(
         testMessage,
         testPrivateKey,
-        AddressType.P2WPKH,
+        AddressFormat.P2WPKH,
         true
       );
       
@@ -62,7 +62,7 @@ describe('messageSign', () => {
       const result = await signMessage(
         testMessage,
         testPrivateKey,
-        AddressType.P2SH_P2WPKH,
+        AddressFormat.P2SH_P2WPKH,
         true
       );
       
@@ -76,7 +76,7 @@ describe('messageSign', () => {
       const result = await signMessage(
         testMessage,
         testPrivateKey,
-        AddressType.P2TR,
+        AddressFormat.P2TR,
         true
       );
       
@@ -92,7 +92,7 @@ describe('messageSign', () => {
       const result = await signMessage(
         testMessage,
         testPrivateKey,
-        AddressType.Counterwallet,
+        AddressFormat.Counterwallet,
         true
       );
       
@@ -120,14 +120,14 @@ describe('messageSign', () => {
       const result1 = await signMessage(
         'Message 1',
         testPrivateKey,
-        AddressType.P2PKH,
+        AddressFormat.P2PKH,
         true
       );
       
       const result2 = await signMessage(
         'Message 2',
         testPrivateKey,
-        AddressType.P2PKH,
+        AddressFormat.P2PKH,
         true
       );
       
@@ -140,14 +140,14 @@ describe('messageSign', () => {
       const result1 = await signMessage(
         testMessage,
         testPrivateKey,
-        AddressType.P2PKH,
+        AddressFormat.P2PKH,
         true
       );
       
       const result2 = await signMessage(
         testMessage,
         privateKey2,
-        AddressType.P2PKH,
+        AddressFormat.P2PKH,
         true
       );
       
@@ -170,7 +170,7 @@ describe('messageSign', () => {
       const result = await signMessage(
         '',
         testPrivateKey,
-        AddressType.P2PKH,
+        AddressFormat.P2PKH,
         true
       );
       
@@ -183,7 +183,7 @@ describe('messageSign', () => {
       const result = await signMessage(
         longMessage,
         testPrivateKey,
-        AddressType.P2PKH,
+        AddressFormat.P2PKH,
         true
       );
       
@@ -196,7 +196,7 @@ describe('messageSign', () => {
       const result = await signMessage(
         specialMessage,
         testPrivateKey,
-        AddressType.P2PKH,
+        AddressFormat.P2PKH,
         true
       );
       
@@ -210,7 +210,7 @@ describe('messageSign', () => {
       const { signature, address } = await signMessage(
         testMessage,
         testPrivateKey,
-        AddressType.P2PKH,
+        AddressFormat.P2PKH,
         true
       );
       
@@ -222,7 +222,7 @@ describe('messageSign', () => {
       const { signature, address } = await signMessage(
         testMessage,
         testPrivateKey,
-        AddressType.P2TR,
+        AddressFormat.P2TR,
         true
       );
       
@@ -252,31 +252,31 @@ describe('messageSign', () => {
 
   describe('getSigningCapabilities', () => {
     it('should return capabilities for P2PKH', () => {
-      const caps = getSigningCapabilities(AddressType.P2PKH);
+      const caps = getSigningCapabilities(AddressFormat.P2PKH);
       expect(caps.canSign).toBe(true);
       expect(caps.method).toContain('BIP-137');
     });
 
     it('should return capabilities for P2WPKH', () => {
-      const caps = getSigningCapabilities(AddressType.P2WPKH);
+      const caps = getSigningCapabilities(AddressFormat.P2WPKH);
       expect(caps.canSign).toBe(true);
       expect(caps.method).toContain('SegWit');
     });
 
     it('should return capabilities for P2SH-P2WPKH', () => {
-      const caps = getSigningCapabilities(AddressType.P2SH_P2WPKH);
+      const caps = getSigningCapabilities(AddressFormat.P2SH_P2WPKH);
       expect(caps.canSign).toBe(true);
       expect(caps.method).toContain('SegWit');
     });
 
     it('should return capabilities for P2TR', () => {
-      const caps = getSigningCapabilities(AddressType.P2TR);
+      const caps = getSigningCapabilities(AddressFormat.P2TR);
       expect(caps.canSign).toBe(true);
       expect(caps.method).toContain('Taproot');
     });
 
     it('should return capabilities for Counterwallet', () => {
-      const caps = getSigningCapabilities(AddressType.Counterwallet);
+      const caps = getSigningCapabilities(AddressFormat.Counterwallet);
       expect(caps.canSign).toBe(true);
       expect(caps.method).toContain('BIP-137');
     });

@@ -4,22 +4,10 @@ import { bech32, bech32m, base58, createBase58check } from '@scure/base';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
+import { AddressFormat } from '@/types';
 
-/**
- * Enum representing the different supported Bitcoin address types.
- */
-export enum AddressType {
-  /** Counterwallet style (P2PKH with custom derivation) */
-  Counterwallet = 'counterwallet',
-  /** Taproot (Pay-to-Taproot) */
-  P2TR = 'p2tr',
-  /** Native SegWit (Pay-to-Witness-PubKey-Hash) */
-  P2WPKH = 'p2wpkh',
-  /** Nested SegWit (P2WPKH nested in P2SH) */
-  P2SH_P2WPKH = 'p2sh-p2wpkh',
-  /** Legacy address (Pay-to-PubKey-Hash) */
-  P2PKH = 'p2pkh',
-}
+// Re-export AddressFormat for backward compatibility during migration
+export { AddressFormat, AddressFormat as AddressType } from '@/types';
 
 // Create a base58check encoder instance using SHA-256.
 const base58check = createBase58check(sha256);
@@ -31,17 +19,17 @@ const base58check = createBase58check(sha256);
  * @returns The derivation path as a string.
  * @throws Error if the address type is unsupported.
  */
-export function getDerivationPathForAddressType(addressType: AddressType): string {
+export function getDerivationPathForAddressType(addressType: AddressFormat): string {
   switch (addressType) {
-    case AddressType.P2PKH:
+    case AddressFormat.P2PKH:
       return "m/44'/0'/0'/0";
-    case AddressType.P2SH_P2WPKH:
+    case AddressFormat.P2SH_P2WPKH:
       return "m/49'/0'/0'/0";
-    case AddressType.P2WPKH:
+    case AddressFormat.P2WPKH:
       return "m/84'/0'/0'/0";
-    case AddressType.P2TR:
+    case AddressFormat.P2TR:
       return "m/86'/0'/0'/0";
-    case AddressType.Counterwallet:
+    case AddressFormat.Counterwallet:
       return "m/0'/0";
     default:
       throw new Error(`Unsupported address type: ${addressType}`);
@@ -56,16 +44,16 @@ export function getDerivationPathForAddressType(addressType: AddressType): strin
  * @returns The Bitcoin address string.
  * @throws Error if the address type is unsupported.
  */
-export function encodeAddress(publicKey: Uint8Array, addressType: AddressType): string {
+export function encodeAddress(publicKey: Uint8Array, addressType: AddressFormat): string {
   switch (addressType) {
-    case AddressType.P2PKH: {
+    case AddressFormat.P2PKH: {
       const pubKeyHash = ripemd160(sha256(publicKey));
       const payload = new Uint8Array(1 + pubKeyHash.length);
       payload[0] = 0x00; // mainnet prefix for P2PKH
       payload.set(pubKeyHash, 1);
       return base58check.encode(payload);
     }
-    case AddressType.P2SH_P2WPKH: {
+    case AddressFormat.P2SH_P2WPKH: {
       // Create redeemScript: OP_0 + OP_PUSH(0x14) + 20-byte hash.
       const pubKeyHash = ripemd160(sha256(publicKey));
       const redeemScript = new Uint8Array(2 + pubKeyHash.length);
@@ -79,18 +67,18 @@ export function encodeAddress(publicKey: Uint8Array, addressType: AddressType): 
       payload.set(scriptHash, 1);
       return base58check.encode(payload);
     }
-    case AddressType.P2WPKH: {
+    case AddressFormat.P2WPKH: {
       const pubKeyHash = ripemd160(sha256(publicKey));
       const words = bech32.toWords(pubKeyHash);
       return bech32.encode('bc', [0, ...words]);
     }
-    case AddressType.P2TR: {
+    case AddressFormat.P2TR: {
       // For Taproot, assume an x-only public key (skip first byte).
       const xOnlyPubKey = publicKey.slice(1, 33);
       const words = bech32.toWords(xOnlyPubKey);
       return bech32m.encode('bc', [1, ...words]);
     }
-    case AddressType.Counterwallet: {
+    case AddressFormat.Counterwallet: {
       // For Counterwallet, we use a legacy P2PKH scheme.
       const pubKeyHash = ripemd160(sha256(publicKey));
       const payload = new Uint8Array(1 + pubKeyHash.length);
@@ -115,11 +103,11 @@ export function encodeAddress(publicKey: Uint8Array, addressType: AddressType): 
 export function getAddressFromMnemonic(
   mnemonic: string,
   path: string,
-  addressType: AddressType
+  addressType: AddressFormat
 ): string {
   // Use a specialized seed for Counterwallet; otherwise use standard BIP39 seed.
   const seed: Uint8Array =
-    addressType === AddressType.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
+    addressType === AddressFormat.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
   const root = HDKey.fromMasterSeed(seed);
   const child = root.derive(path);
   if (!child.publicKey) {

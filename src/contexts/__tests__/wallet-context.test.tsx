@@ -5,7 +5,7 @@ import { walletManager } from '@/utils/wallet/walletManager';
 import * as sessionManager from '@/utils/auth/sessionManager';
 import { settingsManager } from '@/utils/wallet/settingsManager';
 import { sendMessage } from 'webext-bridge/popup';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/types';
 
 // Mock webext-bridge first with comprehensive mocking
 vi.mock('webext-bridge/popup', () => ({
@@ -226,7 +226,7 @@ describe('WalletContext', () => {
           'test mnemonic seed phrase words here twelve',
           'password123',
           'New Wallet',
-          AddressType.P2WPKH
+          AddressFormat.P2WPKH
         );
         expect(wallet).toBeTruthy();
       });
@@ -248,7 +248,7 @@ describe('WalletContext', () => {
             'test mnemonic',
             'password',
             'Test',
-            AddressType.P2WPKH
+            AddressFormat.P2WPKH
           );
         });
       }).rejects.toThrow('Creation failed');
@@ -280,7 +280,7 @@ describe('WalletContext', () => {
           'test mnemonic phrase words go here twelve words',
           'password123',
           'Imported',
-          AddressType.P2WPKH
+          AddressFormat.P2WPKH
         );
         expect(wallet).toBeTruthy();
       });
@@ -313,7 +313,7 @@ describe('WalletContext', () => {
           'L1234567890',
           'password123',
           'PK Import',
-          AddressType.P2PKH
+          AddressFormat.P2PKH
         );
         expect(wallet).toBeTruthy();
       });
@@ -500,7 +500,7 @@ describe('WalletContext', () => {
             'test mnemonic',
             'password',
             'Test',
-            AddressType.P2WPKH
+            AddressFormat.P2WPKH
           );
         });
       }).rejects.toThrow('Network error');

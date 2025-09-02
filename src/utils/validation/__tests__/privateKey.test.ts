@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/types';
 import {
   validatePrivateKeyFormat,
   sanitizePrivateKey,
@@ -19,7 +19,7 @@ describe('Private Key Validation Security Tests', () => {
       
       expect(result.isValid).toBe(true);
       expect(result.format).toBe('hex');
-      expect(result.suggestedAddressType).toBe(AddressType.P2TR);
+      expect(result.suggestedAddressType).toBe(AddressFormat.P2TR);
     });
 
     it('should accept valid WIF private keys', () => {
@@ -29,7 +29,7 @@ describe('Private Key Validation Security Tests', () => {
       
       expect(result1.isValid).toBe(true);
       expect(result1.format).toBe('wif-compressed');
-      expect(result1.suggestedAddressType).toBe(AddressType.P2SH_P2WPKH);
+      expect(result1.suggestedAddressType).toBe(AddressFormat.P2SH_P2WPKH);
 
       // Valid WIF uncompressed (starts with 5)
       const validWIFUncompressed = '5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ';
@@ -37,7 +37,7 @@ describe('Private Key Validation Security Tests', () => {
       
       expect(result2.isValid).toBe(true);
       expect(result2.format).toBe('wif-uncompressed');
-      expect(result2.suggestedAddressType).toBe(AddressType.P2PKH);
+      expect(result2.suggestedAddressType).toBe(AddressFormat.P2PKH);
     });
 
     it('should reject empty or null inputs', () => {

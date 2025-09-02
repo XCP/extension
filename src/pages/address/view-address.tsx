@@ -5,7 +5,7 @@ import { Button } from "@/components/button";
 import { QRCode } from "@/components/qr-code";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressType } from "@/utils/blockchain/bitcoin";
+import { AddressFormat } from '@/types';
 import type { ReactElement } from "react";
 
 /**
@@ -53,7 +53,7 @@ export default function ViewAddress(): ReactElement {
   if (!activeAddress) return <div className="p-4">No address selected</div>;
 
   const addressTypeLabel =
-    activeWallet?.addressType !== AddressType.Counterwallet
+    activeWallet?.addressType !== AddressFormat.Counterwallet
       ? activeWallet?.addressType.toUpperCase()
       : "P2PKH";
 

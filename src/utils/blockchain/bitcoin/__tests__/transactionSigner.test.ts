@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { signTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
-import { AddressType } from '@/utils/blockchain/bitcoin/address';
+import { AddressFormat } from '@/types';
 import { Transaction } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import type { Wallet, Address } from '@/utils/wallet';
@@ -43,7 +43,7 @@ describe('Transaction Signer Utilities', () => {
     id: 'test-wallet',
     name: 'Test Wallet',
     type: 'mnemonic',
-    addressType: AddressType.P2PKH,
+    addressType: AddressFormat.P2PKH,
     addressCount: 1,
     addresses: []
   };
@@ -210,7 +210,7 @@ describe('Transaction Signer Utilities', () => {
     });
 
     it('should successfully sign P2WPKH transaction', async () => {
-      const p2wpkhWallet = { ...mockWallet, addressType: AddressType.P2WPKH };
+      const p2wpkhWallet = { ...mockWallet, addressType: AddressFormat.P2WPKH };
       
       mockFetchUTXOs.mockResolvedValue([mockUtxo]);
       mockGetUtxoByTxid.mockReturnValue(mockUtxo);
@@ -223,7 +223,7 @@ describe('Transaction Signer Utilities', () => {
     });
 
     it('should successfully sign P2SH_P2WPKH transaction', async () => {
-      const p2shWallet = { ...mockWallet, addressType: AddressType.P2SH_P2WPKH };
+      const p2shWallet = { ...mockWallet, addressType: AddressFormat.P2SH_P2WPKH };
       
       mockFetchUTXOs.mockResolvedValue([mockUtxo]);
       mockGetUtxoByTxid.mockReturnValue(mockUtxo);
@@ -243,7 +243,7 @@ describe('Transaction Signer Utilities', () => {
     });
 
     it('should successfully sign Counterwallet transaction', async () => {
-      const counterwalletWallet = { ...mockWallet, addressType: AddressType.Counterwallet };
+      const counterwalletWallet = { ...mockWallet, addressType: AddressFormat.Counterwallet };
       
       mockFetchUTXOs.mockResolvedValue([mockUtxo]);
       mockGetUtxoByTxid.mockReturnValue(mockUtxo);
@@ -256,7 +256,7 @@ describe('Transaction Signer Utilities', () => {
     });
 
     it('should handle unsupported address type with standard signing', async () => {
-      const invalidWallet = { ...mockWallet, addressType: 'INVALID' as AddressType };
+      const invalidWallet = { ...mockWallet, addressType: 'INVALID' as AddressFormat };
       
       mockFetchUTXOs.mockResolvedValue([mockUtxo]);
       mockGetUtxoByTxid.mockReturnValue(mockUtxo);
@@ -343,7 +343,7 @@ describe('Transaction Signer Utilities', () => {
 
     it('should handle witness and non-witness UTXOs appropriately', async () => {
       // Test P2PKH (non-witness)
-      const p2pkhWallet = { ...mockWallet, addressType: AddressType.P2PKH };
+      const p2pkhWallet = { ...mockWallet, addressType: AddressFormat.P2PKH };
       mockFetchUTXOs.mockResolvedValue([mockUtxo]);
       mockGetUtxoByTxid.mockReturnValue(mockUtxo);
       mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
@@ -352,7 +352,7 @@ describe('Transaction Signer Utilities', () => {
       expect(typeof p2pkhResult).toBe('string');
 
       // Test P2WPKH (witness)
-      const p2wpkhWallet = { ...mockWallet, addressType: AddressType.P2WPKH };
+      const p2wpkhWallet = { ...mockWallet, addressType: AddressFormat.P2WPKH };
       vi.clearAllMocks();
       mockFetchUTXOs.mockResolvedValue([mockUtxo]);
       mockGetUtxoByTxid.mockReturnValue(mockUtxo);
@@ -426,15 +426,15 @@ describe('Transaction Signer Utilities', () => {
   describe('paymentScript edge cases', () => {
     it('should handle all supported address types without error', async () => {
       const addressTypes = [
-        AddressType.P2PKH,
-        AddressType.P2WPKH,
-        AddressType.P2SH_P2WPKH,
-        AddressType.P2TR,
-        AddressType.Counterwallet
+        AddressFormat.P2PKH,
+        AddressFormat.P2WPKH,
+        AddressFormat.P2SH_P2WPKH,
+        AddressFormat.P2TR,
+        AddressFormat.Counterwallet
       ];
 
       for (const addressType of addressTypes) {
-        if (addressType === AddressType.P2TR) {
+        if (addressType === AddressFormat.P2TR) {
           // Skip P2TR test due to schnorr key requirements
           continue;
         }

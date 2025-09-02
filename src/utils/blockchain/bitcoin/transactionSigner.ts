@@ -1,25 +1,20 @@
 import { Transaction, p2pkh, p2wpkh, p2sh, p2tr, SigHash, Address as BtcAddress } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
-import { 
-  AddressType, 
-  fetchUTXOs, 
-  getUtxoByTxid, 
-  fetchPreviousRawTransaction,
-  signAllInputsWithUncompressedKey 
-} from '@/utils/blockchain/bitcoin';
+import { fetchUTXOs, getUtxoByTxid, fetchPreviousRawTransaction, signAllInputsWithUncompressedKey } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/types';
 import type { Wallet, Address } from '@/utils/wallet';
 
-function paymentScript(pubkeyBytes: Uint8Array, addressType: AddressType) {
+function paymentScript(pubkeyBytes: Uint8Array, addressType: AddressFormat) {
   switch (addressType) {
-    case AddressType.P2PKH:
-    case AddressType.Counterwallet:
+    case AddressFormat.P2PKH:
+    case AddressFormat.Counterwallet:
       return p2pkh(pubkeyBytes);
-    case AddressType.P2WPKH:
+    case AddressFormat.P2WPKH:
       return p2wpkh(pubkeyBytes);
-    case AddressType.P2SH_P2WPKH:
+    case AddressFormat.P2SH_P2WPKH:
       return p2sh(p2wpkh(pubkeyBytes));
-    case AddressType.P2TR:
+    case AddressFormat.P2TR:
       return p2tr(pubkeyBytes);
     default:
       throw new Error(`Unsupported address type: ${addressType}`);
@@ -114,14 +109,14 @@ export async function signTransaction(
       sequence: 0xfffffffd,
       sighashType: SigHash.ALL,
     };
-    if (wallet.addressType === AddressType.P2PKH || wallet.addressType === AddressType.Counterwallet) {
+    if (wallet.addressType === AddressFormat.P2PKH || wallet.addressType === AddressFormat.Counterwallet) {
       inputData.nonWitnessUtxo = hexToBytes(rawPrevTx);
     } else {
       inputData.witnessUtxo = {
         script: prevOutput.script,
         amount: prevOutput.amount,
       };
-      if (wallet.addressType === AddressType.P2SH_P2WPKH) {
+      if (wallet.addressType === AddressFormat.P2SH_P2WPKH) {
         // Generate redeem script for nested SegWit
         const redeemScript = p2wpkh(pubkeyBytes).script;
         if (redeemScript) {
@@ -141,7 +136,7 @@ export async function signTransaction(
   }
 
   // Sign the transaction
-  if (!compressed && (wallet.addressType === AddressType.P2PKH || wallet.addressType === AddressType.Counterwallet)) {
+  if (!compressed && (wallet.addressType === AddressFormat.P2PKH || wallet.addressType === AddressFormat.Counterwallet)) {
     // Uncompressed P2PKH requires custom signing
     signAllInputsWithUncompressedKey(tx, privateKeyBytes, pubkeyBytes, prevOutputScripts);
   } else {

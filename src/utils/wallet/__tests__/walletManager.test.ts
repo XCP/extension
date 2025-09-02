@@ -8,7 +8,7 @@ import {
   createMultipleWallets,
   createWalletWithAddresses,
 } from './helpers/testHelpers';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/types';
 
 // Mock all external dependencies
 vi.mock('@/utils/auth/sessionManager');
@@ -228,13 +228,13 @@ describe('WalletManager', () => {
       mocks.bitcoin.getAddressFromMnemonic.mockReturnValue('bc1qpreview');
       mocks.bitcoin.getDerivationPathForAddressType.mockReturnValue("m/84'/0'/0'");
       
-      const preview = await walletManager.getPreviewAddressForType(wallet.id, AddressType.P2WPKH);
+      const preview = await walletManager.getPreviewAddressForType(wallet.id, AddressFormat.P2WPKH);
       
       expect(preview).toBe('bc1qpreview');
       expect(mocks.bitcoin.getAddressFromMnemonic).toHaveBeenCalledWith(
         mnemonic,
         "m/84'/0'/0'/0",
-        AddressType.P2WPKH
+        AddressFormat.P2WPKH
       );
     });
 
@@ -245,7 +245,7 @@ describe('WalletManager', () => {
       mocks.sessionManager.getUnlockedSecret.mockResolvedValue(null);
       
       await expect(
-        walletManager.getPreviewAddressForType(wallet.id, AddressType.P2WPKH)
+        walletManager.getPreviewAddressForType(wallet.id, AddressFormat.P2WPKH)
       ).rejects.toThrow('Wallet is locked');
     });
 
@@ -253,7 +253,7 @@ describe('WalletManager', () => {
       // For a non-existent wallet, sessionManager.getUnlockedSecret returns null
       // which causes 'Wallet is locked' error to be thrown first
       await expect(
-        walletManager.getPreviewAddressForType('non-existent', AddressType.P2WPKH)
+        walletManager.getPreviewAddressForType('non-existent', AddressFormat.P2WPKH)
       ).rejects.toThrow('Wallet is locked');
     });
   });

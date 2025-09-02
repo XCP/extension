@@ -9,7 +9,7 @@ import { ErrorAlert } from "@/components/error-alert";
 import { Spinner } from "@/components/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressType } from "@/utils/blockchain/bitcoin";
+import { AddressFormat } from '@/types';
 import { formatAddress } from "@/utils/format";
 import type { ReactElement } from "react";
 
@@ -21,7 +21,7 @@ const CONSTANTS = {
     BACK: "/settings",
     HELP_URL: "https://youtube.com", // Placeholder for now
   } as const,
-  AVAILABLE_ADDRESS_TYPES: Object.values(AddressType),
+  AVAILABLE_ADDRESS_TYPES: Object.values(AddressFormat),
 } as const;
 
 /**
@@ -44,8 +44,8 @@ export default function AddressTypeSettings(): ReactElement {
   const [addresses, setAddresses] = useState<{ [key: string]: string }>({});
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<AddressType | null>(null);
-  const originalAddressType = useRef<AddressType | null>(null);
+  const [selectedType, setSelectedType] = useState<AddressFormat | null>(null);
+  const originalAddressType = useRef<AddressFormat | null>(null);
   const hasChangedType = useRef(false);
   const isChanging = useRef(false);
 
@@ -125,7 +125,7 @@ export default function AddressTypeSettings(): ReactElement {
    * Updates the wallet's address type and refreshes the preview address.
    * @param newType - The new address type to set.
    */
-  const handleAddressTypeChange = async (newType: AddressType) => {
+  const handleAddressTypeChange = async (newType: AddressFormat) => {
     if (!activeWallet || isChanging.current) return;
 
     // Update selected type immediately for instant UI response
@@ -157,17 +157,17 @@ export default function AddressTypeSettings(): ReactElement {
    * @param type - The address type.
    * @returns {string} The description of the address type.
    */
-  const getAddressTypeDescription = (type: AddressType): string => {
+  const getAddressTypeDescription = (type: AddressFormat): string => {
     switch (type) {
-      case AddressType.P2PKH:
+      case AddressFormat.P2PKH:
         return "Legacy (P2PKH)";
-      case AddressType.P2WPKH:
+      case AddressFormat.P2WPKH:
         return "Native SegWit (P2WPKH)";
-      case AddressType.P2SH_P2WPKH:
+      case AddressFormat.P2SH_P2WPKH:
         return "Nested SegWit (P2SH-P2WPKH)";
-      case AddressType.P2TR:
+      case AddressFormat.P2TR:
         return "Taproot (P2TR)";
-      case AddressType.Counterwallet:
+      case AddressFormat.Counterwallet:
           return "CounterWallet (P2PKH)";
       default:
         return type;
@@ -200,15 +200,15 @@ export default function AddressTypeSettings(): ReactElement {
       >
         {CONSTANTS.AVAILABLE_ADDRESS_TYPES.filter((type) => {
           // Only show Counterwallet if it's the current address type
-          if (type === AddressType.Counterwallet) {
-            return activeWallet?.addressType === AddressType.Counterwallet;
+          if (type === AddressFormat.Counterwallet) {
+            return activeWallet?.addressType === AddressFormat.Counterwallet;
           }
           return true;
         }).map((type) => {
           const typeLabel = getAddressTypeDescription(type);
-          const isCounterwallet = activeWallet?.addressType === AddressType.Counterwallet;
-          const isDisabled = isCounterwallet && type !== AddressType.Counterwallet;
-          const disabledReason = (isCounterwallet && type !== AddressType.Counterwallet) ? "Create new wallet to use this address type" : undefined;
+          const isCounterwallet = activeWallet?.addressType === AddressFormat.Counterwallet;
+          const isDisabled = isCounterwallet && type !== AddressFormat.Counterwallet;
+          const disabledReason = (isCounterwallet && type !== AddressFormat.Counterwallet) ? "Create new wallet to use this address type" : undefined;
 
           return (
             <RadioGroup.Option

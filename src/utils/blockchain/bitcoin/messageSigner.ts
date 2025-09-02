@@ -11,7 +11,7 @@ import * as btc from '@scure/btc-signer';
 import { hex, base64 } from '@scure/base';
 import { bytesToHex } from '@noble/hashes/utils';
 import * as secp256k1 from '@noble/secp256k1';
-import type { AddressType } from '../bitcoin';
+import { AddressFormat } from '@/types';
 
 // Required initialization for @noble/secp256k1 v3
 // Set up the HMAC and SHA256 functions needed for deterministic signatures
@@ -215,7 +215,7 @@ export async function signMessageTaproot(
 export async function signMessage(
   message: string,
   privateKeyHex: string,
-  addressType: AddressType | string,
+  addressType: AddressFormat | string,
   compressed: boolean = true
 ): Promise<{ signature: string; address: string }> {
   const privateKey = hex.decode(privateKeyHex);
@@ -262,7 +262,7 @@ export async function signMessage(
 /**
  * Get signing capabilities for an address type
  */
-export function getSigningCapabilities(addressType: AddressType | string): {
+export function getSigningCapabilities(addressType: AddressFormat | string): {
   canSign: boolean;
   method: string;
   notes?: string;

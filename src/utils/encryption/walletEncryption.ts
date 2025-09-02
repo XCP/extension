@@ -1,6 +1,6 @@
 import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/types';
 import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
 import { encryptString, decryptString, DecryptionError } from '@/utils/encryption/encryption';
 
@@ -16,14 +16,14 @@ import { encryptString, decryptString, DecryptionError } from '@/utils/encryptio
 export async function encryptMnemonic(
   mnemonic: string,
   password: string,
-  addressType: AddressType
+  addressType: AddressFormat
 ): Promise<string> {
   if (!password) {
     throw new Error('Password cannot be empty');
   }
 
   const valid =
-    addressType === AddressType.Counterwallet
+    addressType === AddressFormat.Counterwallet
       ? isValidCounterwalletMnemonic(mnemonic)
       : validateMnemonic(mnemonic, wordlist);
 

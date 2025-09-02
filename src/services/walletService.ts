@@ -1,6 +1,6 @@
 import { defineProxyService } from '@webext-core/proxy-service';
 import { sendMessage } from 'webext-bridge/background'; // Import for background context
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/types';
 import { walletManager, settingsManager, type Wallet, type Address } from '@/utils/wallet';
 
 interface WalletService {
@@ -15,24 +15,24 @@ interface WalletService {
     mnemonic: string,
     password: string,
     name?: string,
-    addressType?: AddressType
+    addressType?: AddressFormat
   ) => Promise<Wallet>;
   createPrivateKeyWallet: (
     privateKey: string,
     password: string,
     name?: string,
-    addressType?: AddressType
+    addressType?: AddressFormat
   ) => Promise<Wallet>;
   addAddress: (walletId: string) => Promise<Address>;
   verifyPassword: (password: string) => Promise<boolean>;
   resetAllWallets: (password: string) => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
-  updateWalletAddressType: (walletId: string, newType: AddressType) => Promise<void>;
+  updateWalletAddressType: (walletId: string, newType: AddressFormat) => Promise<void>;
   updateWalletPinnedAssets: (pinnedAssets: string[]) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ key: string; compressed: boolean }>;
   removeWallet: (walletId: string) => Promise<void>;
-  getPreviewAddressForType: (walletId: string, addressType: AddressType) => Promise<string>;
+  getPreviewAddressForType: (walletId: string, addressType: AddressFormat) => Promise<string>;
   signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
   signMessage: (message: string, address: string) => Promise<{ signature: string; address: string }>;
@@ -44,13 +44,13 @@ interface WalletService {
     mnemonic: string,
     password: string,
     name?: string,
-    addressType?: AddressType
+    addressType?: AddressFormat
   ) => Promise<Wallet>;
   createAndUnlockPrivateKeyWallet: (
     privateKey: string,
     password: string,
     name?: string,
-    addressType?: AddressType
+    addressType?: AddressFormat
   ) => Promise<Wallet>;
 }
 

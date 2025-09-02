@@ -5,7 +5,8 @@ import { createBase58check } from '@scure/base';
 import { HDKey } from '@scure/bip32';
 import { generateMnemonic, mnemonicToSeedSync } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
-import { AddressType, encodeAddress } from '@/utils/blockchain/bitcoin/address';
+import { encodeAddress } from '@/utils/blockchain/bitcoin/address';
+import { AddressFormat } from '@/types';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
 
 // Create a base58check encoder instance for WIF usage.
@@ -83,7 +84,7 @@ export function getPublicKeyFromPrivateKey(privateKeyHex: string, compressed = t
  */
 export function getAddressFromPrivateKey(
   privateKeyHex: string,
-  addressType: AddressType,
+  addressType: AddressFormat,
   compressed = true
 ): string {
   const pubHex = getPublicKeyFromPrivateKey(privateKeyHex, compressed);
@@ -103,10 +104,10 @@ export function getAddressFromPrivateKey(
 export function getPrivateKeyFromMnemonic(
   mnemonic: string,
   path: string,
-  addressType: AddressType
+  addressType: AddressFormat
 ): string {
   let seed: Uint8Array;
-  if (addressType === AddressType.Counterwallet) {
+  if (addressType === AddressFormat.Counterwallet) {
     seed = getCounterwalletSeed(mnemonic);
   } else {
     seed = mnemonicToSeedSync(mnemonic);

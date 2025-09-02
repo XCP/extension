@@ -9,7 +9,7 @@ import React, {
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import { getWalletService } from "@/services/walletService";
 import { getKeychainSettings } from "@/utils/storage/settingsStorage";
-import { AddressType } from "@/utils/blockchain/bitcoin";
+import { AddressFormat } from '@/types';
 import type { Wallet, Address } from "@/utils/wallet";
 
 /**
@@ -53,21 +53,21 @@ interface WalletContextType {
     mnemonic: string,
     password: string,
     name?: string,
-    addressType?: AddressType
+    addressType?: AddressFormat
   ) => Promise<Wallet>;
   createAndUnlockPrivateKeyWallet: (
     privateKey: string,
     password: string,
     name?: string,
-    addressType?: AddressType
+    addressType?: AddressFormat
   ) => Promise<Wallet>;
   resetAllWallets: (password: string) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ key: string; compressed: boolean }>;
   setLastActiveTime: () => Promise<void>;
   verifyPassword: (password: string) => Promise<boolean>;
-  updateWalletAddressType: (walletId: string, newType: AddressType) => Promise<void>;
-  getPreviewAddressForType: (walletId: string, addressType: AddressType) => Promise<string>;
+  updateWalletAddressType: (walletId: string, newType: AddressFormat) => Promise<void>;
+  getPreviewAddressForType: (walletId: string, addressType: AddressFormat) => Promise<string>;
   removeWallet: (walletId: string) => Promise<void>;
   signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
