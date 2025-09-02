@@ -105,7 +105,7 @@ export async function broadcastTransaction(signedTxHex: string): Promise<Transac
         ),
         2 // Only retry twice for broadcasts
       );
-      if (response.status >= 200 && response.status < 300) {
+      if (response && response.status >= 200 && response.status < 300) {
         const formatted = formatResponse(endpoint, response);
         if (formatted && formatted.txid) {
           return formatted;
