@@ -247,12 +247,12 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         const settings = await getKeychainSettings();
         
         // Emit accountsChanged event to each connected site with new address
-        const emitProviderEvent = (globalThis as any).emitProviderEvent;
-        if (emitProviderEvent && settings.connectedWebsites.length > 0) {
-          // Emit to each connected site
-          settings.connectedWebsites.forEach(origin => {
-            emitProviderEvent(origin, 'accountsChanged', [newAddress]);
-          });
+        // The wallet service proxy will handle the communication to background
+        if (settings.connectedWebsites.length > 0) {
+          // Use the wallet service to emit provider events
+          for (const origin of settings.connectedWebsites) {
+            await walletService.emitProviderEvent(origin, 'accountsChanged', [newAddress]);
+          }
         }
       }
       

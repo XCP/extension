@@ -1,5 +1,6 @@
 import { registerWalletService, getWalletService } from '@/services/walletService';
 import { registerProviderService, getProviderService } from '@/services/providerService';
+import { eventEmitterService } from '@/services/eventEmitterService';
 import { analyzePhishingRisk, shouldBlockConnection } from '@/utils/security/phishingDetection';
 import { requestSigner } from '@/utils/security/requestSigning';
 import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/sessionManager';
@@ -181,10 +182,23 @@ export default defineBackground(() => {
     
     // Handle approval resolution from popup
     if (message.type === 'RESOLVE_PROVIDER_REQUEST' && message.requestId) {
-      const resolvePendingRequest = (globalThis as any).resolvePendingRequest;
-      if (resolvePendingRequest) {
-        // Pass along updatedParams if they were provided
-        resolvePendingRequest(message.requestId, message.approved, message.updatedParams);
+      // Use the event emitter service to notify the provider service
+      eventEmitterService.emitProviderEvent('resolve-pending-request', null, {
+        requestId: message.requestId,
+        approved: message.approved,
+        updatedParams: message.updatedParams
+      });
+      sendResponse({ success: true });
+      return true;
+    }
+    
+    // Handle provider event emission from popup
+    if (message.type === 'EMIT_PROVIDER_EVENT' && message.event) {
+      // Forward the event to the appropriate origin
+      if (message.origin) {
+        emitProviderEvent(message.origin, message.event, message.data);
+      } else {
+        emitProviderEvent(message.event, message.data);
       }
       sendResponse({ success: true });
       return true;
@@ -236,8 +250,15 @@ export default defineBackground(() => {
     });
   }
 
-  // Export for use in other parts of the extension
-  (globalThis as any).emitProviderEvent = emitProviderEvent;
+  // Register the emitProviderEvent function with the event emitter service
+  // This makes it available to other services without using global variables
+  eventEmitterService.on('emit-provider-event', (args: { origin?: string; event: string; data: any }) => {
+    if (args.origin) {
+      emitProviderEvent(args.origin, args.event, args.data);
+    } else {
+      emitProviderEvent(args.event, args.data);
+    }
+  });
   
 
   console.debug('Background script initialized with provider support');
