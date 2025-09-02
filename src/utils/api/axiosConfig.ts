@@ -41,8 +41,14 @@ export function createAxiosInstance(
     },
   });
 
+  // Check if instance is properly created and has interceptors property (it might not in test environments)
+  if (!instance || !instance.interceptors) {
+    // If interceptors are not available (e.g., in mocked environment), return basic instance or axios itself
+    return instance || axios as AxiosInstance;
+  }
+
   // Add request interceptor for logging in development
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === 'development' && instance.interceptors.request) {
     instance.interceptors.request.use(
       (config) => {
         console.debug(`[API] ${config.method?.toUpperCase()} ${config.url}`, {
@@ -56,43 +62,45 @@ export function createAxiosInstance(
   }
 
   // Add response interceptor for error handling
-  instance.interceptors.response.use(
-    (response) => response,
-    async (error: AxiosError) => {
-      // Handle timeout specifically
-      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-        console.error('[API] Request timeout:', error.config?.url);
-        
-        // Create a more user-friendly error
-        const timeoutError = new Error(
-          `Request timed out after ${error.config?.timeout}ms. Please check your connection and try again.`
-        );
-        (timeoutError as any).code = 'TIMEOUT';
-        (timeoutError as any).originalError = error;
-        throw timeoutError;
+  if (instance.interceptors.response) {
+    instance.interceptors.response.use(
+      (response) => response,
+      async (error: AxiosError) => {
+        // Handle timeout specifically
+        if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+          console.error('[API] Request timeout:', error.config?.url);
+          
+          // Create a more user-friendly error
+          const timeoutError = new Error(
+            `Request timed out after ${error.config?.timeout}ms. Please check your connection and try again.`
+          );
+          (timeoutError as any).code = 'TIMEOUT';
+          (timeoutError as any).originalError = error;
+          throw timeoutError;
+        }
+
+        // Handle network errors
+        if (!error.response) {
+          console.error('[API] Network error:', error.message);
+          const networkError = new Error(
+            'Network error. Please check your internet connection.'
+          );
+          (networkError as any).code = 'NETWORK_ERROR';
+          (networkError as any).originalError = error;
+          throw networkError;
+        }
+
+        // Log other errors
+        console.error('[API] Request failed:', {
+          url: error.config?.url,
+          status: error.response?.status,
+          message: error.response?.data || error.message,
+        });
+
+        throw error;
       }
-
-      // Handle network errors
-      if (!error.response) {
-        console.error('[API] Network error:', error.message);
-        const networkError = new Error(
-          'Network error. Please check your internet connection.'
-        );
-        (networkError as any).code = 'NETWORK_ERROR';
-        (networkError as any).originalError = error;
-        throw networkError;
-      }
-
-      // Log other errors
-      console.error('[API] Request failed:', {
-        url: error.config?.url,
-        status: error.response?.status,
-        message: error.response?.data || error.message,
-      });
-
-      throw error;
-    }
-  );
+    );
+  }
 
   return instance;
 }
