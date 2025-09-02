@@ -50,6 +50,7 @@ export function IssuanceForm({
   const [amount, setAmount] = useState(initialFormData?.quantity?.toString() || "");
   const [isDivisible, setIsDivisible] = useState(initialFormData?.divisible ?? false);
   const [description, setDescription] = useState(initialFormData?.description || "");
+  const [isInitializing, setIsInitializing] = useState<boolean>(!!initialParentAsset); // Loading state for parent asset
   
   // Inscription state
   const [inscribeEnabled, setInscribeEnabled] = useState(false);
@@ -64,7 +65,7 @@ export function IssuanceForm({
   ].includes(activeWallet.addressType);
   
   const showAsset = initialParentAsset && parentAssetDetails?.assetInfo;
-  const showAddress = !showAsset && activeAddress;
+  const showAddress = !showAsset && activeAddress && !isInitializing;
   
   // Calculate maximum amount based on divisibility
   const MAX_INT_STR = "9223372036854775807";
@@ -89,6 +90,13 @@ export function IssuanceForm({
       setAssetName(`${initialParentAsset}.`);
     }
   }, [initialParentAsset, initialFormData?.asset]);
+  
+  // Clear initializing state when parent asset details load
+  useEffect(() => {
+    if (initialParentAsset && parentAssetDetails?.assetInfo) {
+      setIsInitializing(false);
+    }
+  }, [initialParentAsset, parentAssetDetails]);
   
   // Handlers
   const handleFileChange = (file: File | null) => {

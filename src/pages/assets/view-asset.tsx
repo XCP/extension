@@ -149,13 +149,13 @@ export default function ViewAsset(): ReactElement {
           id: "issue-supply",
           name: "Issue Supply",
           description: "Issue additional tokens for this asset",
-          path: `${CONSTANTS.PATHS.COMPOSE}/issuance/${asset}/issue-supply`,
+          path: `${CONSTANTS.PATHS.COMPOSE}/issuance/issue-supply/${asset}`,
         },
         {
           id: "lock-supply",
           name: "Lock Supply",
           description: "Permanently lock the token supply",
-          path: `${CONSTANTS.PATHS.COMPOSE}/issuance/${asset}/lock-supply`,
+          path: `${CONSTANTS.PATHS.COMPOSE}/issuance/lock-supply/${asset}`,
         }
       );
     }
