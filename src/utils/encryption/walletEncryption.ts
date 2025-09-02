@@ -1,6 +1,6 @@
 import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
 import { encryptString, decryptString, DecryptionError } from '@/utils/encryption/encryption';
 
@@ -9,26 +9,26 @@ import { encryptString, decryptString, DecryptionError } from '@/utils/encryptio
  *
  * @param mnemonic - The mnemonic phrase to encrypt.
  * @param password - The password used for encryption.
- * @param addressType - The address type (e.g. standard or Counterwallet).
+ * @param addressFormat - The address format (e.g. standard or Counterwallet).
  * @returns A Promise that resolves to the encrypted mnemonic (JSON string).
  * @throws Error if the password is empty or the mnemonic is invalid.
  */
 export async function encryptMnemonic(
   mnemonic: string,
   password: string,
-  addressType: AddressType
+  addressFormat: AddressFormat
 ): Promise<string> {
   if (!password) {
     throw new Error('Password cannot be empty');
   }
 
   const valid =
-    addressType === AddressType.Counterwallet
+    addressFormat === AddressFormat.Counterwallet
       ? isValidCounterwalletMnemonic(mnemonic)
       : validateMnemonic(mnemonic, wordlist);
 
   if (!valid) {
-    throw new Error(`Invalid mnemonic for address type: ${addressType}`);
+    throw new Error(`Invalid mnemonic for address type: ${ addressFormat }`);
   }
 
   return encryptString(mnemonic, password);

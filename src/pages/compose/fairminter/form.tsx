@@ -27,7 +27,7 @@ import { AssetHeader } from "@/components/headers/asset-header";
 import { ErrorAlert } from "@/components/error-alert";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { AddressType } from "@/utils/blockchain/bitcoin";
+import { AddressFormat, isSegwitFormat } from '@/utils/blockchain/bitcoin';
 import type { FairminterOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -83,11 +83,7 @@ export function FairminterForm({
   const [isDivisible, setIsDivisible] = useState(initialFormData?.divisible ?? true);
   
   // Check if active wallet uses SegWit addresses
-  const isSegwit = activeWallet?.addressType && [
-    AddressType.P2WPKH,
-    AddressType.P2SH_P2WPKH,
-    AddressType.P2TR
-  ].includes(activeWallet.addressType);
+  const isSegwit = activeWallet?.addressFormat && isSegwitFormat(activeWallet.addressFormat);
   
   // Fetch asset details if asset is provided (existing asset)
   const { data: assetDetails } = useAssetDetails(asset || "");

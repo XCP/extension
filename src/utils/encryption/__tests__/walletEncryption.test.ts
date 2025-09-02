@@ -5,7 +5,7 @@ import {
   encryptPrivateKey,
   decryptPrivateKey,
 } from '../walletEncryption';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import { DecryptionError } from '../encryption';
 
 // Mock the underlying encryption module
@@ -48,7 +48,7 @@ describe('walletEncryption.ts', () => {
   describe('encryptMnemonic', () => {
     it('should throw error for empty password', async () => {
       await expect(
-        encryptMnemonic(testMnemonic, emptyPassword, AddressType.P2WPKH)
+        encryptMnemonic(testMnemonic, emptyPassword, AddressFormat.P2WPKH)
       ).rejects.toThrow('Password cannot be empty');
     });
 
@@ -59,7 +59,7 @@ describe('walletEncryption.ts', () => {
       vi.mocked(validateMnemonic).mockReturnValue(true);
       vi.mocked(encryptString).mockResolvedValue(encryptedPayload);
 
-      await encryptMnemonic(testMnemonic, correctPassword, AddressType.P2WPKH);
+      await encryptMnemonic(testMnemonic, correctPassword, AddressFormat.P2WPKH);
 
       expect(validateMnemonic).toHaveBeenCalledWith(testMnemonic, expect.any(Object));
       expect(encryptString).toHaveBeenCalledWith(testMnemonic, correctPassword);
@@ -72,7 +72,7 @@ describe('walletEncryption.ts', () => {
       vi.mocked(isValidCounterwalletMnemonic).mockReturnValue(true);
       vi.mocked(encryptString).mockResolvedValue(encryptedPayload);
 
-      await encryptMnemonic(testCounterwalletMnemonic, correctPassword, AddressType.Counterwallet);
+      await encryptMnemonic(testCounterwalletMnemonic, correctPassword, AddressFormat.Counterwallet);
 
       expect(isValidCounterwalletMnemonic).toHaveBeenCalledWith(testCounterwalletMnemonic);
       expect(encryptString).toHaveBeenCalledWith(testCounterwalletMnemonic, correctPassword);
@@ -84,7 +84,7 @@ describe('walletEncryption.ts', () => {
       vi.mocked(validateMnemonic).mockReturnValue(false);
 
       await expect(
-        encryptMnemonic('invalid mnemonic', correctPassword, AddressType.P2WPKH)
+        encryptMnemonic('invalid mnemonic', correctPassword, AddressFormat.P2WPKH)
       ).rejects.toThrow('Invalid mnemonic for address type: p2wpkh');
     });
 
@@ -94,7 +94,7 @@ describe('walletEncryption.ts', () => {
       vi.mocked(isValidCounterwalletMnemonic).mockReturnValue(false);
 
       await expect(
-        encryptMnemonic('invalid counterwallet mnemonic', correctPassword, AddressType.Counterwallet)
+        encryptMnemonic('invalid counterwallet mnemonic', correctPassword, AddressFormat.Counterwallet)
       ).rejects.toThrow('Invalid mnemonic for address type: counterwallet');
     });
 
@@ -107,19 +107,19 @@ describe('walletEncryption.ts', () => {
       vi.mocked(isValidCounterwalletMnemonic).mockReturnValue(true);
       vi.mocked(encryptString).mockResolvedValue(encryptedPayload);
 
-      const addressTypes = [
-        AddressType.P2PKH,
-        AddressType.P2SH_P2WPKH,
-        AddressType.P2WPKH,
-        AddressType.P2TR,
-        AddressType.Counterwallet,
+      const addressFormats = [
+        AddressFormat.P2PKH,
+        AddressFormat.P2SH_P2WPKH,
+        AddressFormat.P2WPKH,
+        AddressFormat.P2TR,
+        AddressFormat.Counterwallet,
       ];
 
-      for (const addressType of addressTypes) {
-        const mnemonic = addressType === AddressType.Counterwallet ? testCounterwalletMnemonic : testMnemonic;
-        await encryptMnemonic(mnemonic, correctPassword, addressType);
+      for (const addressFormat of addressFormats) {
+        const mnemonic = addressFormat === AddressFormat.Counterwallet ? testCounterwalletMnemonic : testMnemonic;
+        await encryptMnemonic(mnemonic, correctPassword, addressFormat);
         
-        if (addressType === AddressType.Counterwallet) {
+        if (addressFormat === AddressFormat.Counterwallet) {
           expect(isValidCounterwalletMnemonic).toHaveBeenCalledWith(mnemonic);
         } else {
           expect(validateMnemonic).toHaveBeenCalledWith(mnemonic, expect.any(Object));
@@ -134,7 +134,7 @@ describe('walletEncryption.ts', () => {
       vi.mocked(validateMnemonic).mockReturnValue(true);
       vi.mocked(encryptString).mockResolvedValue(encryptedPayload);
 
-      const result = await encryptMnemonic(testMnemonic, correctPassword, AddressType.P2WPKH);
+      const result = await encryptMnemonic(testMnemonic, correctPassword, AddressFormat.P2WPKH);
 
       expect(result).toBe(encryptedPayload);
       expect(encryptString).toHaveBeenCalledWith(testMnemonic, correctPassword);
@@ -286,7 +286,7 @@ describe('walletEncryption.ts', () => {
       vi.mocked(encryptString).mockRejectedValue(new Error('Encryption failed'));
 
       await expect(
-        encryptMnemonic(testMnemonic, correctPassword, AddressType.P2WPKH)
+        encryptMnemonic(testMnemonic, correctPassword, AddressFormat.P2WPKH)
       ).rejects.toThrow('Encryption failed');
     });
 
@@ -307,7 +307,7 @@ describe('walletEncryption.ts', () => {
 
       for (const mnemonic of mnemonics) {
         vi.mocked(validateMnemonic).mockReturnValue(true);
-        await encryptMnemonic(mnemonic, correctPassword, AddressType.P2WPKH);
+        await encryptMnemonic(mnemonic, correctPassword, AddressFormat.P2WPKH);
         expect(validateMnemonic).toHaveBeenCalledWith(mnemonic, expect.any(Object));
       }
     });
@@ -329,7 +329,7 @@ describe('walletEncryption.ts', () => {
       vi.mocked(decryptString).mockResolvedValue(testMnemonic);
 
       for (const password of specialPasswords) {
-        await encryptMnemonic(testMnemonic, password, AddressType.P2WPKH);
+        await encryptMnemonic(testMnemonic, password, AddressFormat.P2WPKH);
         expect(encryptString).toHaveBeenCalledWith(testMnemonic, password);
       }
     });
@@ -345,7 +345,7 @@ describe('walletEncryption.ts', () => {
       vi.mocked(encryptionModule.decryptString).mockResolvedValue(testMnemonic);
 
       // Test mnemonic encrypt -> decrypt cycle
-      const encryptedMnemonic = await encryptMnemonic(testMnemonic, correctPassword, AddressType.P2WPKH);
+      const encryptedMnemonic = await encryptMnemonic(testMnemonic, correctPassword, AddressFormat.P2WPKH);
       const decryptedMnemonic = await decryptMnemonic(encryptedMnemonic, correctPassword);
       
       expect(encryptionModule.encryptString).toHaveBeenCalledWith(testMnemonic, correctPassword);
@@ -372,7 +372,7 @@ describe('walletEncryption.ts', () => {
       vi.mocked(encryptString).mockResolvedValue(encryptedPayload);
       vi.mocked(decryptString).mockResolvedValue(testMnemonic);
 
-      const encrypted = await encryptMnemonic(testMnemonic, correctPassword, AddressType.P2WPKH);
+      const encrypted = await encryptMnemonic(testMnemonic, correctPassword, AddressFormat.P2WPKH);
       const decrypted = await decryptMnemonic(encrypted, correctPassword);
       
       expect(decrypted).toBe(testMnemonic);
@@ -386,7 +386,7 @@ describe('walletEncryption.ts', () => {
       vi.mocked(encryptString).mockResolvedValue(encryptedPayload);
       vi.mocked(decryptString).mockRejectedValue(new DecryptionError('Invalid password'));
 
-      const encrypted = await encryptMnemonic(testMnemonic, correctPassword, AddressType.P2WPKH);
+      const encrypted = await encryptMnemonic(testMnemonic, correctPassword, AddressFormat.P2WPKH);
       await expect(decryptMnemonic(encrypted, wrongPassword)).rejects.toThrow();
     });
 
@@ -414,7 +414,7 @@ describe('walletEncryption.ts', () => {
 
     it('should throw an error when encrypting a mnemonic with an empty password', async () => {
       await expect(
-        encryptMnemonic(testMnemonic, '', AddressType.P2WPKH)
+        encryptMnemonic(testMnemonic, '', AddressFormat.P2WPKH)
       ).rejects.toThrow();
     });
 
@@ -430,7 +430,7 @@ describe('walletEncryption.ts', () => {
       vi.mocked(encryptString).mockResolvedValue(encryptedPayload);
       vi.mocked(decryptString).mockResolvedValue(testMnemonic);
 
-      const encrypted = await encryptMnemonic(testMnemonic, correctPassword, AddressType.P2WPKH);
+      const encrypted = await encryptMnemonic(testMnemonic, correctPassword, AddressFormat.P2WPKH);
       const decrypted = await decryptMnemonic(encrypted, correctPassword);
       
       expect(decrypted).toBe(testMnemonic);

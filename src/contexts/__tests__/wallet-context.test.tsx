@@ -5,7 +5,7 @@ import { walletManager } from '@/utils/wallet/walletManager';
 import * as sessionManager from '@/utils/auth/sessionManager';
 import { settingsManager } from '@/utils/wallet/settingsManager';
 import { sendMessage } from 'webext-bridge/popup';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 
 // Mock webext-bridge first with comprehensive mocking
 vi.mock('webext-bridge/popup', () => ({
@@ -85,8 +85,8 @@ const mockWalletService = {
   getUnencryptedMnemonic: vi.fn().mockResolvedValue('test mnemonic'),
   getPrivateKey: vi.fn().mockResolvedValue('privatekey'),
   verifyPassword: vi.fn().mockResolvedValue(true),
-  updateWalletAddressType: vi.fn().mockResolvedValue(undefined),
-  getPreviewAddressForType: vi.fn().mockResolvedValue('bc1qpreview'),
+  updateWalletAddressFormat: vi.fn().mockResolvedValue(undefined),
+  getPreviewAddressForFormat: vi.fn().mockResolvedValue('bc1qpreview'),
   removeWallet: vi.fn().mockResolvedValue(undefined),
 };
 
@@ -102,7 +102,7 @@ describe('WalletContext', () => {
       encryptedMnemonic: 'encrypted1',
       encryptedPrivateKey: null,
       type: 'mnemonic' as const,
-      addressType: 'P2WPKH' as const,
+      addressFormat: 'P2WPKH' as const,
       addressCount: 1,
       addresses: []
     },
@@ -112,7 +112,7 @@ describe('WalletContext', () => {
       encryptedMnemonic: null,
       encryptedPrivateKey: 'encrypted2',
       type: 'privateKey' as const,
-      addressType: 'P2PKH' as const,
+      addressFormat: 'P2PKH' as const,
       addressCount: 1,
       addresses: []
     }
@@ -208,7 +208,7 @@ describe('WalletContext', () => {
         encryptedMnemonic: 'encrypted3',
         encryptedPrivateKey: null,
         type: 'mnemonic' as const,
-        addressType: 'P2WPKH' as const,
+        addressFormat: 'P2WPKH' as const,
         addressCount: 1,
         addresses: []
       };
@@ -226,7 +226,7 @@ describe('WalletContext', () => {
           'test mnemonic seed phrase words here twelve',
           'password123',
           'New Wallet',
-          AddressType.P2WPKH
+          AddressFormat.P2WPKH
         );
         expect(wallet).toBeTruthy();
       });
@@ -248,7 +248,7 @@ describe('WalletContext', () => {
             'test mnemonic',
             'password',
             'Test',
-            AddressType.P2WPKH
+            AddressFormat.P2WPKH
           );
         });
       }).rejects.toThrow('Creation failed');
@@ -263,7 +263,7 @@ describe('WalletContext', () => {
         encryptedMnemonic: 'encrypted4',
         encryptedPrivateKey: null,
         type: 'mnemonic' as const,
-        addressType: 'P2WPKH' as const,
+        addressFormat: 'P2WPKH' as const,
         addressCount: 1,
         addresses: []
       };
@@ -280,7 +280,7 @@ describe('WalletContext', () => {
           'test mnemonic phrase words go here twelve words',
           'password123',
           'Imported',
-          AddressType.P2WPKH
+          AddressFormat.P2WPKH
         );
         expect(wallet).toBeTruthy();
       });
@@ -296,7 +296,7 @@ describe('WalletContext', () => {
         encryptedMnemonic: null,
         encryptedPrivateKey: 'encrypted5',
         type: 'privateKey' as const,
-        addressType: 'P2PKH' as const,
+        addressFormat: 'P2PKH' as const,
         addressCount: 1,
         addresses: []
       };
@@ -313,7 +313,7 @@ describe('WalletContext', () => {
           'L1234567890',
           'password123',
           'PK Import',
-          AddressType.P2PKH
+          AddressFormat.P2PKH
         );
         expect(wallet).toBeTruthy();
       });
@@ -454,7 +454,7 @@ describe('WalletContext', () => {
       const address = {
         address: 'bc1qnew',
         path: "m/84'/0'/0'/0/1",
-        addressType: 'P2WPKH' as const,
+        addressFormat: 'P2WPKH' as const,
         name: 'Address 1',
         pubKey: '0x1234'
       };
@@ -500,7 +500,7 @@ describe('WalletContext', () => {
             'test mnemonic',
             'password',
             'Test',
-            AddressType.P2WPKH
+            AddressFormat.P2WPKH
           );
         });
       }).rejects.toThrow('Network error');

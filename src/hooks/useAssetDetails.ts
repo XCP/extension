@@ -2,8 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchBTCBalance } from "@/utils/blockchain/bitcoin";
-import { fetchAssetDetailsAndBalance, fetchTokenUtxos } from "@/utils/blockchain/counterparty";
-import { AssetInfo } from '@/types/asset';
+import { fetchAssetDetailsAndBalance, fetchTokenUtxos, AssetInfo } from "@/utils/blockchain/counterparty";
 
 /**
  * Represents the details of an asset, including balance and UTXO information.
@@ -47,7 +46,17 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
   const cachedBalance = (prevAssetRef.current === asset) ? subheadings.balances[asset] : null;
   const initialData = cachedBalance && cachedBalance.quantity_normalized ? {
     isDivisible: cachedBalance.asset_info?.divisible ?? true,
-    assetInfo: cachedBalance.asset_info || null,
+    assetInfo: cachedBalance.asset_info ? {
+      asset: asset,
+      asset_longname: cachedBalance.asset_info.asset_longname,
+      description: cachedBalance.asset_info.description,
+      issuer: cachedBalance.asset_info.issuer,
+      divisible: cachedBalance.asset_info.divisible ?? false,
+      locked: cachedBalance.asset_info.locked ?? false,
+      supply: cachedBalance.asset_info.supply,
+      supply_normalized: String(cachedBalance.asset_info.supply || '0'),
+      fair_minting: false,
+    } : null,
     availableBalance: cachedBalance.quantity_normalized || '0',
     utxoBalances: undefined, // Mark as not fetched yet
   } : null;
@@ -135,11 +144,13 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
             isDivisible: true,
             availableBalance: (balanceSats / 1e8).toString(),
             assetInfo: {
+              asset: 'BTC',
               asset_longname: null,
               description: 'Bitcoin',
               divisible: true,
               locked: true,
               supply: '21000000',
+              supply_normalized: '21000000',
               issuer: '',
             },
           };

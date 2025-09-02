@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { signMessage, verifyMessage, parseSignature, getAddressTypeFromFlag } from '@/utils/blockchain/bitcoin';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import * as secp256k1 from '@noble/secp256k1';
 import { hashes } from '@noble/secp256k1';
 import { hmac } from '@noble/hashes/hmac';
@@ -34,7 +34,7 @@ describe('messageVerifier', () => {
       const { signature, address } = await signMessage(
         testMessage,
         testPrivateKey,
-        AddressType.P2PKH,
+        AddressFormat.P2PKH,
         true
       );
       
@@ -46,7 +46,7 @@ describe('messageVerifier', () => {
       const { signature, address } = await signMessage(
         testMessage,
         testPrivateKey,
-        AddressType.P2WPKH,
+        AddressFormat.P2WPKH,
         true
       );
       
@@ -58,7 +58,7 @@ describe('messageVerifier', () => {
       const { signature, address } = await signMessage(
         testMessage,
         testPrivateKey,
-        AddressType.P2SH_P2WPKH,
+        AddressFormat.P2SH_P2WPKH,
         true
       );
       
@@ -70,7 +70,7 @@ describe('messageVerifier', () => {
       const { signature, address } = await signMessage(
         testMessage,
         testPrivateKey,
-        AddressType.P2TR,
+        AddressFormat.P2TR,
         true
       );
       
@@ -83,7 +83,7 @@ describe('messageVerifier', () => {
       const { signature, address } = await signMessage(
         testMessage,
         testPrivateKey,
-        AddressType.P2PKH,
+        AddressFormat.P2PKH,
         true
       );
       
@@ -95,7 +95,7 @@ describe('messageVerifier', () => {
       const { signature } = await signMessage(
         testMessage,
         testPrivateKey,
-        AddressType.P2PKH,
+        AddressFormat.P2PKH,
         true
       );
       
@@ -137,7 +137,7 @@ describe('messageVerifier', () => {
       const { signature } = await signMessage(
         testMessage,
         testPrivateKey,
-        AddressType.P2PKH,
+        AddressFormat.P2PKH,
         true
       );
       
@@ -153,7 +153,7 @@ describe('messageVerifier', () => {
       const { signature } = await signMessage(
         testMessage,
         testPrivateKey,
-        AddressType.P2TR,
+        AddressFormat.P2TR,
         true
       );
       

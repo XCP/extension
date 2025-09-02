@@ -5,7 +5,8 @@ import { createBase58check } from '@scure/base';
 import { HDKey } from '@scure/bip32';
 import { generateMnemonic, mnemonicToSeedSync } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
-import { AddressType, encodeAddress } from '@/utils/blockchain/bitcoin/address';
+import { encodeAddress } from '@/utils/blockchain/bitcoin/address';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
 
 // Create a base58check encoder instance for WIF usage.
@@ -77,18 +78,18 @@ export function getPublicKeyFromPrivateKey(privateKeyHex: string, compressed = t
  * Generates a Bitcoin address from a raw private key.
  *
  * @param privateKeyHex - The private key in hexadecimal.
- * @param addressType - The Bitcoin address type.
+ * @param addressFormat - The Bitcoin address format.
  * @param compressed - Whether to use the compressed public key (default true).
  * @returns The Bitcoin address as a string.
  */
 export function getAddressFromPrivateKey(
   privateKeyHex: string,
-  addressType: AddressType,
+  addressFormat: AddressFormat,
   compressed = true
 ): string {
   const pubHex = getPublicKeyFromPrivateKey(privateKeyHex, compressed);
   const pubBytes = hexToBytes(pubHex);
-  return encodeAddress(pubBytes, addressType);
+  return encodeAddress(pubBytes, addressFormat);
 }
 
 /**
@@ -96,17 +97,17 @@ export function getAddressFromPrivateKey(
  *
  * @param mnemonic - The mnemonic phrase.
  * @param path - The derivation path (e.g., "m/84'/0'/0'/0/0").
- * @param addressType - The address type. For Counterwallet, a custom seed is used.
+ * @param addressFormat - The address format. For Counterwallet, a custom seed is used.
  * @returns The derived private key as a hexadecimal string.
  * @throws Error if unable to derive the private key.
  */
 export function getPrivateKeyFromMnemonic(
   mnemonic: string,
   path: string,
-  addressType: AddressType
+  addressFormat: AddressFormat
 ): string {
   let seed: Uint8Array;
-  if (addressType === AddressType.Counterwallet) {
+  if (addressFormat === AddressFormat.Counterwallet) {
     seed = getCounterwalletSeed(mnemonic);
   } else {
     seed = mnemonicToSeedSync(mnemonic);

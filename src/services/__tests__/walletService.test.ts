@@ -14,12 +14,12 @@ const mockProxyService = {
   verifyPassword: vi.fn(),
   resetAllWallets: vi.fn(),
   updatePassword: vi.fn(),
-  updateWalletAddressType: vi.fn(),
+  updateWalletAddressFormat: vi.fn(),
   updateWalletPinnedAssets: vi.fn(),
   getUnencryptedMnemonic: vi.fn(),
   getPrivateKey: vi.fn(),
   removeWallet: vi.fn(),
-  getPreviewAddressForType: vi.fn(),
+  getPreviewAddressForFormat: vi.fn(),
   signTransaction: vi.fn(),
   broadcastTransaction: vi.fn(),
   signMessage: vi.fn(),
@@ -211,9 +211,9 @@ describe('WalletService Proxy', () => {
     });
 
     it('should get preview address for type', async () => {
-      walletService.getPreviewAddressForType.mockResolvedValue('bc1qpreview');
+      walletService.getPreviewAddressForFormat.mockResolvedValue('bc1qpreview');
       
-      const address = await walletService.getPreviewAddressForType('wallet1', 'P2WPKH');
+      const address = await walletService.getPreviewAddressForFormat('wallet1', 'P2WPKH');
       
       expect(address).toBe('bc1qpreview');
     });
@@ -258,11 +258,11 @@ describe('WalletService Proxy', () => {
     });
 
     it('should update wallet address type', async () => {
-      walletService.updateWalletAddressType.mockResolvedValue(undefined);
+      walletService.updateWalletAddressFormat.mockResolvedValue(undefined);
       
-      await walletService.updateWalletAddressType('wallet1', 'P2TR');
+      await walletService.updateWalletAddressFormat('wallet1', 'P2TR');
       
-      expect(walletService.updateWalletAddressType).toHaveBeenCalledWith('wallet1', 'P2TR');
+      expect(walletService.updateWalletAddressFormat).toHaveBeenCalledWith('wallet1', 'P2TR');
     });
 
     it('should update pinned assets', async () => {

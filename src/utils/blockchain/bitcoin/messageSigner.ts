@@ -11,7 +11,7 @@ import * as btc from '@scure/btc-signer';
 import { hex, base64 } from '@scure/base';
 import { bytesToHex } from '@noble/hashes/utils';
 import * as secp256k1 from '@noble/secp256k1';
-import type { AddressType } from '../bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 
 // Required initialization for @noble/secp256k1 v3
 // Set up the HMAC and SHA256 functions needed for deterministic signatures
@@ -142,7 +142,7 @@ export async function signMessageLegacy(
 export async function signMessageSegwit(
   message: string,
   privateKey: Uint8Array,
-  addressType: 'p2wpkh' | 'p2sh-p2wpkh'
+  addressFormat: 'p2wpkh' | 'p2sh-p2wpkh'
 ): Promise<string> {
   // Format and double SHA256 the message
   const formattedMessage = formatMessageForSigning(message);
@@ -163,7 +163,7 @@ export async function signMessageSegwit(
   // P2WPKH: 39 + recovery_id
   // P2SH-P2WPKH: 35 + recovery_id
   let recoveryFlag: number;
-  if (addressType === 'p2wpkh') {
+  if (addressFormat === 'p2wpkh') {
     recoveryFlag = 39 + recovery;
   } else {
     recoveryFlag = 35 + recovery;
@@ -215,7 +215,7 @@ export async function signMessageTaproot(
 export async function signMessage(
   message: string,
   privateKeyHex: string,
-  addressType: AddressType | string,
+  addressFormat: AddressFormat | string,
   compressed: boolean = true
 ): Promise<{ signature: string; address: string }> {
   const privateKey = hex.decode(privateKeyHex);
@@ -225,7 +225,7 @@ export async function signMessage(
   let address: string;
   
   // Normalize address type for comparison
-  const normalizedType = addressType.toUpperCase();
+  const normalizedType = addressFormat.toUpperCase();
   
   switch (normalizedType) {
     case 'P2PKH':
@@ -253,7 +253,7 @@ export async function signMessage(
       break;
       
     default:
-      throw new Error(`Unsupported address type for message signing: ${addressType}`);
+      throw new Error(`Unsupported address type for message signing: ${ addressFormat }`);
   }
   
   return { signature, address };
@@ -262,13 +262,13 @@ export async function signMessage(
 /**
  * Get signing capabilities for an address type
  */
-export function getSigningCapabilities(addressType: AddressType | string): {
+export function getSigningCapabilities(addressFormat: AddressFormat | string): {
   canSign: boolean;
   method: string;
   notes?: string;
 } {
   // Normalize the address type to handle case variations
-  const normalizedType = addressType.charAt(0).toUpperCase() + addressType.slice(1).toLowerCase();
+  const normalizedType = addressFormat.charAt(0).toUpperCase() + addressFormat.slice(1).toLowerCase();
   
   switch (normalizedType) {
     case 'P2pkh':
@@ -310,7 +310,7 @@ export function getSigningCapabilities(addressType: AddressType | string): {
       return {
         canSign: false,
         method: 'Not supported',
-        notes: `Address type ${addressType} does not support message signing`
+        notes: `Address type ${ addressFormat } does not support message signing`
       };
   }
 }

@@ -7,7 +7,7 @@ import {
   getAddressFromPrivateKey,
   getPrivateKeyFromMnemonic
 } from '@/utils/blockchain/bitcoin/privateKey';
-import { AddressType } from '@/utils/blockchain/bitcoin/address';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 
 vi.mock('@/utils/blockchain/counterwallet', () => ({
   getCounterwalletSeed: vi.fn(() => new Uint8Array(64).fill(1))
@@ -170,48 +170,48 @@ describe('Private Key Utilities', () => {
     const testPrivateKey = '0000000000000000000000000000000000000000000000000000000000000001';
 
     it('should generate P2PKH address', () => {
-      const address = getAddressFromPrivateKey(testPrivateKey, AddressType.P2PKH);
+      const address = getAddressFromPrivateKey(testPrivateKey, AddressFormat.P2PKH);
       expect(typeof address).toBe('string');
       expect(address.length).toBeGreaterThan(0);
       expect(address.startsWith('1')).toBe(true);
     });
 
     it('should generate P2SH_P2WPKH address', () => {
-      const address = getAddressFromPrivateKey(testPrivateKey, AddressType.P2SH_P2WPKH);
+      const address = getAddressFromPrivateKey(testPrivateKey, AddressFormat.P2SH_P2WPKH);
       expect(typeof address).toBe('string');
       expect(address.length).toBeGreaterThan(0);
       expect(address.startsWith('3')).toBe(true);
     });
 
     it('should generate P2WPKH address', () => {
-      const address = getAddressFromPrivateKey(testPrivateKey, AddressType.P2WPKH);
+      const address = getAddressFromPrivateKey(testPrivateKey, AddressFormat.P2WPKH);
       expect(typeof address).toBe('string');
       expect(address.length).toBeGreaterThan(0);
       expect(address.startsWith('bc1')).toBe(true);
     });
 
     it('should generate P2TR address', () => {
-      const address = getAddressFromPrivateKey(testPrivateKey, AddressType.P2TR);
+      const address = getAddressFromPrivateKey(testPrivateKey, AddressFormat.P2TR);
       expect(typeof address).toBe('string');
       expect(address.length).toBeGreaterThan(0);
       expect(address.startsWith('bc1p')).toBe(true);
     });
 
     it('should generate different addresses for compressed vs uncompressed keys', () => {
-      const compressedAddress = getAddressFromPrivateKey(testPrivateKey, AddressType.P2PKH, true);
-      const uncompressedAddress = getAddressFromPrivateKey(testPrivateKey, AddressType.P2PKH, false);
+      const compressedAddress = getAddressFromPrivateKey(testPrivateKey, AddressFormat.P2PKH, true);
+      const uncompressedAddress = getAddressFromPrivateKey(testPrivateKey, AddressFormat.P2PKH, false);
       expect(compressedAddress).not.toBe(uncompressedAddress);
     });
 
     it('should throw error for invalid private key', () => {
       const invalidPrivateKey = 'invalid-hex';
-      expect(() => getAddressFromPrivateKey(invalidPrivateKey, AddressType.P2PKH))
+      expect(() => getAddressFromPrivateKey(invalidPrivateKey, AddressFormat.P2PKH))
         .toThrow('Invalid private key');
     });
 
     it('should generate same address for same private key and type', () => {
-      const address1 = getAddressFromPrivateKey(testPrivateKey, AddressType.P2PKH);
-      const address2 = getAddressFromPrivateKey(testPrivateKey, AddressType.P2PKH);
+      const address1 = getAddressFromPrivateKey(testPrivateKey, AddressFormat.P2PKH);
+      const address2 = getAddressFromPrivateKey(testPrivateKey, AddressFormat.P2PKH);
       expect(address1).toBe(address2);
     });
   });
@@ -221,32 +221,32 @@ describe('Private Key Utilities', () => {
     const testPath = "m/84'/0'/0'/0/0";
 
     it('should derive private key from mnemonic for standard address types', () => {
-      const privateKey = getPrivateKeyFromMnemonic(testMnemonic, testPath, AddressType.P2WPKH);
+      const privateKey = getPrivateKeyFromMnemonic(testMnemonic, testPath, AddressFormat.P2WPKH);
       expect(typeof privateKey).toBe('string');
       expect(privateKey).toHaveLength(64); // 32 bytes = 64 hex chars
     });
 
     it('should derive private key from mnemonic for Counterwallet', () => {
-      const privateKey = getPrivateKeyFromMnemonic(testMnemonic, "m/0'/0", AddressType.Counterwallet);
+      const privateKey = getPrivateKeyFromMnemonic(testMnemonic, "m/0'/0", AddressFormat.Counterwallet);
       expect(typeof privateKey).toBe('string');
       expect(privateKey).toHaveLength(64);
     });
 
     it('should generate different private keys for different paths', () => {
-      const privateKey1 = getPrivateKeyFromMnemonic(testMnemonic, "m/84'/0'/0'/0/0", AddressType.P2WPKH);
-      const privateKey2 = getPrivateKeyFromMnemonic(testMnemonic, "m/84'/0'/0'/0/1", AddressType.P2WPKH);
+      const privateKey1 = getPrivateKeyFromMnemonic(testMnemonic, "m/84'/0'/0'/0/0", AddressFormat.P2WPKH);
+      const privateKey2 = getPrivateKeyFromMnemonic(testMnemonic, "m/84'/0'/0'/0/1", AddressFormat.P2WPKH);
       expect(privateKey1).not.toBe(privateKey2);
     });
 
     it('should generate different private keys for different address types', () => {
-      const privateKey1 = getPrivateKeyFromMnemonic(testMnemonic, testPath, AddressType.P2WPKH);
-      const privateKey2 = getPrivateKeyFromMnemonic(testMnemonic, "m/0'/0", AddressType.Counterwallet);
+      const privateKey1 = getPrivateKeyFromMnemonic(testMnemonic, testPath, AddressFormat.P2WPKH);
+      const privateKey2 = getPrivateKeyFromMnemonic(testMnemonic, "m/0'/0", AddressFormat.Counterwallet);
       expect(privateKey1).not.toBe(privateKey2);
     });
 
     it('should generate same private key for same inputs', () => {
-      const privateKey1 = getPrivateKeyFromMnemonic(testMnemonic, testPath, AddressType.P2WPKH);
-      const privateKey2 = getPrivateKeyFromMnemonic(testMnemonic, testPath, AddressType.P2WPKH);
+      const privateKey1 = getPrivateKeyFromMnemonic(testMnemonic, testPath, AddressFormat.P2WPKH);
+      const privateKey2 = getPrivateKeyFromMnemonic(testMnemonic, testPath, AddressFormat.P2WPKH);
       expect(privateKey1).toBe(privateKey2);
     });
 
@@ -259,45 +259,45 @@ describe('Private Key Utilities', () => {
       ];
 
       paths.forEach(path => {
-        const privateKey = getPrivateKeyFromMnemonic(testMnemonic, path, AddressType.P2WPKH);
+        const privateKey = getPrivateKeyFromMnemonic(testMnemonic, path, AddressFormat.P2WPKH);
         expect(privateKey).toHaveLength(64);
       });
     });
 
     it('should throw error for invalid mnemonic', () => {
       const invalidMnemonic = 'invalid mnemonic phrase';
-      expect(() => getPrivateKeyFromMnemonic(invalidMnemonic, testPath, AddressType.P2WPKH))
+      expect(() => getPrivateKeyFromMnemonic(invalidMnemonic, testPath, AddressFormat.P2WPKH))
         .toThrow();
     });
 
     it('should throw error for invalid derivation path', () => {
       const invalidPath = 'invalid/path';
-      expect(() => getPrivateKeyFromMnemonic(testMnemonic, invalidPath, AddressType.P2WPKH))
+      expect(() => getPrivateKeyFromMnemonic(testMnemonic, invalidPath, AddressFormat.P2WPKH))
         .toThrow();
     });
 
     it('should handle empty mnemonic gracefully', () => {
       const emptyMnemonic = '';
-      expect(() => getPrivateKeyFromMnemonic(emptyMnemonic, testPath, AddressType.P2WPKH))
+      expect(() => getPrivateKeyFromMnemonic(emptyMnemonic, testPath, AddressFormat.P2WPKH))
         .toThrow();
     });
 
     it('should handle edge case with hardened derivation paths', () => {
       const hardenedPath = "m/84'/0'/0'/0'/0'";
-      const privateKey = getPrivateKeyFromMnemonic(testMnemonic, hardenedPath, AddressType.P2WPKH);
+      const privateKey = getPrivateKeyFromMnemonic(testMnemonic, hardenedPath, AddressFormat.P2WPKH);
       expect(privateKey).toHaveLength(64);
     });
 
     it('should handle deep derivation paths', () => {
       const deepPath = "m/84'/0'/0'/0/0/1/2/3";
-      const privateKey = getPrivateKeyFromMnemonic(testMnemonic, deepPath, AddressType.P2WPKH);
+      const privateKey = getPrivateKeyFromMnemonic(testMnemonic, deepPath, AddressFormat.P2WPKH);
       expect(privateKey).toHaveLength(64);
     });
 
     it('should work with different mnemonic lengths', () => {
       // Test with 24-word mnemonic
       const longMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art';
-      const privateKey = getPrivateKeyFromMnemonic(longMnemonic, testPath, AddressType.P2WPKH);
+      const privateKey = getPrivateKeyFromMnemonic(longMnemonic, testPath, AddressFormat.P2WPKH);
       expect(privateKey).toHaveLength(64);
     });
   });
@@ -308,10 +308,10 @@ describe('Private Key Utilities', () => {
       const path = "m/84'/0'/0'/0/0";
       
       // Derive private key from mnemonic
-      const privateKey = getPrivateKeyFromMnemonic(mnemonic, path, AddressType.P2WPKH);
+      const privateKey = getPrivateKeyFromMnemonic(mnemonic, path, AddressFormat.P2WPKH);
       
       // Generate address from private key
-      const address = getAddressFromPrivateKey(privateKey, AddressType.P2WPKH);
+      const address = getAddressFromPrivateKey(privateKey, AddressFormat.P2WPKH);
       
       expect(typeof address).toBe('string');
       expect(address.startsWith('bc1')).toBe(true);
@@ -321,7 +321,7 @@ describe('Private Key Utilities', () => {
       const mnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
       const path = "m/84'/0'/0'/0/0";
       
-      const privateKey = getPrivateKeyFromMnemonic(mnemonic, path, AddressType.P2WPKH);
+      const privateKey = getPrivateKeyFromMnemonic(mnemonic, path, AddressFormat.P2WPKH);
       const publicKey = getPublicKeyFromPrivateKey(privateKey);
       
       expect(publicKey).toHaveLength(66); // Compressed public key

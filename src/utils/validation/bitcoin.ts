@@ -8,7 +8,7 @@ import { base58, bech32, bech32m } from '@scure/base';
 export interface AddressValidationResult {
   isValid: boolean;
   error?: string;
-  addressType?: string;
+  addressFormat?: string;
   network?: 'mainnet' | 'testnet' | 'regtest';
 }
 
@@ -29,22 +29,22 @@ function validateBase58Address(address: string): AddressValidationResult {
     
     // Mainnet P2PKH (version 0x00)
     if (version === 0x00) {
-      return { isValid: true, addressType: 'P2PKH', network: 'mainnet' };
+      return { isValid: true, addressFormat: 'P2PKH', network: 'mainnet' };
     }
     
     // Mainnet P2SH (version 0x05)
     if (version === 0x05) {
-      return { isValid: true, addressType: 'P2SH', network: 'mainnet' };
+      return { isValid: true, addressFormat: 'P2SH', network: 'mainnet' };
     }
     
     // Testnet P2PKH (version 0x6F)
     if (version === 0x6F) {
-      return { isValid: true, addressType: 'P2PKH', network: 'testnet' };
+      return { isValid: true, addressFormat: 'P2PKH', network: 'testnet' };
     }
     
     // Testnet P2SH (version 0xC4)
     if (version === 0xC4) {
-      return { isValid: true, addressType: 'P2SH', network: 'testnet' };
+      return { isValid: true, addressFormat: 'P2SH', network: 'testnet' };
     }
     
     return { isValid: false, error: 'Unknown address version' };
@@ -114,12 +114,12 @@ function validateBech32Address(address: string): AddressValidationResult {
       
       // P2WPKH (20 bytes)
       if (programLength === 20) {
-        return { isValid: true, addressType: 'P2WPKH', network };
+        return { isValid: true, addressFormat: 'P2WPKH', network };
       }
       
       // P2WSH (32 bytes)
       if (programLength === 32) {
-        return { isValid: true, addressType: 'P2WSH', network };
+        return { isValid: true, addressFormat: 'P2WSH', network };
       }
       
       return { isValid: false, error: 'Invalid witness v0 program length' };
@@ -133,7 +133,7 @@ function validateBech32Address(address: string): AddressValidationResult {
       
       // P2TR (32 bytes)
       if (programLength === 32) {
-        return { isValid: true, addressType: 'P2TR', network };
+        return { isValid: true, addressFormat: 'P2TR', network };
       }
       
       return { isValid: false, error: 'Invalid witness v1 program length' };
@@ -147,7 +147,7 @@ function validateBech32Address(address: string): AddressValidationResult {
       
       // Program must be 2-40 bytes
       if (programLength >= 2 && programLength <= 40) {
-        return { isValid: true, addressType: `Witness_v${witnessVersion}`, network };
+        return { isValid: true, addressFormat: `Witness_v${witnessVersion}`, network };
       }
       
       return { isValid: false, error: 'Invalid witness program length' };

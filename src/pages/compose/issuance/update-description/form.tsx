@@ -9,7 +9,7 @@ import { SettingSwitch } from "@/components/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { AddressType } from "@/utils/blockchain/bitcoin";
+import { AddressFormat, isSegwitFormat } from '@/utils/blockchain/bitcoin';
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import { AssetHeader } from "@/components/headers/asset-header";
 import type { ReactElement } from "react";
@@ -40,11 +40,7 @@ export function UpdateDescriptionForm({
   const [description, setDescription] = useState(initialFormData?.description || "");
   
   // Check if active wallet uses SegWit addresses
-  const isSegwitAddress = activeWallet?.addressType && [
-    AddressType.P2WPKH,
-    AddressType.P2SH_P2WPKH,
-    AddressType.P2TR
-  ].includes(activeWallet.addressType);
+  const isSegwitAddress = activeWallet?.addressFormat && isSegwitFormat(activeWallet.addressFormat);
 
   // Handle file selection
   const handleFileChange = (file: File | null) => {

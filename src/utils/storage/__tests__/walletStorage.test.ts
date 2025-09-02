@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import {
   getAllRecords,
   addRecord,
@@ -39,14 +39,14 @@ describe('walletStorage.ts', () => {
         id: '1',
         name: 'Mnemonic Wallet',
         type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
+        addressFormat: AddressFormat.P2WPKH,
         encryptedSecret: 'encrypted-mnemonic',
       };
       const pkWallet: EncryptedWalletRecord = {
         id: '2',
         name: 'PK Wallet',
         type: 'privateKey',
-        addressType: AddressType.P2PKH,
+        addressFormat: AddressFormat.P2PKH,
         encryptedSecret: 'encrypted-pk',
       };
       const otherRecord = {
@@ -67,7 +67,7 @@ describe('walletStorage.ts', () => {
         id: '1',
         name: 'Test Wallet',
         type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
+        addressFormat: AddressFormat.P2WPKH,
         encryptedSecret: 'encrypted-secret',
       };
       (addRecord as Mock).mockResolvedValue(undefined);
@@ -80,7 +80,7 @@ describe('walletStorage.ts', () => {
         id: '1',
         name: 'Test Wallet',
         type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
+        addressFormat: AddressFormat.P2WPKH,
         encryptedSecret: 'encrypted-secret',
       };
       (addRecord as Mock).mockResolvedValue(undefined);
@@ -98,7 +98,7 @@ describe('walletStorage.ts', () => {
         id: '1',
         name: 'Original Wallet',
         type: 'privateKey',
-        addressType: AddressType.P2PKH,
+        addressFormat: AddressFormat.P2PKH,
         encryptedSecret: 'encrypted-secret',
       };
       (addRecord as Mock).mockResolvedValue(undefined);
@@ -118,7 +118,7 @@ describe('walletStorage.ts', () => {
         id: 'nonexistent',
         name: 'Test Wallet',
         type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
+        addressFormat: AddressFormat.P2WPKH,
         encryptedSecret: 'encrypted-secret',
       };
       (updateRecord as Mock).mockRejectedValue(new Error('Record with ID "nonexistent" not found.'));
@@ -134,14 +134,14 @@ describe('walletStorage.ts', () => {
         id: '1',
         name: 'Wallet 1',
         type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
+        addressFormat: AddressFormat.P2WPKH,
         encryptedSecret: 'encrypted-secret-1',
       };
       const wallet2: EncryptedWalletRecord = {
         id: '2',
         name: 'Wallet 2',
         type: 'privateKey',
-        addressType: AddressType.P2PKH,
+        addressFormat: AddressFormat.P2PKH,
         encryptedSecret: 'encrypted-secret-2',
       };
       (addRecord as Mock).mockResolvedValue(undefined);
@@ -162,7 +162,7 @@ describe('walletStorage.ts', () => {
         id: '1',
         name: 'Test Wallet',
         type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
+        addressFormat: AddressFormat.P2WPKH,
         encryptedSecret: 'encrypted-secret',
       };
       (addRecord as Mock).mockResolvedValue(undefined);
@@ -183,7 +183,7 @@ describe('walletStorage.ts', () => {
         id: 'mnemonic-1',
         name: 'Mnemonic Wallet',
         type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
+        addressFormat: AddressFormat.P2WPKH,
         encryptedSecret: 'encrypted-mnemonic-secret',
       };
 
@@ -191,7 +191,7 @@ describe('walletStorage.ts', () => {
         id: 'pk-1',
         name: 'Private Key Wallet',
         type: 'privateKey',
-        addressType: AddressType.P2PKH,
+        addressFormat: AddressFormat.P2PKH,
         encryptedSecret: 'encrypted-pk-secret',
       };
 
@@ -204,14 +204,14 @@ describe('walletStorage.ts', () => {
     });
 
     it('should handle all valid address types', async () => {
-      const addressTypes = [AddressType.P2PKH, AddressType.P2SH_P2WPKH, AddressType.P2WPKH, AddressType.P2TR];
+      const addressTypes = [AddressFormat.P2PKH, AddressFormat.P2SH_P2WPKH, AddressFormat.P2WPKH, AddressFormat.P2TR];
 
       for (let i = 0; i < addressTypes.length; i++) {
         const wallet: EncryptedWalletRecord = {
           id: `wallet-${i}`,
           name: `Wallet ${i}`,
           type: 'mnemonic',
-          addressType: addressTypes[i],
+          addressFormat: addressTypes[i],
           encryptedSecret: `encrypted-secret-${i}`,
         };
 
@@ -226,7 +226,7 @@ describe('walletStorage.ts', () => {
         id: 'full-wallet',
         name: 'Full Wallet',
         type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
+        addressFormat: AddressFormat.P2WPKH,
         encryptedSecret: 'encrypted-secret',
         addressCount: 10,
         previewAddress: 'bc1q...',
@@ -242,7 +242,7 @@ describe('walletStorage.ts', () => {
         id: 'invalid',
         name: 'Invalid Wallet',
         type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
+        addressFormat: AddressFormat.P2WPKH,
         encryptedSecret: '',
       } as EncryptedWalletRecord;
 
@@ -256,7 +256,7 @@ describe('walletStorage.ts', () => {
         id: 'invalid',
         name: 'Invalid Wallet',
         type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
+        addressFormat: AddressFormat.P2WPKH,
         encryptedSecret: null,
       } as any;
 
@@ -270,7 +270,7 @@ describe('walletStorage.ts', () => {
         id: 'invalid',
         name: 'Invalid Wallet',
         type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
+        addressFormat: AddressFormat.P2WPKH,
       } as any;
 
       await expect(addEncryptedWallet(invalidWallet)).rejects.toThrow(
@@ -286,7 +286,7 @@ describe('walletStorage.ts', () => {
           id: '1',
           name: 'Mnemonic Wallet',
           type: 'mnemonic',
-          addressType: AddressType.P2WPKH,
+          addressFormat: AddressFormat.P2WPKH,
           encryptedSecret: 'secret1',
         },
         {
@@ -299,7 +299,7 @@ describe('walletStorage.ts', () => {
           id: '3',
           name: 'Private Key Wallet',  
           type: 'privateKey',
-          addressType: AddressType.P2PKH,
+          addressFormat: AddressFormat.P2PKH,
           encryptedSecret: 'secret3',
         },
         {
@@ -342,7 +342,7 @@ describe('walletStorage.ts', () => {
           id: '1',
           name: 'Valid Mnemonic',
           type: 'mnemonic',
-          addressType: AddressType.P2WPKH,
+          addressFormat: AddressFormat.P2WPKH,
           encryptedSecret: 'secret1',
         },
         {
@@ -354,7 +354,7 @@ describe('walletStorage.ts', () => {
           id: '3',
           name: 'Valid Private Key',
           type: 'privateKey',
-          addressType: AddressType.P2PKH,
+          addressFormat: AddressFormat.P2PKH,
           encryptedSecret: 'secret3',
         },
       ];
@@ -374,7 +374,7 @@ describe('walletStorage.ts', () => {
         id: 'lifecycle-wallet',
         name: 'Lifecycle Test',
         type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
+        addressFormat: AddressFormat.P2WPKH,
         encryptedSecret: 'original-secret',
         addressCount: 1,
       };
@@ -408,21 +408,21 @@ describe('walletStorage.ts', () => {
           id: 'multi-1',
           name: 'Wallet 1',
           type: 'mnemonic',
-          addressType: AddressType.P2WPKH,
+          addressFormat: AddressFormat.P2WPKH,
           encryptedSecret: 'secret1',
         },
         {
           id: 'multi-2',
           name: 'Wallet 2',
           type: 'privateKey',
-          addressType: AddressType.P2PKH,
+          addressFormat: AddressFormat.P2PKH,
           encryptedSecret: 'secret2',
         },
         {
           id: 'multi-3',
           name: 'Wallet 3',
           type: 'mnemonic',
-          addressType: AddressType.P2TR,
+          addressFormat: AddressFormat.P2TR,
           encryptedSecret: 'secret3',
         },
       ];
@@ -446,7 +446,7 @@ describe('walletStorage.ts', () => {
         id: 'error-wallet',
         name: 'Error Test',
         type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
+        addressFormat: AddressFormat.P2WPKH,
         encryptedSecret: 'secret',
       };
 
@@ -459,7 +459,7 @@ describe('walletStorage.ts', () => {
         id: 'error-wallet',
         name: 'Error Test',
         type: 'mnemonic',
-        addressType: AddressType.P2WPKH,
+        addressFormat: AddressFormat.P2WPKH,
         encryptedSecret: 'secret',
       };
 

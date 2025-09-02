@@ -1,7 +1,7 @@
 import { defineProxyService } from '@webext-core/proxy-service';
 import { sendMessage } from 'webext-bridge/background'; // Import for background context
 import { eventEmitterService } from '@/services/eventEmitterService';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import { walletManager, settingsManager, type Wallet, type Address } from '@/utils/wallet';
 
 interface WalletService {
@@ -17,24 +17,24 @@ interface WalletService {
     mnemonic: string,
     password: string,
     name?: string,
-    addressType?: AddressType
+    addressFormat?: AddressFormat
   ) => Promise<Wallet>;
   createPrivateKeyWallet: (
     privateKey: string,
     password: string,
     name?: string,
-    addressType?: AddressType
+    addressFormat?: AddressFormat
   ) => Promise<Wallet>;
   addAddress: (walletId: string) => Promise<Address>;
   verifyPassword: (password: string) => Promise<boolean>;
   resetAllWallets: (password: string) => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
-  updateWalletAddressType: (walletId: string, newType: AddressType) => Promise<void>;
+  updateWalletAddressFormat: (walletId: string, newType: AddressFormat) => Promise<void>;
   updateWalletPinnedAssets: (pinnedAssets: string[]) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ key: string; compressed: boolean }>;
   removeWallet: (walletId: string) => Promise<void>;
-  getPreviewAddressForType: (walletId: string, addressType: AddressType) => Promise<string>;
+  getPreviewAddressForFormat: (walletId: string, addressFormat: AddressFormat) => Promise<string>;
   signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
   signMessage: (message: string, address: string) => Promise<{ signature: string; address: string }>;
@@ -46,13 +46,13 @@ interface WalletService {
     mnemonic: string,
     password: string,
     name?: string,
-    addressType?: AddressType
+    addressFormat?: AddressFormat
   ) => Promise<Wallet>;
   createAndUnlockPrivateKeyWallet: (
     privateKey: string,
     password: string,
     name?: string,
-    addressType?: AddressType
+    addressFormat?: AddressFormat
   ) => Promise<Wallet>;
 }
 
@@ -104,11 +104,11 @@ function createWalletService(): WalletService {
       eventEmitterService.emitProviderEvent(null, 'accountsChanged', []);
       eventEmitterService.emitProviderEvent(null, 'disconnect', {});
     },
-    createMnemonicWallet: async (mnemonic, password, name, addressType) => {
-      return walletManager.createMnemonicWallet(mnemonic, password, name, addressType);
+    createMnemonicWallet: async (mnemonic, password, name, addressFormat) => {
+      return walletManager.createMnemonicWallet(mnemonic, password, name, addressFormat);
     },
-    createPrivateKeyWallet: async (privateKey, password, name, addressType) => {
-      return walletManager.createPrivateKeyWallet(privateKey, password, name, addressType);
+    createPrivateKeyWallet: async (privateKey, password, name, addressFormat) => {
+      return walletManager.createPrivateKeyWallet(privateKey, password, name, addressFormat);
     },
     addAddress: async (walletId) => walletManager.addAddress(walletId),
     verifyPassword: async (password) => walletManager.verifyPassword(password),
@@ -118,8 +118,8 @@ function createWalletService(): WalletService {
     updatePassword: async (currentPassword, newPassword) => {
       await walletManager.updatePassword(currentPassword, newPassword);
     },
-    updateWalletAddressType: async (walletId, newType) => {
-      await walletManager.updateWalletAddressType(walletId, newType);
+    updateWalletAddressFormat: async (walletId, newType) => {
+      await walletManager.updateWalletAddressFormat(walletId, newType);
     },
     updateWalletPinnedAssets: async (pinnedAssets) => {
       await walletManager.updateWalletPinnedAssets(pinnedAssets);
@@ -133,8 +133,8 @@ function createWalletService(): WalletService {
     removeWallet: async (walletId) => {
       await walletManager.removeWallet(walletId);
     },
-    getPreviewAddressForType: async (walletId, addressType) => {
-      return await walletManager.getPreviewAddressForType(walletId, addressType);
+    getPreviewAddressForFormat: async (walletId, addressFormat) => {
+      return await walletManager.getPreviewAddressForFormat(walletId, addressFormat);
     },
     signTransaction: async (rawTxHex, sourceAddress) => {
       return walletManager.signTransaction(rawTxHex, sourceAddress);
@@ -160,11 +160,11 @@ function createWalletService(): WalletService {
       // Emit provider event through the event emitter service
       eventEmitterService.emitProviderEvent(origin, event, data);
     },
-    createAndUnlockMnemonicWallet: async (mnemonic, password, name, addressType) => {
-      return walletManager.createAndUnlockMnemonicWallet(mnemonic, password, name, addressType);
+    createAndUnlockMnemonicWallet: async (mnemonic, password, name, addressFormat) => {
+      return walletManager.createAndUnlockMnemonicWallet(mnemonic, password, name, addressFormat);
     },
-    createAndUnlockPrivateKeyWallet: async (privateKey, password, name, addressType) => {
-      return walletManager.createAndUnlockPrivateKeyWallet(privateKey, password, name, addressType);
+    createAndUnlockPrivateKeyWallet: async (privateKey, password, name, addressFormat) => {
+      return walletManager.createAndUnlockPrivateKeyWallet(privateKey, password, name, addressFormat);
     },
   };
 }

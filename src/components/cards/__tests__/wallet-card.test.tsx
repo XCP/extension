@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import WalletCard from '../wallet-card';
 import { RadioGroup } from '@headlessui/react';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 
 // Mock dependencies
 vi.mock('@/utils/format', () => ({
@@ -23,7 +23,7 @@ describe('WalletCard', () => {
     id: 'wallet-1',
     name: 'My Wallet',
     type: 'mnemonic' as const,
-    addressType: 'P2WPKH' as any,
+    addressFormat: 'P2WPKH' as any,
     addressCount: 1,
     addresses: [
       { 
@@ -324,7 +324,7 @@ describe('WalletCard', () => {
       id: 'wallet-2',
       name: 'Another Wallet',
       type: 'privateKey' as const,
-      addressType: AddressType.P2WPKH,
+      addressFormat: AddressFormat.P2WPKH,
       addressCount: 1,
       addresses: [{ 
         name: 'Address 1',

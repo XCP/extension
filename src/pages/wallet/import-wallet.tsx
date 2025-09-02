@@ -12,7 +12,7 @@ import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { PasswordInput } from "@/components/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressType } from "@/utils/blockchain/bitcoin";
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import { isValidCounterwalletMnemonic } from "@/utils/blockchain/counterwallet";
 
 function ImportWallet() {
@@ -62,10 +62,10 @@ function ImportWallet() {
       }
 
       try {
-        const addressType = isValidCounterwalletMnemonic(mnemonic)
-          ? AddressType.Counterwallet
-          : AddressType.P2WPKH;
-        const newWallet = await createAndUnlockMnemonicWallet(mnemonic, password, undefined, addressType);
+        const addressFormat = isValidCounterwalletMnemonic(mnemonic)
+          ? AddressFormat.Counterwallet
+          : AddressFormat.P2WPKH;
+        const newWallet = await createAndUnlockMnemonicWallet(mnemonic, password, undefined, addressFormat);
         await unlockWallet(newWallet.id, password);
         navigate(PATHS.SUCCESS);
         return { error: null };

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { WalletList } from '../wallet-list';
 import type { Wallet } from '@/utils/wallet';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 
 // Mock WalletCard component
 vi.mock('@/components/cards/wallet-card', () => ({
@@ -26,7 +26,7 @@ describe('WalletList', () => {
       id: 'wallet-1',
       name: 'Wallet 1',
       type: 'mnemonic' as const,
-      addressType: AddressType.P2WPKH,
+      addressFormat: AddressFormat.P2WPKH,
       addressCount: 1,
       addresses: []
     },
@@ -34,7 +34,7 @@ describe('WalletList', () => {
       id: 'wallet-2',
       name: 'Wallet 2',
       type: 'mnemonic' as const,
-      addressType: AddressType.P2PKH,
+      addressFormat: AddressFormat.P2PKH,
       addressCount: 1,
       addresses: []
     },
@@ -42,7 +42,7 @@ describe('WalletList', () => {
       id: 'wallet-3',
       name: 'Private Key Wallet',
       type: 'privateKey' as const,
-      addressType: AddressType.P2WPKH,
+      addressFormat: AddressFormat.P2WPKH,
       addressCount: 1,
       addresses: []
     }

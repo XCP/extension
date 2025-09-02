@@ -1,5 +1,5 @@
 import { vi, expect } from 'vitest';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import type { Wallet, Address } from '../../walletManager';
 
 /**
@@ -9,7 +9,7 @@ export const createTestWallet = (overrides?: Partial<Wallet>): Wallet => ({
   id: 'test-wallet-id',
   name: 'Test Wallet',
   type: 'mnemonic',
-  addressType: AddressType.P2WPKH,
+  addressFormat: AddressFormat.P2WPKH,
   addressCount: 0,
   addresses: [],
   ...overrides,
@@ -22,7 +22,7 @@ export const createPrivateKeyWallet = (overrides?: Partial<Wallet>): Wallet => (
   id: 'pk-wallet-id',
   name: 'Private Key Wallet',
   type: 'privateKey',
-  addressType: AddressType.P2WPKH,
+  addressFormat: AddressFormat.P2WPKH,
   addressCount: 1,
   addresses: [],
   ...overrides,
@@ -78,7 +78,7 @@ export const defaultMocks = {
     decryptPrivateKey: vi.fn().mockResolvedValue('private-key-hex'),
   },
   bitcoin: {
-    AddressType,
+    AddressFormat,
     getAddressFromMnemonic: vi.fn().mockReturnValue({
       address: 'bc1qtest',
       publicKey: 'public-key-hex',
@@ -91,7 +91,7 @@ export const defaultMocks = {
     getPublicKeyFromPrivateKey: vi.fn().mockReturnValue('public-key-hex'),
     decodeWIF: vi.fn().mockReturnValue('decoded-private-key'),
     isWIF: vi.fn().mockReturnValue(false),
-    getDerivationPathForAddressType: vi.fn().mockReturnValue("m/84'/0'/0'"),
+    getDerivationPathForAddressFormat: vi.fn().mockReturnValue("m/84'/0'/0'"),
   },
   crypto: {
     sha256: vi.fn().mockReturnValue(new Uint8Array(32)),
@@ -189,11 +189,11 @@ export const testScenarios = {
   maxAddresses: 100,
   
   addressTypes: [
-    AddressType.P2PKH,
-    AddressType.P2WPKH,
-    AddressType.P2SH_P2WPKH,
-    AddressType.P2TR,
-    AddressType.Counterwallet,
+    AddressFormat.P2PKH,
+    AddressFormat.P2WPKH,
+    AddressFormat.P2SH_P2WPKH,
+    AddressFormat.P2TR,
+    AddressFormat.Counterwallet,
   ],
 };
 

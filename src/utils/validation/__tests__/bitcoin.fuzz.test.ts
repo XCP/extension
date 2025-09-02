@@ -79,7 +79,7 @@ describe('Bitcoin Address Validation Fuzz Tests', () => {
       const result = validateBitcoinAddress(address);
       expect(result.isValid).toBe(true);
       expect(result.network).toBe('mainnet');
-      expect(result.addressType).toBe(type);
+      expect(result.addressFormat).toBe(type);
       expect(result.error).toBeUndefined();
     });
 
@@ -88,7 +88,7 @@ describe('Bitcoin Address Validation Fuzz Tests', () => {
       const result = validateBitcoinAddress(address);
       expect(result.isValid).toBe(true);
       expect(result.network).toBe('testnet');
-      expect(result.addressType).toBe(type);
+      expect(result.addressFormat).toBe(type);
       expect(result.error).toBeUndefined();
     });
 
@@ -97,7 +97,7 @@ describe('Bitcoin Address Validation Fuzz Tests', () => {
       const result = validateBitcoinAddress(address);
       expect(result.isValid).toBe(true);
       expect(result.network).toBe('regtest');
-      expect(result.addressType).toBe(type);
+      expect(result.addressFormat).toBe(type);
       expect(result.error).toBeUndefined();
     });
 
@@ -106,7 +106,7 @@ describe('Bitcoin Address Validation Fuzz Tests', () => {
       const result = validateBitcoinAddress(address);
       expect(result.isValid).toBe(false);
       expect(result.error).toBeDefined();
-      expect(result.addressType).toBeUndefined();
+      expect(result.addressFormat).toBeUndefined();
     });
 
     // Test injection attempts
@@ -265,7 +265,7 @@ describe('Bitcoin Address Validation Fuzz Tests', () => {
             
             expect(result1.isValid).toBe(result2.isValid);
             expect(result1.error).toBe(result2.error);
-            expect(result1.addressType).toBe(result2.addressType);
+            expect(result1.addressFormat).toBe(result2.addressFormat);
             expect(result1.network).toBe(result2.network);
           }
         ),

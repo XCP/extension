@@ -7,7 +7,7 @@ import { FiHelpCircle } from "react-icons/fi";
 import { Button } from "@/components/button";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressType } from "@/utils/blockchain/bitcoin";
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import type { ReactElement } from "react";
 
 /**
@@ -79,16 +79,16 @@ export default function Settings(): ReactElement {
    */
   const getAddressTypeDescription = (): string => {
     if (!activeWallet) return "";
-    switch (activeWallet.addressType) {
-      case AddressType.P2PKH:
+    switch (activeWallet.addressFormat) {
+      case AddressFormat.P2PKH:
         return "Legacy (P2PKH)";
-      case AddressType.P2SH_P2WPKH:
+      case AddressFormat.P2SH_P2WPKH:
         return "Nested SegWit (P2SH-P2WPKH)";
-      case AddressType.P2WPKH:
+      case AddressFormat.P2WPKH:
         return "Native SegWit (P2WPKH)";
-      case AddressType.P2TR:
+      case AddressFormat.P2TR:
         return "Taproot (P2TR)";
-      case AddressType.Counterwallet:
+      case AddressFormat.Counterwallet:
         return "CounterWallet (P2PKH)";
       default:
         return "";
@@ -99,7 +99,7 @@ export default function Settings(): ReactElement {
     ...(activeWallet?.type === "mnemonic"
       ? [
           {
-            id: "addressType",
+            id: "addressFormat",
             name: "Address Type",
             description: getAddressTypeDescription(),
             path: CONSTANTS.PATHS.ADDRESS_TYPE,

@@ -9,7 +9,7 @@ import React, {
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import { getWalletService } from "@/services/walletService";
 import { getKeychainSettings } from "@/utils/storage/settingsStorage";
-import { AddressType } from "@/utils/blockchain/bitcoin";
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import { withStateLock, type Wallet, type Address } from "@/utils/wallet";
 
 /**
@@ -53,21 +53,21 @@ interface WalletContextType {
     mnemonic: string,
     password: string,
     name?: string,
-    addressType?: AddressType
+    addressFormat?: AddressFormat
   ) => Promise<Wallet>;
   createAndUnlockPrivateKeyWallet: (
     privateKey: string,
     password: string,
     name?: string,
-    addressType?: AddressType
+    addressFormat?: AddressFormat
   ) => Promise<Wallet>;
   resetAllWallets: (password: string) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ key: string; compressed: boolean }>;
   setLastActiveTime: () => Promise<void>;
   verifyPassword: (password: string) => Promise<boolean>;
-  updateWalletAddressType: (walletId: string, newType: AddressType) => Promise<void>;
-  getPreviewAddressForType: (walletId: string, addressType: AddressType) => Promise<string>;
+  updateWalletAddressFormat: (walletId: string, newType: AddressFormat) => Promise<void>;
+  getPreviewAddressForFormat: (walletId: string, addressFormat: AddressFormat) => Promise<string>;
   removeWallet: (walletId: string) => Promise<void>;
   signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
@@ -330,8 +330,8 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     getPrivateKey: walletService.getPrivateKey,
     setLastActiveTime,
     verifyPassword: walletService.verifyPassword,
-    updateWalletAddressType: withRefresh(walletService.updateWalletAddressType, refreshWalletState),
-    getPreviewAddressForType: walletService.getPreviewAddressForType,
+    updateWalletAddressFormat: withRefresh(walletService.updateWalletAddressFormat, refreshWalletState),
+    getPreviewAddressForFormat: walletService.getPreviewAddressForFormat,
     removeWallet: withRefresh(walletService.removeWallet, refreshWalletState),
     signTransaction: walletService.signTransaction,
     broadcastTransaction: walletService.broadcastTransaction,

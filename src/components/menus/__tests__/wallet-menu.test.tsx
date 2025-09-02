@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { WalletMenu } from '../wallet-menu';
 import type { Wallet } from '@/utils/wallet';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -19,7 +19,7 @@ describe('WalletMenu', () => {
     id: 'wallet-1',
     name: 'Mnemonic Wallet',
     type: 'mnemonic' as const,
-    addressType: AddressType.P2WPKH,
+    addressFormat: AddressFormat.P2WPKH,
     addressCount: 1,
     addresses: []
   };
@@ -28,7 +28,7 @@ describe('WalletMenu', () => {
     id: 'wallet-2',
     name: 'Private Key Wallet',
     type: 'privateKey' as const,
-    addressType: AddressType.P2PKH,
+    addressFormat: AddressFormat.P2PKH,
     addressCount: 1,
     addresses: []
   };

@@ -8,7 +8,7 @@ import {
   createMultipleWallets,
   createWalletWithAddresses,
 } from './helpers/testHelpers';
-import { AddressType } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 
 // Mock all external dependencies
 vi.mock('@/utils/auth/sessionManager');
@@ -26,7 +26,7 @@ vi.mock('@scure/bip39');
 import * as sessionManager from '@/utils/auth/sessionManager';
 import { settingsManager } from '@/utils/wallet/settingsManager';
 import { getAllEncryptedWallets } from '@/utils/storage/walletStorage';
-import { getAddressFromMnemonic, getDerivationPathForAddressType } from '@/utils/blockchain/bitcoin';
+import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/utils/blockchain/bitcoin';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import { bytesToHex } from '@noble/hashes/utils';
@@ -65,7 +65,7 @@ describe('WalletManager', () => {
     
     vi.mocked(getAllEncryptedWallets).mockImplementation(mocks.walletStorage.getAllEncryptedWallets);
     vi.mocked(getAddressFromMnemonic).mockImplementation(mocks.bitcoin.getAddressFromMnemonic);
-    vi.mocked(getDerivationPathForAddressType).mockImplementation(mocks.bitcoin.getDerivationPathForAddressType);
+    vi.mocked(getDerivationPathForAddressFormat).mockImplementation(mocks.bitcoin.getDerivationPathForAddressFormat);
     
     walletManager = new WalletManager();
   });
@@ -90,7 +90,7 @@ describe('WalletManager', () => {
           id: testWallet.id,
           name: testWallet.name,
           type: testWallet.type,
-          addressType: testWallet.addressType,
+          addressFormat: testWallet.addressFormat,
           encryptedSecret: 'encrypted-data',
           previewAddress: 'bc1qtest',
           addressCount: 1,
@@ -120,7 +120,7 @@ describe('WalletManager', () => {
           id: wallet.id,
           name: wallet.name,
           type: wallet.type,
-          addressType: wallet.addressType,
+          addressFormat: wallet.addressFormat,
           encryptedSecret: 'encrypted',
           previewAddress: 'bc1qtest',
           addressCount: 1,
@@ -226,15 +226,15 @@ describe('WalletManager', () => {
       const mnemonic = 'test mnemonic phrase';
       mocks.sessionManager.getUnlockedSecret.mockResolvedValue(mnemonic);
       mocks.bitcoin.getAddressFromMnemonic.mockReturnValue('bc1qpreview');
-      mocks.bitcoin.getDerivationPathForAddressType.mockReturnValue("m/84'/0'/0'");
+      mocks.bitcoin.getDerivationPathForAddressFormat.mockReturnValue("m/84'/0'/0'");
       
-      const preview = await walletManager.getPreviewAddressForType(wallet.id, AddressType.P2WPKH);
+      const preview = await walletManager.getPreviewAddressForFormat(wallet.id, AddressFormat.P2WPKH);
       
       expect(preview).toBe('bc1qpreview');
       expect(mocks.bitcoin.getAddressFromMnemonic).toHaveBeenCalledWith(
         mnemonic,
         "m/84'/0'/0'/0",
-        AddressType.P2WPKH
+        AddressFormat.P2WPKH
       );
     });
 
@@ -245,7 +245,7 @@ describe('WalletManager', () => {
       mocks.sessionManager.getUnlockedSecret.mockResolvedValue(null);
       
       await expect(
-        walletManager.getPreviewAddressForType(wallet.id, AddressType.P2WPKH)
+        walletManager.getPreviewAddressForFormat(wallet.id, AddressFormat.P2WPKH)
       ).rejects.toThrow('Wallet is locked');
     });
 
@@ -253,7 +253,7 @@ describe('WalletManager', () => {
       // For a non-existent wallet, sessionManager.getUnlockedSecret returns null
       // which causes 'Wallet is locked' error to be thrown first
       await expect(
-        walletManager.getPreviewAddressForType('non-existent', AddressType.P2WPKH)
+        walletManager.getPreviewAddressForFormat('non-existent', AddressFormat.P2WPKH)
       ).rejects.toThrow('Wallet is locked');
     });
   });
@@ -272,7 +272,7 @@ describe('WalletManager', () => {
           id: wallet.id,
           type: 'mnemonic',
           encryptedSecret: 'encrypted',
-          addressType: wallet.addressType,
+          addressFormat: wallet.addressFormat,
           addressCount: 1,
         }
       ]);
@@ -292,7 +292,7 @@ describe('WalletManager', () => {
       mocks.sessionManager.initializeSession.mockResolvedValue(undefined);
       mocks.sessionManager.storeUnlockedSecret.mockImplementation(() => {});
       mocks.bitcoin.getAddressFromMnemonic.mockReturnValue('test-address');
-      mocks.bitcoin.getDerivationPathForAddressType.mockReturnValue("m/84'/0'/0'");
+      mocks.bitcoin.getDerivationPathForAddressFormat.mockReturnValue("m/84'/0'/0'");
       
       await walletManager.unlockWallet(wallet.id, password);
       
@@ -329,7 +329,7 @@ describe('WalletManager', () => {
           id: wallet.id,
           type: 'mnemonic',
           encryptedSecret: 'encrypted',
-          addressType: wallet.addressType,
+          addressFormat: wallet.addressFormat,
           addressCount: 1,
         }
       ]);
@@ -349,7 +349,7 @@ describe('WalletManager', () => {
       mocks.sessionManager.initializeSession.mockResolvedValue(undefined);
       mocks.sessionManager.storeUnlockedSecret.mockImplementation(() => {});
       mocks.bitcoin.getAddressFromMnemonic.mockReturnValue('test-address');
-      mocks.bitcoin.getDerivationPathForAddressType.mockReturnValue("m/84'/0'/0'");
+      mocks.bitcoin.getDerivationPathForAddressFormat.mockReturnValue("m/84'/0'/0'");
       
       await walletManager.unlockWallet(wallet.id, password);
       

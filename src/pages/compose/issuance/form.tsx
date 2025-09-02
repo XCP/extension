@@ -14,7 +14,7 @@ import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { toBigNumber } from "@/utils/numeric";
-import { AddressType } from "@/utils/blockchain/bitcoin";
+import { AddressFormat, isSegwitFormat } from '@/utils/blockchain/bitcoin';
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -58,11 +58,7 @@ export function IssuanceForm({
   const [fileError, setFileError] = useState<string | null>(null);
   
   // Computed values
-  const isSegwitAddress = activeWallet?.addressType && [
-    AddressType.P2WPKH,
-    AddressType.P2SH_P2WPKH,
-    AddressType.P2TR
-  ].includes(activeWallet.addressType);
+  const isSegwitAddress = activeWallet?.addressFormat && isSegwitFormat(activeWallet.addressFormat);
   
   const showAsset = initialParentAsset && parentAssetDetails?.assetInfo;
   const showAddress = !showAsset && activeAddress && !isInitializing;

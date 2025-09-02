@@ -48,9 +48,9 @@ export default function SignMessage(): ReactElement {
   }, [setHeaderProps, navigate]);
   
   // Get signing capabilities for current address
-  const addressType = activeWallet?.addressType;
-  const signingCapabilities = activeAddress && addressType ? 
-    getSigningCapabilities(addressType) : 
+  const addressFormat = activeWallet?.addressFormat;
+  const signingCapabilities = activeAddress && addressFormat ? 
+    getSigningCapabilities(addressFormat) : 
     { canSign: false, method: "Not available", notes: "No address selected" };
   
   const handleSign = async (password?: string) => {
@@ -65,7 +65,7 @@ export default function SignMessage(): ReactElement {
     }
     
     if (!signingCapabilities.canSign) {
-      setError(`Message signing not supported for ${addressType} addresses`);
+      setError(`Message signing not supported for ${ addressFormat } addresses`);
       return;
     }
     
@@ -100,7 +100,7 @@ export default function SignMessage(): ReactElement {
       const result = await signMessage(
         message,
         privateKeyHex,
-        addressType!,  // We've already checked it exists
+        addressFormat!,  // We've already checked it exists
         compressed
       );
       
