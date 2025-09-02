@@ -5,6 +5,7 @@ import { getPublicKey } from '@noble/secp256k1';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 import { toSatoshis } from '@/utils/numeric';
 import { hybridSignTransaction } from '@/utils/blockchain/bitcoin';
+import type { XcpUtxoResponse, XcpUtxo, BitcoinTransactionResponse } from '@/types/api';
 
 
 /**
@@ -160,10 +161,10 @@ function varIntSize(n: number): number {
  * Fetch bare multisig UTXOs for the given address.
  */
 async function fetchBareMultisigUTXOs(address: string): Promise<UTXO[]> {
-  const response = await axios.get<{ data: any[] }>(`https://app.xcp.io/api/v1/address/${address}/utxos`);
+  const response = await axios.get<XcpUtxoResponse>(`https://app.xcp.io/api/v1/address/${address}/utxos`);
   const utxos = response.data.data;
   if (!utxos || utxos.length === 0) throw new Error('No bare multisig UTXOs found');
-  return utxos.map((utxo) => ({
+  return utxos.map((utxo: XcpUtxo) => ({
     txid: utxo.txid,
     vout: utxo.vout,
     amount: parseFloat(utxo.amount),
@@ -183,7 +184,7 @@ async function fetchPreviousRawTransaction(txid: string): Promise<string | null>
     { url: async () => {
       const settings = await getKeychainSettings();
       return `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`;
-    }, transform: (d: any) => d.result.hex },
+    }, transform: (d: BitcoinTransactionResponse) => d.result.hex },
   ];
   for (const endpoint of endpoints) {
     try {

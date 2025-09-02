@@ -1,20 +1,12 @@
 import axios from 'axios';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
+import type { BitcoinTransactionResponse, MempoolUTXO, BitcoinTransaction } from '@/types/api';
 
 /**
  * Interface representing an Unspent Transaction Output (UTXO).
+ * Re-export from API types for backward compatibility
  */
-export interface UTXO {
-  txid: string;
-  vout: number;
-  status: {
-    confirmed: boolean;
-    block_height: number;
-    block_hash: string;
-    block_time: number;
-  };
-  value: number;
-}
+export type UTXO = MempoolUTXO;
 
 /**
  * Fetches the UTXOs for a given Bitcoin address.
@@ -25,7 +17,7 @@ export interface UTXO {
  */
 export async function fetchUTXOs(address: string, signal?: AbortSignal): Promise<UTXO[]> {
   try {
-    const response = await axios.get<UTXO[]>(
+    const response = await axios.get<MempoolUTXO[]>(
       `https://mempool.space/api/address/${address}/utxo`,
       { signal }
     );
@@ -70,7 +62,7 @@ export function getUtxoByTxid(utxos: UTXO[], txid: string, vout: number): UTXO |
 export async function fetchPreviousRawTransaction(txid: string): Promise<string | null> {
   try {
     const settings = await getKeychainSettings();
-    const response = await axios.get<{ result: any }>(
+    const response = await axios.get<BitcoinTransactionResponse>(
       `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
     );
 
@@ -92,10 +84,10 @@ export async function fetchPreviousRawTransaction(txid: string): Promise<string 
  * @param txid - Transaction ID in hex.
  * @returns A promise that resolves to the Bitcoin transaction details or null if not found.
  */
-export async function fetchBitcoinTransaction(txid: string): Promise<any | null> {
+export async function fetchBitcoinTransaction(txid: string): Promise<BitcoinTransaction | null> {
   try {
     const settings = await getKeychainSettings();
-    const response = await axios.get<{ result: any }>(
+    const response = await axios.get<BitcoinTransactionResponse>(
       `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
     );
 

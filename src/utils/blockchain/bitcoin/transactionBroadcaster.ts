@@ -1,5 +1,6 @@
 import axios, { AxiosResponse } from 'axios';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
+import type { BroadcastResponse } from '@/types/api';
 
 export interface TransactionResponse {
   txid: string;
