@@ -6,7 +6,20 @@ import React from 'react';
 
 // Mock the bitcoin validation utility
 vi.mock('@/utils/validation', () => ({
-  isValidBitcoinAddress: vi.fn()
+  isValidBitcoinAddress: vi.fn(),
+  lookupAssetOwner: vi.fn().mockResolvedValue({ isValid: false, ownerAddress: null, error: null }),
+  shouldTriggerAssetLookup: vi.fn().mockReturnValue(false)
+}));
+
+// Mock the asset owner lookup hook to prevent async issues
+vi.mock('@/hooks/useAssetOwnerLookup', () => ({
+  useAssetOwnerLookup: vi.fn(() => ({
+    isLookingUp: false,
+    result: null,
+    error: null,
+    performLookup: vi.fn(),
+    clearLookup: vi.fn()
+  }))
 }));
 
 import { isValidBitcoinAddress } from '@/utils/validation';
