@@ -66,6 +66,27 @@ vi.mock('@/utils/blockchain/bitcoin', () => ({
   })
 }));
 
+// Mock validation utilities to prevent async issues
+vi.mock('@/utils/validation', () => ({
+  isValidBitcoinAddress: vi.fn((address) => {
+    // Allow test addresses - same logic as the bitcoin mock
+    return address.startsWith('bc1q') || address.startsWith('1') || address.startsWith('3');
+  }),
+  lookupAssetOwner: vi.fn().mockResolvedValue({ isValid: false, ownerAddress: null, error: null }),
+  shouldTriggerAssetLookup: vi.fn().mockReturnValue(false)
+}));
+
+// Mock the asset owner lookup hook to prevent async issues
+vi.mock('@/hooks/useAssetOwnerLookup', () => ({
+  useAssetOwnerLookup: vi.fn(() => ({
+    isLookingUp: false,
+    result: null,
+    error: null,
+    performLookup: vi.fn(),
+    clearLookup: vi.fn()
+  }))
+}));
+
 // Mock getFeeRates from blockchain utils
 vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
   getFeeRates: vi.fn().mockResolvedValue({
