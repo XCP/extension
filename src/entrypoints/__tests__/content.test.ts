@@ -67,29 +67,19 @@ describe('Content Script', () => {
     it('should inject provider script', async () => {
       mockInjectScript.mockResolvedValue(undefined);
       
-      // Check that our mock is set up correctly
-      console.log('injectScript in global:', 'injectScript' in global);
-      console.log('mockInjectScript calls before:', mockInjectScript.mock.calls.length);
-      
       // Import content script
       const contentScript = await import('../content');
       
-      console.log('Content script loaded:', typeof contentScript.default);
-      console.log('Main function type:', typeof contentScript.default.main);
-      
       // Execute the content script main function
       await contentScript.default.main({} as any);
-
-      console.log('mockInjectScript calls after:', mockInjectScript.mock.calls.length);
-      console.log('mockInjectScript calls:', mockInjectScript.mock.calls);
 
       // Should inject script using WXT's injectScript
       expect(mockInjectScript).toHaveBeenCalledWith('/injected.js', {
         keepInDom: true
       });
       
-      // Should log success
-      expect(mockConsole.log).toHaveBeenCalledWith('Injected XCP Wallet provider successfully.');
+      // Should NOT log success (removed dead code)
+      expect(mockConsole.log).not.toHaveBeenCalled();
     });
 
     it('should handle injection error', async () => {
