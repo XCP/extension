@@ -1,7 +1,7 @@
 import './setup'; // Must be first to setup browser mocks
 import { describe, it, expect, beforeEach, beforeAll, vi, afterEach } from 'vitest';
 import { fakeBrowser } from 'wxt/testing';
-import { createProviderService, resolvePendingRequest } from '../providerService';
+import { createProviderService } from '../providerService';
 import * as walletService from '../walletService';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
 import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';

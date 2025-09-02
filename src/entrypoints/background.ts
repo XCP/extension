@@ -1,5 +1,6 @@
 import { registerWalletService, getWalletService } from '@/services/walletService';
 import { registerProviderService, getProviderService } from '@/services/providerService';
+import { eventEmitterService } from '@/services/eventEmitterService';
 import { analyzePhishingRisk, shouldBlockConnection } from '@/utils/security/phishingDetection';
 import { requestSigner } from '@/utils/security/requestSigning';
 import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/sessionManager';
@@ -28,30 +29,36 @@ export default defineBackground(() => {
     // Continue execution even if session recovery fails
   });
   
-  // Set up alarm listener for session expiry
+  // Set up Chrome alarms for session management and keep-alive
+  const KEEP_ALIVE_ALARM_NAME = 'keep-alive';
+  const SESSION_EXPIRY_ALARM_NAME = 'session-expiry';
+  
+  // Create keep-alive alarm to prevent service worker termination
+  // This replaces the memory-leaking setTimeout approach
+  chrome.alarms.create(KEEP_ALIVE_ALARM_NAME, {
+    periodInMinutes: 0.4 // 24 seconds (less than Chrome's 30s timeout)
+  });
+  
+  // Consolidated alarm handler to avoid multiple listeners
   if (chrome?.alarms?.onAlarm) {
     chrome.alarms.onAlarm.addListener(async (alarm) => {
-      if (alarm.name === 'session-expiry') {
-        console.log('Session expired via alarm');
-        const walletService = getWalletService();
-        await walletService.lockAllWallets();
+      switch (alarm.name) {
+        case SESSION_EXPIRY_ALARM_NAME:
+          console.log('Session expired via alarm');
+          const walletService = getWalletService();
+          await walletService.lockAllWallets();
+          break;
+          
+        case KEEP_ALIVE_ALARM_NAME:
+          // Perform minimal activity to keep service worker alive
+          // This is automatically cleaned up when the service worker terminates
+          chrome.storage.local.get('keep-alive-ping', () => {
+            // Just accessing storage is enough to keep the worker alive
+          });
+          break;
       }
     });
   }
-
-  // Keep-alive mechanism to prevent service worker termination
-  const KEEP_ALIVE_INTERVAL = 25000; // 25 seconds (less than Chrome's 30s timeout)
-
-  function keepAlive() {
-    // No-op task to keep the service worker active
-    Promise.resolve().then(() => {
-      // Minimal promise resolution to register a task
-    });
-    setTimeout(keepAlive, KEEP_ALIVE_INTERVAL); // Schedule next call
-  }
-
-  // Start the keep-alive loop
-  setTimeout(keepAlive, KEEP_ALIVE_INTERVAL);
 
   // Handle provider requests from content scripts
   browser.runtime.onMessage.addListener((message: any, sender: any, sendResponse: any) => {
@@ -181,10 +188,23 @@ export default defineBackground(() => {
     
     // Handle approval resolution from popup
     if (message.type === 'RESOLVE_PROVIDER_REQUEST' && message.requestId) {
-      const resolvePendingRequest = (globalThis as any).resolvePendingRequest;
-      if (resolvePendingRequest) {
-        // Pass along updatedParams if they were provided
-        resolvePendingRequest(message.requestId, message.approved, message.updatedParams);
+      // Use the event emitter service to notify the provider service
+      eventEmitterService.emit('resolve-pending-request', {
+        requestId: message.requestId,
+        approved: message.approved,
+        updatedParams: message.updatedParams
+      });
+      sendResponse({ success: true });
+      return true;
+    }
+    
+    // Handle provider event emission from popup
+    if (message.type === 'EMIT_PROVIDER_EVENT' && message.event) {
+      // Forward the event to the appropriate origin
+      if (message.origin) {
+        emitProviderEvent(message.origin, message.event, message.data);
+      } else {
+        emitProviderEvent(message.event, message.data);
       }
       sendResponse({ success: true });
       return true;
@@ -236,8 +256,15 @@ export default defineBackground(() => {
     });
   }
 
-  // Export for use in other parts of the extension
-  (globalThis as any).emitProviderEvent = emitProviderEvent;
+  // Register the emitProviderEvent function with the event emitter service
+  // This makes it available to other services without using global variables
+  eventEmitterService.on('emit-provider-event', (args: { origin?: string; event: string; data: any }) => {
+    if (args.origin) {
+      emitProviderEvent(args.origin, args.event, args.data);
+    } else {
+      emitProviderEvent(args.event, args.data);
+    }
+  });
   
 
   console.debug('Background script initialized with provider support');

@@ -3,6 +3,7 @@ import { FaSpinner } from "react-icons/fa";
 import { Layout } from '@/components/layout';
 import { useWallet } from '@/contexts/wallet-context';
 import { AuthRequired } from '@/components/router/auth-required';
+import { ErrorBoundary } from '@/components/error-boundary';
 
 // Auth
 import Onboarding from '@/pages/auth/onboarding';
@@ -121,7 +122,8 @@ export default function App() {
   const walletExists = wallets.length > 0;
 
   return (
-    <Routes>
+    <ErrorBoundary>
+      <Routes>
         {/* Root route logic:
             - If no wallet exists, go to onboarding.
             - If a wallet exists but is locked, go to unlock-wallet.
@@ -243,6 +245,7 @@ export default function App() {
 
         {/* Catch-all route */}
         <Route path="*" element={<NotFound />} />
-    </Routes>
+      </Routes>
+    </ErrorBoundary>
   );
 }

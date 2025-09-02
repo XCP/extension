@@ -1,3 +1,14 @@
+import {
+  validateWalletId,
+  validateSecret,
+  validateTimeout,
+  validateSessionMetadata,
+  checkRateLimit,
+  clearRateLimit,
+  clearAllRateLimits,
+  checkSecretLimit,
+} from '@/utils/validation';
+
 // In-memory store for decrypted secrets (by wallet ID).
 let unlockedSecrets: Record<string, string> = {};
 let lastActiveTime: number = Date.now();
@@ -9,11 +20,15 @@ interface SessionMetadata {
   lastActiveTime: number;
 }
 
+
 /**
  * Stores session metadata in chrome.storage.session
  * This survives popup close/open but not browser restart
  */
 async function persistSessionMetadata(metadata: SessionMetadata): Promise<void> {
+  // Validate metadata before persisting
+  validateSessionMetadata(metadata);
+  
   // Check if chrome.storage.session is available
   if (chrome?.storage?.session) {
     await chrome.storage.session.set({ sessionMetadata: metadata });
@@ -60,6 +75,8 @@ export async function isSessionExpired(): Promise<boolean> {
  * Initializes a new session when wallet is unlocked
  */
 export async function initializeSession(timeout: number): Promise<void> {
+  validateTimeout(timeout);
+  
   const now = Date.now();
   lastActiveTime = now;
   
@@ -77,13 +94,18 @@ export async function initializeSession(timeout: number): Promise<void> {
  * @param secret - The decrypted secret.
  */
 export function storeUnlockedSecret(walletId: string, secret: string): void {
-  if (!walletId) {
-    throw new Error('walletId is required');
-  }
-  if (secret === undefined || secret === null) {
-    throw new Error('secret cannot be null or undefined');
-  }
-  // Allow empty strings as they may be valid secrets
+  // Validate inputs
+  validateWalletId(walletId);
+  validateSecret(secret);
+  
+  // Check rate limiting
+  checkRateLimit(walletId);
+  
+  // Check total number of stored secrets to prevent memory exhaustion
+  const currentSecretCount = Object.keys(unlockedSecrets).length;
+  checkSecretLimit(currentSecretCount, walletId, unlockedSecrets);
+  
+  // Store the secret
   unlockedSecrets[walletId] = secret;
 }
 
@@ -96,6 +118,14 @@ export function storeUnlockedSecret(walletId: string, secret: string): void {
  */
 export async function getUnlockedSecret(walletId: string): Promise<string | null> {
   if (!walletId) {
+    return null;
+  }
+  
+  // Validate wallet ID format
+  try {
+    validateWalletId(walletId);
+  } catch {
+    // Invalid wallet ID format, return null instead of throwing
     return null;
   }
   
@@ -123,6 +153,15 @@ export function clearUnlockedSecret(walletId: string): void {
   if (!walletId) {
     return;
   }
+  
+  // Validate wallet ID format
+  try {
+    validateWalletId(walletId);
+  } catch {
+    // Invalid wallet ID, silently return
+    return;
+  }
+  
   if (walletId in unlockedSecrets) {
     // Overwrite with zeros for security (though JS may not guarantee this)
     const secretLength = unlockedSecrets[walletId].length;
@@ -130,6 +169,9 @@ export function clearUnlockedSecret(walletId: string): void {
       unlockedSecrets[walletId] = '0'.repeat(secretLength);
     }
     delete unlockedSecrets[walletId];
+    
+    // Clean up rate limit entries for this wallet
+    clearRateLimit(walletId);
   }
 }
 
@@ -138,6 +180,10 @@ export function clearUnlockedSecret(walletId: string): void {
  */
 export async function clearAllUnlockedSecrets(): Promise<void> {
   Object.keys(unlockedSecrets).forEach((walletId) => clearUnlockedSecret(walletId));
+  
+  // Clear all rate limiting data
+  clearAllRateLimits();
+  
   await clearSessionMetadata();
 }
 

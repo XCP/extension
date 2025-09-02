@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, beforeAll, vi, afterEach } from 'vitest';
 import { fakeBrowser } from 'wxt/testing';
-import { createProviderService, resolvePendingRequest } from '../providerService';
+import { createProviderService } from '../providerService';
 import * as walletService from '../walletService';
 import * as settingsStorage from '@/utils/storage';
 import * as approvalQueue from '@/utils/provider/approvalQueue';

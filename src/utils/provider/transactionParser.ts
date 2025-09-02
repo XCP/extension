@@ -181,9 +181,18 @@ export function validateTransactionSafety(parsed: ParsedTransaction): {
   }
   
   if (parsed.amount) {
-    const amount = parseFloat(parsed.amount);
-    if (!isNaN(amount) && amount > 1000000) {
-      warnings.push('⚠️ Large amount transfer detected');
+    // Safely handle any type of input for parsed.amount
+    try {
+      // Convert to string safely, handling any type
+      const amountStr = String(parsed.amount);
+      const amount = parseFloat(amountStr);
+      
+      if (!isNaN(amount) && isFinite(amount) && amount > 1000000) {
+        warnings.push('⚠️ Large amount transfer detected');
+      }
+    } catch (error) {
+      // If any error occurs during conversion or parsing, ignore the amount check
+      // This prevents crashes from malformed objects with broken toString methods
     }
   }
   
