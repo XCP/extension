@@ -164,7 +164,8 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      expect(screen.getByText('BTC')).toBeInTheDocument();
+      const btcTexts = screen.getAllByText('BTC');
+      expect(btcTexts.length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText('1.00000000')).toBeInTheDocument();
     });
   });
@@ -190,8 +191,10 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      expect(screen.getByText('XCP')).toBeInTheDocument();
-      expect(screen.getByText('PEPECASH')).toBeInTheDocument();
+      const xcpTexts = screen.getAllByText('XCP');
+      expect(xcpTexts.length).toBeGreaterThanOrEqual(1);
+      const pepecashTexts = screen.getAllByText('PEPECASH');
+      expect(pepecashTexts.length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -252,7 +255,11 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      const balanceItem = screen.getByText('XCP').closest('.cursor-pointer');
+      const xcpTexts = screen.getAllByText('XCP');
+      const balanceItem = xcpTexts.find(text => 
+        text.closest('.cursor-pointer')
+      )?.closest('.cursor-pointer');
+      expect(balanceItem).toBeTruthy();
       fireEvent.click(balanceItem!);
     });
     
@@ -346,8 +353,10 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      expect(screen.getByText('XCP')).toBeInTheDocument();
-      expect(screen.getByText('XCPCARD')).toBeInTheDocument();
+      const xcpTexts = screen.getAllByText('XCP');
+      expect(xcpTexts.length).toBeGreaterThanOrEqual(1);
+      const xcpcardTexts = screen.getAllByText('XCPCARD');
+      expect(xcpcardTexts.length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -358,7 +367,11 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      const searchResult = screen.getByText('XCP').closest('.cursor-pointer');
+      const xcpTexts = screen.getAllByText('XCP');
+      const searchResult = xcpTexts.find(text => 
+        text.closest('.cursor-pointer')
+      )?.closest('.cursor-pointer');
+      expect(searchResult).toBeTruthy();
       fireEvent.click(searchResult!);
     });
     
@@ -395,7 +408,8 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      expect(screen.getByText('BTC')).toBeInTheDocument();
+      const btcTexts = screen.getAllByText('BTC');
+      expect(btcTexts.length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText('0.00000000')).toBeInTheDocument();
     });
   });
@@ -429,7 +443,10 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      const balanceItem = screen.getByText('XCP').closest('.cursor-pointer');
+      const xcpTexts = screen.getAllByText('XCP');
+      const balanceItem = xcpTexts.find(text => 
+        text.closest('.cursor-pointer')
+      )?.closest('.cursor-pointer');
       expect(balanceItem).toHaveClass('hover:bg-gray-50');
     });
   });

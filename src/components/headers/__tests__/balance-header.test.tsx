@@ -77,14 +77,15 @@ describe('BalanceHeader', () => {
   it('should render asset icon with correct URL', () => {
     render(<BalanceHeader balance={mockBalance} />);
     
-    const img = screen.getByAltText('PEPECASH');
-    expect(img).toHaveAttribute('src', 'https://app.xcp.io/img/icon/PEPECASH');
+    const icon = screen.getByTestId('asset-icon');
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveTextContent('PEPECASH Icon (lg)');
   });
 
   it('should apply custom className', () => {
     render(<BalanceHeader balance={mockBalance} className="custom-class" />);
     
-    const container = screen.getByAltText('PEPECASH').closest('.flex');
+    const container = screen.getByTestId('asset-icon').closest('.flex');
     expect(container).toHaveClass('custom-class');
   });
 
@@ -149,17 +150,14 @@ describe('BalanceHeader', () => {
   it('should apply correct CSS classes', () => {
     render(<BalanceHeader balance={mockBalance} />);
     
-    const container = screen.getByAltText('PEPECASH').closest('.flex');
+    const container = screen.getByTestId('asset-icon').closest('.flex');
     expect(container).toHaveClass('flex');
     expect(container).toHaveClass('items-center');
     
-    // Check the image container div has the mr-4 class
-    const imageContainer = container?.querySelector('.relative.w-12.h-12.mr-4');
-    expect(imageContainer).toBeInTheDocument();
-    
-    const img = screen.getByAltText('PEPECASH');
-    expect(img).toHaveClass('w-12');
-    expect(img).toHaveClass('h-12');
+    // Check that the AssetIcon mock has the mr-4 class
+    const icon = screen.getByTestId('asset-icon');
+    expect(icon).toHaveTextContent('PEPECASH Icon (lg)');
+    expect(icon).toHaveClass('mr-4');
   });
 
   it('should apply correct typography classes', () => {
@@ -275,7 +273,7 @@ describe('BalanceHeader', () => {
   it('should update when switching between balances', () => {
     const { rerender } = render(<BalanceHeader balance={mockBalance} />);
     
-    expect(screen.getByAltText('PEPECASH')).toBeInTheDocument();
+    expect(screen.getByTestId('asset-icon')).toHaveTextContent('PEPECASH Icon (lg)');
     
     const differentBalance = {
       asset: 'XCP',
@@ -291,7 +289,7 @@ describe('BalanceHeader', () => {
     
     rerender(<BalanceHeader balance={differentBalance} />);
     
-    expect(screen.getByAltText('XCP')).toBeInTheDocument();
+    expect(screen.getByTestId('asset-icon')).toHaveTextContent('XCP Icon (lg)');
     expect(mockSetBalanceHeader).toHaveBeenCalledWith('XCP', differentBalance);
   });
 
@@ -398,8 +396,8 @@ describe('BalanceHeader', () => {
     render(<BalanceHeader balance={emptyNameBalance} />);
     
     // Should still render without errors
-    const img = screen.getByAltText('');
-    expect(img).toHaveAttribute('src', 'https://app.xcp.io/img/icon/');
+    const icon = screen.getByTestId('asset-icon');
+    expect(icon).toHaveTextContent('Icon (lg)');
   });
 
   it('should always call setBalanceHeader on mount and updates', () => {

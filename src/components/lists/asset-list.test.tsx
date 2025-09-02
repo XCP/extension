@@ -105,11 +105,17 @@ describe('AssetList', () => {
     expect(screen.getByText('Loading owned assets...')).toBeInTheDocument();
   });
 
-  it('renders search input', () => {
+  it('renders search input', async () => {
     render(<AssetList />);
 
-    expect(screen.getByPlaceholderText('Search assets...')).toBeInTheDocument();
-    expect(screen.getByLabelText('Clear search')).toBeInTheDocument(); // Hidden until there's a query
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Search assets...')).toBeInTheDocument();
+    });
+    
+    // Clear button should not be visible when there's no search query
+    const clearButton = screen.queryByLabelText('Clear search');
+    expect(clearButton).not.toBeInTheDocument();
   });
 
   it('renders owned assets when loaded', async () => {
@@ -145,6 +151,11 @@ describe('AssetList', () => {
     });
 
     render(<AssetList />);
+
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Search assets...')).toBeInTheDocument();
+    });
 
     const searchInput = screen.getByPlaceholderText('Search assets...');
     fireEvent.change(searchInput, { target: { value: 'RARE' } });

@@ -280,7 +280,8 @@ describe('AssetList', () => {
     render(<AssetList />);
     
     await waitFor(() => {
-      expect(screen.getByText('XCP')).toBeInTheDocument();
+      const xcpTexts = screen.getAllByText('XCP');
+      expect(xcpTexts.length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText('XCPCARD')).toBeInTheDocument();
     });
   });
@@ -293,7 +294,11 @@ describe('AssetList', () => {
     render(<AssetList />);
     
     await waitFor(() => {
-      const searchResult = screen.getByText('XCP').closest('.cursor-pointer');
+      const xcpTexts = screen.getAllByText('XCP');
+      const searchResult = xcpTexts.find(text => 
+        text.closest('.cursor-pointer')?.getAttribute('aria-label')?.includes('View XCP')
+      )?.closest('.cursor-pointer');
+      expect(searchResult).toBeTruthy();
       fireEvent.click(searchResult!);
     });
     

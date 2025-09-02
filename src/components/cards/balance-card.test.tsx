@@ -11,6 +11,18 @@ vi.mock('@/components/menus/balance-menu', () => ({
   )
 }));
 
+// Mock the AssetIcon component
+vi.mock('@/components/asset-icon', () => ({
+  AssetIcon: ({ asset, size, className }: any) => (
+    <img 
+      src={`https://app.xcp.io/img/icon/${asset}`}
+      alt={asset}
+      className={className}
+      data-size={size}
+    />
+  )
+}));
+
 // Mock the format utils
 vi.mock('@/utils/format', () => ({
   formatAmount: ({ value }: { value: number }) => value.toFixed(8),

@@ -2,6 +2,26 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PinnableAssetCard } from './pinnable-asset-card';
 
+// Mock the AssetIcon component
+vi.mock('@/components/asset-icon', () => ({
+  AssetIcon: ({ asset, size, className }: any) => {
+    // Mock img element with error handling like the real AssetIcon
+    return (
+      <img 
+        src={`https://app.xcp.io/img/icon/${asset}`}
+        alt={asset}
+        className={className}
+        data-size={size}
+        onError={(e) => {
+          // Set fallback SVG on error like the real component
+          const target = e.target as HTMLImageElement;
+          target.src = `data:image/svg+xml;base64,${btoa(`<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'><rect width='48' height='48' fill='#e5e7eb' rx='24'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='#9ca3af' font-family='system-ui' font-size='16'>${asset.slice(0, 3).toUpperCase()}</text></svg>`)}`;
+        }}
+      />
+    );
+  }
+}));
+
 describe('PinnableAssetCard', () => {
   const mockOnPinToggle = vi.fn();
   const mockOnClick = vi.fn();

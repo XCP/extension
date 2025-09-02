@@ -89,14 +89,14 @@ describe('AssetHeader', () => {
   it('should render asset icon with correct URL', () => {
     render(<AssetHeader assetInfo={mockAssetInfo} />);
     
-    const img = screen.getByAltText('PEPECASH');
-    expect(img).toHaveAttribute('src', 'https://app.xcp.io/img/icon/PEPECASH');
+    const icon = screen.getByTestId('asset-icon');
+    expect(icon).toHaveTextContent('PEPECASH Icon (lg)');
   });
 
   it('should apply custom className', () => {
     render(<AssetHeader assetInfo={mockAssetInfo} className="custom-class" />);
     
-    const container = screen.getByAltText('PEPECASH').closest('.flex');
+    const container = screen.getByTestId('asset-icon').closest('.flex');
     expect(container).toHaveClass('custom-class');
   });
 
@@ -198,17 +198,14 @@ describe('AssetHeader', () => {
   it('should apply correct CSS classes', () => {
     render(<AssetHeader assetInfo={mockAssetInfo} />);
     
-    const container = screen.getByAltText('PEPECASH').closest('.flex');
+    const container = screen.getByTestId('asset-icon').closest('.flex');
     expect(container).toHaveClass('flex');
     expect(container).toHaveClass('items-center');
     
-    // Check the image container div has the mr-4 class
-    const imageContainer = container?.querySelector('.relative.w-12.h-12.mr-4');
-    expect(imageContainer).toBeInTheDocument();
-    
-    const img = screen.getByAltText('PEPECASH');
-    expect(img).toHaveClass('w-12');
-    expect(img).toHaveClass('h-12');
+    // Check that the AssetIcon mock has the mr-4 class
+    const icon = screen.getByTestId('asset-icon');
+    expect(icon).toHaveTextContent('PEPECASH Icon (lg)');
+    expect(icon).toHaveClass('mr-4');
   });
 
   it('should apply correct typography classes', () => {
@@ -275,7 +272,7 @@ describe('AssetHeader', () => {
   it('should update when switching between assets', () => {
     const { rerender } = render(<AssetHeader assetInfo={mockAssetInfo} />);
     
-    expect(screen.getByAltText('PEPECASH')).toBeInTheDocument();
+    expect(screen.getByTestId('asset-icon')).toHaveTextContent('PEPECASH Icon (lg)');
     
     const differentAsset: AssetInfo = {
       asset: 'XCP',
@@ -288,7 +285,7 @@ describe('AssetHeader', () => {
     
     rerender(<AssetHeader assetInfo={differentAsset} />);
     
-    expect(screen.getByAltText('XCP')).toBeInTheDocument();
+    expect(screen.getByTestId('asset-icon')).toHaveTextContent('XCP Icon (lg)');
     expect(mockSetAssetHeader).toHaveBeenCalledWith('XCP', differentAsset);
   });
 
@@ -378,7 +375,7 @@ describe('AssetHeader', () => {
     render(<AssetHeader assetInfo={emptyNameAsset} />);
     
     // Should still render without errors
-    const img = screen.getByAltText('');
-    expect(img).toHaveAttribute('src', 'https://app.xcp.io/img/icon/');
+    const icon = screen.getByTestId('asset-icon');
+    expect(icon).toHaveTextContent('Icon (lg)');
   });
 });

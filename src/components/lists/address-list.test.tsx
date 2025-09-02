@@ -1,13 +1,18 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { AddressList } from './address-list';
 import type { Address } from '@/utils/wallet';
+
+// Mock React Icons
+vi.mock('react-icons/fa', () => ({
+  FaCheck: () => <span role="img" aria-hidden="true" data-testid="check-icon">✓</span>
+}));
 
 // Mock dependencies
 vi.mock('@/utils/format', () => ({
   formatAddress: (address: string, shorten: boolean = true) => {
-    if (shorten && address.length > 20) {
-      return `${address.substring(0, 8)}...${address.substring(address.length - 8)}`;
+    if (shorten) {
+      return `${address.slice(0, 6)}...${address.slice(-6)}`;
     }
     return address;
   }
@@ -18,7 +23,10 @@ vi.mock('@/components/menus/address-menu', () => ({
     <button
       data-testid={`address-menu-${address.name}`}
       className="address-menu"
-      onClick={() => onCopyAddress(address.address)}
+      onClick={(e: React.MouseEvent) => {
+        e.stopPropagation();
+        onCopyAddress(address.address);
+      }}
     >
       Menu for {address.name}
     </button>
@@ -94,9 +102,9 @@ describe('AddressList', () => {
       />
     );
 
-    expect(screen.getByText('bc1qw508...v8f3t4')).toBeInTheDocument();
-    expect(screen.getByText('bc1qvery...3456789')).toBeInTheDocument();
-    expect(screen.getByText('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')).toBeInTheDocument();
+    expect(screen.getByText('bc1qw5...v8f3t4')).toBeInTheDocument();
+    expect(screen.getByText('bc1qve...456789')).toBeInTheDocument();
+    expect(screen.getByText('1A1zP1...DivfNa')).toBeInTheDocument();
   });
 
   it('shows derivation paths', () => {
@@ -124,7 +132,7 @@ describe('AddressList', () => {
       />
     );
 
-    const selectedAddress = screen.getByText('Address 1').closest('div');
+    const selectedAddress = screen.getByText('Address 1').closest('div[role="radio"]').querySelector('div');
     expect(selectedAddress).toHaveClass('bg-blue-600', 'text-white', 'shadow-md');
   });
 
@@ -138,7 +146,7 @@ describe('AddressList', () => {
       />
     );
 
-    const unselectedAddress = screen.getByText('Address 2').closest('div');
+    const unselectedAddress = screen.getByText('Address 2').closest('div[role="radio"]').querySelector('div');
     expect(unselectedAddress).toHaveClass('bg-blue-100', 'hover:bg-blue-200', 'text-gray-800');
   });
 
@@ -152,7 +160,7 @@ describe('AddressList', () => {
       />
     );
 
-    const address1 = screen.getByText('Address 1').closest('div');
+    const address1 = screen.getByText('Address 1').closest('div[role="radio"]');
     fireEvent.click(address1!);
 
     expect(mockOnSelectAddress).toHaveBeenCalledWith(mockAddresses[0]);
@@ -218,25 +226,26 @@ describe('AddressList', () => {
     );
 
     const menu = screen.getByTestId('address-menu-Address 1');
-    fireEvent.click(menu);
-
-    await waitFor(() => {
-      const checkIcon = screen.getByRole('img', { hidden: true });
-      expect(checkIcon).toBeInTheDocument();
+    
+    act(() => {
+      fireEvent.click(menu);
     });
+
+    // Check icon should appear immediately
+    const checkIcon = screen.getByTestId('check-icon');
+    expect(checkIcon).toBeInTheDocument();
 
     // Check icon should disappear after 2 seconds
-    vi.advanceTimersByTime(2000);
-
-    await waitFor(() => {
-      const checkIcon = screen.queryByRole('img', { hidden: true });
-      expect(checkIcon).not.toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(2000);
     });
+
+    expect(screen.queryByTestId('check-icon')).not.toBeInTheDocument();
 
     vi.useRealTimers();
   });
 
-  it('only shows check icon for the copied address', async () => {
+  it('only shows check icon for the copied address', () => {
     render(
       <AddressList
         addresses={mockAddresses}
@@ -249,10 +258,8 @@ describe('AddressList', () => {
     const menu1 = screen.getByTestId('address-menu-Address 1');
     fireEvent.click(menu1);
 
-    await waitFor(() => {
-      const checkIcons = screen.getAllByRole('img', { hidden: true });
-      expect(checkIcons).toHaveLength(1);
-    });
+    const checkIcons = screen.getAllByTestId('check-icon');
+    expect(checkIcons).toHaveLength(1);
   });
 
   it('handles empty address list', () => {
@@ -323,7 +330,7 @@ describe('AddressList', () => {
       />
     );
 
-    let selectedElement = screen.getByText('Address 1').closest('div');
+    let selectedElement = screen.getByText('Address 1').closest('div[role="radio"]').querySelector('div');
     expect(selectedElement).toHaveClass('bg-blue-600');
 
     rerender(
@@ -335,10 +342,10 @@ describe('AddressList', () => {
       />
     );
 
-    selectedElement = screen.getByText('Address 1').closest('div');
+    selectedElement = screen.getByText('Address 1').closest('div[role="radio"]').querySelector('div');
     expect(selectedElement).toHaveClass('bg-blue-100');
 
-    const newSelectedElement = screen.getByText('Address 2').closest('div');
+    const newSelectedElement = screen.getByText('Address 2').closest('div[role="radio"]').querySelector('div');
     expect(newSelectedElement).toHaveClass('bg-blue-600');
   });
 
@@ -352,7 +359,7 @@ describe('AddressList', () => {
       />
     );
 
-    const addressElement = screen.getByText('bc1qw508...v8f3t4');
+    const addressElement = screen.getByText('bc1qw5...v8f3t4');
     expect(addressElement).toHaveClass('font-mono', 'text-sm');
   });
 
@@ -373,7 +380,7 @@ describe('AddressList', () => {
     expect(unselectedPath).toHaveClass('text-gray-500');
   });
 
-  it('handles clipboard write failures gracefully', async () => {
+  it('handles clipboard write failures gracefully', () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     mockClipboard.writeText.mockRejectedValue(new Error('Clipboard error'));
 
@@ -390,10 +397,8 @@ describe('AddressList', () => {
     fireEvent.click(menu);
 
     // Should still show check icon even if clipboard fails
-    await waitFor(() => {
-      const checkIcon = screen.getByRole('img', { hidden: true });
-      expect(checkIcon).toBeInTheDocument();
-    });
+    const checkIcon = screen.getByTestId('check-icon');
+    expect(checkIcon).toBeInTheDocument();
 
     consoleErrorSpy.mockRestore();
   });
