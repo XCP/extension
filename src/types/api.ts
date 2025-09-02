@@ -135,27 +135,69 @@ export interface CounterpartyAsset {
 }
 
 /**
+ * Compose transaction size estimation
+ */
+export interface SignedTxEstimatedSize {
+  vsize: number;
+  adjusted_vsize: number;
+  sigops_count: number;
+}
+
+/**
+ * Asset info in compose parameters
+ */
+export interface ComposeAssetInfo {
+  asset_longname: string | null;
+  description: string;
+  issuer: string;
+  divisible: boolean;
+  locked: boolean;
+  owner: string;
+}
+
+/**
+ * Compose transaction parameters
+ */
+export interface ComposeParams {
+  source: string;
+  destination?: string;
+  asset?: string;
+  quantity?: number;
+  memo?: string | null;
+  memo_is_hex?: boolean;
+  use_enhanced_send?: boolean;
+  no_dispense?: boolean;
+  skip_validation?: boolean;
+  asset_info?: ComposeAssetInfo;
+  quantity_normalized?: string;
+  asset_dest_quant_list?: [string, string, string][];
+  memos?: string[];
+  [key: string]: any; // Allow additional params for different transaction types
+}
+
+/**
+ * Compose transaction result
+ */
+export interface ComposeResult {
+  rawtransaction: string;
+  btc_in: number;
+  btc_out: number;
+  btc_change: number;
+  btc_fee: number;
+  data?: string;
+  lock_scripts?: string[];
+  inputs_values?: number[];
+  signed_tx_estimated_size?: SignedTxEstimatedSize;
+  psbt?: string;
+  params: ComposeParams;
+  name?: string;
+}
+
+/**
  * Counterparty transaction composition response
  */
 export interface ComposeResponse {
-  result: {
-    rawtransaction: string;
-    params: Record<string, any>;
-    btc_in: number;
-    btc_out: number;
-    btc_change: number;
-    btc_fee: number;
-    data?: string;
-    psbt?: string;
-    name?: string;
-    lock_scripts?: string[];
-    inputs_values?: number[];
-    signed_tx_estimated_size?: {
-      vsize: number;
-      adjusted_vsize: number;
-      sigops_count: number;
-    };
-  };
+  result: ComposeResult;
   error?: string;
 }
 
@@ -426,7 +468,7 @@ export interface AxiosErrorResponse {
  */
 export interface PaginatedResponse<T> {
   result: T[];
-  next_cursor?: number | string;
+  next_cursor?: number | string | null;
   result_count: number;
 }
 

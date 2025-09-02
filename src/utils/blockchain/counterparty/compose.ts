@@ -1,55 +1,23 @@
 import axios from 'axios';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
-import type { ComposeResponse, CounterpartyResponse } from '@/types/api';
+import type { 
+  ComposeResponse, 
+  CounterpartyResponse,
+  ComposeResult,
+  ComposeParams,
+  ComposeAssetInfo,
+  SignedTxEstimatedSize 
+} from '@/types/api';
 
-export interface SignedTxEstimatedSize {
-  vsize: number;
-  adjusted_vsize: number;
-  sigops_count: number;
-}
+// Re-export types from centralized API definitions for backward compatibility
+export type { 
+  SignedTxEstimatedSize,
+  ComposeAssetInfo,
+  ComposeParams,
+  ComposeResult 
+} from '@/types/api';
 
-export interface ComposeAssetInfo {
-  asset_longname: string | null;
-  description: string;
-  issuer: string;
-  divisible: boolean;
-  locked: boolean;
-  owner: string;
-}
-
-export interface ComposeParams {
-  source: string;
-  destination: string;
-  asset: string;
-  quantity: number;
-  memo: string | null;
-  memo_is_hex: boolean;
-  use_enhanced_send: boolean;
-  no_dispense: boolean;
-  skip_validation: boolean;
-  asset_info: ComposeAssetInfo;
-  quantity_normalized: string;
-}
-
-export interface ComposeResult {
-  rawtransaction: string;
-  btc_in: number;
-  btc_out: number;
-  btc_change: number;
-  btc_fee: number;
-  data: string;
-  lock_scripts: string[];
-  inputs_values: number[];
-  signed_tx_estimated_size: SignedTxEstimatedSize;
-  psbt: string;
-  params: ComposeParams & {
-    asset_dest_quant_list?: [string, string, string][];
-    memos?: string[];
-  };
-  name: string;
-}
-
-// Use proper types from API definitions
+// Deprecated: Use ComposeResponse directly from @/types/api
 export type ApiResponse = ComposeResponse;
 
 // Base options shared across all transaction types
