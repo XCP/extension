@@ -15,6 +15,11 @@ vi.mock('#imports', () => ({
 fakeBrowser.runtime.sendMessage = vi.fn();
 fakeBrowser.runtime.onMessage.addListener = vi.fn();
 fakeBrowser.runtime.onMessage.removeListener = vi.fn();
+fakeBrowser.runtime.onConnect = {
+  addListener: vi.fn(),
+  removeListener: vi.fn(),
+};
+fakeBrowser.runtime.connect = vi.fn();
 fakeBrowser.runtime.id = 'test-extension-id';
 fakeBrowser.runtime.getURL = vi.fn((path: string) => `chrome-extension://test-id${path}`);
 
@@ -61,6 +66,9 @@ describe('Content Script', () => {
     if ((fakeBrowser.runtime.onMessage.removeListener as any).mockClear) {
       (fakeBrowser.runtime.onMessage.removeListener as any).mockClear();
     }
+    (fakeBrowser.runtime.onConnect.addListener as any).mockClear();
+    (fakeBrowser.runtime.onConnect.removeListener as any).mockClear();
+    (fakeBrowser.runtime.connect as any).mockClear();
     mockInjectScript.mockClear();
     
     // Clear mock context

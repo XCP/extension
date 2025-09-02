@@ -10,6 +10,12 @@ import type { ConnectionService } from '../../connection/ConnectionService';
 import type { ApprovalService } from '../../approval/ApprovalService';
 import type { BlockchainService } from '../../blockchain/BlockchainService';
 
+// Mock webext-bridge to prevent browser API issues
+vi.mock('webext-bridge/background', () => ({
+  sendMessage: vi.fn(),
+  onMessage: vi.fn(),
+}));
+
 // Mock the compose utility
 import { composeTransaction } from '@/utils/blockchain/counterparty/compose';
 vi.mock('@/utils/blockchain/counterparty/compose', () => ({
@@ -48,11 +54,32 @@ beforeEach(() => {
       local: mockStorage,
       session: mockStorage,
     },
+    runtime: {
+      onConnect: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        hasListener: vi.fn(),
+      },
+      connect: vi.fn(),
+    },
+    alarms: {
+      create: vi.fn(),
+      clear: vi.fn().mockResolvedValue(true),
+      onAlarm: {
+        addListener: vi.fn(),
+      },
+    },
   } as any;
   
   (global as any).browser = {
     runtime: {
       getURL: vi.fn((path) => `chrome-extension://test/${path}`),
+      onConnect: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        hasListener: vi.fn(),
+      },
+      connect: vi.fn(),
     },
   } as any;
 });

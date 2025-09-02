@@ -450,11 +450,12 @@ export class BlockchainService extends BaseService {
     const cached = this.getFromCache<Transaction[]>(cacheKey);
     if (cached !== null) return cached;
 
-    const transactions = await this.executeWithResilience(
+    const response = await this.executeWithResilience(
       'transactions',
       () => fetchTransactions(address, options)
-    ) as unknown as Transaction[];
+    ) as unknown as { result: Transaction[], result_count: number };
 
+    const transactions = response.result;
     this.setCache(cacheKey, transactions, CACHE_DEFAULTS.TRANSACTIONS);
     return transactions;
   }
@@ -476,11 +477,12 @@ export class BlockchainService extends BaseService {
     const cached = this.getFromCache<Order[] | OrderDetails[]>(cacheKey);
     if (cached !== null) return cached;
 
-    const orders = await this.executeWithResilience(
+    const response = await this.executeWithResilience(
       'orders',
       () => fetchOrders(address || '', options as any)
-    ) as unknown as Order[];
+    ) as unknown as { orders: Order[], total: number };
 
+    const orders = response.orders;
     this.setCache(cacheKey, orders, CACHE_DEFAULTS.TRANSACTIONS);
     return orders;
   }
@@ -754,15 +756,24 @@ export class BlockchainService extends BaseService {
   }
 
   private recordFailure(operation: string): void {
-    const breaker = this.circuitBreakers.get(operation);
-    if (breaker) {
-      breaker.failureCount++;
-      breaker.lastFailure = Date.now();
-      
-      if (breaker.failureCount >= CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD) {
-        breaker.state = 'OPEN';
-        breaker.nextAttempt = Date.now() + CIRCUIT_BREAKER_CONFIG.RECOVERY_TIMEOUT;
-      }
+    let breaker = this.circuitBreakers.get(operation);
+    if (!breaker) {
+      // Create new circuit breaker if it doesn't exist
+      breaker = {
+        failureCount: 0,
+        lastFailure: 0,
+        state: 'CLOSED',
+        nextAttempt: 0,
+      };
+      this.circuitBreakers.set(operation, breaker);
+    }
+
+    breaker.failureCount++;
+    breaker.lastFailure = Date.now();
+    
+    if (breaker.failureCount >= CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD) {
+      breaker.state = 'OPEN';
+      breaker.nextAttempt = Date.now() + CIRCUIT_BREAKER_CONFIG.RECOVERY_TIMEOUT;
     }
 
     // Update metrics

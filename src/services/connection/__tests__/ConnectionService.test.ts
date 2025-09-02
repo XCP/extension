@@ -5,6 +5,13 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+// Mock webext-bridge to prevent browser API issues  
+vi.mock('webext-bridge/background', () => ({
+  sendMessage: vi.fn(),
+  onMessage: vi.fn(),
+}));
+
 import { ConnectionService } from '../ConnectionService';
 import type { ApprovalService } from '../../approval/ApprovalService';
 
@@ -29,12 +36,33 @@ beforeEach(() => {
       local: mockStorage,
       session: mockStorage,
     },
+    runtime: {
+      onConnect: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        hasListener: vi.fn(),
+      },
+      connect: vi.fn(),
+    },
+    alarms: {
+      create: vi.fn(),
+      clear: vi.fn().mockResolvedValue(true),
+      onAlarm: {
+        addListener: vi.fn(),
+      },
+    },
   } as any;
   
   // Mock browser runtime
   (global as any).browser = {
     runtime: {
       getURL: vi.fn((path) => `chrome-extension://test/${path}`),
+      onConnect: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        hasListener: vi.fn(),
+      },
+      connect: vi.fn(),
     },
     windows: {
       create: vi.fn(),
