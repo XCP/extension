@@ -151,7 +151,7 @@ export function DestinationsInput({
     onChange(destinations.filter(dest => dest.id !== id));
   };
 
-  const handlePaste = (event: React.ClipboardEvent<HTMLInputElement>, id: number) => {
+  const handlePaste = async (event: React.ClipboardEvent<HTMLInputElement>, id: number) => {
     // Only handle multi-line paste if:
     // 1. MPMA is enabled
     // 2. Not BTC
@@ -170,14 +170,46 @@ export function DestinationsInput({
     if (lines.length > 1 && destinations.length === 1) {
       event.preventDefault();
       
-      // Update current input with first address
+      console.log('📋 Pasting multiple lines:', lines);
+      
+      // Process each line - resolve asset names to addresses
+      const resolvedLines: string[] = [];
+      for (const line of lines) {
+        if (isValidBitcoinAddress(line)) {
+          // Already a valid address
+          resolvedLines.push(line);
+        } else if (shouldTriggerAssetLookup(line)) {
+          // Try to resolve asset name
+          console.log('🔍 Resolving pasted asset:', line);
+          try {
+            const result = await lookupAssetOwner(line);
+            if (result.isValid && result.ownerAddress) {
+              console.log('✅ Resolved pasted asset:', line, '→', result.ownerAddress);
+              resolvedLines.push(result.ownerAddress);
+            } else {
+              console.log('❌ Could not resolve pasted asset:', line);
+              resolvedLines.push(line); // Keep original if can't resolve
+            }
+          } catch (error) {
+            console.log('💥 Error resolving pasted asset:', line, error);
+            resolvedLines.push(line); // Keep original on error
+          }
+        } else {
+          // Not a valid address or asset name, but keep it
+          resolvedLines.push(line);
+        }
+      }
+      
+      console.log('📋 Resolved paste lines:', resolvedLines);
+      
+      // Update current input with first resolved address
       const currentIndex = destinations.findIndex(d => d.id === id);
       const updatedDestinations = [...destinations];
-      updatedDestinations[currentIndex] = { ...updatedDestinations[currentIndex], address: lines[0] };
+      updatedDestinations[currentIndex] = { ...updatedDestinations[currentIndex], address: resolvedLines[0] };
       
       // Add remaining addresses as new destinations (respect 1000 limit)
       const remainingSlots = 1000 - updatedDestinations.length;
-      const linesToAdd = lines.slice(1, Math.min(lines.length, remainingSlots + 1));
+      const linesToAdd = resolvedLines.slice(1, Math.min(resolvedLines.length, remainingSlots + 1));
       const newDestinations = linesToAdd.map(address => ({
         id: Date.now() + Math.random(),
         address
