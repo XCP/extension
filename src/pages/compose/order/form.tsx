@@ -136,6 +136,16 @@ export function OrderForm({
 
   return (
     <div className="space-y-4">
+      {activeAddress && giveAssetDetails && (
+        <BalanceHeader
+          balance={{
+            asset: giveAsset,
+            quantity_normalized: giveAssetDetails.availableBalance,
+            asset_info: giveAssetDetails.assetInfo || undefined,
+          }}
+          className="mb-3"
+        />
+      )}
       <div className="flex justify-between items-center mb-2">
         <div className="flex space-x-4">
           <button
@@ -222,20 +232,6 @@ export function OrderForm({
             
             formAction(formData);
           }}
-          header={
-            activeAddress ? (
-              giveAssetDetails ? (
-                <BalanceHeader
-                  balance={{
-                    asset: giveAsset,
-                    quantity_normalized: giveAssetDetails.availableBalance,
-                    asset_info: giveAssetDetails.assetInfo || undefined,
-                  }}
-                  className="mt-1 mb-3"
-                />
-              ) : null
-            ) : null
-          }
         >
           {validationError && (
             <div className="mb-4">
