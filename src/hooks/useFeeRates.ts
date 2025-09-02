@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { getFeeRates, FeeRates } from '@/utils/blockchain/bitcoin';
 
 export type FeeRateOption = 'fast' | 'medium' | 'slow';
@@ -13,23 +13,43 @@ export function useFeeRates(autoFetch = true) {
   const [feeRates, setFeeRates] = useState<FeeRates | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(autoFetch);
   const [error, setError] = useState<string | null>(null);
+  
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
-    if (autoFetch) {
-      getFeeRates()
-        .then((rates) => {
+    if (!autoFetch) {
+      setIsLoading(false);
+      return;
+    }
+
+    let isCancelled = false;
+    
+    getFeeRates()
+      .then((rates) => {
+        if (!isCancelled && isMountedRef.current) {
           setFeeRates(rates);
           setIsLoading(false);
-        })
-        .catch((err) => {
-          console.error(err);
+        }
+      })
+      .catch((err) => {
+        if (!isCancelled && isMountedRef.current) {
+          console.error('Fee rates fetch error:', err);
           setError('Unable to fetch fee rates.');
           setIsLoading(false);
-        });
-    } else {
-      setIsLoading(false);
-    }
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [autoFetch]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const uniquePresetOptions = useMemo<FeeOption[]>(() => {
     if (!feeRates) return [];

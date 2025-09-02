@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useWallet } from "@/contexts/wallet-context";
 import { useHeader } from "@/contexts/header-context";
 import { fetchBTCBalance } from "@/utils/blockchain/bitcoin";
-import { fetchAssetDetailsAndBalance } from "@/utils/blockchain/counterparty";
+import { fetchAssetDetailsAndBalance, AssetInfo } from "@/utils/blockchain/counterparty";
 
 interface BalanceState {
   isLoading: boolean;
@@ -10,6 +10,19 @@ interface BalanceState {
   balance: string | null;
   isDivisible: boolean;
 }
+
+// Define BTC asset info as a constant outside the component to prevent recreation
+const BTC_ASSET_INFO: AssetInfo = {
+  asset: 'BTC',
+  asset_longname: null,
+  description: 'Bitcoin',
+  divisible: true,
+  locked: true,
+  supply: '21000000',
+  supply_normalized: '21000000',
+  issuer: '',
+  fair_minting: false,
+};
 
 /**
  * Fetches and caches asset balance for the active address.
@@ -24,18 +37,6 @@ interface BalanceState {
 export function useAssetBalance(asset: string) {
   const { activeAddress, activeWallet } = useWallet();
   const { subheadings, setBalanceHeader } = useHeader();
-  
-  // Memoize BTC asset info to prevent recreation
-  const BTC_ASSET_INFO = useMemo(() => ({
-    asset: 'BTC',
-    asset_longname: null,
-    description: 'Bitcoin',
-    divisible: true,
-    locked: true,
-    supply: '21000000',
-    supply_normalized: '21000000',
-    issuer: '',
-  }), []);
   
   // Check cache for initial data
   const cachedBalance = subheadings.balances[asset];
@@ -52,34 +53,6 @@ export function useAssetBalance(asset: string) {
   const prevWalletRef = useRef<string | undefined>(undefined);
   const prevAddressRef = useRef<string | undefined>(undefined);
   const prevAssetRef = useRef<string | undefined>(undefined);
-
-  // Memoize the fetch decision logic
-  const shouldFetchBalance = useCallback(() => {
-    // Don't fetch if no asset or address
-    if (!asset || asset.trim() === '' || !activeAddress?.address) {
-      return false;
-    }
-
-    // Check if key parameters changed
-    const walletChanged = prevWalletRef.current !== undefined && 
-                         prevWalletRef.current !== activeWallet?.id;
-    const addressChanged = prevAddressRef.current !== undefined && 
-                          prevAddressRef.current !== activeAddress?.address;
-    const assetChanged = prevAssetRef.current !== undefined && 
-                        prevAssetRef.current !== asset;
-    
-    // Fetch if wallet, address, or asset changed
-    if (walletChanged || addressChanged || assetChanged) {
-      return true;
-    }
-    
-    // Fetch if no cached data
-    if (!cachedBalance?.quantity_normalized) {
-      return true;
-    }
-    
-    return false;
-  }, [asset, activeAddress?.address, activeWallet?.id, cachedBalance?.quantity_normalized]);
 
   useEffect(() => {
     // Early return if no asset or address
@@ -99,17 +72,21 @@ export function useAssetBalance(asset: string) {
       return;
     }
 
-    // Update refs for next comparison
-    const prevWallet = prevWalletRef.current;
-    const prevAddress = prevAddressRef.current;
-    const prevAsset = prevAssetRef.current;
+    // Check if key parameters changed
+    const walletChanged = prevWalletRef.current !== undefined && 
+                         prevWalletRef.current !== activeWallet?.id;
+    const addressChanged = prevAddressRef.current !== undefined && 
+                          prevAddressRef.current !== activeAddress?.address;
+    const assetChanged = prevAssetRef.current !== undefined && 
+                        prevAssetRef.current !== asset;
     
+    // Update refs for next comparison
     prevWalletRef.current = activeWallet?.id;
     prevAddressRef.current = activeAddress?.address;
     prevAssetRef.current = asset;
 
     // Determine if we should fetch
-    const needsFetch = shouldFetchBalance();
+    const needsFetch = walletChanged || addressChanged || assetChanged || !cachedBalance?.quantity_normalized;
     
     // If we have cached data and don't need to fetch, use it
     if (!needsFetch && cachedBalance?.quantity_normalized) {
@@ -214,9 +191,7 @@ export function useAssetBalance(asset: string) {
     asset,
     activeAddress?.address,
     activeWallet?.id,
-    shouldFetchBalance,
     setBalanceHeader,
-    BTC_ASSET_INFO,
   ]);
 
   return state;

@@ -55,6 +55,46 @@ export const useSearchQuery = (
   const abortControllerRef = useRef<AbortController | null>(null);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Extract search function to avoid recreation on every render
+  const performSearch = useRef(async (
+    query: string,
+    controller: AbortController,
+    endpoint: string,
+    retries: number,
+    retryDelay: number
+  ) => {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const response = await fetch(
+          `${endpoint}?query=${encodeURIComponent(query)}`,
+          {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Search failed with status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.assets || [];
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          throw err; // Don't retry aborted requests
+        }
+
+        if (attempt === retries) {
+          throw err; // Last attempt failed, throw error
+        }
+
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    }
+    return [];
+  });
+
   useEffect(() => {
     // Clear results if query is empty
     if (!searchQuery || searchQuery.trim() === '') {
@@ -83,62 +123,31 @@ export const useSearchQuery = (
       abortControllerRef.current = new AbortController();
       const currentAbortController = abortControllerRef.current;
 
-      let retryCount = 0;
-      let lastError: Error | null = null;
+      try {
+        const results = await performSearch.current(
+          searchQuery,
+          currentAbortController,
+          apiEndpoint,
+          maxRetries,
+          retryDelayMs
+        );
 
-      // Retry logic
-      while (retryCount <= maxRetries) {
-        try {
-          const response = await fetch(
-            `${apiEndpoint}?query=${encodeURIComponent(searchQuery)}`,
-            {
-              signal: currentAbortController.signal,
-              headers: {
-                'Accept': 'application/json',
-              },
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error(`Search failed with status: ${response.status}`);
-          }
-
-          const data = await response.json();
-          
-          // Only update state if request wasn't aborted
-          if (!currentAbortController.signal.aborted) {
-            setSearchResults(data.assets || []);
-            setIsSearching(false);
-            return; // Success, exit retry loop
-          }
-          break;
-        } catch (err) {
-          // Don't retry if request was aborted
-          if (err instanceof Error && err.name === 'AbortError') {
-            break;
-          }
-
-          lastError = err instanceof Error ? err : new Error(String(err));
-          retryCount++;
-
-          // If we haven't exhausted retries, wait before trying again
-          if (retryCount <= maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, retryDelayMs));
-          }
+        // Only update state if request wasn't aborted
+        if (!currentAbortController.signal.aborted) {
+          setSearchResults(results);
+          setIsSearching(false);
         }
-      }
-
-      // Only update error state if request wasn't aborted
-      if (!currentAbortController.signal.aborted) {
-        setSearchResults([]);
-        setIsSearching(false);
-        
-        if (lastError) {
-          const errorMessage = lastError.message.includes('status:')
+      } catch (err) {
+        // Only update error state if request wasn't aborted
+        if (!currentAbortController.signal.aborted) {
+          setSearchResults([]);
+          setIsSearching(false);
+          
+          const errorMessage = err instanceof Error && err.message.includes('status:')
             ? `Search failed. Please try again.`
-            : `Failed to load search results: ${lastError.message}`;
+            : `Failed to load search results: ${err instanceof Error ? err.message : String(err)}`;
           setError(errorMessage);
-          console.error("Asset search error:", lastError);
+          console.error("Asset search error:", err);
         }
       }
     }, debounceMs);

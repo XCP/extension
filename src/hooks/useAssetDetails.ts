@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { AssetInfo } from "@/utils/blockchain/counterparty";
 import { useAssetInfo } from "./useAssetInfo";
 import { useAssetBalance } from "./useAssetBalance";
@@ -39,16 +39,27 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
   const balance = useAssetBalance(asset);
   const utxos = useAssetUtxos(asset);
 
-  // Track loading state for callbacks
-  const isLoading = assetInfo.isLoading || balance.isLoading || utxos.isLoading;
+  // Cache loading state calculation
+  const isLoading = useMemo(() => 
+    assetInfo.isLoading || balance.isLoading || utxos.isLoading,
+    [assetInfo.isLoading, balance.isLoading, utxos.isLoading]
+  );
+  
+  // Stable refs for callbacks to avoid dependency issues
+  const onLoadStartRef = useRef(options?.onLoadStart);
+  const onLoadEndRef = useRef(options?.onLoadEnd);
+  
+  // Update refs when options change
+  onLoadStartRef.current = options?.onLoadStart;
+  onLoadEndRef.current = options?.onLoadEnd;
   
   useEffect(() => {
-    if (isLoading && options?.onLoadStart) {
-      options.onLoadStart();
-    } else if (!isLoading && options?.onLoadEnd) {
-      options.onLoadEnd();
+    if (isLoading && onLoadStartRef.current) {
+      onLoadStartRef.current();
+    } else if (!isLoading && onLoadEndRef.current) {
+      onLoadEndRef.current();
     }
-  }, [isLoading, options]);
+  }, [isLoading]);
 
   // Combine errors - prioritize balance error as it's most critical
   const error = balance.error || assetInfo.error || utxos.error;

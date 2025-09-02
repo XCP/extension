@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchTokenUtxos } from "@/utils/blockchain/counterparty";
 
@@ -40,8 +40,6 @@ export function useAssetUtxos(asset: string) {
   const prevAssetRef = useRef<string | undefined>(undefined);
   const prevAddressRef = useRef<string | undefined>(undefined);
 
-  // Memoize empty array for BTC to prevent recreation
-  const emptyUtxos = useMemo(() => [], []);
 
   useEffect(() => {
     // Skip for BTC, empty asset, or no address
@@ -49,7 +47,7 @@ export function useAssetUtxos(asset: string) {
       // Only update state if it's different to prevent unnecessary re-renders
       setState(prev => {
         // For BTC, return empty array instead of null
-        const targetUtxos = asset === 'BTC' ? emptyUtxos : null;
+        const targetUtxos = asset === 'BTC' ? [] : null;
         if (prev.utxos !== targetUtxos || prev.isLoading || prev.error) {
           return {
             isLoading: false,
@@ -132,7 +130,7 @@ export function useAssetUtxos(asset: string) {
         abortControllerRef.current = null;
       }
     };
-  }, [asset, activeAddress?.address, emptyUtxos, state.utxos]);
+  }, [asset, activeAddress?.address, state.utxos]);
 
   return state;
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchAssetDetailsAndBalance, AssetInfo } from "@/utils/blockchain/counterparty";
 
@@ -15,7 +15,7 @@ const BTC_ASSET_INFO: AssetInfo = {
   description: 'Bitcoin',
   divisible: true,
   locked: true,
-  supply: '21000000',
+  supply: '2100000000000000',
   supply_normalized: '21000000',
   issuer: '',
   fair_minting: false,
@@ -47,13 +47,8 @@ export function useAssetInfo(asset: string) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const prevAssetRef = useRef<string | undefined>(undefined);
 
-  // Memoize BTC data for this specific asset
-  const assetData = useMemo(() => {
-    if (asset === 'BTC') {
-      return BTC_ASSET_INFO;
-    }
-    return null;
-  }, [asset]);
+  // Check if this is BTC
+  const isBTC = asset === 'BTC';
 
   useEffect(() => {
     // Early return for invalid inputs
@@ -72,15 +67,15 @@ export function useAssetInfo(asset: string) {
       return;
     }
 
-    // Handle BTC special case with memoized data
-    if (assetData) {
+    // Handle BTC special case
+    if (isBTC) {
       setState(prev => {
         // Only update if data is different
-        if (prev.data !== assetData || prev.isLoading || prev.error) {
+        if (prev.data !== BTC_ASSET_INFO || prev.isLoading || prev.error) {
           return {
             isLoading: false,
             error: null,
-            data: assetData,
+            data: BTC_ASSET_INFO,
           };
         }
         return prev;
@@ -150,7 +145,7 @@ export function useAssetInfo(asset: string) {
         abortControllerRef.current = null;
       }
     };
-  }, [asset, activeAddress?.address, assetData, state.data]);
+  }, [asset, activeAddress?.address, state.data]);
 
   return state;
 }
