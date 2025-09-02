@@ -71,14 +71,17 @@ export const PriceProvider = ({ children }: { children: ReactNode }): React.Reac
 };
 
 /**
- * Hook to access BTC price context.
+ * Hook to access BTC price context using React 19's use().
  * @returns {PriceContextValue} Current BTC price and error state.
  * @throws {Error} If used outside a PriceProvider.
  */
-export const usePrices = (): PriceContextValue => {
-  const context = React.useContext(PriceContext);
+export const usePrice = (): PriceContextValue => {
+  const context = React.use(PriceContext);
   if (!context) {
-    throw new Error("usePrices must be used within a PriceProvider");
+    throw new Error("usePrice must be used within a PriceProvider");
   }
   return context;
 };
+
+// Deprecated alias for backwards compatibility
+export const usePrices = usePrice;

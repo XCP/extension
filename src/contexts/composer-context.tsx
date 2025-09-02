@@ -358,7 +358,7 @@ export function ComposerProvider<T>({
   
   
   // Provide unlock handler for auth modal
-  const contextValue = {
+  const contextValue = React.useMemo(() => ({
     state,
     composeTransaction,
     signAndBroadcast,
@@ -373,7 +373,21 @@ export function ComposerProvider<T>({
     settings,
     // Special handler for auth modal
     handleUnlockAndSign,
-  };
+  }), [
+    state,
+    composeTransaction,
+    signAndBroadcast,
+    goBack,
+    reset,
+    clearError,
+    setShowAuthModal,
+    showHelpText,
+    toggleHelpText,
+    activeAddress,
+    activeWallet,
+    settings,
+    handleUnlockAndSign,
+  ]);
   
   return <ComposerContext value={contextValue}>{children}</ComposerContext>;
 }
