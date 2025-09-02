@@ -412,7 +412,13 @@ describe('BalanceList', () => {
 
   it('should show load more message when hasMore is true', async () => {
     mockInView.mockReturnValue(false);
-    mockFetchTokenBalances.mockResolvedValue([]); // No more balances
+    // Return exactly 10 balances to ensure hasMore stays true
+    const tenBalances = Array(10).fill(0).map((_, i) => ({
+      ...mockTokenBalances[0],
+      asset: `TOKEN${i}`,
+      quantity_normalized: '100.00000000'
+    }));
+    mockFetchTokenBalances.mockResolvedValue(tenBalances);
     
     render(<BalanceList />);
     
@@ -421,7 +427,7 @@ describe('BalanceList', () => {
       expect(screen.queryByText('Loading balances...')).not.toBeInTheDocument();
     });
     
-    // Now look for the load more message
+    // Now look for the load more message (should show since hasMore=true and not currently fetching)
     expect(screen.getByText('Scroll to load more...')).toBeInTheDocument();
   });
 
