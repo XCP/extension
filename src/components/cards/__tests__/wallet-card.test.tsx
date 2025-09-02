@@ -7,7 +7,14 @@ import { AddressFormat } from '@/utils/blockchain/bitcoin';
 
 // Mock dependencies
 vi.mock('@/utils/format', () => ({
-  formatAddress: vi.fn((address) => address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '')
+  formatAddress: vi.fn((address) => address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''),
+  formatAsset: vi.fn((asset, options) => {
+    if (options?.assetInfo?.asset_longname) {
+      return options.assetInfo.asset_longname;
+    }
+    return asset;
+  }),
+  formatAmount: vi.fn(({ value }) => value.toString())
 }));
 
 vi.mock('@/components/menus/wallet-menu', () => ({
