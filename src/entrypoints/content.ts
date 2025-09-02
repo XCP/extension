@@ -21,7 +21,7 @@ export default defineContentScript({
           // Use MessageBus for standardized communication
           const { MessageBus } = await import('@/services/core/MessageBus');
           
-          const response = await MessageBus.send('provider-request', {
+          const response: any = await MessageBus.send('provider-request', {
             type: 'PROVIDER_REQUEST',
             origin: window.location.origin,
             data: event.data.data,
@@ -40,18 +40,18 @@ export default defineContentScript({
               id: event.data.id,
               error: {
                 message: 'No response from extension background',
-                code: -32603
+                code: -32603 // Internal JSON-RPC error
               }
             }, window.location.origin);
-          } else if (response.success) {
+          } else if (response?.success) {
             // Successful response
             window.postMessage({
               target: 'xcp-wallet-injected',
               type: 'XCP_WALLET_RESPONSE',
               id: event.data.id,
               data: {
-                method: response.method || event.data.data.method,
-                result: response.result
+                method: response?.method || event.data.data.method,
+                result: response?.result
               }
             }, window.location.origin);
           } else {
@@ -60,9 +60,9 @@ export default defineContentScript({
               target: 'xcp-wallet-injected',
               type: 'XCP_WALLET_RESPONSE',
               id: event.data.id,
-              error: response.error || {
+              error: response?.error || {
                 message: 'Unknown error',
-                code: -32603
+                code: -32603 // Internal JSON-RPC error
               }
             }, window.location.origin);
           }

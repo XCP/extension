@@ -5,7 +5,13 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { fakeBrowser } from 'wxt/testing';
 import { ApprovalService } from '../ApprovalService';
+
+// Type declaration for global browser
+declare global {
+  var browser: typeof fakeBrowser;
+}
 
 // Mock RequestManager
 const mockRequestManager = {
@@ -38,15 +44,14 @@ beforeEach(() => {
     },
   } as any;
   
-  global.browser = {
-    runtime: {
-      getURL: vi.fn((path) => `chrome-extension://test/${path}`),
-    },
-    windows: mockWindows,
-    action: {
-      setBadgeText: vi.fn(),
-      setBadgeBackgroundColor: vi.fn(),
-    },
+  global.browser = fakeBrowser;
+  
+  // Setup specific mocks
+  fakeBrowser.runtime.getURL = vi.fn((path) => `chrome-extension://test/${path}`);
+  fakeBrowser.windows = mockWindows;
+  fakeBrowser.action = {
+    setBadgeText: vi.fn(),
+    setBadgeBackgroundColor: vi.fn(),
   } as any;
 });
 
@@ -87,14 +92,15 @@ describe('ApprovalService', () => {
       mockWindows.create.mockResolvedValue({ id: 123 });
       
       const approvalPromise = approvalService.requestApproval({
-        type: 'connection',
+        id: 'connection-https://test.com-123',
         origin: 'https://test.com',
+        method: 'connection',
+        params: [],
+        type: 'connection',
         metadata: {
           domain: 'test.com',
           title: 'Connection Request',
           description: 'Site wants to connect',
-          address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-          walletId: 'wallet-123',
         },
       });
       
@@ -129,14 +135,15 @@ describe('ApprovalService', () => {
       mockWindows.create.mockResolvedValue({ id: 456 });
       
       const approvalPromise = approvalService.requestApproval({
-        type: 'transaction',
+        id: 'transaction-https://dapp.com-456',
         origin: 'https://dapp.com',
+        method: 'transaction',
+        params: ['0x123456...'],
+        type: 'transaction',
         metadata: {
           domain: 'dapp.com',
           title: 'Sign Transaction',
           description: 'Sign a send transaction',
-          rawTransaction: '0x123456...',
-          fee: 1000,
         },
       });
       
@@ -159,14 +166,15 @@ describe('ApprovalService', () => {
       mockWindows.create.mockResolvedValue({ id: 789 });
       
       const approvalPromise = approvalService.requestApproval({
-        type: 'message',
+        id: 'signature-https://auth.com-789',
         origin: 'https://auth.com',
+        method: 'signature',
+        params: ['Please sign this message', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'],
+        type: 'signature',
         metadata: {
           domain: 'auth.com',
           title: 'Sign Message',
           description: 'Authenticate with signature',
-          message: 'Please sign this message',
-          address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
         },
       });
       
@@ -191,15 +199,21 @@ describe('ApprovalService', () => {
       
       // Create first approval request
       const approval1 = approvalService.requestApproval({
-        type: 'connection',
+        id: 'connection-https://first.com-100',
         origin: 'https://first.com',
+        method: 'connection',
+        params: [],
+        type: 'connection',
         metadata: { domain: 'first.com', title: 'First', description: 'First request' },
       });
       
       // Create second approval request quickly
       const approval2 = approvalService.requestApproval({
-        type: 'connection',
+        id: 'connection-https://second.com-101',
         origin: 'https://second.com',
+        method: 'connection',
+        params: [],
+        type: 'connection',
         metadata: { domain: 'second.com', title: 'Second', description: 'Second request' },
       });
       
@@ -211,14 +225,20 @@ describe('ApprovalService', () => {
 
     it('should validate approval request parameters', async () => {
       await expect(approvalService.requestApproval({
+        id: 'test-1',
+        method: 'connection',
+        params: [],
         type: 'connection',
         // Missing origin
         metadata: { domain: 'test.com', title: 'Test', description: 'Test' },
       } as any)).rejects.toThrow('Origin is required');
       
       await expect(approvalService.requestApproval({
-        // Missing type
+        id: 'test-2',
         origin: 'https://test.com',
+        method: 'connection',
+        params: [],
+        // Missing type
         metadata: { domain: 'test.com', title: 'Test', description: 'Test' },
       } as any)).rejects.toThrow('Approval type is required');
     });
@@ -261,6 +281,8 @@ describe('ApprovalService', () => {
         {
           id: 'req1',
           origin: 'https://site1.com',
+          method: 'connection',
+          params: [],
           type: 'connection',
           metadata: { domain: 'site1.com', title: 'Connect', description: 'Connection request' },
           timestamp: Date.now(),
@@ -268,6 +290,8 @@ describe('ApprovalService', () => {
         {
           id: 'req2',
           origin: 'https://site2.com',
+          method: 'transaction',
+          params: [],
           type: 'transaction',
           metadata: { domain: 'site2.com', title: 'Sign', description: 'Transaction signing' },
           timestamp: Date.now(),
@@ -338,6 +362,8 @@ describe('ApprovalService', () => {
           {
             id: 'saved-req',
             origin: 'https://saved.com',
+            method: 'connection',
+            params: [],
             type: 'connection',
             metadata: { domain: 'saved.com', title: 'Saved', description: 'Saved request' },
             timestamp: Date.now() - 30000, // 30 seconds ago
@@ -364,6 +390,8 @@ describe('ApprovalService', () => {
           {
             id: 'expired-req',
             origin: 'https://expired.com',
+            method: 'connection',
+            params: [],
             type: 'connection',
             metadata: { domain: 'expired.com', title: 'Expired', description: 'Expired request' },
             timestamp: Date.now() - 10 * 60 * 1000, // 10 minutes ago (expired)
@@ -371,6 +399,8 @@ describe('ApprovalService', () => {
           {
             id: 'valid-req',
             origin: 'https://valid.com',
+            method: 'connection',
+            params: [],
             type: 'connection',
             metadata: { domain: 'valid.com', title: 'Valid', description: 'Valid request' },
             timestamp: Date.now() - 30000, // 30 seconds ago (valid)

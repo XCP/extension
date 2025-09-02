@@ -133,7 +133,7 @@ export default defineBackground(() => {
                   success: false,
                   error: {
                     message: 'Phishing protection activated - user must review warning',
-                    code: 4001 // User rejected
+                    code: 4001 // User rejected request (EIP-1193)
                   },
                   requiresPhishingReview: true,
                   windowId: window?.id
@@ -188,7 +188,7 @@ export default defineBackground(() => {
               success: false, 
               error: { 
                 message: (error as any).message || 'Unknown error',
-                code: (error as any).code || -32603 // Internal error
+                code: (error as any).code || -32603 // Internal JSON-RPC error
               } 
             });
           }
@@ -198,7 +198,7 @@ export default defineBackground(() => {
             success: false,
             error: {
               message: 'Internal extension error',
-              code: -32603
+              code: -32603 // Internal JSON-RPC error
             }
           });
         }

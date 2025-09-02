@@ -287,11 +287,7 @@ export class ApprovalService extends BaseService {
     const eventName = approved ? 'request_approved' : 'request_rejected';
     const hostname = new URL(options.origin).hostname;
 
-    await trackEvent(eventName, {
-      origin: hostname,
-      method: options.method,
-      type: options.type,
-    });
+    await trackEvent(eventName, { _value: 1 });
   }
 
   /**
