@@ -1,5 +1,5 @@
-import axios from 'axios';
 import { Transaction, SigHash, OutScript } from '@scure/btc-signer';
+import { quickApiClient, API_TIMEOUTS } from '@/utils/api/axiosConfig';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
@@ -159,10 +159,10 @@ function varIntSize(n: number): number {
  * Fetch bare multisig UTXOs for the given address.
  */
 async function fetchBareMultisigUTXOs(address: string): Promise<UTXO[]> {
-  const response = await axios.get<{ data: any[] }>(`https://app.xcp.io/api/v1/address/${address}/utxos`);
+  const response = await quickApiClient.get<{ data: any[] }>(`https://app.xcp.io/api/v1/address/${address}/utxos`);
   const utxos = response.data.data;
   if (!utxos || utxos.length === 0) throw new Error('No bare multisig UTXOs found');
-  return utxos.map((utxo) => ({
+  return utxos.map((utxo: any) => ({
     txid: utxo.txid,
     vout: utxo.vout,
     amount: parseFloat(utxo.amount),
@@ -186,7 +186,9 @@ async function fetchPreviousRawTransaction(txid: string): Promise<string | null>
   ];
   for (const endpoint of endpoints) {
     try {
-      const response = await axios.get<any>(typeof endpoint.url === 'function' ? await endpoint.url() : endpoint.url);
+      const url = typeof endpoint.url === 'function' ? await endpoint.url() : endpoint.url;
+      // Use quickApiClient with 10 second timeout for transaction lookups
+      const response = await quickApiClient.get(url);
       return endpoint.transform(response.data);
     } catch (_) {
       continue;

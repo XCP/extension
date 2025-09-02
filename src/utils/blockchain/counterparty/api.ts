@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { apiClient, quickApiClient, API_TIMEOUTS } from '@/utils/api/axiosConfig';
 import { fetchBTCBalance } from '@/utils/blockchain/bitcoin';
 import { formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
@@ -165,6 +166,26 @@ async function getApiBase() {
 }
 
 /**
+ * Helper function to make Counterparty API calls with proper timeout handling
+ * @param path - The API path (will be appended to base URL)
+ * @param params - Optional query parameters
+ * @param useQuickTimeout - Use quick timeout (10s) instead of default (30s)
+ * @returns The response data
+ */
+async function cpApiGet<T = any>(
+  path: string,
+  params?: Record<string, any>,
+  useQuickTimeout: boolean = false
+): Promise<T> {
+  const base = await getApiBase();
+  const url = `${base}${path}`;
+  const client = useQuickTimeout ? quickApiClient : apiClient;
+  
+  const response = await client.get<T>(url, { params });
+  return response.data;
+}
+
+/**
  * Fetches the token balances for a given address.
  *
  * @param address - The Bitcoin address to fetch balances for.
@@ -186,19 +207,17 @@ export async function fetchTokenBalances(
     const verbose = options.verbose ?? true;
     const sort = options.sort ?? null;
 
-    const base = await getApiBase();
-    const response = await axios.get(
-      `${base}/v2/addresses/${address}/balances`,
+    // Use cpApiGet helper with proper timeout
+    const data = await cpApiGet<any>(
+      `/v2/addresses/${address}/balances`,
       {
-        params: {
-          verbose: verbose,
-          limit: limit,
-          offset: offset,
-          sort: sort,
-        },
-      }
+        verbose: verbose,
+        limit: limit,
+        offset: offset,
+        sort: sort,
+      },
+      true // Use quick timeout for balance lookups
     );
-    const data = response.data;
 
     if (!data.result || !Array.isArray(data.result)) {
       return [];
