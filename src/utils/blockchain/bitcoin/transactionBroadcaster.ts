@@ -1,4 +1,4 @@
-import { AxiosResponse } from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { broadcastApiClient, withRetry } from '@/utils/api/axiosConfig';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 

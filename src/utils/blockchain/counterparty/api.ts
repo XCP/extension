@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { apiClient, quickApiClient, API_TIMEOUTS } from '@/utils/api/axiosConfig';
 import { fetchBTCBalance } from '@/utils/blockchain/bitcoin';
 import { formatAmount } from '@/utils/format';

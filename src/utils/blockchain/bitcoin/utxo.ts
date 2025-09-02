@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { quickApiClient } from '@/utils/api/axiosConfig';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
