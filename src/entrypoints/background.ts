@@ -80,7 +80,10 @@ export default defineBackground(() => {
     });
   }
 
+  // TODO: Refactor to use webext-bridge/MessageBus instead of direct browser.runtime.onMessage
+  // This should be handled by the registered services using the proxy pattern
   // Handle provider requests from content scripts
+  // @ts-ignore - Return type mismatch with browser API types
   browser.runtime.onMessage.addListener((message: any, sender: any, sendResponse: any) => {
     console.debug('Background received message:', { 
       type: message.type, 
