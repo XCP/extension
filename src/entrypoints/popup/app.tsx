@@ -13,27 +13,27 @@ import NotFound from '@/pages/not-found';
 import Onboarding from '@/pages/auth/onboarding';
 import UnlockWallet from '@/pages/auth/unlock-wallet';
 
-// Action pages
-import Actions from '@/pages/actions/actions';
-import Consolidate from '@/pages/actions/consolidate/page';
-import SignMessage from '@/pages/actions/sign-message';
-import VerifyMessage from '@/pages/actions/verify-message';
+// Action pages (lazy loaded)
+const Actions = lazy(() => import('@/pages/actions/actions'));
+const Consolidate = lazy(() => import('@/pages/actions/consolidate/page'));
+const SignMessage = lazy(() => import('@/pages/actions/sign-message'));
+const VerifyMessage = lazy(() => import('@/pages/actions/verify-message'));
 
-// Address pages
-import AddressHistory from '@/pages/address/address-history';
-import SelectAddress from '@/pages/address/select-address';
-import ViewAddress from '@/pages/address/view-address';
+// Address pages (lazy loaded)
+const AddressHistory = lazy(() => import('@/pages/address/address-history'));
+const SelectAddress = lazy(() => import('@/pages/address/select-address'));
+const ViewAddress = lazy(() => import('@/pages/address/view-address'));
 
-// Asset pages
-import SelectAssets from '@/pages/assets/select-assets';
-import ViewAsset from '@/pages/assets/view-asset';
-import ViewBalance from '@/pages/assets/view-balance';
-import ViewUtxo from '@/pages/assets/view-utxo';
+// Asset pages (lazy loaded)
+const SelectAssets = lazy(() => import('@/pages/assets/select-assets'));
+const ViewAsset = lazy(() => import('@/pages/assets/view-asset'));
+const ViewBalance = lazy(() => import('@/pages/assets/view-balance'));
+const ViewUtxo = lazy(() => import('@/pages/assets/view-utxo'));
 
-// Transaction pages
-import ViewTransaction from '@/pages/transaction/view-transaction';
+// Transaction pages (lazy loaded)
+const ViewTransaction = lazy(() => import('@/pages/transaction/view-transaction'));
 
-// Provider pages
+// Provider pages (keep static for instant response)
 import ApproveConnection from '@/pages/provider/approve-connection';
 import ApproveTransaction from '@/pages/provider/approve-transaction';
 import ApproveCompose from '@/pages/provider/approve-compose';
@@ -70,8 +70,8 @@ const ComposeUtxoDetach = lazy(() => import('@/pages/compose/utxo/detach/page'))
 const ComposeUtxoMove = lazy(() => import('@/pages/compose/utxo/move/page'));
 const ComposeOrder = lazy(() => import('@/pages/compose/order/page'));
 
-// Dispenser pages
-import DispenserManagement from '@/pages/dispensers/manage';
+// Dispenser pages (lazy loaded)
+const DispenserManagement = lazy(() => import('@/pages/dispensers/manage'));
 
 // Wallet pages (lazy loaded)
 const AddWallet = lazy(() => import('@/pages/wallet/add-wallet'));
@@ -94,8 +94,8 @@ const SecuritySettings = lazy(() => import('@/pages/settings/security-settings')
 const ConnectedSites = lazy(() => import('@/pages/settings/connected-sites'));
 const PinnedAssetsSettings = lazy(() => import('@/pages/settings/pinned-assets-settings'));
 
-// Market page
-import Market from '@/pages/market';
+// Market page (lazy loaded)
+const Market = lazy(() => import('@/pages/market'));
 
 // Import the Spinner component
 import { Spinner } from '@/components/spinner';
@@ -177,8 +177,8 @@ export default function App() {
         <Route element={<AuthRequired />}>
           <Route element={<Layout showFooter={true} />}>
             <Route path="/index" element={<Index />} />
-            <Route path="/market" element={<Market />} />
-            <Route path="/actions" element={<Actions />} />
+            <LazyRoute path="/market" element={Market} />
+            <LazyRoute path="/actions" element={Actions} />
             <LazyRoute path="/settings" element={Settings} />
           </Route>
           <Route element={<Layout />}>
@@ -190,9 +190,9 @@ export default function App() {
             <LazyRoute path="/show-passphrase/:walletId" element={ShowPassphrase} />
             <LazyRoute path="/show-private-key/:walletId/:addressPath?" element={ShowPrivateKey} />
             
-            <Route path="/consolidate" element={<Consolidate />} />
-            <Route path="/actions/sign-message" element={<SignMessage />} />
-            <Route path="/actions/verify-message" element={<VerifyMessage />} />
+            <LazyRoute path="/consolidate" element={Consolidate} />
+            <LazyRoute path="/actions/sign-message" element={SignMessage} />
+            <LazyRoute path="/actions/verify-message" element={VerifyMessage} />
             
             {/* Settings routes with lazy loading */}
             <LazyRoute path="/settings/address-type" element={AddressTypeSettings} />
@@ -200,12 +200,14 @@ export default function App() {
             <LazyRoute path="/settings/connected-sites" element={ConnectedSites} />
             <LazyRoute path="/settings/security" element={SecuritySettings} />
             <LazyRoute path="/settings/pinned-assets" element={PinnedAssetsSettings} />
-            <Route path="/address-history" element={<AddressHistory />} />
-            <Route path="/select-address" element={<SelectAddress />} />
-            <Route path="/view-address" element={<ViewAddress />} />
-            <Route path="/select-assets" element={<SelectAssets />} />
-            <Route path="/asset/:asset" element={<ViewAsset />} />
-            <Route path="/balance/:asset" element={<ViewBalance />} />
+            
+            {/* Address and asset routes with lazy loading */}
+            <LazyRoute path="/address-history" element={AddressHistory} />
+            <LazyRoute path="/select-address" element={SelectAddress} />
+            <LazyRoute path="/view-address" element={ViewAddress} />
+            <LazyRoute path="/select-assets" element={SelectAssets} />
+            <LazyRoute path="/asset/:asset" element={ViewAsset} />
+            <LazyRoute path="/balance/:asset" element={ViewBalance} />
             
             {/* Compose routes with lazy loading using LazyRoute */}
             <LazyRoute path="/compose/bet" element={ComposeBet} />
@@ -238,9 +240,9 @@ export default function App() {
             <LazyRoute path="/compose/utxo/move/:txid" element={ComposeUtxoMove} />
             <LazyRoute path="/compose/order/:asset?" element={ComposeOrder} />
             
-            <Route path="/utxo/:txid" element={<ViewUtxo />} />
-            <Route path="/transaction/:txHash" element={<ViewTransaction />} />
-            <Route path="/dispensers/manage" element={<DispenserManagement />} />
+            <LazyRoute path="/utxo/:txid" element={ViewUtxo} />
+            <LazyRoute path="/transaction/:txHash" element={ViewTransaction} />
+            <LazyRoute path="/dispensers/manage" element={DispenserManagement} />
             
             {/* Provider approval routes */}
             <Route path="/provider/approve-connection" element={<ApproveConnection />} />
