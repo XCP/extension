@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, memo, useCallback } from "react";
 import { useFormStatus } from "react-dom";
 import axios from "axios";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";

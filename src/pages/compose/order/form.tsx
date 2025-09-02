@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { FaCog } from "react-icons/fa";
 import { OrderSettings } from "@/pages/settings/order-settings";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";

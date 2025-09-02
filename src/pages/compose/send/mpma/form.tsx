@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
 import { fetchAssetDetails, isHexMemo, stripHexPrefix, isValidMemoLength } from "@/utils/blockchain/counterparty";

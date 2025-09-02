@@ -1,58 +1,40 @@
-"use client";
-
-import React from "react";
+import React, { type ReactElement } from "react";
 import { formatAmount } from "@/utils/format";
-import { 
-  divide, 
-  roundDown, 
-  toNumber 
-} from "@/utils/numeric";
-import type { ReactElement } from "react";
+import { divide, roundDown, toNumber } from "@/utils/numeric";
+import type { Dispenser } from "@/utils/blockchain/counterparty/api";
 
-// ============================================================================
-// Types
-// ============================================================================
-
-interface DispenserDetails {
-  asset: string;
-  tx_hash: string;
-  status: number;
-  give_remaining: number;
-  give_remaining_normalized: string;
-  give_quantity: number;
-  give_quantity_normalized: string;
-  satoshirate: number;
-  asset_info?: {
-    asset_longname: string | null;
-    description: string;
-    issuer: string | null;
-    divisible: boolean;
-    locked: boolean;
-  };
-}
-
+/**
+ * Extended dispenser option interface for selection
+ */
 export interface DispenserOption {
-  dispenser: DispenserDetails;
+  dispenser: Dispenser & {
+    give_quantity: number;
+    give_quantity_normalized: string;
+    satoshirate: number;
+  };
   satoshirate: number;
   btcAmount: number;
   index: number;
 }
 
+/**
+ * Props interface for the DispenserCard component
+ */
 interface DispenserCardProps {
+  /** The dispenser option data */
   option: DispenserOption;
+  /** Whether this dispenser is selected */
   isSelected: boolean;
+  /** Handler for selecting this dispenser */
   onSelect: () => void;
+  /** Whether the card is disabled */
   disabled?: boolean;
 }
-
-// ============================================================================
-// Utility Functions
-// ============================================================================
 
 /**
  * Calculate remaining dispenses for a dispenser
  */
-function calculateRemainingDispenses(dispenser: DispenserDetails): number {
+function calculateRemainingDispenses(dispenser: DispenserOption['dispenser']): number {
   return toNumber(
     roundDown(
       divide(dispenser.give_remaining_normalized, dispenser.give_quantity_normalized)
@@ -60,10 +42,31 @@ function calculateRemainingDispenses(dispenser: DispenserDetails): number {
   );
 }
 
-// ============================================================================
-// Main Component
-// ============================================================================
-
+/**
+ * DispenserCard Component
+ * 
+ * A specialized card component for displaying dispenser options
+ * with radio selection functionality.
+ * 
+ * Features:
+ * - Displays dispenser asset information
+ * - Shows BTC price and remaining dispenses
+ * - Radio button selection
+ * - Visual feedback for selected state
+ * 
+ * @param props - The component props
+ * @returns A ReactElement representing the dispenser card
+ * 
+ * @example
+ * ```tsx
+ * <DispenserCard
+ *   option={dispenserOption}
+ *   isSelected={selectedIndex === 0}
+ *   onSelect={() => setSelectedIndex(0)}
+ *   disabled={false}
+ * />
+ * ```
+ */
 export function DispenserCard({ 
   option, 
   isSelected, 
@@ -90,6 +93,7 @@ export function DispenserCard({
         onChange={onSelect}
         className="form-radio text-blue-600 absolute right-5 top-5"
         disabled={disabled}
+        aria-label={`Select dispenser for ${option.dispenser.asset}`}
       />
       
       <div className="w-full">
@@ -97,7 +101,12 @@ export function DispenserCard({
           <img
             src={`https://app.xcp.io/img/icon/${option.dispenser.asset}`}
             alt={option.dispenser.asset}
-            className="w-10 h-10 flex-shrink-0"
+            className="w-10 h-10 flex-shrink-0 rounded-full"
+            onError={(e) => {
+              // Fallback for missing icons
+              const target = e.target as HTMLImageElement;
+              target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='system-ui' font-size='14'%3E%3F%3C/text%3E%3C/svg%3E";
+            }}
           />
           
           <div className="flex-1">
@@ -133,3 +142,5 @@ export function DispenserCard({
     </label>
   );
 }
+
+export default DispenserCard;

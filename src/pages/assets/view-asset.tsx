@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaChevronRight, FaChevronDown, FaHistory } from "react-icons/fa";
+import { FaChevronDown, FaChevronRight, FaHistory } from "react-icons/fa";
 import { Spinner } from "@/components/spinner";
+import { ActionList } from "@/components/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
@@ -11,16 +12,8 @@ import { formatAsset, formatAmount, formatTimeAgo } from "@/utils/format";
 import { AssetHeader } from "@/components/headers/asset-header";
 import { fetchDividendsByAsset, type Dividend, type DividendResponse } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
+import type { ActionSection } from "@/components/lists/action-list";
 
-/**
- * Interface for an actionable option for an asset.
- */
-interface Action {
-  id: string;
-  name: string;
-  description: string;
-  path: string;
-}
 
 /**
  * Constants for navigation paths.
@@ -110,10 +103,10 @@ export default function ViewAsset(): ReactElement {
    * Generates a list of available actions based on asset details and ownership.
    * @returns {Action[]} The list of actionable options for the asset.
    */
-  const getActions = (): Action[] => {
+  const getActionSections = (): ActionSection[] => {
     if (!assetDetails?.assetInfo || !asset) return [];
 
-    const actions: Action[] = [];
+    const actions = [];
     const isOwner = assetDetails.assetInfo.issuer === activeAddress?.address;
     const isLocked = assetDetails.assetInfo.locked;
     const totalSupply = assetDetails.assetInfo.supply || "0";
@@ -137,9 +130,9 @@ export default function ViewAsset(): ReactElement {
     if (canStartFairminter) {
       actions.push({
         id: "start-mint",
-        name: "Start Mint",
+        title: "Start Mint",
         description: "Create a fairminter for this asset",
-        path: `${CONSTANTS.PATHS.COMPOSE}/fairminter/${asset}`,
+        onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/fairminter/${asset}`),
       });
     }
 
@@ -147,15 +140,15 @@ export default function ViewAsset(): ReactElement {
       actions.push(
         {
           id: "issue-supply",
-          name: "Issue Supply",
+          title: "Issue Supply",
           description: "Issue additional tokens for this asset",
-          path: `${CONSTANTS.PATHS.COMPOSE}/issuance/issue-supply/${asset}`,
+          onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/issuance/issue-supply/${asset}`),
         },
         {
           id: "lock-supply",
-          name: "Lock Supply",
+          title: "Lock Supply",
           description: "Permanently lock the token supply",
-          path: `${CONSTANTS.PATHS.COMPOSE}/issuance/lock-supply/${asset}`,
+          onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/issuance/lock-supply/${asset}`),
         }
       );
     }
@@ -163,52 +156,52 @@ export default function ViewAsset(): ReactElement {
     if (!assetDetails.assetInfo.asset_longname) {
       actions.push({
         id: "issue-subasset",
-        name: "Issue Subasset",
+        title: "Issue Subasset",
         description: "Create a new asset under this namespace",
-        path: `${CONSTANTS.PATHS.COMPOSE}/issuance/${asset}`,
+        onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/issuance/${asset}`),
       });
     }
 
     if (isOwner && hasSupply) {
       actions.push({
         id: "give-dividend",
-        name: "Give Dividend",
+        title: "Give Dividend",
         description: "Distribute dividends to token holders",
-        path: `${CONSTANTS.PATHS.COMPOSE}/dividend/${asset}`,
+        onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/dividend/${asset}`),
       });
     }
 
     if (isOwner && canResetSupply) {
       actions.push({
         id: "reset-supply",
-        name: "Reset Supply",
+        title: "Reset Supply",
         description: "Reset asset description and other properties",
-        path: `${CONSTANTS.PATHS.COMPOSE}/issuance/reset-supply/${asset}`,
+        onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/issuance/reset-supply/${asset}`),
       });
     }
 
     actions.push(
       {
         id: "lock-description",
-        name: "Lock Description", 
+        title: "Lock Description", 
         description: "Permanently lock the asset description",
-        path: `${CONSTANTS.PATHS.COMPOSE}/issuance/lock-description/${asset}`,
+        onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/issuance/lock-description/${asset}`),
       },
       {
         id: "update-description",
-        name: "Update Description",
+        title: "Update Description",
         description: "Update the asset description",
-        path: `${CONSTANTS.PATHS.COMPOSE}/issuance/update-description/${asset}`,
+        onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/issuance/update-description/${asset}`),
       },
       {
         id: "transfer-ownership",
-        name: "Transfer Ownership",
+        title: "Transfer Ownership",
         description: "Transfer asset ownership to another address",
-        path: `${CONSTANTS.PATHS.COMPOSE}/issuance/transfer-ownership/${asset}`,
+        onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/issuance/transfer-ownership/${asset}`),
       }
     );
 
-    return actions;
+    return [{ items: actions }];
   };
 
   // Show spinner only on initial load or when there's no cached data
@@ -242,26 +235,7 @@ export default function ViewAsset(): ReactElement {
           }}
         />
       </div>
-      <div className="space-y-2">
-        {getActions().map((action) => (
-          <div
-            key={action.id}
-            onClick={() => navigate(action.path)}
-            className="bg-white rounded-lg p-4 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors"
-            role="button"
-            tabIndex={0}
-            aria-label={action.name}
-          >
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="text-sm font-medium text-gray-900">{action.name}</h3>
-                <p className="text-xs text-gray-500 mt-1">{action.description}</p>
-              </div>
-              <FaChevronRight className="text-gray-400 w-4 h-4" aria-hidden="true" />
-            </div>
-          </div>
-        ))}
-      </div>
+      <ActionList sections={getActionSections()} />
       <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
         <h3 className="text-sm font-medium text-gray-900">Asset Details</h3>
         <div className="space-y-2">

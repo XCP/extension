@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input, Textarea } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { AssetNameInput } from "@/components/inputs/asset-name-input";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";

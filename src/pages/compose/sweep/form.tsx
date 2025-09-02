@@ -11,7 +11,7 @@ import {
   ListboxOption,
   ListboxOptions
 } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { AddressHeader } from "@/components/headers/address-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
 import { MemoInput } from "@/components/inputs/memo-input";

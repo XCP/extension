@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { FiChevronDown, FiCheck } from "react-icons/fi";
 import { Field, Label, Description, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";

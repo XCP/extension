@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { useAssetDetails } from "@/hooks/useAssetDetails";

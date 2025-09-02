@@ -17,7 +17,7 @@ import {
   DisclosureButton,
   DisclosurePanel,
 } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { BlockHeightInput } from "@/components/inputs/block-height-input";
 import { SettingSwitch } from "@/components/inputs/setting-switch";

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Field, Label, Description, Textarea } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
 import type { CancelOptions } from "@/utils/blockchain/counterparty";

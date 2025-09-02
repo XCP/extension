@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback, startTransition } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { useFormStatus } from "react-dom";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { FairminterSelectInput, type Fairminter } from "@/components/inputs/fairminter-select-input";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
