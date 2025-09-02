@@ -58,12 +58,7 @@ describe('Content Script', () => {
     // Reset browser mocks
     (fakeBrowser.runtime.sendMessage as any).mockClear();
     (fakeBrowser.runtime.onMessage.addListener as any).mockClear();
-    // Ensure removeListener is a mock function
-    if (typeof fakeBrowser.runtime.onMessage.removeListener?.mockClear === 'function') {
-      (fakeBrowser.runtime.onMessage.removeListener as any).mockClear();
-    } else {
-      fakeBrowser.runtime.onMessage.removeListener = vi.fn();
-    }
+    (fakeBrowser.runtime.onMessage.removeListener as any).mockClear();
     mockInjectScript.mockClear();
     
     // Clear mock context
@@ -87,7 +82,7 @@ describe('Content Script', () => {
       const contentScript = await import('../content');
       
       // Execute the content script main function
-      await contentScript.default.main(mockContext);
+      await contentScript.default.main(mockContext as any);
 
       // Should inject script using WXT's injectScript
       expect(mockInjectScript).toHaveBeenCalledWith('/injected.js', {
@@ -101,7 +96,7 @@ describe('Content Script', () => {
       
       const contentScript = await import('../content');
       
-      await contentScript.default.main(mockContext);
+      await contentScript.default.main(mockContext as any);
 
       expect(mockInjectScript).toHaveBeenCalled();
       expect(mockConsole.error).toHaveBeenCalledWith('Failed to inject XCP Wallet provider:', error);
@@ -118,7 +113,7 @@ describe('Content Script', () => {
       
       const contentScript = await import('../content');
       
-      await contentScript.default.main(mockContext);
+      await contentScript.default.main(mockContext as any);
       
       // Get the message listener that was added
       messageListener = mockWindow.addEventListener.mock.calls.find(
@@ -280,7 +275,7 @@ describe('Content Script', () => {
       mockWindow.location.hostname = 'xcp.io';
       const contentScript = await import('../content');
       
-      await contentScript.default.main(mockContext);
+      await contentScript.default.main(mockContext as any);
     });
 
     it('should forward provider events to page', () => {
@@ -331,7 +326,7 @@ describe('Content Script', () => {
     it('should register cleanup callback with onInvalidated', async () => {
       const contentScript = await import('../content');
       
-      await contentScript.default.main(mockContext);
+      await contentScript.default.main(mockContext as any);
       
       // Should have registered a cleanup callback
       expect(mockContext.onInvalidated).toHaveBeenCalledWith(expect.any(Function));
@@ -345,7 +340,7 @@ describe('Content Script', () => {
       
       const contentScript = await import('../content');
       
-      await contentScript.default.main(mockContext);
+      await contentScript.default.main(mockContext as any);
       
       // Get the cleanup callback that was registered
       const cleanupCallback = mockContext.onInvalidated.mock.calls[0][0];
@@ -377,7 +372,7 @@ describe('Content Script', () => {
       
       const contentScript = await import('../content');
       
-      await contentScript.default.main(mockContext);
+      await contentScript.default.main(mockContext as any);
       
       // Should inject script
       expect(mockInjectScript).toHaveBeenCalled();
