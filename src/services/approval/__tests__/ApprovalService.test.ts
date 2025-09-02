@@ -58,7 +58,7 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 import { trackEvent } from '@/utils/fathom';
 
 // Type the mocked functions
-const MockedRequestManager = RequestManager as unknown as vi.MockedClass<typeof RequestManager>;
+const MockedRequestManager = RequestManager as unknown as ReturnType<typeof vi.mocked>;
 const mockedApprovalQueue = approvalQueue as any;
 const mockedGetApprovalBadgeText = getApprovalBadgeText as ReturnType<typeof vi.fn>;
 const mockedEventEmitterService = eventEmitterService as any;
@@ -134,7 +134,7 @@ describe('ApprovalService', () => {
     };
     
     // Make the RequestManager constructor return our mock instance
-    vi.mocked(MockedRequestManager).mockReturnValue(mockRequestManagerInstance);
+    (MockedRequestManager as any).mockReturnValue(mockRequestManagerInstance);
     
     approvalService = new ApprovalService();
     
@@ -465,7 +465,7 @@ describe('ApprovalService', () => {
         destroy: vi.fn(),
         size: vi.fn().mockReturnValue(0),
       };
-      vi.mocked(MockedRequestManager).mockReturnValue(newMockRequestManagerInstance);
+      (MockedRequestManager as any).mockReturnValue(newMockRequestManagerInstance);
       
       approvalService = new ApprovalService();
       await approvalService.initialize();

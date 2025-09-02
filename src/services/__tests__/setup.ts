@@ -54,10 +54,9 @@ fakeBrowser.action.setBadgeText = vi.fn().mockResolvedValue(undefined);
 fakeBrowser.action.setBadgeBackgroundColor = vi.fn().mockResolvedValue(undefined);
 
 // Setup onMessage handlers for fakeBrowser
-fakeBrowser.runtime.onMessage.addListener((message: any, sender: any, sendResponse: any) => {
-  // Default response for tests
-  sendResponse({ success: true, data: {} });
-  return true;
+fakeBrowser.runtime.onMessage.addListener((message: any, sender: any) => {
+  // Default response for tests - just return a promise
+  return Promise.resolve({ success: true, data: {} });
 });
 
 // Assign to global browser

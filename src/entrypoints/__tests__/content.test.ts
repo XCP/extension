@@ -28,6 +28,8 @@ fakeBrowser.runtime.onMessage.removeListener = vi.fn();
 fakeBrowser.runtime.onConnect = {
   addListener: vi.fn(),
   removeListener: vi.fn(),
+  hasListener: vi.fn(),
+  hasListeners: vi.fn(),
 };
 fakeBrowser.runtime.connect = vi.fn();
 fakeBrowser.runtime.id = 'test-extension-id';

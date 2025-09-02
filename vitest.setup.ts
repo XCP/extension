@@ -25,11 +25,18 @@ beforeAll(() => {
   
   // Add missing runtime API mocks needed by webext-bridge
   global.chrome.runtime = global.chrome.runtime || {};
-  global.chrome.runtime.onConnect = global.chrome.runtime.onConnect || {
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    hasListener: vi.fn(),
-  };
+  if (!global.chrome.runtime.onConnect) {
+    Object.defineProperty(global.chrome.runtime, 'onConnect', {
+      value: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        hasListener: vi.fn(),
+        hasListeners: vi.fn(),
+      },
+      writable: true,
+      configurable: true
+    });
+  }
   global.chrome.runtime.connect = global.chrome.runtime.connect || vi.fn();
   
   // Ensure other common APIs are mocked
@@ -44,16 +51,28 @@ beforeAll(() => {
   global.chrome.storage = global.chrome.storage || {
     local: {
       get: vi.fn().mockResolvedValue({}),
-      set: vi.fn().mockResolvedValue(),
+      set: vi.fn().mockResolvedValue(undefined),
+      onChanged: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        hasListener: vi.fn(),
+        hasListeners: vi.fn(),
+      }
     },
     session: {
       get: vi.fn().mockResolvedValue({}),
-      set: vi.fn().mockResolvedValue(),
+      set: vi.fn().mockResolvedValue(undefined),
+      onChanged: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        hasListener: vi.fn(),
+        hasListeners: vi.fn(),
+      }
     },
   };
   
   // Also set up global.browser for compatibility
-  global.browser = global.chrome;
+  (global as any).browser = global.chrome;
 });
 
 // Restore console after tests (optional, mainly for debugging)

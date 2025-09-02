@@ -100,9 +100,25 @@ beforeEach(() => {
   // Clear all mocks at the start
   vi.clearAllMocks();
   
-  // Use fakeBrowser from wxt/testing
-  fakeBrowser.storage.local = mockStorage;
-  fakeBrowser.storage.session = mockStorage;
+  // Use fakeBrowser from wxt/testing with proper storage structure
+  fakeBrowser.storage.local = {
+    ...mockStorage,
+    onChanged: {
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      hasListener: vi.fn(),
+      hasListeners: vi.fn(),
+    }
+  } as any;
+  fakeBrowser.storage.session = {
+    ...mockStorage,
+    onChanged: {
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      hasListener: vi.fn(),
+      hasListeners: vi.fn(),
+    }
+  } as any;
   fakeBrowser.runtime.getManifest = vi.fn(() => ({ version: '1.0.0', name: 'Test Extension' } as any));
   
   (global as any).browser = fakeBrowser;
