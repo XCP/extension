@@ -13,13 +13,10 @@ export { TransactionService } from './TransactionService';
 export { registerTransactionService, getTransactionService } from './transactionProxy';
 
 export type {
-  TransactionType,
   TransactionComposition,
-  TransactionSigningRequest,
-  MessageSigningRequest,
-  TransactionBroadcastResult,
-  TransactionCacheEntry,
-  TransactionHistoryEntry,
+  SignedTransactionResult,
+  BroadcastResult,
+  TransactionRecord
 } from './TransactionService';
 
 // Re-export transaction option types from compose utility

@@ -33,19 +33,20 @@ export default defineBackground(() => {
   registerTransactionService();
   
   // Set up MessageBus handlers for provider requests
-  MessageBus.onMessage('provider-request', async (data: ProviderMessage) => {
+  MessageBus.onMessage('provider-request', async (data) => {
+    const message = data as ProviderMessage;
     console.debug('Provider request received:', {
-      origin: data.origin,
-      method: data.data?.method,
-      hasParams: !!data.data?.params,
-      timestamp: data.timestamp
+      origin: message.origin,
+      method: message.data?.method,
+      hasParams: !!message.data?.params,
+      timestamp: message.timestamp
     });
 
     try {
       const providerService = getProviderService();
       
       // Extract request details
-      const { origin, data: requestData } = data;
+      const { origin, data: requestData } = message;
       const { method, params = [], metadata = {} } = requestData || {};
 
       if (!method) {
@@ -114,8 +115,9 @@ export default defineBackground(() => {
   });
 
   // Handle approval resolution from popup
-  MessageBus.onMessage('resolve-provider-request', async (data: ApprovalMessage) => {
-    const { requestId, approved, updatedParams } = data;
+  MessageBus.onMessage('resolve-provider-request', async (data) => {
+    const message = data as ApprovalMessage;
+    const { requestId, approved, updatedParams } = message;
     
     try {
       // Use the eventEmitterService pattern
@@ -142,8 +144,9 @@ export default defineBackground(() => {
   });
   
   // Handle provider event emission (for accountsChanged, disconnect, etc.)
-  MessageBus.onMessage('provider-event', async (data: EventMessage) => {
-    const { origin, event, data: eventData } = data;
+  MessageBus.onMessage('provider-event', async (data) => {
+    const message = data as EventMessage;
+    const { origin, event, data: eventData } = message;
     
     try {
       if (origin) {

@@ -94,7 +94,7 @@ function createWalletService(): WalletService {
       await walletManager.lockAllWallets();
       // Notify popup of lock event (if it's open)
       try {
-        await sendMessage('walletLocked', { locked: true }, 'popup');
+        await MessageBus.notifyWalletLocked(true);
       } catch (error) {
         // Popup might not be open, which is fine
         console.debug('Could not notify popup of lock event:', error);

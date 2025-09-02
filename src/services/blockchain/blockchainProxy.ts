@@ -11,13 +11,15 @@ import { sendMessage } from 'webext-bridge/popup';
 import type { 
   FeeRates, 
   TransactionResponse, 
-  UTXO, 
-  TokenBalance, 
-  AssetInfo, 
-  Transaction, 
-  Order, 
-  OrderDetails 
+  UTXO
 } from '@/utils/blockchain/bitcoin';
+import type {
+  TokenBalance,
+  AssetInfo,
+  Transaction,
+  Order,
+  OrderDetails
+} from '@/utils/blockchain/counterparty/api';
 
 // Message types for blockchain service communication
 export type BlockchainServiceMessage = 
@@ -56,64 +58,64 @@ export class BlockchainServiceProxy {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_BTC_BALANCE',
       data: { address, timeoutMs },
-    });
-    return response.data;
+    }) as any;
+    return response?.data || 0;
   }
 
   async getUTXOs(address: string): Promise<UTXO[]> {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_UTXOS',
       data: { address },
-    });
-    return response.data;
+    }) as any;
+    return response?.data || [];
   }
 
   async getFeeRates(): Promise<FeeRates> {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_FEE_RATES',
       data: {},
-    });
-    return response.data;
+    }) as any;
+    return response?.data;
   }
 
   async getBlockHeight(forceRefresh = false): Promise<number> {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_BLOCK_HEIGHT',
       data: { forceRefresh },
-    });
-    return response.data;
+    }) as any;
+    return response?.data || 0;
   }
 
   async getBTCPrice(): Promise<number | null> {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_BTC_PRICE',
       data: {},
-    });
-    return response.data;
+    }) as any;
+    return response?.data;
   }
 
   async broadcastTransaction(signedTxHex: string): Promise<TransactionResponse> {
     const response = await sendMessage('blockchain-service', {
       type: 'BROADCAST_TRANSACTION',
       data: { signedTxHex },
-    });
-    return response.data;
+    }) as any;
+    return response?.data;
   }
 
   async getPreviousRawTransaction(txid: string): Promise<string | null> {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_PREVIOUS_RAW_TRANSACTION',
       data: { txid },
-    });
-    return response.data;
+    }) as any;
+    return response?.data;
   }
 
   async getBitcoinTransaction(txid: string): Promise<any | null> {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_BITCOIN_TRANSACTION',
       data: { txid },
-    });
-    return response.data;
+    }) as any;
+    return response?.data;
   }
 
   // ============================================================================
@@ -131,16 +133,16 @@ export class BlockchainServiceProxy {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_TOKEN_BALANCES',
       data: { address, options },
-    });
-    return response.data;
+    }) as any;
+    return response?.data;
   }
 
   async getAssetDetails(asset: string, verbose = true): Promise<AssetInfo | null> {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_ASSET_DETAILS',
       data: { asset, verbose },
-    });
-    return response.data;
+    }) as any;
+    return response?.data;
   }
 
   async getAssetDetailsAndBalance(
@@ -155,8 +157,8 @@ export class BlockchainServiceProxy {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_ASSET_DETAILS_AND_BALANCE',
       data: { asset, address, options },
-    });
-    return response.data;
+    }) as any;
+    return response?.data;
   }
 
   async getTokenBalance(
@@ -170,8 +172,8 @@ export class BlockchainServiceProxy {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_TOKEN_BALANCE',
       data: { address, asset, options },
-    });
-    return response.data;
+    }) as any;
+    return response?.data;
   }
 
   async getTransactions(
@@ -186,8 +188,8 @@ export class BlockchainServiceProxy {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_TRANSACTIONS',
       data: { address, options },
-    });
-    return response.data;
+    }) as any;
+    return response?.data;
   }
 
   async getOrders(
@@ -202,8 +204,8 @@ export class BlockchainServiceProxy {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_ORDERS',
       data: { address, options },
-    });
-    return response.data;
+    }) as any;
+    return response?.data;
   }
 
   async getDispensers(
@@ -218,8 +220,8 @@ export class BlockchainServiceProxy {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_DISPENSERS',
       data: { address, options },
-    });
-    return response.data;
+    }) as any;
+    return response?.data;
   }
 
   async getAssetHistory(
@@ -233,8 +235,8 @@ export class BlockchainServiceProxy {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_ASSET_HISTORY',
       data: { asset, options },
-    });
-    return response.data;
+    }) as any;
+    return response?.data;
   }
 
   // ============================================================================
@@ -244,17 +246,17 @@ export class BlockchainServiceProxy {
   async formatInputsSet(utxos: UTXO[]): Promise<string> {
     const response = await sendMessage('blockchain-service', {
       type: 'FORMAT_INPUTS_SET',
-      data: { utxos },
-    });
-    return response.data;
+      data: { utxos } as any,
+    }) as any;
+    return response?.data;
   }
 
   async getUtxoByTxid(utxos: UTXO[], txid: string, vout: number): Promise<UTXO | undefined> {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_UTXO_BY_TXID',
-      data: { utxos, txid, vout },
-    });
-    return response.data;
+      data: { utxos, txid, vout } as any,
+    }) as any;
+    return response?.data;
   }
 
   // ============================================================================
@@ -285,8 +287,8 @@ export class BlockchainServiceProxy {
     const response = await sendMessage('blockchain-service', {
       type: 'GET_CACHE_STATS',
       data: {},
-    });
-    return response.data;
+    }) as any;
+    return response?.data;
   }
 
 }

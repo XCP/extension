@@ -51,7 +51,8 @@ export function getBlockchainService(): BlockchainService {
  * Set up webext-bridge message handlers
  */
 function setupMessageHandlers(): void {
-  onMessage('blockchain-service', async (message: BlockchainServiceMessage) => {
+  onMessage('blockchain-service', async ({ data }: any) => {
+    const message = data as BlockchainServiceMessage;
     const service = getBlockchainService();
     
     try {
@@ -213,12 +214,6 @@ function setupMessageHandlers(): void {
           return {
             success: true,
             data: service.getCacheStats()
-          };
-
-        case 'GET_SERVICE_HEALTH':
-          return {
-            success: true,
-            data: await service.getHealth()
           };
 
         default:

@@ -215,7 +215,7 @@ export function isConnectionError(code: number): boolean {
     PROVIDER_ERROR_CODES.CHAIN_DISCONNECTED,
     XCP_ERROR_CODES.NOT_CONNECTED,
     XCP_ERROR_CODES.NETWORK_ERROR,
-  ].includes(code);
+  ].includes(code as any);
 }
 
 /**
@@ -227,5 +227,5 @@ export function isRecoverableError(code: number): boolean {
     XCP_ERROR_CODES.TIMEOUT,
     JSON_RPC_ERROR_CODES.INTERNAL_ERROR,
     JSON_RPC_ERROR_CODES.SERVER_ERROR,
-  ].includes(code);
+  ].includes(code as any);
 }

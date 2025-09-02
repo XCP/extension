@@ -27,18 +27,13 @@ export {
 export type {
   FeeRates,
   TransactionResponse,
-  UTXO,
+  UTXO
+} from '@/utils/blockchain/bitcoin';
+
+export type {
   AssetInfo,
   TokenBalance,
   Transaction,
   Order,
   OrderDetails
-} from '@/utils/blockchain/bitcoin';
-
-export type {
-  AssetInfo as CounterpartyAssetInfo,
-  TokenBalance as CounterpartyTokenBalance,
-  Transaction as CounterpartyTransaction,
-  Order as CounterpartyOrder,
-  OrderDetails as CounterpartyOrderDetails
 } from '@/utils/blockchain/counterparty/api';

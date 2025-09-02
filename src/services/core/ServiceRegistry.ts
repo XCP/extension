@@ -39,7 +39,7 @@ export class ServiceRegistry {
       throw new Error('Cannot register services after registry has been destroyed');
     }
 
-    const name = service.getName();
+    const name = service.getServiceName();
     
     if (this.services.has(name)) {
       throw new Error(`Service ${name} is already registered`);

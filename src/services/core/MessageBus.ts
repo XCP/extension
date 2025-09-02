@@ -3,13 +3,15 @@
  * 
  * Standardizes all cross-context communication on webext-bridge
  * Provides type-safe messaging with consistent error handling
+ * 
+ * Note: This is primarily used in the background script context
  */
 
 import { 
   sendMessage as bridgeSendMessage, 
-  onMessage as bridgeOnMessage,
-  type ProtocolWithReturn
-} from 'webext-bridge';
+  onMessage as bridgeOnMessage 
+} from 'webext-bridge/background';
+import type { ProtocolWithReturn } from 'webext-bridge';
 
 export type MessageTarget = 'background' | 'popup' | 'content-script' | 'devtools' | 'options';
 
@@ -98,7 +100,7 @@ export class MessageBus {
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         const result = await Promise.race([
-          bridgeSendMessage(message, data, target),
+          bridgeSendMessage(message as string, data, target),
           new Promise<never>((_, reject) => {
             setTimeout(() => reject(new Error(`Message timeout after ${timeout}ms`)), timeout);
           })
@@ -141,7 +143,7 @@ export class MessageBus {
     message: K,
     handler: (data: MessageProtocol[K]['input']) => MessageProtocol[K]['output'] | Promise<MessageProtocol[K]['output']>
   ) {
-    return bridgeOnMessage(message, async ({ data }) => {
+    return bridgeOnMessage(message as string, async ({ data }: { data: any }) => {
       try {
         return await handler(data);
       } catch (error) {
@@ -191,7 +193,7 @@ export class MessageBus {
       timestamp: Date.now()
     };
     
-    const response = await MessageBus.send('provider-request', message, 'background');
+    const response = await MessageBus.send('provider-request', message, 'background') as any;
     
     if (!response.success) {
       throw new Error(response.error?.message || 'Provider request failed');
@@ -227,9 +229,6 @@ export class MessageBus {
    * Get health status of services
    */
   static async getServiceHealth(serviceNames?: string[]): Promise<Record<string, any>> {
-    return MessageBus.send('service-health-check', { serviceNames }, 'background');
+    return MessageBus.send('service-health-check', { serviceNames }, 'background') as Promise<Record<string, any>>;
   }
 }
-
-// Export the protocol types for use in other files
-export type { MessageProtocol };

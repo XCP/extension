@@ -135,7 +135,7 @@ export class TransactionService extends BaseService {
               memo_is_hex: params.memo_is_hex || false,
             },
             activeAddress.address,
-            params.fee_rate || 1,
+            params.sat_per_vbyte || 1,
             params.encoding
           );
 
@@ -221,7 +221,7 @@ export class TransactionService extends BaseService {
           expiration: params.expiration || 1000,
         },
         activeAddress.address,
-        params.fee_rate || 1,
+        params.sat_per_vbyte || 1,
         params.encoding
       );
 
@@ -274,7 +274,7 @@ export class TransactionService extends BaseService {
         status: params.status || '0',
       },
       activeAddress,
-      params.fee_rate || 1,
+      params.sat_per_vbyte || 1,
       params.encoding
     );
 
@@ -307,7 +307,7 @@ export class TransactionService extends BaseService {
         quantity_per_unit: params.quantity_per_unit,
       },
       activeAddress,
-      params.fee_rate || 1,
+      params.sat_per_vbyte || 1,
       params.encoding
     );
 
@@ -344,7 +344,7 @@ export class TransactionService extends BaseService {
         transfer_destination: params.transfer_destination,
       },
       activeAddress.address,
-      params.fee_rate || 1,
+      params.sat_per_vbyte || 1,
       params.encoding
     );
 
@@ -392,10 +392,7 @@ export class TransactionService extends BaseService {
     const signedTx = await walletService.signTransaction(rawTx, activeAddress);
     
     // Track signing event
-    await trackEvent('transaction_signed', {
-      origin: new URL(origin).hostname,
-      method: 'xcp_signTransaction',
-    });
+    await trackEvent('transaction_signed', { _value: 1 });
 
     return { signedTransaction: signedTx };
   }
@@ -430,9 +427,7 @@ export class TransactionService extends BaseService {
     const result = await walletService.signMessage(message, address);
 
     // Track successful signature
-    await trackEvent('message_signed', {
-      origin: new URL(origin).hostname,
-    });
+    await trackEvent('message_signed', { _value: 1 });
 
     return result.signature;
   }
