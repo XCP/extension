@@ -8,7 +8,17 @@ vi.mock('wxt/utils/inject-script', () => ({
 }));
 
 vi.mock('#imports', () => ({
-  defineContentScript: (config: any) => config
+  defineContentScript: (config: any) => config,
+  injectScript: mockInjectScript
+}));
+
+// Mock MessageBus
+const mockMessageBus = {
+  send: vi.fn()
+};
+
+vi.mock('@/services/core/MessageBus', () => ({
+  MessageBus: mockMessageBus
 }));
 
 // Setup fake browser
@@ -71,6 +81,9 @@ describe('Content Script', () => {
     (fakeBrowser.runtime.connect as any).mockClear();
     mockInjectScript.mockClear();
     
+    // Reset MessageBus mock
+    mockMessageBus.send.mockClear();
+    
     // Clear mock context
     mockContext.onInvalidated.mockClear();
     
@@ -119,7 +132,8 @@ describe('Content Script', () => {
     beforeEach(async () => {
       // Clear all mocks first
       vi.clearAllMocks();
-      (fakeBrowser.runtime.sendMessage as any).mockResolvedValue({ success: true, result: 'test' });
+      // Mock MessageBus.send to return successful response
+      mockMessageBus.send.mockResolvedValue({ success: true, result: 'test' });
       
       const contentScript = await import('../content');
       
@@ -135,7 +149,7 @@ describe('Content Script', () => {
 
     it('should handle XCP wallet request messages', async () => {
       const mockResponse = { success: true, result: 'test-result' };
-      (fakeBrowser.runtime.sendMessage as any).mockResolvedValue(mockResponse);
+      mockMessageBus.send.mockResolvedValue(mockResponse);
 
       // Simulate XCP wallet request
       const event = {
@@ -153,13 +167,13 @@ describe('Content Script', () => {
 
       await messageListener(event);
 
-      expect(fakeBrowser.runtime.sendMessage).toHaveBeenCalledWith({
+      expect(mockMessageBus.send).toHaveBeenCalledWith('provider-request', {
         type: 'PROVIDER_REQUEST',
         origin: mockWindow.location.origin,
         data: event.data.data,
         xcpWalletVersion: '2.0',
         timestamp: expect.any(Number)
-      });
+      }, 'background');
 
       // Should post response back
       expect(mockWindow.postMessage).toHaveBeenCalledWith(
@@ -176,10 +190,10 @@ describe('Content Script', () => {
       );
     });
 
-    it('should handle runtime.sendMessage errors', async () => {
+    it('should handle MessageBus send errors', async () => {
       const error = new Error('Request failed');
       (error as any).code = -1; // Set the error code
-      (fakeBrowser.runtime.sendMessage as any).mockRejectedValue(error);
+      mockMessageBus.send.mockRejectedValue(error);
 
       const event = {
         source: window,
@@ -211,7 +225,7 @@ describe('Content Script', () => {
     });
 
     it('should handle no response from background', async () => {
-      (fakeBrowser.runtime.sendMessage as any).mockResolvedValue(null);
+      mockMessageBus.send.mockResolvedValue(null);
 
       const event = {
         source: window,
@@ -254,7 +268,7 @@ describe('Content Script', () => {
 
       await messageListener(event);
 
-      expect(fakeBrowser.runtime.sendMessage).not.toHaveBeenCalled();
+      expect(mockMessageBus.send).not.toHaveBeenCalled();
       expect(mockWindow.postMessage).not.toHaveBeenCalled();
     });
 
@@ -275,7 +289,7 @@ describe('Content Script', () => {
 
       await messageListener(event);
 
-      expect(fakeBrowser.runtime.sendMessage).not.toHaveBeenCalled();
+      expect(mockMessageBus.send).not.toHaveBeenCalled();
       expect(mockWindow.postMessage).not.toHaveBeenCalled();
     });
   });
@@ -378,7 +392,7 @@ describe('Content Script', () => {
   describe('Integration', () => {
     it('should set up complete message flow', async () => {
       mockInjectScript.mockResolvedValue(undefined);
-      (fakeBrowser.runtime.sendMessage as any).mockResolvedValue({ success: true, result: 'integration-test' });
+      mockMessageBus.send.mockResolvedValue({ success: true, result: 'integration-test' });
       
       const contentScript = await import('../content');
       
@@ -411,8 +425,8 @@ describe('Content Script', () => {
         }
       });
       
-      // Should have sent message to background
-      expect(fakeBrowser.runtime.sendMessage).toHaveBeenCalled();
+      // Should have sent message via MessageBus
+      expect(mockMessageBus.send).toHaveBeenCalled();
       
       // Should have posted response to window
       expect(mockWindow.postMessage).toHaveBeenCalledWith(

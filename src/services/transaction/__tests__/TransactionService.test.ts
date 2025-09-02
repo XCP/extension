@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { fakeBrowser } from 'wxt/testing';
 import { TransactionService } from '../TransactionService';
 import type { ConnectionService } from '../../connection/ConnectionService';
 import type { ApprovalService } from '../../approval/ApprovalService';
@@ -22,7 +23,7 @@ vi.mock('@/utils/blockchain/counterparty/compose', () => ({
   composeTransaction: vi.fn(),
 }));
 
-// Mock dependencies
+// Mock service getters
 const mockConnectionService = {
   hasPermission: vi.fn(),
 } as unknown as ConnectionService;
@@ -39,6 +40,49 @@ const mockBlockchainService = {
   getTokenBalances: vi.fn(),
 } as unknown as BlockchainService;
 
+const mockWalletService = {
+  getActiveAddress: vi.fn(),
+  getLastActiveAddress: vi.fn(),
+  signTransaction: vi.fn(),
+  signMessage: vi.fn(),
+  broadcastTransaction: vi.fn(),
+};
+
+// Mock the service getters
+vi.mock('@/services/connection', () => ({
+  getConnectionService: () => mockConnectionService,
+}));
+
+vi.mock('@/services/approval', () => ({
+  getApprovalService: () => mockApprovalService,
+}));
+
+vi.mock('@/services/blockchain', () => ({
+  getBlockchainService: () => mockBlockchainService,
+}));
+
+vi.mock('@/services/walletService', () => ({
+  getWalletService: () => mockWalletService,
+}));
+
+// Mock security utilities
+vi.mock('@/utils/security/replayPrevention', () => ({
+  withReplayPrevention: vi.fn((origin, method, params, fn) => fn()),
+  recordTransaction: vi.fn(),
+  markTransactionBroadcasted: vi.fn(),
+}));
+
+// Mock rate limiter
+vi.mock('@/utils/provider/rateLimiter', () => ({
+  transactionRateLimiter: {
+    isAllowed: vi.fn().mockReturnValue(true),
+    getResetTime: vi.fn().mockReturnValue(Date.now() + 60000),
+  },
+}));
+
+// Import the mocked rateLimiter to access it in tests
+import { transactionRateLimiter } from '@/utils/provider/rateLimiter';
+
 // Mock chrome storage
 const mockStorage = {
   get: vi.fn(),
@@ -47,41 +91,16 @@ const mockStorage = {
 
 // Setup global mocks
 beforeEach(() => {
+  // Clear all mocks at the start
   vi.clearAllMocks();
   
-  global.chrome = {
-    storage: {
-      local: mockStorage,
-      session: mockStorage,
-    },
-    runtime: {
-      onConnect: {
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        hasListener: vi.fn(),
-      },
-      connect: vi.fn(),
-    },
-    alarms: {
-      create: vi.fn(),
-      clear: vi.fn().mockResolvedValue(true),
-      onAlarm: {
-        addListener: vi.fn(),
-      },
-    },
-  } as any;
+  // Use fakeBrowser from wxt/testing
+  fakeBrowser.storage.local = mockStorage;
+  fakeBrowser.storage.session = mockStorage;
+  fakeBrowser.runtime.getManifest = vi.fn(() => ({ version: '1.0.0', name: 'Test Extension' } as any));
   
-  (global as any).browser = {
-    runtime: {
-      getURL: vi.fn((path) => `chrome-extension://test/${path}`),
-      onConnect: {
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        hasListener: vi.fn(),
-      },
-      connect: vi.fn(),
-    },
-  } as any;
+  (global as any).browser = fakeBrowser;
+  (global as any).chrome = fakeBrowser;
 });
 
 afterEach(() => {
@@ -93,6 +112,29 @@ describe('TransactionService', () => {
 
   beforeEach(async () => {
     transactionService = new TransactionService();
+    
+    // Reset all service mocks to ensure they work correctly
+    mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+    mockApprovalService.requestApproval = vi.fn().mockResolvedValue(true);
+    mockWalletService.getActiveAddress = vi.fn().mockResolvedValue({
+      address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+      type: 'Native SegWit',
+    });
+    mockWalletService.getLastActiveAddress = vi.fn().mockResolvedValue({
+      address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+      type: 'Native SegWit',
+    });
+    mockWalletService.signTransaction = vi.fn().mockResolvedValue({
+      signedTransaction: '0xsigned123...',
+      txid: 'abc123...',
+    });
+    mockWalletService.signMessage = vi.fn().mockResolvedValue('signature123...');
+    mockWalletService.broadcastTransaction = vi.fn().mockResolvedValue({
+      txid: 'broadcast123...',
+    });
+    
+    // Reset rate limiter mock
+    vi.mocked(transactionRateLimiter.isAllowed).mockReturnValue(true);
     
     // Mock initial storage state
     mockStorage.get.mockResolvedValue({});
@@ -119,20 +161,27 @@ describe('TransactionService', () => {
       // Mock permission check
       mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
       
-      // Mock blockchain service response
-      const mockComposition = {
+      // Mock blockchain service response with correct structure
+      const mockComposeResult = {
+        result: {
+          rawtransaction: '0x123456...',
+          psbt: 'psbt-base64...',
+          btc_fee: 2000,  // Note: service expects btc_fee, not fee
+          params: mockSendParams,
+        }
+      };
+      vi.mocked(composeTransaction).mockResolvedValue(mockComposeResult as any);
+      
+      const expectedResult = {
         rawtransaction: '0x123456...',
         psbt: 'psbt-base64...',
-        fee: 2000,
+        fee: 2000,  // This is what the service returns
         params: mockSendParams,
       };
-      vi.mocked(composeTransaction).mockResolvedValue({
-        result: mockComposition
-      } as any);
       
       const result = await transactionService.composeSend('https://dapp.com', mockSendParams);
       
-      expect(result).toEqual(mockComposition);
+      expect(result).toEqual(expectedResult);
       expect(mockConnectionService.hasPermission).toHaveBeenCalledWith('https://dapp.com');
       expect(composeTransaction).toHaveBeenCalled();
     });
@@ -178,15 +227,15 @@ describe('TransactionService', () => {
     it('should cache identical compose requests', async () => {
       mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
       
-      const mockComposition = {
-        rawtransaction: '0x123456...',
-        psbt: 'psbt-base64...',
-        fee: 2000,
-        params: mockSendParams,
+      const mockComposeResult = {
+        result: {
+          rawtransaction: '0x123456...',
+          psbt: 'psbt-base64...',
+          btc_fee: 2000,
+          params: mockSendParams,
+        }
       };
-      vi.mocked(composeTransaction).mockResolvedValue({
-        result: mockComposition
-      } as any);
+      vi.mocked(composeTransaction).mockResolvedValue(mockComposeResult as any);
       
       // Make same request twice
       const result1 = await transactionService.composeSend('https://dapp.com', mockSendParams);
