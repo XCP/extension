@@ -1,4 +1,5 @@
 export * from './asset';
+export * from './assetOwner';
 export * from './memo';
 export * from './file';
 export * from './privateKey';
