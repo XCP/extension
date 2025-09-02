@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getDerivationPathForAddressType, encodeAddress, getAddressFromMnemonic, isValidBase58Address } from '@/utils/blockchain/bitcoin/address';
+import { getDerivationPathForAddressFormat, encodeAddress, getAddressFromMnemonic, isValidBase58Address } from '@/utils/blockchain/bitcoin/address';
 import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import { hexToBytes } from '@noble/hashes/utils';
 
@@ -8,29 +8,29 @@ vi.mock('@/utils/blockchain/counterwallet', () => ({
 }));
 
 describe('Bitcoin Address Utilities', () => {
-  describe('getDerivationPathForAddressType', () => {
+  describe('getDerivationPathForAddressFormat', () => {
     it('should return the correct derivation path for P2PKH', () => {
-      expect(getDerivationPathForAddressType(AddressFormat.P2PKH)).toBe("m/44'/0'/0'/0");
+      expect(getDerivationPathForAddressFormat(AddressFormat.P2PKH)).toBe("m/44'/0'/0'/0");
     });
 
     it('should return the correct derivation path for P2SH_P2WPKH', () => {
-      expect(getDerivationPathForAddressType(AddressFormat.P2SH_P2WPKH)).toBe("m/49'/0'/0'/0");
+      expect(getDerivationPathForAddressFormat(AddressFormat.P2SH_P2WPKH)).toBe("m/49'/0'/0'/0");
     });
 
     it('should return the correct derivation path for P2WPKH', () => {
-      expect(getDerivationPathForAddressType(AddressFormat.P2WPKH)).toBe("m/84'/0'/0'/0");
+      expect(getDerivationPathForAddressFormat(AddressFormat.P2WPKH)).toBe("m/84'/0'/0'/0");
     });
 
     it('should return the correct derivation path for P2TR', () => {
-      expect(getDerivationPathForAddressType(AddressFormat.P2TR)).toBe("m/86'/0'/0'/0");
+      expect(getDerivationPathForAddressFormat(AddressFormat.P2TR)).toBe("m/86'/0'/0'/0");
     });
 
     it('should return the correct derivation path for Counterwallet', () => {
-      expect(getDerivationPathForAddressType(AddressFormat.Counterwallet)).toBe("m/0'/0");
+      expect(getDerivationPathForAddressFormat(AddressFormat.Counterwallet)).toBe("m/0'/0");
     });
 
     it('should throw error for unsupported address type', () => {
-      expect(() => getDerivationPathForAddressType('invalid' as AddressFormat))
+      expect(() => getDerivationPathForAddressFormat('invalid' as AddressFormat))
         .toThrow('Unsupported address type: invalid');
     });
   });
@@ -323,7 +323,7 @@ describe('Bitcoin Address Utilities', () => {
       const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
       
       addressTypes.forEach(addressType => {
-        const path = getDerivationPathForAddressType(addressType);
+        const path = getDerivationPathForAddressFormat(addressType);
         const fullPath = path + '/0';
         const address = getAddressFromMnemonic(testMnemonic, fullPath, addressType);
         

@@ -46,7 +46,7 @@ describe('useConsolidateAndBroadcast', () => {
     activeAddress: { 
       address: 'bc1qtest123',
       path: "m/84'/0'/0'/0/0",
-      addressType: 'P2WPKH' as const
+      addressFormat: 'P2WPKH' as const
     },
     signTransaction: vi.fn(),
     broadcastTransaction: vi.fn(),

@@ -5,8 +5,8 @@ import { fetchUTXOs, getUtxoByTxid, fetchPreviousRawTransaction, signAllInputsWi
 import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import type { Wallet, Address } from '@/utils/wallet';
 
-function paymentScript(pubkeyBytes: Uint8Array, addressType: AddressFormat) {
-  switch (addressType) {
+function paymentScript(pubkeyBytes: Uint8Array, addressFormat: AddressFormat) {
+  switch (addressFormat) {
     case AddressFormat.P2PKH:
     case AddressFormat.Counterwallet:
       return p2pkh(pubkeyBytes);
@@ -17,7 +17,7 @@ function paymentScript(pubkeyBytes: Uint8Array, addressType: AddressFormat) {
     case AddressFormat.P2TR:
       return p2tr(pubkeyBytes);
     default:
-      throw new Error(`Unsupported address type: ${addressType}`);
+      throw new Error(`Unsupported address type: ${ addressFormat }`);
   }
 }
 
@@ -109,14 +109,14 @@ export async function signTransaction(
       sequence: 0xfffffffd,
       sighashType: SigHash.ALL,
     };
-    if (wallet.addressType === AddressFormat.P2PKH || wallet.addressType === AddressFormat.Counterwallet) {
+    if (wallet.addressFormat === AddressFormat.P2PKH || wallet.addressFormat === AddressFormat.Counterwallet) {
       inputData.nonWitnessUtxo = hexToBytes(rawPrevTx);
     } else {
       inputData.witnessUtxo = {
         script: prevOutput.script,
         amount: prevOutput.amount,
       };
-      if (wallet.addressType === AddressFormat.P2SH_P2WPKH) {
+      if (wallet.addressFormat === AddressFormat.P2SH_P2WPKH) {
         // Generate redeem script for nested SegWit
         const redeemScript = p2wpkh(pubkeyBytes).script;
         if (redeemScript) {
@@ -136,7 +136,7 @@ export async function signTransaction(
   }
 
   // Sign the transaction
-  if (!compressed && (wallet.addressType === AddressFormat.P2PKH || wallet.addressType === AddressFormat.Counterwallet)) {
+  if (!compressed && (wallet.addressFormat === AddressFormat.P2PKH || wallet.addressFormat === AddressFormat.Counterwallet)) {
     // Uncompressed P2PKH requires custom signing
     signAllInputsWithUncompressedKey(tx, privateKeyBytes, pubkeyBytes, prevOutputScripts);
   } else {

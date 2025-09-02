@@ -58,7 +58,7 @@ export function IssuanceForm({
   const [fileError, setFileError] = useState<string | null>(null);
   
   // Computed values
-  const isSegwitAddress = activeWallet?.addressType && isSegwitFormat(activeWallet.addressType);
+  const isSegwitAddress = activeWallet?.addressFormat && isSegwitFormat(activeWallet.addressFormat);
   
   const showAsset = initialParentAsset && parentAssetDetails?.assetInfo;
   const showAddress = !showAsset && activeAddress && !isInitializing;

@@ -7,7 +7,7 @@ import { AddressFormat } from '@/utils/blockchain/bitcoin';
 export interface EncryptedWalletRecord extends StoredRecord {
   name: string;
   type: 'mnemonic' | 'privateKey';
-  addressType: AddressFormat;
+  addressFormat: AddressFormat;
   addressCount?: number; // Number of derived addresses (defaults to 0 if omitted)
   encryptedSecret: string;
   previewAddress?: string;

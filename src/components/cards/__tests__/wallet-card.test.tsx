@@ -23,7 +23,7 @@ describe('WalletCard', () => {
     id: 'wallet-1',
     name: 'My Wallet',
     type: 'mnemonic' as const,
-    addressType: 'P2WPKH' as any,
+    addressFormat: 'P2WPKH' as any,
     addressCount: 1,
     addresses: [
       { 
@@ -324,7 +324,7 @@ describe('WalletCard', () => {
       id: 'wallet-2',
       name: 'Another Wallet',
       type: 'privateKey' as const,
-      addressType: AddressFormat.P2WPKH,
+      addressFormat: AddressFormat.P2WPKH,
       addressCount: 1,
       addresses: [{ 
         name: 'Address 1',

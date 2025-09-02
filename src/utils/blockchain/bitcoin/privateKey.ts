@@ -84,12 +84,12 @@ export function getPublicKeyFromPrivateKey(privateKeyHex: string, compressed = t
  */
 export function getAddressFromPrivateKey(
   privateKeyHex: string,
-  addressType: AddressFormat,
+  addressFormat: AddressFormat,
   compressed = true
 ): string {
   const pubHex = getPublicKeyFromPrivateKey(privateKeyHex, compressed);
   const pubBytes = hexToBytes(pubHex);
-  return encodeAddress(pubBytes, addressType);
+  return encodeAddress(pubBytes, addressFormat);
 }
 
 /**
@@ -104,10 +104,10 @@ export function getAddressFromPrivateKey(
 export function getPrivateKeyFromMnemonic(
   mnemonic: string,
   path: string,
-  addressType: AddressFormat
+  addressFormat: AddressFormat
 ): string {
   let seed: Uint8Array;
-  if (addressType === AddressFormat.Counterwallet) {
+  if (addressFormat === AddressFormat.Counterwallet) {
     seed = getCounterwalletSeed(mnemonic);
   } else {
     seed = mnemonicToSeedSync(mnemonic);

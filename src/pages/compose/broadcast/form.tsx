@@ -45,7 +45,7 @@ export function BroadcastForm({
   const [fileError, setFileError] = useState<string | null>(null);
   
   // Computed values
-  const isSegwitAddress = activeWallet?.addressType && isSegwitFormat(activeWallet.addressType);
+  const isSegwitAddress = activeWallet?.addressFormat && isSegwitFormat(activeWallet.addressFormat);
   
   // Focus textarea on mount (only if not inscribing)
   useEffect(() => {

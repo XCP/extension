@@ -53,8 +53,8 @@ export default function ViewAddress(): ReactElement {
   if (!activeAddress) return <div className="p-4">No address selected</div>;
 
   const addressTypeLabel =
-    activeWallet?.addressType !== AddressFormat.Counterwallet
-      ? activeWallet?.addressType.toUpperCase()
+    activeWallet?.addressFormat !== AddressFormat.Counterwallet
+      ? activeWallet?.addressFormat.toUpperCase()
       : "P2PKH";
 
   return (

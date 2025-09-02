@@ -16,19 +16,19 @@ import { encryptString, decryptString, DecryptionError } from '@/utils/encryptio
 export async function encryptMnemonic(
   mnemonic: string,
   password: string,
-  addressType: AddressFormat
+  addressFormat: AddressFormat
 ): Promise<string> {
   if (!password) {
     throw new Error('Password cannot be empty');
   }
 
   const valid =
-    addressType === AddressFormat.Counterwallet
+    addressFormat === AddressFormat.Counterwallet
       ? isValidCounterwalletMnemonic(mnemonic)
       : validateMnemonic(mnemonic, wordlist);
 
   if (!valid) {
-    throw new Error(`Invalid mnemonic for address type: ${addressType}`);
+    throw new Error(`Invalid mnemonic for address type: ${ addressFormat }`);
   }
 
   return encryptString(mnemonic, password);

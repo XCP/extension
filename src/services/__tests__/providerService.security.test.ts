@@ -79,14 +79,14 @@ describe('ProviderService Security Tests', () => {
         id: 'wallet1',
         name: 'Test Wallet',
         type: 'mnemonic',
-        addressType: 'p2wpkh',
+        addressFormat: 'p2wpkh',
         addresses: []
       }]),
       getActiveWallet: vi.fn().mockResolvedValue({
         id: 'wallet1',
         name: 'Test Wallet',
         type: 'mnemonic',
-        addressType: 'p2wpkh',
+        addressFormat: 'p2wpkh',
         addresses: []
       }),
       getActiveAddress: vi.fn().mockResolvedValue({

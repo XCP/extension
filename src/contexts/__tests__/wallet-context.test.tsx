@@ -85,8 +85,8 @@ const mockWalletService = {
   getUnencryptedMnemonic: vi.fn().mockResolvedValue('test mnemonic'),
   getPrivateKey: vi.fn().mockResolvedValue('privatekey'),
   verifyPassword: vi.fn().mockResolvedValue(true),
-  updateWalletAddressType: vi.fn().mockResolvedValue(undefined),
-  getPreviewAddressForType: vi.fn().mockResolvedValue('bc1qpreview'),
+  updateWalletAddressFormat: vi.fn().mockResolvedValue(undefined),
+  getPreviewAddressForFormat: vi.fn().mockResolvedValue('bc1qpreview'),
   removeWallet: vi.fn().mockResolvedValue(undefined),
 };
 
@@ -102,7 +102,7 @@ describe('WalletContext', () => {
       encryptedMnemonic: 'encrypted1',
       encryptedPrivateKey: null,
       type: 'mnemonic' as const,
-      addressType: 'P2WPKH' as const,
+      addressFormat: 'P2WPKH' as const,
       addressCount: 1,
       addresses: []
     },
@@ -112,7 +112,7 @@ describe('WalletContext', () => {
       encryptedMnemonic: null,
       encryptedPrivateKey: 'encrypted2',
       type: 'privateKey' as const,
-      addressType: 'P2PKH' as const,
+      addressFormat: 'P2PKH' as const,
       addressCount: 1,
       addresses: []
     }
@@ -208,7 +208,7 @@ describe('WalletContext', () => {
         encryptedMnemonic: 'encrypted3',
         encryptedPrivateKey: null,
         type: 'mnemonic' as const,
-        addressType: 'P2WPKH' as const,
+        addressFormat: 'P2WPKH' as const,
         addressCount: 1,
         addresses: []
       };
@@ -263,7 +263,7 @@ describe('WalletContext', () => {
         encryptedMnemonic: 'encrypted4',
         encryptedPrivateKey: null,
         type: 'mnemonic' as const,
-        addressType: 'P2WPKH' as const,
+        addressFormat: 'P2WPKH' as const,
         addressCount: 1,
         addresses: []
       };
@@ -296,7 +296,7 @@ describe('WalletContext', () => {
         encryptedMnemonic: null,
         encryptedPrivateKey: 'encrypted5',
         type: 'privateKey' as const,
-        addressType: 'P2PKH' as const,
+        addressFormat: 'P2PKH' as const,
         addressCount: 1,
         addresses: []
       };
@@ -454,7 +454,7 @@ describe('WalletContext', () => {
       const address = {
         address: 'bc1qnew',
         path: "m/84'/0'/0'/0/1",
-        addressType: 'P2WPKH' as const,
+        addressFormat: 'P2WPKH' as const,
         name: 'Address 1',
         pubKey: '0x1234'
       };

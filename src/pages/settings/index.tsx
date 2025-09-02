@@ -79,7 +79,7 @@ export default function Settings(): ReactElement {
    */
   const getAddressTypeDescription = (): string => {
     if (!activeWallet) return "";
-    switch (activeWallet.addressType) {
+    switch (activeWallet.addressFormat) {
       case AddressFormat.P2PKH:
         return "Legacy (P2PKH)";
       case AddressFormat.P2SH_P2WPKH:
@@ -99,7 +99,7 @@ export default function Settings(): ReactElement {
     ...(activeWallet?.type === "mnemonic"
       ? [
           {
-            id: "addressType",
+            id: "addressFormat",
             name: "Address Type",
             description: getAddressTypeDescription(),
             path: CONSTANTS.PATHS.ADDRESS_TYPE,

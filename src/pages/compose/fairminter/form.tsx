@@ -83,7 +83,7 @@ export function FairminterForm({
   const [isDivisible, setIsDivisible] = useState(initialFormData?.divisible ?? true);
   
   // Check if active wallet uses SegWit addresses
-  const isSegwit = activeWallet?.addressType && isSegwitFormat(activeWallet.addressType);
+  const isSegwit = activeWallet?.addressFormat && isSegwitFormat(activeWallet.addressFormat);
   
   // Fetch asset details if asset is provided (existing asset)
   const { data: assetDetails } = useAssetDetails(asset || "");

@@ -40,7 +40,7 @@ export function UpdateDescriptionForm({
   const [description, setDescription] = useState(initialFormData?.description || "");
   
   // Check if active wallet uses SegWit addresses
-  const isSegwitAddress = activeWallet?.addressType && isSegwitFormat(activeWallet.addressType);
+  const isSegwitAddress = activeWallet?.addressFormat && isSegwitFormat(activeWallet.addressFormat);
 
   // Handle file selection
   const handleFileChange = (file: File | null) => {

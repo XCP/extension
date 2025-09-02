@@ -98,8 +98,8 @@ const base58check = createBase58check(sha256);
  * @returns The derivation path as a string.
  * @throws Error if the address type is unsupported.
  */
-export function getDerivationPathForAddressType(addressType: AddressFormat): string {
-  switch (addressType) {
+export function getDerivationPathForAddressFormat(addressFormat: AddressFormat): string {
+  switch (addressFormat) {
     case AddressFormat.P2PKH:
       return "m/44'/0'/0'/0";
     case AddressFormat.P2SH_P2WPKH:
@@ -111,7 +111,7 @@ export function getDerivationPathForAddressType(addressType: AddressFormat): str
     case AddressFormat.Counterwallet:
       return "m/0'/0";
     default:
-      throw new Error(`Unsupported address type: ${addressType}`);
+      throw new Error(`Unsupported address type: ${ addressFormat }`);
   }
 }
 
@@ -123,8 +123,8 @@ export function getDerivationPathForAddressType(addressType: AddressFormat): str
  * @returns The Bitcoin address string.
  * @throws Error if the address type is unsupported.
  */
-export function encodeAddress(publicKey: Uint8Array, addressType: AddressFormat): string {
-  switch (addressType) {
+export function encodeAddress(publicKey: Uint8Array, addressFormat: AddressFormat): string {
+  switch (addressFormat) {
     case AddressFormat.P2PKH: {
       const pubKeyHash = ripemd160(sha256(publicKey));
       const payload = new Uint8Array(1 + pubKeyHash.length);
@@ -166,7 +166,7 @@ export function encodeAddress(publicKey: Uint8Array, addressType: AddressFormat)
       return base58check.encode(payload);
     }
     default:
-      throw new Error(`Unsupported address type: ${addressType}`);
+      throw new Error(`Unsupported address type: ${ addressFormat }`);
   }
 }
 
@@ -182,17 +182,17 @@ export function encodeAddress(publicKey: Uint8Array, addressType: AddressFormat)
 export function getAddressFromMnemonic(
   mnemonic: string,
   path: string,
-  addressType: AddressFormat
+  addressFormat: AddressFormat
 ): string {
   // Use a specialized seed for Counterwallet; otherwise use standard BIP39 seed.
   const seed: Uint8Array =
-    addressType === AddressFormat.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
+    addressFormat === AddressFormat.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
   const root = HDKey.fromMasterSeed(seed);
   const child = root.derive(path);
   if (!child.publicKey) {
     throw new Error('Unable to derive public key');
   }
-  return encodeAddress(child.publicKey, addressType);
+  return encodeAddress(child.publicKey, addressFormat);
 }
 
 /**
