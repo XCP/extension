@@ -9,7 +9,7 @@ import { ErrorAlert } from "@/components/error-alert";
 import { Spinner } from "@/components/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat } from '@/types';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import { formatAddress } from "@/utils/format";
 import type { ReactElement } from "react";
 

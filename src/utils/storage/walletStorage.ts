@@ -1,5 +1,5 @@
 import { getAllRecords, addRecord, updateRecord, removeRecord, StoredRecord } from '@/utils/storage/storage';
-import { AddressFormat } from '@/types';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 
 /**
  * Interface for encrypted wallet records stored in local storage.

@@ -5,7 +5,7 @@ import { walletManager } from '@/utils/wallet/walletManager';
 import * as sessionManager from '@/utils/auth/sessionManager';
 import { settingsManager } from '@/utils/wallet/settingsManager';
 import { sendMessage } from 'webext-bridge/popup';
-import { AddressFormat } from '@/types';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 
 // Mock webext-bridge first with comprehensive mocking
 vi.mock('webext-bridge/popup', () => ({

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { signMessage, getSigningCapabilities, verifyMessage } from '@/utils/blockchain/bitcoin';
-import { AddressFormat } from '@/types';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import * as secp256k1 from '@noble/secp256k1';
 import { hashes } from '@noble/secp256k1';
 import { hmac } from '@noble/hashes/hmac';

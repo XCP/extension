@@ -27,7 +27,7 @@ import { AssetHeader } from "@/components/headers/asset-header";
 import { ErrorAlert } from "@/components/error-alert";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { AddressFormat, isSegwitFormat } from '@/types';
+import { AddressFormat, isSegwitFormat } from '@/utils/blockchain/bitcoin';
 import type { FairminterOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 

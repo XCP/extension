@@ -8,7 +8,7 @@ import {
   createMultipleWallets,
   createWalletWithAddresses,
 } from './helpers/testHelpers';
-import { AddressFormat } from '@/types';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 
 // Mock all external dependencies
 vi.mock('@/utils/auth/sessionManager');

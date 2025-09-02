@@ -11,7 +11,7 @@ import * as btc from '@scure/btc-signer';
 import { hex, base64 } from '@scure/base';
 import { bytesToHex } from '@noble/hashes/utils';
 import * as secp256k1 from '@noble/secp256k1';
-import { AddressFormat } from '@/types';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 
 // Required initialization for @noble/secp256k1 v3
 // Set up the HMAC and SHA256 functions needed for deterministic signatures

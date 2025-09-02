@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { WalletMenu } from '../wallet-menu';
 import type { Wallet } from '@/utils/wallet';
-import { AddressFormat } from '@/types';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {

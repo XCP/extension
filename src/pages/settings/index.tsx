@@ -7,7 +7,7 @@ import { FiHelpCircle } from "react-icons/fi";
 import { Button } from "@/components/button";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat } from '@/types';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import type { ReactElement } from "react";
 
 /**

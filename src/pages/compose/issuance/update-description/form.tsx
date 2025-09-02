@@ -9,7 +9,7 @@ import { SettingSwitch } from "@/components/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { AddressFormat, isSegwitFormat } from '@/types';
+import { AddressFormat, isSegwitFormat } from '@/utils/blockchain/bitcoin';
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import { AssetHeader } from "@/components/headers/asset-header";
 import type { ReactElement } from "react";

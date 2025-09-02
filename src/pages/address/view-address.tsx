@@ -5,7 +5,7 @@ import { Button } from "@/components/button";
 import { QRCode } from "@/components/qr-code";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat } from '@/types';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import type { ReactElement } from "react";
 
 /**

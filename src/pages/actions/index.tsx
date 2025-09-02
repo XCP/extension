@@ -6,7 +6,7 @@ import { FaChevronRight } from "react-icons/fa";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useSettings } from "@/contexts/settings-context";
-import { AddressFormat, isSegwitFormat } from '@/types';
+import { AddressFormat, isSegwitFormat } from '@/utils/blockchain/bitcoin';
 import type { ReactElement } from "react";
 
 /**

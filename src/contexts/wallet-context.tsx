@@ -9,7 +9,7 @@ import React, {
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import { getWalletService } from "@/services/walletService";
 import { getKeychainSettings } from "@/utils/storage/settingsStorage";
-import { AddressFormat } from '@/types';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import type { Wallet, Address } from "@/utils/wallet";
 
 /**

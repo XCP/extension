@@ -2,7 +2,7 @@ import { Transaction, p2pkh, p2wpkh, p2sh, p2tr, SigHash, Address as BtcAddress 
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 import { fetchUTXOs, getUtxoByTxid, fetchPreviousRawTransaction, signAllInputsWithUncompressedKey } from '@/utils/blockchain/bitcoin';
-import { AddressFormat } from '@/types';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import type { Wallet, Address } from '@/utils/wallet';
 
 function paymentScript(pubkeyBytes: Uint8Array, addressType: AddressFormat) {

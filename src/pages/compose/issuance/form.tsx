@@ -14,7 +14,7 @@ import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { toBigNumber } from "@/utils/numeric";
-import { AddressFormat, isSegwitFormat } from '@/types';
+import { AddressFormat, isSegwitFormat } from '@/utils/blockchain/bitcoin';
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 

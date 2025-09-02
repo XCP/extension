@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import WalletCard from '../wallet-card';
 import { RadioGroup } from '@headlessui/react';
-import { AddressFormat } from '@/types';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 
 // Mock dependencies
 vi.mock('@/utils/format', () => ({
