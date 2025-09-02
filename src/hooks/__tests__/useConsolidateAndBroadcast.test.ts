@@ -116,7 +116,7 @@ describe('useConsolidateAndBroadcast', () => {
     it('should set isProcessing during operation', async () => {
       // Add a delay to the consolidation to simulate async work
       vi.mocked(consolidateBareMultisig).mockImplementation(async () => {
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise(resolve => setTimeout(resolve, 50));
         return '0x123signed';
       });
       
@@ -124,19 +124,19 @@ describe('useConsolidateAndBroadcast', () => {
 
       expect(result.current.isProcessing).toBe(false);
 
-      // Start the operation and immediately check processing state
-      let promise: Promise<any>;
+      // Start the operation without using act() initially to check processing state
+      const operationPromise = result.current.consolidateAndBroadcast(30);
+      
+      // Wait a small amount for the state update to propagate
       await act(async () => {
-        promise = result.current.consolidateAndBroadcast(30);
-        // Small delay to allow state to update
-        await new Promise(resolve => setTimeout(resolve, 1));
+        await new Promise(resolve => setTimeout(resolve, 10));
       });
 
       expect(result.current.isProcessing).toBe(true);
 
       // Wait for the operation to complete
       await act(async () => {
-        await promise;
+        await operationPromise;
       });
 
       expect(result.current.isProcessing).toBe(false);

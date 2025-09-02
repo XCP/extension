@@ -130,7 +130,7 @@ export function useAssetUtxos(asset: string) {
         abortControllerRef.current = null;
       }
     };
-  }, [asset, activeAddress?.address, state.utxos]);
+  }, [asset, activeAddress?.address]);
 
   return state;
 }

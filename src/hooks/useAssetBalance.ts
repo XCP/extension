@@ -53,6 +53,10 @@ export function useAssetBalance(asset: string) {
   const prevWalletRef = useRef<string | undefined>(undefined);
   const prevAddressRef = useRef<string | undefined>(undefined);
   const prevAssetRef = useRef<string | undefined>(undefined);
+  const setBalanceHeaderRef = useRef(setBalanceHeader);
+  
+  // Update ref when setBalanceHeader changes
+  setBalanceHeaderRef.current = setBalanceHeader;
 
   useEffect(() => {
     // Early return if no asset or address
@@ -152,7 +156,7 @@ export function useAssetBalance(asset: string) {
         }
 
         // Update cache in HeaderContext
-        setBalanceHeader(asset, {
+        setBalanceHeaderRef.current(asset, {
           asset,
           quantity_normalized: balance,
           asset_info: assetInfo || undefined,
@@ -191,7 +195,6 @@ export function useAssetBalance(asset: string) {
     asset,
     activeAddress?.address,
     activeWallet?.id,
-    setBalanceHeader,
   ]);
 
   return state;
