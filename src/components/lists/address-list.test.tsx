@@ -132,7 +132,9 @@ describe('AddressList', () => {
       />
     );
 
-    const selectedAddress = screen.getByText('Address 1').closest('div[role="radio"]').querySelector('div');
+    const radioDiv = screen.getByText('Address 1').closest('div[role="radio"]');
+    const selectedAddress = radioDiv?.querySelector('div');
+    expect(selectedAddress).toBeTruthy();
     expect(selectedAddress).toHaveClass('bg-blue-600', 'text-white', 'shadow-md');
   });
 
@@ -146,7 +148,9 @@ describe('AddressList', () => {
       />
     );
 
-    const unselectedAddress = screen.getByText('Address 2').closest('div[role="radio"]').querySelector('div');
+    const radioDiv2 = screen.getByText('Address 2').closest('div[role="radio"]');
+    const unselectedAddress = radioDiv2?.querySelector('div');
+    expect(unselectedAddress).toBeTruthy();
     expect(unselectedAddress).toHaveClass('bg-blue-100', 'hover:bg-blue-200', 'text-gray-800');
   });
 
@@ -330,7 +334,9 @@ describe('AddressList', () => {
       />
     );
 
-    let selectedElement = screen.getByText('Address 1').closest('div[role="radio"]').querySelector('div');
+    let radioDiv1 = screen.getByText('Address 1').closest('div[role="radio"]');
+    let selectedElement = radioDiv1?.querySelector('div');
+    expect(selectedElement).toBeTruthy();
     expect(selectedElement).toHaveClass('bg-blue-600');
 
     rerender(
@@ -342,10 +348,14 @@ describe('AddressList', () => {
       />
     );
 
-    selectedElement = screen.getByText('Address 1').closest('div[role="radio"]').querySelector('div');
+    radioDiv1 = screen.getByText('Address 1').closest('div[role="radio"]');
+    selectedElement = radioDiv1?.querySelector('div');
+    expect(selectedElement).toBeTruthy();
     expect(selectedElement).toHaveClass('bg-blue-100');
 
-    const newSelectedElement = screen.getByText('Address 2').closest('div[role="radio"]').querySelector('div');
+    const radioDiv2 = screen.getByText('Address 2').closest('div[role="radio"]');
+    const newSelectedElement = radioDiv2?.querySelector('div');
+    expect(newSelectedElement).toBeTruthy();
     expect(newSelectedElement).toHaveClass('bg-blue-600');
   });
 
