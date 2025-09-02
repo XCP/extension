@@ -8,7 +8,7 @@ import { Spinner } from "@/components/spinner";
 import { SettingSwitch } from "@/components/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
 import { useComposer } from "@/contexts/composer-context";
-import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { AddressFormat, isSegwitFormat } from '@/utils/blockchain/bitcoin';
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import { AssetHeader } from "@/components/headers/asset-header";
@@ -32,7 +32,7 @@ export function UpdateDescriptionForm({
   asset,
 }: UpdateDescriptionFormProps): ReactElement {
   const { activeWallet, showHelpText } = useComposer();
-  const { error: assetError, data: assetDetails, isLoading: assetLoading } = useAssetDetails(asset);
+  const { error: assetError, data: assetInfo, isLoading: assetLoading } = useAssetInfo(asset);
   const { pending } = useFormStatus();
   const [inscribeEnabled, setInscribeEnabled] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -70,7 +70,7 @@ export function UpdateDescriptionForm({
     return <Spinner message="Loading asset details..." />;
   }
 
-  if (assetError || !assetDetails) {
+  if (assetError || !assetInfo) {
     return (
       <div className="p-4 text-red-500">
         Unable to load asset details. Please ensure the asset exists and you have the necessary
@@ -87,12 +87,12 @@ export function UpdateDescriptionForm({
         <AssetHeader
           assetInfo={{
             asset: asset,
-            asset_longname: assetDetails?.assetInfo?.asset_longname || null,
-            description: assetDetails?.assetInfo?.description,
-            issuer: assetDetails?.assetInfo?.issuer,
-            divisible: assetDetails?.assetInfo?.divisible ?? false,
-            locked: assetDetails?.assetInfo?.locked ?? false,
-            supply: assetDetails?.assetInfo?.supply
+            asset_longname: assetInfo?.asset_longname || null,
+            description: assetInfo?.description,
+            issuer: assetInfo?.issuer,
+            divisible: assetInfo?.divisible ?? false,
+            locked: assetInfo?.locked ?? false,
+            supply: assetInfo?.supply
           }}
           className="mt-1 mb-5"
         />

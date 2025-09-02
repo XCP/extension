@@ -164,12 +164,15 @@ describe('useAssetDetails', () => {
       isDivisible: true,
       availableBalance: '1',
       assetInfo: expect.objectContaining({
+        asset: 'BTC',
         asset_longname: null,
         description: 'Bitcoin',
         divisible: true,
         locked: true,
-        supply: '21000000',
-        issuer: ''
+        supply: '2100000000000000',
+        supply_normalized: '21000000',
+        issuer: '',
+        fair_minting: false
       })
     }));
     expect(fetchAssetDetailsAndBalance).not.toHaveBeenCalled();

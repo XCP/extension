@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { getCurrentBlockHeight } from '@/utils/blockchain/bitcoin';
 
 interface UseBlockHeightOptions {
@@ -23,23 +23,40 @@ export function useBlockHeight(options: UseBlockHeightOptions = {}) {
   const [blockHeight, setBlockHeight] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(autoFetch);
   const [error, setError] = useState<string | null>(null);
+  
+  const isMountedRef = useRef(true);
+  const isFetchingRef = useRef(false);
 
-  const fetchBlockHeight = async (forceRefresh = false): Promise<number | null> => {
+  const fetchBlockHeight = useCallback(async (forceRefresh = false): Promise<number | null> => {
+    // Prevent overlapping requests
+    if (isFetchingRef.current) {
+      return blockHeight;
+    }
+    
+    isFetchingRef.current = true;
     setIsLoading(true);
     setError(null);
     
     try {
       const height = await getCurrentBlockHeight(forceRefresh);
-      setBlockHeight(height);
-      setIsLoading(false);
+      
+      if (isMountedRef.current) {
+        setBlockHeight(height);
+        setIsLoading(false);
+      }
+      
       return height;
     } catch (err: any) {
-      console.error('Error fetching block height:', err);
-      setError(err.message || 'Unable to fetch current block height.');
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        console.error('Error fetching block height:', err);
+        setError(err.message || 'Unable to fetch current block height.');
+        setIsLoading(false);
+      }
       return null;
+    } finally {
+      isFetchingRef.current = false;
     }
-  };
+  }, [blockHeight]);
 
   // Initial fetch on mount if autoFetch is true
   useEffect(() => {
@@ -59,7 +76,14 @@ export function useBlockHeight(options: UseBlockHeightOptions = {}) {
       
       return () => clearInterval(intervalId);
     }
-  }, [refreshInterval]);
+  }, [refreshInterval, fetchBlockHeight]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   return { 
     blockHeight, 

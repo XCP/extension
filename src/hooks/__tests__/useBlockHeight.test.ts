@@ -145,15 +145,28 @@ describe('useBlockHeight', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    // Rapid refresh calls
-    result.current.refresh();
-    result.current.refresh();
-    result.current.refresh();
+    expect(getCurrentBlockHeight).toHaveBeenCalledTimes(1); // Initial call
 
-    // All refresh calls should work
-    await waitFor(() => {
-      expect(getCurrentBlockHeight).toHaveBeenCalledTimes(4); // Initial + 3 refreshes
+    // The hook prevents overlapping requests with isFetchingRef guard
+    // So rapid calls while one is in progress will be ignored
+    // We need to wait for each to complete
+    await act(async () => {
+      await result.current.refresh();
     });
+    
+    expect(getCurrentBlockHeight).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+    
+    expect(getCurrentBlockHeight).toHaveBeenCalledTimes(3);
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(getCurrentBlockHeight).toHaveBeenCalledTimes(4);
   });
 
   it('should handle error messages without Error object', async () => {

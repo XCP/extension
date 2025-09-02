@@ -60,7 +60,11 @@ describe('useSearchQuery', () => {
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'https://app.xcp.io/api/v1/simple-search?query=test'
+      'https://app.xcp.io/api/v1/simple-search?query=test',
+      expect.objectContaining({
+        headers: { 'Accept': 'application/json' },
+        signal: expect.any(AbortSignal)
+      })
     );
     expect(result.current.searchResults).toEqual(mockResults.assets);
     expect(result.current.isSearching).toBe(false);
@@ -98,7 +102,11 @@ describe('useSearchQuery', () => {
     // Should only call once with final value
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(global.fetch).toHaveBeenCalledWith(
-      'https://app.xcp.io/api/v1/simple-search?query=abc'
+      'https://app.xcp.io/api/v1/simple-search?query=abc',
+      expect.objectContaining({
+        headers: { 'Accept': 'application/json' },
+        signal: expect.any(AbortSignal)
+      })
     );
     expect(result.current.isSearching).toBe(false);
   }, 10000);
@@ -123,7 +131,7 @@ describe('useSearchQuery', () => {
     });
 
     expect(result.current.searchResults).toEqual([]);
-    expect(result.current.error).toBe('Failed to load search results.');
+    expect(result.current.error).toBe('Failed to load search results: Network error');
     expect(result.current.isSearching).toBe(false);
   }, 10000);
 
@@ -150,7 +158,7 @@ describe('useSearchQuery', () => {
     });
 
     expect(result.current.searchResults).toEqual([]);
-    expect(result.current.error).toBe('Failed to load search results.');
+    expect(result.current.error).toBe('Search failed. Please try again.');
     expect(result.current.isSearching).toBe(false);
   }, 10000);
 
@@ -325,17 +333,32 @@ describe('useSearchQuery', () => {
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'https://app.xcp.io/api/v1/simple-search?query=test%20%26%20special%3Dchars'
+      'https://app.xcp.io/api/v1/simple-search?query=test%20%26%20special%3Dchars',
+      expect.objectContaining({
+        headers: { 'Accept': 'application/json' },
+        signal: expect.any(AbortSignal)
+      })
     );
     expect(result.current.isSearching).toBe(false);
   }, 10000);
 
   it('should clear error when new search starts', async () => {
+    const { result } = renderHook(() => useSearchQuery('', { maxRetries: 0 }));
+
+    // Setup mock to fail first, then succeed
+    let callCount = 0;
+    (global.fetch as any).mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.reject(new Error('Network error'));
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ assets: [{ symbol: 'TEST' }] })
+      });
+    });
+
     // First search fails
-    (global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
-
-    const { result } = renderHook(() => useSearchQuery());
-
     act(() => {
       result.current.setSearchQuery('error');
     });
@@ -348,29 +371,36 @@ describe('useSearchQuery', () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(result.current.error).toBe('Failed to load search results.');
+    // Verify error is set
+    expect(result.current.error).toContain('Failed to load search results');
+    expect(result.current.isSearching).toBe(false);
 
     // Second search succeeds
-    (global.fetch as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ assets: [] })
-    });
-
     act(() => {
       result.current.setSearchQuery('success');
     });
 
+    // Error should still be present before debounce timeout
+    expect(result.current.error).toContain('Failed to load search results');
+
+    // Advance time to trigger second search
     act(() => {
       vi.advanceTimersByTime(500);
     });
+
+    // Error should be cleared when new search starts
+    expect(result.current.error).toBeNull();
+    expect(result.current.isSearching).toBe(true);
 
     await act(async () => {
       await vi.runAllTimersAsync();
     });
 
+    // Verify successful search
     expect(result.current.error).toBeNull();
+    expect(result.current.searchResults).toHaveLength(1);
     expect(result.current.isSearching).toBe(false);
-  }, 10000);
+  });
 
   it('should allow setting error manually', () => {
     const { result } = renderHook(() => useSearchQuery());

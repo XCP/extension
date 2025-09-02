@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { ComposeForm } from "@/components/forms/compose-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { useComposer } from "@/contexts/composer-context";
-import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { useAssetInfo } from "@/hooks/useAssetInfo";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -30,13 +30,13 @@ export function ResetSupplyForm({
   const { showHelpText } = useComposer();
   
   // Data fetching hooks
-  const { error: assetError, data: assetDetails } = useAssetDetails(asset);
+  const { error: assetError, data: assetInfo } = useAssetInfo(asset);
   
   // Form status
   const { pending } = useFormStatus();
 
   // Early returns
-  if (assetError || !assetDetails) {
+  if (assetError || !assetInfo) {
     return <div className="p-4 text-red-500">Error loading asset details: {assetError?.message}</div>;
   }
 
@@ -47,9 +47,9 @@ export function ResetSupplyForm({
       <div className="mb-4 p-3 bg-gray-50 rounded-md">
         <h3 className="text-sm font-medium text-gray-700">Asset Details</h3>
         <div className="mt-2 text-sm text-gray-600">
-          <p>Current Supply: {assetDetails?.assetInfo?.supply || "0"}</p>
-          <p>Divisible: {assetDetails?.assetInfo?.divisible ? "Yes" : "No"}</p>
-          <p>Locked: {assetDetails?.assetInfo?.locked ? "Yes" : "No"}</p>
+          <p>Current Supply: {assetInfo?.supply || "0"}</p>
+          <p>Divisible: {assetInfo?.divisible ? "Yes" : "No"}</p>
+          <p>Locked: {assetInfo?.locked ? "Yes" : "No"}</p>
         </div>
       </div>
       <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">

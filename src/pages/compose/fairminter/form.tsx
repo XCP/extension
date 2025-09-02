@@ -26,7 +26,7 @@ import { AddressHeader } from "@/components/headers/address-header";
 import { AssetHeader } from "@/components/headers/asset-header";
 import { ErrorAlert } from "@/components/error-alert";
 import { useComposer } from "@/contexts/composer-context";
-import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { AddressFormat, isSegwitFormat } from '@/utils/blockchain/bitcoin';
 import type { FairminterOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
@@ -86,16 +86,16 @@ export function FairminterForm({
   const isSegwit = activeWallet?.addressFormat && isSegwitFormat(activeWallet.addressFormat);
   
   // Fetch asset details if asset is provided (existing asset)
-  const { data: assetDetails } = useAssetDetails(asset || "");
-  const isExistingAsset = !!asset && !!assetDetails;
+  const { data: assetInfo } = useAssetInfo(asset || "");
+  const isExistingAsset = !!asset && !!assetInfo;
   
   // Use asset's divisibility if it exists
   useEffect(() => {
-    if (isExistingAsset && assetDetails?.assetInfo?.divisible !== undefined) {
-      setIsDivisible(assetDetails.assetInfo.divisible);
+    if (isExistingAsset && assetInfo?.divisible !== undefined) {
+      setIsDivisible(assetInfo.divisible);
       setIsInitializing(false); // Clear initializing state once asset details are loaded
     }
-  }, [isExistingAsset, assetDetails]);
+  }, [isExistingAsset, assetInfo]);
 
   // Mint method state
   const initialMintMethod = initialFormData?.burn_payment === false
@@ -167,16 +167,16 @@ export function FairminterForm({
       formAction={enhancedFormAction}
       header={
         <div className="space-y-4">
-          {isExistingAsset && assetDetails?.assetInfo ? (
+          {isExistingAsset && assetInfo ? (
             <AssetHeader 
               assetInfo={{ 
                 asset: asset || "",
-                asset_longname: assetDetails.assetInfo.asset_longname || null,
-                description: assetDetails.assetInfo.description,
-                issuer: assetDetails.assetInfo.issuer,
-                divisible: assetDetails.assetInfo.divisible ?? true,
-                locked: assetDetails.assetInfo.locked ?? false,
-                supply: assetDetails.assetInfo.supply
+                asset_longname: assetInfo.asset_longname || null,
+                description: assetInfo.description,
+                issuer: assetInfo.issuer,
+                divisible: assetInfo.divisible ?? true,
+                locked: assetInfo.locked ?? false,
+                supply: assetInfo.supply
               }}
               className="mt-1 mb-5" 
             />

@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { useHeader } from "@/contexts/header-context";
-import { useWallet } from "@/contexts/wallet-context";
-import { fetchBTCBalance } from "@/utils/blockchain/bitcoin";
-import { fetchAssetDetailsAndBalance, fetchTokenUtxos, AssetInfo } from "@/utils/blockchain/counterparty";
+import { useEffect, useMemo, useRef } from "react";
+import { AssetInfo } from "@/utils/blockchain/counterparty";
+import { useAssetInfo } from "./useAssetInfo";
+import { useAssetBalance } from "./useAssetBalance";
+import { useAssetUtxos } from "./useAssetUtxos";
 
 /**
  * Represents the details of an asset, including balance and UTXO information.
@@ -26,223 +26,62 @@ interface UseAssetDetailsOptions {
 }
 
 /**
- * Custom hook to fetch and manage asset details, leveraging HeaderContext for caching.
- * Returns the current state of the asset data, including loading status and errors.
+ * Composite hook that combines asset info, balance, and UTXO fetching.
+ * This provides backward compatibility while using the new focused hooks internally.
+ * 
  * @param asset The asset identifier (e.g., 'BTC', 'XCP')
  * @param options Optional callbacks for load start and end events
  * @returns Object containing isLoading, error, and data properties
  */
 export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions) {
-  const { activeAddress, activeWallet } = useWallet();
-  const { subheadings, setBalanceHeader, clearAllCaches } = useHeader();
-  
-  // Ref to track the previous wallet, address and asset
-  const prevWalletRef = useRef<string | undefined>(undefined);
-  const prevAddressRef = useRef<string | undefined>(undefined);
-  const prevAssetRef = useRef<string | undefined>(undefined);
-  
-  // Only use cached data if we're querying the same asset as before
-  // This prevents stale cache from being used when navigating to a different asset
-  const cachedBalance = (prevAssetRef.current === asset) ? subheadings.balances[asset] : null;
-  const initialData = cachedBalance && cachedBalance.quantity_normalized ? {
-    isDivisible: cachedBalance.asset_info?.divisible ?? true,
-    assetInfo: cachedBalance.asset_info ? {
-      asset: asset,
-      asset_longname: cachedBalance.asset_info.asset_longname,
-      description: cachedBalance.asset_info.description,
-      issuer: cachedBalance.asset_info.issuer,
-      divisible: cachedBalance.asset_info.divisible ?? false,
-      locked: cachedBalance.asset_info.locked ?? false,
-      supply: cachedBalance.asset_info.supply,
-      supply_normalized: String(cachedBalance.asset_info.supply || '0'),
-      fair_minting: false,
-    } : null,
-    availableBalance: cachedBalance.quantity_normalized || '0',
-    utxoBalances: undefined, // Mark as not fetched yet
-  } : null;
-  
-  const [state, setState] = useState<{
-    isLoading: boolean;
-    error: Error | null;
-    data: AssetDetails | null;
-  }>({
-    isLoading: !initialData, // Only show loading if no cached data
-    error: null,
-    data: initialData,
-  });
+  // Use the three focused hooks
+  const assetInfo = useAssetInfo(asset);
+  const balance = useAssetBalance(asset);
+  const utxos = useAssetUtxos(asset);
 
-  // Ref to track if fetch is still valid
-  const fetchDataRef = useRef(false);
+  // Cache loading state calculation
+  const isLoading = useMemo(() => 
+    assetInfo.isLoading || balance.isLoading || utxos.isLoading,
+    [assetInfo.isLoading, balance.isLoading, utxos.isLoading]
+  );
   
-  // Reset state when wallet or address changes
+  // Stable refs for callbacks to avoid dependency issues
+  const onLoadStartRef = useRef(options?.onLoadStart);
+  const onLoadEndRef = useRef(options?.onLoadEnd);
+  
+  // Update refs when options change
+  onLoadStartRef.current = options?.onLoadStart;
+  onLoadEndRef.current = options?.onLoadEnd;
+  
   useEffect(() => {
-    const walletChanged = prevWalletRef.current && prevWalletRef.current !== activeWallet?.id;
-    const addressChanged = prevAddressRef.current && prevAddressRef.current !== activeAddress?.address;
-    
-    if (walletChanged || addressChanged) {
-      setState({
-        isLoading: false,
-        error: null,
-        data: null,
-      });
+    if (isLoading && onLoadStartRef.current) {
+      onLoadStartRef.current();
+    } else if (!isLoading && onLoadEndRef.current) {
+      onLoadEndRef.current();
     }
-  }, [activeWallet?.id, activeAddress?.address]);
+  }, [isLoading]);
 
-  useEffect(() => {
-    // Clear balance cache if wallet or address changed
-    const hasWalletChanged = prevWalletRef.current && prevWalletRef.current !== activeWallet?.id;
-    const hasAddressChanged = prevAddressRef.current && prevAddressRef.current !== activeAddress?.address;
-    
-    if (hasWalletChanged || hasAddressChanged) {
-      clearAllCaches();
-      // Reset state to force re-fetch
-      setState({
-        isLoading: false,
-        error: null,
-        data: null,
-      });
-    }
-    
-    prevWalletRef.current = activeWallet?.id;
-    prevAddressRef.current = activeAddress?.address;
-    prevAssetRef.current = asset;
+  // Combine errors - prioritize balance error as it's most critical
+  const error = balance.error || assetInfo.error || utxos.error;
 
-    let isMounted = true;
-    fetchDataRef.current = true;
-
-    /**
-     * Fetches asset data from the blockchain and updates the cache and state.
-     */
-    async function fetchData() {
-      // Early return if asset is empty or active address is not available
-      if (!asset || asset.trim() === '') {
-        return;
-      }
-      
-      if (!activeAddress?.address) {
-        setState(prev => ({
-          ...prev,
-          error: new Error("Address not available"),
-          isLoading: false,
-        }));
-        return;
-      }
-
-      try {
-        options?.onLoadStart?.();
-        setState(prev => {
-          if (!prev.isLoading) {
-            return { ...prev, isLoading: true };
-          }
-          return prev;
-        });
-        let result: AssetDetails;
-
-        if (asset === 'BTC') {
-          const balanceSats = await fetchBTCBalance(activeAddress.address);
-          result = {
-            isDivisible: true,
-            availableBalance: (balanceSats / 1e8).toString(),
-            assetInfo: {
-              asset: 'BTC',
-              asset_longname: null,
-              description: 'Bitcoin',
-              divisible: true,
-              locked: true,
-              supply: '21000000',
-              supply_normalized: '21000000',
-              issuer: '',
-            },
-          };
-        } else {
-          const [assetDetails, utxos] = await Promise.all([
-            fetchAssetDetailsAndBalance(asset, activeAddress.address),
-            fetchTokenUtxos(activeAddress.address, asset),
-          ]);
-
-          result = {
-            ...assetDetails,
-            utxoBalances: utxos.map(utxo => ({
-              txid: utxo.utxo || '',
-              amount: utxo.quantity_normalized,
-            })),
-          };
-        }
-
-        if (isMounted && fetchDataRef.current) {
-          // Update HeaderContext cache with fetched data
-          setBalanceHeader(asset, {
-            asset,
-            quantity_normalized: result.availableBalance,
-            asset_info: result.assetInfo || undefined,
-          });
-
-          // Update local state with fetched data
-          setState({
-            data: result,
-            error: null,
-            isLoading: false,
-          });
-        }
-      } catch (err) {
-        if (isMounted && fetchDataRef.current) {
-          setState({
-            data: null,
-            error: err instanceof Error ? err : new Error(String(err)),
-            isLoading: false,
-          });
-        }
-      } finally {
-        if (isMounted && fetchDataRef.current) {
-          options?.onLoadEnd?.();
-        }
-      }
+  // Build the combined data structure
+  const data = useMemo<AssetDetails | null>(() => {
+    // If we don't have balance data, return null
+    if (!balance.balance) {
+      return null;
     }
 
-    // Skip fetching if asset is empty
-    if (!asset || asset.trim() === '') {
-      // Only update state if it's not already in the correct state
-      setState(prev => {
-        if (prev.isLoading || prev.error || prev.data) {
-          return {
-            isLoading: false,
-            error: null,
-            data: null,
-          };
-        }
-        return prev;
-      });
-      return;
-    }
-
-    // Get current cached balance
-    const cachedBalance = subheadings.balances[asset];
-    
-    // Always fetch data when wallet, address or asset changes, or no data exists
-    const walletChanged = prevWalletRef.current && prevWalletRef.current !== activeWallet?.id;
-    const addressChanged = prevAddressRef.current && prevAddressRef.current !== activeAddress?.address;
-    const assetChanged = prevAssetRef.current && prevAssetRef.current !== asset;
-    
-    // Check if we have UTXOs in state - undefined means never fetched, empty array means fetched but none exist
-    const hasUtxoData = state.data?.utxoBalances !== undefined;
-    
-    // Always fetch UTXOs for non-BTC assets on mount
-    const shouldFetchUtxos = asset !== 'BTC' && !hasUtxoData;
-    
-    if (walletChanged || addressChanged || assetChanged || !state.data || shouldFetchUtxos) {
-      // Always fetch full data including UTXOs
-      fetchData();
-    } else if (!cachedBalance || !cachedBalance.quantity_normalized) {
-      // Fetch if no cached balance
-      fetchData();
-    }
-
-    // Cleanup function to prevent updates on unmounted component
-    return () => {
-      isMounted = false;
-      fetchDataRef.current = false;
+    return {
+      isDivisible: balance.isDivisible,
+      assetInfo: assetInfo.data,
+      availableBalance: balance.balance,
+      utxoBalances: utxos.utxos || undefined,
     };
-  }, [asset, activeWallet?.id, activeAddress?.address, subheadings.balances[asset], setBalanceHeader, clearAllCaches]);
+  }, [assetInfo.data, balance.balance, balance.isDivisible, utxos.utxos]);
 
-  return state;
+  return {
+    isLoading,
+    error,
+    data,
+  };
 }

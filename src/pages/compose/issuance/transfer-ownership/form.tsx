@@ -7,7 +7,7 @@ import { Spinner } from "@/components/spinner";
 import { AssetHeader } from "@/components/headers/asset-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
 import { useComposer } from "@/contexts/composer-context";
-import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { useAssetInfo } from "@/hooks/useAssetInfo";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -29,7 +29,7 @@ export function TransferOwnershipForm({
   asset,
 }: TransferOwnershipFormProps): ReactElement {
   const { showHelpText } = useComposer();
-  const { error: assetError, data: assetDetails, isLoading: assetLoading } = useAssetDetails(asset);
+  const { error: assetError, data: assetInfo, isLoading: assetLoading } = useAssetInfo(asset);
   const { pending } = useFormStatus();
   const [destination, setDestination] = useState(initialFormData?.transfer_destination || "");
   const [destinationValid, setDestinationValid] = useState(false);
@@ -45,7 +45,7 @@ export function TransferOwnershipForm({
     return <Spinner message="Loading asset details..." />;
   }
 
-  if (assetError || !assetDetails) {
+  if (assetError || !assetInfo) {
     return (
       <div className="p-4 text-red-500">
         Unable to load asset details. Please ensure the asset exists and you have the necessary
@@ -62,12 +62,12 @@ export function TransferOwnershipForm({
         <AssetHeader
           assetInfo={{
             asset: asset,
-            asset_longname: assetDetails?.assetInfo?.asset_longname ?? null,
-            divisible: assetDetails?.assetInfo?.divisible ?? true,
-            locked: assetDetails?.assetInfo?.locked ?? false,
-            description: assetDetails?.assetInfo?.description ?? "",
-            issuer: assetDetails?.assetInfo?.issuer ?? "",
-            supply: assetDetails?.assetInfo?.supply ?? "0"
+            asset_longname: assetInfo?.asset_longname ?? null,
+            divisible: assetInfo?.divisible ?? true,
+            locked: assetInfo?.locked ?? false,
+            description: assetInfo?.description ?? "",
+            issuer: assetInfo?.issuer ?? "",
+            supply: assetInfo?.supply ?? "0"
           }}
           className="mt-1 mb-5"
         />

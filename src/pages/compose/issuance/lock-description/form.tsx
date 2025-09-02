@@ -7,7 +7,7 @@ import { ComposeForm } from "@/components/forms/compose-form";
 import { Spinner } from "@/components/spinner";
 import { AssetHeader } from "@/components/headers/asset-header";
 import { useComposer } from "@/contexts/composer-context";
-import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { useAssetInfo } from "@/hooks/useAssetInfo";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -31,14 +31,14 @@ export function LockDescriptionForm({
   asset,
 }: LockDescriptionFormProps): ReactElement {
   const { showHelpText } = useComposer();
-  const { error: assetError, data: assetDetails, isLoading: assetLoading } = useAssetDetails(asset);
+  const { error: assetError, data: assetInfo, isLoading: assetLoading } = useAssetInfo(asset);
   const { pending } = useFormStatus();
 
   if (assetLoading) {
     return <Spinner message="Loading asset details..." />;
   }
 
-  if (assetError || !assetDetails) {
+  if (assetError || !assetInfo) {
     return (
       <div className="p-4 text-red-500">
         Unable to load asset details. Please ensure the asset exists and you have the necessary
@@ -52,7 +52,7 @@ export function LockDescriptionForm({
   }
 
   // Check if description is already locked
-  const currentDescription = assetDetails?.assetInfo?.description || "";
+  const currentDescription = assetInfo?.description || "";
   const isAlreadyLocked = currentDescription === "LOCK";
 
   if (isAlreadyLocked) {
@@ -74,12 +74,12 @@ export function LockDescriptionForm({
         <AssetHeader
           assetInfo={{
             asset: asset,
-            asset_longname: assetDetails?.assetInfo?.asset_longname || null,
-            description: assetDetails?.assetInfo?.description,
-            issuer: assetDetails?.assetInfo?.issuer,
-            divisible: assetDetails?.assetInfo?.divisible ?? false,
-            locked: assetDetails?.assetInfo?.locked ?? false,
-            supply: assetDetails?.assetInfo?.supply
+            asset_longname: assetInfo?.asset_longname || null,
+            description: assetInfo?.description,
+            issuer: assetInfo?.issuer,
+            divisible: assetInfo?.divisible ?? false,
+            locked: assetInfo?.locked ?? false,
+            supply: assetInfo?.supply
           }}
           className="mt-1 mb-5"
         />
