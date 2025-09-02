@@ -1,17 +1,15 @@
-import { useState, useEffect, type ReactElement } from "react";
+import { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { FiChevronDown, FiCheck } from "react-icons/fi";
 import { Field, Label, Description, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AddressHeader } from "@/components/headers/address-header";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
+import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { fetchAddressDispensers } from "@/utils/blockchain/counterparty";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty";
+import type { ReactElement } from "react";
 
 /**
  * Props for the DispenserCloseForm component, aligned with Composer's formAction.
@@ -20,8 +18,6 @@ interface DispenserCloseFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: DispenserOptions | null;
   initialAsset?: string;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 /**
@@ -31,29 +27,37 @@ export function DispenserCloseForm({
   formAction,
   initialFormData,
   initialAsset,
-  error: composerError,
-  showHelpText,
 }: DispenserCloseFormProps): ReactElement {
-  const { activeAddress, activeWallet } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  // Context hooks
+  const { activeAddress, activeWallet, settings, showHelpText, state } = useComposer();
+  
+  // Data fetching hooks
   const { data: assetDetails, error: assetDetailsError } = useAssetDetails(
     initialAsset || initialFormData?.asset || "BTC"
   );
+  
+  // Form status
   const { pending } = useFormStatus();
+  
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Form state
   const [selectedTxHash, setSelectedTxHash] = useState<string | null>(null);
   const [dispensers, setDispensers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<{ message: string } | null>(null);
-
+  
+  // Computed values
   const asset = initialAsset || initialFormData?.asset || "";
+  const relevantDispensers = asset ? dispensers.filter((d) => d.asset === asset) : dispensers;
+  const selectedDispenser = relevantDispensers.find((d) => d.tx_hash === selectedTxHash);
 
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
+    if (state.error) {
+      setError({ message: state.error });
     }
-  }, [composerError]);
+  }, [state.error]);
 
   // Fetch dispensers when component mounts or address changes
   useEffect(() => {
@@ -80,9 +84,7 @@ export function DispenserCloseForm({
     loadDispensers();
   }, [activeAddress]);
 
-  const relevantDispensers = asset ? dispensers.filter((d) => d.asset === asset) : dispensers;
-  const selectedDispenser = relevantDispensers.find((d) => d.tx_hash === selectedTxHash);
-
+  // Handlers  
   const AssetIcon = ({ asset }: { asset: string }): ReactElement => (
     <img
       src={`https://app.xcp.io/img/icon/${asset}`}
@@ -93,36 +95,34 @@ export function DispenserCloseForm({
   );
 
   return (
-    <div className="space-y-4">
-      {activeAddress && (
-        <AddressHeader
-          address={activeAddress.address}
-          walletName={activeWallet?.name ?? ""}
-          className="mt-1 mb-5"
-        />
-      )}
-      {activeAddress && assetDetails && (initialFormData?.asset || asset) && (
-        <BalanceHeader
-          balance={{
-            asset: initialFormData?.asset || asset,
-            quantity_normalized: assetDetails.availableBalance,
-            asset_info: assetDetails.assetInfo || { divisible: true, asset_longname: null, description: "", issuer: "", locked: false },
-          }}
-          className="mt-1 mb-5"
-        />
-      )}
-      {assetDetailsError && <div className="text-red-500 mb-2">Failed to fetch asset details.</div>}
-      <div className="bg-white rounded-lg shadow-lg p-4">
-        {error && (
-          <ErrorAlert
-            message={error.message}
-            onClose={() => setError(null)}
-          />
-        )}
-        {isLoading ? (
-          <div className="py-4 text-center">Loading dispensers...</div>
-        ) : (
-          <form action={formAction} className="space-y-6">
+    <ComposeForm
+      formAction={formAction}
+      header={
+        <div className="space-y-4">
+          {activeAddress && (
+            <AddressHeader
+              address={activeAddress.address}
+              walletName={activeWallet?.name ?? ""}
+              className="mt-1 mb-5"
+            />
+          )}
+          {activeAddress && assetDetails && (initialFormData?.asset || asset) && (
+            <BalanceHeader
+              balance={{
+                asset: initialFormData?.asset || asset,
+                quantity_normalized: assetDetails.availableBalance,
+                asset_info: assetDetails.assetInfo || { divisible: true, asset_longname: null, description: "", issuer: "", locked: false },
+              }}
+              className="mt-1 mb-5"
+            />
+          )}
+          {assetDetailsError && <div className="text-red-500 mb-2">Failed to fetch asset details.</div>}
+        </div>
+      }
+    >
+      {isLoading ? (
+        <div className="py-4 text-center">Loading dispensers...</div>
+      ) : (
             <Field>
               <Label className="block text-sm font-medium text-gray-700">
                 Dispenser <span className="text-red-500">*</span>
@@ -192,21 +192,16 @@ export function DispenserCloseForm({
                       <p>Price: {selectedDispenser.price_normalized}</p>
                     </div>
                   )}
-                  <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                    Select the dispenser you want to close.
-                  </Description>
+                  {showHelpText && (
+                    <Description className="mt-2 text-sm text-gray-500">
+                      Select the dispenser you want to close.
+                    </Description>
+                  )}
                 </>
               )}
             </Field>
 
-            <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-            
-            <Button type="submit" color="blue" fullWidth disabled={pending || !selectedTxHash || relevantDispensers.length === 0}>
-              {pending ? "Submitting..." : "Continue"}
-            </Button>
-          </form>
-        )}
-      </div>
-    </div>
+      )}
+    </ComposeForm>
   );
 }

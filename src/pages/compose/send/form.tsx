@@ -2,23 +2,17 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
-import { Field, Label, Description, Input } from "@headlessui/react";
-import { Button } from "@/components/button";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
-import { HeaderSkeleton } from "@/components/skeleton";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { DestinationInput } from "@/components/inputs/destination-input";
 import { DestinationsInput } from "@/components/inputs/destinations-input";
 import { MemoInput } from "@/components/inputs/memo-input";
-import { ErrorAlert } from "@/components/error-alert";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
+import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { formatAmount } from "@/utils/format";
 import { validateQuantity } from "@/utils/validation";
 import type { SendOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
+import { ErrorAlert } from "@/components/error-alert";
 
 interface Destination {
   id: number;
@@ -29,28 +23,33 @@ interface SendFormProps {
   formAction: (formData: FormData) => void;
   initialAsset?: string;
   initialFormData: SendOptions | null;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 export function SendForm({
   formAction,
   initialAsset,
-  initialFormData,
-  error: composerError,
-  showHelpText,
+  initialFormData
 }: SendFormProps): ReactElement {
-  const { activeAddress } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  // Get everything from composer context
+  const { activeAddress, settings, showHelpText } = useComposer<SendOptions>();
   const enableMPMA = settings?.enableMPMA ?? false;
+  
+  // Data fetching hooks
   const { data: assetDetails, error: assetDetailsError } = useAssetDetails(
     initialAsset || initialFormData?.asset || "BTC"
   );
+  
+  // Form status
   const { pending } = useFormStatus();
   
-  // Single error state to handle all errors
-  const [error, setError] = useState<{ message: string; } | null>(null);
+  // Local validation error state
+  const [validationError, setValidationError] = useState<string | null>(null);
+  
+  // Form state
+  const [amount, setAmount] = useState<string>(
+    initialFormData?.quantity?.toString() || ""
+  );
+  const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
   
   // Destinations state for MPMA
   const [destinations, setDestinations] = useState<Destination[]>(() => [
@@ -61,36 +60,21 @@ export function SendForm({
   // Memo state and validation
   const [memo, setMemo] = useState(initialFormData?.memo || "");
   const [memoValid, setMemoValid] = useState(true);
-
-  // Set composer error when it occurs
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
-
-  // Set asset details error when it occurs
-  useEffect(() => {
-    if (assetDetailsError) {
-      setError({
-        message: `Failed to fetch details for asset ${initialAsset || initialFormData?.asset || "BTC"}. ${assetDetailsError.message || "Please try again later."}`
-      });
-    } else if (!composerError) {
-      // Clear error if it was an asset details error and there's no composer error
-      setError(null);
-    }
-  }, [assetDetailsError, initialAsset, initialFormData?.asset, composerError]);
-
+  
+  // Computed values
   const isDivisible = useMemo(() => {
     if (initialAsset === "BTC" || initialFormData?.asset === "BTC") return true;
     return assetDetails?.assetInfo?.divisible || false;
   }, [initialAsset, initialFormData?.asset, assetDetails?.assetInfo]);
 
-  const [amount, setAmount] = useState<string>(
-    initialFormData?.quantity?.toString() || ""
-  );
-
-  const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
+  // Asset details error effect
+  useEffect(() => {
+    if (assetDetailsError) {
+      setValidationError(`Failed to fetch details for asset ${initialAsset || initialFormData?.asset || "BTC"}. ${assetDetailsError.message || "Please try again later."}`);
+    } else {
+      setValidationError(null);
+    }
+  }, [assetDetailsError, initialAsset, initialFormData?.asset]);
 
   // Sync amount when initialFormData changes
   useEffect(() => {
@@ -99,6 +83,12 @@ export function SendForm({
     }
   }, [initialFormData?.quantity]);
 
+  // Handlers
+  const handleAmountChange = (value: string) => {
+    setAmount(value);
+    // Clear validation error when amount changes
+    setValidationError(null);
+  };
 
   const handleFormAction = (formData: FormData) => {
     if (amount) {
@@ -123,12 +113,7 @@ export function SendForm({
     formAction(formData);
   };
 
-  const handleAmountChange = (value: string) => {
-    setAmount(value);
-    // Clear error when amount changes
-    setError(null);
-  };
-
+  // Validation helpers
   const isAmountValid = (): boolean => {
     if (!amount || amount.trim() === "") return false;
     
@@ -140,12 +125,13 @@ export function SendForm({
     return validation.isValid;
   };
 
-  const isSubmitDisabled = pending || !isAmountValid() || !destinationsValid || !memoValid;
+  const isSubmitDisabled = !isAmountValid() || !destinationsValid || !memoValid;
 
   return (
-    <div className="space-y-4">
-      {activeAddress ? (
-        assetDetails ? (
+    <ComposeForm
+      formAction={handleFormAction}
+      header={
+        activeAddress && assetDetails ? (
           <BalanceHeader
             balance={{
               asset: initialAsset || initialFormData?.asset || "BTC",
@@ -154,18 +140,18 @@ export function SendForm({
             }}
             className="mt-1 mb-5"
           />
-        ) : (
-          <HeaderSkeleton className="mt-1 mb-5" variant="balance" />
-        )
-      ) : null}
-      <div className="bg-white rounded-lg shadow-lg p-4">
-        {error && (
-          <ErrorAlert
-            message={error.message}
-            onClose={() => setError(null)}
-          />
-        )}
-        <form action={handleFormAction} className="space-y-6">
+        ) : null
+      }
+      submitText="Continue"
+      submitDisabled={isSubmitDisabled}
+      showFeeRate={true}
+    >
+          {validationError && (
+            <ErrorAlert
+              message={validationError}
+              onClose={() => setValidationError(null)}
+            />
+          )}
           <DestinationsInput
             destinations={destinations}
             onChange={setDestinations}
@@ -174,7 +160,7 @@ export function SendForm({
             enableMPMA={enableMPMA}
             required
             disabled={pending}
-            showHelpText={shouldShowHelpText}
+            showHelpText={showHelpText}
           />
           <input type="hidden" name="asset" value={initialAsset || initialFormData?.asset || "BTC"} />
 
@@ -184,10 +170,10 @@ export function SendForm({
             value={amount}
             onChange={handleAmountChange}
             sat_per_vbyte={satPerVbyte}
-            setError={(message) => message ? setError({ message }) : setError(null)}
+            setError={setValidationError}
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.availableBalance || "0"}
-            shouldShowHelpText={shouldShowHelpText}
+            shouldShowHelpText={showHelpText}
             label="Amount"
             name="quantity"
             description={
@@ -207,26 +193,10 @@ export function SendForm({
               onChange={setMemo}
               onValidationChange={setMemoValid}
               disabled={pending}
-              showHelpText={shouldShowHelpText}
+              showHelpText={showHelpText}
             />
           )}
 
-          <FeeRateInput
-            showHelpText={shouldShowHelpText}
-            disabled={pending}
-            onFeeRateChange={setSatPerVbyte}
-          />
-
-          <Button
-            type="submit"
-            color="blue"
-            fullWidth
-            disabled={isSubmitDisabled}
-          >
-            {pending ? "Submitting..." : "Continue"}
-          </Button>
-        </form>
-      </div>
-    </div>
+    </ComposeForm>
   );
 }

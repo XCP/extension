@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams } from "react-router-dom";
 import { CancelForm } from "./form";
 import { ReviewCancel } from "./review";
 import { Composer } from "@/components/composer";
@@ -14,7 +14,7 @@ export function ComposeCancel() {
         initialTitle="Cancel"
         FormComponent={(props) => <CancelForm {...props} initialHash={hash} />}
         ReviewComponent={ReviewCancel}
-        composeTransaction={composeCancel}
+        composeApiMethod={composeCancel}
       />
     </div>
   );

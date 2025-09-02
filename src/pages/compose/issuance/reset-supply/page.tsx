@@ -1,17 +1,20 @@
-import React from "react";
 import { useParams } from "react-router-dom";
 import { Composer } from "@/components/composer";
+import { ErrorAlert } from "@/components/error-alert";
 import { ResetSupplyForm } from "./form";
 import { ReviewIssuanceResetSupply } from "./review";
 import { composeIssuance } from "@/utils/blockchain/counterparty";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 
 export function ComposeIssuanceResetSupply() {
-  const { asset: assetParam } = useParams<{ asset?: string }>();
-  const asset = assetParam ? decodeURIComponent(assetParam) : "";
+  const { asset } = useParams<{ asset?: string }>();
 
   if (!asset) {
-    return <div>Asset not specified.</div>;
+    return (
+      <div className="p-4">
+        <ErrorAlert message="Asset parameter is required" />
+      </div>
+    );
   }
 
   return (
@@ -20,7 +23,7 @@ export function ComposeIssuanceResetSupply() {
         initialTitle="Reset Supply"
         FormComponent={(props) => <ResetSupplyForm {...props} asset={asset} />}
         ReviewComponent={ReviewIssuanceResetSupply}
-        composeTransaction={composeIssuance}
+        composeApiMethod={composeIssuance}
       />
     </div>
   );

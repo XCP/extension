@@ -1,6 +1,5 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
+import { formatAssetQuantity } from "@/utils/format";
 
 interface ReviewDestroyProps {
   apiResponse: any;
@@ -21,19 +20,11 @@ export function ReviewDestroy({
   const asset = result.params.asset;
   const assetDivisible = result.params.asset_info?.divisible ?? true;
 
-  const formatQuantity = (quantity: number) =>
-    assetDivisible
-      ? formatAmount({
-          value: fromSatoshis(quantity, true),
-          minimumFractionDigits: 8,
-          maximumFractionDigits: 8,
-        })
-      : quantity.toString();
 
   const customFields = [
     {
       label: "Amount",
-      value: `${formatQuantity(Number(result.params.quantity))} ${asset}`,
+      value: `${formatAssetQuantity(Number(result.params.quantity), assetDivisible)} ${asset}`,
     },
     ...(result.params.tag ? [{ label: "Memo", value: result.params.tag }] : []),
   ];

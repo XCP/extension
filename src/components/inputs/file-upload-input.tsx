@@ -44,16 +44,7 @@ export function FileUploadInput({
       return;
     }
     
-    // Check file size if max is specified
-    if (maxSizeKB && file.size > maxSizeKB * 1024) {
-      // Let parent component handle the error display
-      onFileChange(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      return;
-    }
-    
+    // Always pass the file to parent for validation - let parent handle size checking
     onFileChange(file);
   };
 

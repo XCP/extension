@@ -14,7 +14,7 @@ export function ComposeUtxoDetach() {
         initialTitle="Detach UTXO"
         FormComponent={(props) => <UtxoDetachForm {...props} initialUtxo={txid || ""} />}
         ReviewComponent={ReviewUtxoDetach}
-        composeTransaction={composeDetach}
+        composeApiMethod={composeDetach}
       />
     </div>
   );

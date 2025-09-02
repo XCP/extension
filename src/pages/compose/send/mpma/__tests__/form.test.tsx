@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { MPMAForm } from '../form';
+import { ComposerProvider } from '@/contexts/composer-context';
+import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 
 // Mock the counterparty functions
 vi.mock('@/utils/blockchain/counterparty', () => ({
@@ -20,33 +23,89 @@ vi.mock('@/utils/blockchain/counterparty', () => ({
   })
 }));
 
-// Mock the contexts
-vi.mock('@/contexts/wallet-context', () => ({
-  useWallet: () => ({
-    activeAddress: 'bc1qtest123'
+// Mock fee rates to prevent network calls
+vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
+  getFeeRates: vi.fn().mockResolvedValue({
+    fastestFee: 10,
+    halfHourFee: 5,
+    hourFee: 3,
+    economyFee: 1,
+    minimumFee: 1
   })
 }));
 
-vi.mock('@/contexts/settings-context', () => ({
-  useSettings: () => ({
-    settings: { showHelpText: false }
+// Mock the wallet context
+vi.mock('@/contexts/wallet-context', () => ({
+  useWallet: () => ({
+    activeAddress: { address: 'bc1qtest123' },
+    activeWallet: { id: 'test-wallet', name: 'Test Wallet' },
+    authState: 'unlocked',
+    signTransaction: vi.fn(),
+    broadcastTransaction: vi.fn(),
+    unlockWallet: vi.fn(),
+    isWalletLocked: vi.fn().mockResolvedValue(false)
   })
 }));
+
+// Mock settings context
+vi.mock('@/contexts/settings-context', () => ({
+  useSettings: () => ({
+    settings: { showHelpText: true },
+    updateSettings: vi.fn(),
+    isLoading: false
+  })
+}))
 
 // Mock react-dom's useFormStatus
 vi.mock('react-dom', () => ({
   useFormStatus: () => ({ pending: false })
 }));
 
+vi.mock('@/contexts/loading-context', () => ({
+  useLoading: () => ({
+    showLoading: vi.fn(() => 'loading-id'),
+    hideLoading: vi.fn(),
+    loading: false,
+    setLoading: vi.fn()
+  })
+}));
+
+// Mock header context
+vi.mock('@/contexts/header-context', () => ({
+  useHeader: () => ({
+    headerProps: { title: "", useLogoTitle: false },
+    setHeaderProps: vi.fn(),
+    subheadings: { addresses: {}, assets: {}, balances: {} },
+    setAddressHeader: vi.fn(),
+    setAssetHeader: vi.fn(),
+    setBalanceHeader: vi.fn(),
+    clearBalances: vi.fn(),
+    clearAllCaches: vi.fn()
+  })
+}));
+
 describe('MPMAForm', () => {
   const mockFormAction = vi.fn();
+  
+  // Helper function to render with provider
+  const renderWithProvider = (initialFormData: any = null) => {
+    const mockComposeApi = vi.fn().mockResolvedValue({ result: { tx_hash: 'test' } });
+    
+    return render(
+      <MemoryRouter>
+        <ComposerProvider composeApi={mockComposeApi} initialTitle="MPMA Send">
+          <MPMAForm formAction={mockFormAction} initialFormData={initialFormData} />
+        </ComposerProvider>
+      </MemoryRouter>
+    );
+  };
   
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('renders the form with file upload area', () => {
-    render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     expect(screen.getByText('Upload CSV File')).toBeInTheDocument();
     expect(screen.getByText('Upload CSV')).toBeInTheDocument();
@@ -54,7 +113,7 @@ describe('MPMAForm', () => {
   });
 
   it('processes valid CSV data on paste', async () => {
-    render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
     // Use valid Bitcoin addresses
@@ -73,7 +132,7 @@ describe('MPMAForm', () => {
   });
 
   it('skips header row when present', async () => {
-    render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
     const csvData = 'Address,Asset,Quantity,Memo\nbc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,Test memo';
@@ -91,7 +150,7 @@ describe('MPMAForm', () => {
   });
 
   it('shows error for invalid Bitcoin address', async () => {
-    render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
     const csvData = 'invalidaddress,XCP,1.5';
@@ -108,7 +167,7 @@ describe('MPMAForm', () => {
   });
 
   it('shows error for invalid quantity', async () => {
-    render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
     const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,invalid';
@@ -125,7 +184,7 @@ describe('MPMAForm', () => {
   });
 
   it('shows error for memo exceeding 34 bytes', async () => {
-    render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
     const longMemo = 'This is a very long memo that exceeds the 34 byte limit';
@@ -143,7 +202,7 @@ describe('MPMAForm', () => {
   });
 
   it('handles file upload', async () => {
-    render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const file = new File(['bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5'], 'test.csv', { type: 'text/csv' });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -161,7 +220,7 @@ describe('MPMAForm', () => {
   });
 
   it('shows preview of parsed data', async () => {
-    render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
     const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,Memo1\nbc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4,BTC,0.001,Memo2';
@@ -180,7 +239,7 @@ describe('MPMAForm', () => {
   });
 
   it('shows count when more than 5 items', async () => {
-    render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
     // Generate valid addresses - these are example valid bech32 addresses
@@ -209,14 +268,14 @@ describe('MPMAForm', () => {
   });
 
   it('disables submit button when no data', () => {
-    render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const submitButton = screen.getByRole('button', { name: 'Continue' });
     expect(submitButton).toBeDisabled();
   });
 
   it('enables submit button when data is valid', async () => {
-    render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
     const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5';
@@ -234,7 +293,7 @@ describe('MPMAForm', () => {
   });
 
   it('handles quoted values with commas', async () => {
-    render(<MPMAForm formAction={mockFormAction} initialFormData={null} />);
+    renderWithProvider();
     
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
     const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,"Hello, World"';
@@ -251,7 +310,7 @@ describe('MPMAForm', () => {
   });
 
   it('shows help text when enabled', () => {
-    render(<MPMAForm formAction={mockFormAction} initialFormData={null} showHelpText={true} />);
+    renderWithProvider();
     
     expect(screen.getByText(/Each line should contain/)).toBeInTheDocument();
     expect(screen.getByText(/\(Memo is optional\.\)/)).toBeInTheDocument();

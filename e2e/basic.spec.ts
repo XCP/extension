@@ -4,18 +4,24 @@ import { launchExtension, cleanup } from './helpers/test-helpers';
 test('extension loads', async () => {
   const { context, page } = await launchExtension('basic');
   
-  // Wait for page to load
-  await page.waitForLoadState('networkidle');
+  // Wait for page to load with a more generous timeout
+  await page.waitForLoadState('networkidle', { timeout: 30000 });
   
   // Take a screenshot to see what we have
   await page.screenshot({ path: 'test-results/screenshots/extension-loaded.png' });
   
-  // Just check that we can access the page
+  // Check that we can access the page
   const title = await page.title();
+  expect(title).toBeTruthy();
   
-  // Check if there's any content
+  // Check if there's any content - either onboarding or wallet page
+  const hasContent = await page.locator('text=/Create Wallet|Import Wallet|Unlock|Address/i').first().isVisible({ timeout: 10000 }).catch(() => false);
+  expect(hasContent).toBe(true);
+  
+  // Verify the body has content
   const bodyText = await page.evaluate(() => document.body.innerText);
   expect(bodyText).toBeTruthy();
+  expect(bodyText.length).toBeGreaterThan(10);
   
   await cleanup(context);
 });

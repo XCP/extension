@@ -1,7 +1,6 @@
 import { FaLock, FaLockOpen } from "react-icons/fa";
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAmount } from "@/utils/format";
-import { toBigNumber } from "@/utils/numeric";
+import { formatAssetQuantity } from "@/utils/format";
 
 /**
  * Props for the ReviewIssuance component.
@@ -33,23 +32,6 @@ export function ReviewIssuance({
     return ["true", "1", 1, true].includes(value);
   };
 
-  const formatQuantity = (quantity: string, isDivisible: any): string => {
-    const isDiv = isTruthy(isDivisible);
-    const numValue = toBigNumber(quantity);
-    
-    if (isDiv) {
-      // For divisible assets, divide by 100000000 and format with 8 decimal places
-      const value = numValue.dividedBy(100000000);
-      return formatAmount({ 
-        value: value.toNumber(),
-        minimumFractionDigits: 8,
-        maximumFractionDigits: 8 
-      });
-    }
-    
-    // For non-divisible assets, just return the number as is
-    return numValue.toString();
-  };
 
   const isDivisible = result.params.divisible;
   const isLocked = isTruthy(result.params.lock);
@@ -58,7 +40,7 @@ export function ReviewIssuance({
     { label: "Asset", value: result.params.asset },
     {
       label: "Issuance",
-      value: formatQuantity(result.params.quantity, isDivisible),
+      value: formatAssetQuantity(result.params.quantity, isTruthy(isDivisible)),
       rightElement: isLocked ? (
         <FaLock className="h-3 w-3 text-gray-500" aria-label="Supply locked" />
       ) : (

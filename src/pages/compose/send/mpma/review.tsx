@@ -1,7 +1,6 @@
 import React, { type ReactElement, useEffect, useState } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
+import { formatAssetQuantity } from "@/utils/format";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty";
 
 interface ReviewMPMAProps {
@@ -64,14 +63,8 @@ export function ReviewMPMA({
     const isDivisible = assetInfoMap[asset]?.divisible ?? true;
     const memo = result.params.memos?.[index];
     
-    // For divisible assets, ensure we show 8 decimal places
-    const formattedQuantity = isDivisible 
-      ? formatAmount({
-          value: fromSatoshis(quantity, true),
-          minimumFractionDigits: 8,
-          maximumFractionDigits: 8,
-        })
-      : quantity.toString();
+    // Use standardized formatting for asset quantities
+    const formattedQuantity = formatAssetQuantity(quantity, isDivisible);
     
     return {
       asset,

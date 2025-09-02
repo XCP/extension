@@ -2,20 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Field, Label, Description, Input } from "@headlessui/react";
+import { ComposeForm } from "@/components/forms/compose-form";
+import { Spinner } from "@/components/spinner";
+import { AssetHeader } from "@/components/headers/asset-header";
 import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { Button } from "@/components/button";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
-import { ErrorAlert } from "@/components/error-alert";
-import { Spinner } from "@/components/spinner";
+import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
-import { toBigNumber } from "@/utils/numeric";
+import { toBigNumber, calculateMaxDividendPerUnit } from "@/utils/numeric";
 import { fetchTokenBalance } from "@/utils/blockchain/counterparty/api";
-import { AssetHeader } from "@/components/headers/asset-header";
 import type { ReactElement } from "react";
 
 export interface DividendFormData {
@@ -29,54 +25,39 @@ interface DividendFormProps {
   formAction: (formData: FormData) => void;
   asset: string;
   initialFormData: any;
-  showHelpText?: boolean;
-  error?: string | null;
 }
 
-// Custom form action button component that uses useFormStatus
-function FormActionButton() {
-  const { pending } = useFormStatus();
-  
-  return (
-    <Button
-      type="submit"
-      color="blue"
-      fullWidth
-      disabled={pending}
-    >
-      {pending ? "Submitting..." : "Continue"}
-    </Button>
-  );
-}
 
 export function DividendForm({ 
   formAction, 
   asset, 
-  initialFormData, 
-  showHelpText,
-  error: composerError,
+  initialFormData
 }: DividendFormProps): ReactElement {
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
-  const [error, setError] = useState<{ message: string; } | null>(null);
+  // Context hooks
+  const { activeAddress, settings, showHelpText, state } = useComposer();
   
+  // Data fetching hooks
   const { data: assetInfo, error: assetError, isLoading: assetLoading } = useAssetDetails(asset);
+  const { data: dividendAssetInfo } = useAssetDetails(initialFormData?.dividend_asset || "XCP");
+  
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Form state
   const [selectedDividendAsset, setSelectedDividendAsset] = useState<string>(
     initialFormData?.dividend_asset || "XCP"
   );
-  const { data: dividendAssetInfo } = useAssetDetails(selectedDividendAsset);
   const [dividendAssetBalance, setDividendAssetBalance] = useState<string>("0");
   const [quantityPerUnit, setQuantityPerUnit] = useState<string>(
     initialFormData?.quantity_per_unit || ""
   );
-  const { activeAddress } = useWallet();
 
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
+    if (state.error) {
+      setError({ message: state.error });
     }
-  }, [composerError]);
+  }, [state.error]);
 
   // Fetch dividend asset balance when it changes
   useEffect(() => {
@@ -100,29 +81,29 @@ export function DividendForm({
     fetchBalance();
   }, [activeAddress?.address, selectedDividendAsset]);
 
-  // Calculate max amount per unit (dividend balance / asset supply)
+  // Handlers
   const calculateMaxAmountPerUnit = () => {
     if (!assetInfo?.assetInfo?.supply || !dividendAssetBalance) {
       return "0";
     }
     
-    const supply = assetInfo.assetInfo.divisible 
-      ? Number(assetInfo.assetInfo.supply) / 100000000
-      : Number(assetInfo.assetInfo.supply);
-    
-    if (supply === 0) return "0";
-    
-    const balance = Number(dividendAssetBalance);
-    const maxPerUnit = balance / supply;
+    const maxPerUnitBN = calculateMaxDividendPerUnit(
+      dividendAssetBalance,
+      assetInfo.assetInfo.supply,
+      assetInfo.assetInfo.divisible ?? false
+    );
     
     return formatAmount({
-      value: maxPerUnit,
+      value: maxPerUnitBN.toNumber(),
       maximumFractionDigits: 8,
       minimumFractionDigits: 8
     });
   };
 
-  // Create a server action wrapper that processes the form data
+  const handleDividendAssetChange = (asset: string) => {
+    setSelectedDividendAsset(asset);
+  };
+
   const processedFormAction = async (formData: FormData) => {
     // Set the quantity_per_unit value from state
     formData.set('quantity_per_unit', quantityPerUnit);
@@ -130,12 +111,8 @@ export function DividendForm({
     // Submit the form data
     formAction(formData);
   };
-
-  // Handle dividend asset change
-  const handleDividendAssetChange = (asset: string) => {
-    setSelectedDividendAsset(asset);
-  };
-
+  
+  // Early returns
   if (assetLoading) {
     return <Spinner message="Loading asset details..." />;
   }
@@ -150,25 +127,20 @@ export function DividendForm({
   }
 
   return (
-    <div className="space-y-4">
-      <AssetHeader
-        assetInfo={{
-          ...assetInfo.assetInfo,
-          asset: asset,
-          divisible: assetInfo.assetInfo.divisible ?? false,
-          locked: assetInfo.assetInfo.locked ?? false
-        }}
-        className="mt-1 mb-5"
-      />
-      
-      <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-        {(error || composerError) && (
-          <ErrorAlert 
-            message={error?.message || composerError || ""} 
-            onClose={() => setError(null)}
-          />
-        )}
-        <form action={processedFormAction} className="space-y-4">
+    <ComposeForm
+      formAction={processedFormAction}
+      header={
+        <AssetHeader
+          assetInfo={{
+            ...assetInfo.assetInfo,
+            asset: asset,
+            divisible: assetInfo.assetInfo.divisible ?? false,
+            locked: assetInfo.assetInfo.locked ?? false
+          }}
+          className="mt-1 mb-5"
+        />
+      }
+    >
           <input type="hidden" name="asset" value={asset} />
           <input type="hidden" name="dividend_asset" value={selectedDividendAsset} />
           
@@ -177,7 +149,7 @@ export function DividendForm({
             onChange={handleDividendAssetChange}
             label="Dividend Asset"
             required
-            shouldShowHelpText={shouldShowHelpText}
+            shouldShowHelpText={showHelpText}
             description="The asset to pay dividends in (e.g., XCP)."
           />
 
@@ -188,7 +160,7 @@ export function DividendForm({
             onChange={setQuantityPerUnit}
             sat_per_vbyte={1} // Not used for non-BTC assets
             setError={(msg) => setError(msg ? { message: msg } : null)}
-            shouldShowHelpText={shouldShowHelpText}
+            shouldShowHelpText={showHelpText}
             sourceAddress={activeAddress}
             maxAmount={calculateMaxAmountPerUnit()}
             label="Amount Per Unit"
@@ -197,11 +169,6 @@ export function DividendForm({
             disableMaxButton={false}
           />
 
-          <FeeRateInput showHelpText={shouldShowHelpText} />
-
-          <FormActionButton />
-        </form>
-      </div>
-    </div>
+    </ComposeForm>
   );
 }
