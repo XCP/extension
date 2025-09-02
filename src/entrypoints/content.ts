@@ -95,7 +95,6 @@ export default defineContentScript({
       await injectScript("/injected.js", {
         keepInDom: true,
       });
-      console.log('Injected XCP Wallet provider successfully.');
     } catch (error) {
       console.error('Failed to inject XCP Wallet provider:', error);
     }

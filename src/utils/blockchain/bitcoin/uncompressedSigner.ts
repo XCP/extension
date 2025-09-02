@@ -93,7 +93,6 @@ export function hybridSignTransaction(
     }
   } catch (e) {
     // Standard signing failed, will try custom signing below
-    console.log('Standard signing failed, attempting custom signing for uncompressed keys');
   }
   
   // Check each input for uncompressed key requirements

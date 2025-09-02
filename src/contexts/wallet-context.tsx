@@ -187,7 +187,6 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     // Listen for wallet lock events from background
     const handleLockMessage = ({ data }: { data: { locked: boolean } }) => {
       if (data.locked) {
-        console.log('[WalletContext] Received lock event from background');
         // Immediately update state to trigger navigation
         setWalletState((prev) => ({
           ...prev,

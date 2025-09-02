@@ -120,7 +120,6 @@ export async function consolidateBareMultisig(
   tx.finalize();
 
   const signedTx = tx.hex;
-  console.log('Transaction signed successfully with hybrid signing logic.');
   return signedTx;
 }
 

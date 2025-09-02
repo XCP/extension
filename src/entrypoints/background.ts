@@ -10,7 +10,6 @@ export default defineBackground(() => {
   
   // Check session recovery state on startup (non-blocking)
   checkSessionRecovery().then(recoveryState => {
-    console.log('Session recovery state:', recoveryState);
     
     if (recoveryState === SessionRecoveryState.LOCKED) {
       // Session expired or doesn't exist - ensure everything is locked
@@ -21,7 +20,6 @@ export default defineBackground(() => {
     } else if (recoveryState === SessionRecoveryState.NEEDS_REAUTH) {
       // Valid session but secrets lost - notify popup to show auth modal
       // The popup will handle this when it checks wallet state
-      console.log('Session valid but re-authentication needed');
     }
   }).catch(error => {
     console.error('Session recovery check failed:', error);
@@ -32,7 +30,6 @@ export default defineBackground(() => {
   if (chrome?.alarms?.onAlarm) {
     chrome.alarms.onAlarm.addListener(async (alarm) => {
       if (alarm.name === 'session-expiry') {
-        console.log('Session expired via alarm');
         const walletService = getWalletService();
         await walletService.lockAllWallets();
       }

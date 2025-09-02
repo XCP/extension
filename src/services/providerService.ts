@@ -181,7 +181,6 @@ export function createProviderService(): ProviderService {
    * Handle provider requests from dApps
    */
   async function handleRequest(origin: string, method: string, params: any[] = [], metadata?: any): Promise<any> {
-    console.log('Provider request:', { origin, method, params });
     
     // Log request signing information if available
     if (metadata?.signature) {
@@ -559,12 +558,6 @@ export function createProviderService(): ProviderService {
           }
           
           // User approved - compose the transaction with potentially updated params
-          console.log('Composing order with final params:', {
-            originalParams: orderParams,
-            updatedParams: result.updatedParams,
-            finalParams,
-            address: activeAddress.address
-          });
           
           const composeResult = await composeTransaction(
             'order',
