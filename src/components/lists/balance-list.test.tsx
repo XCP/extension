@@ -344,9 +344,15 @@ describe('BalanceList', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it('has proper search input attributes', () => {
+  it('has proper search input attributes', async () => {
     render(<BalanceList />);
 
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
+    });
+
+    // NOW look for the search input
     const searchInput = screen.getByPlaceholderText('Search balances...');
     expect(searchInput).toHaveAttribute('type', 'text');
     expect(searchInput).toHaveAttribute('id', 'balance-search');
