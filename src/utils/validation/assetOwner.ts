@@ -4,7 +4,7 @@
  */
 
 import { fetchAssetDetails } from '@/utils/blockchain/counterparty';
-import { validateSubasset, isNamedAsset, isNumericAsset } from './asset';
+import { validateSubasset, validateParentAsset, isNamedAsset, isNumericAsset } from './asset';
 
 export interface AssetOwnerLookupResult {
   isValid: boolean;
@@ -34,9 +34,18 @@ export function looksLikeAssetName(value: string): boolean {
     return false;
   }
   
-  // Use existing validateSubasset to check if this is a valid subasset
-  const validation = validateSubasset(cleaned);
-  return validation.isValid;
+  // Must contain exactly one dot followed by 'xcp' (case insensitive)
+  const dotIndex = cleaned.lastIndexOf('.');
+  if (dotIndex === -1 || cleaned.slice(dotIndex + 1).toLowerCase() !== 'xcp') {
+    return false;
+  }
+  
+  // Extract parent asset name (everything before the last dot)
+  const parentAsset = cleaned.slice(0, dotIndex);
+  
+  // Parent must be a valid asset name (4-12 chars, B-Z start for named assets, or A + numbers for numeric)
+  const parentValidation = validateParentAsset(parentAsset);
+  return parentValidation.isValid;
 }
 
 /**
@@ -82,7 +91,6 @@ export async function lookupAssetOwner(assetName: string): Promise<AssetOwnerLoo
     };
 
   } catch (error) {
-    console.error('Error looking up asset owner:', error);
     return {
       isValid: false,
       error: 'Failed to lookup asset owner'
@@ -95,7 +103,7 @@ export async function lookupAssetOwner(assetName: string): Promise<AssetOwnerLoo
  * Only triggers for ASSET.xcp format (case insensitive)
  */
 export function shouldTriggerAssetLookup(value: string): boolean {
-  if (!value || value.length < 5) { // Minimum: "B.xcp"
+  if (!value || value.length < 8) { // Minimum: "TEST.xcp" (4 char asset + .xcp)
     return false;
   }
 

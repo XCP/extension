@@ -1,7 +1,8 @@
-import React, { forwardRef, useState, useEffect, useRef } from "react";
+import React, { forwardRef, useEffect } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { isValidBitcoinAddress } from "@/utils/validation";
-import { lookupAssetOwner, shouldTriggerAssetLookup } from "@/utils/validation/assetOwner";
+import { shouldTriggerAssetLookup } from "@/utils/validation/assetOwner";
+import { useAssetOwnerLookup } from "@/hooks/useAssetOwnerLookup";
 
 interface DestinationInputProps {
   value: string;
@@ -34,63 +35,14 @@ export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputPro
     },
     ref
   ) => {
-    const [isLookingUp, setIsLookingUp] = useState(false);
-    const [lookupResult, setLookupResult] = useState<string | null>(null);
-    const [lookupError, setLookupError] = useState<string | null>(null);
-    const debounceTimeout = useRef<NodeJS.Timeout | undefined>(undefined);
+    const { lookupState, performLookup, cleanup } = useAssetOwnerLookup();
+    const { isLookingUp, result: lookupResult, error: lookupError } = lookupState;
 
     // Asset owner lookup with debouncing
     useEffect(() => {
-      // Clear any existing timeout
-      if (debounceTimeout.current) {
-        clearTimeout(debounceTimeout.current);
-      }
-
-      setLookupResult(null);
-      setLookupError(null);
-
-      if (!value || isValidBitcoinAddress(value)) {
-        setIsLookingUp(false);
-        return;
-      }
-
-      // Check if this looks like an asset name
-      console.log('🤔 Should trigger lookup for:', value, shouldTriggerAssetLookup(value));
-      if (!shouldTriggerAssetLookup(value)) {
-        setIsLookingUp(false);
-        return;
-      }
-
-      // Set up debounced asset lookup
-      debounceTimeout.current = setTimeout(async () => {
-        console.log('🔍 Starting asset lookup for:', value);
-        setIsLookingUp(true);
-        try {
-          const result = await lookupAssetOwner(value);
-          console.log('📋 Lookup result:', result);
-          if (result.isValid && result.ownerAddress) {
-            setLookupResult(result.ownerAddress);
-            console.log('✅ Setting owner address:', result.ownerAddress);
-            // Automatically set the address as the value
-            onChange(result.ownerAddress);
-          } else {
-            console.log('❌ Lookup failed:', result.error);
-            setLookupError(result.error || 'Asset not found');
-          }
-        } catch (error) {
-          console.log('💥 Lookup error:', error);
-          setLookupError('Failed to lookup asset owner');
-        } finally {
-          setIsLookingUp(false);
-        }
-      }, 800); // 800ms debounce for asset lookups
-
-      return () => {
-        if (debounceTimeout.current) {
-          clearTimeout(debounceTimeout.current);
-        }
-      };
-    }, [value, onChange]);
+      performLookup(value, onChange);
+      return cleanup;
+    }, [value, onChange, performLookup, cleanup]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value.trim();

@@ -27,8 +27,8 @@ describe('Asset Owner Validation', () => {
 
     it('should accept case insensitive .xcp', () => {
       expect(looksLikeAssetName('DROPLISTER.XCP')).toBe(true);
-      expect(looksLikeAssetName('droplister.xcp')).toBe(true);
-      expect(looksLikeAssetName('Droplister.Xcp')).toBe(true);
+      expect(looksLikeAssetName('DROPLISTER.xcp')).toBe(true);
+      expect(looksLikeAssetName('DROPLISTER.Xcp')).toBe(true);
     });
 
     it('should accept numeric assets with .xcp', () => {
@@ -41,9 +41,11 @@ describe('Asset Owner Validation', () => {
       expect(looksLikeAssetName('TEST.subasset')).toBe(false);
     });
 
-    it('should reject multiple dots', () => {
+    it('should reject multiple dots and .xcp endings', () => {
       expect(looksLikeAssetName('ASSET.xcp.xcp')).toBe(false);
       expect(looksLikeAssetName('ASSET.sub.xcp')).toBe(false);
+      expect(looksLikeAssetName('TEST.xcp.xcp')).toBe(false);
+      expect(looksLikeAssetName('BITCOIN.xcp.xcp')).toBe(false);
     });
 
     it('should reject invalid parent assets', () => {
@@ -56,7 +58,7 @@ describe('Asset Owner Validation', () => {
     it('should reject empty or invalid inputs', () => {
       expect(looksLikeAssetName('')).toBe(false);
       expect(looksLikeAssetName(' ')).toBe(false);
-      expect(looksLikeAssetName('ABC.xcp')).toBe(true); // This should actually be valid
+      expect(looksLikeAssetName('TEST.xcp')).toBe(true); // Valid parent asset (4+ chars, starts with B-Z)
     });
 
     it('should reject Bitcoin addresses', () => {
@@ -80,6 +82,8 @@ describe('Asset Owner Validation', () => {
     it('should not trigger for too short strings', () => {
       expect(shouldTriggerAssetLookup('A.x')).toBe(false);
       expect(shouldTriggerAssetLookup('AB')).toBe(false);
+      expect(shouldTriggerAssetLookup('TST.xcp')).toBe(false); // 7 chars, too short
+      expect(shouldTriggerAssetLookup('TEST.xcp')).toBe(true); // 8 chars, valid minimum
     });
 
     it('should not trigger for non-.xcp endings', () => {
@@ -121,7 +125,7 @@ describe('Asset Owner Validation', () => {
 
       mockFetchAssetDetails.mockResolvedValue(mockAssetInfo);
 
-      const result = await lookupAssetOwner('droplister.XCP');
+      const result = await lookupAssetOwner('DROPLISTER.XCP');
 
       expect(result.isValid).toBe(true);
       expect(result.ownerAddress).toBe('19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX');

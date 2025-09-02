@@ -99,8 +99,6 @@ export function DestinationsInput({
 
     // Set up debounced asset lookup
     debounceTimeouts.current[id] = setTimeout(async () => {
-      console.log('🔍 DestinationsInput: Looking up asset owner for:', trimmedValue, 'destination ID:', id);
-      
       setLookupStates(prev => ({
         ...prev,
         [id]: { loading: true, error: undefined }
@@ -108,11 +106,8 @@ export function DestinationsInput({
 
       try {
         const result = await lookupAssetOwner(trimmedValue);
-        console.log('📋 DestinationsInput: Lookup result for destination', id, ':', result);
         
         if (result.isValid && result.ownerAddress) {
-          console.log('✅ DestinationsInput: Setting owner address:', result.ownerAddress, 'for destination', id);
-          
           // Update the destination with the resolved address
           const resolvedDestinations = destinations.map(dest =>
             dest.id === id ? { ...dest, address: result.ownerAddress! } : dest
@@ -124,14 +119,12 @@ export function DestinationsInput({
             [id]: { loading: false, error: undefined }
           }));
         } else {
-          console.log('❌ DestinationsInput: Lookup failed for destination', id, ':', result.error);
           setLookupStates(prev => ({
             ...prev,
             [id]: { loading: false, error: result.error || 'Asset not found' }
           }));
         }
       } catch (error) {
-        console.log('💥 DestinationsInput: Lookup error for destination', id, ':', error);
         setLookupStates(prev => ({
           ...prev,
           [id]: { loading: false, error: 'Failed to lookup asset owner' }
@@ -170,8 +163,6 @@ export function DestinationsInput({
     if (lines.length > 1 && destinations.length === 1) {
       event.preventDefault();
       
-      console.log('📋 Pasting multiple lines:', lines);
-      
       // Process each line - resolve asset names to addresses
       const resolvedLines: string[] = [];
       for (const line of lines) {
@@ -180,18 +171,14 @@ export function DestinationsInput({
           resolvedLines.push(line);
         } else if (shouldTriggerAssetLookup(line)) {
           // Try to resolve asset name
-          console.log('🔍 Resolving pasted asset:', line);
           try {
             const result = await lookupAssetOwner(line);
             if (result.isValid && result.ownerAddress) {
-              console.log('✅ Resolved pasted asset:', line, '→', result.ownerAddress);
               resolvedLines.push(result.ownerAddress);
             } else {
-              console.log('❌ Could not resolve pasted asset:', line);
               resolvedLines.push(line); // Keep original if can't resolve
             }
           } catch (error) {
-            console.log('💥 Error resolving pasted asset:', line, error);
             resolvedLines.push(line); // Keep original on error
           }
         } else {
@@ -199,8 +186,6 @@ export function DestinationsInput({
           resolvedLines.push(line);
         }
       }
-      
-      console.log('📋 Resolved paste lines:', resolvedLines);
       
       // Update current input with first resolved address
       const currentIndex = destinations.findIndex(d => d.id === id);
