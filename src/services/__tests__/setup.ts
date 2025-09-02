@@ -14,6 +14,21 @@ fakeBrowser.runtime.onMessage = {
   hasListener: vi.fn()
 } as any;
 
+fakeBrowser.runtime.connect = vi.fn(() => ({
+  onMessage: {
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    hasListener: vi.fn()
+  },
+  onDisconnect: {
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    hasListener: vi.fn()
+  },
+  postMessage: vi.fn(),
+  disconnect: vi.fn()
+})) as any;
+
 fakeBrowser.runtime.getURL = vi.fn((path: string) => `chrome-extension://test/${path}`);
 fakeBrowser.runtime.getManifest = vi.fn(() => ({ 
   version: '1.0.0',
@@ -37,6 +52,13 @@ fakeBrowser.tabs.onUpdated = {
 
 fakeBrowser.action.setBadgeText = vi.fn().mockResolvedValue(undefined);
 fakeBrowser.action.setBadgeBackgroundColor = vi.fn().mockResolvedValue(undefined);
+
+// Setup onMessage handlers for fakeBrowser
+fakeBrowser.runtime.onMessage.addListener((message: any, sender: any, sendResponse: any) => {
+  // Default response for tests
+  sendResponse({ success: true, data: {} });
+  return true;
+});
 
 // Assign to global browser
 (global as any).browser = fakeBrowser;
