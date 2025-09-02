@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { apiClient, longApiClient } from '@/utils/api/axiosConfig';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 export interface SignedTxEstimatedSize {
@@ -256,11 +256,16 @@ async function composeTransactionWithArrays<T>(
   }
   
   try {
-    const response = await axios.get<ApiResponse>(url, {
+    // Use longApiClient for transaction composition (60 second timeout)
+    const response = await longApiClient.get<ApiResponse>(url, {
       headers: { 'Content-Type': 'application/json' },
     });
     return response.data;
   } catch (error: any) {
+    // Handle timeout errors specifically
+    if ((error as any).code === 'TIMEOUT') {
+      throw new Error('Transaction composition timed out. Please try again.');
+    }
     if (error.response?.data?.error) {
       throw new Error(error.response.data.error);
     }
