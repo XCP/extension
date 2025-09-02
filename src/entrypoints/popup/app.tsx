@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { FaSpinner } from "react-icons/fa";
 import { Layout } from '@/components/layout';
@@ -39,62 +40,91 @@ import ApproveCompose from '@/pages/provider/approve-compose';
 import ApprovalQueue from '@/pages/provider/approval-queue';
 import PhishingWarning from '@/pages/provider/phishing-warning-page';
 
-// Compose pages
-import ComposeBet from '@/pages/compose/bet/page';
-import ComposeWeeklyBet from '@/pages/compose/bet/weekly/page';
-import ComposeBroadcast from '@/pages/compose/broadcast/page';
-import ComposeBroadcastAddressOptions from '@/pages/compose/broadcast/address-options/page';
-import ComposeBTCPay from '@/pages/compose/order/btcpay/page';
-import ComposeCancel from '@/pages/compose/order/cancel/page';
-import ComposeDestroy from '@/pages/compose/issuance/destroy-supply/page';
-import ComposeDispenser from '@/pages/compose/dispenser/page';
-import ComposeDispenserClose from '@/pages/compose/dispenser/close/page';
-import ComposeDispenserCloseByHash from '@/pages/compose/dispenser/close-by-hash/page';
-import ComposeDispenserDispense from '@/pages/compose/dispenser/dispense/page';
-import ComposeDividend from '@/pages/compose/dividend/page';
-import ComposeIssuance from '@/pages/compose/issuance/page';
-import ComposeIssuanceIssueSupply from '@/pages/compose/issuance/issue-supply/page';
-import ComposeIssuanceLockSupply from '@/pages/compose/issuance/lock-supply/page';
-import ComposeIssuanceResetSupply from '@/pages/compose/issuance/reset-supply/page';
-import ComposeIssuanceTransferOwnership from '@/pages/compose/issuance/transfer-ownership/page';
-import ComposeIssuanceUpdateDescription from '@/pages/compose/issuance/update-description/page';
-import ComposeIssuanceLockDescription from '@/pages/compose/issuance/lock-description/page';
-import ComposeFairminter from '@/pages/compose/fairminter/page';
-import ComposeFairmint from '@/pages/compose/fairminter/fairmint/page';
-import ComposeSend from '@/pages/compose/send/page';
-import ComposeMPMA from '@/pages/compose/send/mpma/page';
-import ComposeSweep from '@/pages/compose/sweep/page';
-import ComposeUtxoAttach from '@/pages/compose/utxo/attach/page';
-import ComposeUtxoDetach from '@/pages/compose/utxo/detach/page';
-import ComposeUtxoMove from '@/pages/compose/utxo/move/page';
-import ComposeOrder from '@/pages/compose/order/page';
+// Compose pages (lazy loaded)
+const ComposeBet = lazy(() => import('@/pages/compose/bet/page'));
+const ComposeWeeklyBet = lazy(() => import('@/pages/compose/bet/weekly/page'));
+const ComposeBroadcast = lazy(() => import('@/pages/compose/broadcast/page'));
+const ComposeBroadcastAddressOptions = lazy(() => import('@/pages/compose/broadcast/address-options/page'));
+const ComposeBTCPay = lazy(() => import('@/pages/compose/order/btcpay/page'));
+const ComposeCancel = lazy(() => import('@/pages/compose/order/cancel/page'));
+const ComposeDestroy = lazy(() => import('@/pages/compose/issuance/destroy-supply/page'));
+const ComposeDispenser = lazy(() => import('@/pages/compose/dispenser/page'));
+const ComposeDispenserClose = lazy(() => import('@/pages/compose/dispenser/close/page'));
+const ComposeDispenserCloseByHash = lazy(() => import('@/pages/compose/dispenser/close-by-hash/page'));
+const ComposeDispenserDispense = lazy(() => import('@/pages/compose/dispenser/dispense/page'));
+const ComposeDividend = lazy(() => import('@/pages/compose/dividend/page'));
+const ComposeIssuance = lazy(() => import('@/pages/compose/issuance/page'));
+const ComposeIssuanceIssueSupply = lazy(() => import('@/pages/compose/issuance/issue-supply/page'));
+const ComposeIssuanceLockSupply = lazy(() => import('@/pages/compose/issuance/lock-supply/page'));
+const ComposeIssuanceResetSupply = lazy(() => import('@/pages/compose/issuance/reset-supply/page'));
+const ComposeIssuanceTransferOwnership = lazy(() => import('@/pages/compose/issuance/transfer-ownership/page'));
+const ComposeIssuanceUpdateDescription = lazy(() => import('@/pages/compose/issuance/update-description/page'));
+const ComposeIssuanceLockDescription = lazy(() => import('@/pages/compose/issuance/lock-description/page'));
+const ComposeFairminter = lazy(() => import('@/pages/compose/fairminter/page'));
+const ComposeFairmint = lazy(() => import('@/pages/compose/fairminter/fairmint/page'));
+const ComposeSend = lazy(() => import('@/pages/compose/send/page'));
+const ComposeMPMA = lazy(() => import('@/pages/compose/send/mpma/page'));
+const ComposeSweep = lazy(() => import('@/pages/compose/sweep/page'));
+const ComposeUtxoAttach = lazy(() => import('@/pages/compose/utxo/attach/page'));
+const ComposeUtxoDetach = lazy(() => import('@/pages/compose/utxo/detach/page'));
+const ComposeUtxoMove = lazy(() => import('@/pages/compose/utxo/move/page'));
+const ComposeOrder = lazy(() => import('@/pages/compose/order/page'));
 
 // Dispenser pages
 import DispenserManagement from '@/pages/dispensers/manage';
 
-// Wallet pages
-import AddWallet from '@/pages/wallet/add-wallet';
-import SelectWallet from '@/pages/wallet/select-wallet';
-import CreateWallet from '@/pages/wallet/create-wallet';
-import ImportWallet from '@/pages/wallet/import-wallet';
-import ResetWallet from '@/pages/wallet/reset-wallet';
-import RemoveWallet from '@/pages/wallet/remove-wallet';
-import ImportPrivateKey from '@/pages/wallet/import-private-key';
+// Wallet pages (lazy loaded)
+const AddWallet = lazy(() => import('@/pages/wallet/add-wallet'));
+const SelectWallet = lazy(() => import('@/pages/wallet/select-wallet'));
+const CreateWallet = lazy(() => import('@/pages/wallet/create-wallet'));
+const ImportWallet = lazy(() => import('@/pages/wallet/import-wallet'));
+const ResetWallet = lazy(() => import('@/pages/wallet/reset-wallet'));
+const RemoveWallet = lazy(() => import('@/pages/wallet/remove-wallet'));
+const ImportPrivateKey = lazy(() => import('@/pages/wallet/import-private-key'));
 
-// Reveal pages
-import ShowPassphrase from '@/pages/secrets/show-passphrase';
-import ShowPrivateKey from '@/pages/secrets/show-private-key';
+// Reveal pages (lazy loaded)
+const ShowPassphrase = lazy(() => import('@/pages/secrets/show-passphrase'));
+const ShowPrivateKey = lazy(() => import('@/pages/secrets/show-private-key'));
 
-// Settings pages
-import Settings from '@/pages/settings/settings';
-import AddressTypeSettings from '@/pages/settings/address-type-settings';
-import AdvancedSettings from '@/pages/settings/advanced-settings';
-import SecuritySettings from '@/pages/settings/security-settings';
-import ConnectedSites from '@/pages/settings/connected-sites';
-import PinnedAssetsSettings from '@/pages/settings/pinned-assets-settings';
+// Settings pages (lazy loaded)
+const Settings = lazy(() => import('@/pages/settings/settings'));
+const AddressTypeSettings = lazy(() => import('@/pages/settings/address-type-settings'));
+const AdvancedSettings = lazy(() => import('@/pages/settings/advanced-settings'));
+const SecuritySettings = lazy(() => import('@/pages/settings/security-settings'));
+const ConnectedSites = lazy(() => import('@/pages/settings/connected-sites'));
+const PinnedAssetsSettings = lazy(() => import('@/pages/settings/pinned-assets-settings'));
 
 // Market page
 import Market from '@/pages/market';
+
+// Import the Spinner component
+import { Spinner } from '@/components/spinner';
+
+// Page loader component for lazy loaded routes
+const PageLoader = () => (
+  <div className="flex items-center justify-center h-64">
+    <Spinner />
+  </div>
+);
+
+// LazyRoute component that wraps lazy-loaded components with Suspense
+interface LazyRouteProps {
+  path: string;
+  element: React.LazyExoticComponent<React.ComponentType<any>>;
+  [key: string]: any; // Allow other Route props
+}
+
+const LazyRoute: React.FC<LazyRouteProps> = ({ path, element: Component, ...rest }) => (
+  <Route 
+    path={path} 
+    element={
+      <Suspense fallback={<PageLoader />}>
+        <Component />
+      </Suspense>
+    } 
+    {...rest}
+  />
+);
 
 export default function App() {
   const { wallets, walletLocked, loaded } = useWallet();
@@ -136,10 +166,11 @@ export default function App() {
         {/* Public routes */}
         <Route element={<Layout />}>
           <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/create-wallet" element={<CreateWallet />} />
-          <Route path="/import-wallet" element={<ImportWallet />} />
           <Route path="/unlock-wallet" element={<UnlockWallet />} />
-          <Route path="/import-private-key" element={<ImportPrivateKey />} />
+          {/* Wallet creation routes with lazy loading */}
+          <LazyRoute path="/create-wallet" element={CreateWallet} />
+          <LazyRoute path="/import-wallet" element={ImportWallet} />
+          <LazyRoute path="/import-private-key" element={ImportPrivateKey} />
         </Route>
 
         {/* Protected routes */}
@@ -148,58 +179,65 @@ export default function App() {
             <Route path="/index" element={<Index />} />
             <Route path="/market" element={<Market />} />
             <Route path="/actions" element={<Actions />} />
-            <Route path="/settings" element={<Settings />} />
+            <LazyRoute path="/settings" element={Settings} />
           </Route>
           <Route element={<Layout />}>
-            <Route path="/add-wallet" element={<AddWallet />} />
-            <Route path="/select-wallet" element={<SelectWallet />} />
-            <Route path="/reset-wallet" element={<ResetWallet />} />
-            <Route path="/remove-wallet/:walletId" element={<RemoveWallet />} />
-            <Route path="/show-passphrase/:walletId" element={<ShowPassphrase />} />
-            <Route path="/show-private-key/:walletId/:addressPath?" element={<ShowPrivateKey />} />
+            {/* Wallet management routes with lazy loading */}
+            <LazyRoute path="/add-wallet" element={AddWallet} />
+            <LazyRoute path="/select-wallet" element={SelectWallet} />
+            <LazyRoute path="/reset-wallet" element={ResetWallet} />
+            <LazyRoute path="/remove-wallet/:walletId" element={RemoveWallet} />
+            <LazyRoute path="/show-passphrase/:walletId" element={ShowPassphrase} />
+            <LazyRoute path="/show-private-key/:walletId/:addressPath?" element={ShowPrivateKey} />
+            
             <Route path="/consolidate" element={<Consolidate />} />
             <Route path="/actions/sign-message" element={<SignMessage />} />
             <Route path="/actions/verify-message" element={<VerifyMessage />} />
-            <Route path="/settings/address-type" element={<AddressTypeSettings />} />
-            <Route path="/settings/advanced" element={<AdvancedSettings />} />
-            <Route path="/settings/connected-sites" element={<ConnectedSites />} />
-            <Route path="/settings/security" element={<SecuritySettings />} />
-            <Route path="/settings/pinned-assets" element={<PinnedAssetsSettings />} />
+            
+            {/* Settings routes with lazy loading */}
+            <LazyRoute path="/settings/address-type" element={AddressTypeSettings} />
+            <LazyRoute path="/settings/advanced" element={AdvancedSettings} />
+            <LazyRoute path="/settings/connected-sites" element={ConnectedSites} />
+            <LazyRoute path="/settings/security" element={SecuritySettings} />
+            <LazyRoute path="/settings/pinned-assets" element={PinnedAssetsSettings} />
             <Route path="/address-history" element={<AddressHistory />} />
             <Route path="/select-address" element={<SelectAddress />} />
             <Route path="/view-address" element={<ViewAddress />} />
             <Route path="/select-assets" element={<SelectAssets />} />
             <Route path="/asset/:asset" element={<ViewAsset />} />
             <Route path="/balance/:asset" element={<ViewBalance />} />
-            <Route path="/compose/bet" element={<ComposeBet />} />
-            <Route path="/compose/weekly-bet" element={<ComposeWeeklyBet />} />
-            <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
-            <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptions />} />
-            <Route path="/compose/btcpay" element={<ComposeBTCPay />} />
-            <Route path="/compose/cancel/:hash?" element={<ComposeCancel />} />
-            <Route path="/compose/send/mpma" element={<ComposeMPMA />} />
-            <Route path="/compose/send/:asset" element={<ComposeSend />} />
-            <Route path="/compose/sweep/:address?" element={<ComposeSweep />} />
-            <Route path="/compose/destroy/:asset" element={<ComposeDestroy />} />
-            <Route path="/compose/dispenser/close/:asset?" element={<ComposeDispenserClose />} />
-            <Route path="/compose/dispenser/close-by-hash/:tx_hash?" element={<ComposeDispenserCloseByHash />} />
-            <Route path="/compose/dispenser/:asset" element={<ComposeDispenser />} />
-            <Route path="/compose/dispenser/dispense/:address?" element={<ComposeDispenserDispense />} />
-            <Route path="/compose/dividend/:asset" element={<ComposeDividend />} />
-            <Route path="/compose/issuance/:asset?" element={<ComposeIssuance />} />
-            <Route path="/compose/issuance/issue-supply/:asset" element={<ComposeIssuanceIssueSupply />} />
-            <Route path="/compose/issuance/lock-supply/:asset" element={<ComposeIssuanceLockSupply />} />
-            <Route path="/compose/issuance/reset-supply/:asset" element={<ComposeIssuanceResetSupply />} />
-            <Route path="/compose/issuance/transfer-ownership/:asset" element={<ComposeIssuanceTransferOwnership />} />
-            <Route path="/compose/issuance/update-description/:asset" element={<ComposeIssuanceUpdateDescription />} />
-            <Route path="/compose/issuance/lock-description/:asset" element={<ComposeIssuanceLockDescription />} />
-            <Route path="/compose/issuance/destroy/:asset" element={<ComposeDestroy />} />
-            <Route path="/compose/fairminter/:asset?" element={<ComposeFairminter />} />
-            <Route path="/compose/fairmint/:asset?" element={<ComposeFairmint />} />
-            <Route path="/compose/utxo/attach/:asset" element={<ComposeUtxoAttach />} />
-            <Route path="/compose/utxo/detach/:txid" element={<ComposeUtxoDetach />} />
-            <Route path="/compose/utxo/move/:txid" element={<ComposeUtxoMove />} />
-            <Route path="/compose/order/:asset?" element={<ComposeOrder />} />
+            
+            {/* Compose routes with lazy loading using LazyRoute */}
+            <LazyRoute path="/compose/bet" element={ComposeBet} />
+            <LazyRoute path="/compose/weekly-bet" element={ComposeWeeklyBet} />
+            <LazyRoute path="/compose/broadcast" element={ComposeBroadcast} />
+            <LazyRoute path="/compose/broadcast/address-options" element={ComposeBroadcastAddressOptions} />
+            <LazyRoute path="/compose/btcpay" element={ComposeBTCPay} />
+            <LazyRoute path="/compose/cancel/:hash?" element={ComposeCancel} />
+            <LazyRoute path="/compose/send/mpma" element={ComposeMPMA} />
+            <LazyRoute path="/compose/send/:asset" element={ComposeSend} />
+            <LazyRoute path="/compose/sweep/:address?" element={ComposeSweep} />
+            <LazyRoute path="/compose/destroy/:asset" element={ComposeDestroy} />
+            <LazyRoute path="/compose/dispenser/close/:asset?" element={ComposeDispenserClose} />
+            <LazyRoute path="/compose/dispenser/close-by-hash/:tx_hash?" element={ComposeDispenserCloseByHash} />
+            <LazyRoute path="/compose/dispenser/:asset" element={ComposeDispenser} />
+            <LazyRoute path="/compose/dispenser/dispense/:address?" element={ComposeDispenserDispense} />
+            <LazyRoute path="/compose/dividend/:asset" element={ComposeDividend} />
+            <LazyRoute path="/compose/issuance/:asset?" element={ComposeIssuance} />
+            <LazyRoute path="/compose/issuance/issue-supply/:asset" element={ComposeIssuanceIssueSupply} />
+            <LazyRoute path="/compose/issuance/lock-supply/:asset" element={ComposeIssuanceLockSupply} />
+            <LazyRoute path="/compose/issuance/reset-supply/:asset" element={ComposeIssuanceResetSupply} />
+            <LazyRoute path="/compose/issuance/transfer-ownership/:asset" element={ComposeIssuanceTransferOwnership} />
+            <LazyRoute path="/compose/issuance/update-description/:asset" element={ComposeIssuanceUpdateDescription} />
+            <LazyRoute path="/compose/issuance/lock-description/:asset" element={ComposeIssuanceLockDescription} />
+            <LazyRoute path="/compose/issuance/destroy/:asset" element={ComposeDestroy} />
+            <LazyRoute path="/compose/fairminter/:asset?" element={ComposeFairminter} />
+            <LazyRoute path="/compose/fairmint/:asset?" element={ComposeFairmint} />
+            <LazyRoute path="/compose/utxo/attach/:asset" element={ComposeUtxoAttach} />
+            <LazyRoute path="/compose/utxo/detach/:txid" element={ComposeUtxoDetach} />
+            <LazyRoute path="/compose/utxo/move/:txid" element={ComposeUtxoMove} />
+            <LazyRoute path="/compose/order/:asset?" element={ComposeOrder} />
+            
             <Route path="/utxo/:txid" element={<ViewUtxo />} />
             <Route path="/transaction/:txHash" element={<ViewTransaction />} />
             <Route path="/dispensers/manage" element={<DispenserManagement />} />
