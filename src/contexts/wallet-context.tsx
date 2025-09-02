@@ -10,7 +10,7 @@ import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import { getWalletService } from "@/services/walletService";
 import { getKeychainSettings } from "@/utils/storage/settingsStorage";
 import { AddressType } from "@/utils/blockchain/bitcoin";
-import type { Wallet, Address } from "@/utils/wallet";
+import { withStateLock, type Wallet, type Address } from "@/utils/wallet";
 
 /**
  * Authentication state enum.
@@ -77,15 +77,19 @@ interface WalletContextType {
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 /**
- * Wraps an async function with state refresh.
+ * Wraps an async function with state refresh and proper locking.
+ * This ensures operations are serialized and state is consistent.
  */
 const withRefresh = <T extends (...args: any[]) => Promise<any>>(
   fn: T,
-  refresh: () => Promise<void>
+  refresh: () => Promise<void>,
+  lockKey: string = 'wallet-operation'
 ) => async (...args: Parameters<T>): Promise<Awaited<ReturnType<T>>> => {
-  const result = await fn(...args);
-  await refresh();
-  return result;
+  return withStateLock(lockKey, async () => {
+    const result = await fn(...args);
+    await refresh();
+    return result;
+  });
 };
 
 /**
@@ -107,10 +111,9 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
   const refreshInProgress = React.useRef(false);
 
   const refreshWalletState = useCallback(async () => {
-    if (refreshInProgress.current) return;
-    refreshInProgress.current = true;
-
-    try {
+    // Use proper locking instead of simple ref check
+    return withStateLock('wallet-refresh', async () => {
+      try {
       await walletService.loadWallets();
       const allWallets = await walletService.getWallets();
       const newState: WalletState = { ...walletState };
@@ -173,12 +176,11 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       if (!walletsEqual || activeChanged || addressChanged || lockChanged || !walletState.loaded) {
         setWalletState(newState);
       }
-    } catch (error) {
-      console.error("Error refreshing wallet state:", error);
-      setWalletState((prev) => ({ ...prev, loaded: true }));
-    } finally {
-      refreshInProgress.current = false;
-    }
+      } catch (error) {
+        console.error("Error refreshing wallet state:", error);
+        setWalletState((prev) => ({ ...prev, loaded: true }));
+      }
+    });
   }, [walletService, walletState]);
 
   useEffect(() => {
@@ -207,7 +209,8 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
 
   const setActiveWallet = useCallback(
     async (wallet: Wallet | null, useLastActive?: boolean) => {
-      if (wallet) {
+      return withStateLock('wallet-set-active', async () => {
+        if (wallet) {
         await walletService.setActiveWallet(wallet.id);
         const lastActiveAddress = useLastActive ? await walletService.getLastActiveAddress() : undefined;
         const newActiveAddress =
@@ -228,18 +231,20 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
           walletLocked: !anyUnlocked,
         }));
         if (newActiveAddress) await walletService.setLastActiveAddress(newActiveAddress.address);
-      } else {
-        await walletService.setActiveWallet("");
-        setWalletState((prev) => ({ ...prev, activeWallet: null, activeAddress: null }));
-      }
+        } else {
+          await walletService.setActiveWallet("");
+          setWalletState((prev) => ({ ...prev, activeWallet: null, activeAddress: null }));
+        }
+      });
     },
     [walletService]
   );
 
   const setActiveAddress = useCallback(
     async (address: Address | null) => {
-      const oldAddress = walletState.activeAddress?.address;
-      const newAddress = address?.address;
+      return withStateLock('wallet-set-address', async () => {
+        const oldAddress = walletState.activeAddress?.address;
+        const newAddress = address?.address;
       
       // Handle address switch - emit accountsChanged to all connected sites
       if (oldAddress && newAddress && oldAddress !== newAddress) {
@@ -255,9 +260,10 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
           }
         }
       }
-      
-      setWalletState((prev) => ({ ...prev, activeAddress: address }));
-      if (address) await walletService.setLastActiveAddress(address.address);
+        
+        setWalletState((prev) => ({ ...prev, activeAddress: address }));
+        if (address) await walletService.setLastActiveAddress(address.address);
+      });
     },
     [walletService, walletState.activeAddress]
   );
@@ -282,19 +288,21 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     unlockWallet: withRefresh(walletService.unlockWallet, async () => {
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
-    }),
+    }, 'wallet-unlock'),
     lockAll: async () => {
-      // Immediately set state to locked to trigger navigation
-      setWalletState((prev) => ({
-        ...prev,
-        authState: AuthState.Locked,
-        walletLocked: true,
-        activeWallet: null,
-        activeAddress: null,
-      }));
-      
-      // Then actually lock in the background
-      await walletService.lockAllWallets();
+      return withStateLock('wallet-lock', async () => {
+        // Immediately set state to locked to trigger navigation
+        setWalletState((prev) => ({
+          ...prev,
+          authState: AuthState.Locked,
+          walletLocked: true,
+          activeWallet: null,
+          activeAddress: null,
+        }));
+        
+        // Then actually lock in the background
+        await walletService.lockAllWallets();
+      });
     },
     setActiveWallet,
     setActiveAddress,
