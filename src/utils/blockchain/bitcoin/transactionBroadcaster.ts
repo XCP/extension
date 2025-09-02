@@ -1,4 +1,5 @@
 import axios, { AxiosResponse } from 'axios';
+import { broadcastApiClient, withRetry } from '@/utils/api/axiosConfig';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 export interface TransactionResponse {
@@ -95,12 +96,16 @@ export async function broadcastTransaction(signedTxHex: string): Promise<Transac
   for (const endpoint of broadcastEndpoints) {
     try {
       const url = await endpoint.getUrl(signedTxHex);
-      const response = await axios.post(
-        url,
-        endpoint.getData(signedTxHex),
-        { headers: endpoint.headers }
+      // Use broadcast-specific timeout (45 seconds) with retry logic
+      const response = await withRetry(
+        () => broadcastApiClient.post(
+          url,
+          endpoint.getData(signedTxHex),
+          { headers: endpoint.headers }
+        ),
+        2 // Only retry twice for broadcasts
       );
-      if (response.status >= 200 && response.status < 300) {
+      if (response && response.status >= 200 && response.status < 300) {
         const formatted = formatResponse(endpoint, response);
         if (formatted && formatted.txid) {
           return formatted;
