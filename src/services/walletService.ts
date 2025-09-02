@@ -1,5 +1,5 @@
 import { defineProxyService } from '@webext-core/proxy-service';
-import { sendMessage } from 'webext-bridge/background'; // Import for background context
+import { MessageBus } from '@/services/core/MessageBus';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import { walletManager, settingsManager, type Wallet, type Address } from '@/utils/wallet';

@@ -18,14 +18,16 @@ export default defineContentScript({
         });
         
         try {
-          // Forward to background script with unique identifier
-          const response = await browser.runtime.sendMessage({
+          // Use MessageBus for standardized communication
+          const { MessageBus } = await import('@/services/core/MessageBus');
+          
+          const response = await MessageBus.send('provider-request', {
             type: 'PROVIDER_REQUEST',
             origin: window.location.origin,
             data: event.data.data,
-            xcpWalletVersion: '2.0', // Unique identifier for this version
-            timestamp: Date.now() // Add timestamp to satisfy other extension if needed
-          });
+            xcpWalletVersion: '2.0',
+            timestamp: Date.now()
+          }, 'background');
           
           console.debug('Content script received response from background:', response);
           

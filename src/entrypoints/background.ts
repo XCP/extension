@@ -1,13 +1,35 @@
 import { registerWalletService, getWalletService } from '@/services/walletService';
 import { registerProviderService, getProviderService } from '@/services/providerService';
+import { registerBlockchainService, getBlockchainService } from '@/services/blockchain';
+import { registerConnectionService } from '@/services/connection';
+import { registerApprovalService } from '@/services/approval';
+import { registerTransactionService } from '@/services/transaction';
 import { eventEmitterService } from '@/services/eventEmitterService';
+import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { analyzePhishingRisk, shouldBlockConnection } from '@/utils/security/phishingDetection';
 import { requestSigner } from '@/utils/security/requestSigning';
 import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/sessionManager';
 
 export default defineBackground(() => {
+  // Initialize service registry
+  const serviceRegistry = ServiceRegistry.getInstance();
+  
+  // Initialize core services (non-blocking)
+  serviceRegistry.register(eventEmitterService)
+    .then(() => {
+      console.log('Core services initialized');
+    })
+    .catch((error) => {
+      console.error('Failed to initialize core services:', error);
+    });
+  
+  // Register proxy services (existing pattern)
   registerWalletService();
   registerProviderService();
+  registerBlockchainService();
+  registerConnectionService();
+  registerApprovalService();
+  registerTransactionService();
   
   // Check session recovery state on startup (non-blocking)
   checkSessionRecovery().then(recoveryState => {
@@ -265,5 +287,31 @@ export default defineBackground(() => {
   });
   
 
-  console.debug('Background script initialized with provider support');
+  // Add cleanup handlers for service worker termination
+  if ('onSuspend' in chrome.runtime) {
+    chrome.runtime.onSuspend.addListener(() => {
+      console.log('Service worker suspending, cleaning up all services...');
+      
+      // Destroy all services via registry
+      serviceRegistry.destroyAll().catch(console.error);
+      
+      // Also cleanup provider service (until it's migrated to BaseService)
+      const providerService = getProviderService();
+      if (providerService.destroy) {
+        providerService.destroy().catch(console.error);
+      }
+    });
+  }
+  
+  // Alternative cleanup for when service worker is about to be terminated
+  if ('onSuspendCanceled' in chrome.runtime) {
+    chrome.runtime.onSuspendCanceled.addListener(() => {
+      console.log('Service worker suspension canceled');
+    });
+  }
+  
+  // Note: chrome.runtime.onShutdown is not available in all browsers
+  // The onSuspend handler above will handle most cleanup scenarios
+
+  console.debug('Background script initialized with ServiceRegistry and cleanup handlers');
 });

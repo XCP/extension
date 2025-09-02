@@ -1,0 +1,529 @@
+/**
+ * TransactionService Unit Tests
+ * 
+ * Tests the transaction composition, signing, and broadcasting functionality
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { TransactionService } from '../TransactionService';
+import type { ConnectionService } from '../../connection/ConnectionService';
+import type { ApprovalService } from '../../approval/ApprovalService';
+import type { BlockchainService } from '../../blockchain/BlockchainService';
+
+// Mock dependencies
+const mockConnectionService = {
+  hasPermission: vi.fn(),
+} as unknown as ConnectionService;
+
+const mockApprovalService = {
+  requestApproval: vi.fn(),
+} as unknown as ApprovalService;
+
+const mockBlockchainService = {
+  composeSend: vi.fn(),
+  composeOrder: vi.fn(),
+  composeDispenser: vi.fn(),
+  composeDividend: vi.fn(),
+  composeIssuance: vi.fn(),
+  broadcastTransaction: vi.fn(),
+  getHealth: vi.fn(),
+} as unknown as BlockchainService;
+
+// Mock chrome storage
+const mockStorage = {
+  get: vi.fn(),
+  set: vi.fn(),
+};
+
+// Setup global mocks
+beforeEach(() => {
+  vi.clearAllMocks();
+  
+  global.chrome = {
+    storage: {
+      local: mockStorage,
+      session: mockStorage,
+    },
+  } as any;
+  
+  global.browser = {
+    runtime: {
+      getURL: vi.fn((path) => `chrome-extension://test/${path}`),
+    },
+  } as any;
+  
+  // Mock successful blockchain service health
+  mockBlockchainService.getHealth = vi.fn().mockResolvedValue({
+    status: 'healthy',
+    message: 'BlockchainService is operating normally',
+  });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe('TransactionService', () => {
+  let transactionService: TransactionService;
+
+  beforeEach(async () => {
+    transactionService = new TransactionService(
+      mockConnectionService,
+      mockApprovalService,
+      mockBlockchainService
+    );
+    
+    // Mock initial storage state
+    mockStorage.get.mockResolvedValue({});
+    
+    await transactionService.initialize();
+  });
+
+  afterEach(async () => {
+    await transactionService.destroy();
+  });
+
+  describe('composeSend', () => {
+    const mockSendParams = {
+      destination: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
+      asset: 'XCP',
+      quantity: 100000000, // 1.0 XCP
+      memo: 'Test memo',
+      memo_is_hex: false,
+      fee_rate: 2,
+    };
+
+    it('should successfully compose send transaction', async () => {
+      // Mock permission check
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+      
+      // Mock blockchain service response
+      const mockComposition = {
+        rawtransaction: '0x123456...',
+        psbt: 'psbt-base64...',
+        fee: 2000,
+        params: mockSendParams,
+      };
+      mockBlockchainService.composeSend = vi.fn().mockResolvedValue(mockComposition);
+      
+      const result = await transactionService.composeSend('https://dapp.com', mockSendParams);
+      
+      expect(result).toEqual(mockComposition);
+      expect(mockConnectionService.hasPermission).toHaveBeenCalledWith('https://dapp.com');
+      expect(mockBlockchainService.composeSend).toHaveBeenCalledWith(mockSendParams);
+    });
+
+    it('should reject unauthorized origin', async () => {
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(false);
+      
+      await expect(
+        transactionService.composeSend('https://unauthorized.com', mockSendParams)
+      ).rejects.toThrow('Unauthorized - not connected to wallet');
+      
+      expect(mockBlockchainService.composeSend).not.toHaveBeenCalled();
+    });
+
+    it('should validate send parameters', async () => {
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+      
+      // Test missing destination
+      await expect(
+        transactionService.composeSend('https://dapp.com', {
+          ...mockSendParams,
+          destination: undefined as any,
+        })
+      ).rejects.toThrow('Destination address is required');
+      
+      // Test invalid asset
+      await expect(
+        transactionService.composeSend('https://dapp.com', {
+          ...mockSendParams,
+          asset: '',
+        })
+      ).rejects.toThrow('Asset name is required');
+      
+      // Test invalid quantity
+      await expect(
+        transactionService.composeSend('https://dapp.com', {
+          ...mockSendParams,
+          quantity: -1,
+        })
+      ).rejects.toThrow('Quantity must be positive');
+    });
+
+    it('should cache identical compose requests', async () => {
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+      
+      const mockComposition = {
+        rawtransaction: '0x123456...',
+        psbt: 'psbt-base64...',
+        fee: 2000,
+        params: mockSendParams,
+      };
+      mockBlockchainService.composeSend = vi.fn().mockResolvedValue(mockComposition);
+      
+      // Make same request twice
+      const result1 = await transactionService.composeSend('https://dapp.com', mockSendParams);
+      const result2 = await transactionService.composeSend('https://dapp.com', mockSendParams);
+      
+      expect(result1).toEqual(result2);
+      expect(mockBlockchainService.composeSend).toHaveBeenCalledTimes(1); // Only called once due to caching
+    });
+
+    it('should apply rate limiting per origin', async () => {
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+      mockBlockchainService.composeSend = vi.fn().mockResolvedValue({
+        rawtransaction: '0x123456...',
+        psbt: 'psbt-base64...',
+        fee: 2000,
+        params: mockSendParams,
+      });
+      
+      // Make many rapid requests
+      const promises = [];
+      for (let i = 0; i < 15; i++) {
+        promises.push(
+          transactionService.composeSend('https://rapid.com', {
+            ...mockSendParams,
+            quantity: 100000000 + i, // Make each request unique
+          }).catch(error => error.message)
+        );
+      }
+      
+      const results = await Promise.all(promises);
+      
+      // Should have some rate limited requests
+      const rateLimitedCount = results.filter(result => 
+        typeof result === 'string' && result.includes('rate limit')
+      ).length;
+      
+      expect(rateLimitedCount).toBeGreaterThan(0);
+    });
+  });
+
+  describe('composeOrder', () => {
+    const mockOrderParams = {
+      give_asset: 'XCP',
+      give_quantity: 100000000, // 1.0 XCP
+      get_asset: 'PEPECASH',
+      get_quantity: 50000000000, // 500.0 PEPECASH
+      expiration: 1000,
+      fee_rate: 2,
+    };
+
+    it('should successfully compose order with user approval', async () => {
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+      mockApprovalService.requestApproval = vi.fn().mockResolvedValue(true);
+      
+      const mockComposition = {
+        rawtransaction: '0xabcdef...',
+        psbt: 'psbt-order...',
+        fee: 3000,
+        params: mockOrderParams,
+      };
+      mockBlockchainService.composeOrder = vi.fn().mockResolvedValue(mockComposition);
+      
+      const result = await transactionService.composeOrder('https://dex.com', mockOrderParams);
+      
+      expect(result).toEqual(mockComposition);
+      expect(mockApprovalService.requestApproval).toHaveBeenCalledWith({
+        type: 'compose',
+        origin: 'https://dex.com',
+        metadata: {
+          domain: 'dex.com',
+          title: 'Create DEX Order',
+          description: `Trade ${mockOrderParams.give_asset} for ${mockOrderParams.get_asset}`,
+          transactionType: 'order',
+          params: mockOrderParams,
+        },
+      });
+    });
+
+    it('should reject order when user denies approval', async () => {
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+      mockApprovalService.requestApproval = vi.fn().mockResolvedValue(false);
+      
+      await expect(
+        transactionService.composeOrder('https://dex.com', mockOrderParams)
+      ).rejects.toThrow('User denied the order creation request');
+      
+      expect(mockBlockchainService.composeOrder).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('signTransaction', () => {
+    const mockRawTransaction = '0x1234567890abcdef...';
+    const mockAddress = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+
+    it('should successfully sign transaction with user approval', async () => {
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+      mockApprovalService.requestApproval = vi.fn().mockResolvedValue({
+        approved: true,
+        signedTransaction: '0xsigned123...',
+      });
+      
+      const result = await transactionService.signTransaction(
+        'https://dapp.com',
+        mockRawTransaction,
+        mockAddress
+      );
+      
+      expect(result).toEqual({
+        signedTransaction: '0xsigned123...',
+        txid: expect.any(String),
+      });
+      
+      expect(mockApprovalService.requestApproval).toHaveBeenCalledWith({
+        type: 'transaction',
+        origin: 'https://dapp.com',
+        metadata: {
+          domain: 'dapp.com',
+          title: 'Sign Transaction',
+          description: 'Sign a transaction',
+          rawTransaction: mockRawTransaction,
+          address: mockAddress,
+        },
+      });
+    });
+
+    it('should reject signing when user denies approval', async () => {
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+      mockApprovalService.requestApproval = vi.fn().mockResolvedValue(false);
+      
+      await expect(
+        transactionService.signTransaction('https://dapp.com', mockRawTransaction)
+      ).rejects.toThrow('User denied the transaction signing request');
+    });
+  });
+
+  describe('broadcastTransaction', () => {
+    const mockSignedTransaction = '0xsigned1234567890abcdef...';
+
+    it('should successfully broadcast transaction', async () => {
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+      
+      const mockBroadcastResult = {
+        txid: 'abc123def456...',
+        status: 'success',
+        fees: 2000,
+      };
+      mockBlockchainService.broadcastTransaction = vi.fn().mockResolvedValue(mockBroadcastResult);
+      
+      const result = await transactionService.broadcastTransaction(
+        'https://dapp.com',
+        mockSignedTransaction
+      );
+      
+      expect(result).toEqual(mockBroadcastResult);
+      expect(mockBlockchainService.broadcastTransaction).toHaveBeenCalledWith(mockSignedTransaction);
+    });
+
+    it('should prevent replay attacks', async () => {
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+      mockBlockchainService.broadcastTransaction = vi.fn().mockResolvedValue({
+        txid: 'duplicate123...',
+        status: 'success',
+        fees: 2000,
+      });
+      
+      // First broadcast should succeed
+      await transactionService.broadcastTransaction('https://dapp.com', mockSignedTransaction);
+      
+      // Second identical broadcast should be blocked
+      await expect(
+        transactionService.broadcastTransaction('https://dapp.com', mockSignedTransaction)
+      ).rejects.toThrow('Duplicate transaction detected');
+    });
+
+    it('should apply broadcast rate limiting', async () => {
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+      mockBlockchainService.broadcastTransaction = vi.fn().mockResolvedValue({
+        txid: 'rate-limit-test',
+        status: 'success',
+        fees: 2000,
+      });
+      
+      // Make many rapid broadcast attempts
+      const promises = [];
+      for (let i = 0; i < 10; i++) {
+        promises.push(
+          transactionService.broadcastTransaction(
+            'https://rapid-broadcast.com',
+            `0xsigned${i}...` // Different transactions
+          ).catch(error => error.message)
+        );
+      }
+      
+      const results = await Promise.all(promises);
+      
+      // Should have some rate limited requests
+      const rateLimitedCount = results.filter(result => 
+        typeof result === 'string' && result.includes('rate limit')
+      ).length;
+      
+      expect(rateLimitedCount).toBeGreaterThan(0);
+    });
+  });
+
+  describe('signMessage', () => {
+    const mockMessage = 'Please sign this message to authenticate';
+    const mockAddress = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+
+    it('should successfully sign message with user approval', async () => {
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+      mockApprovalService.requestApproval = vi.fn().mockResolvedValue({
+        approved: true,
+        signature: 'message-signature-abc123...',
+      });
+      
+      const result = await transactionService.signMessage(
+        'https://auth.com',
+        mockMessage,
+        mockAddress
+      );
+      
+      expect(result).toBe('message-signature-abc123...');
+      
+      expect(mockApprovalService.requestApproval).toHaveBeenCalledWith({
+        type: 'message',
+        origin: 'https://auth.com',
+        metadata: {
+          domain: 'auth.com',
+          title: 'Sign Message',
+          description: `Sign a message for authentication`,
+          message: mockMessage,
+          address: mockAddress,
+        },
+      });
+    });
+
+    it('should reject message signing when user denies', async () => {
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+      mockApprovalService.requestApproval = vi.fn().mockResolvedValue(false);
+      
+      await expect(
+        transactionService.signMessage('https://auth.com', mockMessage, mockAddress)
+      ).rejects.toThrow('User denied the message signing request');
+    });
+  });
+
+  describe('transaction history', () => {
+    it('should return transaction history for origin', async () => {
+      // Add some transactions to history
+      await transactionService.composeSend('https://dapp.com', {
+        destination: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
+        asset: 'XCP',
+        quantity: 100000000,
+      });
+      
+      const history = transactionService.getTransactionHistory('https://dapp.com');
+      expect(history).toHaveLength(1);
+      expect(history[0]).toMatchObject({
+        origin: 'https://dapp.com',
+        method: 'composeSend',
+        timestamp: expect.any(Number),
+        status: 'completed',
+      });
+    });
+
+    it('should limit transaction history results', async () => {
+      // Add multiple transactions
+      for (let i = 0; i < 10; i++) {
+        try {
+          await transactionService.composeSend(`https://dapp${i}.com`, {
+            destination: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
+            asset: 'XCP',
+            quantity: 100000000 + i,
+          });
+        } catch (error) {
+          // Ignore permission errors for this test
+        }
+      }
+      
+      const limitedHistory = transactionService.getTransactionHistory(undefined, 5);
+      expect(limitedHistory.length).toBeLessThanOrEqual(5);
+    });
+  });
+
+  describe('performance and caching', () => {
+    it('should provide transaction statistics', async () => {
+      const stats = transactionService.getTransactionStats();
+      
+      expect(stats).toMatchObject({
+        totalOperations: expect.any(Number),
+        successRate: expect.any(Number),
+        cacheHitRate: expect.any(Number),
+        averageCompositionTime: expect.any(Number),
+        pendingSignatures: expect.any(Number),
+        historyEntries: expect.any(Number),
+        cacheEntries: expect.any(Number),
+      });
+    });
+
+    it('should clear transaction cache', async () => {
+      // First populate cache
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+      mockBlockchainService.composeSend = vi.fn().mockResolvedValue({
+        rawtransaction: '0x123456...',
+        psbt: 'psbt-base64...',
+        fee: 2000,
+      });
+      
+      await transactionService.composeSend('https://dapp.com', {
+        destination: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
+        asset: 'XCP',
+        quantity: 100000000,
+      });
+      
+      // Clear cache
+      transactionService.clearTransactionCache();
+      
+      // Next call should hit blockchain service again
+      await transactionService.composeSend('https://dapp.com', {
+        destination: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
+        asset: 'XCP',
+        quantity: 100000000,
+      });
+      
+      expect(mockBlockchainService.composeSend).toHaveBeenCalledTimes(2);
+    });
+  });
+
+
+  describe('state persistence', () => {
+    it('should restore cache and history after restart', async () => {
+      // Mock saved state
+      const savedState = {
+        cache: new Map([
+          ['cache-key-1', {
+            result: { rawtransaction: '0x123...', fee: 1000 },
+            timestamp: Date.now(),
+            ttl: 5 * 60 * 1000,
+          }],
+        ]),
+        history: [
+          {
+            origin: 'https://saved.com',
+            method: 'composeSend',
+            timestamp: Date.now() - 60000,
+            status: 'completed',
+          },
+        ],
+      };
+      
+      mockStorage.get.mockResolvedValue({ transactionServiceState: savedState });
+      
+      // Reinitialize service
+      await transactionService.destroy();
+      transactionService = new TransactionService(
+        mockConnectionService,
+        mockApprovalService,
+        mockBlockchainService
+      );
+      await transactionService.initialize();
+      
+      const stats = transactionService.getTransactionStats();
+      expect(stats.historyEntries).toBeGreaterThan(0);
+    });
+  });
+});
