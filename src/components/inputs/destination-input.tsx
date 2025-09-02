@@ -1,7 +1,6 @@
 import React, { forwardRef, useEffect } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { isValidBitcoinAddress } from "@/utils/validation";
-import { shouldTriggerAssetLookup } from "@/utils/validation/assetOwner";
+import { isValidBitcoinAddress, shouldTriggerAssetLookup } from "@/utils/validation";
 import { useAssetOwnerLookup } from "@/hooks/useAssetOwnerLookup";
 
 interface DestinationInputProps {

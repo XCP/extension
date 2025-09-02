@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { isValidBitcoinAddress } from '@/utils/validation';
-import { lookupAssetOwner, shouldTriggerAssetLookup } from '@/utils/validation/assetOwner';
+import { isValidBitcoinAddress, lookupAssetOwner, shouldTriggerAssetLookup } from '@/utils/validation';
 
 interface AssetLookupState {
   isLookingUp: boolean;
