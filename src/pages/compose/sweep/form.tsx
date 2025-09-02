@@ -1,4 +1,3 @@
-// SweepForm.tsx
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -12,14 +11,11 @@ import {
   ListboxOption,
   ListboxOptions
 } from "@headlessui/react";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { AddressHeader } from "@/components/headers/address-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
 import { MemoInput } from "@/components/inputs/memo-input";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
+import { useComposer } from "@/contexts/composer-context";
 import type { SweepOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -36,16 +32,19 @@ const sweepTypeOptions = [
 interface SweepFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: SweepOptions | null;
-  error?: string | null; // Add error prop
-  showHelpText?: boolean;
 }
 
-export function SweepForm({ formAction, initialFormData, error: composerError, showHelpText }: SweepFormProps): ReactElement {
-  const { activeAddress, activeWallet } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+export function SweepForm({ 
+  formAction, 
+  initialFormData
+}: SweepFormProps): ReactElement {
+  // Get everything from composer context
+  const { activeAddress, activeWallet, showHelpText } = useComposer<SweepOptions>();
+  
+  // Use form status for pending state
   const { pending } = useFormStatus();
-  const [error, setError] = useState<{ message: string } | null>(null);
+  
+  // Form state
   const [destination, setDestination] = useState(initialFormData?.destination || "");
   const [destinationValid, setDestinationValid] = useState(false);
   const [memo, setMemo] = useState(initialFormData?.memo || "");
@@ -53,94 +52,84 @@ export function SweepForm({ formAction, initialFormData, error: composerError, s
   const [selectedSweepType, setSelectedSweepType] = useState(
     sweepTypeOptions.find(opt => opt.value === (initialFormData?.flags || (FLAG_BALANCES | FLAG_OWNERSHIP))) || sweepTypeOptions[2]
   );
+  
+  // Refs
   const destinationRef = useRef<HTMLInputElement>(null);
 
+  // Focus destination input on mount
   useEffect(() => {
     destinationRef.current?.focus();
   }, []);
 
-  // Set composer error when it occurs
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
-
   return (
-    <div className="space-y-4">
-      {activeAddress && (
-        <AddressHeader address={activeAddress.address} walletName={activeWallet?.name} className="mt-1 mb-5" />
-      )}
-      <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-        {error && (
-          <ErrorAlert 
-            message={error.message} 
-            onClose={() => setError(null)}
+    <ComposeForm
+      formAction={formAction}
+      header={
+        activeAddress && (
+          <AddressHeader 
+            address={activeAddress.address} 
+            walletName={activeWallet?.name} 
+            className="mt-1 mb-5" 
           />
-        )}
-        <form action={formAction} className="space-y-4">
-          <Field>
-            <Label className="block text-sm font-medium text-gray-700">
-              Sweep Type <span className="text-red-500">*</span>
-            </Label>
-            <div className="mt-1">
-              {/* Hidden input for form submission */}
-              <input type="hidden" name="flags" value={selectedSweepType.value} />
-              
-              <Listbox value={selectedSweepType} onChange={setSelectedSweepType} disabled={pending}>
-                <ListboxButton className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {selectedSweepType.name}
-                </ListboxButton>
-                <ListboxOptions className="w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
-                  {sweepTypeOptions.map((option) => (
-                    <ListboxOption 
-                      key={option.id} 
-                      value={option} 
-                      className="p-2 cursor-pointer hover:bg-gray-100 data-[selected]:bg-gray-100 data-[selected]:font-medium"
-                    >
-                      {option.name}
-                    </ListboxOption>
-                  ))}
-                </ListboxOptions>
-              </Listbox>
-            </div>
-            {shouldShowHelpText && (
-              <Description className="mt-2 text-sm text-gray-500">
-                Choose whether to sweep asset balances only, asset ownership only, or both.
-              </Description>
-            )}
-          </Field>
-
-          <input type="hidden" name="destination" value={destination} />
-          <DestinationInput
-            ref={destinationRef}
-            value={destination}
-            onChange={setDestination}
-            onValidationChange={setDestinationValid}
-            placeholder="Enter destination address for sweep"
-            required
-            disabled={pending}
-            showHelpText={shouldShowHelpText}
-            name="destination_display"
-            helpText="Enter the address to sweep all assets to."
-          />
-
-          <input type="hidden" name="memo" value={memo} />
-          <MemoInput
-            value={memo}
-            onChange={setMemo}
-            onValidationChange={setMemoValid}
-            disabled={pending}
-            showHelpText={shouldShowHelpText}
-          />
-
-          <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
+        )
+      }
+      submitText="Sweep"
+      submitDisabled={!destinationValid || !memoValid}
+    >
+      <Field>
+        <Label className="block text-sm font-medium text-gray-700">
+          Sweep Type <span className="text-red-500">*</span>
+        </Label>
+        <div className="mt-1">
+          {/* Hidden input for form submission */}
+          <input type="hidden" name="flags" value={selectedSweepType.value} />
           
-          <Button type="submit" color="blue" fullWidth disabled={pending || !destinationValid || !memoValid}>
-            {pending ? "Submitting..." : "Continue"}
-          </Button>
-        </form>
-      </div>
-    </div>
+          <Listbox value={selectedSweepType} onChange={setSelectedSweepType} disabled={pending}>
+            <ListboxButton className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+              {selectedSweepType.name}
+            </ListboxButton>
+            <ListboxOptions className="w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+              {sweepTypeOptions.map((option) => (
+                <ListboxOption 
+                  key={option.id} 
+                  value={option} 
+                  className="p-2 cursor-pointer hover:bg-gray-100 data-[selected]:bg-gray-100 data-[selected]:font-medium"
+                >
+                  {option.name}
+                </ListboxOption>
+              ))}
+            </ListboxOptions>
+          </Listbox>
+        </div>
+        {showHelpText && (
+          <Description className="mt-2 text-sm text-gray-500">
+            Choose whether to sweep asset balances only, asset ownership only, or both.
+          </Description>
+        )}
+      </Field>
+
+      <input type="hidden" name="destination" value={destination} />
+      <DestinationInput
+        ref={destinationRef}
+        value={destination}
+        onChange={setDestination}
+        onValidationChange={setDestinationValid}
+        placeholder="Enter destination address for sweep"
+        required
+        disabled={pending}
+        showHelpText={showHelpText}
+        name="destination_display"
+        helpText="Enter the address to sweep all assets to."
+      />
+
+      <input type="hidden" name="memo" value={memo} />
+      <MemoInput
+        value={memo}
+        onChange={setMemo}
+        onValidationChange={setMemoValid}
+        disabled={pending}
+        showHelpText={showHelpText}
+      />
+    </ComposeForm>
   );
 }

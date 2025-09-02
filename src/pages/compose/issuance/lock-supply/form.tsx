@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
 import { useFormStatus } from "react-dom";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { useSettings } from "@/contexts/settings-context";
+import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
@@ -18,8 +16,6 @@ interface LockSupplyFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: IssuanceOptions | null;
   asset: string;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 /**
@@ -29,28 +25,25 @@ export function LockSupplyForm({
   formAction,
   initialFormData,
   asset,
-  error: composerError,
-  showHelpText,
 }: LockSupplyFormProps): ReactElement {
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  // Context hooks
+  const { showHelpText } = useComposer();
+  
+  // Data fetching hooks
   const { error: assetError, data: assetDetails } = useAssetDetails(asset);
+  
+  // Form status
   const { pending } = useFormStatus();
-  const [error, setError] = useState<{ message: string; } | null>(null);
 
-  // Set composer error when it occurs
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
-
+  // Early returns
   if (assetError || !assetDetails) {
     return <div className="p-4 text-red-500">Error loading asset details: {assetError?.message}</div>;
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
+    <ComposeForm
+      formAction={formAction}
+    >
       <div className="mb-4 p-3 bg-gray-50 rounded-md">
         <h3 className="text-sm font-medium text-gray-700">Asset Details</h3>
         <div className="mt-2 text-sm text-gray-600">
@@ -65,13 +58,6 @@ export function LockSupplyForm({
           able to create additional tokens.
         </p>
       </div>
-      {error && (
-        <ErrorAlert 
-          message={error.message} 
-          onClose={() => setError(null)}
-        />
-      )}
-      <form action={formAction} className="space-y-4">
         <input type="hidden" name="asset" value={asset} />
         <input type="hidden" name="quantity" value="0" />
         <CheckboxInput
@@ -80,12 +66,6 @@ export function LockSupplyForm({
           disabled={pending}
         />
 
-        <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-        
-        <Button type="submit" color="blue" fullWidth disabled={pending}>
-          {pending ? "Submitting..." : "Continue"}
-        </Button>
-      </form>
-    </div>
+    </ComposeForm>
   );
 }

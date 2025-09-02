@@ -1,5 +1,5 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAmount } from "@/utils/format";
+import { formatAmount, formatAssetQuantity } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 
 /**
@@ -30,23 +30,15 @@ export function ReviewDispenser({
   const { result } = apiResponse;
   const assetDivisible = result.params.extra?.assetDivisible ?? true;
 
-  const formatQuantity = (quantity: number) =>
-    assetDivisible
-      ? formatAmount({
-          value: fromSatoshis(quantity, true),
-          minimumFractionDigits: 8,
-          maximumFractionDigits: 8,
-        })
-      : quantity.toString();
 
   const customFields = [
     {
       label: "Escrow Total",
-      value: `${formatQuantity(Number(result.params.escrow_quantity))} ${asset}`,
+      value: `${formatAssetQuantity(Number(result.params.escrow_quantity), assetDivisible)} ${asset}`,
     },
     {
       label: "Give Amount",
-      value: `${formatQuantity(Number(result.params.give_quantity))} ${asset}`,
+      value: `${formatAssetQuantity(Number(result.params.give_quantity), assetDivisible)} ${asset}`,
     },
     {
       label: "Per Dispense",

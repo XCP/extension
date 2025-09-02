@@ -168,6 +168,24 @@ export function formatTimeAgo(timestamp: number): string {
 }
 
 /**
+ * Formats a date object for local display with readable format
+ * Used primarily for displaying deadlines and timestamps in a user-friendly way
+ * @param date - The date object to format  
+ * @returns A formatted date string (e.g., "Nov 15, 2023, 02:30 PM")
+ * @example
+ * formatDateToLocal(new Date(2023, 10, 15, 14, 30)) // "Nov 15, 2023, 02:30 PM"
+ */
+export function formatDateToLocal(date: Date): string {
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/**
  * Formats a Bitcoin fee amount for display
  * @param satoshis - The fee amount in satoshis
  * @returns A formatted string with appropriate units (sats, k sats, or BTC)
@@ -184,5 +202,77 @@ export function formatFee(satoshis: number): string {
       minimumFractionDigits: 6,
       maximumFractionDigits: 6
     })} BTC`;
+  }
+}
+
+/**
+ * Formats an asset quantity for display.
+ * Handles both divisible and non-divisible assets consistently.
+ * 
+ * @param quantity - The quantity in satoshis (for divisible) or whole units (for non-divisible)
+ * @param isDivisible - Whether the asset is divisible (8 decimal places)
+ * @param showDecimals - Whether to show decimal places for divisible assets
+ * @returns Formatted quantity string
+ */
+export function formatAssetQuantity(
+  quantity: string | number,
+  isDivisible: boolean,
+  showDecimals: boolean = true
+): string {
+  if (!isDivisible) {
+    // Non-divisible assets - just show the integer
+    return quantity.toString();
+  }
+
+  // Divisible assets - convert from satoshis and format
+  const value = fromSatoshis(quantity, { asNumber: true });
+  
+  return formatAmount({
+    value,
+    minimumFractionDigits: showDecimals ? 8 : 0,
+    maximumFractionDigits: 8,
+  });
+}
+
+/**
+ * Formats a price ratio for order review screens.
+ * Handles division by zero and flipped price display.
+ * 
+ * @param giveQuantity - Quantity being given
+ * @param getQuantity - Quantity being received
+ * @param giveAsset - Asset being given
+ * @param getAsset - Asset being received
+ * @param isFlipped - Whether to show flipped price (1 GET = X GIVE)
+ * @returns Formatted price string
+ */
+export function formatPriceRatio(
+  giveQuantity: string | number,
+  getQuantity: string | number,
+  giveAsset: string,
+  getAsset: string,
+  isFlipped: boolean = false
+): string {
+  const give = Number(giveQuantity);
+  const get = Number(getQuantity);
+  
+  // Handle division by zero
+  if (give === 0 || get === 0) {
+    return "Invalid price";
+  }
+  
+  if (isFlipped) {
+    const ratio = give / get;
+    return `1 ${getAsset} = ${formatAmount({
+      value: ratio,
+      minimumFractionDigits: 8,
+      maximumFractionDigits: 8,
+    })} ${giveAsset}`;
+  } else {
+    const ratio = get / give;
+    return `1 ${giveAsset} = ${formatAmount({
+      value: ratio,
+      minimumFractionDigits: 8,
+      maximumFractionDigits: 8,
+    })} ${getAsset}`;
   }
 }

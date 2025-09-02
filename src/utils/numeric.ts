@@ -1,5 +1,8 @@
 import BigNumber from "bignumber.js";
 
+// Constants
+const SATOSHI_DIVISOR = 100000000;
+
 // Configure BigNumber globally
 BigNumber.config({
   DECIMAL_PLACES: 8,
@@ -293,6 +296,52 @@ export const isLessThanOrEqualToZero = (value: string | number | BigNumber): boo
 export const toNumber = (value: string | number | BigNumber): number => {
   return toBigNumber(value).toNumber();
 };
+
+/**
+ * Converts asset supply from raw units to normalized units based on divisibility
+ * For divisible assets, divides by 100,000,000 (1e8)
+ * For non-divisible assets, returns the value as-is
+ * @param supply - The raw supply value as string or number
+ * @param isDivisible - Whether the asset is divisible
+ * @returns The normalized supply as a number
+ * @example
+ * normalizeAssetSupply("100000000", true) // 1.0 (divisible)
+ * normalizeAssetSupply("100", false) // 100 (non-divisible)
+ */
+export function normalizeAssetSupply(supply: string | number, isDivisible: boolean): number {
+  const supplyBN = toBigNumber(supply);
+  if (isDivisible) {
+    // Use safe division with BigNumber for divisible assets
+    return supplyBN.dividedBy(SATOSHI_DIVISOR).toNumber();
+  }
+  return supplyBN.toNumber();
+}
+
+/**
+ * Calculates the maximum amount per unit for dividend distribution
+ * Divides the available dividend balance by the total asset supply
+ * @param dividendBalance - The available balance of the dividend asset
+ * @param assetSupply - The total supply of the asset to pay dividends on
+ * @param assetIsDivisible - Whether the asset being paid dividends on is divisible
+ * @returns The maximum amount per unit as a BigNumber
+ * @example
+ * calculateMaxDividendPerUnit("1000", "100000000", true) // Returns BigNumber(10)
+ * calculateMaxDividendPerUnit("500", "100", false) // Returns BigNumber(5)
+ */
+export function calculateMaxDividendPerUnit(
+  dividendBalance: string | number,
+  assetSupply: string | number, 
+  assetIsDivisible: boolean
+): BigNumber {
+  const normalizedSupply = normalizeAssetSupply(assetSupply, assetIsDivisible);
+  
+  if (normalizedSupply === 0) {
+    return new BigNumber(0);
+  }
+  
+  const balance = toBigNumber(dividendBalance);
+  return balance.dividedBy(normalizedSupply);
+}
 
 // Export BigNumber for cases where direct access to constants is needed
 export { BigNumber };

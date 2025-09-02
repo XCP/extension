@@ -1,20 +1,15 @@
 "use client";
 
-import axios from "axios";
 import { useEffect, useState, useRef, memo, useCallback } from "react";
 import { useFormStatus } from "react-dom";
+import axios from "axios";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
-import { HeaderSkeleton } from "@/components/skeleton";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
+import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { formatAmount } from "@/utils/format";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -30,8 +25,6 @@ interface DispenserFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: DispenserOptions | null;
   asset: string;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 /**
@@ -41,45 +34,47 @@ interface DispenserFormProps {
 export const DispenserForm = memo(function DispenserForm({ 
   formAction, 
   initialFormData, 
-  asset,
-  error: composerError,
-  showHelpText 
+  asset
 }: DispenserFormProps): ReactElement {
-  const { activeAddress, activeWallet } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
-  const { error: assetError, data: assetDetails } = useAssetDetails(asset);
-  const { pending } = useFormStatus();
-  const [error, setError] = useState<{ message: string; } | null>(null);
-
-  const [availableBalance, setAvailableBalance] = useState<string>("0");
-  const [tradingPairData, setTradingPairData] = useState<TradingPairData | null>(null);
+  // Context hooks
+  const { activeAddress, activeWallet, settings, showHelpText, state } = useComposer();
   
-  // Add state for form values
-  // Note: initialFormData contains user-entered values (not normalized to satoshis)
+  // Data fetching hooks
+  const { error: assetError, data: assetDetails } = useAssetDetails(asset);
+  
+  // Form status
+  const { pending } = useFormStatus();
+  
+  // Error state management
+  const [error, setError] = useState<{ message: string } | null>(null);
+
+  // Form state
   const [escrowQuantity, setEscrowQuantity] = useState<string>(
     initialFormData?.escrow_quantity?.toString() || ""
   );
-  
   const [mainchainRate, setMainchainRate] = useState<string>(
     initialFormData?.mainchainrate?.toString() || ""
   );
-  
   const [giveQuantity, setGiveQuantity] = useState<string>(
     initialFormData?.give_quantity?.toString() || 
     ((assetDetails?.assetInfo?.divisible ?? true) ? "1.00000000" : "1")
   );
-
+  
+  // Asset state
+  const [availableBalance, setAvailableBalance] = useState<string>("0");
+  const [tradingPairData, setTradingPairData] = useState<TradingPairData | null>(null);
+  
+  // Computed values
   const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
 
-  // Set composer error when it occurs
+  // Effects - composer error first
   useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
+    if (state.error) {
+      setError({ message: state.error });
     }
-  }, [composerError]);
+  }, [state.error]);
 
-  // Set asset error when it occurs
+  // Asset error effect
   useEffect(() => {
     if (assetError) {
       setError({ message: assetError.message || "Failed to load asset details" });
@@ -125,7 +120,6 @@ export const DispenserForm = memo(function DispenserForm({
   }, []);
 
   // Reset form fields when initialFormData changes to null
-  // Using a ref to track previous initialFormData state to prevent unnecessary resets
   const prevInitialFormDataRef = useRef(initialFormData);
   useEffect(() => {
     // Only reset if initialFormData changed from non-null to null
@@ -142,14 +136,8 @@ export const DispenserForm = memo(function DispenserForm({
     prevInitialFormDataRef.current = initialFormData;
   }, [initialFormData, assetDetails?.assetInfo?.divisible]);
 
-  // Clean user input values (remove commas, extra spaces)
-  const getCleanValue = (value: string): string => {
-    if (!value) return "";
-    // Remove commas and extra spaces but keep the user-friendly decimal format
-    return value.replace(/[,\s]/g, '');
-  };
+  // Handlers
 
-  // Custom form action wrapper to convert values before submission
   const handleFormAction = useCallback((formData: FormData) => {
     // Validate before submission
     if (asset === "BTC") {
@@ -157,8 +145,8 @@ export const DispenserForm = memo(function DispenserForm({
       return;
     }
     
-    const cleanEscrow = parseFloat(getCleanValue(escrowQuantity));
-    const cleanGive = parseFloat(getCleanValue(giveQuantity));
+    const cleanEscrow = parseFloat(escrowQuantity || "0");
+    const cleanGive = parseFloat(giveQuantity || "0");
     
     if (!isNaN(cleanEscrow) && !isNaN(cleanGive) && cleanEscrow < cleanGive) {
       setError({ message: "Escrow quantity must be greater than or equal to give quantity" });
@@ -178,21 +166,22 @@ export const DispenserForm = memo(function DispenserForm({
     // Add the asset parameter
     processedFormData.append("asset", asset);
     
-    processedFormData.append("escrow_quantity", getCleanValue(escrowQuantity));
-    processedFormData.append("mainchainrate", getCleanValue(mainchainRate));
-    processedFormData.append("give_quantity", getCleanValue(giveQuantity));
+    processedFormData.append("escrow_quantity", escrowQuantity);
+    processedFormData.append("mainchainrate", mainchainRate);
+    processedFormData.append("give_quantity", giveQuantity);
     
     // Call the original formAction with the processed data
     formAction(processedFormData);
   }, [asset, escrowQuantity, mainchainRate, giveQuantity, formAction]);
 
   return (
-    <div className="space-y-4">
-      {asset && activeAddress && (
-        assetDetails ? (
+    <ComposeForm
+      formAction={handleFormAction}
+      header={
+        asset && activeAddress && assetDetails ? (
           <BalanceHeader
             balance={{
-              asset,
+              asset: asset,
               quantity_normalized: availableBalance,
               asset_info: assetDetails.assetInfo || {
                 asset_longname: null,
@@ -205,18 +194,9 @@ export const DispenserForm = memo(function DispenserForm({
             }}
             className="mt-1 mb-5"
           />
-        ) : (
-          <HeaderSkeleton className="mt-1 mb-5" variant="balance" />
-        )
-      )}
-      <div className="bg-white rounded-lg shadow-lg p-4">
-        {error && (
-          <ErrorAlert 
-            message={error.message} 
-            onClose={() => setError(null)}
-          />
-        )}
-        <form action={handleFormAction} className="space-y-6">
+        ) : null
+      }
+    >
           <AmountWithMaxInput
             asset={asset}
             availableBalance={availableBalance}
@@ -224,7 +204,7 @@ export const DispenserForm = memo(function DispenserForm({
             onChange={setEscrowQuantity}
             sat_per_vbyte={initialFormData?.sat_per_vbyte || 0.1}
             setError={() => {}} // No-op since Composer handles errors
-            shouldShowHelpText={shouldShowHelpText}
+            shouldShowHelpText={showHelpText}
             sourceAddress={activeAddress}
             maxAmount={availableBalance}
             label="Dispenser Escrow"
@@ -238,7 +218,7 @@ export const DispenserForm = memo(function DispenserForm({
             value={mainchainRate}
             onChange={setMainchainRate}
             tradingPairData={tradingPairData}
-            shouldShowHelpText={shouldShowHelpText}
+            shouldShowHelpText={showHelpText}
             label="BTC Per Dispense"
             name="mainchainrate_display"
             priceDescription="The amount of BTC required per dispensed portion."
@@ -259,19 +239,14 @@ export const DispenserForm = memo(function DispenserForm({
               placeholder={isDivisible ? "0.00000000" : "0"}
               disabled={pending}
             />
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              The quantity of the asset to dispense per transaction.
-              {isDivisible ? " Enter up to 8 decimal places." : " Enter whole numbers only."}
-            </Description>
+            {showHelpText && (
+              <Description className="mt-2 text-sm text-gray-500">
+                The quantity of the asset to dispense per transaction.
+                {isDivisible ? " Enter up to 8 decimal places." : " Enter whole numbers only."}
+              </Description>
+            )}
           </Field>
           
-          <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-          
-          <Button type="submit" color="blue" fullWidth disabled={pending}>
-            {pending ? "Submitting..." : "Continue"}
-          </Button>
-        </form>
-      </div>
-    </div>
+    </ComposeForm>
   );
 });

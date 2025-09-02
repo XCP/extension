@@ -1,25 +1,21 @@
 "use client";
 
-import axios from "axios";
 import { useEffect, useState } from "react";
+import axios from "axios";
 import { FaCog } from "react-icons/fa";
 import { OrderSettings } from "@/pages/settings/order-settings";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { AssetSelectInput } from "@/components/inputs/asset-select-input";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
-import type { OrderOptions } from "@/utils/blockchain/counterparty";
+import { BalanceHeader } from "@/components/headers/balance-header";
+import { useComposer } from "@/contexts/composer-context";
+import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { toBigNumber } from "@/utils/numeric";
 import { formatAmount } from "@/utils/format";
-import { BalanceHeader } from "@/components/headers/balance-header";
-import { HeaderSkeleton } from "@/components/skeleton";
-import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { ErrorAlert } from "@/components/error-alert";
+import type { OrderOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
-import { useFormStatus } from "react-dom";
 
 interface TradingPairData {
   last_trade_price: string | null;
@@ -41,8 +37,6 @@ interface OrderFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: OrderFormData | null;
   giveAsset: string;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 /**
@@ -52,50 +46,49 @@ export function OrderForm({
   formAction,
   initialFormData,
   giveAsset,
-  error: composerError,
-  showHelpText,
 }: OrderFormProps): ReactElement {
-  const { activeAddress } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
-  const { pending } = useFormStatus();
-
-  // Determine initial tab based on whether we have form data
+  // Context hooks
+  const { activeAddress, activeWallet, settings, showHelpText } = useComposer();
+  
+  // Data fetching hooks
+  const { data: giveAssetDetails } = useAssetDetails(giveAsset);
+  const { data: orderAssetDetails } = useAssetDetails(initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
+  const { data: getAssetDetails } = useAssetDetails(
+    (initialFormData?.type === "buy" || (!initialFormData?.type && true)) ? giveAsset : (initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"))
+  );
+  
+  // Local error state management for form-specific errors
+  const [validationError, setValidationError] = useState<string | null>(null);
+  
+  // Tab state
   const [activeTab, setActiveTab] = useState<"buy" | "sell" | "settings">(
     initialFormData?.type === "sell" ? "sell" : initialFormData?.type === "buy" ? "buy" : "buy"
   );
   const [previousTab, setPreviousTab] = useState<"buy" | "sell">(
     initialFormData?.type === "sell" ? "sell" : "buy"
   );
+  const [tabLoading, setTabLoading] = useState(false);
   
-  // Use user-facing values from initialFormData if available
+  // Form state
   const [price, setPrice] = useState<string>(initialFormData?.price || "");
   const [amount, setAmount] = useState<string>(initialFormData?.amount || "");
-  const [error, setError] = useState<{ message: string; } | null>(null);
   const [customExpiration, setCustomExpiration] = useState<number | undefined>(initialFormData?.expiration || undefined);
   const [customFeeRequired, setCustomFeeRequired] = useState<number>(initialFormData?.fee_required || 0);
   const [quoteAsset, setQuoteAsset] = useState<string>(initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
   
-  // Set composer error when it occurs
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
-  
-  const { data: giveAssetDetails } = useAssetDetails(giveAsset);
-  const { data: orderAssetDetails } = useAssetDetails(quoteAsset);
-  const { data: getAssetDetails } = useAssetDetails(activeTab === "buy" ? giveAsset : quoteAsset);
-
-  const [tabLoading, setTabLoading] = useState(false);
+  // Trading state
   const [isPairFlipped, setIsPairFlipped] = useState(false);
   const [tradingPairData, setTradingPairData] = useState<TradingPairData | null>(null);
-
+  
+  // Computed values
   const isGiveAssetDivisible = giveAssetDetails?.isDivisible ?? true;
   const isOrderAssetDivisible = orderAssetDetails?.isDivisible ?? true;
   const isGetAssetDivisible = getAssetDetails?.isDivisible ?? true;
   const availableBalance = giveAssetDetails?.availableBalance ?? "0";
   const orderAssetBalance = orderAssetDetails?.availableBalance ?? "0";
+  const isBuy = activeTab === "buy";
+  
+  // Effects
 
   // Focus amount input on mount
   useEffect(() => {
@@ -111,8 +104,8 @@ export function OrderForm({
       if (!giveAsset || !quoteAsset) return;
 
       try {
-        const give = activeTab === "buy" ? quoteAsset : giveAsset;
-        const get = activeTab === "buy" ? giveAsset : quoteAsset;
+        const give = isBuy ? quoteAsset : giveAsset;
+        const get = isBuy ? giveAsset : quoteAsset;
         const response = await axios.get(`https://app.xcp.io/api/v1/swap/${give}/${get}`);
         const lastTradePrice = response.data?.data?.trading_pair?.last_trade_price || null;
         const tradingPairName = response.data?.data?.trading_pair?.name || "";
@@ -124,8 +117,9 @@ export function OrderForm({
     };
 
     fetchTradingPairData();
-  }, [giveAsset, quoteAsset, activeTab]);
+  }, [giveAsset, quoteAsset, isBuy]);
 
+  // Handlers
   const handleTabChange = (newTab: "buy" | "sell" | "settings") => {
     if (newTab !== "settings") {
       setTabLoading(true);
@@ -136,29 +130,12 @@ export function OrderForm({
     setActiveTab(newTab);
   };
 
-  // Handle price change
   const handlePriceChange = (newPrice: string) => {
     setPrice(newPrice);
   };
 
-  const isBuy = activeTab === "buy";
-
   return (
     <div className="space-y-4">
-      {activeAddress ? (
-        giveAssetDetails ? (
-          <BalanceHeader
-            balance={{
-              asset: giveAsset,
-              quantity_normalized: giveAssetDetails.availableBalance,
-              asset_info: giveAssetDetails.assetInfo || undefined,
-            }}
-            className="mt-1 mb-3"
-          />
-        ) : (
-          <HeaderSkeleton className="mt-1 mb-3" variant="balance" />
-        )
-      ) : null}
       <div className="flex justify-between items-center mb-2">
         <div className="flex space-x-4">
           <button
@@ -167,7 +144,7 @@ export function OrderForm({
               activeTab === "buy" || (activeTab === "settings" && previousTab === "buy") ? "underline" : ""
             }`}
             onClick={() => handleTabChange("buy")}
-            disabled={pending}
+            disabled={false}
           >
             Buy
           </button>
@@ -177,7 +154,7 @@ export function OrderForm({
               activeTab === "sell" || (activeTab === "settings" && previousTab === "sell") ? "underline" : ""
             }`}
             onClick={() => handleTabChange("sell")}
-            disabled={pending}
+            disabled={false}
           >
             Sell
           </button>
@@ -188,7 +165,7 @@ export function OrderForm({
             activeTab === "settings" ? "bg-gray-100" : ""
           }`}
           onClick={() => activeTab === "settings" ? handleTabChange(previousTab) : handleTabChange("settings")}
-          disabled={pending}
+          disabled={false}
           aria-label="Order Settings"
         >
           <FaCog className="w-4 h-4 text-gray-600" aria-hidden="true" />
@@ -205,14 +182,8 @@ export function OrderForm({
           isBuyingBTC={previousTab === "buy" && giveAsset === "BTC"}
         />
       ) : (
-        <div className="bg-white rounded-lg shadow-lg p-4">
-          {error && (
-            <ErrorAlert
-              message={error.message}
-              onClose={() => setError(null)}
-            />
-          )}
-          <form action={(formData) => {
+        <ComposeForm
+          formAction={(formData) => {
             // Store user-facing values for form persistence
             formData.set('amount', amount);
             formData.set('price', price);
@@ -250,7 +221,30 @@ export function OrderForm({
             }
             
             formAction(formData);
-          }} className="space-y-4">
+          }}
+          header={
+            activeAddress ? (
+              giveAssetDetails ? (
+                <BalanceHeader
+                  balance={{
+                    asset: giveAsset,
+                    quantity_normalized: giveAssetDetails.availableBalance,
+                    asset_info: giveAssetDetails.assetInfo || undefined,
+                  }}
+                  className="mt-1 mb-3"
+                />
+              ) : null
+            ) : null
+          }
+        >
+          {validationError && (
+            <div className="mb-4">
+              <ErrorAlert
+                message={validationError}
+                onClose={() => setValidationError(null)}
+              />
+            </div>
+          )}
             <input type="hidden" name="give_asset" value={isBuy ? quoteAsset : giveAsset} />
             <input type="hidden" name="get_asset" value={isBuy ? giveAsset : quoteAsset} />
             <input type="hidden" name="expiration" value={customExpiration || settings?.defaultOrderExpiration || 8064} />
@@ -263,8 +257,8 @@ export function OrderForm({
               value={amount}
               onChange={setAmount}
               sat_per_vbyte={initialFormData?.sat_per_vbyte || 0.1}
-              setError={(message) => message ? setError({ message }) : setError(null)}
-              shouldShowHelpText={shouldShowHelpText}
+              setError={setValidationError}
+              shouldShowHelpText={showHelpText}
               sourceAddress={activeAddress}
               maxAmount={isBuy ? (price ? formatAmount({
                 value: toBigNumber(orderAssetBalance).dividedBy(toBigNumber(price)).toNumber(),
@@ -275,19 +269,19 @@ export function OrderForm({
               label="Amount"
               name="amount"
               description={`Amount to ${isBuy ? "buy" : "sell"}. ${isBuy ? (isGetAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.") : (isGiveAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.")}`}
-              disabled={pending}
+              disabled={false}
             />
             <AssetSelectInput
               selectedAsset={quoteAsset}
               onChange={setQuoteAsset}
               label="Quote"
-              shouldShowHelpText={shouldShowHelpText}
+              shouldShowHelpText={showHelpText}
             />
             <PriceWithSuggestInput
               value={price}
               onChange={handlePriceChange}
               tradingPairData={tradingPairData}
-              shouldShowHelpText={shouldShowHelpText}
+              shouldShowHelpText={showHelpText}
               label="Price"
               name="price"
               priceDescription={`Price per unit in ${quoteAsset}`}
@@ -295,14 +289,7 @@ export function OrderForm({
               isPairFlipped={isPairFlipped}
               setIsPairFlipped={setIsPairFlipped}
             />
-
-            <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-            
-            <Button type="submit" color="blue" fullWidth disabled={pending}>
-              {pending ? "Submitting..." : "Continue"}
-            </Button>
-          </form>
-        </div>
+        </ComposeForm>
       )}
     </div>
   );

@@ -6,7 +6,7 @@ import { composeFairmint } from "@/utils/blockchain/counterparty";
 import type { FairmintOptions } from "@/utils/blockchain/counterparty";
 
 export function ComposeFairmint() {
-  const { asset } = useParams<{ asset: string }>();
+  const { asset } = useParams<{ asset?: string }>();
 
   return (
     <div className="p-4">
@@ -14,7 +14,7 @@ export function ComposeFairmint() {
         initialTitle="Fairmint"
         FormComponent={(props) => <FairmintForm {...props} initialAsset={asset || ""} />}
         ReviewComponent={ReviewFairmint}
-        composeTransaction={composeFairmint}
+        composeApiMethod={composeFairmint}
       />
     </div>
   );

@@ -6,7 +6,7 @@ import { composeDestroy } from "@/utils/blockchain/counterparty";
 import type { DestroyOptions } from "@/utils/blockchain/counterparty";
 
 export function ComposeDestroy() {
-  const { asset } = useParams<{ asset: string }>();
+  const { asset } = useParams<{ asset?: string }>();
 
   return (
     <div className="p-4">
@@ -19,7 +19,7 @@ export function ComposeDestroy() {
           />
         )}
         ReviewComponent={ReviewDestroy}
-        composeTransaction={composeDestroy}
+        composeApiMethod={composeDestroy}
       />
     </div>
   );

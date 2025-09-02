@@ -1,6 +1,5 @@
 import React, { type ReactNode, type ReactElement } from 'react';
 import { IdleTimerProvider } from 'react-idle-timer';
-import { ComposerProvider } from './composer-context';
 import { HeaderProvider } from './header-context';
 import { LoadingProvider } from './loading-context';
 import { PriceProvider } from './price-context';
@@ -55,9 +54,7 @@ export function AppProviders({ children }: AppProvidersProps): ReactElement {
           <IdleTimerWrapper>
             <HeaderProvider>
               <PriceProvider>
-              <ComposerProvider>
-                  {children}
-                </ComposerProvider>
+                {children}
               </PriceProvider>
             </HeaderProvider>
           </IdleTimerWrapper>

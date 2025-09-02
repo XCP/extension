@@ -11,7 +11,7 @@ import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
  * prevent future description changes.
  */
 export function ComposeLockDescription() {
-  const { asset } = useParams<{ asset: string }>();
+  const { asset } = useParams<{ asset?: string }>();
 
   if (!asset) {
     return (
@@ -29,7 +29,7 @@ export function ComposeLockDescription() {
           <LockDescriptionForm {...props} asset={asset} />
         )}
         ReviewComponent={ReviewLockDescription}
-        composeTransaction={composeIssuance}
+        composeApiMethod={composeIssuance}
       />
     </div>
   );

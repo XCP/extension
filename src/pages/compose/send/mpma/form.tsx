@@ -1,15 +1,12 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useFormStatus } from "react-dom";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
+import { ComposeForm } from "@/components/forms/compose-form";
+import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
 import { fetchAssetDetails, isHexMemo, stripHexPrefix, isValidMemoLength } from "@/utils/blockchain/counterparty";
 import { validateBitcoinAddress } from "@/utils/validation";
+import { ErrorAlert } from "@/components/error-alert";
 import type { ReactElement } from "react";
 
 interface ParsedRow {
@@ -24,39 +21,33 @@ interface ParsedRow {
 interface MPMAFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: any | null;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 export function MPMAForm({
   formAction,
   initialFormData,
-  error: composerError,
-  showHelpText,
 }: MPMAFormProps): ReactElement {
-  const { activeAddress } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
-  const { pending } = useFormStatus();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Context hooks
+  const { activeAddress, activeWallet, settings, showHelpText } = useComposer();
   
-  const [error, setError] = useState<{ message: string } | null>(null);
+  // Error state management
+  const [validationError, setValidationError] = useState<string | null>(null);
+  
+  // Form state
   const [csvData, setCsvData] = useState<ParsedRow[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string>("");
   const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
   
-  // Set composer error when it occurs
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
+  // Refs
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Effects
 
-
+  // Handlers
   const processCSV = async (text: string) => {
     setIsProcessing(true);
-    setError(null);
+    setValidationError(null);
     
     try {
       const lines = text.trim().split('\n');
@@ -149,7 +140,7 @@ export function MPMAForm({
       setCsvData(parsedRows);
       
     } catch (err) {
-      setError({ message: err instanceof Error ? err.message : 'Failed to parse CSV' });
+      setValidationError(err instanceof Error ? err.message : 'Failed to parse CSV');
       setCsvData([]);
       setUploadedFileName("");
     } finally {
@@ -162,7 +153,7 @@ export function MPMAForm({
     if (!file) return;
     
     if (!file.name.endsWith('.csv')) {
-      setError({ message: 'Please select a CSV file' });
+      setValidationError('Please select a CSV file');
       return;
     }
     
@@ -174,7 +165,7 @@ export function MPMAForm({
       await processCSV(text);
     };
     reader.onerror = () => {
-      setError({ message: 'Failed to read file' });
+      setValidationError('Failed to read file');
       setUploadedFileName("");
     };
     reader.readAsText(file);
@@ -216,19 +207,22 @@ export function MPMAForm({
     formAction(formData);
   };
 
-  const isSubmitDisabled = pending || csvData.length === 0 || isProcessing;
+  const isSubmitDisabled = csvData.length === 0 || isProcessing;
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow-lg p-4">
-        {error && (
+    <ComposeForm
+      formAction={handleFormAction}
+      submitDisabled={isSubmitDisabled}
+      submitText={isProcessing ? "Validating..." : "Continue"}
+    >
+      {validationError && (
+        <div className="mb-4">
           <ErrorAlert
-            message={error.message}
-            onClose={() => setError(null)}
+            message={validationError}
+            onClose={() => setValidationError(null)}
           />
-        )}
-        
-        <form action={handleFormAction} className="space-y-6">
+        </div>
+      )}
           <div>
             <label htmlFor="csv-upload" className="text-sm font-medium text-gray-700">
               Upload CSV File <span className="text-red-500">*</span>
@@ -244,7 +238,7 @@ export function MPMAForm({
                   accept=".csv"
                   onChange={handleFileUpload}
                   className="hidden"
-                  disabled={pending || isProcessing}
+                  disabled={isProcessing}
                 />
                 {uploadedFileName ? (
                   <div className="space-y-3">
@@ -260,7 +254,7 @@ export function MPMAForm({
                         fileInputRef.current?.click();
                       }}
                       className="text-xs text-blue-600 hover:text-blue-700"
-                      disabled={pending || isProcessing}
+                      disabled={isProcessing}
                     >
                       Choose different file
                     </button>
@@ -271,7 +265,7 @@ export function MPMAForm({
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={pending || isProcessing}
+                      disabled={isProcessing}
                     >
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -293,11 +287,11 @@ export function MPMAForm({
                 onPaste={handleTextPaste}
                 className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 rows={4}
-                disabled={pending || isProcessing}
+                disabled={isProcessing}
               />
             </div>
             
-            {shouldShowHelpText && (
+            {showHelpText && (
               <p className="mt-2 text-sm text-gray-500">
                 Each line should contain: Address, Asset, Quantity, and Memo. (Memo is optional.)
               </p>
@@ -322,22 +316,6 @@ export function MPMAForm({
             </div>
           )}
 
-          <FeeRateInput
-            showHelpText={shouldShowHelpText}
-            disabled={pending}
-            onFeeRateChange={setSatPerVbyte}
-          />
-
-          <Button
-            type="submit"
-            color="blue"
-            fullWidth
-            disabled={isSubmitDisabled}
-          >
-            {pending ? "Processing..." : isProcessing ? "Validating..." : "Continue"}
-          </Button>
-        </form>
-      </div>
-    </div>
+    </ComposeForm>
   );
 }

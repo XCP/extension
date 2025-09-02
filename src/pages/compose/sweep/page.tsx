@@ -18,7 +18,7 @@ export function ComposeSweep() {
         initialTitle="Sweep"
         FormComponent={SweepForm}
         ReviewComponent={ReviewSweep}
-        composeTransaction={composeSweep}
+        composeApiMethod={composeSweep}
       />
     </div>
   );

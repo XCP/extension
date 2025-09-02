@@ -1,21 +1,20 @@
-import { useParams } from 'react-router-dom';
-import { OrderForm } from './form';
-import { ReviewOrder } from './review';
-import { Composer } from '@/components/composer';
-import { composeOrder } from '@/utils/blockchain/counterparty';
-import type { OrderOptions } from '@/utils/blockchain/counterparty';
+import { useParams } from "react-router-dom";
+import { OrderForm } from "./form";
+import { ReviewOrder } from "./review";
+import { Composer } from "@/components/composer";
+import { composeOrder } from "@/utils/blockchain/counterparty";
+import type { OrderOptions } from "@/utils/blockchain/counterparty";
 
 export function ComposeOrderPage() {
-  const { asset: giveAssetParam } = useParams<{ asset?: string }>();
-  const giveAsset = giveAssetParam ? decodeURIComponent(giveAssetParam) : '';
+  const { asset } = useParams<{ asset?: string }>();
 
   return (
     <div className="p-4">
       <Composer<OrderOptions>
         initialTitle="Dex Order"
-        FormComponent={(props) => <OrderForm {...props} giveAsset={giveAsset} />}
+        FormComponent={(props) => <OrderForm {...props} giveAsset={asset || ''} />}
         ReviewComponent={ReviewOrder}
-        composeTransaction={composeOrder}
+        composeApiMethod={composeOrder}
       />
     </div>
   );

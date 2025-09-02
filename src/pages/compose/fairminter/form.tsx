@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { FaChevronDown, FaCheck } from "react-icons/fa";
+import { FaChevronDown } from "react-icons/fa";
 import {
   Field,
   Label,
@@ -17,14 +17,12 @@ import {
   DisclosureButton,
   DisclosurePanel,
 } from "@headlessui/react";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { BlockHeightInput } from "@/components/inputs/block-height-input";
 import { AddressHeader } from "@/components/headers/address-header";
-import { useSettings } from "@/contexts/settings-context";
-import { useWallet } from "@/contexts/wallet-context";
+import { ErrorAlert } from "@/components/error-alert";
+import { useComposer } from "@/contexts/composer-context";
 import type { FairminterOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -49,8 +47,6 @@ interface FairminterFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: FairminterOptions | null;
   asset: string;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 /**
@@ -59,34 +55,29 @@ interface FairminterFormProps {
 export function FairminterForm({
   formAction,
   initialFormData,
-  asset,
-  error: composerError,
-  showHelpText,
+  asset
 }: FairminterFormProps): ReactElement {
-  const { activeAddress, activeWallet } = useWallet();
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  // Get everything from composer context
+  const { activeAddress, activeWallet, showHelpText } = useComposer<FairminterOptions>();
+  
+  // Form status
   const { pending } = useFormStatus();
-  const [error, setError] = useState<{ message: string; } | null>(null);
+  
+  // Local error state for block height inputs
+  const [localError, setLocalError] = useState<{ message: string } | null>(null);
+  
+  // Form state
   const [startBlock, setStartBlock] = useState(initialFormData?.start_block?.toString() || "");
   const [endBlock, setEndBlock] = useState(initialFormData?.end_block?.toString() || "");
   const [softCapDeadlineBlock, setSoftCapDeadlineBlock] = useState(initialFormData?.soft_cap_deadline_block?.toString() || "");
-
+  
+  // Mint method state
   const initialMintMethod = initialFormData?.burn_payment === false
     ? FAIRMINTER_MODELS.MINER_FEE_ONLY
     : initialFormData?.burn_payment
     ? FAIRMINTER_MODELS.XCP_FEE_BURNED
     : FAIRMINTER_MODELS.XCP_FEE_TO_ISSUER;
-    
-  // Add state to track the selected mint method
   const [selectedMintMethod, setSelectedMintMethod] = useState<FairminterModel>(initialMintMethod);
-
-  // Set composer error when it occurs
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
 
   // Focus asset input on mount
   useEffect(() => {
@@ -94,7 +85,7 @@ export function FairminterForm({
     input?.focus();
   }, []);
 
-  // Create a wrapper for formAction that handles the selected mint method
+  // Handlers
   const enhancedFormAction = (formData: FormData) => {
     // Create a new FormData to avoid modifying the original
     const processedFormData = new FormData();
@@ -147,16 +138,27 @@ export function FairminterForm({
   };
 
   return (
-    <div className="space-y-4">
-      {activeAddress && (
-        <AddressHeader
-          address={activeAddress.address}
-          walletName={activeWallet?.name ?? ""}
-          className="mt-1 mb-5"
-        />
-      )}
-      <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-        <form action={enhancedFormAction} className="space-y-4">
+    <ComposeForm
+      formAction={enhancedFormAction}
+      header={
+        activeAddress && (
+          <AddressHeader
+            address={activeAddress.address}
+            walletName={activeWallet?.name ?? ""}
+            className="mt-1 mb-5"
+          />
+        )
+      }
+      submitText="Continue"
+    >
+          {localError && (
+            <div className="mb-4">
+              <ErrorAlert
+                message={localError.message}
+                onClose={() => setLocalError(null)}
+              />
+            </div>
+          )}
           <Field>
             <Label htmlFor="mintMethod" className="block text-sm font-medium text-gray-700">
               Mint Method <span className="text-red-500">*</span>
@@ -186,9 +188,11 @@ export function FairminterForm({
                 </ListboxOptions>
               </Listbox>
             </div>
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Select the mint method for your fairminter.
-            </Description>
+            {showHelpText && (
+              <Description className="mt-2 text-sm text-gray-500">
+                Select the mint method for your fairminter.
+              </Description>
+            )}
           </Field>
           <Field>
             <Label htmlFor="asset" className="block text-sm font-medium text-gray-700">
@@ -203,9 +207,11 @@ export function FairminterForm({
               required
               disabled={pending}
             />
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              The name of the asset to be minted.
-            </Description>
+            {showHelpText && (
+              <Description className="mt-2 text-sm text-gray-500">
+                The name of the asset to be minted.
+              </Description>
+            )}
           </Field>
           {selectedMintMethod === FAIRMINTER_MODELS.MINER_FEE_ONLY && (
             <Field>
@@ -221,9 +227,11 @@ export function FairminterForm({
                 required
                 disabled={pending}
               />
-              <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                Maximum amount that can be minted in a single transaction.
-              </Description>
+              {showHelpText && (
+                <Description className="mt-2 text-sm text-gray-500">
+                  Maximum amount that can be minted in a single transaction.
+                </Description>
+              )}
             </Field>
           )}
           {selectedMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
@@ -240,9 +248,11 @@ export function FairminterForm({
                   className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   disabled={pending}
                 />
-                <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                  The quantity of asset minted per price unit.
-                </Description>
+                {showHelpText && (
+                  <Description className="mt-2 text-sm text-gray-500">
+                    The quantity of asset minted per price unit.
+                  </Description>
+                )}
               </Field>
               <Field>
                 <Label htmlFor="price" className="block text-sm font-medium text-gray-700">
@@ -257,9 +267,11 @@ export function FairminterForm({
                   required
                   disabled={pending}
                 />
-                <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                  The price in XCP per unit of the asset.
-                </Description>
+                {showHelpText && (
+                  <Description className="mt-2 text-sm text-gray-500">
+                    The price in XCP per unit of the asset.
+                  </Description>
+                )}
               </Field>
             </>
           )}
@@ -281,9 +293,11 @@ export function FairminterForm({
               rows={2}
               disabled={pending}
             />
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              A textual description for the asset.
-            </Description>
+            {showHelpText && (
+              <Description className="mt-2 text-sm text-gray-500">
+                A textual description for the asset.
+              </Description>
+            )}
           </Field>
           <CheckboxInput
             name="lock_description"
@@ -303,9 +317,11 @@ export function FairminterForm({
               className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={pending}
             />
-            <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-              Maximum total supply that can be minted.
-            </Description>
+            {showHelpText && (
+              <Description className="mt-2 text-sm text-gray-500">
+                Maximum total supply that can be minted.
+              </Description>
+            )}
           </Field>
           <CheckboxInput
             name="lock_quantity"
@@ -328,8 +344,8 @@ export function FairminterForm({
                     label="Start Block"
                     value={startBlock}
                     onChange={setStartBlock}
-                    setError={(message) => message ? setError({ message }) : setError(null)}
-                    shouldShowHelpText={shouldShowHelpText}
+                    setError={(message) => message ? setLocalError({ message }) : setLocalError(null)}
+                    shouldShowHelpText={showHelpText}
                     description="The block at which the sale starts."
                     disabled={pending}
                   />
@@ -338,8 +354,8 @@ export function FairminterForm({
                     label="End Block"
                     value={endBlock}
                     onChange={setEndBlock}
-                    setError={(message) => message ? setError({ message }) : setError(null)}
-                    shouldShowHelpText={shouldShowHelpText}
+                    setError={(message) => message ? setLocalError({ message }) : setLocalError(null)}
+                    shouldShowHelpText={showHelpText}
                     description="The block at which the sale ends."
                     disabled={pending}
                   />
@@ -355,9 +371,11 @@ export function FairminterForm({
                       className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       disabled={pending}
                     />
-                    <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                      Amount of asset to mint when the sale starts.
-                    </Description>
+                    {showHelpText && (
+                      <Description className="mt-2 text-sm text-gray-500">
+                        Amount of asset to mint when the sale starts.
+                      </Description>
+                    )}
                   </Field>
                   <Field>
                     <Label
@@ -374,9 +392,11 @@ export function FairminterForm({
                       className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       disabled={pending}
                     />
-                    <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                      Commission (fraction between 0 and less than 1) to be paid.
-                    </Description>
+                    {showHelpText && (
+                      <Description className="mt-2 text-sm text-gray-500">
+                        Commission (fraction between 0 and less than 1) to be paid.
+                      </Description>
+                    )}
                   </Field>
                   {selectedMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
                     <>
@@ -393,17 +413,19 @@ export function FairminterForm({
                           placeholder="0"
                           disabled={pending}
                         />
-                        <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-                          Minimum amount required for the sale to succeed.
-                        </Description>
+                        {showHelpText && (
+                          <Description className="mt-2 text-sm text-gray-500">
+                            Minimum amount required for the sale to succeed.
+                          </Description>
+                        )}
                       </Field>
                       <BlockHeightInput
                         name="soft_cap_deadline_block"
                         label="Soft Cap Deadline Block"
                         value={softCapDeadlineBlock}
                         onChange={setSoftCapDeadlineBlock}
-                        setError={(message) => message ? setError({ message }) : setError(null)}
-                        shouldShowHelpText={shouldShowHelpText}
+                        setError={(message) => message ? setLocalError({ message }) : setLocalError(null)}
+                        shouldShowHelpText={showHelpText}
                         description="The block by which the soft cap must be reached."
                         disabled={pending}
                       />
@@ -413,21 +435,6 @@ export function FairminterForm({
               </>
             )}
           </Disclosure>
-
-          <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-          
-          {error && (
-            <ErrorAlert
-              message={error.message}
-              onClose={() => setError(null)}
-            />
-          )}
-          
-          <Button type="submit" color="blue" fullWidth disabled={pending}>
-            {pending ? "Submitting..." : "Continue"}
-          </Button>
-        </form>
-      </div>
-    </div>
+    </ComposeForm>
   );
 }

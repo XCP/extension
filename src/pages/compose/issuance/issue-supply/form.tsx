@@ -3,11 +3,9 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input, Textarea } from "@headlessui/react";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposeForm } from "@/components/forms/compose-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { useSettings } from "@/contexts/settings-context";
+import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
@@ -19,8 +17,6 @@ interface IssueSupplyFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: IssuanceOptions | null;
   initialParentAsset?: string;
-  error?: string | null;
-  showHelpText?: boolean;
 }
 
 /**
@@ -30,20 +26,13 @@ export function IssueSupplyForm({
   formAction,
   initialFormData,
   initialParentAsset,
-  error: composerError,
-  showHelpText,
 }: IssueSupplyFormProps): ReactElement {
-  const { settings } = useSettings();
-  const shouldShowHelpText = showHelpText ?? settings?.showHelpText ?? false;
+  // Context hooks
+  const { showHelpText } = useComposer();
+  
+  // Form status
   const { pending } = useFormStatus();
-  const [error, setError] = useState<{ message: string; } | null>(null);
 
-  // Set composer error when it occurs
-  useEffect(() => {
-    if (composerError) {
-      setError({ message: composerError });
-    }
-  }, [composerError]);
 
   // Focus asset input on mount
   useEffect(() => {
@@ -52,15 +41,9 @@ export function IssueSupplyForm({
   }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4">
-        {(error || composerError) && (
-          <ErrorAlert 
-            message={error?.message || composerError || ""} 
-            onClose={() => setError(null)}
-          />
-        )}
-        <form action={formAction} className="space-y-4">
+    <ComposeForm
+      formAction={formAction}
+    >
         <Field>
           <Label htmlFor="asset" className="block text-sm font-medium text-gray-700">
             Asset Name <span className="text-red-500">*</span>
@@ -75,11 +58,13 @@ export function IssueSupplyForm({
             placeholder={initialParentAsset ? `${initialParentAsset}.SUBASSET` : "Enter asset name"}
             disabled={pending}
           />
-          <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-            {initialParentAsset
-              ? `Enter a subasset name after "${initialParentAsset}." to create a subasset`
-              : "The name of the asset to issue."}
-          </Description>
+          {showHelpText && (
+            <Description className="mt-2 text-sm text-gray-500">
+              {initialParentAsset
+                ? `Enter a subasset name after "${initialParentAsset}." to create a subasset`
+                : "The name of the asset to issue."}
+            </Description>
+          )}
         </Field>
         <Field>
           <Label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
@@ -94,9 +79,11 @@ export function IssueSupplyForm({
             required
             disabled={pending}
           />
-          <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-            The quantity of the asset to issue {initialFormData?.divisible ?? true ? "(up to 8 decimal places)" : "(whole numbers only)"}.
-          </Description>
+          {showHelpText && (
+            <Description className="mt-2 text-sm text-gray-500">
+              The quantity of the asset to issue {initialFormData?.divisible ?? true ? "(up to 8 decimal places)" : "(whole numbers only)"}.
+            </Description>
+          )}
         </Field>
         <div className="grid grid-cols-2 gap-4">
           <CheckboxInput
@@ -124,18 +111,13 @@ export function IssueSupplyForm({
             rows={2}
             disabled={pending}
           />
-          <Description className={shouldShowHelpText ? "mt-2 text-sm text-gray-500" : "hidden"}>
-            A textual description for the asset.
-          </Description>
+          {showHelpText && (
+            <Description className="mt-2 text-sm text-gray-500">
+              A textual description for the asset.
+            </Description>
+          )}
         </Field>
 
-        <FeeRateInput showHelpText={shouldShowHelpText} disabled={pending} />
-        
-        <Button type="submit" color="blue" fullWidth disabled={pending}>
-          {pending ? "Submitting..." : "Continue"}
-        </Button>
-      </form>
-    </div>
-    </div>
+    </ComposeForm>
   );
 }
