@@ -95,10 +95,10 @@ describe('BlockHeightInput', () => {
 
   it('should fetch and set block height when Now button is clicked', async () => {
     const onChange = vi.fn();
-    const refresh = vi.fn().mockResolvedValue(undefined);
+    const refresh = vi.fn().mockResolvedValue(850123); // Return the block height value
     
     mockUseBlockHeight.mockReturnValue({
-      blockHeight: 850123,
+      blockHeight: null, // Initially null
       isLoading: false,
       error: null,
       refresh
@@ -261,7 +261,7 @@ describe('BlockHeightInput', () => {
 
   it('should handle null block height from refresh', async () => {
     const onChange = vi.fn();
-    const refresh = vi.fn().mockResolvedValue(undefined);
+    const refresh = vi.fn().mockResolvedValue(null); // Return null explicitly
     
     mockUseBlockHeight.mockReturnValue({
       blockHeight: null,
@@ -295,10 +295,10 @@ describe('BlockHeightInput', () => {
 
   it('should clear error before fetching', async () => {
     const setError = vi.fn();
-    const refresh = vi.fn().mockResolvedValue(undefined);
+    const refresh = vi.fn().mockResolvedValue(850000); // Return the block height value
     
     mockUseBlockHeight.mockReturnValue({
-      blockHeight: 850000,
+      blockHeight: null,
       isLoading: false,
       error: null,
       refresh
