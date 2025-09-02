@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { FiPlus, FiMinus } from "react-icons/fi";
 import { isValidBitcoinAddress, lookupAssetOwner, shouldTriggerAssetLookup } from "@/utils/validation";
+import { useMultiAssetOwnerLookup } from "@/hooks/useMultiAssetOwnerLookup";
 
 interface Destination {
   id: number;
@@ -31,8 +32,16 @@ export function DestinationsInput({
 }: DestinationsInputProps) {
   const firstInputRef = useRef<HTMLInputElement>(null);
   const [validationErrors, setValidationErrors] = useState<{ [key: number]: boolean }>({});
-  const [lookupStates, setLookupStates] = useState<{ [key: number]: { loading: boolean, error?: string } }>({});
-  const debounceTimeouts = useRef<{ [key: number]: NodeJS.Timeout }>({});
+  
+  const { performLookup, getLookupState } = useMultiAssetOwnerLookup({
+    onResolve: (destinationId, assetName, ownerAddress) => {
+      // Update the destination with the resolved address
+      const updatedDestinations = destinations.map(dest =>
+        dest.id === destinationId ? { ...dest, address: ownerAddress } : dest
+      );
+      onChange(updatedDestinations);
+    }
+  });
 
   useEffect(() => {
     firstInputRef.current?.focus();
@@ -69,11 +78,6 @@ export function DestinationsInput({
 
   const handleDestinationChange = (id: number, value: string) => {
     const trimmedValue = value.trim();
-    
-    // Clear any existing timeout for this input
-    if (debounceTimeouts.current[id]) {
-      clearTimeout(debounceTimeouts.current[id]);
-    }
 
     // Update the destination immediately
     const updatedDestinations = destinations.map(dest =>
@@ -81,55 +85,8 @@ export function DestinationsInput({
     );
     onChange(updatedDestinations);
 
-    // Clear lookup state for this destination
-    setLookupStates(prev => ({
-      ...prev,
-      [id]: { loading: false, error: undefined }
-    }));
-
-    // Check if we should trigger asset lookup
-    if (!trimmedValue || isValidBitcoinAddress(trimmedValue)) {
-      return;
-    }
-
-    if (!shouldTriggerAssetLookup(trimmedValue)) {
-      return;
-    }
-
-    // Set up debounced asset lookup
-    debounceTimeouts.current[id] = setTimeout(async () => {
-      setLookupStates(prev => ({
-        ...prev,
-        [id]: { loading: true, error: undefined }
-      }));
-
-      try {
-        const result = await lookupAssetOwner(trimmedValue);
-        
-        if (result.isValid && result.ownerAddress) {
-          // Update the destination with the resolved address
-          const resolvedDestinations = destinations.map(dest =>
-            dest.id === id ? { ...dest, address: result.ownerAddress! } : dest
-          );
-          onChange(resolvedDestinations);
-          
-          setLookupStates(prev => ({
-            ...prev,
-            [id]: { loading: false, error: undefined }
-          }));
-        } else {
-          setLookupStates(prev => ({
-            ...prev,
-            [id]: { loading: false, error: result.error || 'Asset not found' }
-          }));
-        }
-      } catch (error) {
-        setLookupStates(prev => ({
-          ...prev,
-          [id]: { loading: false, error: 'Failed to lookup asset owner' }
-        }));
-      }
-    }, 800); // 800ms debounce
+    // Trigger asset lookup through the hook
+    performLookup(id, trimmedValue);
   };
 
   const addDestination = () => {
@@ -229,16 +186,16 @@ export function DestinationsInput({
             }
             className={`block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 ${
               validationErrors[destination.id] ? "border-red-500 focus:border-red-500 focus:ring-red-500" : 
-              lookupStates[destination.id]?.loading ? "border-blue-500 focus:border-blue-500 focus:ring-blue-500" :
+              getLookupState(destination.id).isLookingUp ? "border-blue-500 focus:border-blue-500 focus:ring-blue-500" :
               "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             } ${
-              (showAddButton && index === 0) || canRemove || lookupStates[destination.id]?.loading ? "pr-12" : "pr-2"
+              (showAddButton && index === 0) || canRemove || getLookupState(destination.id).isLookingUp ? "pr-12" : "pr-2"
             }`}
           />
           
           {/* Loading spinner, Add/Remove buttons */}
           <div className="absolute right-2 top-1/2 -translate-y-1/2">
-            {lookupStates[destination.id]?.loading ? (
+            {getLookupState(destination.id).isLookingUp ? (
               <div className="animate-spin h-4 w-4 border-2 border-gray-500 border-t-transparent rounded-full" title="Looking up asset owner..."></div>
             ) : ((index === 0 && showAddButton) || (index > 0 && canRemove)) ? (
               index === 0 && showAddButton ? (

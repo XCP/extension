@@ -34,14 +34,16 @@ export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputPro
     },
     ref
   ) => {
-    const { lookupState, performLookup, cleanup } = useAssetOwnerLookup();
-    const { isLookingUp, result: lookupResult, error: lookupError } = lookupState;
+    const { isLookingUp, result: lookupResult, error: lookupError, performLookup } = useAssetOwnerLookup({
+      onResolve: (assetName, ownerAddress) => {
+        onChange(ownerAddress);
+      }
+    });
 
     // Asset owner lookup with debouncing
     useEffect(() => {
-      performLookup(value, onChange);
-      return cleanup;
-    }, [value, onChange, performLookup, cleanup]);
+      performLookup(value);
+    }, [value, performLookup]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value.trim();

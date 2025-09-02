@@ -51,6 +51,9 @@ export function looksLikeAssetName(value: string): boolean {
 /**
  * Looks up the owner address for a given asset name
  * Supports both regular assets and subassets
+ * 
+ * @param assetName The asset name to lookup (e.g., "DROPLISTER.xcp")
+ * @returns Promise resolving to lookup result with owner address or error
  */
 export async function lookupAssetOwner(assetName: string): Promise<AssetOwnerLookupResult> {
   try {
