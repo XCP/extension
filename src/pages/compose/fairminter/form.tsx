@@ -70,6 +70,7 @@ export function FairminterForm({
   
   // Local error state for block height inputs
   const [localError, setLocalError] = useState<{ message: string } | null>(null);
+  const [isInitializing, setIsInitializing] = useState<boolean>(!!asset); // Loading state for initial asset
   
   // Form state
   const [startBlock, setStartBlock] = useState(initialFormData?.start_block?.toString() || "");
@@ -96,6 +97,7 @@ export function FairminterForm({
   useEffect(() => {
     if (isExistingAsset && assetDetails?.assetInfo?.divisible !== undefined) {
       setIsDivisible(assetDetails.assetInfo.divisible);
+      setIsInitializing(false); // Clear initializing state once asset details are loaded
     }
   }, [isExistingAsset, assetDetails]);
 
@@ -238,7 +240,7 @@ export function FairminterForm({
             )}
           </Field>
           
-          {!isExistingAsset && (
+          {!isInitializing && !isExistingAsset && (
             <AssetNameInput
               value={assetName}
               onChange={setAssetName}
@@ -318,7 +320,7 @@ export function FairminterForm({
             </>
           )}
           
-          {!isExistingAsset && (
+          {!isInitializing && !isExistingAsset && (
             <CheckboxInput
               name="divisible"
               label="Divisible"

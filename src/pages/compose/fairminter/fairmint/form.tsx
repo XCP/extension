@@ -4,7 +4,6 @@ import React, { useState, useRef, useEffect, useCallback, startTransition } from
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { useFormStatus } from "react-dom";
 import { ComposeForm } from "@/components/forms/compose-form";
-import { AddressHeader } from "@/components/headers/address-header";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { FairminterSelectInput, type Fairminter } from "@/components/inputs/fairminter-select-input";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
@@ -228,18 +227,9 @@ export function FairmintForm({
                 quantity_normalized: currencyDetails.availableBalance || "0",
                 asset_info: currencyDetails.assetInfo || undefined,
               }}
-              className="mt-1 mb-5" 
+              className="mb-3" 
             />
           ) : null}
-
-          {/* Show the active address information */}
-          {activeAddress && (
-            <AddressHeader 
-              address={activeAddress.address} 
-              walletName={activeWallet?.name}
-              className="mb-4" 
-            />
-          )}
           
           {/* Display asset error message if any */}
           {formData.asset && assetError && (
