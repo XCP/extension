@@ -4,7 +4,7 @@ export default defineContentScript({
   matches: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*', 'file:///*'],
   async main(ctx) {
     // Set up message relay between page and background
-    window.addEventListener('message', async (event) => {
+    const messageHandler = async (event: MessageEvent) => {
       // Only accept messages from the same window
       if (event.source !== window) return;
       
@@ -77,10 +77,13 @@ export default defineContentScript({
           }, window.location.origin);
         }
       }
-    });
+    };
+
+    // Add message event listener
+    window.addEventListener('message', messageHandler);
 
     // Listen for provider events from background
-    browser.runtime.onMessage.addListener((message) => {
+    const runtimeMessageHandler = (message: any) => {
       if (message.type === 'PROVIDER_EVENT') {
         window.postMessage({
           target: 'xcp-wallet-injected',
@@ -89,7 +92,9 @@ export default defineContentScript({
           data: message.data
         }, window.location.origin);
       }
-    });
+    };
+    
+    browser.runtime.onMessage.addListener(runtimeMessageHandler);
 
     try {
       await injectScript("/injected.js", {
@@ -98,5 +103,12 @@ export default defineContentScript({
     } catch (error) {
       console.error('Failed to inject XCP Wallet provider:', error);
     }
+
+    // Clean up event listeners when context is invalidated
+    ctx.onInvalidated(() => {
+      window.removeEventListener('message', messageHandler);
+      browser.runtime.onMessage.removeListener(runtimeMessageHandler);
+      console.log('XCP Wallet content script cleaned up.');
+    });
   },
 });

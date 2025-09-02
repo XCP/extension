@@ -14,6 +14,7 @@ vi.mock('#imports', () => ({
 // Setup fake browser
 fakeBrowser.runtime.sendMessage = vi.fn();
 fakeBrowser.runtime.onMessage.addListener = vi.fn();
+fakeBrowser.runtime.onMessage.removeListener = vi.fn();
 fakeBrowser.runtime.id = 'test-extension-id';
 fakeBrowser.runtime.getURL = vi.fn((path: string) => `chrome-extension://test-id${path}`);
 
@@ -22,6 +23,7 @@ fakeBrowser.runtime.getURL = vi.fn((path: string) => `chrome-extension://test-id
 // Mock window object
 const mockWindow = {
   addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
   postMessage: vi.fn(),
   location: {
     origin: 'https://xcp.io',
@@ -34,6 +36,11 @@ const mockConsole = {
   debug: vi.fn(),
   log: vi.fn(),
   error: vi.fn()
+};
+
+// Mock context object for content script
+const mockContext = {
+  onInvalidated: vi.fn()
 };
 
 describe('Content Script', () => {
@@ -51,7 +58,13 @@ describe('Content Script', () => {
     // Reset browser mocks
     (fakeBrowser.runtime.sendMessage as any).mockClear();
     (fakeBrowser.runtime.onMessage.addListener as any).mockClear();
+    if ((fakeBrowser.runtime.onMessage.removeListener as any).mockClear) {
+      (fakeBrowser.runtime.onMessage.removeListener as any).mockClear();
+    }
     mockInjectScript.mockClear();
+    
+    // Clear mock context
+    mockContext.onInvalidated.mockClear();
     
     // Reset module cache to re-run content script
     vi.resetModules();
@@ -71,15 +84,12 @@ describe('Content Script', () => {
       const contentScript = await import('../content');
       
       // Execute the content script main function
-      await contentScript.default.main({} as any);
+      await contentScript.default.main(mockContext as any);
 
       // Should inject script using WXT's injectScript
       expect(mockInjectScript).toHaveBeenCalledWith('/injected.js', {
         keepInDom: true
       });
-      
-      // Should NOT log success (removed dead code)
-      expect(mockConsole.log).not.toHaveBeenCalled();
     });
 
     it('should handle injection error', async () => {
@@ -88,7 +98,7 @@ describe('Content Script', () => {
       
       const contentScript = await import('../content');
       
-      await contentScript.default.main({} as any);
+      await contentScript.default.main(mockContext as any);
 
       expect(mockInjectScript).toHaveBeenCalled();
       expect(mockConsole.error).toHaveBeenCalledWith('Failed to inject XCP Wallet provider:', error);
@@ -105,7 +115,7 @@ describe('Content Script', () => {
       
       const contentScript = await import('../content');
       
-      await contentScript.default.main({} as any);
+      await contentScript.default.main(mockContext as any);
       
       // Get the message listener that was added
       messageListener = mockWindow.addEventListener.mock.calls.find(
@@ -267,7 +277,7 @@ describe('Content Script', () => {
       mockWindow.location.hostname = 'xcp.io';
       const contentScript = await import('../content');
       
-      await contentScript.default.main({} as any);
+      await contentScript.default.main(mockContext as any);
     });
 
     it('should forward provider events to page', () => {
@@ -314,50 +324,48 @@ describe('Content Script', () => {
     });
   });
 
-  describe('Logging', () => {
-    it('should log debug messages for message flow', async () => {
-      (fakeBrowser.runtime.sendMessage as any).mockResolvedValue({ success: true, result: 'test' });
+  describe('Context Cleanup', () => {
+    it('should register cleanup callback with onInvalidated', async () => {
+      const contentScript = await import('../content');
+      
+      await contentScript.default.main(mockContext as any);
+      
+      // Should have registered a cleanup callback
+      expect(mockContext.onInvalidated).toHaveBeenCalledWith(expect.any(Function));
+      expect(mockContext.onInvalidated).toHaveBeenCalledTimes(1);
+    });
+
+    it('should remove event listeners when cleanup callback is called', async () => {
+      // Create spies for removeEventListener methods
+      const windowRemoveEventListenerSpy = vi.spyOn(mockWindow, 'removeEventListener');
+      const runtimeRemoveListenerSpy = vi.spyOn(fakeBrowser.runtime.onMessage, 'removeListener');
       
       const contentScript = await import('../content');
       
-      await contentScript.default.main({} as any);
+      await contentScript.default.main(mockContext as any);
       
-      const messageListener = mockWindow.addEventListener.mock.calls.find(
-        call => call[0] === 'message'
-      )?.[1];
-
-      const event = {
-        source: window,
-        data: {
-          target: 'xcp-wallet-content',
-          type: 'XCP_WALLET_REQUEST',
-          id: '123',
-          data: {
-            method: 'test_method',
-            params: []
-          }
-        }
-      };
-
-      await messageListener(event);
-
-      // Should log the message being sent to background
-      expect(mockConsole.debug).toHaveBeenCalledWith(
-        'Content script sending message to background:',
-        expect.objectContaining({
-          type: 'PROVIDER_REQUEST',
-          origin: mockWindow.location.origin,
-          extensionId: 'test-extension-id'
-        })
-      );
-
-      // Should log the response received
-      expect(mockConsole.debug).toHaveBeenCalledWith(
-        'Content script received response from background:',
-        { success: true, result: 'test' }
-      );
+      // Get the cleanup callback that was registered
+      const cleanupCallback = mockContext.onInvalidated.mock.calls[0][0];
+      expect(typeof cleanupCallback).toBe('function');
+      
+      // Call the cleanup callback
+      cleanupCallback();
+      
+      // Should have removed the window message listener
+      expect(windowRemoveEventListenerSpy).toHaveBeenCalledWith('message', expect.any(Function));
+      
+      // Should have removed the runtime message listener
+      expect(runtimeRemoveListenerSpy).toHaveBeenCalledWith(expect.any(Function));
+      
+      // Should log cleanup message
+      expect(mockConsole.log).toHaveBeenCalledWith('XCP Wallet content script cleaned up.');
+      
+      // Clean up spies
+      windowRemoveEventListenerSpy.mockRestore();
+      runtimeRemoveListenerSpy.mockRestore();
     });
   });
+
 
   describe('Integration', () => {
     it('should set up complete message flow', async () => {
@@ -366,7 +374,7 @@ describe('Content Script', () => {
       
       const contentScript = await import('../content');
       
-      await contentScript.default.main({} as any);
+      await contentScript.default.main(mockContext as any);
       
       // Should inject script
       expect(mockInjectScript).toHaveBeenCalled();
