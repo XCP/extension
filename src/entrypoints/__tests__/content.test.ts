@@ -58,7 +58,9 @@ describe('Content Script', () => {
     // Reset browser mocks
     (fakeBrowser.runtime.sendMessage as any).mockClear();
     (fakeBrowser.runtime.onMessage.addListener as any).mockClear();
-    (fakeBrowser.runtime.onMessage.removeListener as any).mockClear();
+    if ((fakeBrowser.runtime.onMessage.removeListener as any).mockClear) {
+      (fakeBrowser.runtime.onMessage.removeListener as any).mockClear();
+    }
     mockInjectScript.mockClear();
     
     // Clear mock context
