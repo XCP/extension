@@ -1,5 +1,6 @@
 import { defineProxyService } from '@webext-core/proxy-service';
 import { sendMessage } from 'webext-bridge/background'; // Import for background context
+import { eventEmitterService } from '@/services/eventEmitterService';
 import { AddressType } from '@/utils/blockchain/bitcoin';
 import { walletManager, settingsManager, type Wallet, type Address } from '@/utils/wallet';
 
@@ -11,6 +12,7 @@ interface WalletService {
   setActiveWallet: (walletId: string) => Promise<void>;
   unlockWallet: (walletId: string, password: string) => Promise<void>;
   lockAllWallets: () => Promise<void>;
+  emitProviderEvent: (origin: string, event: string, data: any) => Promise<void>;
   createMnemonicWallet: (
     mnemonic: string,
     password: string,
@@ -98,11 +100,9 @@ function createWalletService(): WalletService {
         console.debug('Could not notify popup of lock event:', error);
       }
       // Emit disconnect event to connected dApps
-      const emitEvent = (globalThis as any).emitProviderEvent;
-      if (emitEvent) {
-        emitEvent('accountsChanged', []);
-        emitEvent('disconnect', {});
-      }
+      // Use event emitter service instead of global variable
+      eventEmitterService.emitProviderEvent(null, 'accountsChanged', []);
+      eventEmitterService.emitProviderEvent(null, 'disconnect', {});
     },
     createMnemonicWallet: async (mnemonic, password, name, addressType) => {
       return walletManager.createMnemonicWallet(mnemonic, password, name, addressType);
@@ -156,6 +156,10 @@ function createWalletService(): WalletService {
     },
     setLastActiveTime: async () => await walletManager.setLastActiveTime(),
     isAnyWalletUnlocked: async () => walletManager.isAnyWalletUnlocked(),
+    emitProviderEvent: async (origin, event, data) => {
+      // Emit provider event through the event emitter service
+      eventEmitterService.emitProviderEvent(origin, event, data);
+    },
     createAndUnlockMnemonicWallet: async (mnemonic, password, name, addressType) => {
       return walletManager.createAndUnlockMnemonicWallet(mnemonic, password, name, addressType);
     },

@@ -9,6 +9,12 @@ import {
 } from '../sessionManager';
 
 describe('sessionManager', () => {
+  // Valid SHA-256 hash wallet IDs for testing (exactly 64 chars, lowercase hex)
+  const VALID_WALLET_ID_1 = 'a1b2c3d4e5f678901234567890123456789012345678901234567890123456ef';
+  const VALID_WALLET_ID_2 = 'b2c3d4e5f678901234567890123456789012345678901234567890123456efa1';
+  const VALID_WALLET_ID_3 = 'c3d4e5f678901234567890123456789012345678901234567890123456efa1b2';
+  const VALID_WALLET_ID_SPECIAL = 'def456789012345678901234567890123456789012345678901234567890abcd';
+
   beforeEach(async () => {
     // Mock chrome.storage.session with valid session metadata
     const validSessionMetadata = {
@@ -40,7 +46,7 @@ describe('sessionManager', () => {
 
   describe('storeUnlockedSecret', () => {
     it('should store a secret for a wallet ID', async () => {
-      const walletId = 'wallet-123';
+      const walletId = VALID_WALLET_ID_1;
       const secret = 'my-secret-passphrase';
 
       storeUnlockedSecret(walletId, secret);
@@ -49,7 +55,7 @@ describe('sessionManager', () => {
     });
 
     it('should overwrite existing secret for same wallet ID', async () => {
-      const walletId = 'wallet-123';
+      const walletId = VALID_WALLET_ID_1;
       const firstSecret = 'first-secret';
       const secondSecret = 'second-secret';
 
@@ -60,7 +66,7 @@ describe('sessionManager', () => {
     });
 
     it('should handle empty string secrets correctly', async () => {
-      const walletId = 'wallet-123';
+      const walletId = VALID_WALLET_ID_1;
       const secret = '';
 
       storeUnlockedSecret(walletId, secret);
@@ -70,29 +76,28 @@ describe('sessionManager', () => {
     });
 
     it('should throw error for null walletId', async () => {
-      expect(() => storeUnlockedSecret('', 'secret')).toThrow('walletId is required');
+      expect(() => storeUnlockedSecret('', 'secret')).toThrow('Wallet ID is required');
     });
 
     it('should throw error for null secret', async () => {
-      expect(() => storeUnlockedSecret('wallet-123', null as any)).toThrow('secret cannot be null or undefined');
+      expect(() => storeUnlockedSecret(VALID_WALLET_ID_1, null as any)).toThrow('Secret cannot be null or undefined');
     });
 
     it('should throw error for undefined secret', async () => {
-      expect(() => storeUnlockedSecret('wallet-123', undefined as any)).toThrow('secret cannot be null or undefined');
+      expect(() => storeUnlockedSecret(VALID_WALLET_ID_1, undefined as any)).toThrow('Secret cannot be null or undefined');
     });
 
     it('should handle special characters in secrets', async () => {
-      const walletId = 'wallet-123';
       const secret = 'secret!@#$%^&*()_+-={}[]|\\:";\'<>?,./';
 
-      storeUnlockedSecret(walletId, secret);
+      storeUnlockedSecret(VALID_WALLET_ID_SPECIAL, secret);
       
-      expect(await getUnlockedSecret(walletId)).toBe(secret);
+      expect(await getUnlockedSecret(VALID_WALLET_ID_SPECIAL)).toBe(secret);
     });
 
     it('should store multiple secrets for different wallet IDs', async () => {
-      const wallet1 = 'wallet-1';
-      const wallet2 = 'wallet-2';
+      const wallet1 = VALID_WALLET_ID_1;
+      const wallet2 = VALID_WALLET_ID_2;
       const secret1 = 'secret-1';
       const secret2 = 'secret-2';
 
@@ -114,7 +119,7 @@ describe('sessionManager', () => {
     });
 
     it('should return stored secret correctly', async () => {
-      const walletId = 'wallet-123';
+      const walletId = VALID_WALLET_ID_1;
       const secret = 'stored-secret';
 
       storeUnlockedSecret(walletId, secret);
@@ -123,7 +128,7 @@ describe('sessionManager', () => {
     });
 
     it('should handle wallet IDs with special characters', async () => {
-      const walletId = 'wallet-!@#$%^&*()';
+      const walletId = VALID_WALLET_ID_SPECIAL;
       const secret = 'special-wallet-secret';
 
       storeUnlockedSecret(walletId, secret);
@@ -134,7 +139,7 @@ describe('sessionManager', () => {
 
   describe('clearUnlockedSecret', () => {
     it('should clear a specific wallet secret', async () => {
-      const walletId = 'wallet-123';
+      const walletId = VALID_WALLET_ID_1;
       const secret = 'secret-to-clear';
 
       storeUnlockedSecret(walletId, secret);
@@ -145,8 +150,8 @@ describe('sessionManager', () => {
     });
 
     it('should not affect other wallet secrets when clearing one', async () => {
-      const wallet1 = 'wallet-1';
-      const wallet2 = 'wallet-2';
+      const wallet1 = VALID_WALLET_ID_1;
+      const wallet2 = VALID_WALLET_ID_2;
       const secret1 = 'secret-1';
       const secret2 = 'secret-2';
 
@@ -164,7 +169,7 @@ describe('sessionManager', () => {
     });
 
     it('should overwrite secret with zeros before deletion for security', async () => {
-      const walletId = 'wallet-123';
+      const walletId = VALID_WALLET_ID_1;
       const secret = 'sensitive-secret';
 
       storeUnlockedSecret(walletId, secret);
@@ -175,7 +180,7 @@ describe('sessionManager', () => {
     });
 
     it('should handle empty string secrets when clearing', async () => {
-      const walletId = 'wallet-123';
+      const walletId = VALID_WALLET_ID_1;
       const secret = '';
 
       storeUnlockedSecret(walletId, secret);
@@ -194,9 +199,9 @@ describe('sessionManager', () => {
 
   describe('clearAllUnlockedSecrets', () => {
     it('should clear all stored secrets', async () => {
-      const wallet1 = 'wallet-1';
-      const wallet2 = 'wallet-2';
-      const wallet3 = 'wallet-3';
+      const wallet1 = VALID_WALLET_ID_1;
+      const wallet2 = VALID_WALLET_ID_2;
+      const wallet3 = VALID_WALLET_ID_3;
       const secret1 = 'secret-1';
       const secret2 = 'secret-2';
       const secret3 = 'secret-3';
@@ -217,7 +222,7 @@ describe('sessionManager', () => {
     });
 
     it('should work correctly after storing new secrets post-clear', async () => {
-      const walletId = 'wallet-123';
+      const walletId = VALID_WALLET_ID_1;
       const firstSecret = 'first-secret';
       const secondSecret = 'second-secret';
 
@@ -272,15 +277,10 @@ describe('sessionManager', () => {
   });
 
   describe('edge cases and security', () => {
-    it('should handle extremely long secrets', async () => {
-      const walletId = 'wallet-long';
-      const longSecret = 'a'.repeat(10000); // 10KB secret
+    it('should reject extremely long secrets', async () => {
+      const longSecret = 'a'.repeat(10000); // 10KB secret, exceeds 1024 char limit
       
-      storeUnlockedSecret(walletId, longSecret);
-      expect(await getUnlockedSecret(walletId)).toBe(longSecret);
-      
-      clearUnlockedSecret(walletId);
-      expect(await getUnlockedSecret(walletId)).toBeNull();
+      expect(() => storeUnlockedSecret(VALID_WALLET_ID_SPECIAL, longSecret)).toThrow('Secret exceeds maximum length of 1024');
     });
 
     it('should handle null and undefined walletId in getUnlockedSecret', async () => {
@@ -290,7 +290,7 @@ describe('sessionManager', () => {
     });
 
     it('should handle concurrent access to same wallet', async () => {
-      const walletId = 'concurrent-wallet';
+      const walletId = VALID_WALLET_ID_SPECIAL;
       const secrets = ['secret1', 'secret2', 'secret3'];
       
       // Simulate concurrent writes
@@ -300,33 +300,26 @@ describe('sessionManager', () => {
       expect(await getUnlockedSecret(walletId)).toBe('secret3');
     });
 
-    it('should handle large number of wallets', async () => {
-      const walletCount = 1000;
-      const wallets = Array.from({ length: walletCount }, (_, i) => ({
-        id: `wallet-${i}`,
-        secret: `secret-${i}`,
-      }));
+    it('should enforce maximum wallet limit', async () => {
+      const maxWallets = 20;
       
-      // Store all
-      wallets.forEach(({ id, secret }) => storeUnlockedSecret(id, secret));
-      
-      // Verify random samples
-      const samples = [0, 250, 500, 750, 999];
-      for (const i of samples) {
-        expect(await getUnlockedSecret(wallets[i].id)).toBe(wallets[i].secret);
+      // Store up to the limit (should succeed)
+      for (let i = 0; i < maxWallets; i++) {
+        const walletId = `${VALID_WALLET_ID_1.slice(0, 50)}${i.toString().padStart(14, '0')}`;
+        storeUnlockedSecret(walletId, `secret-${i}`);
       }
       
-      // Clear all
-      await clearAllUnlockedSecrets();
-      for (const i of samples) {
-        expect(await getUnlockedSecret(wallets[i].id)).toBeNull();
-      }
+      // Attempt to store one more (should fail)
+      const overLimitWalletId = `${VALID_WALLET_ID_1.slice(0, 50)}${maxWallets.toString().padStart(14, '0')}`;
+      expect(() => storeUnlockedSecret(overLimitWalletId, 'over-limit-secret')).toThrow(
+        'Cannot store more than 20 wallet secrets. Each wallet stores one secret (mnemonic or private key). Addresses are derived from the wallet secret, not stored separately.'
+      );
     });
   });
 
   describe('session expiry and persistence', () => {
     it('should expire session when timeout is exceeded', async () => {
-      const walletId = 'test-wallet';
+      const walletId = VALID_WALLET_ID_1;
       const secret = 'test-secret';
       
       // Mock expired session
@@ -345,7 +338,7 @@ describe('sessionManager', () => {
     });
 
     it('should not expire session within timeout period', async () => {
-      const walletId = 'test-wallet';
+      const walletId = VALID_WALLET_ID_1;
       const secret = 'test-secret';
       
       // Mock valid session (2 minutes old, 5 minute timeout)
@@ -364,7 +357,7 @@ describe('sessionManager', () => {
     });
 
     it('should clear session metadata when session expires', async () => {
-      const walletId = 'test-wallet';
+      const walletId = VALID_WALLET_ID_1;
       const secret = 'test-secret';
       
       // Mock expired session
@@ -399,7 +392,7 @@ describe('sessionManager', () => {
 
   describe('integration scenarios', () => {
     it('should handle full session lifecycle', async () => {
-      const walletId = 'integration-wallet';
+      const walletId = VALID_WALLET_ID_1;
       const secret = 'integration-secret';
 
       // Initial state
@@ -426,7 +419,7 @@ describe('sessionManager', () => {
 
     it('should handle multiple concurrent wallet sessions', async () => {
       const wallets = Array.from({ length: 5 }, (_, i) => ({
-        id: `wallet-${i}`,
+        id: `${VALID_WALLET_ID_1.slice(0, 50)}${i.toString().padStart(14, '0')}`,
         secret: `secret-${i}`,
       }));
 
@@ -517,7 +510,7 @@ describe('sessionManager', () => {
       });
       
       // Store a secret
-      storeUnlockedSecret('wallet-123', 'secret');
+      storeUnlockedSecret(VALID_WALLET_ID_1, 'secret');
       
       const { checkSessionRecovery, SessionRecoveryState } = await import('../sessionManager');
       const state = await checkSessionRecovery();

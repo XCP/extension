@@ -1,5 +1,6 @@
 import { defineProxyService } from '@webext-core/proxy-service';
 import { getWalletService } from '@/services/walletService';
+import { eventEmitterService } from '@/services/eventEmitterService';
 import { getKeychainSettings, updateKeychainSettings } from '@/utils/storage/settingsStorage';
 import { composeTransaction } from '@/utils/blockchain/counterparty/compose';
 import type { OrderOptions, SendOptions, DispenserOptions, DividendOptions, IssuanceOptions } from '@/utils/blockchain/counterparty/compose';
@@ -181,7 +182,6 @@ export function createProviderService(): ProviderService {
    * Handle provider requests from dApps
    */
   async function handleRequest(origin: string, method: string, params: any[] = [], metadata?: any): Promise<any> {
-    console.log('Provider request:', { origin, method, params });
     
     // Log request signing information if available
     if (metadata?.signature) {
@@ -340,10 +340,8 @@ export function createProviderService(): ProviderService {
         });
         
         // Emit accountsChanged event with empty array
-        const emitProviderEvent = (globalThis as any).emitProviderEvent;
-        if (emitProviderEvent) {
-          emitProviderEvent(origin, 'accountsChanged', []);
-        }
+        // Use event emitter service instead of global variable
+        eventEmitterService.emitProviderEvent(origin, 'accountsChanged', []);
         
         return true;
       }
@@ -559,12 +557,6 @@ export function createProviderService(): ProviderService {
           }
           
           // User approved - compose the transaction with potentially updated params
-          console.log('Composing order with final params:', {
-            originalParams: orderParams,
-            updatedParams: result.updatedParams,
-            finalParams,
-            address: activeAddress.address
-          });
           
           const composeResult = await composeTransaction(
             'order',
@@ -908,10 +900,9 @@ export function createProviderService(): ProviderService {
     });
     
     // Emit disconnect event to content script
-    const emitProviderEvent = (globalThis as any).emitProviderEvent;
-    if (emitProviderEvent) {
-      emitProviderEvent(origin, 'accountsChanged', []);
-    }
+    // Use event emitter service instead of global variable
+    eventEmitterService.emitProviderEvent(origin, 'accountsChanged', []);
+    eventEmitterService.emitProviderEvent(origin, 'disconnect', {});
   }
 
   /**
@@ -928,6 +919,12 @@ export function createProviderService(): ProviderService {
     return approvalQueue.remove(id);
   }
 
+  // Register the pending request resolver with event emitter service
+  // This allows the background script to resolve requests without global variables
+  eventEmitterService.on('resolve-pending-request', ({ requestId, approved, updatedParams }: any) => {
+    resolvePendingRequest(requestId, approved, updatedParams);
+  });
+
   return {
     handleRequest,
     isConnected,
@@ -937,8 +934,8 @@ export function createProviderService(): ProviderService {
   };
 }
 
-// Export for use in approval UI - this needs to be called from background context
-export function resolvePendingRequest(requestId: string, approved: boolean, updatedParams?: any) {
+// Function for resolving pending requests - called via event emitter service
+function resolvePendingRequest(requestId: string, approved: boolean, updatedParams?: any) {
   const pending = pendingRequests.get(requestId);
   if (pending) {
     // Get the request details for tracking
@@ -990,10 +987,9 @@ function updateBadge() {
   }
 }
 
-// Make it available globally in background context
-if (typeof globalThis !== 'undefined') {
-  (globalThis as any).resolvePendingRequest = resolvePendingRequest;
-}
+// Register the resolver with the event emitter service
+// The pending request resolution now happens through the event emitter service
+// which is accessed directly when needed instead of using global variables
 
 export const [registerProviderService, getProviderService] = defineProxyService(
   'ProviderService',

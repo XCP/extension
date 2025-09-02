@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { quickApiClient } from '@/utils/api/axiosConfig';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 /**
@@ -25,7 +26,8 @@ export interface UTXO {
  */
 export async function fetchUTXOs(address: string, signal?: AbortSignal): Promise<UTXO[]> {
   try {
-    const response = await axios.get<UTXO[]>(
+    // Use quickApiClient with 10 second timeout for UTXO lookups
+    const response = await quickApiClient.get<UTXO[]>(
       `https://mempool.space/api/address/${address}/utxo`,
       { signal }
     );
