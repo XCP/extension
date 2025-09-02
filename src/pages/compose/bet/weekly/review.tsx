@@ -1,6 +1,5 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
+import { formatAssetQuantity } from "@/utils/format";
 
 /**
  * Props for the WeeklyReviewBet component.
@@ -21,12 +20,6 @@ interface WeeklyReviewBetProps {
 export function WeeklyReviewBet({ apiResponse, onSign, onBack, error, isSigning }: WeeklyReviewBetProps) {
   const { result } = apiResponse;
 
-  const formatQuantity = (quantity: number) =>
-    formatAmount({
-      value: fromSatoshis(quantity, true),
-      minimumFractionDigits: 8,
-      maximumFractionDigits: 8,
-    });
 
   const betTypeMapping: { [key: string]: string } = {
     "0": "Bullish CFD (deprecated)",
@@ -60,11 +53,11 @@ export function WeeklyReviewBet({ apiResponse, onSign, onBack, error, isSigning 
     },
     {
       label: "Wager Quantity",
-      value: `${formatQuantity(Number(result.params.wager_quantity))} XCP`,
+      value: `${formatAssetQuantity(Number(result.params.wager_quantity), true)} XCP`,
     },
     {
       label: "Counterwager Quantity",
-      value: `${formatQuantity(Number(result.params.counterwager_quantity))} XCP`,
+      value: `${formatAssetQuantity(Number(result.params.counterwager_quantity), true)} XCP`,
     },
     { label: "Expiration (Blocks)", value: result.params.expiration },
     { label: "Leverage", value: result.params.leverage },

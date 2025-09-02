@@ -10,7 +10,7 @@ interface ExtendedSendOptions extends SendOptions {
 }
 
 export function ComposeSend() {
-  const { asset } = useParams<{ asset: string }>();
+  const { asset } = useParams<{ asset?: string }>();
 
   // Wrapper function that determines which compose function to use
   const composeTransaction = async (data: ExtendedSendOptions): Promise<ApiResponse> => {

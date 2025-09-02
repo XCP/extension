@@ -61,7 +61,7 @@ export function TransferOwnershipForm({
       header={
         <AssetHeader
           assetInfo={{
-            asset,
+            asset: asset,
             asset_longname: assetDetails?.assetInfo?.asset_longname ?? null,
             divisible: assetDetails?.assetInfo?.divisible ?? true,
             locked: assetDetails?.assetInfo?.locked ?? false,

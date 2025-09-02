@@ -181,7 +181,7 @@ export const DispenserForm = memo(function DispenserForm({
         asset && activeAddress && assetDetails ? (
           <BalanceHeader
             balance={{
-              asset,
+              asset: asset,
               quantity_normalized: availableBalance,
               asset_info: assetDetails.assetInfo || {
                 asset_longname: null,

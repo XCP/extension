@@ -6,8 +6,7 @@ import { composeDispenser } from "@/utils/blockchain/counterparty";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty";
 
 export function ComposeDispenserClose() {
-  const { asset: assetParam } = useParams<{ asset?: string }>();
-  const asset = assetParam ? decodeURIComponent(assetParam) : "";
+  const { asset } = useParams<{ asset?: string }>();
 
   return (
     <div className="p-4">

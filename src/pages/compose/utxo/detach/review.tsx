@@ -1,6 +1,5 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
+import { formatAssetQuantity } from "@/utils/format";
 
 /**
  * Props for the ReviewUtxoDetach component.
@@ -27,14 +26,6 @@ export function ReviewUtxoDetach({
 }: ReviewUtxoDetachProps) {
   const { result } = apiResponse;
 
-  const formatQuantity = (quantity: number, isDivisible: boolean) =>
-    isDivisible
-      ? formatAmount({
-          value: fromSatoshis(quantity, true),
-          minimumFractionDigits: 8,
-          maximumFractionDigits: 8,
-        })
-      : quantity.toString();
 
   const customFields = [
     { label: "Source UTXO", value: result.params.sourceUtxo || result.params.utxo || "N/A" },

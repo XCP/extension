@@ -1,7 +1,6 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
-import type { ReactElement, ReactNode } from "react";
+import { formatAssetQuantity } from "@/utils/format";
+import type { ReactElement } from "react";
 
 /**
  * Props for the ReviewSend component.
@@ -29,15 +28,6 @@ export function ReviewSend({
   const { result } = apiResponse;
   const isMPMA = result.name === 'mpma';
 
-  const formatQuantity = (quantity: number, isDivisible: boolean) =>
-    isDivisible
-      ? formatAmount({
-          value: fromSatoshis(quantity, true),
-          minimumFractionDigits: 8,
-          maximumFractionDigits: 8,
-        })
-      : quantity.toString();
-
   // Build custom fields based on transaction type
   let customFields: Array<{ label: string; value: string | number }> = [];
   
@@ -59,13 +49,13 @@ export function ReviewSend({
     // Amount per address
     customFields.push({
       label: "Amount per address",
-      value: `${formatQuantity(Number(quantity), isDivisible)} ${asset}`,
+      value: `${formatAssetQuantity(Number(quantity), isDivisible)} ${asset}`,
     });
     
     // Total amount
     customFields.push({
       label: "Total",
-      value: `${formatQuantity(totalQuantity, isDivisible)} ${asset}`,
+      value: `${formatAssetQuantity(totalQuantity, isDivisible)} ${asset}`,
     });
     
     // Memo if present
@@ -77,7 +67,7 @@ export function ReviewSend({
     customFields = [
       {
         label: "Amount",
-        value: `${formatQuantity(Number(result.params.quantity), result.params.asset_info.divisible)} ${result.params.asset}`,
+        value: `${formatAssetQuantity(Number(result.params.quantity), result.params.asset_info.divisible)} ${result.params.asset}`,
       },
       ...(result.params.memo ? [{ label: "Memo", value: String(result.params.memo) }] : []),
     ];

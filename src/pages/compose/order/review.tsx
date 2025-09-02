@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { FaExchangeAlt } from "react-icons/fa";
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
+import { formatPriceRatio, formatAssetQuantity } from "@/utils/format";
 
 /**
  * Props for the ReviewOrder component.
@@ -30,39 +29,24 @@ export function ReviewOrder({
   const { result } = apiResponse;
   const [isPriceFlipped, setIsPriceFlipped] = useState(false);
 
-  const priceRatio = Number(result.params.get_quantity) / Number(result.params.give_quantity);
-  
   const getPriceDisplay = () => {
-    if (isPriceFlipped) {
-      return `1 ${result.params.get_asset} = ${formatAmount({
-        value: 1 / priceRatio,
-        minimumFractionDigits: 8,
-        maximumFractionDigits: 8,
-      })} ${result.params.give_asset}`;
-    }
-    return `1 ${result.params.give_asset} = ${formatAmount({
-      value: priceRatio,
-      minimumFractionDigits: 8,
-      maximumFractionDigits: 8,
-    })} ${result.params.get_asset}`;
+    return formatPriceRatio(
+      result.params.give_quantity,
+      result.params.get_quantity,
+      result.params.give_asset,
+      result.params.get_asset,
+      isPriceFlipped
+    );
   };
 
   const customFields = [
     {
       label: "Give",
-      value: `${formatAmount({
-        value: fromSatoshis(result.params.give_quantity, true),
-        minimumFractionDigits: 8,
-        maximumFractionDigits: 8,
-      })} ${result.params.give_asset}`,
+      value: `${formatAssetQuantity(result.params.give_quantity, true)} ${result.params.give_asset}`,
     },
     {
       label: "Get",
-      value: `${formatAmount({
-        value: fromSatoshis(result.params.get_quantity, true),
-        minimumFractionDigits: 8,
-        maximumFractionDigits: 8,
-      })} ${result.params.get_asset}`,
+      value: `${formatAssetQuantity(result.params.get_quantity, true)} ${result.params.get_asset}`,
     },
     {
       label: "Price",
