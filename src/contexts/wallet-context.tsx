@@ -22,6 +22,35 @@ enum AuthState {
 }
 
 /**
+ * Efficient comparison functions to replace JSON.stringify
+ */
+const addressesEqual = (a: Address[], b: Address[]): boolean => {
+  if (a.length !== b.length) return false;
+  return a.every((addr, i) => 
+    addr.address === b[i]?.address && 
+    addr.name === b[i]?.name &&
+    addr.path === b[i]?.path &&
+    addr.pubKey === b[i]?.pubKey
+  );
+};
+
+const walletsEqualArray = (a: Wallet[], b: Wallet[]): boolean => {
+  if (a.length !== b.length) return false;
+  return a.every((wallet, i) => {
+    const other = b[i];
+    if (!other) return false;
+    return (
+      wallet.id === other.id &&
+      wallet.name === other.name &&
+      wallet.type === other.type &&
+      wallet.addressFormat === other.addressFormat &&
+      wallet.addressCount === other.addressCount &&
+      addressesEqual(wallet.addresses, other.addresses)
+    );
+  });
+};
+
+/**
  * Wallet context state.
  */
 interface WalletState {
@@ -112,26 +141,42 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
 
   const refreshWalletState = useCallback(async () => {
     // Use proper locking instead of simple ref check
+    // Note: walletState in dependencies is intentional for reactive updates
+    // The change detection logic prevents infinite loops
     return withStateLock('wallet-refresh', async () => {
       try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[WalletContext] Starting state refresh');
+      }
+      
       await walletService.loadWallets();
       const allWallets = await walletService.getWallets();
       const newState: WalletState = { ...walletState };
 
-      let walletsEqual = JSON.stringify(newState.wallets) === JSON.stringify(allWallets);
+      let walletsEqual = walletsEqualArray(newState.wallets, allWallets);
       let activeChanged = false;
       let addressChanged = false;
       let lockChanged = false;
 
       if (allWallets.length === 0) {
+        if (process.env.NODE_ENV === 'development' && newState.authState !== AuthState.Onboarding) {
+          console.log('[WalletContext] Transition: ', newState.authState, ' -> ', AuthState.Onboarding);
+        }
         newState.authState = AuthState.Onboarding;
         newState.activeWallet = null;
         newState.activeAddress = null;
         newState.walletLocked = true;
       } else {
         const anyUnlocked = await walletService.isAnyWalletUnlocked();
+        const newAuthState = anyUnlocked ? AuthState.Unlocked : AuthState.Locked;
+        if (process.env.NODE_ENV === 'development' && newState.authState !== newAuthState) {
+          console.log('[WalletContext] Transition: ', newState.authState, ' -> ', newAuthState);
+        }
         newState.walletLocked = !anyUnlocked;
-        newState.authState = anyUnlocked ? AuthState.Unlocked : AuthState.Locked;
+        newState.authState = newAuthState;
+        
+        // Store for later use to avoid duplicate call
+        lockChanged = walletState.walletLocked !== !anyUnlocked;
       }
 
       if (!walletsEqual) newState.wallets = allWallets;
@@ -146,7 +191,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
           (activeChanged = newState.activeWallet?.id !== active.id) ||
           (newState.activeWallet &&
             active &&
-            JSON.stringify(newState.activeWallet.addresses) !== JSON.stringify(active.addresses))
+            !addressesEqual(newState.activeWallet.addresses, active.addresses))
         ) {
           newState.activeWallet = active;
         }
@@ -159,12 +204,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         addressChanged = newState.activeAddress?.address !== newActiveAddress?.address;
         if (addressChanged) newState.activeAddress = newActiveAddress;
 
-        const anyUnlocked = await walletService.isAnyWalletUnlocked();
-        lockChanged = newState.walletLocked !== !anyUnlocked;
-        if (lockChanged) {
-          newState.walletLocked = !anyUnlocked;
-          newState.authState = anyUnlocked ? AuthState.Unlocked : AuthState.Locked;
-        }
+        // No need to call isAnyWalletUnlocked again - we already have the lock state from above
       } else {
         newState.activeWallet = null;
         newState.activeAddress = null;
@@ -174,6 +214,16 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
 
       newState.loaded = true;
       if (!walletsEqual || activeChanged || addressChanged || lockChanged || !walletState.loaded) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[WalletContext] State update:', {
+            walletsChanged: !walletsEqual,
+            activeChanged,
+            addressChanged,
+            lockChanged,
+            firstLoad: !walletState.loaded,
+            newAuthState: newState.authState
+          });
+        }
         setWalletState(newState);
       }
       } catch (error) {
@@ -189,6 +239,9 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     // Listen for wallet lock events from background
     const handleLockMessage = ({ data }: { data: { locked: boolean } }) => {
       if (data.locked) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[WalletContext] Lock event received from background');
+        }
         // Immediately update state to trigger navigation
         setWalletState((prev) => ({
           ...prev,
@@ -199,10 +252,11 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         }));
       }
     };
-    onMessage('walletLocked', handleLockMessage);
+    const unsubscribe = onMessage('walletLocked', handleLockMessage);
 
     return () => {
-      // Cleanup not strictly needed with webext-bridge as it handles message cleanup internally
+      // Properly cleanup the message listener
+      unsubscribe();
     };
   }, [refreshWalletState, walletService]); // Removed walletState.authState to prevent re-runs
 

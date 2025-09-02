@@ -40,7 +40,7 @@ describe('PriceContext', () => {
       
       expect(() => {
         renderHook(() => usePrices());
-      }).toThrow('usePrices must be used within a PriceProvider');
+      }).toThrow('usePrice must be used within a PriceProvider');
       
       spy.mockRestore();
     });

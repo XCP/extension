@@ -85,13 +85,30 @@ The extension uses a service-based architecture with proxy services for cross-co
 
 ### Key Contexts & Components
 
-1. **Context Architecture** (7 contexts for state management):
+1. **Context Architecture** (6 contexts - 5 app-level, 1 component-level):
+   
+   **App-Level Contexts** (provided globally via `app-providers.tsx`):
    - **Wallet Context** (`src/contexts/wallet-context.tsx`): Authentication states and wallet management
-   - **Composer Context** (`src/contexts/composer-context.tsx`): Transaction composition workflow
    - **Settings Context** (`src/contexts/settings-context.tsx`): Application preferences
-   - **Price Context** (`src/contexts/price-context.tsx`): Bitcoin price feeds
-   - **Loading Context** (`src/contexts/loading-context.tsx`): Global loading states
-   - **Header Context** (`src/contexts/header-context.tsx`): Header UI state
+   - **Price Context** (`src/contexts/price-context.tsx`): Bitcoin price feeds with caching
+   - **Loading Context** (`src/contexts/loading-context.tsx`): Global loading states with unique IDs
+   - **Header Context** (`src/contexts/header-context.tsx`): Header UI state and subheading cache
+   
+   **Component-Level Context**:
+   - **Composer Context** (`src/contexts/composer-context.tsx`): Transaction composition workflow (instantiated per-use, not globally provided)
+   
+   **Architecture Notes**:
+   - Wallet context uses intentional `walletState` dependency for reactive updates with state locking
+   - Composer context uses component-level pattern (different from others but functional)
+   - Context separation is security-driven - avoid merging contexts
+   - Authentication remains in wallet context by design (not separated)
+   - Settings context appropriately manages auto-lock timeout
+   
+   **Minor Improvements Possible**:
+   - Add memoization to composer context value object
+   - Consider singleton pattern for composer context (low priority)
+   - Add error boundaries around context providers
+   - Price context could use React state instead of module cache (for testability)
 
 2. **Blockchain Integration** (`src/utils/blockchain/`):
    - Bitcoin utilities: address generation, UTXO management, transaction signing
@@ -282,6 +299,21 @@ npm run test:all      # Build + E2E tests
 - Storage caching with invalidation
 - Bundle optimization for extension size
 - Console removal in production builds
+
+### React Performance Guidelines
+
+1. **Selective Memoization**
+   - Only use `useMemo` and `useCallback` where they provide measurable performance benefits
+   - Avoid memoizing primitives, empty arrays, or objects that don't cause expensive re-renders
+   - Good candidates for memoization:
+     - Expensive computations that depend on changing props/state
+     - Callbacks passed to many child components or used in effect dependencies
+     - Objects/arrays that cause unnecessary re-renders of expensive child components
+   - Avoid unnecessary memoization:
+     - Empty arrays or objects (e.g., `useMemo(() => [], [])` - just use `const emptyArray = []`)
+     - Simple calculations or transformations
+     - Callbacks with no dependencies that could be defined outside the component
+   - Measure before optimizing - use React DevTools Profiler to identify actual performance bottlenecks
 
 ### Error Handling Patterns
 - Centralized error component (`src/components/error-alert.tsx`)

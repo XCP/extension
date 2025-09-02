@@ -2,6 +2,7 @@ import React, {
   createContext,
   useCallback,
   useEffect,
+  useMemo,
   useState,
   type ReactElement,
   type ReactNode,
@@ -62,24 +63,32 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
   }, [loadSettings]);
 
   const updateSettingsHandler = useCallback(async (newSettings: Partial<KeychainSettings>) => {
-    // Store previous settings in case we need to revert
-    const previousSettings = settings;
-    
-    // Update state immediately for instant UI response
-    setSettings(prev => ({ ...prev, ...newSettings }));
-    
     try {
-      // Then persist to storage
+      // Optimistically update state for instant UI response
+      setSettings(prev => ({ ...prev, ...newSettings }));
+      
+      // Persist to storage
       await updateKeychainSettings(newSettings);
     } catch (error) {
-      // Revert to previous settings on failure
-      setSettings(previousSettings);
-      throw error; // Re-throw to let caller handle
+      console.error('Failed to persist settings:', error);
+      // Revert to previous state using functional update
+      setSettings(prev => {
+        // Remove the new settings by reloading from storage
+        loadSettings();
+        return prev; // Return current state while reload happens
+      });
+      throw error; // Re-throw to let component handle user feedback
     }
-  }, [settings]);
+  }, [loadSettings]);
+
+  const contextValue = useMemo(() => ({
+    settings,
+    updateSettings: updateSettingsHandler,
+    isLoading
+  }), [settings, updateSettingsHandler, isLoading]);
 
   return (
-    <SettingsContext value={{ settings, updateSettings: updateSettingsHandler, isLoading }}>
+    <SettingsContext value={contextValue}>
       {children}
     </SettingsContext>
   );

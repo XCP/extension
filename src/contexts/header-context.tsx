@@ -131,6 +131,39 @@ function arePropsEqual(prev: HeaderProps, next: HeaderProps): boolean {
 }
 
 /**
+ * Compares two AssetInfo objects for equality.
+ */
+function areAssetsEqual(prev: AssetInfo | undefined, next: AssetInfo): boolean {
+  if (!prev) return false;
+  return (
+    prev.asset === next.asset &&
+    prev.asset_longname === next.asset_longname &&
+    prev.description === next.description &&
+    prev.issuer === next.issuer &&
+    prev.divisible === next.divisible &&
+    prev.locked === next.locked &&
+    prev.supply === next.supply
+  );
+}
+
+/**
+ * Compares two TokenBalance objects for equality.
+ */
+function areBalancesEqual(prev: TokenBalance | undefined, next: TokenBalance): boolean {
+  if (!prev) return false;
+  return (
+    prev.asset === next.asset &&
+    prev.quantity_normalized === next.quantity_normalized &&
+    prev.asset_info?.asset_longname === next.asset_info?.asset_longname &&
+    prev.asset_info?.description === next.asset_info?.description &&
+    prev.asset_info?.issuer === next.asset_info?.issuer &&
+    prev.asset_info?.divisible === next.asset_info?.divisible &&
+    prev.asset_info?.locked === next.asset_info?.locked &&
+    prev.asset_info?.supply === next.asset_info?.supply
+  );
+}
+
+/**
  * Reducer for header state management.
  * @param {HeaderState} state - Current state
  * @param {HeaderAction} action - Action to perform
@@ -167,7 +200,7 @@ function headerReducer(state: HeaderState, action: HeaderAction): HeaderState {
       };
     case "SET_ASSET":
       const asset = action.payload.asset;
-      if (JSON.stringify(state.subheadings.assets[asset]) === JSON.stringify(action.payload)) {
+      if (areAssetsEqual(state.subheadings.assets[asset], action.payload)) {
         return state;
       }
       return {
@@ -179,7 +212,7 @@ function headerReducer(state: HeaderState, action: HeaderAction): HeaderState {
       };
     case "SET_BALANCE":
       const balanceAsset = action.payload.asset;
-      if (JSON.stringify(state.subheadings.balances[balanceAsset]) === JSON.stringify(action.payload)) {
+      if (areBalancesEqual(state.subheadings.balances[balanceAsset], action.payload)) {
         return state;
       }
       return {
