@@ -6,7 +6,7 @@ import * as sessionManager from '@/utils/auth/sessionManager';
 import { settingsManager } from '@/utils/wallet/settingsManager';
 import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, removeEncryptedWallet, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
 import { encryptMnemonic, decryptMnemonic, encryptPrivateKey, decryptPrivateKey, DecryptionError } from '@/utils/encryption';
-import { AddressType, getAddressFromMnemonic, getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, getDerivationPathForAddressType } from '@/utils/blockchain/bitcoin';
+import { AddressType, getAddressFromMnemonic, getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, getDerivationPathForAddressType, signMessage } from '@/utils/blockchain/bitcoin';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
 import { KeychainSettings } from '@/utils/storage/settingsStorage';
 import { signTransaction as btcSignTransaction, broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin';
@@ -518,8 +518,7 @@ export class WalletManager {
     
     const { key: privateKeyHex, compressed } = await this.getPrivateKey(wallet.id, targetAddress.path);
     
-    // Import the signMessage function and use it
-    const { signMessage } = await import('@/utils/blockchain/bitcoin/messageSigner');
+    // Use the signMessage function
     return signMessage(message, privateKeyHex, wallet.addressType, compressed);
   }
 
