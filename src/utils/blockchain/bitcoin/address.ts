@@ -94,7 +94,7 @@ const base58check = createBase58check(sha256);
 /**
  * Returns the default derivation path for a given Bitcoin address type.
  *
- * @param addressType - The address type.
+ * @param addressFormat - The address format.
  * @returns The derivation path as a string.
  * @throws Error if the address type is unsupported.
  */
@@ -119,7 +119,7 @@ export function getDerivationPathForAddressFormat(addressFormat: AddressFormat):
  * Encodes a public key (Uint8Array) into a Bitcoin address string based on the address type.
  *
  * @param publicKey - The public key bytes.
- * @param addressType - The address type.
+ * @param addressFormat - The address format.
  * @returns The Bitcoin address string.
  * @throws Error if the address type is unsupported.
  */
@@ -175,7 +175,7 @@ export function encodeAddress(publicKey: Uint8Array, addressFormat: AddressForma
  *
  * @param mnemonic - The mnemonic phrase.
  * @param path - The derivation path (e.g., "m/84'/0'/0'/0/0").
- * @param addressType - The address type.
+ * @param addressFormat - The address format.
  * @returns The derived Bitcoin address.
  * @throws Error if unable to derive the public key.
  */

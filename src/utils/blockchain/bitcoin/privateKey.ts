@@ -78,7 +78,7 @@ export function getPublicKeyFromPrivateKey(privateKeyHex: string, compressed = t
  * Generates a Bitcoin address from a raw private key.
  *
  * @param privateKeyHex - The private key in hexadecimal.
- * @param addressType - The Bitcoin address type.
+ * @param addressFormat - The Bitcoin address format.
  * @param compressed - Whether to use the compressed public key (default true).
  * @returns The Bitcoin address as a string.
  */
@@ -97,7 +97,7 @@ export function getAddressFromPrivateKey(
  *
  * @param mnemonic - The mnemonic phrase.
  * @param path - The derivation path (e.g., "m/84'/0'/0'/0/0").
- * @param addressType - The address type. For Counterwallet, a custom seed is used.
+ * @param addressFormat - The address format. For Counterwallet, a custom seed is used.
  * @returns The derived private key as a hexadecimal string.
  * @throws Error if unable to derive the private key.
  */

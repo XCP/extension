@@ -312,7 +312,7 @@ describe('Bitcoin Address Utilities', () => {
     });
 
     it('should maintain consistency across address types', () => {
-      const addressTypes = [
+      const addressFormats = [
         AddressFormat.P2PKH,
         AddressFormat.P2SH_P2WPKH,
         AddressFormat.P2WPKH,
@@ -322,10 +322,10 @@ describe('Bitcoin Address Utilities', () => {
 
       const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
       
-      addressTypes.forEach(addressType => {
-        const path = getDerivationPathForAddressFormat(addressType);
+      addressFormats.forEach(addressFormat => {
+        const path = getDerivationPathForAddressFormat(addressFormat);
         const fullPath = path + '/0';
-        const address = getAddressFromMnemonic(testMnemonic, fullPath, addressType);
+        const address = getAddressFromMnemonic(testMnemonic, fullPath, addressFormat);
         
         expect(typeof address).toBe('string');
         expect(address.length).toBeGreaterThan(0);

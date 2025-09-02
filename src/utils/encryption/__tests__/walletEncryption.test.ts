@@ -107,7 +107,7 @@ describe('walletEncryption.ts', () => {
       vi.mocked(isValidCounterwalletMnemonic).mockReturnValue(true);
       vi.mocked(encryptString).mockResolvedValue(encryptedPayload);
 
-      const addressTypes = [
+      const addressFormats = [
         AddressFormat.P2PKH,
         AddressFormat.P2SH_P2WPKH,
         AddressFormat.P2WPKH,
@@ -115,11 +115,11 @@ describe('walletEncryption.ts', () => {
         AddressFormat.Counterwallet,
       ];
 
-      for (const addressType of addressTypes) {
-        const mnemonic = addressType === AddressFormat.Counterwallet ? testCounterwalletMnemonic : testMnemonic;
-        await encryptMnemonic(mnemonic, correctPassword, addressType);
+      for (const addressFormat of addressFormats) {
+        const mnemonic = addressFormat === AddressFormat.Counterwallet ? testCounterwalletMnemonic : testMnemonic;
+        await encryptMnemonic(mnemonic, correctPassword, addressFormat);
         
-        if (addressType === AddressFormat.Counterwallet) {
+        if (addressFormat === AddressFormat.Counterwallet) {
           expect(isValidCounterwalletMnemonic).toHaveBeenCalledWith(mnemonic);
         } else {
           expect(validateMnemonic).toHaveBeenCalledWith(mnemonic, expect.any(Object));

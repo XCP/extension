@@ -62,10 +62,10 @@ function ImportWallet() {
       }
 
       try {
-        const addressType = isValidCounterwalletMnemonic(mnemonic)
+        const addressFormat = isValidCounterwalletMnemonic(mnemonic)
           ? AddressFormat.Counterwallet
           : AddressFormat.P2WPKH;
-        const newWallet = await createAndUnlockMnemonicWallet(mnemonic, password, undefined, addressType);
+        const newWallet = await createAndUnlockMnemonicWallet(mnemonic, password, undefined, addressFormat);
         await unlockWallet(newWallet.id, password);
         navigate(PATHS.SUCCESS);
         return { error: null };

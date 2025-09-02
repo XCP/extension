@@ -27,7 +27,7 @@ const ImportPrivateKey = () => {
   const { wallets, createAndUnlockPrivateKeyWallet, verifyPassword } = useWallet();
   const { pending } = useFormStatus();
 
-  const [addressType, setAddressType] = useState<AddressFormat>(AddressFormat.P2PKH);
+  const [addressFormat, setAddressFormat] = useState<AddressFormat>(AddressFormat.P2PKH);
   const [submissionError, setSubmissionError] = useState("");
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [password, setPassword] = useState("");
@@ -124,7 +124,7 @@ const ImportPrivateKey = () => {
 
     try {
       // Always use the user-selected address type from the dropdown
-      await createAndUnlockPrivateKeyWallet(privateKey.trim(), password, undefined, addressType);
+      await createAndUnlockPrivateKeyWallet(privateKey.trim(), password, undefined, addressFormat);
       navigate(PATHS.SUCCESS);
     } catch (error) {
       let errorMessage = "Failed to import private key. ";
@@ -155,8 +155,8 @@ const ImportPrivateKey = () => {
                 Address Type <span className="text-red-500">*</span>
               </Label>
               <div className="mt-1">
-                <input type="hidden" name="address-type" value={addressType} />
-                <Listbox value={addressType} onChange={setAddressType} disabled={pending}>
+                <input type="hidden" name="address-type" value={addressFormat} />
+                <Listbox value={addressFormat} onChange={setAddressFormat} disabled={pending}>
                   <ListboxButton className="w-full p-2 text-left rounded-md border border-gray-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500">
                     {({ value }) => {
                       const selected = ADDRESS_TYPES.find(type => type.value === value);

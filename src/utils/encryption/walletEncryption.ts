@@ -9,7 +9,7 @@ import { encryptString, decryptString, DecryptionError } from '@/utils/encryptio
  *
  * @param mnemonic - The mnemonic phrase to encrypt.
  * @param password - The password used for encryption.
- * @param addressType - The address type (e.g. standard or Counterwallet).
+ * @param addressFormat - The address format (e.g. standard or Counterwallet).
  * @returns A Promise that resolves to the encrypted mnemonic (JSON string).
  * @throws Error if the password is empty or the mnemonic is invalid.
  */

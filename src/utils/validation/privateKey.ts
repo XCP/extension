@@ -6,7 +6,7 @@ import { AddressFormat } from '@/utils/blockchain/bitcoin';
 export interface PrivateKeyValidationResult {
   isValid: boolean;
   format?: 'hex' | 'wif-compressed' | 'wif-uncompressed';
-  suggestedAddressType?: AddressFormat;
+  suggestedAddressFormat?: AddressFormat;
   error?: string;
 }
 
@@ -53,7 +53,7 @@ export function validatePrivateKeyFormat(privateKey: string): PrivateKeyValidati
     return {
       isValid: true,
       format: 'hex',
-      suggestedAddressType: AddressFormat.P2TR, // Default for hex
+      suggestedAddressFormat: AddressFormat.P2TR, // Default for hex
     };
   }
 
@@ -80,13 +80,13 @@ function validateWIFFormat(wif: string): PrivateKeyValidationResult {
     return {
       isValid: true,
       format: 'wif-uncompressed',
-      suggestedAddressType: AddressFormat.P2PKH, // Uncompressed keys typically use legacy
+      suggestedAddressFormat: AddressFormat.P2PKH, // Uncompressed keys typically use legacy
     };
   } else if (wif.startsWith('K') || wif.startsWith('L')) {
     return {
       isValid: true,
       format: 'wif-compressed',
-      suggestedAddressType: AddressFormat.P2SH_P2WPKH, // Compressed keys can use SegWit
+      suggestedAddressFormat: AddressFormat.P2SH_P2WPKH, // Compressed keys can use SegWit
     };
   }
 
