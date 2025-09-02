@@ -48,6 +48,18 @@ vi.mock('react-icons/fa', () => ({
   FaTimes: () => <div data-testid="times-icon" />
 }));
 
+vi.mock('@/components/asset-icon', () => ({
+  AssetIcon: ({ asset, size, className }: any) => (
+    <img 
+      src={`https://app.xcp.io/img/icon/${asset}`}
+      alt={asset}
+      className={className}
+      data-size={size}
+      data-testid="asset-icon"
+    />
+  )
+}));
+
 const mockSetSearchQuery = vi.fn();
 let mockSearchQuery = '';
 let mockSearchResults: any[] = [];
