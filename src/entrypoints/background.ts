@@ -28,30 +28,36 @@ export default defineBackground(() => {
     // Continue execution even if session recovery fails
   });
   
-  // Set up alarm listener for session expiry
+  // Set up Chrome alarms for session management and keep-alive
+  const KEEP_ALIVE_ALARM_NAME = 'keep-alive';
+  const SESSION_EXPIRY_ALARM_NAME = 'session-expiry';
+  
+  // Create keep-alive alarm to prevent service worker termination
+  // This replaces the memory-leaking setTimeout approach
+  chrome.alarms.create(KEEP_ALIVE_ALARM_NAME, {
+    periodInMinutes: 0.4 // 24 seconds (less than Chrome's 30s timeout)
+  });
+  
+  // Consolidated alarm handler to avoid multiple listeners
   if (chrome?.alarms?.onAlarm) {
     chrome.alarms.onAlarm.addListener(async (alarm) => {
-      if (alarm.name === 'session-expiry') {
-        console.log('Session expired via alarm');
-        const walletService = getWalletService();
-        await walletService.lockAllWallets();
+      switch (alarm.name) {
+        case SESSION_EXPIRY_ALARM_NAME:
+          console.log('Session expired via alarm');
+          const walletService = getWalletService();
+          await walletService.lockAllWallets();
+          break;
+          
+        case KEEP_ALIVE_ALARM_NAME:
+          // Perform minimal activity to keep service worker alive
+          // This is automatically cleaned up when the service worker terminates
+          chrome.storage.local.get('keep-alive-ping', () => {
+            // Just accessing storage is enough to keep the worker alive
+          });
+          break;
       }
     });
   }
-
-  // Keep-alive mechanism to prevent service worker termination
-  const KEEP_ALIVE_INTERVAL = 25000; // 25 seconds (less than Chrome's 30s timeout)
-
-  function keepAlive() {
-    // No-op task to keep the service worker active
-    Promise.resolve().then(() => {
-      // Minimal promise resolution to register a task
-    });
-    setTimeout(keepAlive, KEEP_ALIVE_INTERVAL); // Schedule next call
-  }
-
-  // Start the keep-alive loop
-  setTimeout(keepAlive, KEEP_ALIVE_INTERVAL);
 
   // Handle provider requests from content scripts
   browser.runtime.onMessage.addListener((message: any, sender: any, sendResponse: any) => {
