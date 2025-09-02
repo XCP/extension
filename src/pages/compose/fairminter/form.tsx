@@ -184,7 +184,7 @@ export function FairminterForm({
               }}
               className="mt-1 mb-5" 
             />
-          ) : activeAddress ? (
+          ) : activeAddress && !isInitializing ? (
             <AddressHeader
               address={activeAddress.address}
               walletName={activeWallet?.name ?? ""}
