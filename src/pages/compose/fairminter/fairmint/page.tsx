@@ -12,7 +12,7 @@ export function ComposeFairmint() {
     <div className="p-4">
       <Composer<FairmintOptions>
         initialTitle="Fairmint"
-        FormComponent={(props) => <FairmintForm {...props} initialAsset={asset || ""} />}
+        FormComponent={(props) => <FairmintForm {...props} asset={asset || ""} />}
         ReviewComponent={ReviewFairmint}
         composeApiMethod={composeFairmint}
       />

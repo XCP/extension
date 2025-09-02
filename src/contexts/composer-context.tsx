@@ -69,7 +69,6 @@ interface ComposerProviderProps<T> {
   initialTitle: string;
 }
 
-
 /**
  * Normalizes form data by converting user-friendly values to API values
  */

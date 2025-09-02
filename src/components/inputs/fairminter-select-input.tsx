@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Combobox,
   ComboboxInput,
@@ -8,6 +8,7 @@ import {
 } from "@headlessui/react";
 import { FiChevronDown, FiCheck } from "react-icons/fi";
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
+import { formatAmount } from '@/utils/format';
 
 export interface Fairminter {
   tx_hash: string;
@@ -29,6 +30,7 @@ interface FairminterSelectInputProps {
   shouldShowHelpText?: boolean;
   description?: string;
   required?: boolean;
+  currencyFilter?: string; // "BTC" or "XCP" to filter fairminters
 }
 
 export function FairminterSelectInput({
@@ -38,6 +40,7 @@ export function FairminterSelectInput({
   shouldShowHelpText = false,
   description,
   required = false,
+  currencyFilter,
 }: FairminterSelectInputProps) {
   const [query, setQuery] = useState("");
   const [fairminters, setFairminters] = useState<Fairminter[]>([]);
@@ -90,13 +93,35 @@ export function FairminterSelectInput({
     fetchFairminters();
   }, []);
 
-  // Filter fairminters based on query
-  const filteredFairminters = query === ""
-    ? fairminters
-    : fairminters.filter((fairminter) =>
+  // Filter fairminters based on query and currency type
+  const filteredFairminters = useMemo(() => {
+    let filtered = fairminters;
+    
+    // Apply currency filter if specified
+    if (currencyFilter) {
+      filtered = filtered.filter((fairminter) => {
+        const price = parseFloat(fairminter.price_normalized);
+        if (currencyFilter === "BTC") {
+          // BTC fairminters have price = 0 (free mints)
+          return price === 0;
+        } else if (currencyFilter === "XCP") {
+          // XCP fairminters have price > 0
+          return price > 0;
+        }
+        return true;
+      });
+    }
+    
+    // Apply text search filter
+    if (query !== "") {
+      filtered = filtered.filter((fairminter) =>
         fairminter.asset.toLowerCase().includes(query.toLowerCase()) ||
         (fairminter.description && fairminter.description.toLowerCase().includes(query.toLowerCase()))
       );
+    }
+    
+    return filtered;
+  }, [fairminters, query, currencyFilter]);
 
   const handleAssetChange = (asset: string) => {
     const fairminter = fairminters.find(f => f.asset === asset);
@@ -182,7 +207,7 @@ export function FairminterSelectInput({
                           <span className={`text-xs ${active ? "text-blue-100" : "text-gray-500"}`}>
                             {parseFloat(fairminter.price_normalized) === 0 
                               ? "Free mint (BTC fees only)" 
-                              : `Price: ${fairminter.price_normalized} BTC`}
+                              : `Price: ${formatAmount({ value: parseFloat(fairminter.price_normalized), maximumFractionDigits: 8 })} XCP`}
                           </span>
                         </div>
                         {selected && (
