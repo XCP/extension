@@ -149,12 +149,15 @@ describe('AddressMenu', () => {
     const menuButton = screen.getByRole('button');
     fireEvent.click(menuButton);
 
+    // Reset the mock after the menu opens (since opening menu might trigger parent)
+    mockOnClick.mockClear();
+
     await waitFor(async () => {
       const copyButton = screen.getByText('Copy Address');
       fireEvent.click(copyButton);
     });
 
     // The parent onClick should not be called due to stopPropagation
-    expect(mockOnClick).toHaveBeenCalledTimes(1); // Only from menu button click
+    expect(mockOnClick).not.toHaveBeenCalled();
   });
 });

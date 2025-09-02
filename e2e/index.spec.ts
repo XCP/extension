@@ -163,7 +163,7 @@ test.describe('Index Page', () => {
         await page.waitForTimeout(1000);
         
         // Should filter results to show BTC
-        const btcVisible = await page.locator('text=BTC').isVisible();
+        const btcVisible = await page.locator('.font-medium.text-sm.text-gray-900:has-text("BTC")').isVisible();
         expect(btcVisible).toBe(true);
         
         // Clear search
@@ -181,7 +181,7 @@ test.describe('Index Page', () => {
       await setupWallet(page);
       
       // Wait for balance list to load
-      await page.waitForSelector('text=BTC', { timeout: 10000 });
+      await page.waitForSelector('.font-medium.text-sm.text-gray-900:has-text("BTC")', { timeout: 10000 });
       await page.waitForTimeout(2000);
       
       // The balance items are divs with cursor-pointer and hover:bg-gray-50 classes
@@ -202,12 +202,12 @@ test.describe('Index Page', () => {
           expect(navigatedToSend).toBe(true);
         } else {
           // Navigation didn't work, but test should pass if BTC is visible
-          const btcStillVisible = await page.locator('text=BTC').isVisible();
+          const btcStillVisible = await page.locator('.font-medium.text-sm.text-gray-900:has-text("BTC")').isVisible();
           expect(btcStillVisible).toBe(true);
         }
       } else {
         // BTC balance not found as expected element, just verify it exists
-        const btcExists = await page.locator('text=BTC').isVisible();
+        const btcExists = await page.locator('.font-medium.text-sm.text-gray-900:has-text("BTC")').isVisible();
         expect(btcExists).toBe(true);
       }
       
