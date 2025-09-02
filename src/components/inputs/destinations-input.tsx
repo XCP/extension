@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { FiPlus, FiMinus } from "react-icons/fi";
-import { isValidBitcoinAddress } from "@/utils/validation";
+import { isValidBitcoinAddress, lookupAssetOwner, shouldTriggerAssetLookup } from "@/utils/validation";
+import { useMultiAssetOwnerLookup } from "@/hooks/useMultiAssetOwnerLookup";
 
 interface Destination {
   id: number;
@@ -31,6 +32,16 @@ export function DestinationsInput({
 }: DestinationsInputProps) {
   const firstInputRef = useRef<HTMLInputElement>(null);
   const [validationErrors, setValidationErrors] = useState<{ [key: number]: boolean }>({});
+  
+  const { performLookup, getLookupState } = useMultiAssetOwnerLookup({
+    onResolve: (destinationId, assetName, ownerAddress) => {
+      // Update the destination with the resolved address
+      const updatedDestinations = destinations.map(dest =>
+        dest.id === destinationId ? { ...dest, address: ownerAddress } : dest
+      );
+      onChange(updatedDestinations);
+    }
+  });
 
   useEffect(() => {
     firstInputRef.current?.focus();
@@ -66,10 +77,16 @@ export function DestinationsInput({
   }, [destinations, onValidationChange]);
 
   const handleDestinationChange = (id: number, value: string) => {
+    const trimmedValue = value.trim();
+
+    // Update the destination immediately
     const updatedDestinations = destinations.map(dest =>
-      dest.id === id ? { ...dest, address: value.trim() } : dest
+      dest.id === id ? { ...dest, address: trimmedValue } : dest
     );
     onChange(updatedDestinations);
+
+    // Trigger asset lookup through the hook
+    performLookup(id, trimmedValue);
   };
 
   const addDestination = () => {
@@ -83,7 +100,7 @@ export function DestinationsInput({
     onChange(destinations.filter(dest => dest.id !== id));
   };
 
-  const handlePaste = (event: React.ClipboardEvent<HTMLInputElement>, id: number) => {
+  const handlePaste = async (event: React.ClipboardEvent<HTMLInputElement>, id: number) => {
     // Only handle multi-line paste if:
     // 1. MPMA is enabled
     // 2. Not BTC
@@ -102,14 +119,38 @@ export function DestinationsInput({
     if (lines.length > 1 && destinations.length === 1) {
       event.preventDefault();
       
-      // Update current input with first address
+      // Process each line - resolve asset names to addresses
+      const resolvedLines: string[] = [];
+      for (const line of lines) {
+        if (isValidBitcoinAddress(line)) {
+          // Already a valid address
+          resolvedLines.push(line);
+        } else if (shouldTriggerAssetLookup(line)) {
+          // Try to resolve asset name
+          try {
+            const result = await lookupAssetOwner(line);
+            if (result.isValid && result.ownerAddress) {
+              resolvedLines.push(result.ownerAddress);
+            } else {
+              resolvedLines.push(line); // Keep original if can't resolve
+            }
+          } catch (error) {
+            resolvedLines.push(line); // Keep original on error
+          }
+        } else {
+          // Not a valid address or asset name, but keep it
+          resolvedLines.push(line);
+        }
+      }
+      
+      // Update current input with first resolved address
       const currentIndex = destinations.findIndex(d => d.id === id);
       const updatedDestinations = [...destinations];
-      updatedDestinations[currentIndex] = { ...updatedDestinations[currentIndex], address: lines[0] };
+      updatedDestinations[currentIndex] = { ...updatedDestinations[currentIndex], address: resolvedLines[0] };
       
       // Add remaining addresses as new destinations (respect 1000 limit)
       const remainingSlots = 1000 - updatedDestinations.length;
-      const linesToAdd = lines.slice(1, Math.min(lines.length, remainingSlots + 1));
+      const linesToAdd = resolvedLines.slice(1, Math.min(resolvedLines.length, remainingSlots + 1));
       const newDestinations = linesToAdd.map(address => ({
         id: Date.now() + Math.random(),
         address
@@ -143,17 +184,21 @@ export function DestinationsInput({
                 ? "Enter destination address"
                 : `Enter destination address ${index + 1}`
             }
-            className={`block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              validationErrors[destination.id] ? "border-red-500" : "border-gray-300"
+            className={`block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 ${
+              validationErrors[destination.id] ? "border-red-500 focus:border-red-500 focus:ring-red-500" : 
+              getLookupState(destination.id).isLookingUp ? "border-blue-500 focus:border-blue-500 focus:ring-blue-500" :
+              "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             } ${
-              (showAddButton && index === 0) || canRemove ? "pr-12" : "pr-2"
+              (showAddButton && index === 0) || canRemove || getLookupState(destination.id).isLookingUp ? "pr-12" : "pr-2"
             }`}
           />
           
-          {/* Add/Remove buttons */}
-          {((index === 0 && showAddButton) || (index > 0 && canRemove)) && (
-            <div className="absolute right-2 top-1/2 -translate-y-1/2">
-              {index === 0 && showAddButton ? (
+          {/* Loading spinner, Add/Remove buttons */}
+          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+            {getLookupState(destination.id).isLookingUp ? (
+              <div className="animate-spin h-4 w-4 border-2 border-gray-500 border-t-transparent rounded-full" title="Looking up asset owner..."></div>
+            ) : ((index === 0 && showAddButton) || (index > 0 && canRemove)) ? (
+              index === 0 && showAddButton ? (
                 <button
                   type="button"
                   onClick={addDestination}
@@ -173,9 +218,9 @@ export function DestinationsInput({
                 >
                   <FiMinus className="w-5 h-5" />
                 </button>
-              )}
-            </div>
-          )}
+              )
+            ) : null}
+          </div>
           
         </div>
       ))}

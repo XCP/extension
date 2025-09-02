@@ -11,6 +11,25 @@ vi.mock('@/utils/blockchain/bitcoin', () => ({
   })
 }));
 
+// Mock validation utilities that the component might use
+vi.mock('@/utils/validation', () => ({
+  isValidBitcoinAddress: vi.fn((address) => {
+    return address && (address.startsWith('1') || address.startsWith('3') || address.startsWith('bc1'));
+  }),
+  lookupAssetOwner: vi.fn().mockResolvedValue({ isValid: false, ownerAddress: null, error: null }),
+  shouldTriggerAssetLookup: vi.fn().mockReturnValue(false)
+}));
+
+// Mock the multi asset owner lookup hook to prevent async issues
+vi.mock('@/hooks/useMultiAssetOwnerLookup', () => ({
+  useMultiAssetOwnerLookup: vi.fn(() => ({
+    performLookup: vi.fn(),
+    clearLookup: vi.fn(),
+    getLookupState: vi.fn(() => ({ isLookingUp: false, error: undefined })),
+    lookupStates: {}
+  }))
+}));
+
 describe('DestinationsInput', () => {
   const defaultProps = {
     destinations: [{ id: 1, address: '' }],
