@@ -183,7 +183,7 @@ export default defineBackground(() => {
     // Handle approval resolution from popup
     if (message.type === 'RESOLVE_PROVIDER_REQUEST' && message.requestId) {
       // Use the event emitter service to notify the provider service
-      eventEmitterService.emitProviderEvent('resolve-pending-request', null, {
+      eventEmitterService.emit('resolve-pending-request', {
         requestId: message.requestId,
         approved: message.approved,
         updatedParams: message.updatedParams

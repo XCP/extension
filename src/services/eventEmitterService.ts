@@ -115,6 +115,23 @@ class EventEmitterService {
   }
 
   /**
+   * Emit a general event (not provider-specific)
+   */
+  emit(event: string, data: any): void {
+    const listeners = this.state.listeners.get(event);
+    
+    if (listeners) {
+      listeners.forEach(callback => {
+        try {
+          callback(data);
+        } catch (error) {
+          console.error(`Error in event listener for ${event}:`, error);
+        }
+      });
+    }
+  }
+
+  /**
    * Clear all listeners and pending requests
    */
   clear(): void {

@@ -1,7 +1,7 @@
 import './setup'; // Must be first to setup browser mocks
 import { describe, it, expect, beforeEach, beforeAll, vi, afterEach } from 'vitest';
 import { fakeBrowser } from 'wxt/testing';
-import { createProviderService, resolvePendingRequest } from '../providerService';
+import { createProviderService } from '../providerService';
 import { approvalQueue } from '@/utils/provider/approvalQueue';
 import { requestCleanup } from '@/utils/provider/requestCleanup';
 import * as settingsStorage from '@/utils/storage/settingsStorage';

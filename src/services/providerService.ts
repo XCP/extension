@@ -342,11 +342,7 @@ export function createProviderService(): ProviderService {
         
         // Emit accountsChanged event with empty array
         // Use event emitter service instead of global variable
-        eventEmitterService.emitProviderEvent('emit-provider-event', { 
-          origin, 
-          event: 'accountsChanged', 
-          data: [] 
-        });
+        eventEmitterService.emitProviderEvent(origin, 'accountsChanged', []);
         
         return true;
       }
@@ -912,16 +908,8 @@ export function createProviderService(): ProviderService {
     
     // Emit disconnect event to content script
     // Use event emitter service instead of global variable
-    eventEmitterService.emitProviderEvent('emit-provider-event', { 
-      origin, 
-      event: 'accountsChanged', 
-      data: [] 
-    });
-    eventEmitterService.emitProviderEvent('emit-provider-event', { 
-      origin, 
-      event: 'disconnect', 
-      data: {} 
-    });
+    eventEmitterService.emitProviderEvent(origin, 'accountsChanged', []);
+    eventEmitterService.emitProviderEvent(origin, 'disconnect', {});
   }
 
   /**
