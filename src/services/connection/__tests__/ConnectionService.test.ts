@@ -32,7 +32,7 @@ beforeEach(() => {
   } as any;
   
   // Mock browser runtime
-  global.browser = {
+  (global as any).browser = {
     runtime: {
       getURL: vi.fn((path) => `chrome-extension://test/${path}`),
     },
@@ -51,7 +51,7 @@ describe('ConnectionService', () => {
   let connectionService: ConnectionService;
 
   beforeEach(async () => {
-    connectionService = new ConnectionService(mockApprovalService);
+    connectionService = new ConnectionService();
     
     // Mock initial storage state
     mockStorage.get.mockResolvedValue({
@@ -83,7 +83,7 @@ describe('ConnectionService', () => {
       
       // Reinitialize to load new state
       await connectionService.destroy();
-      connectionService = new ConnectionService(mockApprovalService);
+      connectionService = new ConnectionService();
       await connectionService.initialize();
       
       const hasPermission = await connectionService.hasPermission('https://connected.com');
@@ -139,7 +139,7 @@ describe('ConnectionService', () => {
       });
       
       await connectionService.destroy();
-      connectionService = new ConnectionService(mockApprovalService);
+      connectionService = new ConnectionService();
       await connectionService.initialize();
       
       const result = await connectionService.connect(
@@ -189,7 +189,7 @@ describe('ConnectionService', () => {
       });
       
       await connectionService.destroy();
-      connectionService = new ConnectionService(mockApprovalService);
+      connectionService = new ConnectionService();
       await connectionService.initialize();
       
       await connectionService.disconnect('https://connected.com');
@@ -214,7 +214,7 @@ describe('ConnectionService', () => {
     });
   });
 
-  describe('getConnectedSites', () => {
+  describe('getConnectedWebsites', () => {
     it('should return list of connected sites', async () => {
       // Setup connected websites
       mockStorage.get.mockResolvedValue({
@@ -224,15 +224,15 @@ describe('ConnectionService', () => {
       });
       
       await connectionService.destroy();
-      connectionService = new ConnectionService(mockApprovalService);
+      connectionService = new ConnectionService();
       await connectionService.initialize();
       
-      const sites = await connectionService.getConnectedSites();
+      const sites = await connectionService.getConnectedWebsites();
       expect(sites).toEqual(['https://site1.com', 'https://site2.com']);
     });
 
     it('should return empty array when no connections', async () => {
-      const sites = await connectionService.getConnectedSites();
+      const sites = await connectionService.getConnectedWebsites();
       expect(sites).toEqual([]);
     });
   });
@@ -257,7 +257,7 @@ describe('ConnectionService', () => {
         }
       });
       
-      connectionService = new ConnectionService(mockApprovalService);
+      connectionService = new ConnectionService();
       await connectionService.initialize();
       
       // Should still have connection

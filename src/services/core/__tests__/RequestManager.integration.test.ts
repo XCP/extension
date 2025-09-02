@@ -2,6 +2,7 @@
  * Integration test to verify RequestManager fixes memory leaks
  */
 
+import { describe, it, expect, beforeEach, afterEach, test } from 'vitest';
 import { RequestManager } from '../RequestManager';
 
 describe('RequestManager Integration', () => {

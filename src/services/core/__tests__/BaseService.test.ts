@@ -26,6 +26,18 @@ class TestService extends BaseService {
 
 
   // Implement abstract methods
+  protected async onInitialize(): Promise<void> {
+    // Test-specific initialization
+  }
+
+  protected async onDestroy(): Promise<void> {
+    // Test-specific cleanup
+  }
+
+  protected getStateVersion(): number {
+    return 1;
+  }
+
   protected getSerializableState(): any {
     return {
       testData: this.testData,
@@ -186,7 +198,7 @@ describe('BaseService', () => {
       const alarmListener = vi.mocked(chrome.alarms.onAlarm.addListener).mock.calls[0][0];
       
       // Simulate alarm event for this service
-      const alarm = { name: 'TestService-keepalive' };
+      const alarm = { name: 'TestService-keepalive', scheduledTime: Date.now(), periodInMinutes: 0.4 };
       alarmListener(alarm);
       
       // Should trigger keep-alive activity (accessing storage)
@@ -202,7 +214,7 @@ describe('BaseService', () => {
       const alarmListener = vi.mocked(chrome.alarms.onAlarm.addListener).mock.calls[0][0];
       
       // Simulate alarm event for different service
-      const alarm = { name: 'OtherService-keepalive' };
+      const alarm = { name: 'OtherService-keepalive', scheduledTime: Date.now(), periodInMinutes: 0.4 };
       alarmListener(alarm);
       
       // Should not trigger additional storage calls

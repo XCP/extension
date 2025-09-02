@@ -8,10 +8,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing';
 import { ApprovalService } from '../ApprovalService';
 
-// Type declaration for global browser
-declare global {
-  var browser: typeof fakeBrowser;
-}
+// Type declaration for global browser (if not already declared)
+// declare global {
+//   var browser: typeof fakeBrowser;
+// }
 
 // Mock RequestManager
 const mockRequestManager = {
@@ -31,7 +31,16 @@ const mockStorage = {
 const mockWindows = {
   create: vi.fn(),
   update: vi.fn(),
-};
+  remove: vi.fn(),
+  get: vi.fn(),
+  getAll: vi.fn(),
+  getCurrent: vi.fn(),
+  getLastFocused: vi.fn(),
+  resetState: vi.fn(),
+  onCreated: { addListener: vi.fn(), removeListener: vi.fn() },
+  onRemoved: { addListener: vi.fn(), removeListener: vi.fn() },
+  onFocusChanged: { addListener: vi.fn(), removeListener: vi.fn() },
+} as any;
 
 // Setup global mocks
 beforeEach(() => {
@@ -44,7 +53,7 @@ beforeEach(() => {
     },
   } as any;
   
-  global.browser = fakeBrowser;
+  (global as any).browser = fakeBrowser;
   
   // Setup specific mocks
   fakeBrowser.runtime.getURL = vi.fn((path) => `chrome-extension://test/${path}`);
@@ -336,8 +345,8 @@ describe('ApprovalService', () => {
       // Trigger badge update (internal method)
       await (approvalService as any).updateBadge();
       
-      expect(global.browser.action.setBadgeText).toHaveBeenCalledWith({ text: '2' });
-      expect(global.browser.action.setBadgeBackgroundColor).toHaveBeenCalledWith({ 
+      expect((global as any).browser.action.setBadgeText).toHaveBeenCalledWith({ text: '2' });
+      expect((global as any).browser.action.setBadgeBackgroundColor).toHaveBeenCalledWith({ 
         color: '#EF4444' 
       });
     });
@@ -347,8 +356,8 @@ describe('ApprovalService', () => {
       
       await (approvalService as any).updateBadge();
       
-      expect(global.browser.action.setBadgeText).toHaveBeenCalledWith({ text: '' });
-      expect(global.browser.action.setBadgeBackgroundColor).toHaveBeenCalledWith({ 
+      expect((global as any).browser.action.setBadgeText).toHaveBeenCalledWith({ text: '' });
+      expect((global as any).browser.action.setBadgeBackgroundColor).toHaveBeenCalledWith({ 
         color: '#000000' 
       });
     });
