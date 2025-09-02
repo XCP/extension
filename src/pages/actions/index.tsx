@@ -57,12 +57,6 @@ const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean, enableAdv
       description: "Set address options like requiring memos",
       path: "/compose/broadcast/address-options",
     },
-    {
-      id: "consolidate",
-      name: "Recover Bitcoin",
-      description: "Find and consolidate bare multisig UTXOs",
-      path: "/consolidate",
-    }
   );
 
   // Build Tools section actions
@@ -78,6 +72,12 @@ const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean, enableAdv
       name: "Verify Message",
       description: "Verify a signed message",
       path: "/actions/verify-message",
+    },
+    {
+      id: "consolidate",
+      name: "Recover Bitcoin",
+      description: "Find and consolidate bare multisig UTXOs",
+      path: "/consolidate",
     },
   ];
   
