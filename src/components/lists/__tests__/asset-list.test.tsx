@@ -132,9 +132,13 @@ describe('AssetList', () => {
     
     render(<AssetList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Search assets...')).toBeInTheDocument();
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now look for the search input
+    expect(screen.getByPlaceholderText('Search assets...')).toBeInTheDocument();
   });
 
   it('should show search icon', async () => {
@@ -142,9 +146,13 @@ describe('AssetList', () => {
     
     render(<AssetList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      expect(screen.getByTestId('search-icon')).toBeInTheDocument();
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now look for the search icon
+    expect(screen.getByTestId('search-icon')).toBeInTheDocument();
   });
 
   it('should handle search input changes', async () => {
@@ -152,10 +160,14 @@ describe('AssetList', () => {
     
     render(<AssetList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      const searchInput = screen.getByPlaceholderText('Search assets...');
-      fireEvent.change(searchInput, { target: { value: 'PEPE' } });
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now interact with the search input
+    const searchInput = screen.getByPlaceholderText('Search assets...');
+    fireEvent.change(searchInput, { target: { value: 'PEPE' } });
     
     expect(mockSetSearchQuery).toHaveBeenCalledWith('PEPE');
   });
@@ -166,10 +178,14 @@ describe('AssetList', () => {
     
     render(<AssetList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      expect(screen.getByLabelText('Clear search')).toBeInTheDocument();
-      expect(screen.getByTestId('times-icon')).toBeInTheDocument();
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now look for the clear button
+    expect(screen.getByLabelText('Clear search')).toBeInTheDocument();
+    expect(screen.getByTestId('times-icon')).toBeInTheDocument();
   });
 
   it('should clear search when clear button clicked', async () => {
@@ -178,10 +194,14 @@ describe('AssetList', () => {
     
     render(<AssetList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      const clearButton = screen.getByLabelText('Clear search');
-      fireEvent.click(clearButton);
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now interact with the clear button
+    const clearButton = screen.getByLabelText('Clear search');
+    fireEvent.click(clearButton);
     
     expect(mockSetSearchQuery).toHaveBeenCalledWith('');
   });
@@ -338,10 +358,14 @@ describe('AssetList', () => {
     
     render(<AssetList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      const container = screen.getByPlaceholderText('Search assets...').closest('.space-y-2');
-      expect(container).toHaveClass('space-y-2');
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now check the layout classes
+    const container = screen.getByPlaceholderText('Search assets...').closest('.space-y-2');
+    expect(container).toHaveClass('space-y-2');
   });
 
   it('should style search input correctly', async () => {
@@ -349,15 +373,19 @@ describe('AssetList', () => {
     
     render(<AssetList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      const searchInput = screen.getByPlaceholderText('Search assets...');
-      expect(searchInput).toHaveClass('w-full');
-      expect(searchInput).toHaveClass('p-2');
-      expect(searchInput).toHaveClass('pl-8');
-      expect(searchInput).toHaveClass('pr-8');
-      expect(searchInput).toHaveClass('border');
-      expect(searchInput).toHaveClass('rounded-lg');
-      expect(searchInput).toHaveClass('bg-white');
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now check the search input styles
+    const searchInput = screen.getByPlaceholderText('Search assets...');
+    expect(searchInput).toHaveClass('w-full');
+    expect(searchInput).toHaveClass('p-2');
+    expect(searchInput).toHaveClass('pl-8');
+    expect(searchInput).toHaveClass('pr-8');
+    expect(searchInput).toHaveClass('border');
+    expect(searchInput).toHaveClass('rounded-lg');
+    expect(searchInput).toHaveClass('bg-white');
   });
 });

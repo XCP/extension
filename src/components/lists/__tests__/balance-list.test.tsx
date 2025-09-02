@@ -201,26 +201,38 @@ describe('BalanceList', () => {
   it('should render search input', async () => {
     render(<BalanceList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Search balances...')).toBeInTheDocument();
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now look for the search input
+    expect(screen.getByPlaceholderText('Search balances...')).toBeInTheDocument();
   });
 
   it('should show search icon', async () => {
     render(<BalanceList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      expect(screen.getByTestId('search-icon')).toBeInTheDocument();
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now look for the search icon
+    expect(screen.getByTestId('search-icon')).toBeInTheDocument();
   });
 
   it('should handle search input changes', async () => {
     render(<BalanceList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      const searchInput = screen.getByPlaceholderText('Search balances...');
-      fireEvent.change(searchInput, { target: { value: 'XCP' } });
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now interact with the search input
+    const searchInput = screen.getByPlaceholderText('Search balances...');
+    fireEvent.change(searchInput, { target: { value: 'XCP' } });
     
     expect(mockSetSearchQuery).toHaveBeenCalledWith('XCP');
   });
@@ -230,10 +242,14 @@ describe('BalanceList', () => {
     
     render(<BalanceList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      expect(screen.getByLabelText('Clear search')).toBeInTheDocument();
-      expect(screen.getByTestId('times-icon')).toBeInTheDocument();
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now look for the clear button
+    expect(screen.getByLabelText('Clear search')).toBeInTheDocument();
+    expect(screen.getByTestId('times-icon')).toBeInTheDocument();
   });
 
   it('should clear search when clear button clicked', async () => {
@@ -241,10 +257,14 @@ describe('BalanceList', () => {
     
     render(<BalanceList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      const clearButton = screen.getByLabelText('Clear search');
-      fireEvent.click(clearButton);
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now interact with the clear button
+    const clearButton = screen.getByLabelText('Clear search');
+    fireEvent.click(clearButton);
     
     expect(mockSetSearchQuery).toHaveBeenCalledWith('');
   });
@@ -384,9 +404,13 @@ describe('BalanceList', () => {
     
     render(<BalanceList />);
     
+    // Wait for initial loading to complete
     await waitFor(() => {
-      expect(screen.getByText('Scroll to load more...')).toBeInTheDocument();
+      expect(screen.queryByText('Loading balances...')).not.toBeInTheDocument();
     });
+    
+    // Now look for the load more message
+    expect(screen.getByText('Scroll to load more...')).toBeInTheDocument();
   });
 
   it('should fetch more balances when scrolling', async () => {
@@ -478,15 +502,19 @@ describe('BalanceList', () => {
   it('should style search input correctly', async () => {
     render(<BalanceList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      const searchInput = screen.getByPlaceholderText('Search balances...');
-      expect(searchInput).toHaveClass('w-full');
-      expect(searchInput).toHaveClass('p-2');
-      expect(searchInput).toHaveClass('pl-8');
-      expect(searchInput).toHaveClass('pr-8');
-      expect(searchInput).toHaveClass('border');
-      expect(searchInput).toHaveClass('rounded-lg');
-      expect(searchInput).toHaveClass('bg-white');
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now check the search input styles
+    const searchInput = screen.getByPlaceholderText('Search balances...');
+    expect(searchInput).toHaveClass('w-full');
+    expect(searchInput).toHaveClass('p-2');
+    expect(searchInput).toHaveClass('pl-8');
+    expect(searchInput).toHaveClass('pr-8');
+    expect(searchInput).toHaveClass('border');
+    expect(searchInput).toHaveClass('rounded-lg');
+    expect(searchInput).toHaveClass('bg-white');
   });
 });
