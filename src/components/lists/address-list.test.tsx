@@ -40,26 +40,20 @@ describe('AddressList', () => {
     {
       name: 'Address 1',
       address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
-      derivationPath: "m/84'/0'/0'/0/0",
-      publicKey: 'mockpublickey1',
-      type: 'native-segwit',
-      path: 'path1'
+      path: "m/84'/0'/0'/0/0",
+      pubKey: 'mockpublickey1'
     },
     {
       name: 'Address 2',
       address: 'bc1qverylongaddressthatshouldbeshortenedintheformatfunction123456789',
-      derivationPath: "m/84'/0'/0'/0/1",
-      publicKey: 'mockpublickey2',
-      type: 'native-segwit',
-      path: 'path2'
+      path: "m/84'/0'/0'/0/1",
+      pubKey: 'mockpublickey2'
     },
     {
       name: 'Legacy Address',
       address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-      derivationPath: "m/44'/0'/0'/0/0",
-      publicKey: 'mockpublickey3',
-      type: 'legacy',
-      path: 'path3'
+      path: "m/44'/0'/0'/0/0",
+      pubKey: 'mockpublickey3'
     }
   ];
 

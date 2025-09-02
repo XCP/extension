@@ -1,5 +1,6 @@
 import React, { type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
+import { AssetIcon } from "@/components/asset-icon";
 import { BalanceMenu } from "@/components/menus/balance-menu";
 import type { TokenBalance } from "@/utils/blockchain/counterparty";
 import { formatAmount, formatAsset } from "@/utils/format";
@@ -47,9 +48,6 @@ export function BalanceCard({
 }: BalanceCardProps): ReactElement {
   const navigate = useNavigate();
 
-  // Generate the asset icon URL from xcp.io
-  const imageUrl = `https://app.xcp.io/img/icon/${token.asset}`;
-
   // Handle card click - use custom handler or default to send navigation
   const handleClick = () => {
     if (onClick) {
@@ -68,13 +66,7 @@ export function BalanceCard({
       onClick={handleClick}
     >
       {/* Asset Icon */}
-      <div className="w-12 h-12 flex-shrink-0">
-        <img 
-          src={imageUrl} 
-          alt={formatAsset(token.asset, { assetInfo: token.asset_info })} 
-          className="w-full h-full object-cover" 
-        />
-      </div>
+      <AssetIcon asset={token.asset} size="lg" className="flex-shrink-0" />
 
       {/* Asset Information */}
       <div className="ml-3 flex-grow">

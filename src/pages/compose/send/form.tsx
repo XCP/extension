@@ -136,7 +136,14 @@ export function SendForm({
             balance={{
               asset: initialAsset || initialFormData?.asset || "BTC",
               quantity_normalized: assetDetails.availableBalance,
-              asset_info: assetDetails.assetInfo || undefined,
+              asset_info: assetDetails.assetInfo ? {
+                asset_longname: assetDetails.assetInfo.asset_longname,
+                description: assetDetails.assetInfo.description || '',
+                issuer: assetDetails.assetInfo.issuer || 'Unknown',
+                divisible: assetDetails.assetInfo.divisible,
+                locked: assetDetails.assetInfo.locked,
+                supply: assetDetails.assetInfo.supply,
+              } : undefined,
             }}
             className="mt-1 mb-5"
           />

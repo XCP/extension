@@ -23,6 +23,7 @@ describe('DispenserList', () => {
       dispenser: {
         asset: 'RAREPEPE',
         tx_hash: 'abc123',
+        source: 'bc1qsource1',
         status: 0,
         give_remaining: 500000000,
         give_remaining_normalized: '5.00000000',
@@ -45,6 +46,7 @@ describe('DispenserList', () => {
       dispenser: {
         asset: 'MYTOKEN',
         tx_hash: 'def456',
+        source: 'bc1qsource2',
         status: 0,
         give_remaining: 1000000000,
         give_remaining_normalized: '10.00000000',

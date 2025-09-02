@@ -225,7 +225,14 @@ export function FairmintForm({
               balance={{
                 asset: currencyType,
                 quantity_normalized: currencyDetails.availableBalance || "0",
-                asset_info: currencyDetails.assetInfo || undefined,
+                asset_info: currencyDetails.assetInfo ? {
+                  asset_longname: currencyDetails.assetInfo.asset_longname,
+                  description: currencyDetails.assetInfo.description || '',
+                  issuer: currencyDetails.assetInfo.issuer || 'Unknown',
+                  divisible: currencyDetails.assetInfo.divisible,
+                  locked: currencyDetails.assetInfo.locked,
+                  supply: currencyDetails.assetInfo.supply,
+                } : undefined,
               }}
               className="mb-3" 
             />

@@ -25,17 +25,15 @@ describe('AddressCard', () => {
   const mockAddress: Address = {
     name: 'Main Address',
     address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
-    derivationPath: "m/84'/0'/0'/0/0",
-    publicKey: 'mockpublickey',
-    type: 'native-segwit'
+    path: "m/84'/0'/0'/0/0",
+    pubKey: 'mockpublickey'
   };
 
   const mockLongAddress: Address = {
     name: 'Long Address Name That Should Display Properly',
     address: 'bc1qverylongaddressthatshouldbeshortenedintheformatfunction123456789',
-    derivationPath: "m/84'/0'/0'/0/1",
-    publicKey: 'mockpublickey2',
-    type: 'native-segwit'
+    path: "m/84'/0'/0'/0/1",
+    pubKey: 'mockpublickey2'
   };
 
   const mockOnSelect = vi.fn();

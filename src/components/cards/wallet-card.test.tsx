@@ -35,12 +35,13 @@ describe('WalletCard', () => {
     id: 'wallet-1',
     name: 'Main Wallet',
     type: 'mnemonic',
+    addressFormat: 'p2wpkh',
+    addressCount: 1,
     addresses: [{
       name: 'Address 1',
       address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
-      derivationPath: "m/84'/0'/0'/0/0",
-      publicKey: 'mockpublickey',
-      type: 'native-segwit'
+      path: "m/84'/0'/0'/0/0",
+      pubKey: 'mockpublickey'
     }]
   };
 
@@ -48,12 +49,13 @@ describe('WalletCard', () => {
     id: 'wallet-2',
     name: 'Import Wallet',
     type: 'privateKey',
+    addressFormat: 'p2wpkh',
+    addressCount: 1,
     addresses: [{
       name: 'Imported Address',
       address: 'bc1qverylongaddressthatshouldbeshortenedintheformatfunction123456789',
-      derivationPath: '',
-      publicKey: 'mockpublickey2',
-      type: 'native-segwit'
+      path: '',
+      pubKey: 'mockpublickey2'
     }]
   };
 
@@ -61,6 +63,8 @@ describe('WalletCard', () => {
     id: 'wallet-3',
     name: 'Empty Wallet',
     type: 'mnemonic',
+    addressFormat: 'p2wpkh',
+    addressCount: 0,
     addresses: []
   };
 

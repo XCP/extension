@@ -1,5 +1,6 @@
 import React, { type ReactElement } from "react";
 import { TbPinned, TbPinnedFilled } from "react-icons/tb";
+import { AssetIcon } from "@/components/asset-icon";
 
 /**
  * Props interface for the PinnableAssetCard component
@@ -52,9 +53,6 @@ export function PinnableAssetCard({
   onClick,
   className = ""
 }: PinnableAssetCardProps): ReactElement {
-  // Generate the asset icon URL from xcp.io
-  const imageUrl = `https://app.xcp.io/img/icon/${symbol}`;
-
   const handleCardClick = () => {
     if (onClick) {
       onClick(symbol);
@@ -84,18 +82,7 @@ export function PinnableAssetCard({
     >
       {/* Asset Icon and Symbol */}
       <div className="flex items-center flex-1">
-        <div className="w-8 h-8 flex-shrink-0">
-          <img 
-            src={imageUrl} 
-            alt={symbol}
-            className="w-full h-full object-cover rounded-full"
-            onError={(e) => {
-              // Fallback for missing icons
-              const target = e.target as HTMLImageElement;
-              target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='system-ui' font-size='12'%3E%3F%3C/text%3E%3C/svg%3E";
-            }}
-          />
-        </div>
+        <AssetIcon asset={symbol} size="sm" className="flex-shrink-0" />
         <div className="ml-3">
           <div className="font-medium text-sm text-gray-900">{symbol}</div>
         </div>

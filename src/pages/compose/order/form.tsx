@@ -141,7 +141,14 @@ export function OrderForm({
           balance={{
             asset: giveAsset,
             quantity_normalized: giveAssetDetails.availableBalance,
-            asset_info: giveAssetDetails.assetInfo || undefined,
+            asset_info: giveAssetDetails.assetInfo ? {
+              asset_longname: giveAssetDetails.assetInfo.asset_longname,
+              description: giveAssetDetails.assetInfo.description || '',
+              issuer: giveAssetDetails.assetInfo.issuer || 'Unknown',
+              divisible: giveAssetDetails.assetInfo.divisible,
+              locked: giveAssetDetails.assetInfo.locked,
+              supply: giveAssetDetails.assetInfo.supply,
+            } : undefined,
           }}
           className="mb-3"
         />

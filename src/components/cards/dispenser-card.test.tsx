@@ -24,6 +24,7 @@ describe('DispenserCard', () => {
     dispenser: {
       asset: 'RAREPEPE',
       tx_hash: 'abc123def456',
+      source: 'bc1qsource123',
       status: 0,
       give_remaining: 500000000,
       give_remaining_normalized: '5.00000000',

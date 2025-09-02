@@ -67,7 +67,8 @@ export function TransferOwnershipForm({
             locked: assetInfo?.locked ?? false,
             description: assetInfo?.description ?? "",
             issuer: assetInfo?.issuer ?? "",
-            supply: assetInfo?.supply ?? "0"
+            supply: assetInfo?.supply ?? "0",
+            supply_normalized: assetInfo?.supply_normalized || '0'
           }}
           className="mt-1 mb-5"
         />

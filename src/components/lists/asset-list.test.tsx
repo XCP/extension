@@ -52,9 +52,8 @@ describe('AssetList', () => {
   const mockActiveAddress = {
     name: 'Main Address',
     address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
-    derivationPath: "m/84'/0'/0'/0/0",
-    publicKey: 'mockpublickey',
-    type: 'native-segwit' as const
+    path: "m/84'/0'/0'/0/0",
+    pubKey: 'mockpublickey'
   };
 
   const mockOwnedAssets: OwnedAsset[] = [

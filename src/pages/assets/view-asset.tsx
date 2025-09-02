@@ -231,7 +231,8 @@ export default function ViewAsset(): ReactElement {
             issuer: assetDetails.assetInfo?.issuer,
             divisible: assetDetails.assetInfo?.divisible ?? false,
             locked: assetDetails.assetInfo?.locked ?? false,
-            supply: assetDetails.assetInfo?.supply
+            supply: assetDetails.assetInfo?.supply,
+            supply_normalized: assetDetails.assetInfo?.supply_normalized || '0'
           }}
         />
       </div>

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { AssetHeader, type AssetInfo } from '../asset-header';
+import { AssetHeader } from '../asset-header';
+import type { AssetInfo } from '@/utils/blockchain/counterparty/api';
 
 // Mock dependencies
 const mockSetAssetHeader = vi.fn();
@@ -16,12 +17,28 @@ vi.mock('@/contexts/header-context', () => ({
   })
 }));
 
+vi.mock('@/components/asset-icon', () => ({
+  AssetIcon: ({ asset, size, className }: any) => (
+    <div data-testid="asset-icon" className={className}>
+      {asset} Icon ({size})
+    </div>
+  )
+}));
+
 vi.mock('@/utils/format', () => ({
   formatAmount: vi.fn(({ value, minimumFractionDigits, maximumFractionDigits, useGrouping }) => {
     if (minimumFractionDigits === 8) {
       return value.toFixed(8);
     }
     return value.toLocaleString();
+  })
+}));
+
+vi.mock('@/utils/numeric', () => ({
+  fromSatoshis: vi.fn((value, options) => {
+    const numValue = typeof value === 'string' ? parseInt(value) : value;
+    const result = numValue / 100000000;
+    return options?.asNumber ? result : result.toString();
   })
 }));
 
@@ -33,7 +50,8 @@ describe('AssetHeader', () => {
     issuer: 'bc1qxyz789',
     divisible: true,
     locked: true,
-    supply: '1000000000000'
+    supply: '1000000000000',
+    supply_normalized: '10000.00000000'
   };
 
   beforeEach(() => {
@@ -223,7 +241,8 @@ describe('AssetHeader', () => {
       asset: 'BTC',
       asset_longname: null,
       divisible: false,
-      locked: false
+      locked: false,
+      supply_normalized: '0'
     };
     
     render(<AssetHeader assetInfo={minimalAsset} />);
@@ -241,7 +260,8 @@ describe('AssetHeader', () => {
       issuer: 'bc1qissuer123',
       divisible: true,
       locked: true,
-      supply: 21000000
+      supply: 21000000,
+      supply_normalized: '0.21'
     };
     
     render(<AssetHeader assetInfo={fullAsset} />);
@@ -262,7 +282,8 @@ describe('AssetHeader', () => {
       asset_longname: null,
       divisible: true,
       locked: true,
-      supply: '2600000000000000'
+      supply: '2600000000000000',
+      supply_normalized: '26000000'
     };
     
     rerender(<AssetHeader assetInfo={differentAsset} />);
@@ -305,7 +326,8 @@ describe('AssetHeader', () => {
       asset_longname: null,
       divisible: true,
       locked: false,
-      supply: 1000
+      supply: 1000,
+      supply_normalized: '0.00001'
     };
     
     mockSubheadings.assets['TEST'] = { ...initialAsset };
@@ -333,7 +355,8 @@ describe('AssetHeader', () => {
       asset_longname: null,
       divisible: false,
       locked: false,
-      supply: 500
+      supply: 500,
+      supply_normalized: '500'
     };
     
     render(<AssetHeader assetInfo={newAsset} />);

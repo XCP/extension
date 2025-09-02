@@ -63,8 +63,8 @@ export function UtxoAttachForm({
               asset: asset,
               asset_info: {
                 asset_longname: assetDetails.assetInfo?.asset_longname || null,
-                description: assetDetails.assetInfo?.description,
-                issuer: assetDetails.assetInfo?.issuer,
+                description: assetDetails.assetInfo?.description || '',
+                issuer: assetDetails.assetInfo?.issuer || 'Unknown',
                 divisible: assetDetails.assetInfo?.divisible ?? false,
                 locked: assetDetails.assetInfo?.locked ?? false,
                 supply: assetDetails.assetInfo?.supply

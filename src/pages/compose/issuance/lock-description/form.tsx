@@ -79,7 +79,8 @@ export function LockDescriptionForm({
             issuer: assetInfo?.issuer,
             divisible: assetInfo?.divisible ?? false,
             locked: assetInfo?.locked ?? false,
-            supply: assetInfo?.supply
+            supply: assetInfo?.supply,
+            supply_normalized: assetInfo?.supply_normalized || '0'
           }}
           className="mt-1 mb-5"
         />

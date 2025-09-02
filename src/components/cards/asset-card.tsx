@@ -1,5 +1,6 @@
 import React, { type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
+import { AssetIcon } from "@/components/asset-icon";
 import { AssetMenu } from "@/components/menus/asset-menu";
 import type { OwnedAsset } from "@/utils/blockchain/counterparty/api";
 import { formatAsset, formatAmount } from "@/utils/format";
@@ -47,9 +48,6 @@ export function AssetCard({
 }: AssetCardProps): ReactElement {
   const navigate = useNavigate();
 
-  // Generate the asset icon URL from xcp.io
-  const imageUrl = `https://app.xcp.io/img/icon/${asset.asset}`;
-
   // Handle card click - use custom handler or default to asset navigation
   const handleClick = () => {
     if (onClick) {
@@ -74,13 +72,7 @@ export function AssetCard({
       aria-label={`View ${asset.asset} details`}
     >
       {/* Asset Icon */}
-      <div className="w-12 h-12 flex-shrink-0">
-        <img 
-          src={imageUrl} 
-          alt={formatAsset(asset.asset, { assetInfo: { asset_longname: asset.asset_longname } })} 
-          className="w-full h-full object-cover rounded-full" 
-        />
-      </div>
+      <AssetIcon asset={asset.asset} size="lg" className="flex-shrink-0" />
 
       {/* Asset Information */}
       <div className="ml-3 flex-grow">

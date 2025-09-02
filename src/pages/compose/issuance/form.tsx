@@ -154,7 +154,8 @@ export function IssuanceForm({
                   issuer: parentAssetDetails.assetInfo.issuer,
                   divisible: parentAssetDetails.assetInfo.divisible ?? false,
                   locked: parentAssetDetails.assetInfo.locked ?? false,
-                  supply: parentAssetDetails.assetInfo.supply
+                  supply: parentAssetDetails.assetInfo.supply,
+                  supply_normalized: parentAssetDetails.assetInfo.supply_normalized || '0'
                 }}
                 className="mt-1 mb-5"
               />

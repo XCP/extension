@@ -1,5 +1,6 @@
 import React, { type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
+import { AssetIcon } from "@/components/asset-icon";
 
 /**
  * Props interface for the SearchResultCard component
@@ -53,9 +54,6 @@ export function SearchResultCard({
 }: SearchResultCardProps): ReactElement {
   const navigate = useNavigate();
   
-  // Generate the asset icon URL from xcp.io
-  const imageUrl = `https://app.xcp.io/img/icon/${symbol}`;
-  
   // Handle card click - use custom handler or default navigation
   const handleClick = () => {
     if (onClick) {
@@ -84,18 +82,7 @@ export function SearchResultCard({
       aria-label={`View ${symbol}`}
     >
       {/* Asset Icon */}
-      <div className="w-12 h-12 flex-shrink-0">
-        <img 
-          src={imageUrl} 
-          alt={symbol}
-          className="w-full h-full object-cover rounded-full"
-          onError={(e) => {
-            // Fallback for missing icons
-            const target = e.target as HTMLImageElement;
-            target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='system-ui' font-size='14'%3E%3F%3C/text%3E%3C/svg%3E";
-          }}
-        />
-      </div>
+      <AssetIcon asset={symbol} size="lg" className="flex-shrink-0" />
       
       {/* Asset Symbol */}
       <div className="ml-3 flex-grow">
