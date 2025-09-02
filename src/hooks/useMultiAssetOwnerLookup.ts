@@ -47,7 +47,7 @@ export function useMultiAssetOwnerLookup(options: UseMultiAssetOwnerLookupOption
   const debounceTimeouts = useRef<{ [id: number]: NodeJS.Timeout }>({});
   const abortControllers = useRef<{ [id: number]: AbortController }>({});
 
-  // Cleanup function for a specific destination
+  // Cleanup function for a specific destination - stable reference
   const cleanupDestination = useCallback((destinationId: number) => {
     if (debounceTimeouts.current[destinationId]) {
       clearTimeout(debounceTimeouts.current[destinationId]);
@@ -74,7 +74,7 @@ export function useMultiAssetOwnerLookup(options: UseMultiAssetOwnerLookupOption
   // Cleanup on unmount
   useEffect(() => {
     return cleanupAll;
-  }, [cleanupAll]);
+  }, []);
 
   const performLookup = useCallback(async (destinationId: number, assetName: string) => {
     // Clear any existing timeout and abort ongoing request for this destination
@@ -144,7 +144,7 @@ export function useMultiAssetOwnerLookup(options: UseMultiAssetOwnerLookupOption
         }
       }
     }, debounceMs);
-  }, [debounceMs, onResolve, cleanupDestination]);
+  }, [debounceMs, onResolve]);
 
   const clearLookup = useCallback((destinationId: number) => {
     cleanupDestination(destinationId);
@@ -153,7 +153,7 @@ export function useMultiAssetOwnerLookup(options: UseMultiAssetOwnerLookupOption
       delete newState[destinationId];
       return newState;
     });
-  }, [cleanupDestination]);
+  }, []);
 
   const getLookupState = useCallback((destinationId: number) => {
     return lookupStates[destinationId] || { isLookingUp: false, error: undefined };

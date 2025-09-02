@@ -51,7 +51,7 @@ export function useAssetOwnerLookup(options: UseAssetOwnerLookupOptions = {}) {
   const debounceTimeout = useRef<NodeJS.Timeout | undefined>(undefined);
   const abortController = useRef<AbortController | null>(null);
 
-  // Cleanup function - stable reference
+  // Cleanup function - no dependencies for stable reference
   const cleanup = useCallback(() => {
     if (debounceTimeout.current) {
       clearTimeout(debounceTimeout.current);
@@ -66,7 +66,7 @@ export function useAssetOwnerLookup(options: UseAssetOwnerLookupOptions = {}) {
   // Cleanup on unmount
   useEffect(() => {
     return cleanup;
-  }, [cleanup]);
+  }, []);
 
   const performLookup = useCallback(async (assetName: string) => {
     // Clear any existing timeout and abort ongoing request
@@ -131,12 +131,12 @@ export function useAssetOwnerLookup(options: UseAssetOwnerLookupOptions = {}) {
         }
       }
     }, debounceMs);
-  }, [debounceMs, onResolve, cleanup]);
+  }, [debounceMs, onResolve]);
 
   const clearLookup = useCallback(() => {
     cleanup();
     setLookupState({ isLookingUp: false, result: null, error: null });
-  }, [cleanup]);
+  }, []);
 
   return {
     ...lookupState,
