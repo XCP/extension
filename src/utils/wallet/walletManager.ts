@@ -62,13 +62,17 @@ export class WalletManager {
         } else {
           addresses = [this.deriveAddressFromPrivateKey(unlockedSecret, rec.addressFormat)];
         }
-      } else if (rec.previewAddress) {
-        addresses = [{
-          name: 'Address 1',
-          path: '',
-          address: rec.previewAddress,
-          pubKey: '',
-        }];
+      } else {
+        // Try to get preview from addressPreviews first, then fall back to previewAddress
+        const preview = rec.addressPreviews?.[rec.addressFormat] || rec.previewAddress;
+        if (preview) {
+          addresses = [{
+            name: 'Address 1',
+            path: '',
+            address: preview,
+            pubKey: '',
+          }];
+        }
       }
       return {
         id: rec.id,
@@ -137,7 +141,10 @@ export class WalletManager {
       addressFormat,
       addressCount: 1,
       encryptedSecret: encryptedMnemonic,
-      previewAddress,
+      previewAddress,  // Keep for backward compatibility
+      addressPreviews: {
+        [addressFormat]: previewAddress,
+      },
     };
     await addEncryptedWallet(record);
     const wallet: Wallet = {
@@ -186,7 +193,10 @@ export class WalletManager {
       addressFormat,
       addressCount: 1,
       encryptedSecret: encryptedPrivateKey,
-      previewAddress,
+      previewAddress,  // Keep for backward compatibility
+      addressPreviews: {
+        [addressFormat]: previewAddress,
+      },
     };
     await addEncryptedWallet(record);
     const wallet: Wallet = {
@@ -457,7 +467,13 @@ export class WalletManager {
     
     record.addressFormat = newType;
     record.addressCount = 1;
-    record.previewAddress = wallet.addresses[0].address;
+    record.previewAddress = wallet.addresses[0].address;  // Keep for backward compatibility
+    
+    // Update addressPreviews for the new format
+    if (!record.addressPreviews) {
+      record.addressPreviews = {};
+    }
+    record.addressPreviews[newType] = wallet.addresses[0].address;
     
     await updateEncryptedWallet(record);
 
