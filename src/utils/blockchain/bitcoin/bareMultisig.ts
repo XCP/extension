@@ -120,91 +120,71 @@ export async function consolidateBareMultisig(
   }
 
   // Now try to build and sign the transaction
-  // We'll attempt multiple times, removing problematic inputs if needed
-  let attemptInputs = [...validInputs];
-  let lastError: any = null;
+  const attemptInputs = [...validInputs];
 
-  while (attemptInputs.length > 0) {
-    try {
-      const tx = new Transaction({ disableScriptCheck: true });
-      let totalInputAmount = 0n;
+  try {
+    const tx = new Transaction({ disableScriptCheck: true });
+    let totalInputAmount = 0n;
 
-      // Add all inputs for this attempt
-      for (const { utxo, scriptPubKey, prevTxHex, amountSats } of attemptInputs) {
-        tx.addInput({
-          txid: hexToBytes(utxo.txid),
-          index: utxo.vout,
-          sequence: 0xfffffffd, // Enable RBF.
-          nonWitnessUtxo: hexToBytes(prevTxHex),
-          redeemScript: scriptPubKey, // For bare multisig, the redeemScript is identical to the scriptPubKey.
-        });
-        totalInputAmount += amountSats;
-      }
-
-      // Calculate fee and output
-      const feeRate = BigInt(feeRateSatPerVByte);
-      const estimatedSize = BigInt(estimateTransactionSize(tx.inputsLength, 1));
-      const fee = estimatedSize * feeRate;
-      const outputAmount = totalInputAmount - fee;
-      
-      if (outputAmount <= 0n) {
-        console.warn(`Insufficient funds after fees. Total: ${totalInputAmount}, Fee: ${fee}`);
-        // Try with fewer inputs if we have more than one
-        if (attemptInputs.length > 1) {
-          attemptInputs.pop(); // Remove the last input and try again
-          continue;
-        }
-        throw new Error('Insufficient funds');
-      }
-
-      tx.addOutputAddress(targetAddress, outputAmount);
-
-      // Check function to determine if an input needs uncompressed signing
-      const checkForUncompressed = (idx: number): boolean => {
-        if (idx >= attemptInputs.length) return false;
-        return attemptInputs[idx].needsUncompressed;
-      };
-
-      // Use the improved hybrid signing utility
-      // We don't need to pass prevOutputScripts since redeemScript is already set on inputs
-      hybridSignTransaction(
-        tx,
-        privateKeyBytes,
-        publicKeyCompressed,
-        publicKeyUncompressed,
-        undefined, // Will use redeemScript from inputs
-        checkForUncompressed
-      );
-
-      // Try to finalize
-      tx.finalize();
-      
-      const signedTx = tx.hex;
-      console.log(`Successfully consolidated ${attemptInputs.length} UTXOs out of ${utxos.length} total`);
-      return signedTx;
-      
-    } catch (error) {
-      lastError = error;
-      console.error(`Attempt failed with ${attemptInputs.length} inputs:`, error);
-      
-      // If finalization failed, try removing the last input
-      // The library throws "Reader(): Output/multisig: wrong pubkey" when it can't match signatures
-      if (attemptInputs.length > 1 && 
-          (String(error).includes('wrong pubkey') || 
-           String(error).includes('Output/multisig') ||
-           String(error).includes('finalize'))) {
-        const removed = attemptInputs.pop();
-        console.log(`Removing problematic input ${removed?.utxo.txid}:${removed?.utxo.vout} and retrying`);
-        continue;
-      }
-      
-      // Otherwise, give up
-      break;
+    // Add all inputs
+    for (const { utxo, scriptPubKey, prevTxHex, amountSats } of attemptInputs) {
+      tx.addInput({
+        txid: hexToBytes(utxo.txid),
+        index: utxo.vout,
+        sequence: 0xfffffffd, // Enable RBF.
+        nonWitnessUtxo: hexToBytes(prevTxHex),
+        redeemScript: scriptPubKey, // For bare multisig, the redeemScript is identical to the scriptPubKey.
+      });
+      totalInputAmount += amountSats;
     }
-  }
 
-  // If we get here, all attempts failed
-  throw lastError || new Error('Failed to consolidate any UTXOs');
+    // Calculate fee and output
+    const feeRate = BigInt(feeRateSatPerVByte);
+    const estimatedSize = BigInt(estimateTransactionSize(tx.inputsLength, 1));
+    const fee = estimatedSize * feeRate;
+    const outputAmount = totalInputAmount - fee;
+    
+    if (outputAmount <= 0n) {
+      throw new Error(`Insufficient funds after fees. Total: ${totalInputAmount} sats, Fee: ${fee} sats`);
+    }
+
+    tx.addOutputAddress(targetAddress, outputAmount);
+
+    // Check function to determine if an input needs uncompressed signing
+    const checkForUncompressed = (idx: number): boolean => {
+      if (idx >= attemptInputs.length) return false;
+      return attemptInputs[idx].needsUncompressed;
+    };
+
+    // Use the improved hybrid signing utility
+    // We don't need to pass prevOutputScripts since redeemScript is already set on inputs
+    hybridSignTransaction(
+      tx,
+      privateKeyBytes,
+      publicKeyCompressed,
+      publicKeyUncompressed,
+      undefined, // Will use redeemScript from inputs
+      checkForUncompressed
+    );
+
+    // Try to finalize
+    tx.finalize();
+    
+    const signedTx = tx.hex;
+    console.log(`Successfully consolidated ${attemptInputs.length} UTXOs out of ${utxos.length} total`);
+    return signedTx;
+    
+  } catch (error) {
+    console.error(`Transaction failed with ${attemptInputs.length} inputs:`, error);
+    
+    // Log which inputs we tried so user can investigate
+    console.log('Failed transaction included these inputs:');
+    attemptInputs.forEach((input, idx) => {
+      console.log(`  ${idx}: ${input.utxo.txid}:${input.utxo.vout} (${input.needsUncompressed ? 'uncompressed' : 'compressed'})`);
+    });
+    
+    throw error;
+  }
 }
 
 /* ───────── Helper Functions ───────── */
