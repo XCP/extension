@@ -83,10 +83,10 @@ describe('ReviewScreen', () => {
     );
 
     const multiLineField = screen.getByText((content, element) => {
-      return element?.classList.contains('whitespace-pre-line') && 
-             content.includes('Line 1') && 
-             content.includes('Line 2') && 
-             content.includes('Line 3');
+      return !!(element?.classList.contains('whitespace-pre-line') && 
+                content.includes('Line 1') && 
+                content.includes('Line 2') && 
+                content.includes('Line 3'));
     });
     expect(multiLineField).toBeInTheDocument();
     expect(multiLineField).toHaveClass('whitespace-pre-line');
