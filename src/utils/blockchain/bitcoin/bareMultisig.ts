@@ -72,7 +72,15 @@ export async function consolidateBareMultisig(
       try {
         decoded = OutScript.decode(scriptPubKey);
       } catch (e) {
-        skippedUtxos.push({ utxo, reason: `Failed to decode script: ${e}` });
+        // Check if it's an invalid elliptic curve point error
+        const errorMsg = String(e);
+        if (errorMsg.includes('wrong pubkey')) {
+          // These UTXOs contain mathematically invalid public keys that don't lie on the secp256k1 curve
+          // They are permanently unspendable and were likely created by buggy software
+          skippedUtxos.push({ utxo, reason: `Contains invalid elliptic curve points (permanently unspendable)` });
+        } else {
+          skippedUtxos.push({ utxo, reason: `Failed to decode script: ${e}` });
+        }
         continue;
       }
 
