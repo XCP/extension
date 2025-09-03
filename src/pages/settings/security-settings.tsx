@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHelpCircle } from "react-icons/fi";
-import { Field, Label, Input, Description } from "@headlessui/react";
+import { Field, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
+import { PasswordInput } from "@/components/inputs/password-input";
 import { ErrorAlert } from "@/components/error-alert";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
@@ -141,63 +142,39 @@ export default function SecuritySettings(): ReactElement {
           )}
           
           <div className="bg-white rounded-lg shadow-lg p-4 space-y-4">
-            <Field>
-              <Label className="text-sm font-medium text-gray-700">Current Password</Label>
-              <Input
-                ref={currentPasswordRef}
-                id="currentPassword"
-                type="password"
-                value={passwordForm.currentPassword}
-                onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
-                onKeyDown={handleKeyDown}
-                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-                disabled={isLoading}
-                aria-label="Current Password"
-              />
-              {shouldShowHelpText && (
-                <Description className="mt-2 text-sm text-gray-500">
-                  Enter your current wallet password to authorize the change.
-                </Description>
-              )}
-            </Field>
+            <PasswordInput
+              innerRef={currentPasswordRef}
+              label="Current Password"
+              name="currentPassword"
+              value={passwordForm.currentPassword}
+              onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+              onKeyDown={handleKeyDown}
+              disabled={isLoading}
+              showHelpText={shouldShowHelpText}
+              helpText="Enter your current wallet password to authorize the change."
+            />
             
-            <Field>
-              <Label className="text-sm font-medium text-gray-700">New Password</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={passwordForm.newPassword}
-                onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
-                onKeyDown={handleKeyDown}
-                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-                disabled={isLoading}
-                aria-label="New Password"
-              />
-              {shouldShowHelpText && (
-                <Description className="mt-2 text-sm text-gray-500">
-                  Choose a new password that is at least {CONSTANTS.MIN_PASSWORD_LENGTH} characters long.
-                </Description>
-              )}
-            </Field>
+            <PasswordInput
+              label="New Password"
+              name="newPassword"
+              value={passwordForm.newPassword}
+              onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+              onKeyDown={handleKeyDown}
+              disabled={isLoading}
+              showHelpText={shouldShowHelpText}
+              helpText={`Choose a new password that is at least ${CONSTANTS.MIN_PASSWORD_LENGTH} characters long.`}
+            />
             
-            <Field>
-              <Label className="text-sm font-medium text-gray-700">Confirm New Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={passwordForm.confirmPassword}
-                onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                onKeyDown={handleKeyDown}
-                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
-                disabled={isLoading}
-                aria-label="Confirm New Password"
-              />
-              {shouldShowHelpText && (
-                <Description className="mt-2 text-sm text-gray-500">
-                  Re-enter your new password to confirm it was typed correctly.
-                </Description>
-              )}
-            </Field>
+            <PasswordInput
+              label="Confirm New Password"
+              name="confirmPassword"
+              value={passwordForm.confirmPassword}
+              onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+              onKeyDown={handleKeyDown}
+              disabled={isLoading}
+              showHelpText={shouldShowHelpText}
+              helpText="Re-enter your new password to confirm it was typed correctly."
+            />
             
             <Button
               color="blue"
