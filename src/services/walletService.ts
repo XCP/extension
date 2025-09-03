@@ -1,5 +1,5 @@
 import { defineProxyService } from '@webext-core/proxy-service';
-import { sendMessage } from 'webext-bridge/background'; // Import for background context
+import { MessageBus } from '@/services/core/MessageBus';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import { walletManager, settingsManager, type Wallet, type Address } from '@/utils/wallet';
@@ -94,7 +94,7 @@ function createWalletService(): WalletService {
       await walletManager.lockAllWallets();
       // Notify popup of lock event (if it's open)
       try {
-        await sendMessage('walletLocked', { locked: true }, 'popup');
+        await MessageBus.notifyWalletLocked(true);
       } catch (error) {
         // Popup might not be open, which is fine
         console.debug('Could not notify popup of lock event:', error);

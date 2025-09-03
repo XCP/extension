@@ -10,24 +10,17 @@ export default defineContentScript({
       
       // Check for XCP wallet messages
       if (event.data?.target === 'xcp-wallet-content' && event.data?.type === 'XCP_WALLET_REQUEST') {
-        console.debug('Content script sending message to background:', {
-          type: 'PROVIDER_REQUEST',
-          origin: window.location.origin,
-          data: event.data.data,
-          extensionId: browser.runtime.id
-        });
-        
         try {
-          // Forward to background script with unique identifier
-          const response = await browser.runtime.sendMessage({
+          // Use MessageBus for standardized communication
+          const { MessageBus } = await import('@/services/core/MessageBus');
+          
+          const response: any = await MessageBus.send('provider-request', {
             type: 'PROVIDER_REQUEST',
             origin: window.location.origin,
             data: event.data.data,
-            xcpWalletVersion: '2.0', // Unique identifier for this version
-            timestamp: Date.now() // Add timestamp to satisfy other extension if needed
-          });
-          
-          console.debug('Content script received response from background:', response);
+            xcpWalletVersion: '2.0',
+            timestamp: Date.now()
+          }, 'background');
           
           // Handle the response properly
           if (!response) {
@@ -38,18 +31,18 @@ export default defineContentScript({
               id: event.data.id,
               error: {
                 message: 'No response from extension background',
-                code: -32603
+                code: -32603 // Internal JSON-RPC error
               }
             }, window.location.origin);
-          } else if (response.success) {
+          } else if (response?.success) {
             // Successful response
             window.postMessage({
               target: 'xcp-wallet-injected',
               type: 'XCP_WALLET_RESPONSE',
               id: event.data.id,
               data: {
-                method: response.method || event.data.data.method,
-                result: response.result
+                method: response?.method || event.data.data.method,
+                result: response?.result
               }
             }, window.location.origin);
           } else {
@@ -58,21 +51,29 @@ export default defineContentScript({
               target: 'xcp-wallet-injected',
               type: 'XCP_WALLET_RESPONSE',
               id: event.data.id,
-              error: response.error || {
+              error: response?.error || {
                 message: 'Unknown error',
-                code: -32603
+                code: -32603 // Internal JSON-RPC error
               }
             }, window.location.origin);
           }
         } catch (error) {
+          console.error('Content script error handling provider request:', error);
           // Send error back to page
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error in content script';
+          
+          // Special handling for fingerprint errors (from minified webext-bridge code)
+          const finalErrorMessage = errorMessage.includes('fingerprint') 
+            ? 'Extension services not available. Please try reloading the extension.'
+            : errorMessage;
+          
           window.postMessage({
             target: 'xcp-wallet-injected',
             type: 'XCP_WALLET_RESPONSE',
             id: event.data.id,
             error: {
-              message: (error as any).message || 'Unknown error',
-              code: (error as any).code || -1
+              message: finalErrorMessage,
+              code: error && typeof error === 'object' && 'code' in error ? (error as any).code : -32603
             }
           }, window.location.origin);
         }
