@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Field, Label, Description, Textarea } from "@headlessui/react";
 import { ComposeForm } from "@/components/forms/compose-form";
+import { HashInput } from "@/components/inputs/hash-input";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
 import type { CancelOptions } from "@/utils/blockchain/counterparty";
@@ -27,12 +27,7 @@ export function CancelForm({
 }: CancelFormProps): ReactElement {
   // Context hooks
   const { activeAddress, activeWallet, settings, showHelpText } = useComposer();
-
-  // Focus offer_hash textarea on mount
-  useEffect(() => {
-    const textarea = document.querySelector("textarea[name='offer_hash']") as HTMLTextAreaElement;
-    textarea?.focus();
-  }, []);
+  const [offerHash, setOfferHash] = useState(initialFormData?.offer_hash || initialHash || "");
 
   return (
     <ComposeForm
@@ -43,25 +38,19 @@ export function CancelForm({
         )
       }
     >
-          <Field>
-            <Label htmlFor="offer_hash" className="block text-sm font-medium text-gray-700">
-              Order Hash <span className="text-red-500">*</span>
-            </Label>
-            <Textarea
-              id="offer_hash"
-              name="offer_hash"
-              defaultValue={initialHash || initialFormData?.offer_hash || ""}
-              rows={3}
-              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
-              disabled={false}
-            />
-            {showHelpText && (
-              <Description className="mt-2 text-sm text-gray-500">
-                Enter the hash of the order you want to cancel.
-              </Description>
-            )}
-          </Field>
+          <HashInput
+            value={offerHash}
+            onChange={setOfferHash}
+            label="Order Hash"
+            name="offer_hash"
+            hashType="offer"
+            placeholder="Enter order hash (64 hex characters)..."
+            required={true}
+            showHelpText={showHelpText}
+            description="Enter the hash of the order you want to cancel."
+            showCopyButton={true}
+          />
+          <input type="hidden" name="offer_hash" value={offerHash} />
 
     </ComposeForm>
   );

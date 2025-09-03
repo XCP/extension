@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCheckCircle, FaUpload, FaRedo } from "react-icons/fa";
 import { Button } from "@/components/button";
+import { TextAreaInput } from "@/components/inputs/textarea-input";
 import { ErrorAlert } from "@/components/error-alert";
 import { useHeader } from "@/contexts/header-context";
 import { verifyMessage } from "@/utils/blockchain/bitcoin";
@@ -131,38 +132,33 @@ export default function VerifyMessage(): ReactElement {
         
         {/* Message Input */}
         <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Message <span className="text-red-500">*</span>
-          </label>
-          <textarea
+          <TextAreaInput
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={setMessage}
+            label="Message"
             placeholder="Enter the exact message that was signed..."
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             rows={4}
+            required={true}
+            showCharCount={true}
+            description="Must match exactly"
           />
-          <div className="mt-2 text-xs text-gray-500">
-            {message.length} characters - Must match exactly
-          </div>
         </div>
         
         {/* Signature Input */}
         <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Signature <span className="text-red-500">*</span>
-          </label>
-          <textarea
+          <TextAreaInput
             value={signature}
-            onChange={(e) => setSignature(e.target.value)}
+            onChange={setSignature}
+            label="Signature"
             placeholder="Enter the signature (base64 or hex format)..."
-            className={`w-full p-3 border rounded-lg transition-colors ${
-              verificationResult !== null && !error
-                ? verificationResult
-                  ? "border-green-500 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  : "border-red-500 focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            }`}
             rows={3}
+            required={true}
+            className={verificationResult !== null && !error
+              ? verificationResult
+                ? "border-green-500"
+                : "border-red-500"
+              : ""
+            }
           />
           {verificationResult !== null && !error && (
             <div className="mt-2 flex items-center gap-1">
