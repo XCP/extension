@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, type ReactElement } from "react";
 import { useInView } from "react-intersection-observer";
 import { Spinner } from "@/components/spinner";
+import { SearchInput } from "@/components/inputs/search-input";
+import { BalanceMenu } from "@/components/menus/balance-menu";
 import { BalanceCard } from "@/components/cards/balance-card";
 import { SearchResultCard } from "@/components/cards/search-result-card";
 import { useWallet } from "@/contexts/wallet-context";
@@ -9,7 +11,6 @@ import { fetchTokenBalance, fetchTokenBalances } from "@/utils/blockchain/counte
 import type { TokenBalance } from "@/utils/blockchain/counterparty";
 import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
-import { FaSearch, FaTimes } from "react-icons/fa";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 import { useSettings } from "@/contexts/settings-context";
 
@@ -136,27 +137,15 @@ export const BalanceList = (): ReactElement => {
 
   return (
     <div className="space-y-2">
-      <div className="relative mb-3">
-        <input
-          type="text"
-          id="balance-search"
-          name="balance-search"
-          className="w-full p-2 pl-8 pr-8 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Search balances..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <FaSearch className="absolute left-3 top-3 text-gray-400" />
-        {searchQuery && (
-          <button
-            onClick={() => setSearchQuery("")}
-            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-            aria-label="Clear search"
-          >
-            <FaTimes />
-          </button>
-        )}
-      </div>
+      <SearchInput
+        value={searchQuery}
+        onChange={setSearchQuery}
+        placeholder="Search balances..."
+        name="balance-search"
+        className="mb-3"
+        showClearButton={true}
+        isLoading={isSearching}
+      />
       {searchQuery ? (
         isSearching ? (
           <Spinner message="Searching balances..." />

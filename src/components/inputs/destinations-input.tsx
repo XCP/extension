@@ -1,7 +1,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { FiPlus, FiMinus } from "react-icons/fi";
-import { isValidBitcoinAddress, lookupAssetOwner, shouldTriggerAssetLookup } from "@/utils/validation";
+import { 
+  lookupAssetOwner, 
+  shouldTriggerAssetLookup, 
+  validateDestinations, 
+  parseMultiLineDestinations, 
+  isMPMASupported,
+  validateBitcoinAddress 
+} from "@/utils/validation";
 import { useMultiAssetOwnerLookup } from "@/hooks/useMultiAssetOwnerLookup";
 
 interface Destination {
@@ -48,32 +55,16 @@ export function DestinationsInput({
   }, []);
 
   useEffect(() => {
-    // Check for duplicates
-    const addressCounts = new Map<string, number>();
-    destinations.forEach(dest => {
-      if (dest.address) {
-        const count = addressCounts.get(dest.address.toLowerCase()) || 0;
-        addressCounts.set(dest.address.toLowerCase(), count + 1);
-      }
-    });
+    const validation = validateDestinations(destinations);
     
-    // Update validation errors for duplicates
-    const newErrors: { [key: number]: boolean } = {};
-    destinations.forEach(dest => {
-      if (dest.address) {
-        if (!isValidBitcoinAddress(dest.address)) {
-          newErrors[dest.id] = true;
-        } else if ((addressCounts.get(dest.address.toLowerCase()) || 0) > 1) {
-          newErrors[dest.id] = true;
-        }
-      }
+    // Convert errors to boolean map for backward compatibility
+    const errorMap: { [key: number]: boolean } = {};
+    Object.keys(validation.errors).forEach(id => {
+      errorMap[Number(id)] = true;
     });
-    setValidationErrors(newErrors);
+    setValidationErrors(errorMap);
     
-    // Check overall validation status
-    const hasErrors = Object.keys(newErrors).length > 0;
-    const hasAllAddresses = destinations.every(dest => dest.address);
-    onValidationChange?.(!hasErrors && hasAllAddresses);
+    onValidationChange?.(validation.isValid);
   }, [destinations, onValidationChange]);
 
   const handleDestinationChange = (id: number, value: string) => {
@@ -110,10 +101,7 @@ export function DestinationsInput({
     }
 
     const pastedText = event.clipboardData.getData("text");
-    const lines = pastedText
-      .split(/[\n\r]+/)
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
+    const lines = parseMultiLineDestinations(pastedText);
 
     // If multiple lines and we only have one input, handle specially
     if (lines.length > 1 && destinations.length === 1) {
@@ -122,7 +110,7 @@ export function DestinationsInput({
       // Process each line - resolve asset names to addresses
       const resolvedLines: string[] = [];
       for (const line of lines) {
-        if (isValidBitcoinAddress(line)) {
+        if (validateBitcoinAddress(line).isValid) {
           // Already a valid address
           resolvedLines.push(line);
         } else if (shouldTriggerAssetLookup(line)) {
@@ -160,7 +148,7 @@ export function DestinationsInput({
     }
   };
 
-  const showAddButton = asset !== "BTC" && enableMPMA && destinations.length < 1000;
+  const showAddButton = isMPMASupported(asset) && enableMPMA && destinations.length < 1000;
   const canRemove = destinations.length > 1;
 
   return (
@@ -185,11 +173,15 @@ export function DestinationsInput({
                 : `Enter destination address ${index + 1}`
             }
             className={`block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 ${
-              validationErrors[destination.id] ? "border-red-500 focus:border-red-500 focus:ring-red-500" : 
-              getLookupState(destination.id).isLookingUp ? "border-blue-500 focus:border-blue-500 focus:ring-blue-500" :
-              "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+              validationErrors[destination.id] 
+                ? "border-red-500 focus:border-red-500 focus:ring-red-500" 
+                : getLookupState(destination.id).isLookingUp 
+                  ? "border-blue-500 focus:border-blue-500 focus:ring-blue-500" 
+                  : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             } ${
-              (showAddButton && index === 0) || canRemove || getLookupState(destination.id).isLookingUp ? "pr-12" : "pr-2"
+              (showAddButton && index === 0) || canRemove || getLookupState(destination.id).isLookingUp 
+                ? "pr-12" 
+                : "pr-2"
             }`}
           />
           

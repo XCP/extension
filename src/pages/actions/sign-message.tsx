@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { FaCopy, FaCheck, FaLock, FaCheckCircle, FaInfoCircle, FaRedo } from "react-icons/fa";
 import { FiDownload } from "react-icons/fi";
 import { Button } from "@/components/button";
+import { TextAreaInput } from "@/components/inputs/textarea-input";
 import { Spinner } from "@/components/spinner";
 import { ErrorAlert } from "@/components/error-alert";
 import { UnlockScreen } from "@/components/screens/unlock-screen";
@@ -161,28 +162,24 @@ export default function SignMessage(): ReactElement {
     <div className="p-4 space-y-4">
       {/* Message Input */}
       <div className="bg-white rounded-lg shadow-sm p-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Message <span className="text-red-500">*</span>
-        </label>
-        <textarea
+        <TextAreaInput
           value={message}
-          onChange={(e) => {
-            setMessage(e.target.value);
+          onChange={(value) => {
+            setMessage(value);
             // Reset signature if message changes after signing
             if (signature) {
               setSignature("");
             }
           }}
+          label="Message"
           placeholder="Enter your message here..."
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           rows={4}
+          required={true}
+          showCharCount={true}
           disabled={!signingCapabilities.canSign || isSigning}
         />
-        <div className="mt-2 flex justify-between items-center">
-          <span className="text-xs text-gray-500">
-            {message.length} characters
-          </span>
-          {message && (
+        {message && (
+          <div className="mt-2 flex justify-end">
             <button
               onClick={() => handleCopy(message, 'message')}
               className={`text-xs transition-all duration-200 cursor-pointer flex items-center gap-1 ${
@@ -200,23 +197,21 @@ export default function SignMessage(): ReactElement {
                 'Copy message'
               )}
             </button>
-          )}
-        </div>
+          </div>
+        )}
         
         {/* Signature Output */}
         <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Signature
-          </label>
-          <textarea
+          <TextAreaInput
             value={signature}
+            onChange={() => {}} // Read-only
+            label="Signature"
             placeholder="Signature will appear here after signing..."
-            className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50"
             rows={3}
-            disabled
-            readOnly
+            disabled={true}
+            readOnly={true}
+            className="bg-gray-50"
           />
-          <div className="h-1" aria-hidden="true">&nbsp;</div>
           {signature && (
             <div className="mt-2 flex justify-between items-center">
               <span className="text-xs text-green-600 flex items-center gap-1">

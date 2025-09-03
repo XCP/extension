@@ -314,7 +314,7 @@ export function DispenseForm({
                 onChange={setNumberOfDispenses}
                 sat_per_vbyte={feeRate}
                 setError={setValidationError}
-                shouldShowHelpText={showHelpText}
+                showHelpText={showHelpText}
                 sourceAddress={activeAddress}
                 maxAmount={maxDispenses.toString()}
                 label="Times to Dispense"

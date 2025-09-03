@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { AssetMenu } from "@/components/menus/asset-menu";
+import { SearchInput } from "@/components/inputs/search-input";
 import { AssetCard } from "@/components/cards/asset-card";
 import { SearchResultCard } from "@/components/cards/search-result-card";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchOwnedAssets, type OwnedAsset } from "@/utils/blockchain/counterparty/api";
 import { formatAsset } from "@/utils/format";
 import { Spinner } from "@/components/spinner";
-import { FaSearch, FaTimes } from "react-icons/fa";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 
 export const AssetList = (): React.ReactElement => {
@@ -54,27 +56,15 @@ export const AssetList = (): React.ReactElement => {
 
   return (
     <div className="space-y-2">
-      <div className="relative mb-3">
-        <input
-          type="text"
-          id="asset-search"
-          name="asset-search"
-          className="w-full p-2 pl-8 pr-8 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Search assets..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <FaSearch className="absolute left-3 top-3 text-gray-400" />
-        {searchQuery && (
-          <button
-            onClick={() => setSearchQuery("")}
-            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-            aria-label="Clear search"
-          >
-            <FaTimes />
-          </button>
-        )}
-      </div>
+      <SearchInput
+        value={searchQuery}
+        onChange={setSearchQuery}
+        placeholder="Search assets..."
+        name="asset-search"
+        className="mb-3"
+        showClearButton={true}
+        isLoading={isSearching}
+      />
       {searchQuery ? (
         isSearching ? (
           <Spinner message="Searching assets..." />

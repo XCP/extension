@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useState, ChangeEvent, useEffect, useCallback } from "react";
+import React, { useState, ChangeEvent, useEffect } from "react";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
@@ -22,7 +22,7 @@ interface AmountWithMaxInputProps {
   onChange: (value: string) => void;
   sat_per_vbyte: number;
   setError: (message: string | null) => void;
-  shouldShowHelpText: boolean;
+  showHelpText?: boolean;
   sourceAddress: { address: string } | null;
   maxAmount: string;
   label: string;
@@ -44,7 +44,7 @@ export function AmountWithMaxInput({
   onChange,
   sat_per_vbyte,
   setError,
-  shouldShowHelpText,
+  showHelpText = false,
   sourceAddress,
   maxAmount,
   label,
@@ -65,7 +65,7 @@ export function AmountWithMaxInput({
     setError(null);
   };
   
-  const handleMaxButtonClick = useCallback(async () => {
+  const handleMaxButtonClick = async () => {
     if (!sourceAddress || disabled) return;
     const sourceAddr = sourceAddress.address;
 
@@ -144,19 +144,7 @@ export function AmountWithMaxInput({
     } finally {
       setIsLoading(false);
     }
-  }, [
-    sourceAddress, 
-    disabled, 
-    asset, 
-    maxAmount, 
-    destinationCount, 
-    onChange, 
-    setError, 
-    destination, 
-    availableBalance, 
-    memo, 
-    sat_per_vbyte
-  ]);
+  };
 
   const handleMaxClick = async () => {
     if (onMaxClick) {
@@ -226,7 +214,7 @@ export function AmountWithMaxInput({
           Max
         </Button>
       </div>
-      {shouldShowHelpText && (
+      {showHelpText && (
         <Description id={`${name}-description`} className="mt-2 text-sm text-gray-500">
           {description || `Enter the amount of ${asset} you want to send${destinationCount > 1 ? " (per destination)" : ""}.`}
         </Description>

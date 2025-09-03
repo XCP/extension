@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Field, Label, Description, Input, Textarea } from "@headlessui/react";
+import { Field, Label, Description } from "@headlessui/react";
+import { TextAreaInput } from "@/components/inputs/textarea-input";
 import { ComposerForm } from "@/components/composer-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { AssetNameInput } from "@/components/inputs/asset-name-input";
@@ -121,7 +122,7 @@ export function IssuanceForm({
 
   return (
     <ComposerForm
-      formAction={async formData => {
+      formAction={async (formData: FormData) => {
         // If inscribing, convert file to base64 and set as description
         if (inscribeEnabled) {
           if (selectedFile) {
@@ -192,7 +193,7 @@ export function IssuanceForm({
             onChange={setAmount}
             sat_per_vbyte={0}
             setError={(msg) => {}}
-            shouldShowHelpText={showHelpText}
+            showHelpText={showHelpText}
             sourceAddress={activeAddress}
             maxAmount={getMaxAmount()}
             label="Amount"
@@ -249,25 +250,15 @@ export function IssuanceForm({
               showHelpText={showHelpText}
             />
           ) : (
-            <Field>
-              <Label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                Description
-              </Label>
-              <Textarea
-                id="description"
-                name="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:border-blue-500 focus:ring-blue-500"
-                rows={4}
-                disabled={pending}
-              />
-              {showHelpText && (
-                <Description className="mt-2 text-sm text-gray-500">
-                  A textual description for the asset.
-                </Description>
-              )}
-            </Field>
+            <TextAreaInput
+              value={description}
+              onChange={setDescription}
+              label="Description"
+              rows={4}
+              disabled={pending}
+              showHelpText={showHelpText}
+              helpText="A textual description for the asset."
+            />
           )}
           
           {isSegwitAddress && (

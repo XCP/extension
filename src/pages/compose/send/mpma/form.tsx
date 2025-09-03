@@ -7,6 +7,7 @@ import { formatAmount } from "@/utils/format";
 import { fetchAssetDetails, isHexMemo, stripHexPrefix, isValidMemoLength } from "@/utils/blockchain/counterparty";
 import { validateBitcoinAddress } from "@/utils/validation";
 import { ErrorAlert } from "@/components/error-alert";
+import { TextAreaInput } from "@/components/inputs/textarea-input";
 import type { ReactElement } from "react";
 
 interface ParsedRow {
@@ -282,10 +283,11 @@ export function MPMAForm({
               {/* Or paste text */}
               <div className="text-center text-gray-500 text-sm">- OR -</div>
               
-              <textarea
+              <TextAreaInput
+                value=""
+                onChange={() => {}} // We only care about paste
                 placeholder="Paste CSV data here..."
                 onPaste={handleTextPaste}
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 rows={4}
                 disabled={isProcessing}
               />
