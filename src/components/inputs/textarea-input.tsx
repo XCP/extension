@@ -113,7 +113,7 @@ export function TextAreaInput({
   };
 
   return (
-    <Field className={className}>
+    <Field>
       {label && (
         <Label className="text-sm font-medium text-gray-700">
           {label} {required && <span className="text-red-500">*</span>}
@@ -131,6 +131,8 @@ export function TextAreaInput({
         required={required}
         rows={autoResize ? undefined : rows}
         className={`block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 resize-none ${
+          // Allow external className to override default validation styling
+          className && className.includes('border-') ? className :
           !isValid 
             ? "border-red-500 focus:ring-red-500 focus:border-red-500" 
             : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
@@ -158,7 +160,7 @@ export function TextAreaInput({
         
         {showCharCount && (
           <span className={`text-xs ${getCharCountColor()}`}>
-            {localValue.length}{maxLength ? ` / ${maxLength}` : ""} characters
+            {localValue.length}{maxLength ? ` / ${maxLength}` : ""} characters{(description || helpText) && ` - ${description || helpText}`}
           </span>
         )}
       </div>
