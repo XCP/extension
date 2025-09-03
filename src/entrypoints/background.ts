@@ -217,21 +217,43 @@ export default defineBackground(() => {
       eventData = eventOrData;
     }
     
+    // Only query tabs that might have our content script
+    // Content script is injected on xcp.io domains
     const tabs = await browser.tabs.query({});
-    tabs.forEach(tab => {
+    const relevantTabs = tabs.filter(tab => {
+      if (!tab.url) return false;
+      
+      // Check if it's a tab where our content script might be injected
+      const url = tab.url.toLowerCase();
+      return url.includes('xcp.io') || 
+             url.startsWith('chrome-extension://') ||
+             url.startsWith('moz-extension://');
+    });
+    
+    relevantTabs.forEach(tab => {
       // If origin specified, only send to matching tabs
       if (origin && tab.url && !new URL(tab.url).origin.startsWith(origin)) {
         return;
       }
       
       if (tab.id) {
-        browser.tabs.sendMessage(tab.id, {
-          type: 'PROVIDER_EVENT',
-          event,
-          data: eventData
-        }).catch(() => {
-          // Ignore errors for tabs without content script
-        });
+        // Use callback style to properly check lastError
+        chrome.tabs.sendMessage(
+          tab.id,
+          {
+            type: 'PROVIDER_EVENT',
+            event,
+            data: eventData
+          },
+          () => {
+            // Check and clear lastError to prevent unchecked error warnings
+            if (chrome.runtime.lastError) {
+              // Tab doesn't have content script, which is expected
+              // Just clear the error by accessing it
+              void chrome.runtime.lastError.message;
+            }
+          }
+        );
       }
     });
   }
