@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, forwardRef } from "react";
 import { Field, Label, Input, Description } from "@headlessui/react";
 import { FiSearch, FiX } from "react-icons/fi";
 import { Button } from "@/components/button";
@@ -20,22 +20,25 @@ interface SearchInputProps {
   className?: string;
 }
 
-export function SearchInput({
-  value,
-  onChange,
-  onSearch,
-  placeholder = "Search...",
-  label,
-  name = "search",
-  disabled = false,
-  isLoading = false,
-  showClearButton = true,
-  showHelpText = false,
-  description = "Start typing to search",
-  debounceMs = 300,
-  required = false,
-  className = "",
-}: SearchInputProps) {
+export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>((
+  {
+    value,
+    onChange,
+    onSearch,
+    placeholder = "Search...",
+    label,
+    name = "search",
+    disabled = false,
+    isLoading = false,
+    showClearButton = true,
+    showHelpText = false,
+    description = "Start typing to search",
+    debounceMs = 300,
+    required = false,
+    className = "",
+  },
+  ref
+) => {
   const [localValue, setLocalValue] = useState(value);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -89,6 +92,7 @@ export function SearchInput({
           <FiSearch className="h-4 w-4 text-gray-400" aria-hidden="true" />
         </div>
         <Input
+          ref={ref}
           type="text"
           name={name}
           value={localValue}
@@ -130,4 +134,6 @@ export function SearchInput({
       )}
     </Field>
   );
-}
+});
+
+SearchInput.displayName = "SearchInput";
