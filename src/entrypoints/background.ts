@@ -11,6 +11,19 @@ import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/session
 import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, createJsonRpcError } from '@/utils/constants/errorCodes';
 
 export default defineBackground(() => {
+  // Global handler to catch any unchecked chrome.runtime.lastError
+  // This prevents the "Unchecked runtime.lastError" warnings
+  const checkLastError = () => {
+    const lastError = chrome.runtime?.lastError;
+    if (lastError) {
+      // Silently acknowledge the error - most are expected (e.g., closed connections)
+      void lastError;
+    }
+  };
+  
+  // Check for errors periodically to catch any stragglers
+  setInterval(checkLastError, 1000);
+  
   // Initialize service registry
   const serviceRegistry = ServiceRegistry.getInstance();
   

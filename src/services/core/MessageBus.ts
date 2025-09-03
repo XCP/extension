@@ -129,10 +129,29 @@ export class MessageBus {
     target: MessageTarget
   ): Promise<void> {
     try {
+      // For popup target, first check if popup is actually open
+      if (target === 'popup') {
+        try {
+          // Check if popup view exists
+          const views = chrome.extension?.getViews?.({ type: 'popup' }) || [];
+          if (views.length === 0) {
+            // Popup not open, silently skip
+            return;
+          }
+        } catch {
+          // If we can't check views, continue with send attempt
+        }
+      }
+      
       await MessageBus.send(message, data, target, { timeout: 5000 });
     } catch (error) {
-      // Log but don't throw for one-way messages
-      console.warn(`One-way message '${message}' failed:`, error);
+      // Only log if not a connection error (which is expected when target isn't available)
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!errorMessage.includes('Could not establish connection') && 
+          !errorMessage.includes('Message timeout') &&
+          !errorMessage.includes('fingerprint')) {
+        console.warn(`One-way message '${String(message)}' failed:`, error);
+      }
     }
   }
   

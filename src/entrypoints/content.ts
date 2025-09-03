@@ -84,7 +84,7 @@ export default defineContentScript({
     window.addEventListener('message', messageHandler);
 
     // Listen for provider events from background
-    const runtimeMessageHandler = (message: any) => {
+    const runtimeMessageHandler = (message: any): boolean => {
       if (message.type === 'PROVIDER_EVENT') {
         window.postMessage({
           target: 'xcp-wallet-injected',
@@ -92,7 +92,11 @@ export default defineContentScript({
           event: message.event,
           data: message.data
         }, window.location.origin);
+        // Return true to indicate we handled the message
+        return true;
       }
+      // Return false if we didn't handle the message
+      return false;
     };
     
     browser.runtime.onMessage.addListener(runtimeMessageHandler);
