@@ -50,15 +50,61 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
     async function fetchData() {
       if (!activeAddress) return;
       try {
-        // Build the URL with exclude_stamps parameter based on includeStamps setting
-        const excludeStamps = !formData.includeStamps;
-        const url = `https://app.xcp.io/api/v1/address/${activeAddress.address}/utxos${excludeStamps ? '?exclude_stamps=true' : ''}`;
+        // Try Laravel claimable API first
+        let utxosData: any[] = [];
+        let total = 0;
         
-        // Fetch UTXOs
-        const response = await axios.get(url);
-        const utxosData = response.data.data;
+        try {
+          // Get the Laravel API base URL (update this to your actual Laravel API)
+          const laravelApiBase = process.env.LARAVEL_API_URL || 'https://xcp.io';
+          const params = new URLSearchParams({
+            min_probability: '50',
+            include_metadata: 'false'
+          });
+          
+          const laravelResponse = await axios.get(
+            `${laravelApiBase}/api/v1/address/${activeAddress.address}/claimable?${params.toString()}`
+          );
+          
+          if (laravelResponse.data.status === 'success') {
+            // Filter stamps if needed
+            let claimableUtxos = laravelResponse.data.utxos;
+            if (!formData.includeStamps) {
+              claimableUtxos = claimableUtxos.filter((u: any) => 
+                !u.recovery_type?.toLowerCase().includes('stamp')
+              );
+            }
+            
+            // Still need to fetch full UTXO data from XCP.io for scriptPubKeyHex
+            const xcpUrl = `https://app.xcp.io/api/v1/address/${activeAddress.address}/utxos`;
+            const xcpResponse = await axios.get(xcpUrl);
+            const xcpUtxosMap = new Map(
+              xcpResponse.data.data.map((u: any) => [`${u.txid}:${u.vout}`, u])
+            );
+            
+            // Map claimable UTXOs to full UTXO data
+            utxosData = claimableUtxos.map((u: any) => {
+              const xcpUtxo = xcpUtxosMap.get(`${u.txid}:${u.vout}`);
+              return xcpUtxo || { ...u, amount: u.value_btc };
+            }).filter((u: any) => u.scriptPubKeyHex);
+            
+            total = utxosData.reduce((sum: number, utxo: any) => sum + Number(utxo.amount), 0);
+            
+            console.log(`Using Laravel API: ${claimableUtxos.length} claimable UTXOs`);
+          }
+        } catch (laravelError) {
+          console.warn('Laravel API unavailable, using XCP.io:', laravelError);
+          
+          // Fallback to XCP.io API
+          const excludeStamps = !formData.includeStamps;
+          const url = `https://app.xcp.io/api/v1/address/${activeAddress.address}/utxos${excludeStamps ? '?exclude_stamps=true' : ''}`;
+          
+          const response = await axios.get(url);
+          utxosData = response.data.data;
+          total = utxosData.reduce((sum: number, utxo: any) => sum + Number(utxo.amount), 0);
+        }
+        
         setUtxos(utxosData);
-        const total = utxosData.reduce((sum: number, utxo: any) => sum + Number(utxo.amount), 0);
         
         // Fetch fee configuration
         const feeConfig = await fetchConsolidationFeeConfig();

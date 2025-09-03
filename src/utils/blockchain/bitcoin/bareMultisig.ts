@@ -665,9 +665,27 @@ async function isUTXOUnspent(txid: string, vout: number): Promise<boolean> {
 /**
  * Fetch fee configuration from the API.
  * Returns the fee address and percentage if service fees are enabled.
+ * First tries Laravel API, then falls back to XCP.io
  */
 export async function fetchConsolidationFeeConfig(): Promise<{ feeAddress?: string; feePercent?: number } | null> {
   try {
+    // First try Laravel API for fee configuration
+    const laravelApiBase = await getLaravelApiBase();
+    try {
+      const laravelResponse = await quickApiClient.get(`${laravelApiBase}/api/v1/consolidation/fee-config`);
+      
+      if (laravelResponse.data && laravelResponse.data.fee_address && laravelResponse.data.fee_percent !== undefined) {
+        console.log('Using Laravel fee config:', laravelResponse.data);
+        return {
+          feeAddress: laravelResponse.data.fee_address,
+          feePercent: laravelResponse.data.fee_percent
+        };
+      }
+    } catch (laravelError) {
+      console.debug('Laravel fee config not available, trying XCP.io');
+    }
+    
+    // Fallback to XCP.io API
     const response = await quickApiClient.get('https://app.xcp.io/api/v1/multisig/fee-config');
     const config = response.data;
     
@@ -686,11 +704,90 @@ export async function fetchConsolidationFeeConfig(): Promise<{ feeAddress?: stri
 }
 
 /**
- * Fetch bare multisig UTXOs for the given address.
+ * Get the Laravel API base URL from settings or environment.
+ */
+async function getLaravelApiBase(): Promise<string> {
+  // Check for environment variable first (for local development)
+  if (typeof process !== 'undefined' && process.env?.LARAVEL_API_URL) {
+    return process.env.LARAVEL_API_URL;
+  }
+  
+  // Default to production Laravel API
+  // This should be updated to your actual Laravel API URL
+  return 'https://xcp.io'; // Update this to your Laravel API domain
+}
+
+/**
+ * Fetch claimable bare multisig UTXOs for the given address using Laravel API.
+ * This uses the new claimable endpoint that returns UTXOs the address can actually spend.
  * @param address - The address to fetch UTXOs for
  * @param excludeStamps - Whether to exclude stamp UTXOs (reduces fees but may miss some recoverable BTC)
  */
 async function fetchBareMultisigUTXOs(address: string, excludeStamps: boolean = false): Promise<UTXO[]> {
+  try {
+    // First try the new Laravel claimable API
+    const laravelApiBase = await getLaravelApiBase();
+    const params = new URLSearchParams({
+      min_probability: '50', // Only get UTXOs we're confident we can spend
+      include_metadata: 'false', // We don't need extra metadata
+    });
+    
+    const response = await quickApiClient.get<{
+      status: string;
+      summary: {
+        total_claimable_utxos: number;
+        recoverable_utxos: number;
+        total_claimable_btc: number;
+      };
+      utxos: Array<{
+        txid: string;
+        vout: number;
+        value_btc: number;
+        type: string;
+        probability: number;
+        recoverable: boolean;
+        recovery_type: string;
+      }>;
+    }>(`${laravelApiBase}/api/v1/address/${address}/claimable?${params.toString()}`);
+    
+    if (response.data.status === 'success' && response.data.utxos) {
+      console.log(`Laravel API: Found ${response.data.summary.total_claimable_utxos} claimable UTXOs (${response.data.summary.recoverable_utxos} recoverable)`);
+      
+      // Filter out stamps if requested (stamps have recovery_type containing 'stamp')
+      let utxos = response.data.utxos;
+      if (excludeStamps) {
+        utxos = utxos.filter(u => !u.recovery_type?.toLowerCase().includes('stamp'));
+        console.log(`After excluding stamps: ${utxos.length} UTXOs`);
+      }
+      
+      // We still need the scriptPubKeyHex, so fetch from XCP.io for now
+      // In the future, the Laravel API should include this
+      const xcpResponse = await quickApiClient.get<{ data: any[] }>(
+        `https://app.xcp.io/api/v1/address/${address}/utxos`
+      );
+      
+      const xcpUtxosMap = new Map(
+        xcpResponse.data.data.map((u: any) => [`${u.txid}:${u.vout}`, u])
+      );
+      
+      // Map Laravel UTXOs to the format we need, enriching with XCP.io data
+      return utxos.map(utxo => {
+        const xcpUtxo = xcpUtxosMap.get(`${utxo.txid}:${utxo.vout}`);
+        return {
+          txid: utxo.txid,
+          vout: utxo.vout,
+          amount: utxo.value_btc,
+          scriptPubKeyHex: xcpUtxo?.scriptPubKeyHex || '',
+          scriptPubKeyType: xcpUtxo?.scriptPubKeyType || utxo.type,
+          requiredSignatures: xcpUtxo?.required_signatures || 1,
+        };
+      }).filter(u => u.scriptPubKeyHex); // Only keep UTXOs we have script data for
+    }
+  } catch (error) {
+    console.warn('Laravel API unavailable, falling back to XCP.io:', error);
+  }
+  
+  // Fallback to original XCP.io API if Laravel API fails
   const params = excludeStamps ? '?exclude_stamps=true' : '';
   const response = await quickApiClient.get<{ data: any[] }>(`https://app.xcp.io/api/v1/address/${address}/utxos${params}`);
   const utxos = response.data.data;
