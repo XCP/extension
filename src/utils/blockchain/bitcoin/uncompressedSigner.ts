@@ -114,12 +114,16 @@ export function hybridSignTransaction(
     // For bare multisig, the redeemScript is the scriptPubKey itself
     let scriptForSigning: Uint8Array | undefined;
     
+    // First check for explicit prevOutputScripts (highest priority)
     if (prevOutputScripts && prevOutputScripts[i]) {
       scriptForSigning = prevOutputScripts[i];
-    } else if (input.redeemScript) {
-      // Fallback to redeemScript if no prevOutputScripts provided
+    } 
+    // Then check for redeemScript on the input
+    else if (input.redeemScript) {
       scriptForSigning = input.redeemScript;
-    } else {
+    }
+    
+    if (!scriptForSigning) {
       console.warn(`No script available for input ${i}, skipping custom signing`);
       continue;
     }

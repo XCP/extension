@@ -250,30 +250,41 @@ export async function consolidateBareMultisig(
       return attemptInputs[idx].needsUncompressed;
     };
 
-    // Use the improved hybrid signing utility for normal inputs
-    // We don't need to pass prevOutputScripts since redeemScript is already set on inputs
+    // Prepare prevOutputScripts array for inputs that need it
+    const prevOutputScripts: Uint8Array[] = [];
+    for (let i = 0; i < attemptInputs.length; i++) {
+      prevOutputScripts.push(attemptInputs[i].scriptPubKey);
+    }
+    
+    // Use the improved hybrid signing utility for all inputs
+    // Pass prevOutputScripts for problematic inputs that don't have redeemScript
     hybridSignTransaction(
       tx,
       privateKeyBytes,
       publicKeyCompressed,
       publicKeyUncompressed,
-      undefined, // Will use redeemScript from inputs
+      prevOutputScripts,
       checkForUncompressed
     );
 
-    // Manually handle problematic inputs that btc-signer couldn't parse
+    // Check if hybrid signing missed any problematic inputs
+    // This should only happen if hybrid signing couldn't find the script
     for (const inputIdx of problematicInputs) {
-      const { scriptPubKey } = attemptInputs[inputIdx];
-      const success = manuallySignMultisigInput(
-        tx,
-        inputIdx,
-        privateKeyBytes,
-        publicKeyCompressed,
-        publicKeyUncompressed,
-        scriptPubKey
-      );
-      if (!success) {
-        console.warn(`Failed to manually sign problematic input ${inputIdx}`);
+      const input = tx.getInput(inputIdx);
+      // Only manually sign if hybrid signing didn't already handle it
+      if (!input.partialSig || input.partialSig.length === 0) {
+        const { scriptPubKey } = attemptInputs[inputIdx];
+        const success = manuallySignMultisigInput(
+          tx,
+          inputIdx,
+          privateKeyBytes,
+          publicKeyCompressed,
+          publicKeyUncompressed,
+          scriptPubKey
+        );
+        if (!success) {
+          console.warn(`Failed to manually sign problematic input ${inputIdx}`);
+        }
       }
     }
 
