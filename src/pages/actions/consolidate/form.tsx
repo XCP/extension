@@ -148,6 +148,25 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
           </div>
         )}
 
+        {/* Include Stamps toggle */}
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+          <div className="flex flex-col">
+            <label htmlFor="includeStamps" className="text-sm font-medium text-gray-700">
+              Allow STAMPS to be spent
+            </label>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              id="includeStamps"
+              type="checkbox"
+              className="sr-only peer"
+              checked={formData.includeStamps}
+              onChange={handleIncludeStampsChange}
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+
         <div className="space-y-2">
           <label htmlFor="destinationAddress" className="block text-sm font-medium text-gray-700">
             Destination Address (Optional)
@@ -163,30 +182,6 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
           <p className={`text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
             If left empty, UTXOs will be consolidated to your source address.
           </p>
-        </div>
-
-        {/* Include Stamps toggle */}
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-          <div className="flex flex-col">
-            <label htmlFor="includeStamps" className="text-sm font-medium text-gray-700">
-              Include Stamp UTXOs
-            </label>
-            <span className="text-xs text-gray-500">
-              {formData.includeStamps 
-                ? "Including stamps will increase transaction fees"
-                : "Excluding stamps reduces fees and transaction size"}
-            </span>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              id="includeStamps"
-              type="checkbox"
-              className="sr-only peer"
-              checked={formData.includeStamps}
-              onChange={handleIncludeStampsChange}
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
         </div>
 
         <FeeRateInput
