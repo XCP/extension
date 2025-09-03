@@ -18,6 +18,7 @@ interface NumberInputProps {
   required?: boolean;
   showHelpText?: boolean;
   description?: string;
+  helpText?: string;
   showStepButtons?: boolean;
   format?: "integer" | "decimal";
   className?: string;
@@ -38,6 +39,7 @@ export function NumberInput({
   required = false,
   showHelpText = false,
   description,
+  helpText,
   showStepButtons = false,
   format = "decimal",
   className = "",
@@ -216,9 +218,9 @@ export function NumberInput({
           {error}
         </p>
       )}
-      {showHelpText && description && !error && (
+      {showHelpText && (description || helpText) && !error && (
         <Description className="mt-2 text-sm text-gray-500">
-          {description}
+          {description || helpText}
         </Description>
       )}
     </Field>

@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHelpCircle } from "react-icons/fi";
-import { Field, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { PasswordInput } from "@/components/inputs/password-input";
 import { ErrorAlert } from "@/components/error-alert";

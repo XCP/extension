@@ -173,7 +173,7 @@ export function SendForm({
             setError={setValidationError}
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.availableBalance || "0"}
-            shouldShowHelpText={showHelpText}
+            showHelpText={showHelpText}
             label="Amount"
             name="quantity"
             description={

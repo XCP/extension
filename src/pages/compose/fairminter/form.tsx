@@ -405,7 +405,7 @@ export function FairminterForm({
                     value={startBlock}
                     onChange={setStartBlock}
                     setError={(message) => message ? setLocalError({ message }) : setLocalError(null)}
-                    shouldShowHelpText={showHelpText}
+                    showHelpText={showHelpText}
                     description="The block at which the sale starts."
                     disabled={pending}
                   />
@@ -415,7 +415,7 @@ export function FairminterForm({
                     value={endBlock}
                     onChange={setEndBlock}
                     setError={(message) => message ? setLocalError({ message }) : setLocalError(null)}
-                    shouldShowHelpText={showHelpText}
+                    showHelpText={showHelpText}
                     description="The block at which the sale ends."
                     disabled={pending}
                   />
@@ -487,7 +487,7 @@ export function FairminterForm({
                         value={softCapDeadlineBlock}
                         onChange={setSoftCapDeadlineBlock}
                         setError={(message) => message ? setLocalError({ message }) : setLocalError(null)}
-                        shouldShowHelpText={showHelpText}
+                        showHelpText={showHelpText}
                         description="The block by which the soft cap must be reached."
                         disabled={pending}
                       />

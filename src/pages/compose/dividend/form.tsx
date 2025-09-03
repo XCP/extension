@@ -149,7 +149,7 @@ export function DividendForm({
             onChange={handleDividendAssetChange}
             label="Dividend Asset"
             required
-            shouldShowHelpText={showHelpText}
+            showHelpText={showHelpText}
             description="The asset to pay dividends in (e.g., XCP)."
           />
 
@@ -160,7 +160,7 @@ export function DividendForm({
             onChange={setQuantityPerUnit}
             sat_per_vbyte={1} // Not used for non-BTC assets
             setError={(msg) => setError(msg ? { message: msg } : null)}
-            shouldShowHelpText={showHelpText}
+            showHelpText={showHelpText}
             sourceAddress={activeAddress}
             maxAmount={calculateMaxAmountPerUnit()}
             label="Amount Per Unit"

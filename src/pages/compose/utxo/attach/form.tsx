@@ -100,7 +100,7 @@ export function UtxoAttachForm({
             setError={() => {}} // No-op since Composer handles errors
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.availableBalance || "0"}
-            shouldShowHelpText={showHelpText}
+            showHelpText={showHelpText}
             label="Amount"
             name="quantity"
             description={

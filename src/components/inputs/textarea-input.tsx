@@ -12,12 +12,15 @@ interface TextAreaInputProps {
   required?: boolean;
   showHelpText?: boolean;
   description?: string;
+  helpText?: string; // Alternative to description
   maxLength?: number;
   minLength?: number;
   rows?: number;
   autoResize?: boolean;
   showCharCount?: boolean;
   className?: string;
+  readOnly?: boolean;
+  onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
 }
 
 export function TextAreaInput({
@@ -31,12 +34,15 @@ export function TextAreaInput({
   required = false,
   showHelpText = false,
   description,
+  helpText,
   maxLength,
   minLength,
   rows = 3,
   autoResize = false,
   showCharCount = false,
   className = "",
+  readOnly = false,
+  onPaste,
 }: TextAreaInputProps) {
   const [localValue, setLocalValue] = useState(value);
   const [isValid, setIsValid] = useState(true);
@@ -118,8 +124,10 @@ export function TextAreaInput({
         name={name}
         value={localValue}
         onChange={handleChange}
+        onPaste={onPaste}
         placeholder={placeholder}
         disabled={disabled}
+        readOnly={readOnly}
         required={required}
         rows={autoResize ? undefined : rows}
         className={`block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 resize-none ${
@@ -128,7 +136,7 @@ export function TextAreaInput({
             : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
         } ${label ? "mt-1" : ""} ${
           disabled ? "bg-gray-100 cursor-not-allowed" : ""
-        } ${autoResize ? "overflow-hidden" : ""}`}
+        } ${readOnly ? "bg-gray-100" : ""} ${autoResize ? "overflow-hidden" : ""}`}
         aria-invalid={!isValid}
         aria-describedby={error ? `${name}-error` : undefined}
         style={autoResize ? { minHeight: `${rows * 1.5}rem` } : undefined}
@@ -141,9 +149,9 @@ export function TextAreaInput({
               {error}
             </p>
           )}
-          {!error && showHelpText && description && (
+          {!error && showHelpText && (description || helpText) && (
             <Description className="text-sm text-gray-500">
-              {description}
+              {description || helpText}
             </Description>
           )}
         </div>

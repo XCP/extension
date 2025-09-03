@@ -22,7 +22,7 @@ vi.mock('@/utils/blockchain/counterparty/api', () => ({
 // Mock settings context
 vi.mock('@/contexts/settings-context', () => ({
   useSettings: () => ({
-    settings: { shouldShowHelpText: true },
+    settings: { showHelpText: true },
   }),
 }));
 

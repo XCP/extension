@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import {
   Combobox,
   ComboboxInput,
@@ -27,7 +27,7 @@ interface FairminterSelectInputProps {
   selectedAsset: string;
   onChange: (asset: string, fairminter?: Fairminter) => void;
   label: string;
-  shouldShowHelpText?: boolean;
+  showHelpText?: boolean;
   description?: string;
   required?: boolean;
   currencyFilter?: string; // "BTC" or "XCP" to filter fairminters
@@ -37,7 +37,7 @@ export function FairminterSelectInput({
   selectedAsset,
   onChange,
   label,
-  shouldShowHelpText = false,
+  showHelpText = false,
   description,
   required = false,
   currencyFilter,
@@ -94,34 +94,30 @@ export function FairminterSelectInput({
   }, []);
 
   // Filter fairminters based on query and currency type
-  const filteredFairminters = useMemo(() => {
-    let filtered = fairminters;
-    
-    // Apply currency filter if specified
-    if (currencyFilter) {
-      filtered = filtered.filter((fairminter) => {
-        const price = parseFloat(fairminter.price_normalized);
-        if (currencyFilter === "BTC") {
-          // BTC fairminters have price = 0 (free mints)
-          return price === 0;
-        } else if (currencyFilter === "XCP") {
-          // XCP fairminters have price > 0
-          return price > 0;
-        }
-        return true;
-      });
-    }
-    
-    // Apply text search filter
-    if (query !== "") {
-      filtered = filtered.filter((fairminter) =>
-        fairminter.asset.toLowerCase().includes(query.toLowerCase()) ||
-        (fairminter.description && fairminter.description.toLowerCase().includes(query.toLowerCase()))
-      );
-    }
-    
-    return filtered;
-  }, [fairminters, query, currencyFilter]);
+  let filteredFairminters = fairminters;
+  
+  // Apply currency filter if specified
+  if (currencyFilter) {
+    filteredFairminters = filteredFairminters.filter((fairminter) => {
+      const price = parseFloat(fairminter.price_normalized);
+      if (currencyFilter === "BTC") {
+        // BTC fairminters have price = 0 (free mints)
+        return price === 0;
+      } else if (currencyFilter === "XCP") {
+        // XCP fairminters have price > 0
+        return price > 0;
+      }
+      return true;
+    });
+  }
+  
+  // Apply text search filter
+  if (query !== "") {
+    filteredFairminters = filteredFairminters.filter((fairminter) =>
+      fairminter.asset.toLowerCase().includes(query.toLowerCase()) ||
+      (fairminter.description && fairminter.description.toLowerCase().includes(query.toLowerCase()))
+    );
+  }
 
   const handleAssetChange = (asset: string) => {
     const fairminter = fairminters.find(f => f.asset === asset);
@@ -228,7 +224,7 @@ export function FairminterSelectInput({
           </div>
         </div>
       </Combobox>
-      {shouldShowHelpText && (
+      {showHelpText && (
         <p className="mt-2 text-sm text-gray-500">
           {description || "Select an open fairminter asset to mint"}
         </p>

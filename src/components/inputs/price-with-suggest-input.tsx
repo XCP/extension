@@ -8,7 +8,7 @@ interface PriceWithSuggestInputProps {
   value: string;
   onChange: (value: string) => void;
   tradingPairData: { last_trade_price: string | null; name: string } | null;
-  shouldShowHelpText?: boolean;
+  showHelpText?: boolean;
   label?: string;
   name?: string;
   priceDescription?: string;
@@ -22,7 +22,7 @@ export function PriceWithSuggestInput({
   value,
   onChange,
   tradingPairData,
-  shouldShowHelpText = false,
+  showHelpText = false,
   label = 'Price',
   name = 'price',
   priceDescription,
@@ -129,7 +129,7 @@ export function PriceWithSuggestInput({
           </Button>
         )}
       </div>
-      {shouldShowHelpText && (
+      {showHelpText && (
         <Description className="mt-2 text-sm text-gray-500">
           {priceDescription}
           {tradingPairData?.last_trade_price && (

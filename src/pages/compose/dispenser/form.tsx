@@ -204,7 +204,7 @@ export const DispenserForm = memo(function DispenserForm({
             onChange={setEscrowQuantity}
             sat_per_vbyte={initialFormData?.sat_per_vbyte || 0.1}
             setError={() => {}} // No-op since Composer handles errors
-            shouldShowHelpText={showHelpText}
+            showHelpText={showHelpText}
             sourceAddress={activeAddress}
             maxAmount={availableBalance}
             label="Dispenser Escrow"
@@ -218,7 +218,7 @@ export const DispenserForm = memo(function DispenserForm({
             value={mainchainRate}
             onChange={setMainchainRate}
             tradingPairData={tradingPairData}
-            shouldShowHelpText={showHelpText}
+            showHelpText={showHelpText}
             label="BTC Per Dispense"
             name="mainchainrate_display"
             priceDescription="The amount of BTC required per dispensed portion."
