@@ -7,15 +7,31 @@ import { formatAddress } from '@/utils/format';
  * Props for the AddressHeader component.
  */
 interface AddressHeaderProps {
+  /** The Bitcoin address to display */
   address: string;
+  /** Optional wallet name to display above the address */
   walletName?: string;
+  /** Optional CSS classes */
   className?: string;
 }
 
 /**
+ * AddressHeader Component
+ * 
  * Displays a header with an address and optional wallet name, using cached data from HeaderContext.
- * @param props AddressHeaderProps
- * @returns JSX.Element
+ * Shows the XCP Wallet logo instead of an asset icon.
+ * 
+ * @param props - The component props
+ * @returns A React element representing the address header
+ * 
+ * @example
+ * ```tsx
+ * <AddressHeader 
+ *   address="bc1q..."
+ *   walletName="Main Wallet"
+ *   className="mb-4"
+ * />
+ * ```
  */
 export const AddressHeader = ({ address, walletName, className = '' }: AddressHeaderProps) => {
   const { subheadings, setAddressHeader } = useHeader();
@@ -34,7 +50,7 @@ export const AddressHeader = ({ address, walletName, className = '' }: AddressHe
 
   return (
     <div className={`flex items-center ${className}`}>
-      <img src={logo} alt="Logo" className="w-12 h-12 mr-4 rounded-full" />
+      <img src={logo} alt="XCP Wallet" className="w-12 h-12 mr-4 rounded-full" />
       <div>
         {displayWalletName && <p className="text-sm text-gray-600">{displayWalletName}</p>}
         <h2 className="text-xl font-bold">{formattedAddress}</h2>

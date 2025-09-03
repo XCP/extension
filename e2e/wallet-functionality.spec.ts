@@ -26,7 +26,8 @@ test.describe('Wallet Functionality', () => {
     
     // Check balances tab shows BTC
     await balancesTab.click();
-    await expect(page.locator('text=BTC')).toBeVisible();
+    // Use a more specific selector to avoid matching the AssetIcon placeholder text
+    await expect(page.locator('.font-medium.text-sm.text-gray-900:has-text("BTC")')).toBeVisible();
     
     // Check assets tab
     await assetsTab.click();

@@ -1,71 +1,19 @@
 import React, { useState, useEffect, useCallback, type ReactElement } from "react";
 import { useInView } from "react-intersection-observer";
-import { useNavigate } from "react-router-dom";
 import { Spinner } from "@/components/spinner";
-import { BalanceMenu } from "@/components/menus/balance-menu";
+import { BalanceCard } from "@/components/cards/balance-card";
+import { SearchResultCard } from "@/components/cards/search-result-card";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchBTCBalance } from "@/utils/blockchain/bitcoin";
 import { fetchTokenBalance, fetchTokenBalances } from "@/utils/blockchain/counterparty";
 import type { TokenBalance } from "@/utils/blockchain/counterparty";
-import { formatAmount, formatAsset } from "@/utils/format";
+import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 import { FaSearch, FaTimes } from "react-icons/fa";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 import { useSettings } from "@/contexts/settings-context";
 
-const BalanceItemComponent = ({ token }: { token: TokenBalance }): ReactElement => {
-  const navigate = useNavigate();
-  const imageUrl = `https://app.xcp.io/img/icon/${token.asset}`;
-  const handleClick = () => {
-    navigate(`/compose/send/${encodeURIComponent(token.asset)}`);
-  };
-  const isDivisible = token.asset_info?.divisible ?? false;
 
-  return (
-    <div
-      className="relative flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50"
-      onClick={handleClick}
-    >
-      <div className="w-12 h-12 flex-shrink-0">
-        <img src={imageUrl} alt={formatAsset(token.asset, { assetInfo: token.asset_info })} className="w-full h-full object-cover" />
-      </div>
-      <div className="ml-3 flex-grow">
-        <div className="font-medium text-sm text-gray-900">
-          {formatAsset(token.asset, { assetInfo: token.asset_info, shorten: true })}
-        </div>
-        <div className="text-sm text-gray-500">
-          {formatAmount({
-            value: Number(token.quantity_normalized),
-            minimumFractionDigits: isDivisible ? 8 : 0,
-            maximumFractionDigits: isDivisible ? 8 : 0,
-            useGrouping: true,
-          })}
-        </div>
-      </div>
-      <div className="absolute top-2 right-2">
-        <BalanceMenu asset={token.asset} />
-      </div>
-    </div>
-  );
-};
-
-const SearchResultComponent = ({ asset }: { asset: { symbol: string } }): ReactElement => {
-  const navigate = useNavigate();
-  const imageUrl = `https://app.xcp.io/img/icon/${asset.symbol}`;
-  return (
-    <div
-      className="relative flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50"
-      onClick={() => navigate(`/balance/${asset.symbol}`)}
-    >
-      <div className="w-12 h-12 flex-shrink-0">
-        <img src={imageUrl} alt={asset.symbol} className="w-full h-full object-cover" />
-      </div>
-      <div className="ml-3 flex-grow">
-        <div className="font-medium text-sm text-gray-900">{asset.symbol}</div>
-      </div>
-    </div>
-  );
-};
 
 export const BalanceList = (): ReactElement => {
   const { activeWallet, activeAddress } = useWallet();
@@ -215,15 +163,15 @@ export const BalanceList = (): ReactElement => {
         ) : searchResults.length === 0 ? (
           <div className="text-center py-4 text-gray-500">No results found</div>
         ) : (
-          searchResults.map((asset) => <SearchResultComponent key={asset.symbol} asset={asset} />)
+          searchResults.map((asset) => <SearchResultCard key={asset.symbol} symbol={asset.symbol} navigationType="balance" />)
         )
       ) : (
         <>
           {pinnedBalances.map((balance) => (
-            <BalanceItemComponent token={balance} key={balance.asset} />
+            <BalanceCard token={balance} key={balance.asset} />
           ))}
           {otherBalances.map((balance) => (
-            <BalanceItemComponent token={balance} key={balance.asset} />
+            <BalanceCard token={balance} key={balance.asset} />
           ))}
           <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-1">
             {hasMore ? (

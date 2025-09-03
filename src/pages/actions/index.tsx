@@ -2,141 +2,112 @@
 
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaChevronRight } from "react-icons/fa";
+import { ActionList } from "@/components/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useSettings } from "@/contexts/settings-context";
 import { AddressFormat, isSegwitFormat } from '@/utils/blockchain/bitcoin';
 import type { ReactElement } from "react";
+import type { ActionSection } from "@/components/lists/action-list";
 
 /**
- * Interface for an action item.
- */
-interface Action {
-  id: string;
-  name: string;
-  description: string;
-  path: string;
-}
-
-/**
- * Interface for an action group.
- */
-interface ActionGroup {
-  title: string;
-  actions: Action[];
-}
-
-/**
- * Constants for navigation paths and action groups.
+ * Constants for navigation paths.
  */
 const PATHS = {
   BACK: "/index",
 } as const;
 
-const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean, enableAdvancedBetting: boolean): ActionGroup[] => {
-  const addressActions: Action[] = [
-    {
-      id: "compose-broadcast",
-      name: isSegwitWallet ? "Broadcast" : "Broadcast Text",
-      description: isSegwitWallet ? "Broadcast message or inscription" : "Broadcast message from address",
-      path: "/compose/broadcast",
-    },
-  ];
-  
-  addressActions.push(
-    {
-      id: "compose-sweep",
-      name: "Sweep Address",
-      description: "Transfer every asset and balance",
-      path: "/compose/sweep",
-    },
-    {
-      id: "compose-broadcast-address-options",
-      name: "Update Options",
-      description: "Set address options like requiring memos",
-      path: "/compose/broadcast/address-options",
-    },
-  );
-
-  // Build Tools section actions
-  const toolsActions: Action[] = [
-    {
-      id: "sign-message",
-      name: "Sign Message",
-      description: "Sign a message with your address",
-      path: "/actions/sign-message",
-    },
-    {
-      id: "verify-message",
-      name: "Verify Message",
-      description: "Verify a signed message",
-      path: "/actions/verify-message",
-    },
-    {
-      id: "consolidate",
-      name: "Recover Bitcoin",
-      description: "Find and consolidate bare multisig UTXOs",
-      path: "/consolidate",
-    },
-  ];
-  
-  // Add Upload MPMA if enabled
-  if (enableMPMA) {
-    toolsActions.push({
-      id: "upload-mpma",
-      name: "Upload MPMA",
-      description: "Multi-Party Multi-Asset transaction",
-      path: "/compose/send/mpma",
-    });
-  }
-
-  const groups: ActionGroup[] = [
+const getActionSections = (isSegwitWallet: boolean, enableMPMA: boolean, enableAdvancedBetting: boolean, navigate: (path: string) => void): ActionSection[] => {
+  const sections: ActionSection[] = [
     {
       title: "Tools",
-      actions: toolsActions,
+      items: [
+        {
+          id: "sign-message",
+          title: "Sign Message",
+          description: "Sign a message with your address",
+          onClick: () => navigate("/actions/sign-message"),
+        },
+        {
+          id: "verify-message",
+          title: "Verify Message", 
+          description: "Verify a signed message",
+          onClick: () => navigate("/actions/verify-message"),
+        },
+        {
+          id: "consolidate",
+          title: "Recover Bitcoin",
+          description: "Find and consolidate bare multisig UTXOs", 
+          onClick: () => navigate("/consolidate"),
+        },
+        ...(enableMPMA ? [{
+          id: "upload-mpma",
+          title: "Upload MPMA",
+          description: "Multi-Party Multi-Asset transaction",
+          onClick: () => navigate("/compose/send/mpma"),
+        }] : []),
+      ],
     },
     {
       title: "Assets",
-      actions: [
+      items: [
         {
           id: "issue-asset",
-          name: "Issue Asset",
+          title: "Issue Asset",
           description: "Create a new asset",
-          path: "/compose/issuance",
+          onClick: () => navigate("/compose/issuance"),
         },
         {
           id: "mint-supply",
-          name: "Start Mint",
-          description: "Create a fairminter",
-          path: "/compose/fairminter",
+          title: "Start Mint",
+          description: "Create a fairminter", 
+          onClick: () => navigate("/compose/fairminter"),
         },
       ],
     },
     {
       title: "Address",
-      actions: addressActions,
+      items: [
+        {
+          id: "compose-broadcast",
+          title: isSegwitWallet ? "Broadcast" : "Broadcast Text",
+          description: isSegwitWallet ? "Broadcast message or inscription" : "Broadcast message from address",
+          onClick: () => navigate("/compose/broadcast"),
+        },
+        {
+          id: "compose-sweep",
+          title: "Sweep Address",
+          description: "Transfer every asset and balance",
+          onClick: () => navigate("/compose/sweep"),
+        },
+        {
+          id: "compose-broadcast-address-options",
+          title: "Update Options", 
+          description: "Set address options like requiring memos",
+          onClick: () => navigate("/compose/broadcast/address-options"),
+        },
+      ],
     },
     {
       title: "DEX",
-      actions: [
+      items: [
         {
           id: "cancel-order",
-          name: "Cancel Order",
+          title: "Cancel Order",
           description: "Cancel an existing order",
-          path: "/compose/cancel",
+          onClick: () => navigate("/compose/cancel"),
         },
         {
           id: "close-dispenser",
-          name: "Close Dispenser",
+          title: "Close Dispenser", 
           description: "Close an existing dispenser",
-          path: "/compose/dispenser/close",
+          onClick: () => navigate("/compose/dispenser/close"),
         },
         {
           id: "close-dispenser-by-hash",
-          name: "Close Dispenser by Hash",
+          title: "Close Dispenser by Hash",
           description: "Close a dispenser using its transaction hash",
-          path: "/compose/dispenser/close-by-hash",
+          onClick: () => navigate("/compose/dispenser/close-by-hash"),
         },
       ],
     },
@@ -144,20 +115,20 @@ const getActionGroups = (isSegwitWallet: boolean, enableMPMA: boolean, enableAdv
 
   // Conditionally add betting section if enabled
   if (enableAdvancedBetting) {
-    groups.push({
-      title: "Betting",
-      actions: [
+    sections.push({
+      title: "Betting", 
+      items: [
         {
           id: "place-bet",
-          name: "Place Bet",
+          title: "Place Bet",
           description: "Create a new bet on the network",
-          path: "/compose/bet",
+          onClick: () => navigate("/compose/bet"),
         },
       ],
     });
   }
 
-  return groups;
+  return sections;
 };
 
 /**
@@ -188,8 +159,8 @@ export default function ActionsScreen(): ReactElement {
   // Check if Advanced Betting is enabled
   const enableAdvancedBetting = settings?.enableAdvancedBetting ?? false;
 
-  // Get dynamic action groups based on wallet type and settings
-  const actionGroups = getActionGroups(isSegwitWallet, enableMPMA, enableAdvancedBetting);
+  // Get dynamic action sections based on wallet type and settings
+  const actionSections = getActionSections(isSegwitWallet, enableMPMA, enableAdvancedBetting, navigate);
 
   // Configure header
   useEffect(() => {
@@ -199,45 +170,13 @@ export default function ActionsScreen(): ReactElement {
     });
   }, [setHeaderProps, navigate]);
 
-  /**
-   * Navigates to the selected action's path.
-   * @param action - The action to navigate to.
-   */
-  const handleActionClick = (action: Action) => {
-    navigate(action.path);
-  };
-
   return (
     <div className="flex flex-col h-full" role="main" aria-labelledby="actions-title">
       <h2 id="actions-title" className="sr-only">
         Wallet Actions
       </h2>
       <div className="flex-1 overflow-auto no-scrollbar p-4">
-        <div className="space-y-6">
-          {actionGroups.map((group) => (
-            <div key={group.title} className="space-y-2">
-              <h2 className="text-sm font-medium text-gray-500 px-4">{group.title}</h2>
-              {group.actions.map((action) => (
-                <div
-                  key={action.id}
-                  onClick={() => handleActionClick(action)}
-                  className="relative w-full rounded transition duration-300 p-4 cursor-pointer bg-white hover:bg-gray-50"
-                  role="button"
-                  tabIndex={0}
-                  aria-label={action.name}
-                >
-                  <div className="flex flex-col">
-                    <div className="absolute top-1/2 -translate-y-1/2 right-5">
-                      <FaChevronRight className="w-4 h-4 text-gray-400" aria-hidden="true" />
-                    </div>
-                    <div className="text-sm font-medium text-gray-900 mb-1">{action.name}</div>
-                    <div className="text-xs text-gray-500">{action.description}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
+        <ActionList sections={actionSections} />
       </div>
     </div>
   );

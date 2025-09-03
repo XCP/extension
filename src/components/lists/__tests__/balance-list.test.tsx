@@ -70,6 +70,18 @@ vi.mock('react-icons/fa', () => ({
   FaTimes: () => <div data-testid="times-icon" />
 }));
 
+vi.mock('@/components/asset-icon', () => ({
+  AssetIcon: ({ asset, size, className }: any) => (
+    <img 
+      src={`https://app.xcp.io/img/icon/${asset}`}
+      alt={asset}
+      className={className}
+      data-size={size}
+      data-testid="asset-icon"
+    />
+  )
+}));
+
 let mockSearchQuery = '';
 let mockSearchResults: any[] = [];
 let mockIsSearching = false;
@@ -164,7 +176,8 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      expect(screen.getByText('BTC')).toBeInTheDocument();
+      const btcTexts = screen.getAllByText('BTC');
+      expect(btcTexts.length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText('1.00000000')).toBeInTheDocument();
     });
   });
@@ -190,34 +203,48 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      expect(screen.getByText('XCP')).toBeInTheDocument();
-      expect(screen.getByText('PEPECASH')).toBeInTheDocument();
+      const xcpTexts = screen.getAllByText('XCP');
+      expect(xcpTexts.length).toBeGreaterThanOrEqual(1);
+      const pepecashTexts = screen.getAllByText('PEPECASH');
+      expect(pepecashTexts.length).toBeGreaterThanOrEqual(1);
     });
   });
 
   it('should render search input', async () => {
     render(<BalanceList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Search balances...')).toBeInTheDocument();
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now look for the search input
+    expect(screen.getByPlaceholderText('Search balances...')).toBeInTheDocument();
   });
 
   it('should show search icon', async () => {
     render(<BalanceList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      expect(screen.getByTestId('search-icon')).toBeInTheDocument();
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now look for the search icon
+    expect(screen.getByTestId('search-icon')).toBeInTheDocument();
   });
 
   it('should handle search input changes', async () => {
     render(<BalanceList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      const searchInput = screen.getByPlaceholderText('Search balances...');
-      fireEvent.change(searchInput, { target: { value: 'XCP' } });
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now interact with the search input
+    const searchInput = screen.getByPlaceholderText('Search balances...');
+    fireEvent.change(searchInput, { target: { value: 'XCP' } });
     
     expect(mockSetSearchQuery).toHaveBeenCalledWith('XCP');
   });
@@ -227,10 +254,14 @@ describe('BalanceList', () => {
     
     render(<BalanceList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      expect(screen.getByLabelText('Clear search')).toBeInTheDocument();
-      expect(screen.getByTestId('times-icon')).toBeInTheDocument();
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now look for the clear button
+    expect(screen.getByLabelText('Clear search')).toBeInTheDocument();
+    expect(screen.getByTestId('times-icon')).toBeInTheDocument();
   });
 
   it('should clear search when clear button clicked', async () => {
@@ -238,10 +269,14 @@ describe('BalanceList', () => {
     
     render(<BalanceList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      const clearButton = screen.getByLabelText('Clear search');
-      fireEvent.click(clearButton);
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now interact with the clear button
+    const clearButton = screen.getByLabelText('Clear search');
+    fireEvent.click(clearButton);
     
     expect(mockSetSearchQuery).toHaveBeenCalledWith('');
   });
@@ -252,7 +287,11 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      const balanceItem = screen.getByText('XCP').closest('.cursor-pointer');
+      const xcpTexts = screen.getAllByText('XCP');
+      const balanceItem = xcpTexts.find(text => 
+        text.closest('.cursor-pointer')
+      )?.closest('.cursor-pointer');
+      expect(balanceItem).toBeTruthy();
       fireEvent.click(balanceItem!);
     });
     
@@ -346,8 +385,10 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      expect(screen.getByText('XCP')).toBeInTheDocument();
-      expect(screen.getByText('XCPCARD')).toBeInTheDocument();
+      const xcpTexts = screen.getAllByText('XCP');
+      expect(xcpTexts.length).toBeGreaterThanOrEqual(1);
+      const xcpcardTexts = screen.getAllByText('XCPCARD');
+      expect(xcpcardTexts.length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -358,7 +399,11 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      const searchResult = screen.getByText('XCP').closest('.cursor-pointer');
+      const xcpTexts = screen.getAllByText('XCP');
+      const searchResult = xcpTexts.find(text => 
+        text.closest('.cursor-pointer')
+      )?.closest('.cursor-pointer');
+      expect(searchResult).toBeTruthy();
       fireEvent.click(searchResult!);
     });
     
@@ -367,13 +412,23 @@ describe('BalanceList', () => {
 
   it('should show load more message when hasMore is true', async () => {
     mockInView.mockReturnValue(false);
-    mockFetchTokenBalances.mockResolvedValue([]); // No more balances
+    // Return exactly 10 balances to ensure hasMore stays true
+    const tenBalances = Array(10).fill(0).map((_, i) => ({
+      ...mockTokenBalances[0],
+      asset: `TOKEN${i}`,
+      quantity_normalized: '100.00000000'
+    }));
+    mockFetchTokenBalances.mockResolvedValue(tenBalances);
     
     render(<BalanceList />);
     
+    // Wait for initial loading to complete
     await waitFor(() => {
-      expect(screen.getByText('Scroll to load more...')).toBeInTheDocument();
+      expect(screen.queryByText('Loading balances...')).not.toBeInTheDocument();
     });
+    
+    // Now look for the load more message (should show since hasMore=true and not currently fetching)
+    expect(screen.getByText('Scroll to load more...')).toBeInTheDocument();
   });
 
   it('should fetch more balances when scrolling', async () => {
@@ -395,7 +450,8 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      expect(screen.getByText('BTC')).toBeInTheDocument();
+      const btcTexts = screen.getAllByText('BTC');
+      expect(btcTexts.length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText('0.00000000')).toBeInTheDocument();
     });
   });
@@ -429,7 +485,10 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      const balanceItem = screen.getByText('XCP').closest('.cursor-pointer');
+      const xcpTexts = screen.getAllByText('XCP');
+      const balanceItem = xcpTexts.find(text => 
+        text.closest('.cursor-pointer')
+      )?.closest('.cursor-pointer');
       expect(balanceItem).toHaveClass('hover:bg-gray-50');
     });
   });
@@ -461,15 +520,19 @@ describe('BalanceList', () => {
   it('should style search input correctly', async () => {
     render(<BalanceList />);
     
+    // Wait for loading to complete
     await waitFor(() => {
-      const searchInput = screen.getByPlaceholderText('Search balances...');
-      expect(searchInput).toHaveClass('w-full');
-      expect(searchInput).toHaveClass('p-2');
-      expect(searchInput).toHaveClass('pl-8');
-      expect(searchInput).toHaveClass('pr-8');
-      expect(searchInput).toHaveClass('border');
-      expect(searchInput).toHaveClass('rounded-lg');
-      expect(searchInput).toHaveClass('bg-white');
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
+    
+    // Now check the search input styles
+    const searchInput = screen.getByPlaceholderText('Search balances...');
+    expect(searchInput).toHaveClass('w-full');
+    expect(searchInput).toHaveClass('p-2');
+    expect(searchInput).toHaveClass('pl-8');
+    expect(searchInput).toHaveClass('pr-8');
+    expect(searchInput).toHaveClass('border');
+    expect(searchInput).toHaveClass('rounded-lg');
+    expect(searchInput).toHaveClass('bg-white');
   });
 });

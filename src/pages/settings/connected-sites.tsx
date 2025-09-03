@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiX, FiGlobe, FiHelpCircle } from "react-icons/fi";
+import { FiHelpCircle, FiGlobe } from "react-icons/fi";
 import { FaSync } from "react-icons/fa";
 import { Button } from "@/components/button";
+import { ConnectedSiteCard } from "@/components/cards/connected-site-card";
 import { useHeader } from "@/contexts/header-context";
 import { getKeychainSettings, updateKeychainSettings } from "@/utils/storage/settingsStorage";
 import { getProviderService } from "@/services/providerService";
@@ -162,28 +163,12 @@ export default function ConnectedSites(): ReactElement {
       ) : (
         <div className="space-y-3">
           {connectedSites.map((site) => (
-            <div
+            <ConnectedSiteCard
               key={site.origin}
-              className="bg-white border border-gray-200 rounded-lg p-4"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FiGlobe className="w-4 h-4 text-gray-400" />
-                  <div>
-                    <h3 className="font-medium">{site.hostname}</h3>
-                    <p className="text-xs text-gray-500">{site.origin}</p>
-                  </div>
-                </div>
-                
-                <button
-                  onClick={() => handleDisconnectSite(site.origin)}
-                  className="p-2 hover:bg-red-50 rounded-lg transition-colors group"
-                  title="Disconnect site"
-                >
-                  <FiX className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
-                </button>
-              </div>
-            </div>
+              hostname={site.hostname}
+              origin={site.origin}
+              onDisconnect={() => handleDisconnectSite(site.origin)}
+            />
           ))}
         </div>
       )}

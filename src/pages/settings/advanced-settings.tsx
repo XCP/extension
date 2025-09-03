@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaCheck } from "react-icons/fa";
 import { FiHelpCircle } from "react-icons/fi";
 import { Field, Label, Description, RadioGroup } from "@headlessui/react";
+import { SelectionCard, SelectionCardGroup } from "@/components/cards/selection-card";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { ApiUrlInput } from "@/components/inputs/api-url-input";
@@ -95,31 +95,17 @@ export default function AdvancedSettings(): ReactElement {
         <RadioGroup
           value={settings.autoLockTimer}
           onChange={(value: AutoLockTimer) => updateSettings({ autoLockTimer: value })}
-          className="mt-4 space-y-2"
+          className="mt-4"
         >
-          {CONSTANTS.AUTO_LOCK_OPTIONS.map((option) => (
-            <RadioGroup.Option
-              key={option.value}
-              value={option.value}
-              className={({ checked }) => `
-                relative w-full rounded transition duration-300 p-4
-                ${checked ? "cursor-pointer bg-white shadow-md" : "cursor-pointer bg-white hover:bg-gray-50"}
-              `}
-            >
-              {({ checked }) => (
-                <>
-                  {checked && (
-                    <div className="absolute top-1/2 -translate-y-1/2 right-5">
-                      <FaCheck className="w-4 h-4 text-blue-500" aria-hidden="true" />
-                    </div>
-                  )}
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-gray-900">{option.label}</span>
-                  </div>
-                </>
-              )}
-            </RadioGroup.Option>
-          ))}
+          <SelectionCardGroup>
+            {CONSTANTS.AUTO_LOCK_OPTIONS.map((option) => (
+              <SelectionCard
+                key={option.value}
+                value={option.value}
+                title={option.label}
+              />
+            ))}
+          </SelectionCardGroup>
         </RadioGroup>
       </Field>
 

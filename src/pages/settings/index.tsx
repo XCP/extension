@@ -2,23 +2,15 @@
 
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaChevronRight } from "react-icons/fa";
 import { FiHelpCircle } from "react-icons/fi";
 import { Button } from "@/components/button";
+import { ActionList } from "@/components/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import type { ReactElement } from "react";
+import type { ActionSection } from "@/components/lists/action-list";
 
-/**
- * Interface for a setting option.
- */
-interface SettingOption {
-  id: string;
-  name: string;
-  description: string;
-  path: string;
-}
 
 /**
  * Constants for navigation paths and external links.
@@ -95,40 +87,43 @@ export default function Settings(): ReactElement {
     }
   };
 
-  const settingOptions: SettingOption[] = [
-    ...(activeWallet?.type === "mnemonic"
-      ? [
-          {
-            id: "addressFormat",
-            name: "Address Type",
-            description: getAddressTypeDescription(),
-            path: CONSTANTS.PATHS.ADDRESS_TYPE,
-          },
-        ]
-      : []),
+  const settingSections: ActionSection[] = [
     {
-      id: "advanced",
-      name: "Advanced",
-      description: "Network settings and developer options",
-      path: CONSTANTS.PATHS.ADVANCED,
-    },
-    {
-      id: "connectedSites",
-      name: "Connected Sites",
-      description: "Manage website connections",
-      path: CONSTANTS.PATHS.CONNECTED_SITES,
-    },
-    {
-      id: "pinnedAssets",
-      name: "Pinned Assets",
-      description: "Manage assets pinned to your dashboard",
-      path: CONSTANTS.PATHS.PINNED_ASSETS,
-    },
-    {
-      id: "security",
-      name: "Security",
-      description: "Change your wallet password",
-      path: CONSTANTS.PATHS.SECURITY,
+      title: "Settings",
+      items: [
+        ...(activeWallet?.type === "mnemonic"
+          ? [{
+              id: "addressFormat",
+              title: "Address Type",
+              description: getAddressTypeDescription(),
+              onClick: () => navigate(CONSTANTS.PATHS.ADDRESS_TYPE),
+            }]
+          : []),
+        {
+          id: "advanced",
+          title: "Advanced",
+          description: "Network settings and developer options",
+          onClick: () => navigate(CONSTANTS.PATHS.ADVANCED),
+        },
+        {
+          id: "connectedSites",
+          title: "Connected Sites",
+          description: "Manage website connections",
+          onClick: () => navigate(CONSTANTS.PATHS.CONNECTED_SITES),
+        },
+        {
+          id: "pinnedAssets",
+          title: "Pinned Assets",
+          description: "Manage assets pinned to your dashboard",
+          onClick: () => navigate(CONSTANTS.PATHS.PINNED_ASSETS),
+        },
+        {
+          id: "security",
+          title: "Security",
+          description: "Change your wallet password",
+          onClick: () => navigate(CONSTANTS.PATHS.SECURITY),
+        },
+      ],
     },
   ];
 
@@ -136,29 +131,7 @@ export default function Settings(): ReactElement {
     <div className="flex flex-col h-full" role="main" aria-labelledby="settings-title">
       <div className="flex-1 overflow-auto no-scrollbar">
         <div className="p-4">
-          <h2 id="settings-title" className="text-sm font-medium text-gray-500 px-4 mb-2">
-            Settings
-          </h2>
-          <div className="space-y-2">
-            {settingOptions.map((option) => (
-              <div
-                key={option.id}
-                onClick={() => navigate(option.path)}
-                className="relative w-full rounded transition duration-300 p-4 cursor-pointer bg-white hover:bg-gray-50"
-                role="button"
-                tabIndex={0}
-                aria-label={option.name}
-              >
-                <div className="flex flex-col">
-                  <div className="absolute top-1/2 -translate-y-1/2 right-5">
-                    <FaChevronRight className="w-4 h-4 text-gray-400" aria-hidden="true" />
-                  </div>
-                  <div className="text-sm font-medium text-gray-900 mb-1">{option.name}</div>
-                  <div className="text-xs text-gray-500">{option.description}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <ActionList sections={settingSections} />
 
           <div className="mt-8">
             <h3 className="text-sm font-medium text-gray-500 px-4 mb-2">About XCP Wallet</h3>

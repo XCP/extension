@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaCheck } from "react-icons/fa";
 import { FiHelpCircle } from "react-icons/fi";
 import { RadioGroup } from "@headlessui/react";
+import { SelectionCard, SelectionCardGroup } from "@/components/cards/selection-card";
+import { FaCheck } from "react-icons/fa";
 import { ErrorAlert } from "@/components/error-alert";
 import { Spinner } from "@/components/spinner";
 import { useHeader } from "@/contexts/header-context";
@@ -198,49 +199,32 @@ export default function AddressTypeSettings(): ReactElement {
         className="space-y-2"
         disabled={false}
       >
-        {CONSTANTS.AVAILABLE_ADDRESS_TYPES.filter((type) => {
-          // Only show Counterwallet if it's the current address type
-          if (type === AddressFormat.Counterwallet) {
-            return activeWallet?.addressFormat === AddressFormat.Counterwallet;
-          }
-          return true;
-        }).map((type) => {
-          const typeLabel = getAddressFormatDescription(type);
-          const isCounterwallet = activeWallet?.addressFormat === AddressFormat.Counterwallet;
-          const isDisabled = isCounterwallet && type !== AddressFormat.Counterwallet;
-          const disabledReason = (isCounterwallet && type !== AddressFormat.Counterwallet) ? "Create new wallet to use this address type" : undefined;
+        <SelectionCardGroup>
+          {CONSTANTS.AVAILABLE_ADDRESS_TYPES.filter((type) => {
+            // Only show Counterwallet if it's the current address type
+            if (type === AddressFormat.Counterwallet) {
+              return activeWallet?.addressFormat === AddressFormat.Counterwallet;
+            }
+            return true;
+          }).map((type) => {
+            const typeLabel = getAddressFormatDescription(type);
+            const isCounterwallet = activeWallet?.addressFormat === AddressFormat.Counterwallet;
+            const isDisabled = isCounterwallet && type !== AddressFormat.Counterwallet;
+            const disabledReason = (isCounterwallet && type !== AddressFormat.Counterwallet) ? "Create new wallet to use this address type" : undefined;
+            const addressPreview = addresses[type] ? formatAddress(addresses[type]) : "Loading...";
 
-          return (
-            <RadioGroup.Option
-              key={type}
-              value={type}
-              disabled={isDisabled}
-              className={({ checked }) => `
-                relative w-full rounded transition duration-300 p-4
-                ${isDisabled ? "cursor-not-allowed bg-gray-300" : checked ? "cursor-pointer bg-white shadow-md" : "cursor-pointer bg-white hover:bg-gray-50"}
-              `}
-            >
-              {({ checked }) => (
-                <>
-                  {checked && (
-                    <div className="absolute top-1/2 -translate-y-1/2 right-5">
-                      <FaCheck className="w-4 h-4 text-blue-500" aria-hidden="true" />
-                    </div>
-                  )}
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-gray-900 mb-1">{typeLabel}</span>
-                    <span className="text-xs text-gray-500">
-                      {addresses[type] ? formatAddress(addresses[type]) : "Loading..."}
-                    </span>
-                    {isDisabled && disabledReason && (
-                      <span className="text-xs text-blue-500 mt-1">{disabledReason}</span>
-                    )}
-                  </div>
-                </>
-              )}
-            </RadioGroup.Option>
-          );
-        })}
+            return (
+              <SelectionCard
+                key={type}
+                value={type}
+                title={typeLabel}
+                description={addressPreview}
+                disabled={isDisabled}
+                disabledReason={disabledReason}
+              />
+            );
+          })}
+        </SelectionCardGroup>
       </RadioGroup>
     </div>
   );

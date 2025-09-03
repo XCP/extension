@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { AssetHeader, type AssetInfo } from '../asset-header';
+import { AssetHeader } from '../asset-header';
+import type { AssetInfo } from '@/utils/blockchain/counterparty/api';
 
 // Mock dependencies
 const mockSetAssetHeader = vi.fn();
@@ -16,12 +17,28 @@ vi.mock('@/contexts/header-context', () => ({
   })
 }));
 
+vi.mock('@/components/asset-icon', () => ({
+  AssetIcon: ({ asset, size, className }: any) => (
+    <div data-testid="asset-icon" className={className}>
+      {asset} Icon ({size})
+    </div>
+  )
+}));
+
 vi.mock('@/utils/format', () => ({
   formatAmount: vi.fn(({ value, minimumFractionDigits, maximumFractionDigits, useGrouping }) => {
     if (minimumFractionDigits === 8) {
       return value.toFixed(8);
     }
     return value.toLocaleString();
+  })
+}));
+
+vi.mock('@/utils/numeric', () => ({
+  fromSatoshis: vi.fn((value, options) => {
+    const numValue = typeof value === 'string' ? parseInt(value) : value;
+    const result = numValue / 100000000;
+    return options?.asNumber ? result : result.toString();
   })
 }));
 
@@ -33,7 +50,8 @@ describe('AssetHeader', () => {
     issuer: 'bc1qxyz789',
     divisible: true,
     locked: true,
-    supply: '1000000000000'
+    supply: '1000000000000',
+    supply_normalized: '10000.00000000'
   };
 
   beforeEach(() => {
@@ -71,14 +89,14 @@ describe('AssetHeader', () => {
   it('should render asset icon with correct URL', () => {
     render(<AssetHeader assetInfo={mockAssetInfo} />);
     
-    const img = screen.getByAltText('PEPECASH');
-    expect(img).toHaveAttribute('src', 'https://app.xcp.io/img/icon/PEPECASH');
+    const icon = screen.getByTestId('asset-icon');
+    expect(icon).toHaveTextContent('PEPECASH Icon (lg)');
   });
 
   it('should apply custom className', () => {
     render(<AssetHeader assetInfo={mockAssetInfo} className="custom-class" />);
     
-    const container = screen.getByAltText('PEPECASH').closest('.flex');
+    const container = screen.getByTestId('asset-icon').closest('.flex');
     expect(container).toHaveClass('custom-class');
   });
 
@@ -180,17 +198,14 @@ describe('AssetHeader', () => {
   it('should apply correct CSS classes', () => {
     render(<AssetHeader assetInfo={mockAssetInfo} />);
     
-    const container = screen.getByAltText('PEPECASH').closest('.flex');
+    const container = screen.getByTestId('asset-icon').closest('.flex');
     expect(container).toHaveClass('flex');
     expect(container).toHaveClass('items-center');
     
-    // Check the image container div has the mr-4 class
-    const imageContainer = container?.querySelector('.relative.w-12.h-12.mr-4');
-    expect(imageContainer).toBeInTheDocument();
-    
-    const img = screen.getByAltText('PEPECASH');
-    expect(img).toHaveClass('w-12');
-    expect(img).toHaveClass('h-12');
+    // Check that the AssetIcon mock has the mr-4 class
+    const icon = screen.getByTestId('asset-icon');
+    expect(icon).toHaveTextContent('PEPECASH Icon (lg)');
+    expect(icon).toHaveClass('mr-4');
   });
 
   it('should apply correct typography classes', () => {
@@ -223,7 +238,8 @@ describe('AssetHeader', () => {
       asset: 'BTC',
       asset_longname: null,
       divisible: false,
-      locked: false
+      locked: false,
+      supply_normalized: '0'
     };
     
     render(<AssetHeader assetInfo={minimalAsset} />);
@@ -241,7 +257,8 @@ describe('AssetHeader', () => {
       issuer: 'bc1qissuer123',
       divisible: true,
       locked: true,
-      supply: 21000000
+      supply: 21000000,
+      supply_normalized: '0.21'
     };
     
     render(<AssetHeader assetInfo={fullAsset} />);
@@ -255,19 +272,20 @@ describe('AssetHeader', () => {
   it('should update when switching between assets', () => {
     const { rerender } = render(<AssetHeader assetInfo={mockAssetInfo} />);
     
-    expect(screen.getByAltText('PEPECASH')).toBeInTheDocument();
+    expect(screen.getByTestId('asset-icon')).toHaveTextContent('PEPECASH Icon (lg)');
     
     const differentAsset: AssetInfo = {
       asset: 'XCP',
       asset_longname: null,
       divisible: true,
       locked: true,
-      supply: '2600000000000000'
+      supply: '2600000000000000',
+      supply_normalized: '26000000'
     };
     
     rerender(<AssetHeader assetInfo={differentAsset} />);
     
-    expect(screen.getByAltText('XCP')).toBeInTheDocument();
+    expect(screen.getByTestId('asset-icon')).toHaveTextContent('XCP Icon (lg)');
     expect(mockSetAssetHeader).toHaveBeenCalledWith('XCP', differentAsset);
   });
 
@@ -305,7 +323,8 @@ describe('AssetHeader', () => {
       asset_longname: null,
       divisible: true,
       locked: false,
-      supply: 1000
+      supply: 1000,
+      supply_normalized: '0.00001'
     };
     
     mockSubheadings.assets['TEST'] = { ...initialAsset };
@@ -333,7 +352,8 @@ describe('AssetHeader', () => {
       asset_longname: null,
       divisible: false,
       locked: false,
-      supply: 500
+      supply: 500,
+      supply_normalized: '500'
     };
     
     render(<AssetHeader assetInfo={newAsset} />);
@@ -355,7 +375,7 @@ describe('AssetHeader', () => {
     render(<AssetHeader assetInfo={emptyNameAsset} />);
     
     // Should still render without errors
-    const img = screen.getByAltText('');
-    expect(img).toHaveAttribute('src', 'https://app.xcp.io/img/icon/');
+    const icon = screen.getByTestId('asset-icon');
+    expect(icon).toHaveTextContent('Icon (lg)');
   });
 });

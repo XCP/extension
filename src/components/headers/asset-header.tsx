@@ -1,43 +1,52 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { useHeader } from '@/contexts/header-context';
+import { AssetIcon } from '@/components/asset-icon';
 import { formatAmount } from '@/utils/format';
-
-/**
- * Information about an asset.
- */
-export interface AssetInfo {
-  asset: string;
-  asset_longname: string | null;
-  description?: string;
-  issuer?: string;
-  divisible: boolean;
-  locked: boolean;
-  supply?: string | number;
-}
+import { fromSatoshis } from '@/utils/numeric';
+import type { AssetInfo } from '@/utils/blockchain/counterparty/api';
 
 /**
  * Props for the AssetHeader component.
  */
 interface AssetHeaderProps {
+  /** The asset information to display */
   assetInfo: AssetInfo;
+  /** Optional CSS classes */
   className?: string;
 }
 
 /**
+ * AssetHeader Component
+ * 
  * Displays a header with asset information, using cached data from HeaderContext.
- * @param props AssetHeaderProps
- * @returns JSX.Element
+ * Uses the shared AssetIcon component for consistent icon display.
+ * 
+ * @param props - The component props
+ * @returns A React element representing the asset header
+ * 
+ * @example
+ * ```tsx
+ * <AssetHeader 
+ *   assetInfo={assetDetails}
+ *   className="mb-4"
+ * />
+ * ```
  */
 export const AssetHeader = ({ assetInfo, className = '' }: AssetHeaderProps) => {
   const { subheadings, setAssetHeader } = useHeader();
   const cached = subheadings.assets[assetInfo.asset];
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const prevAssetRef = useRef<string | null>(null);
 
   // Update cache if props differ from cached data
   useEffect(() => {
-    if (!cached || JSON.stringify(cached) !== JSON.stringify(assetInfo)) {
+    // Compare relevant fields instead of JSON.stringify for better performance
+    const hasChanged = !cached || 
+      cached.asset !== assetInfo.asset ||
+      cached.asset_longname !== assetInfo.asset_longname ||
+      cached.supply !== assetInfo.supply ||
+      cached.divisible !== assetInfo.divisible ||
+      cached.locked !== assetInfo.locked;
+      
+    if (hasChanged) {
       setAssetHeader(assetInfo.asset, assetInfo);
     }
   }, [assetInfo, cached, setAssetHeader]);
@@ -45,53 +54,15 @@ export const AssetHeader = ({ assetInfo, className = '' }: AssetHeaderProps) => 
   // Use cached data if available, otherwise fall back to props
   const displayInfo = cached ?? assetInfo;
 
-  // Reset image state when asset changes
-  useEffect(() => {
-    if (prevAssetRef.current !== displayInfo.asset) {
-      // Only reset if asset actually changed
-      if (prevAssetRef.current !== null) {
-        setImageLoaded(false);
-        setImageError(false);
-      }
-      prevAssetRef.current = displayInfo.asset;
-    }
-  }, [displayInfo.asset]);
-
   // Convert supply from satoshi-like units to actual units for divisible assets
+  // Using fromSatoshis for safe conversion
   const displaySupply = displayInfo.divisible 
-    ? Number(displayInfo.supply || 0) / 100000000 
+    ? fromSatoshis(displayInfo.supply || 0, { asNumber: true })
     : Number(displayInfo.supply || 0);
-
-  const handleImageLoad = () => {
-    setImageLoaded(true);
-    setImageError(false);
-  };
-
-  const handleImageError = () => {
-    setImageError(true);
-    setImageLoaded(true);
-  };
 
   return (
     <div className={`flex items-center ${className}`}>
-      <div className="relative w-12 h-12 mr-4">
-        {/* Placeholder/fallback */}
-        {(!imageLoaded || imageError) && (
-          <div className="absolute inset-0 bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs font-semibold">
-            {displayInfo.asset.slice(0, 3)}
-          </div>
-        )}
-        {/* Actual image */}
-        <img
-          src={`https://app.xcp.io/img/icon/${displayInfo.asset}`}
-          alt={displayInfo.asset}
-          className={`absolute inset-0 w-12 h-12 transition-opacity duration-200 ${
-            imageLoaded && !imageError ? 'opacity-100' : 'opacity-0'
-          }`}
-          onLoad={handleImageLoad}
-          onError={handleImageError}
-        />
-      </div>
+      <AssetIcon asset={displayInfo.asset} size="lg" className="mr-4" />
       <div>
         <h2 className="text-xl font-bold break-all">
           {displayInfo.asset_longname || displayInfo.asset}
