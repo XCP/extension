@@ -50,12 +50,13 @@ export const Spinner = React.memo<SpinnerProps>(({
         className={`animate-spin ${SIZES[size]} ${COLORS[color]}`}
         aria-hidden="true"
       />
-      {message && (
+      {message ? (
         <p className="mt-4 text-gray-600 text-center font-medium">
           {message}
         </p>
+      ) : (
+        <span className="sr-only">Loading...</span>
       )}
-      <span className="sr-only">{message || 'Loading...'}</span>
     </div>
   );
 });
