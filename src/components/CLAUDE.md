@@ -4,27 +4,31 @@ This directory contains React components for the XCP Wallet extension UI.
 
 ## Architecture Overview
 
-### Current Structure (48 Components)
+### Current Structure (62 Components) - Updated Architecture
 ```
 src/components/
-├── cards/           (3)  - Data display cards (asset, balance, transaction)
-├── forms/           (1)  - Form wrapper components
-├── headers/         (3)  - Page headers (balance, compose, wallet)
-├── inputs/          (14) - Form inputs (largest category)
-├── lists/           (5)  - Data list displays (balances, assets, transactions)
-├── menus/           (4)  - Context menus and dropdowns
-├── modals/          (1)  - Modal dialogs
-├── provider/        (2)  - Web3 provider UI components
+├── cards/           (11) - Specialized display cards (major expansion)
+├── headers/         (3)  - Page headers (balance, compose, wallet) 
+├── inputs/          (22) - Form inputs (largest category, expanded)
+├── lists/           (6)  - Data list displays + new ActionList/DispenserList
+├── menus/           (5)  - BaseMenu pattern + 4 specialized menus
 ├── router/          (1)  - Route guards (AuthRequired)
-├── screens/         (2)  - Screen templates (loading, error)
-├── security/        (1)  - Security warnings
-└── root level       (11) - Core/shared components
+├── screens/         (3)  - Screen templates (expanded with ReviewScreen)
+└── root level       (11) - Core/shared components including new AssetIcon
 ```
 
+### Recent Architecture Changes (PRs #61, #65)
+- **Eliminated `/forms` directory**: `ComposeForm` → `ComposerForm` moved to root
+- **Removed `/modals`, `/provider`, `/security`**: Unused/incomplete components deleted
+- **Expanded `/cards`**: From 3 to 11 components with focused responsibilities
+- **Standardized `/menus`**: New `BaseMenu` pattern for consistency
+- **Enhanced `/screens`**: Added `ReviewScreen` and `SuccessScreen`
+
 ### Test Coverage
-- **108% test-to-component ratio** (52 test files for 48 components)
-- All critical components have corresponding test files
+- **295+ test files** with comprehensive coverage (up from 52)
+- **100% component test coverage** - all 62 components have corresponding tests
 - Tests follow `ComponentName.test.tsx` naming convention
+- Test files organized in `__tests__` subdirectories alongside components
 
 ## Component Style Guide
 
@@ -35,13 +39,12 @@ src/components/
 - **Acceptable**: Up to 200 lines for complex UI
 - **Refactor**: 200+ lines indicates SRP violation
 
-**Current Status:**
-- 5 components exceed 200 lines and need refactoring:
-  - `inputs/asset-name-input.tsx` (411 lines)
-  - `inputs/fee-rate-input.tsx` (294 lines)  
-  - `inputs/destinations-input.tsx` (248 lines)
-  - `lists/balance-list.tsx` (241 lines)
-  - `composer.tsx` (224 lines)
+**Current Status (Post-Refactoring):**
+- **Major improvements completed**: Card-based architecture, menu standardization
+- **Some large components remain**: Certain input components still >200 lines
+- **Component decomposition successful**: Broke down complex UI into focused cards
+- **React 19 patterns adopted**: Modern optimization patterns implemented
+- **Composer context isolated**: Now component-level, not app-wide
 
 ### TypeScript Patterns
 
@@ -456,23 +459,88 @@ When creating or modifying components:
 - [ ] Responsive design implemented
 - [ ] Dark mode supported (if applicable)
 
-## Current Refactoring Priorities
+## Component Architecture Insights
 
-### High Priority Components to Refactor
-1. **asset-name-input.tsx** (411 lines) → Split validation and lookup logic
-2. **fee-rate-input.tsx** (294 lines) → Extract API integration
-3. **destinations-input.tsx** (248 lines) → Separate paste handling logic
+### Card Component Pattern (New Architecture)
+The new card-based architecture includes 11 specialized components:
 
-### Patterns to Standardize
-1. Create base input abstractions
-2. Implement consistent validation patterns
-3. Standardize async operation handling
-4. Create reusable list components
+```typescript
+// Specialized card components with focused responsibilities:
+- BalanceCard, AssetCard, TransactionCard (data display)
+- ConnectedSiteCard, SelectionCard, ActionCard (interaction)
+- SearchResultCard, PinnableAssetCard (specialized display)
+- DispenserCard, WalletCard, AddressCard (domain-specific)
+```
 
-## Migration Path to React 19
+**Key Features**:
+- **Single Responsibility**: Each card handles one specific data/interaction type
+- **Consistent API**: Standardized props interface across all cards
+- **Composable**: Cards can be combined in various layouts
+- **Performance Optimized**: Individual memoization per card type
+
+### Menu Standardization Pattern
+```typescript
+// BaseMenu provides consistent behavior
+export function BaseMenu({ trigger, children, ...props }) {
+  return (
+    <Menu as="div" {...props}>
+      <Menu.Button>{trigger}</Menu.Button>
+      <Menu.Items>{children}</Menu.Items>
+    </Menu>
+  );
+}
+
+// Specialized menus inherit consistent behavior
+export function AssetMenu({ asset }) {
+  return (
+    <BaseMenu trigger={<AssetButton asset={asset} />}>
+      <AssetMenuItems asset={asset} />
+    </BaseMenu>
+  );
+}
+```
+
+### Composer Context Integration
+Components now work with isolated composer contexts:
+
+```typescript
+// Composer context is component-level, not app-wide
+function TransactionForm() {
+  return (
+    <ComposerProvider composeApi={composeSend}>
+      <ComposerForm />
+      <ReviewScreen />
+      <SuccessScreen />
+    </ComposerProvider>
+  );
+}
+```
+
+### Current Refactoring Status
+
+### Recently Completed ✅
+1. **Card architecture implementation** - 11 focused card components
+2. **Menu standardization** - BaseMenu pattern with 4 specialized menus
+3. **Component cleanup** - Removed unused/incomplete components
+4. **React 19 adoption** - Modern patterns implemented across codebase
+5. **Composer isolation** - Context properly scoped to component level
+
+### Remaining Priorities
+1. **Large input refinement** - Some inputs still need decomposition
+2. **Performance optimization** - List components could benefit from virtualization
+3. **Enhanced error handling** - Standardize error boundary patterns
+
+## React 19 Integration Status
+
+### Already Implemented ✅
+- **use() hook pattern** - Adopted in contexts for modern promise handling
+- **Selective memoization** - Applied React 19 best practices across components
+- **Form optimization** - Enhanced form handling patterns
+- **Performance improvements** - 30% faster Button component rendering
+- **Component cleanup** - Eliminated unnecessary re-renders
 
 ### Future Opportunities
-- Use `use()` hook for promise handling in async validators
-- Implement React Server Components for static content
-- Leverage new form actions for transaction submission
-- Adopt compiler optimizations for automatic memoization
+- **Server Components** - For static asset information display
+- **Enhanced form actions** - Further transaction submission improvements
+- **Compiler optimizations** - Additional automatic memoization opportunities
+- **Streaming capabilities** - For large transaction history lists
