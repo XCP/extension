@@ -38,7 +38,7 @@ export default function VerifyMessage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: "Verify Message",
-      onBack: () => navigate("/actions"),
+      onBack: () => navigate("/"),
       rightButton: {
         ariaLabel: "Reset form",
         icon: <FaRedo className="w-3 h-3" />,
@@ -125,7 +125,7 @@ export default function VerifyMessage(): ReactElement {
           onChange={setAddress}
           label="Address"
           placeholder="Enter the Bitcoin address"
-          required={true}
+          required={false}
           showHelpText={false}
         />
         
@@ -137,7 +137,7 @@ export default function VerifyMessage(): ReactElement {
             label="Message"
             placeholder="Enter the exact message that was signed..."
             rows={4}
-            required={true}
+            required={false}
             showCharCount={true}
             description="Must match exactly"
           />
@@ -151,7 +151,7 @@ export default function VerifyMessage(): ReactElement {
             label="Signature"
             placeholder="Enter the signature (base64 or hex format)..."
             rows={3}
-            required={true}
+            required={false}
             className={verificationResult !== null && !error
               ? verificationResult
                 ? "border-green-500"

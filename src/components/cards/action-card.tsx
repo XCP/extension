@@ -75,10 +75,10 @@ export function ActionCard({
       tabIndex={0}
       aria-label={ariaLabel || title}
     >
-      <div className="flex items-start">
+      <div className="flex items-center">
         {/* Optional Icon */}
         {icon && (
-          <div className="flex-shrink-0 mr-3 mt-0.5">
+          <div className="flex-shrink-0 mr-3">
             <div className="w-5 h-5 flex items-center justify-center text-gray-600">
               {icon}
             </div>

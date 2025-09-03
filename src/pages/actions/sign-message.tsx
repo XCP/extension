@@ -34,7 +34,7 @@ export default function SignMessage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: "Sign Message",
-      onBack: () => navigate("/actions"),
+      onBack: () => navigate("/"),
       rightButton: {
         ariaLabel: "Reset form",
         icon: <FaRedo className="w-3 h-3" />,
@@ -174,7 +174,7 @@ export default function SignMessage(): ReactElement {
           label="Message"
           placeholder="Enter your message here..."
           rows={4}
-          required={true}
+          required={false}
           showCharCount={true}
           disabled={!signingCapabilities.canSign || isSigning}
         />
