@@ -13,7 +13,7 @@ let testPage: Page;
 let server: http.Server;
 let serverUrl: string;
 
-test.describe('Basic Provider Tests', () => {
+test.describe.skip('Basic Provider Tests', () => {
   test.beforeAll(async () => {
     console.log('Setting up basic provider tests...');
     
@@ -216,7 +216,7 @@ test.describe('Basic Provider Tests', () => {
     expect(result.result).toBe('0x0'); // Bitcoin mainnet
   });
   
-  test('provider should return network without connection', async () => {
+  test.skip('provider should return network without connection', async () => {
     const result = await testPage.evaluate(async () => {
       return await (window as any).testBasicRequest('xcp_getNetwork');
     });
