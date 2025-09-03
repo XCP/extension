@@ -249,21 +249,38 @@ export function FeeRateInput({
               <div className="relative">
                 <Listbox value={feeOptions.find((opt) => opt.id === selectedOption)} onChange={handleOptionSelect}>
                   <ListboxButton
-                    className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 hover:bg-gray-100 focus:border-blue-500 focus:ring-blue-500 focus:outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={disabled}
                   >
-                    {({ value }) => (
-                      <div className="flex justify-between">
-                        <span>{value?.name}</span>
-                        {value?.id !== "custom" && (
-                          <span className="text-gray-500">{value.value} sat/vB</span>
-                        )}
+                    {({ value, open }) => (
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-2">
+                          <span>{value?.name}</span>
+                          {value?.id !== "custom" && (
+                            <span className="text-gray-500">{value.value} sat/vB</span>
+                          )}
+                        </div>
+                        <svg 
+                          className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
                       </div>
                     )}
                   </ListboxButton>
-                  <ListboxOptions className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                  <ListboxOptions 
+                    className="w-full bg-white border rounded-md shadow-lg max-h-60 overflow-auto focus:outline-none z-10"
+                    anchor={{ to: 'bottom start', gap: '4px' }}
+                  >
                     {feeOptions.map((option) => (
-                      <ListboxOption key={option.id} value={option} className="p-2 cursor-pointer hover:bg-gray-100">
+                      <ListboxOption 
+                        key={option.id} 
+                        value={option} 
+                        className="p-2 cursor-pointer hover:bg-gray-100 focus:bg-gray-100 focus:outline-none ui-active:bg-gray-100"
+                      >
                         {({ selected }) => (
                           <div className="flex justify-between">
                             <span className={selected ? "font-medium" : ""}>{option.name}</span>

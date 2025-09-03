@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { launchExtension, setupWallet, cleanup, navigateViaFooter } from './helpers/test-helpers';
+import { launchExtension, setupWallet, cleanup, navigateViaFooter, lockWallet, unlockWallet, TEST_PASSWORD } from './helpers/test-helpers';
 
 test.describe('Address Preview Cache', () => {
   test('should cache and display address previews when wallet unlocked', async () => {
@@ -107,46 +107,50 @@ test.describe('Address Preview Cache', () => {
       initialAddresses.push({ title: titleText, description: descText });
     }
     
-    // Navigate back to settings
-    await page.locator('button:has-text("Address Type")').first().click();
-    await page.waitForTimeout(500);
-    
-    // Go to Security and lock the wallet
-    await page.click('text=Security');
-    await page.waitForTimeout(500);
-    await page.click('text=Lock Wallet');
+    // Navigate back to main index page before locking
+    await navigateViaFooter(page, 'wallet');
     await page.waitForTimeout(1000);
+    
+    // Lock the wallet
+    await lockWallet(page);
     
     // Should be redirected to unlock page
-    await expect(page.locator('text=Enter Password')).toBeVisible({ timeout: 5000 });
+    await expect(page).toHaveURL(/unlock/);
+    await expect(page.locator('input[name="password"]')).toBeVisible();
     
-    // Enter password to unlock again
-    await page.fill('input[type="password"]', 'test123456');
-    await page.click('button:has-text("Unlock")');
-    await page.waitForTimeout(1000);
+    // Unlock with correct password
+    await unlockWallet(page, TEST_PASSWORD);
     
     // Navigate back to settings
     await navigateViaFooter(page, 'settings');
     await page.waitForTimeout(1000);
     
     // Navigate to Address Type settings
+    await expect(page.locator('text=Address Type')).toBeVisible({ timeout: 5000 });
     await page.click('text=Address Type');
-    await page.waitForTimeout(2000);
+    await page.waitForURL('**/address-type*', { timeout: 5000 });
     
-    // Get addresses after unlock
+    // Wait for address cards to load and get addresses after unlock
+    await expect(page.locator('[role="radio"]').first()).toBeVisible({ timeout: 10000 });
     const cardsAfter = await page.locator('[role="radio"]').all();
     const addressesAfterUnlock = [];
+    
     for (const card of cardsAfter) {
       const titleText = await card.locator('.text-sm.font-medium').textContent();
       const descText = await card.locator('.text-xs').textContent();
       addressesAfterUnlock.push({ title: titleText, description: descText });
     }
     
+    console.log(`Found ${initialAddresses.length} initial addresses and ${addressesAfterUnlock.length} addresses after unlock`);
+    
     // Verify addresses are the same (cached)
-    for (let i = 0; i < initialAddresses.length; i++) {
-      const initial = initialAddresses[i];
+    expect(initialAddresses.length).toBeGreaterThan(0);
+    expect(addressesAfterUnlock.length).toBe(initialAddresses.length);
+    
+    for (const initial of initialAddresses) {
       const after = addressesAfterUnlock.find(a => a.title === initial.title);
       console.log(`Comparing ${initial.title}: "${initial.description}" vs "${after?.description}"`);
+      expect(after).toBeDefined();
       expect(after?.description).toBe(initial.description);
     }
     

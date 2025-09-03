@@ -303,20 +303,32 @@ describe('AssetIcon', () => {
             .filter((s: string) => s.trim().length > 0)
             .filter((s: string) => !s.includes('%') && !s.includes('!') && !s.includes(',') && !s.includes(' ')), // Filter out problematic characters for testing
           (asset: string) => {
-            const { container } = render(<AssetIcon asset={asset} />);
-            const iconContainer = screen.getByLabelText(`${asset} icon`);
-            const fallback = iconContainer.querySelector('div');
-            const image = iconContainer.querySelector('img');
+            const { container, unmount } = render(<AssetIcon asset={asset} />);
             
-            // Fallback should show first 3 characters uppercased
-            const expectedFallback = asset.slice(0, 3).toUpperCase();
-            expect(fallback).toHaveTextContent(expectedFallback);
-            
-            // Image should have correct src
-            expect(image).toHaveAttribute('src', `https://app.xcp.io/img/icon/${asset}`);
-            
-            // Should have proper structure
-            expect(container.firstChild).toHaveClass('relative');
+            try {
+              // Use container queries instead of screen to avoid cross-test pollution
+              // Escape special characters in the selector
+              const escapedAsset = CSS.escape(asset);
+              const iconContainer = container.querySelector(`[aria-label="${escapedAsset} icon"]`) || 
+                                   container.querySelector('[role="img"]'); // Fallback to role selector
+              expect(iconContainer).toBeTruthy();
+              
+              const fallback = iconContainer?.querySelector('div');
+              const image = iconContainer?.querySelector('img');
+              
+              // Fallback should show first 3 characters uppercased
+              const expectedFallback = asset.slice(0, 3).toUpperCase();
+              expect(fallback).toHaveTextContent(expectedFallback);
+              
+              // Image should have correct src
+              expect(image).toHaveAttribute('src', `https://app.xcp.io/img/icon/${asset}`);
+              
+              // Should have proper structure
+              expect(container.firstChild).toHaveClass('relative');
+            } finally {
+              // Clean up after each run to avoid pollution
+              unmount();
+            }
           }
         ),
         { numRuns: 30 } // Reduce runs for stability
