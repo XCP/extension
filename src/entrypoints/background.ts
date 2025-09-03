@@ -11,18 +11,21 @@ import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/session
 import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, createJsonRpcError } from '@/utils/constants/errorCodes';
 
 export default defineBackground(() => {
-  // Global handler to catch any unchecked chrome.runtime.lastError
-  // This prevents the "Unchecked runtime.lastError" warnings
-  const checkLastError = () => {
-    const lastError = chrome.runtime?.lastError;
-    if (lastError) {
-      // Silently acknowledge the error - most are expected (e.g., closed connections)
-      void lastError;
+  // Global error handler for any unchecked chrome.runtime.lastError
+  // Many Chrome APIs can trigger this error when contexts are unavailable
+  // This is a catch-all to prevent console warnings
+  const handleChromeError = () => {
+    // Just accessing chrome.runtime.lastError marks it as "checked"
+    if (chrome.runtime?.lastError) {
+      // Most of these are expected (e.g., tab closed, popup closed, etc.)
+      // We handle them gracefully throughout the codebase
+      void chrome.runtime.lastError;
     }
   };
   
-  // Check for errors periodically to catch any stragglers
-  setInterval(checkLastError, 1000);
+  // Check periodically for any stragglers
+  // Some async operations might set lastError outside our control
+  setInterval(handleChromeError, 500);
   
   // Initialize service registry
   const serviceRegistry = ServiceRegistry.getInstance();
@@ -267,24 +270,26 @@ export default defineBackground(() => {
     for (const tab of validTabs) {
       if (!tab.id) continue;
       
-      try {
-        // Use async/await with proper error handling
-        await chrome.tabs.sendMessage(
-          tab.id,
-          {
-            type: 'PROVIDER_EVENT',
-            event,
-            data: eventData
+      // Try to send message without waiting for response
+      // Using callbacks instead of promises to avoid unchecked runtime.lastError
+      chrome.tabs.sendMessage(
+        tab.id,
+        {
+          type: 'PROVIDER_EVENT',
+          event,
+          data: eventData
+        },
+        // Empty callback to handle the response
+        () => {
+          // Check and clear lastError to prevent unchecked error warnings
+          const lastError = chrome.runtime.lastError;
+          if (lastError) {
+            // This is expected when content script isn't injected yet
+            // Just acknowledge the error by accessing it
+            void lastError;
           }
-        ).catch(() => {
-          // Tab doesn't have our content script injected yet, which is normal
-          // This could happen if the page was just opened or refreshed
-          // Silently ignore as this is expected behavior
-        });
-      } catch (error) {
-        // Additional safety net for any unexpected errors
-        // Silently continue to next tab
-      }
+        }
+      );
     }
   }
 
