@@ -59,7 +59,7 @@ test.describe('Address Preview Cache', () => {
     await cleanup(context);
   });
 
-  test('should show current address preview on settings index', async () => {
+  test('should show address type description on settings index', async () => {
     const { context, page, extensionId } = await launchExtension('address-preview-settings');
     
     // Setup wallet
@@ -72,17 +72,14 @@ test.describe('Address Preview Cache', () => {
     // Look for the Address Type card on settings index
     const addressTypeCard = page.locator('text=Address Type').locator('..');
     
-    // Check if it has an address preview in the description
+    // Check if it has the address type description
     const description = await addressTypeCard.locator('.text-xs').textContent();
     
     console.log('Address Type card description:', description);
     
-    // Should show a truncated address (format: start...end)
+    // Should show the address type description (Taproot by default for new wallets)
     expect(description).toBeTruthy();
-    expect(description).toContain('...');
-    
-    // The address should match the current format (Taproot by default)
-    expect(description).toMatch(/^bc1p/); // Taproot addresses start with bc1p
+    expect(description).toBe('Taproot (P2TR)');
     
     await cleanup(context);
   });
