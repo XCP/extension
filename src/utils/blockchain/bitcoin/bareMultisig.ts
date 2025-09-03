@@ -7,6 +7,64 @@ import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 import { toSatoshis } from '@/utils/numeric';
 import { hybridSignTransaction } from '@/utils/blockchain/bitcoin';
 
+/* ══════════════════════════════════════════════════════════════════════════
+ * TYPE DEFINITIONS
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * UTXO (Unspent Transaction Output) interface.
+ */
+interface UTXO {
+  txid: string;
+  vout: number;
+  amount: number; // in BTC
+  scriptPubKeyHex: string;
+  scriptPubKeyType?: string;
+  requiredSignatures?: number;
+}
+
+/**
+ * Internal representation of a valid input ready for transaction building.
+ */
+interface ValidInput {
+  utxo: UTXO;
+  scriptPubKey: Uint8Array;
+  prevTxHex: string;
+  amountSats: bigint;
+  needsUncompressed: boolean;
+  wasManuallyParsed: boolean; // Track if we had to bypass btc-signer's validation
+}
+
+/**
+ * Options for consolidation.
+ */
+interface ConsolidationOptions {
+  maxInputsPerTx?: number;  // Limit inputs per transaction for safety (default: 420)
+  skipSpentCheck?: boolean; // Skip validation of spent UTXOs (faster but may fail at broadcast)
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * CONSTANTS
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+// Default maximum inputs per transaction to stay well under 100KB limit
+const DEFAULT_MAX_INPUTS = 420;
+
+// RBF-enabled sequence number
+const RBF_SEQUENCE = 0xfffffffd;
+
+// Estimated signature size for fee calculation
+const ESTIMATED_SIGNATURE_SIZE = 74;
+
+// Multisig script format constants
+const MULTISIG_1OF3_PREFIX = '5121'; // OP_1 OP_PUSHBYTES_33
+const MULTISIG_1OF3_SUFFIX = '53ae'; // OP_3 OP_CHECKMULTISIG
+const PUBKEY_LENGTH_HEX = 66; // 33 bytes = 66 hex chars
+const SCRIPT_PUBKEY_OFFSET = 68; // Each pubkey section: '21' (2) + pubkey (66) = 68
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * MAIN CONSOLIDATION FUNCTION
+ * ══════════════════════════════════════════════════════════════════════════ */
 
 /**
  * Main consolidator function.
@@ -18,10 +76,7 @@ export async function consolidateBareMultisig(
   sourceAddress: string,
   feeRateSatPerVByte: number,
   destinationAddress?: string,
-  options?: {
-    maxInputsPerTx?: number;  // Limit inputs per transaction for safety (default: 420)
-    skipSpentCheck?: boolean; // Skip validation of spent UTXOs (faster but may fail at broadcast)
-  }
+  options?: ConsolidationOptions
 ): Promise<string> {
   const targetAddress = destinationAddress || sourceAddress;
 
@@ -57,14 +112,7 @@ export async function consolidateBareMultisig(
   }
 
   // Try to build transaction with all valid UTXOs, skipping problematic ones
-  const validInputs: Array<{ 
-    utxo: UTXO; 
-    scriptPubKey: Uint8Array; 
-    prevTxHex: string; 
-    amountSats: bigint;
-    needsUncompressed: boolean;
-    wasManuallyParsed: boolean; // Track if we had to bypass btc-signer's validation
-  }> = [];
+  const validInputs: ValidInput[] = [];
   const skippedUtxos: Array<{ utxo: UTXO; reason: string }> = [];
   const prevTxCache = new Map<string, string>();
 
@@ -141,7 +189,7 @@ export async function consolidateBareMultisig(
   // Apply max inputs limit - default to 420 for safety (keeps tx under ~63KB)
   // Bitcoin network limits: max standard tx is 100KB, but we want to stay well under that
   // Each bare multisig input is ~110-150 bytes with signature
-  const maxInputs = options?.maxInputsPerTx ?? 420;
+  const maxInputs = options?.maxInputsPerTx ?? DEFAULT_MAX_INPUTS;
   if (validInputs.length > maxInputs) {
     console.log(`Limiting to ${maxInputs} inputs per transaction for safety (had ${validInputs.length})`);
     console.log(`Remaining ${validInputs.length - maxInputs} UTXOs will need separate consolidation`);
@@ -166,7 +214,7 @@ export async function consolidateBareMultisig(
         tx.addInput({
           txid: hexToBytes(utxo.txid),
           index: utxo.vout,
-          sequence: 0xfffffffd, // Enable RBF.
+          sequence: RBF_SEQUENCE, // Enable RBF.
           nonWitnessUtxo: hexToBytes(prevTxHex),
           // NO redeemScript - we'll construct the scriptSig manually
         });
@@ -176,7 +224,7 @@ export async function consolidateBareMultisig(
         tx.addInput({
           txid: hexToBytes(utxo.txid),
           index: utxo.vout,
-          sequence: 0xfffffffd, // Enable RBF.
+          sequence: RBF_SEQUENCE, // Enable RBF.
           nonWitnessUtxo: hexToBytes(prevTxHex),
           redeemScript: scriptPubKey,
         });
@@ -249,7 +297,9 @@ export async function consolidateBareMultisig(
   }
 }
 
-/* ───────── Helper Functions ───────── */
+/* ══════════════════════════════════════════════════════════════════════════
+ * SCRIPT PARSING HELPERS
+ * ══════════════════════════════════════════════════════════════════════════ */
 
 /**
  * Manually parse a multisig script without validating all pubkeys.
@@ -269,7 +319,7 @@ function tryManualMultisigParse(scriptHex: string, ourCompressedKey: string, our
     // 53 = OP_3 (n=3) 
     // ae = OP_CHECKMULTISIG
     
-    if (!scriptHex.startsWith('5121') || !scriptHex.endsWith('53ae')) {
+    if (!scriptHex.startsWith(MULTISIG_1OF3_PREFIX) || !scriptHex.endsWith(MULTISIG_1OF3_SUFFIX)) {
       return null; // Not a 1-of-3 multisig
     }
     
@@ -280,13 +330,13 @@ function tryManualMultisigParse(scriptHex: string, ourCompressedKey: string, our
     
     // Parse each of the 3 keys
     for (let i = 0; i < 3; i++) {
-      const offset = 4 + (i * 68); // 51 21 (4 chars), then each key is 21 (2 chars) + 66 chars = 68 chars
+      const offset = 4 + (i * SCRIPT_PUBKEY_OFFSET); // 51 21 (4 chars), then each key section is 68 chars
       if (scriptHex.substr(offset, 2) !== '21') {
         return null; // Expected PUSHBYTES_33
       }
       
-      const keyHex = scriptHex.substr(offset + 2, 66);
-      if (keyHex.length !== 66) {
+      const keyHex = scriptHex.substr(offset + 2, PUBKEY_LENGTH_HEX);
+      if (keyHex.length !== PUBKEY_LENGTH_HEX) {
         return null; // Wrong key length
       }
       
@@ -317,6 +367,10 @@ function tryManualMultisigParse(scriptHex: string, ourCompressedKey: string, our
     return null;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * SIGNING HELPERS
+ * ══════════════════════════════════════════════════════════════════════════ */
 
 /**
  * Manually sign a problematic multisig input that btc-signer can't handle.
@@ -375,6 +429,10 @@ function manuallySignMultisigInput(
   }
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+ * TRANSACTION SIZE ESTIMATION
+ * ══════════════════════════════════════════════════════════════════════════ */
+
 /**
  * Roughly estimates a transaction's size in bytes.
  */
@@ -384,7 +442,7 @@ function estimateTransactionSize(numInputs: number, numOutputs: number): number 
   // For each input, add an approximate size.
   for (let i = 0; i < numInputs; i++) {
     // For bare multisig, assume a scriptSig of: OP_0 + signature (roughly 74 bytes).
-    const signaturesSize = 74;
+    const signaturesSize = ESTIMATED_SIGNATURE_SIZE;
     size += 36 + varIntSize(signaturesSize) + signaturesSize + 4;
   }
   size += varIntSize(numOutputs);
@@ -405,21 +463,32 @@ function varIntSize(n: number): number {
   else return 9;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+ * UTXO VALIDATION HELPERS
+ * ══════════════════════════════════════════════════════════════════════════ */
+
 /**
- * Fetch bare multisig UTXOs for the given address.
+ * Filter out already-spent UTXOs from a list.
+ * Checks each UTXO against the blockchain to verify it's still unspent.
  */
-async function fetchBareMultisigUTXOs(address: string): Promise<UTXO[]> {
-  const response = await quickApiClient.get<{ data: any[] }>(`https://app.xcp.io/api/v1/address/${address}/utxos`);
-  const utxos = response.data.data;
-  if (!utxos || utxos.length === 0) throw new Error('No bare multisig UTXOs found');
-  return utxos.map((utxo: any) => ({
-    txid: utxo.txid,
-    vout: utxo.vout,
-    amount: parseFloat(utxo.amount),
-    scriptPubKeyHex: utxo.scriptPubKeyHex,
-    scriptPubKeyType: utxo.scriptPubKeyType,
-    requiredSignatures: utxo.required_signatures || 1,
-  }));
+async function filterUnspentUTXOs(utxos: UTXO[]): Promise<UTXO[]> {
+  console.log(`Validating ${utxos.length} UTXOs for spent status...`);
+  
+  // Check UTXOs in parallel for speed
+  const validationPromises = utxos.map(async (utxo) => {
+    const isUnspent = await isUTXOUnspent(utxo.txid, utxo.vout);
+    return isUnspent ? utxo : null;
+  });
+  
+  const results = await Promise.all(validationPromises);
+  const unspentUTXOs = results.filter((u): u is UTXO => u !== null);
+  
+  const spentCount = utxos.length - unspentUTXOs.length;
+  if (spentCount > 0) {
+    console.log(`Filtered out ${spentCount} already-spent UTXOs`);
+  }
+  
+  return unspentUTXOs;
 }
 
 /**
@@ -462,28 +531,25 @@ async function isUTXOUnspent(txid: string, vout: number): Promise<boolean> {
   }
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+ * NETWORK/API HELPERS
+ * ══════════════════════════════════════════════════════════════════════════ */
+
 /**
- * Filter out already-spent UTXOs from a list.
- * Checks each UTXO against the blockchain to verify it's still unspent.
+ * Fetch bare multisig UTXOs for the given address.
  */
-async function filterUnspentUTXOs(utxos: UTXO[]): Promise<UTXO[]> {
-  console.log(`Validating ${utxos.length} UTXOs for spent status...`);
-  
-  // Check UTXOs in parallel for speed
-  const validationPromises = utxos.map(async (utxo) => {
-    const isUnspent = await isUTXOUnspent(utxo.txid, utxo.vout);
-    return isUnspent ? utxo : null;
-  });
-  
-  const results = await Promise.all(validationPromises);
-  const unspentUTXOs = results.filter((u): u is UTXO => u !== null);
-  
-  const spentCount = utxos.length - unspentUTXOs.length;
-  if (spentCount > 0) {
-    console.log(`Filtered out ${spentCount} already-spent UTXOs`);
-  }
-  
-  return unspentUTXOs;
+async function fetchBareMultisigUTXOs(address: string): Promise<UTXO[]> {
+  const response = await quickApiClient.get<{ data: any[] }>(`https://app.xcp.io/api/v1/address/${address}/utxos`);
+  const utxos = response.data.data;
+  if (!utxos || utxos.length === 0) throw new Error('No bare multisig UTXOs found');
+  return utxos.map((utxo: any) => ({
+    txid: utxo.txid,
+    vout: utxo.vout,
+    amount: parseFloat(utxo.amount),
+    scriptPubKeyHex: utxo.scriptPubKeyHex,
+    scriptPubKeyType: utxo.scriptPubKeyType,
+    requiredSignatures: utxo.required_signatures || 1,
+  }));
 }
 
 /**
@@ -509,16 +575,4 @@ async function fetchPreviousRawTransaction(txid: string): Promise<string | null>
     }
   }
   return null;
-}
-
-/**
- * UTXO interface.
- */
-interface UTXO {
-  txid: string;
-  vout: number;
-  amount: number; // in BTC
-  scriptPubKeyHex: string;
-  scriptPubKeyType?: string;
-  requiredSignatures?: number;
 }

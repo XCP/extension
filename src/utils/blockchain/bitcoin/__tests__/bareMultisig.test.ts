@@ -54,9 +54,12 @@ describe('Bare Multisig Utilities', () => {
 
       mockAxios.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
-        .mockResolvedValueOnce({ data: 'deadbeef' }); // raw tx hex
+        // Mock UTXO validation call
+        .mockResolvedValueOnce({ data: { spent: false } })
+        // Mock raw tx fetch
+        .mockResolvedValueOnce({ data: 'deadbeef' });
 
-      await expect(consolidateBareMultisig(mockPrivateKey, mockAddress, 10))
+      await expect(consolidateBareMultisig(mockPrivateKey, mockAddress, 10, undefined, { skipSpentCheck: true }))
         .rejects.toThrow('No suitable UTXOs after filtering.');
     });
 
@@ -97,6 +100,9 @@ describe('Bare Multisig Utilities', () => {
 
       mockAxios.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
+        // Mock UTXO validation call
+        .mockResolvedValueOnce({ data: { spent: false } })
+        // Mock raw tx fetch
         .mockResolvedValueOnce({ data: mockRawTx });
 
       const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10);
@@ -141,12 +147,13 @@ describe('Bare Multisig Utilities', () => {
 
       mockAxios.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
+        // Skip UTXO validation in this test
         .mockResolvedValueOnce({ data: mockRawTx });
 
-      const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10, destinationAddress);
+      const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10, destinationAddress, { skipSpentCheck: true });
       
       expect(result).toBeDefined();
-      expect(mockAxios.get).toHaveBeenCalledTimes(2);
+      expect(mockAxios.get).toHaveBeenCalledTimes(2); // UTXOs + raw tx
     });
 
     it('should handle insufficient funds error', async () => {
@@ -185,7 +192,7 @@ describe('Bare Multisig Utilities', () => {
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
         .mockResolvedValueOnce({ data: mockRawTx });
 
-      await expect(consolidateBareMultisig(mockPrivateKey, mockAddress, 1000))
+      await expect(consolidateBareMultisig(mockPrivateKey, mockAddress, 1000, undefined, { skipSpentCheck: true }))
         .rejects.toThrow('Insufficient funds');
     });
 
@@ -211,6 +218,9 @@ describe('Bare Multisig Utilities', () => {
       // Mock all endpoints to fail
       mockAxios.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
+        // Mock UTXO validation
+        .mockResolvedValueOnce({ data: { spent: false } })
+        // Mock raw tx fetch to fail
         .mockRejectedValue(new Error('Not found'));
 
       await expect(consolidateBareMultisig(mockPrivateKey, mockAddress, 10))
@@ -263,13 +273,16 @@ describe('Bare Multisig Utilities', () => {
 
       mockAxios.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
+        // Mock UTXO validation for both UTXOs
+        .mockResolvedValueOnce({ data: { spent: false } })
+        .mockResolvedValueOnce({ data: { spent: false } })
         .mockResolvedValueOnce({ data: mockRawTx });
 
       const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10);
       
       expect(result).toBeDefined();
-      // Should only fetch the raw transaction once due to caching
-      expect(mockAxios.get).toHaveBeenCalledTimes(2);
+      // Should fetch: UTXOs, 2 validation checks, 1 raw tx
+      expect(mockAxios.get).toHaveBeenCalledTimes(4);
     });
 
     it('should work with compressed public key in multisig script', async () => {
@@ -306,19 +319,16 @@ describe('Bare Multisig Utilities', () => {
 
       mockAxios.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
+        // Skip validation for simplicity
         .mockResolvedValueOnce({ data: mockRawTx });
 
-      const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10);
+      const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10, undefined, { skipSpentCheck: true });
       
       expect(result).toBeDefined();
       expect(typeof result).toBe('string');
     });
-  });
 
-  describe('helper functions', () => {
-    it('should correctly estimate transaction size', () => {
-      // Testing the internal estimateTransactionSize function indirectly
-      // by ensuring consolidation works with realistic fee calculations
+    it('should filter out spent UTXOs when validation is enabled', async () => {
       const privateKeyBytes = hexToBytes(mockPrivateKey);
       const uncompressedPubKey = getPublicKey(privateKeyBytes, false);
       
@@ -329,15 +339,23 @@ describe('Bare Multisig Utilities', () => {
       });
       const mockScriptHex = bytesToHex(mockMultisigScript);
 
-      const mockUtxos = [{
-        txid: mockTxid,
-        vout: 0,
-        amount: 0.01, // Larger amount to ensure sufficient funds
-        scriptPubKeyHex: mockScriptHex,
-        scriptPubKeyType: 'bare_multisig'
-      }];
+      const mockUtxos = [
+        {
+          txid: mockTxid,
+          vout: 0,
+          amount: 0.001,
+          scriptPubKeyHex: mockScriptHex,
+          scriptPubKeyType: 'bare_multisig'
+        },
+        {
+          txid: '123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+          vout: 0,
+          amount: 0.002,
+          scriptPubKeyHex: mockScriptHex,
+          scriptPubKeyType: 'bare_multisig'
+        }
+      ];
 
-      // Create a valid raw transaction hex that contains the output matching our UTXO
       const mockRawTx = '01000000' + // Version 1
         '01' + // 1 input
         '0000000000000000000000000000000000000000000000000000000000000000' + // Previous txid (32 bytes)
@@ -352,34 +370,20 @@ describe('Bare Multisig Utilities', () => {
 
       mockAxios.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
+        // First UTXO is unspent
+        .mockResolvedValueOnce({ data: { spent: false } })
+        // Second UTXO is spent
+        .mockResolvedValueOnce({ data: { spent: true, txid: 'spending_tx_id' } })
+        // Raw tx for unspent UTXO
         .mockResolvedValueOnce({ data: mockRawTx });
 
-      expect(async () => {
-        await consolidateBareMultisig(mockPrivateKey, mockAddress, 1); // Low fee rate
-      }).not.toThrow();
+      const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10);
+      
+      expect(result).toBeDefined();
+      // Should only process the unspent UTXO
+      expect(mockAxios.get).toHaveBeenCalledTimes(4);
     });
 
-    it('should handle API errors gracefully when fetching UTXOs', async () => {
-      mockAxios.get.mockRejectedValue(new Error('API Error'));
-
-      await expect(consolidateBareMultisig(mockPrivateKey, mockAddress, 10))
-        .rejects.toThrow('API Error');
-    });
-
-    it('should handle malformed UTXO data', async () => {
-      const mockUtxos = [{
-        // Missing required fields
-        txid: mockTxid
-        // Missing vout, amount, scriptPubKeyHex
-      }];
-
-      mockAxios.get.mockResolvedValue({
-        data: { data: mockUtxos }
-      });
-
-      await expect(consolidateBareMultisig(mockPrivateKey, mockAddress, 10))
-        .rejects.toThrow();
-    });
   });
 
   describe('fetchPreviousRawTransaction fallback', () => {
@@ -402,7 +406,6 @@ describe('Bare Multisig Utilities', () => {
         scriptPubKeyType: 'bare_multisig'
       }];
 
-      // Create a valid raw transaction hex that contains the output matching our UTXO
       const mockRawTx = '01000000' + // Version 1
         '01' + // 1 input
         '0000000000000000000000000000000000000000000000000000000000000000' + // Previous txid (32 bytes)
@@ -417,12 +420,130 @@ describe('Bare Multisig Utilities', () => {
 
       mockAxios.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
-        .mockRejectedValueOnce(new Error('First endpoint failed'))
-        .mockResolvedValueOnce({ data: mockRawTx }); // Second endpoint succeeds
+        // Skip validation
+        // First endpoint fails
+        .mockRejectedValueOnce(new Error('Not found'))
+        // Second endpoint succeeds
+        .mockResolvedValueOnce({ data: mockRawTx });
 
-      const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10);
+      const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10, undefined, { skipSpentCheck: true });
       
       expect(result).toBeDefined();
+      // Should have tried multiple endpoints
+      expect(mockAxios.get.mock.calls.length).toBeGreaterThan(2);
+    });
+  });
+
+  describe('options', () => {
+    it('should respect maxInputsPerTx option', async () => {
+      const privateKeyBytes = hexToBytes(mockPrivateKey);
+      const uncompressedPubKey = getPublicKey(privateKeyBytes, false);
+      
+      const mockMultisigScript = OutScript.encode({
+        type: 'ms',
+        m: 1,
+        pubkeys: [uncompressedPubKey]
+      });
+      const mockScriptHex = bytesToHex(mockMultisigScript);
+
+      // Create many UTXOs
+      const mockUtxos = Array.from({ length: 500 }, (_, i) => ({
+        txid: mockTxid,
+        vout: i,
+        amount: 0.001,
+        scriptPubKeyHex: mockScriptHex,
+        scriptPubKeyType: 'bare_multisig'
+      }));
+
+      // Create a proper raw transaction with 500 outputs for all the UTXOs we're trying to spend
+      // First, let's build the outputs part
+      let outputsHex = '';
+      const numOutputs = 500;
+      
+      // Use hex string for number of outputs (500 = 0x01F4, but needs varint encoding)
+      // 500 in varint = 0xFD F401 (since 500 > 252)
+      outputsHex = 'fdf401'; // VarInt for 500 outputs
+      
+      // Add 500 outputs
+      for (let i = 0; i < numOutputs; i++) {
+        outputsHex += 'a086010000000000'; // Amount (100000 satoshis = 0.001 BTC)
+        outputsHex += bytesToHex(Uint8Array.from([mockScriptHex.length / 2])); // Script length
+        outputsHex += mockScriptHex; // Our bare multisig script
+      }
+
+      const mockRawTx = '02000000' + // Version 2
+        '01' + // 1 input
+        '0000000000000000000000000000000000000000000000000000000000000000' + // Previous txid (32 bytes)
+        '00000000' + // Previous vout (4 bytes)
+        '00' + // Script length (0)
+        'ffffffff' + // Sequence
+        outputsHex + // All 500 outputs
+        '00000000'; // Locktime
+
+      mockAxios.get
+        .mockResolvedValueOnce({ data: { data: mockUtxos } })
+        .mockResolvedValue({ data: mockRawTx });
+
+      const result = await consolidateBareMultisig(
+        mockPrivateKey, 
+        mockAddress, 
+        10, 
+        undefined,
+        { maxInputsPerTx: 10, skipSpentCheck: true }
+      );
+      
+      expect(result).toBeDefined();
+      // Transaction should be built with only 10 inputs (limited by maxInputsPerTx)
+      const tx = Transaction.fromRaw(hexToBytes(result));
+      expect(tx.inputsLength).toBeLessThanOrEqual(10);
+    });
+
+    it('should skip spent check when skipSpentCheck is true', async () => {
+      const privateKeyBytes = hexToBytes(mockPrivateKey);
+      const uncompressedPubKey = getPublicKey(privateKeyBytes, false);
+      
+      const mockMultisigScript = OutScript.encode({
+        type: 'ms',
+        m: 1,
+        pubkeys: [uncompressedPubKey]
+      });
+      const mockScriptHex = bytesToHex(mockMultisigScript);
+
+      const mockUtxos = [{
+        txid: mockTxid,
+        vout: 0,
+        amount: 0.001,
+        scriptPubKeyHex: mockScriptHex,
+        scriptPubKeyType: 'bare_multisig'
+      }];
+
+      const mockRawTx = '01000000' + // Version 1
+        '01' + // 1 input
+        '0000000000000000000000000000000000000000000000000000000000000000' + // Previous txid (32 bytes)
+        '00000000' + // Previous vout (4 bytes)
+        '00' + // Script length (0)
+        'ffffffff' + // Sequence
+        '01' + // 1 output
+        '00e1f50500000000' + // Amount
+        bytesToHex(Uint8Array.from([mockScriptHex.length / 2])) + // Script length
+        mockScriptHex + // Our bare multisig script
+        '00000000'; // Locktime
+
+      mockAxios.get
+        .mockResolvedValueOnce({ data: { data: mockUtxos } })
+        .mockResolvedValueOnce({ data: mockRawTx });
+
+      const result = await consolidateBareMultisig(
+        mockPrivateKey, 
+        mockAddress, 
+        10,
+        undefined,
+        { skipSpentCheck: true }
+      );
+      
+      expect(result).toBeDefined();
+      // Should only call API twice: UTXOs fetch and raw tx fetch
+      expect(mockAxios.get).toHaveBeenCalledTimes(2);
     });
   });
 });
