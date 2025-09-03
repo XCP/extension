@@ -59,7 +59,7 @@ export function AssetCard({
 
   return (
     <div
-      className={`relative flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 ${className}`}
+      className={`relative flex items-center p-4 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 ${className}`}
       onClick={handleClick}
       role="button"
       tabIndex={0}

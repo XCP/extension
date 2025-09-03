@@ -9,7 +9,7 @@ import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
-import { toBigNumber, fromBigNumber } from "@/utils/numeric";
+import { toBigNumber } from "@/utils/numeric";
 import { formatAmount } from "@/utils/format";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
@@ -63,11 +63,11 @@ export function IssueSupplyForm({
     
     // Convert to normalized amount (divide by 10^8 if divisible)
     const normalizedMax = isDivisible 
-      ? fromBigNumber(maxIssuable, 8)
+      ? maxIssuable.dividedBy(100000000).toString()
       : maxIssuable.toString();
     
     return formatAmount({
-      value: normalizedMax,
+      value: Number(normalizedMax),
       maximumFractionDigits: isDivisible ? 8 : 0,
       minimumFractionDigits: 0
     });
@@ -154,16 +154,14 @@ export function IssueSupplyForm({
           name="quantity_display"
           description={`Amount of ${asset} to issue (max: ${calculateMaxAmount()})`}
           disableMaxButton={false}
-          autoFocus={true}
         />
         
         <CheckboxInput
           name="lock_checkbox"
           label="Lock Supply"
           checked={lock}
-          onChange={(e) => setLock(e.target.checked)}
+          onChange={setLock}
           disabled={pending}
-          helpText="Permanently lock the supply after this issuance (cannot be undone)"
         />
 
     </ComposerForm>
