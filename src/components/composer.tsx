@@ -206,7 +206,6 @@ function ComposerInner<T>({
               onUnlock={handleUnlockAndSign}
               onCancel={() => setShowAuthModal(false)}
               submitText="Authorize"
-              showLockIcon
             />
           </div>
         </div>

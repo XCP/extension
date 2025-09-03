@@ -61,13 +61,13 @@ const UnlockWallet = () => {
 
   return (
     <UnlockScreen
-      title="Welcome Back"
-      subtitle="Enter your password to unlock your XCP Wallet"
+      title="XCP Wallet"
+      subtitle="v0.0.1"
       onUnlock={handleUnlock}
       error={error}
       isSubmitting={isUnlocking}
-      showLockIcon
-      className="h-screen"
+      placeholder="Enter your password"
+      submitText="Unlock"
     />
   );
 };
