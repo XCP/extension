@@ -17,7 +17,12 @@ vi.mock('@/utils/validation', () => ({
     return address && (address.startsWith('1') || address.startsWith('3') || address.startsWith('bc1'));
   }),
   lookupAssetOwner: vi.fn().mockResolvedValue({ isValid: false, ownerAddress: null, error: null }),
-  shouldTriggerAssetLookup: vi.fn().mockReturnValue(false)
+  shouldTriggerAssetLookup: vi.fn().mockReturnValue(false),
+  isMPMASupported: vi.fn((asset) => asset !== 'BTC'),
+  validateDestinations: vi.fn(() => ({ errors: {}, duplicates: new Set(), isValid: true })),
+  areDestinationsComplete: vi.fn(() => true),
+  validateDestinationCount: vi.fn(() => ({ isValid: true })),
+  parseMultiLineDestinations: vi.fn((text: string) => text.split('\n').filter((line: string) => line.trim()))
 }));
 
 // Mock the multi asset owner lookup hook to prevent async issues
