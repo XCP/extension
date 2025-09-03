@@ -220,43 +220,59 @@ export default defineBackground(() => {
     // Query all tabs - we'll handle errors gracefully
     const tabs = await browser.tabs.query({});
     
-    tabs.forEach(tab => {
-      // Skip tabs without URLs (like chrome:// pages we can't access)
-      if (!tab.url || !tab.id) return;
+    // Filter tabs to only those that can have content scripts
+    const validTabs = tabs.filter(tab => {
+      // Must have URL and ID
+      if (!tab.url || !tab.id) return false;
       
-      // Skip system pages that can't have content scripts
-      if (tab.url.startsWith('chrome://') || 
-          tab.url.startsWith('chrome-extension://') && !tab.url.includes(chrome.runtime.id) ||
-          tab.url.startsWith('about:') ||
-          tab.url.startsWith('edge://') ||
-          tab.url.startsWith('brave://')) {
-        return;
-      }
+      // Check if URL matches our content script patterns
+      // Content script runs on: https://*/*, http://localhost/*, http://127.0.0.1/*, file:///*
+      const url = tab.url;
+      const isValidUrl = (
+        url.startsWith('https://') ||
+        url.startsWith('http://localhost') ||
+        url.startsWith('http://127.0.0.1') ||
+        url.startsWith('file:///')
+      );
+      
+      if (!isValidUrl) return false;
       
       // If origin specified, only send to matching tabs
-      if (origin && !new URL(tab.url).origin.startsWith(origin)) {
-        return;
+      if (origin) {
+        try {
+          const tabOrigin = new URL(url).origin;
+          return tabOrigin === origin;
+        } catch {
+          return false;
+        }
       }
       
-      // Try to send message, handling error gracefully
-      chrome.tabs.sendMessage(
-        tab.id,
-        {
-          type: 'PROVIDER_EVENT',
-          event,
-          data: eventData
-        },
-        () => {
-          // Check and clear lastError to prevent unchecked error warnings
-          // This is the standard pattern for handling optional message targets
-          if (chrome.runtime.lastError) {
-            // Tab doesn't have our content script, which is normal
-            // Just acknowledge the error by accessing it
-            void chrome.runtime.lastError;
-          }
-        }
-      );
+      return true;
     });
+    
+    // Send messages only to valid tabs
+    for (const tab of validTabs) {
+      if (!tab.id) continue;
+      
+      try {
+        // Use async/await with proper error handling
+        await chrome.tabs.sendMessage(
+          tab.id,
+          {
+            type: 'PROVIDER_EVENT',
+            event,
+            data: eventData
+          }
+        ).catch(() => {
+          // Tab doesn't have our content script injected yet, which is normal
+          // This could happen if the page was just opened or refreshed
+          // Silently ignore as this is expected behavior
+        });
+      } catch (error) {
+        // Additional safety net for any unexpected errors
+        // Silently continue to next tab
+      }
+    }
   }
 
   // Register the emitProviderEvent function with the event emitter service
