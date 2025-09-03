@@ -238,6 +238,7 @@ export default function PinnedAssetsSettings(): ReactElement {
         )}
         
         <SearchInput
+          ref={searchInputRef}
           value={searchQuery}
           onChange={setSearchQuery}
           placeholder="Search assets to pin..."

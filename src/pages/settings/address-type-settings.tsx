@@ -5,12 +5,11 @@ import { useNavigate } from "react-router-dom";
 import { FiHelpCircle } from "react-icons/fi";
 import { RadioGroup } from "@headlessui/react";
 import { SelectionCard, SelectionCardGroup } from "@/components/cards/selection-card";
-import { FaCheck } from "react-icons/fa";
 import { ErrorAlert } from "@/components/error-alert";
 import { Spinner } from "@/components/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat, getSampleAddressForFormat } from '@/utils/blockchain/bitcoin';
 import { formatAddress } from "@/utils/format";
 import type { ReactElement } from "react";
 
@@ -41,9 +40,9 @@ const CONSTANTS = {
 export default function AddressTypeSettings(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { activeWallet, updateWalletAddressFormat, getPreviewAddressForFormat } = useWallet();
-  const [addresses, setAddresses] = useState<{ [key: string]: string }>({});
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const { activeWallet, updateWalletAddressFormat } = useWallet();
+  // We'll use sample addresses for preview since we don't need actual wallet addresses
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFormat, setSelectedFormat] = useState<AddressFormat | null>(null);
   const originalAddressFormat = useRef<AddressFormat | null>(null);
@@ -73,43 +72,6 @@ export default function AddressTypeSettings(): ReactElement {
     });
   }, [setHeaderProps, navigate]);
 
-  // Fetch preview addresses for each type
-  useEffect(() => {
-    const fetchAddresses = async () => {
-      if (!activeWallet) {
-        setIsInitialLoading(false);
-        return;
-      }
-
-      // Only show loading on initial mount, not when wallet changes due to address type update
-      if (!isChanging.current) {
-        setIsInitialLoading(true);
-      }
-      
-      try {
-        const addressMap: { [key: string]: string } = {};
-        for (const type of CONSTANTS.AVAILABLE_ADDRESS_TYPES) {
-          try {
-            const previewAddress = await getPreviewAddressForFormat(activeWallet.id, type);
-            addressMap[type] = previewAddress;
-          } catch (err) {
-            console.error(`Error generating address for type ${type}:`, err);
-            addressMap[type] = "";
-          }
-        }
-        setAddresses(addressMap);
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching addresses:", err);
-        setError(err instanceof Error ? err.message : "Failed to fetch addresses");
-      } finally {
-        setIsInitialLoading(false);
-        isChanging.current = false;
-      }
-    };
-
-    fetchAddresses();
-  }, [activeWallet, getPreviewAddressForFormat]);
 
   // Sync selected type with active wallet and store original
   useEffect(() => {
@@ -135,13 +97,12 @@ export default function AddressTypeSettings(): ReactElement {
     // Track that a change has been made
     hasChangedType.current = newType !== originalAddressFormat.current;
     
-    // Set flag to prevent loading state during the update
+    // Show loading state during update
+    setIsLoading(true);
     isChanging.current = true;
 
     try {
       await updateWalletAddressFormat(activeWallet.id, newType);
-      const previewAddress = await getPreviewAddressForFormat(activeWallet.id, newType);
-      setAddresses((prev) => ({ ...prev, [newType]: previewAddress }));
       setError(null);
     } catch (err) {
       console.error("Error updating address type:", err);
@@ -149,6 +110,8 @@ export default function AddressTypeSettings(): ReactElement {
       // Revert selection on error
       setSelectedFormat(activeWallet.addressFormat);
       hasChangedType.current = activeWallet.addressFormat !== originalAddressFormat.current;
+    } finally {
+      setIsLoading(false);
       isChanging.current = false;
     }
   };
@@ -175,13 +138,6 @@ export default function AddressTypeSettings(): ReactElement {
     }
   };
 
-  if (isInitialLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Spinner />
-      </div>
-    );
-  }
   
   if (!activeWallet) {
     return <div className="p-4 text-center text-gray-500">No wallet available</div>;
@@ -193,11 +149,16 @@ export default function AddressTypeSettings(): ReactElement {
         Address Type Settings
       </h2>
       {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <Spinner />
+        </div>
+      )}
       <RadioGroup
         value={selectedFormat}
         onChange={handleAddressFormatChange}
         className="space-y-2"
-        disabled={false}
+        disabled={isLoading}
       >
         <SelectionCardGroup>
           {CONSTANTS.AVAILABLE_ADDRESS_TYPES.filter((type) => {
@@ -211,7 +172,9 @@ export default function AddressTypeSettings(): ReactElement {
             const isCounterwallet = activeWallet?.addressFormat === AddressFormat.Counterwallet;
             const isDisabled = isCounterwallet && type !== AddressFormat.Counterwallet;
             const disabledReason = (isCounterwallet && type !== AddressFormat.Counterwallet) ? "Create new wallet to use this address type" : undefined;
-            const addressPreview = addresses[type] ? formatAddress(addresses[type]) : "Loading...";
+            // Use sample addresses for preview
+            const sampleAddress = getSampleAddressForFormat(type);
+            const addressPreview = sampleAddress ? formatAddress(sampleAddress) : "";
 
             return (
               <SelectionCard

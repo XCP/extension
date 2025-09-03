@@ -393,8 +393,8 @@ describe('AssetList', () => {
     const searchInput = screen.getByPlaceholderText('Search assets...');
     expect(searchInput).toHaveClass('w-full');
     expect(searchInput).toHaveClass('p-2');
-    expect(searchInput).toHaveClass('pl-10');
-    expect(searchInput).toHaveClass('pr-10');
+    expect(searchInput).toHaveClass('pl-8');
+    expect(searchInput).toHaveClass('pr-8');
     expect(searchInput).toHaveClass('border');
     expect(searchInput).toHaveClass('rounded-md');
     expect(searchInput).toHaveClass('bg-gray-50');
