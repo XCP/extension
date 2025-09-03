@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Field, Label, Description, Textarea } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
 import type { CancelOptions } from "@/utils/blockchain/counterparty";
@@ -35,7 +35,7 @@ export function CancelForm({
   }, []);
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={formAction}
       header={
         activeAddress && (
@@ -63,6 +63,6 @@ export function CancelForm({
             )}
           </Field>
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

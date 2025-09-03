@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input, Textarea } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
@@ -41,7 +41,7 @@ export function IssueSupplyForm({
   }, []);
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={formAction}
     >
         <Field>
@@ -118,6 +118,6 @@ export function IssueSupplyForm({
           )}
         </Field>
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

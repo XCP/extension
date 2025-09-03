@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback, startTransition } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { useFormStatus } from "react-dom";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { FairminterSelectInput, type Fairminter } from "@/components/inputs/fairminter-select-input";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
@@ -215,7 +215,7 @@ export function FairmintForm({
     (!isFreeMint && (!formData.quantity || Number(formData.quantity) <= 0));
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={handleSubmit}
       header={
         <div className="space-y-4">
@@ -303,6 +303,6 @@ export function FairmintForm({
             />
           )}
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

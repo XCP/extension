@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { useComposer } from "@/contexts/composer-context";
@@ -54,7 +54,7 @@ export function UtxoAttachForm({
   }, []);
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={formAction}
       header={
         asset && assetDetails && (
@@ -110,6 +110,6 @@ export function UtxoAttachForm({
             }
             disabled={false}
           />
-    </ComposeForm>
+    </ComposerForm>
   );
 }

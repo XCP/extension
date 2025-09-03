@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { Spinner } from "@/components/spinner";
 import { AssetHeader } from "@/components/headers/asset-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
@@ -56,7 +56,7 @@ export function TransferOwnershipForm({
   if (asset === "BTC") return <div className="p-4 text-red-500">Cannot transfer ownership of BTC</div>;
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={formAction}
       header={
         <AssetHeader
@@ -90,6 +90,6 @@ export function TransferOwnershipForm({
             name="transfer_destination_display"
           />
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

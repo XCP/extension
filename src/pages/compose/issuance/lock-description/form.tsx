@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Description } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { Spinner } from "@/components/spinner";
 import { AssetHeader } from "@/components/headers/asset-header";
 import { useComposer } from "@/contexts/composer-context";
@@ -68,7 +68,7 @@ export function LockDescriptionForm({
   }
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={formAction}
       header={
         <AssetHeader
@@ -114,6 +114,6 @@ export function LockDescriptionForm({
           </Description>
         </Field>
       )}
-    </ComposeForm>
+    </ComposerForm>
   );
 }

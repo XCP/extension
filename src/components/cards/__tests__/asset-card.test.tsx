@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { AssetCard } from './asset-card';
+import { AssetCard } from '../asset-card';
 import type { OwnedAsset } from '@/utils/blockchain/counterparty/api';
 
 // Mock the AssetMenu component

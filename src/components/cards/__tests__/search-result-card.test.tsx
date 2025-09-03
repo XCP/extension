@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { SearchResultCard } from './search-result-card';
+import { SearchResultCard } from '../search-result-card';
 
 // Mock the AssetIcon component
 vi.mock('@/components/asset-icon', () => ({

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { Spinner } from "@/components/spinner";
 import { AssetHeader } from "@/components/headers/asset-header";
 import { AssetSelectInput } from "@/components/inputs/asset-select-input";
@@ -127,7 +127,7 @@ export function DividendForm({
   }
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={processedFormAction}
       header={
         <AssetHeader
@@ -169,6 +169,6 @@ export function DividendForm({
             disableMaxButton={false}
           />
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

@@ -8,7 +8,6 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { MessageBus, type ProviderMessage, type ApprovalMessage, type EventMessage } from '@/services/core/MessageBus';
 import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/sessionManager';
-import { shouldBlockConnection, getPhishingWarning } from '@/utils/security/phishingDetection';
 import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, createJsonRpcError } from '@/utils/constants/errorCodes';
 
 export default defineBackground(() => {
@@ -56,22 +55,6 @@ export default defineBackground(() => {
             JSON_RPC_ERROR_CODES.INVALID_REQUEST,
             'Method is required'
           )
-        };
-      }
-
-      // Security check - phishing detection
-      const phishingWarning = await getPhishingWarning(origin);
-      if (phishingWarning && await shouldBlockConnection(origin)) {
-        console.warn('Blocked request from suspicious origin:', origin);
-        
-        return {
-          success: false,
-          error: createJsonRpcError(
-            PROVIDER_ERROR_CODES.UNAUTHORIZED,
-            'Connection blocked: Suspicious domain detected'
-          ),
-          requiresPhishingReview: true,
-          phishingWarning
         };
       }
 

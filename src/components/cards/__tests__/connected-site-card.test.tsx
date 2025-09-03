@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FiShield } from 'react-icons/fi';
-import { ConnectedSiteCard } from './connected-site-card';
+import { ConnectedSiteCard } from '../connected-site-card';
 
 describe('ConnectedSiteCard', () => {
   const mockOnDisconnect = vi.fn();

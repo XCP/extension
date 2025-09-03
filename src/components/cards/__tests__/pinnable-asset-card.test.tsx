@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { PinnableAssetCard } from './pinnable-asset-card';
+import { PinnableAssetCard } from '../pinnable-asset-card';
 
 // Mock the AssetIcon component
 vi.mock('@/components/asset-icon', () => ({

@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
@@ -96,7 +96,7 @@ export function DestroySupplyForm({
 
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={handleFormAction}
       header={
         asset && assetDetails ? (
@@ -187,6 +187,6 @@ export function DestroySupplyForm({
             )}
           </Field>
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

@@ -147,7 +147,7 @@ export class ConnectionService extends BaseService {
 
 **Key Features**:
 - **Permission validation** before operations
-- **Security checks** (phishing detection, CSP analysis)
+- **Security checks** (CSP analysis)
 - **Rate limiting** per origin
 - **Connection state persistence**
 - **Approval workflow integration**

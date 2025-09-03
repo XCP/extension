@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { useComposer } from "@/contexts/composer-context";
 import { formatAmount } from "@/utils/format";
 import { fetchAssetDetails, isHexMemo, stripHexPrefix, isValidMemoLength } from "@/utils/blockchain/counterparty";
@@ -210,7 +210,7 @@ export function MPMAForm({
   const isSubmitDisabled = csvData.length === 0 || isProcessing;
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={handleFormAction}
       submitDisabled={isSubmitDisabled}
       submitText={isProcessing ? "Validating..." : "Continue"}
@@ -316,6 +316,6 @@ export function MPMAForm({
             </div>
           )}
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

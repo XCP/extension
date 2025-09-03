@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Input, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
@@ -240,7 +240,7 @@ export function WeeklyBetForm({ formAction }: BetFormProps): ReactElement {
   };
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={enhancedFormAction}
       header={
         assetError ? (
@@ -404,6 +404,6 @@ export function WeeklyBetForm({ formAction }: BetFormProps): ReactElement {
             </div>
           )}
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

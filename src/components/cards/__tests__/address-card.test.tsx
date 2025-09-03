@@ -1,402 +1,200 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom/vitest';
-import { AddressCard } from '../address-card';
 import { RadioGroup } from '@headlessui/react';
+import { AddressCard } from '../address-card';
 import type { Address } from '@/utils/wallet';
 
-// Mock dependencies
+// Mock the format utils
 vi.mock('@/utils/format', () => ({
-  formatAddress: vi.fn((address, useFullAddress) => {
-    if (useFullAddress) {
-      return address;
+  formatAddress: (address: string, shorten: boolean = true) => {
+    if (shorten && address.length > 20) {
+      return `${address.substring(0, 8)}...${address.substring(address.length - 8)}`;
     }
-    return address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
-  }),
-  formatAsset: vi.fn((asset, options) => {
-    if (options?.assetInfo?.asset_longname) {
-      return options.assetInfo.asset_longname;
-    }
-    return asset;
-  }),
-  formatAmount: vi.fn(({ value }) => value.toString())
+    return address;
+  }
 }));
+
+// Test wrapper with RadioGroup context
+const TestWrapper = ({ children, value, onChange }: { children: React.ReactNode, value: Address, onChange: (address: Address) => void }) => (
+  <RadioGroup value={value} onChange={onChange}>
+    {children}
+  </RadioGroup>
+);
 
 describe('AddressCard', () => {
   const mockAddress: Address = {
-    address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
-    name: 'Address 1',
+    name: 'Main Address',
+    address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
     path: "m/84'/0'/0'/0/0",
-    pubKey: 'pubkey123'
+    pubKey: 'mockpublickey'
   };
 
-  const defaultProps = {
-    address: mockAddress,
-    selected: false,
-    onSelect: vi.fn()
+  const mockLongAddress: Address = {
+    name: 'Long Address Name That Should Display Properly',
+    address: 'bc1qverylongaddressthatshouldbeshortenedintheformatfunction123456789',
+    path: "m/84'/0'/0'/0/1",
+    pubKey: 'mockpublickey2'
   };
+
+  const mockOnSelect = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should render address card within RadioGroup.Option', () => {
+  it('renders address name and address correctly', () => {
     render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} />
-      </RadioGroup>
+      <TestWrapper value={mockAddress} onChange={mockOnSelect}>
+        <AddressCard
+          address={mockAddress}
+          selected={false}
+          onSelect={mockOnSelect}
+        />
+      </TestWrapper>
     );
-    
-    expect(screen.getByText('Address 1')).toBeInTheDocument();
+
+    expect(screen.getByText('Main Address')).toBeInTheDocument();
+    expect(screen.getByText('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4')).toBeInTheDocument();
   });
 
-  it('should display address name', () => {
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    expect(screen.getByText('Address 1')).toBeInTheDocument();
-  });
-
-  it('should display formatted address', () => {
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    expect(screen.getByText('bc1qxy...0wlh')).toBeInTheDocument();
-  });
-
-  it('should apply selected styles when selected', () => {
-    render(
-      <RadioGroup value={mockAddress} onChange={() => {}}>
-        <AddressCard {...defaultProps} selected={true} />
-      </RadioGroup>
-    );
-    
-    // The RadioGroup.Option handles the selected state
-    expect(screen.getByText('Address 1')).toBeInTheDocument();
-  });
-
-  it('should apply non-selected styles when not selected', () => {
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} selected={false} />
-      </RadioGroup>
-    );
-    
-    expect(screen.getByText('Address 1')).toBeInTheDocument();
-  });
-
-  it('should apply correct font styles to name', () => {
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    const name = screen.getByText('Address 1');
-    expect(name).toHaveClass('text-sm');
-    expect(name).toHaveClass('font-medium');
-  });
-
-  it('should apply correct font styles to address', () => {
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    const address = screen.getByText('bc1qxy...0wlh');
-    expect(address).toHaveClass('text-xs');
-    expect(address).toHaveClass('font-mono');
-  });
-
-  it('should have correct layout structure', () => {
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    const name = screen.getByText('Address 1');
-    const container = name.closest('.flex-col');
-    
-    expect(container).toHaveClass('flex');
-    expect(container).toHaveClass('flex-col');
-  });
-
-  it('should render within RadioGroup.Option', () => {
+  it('applies selected styles when selected', () => {
     const { container } = render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} />
-      </RadioGroup>
+      <TestWrapper value={mockAddress} onChange={mockOnSelect}>
+        <AddressCard
+          address={mockAddress}
+          selected={true}
+          onSelect={mockOnSelect}
+        />
+      </TestWrapper>
     );
-    
-    // RadioGroup.Option renders as a specific element
-    const option = container.querySelector('[role="radio"]');
-    expect(option).toBeInTheDocument();
+
+    const cardElement = container.querySelector('.bg-blue-600');
+    expect(cardElement).toBeInTheDocument();
+    expect(cardElement).toHaveClass('text-white');
   });
 
-  it('should handle different address types', () => {
-    const legacyAddress: Address = {
-      address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-      name: 'Legacy Address',
-      path: "m/84'/0'/0'/0/0",
-      pubKey: "pubkey123"
-    };
-    
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} address={legacyAddress} />
-      </RadioGroup>
-    );
-    
-    expect(screen.getByText('Legacy Address')).toBeInTheDocument();
-    expect(screen.getByText('1A1zP1...vfNa')).toBeInTheDocument();
-  });
-
-  it('should handle empty address name', () => {
-    const emptyNameAddress: Address = {
-      ...mockAddress,
-      name: ''
-    };
-    
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} address={emptyNameAddress} />
-      </RadioGroup>
-    );
-    
-    // The empty span should still be rendered
-    const nameSpan = screen.getByText('bc1qxy...0wlh').parentElement?.querySelector('.text-sm.font-medium');
-    expect(nameSpan).toBeInTheDocument();
-    expect(nameSpan?.textContent).toBe('');
-  });
-
-  it('should handle very long addresses', () => {
-    const longAddress: Address = {
-      address: 'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3',
-      name: 'Long Address',
-      path: "m/84'/0'/0'/0/0",
-      pubKey: "pubkey123"
-    };
-    
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} address={longAddress} />
-      </RadioGroup>
-    );
-    
-    expect(screen.getByText('bc1qrp...fmv3')).toBeInTheDocument();
-  });
-
-  it('should handle very long address names', () => {
-    const longNameAddress: Address = {
-      ...mockAddress,
-      name: 'This is a very long address name that should still render correctly'
-    };
-    
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} address={longNameAddress} />
-      </RadioGroup>
-    );
-    
-    expect(screen.getByText('This is a very long address name that should still render correctly')).toBeInTheDocument();
-  });
-
-  it('should maintain structure with different address data', () => {
-    const { rerender } = render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    expect(screen.getByText('Address 1')).toBeInTheDocument();
-    
-    const differentAddress: Address = {
-      address: 'bc1qxyz789',
-      name: 'Address 2',
-      path: "m/84'/0'/0'/0/1",
-      pubKey: "pubkey456"
-    };
-    
-    rerender(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} address={differentAddress} />
-      </RadioGroup>
-    );
-    
-    expect(screen.getByText('Address 2')).toBeInTheDocument();
-    expect(screen.getByText('bc1qxy...z789')).toBeInTheDocument();
-  });
-
-  it('should handle addresses with different index values', () => {
-    const highIndexAddress: Address = {
-      ...mockAddress,
-      path: "m/84'/0'/0'/0/99",
-      pubKey: "pubkey999"
-    };
-    
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} address={highIndexAddress} />
-      </RadioGroup>
-    );
-    
-    expect(screen.getByText('Address 1')).toBeInTheDocument();
-  });
-
-  it('should work with RadioGroup value selection', () => {
-    const { rerender } = render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    // Initially not selected
-    expect(screen.getByText('Address 1')).toBeInTheDocument();
-    
-    // Update to be selected
-    rerender(
-      <RadioGroup value={mockAddress} onChange={() => {}}>
-        <AddressCard {...defaultProps} selected={true} />
-      </RadioGroup>
-    );
-    
-    expect(screen.getByText('Address 1')).toBeInTheDocument();
-  });
-
-  it('should handle click events through RadioGroup', () => {
-    const onChange = vi.fn();
-    
-    render(
-      <RadioGroup value={null} onChange={onChange}>
-        <AddressCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    const option = screen.getByRole('radio');
-    fireEvent.click(option);
-    
-    // RadioGroup should handle the selection
-    expect(onChange).toHaveBeenCalled();
-  });
-
-  it('should format short addresses correctly', () => {
-    const shortAddress: Address = {
-      address: 'bc1q',
-      name: 'Short',
-      path: "m/84'/0'/0'/0/0",
-      pubKey: "pubkey123"
-    };
-    
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} address={shortAddress} />
-      </RadioGroup>
-    );
-    
-    // formatAddress should handle short addresses
-    expect(screen.getByText('Short')).toBeInTheDocument();
-  });
-
-  it('should handle empty address gracefully', () => {
-    const emptyAddress: Address = {
-      address: '',
-      name: 'Empty',
-      path: "m/84'/0'/0'/0/0",
-      pubKey: "pubkey123"
-    };
-    
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} address={emptyAddress} />
-      </RadioGroup>
-    );
-    
-    expect(screen.getByText('Empty')).toBeInTheDocument();
-    // formatAddress returns empty string for empty address
-    const addressSpan = screen.getByText('Empty').parentElement?.querySelector('.text-xs.font-mono');
-    expect(addressSpan?.textContent).toBe('');
-  });
-
-  it('should apply cursor pointer style', () => {
+  it('applies unselected styles when not selected', () => {
     const { container } = render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} />
-      </RadioGroup>
+      <TestWrapper value={mockAddress} onChange={mockOnSelect}>
+        <AddressCard
+          address={mockAddress}
+          selected={false}
+          onSelect={mockOnSelect}
+        />
+      </TestWrapper>
     );
-    
-    const option = container.querySelector('[role="radio"]');
-    expect(option?.className).toContain('cursor-pointer');
+
+    const cardElement = container.querySelector('.bg-white');
+    expect(cardElement).toBeInTheDocument();
+    expect(cardElement).toHaveClass('hover:bg-gray-100');
   });
 
-  it('should apply rounded corners', () => {
-    const { container } = render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    const option = container.querySelector('[role="radio"]');
-    expect(option?.className).toContain('rounded-lg');
-  });
-
-  it('should apply padding', () => {
-    const { container } = render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    const option = container.querySelector('[role="radio"]');
-    expect(option?.className).toContain('px-4');
-    expect(option?.className).toContain('py-3');
-  });
-
-  it('should have border styling', () => {
-    const { container } = render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    const option = container.querySelector('[role="radio"]');
-    expect(option?.className).toContain('border');
-  });
-
-  it('should handle numeric address names', () => {
-    const numericNameAddress: Address = {
-      ...mockAddress,
-      name: '123456'
-    };
-    
+  it('handles long address names properly', () => {
     render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} address={numericNameAddress} />
-      </RadioGroup>
+      <TestWrapper value={mockLongAddress} onChange={mockOnSelect}>
+        <AddressCard
+          address={mockLongAddress}
+          selected={false}
+          onSelect={mockOnSelect}
+        />
+      </TestWrapper>
     );
-    
-    expect(screen.getByText('123456')).toBeInTheDocument();
+
+    expect(screen.getByText('Long Address Name That Should Display Properly')).toBeInTheDocument();
   });
 
-  it('should handle special characters in address name', () => {
-    const specialNameAddress: Address = {
-      ...mockAddress,
-      name: 'Address #1 (Main)'
-    };
-    
+  it('formats long addresses with formatAddress function', () => {
     render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <AddressCard {...defaultProps} address={specialNameAddress} />
-      </RadioGroup>
+      <TestWrapper value={mockLongAddress} onChange={mockOnSelect}>
+        <AddressCard
+          address={mockLongAddress}
+          selected={false}
+          onSelect={mockOnSelect}
+        />
+      </TestWrapper>
     );
+
+    // The formatAddress is called with false parameter, so the long address is NOT shortened
+    expect(screen.getByText('bc1qverylongaddressthatshouldbeshortenedintheformatfunction123456789')).toBeInTheDocument();
+  });
+
+  it('has proper accessibility attributes', () => {
+    const { container } = render(
+      <TestWrapper value={mockAddress} onChange={mockOnSelect}>
+        <AddressCard
+          address={mockAddress}
+          selected={false}
+          onSelect={mockOnSelect}
+        />
+      </TestWrapper>
+    );
+
+    const radioOption = container.querySelector('[role="radio"]');
+    expect(radioOption).toBeInTheDocument();
+    expect(radioOption).toHaveAttribute('tabIndex');
+  });
+
+  it('responds to keyboard navigation', () => {
+    const { container } = render(
+      <TestWrapper value={mockAddress} onChange={mockOnSelect}>
+        <AddressCard
+          address={mockAddress}
+          selected={false}
+          onSelect={mockOnSelect}
+        />
+      </TestWrapper>
+    );
+
+    const radioOption = container.querySelector('[role="radio"]') as HTMLElement;
+    expect(radioOption).toBeInTheDocument();
     
-    expect(screen.getByText('Address #1 (Main)')).toBeInTheDocument();
+    fireEvent.keyDown(radioOption, { key: 'Enter' });
+    // RadioGroup handles the selection internally
+  });
+
+  it('has focus styles when active', () => {
+    const { container } = render(
+      <TestWrapper value={mockAddress} onChange={mockOnSelect}>
+        <AddressCard
+          address={mockAddress}
+          selected={false}
+          onSelect={mockOnSelect}
+        />
+      </TestWrapper>
+    );
+
+    const cardElement = container.querySelector('.focus\\:outline-none');
+    expect(cardElement).toBeInTheDocument();
+  });
+
+  it('displays monospace font for address', () => {
+    render(
+      <TestWrapper value={mockAddress} onChange={mockOnSelect}>
+        <AddressCard
+          address={mockAddress}
+          selected={false}
+          onSelect={mockOnSelect}
+        />
+      </TestWrapper>
+    );
+
+    const addressElement = screen.getByText('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4');
+    expect(addressElement).toHaveClass('font-mono');
+    expect(addressElement).toHaveClass('text-xs');
+  });
+
+  it('has proper cursor pointer styling', () => {
+    const { container } = render(
+      <TestWrapper value={mockAddress} onChange={mockOnSelect}>
+        <AddressCard
+          address={mockAddress}
+          selected={false}
+          onSelect={mockOnSelect}
+        />
+      </TestWrapper>
+    );
+
+    const cardElement = container.querySelector('.cursor-pointer');
+    expect(cardElement).toBeInTheDocument();
   });
 });

@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, memo, useCallback } from "react";
 import { useFormStatus } from "react-dom";
 import axios from "axios";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
@@ -175,7 +175,7 @@ export const DispenserForm = memo(function DispenserForm({
   }, [asset, escrowQuantity, mainchainRate, giveQuantity, formAction]);
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={handleFormAction}
       header={
         asset && activeAddress && assetDetails ? (
@@ -254,6 +254,6 @@ export const DispenserForm = memo(function DispenserForm({
             )}
           </Field>
           
-    </ComposeForm>
+    </ComposerForm>
   );
 });

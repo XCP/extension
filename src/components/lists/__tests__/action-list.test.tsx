@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FiSettings, FiUser, FiLock } from 'react-icons/fi';
-import { ActionList, type ActionSection } from './action-list';
+import { ActionList, type ActionSection } from '../action-list';
 
 // Mock the ActionCard component
 vi.mock('@/components/cards/action-card', () => ({

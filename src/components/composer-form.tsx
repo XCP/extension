@@ -8,9 +8,9 @@ import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useComposer } from "@/contexts/composer-context";
 
 /**
- * Props for the ComposeForm component
+ * Props for the ComposerForm component
  */
-export interface ComposeFormProps {
+export interface ComposerFormProps {
   // Required props
   children: ReactNode;
   formAction: (formData: FormData) => void;
@@ -32,17 +32,17 @@ export interface ComposeFormProps {
  * 
  * @example
  * ```tsx
- * <ComposeForm
+ * <ComposerForm
  *   formAction={handleSubmit}
  *   header={<BalanceHeader balance={balance} />}
  *   submitText="Send"
  * >
  *   <AmountInput />
  *   <DestinationInput />
- * </ComposeForm>
+ * </ComposerForm>
  * ```
  */
-export function ComposeForm({
+export function ComposerForm({
   children,
   formAction,
   header,
@@ -52,7 +52,7 @@ export function ComposeForm({
   className = "space-y-4",
   formClassName = "space-y-4",
   containerClassName = "bg-white rounded-lg shadow-lg p-3 sm:p-4",
-}: ComposeFormProps): ReactElement {
+}: ComposerFormProps): ReactElement {
   // Get state from composer context
   const { state, showHelpText, clearError } = useComposer<any>();
   

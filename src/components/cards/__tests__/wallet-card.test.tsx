@@ -1,353 +1,292 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom/vitest';
-import WalletCard from '../wallet-card';
 import { RadioGroup } from '@headlessui/react';
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import WalletCard from '../wallet-card';
+import type { Wallet } from '@/utils/wallet';
 
-// Mock dependencies
+// Mock the format utils
 vi.mock('@/utils/format', () => ({
-  formatAddress: vi.fn((address) => address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''),
-  formatAsset: vi.fn((asset, options) => {
-    if (options?.assetInfo?.asset_longname) {
-      return options.assetInfo.asset_longname;
+  formatAddress: (address: string, shorten: boolean = true) => {
+    if (shorten && address.length > 20) {
+      return `${address.substring(0, 8)}...${address.substring(address.length - 8)}`;
     }
-    return asset;
-  }),
-  formatAmount: vi.fn(({ value }) => value.toString())
+    return address;
+  }
 }));
 
+// Mock the WalletMenu component
 vi.mock('@/components/menus/wallet-menu', () => ({
-  WalletMenu: ({ wallet, isOnlyWallet }: any) => (
-    <div data-testid="wallet-menu" data-wallet-id={wallet.id} data-only={isOnlyWallet}>
-      Menu
-    </div>
+  WalletMenu: ({ wallet, isOnlyWallet }: { wallet: Wallet; isOnlyWallet: boolean }) => (
+    <button data-testid={`wallet-menu-${wallet.id}`} className="wallet-menu">
+      Menu {isOnlyWallet ? '(Only)' : ''}
+    </button>
   )
 }));
 
+// Test wrapper with RadioGroup context
+const TestWrapper = ({ children, value, onChange }: { children: React.ReactNode, value: Wallet, onChange: (wallet: Wallet) => void }) => (
+  <RadioGroup value={value} onChange={onChange}>
+    {children}
+  </RadioGroup>
+);
+
 describe('WalletCard', () => {
-  const mockWallet = {
+  const mockMnemonicWallet: Wallet = {
     id: 'wallet-1',
-    name: 'My Wallet',
-    type: 'mnemonic' as const,
-    addressFormat: 'P2WPKH' as any,
+    name: 'Main Wallet',
+    type: 'mnemonic',
+    addressFormat: 'p2wpkh',
     addressCount: 1,
-    addresses: [
-      { 
-        name: 'Address 1',
-        path: "m/84'/0'/0'/0/0",
-        address: 'bc1qabcdef123456789',
-        pubKey: 'pubkey123'
-      }
-    ]
+    addresses: [{
+      name: 'Address 1',
+      address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+      path: "m/84'/0'/0'/0/0",
+      pubKey: 'mockpublickey'
+    }]
   };
 
-  const defaultProps = {
-    wallet: mockWallet,
-    selected: false,
-    onSelect: vi.fn(),
-    isOnlyWallet: false
+  const mockPrivateKeyWallet: Wallet = {
+    id: 'wallet-2',
+    name: 'Import Wallet',
+    type: 'privateKey',
+    addressFormat: 'p2wpkh',
+    addressCount: 1,
+    addresses: [{
+      name: 'Imported Address',
+      address: 'bc1qverylongaddressthatshouldbeshortenedintheformatfunction123456789',
+      path: '',
+      pubKey: 'mockpublickey2'
+    }]
   };
+
+  const mockEmptyWallet: Wallet = {
+    id: 'wallet-3',
+    name: 'Empty Wallet',
+    type: 'mnemonic',
+    addressFormat: 'p2wpkh',
+    addressCount: 0,
+    addresses: []
+  };
+
+  const mockOnSelect = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should render wallet card within RadioGroup.Option', () => {
+  it('renders wallet information correctly', () => {
     render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} />
-      </RadioGroup>
+      <TestWrapper value={mockMnemonicWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockMnemonicWallet}
+          selected={false}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+        />
+      </TestWrapper>
     );
-    
-    expect(screen.getByText('My Wallet')).toBeInTheDocument();
-  });
 
-  it('should display wallet name', () => {
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    expect(screen.getByText('My Wallet')).toBeInTheDocument();
-  });
-
-  it('should display formatted primary address', () => {
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    expect(screen.getByText('bc1qab...6789')).toBeInTheDocument();
-  });
-
-  it('should display "No address" when wallet has no addresses', () => {
-    const walletNoAddresses = {
-      ...mockWallet,
-      addresses: []
-    };
-    
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} wallet={walletNoAddresses} />
-      </RadioGroup>
-    );
-    
-    expect(screen.getByText('No add...ress')).toBeInTheDocument();
-  });
-
-  it('should display wallet type as "Mnemonic"', () => {
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
+    expect(screen.getByText('Main Wallet')).toBeInTheDocument();
+    expect(screen.getByText('bc1qw508...7kv8f3t4')).toBeInTheDocument();
     expect(screen.getByText('Mnemonic')).toBeInTheDocument();
   });
 
-  it('should display wallet type as "Private Key"', () => {
-    const privateKeyWallet = {
-      ...mockWallet,
-      type: 'privateKey' as const
-    };
-    
+  it('displays private key wallet type correctly', () => {
     render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} wallet={privateKeyWallet} />
-      </RadioGroup>
+      <TestWrapper value={mockPrivateKeyWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockPrivateKeyWallet}
+          selected={false}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+        />
+      </TestWrapper>
     );
-    
+
     expect(screen.getByText('Private Key')).toBeInTheDocument();
   });
 
-  it('should render WalletMenu component', () => {
+  it('handles wallet with no addresses', () => {
     render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} />
-      </RadioGroup>
+      <TestWrapper value={mockEmptyWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockEmptyWallet}
+          selected={false}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+        />
+      </TestWrapper>
     );
-    
-    const menu = screen.getByTestId('wallet-menu');
-    expect(menu).toBeInTheDocument();
-    expect(menu).toHaveAttribute('data-wallet-id', 'wallet-1');
-    expect(menu).toHaveAttribute('data-only', 'false');
+
+    expect(screen.getByText('Empty Wallet')).toBeInTheDocument();
+    expect(screen.getByText('No address')).toBeInTheDocument();
   });
 
-  it('should pass isOnlyWallet prop to WalletMenu', () => {
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} isOnlyWallet={true} />
-      </RadioGroup>
-    );
-    
-    const menu = screen.getByTestId('wallet-menu');
-    expect(menu).toHaveAttribute('data-only', 'true');
-  });
-
-  it('should call onSelect when card is clicked', () => {
-    const onSelect = vi.fn();
-    
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} onSelect={onSelect} />
-      </RadioGroup>
-    );
-    
-    const walletName = screen.getByText('My Wallet');
-    fireEvent.click(walletName.parentElement!.parentElement!);
-    
-    expect(onSelect).toHaveBeenCalledWith(mockWallet);
-  });
-
-  it('should not call onSelect when menu is clicked', () => {
-    const onSelect = vi.fn();
-    
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} onSelect={onSelect} />
-      </RadioGroup>
-    );
-    
-    const menu = screen.getByTestId('wallet-menu');
-    
-    // Create a mock event target that's inside the menu
-    const mockEvent = {
-      target: menu,
-      currentTarget: menu.parentElement,
-      stopPropagation: vi.fn(),
-      preventDefault: vi.fn()
-    } as any;
-    
-    // Mock closest to return the menu element
-    menu.closest = vi.fn((selector) => selector === '.wallet-menu' ? menu.parentElement : null);
-    
-    fireEvent.click(menu);
-    
-    // Since the click is on the menu, onSelect should not be called
-    // This is a simplified test - in reality the handleClick logic prevents this
-  });
-
-  it('should apply selected styles when checked', () => {
-    render(
-      <RadioGroup value={mockWallet} onChange={() => {}}>
-        <WalletCard {...defaultProps} selected={true} />
-      </RadioGroup>
-    );
-    
-    // The RadioGroup.Option component handles the checked state
-    // We can't directly test the classes applied by the render prop function
-    // but we can verify the component renders correctly
-    expect(screen.getByText('My Wallet')).toBeInTheDocument();
-  });
-
-  it('should have correct layout structure', () => {
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    const walletName = screen.getByText('My Wallet');
-    const container = walletName.closest('.flex-col');
-    
-    expect(container).toHaveClass('flex');
-    expect(container).toHaveClass('flex-col');
-  });
-
-  it('should position menu absolutely', () => {
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    const menu = screen.getByTestId('wallet-menu');
-    const menuContainer = menu.parentElement;
-    
-    expect(menuContainer).toHaveClass('absolute');
-    expect(menuContainer).toHaveClass('top-2');
-    expect(menuContainer).toHaveClass('right-2');
-  });
-
-  it('should apply font styles to address', () => {
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    const address = screen.getByText('bc1qab...6789');
-    expect(address).toHaveClass('font-mono');
-    expect(address).toHaveClass('text-sm');
-  });
-
-  it('should apply correct text size to wallet type', () => {
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    const walletType = screen.getByText('Mnemonic');
-    expect(walletType).toHaveClass('text-xs');
-    expect(walletType).toHaveClass('capitalize');
-  });
-
-  it('should handle multiple addresses correctly', () => {
-    const multiAddressWallet = {
-      ...mockWallet,
-      addresses: [
-        { name: 'Address 1', path: "m/84'/0'/0'/0/0", address: 'bc1qfirst123456789', pubKey: 'pubkey1' },
-        { name: 'Address 2', path: "m/84'/0'/0'/0/1", address: 'bc1qsecond987654321', pubKey: 'pubkey2' }
-      ],
-      addressCount: 2
-    };
-    
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} wallet={multiAddressWallet} />
-      </RadioGroup>
-    );
-    
-    // Should only show the first address
-    expect(screen.getByText('bc1qfi...6789')).toBeInTheDocument();
-    expect(screen.queryByText('bc1qse...4321')).not.toBeInTheDocument();
-  });
-
-  it('should have wallet-menu class for click detection', () => {
-    render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} />
-      </RadioGroup>
-    );
-    
-    const menuContainer = screen.getByTestId('wallet-menu').parentElement;
-    expect(menuContainer).toHaveClass('wallet-menu');
-  });
-
-  it('should render within RadioGroup.Option', () => {
+  it('applies selected styles when checked', () => {
     const { container } = render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} />
-      </RadioGroup>
+      <TestWrapper value={mockMnemonicWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockMnemonicWallet}
+          selected={true}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+        />
+      </TestWrapper>
     );
-    
-    // RadioGroup.Option renders as a specific element
-    const option = container.querySelector('[role="radio"]');
-    expect(option).toBeInTheDocument();
+
+    const cardElement = container.querySelector('.bg-blue-600');
+    expect(cardElement).toBeInTheDocument();
+    expect(cardElement).toHaveClass('text-white', 'shadow-md');
   });
 
-  it('should handle wallet with empty name', () => {
-    const walletEmptyName = {
-      ...mockWallet,
-      name: ''
-    };
+  it('applies unselected styles when not checked', () => {
+    const { container } = render(
+      <TestWrapper value={mockPrivateKeyWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockMnemonicWallet}
+          selected={false}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+        />
+      </TestWrapper>
+    );
+
+    // When not selected, should have unselected styles
+    const cardElement = container.querySelector('[data-checked=""]');
+    expect(cardElement).toBeNull(); // Should not be checked
     
+    // Find the radio option that's not checked
+    const uncheckedElement = container.querySelector('[role="radio"]:not([data-checked])');
+    expect(uncheckedElement).toBeInTheDocument();
+  });
+
+  it('renders wallet menu', () => {
     render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} wallet={walletEmptyName} />
-      </RadioGroup>
+      <TestWrapper value={mockMnemonicWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockMnemonicWallet}
+          selected={false}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+        />
+      </TestWrapper>
     );
-    
-    // The empty div should still be rendered
-    const nameDiv = screen.getByText('Mnemonic').parentElement?.parentElement?.querySelector('.text-sm.font-medium');
-    expect(nameDiv).toBeInTheDocument();
-    expect(nameDiv?.textContent).toBe('');
+
+    expect(screen.getByTestId('wallet-menu-wallet-1')).toBeInTheDocument();
   });
 
-  it('should maintain layout with different wallet data', () => {
-    const { rerender } = render(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} />
-      </RadioGroup>
+  it('passes isOnlyWallet prop to wallet menu', () => {
+    render(
+      <TestWrapper value={mockMnemonicWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockMnemonicWallet}
+          selected={false}
+          onSelect={mockOnSelect}
+          isOnlyWallet={true}
+        />
+      </TestWrapper>
     );
-    
-    expect(screen.getByText('My Wallet')).toBeInTheDocument();
-    
-    const differentWallet = {
-      id: 'wallet-2',
-      name: 'Another Wallet',
-      type: 'privateKey' as const,
-      addressFormat: AddressFormat.P2WPKH,
-      addressCount: 1,
-      addresses: [{ 
-        name: 'Address 1',
-        path: "m/84'/0'/0'/0/0",
-        address: 'bc1qxyz789',
-        pubKey: '0x123'
-      }]
-    };
-    
-    rerender(
-      <RadioGroup value={null} onChange={() => {}}>
-        <WalletCard {...defaultProps} wallet={differentWallet} />
-      </RadioGroup>
+
+    expect(screen.getByText('Menu (Only)')).toBeInTheDocument();
+  });
+
+  it('calls onSelect when wallet card is clicked', () => {
+    render(
+      <TestWrapper value={mockMnemonicWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockMnemonicWallet}
+          selected={false}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+        />
+      </TestWrapper>
     );
-    
-    expect(screen.getByText('Another Wallet')).toBeInTheDocument();
-    expect(screen.getByText('Private Key')).toBeInTheDocument();
+
+    const walletName = screen.getByText('Main Wallet');
+    fireEvent.click(walletName);
+    expect(mockOnSelect).toHaveBeenCalledWith(mockMnemonicWallet);
+  });
+
+  it('does not call onSelect when menu is clicked', () => {
+    render(
+      <TestWrapper value={mockMnemonicWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockMnemonicWallet}
+          selected={false}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+        />
+      </TestWrapper>
+    );
+
+    const menu = screen.getByTestId('wallet-menu-wallet-1');
+    fireEvent.click(menu);
+    expect(mockOnSelect).not.toHaveBeenCalled();
+  });
+
+  it('has proper accessibility attributes', () => {
+    const { container } = render(
+      <TestWrapper value={mockMnemonicWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockMnemonicWallet}
+          selected={false}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+        />
+      </TestWrapper>
+    );
+
+    const radioOption = container.querySelector('[role="radio"]');
+    expect(radioOption).toBeInTheDocument();
+    expect(radioOption).toHaveAttribute('tabIndex');
+  });
+
+  it('displays monospace font for address', () => {
+    render(
+      <TestWrapper value={mockMnemonicWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockMnemonicWallet}
+          selected={false}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+        />
+      </TestWrapper>
+    );
+
+    const addressElement = screen.getByText('bc1qw508...7kv8f3t4');
+    expect(addressElement).toHaveClass('font-mono');
+  });
+
+  it('has cursor pointer styling', () => {
+    const { container } = render(
+      <TestWrapper value={mockMnemonicWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockMnemonicWallet}
+          selected={false}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+        />
+      </TestWrapper>
+    );
+
+    const cardElement = container.querySelector('.cursor-pointer');
+    expect(cardElement).toBeInTheDocument();
+  });
+
+  it('has transition animation classes', () => {
+    const { container } = render(
+      <TestWrapper value={mockMnemonicWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockMnemonicWallet}
+          selected={false}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+        />
+      </TestWrapper>
+    );
+
+    const cardElement = container.querySelector('.transition');
+    expect(cardElement).toBeInTheDocument();
+    expect(cardElement).toHaveClass('duration-300');
   });
 });

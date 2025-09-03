@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSpinner } from "react-icons/fa";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { AddressHeader } from "@/components/headers/address-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
 import { useComposer } from "@/contexts/composer-context";
@@ -62,7 +62,7 @@ export function UtxoMoveForm({
   }, [initialUtxo, initialFormData?.sourceUtxo]);
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={formAction}
       header={
         activeAddress && (
@@ -130,6 +130,6 @@ export function UtxoMoveForm({
             name="destination_display"
           />
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { DestinationsInput } from "@/components/inputs/destinations-input";
@@ -128,7 +128,7 @@ export function SendForm({
   const isSubmitDisabled = !isAmountValid() || !destinationsValid || !memoValid;
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={handleFormAction}
       header={
         activeAddress && assetDetails ? (
@@ -204,6 +204,6 @@ export function SendForm({
             />
           )}
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

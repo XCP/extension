@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Textarea } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { Spinner } from "@/components/spinner";
 import { SettingSwitch } from "@/components/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
@@ -81,7 +81,7 @@ export function UpdateDescriptionForm({
   if (asset === "BTC") return <div className="p-4 text-red-500">Cannot update description of BTC</div>;
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={formAction}
       header={
         <AssetHeader
@@ -151,6 +151,6 @@ export function UpdateDescriptionForm({
             </Field>
           )}
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

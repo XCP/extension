@@ -17,7 +17,7 @@ import {
   DisclosureButton,
   DisclosurePanel,
 } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { BlockHeightInput } from "@/components/inputs/block-height-input";
 import { SettingSwitch } from "@/components/inputs/setting-switch";
@@ -163,7 +163,7 @@ export function FairminterForm({
   };
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={enhancedFormAction}
       header={
         <div className="space-y-4">
@@ -498,6 +498,6 @@ export function FairminterForm({
               </>
             )}
           </Disclosure>
-    </ComposeForm>
+    </ComposerForm>
   );
 }

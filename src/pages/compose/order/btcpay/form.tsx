@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Field, Label, Description, Textarea } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
 import type { BTCPayOptions } from "@/utils/blockchain/counterparty";
@@ -33,7 +33,7 @@ export function BTCPayForm({
   }, []);
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={formAction}
       header={
         activeAddress && (
@@ -61,6 +61,6 @@ export function BTCPayForm({
             )}
           </Field>
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

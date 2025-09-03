@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { FiChevronDown, FiCheck } from "react-icons/fi";
 import { Field, Label, Description, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
@@ -95,7 +95,7 @@ export function DispenserCloseForm({
   );
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={formAction}
       header={
         <div className="space-y-4">
@@ -209,6 +209,6 @@ export function DispenserCloseForm({
             </Field>
 
       )}
-    </ComposeForm>
+    </ComposerForm>
   );
 }

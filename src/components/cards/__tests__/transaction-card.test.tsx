@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { TransactionCard } from './transaction-card';
+import { TransactionCard } from '../transaction-card';
 import type { Transaction } from '@/utils/blockchain/counterparty/api';
 
 // Mock the format utilities

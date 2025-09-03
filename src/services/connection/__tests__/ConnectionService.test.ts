@@ -66,11 +66,6 @@ vi.mock('@/utils/security/cspValidation', () => ({
   }),
 }));
 
-vi.mock('@/utils/security/phishingDetection', () => ({
-  analyzePhishingRisk: vi.fn().mockResolvedValue({ risk: 'low' }),
-  shouldBlockConnection: vi.fn().mockResolvedValue(false),
-}));
-
 // Mock fathom analytics
 vi.mock('@/utils/fathom', () => ({
   trackEvent: vi.fn().mockResolvedValue(undefined),
