@@ -57,10 +57,10 @@ const RBF_SEQUENCE = 0xfffffffd;
 const ESTIMATED_SIGNATURE_SIZE = 74;
 
 // Multisig script format constants
-const MULTISIG_1OF3_PREFIX = '5121'; // OP_1 OP_PUSHBYTES_33
-const MULTISIG_1OF3_SUFFIX = '53ae'; // OP_3 OP_CHECKMULTISIG
-const PUBKEY_LENGTH_HEX = 66; // 33 bytes = 66 hex chars
-const SCRIPT_PUBKEY_OFFSET = 68; // Each pubkey section: '21' (2) + pubkey (66) = 68
+const MULTISIG_OP_1 = '51'; // OP_1 (m=1)
+const MULTISIG_OP_3_CHECKMULTISIG = '53ae'; // OP_3 OP_CHECKMULTISIG
+const OP_PUSHBYTES_33 = '21'; // For compressed keys (33 bytes)
+const OP_PUSHBYTES_65 = '41'; // For uncompressed keys (65 bytes)
 
 /* ══════════════════════════════════════════════════════════════════════════
  * MAIN CONSOLIDATION FUNCTION
@@ -305,6 +305,7 @@ export async function consolidateBareMultisig(
  * Manually parse a multisig script without validating all pubkeys.
  * This is needed because btc-signer validates ALL pubkeys even though
  * we only need one valid key for 1-of-3 multisig.
+ * Handles both compressed (33 bytes) and uncompressed (65 bytes) public keys.
  * 
  * @param scriptHex - The hex string of the script
  * @param ourCompressedKey - Our compressed public key hex
@@ -313,32 +314,50 @@ export async function consolidateBareMultisig(
  */
 function tryManualMultisigParse(scriptHex: string, ourCompressedKey: string, ourUncompressedKey: string): any {
   try {
-    // Expected format for 1-of-3: 51 21 [key1] 21 [key2] 21 [key3] 53 ae
+    // Expected format for 1-of-3 multisig: 
+    // 51 [pushop] [key1] [pushop] [key2] [pushop] [key3] 53 ae
     // 51 = OP_1 (m=1)
-    // 21 = OP_PUSHBYTES_33
+    // pushop = 21 (OP_PUSHBYTES_33) for compressed or 41 (OP_PUSHBYTES_65) for uncompressed
     // 53 = OP_3 (n=3) 
     // ae = OP_CHECKMULTISIG
     
-    if (!scriptHex.startsWith(MULTISIG_1OF3_PREFIX) || !scriptHex.endsWith(MULTISIG_1OF3_SUFFIX)) {
+    // Check if it starts with OP_1 and ends with OP_3 OP_CHECKMULTISIG
+    if (!scriptHex.startsWith(MULTISIG_OP_1) || !scriptHex.endsWith(MULTISIG_OP_3_CHECKMULTISIG)) {
       return null; // Not a 1-of-3 multisig
     }
     
-    // Extract the three pubkeys (each should be 33 bytes = 66 hex chars after '21')
+    // Extract the three pubkeys (can be compressed or uncompressed)
     const pubkeys: Uint8Array[] = [];
     let foundOurKey = false;
     let ourKeyIndex = -1;
+    let currentOffset = 2; // Start after '51' (OP_1)
     
     // Parse each of the 3 keys
     for (let i = 0; i < 3; i++) {
-      const offset = 4 + (i * SCRIPT_PUBKEY_OFFSET); // 51 21 (4 chars), then each key section is 68 chars
-      if (scriptHex.substr(offset, 2) !== '21') {
-        return null; // Expected PUSHBYTES_33
+      if (currentOffset >= scriptHex.length - 4) { // Need at least 4 chars for '53ae'
+        return null; // Script too short
       }
       
-      const keyHex = scriptHex.substr(offset + 2, PUBKEY_LENGTH_HEX);
-      if (keyHex.length !== PUBKEY_LENGTH_HEX) {
-        return null; // Wrong key length
+      const pushOp = scriptHex.substr(currentOffset, 2);
+      currentOffset += 2;
+      
+      let keyLength: number;
+      if (pushOp === OP_PUSHBYTES_33) {
+        // Compressed key (33 bytes = 66 hex chars)
+        keyLength = 66;
+      } else if (pushOp === OP_PUSHBYTES_65) {
+        // Uncompressed key (65 bytes = 130 hex chars)
+        keyLength = 130;
+      } else {
+        return null; // Unexpected push opcode
       }
+      
+      if (currentOffset + keyLength > scriptHex.length) {
+        return null; // Script too short for key
+      }
+      
+      const keyHex = scriptHex.substr(currentOffset, keyLength);
+      currentOffset += keyLength;
       
       // Check if this is our key (we don't validate the others)
       if (keyHex === ourCompressedKey.toLowerCase() || keyHex === ourUncompressedKey.toLowerCase()) {
@@ -347,6 +366,11 @@ function tryManualMultisigParse(scriptHex: string, ourCompressedKey: string, our
       }
       
       pubkeys.push(hexToBytes(keyHex));
+    }
+    
+    // Verify we're at the expected position (should be at '53ae')
+    if (scriptHex.substr(currentOffset) !== MULTISIG_OP_3_CHECKMULTISIG) {
+      return null; // Script doesn't end with OP_3 OP_CHECKMULTISIG
     }
     
     if (!foundOurKey) {
