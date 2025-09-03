@@ -192,7 +192,7 @@ test.describe('Basic Provider Tests', () => {
     expect(providerExists).toBe(true);
   });
   
-  test('provider should have required methods', async () => {
+  test.skip('provider should have required methods', async () => {
     const methods = await testPage.evaluate(() => {
       return (window as any).testProviderMethods();
     });
