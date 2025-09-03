@@ -16,6 +16,7 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 import { connectionRateLimiter } from '@/utils/provider/rateLimiter';
 import { analyzeCSP } from '@/utils/security/cspValidation';
 import { trackEvent } from '@/utils/fathom';
+import { approvalQueue } from '@/utils/provider/approvalQueue';
 import type { Address, Wallet } from '@/utils/wallet';
 
 export interface ConnectionStatus {
@@ -113,7 +114,6 @@ export class ConnectionService extends BaseService {
     try {
       // This would integrate with ApprovalService when it's created
       // For now, maintain existing approval queue integration
-      const { approvalQueue } = await import('@/utils/provider/approvalQueue');
       
       const promise = new Promise<boolean>((resolve, reject) => {
         // Add to approval queue
@@ -363,8 +363,6 @@ export class ConnectionService extends BaseService {
    */
   private async openApprovalWindow(requestId: string, origin: string): Promise<void> {
     // This would be handled by ApprovalService in the future
-    const { approvalQueue } = await import('@/utils/provider/approvalQueue');
-
     const currentWindow = approvalQueue.getCurrentWindow();
 
     if (currentWindow) {
@@ -392,7 +390,6 @@ export class ConnectionService extends BaseService {
     });
 
     if (window?.id) {
-      const { approvalQueue } = await import('@/utils/provider/approvalQueue');
       approvalQueue.setCurrentWindow(window.id);
 
       // Monitor window close
