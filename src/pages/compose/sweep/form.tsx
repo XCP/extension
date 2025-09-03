@@ -11,7 +11,7 @@ import {
   ListboxOption,
   ListboxOptions
 } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { AddressHeader } from "@/components/headers/address-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
 import { MemoInput } from "@/components/inputs/memo-input";
@@ -62,7 +62,7 @@ export function SweepForm({
   }, []);
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={formAction}
       header={
         activeAddress && (
@@ -130,6 +130,6 @@ export function SweepForm({
         disabled={pending}
         showHelpText={showHelpText}
       />
-    </ComposeForm>
+    </ComposerForm>
   );
 }

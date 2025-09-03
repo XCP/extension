@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { DispenserCard, type DispenserOption } from './dispenser-card';
+import { DispenserCard, type DispenserOption } from '../dispenser-card';
 
 // Mock the format and numeric utils
 vi.mock('@/utils/format', () => ({

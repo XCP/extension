@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { HashInput } from "@/components/inputs/hash-input";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
@@ -30,7 +30,7 @@ export function CancelForm({
   const [offerHash, setOfferHash] = useState(initialFormData?.offer_hash || initialHash || "");
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={formAction}
       header={
         activeAddress && (
@@ -52,6 +52,6 @@ export function CancelForm({
           />
           <input type="hidden" name="offer_hash" value={offerHash} />
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

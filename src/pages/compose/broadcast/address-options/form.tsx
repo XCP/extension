@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { AddressHeader } from "@/components/headers/address-header";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { useComposer } from "@/contexts/composer-context";
@@ -52,7 +52,7 @@ export function AddressOptionsForm({
   };
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={handleFormAction}
       header={
         activeAddress && (
@@ -83,6 +83,6 @@ export function AddressOptionsForm({
           onChange={handleCheckboxChange}
         />
       </Field>
-    </ComposeForm>
+    </ComposerForm>
   );
 }

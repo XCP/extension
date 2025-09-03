@@ -56,7 +56,6 @@ import ApproveConnection from '@/pages/provider/approve-connection';
 import ApproveTransaction from '@/pages/provider/approve-transaction';
 import ApproveCompose from '@/pages/provider/approve-compose';
 import ApprovalQueue from '@/pages/provider/approval-queue';
-import PhishingWarning from '@/pages/provider/phishing-warning-page';
 
 // Compose - Send & Transfer
 import ComposeSend from '@/pages/compose/send';
@@ -239,7 +238,6 @@ export default function App() {
             <Route path="/provider/approve-transaction" element={<ApproveTransaction />} />
             <Route path="/provider/approve-compose" element={<ApproveCompose />} />
             <Route path="/provider/approval-queue" element={<ApprovalQueue />} />
-            <Route path="/provider/phishing-warning" element={<PhishingWarning />} />
           </Route>
         </Route>
 

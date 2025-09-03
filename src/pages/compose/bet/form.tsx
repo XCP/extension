@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { FiCheck } from "react-icons/fi";
 import { Field, Label, Description, Input, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
 import { useComposer } from "@/contexts/composer-context";
@@ -113,7 +113,7 @@ export function BetForm({
   };
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={enhancedFormAction}
       header={
         assetError ? (
@@ -320,6 +320,6 @@ export function BetForm({
             )}
           </Field>
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

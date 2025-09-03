@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Textarea, Input } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { AddressHeader } from "@/components/headers/address-header";
 import { SettingSwitch } from "@/components/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
@@ -79,7 +79,7 @@ export function BroadcastForm({
   };
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={async formData => {
           // Ensure defaults for optional fields
           if (!formData.get("value") || formData.get("value") === "") {
@@ -226,6 +226,6 @@ export function BroadcastForm({
           {/* Hidden input for encoding */}
           {inscribeEnabled && <input type="hidden" name="encoding" value="taproot" />}
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

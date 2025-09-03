@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description } from "@headlessui/react";
 import { TextAreaInput } from "@/components/inputs/textarea-input";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { AssetNameInput } from "@/components/inputs/asset-name-input";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
@@ -121,7 +121,7 @@ export function IssuanceForm({
   };
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={async (formData: FormData) => {
         // If inscribing, convert file to base64 and set as description
         if (inscribeEnabled) {
@@ -272,6 +272,6 @@ export function IssuanceForm({
             />
           )}
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

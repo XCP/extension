@@ -4,8 +4,8 @@ import React, { useEffect, useMemo, type ReactElement } from "react";
 import { FiHelpCircle, FiX, FiRefreshCw } from "react-icons/fi";
 import { onMessage } from 'webext-bridge/popup';
 import { useNavigate } from "react-router-dom";
-import { AuthorizationModal } from "@/components/modals/authorization-modal";
 import { SuccessScreen } from "@/components/screens/success-screen";
+import { UnlockScreen } from "@/components/screens/unlock-screen";
 import { ComposerProvider, useComposer } from "@/contexts/composer-context";
 import { useHeader } from "@/contexts/header-context";
 import type { ApiResponse } from "@/utils/blockchain/counterparty";
@@ -190,10 +190,26 @@ function ComposerInner<T>({
       )}
 
       {state.showAuthModal && (
-        <AuthorizationModal
-          onUnlock={handleUnlockAndSign}
-          onCancel={() => setShowAuthModal(false)}
-        />
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="auth-modal-title"
+        >
+          <div 
+            className="w-full max-w-lg animate-slideUp"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <UnlockScreen
+              title="Authorization Required"
+              subtitle="Your session has expired. Please enter your password to continue."
+              onUnlock={handleUnlockAndSign}
+              onCancel={() => setShowAuthModal(false)}
+              submitText="Authorize"
+              showLockIcon
+            />
+          </div>
+        </div>
       )}
     </div>
   );

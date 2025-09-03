@@ -16,7 +16,6 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 import { connectionRateLimiter } from '@/utils/provider/rateLimiter';
 import { analyzeCSP } from '@/utils/security/cspValidation';
 import { trackEvent } from '@/utils/fathom';
-import { analyzePhishingRisk, shouldBlockConnection } from '@/utils/security/phishingDetection';
 import type { Address, Wallet } from '@/utils/wallet';
 
 export interface ConnectionStatus {
@@ -334,11 +333,6 @@ export class ConnectionService extends BaseService {
     // Skip if checked recently
     if (now - lastCheck < ConnectionService.SECURITY_CHECK_INTERVAL) {
       return;
-    }
-
-    // Phishing detection
-    if (await shouldBlockConnection(origin)) {
-      throw new Error('Connection blocked: Suspicious domain detected');
     }
 
     // CSP analysis (warning only)

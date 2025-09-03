@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description } from "@headlessui/react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { AssetNameInput } from "@/components/inputs/asset-name-input";
@@ -101,7 +101,7 @@ export function DestroySupplyForm({
 
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={handleFormAction}
       header={
         asset && assetDetails ? (
@@ -174,6 +174,6 @@ export function DestroySupplyForm({
             helpText="Optional tag to attach to this destroy action. This can be used for notes, references, or any metadata up to 34 characters."
           />
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

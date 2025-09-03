@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { ErrorAlert } from "@/components/error-alert";
 import { AddressHeader } from "@/components/headers/address-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
@@ -270,7 +270,7 @@ export function DispenseForm({
   const errorMessage = validationError || dispenserError || null;
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={formAction}
       header={
         activeAddress && (
@@ -339,6 +339,6 @@ export function DispenseForm({
             </>
           )}
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

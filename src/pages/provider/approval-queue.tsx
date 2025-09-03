@@ -4,7 +4,6 @@ import { FiX, FiAlertCircle, FiGlobe, FiEdit, FiLock, FiSend } from 'react-icons
 import { Button } from '@/components/button';
 import { type ApprovalRequest } from '@/utils/provider/approvalQueue';
 import { formatAddress } from '@/utils/format';
-import { TimeoutIndicator } from '@/components/provider/timeout-indicator';
 import { getProviderService } from '@/services/providerService';
 import { useHeader } from '@/contexts/header-context';
 

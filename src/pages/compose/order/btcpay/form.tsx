@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { HashInput } from "@/components/inputs/hash-input";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
@@ -28,7 +28,7 @@ export function BTCPayForm({
   const [orderMatchId, setOrderMatchId] = useState(initialFormData?.order_match_id || "");
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={formAction}
       header={
         activeAddress && (
@@ -50,6 +50,6 @@ export function BTCPayForm({
           />
           <input type="hidden" name="order_match_id" value={orderMatchId} />
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

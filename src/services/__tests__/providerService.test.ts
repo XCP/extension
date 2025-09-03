@@ -25,7 +25,6 @@ import * as settingsStorage from '@/utils/storage';
 import * as approvalQueue from '@/utils/provider/approvalQueue';
 import * as rateLimiter from '@/utils/provider/rateLimiter';
 import * as fathom from '@/utils/fathom';
-import * as phishingDetection from '@/utils/security/phishingDetection';
 import * as replayPrevention from '@/utils/security/replayPrevention';
 import * as cspValidation from '@/utils/security/cspValidation';
 
@@ -35,7 +34,6 @@ vi.mock('@/utils/storage/settingsStorage');
 vi.mock('@/utils/provider/approvalQueue');
 vi.mock('@/utils/provider/rateLimiter');
 vi.mock('@/utils/fathom');
-vi.mock('@/utils/security/phishingDetection');
 vi.mock('@/utils/security/replayPrevention');
 vi.mock('@/utils/security/cspValidation');
 // Setup fake browser with required APIs
@@ -158,14 +156,6 @@ describe.skip('ProviderService', () => {
     vi.mocked(rateLimiter.apiRateLimiter.isAllowed).mockReturnValue(true);
     
     // Setup security mocks  
-    vi.mocked(phishingDetection.analyzePhishingRisk).mockResolvedValue({
-      isSuspicious: false,
-      isBlocked: false,
-      isTrusted: false,
-      riskLevel: 'unknown' as const,
-      message: undefined
-    });
-    vi.mocked(phishingDetection.shouldBlockConnection).mockResolvedValue(false);
     vi.mocked(replayPrevention.checkReplayAttempt).mockResolvedValue({ isReplay: false });
     vi.mocked(replayPrevention.withReplayPrevention).mockImplementation(async (fn: any) => fn());
     vi.mocked(cspValidation.analyzeCSP).mockResolvedValue({

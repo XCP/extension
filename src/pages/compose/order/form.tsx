@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { FaCog } from "react-icons/fa";
 import { OrderSettings } from "@/pages/settings/order-settings";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
@@ -199,7 +199,7 @@ export function OrderForm({
           isBuyingBTC={previousTab === "buy" && giveAsset === "BTC"}
         />
       ) : (
-        <ComposeForm
+        <ComposerForm
           formAction={(formData) => {
             // Store user-facing values for form persistence
             formData.set('amount', amount);
@@ -292,7 +292,7 @@ export function OrderForm({
               isPairFlipped={isPairFlipped}
               setIsPairFlipped={setIsPairFlipped}
             />
-        </ComposeForm>
+        </ComposerForm>
       )}
     </div>
   );

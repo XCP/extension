@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposeForm } from "@/components/compose-form";
+import { ComposerForm } from "@/components/composer-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { AssetNameInput } from "@/components/inputs/asset-name-input";
 import { NumberInput } from "@/components/inputs/number-input";
@@ -42,7 +42,7 @@ export function IssueSupplyForm({
   const [description, setDescription] = useState(initialFormData?.description || "");
 
   return (
-    <ComposeForm
+    <ComposerForm
       formAction={formAction}
     >
         <AssetNameInput
@@ -93,6 +93,6 @@ export function IssueSupplyForm({
           helpText="A textual description for the asset."
         />
 
-    </ComposeForm>
+    </ComposerForm>
   );
 }

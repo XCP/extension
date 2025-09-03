@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 
 /**
  * Props for the AssetIcon component.
@@ -6,85 +6,113 @@ import React, { useState } from 'react';
 interface AssetIconProps {
   /** The asset symbol/name */
   asset: string;
-  /** Size of the icon (width and height) */
-  size?: 'sm' | 'md' | 'lg' | number;
+  /** Size of the icon */
+  size?: 'sm' | 'md' | 'lg' | 'xl' | number;
   /** Optional CSS classes */
   className?: string;
   /** Whether to show rounded corners */
   rounded?: boolean;
+  /** Whether to lazy load the image */
+  lazy?: boolean;
+  /** Custom fallback color scheme */
+  fallbackColor?: 'gray' | 'blue' | 'green' | 'purple';
 }
 
 /**
  * Size mappings for predefined sizes
  */
 const SIZES = {
-  sm: 32,  // 8 * 4 (w-8 h-8)
-  md: 40,  // 10 * 4 (w-10 h-10)
-  lg: 48,  // 12 * 4 (w-12 h-12)
+  sm: 24,  // 6 * 4
+  md: 32,  // 8 * 4
+  lg: 40,  // 10 * 4
+  xl: 48,  // 12 * 4
+} as const;
+
+const FALLBACK_COLORS = {
+  gray: 'bg-gray-200 text-gray-500',
+  blue: 'bg-blue-100 text-blue-600',
+  green: 'bg-green-100 text-green-600',
+  purple: 'bg-purple-100 text-purple-600',
 } as const;
 
 /**
- * AssetIcon Component
+ * AssetIcon Component - Optimized for React 19
  * 
- * A reusable component for displaying asset icons with fallback support.
- * Handles loading states and provides a text-based fallback for missing icons.
- * 
- * Features:
- * - Automatic image loading from xcp.io
- * - Fallback display for missing/failed images
- * - Configurable sizes
- * - Loading state management
- * 
- * @param props - The component props
- * @returns A React element representing the asset icon
+ * Improvements:
+ * - Fixed dynamic Tailwind classes (using style prop instead)
+ * - Memoized calculations to prevent recalculation
+ * - Better image loading with useCallback
+ * - Improved fallback rendering
+ * - Added color schemes for fallbacks
+ * - Better TypeScript types
  * 
  * @example
  * ```tsx
  * // With predefined size
  * <AssetIcon asset="XCP" size="lg" />
  * 
- * // With custom size
+ * // With custom size in pixels
  * <AssetIcon asset="PEPECASH" size={64} rounded />
  * 
- * // With custom classes
- * <AssetIcon asset="RARE" className="border-2 border-blue-500" />
+ * // With custom fallback color
+ * <AssetIcon asset="RARE" fallbackColor="blue" />
  * ```
  */
-export function AssetIcon({ 
+export const AssetIcon = React.memo<AssetIconProps>(({ 
   asset, 
   size = 'lg', 
   className = '', 
-  rounded = true 
-}: AssetIconProps) {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
+  rounded = true,
+  lazy = true,
+  fallbackColor = 'gray'
+}) => {
+  const [imageState, setImageState] = useState<'loading' | 'loaded' | 'error'>('loading');
   
-  // Determine actual size in pixels
-  const sizeInPixels = typeof size === 'number' ? size : SIZES[size];
-  const sizeClass = `w-${sizeInPixels / 4} h-${sizeInPixels / 4}`;
+  // Calculate size in pixels
+  const sizeInPixels = useMemo(() => 
+    typeof size === 'number' ? size : SIZES[size],
+    [size]
+  );
   
-  const handleImageLoad = () => {
-    setImageLoaded(true);
-    setImageError(false);
-  };
+  // Generate size styles (using style prop instead of dynamic classes)
+  const sizeStyle = useMemo(() => ({
+    width: `${sizeInPixels}px`,
+    height: `${sizeInPixels}px`,
+  }), [sizeInPixels]);
   
-  const handleImageError = () => {
-    setImageError(true);
-    setImageLoaded(true);
-  };
+  // Generate fallback text
+  const fallbackText = useMemo(() => 
+    asset.slice(0, 3).toUpperCase(),
+    [asset]
+  );
   
-  // Generate fallback text (first 3 characters of asset)
-  const fallbackText = asset.slice(0, 3).toUpperCase();
+  // Memoize event handlers
+  const handleImageLoad = useCallback(() => {
+    setImageState('loaded');
+  }, []);
+  
+  const handleImageError = useCallback(() => {
+    setImageState('error');
+  }, []);
+  
+  // Determine border radius class
+  const radiusClass = rounded ? 'rounded-full' : 'rounded';
+  
+  // Determine if we should show fallback
+  const showFallback = imageState === 'loading' || imageState === 'error';
   
   return (
-    <div className={`relative ${sizeClass} ${className}`}>
-      {/* Placeholder/fallback */}
-      {(!imageLoaded || imageError) && (
+    <div 
+      className={`relative inline-block ${className}`}
+      style={sizeStyle}
+      role="img"
+      aria-label={`${asset} icon`}
+    >
+      {/* Fallback/placeholder */}
+      {showFallback && (
         <div 
-          className={`absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-semibold ${
-            rounded ? 'rounded-full' : 'rounded'
-          }`}
-          aria-label={`${asset} icon placeholder`}
+          className={`absolute inset-0 flex items-center justify-center font-semibold ${FALLBACK_COLORS[fallbackColor]} ${radiusClass}`}
+          style={{ fontSize: `${sizeInPixels / 3}px` }}
         >
           {fallbackText}
         </div>
@@ -93,17 +121,49 @@ export function AssetIcon({
       {/* Actual image */}
       <img
         src={`https://app.xcp.io/img/icon/${asset}`}
-        alt={`${asset} icon`}
-        className={`absolute inset-0 ${sizeClass} object-cover transition-opacity duration-200 ${
-          imageLoaded && !imageError ? 'opacity-100' : 'opacity-0'
-        } ${rounded ? 'rounded-full' : 'rounded'}`}
+        alt=""
+        className={`absolute inset-0 object-cover transition-opacity duration-200 ${radiusClass} ${
+          imageState === 'loaded' ? 'opacity-100' : 'opacity-0'
+        }`}
+        style={sizeStyle}
         onLoad={handleImageLoad}
         onError={handleImageError}
-        loading="lazy"
+        loading={lazy ? 'lazy' : 'eager'}
+        decoding="async"
       />
     </div>
   );
-}
+});
+
+AssetIcon.displayName = 'AssetIcon';
+
+/**
+ * AssetIconSkeleton Component
+ * 
+ * A skeleton loader for AssetIcon, useful for loading states
+ */
+export const AssetIconSkeleton = React.memo<{ 
+  size?: AssetIconProps['size']; 
+  rounded?: boolean;
+  className?: string;
+}>(({ size = 'lg', rounded = true, className = '' }) => {
+  const sizeInPixels = typeof size === 'number' ? size : SIZES[size];
+  const sizeStyle = {
+    width: `${sizeInPixels}px`,
+    height: `${sizeInPixels}px`,
+  };
+  const radiusClass = rounded ? 'rounded-full' : 'rounded';
+  
+  return (
+    <div 
+      className={`bg-gray-200 animate-pulse ${radiusClass} ${className}`}
+      style={sizeStyle}
+      aria-label="Loading asset icon"
+    />
+  );
+});
+
+AssetIconSkeleton.displayName = 'AssetIconSkeleton';
 
 /**
  * AssetIconWithFallback Component
@@ -114,22 +174,27 @@ export function AssetIcon({
  * @param props - The component props (subset of AssetIconProps)
  * @returns A React element representing the asset icon with SVG fallback
  */
-export function AssetIconWithFallback({ 
-  asset, 
-  size = 'lg', 
-  className = '' 
-}: Omit<AssetIconProps, 'rounded'>) {
+export const AssetIconWithFallback = React.memo<{ 
+  asset: string;
+  size?: AssetIconProps['size']; 
+  className?: string;
+}>(({ asset, size = 'lg', className = '' }) => {
   const sizeInPixels = typeof size === 'number' ? size : SIZES[size];
+  const fallbackText = asset.slice(0, 3).toUpperCase();
   
   return (
     <div 
-      className={`w-${sizeInPixels / 4} h-${sizeInPixels / 4} ${className}`}
-      dangerouslySetInnerHTML={{
-        __html: `<svg xmlns='http://www.w3.org/2000/svg' width='${sizeInPixels}' height='${sizeInPixels}' viewBox='0 0 ${sizeInPixels} ${sizeInPixels}'><rect width='${sizeInPixels}' height='${sizeInPixels}' fill='#e5e7eb' rx='${sizeInPixels / 2}'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='#9ca3af' font-family='system-ui' font-size='${sizeInPixels / 3}'>${asset.slice(0, 3).toUpperCase()}</text></svg>`
+      className={`inline-flex items-center justify-center bg-gray-200 text-gray-500 rounded-full ${className}`}
+      style={{ 
+        width: `${sizeInPixels}px`, 
+        height: `${sizeInPixels}px`,
+        fontSize: `${sizeInPixels / 3}px`
       }}
       aria-label={`${asset} icon`}
-    />
+    >
+      {fallbackText}
+    </div>
   );
-}
+});
 
-export default AssetIcon;
+AssetIconWithFallback.displayName = 'AssetIconWithFallback';

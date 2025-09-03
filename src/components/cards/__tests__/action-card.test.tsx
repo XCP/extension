@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FiSettings } from 'react-icons/fi';
-import { ActionCard } from './action-card';
+import { ActionCard } from '../action-card';
 
 describe('ActionCard', () => {
   const mockOnClick = vi.fn();

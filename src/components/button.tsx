@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Button as HeadlessButton } from '@headlessui/react';
 import { FaYoutube } from 'react-icons/fa';
 
@@ -14,17 +14,70 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   href?: string; // For youtube variant
 }
 
+/**
+ * Button Component - Optimized for React 19
+ * 
+ * Improvements:
+ * - Memoized style calculations to prevent recalculation
+ * - Simplified variant logic with lookup tables
+ * - Better TypeScript inference
+ * - Reduced conditional complexity
+ * - More consistent class naming
+ */
+
+// Style configurations extracted as constants for better performance
+const BASE_STYLES: Record<ButtonVariant, string> = {
+  solid: 'font-bold py-3 px-4 rounded transition duration-300 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2',
+  transparent: 'font-bold py-3 px-4 rounded transition duration-300 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2',
+  menu: 'p-1 flex',
+  'menu-item': 'flex px-4 py-2 text-sm',
+  input: 'flex items-center justify-center w-11 px-2 py-1 absolute right-1 top-1/2 -translate-y-1/2 text-sm',
+  icon: 'py-2 px-3 flex items-center justify-center',
+  header: 'h-[32px] py-1 px-3 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2',
+  youtube: '', // Handled separately
+};
+
+const COLOR_STYLES: Record<ButtonColor, { base: string; active: string }> = {
+  blue: {
+    base: 'bg-blue-500 hover:bg-blue-600 text-white focus:ring-blue-500',
+    active: 'bg-blue-700 text-white focus:ring-blue-500'
+  },
+  gray: {
+    base: 'bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400',
+    active: 'bg-gray-400 text-gray-800 focus:ring-gray-400'
+  },
+  green: {
+    base: 'bg-green-500 hover:bg-green-600 text-white focus:ring-green-500',
+    active: 'bg-green-700 text-white focus:ring-green-500'
+  },
+  red: {
+    base: 'bg-red-500 hover:bg-red-600 text-white focus:ring-red-500',
+    active: 'bg-red-700 text-white focus:ring-red-500'
+  },
+};
+
+const VARIANT_STYLES: Record<ButtonVariant, string> = {
+  solid: '', // Uses color styles
+  transparent: 'bg-transparent hover:bg-gray-50 focus:ring-gray-200',
+  menu: 'bg-transparent text-gray-500 hover:text-gray-700 focus:outline-none',
+  'menu-item': 'bg-transparent text-gray-800 hover:bg-gray-50 focus:outline-none',
+  input: 'bg-transparent text-gray-500 hover:text-gray-700 focus:outline-none',
+  icon: 'bg-transparent text-gray-500 hover:text-gray-700 focus:outline-none',
+  header: 'text-blue-500 hover:bg-blue-50 font-normal',
+  youtube: '', // Handled separately
+};
+
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   color = 'blue',
   variant = 'solid',
   children,
-  className,
+  className = '',
   fullWidth = false,
   disabled = false,
   href,
   ...props
 }, ref) => {
-  // If youtube variant, render as YouTube CTA
+  // YouTube variant is a special case - render as link
   if (variant === 'youtube') {
     const youtubeHref = href || 'https://youtube.com/';
     return (
@@ -42,62 +95,34 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
       </div>
     );
   }
-  const baseStyles = (() => {
-    switch (variant) {
-      case 'menu':
-        return 'p-1 flex';
-      case 'menu-item':
-        return 'flex px-4 py-2 text-sm';
-      case 'input':
-        return 'flex items-center justify-center w-11 px-2 py-1 absolute right-1 top-1/2 -translate-y-1/2 text-sm';
-      case 'icon':
-        return 'py-2 px-3 flex items-center justify-center';
-      case 'header':
-        return 'h-[32px] py-1 px-3 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2';
-      default:
-        return 'font-bold py-3 px-4 rounded transition duration-300 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2';
-    }
-  })();
-  
-  const getStyles = ({ active }: { active: boolean }) => {
-    if (variant === 'menu' || variant === 'icon' || variant === 'input') {
-      return 'bg-transparent text-gray-500 hover:text-gray-700 focus:outline-none cursor-pointer';
-    }
-    
-    if (variant === 'menu-item') {
-      return 'bg-transparent text-gray-800 hover:bg-gray-50 focus:outline-none cursor-pointer';
-    }
-    
-    if (variant === 'header') {
-      return `text-blue-500 hover:bg-blue-50 font-normal ${disabled ? 'opacity-50 cursor-progress' : 'cursor-pointer'}`;
-    }
 
-    if (variant === 'transparent') {
-      return `bg-transparent hover:bg-gray-50 focus:ring-gray-200 ${disabled ? 'opacity-50 cursor-progress' : 'cursor-pointer'}`;
-    }
-
-    const styles = {
-      blue: `bg-blue-500 ${active ? 'bg-blue-700' : 'hover:bg-blue-600'} text-white focus:ring-blue-500`,
-      gray: `bg-gray-200 ${active ? 'bg-gray-400' : 'hover:bg-gray-300'} text-gray-800 focus:ring-gray-400`,
-      green: `bg-green-500 ${active ? 'bg-green-700' : 'hover:bg-green-600'} text-white focus:ring-green-500`,
-      red: `bg-red-500 ${active ? 'bg-red-700' : 'hover:bg-red-600'} text-white focus:ring-red-500`,
+  // Memoize the class computation to avoid recalculation on every render
+  const computedClassName = useMemo(() => {
+    const getColorStyle = (active: boolean) => {
+      if (variant === 'solid') {
+        const colorConfig = COLOR_STYLES[color];
+        return active ? colorConfig.active : colorConfig.base;
+      }
+      return '';
     };
-    return `${styles[color]} ${disabled ? 'opacity-50 cursor-progress' : 'cursor-pointer'}`;
-  };
 
-  const widthStyles = fullWidth ? 'w-full' : '';
+    return (active: boolean) => {
+      const baseStyle = BASE_STYLES[variant];
+      const variantStyle = VARIANT_STYLES[variant];
+      const colorStyle = getColorStyle(active);
+      const widthStyle = fullWidth ? 'w-full' : '';
+      const disabledStyle = disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer';
+      
+      return `${baseStyle} ${variantStyle} ${colorStyle} ${widthStyle} ${disabledStyle} ${className}`.trim();
+    };
+  }, [variant, color, fullWidth, disabled, className]);
 
   return (
     <HeadlessButton
       as="button"
       ref={ref}
       disabled={disabled}
-      className={({ active }) => `
-        ${baseStyles} 
-        ${getStyles({ active })} 
-        ${widthStyles}
-        ${className || ''}
-      `}
+      className={({ active }) => computedClassName(active)}
       {...props}
     >
       {children}

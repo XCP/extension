@@ -19,7 +19,6 @@ import { getBlockchainService } from '@/services/blockchain';
 import type { ApprovalRequest } from '@/utils/provider/approvalQueue';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
 import { trackEvent } from '@/utils/fathom';
-import { shouldBlockConnection, getPhishingWarning } from '@/utils/security/phishingDetection';
 import { analyzeCSP } from '@/utils/security/cspValidation';
 
 export interface ProviderService {
@@ -104,13 +103,6 @@ export function createProviderService(): ProviderService {
     }
     
     try {
-      // SECURITY: Check for phishing domains first
-      if (await shouldBlockConnection(origin)) {
-        const warning = getPhishingWarning(origin);
-        console.warn('Blocked phishing domain:', { origin: new URL(origin).hostname, warning });
-        throw new Error('Connection blocked: Suspicious domain detected');
-      }
-      
       // Validate parameter size to prevent memory exhaustion
       const MAX_PARAM_SIZE = 1024 * 1024; // 1MB limit
       const paramSize = JSON.stringify(params).length;
