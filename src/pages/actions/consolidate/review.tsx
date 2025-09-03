@@ -13,6 +13,14 @@ interface ConsolidationReviewProps {
     };
     // Include the UTXO data from the form
     utxoData: { count: number; total: number } | null;
+    // Include fee configuration and estimates
+    feeConfig?: { feeAddress?: string; feePercent?: number } | null;
+    estimatedFees?: {
+      networkFee: bigint;
+      serviceFee: bigint;
+      totalFee: bigint;
+      netOutput: bigint;
+    } | null;
   };
   onSign: () => void;
   onBack: () => void;
@@ -51,21 +59,31 @@ export const ConsolidationReview = ({
   setError
 }: ConsolidationReviewProps) => {
   const [isSigning, setIsSigning] = useState(false);
-  const { params, utxoData } = apiResponse;
+  const { params, utxoData, feeConfig, estimatedFees } = apiResponse;
 
-  // Compute fee and net amounts if utxoData is available
+  // Use provided estimates if available, otherwise calculate
   let consolidatingBtc = 0;
-  let feeBtc = 0;
+  let networkFeeBtc = 0;
+  let serviceFeeBtc = 0;
+  let totalFeeBtc = 0;
   let netTotalBtc = 0;
 
-  if (utxoData) {
+  if (estimatedFees) {
+    // Use the pre-calculated estimates
+    networkFeeBtc = Number(estimatedFees.networkFee) / 100000000; // Convert sats to BTC
+    serviceFeeBtc = Number(estimatedFees.serviceFee) / 100000000;
+    totalFeeBtc = Number(estimatedFees.totalFee) / 100000000;
+    netTotalBtc = Number(estimatedFees.netOutput) / 100000000;
+    consolidatingBtc = utxoData ? utxoData.total : 0;
+  } else if (utxoData) {
+    // Fallback to simple calculation
     consolidatingBtc = utxoData.total;
-    // Estimate transaction size using the number of inputs (UTXOs) and a single output
-    const estimatedSize = estimateTransactionSize(utxoData.count, 1);
-    // Fee (in satoshis) = estimatedSize * feeRate (sat/vB)
+    const numOutputs = feeConfig?.feeAddress ? 2 : 1;
+    const estimatedSize = estimateTransactionSize(utxoData.count, numOutputs);
     const feeSats = estimatedSize * params.feeRateSatPerVByte;
-    feeBtc = fromSatoshis(feeSats, true); // convert sats to BTC using numeric utility
-    netTotalBtc = consolidatingBtc - feeBtc;
+    networkFeeBtc = fromSatoshis(feeSats, true);
+    totalFeeBtc = networkFeeBtc;
+    netTotalBtc = consolidatingBtc - totalFeeBtc;
   }
 
   const handleSignClick = async () => {
@@ -125,15 +143,46 @@ export const ConsolidationReview = ({
               </div>
             </div>
 
-            <div className="space-y-1">
-              <span className="font-semibold text-gray-700">Fee:</span>
-              <div className="text-gray-900 bg-gray-50 p-2 rounded">
-                {formatAmount({
-                  value: feeBtc,
-                  minimumFractionDigits: 8,
-                  maximumFractionDigits: 8,
-                })}{" "}
-                BTC
+            {/* Fee breakdown */}
+            <div className="space-y-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <h4 className="font-semibold text-yellow-900">Fee Breakdown</h4>
+              
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-700">Network Fee:</span>
+                <span className="text-gray-900">
+                  {formatAmount({
+                    value: networkFeeBtc,
+                    minimumFractionDigits: 8,
+                    maximumFractionDigits: 8,
+                  })}{" "}
+                  BTC
+                </span>
+              </div>
+              
+              {serviceFeeBtc > 0 && feeConfig?.feePercent && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-700">Service Fee ({feeConfig.feePercent}%):</span>
+                  <span className="text-gray-900">
+                    {formatAmount({
+                      value: serviceFeeBtc,
+                      minimumFractionDigits: 8,
+                      maximumFractionDigits: 8,
+                    })}{" "}
+                    BTC
+                  </span>
+                </div>
+              )}
+              
+              <div className="flex justify-between text-sm font-semibold border-t pt-2">
+                <span className="text-gray-700">Total Fees:</span>
+                <span className="text-yellow-900">
+                  {formatAmount({
+                    value: totalFeeBtc,
+                    minimumFractionDigits: 8,
+                    maximumFractionDigits: 8,
+                  })}{" "}
+                  BTC
+                </span>
               </div>
             </div>
 

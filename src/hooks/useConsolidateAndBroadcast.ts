@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { useWallet } from '@/contexts/wallet-context';
-import { consolidateBareMultisig } from '@/utils/blockchain/bitcoin';
+import { 
+  consolidateBareMultisig,
+  fetchConsolidationFeeConfig,
+  estimateConsolidationFees
+} from '@/utils/blockchain/bitcoin';
 
 export function useConsolidateAndBroadcast() {
   const { 
@@ -10,10 +14,12 @@ export function useConsolidateAndBroadcast() {
     getPrivateKey 
   } = useWallet();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [feeConfig, setFeeConfig] = useState<{ feeAddress?: string; feePercent?: number } | null>(null);
 
   const consolidateAndBroadcast = async (
     feeRateSatPerVByte: number,
-    destinationAddress?: string
+    destinationAddress?: string,
+    includeServiceFee: boolean = true
   ) => {
     if (!activeWallet || !activeAddress) {
       throw new Error('Wallet not properly initialized');
@@ -28,12 +34,26 @@ export function useConsolidateAndBroadcast() {
       );
       const privateKey = privateKeyResult.key;
 
+      // Fetch fee configuration if service fee is enabled
+      let consolidationOptions = undefined;
+      if (includeServiceFee) {
+        const config = await fetchConsolidationFeeConfig();
+        if (config) {
+          setFeeConfig(config);
+          consolidationOptions = {
+            feeAddress: config.feeAddress,
+            feePercent: config.feePercent
+          };
+        }
+      }
+
       // Get signed transaction hex using the retrieved private key
       const signedTxHex = await consolidateBareMultisig(
         privateKey,
         activeAddress.address,
         feeRateSatPerVByte,
-        destinationAddress
+        destinationAddress,
+        consolidationOptions
       );
 
       // Broadcast the transaction
@@ -46,6 +66,9 @@ export function useConsolidateAndBroadcast() {
 
   return {
     consolidateAndBroadcast,
-    isProcessing
+    isProcessing,
+    feeConfig,
+    fetchConsolidationFeeConfig,
+    estimateConsolidationFees
   };
 } 

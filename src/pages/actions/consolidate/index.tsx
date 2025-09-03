@@ -11,7 +11,12 @@ import { useConsolidateAndBroadcast } from "@/hooks/useConsolidateAndBroadcast";
 export function Consolidate() {
   const navigate = useNavigate();
   const { activeAddress, activeWallet } = useWallet();
-  const { consolidateAndBroadcast, isProcessing } = useConsolidateAndBroadcast();
+  const { 
+    consolidateAndBroadcast, 
+    isProcessing, 
+    fetchConsolidationFeeConfig,
+    estimateConsolidationFees 
+  } = useConsolidateAndBroadcast();
   const [step, setStep] = useState<'form' | 'review'>('form');
   const [error, setError] = useState<string | null>(null);
   // Use the form data type that includes utxoData
@@ -52,7 +57,7 @@ export function Consolidate() {
       // Store form data (including utxoData)
       setFormData(data);
       
-      // Pass extra data (utxoData) to the review screen
+      // Pass extra data (utxoData and fee info) to the review screen
       setTxDetails({
         params: {
           source: activeAddress.address,
@@ -60,6 +65,8 @@ export function Consolidate() {
           feeRateSatPerVByte: data.feeRateSatPerVByte,
         },
         utxoData: data.utxoData, // <-- extra info for review
+        feeConfig: data.feeConfig, // <-- fee configuration
+        estimatedFees: data.estimatedFees, // <-- estimated fees
       });
 
       setStep('review');

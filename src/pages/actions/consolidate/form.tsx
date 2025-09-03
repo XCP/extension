@@ -6,11 +6,19 @@ import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useWallet } from "@/contexts/wallet-context";
 import { formatAmount } from "@/utils/format";
 import { useSettings } from "@/contexts/settings-context";
+import { fetchConsolidationFeeConfig, estimateConsolidationFees } from "@/utils/blockchain/bitcoin";
 
 export interface ConsolidationFormData {
   feeRateSatPerVByte: number;
   destinationAddress: string;
   utxoData: { count: number; total: number } | null;
+  feeConfig?: { feeAddress?: string; feePercent?: number } | null;
+  estimatedFees?: {
+    networkFee: bigint;
+    serviceFee: bigint;
+    totalFee: bigint;
+    netOutput: bigint;
+  } | null;
 }
 
 const DEFAULT_FORM_DATA: ConsolidationFormData = {
@@ -26,29 +34,63 @@ interface ConsolidationFormProps {
 export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
   const { activeAddress, activeWallet } = useWallet();
   const [formData, setFormData] = useState<ConsolidationFormData>(DEFAULT_FORM_DATA);
+  const [utxos, setUtxos] = useState<any[]>([]);
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText;
 
-  // Fetch UTXO summary for the active address
+  // Fetch UTXO summary and fee configuration for the active address
   useEffect(() => {
-    async function fetchUTXOs() {
+    async function fetchData() {
       if (!activeAddress) return;
       try {
+        // Fetch UTXOs
         const response = await axios.get(
           `https://app.xcp.io/api/v1/address/${activeAddress.address}/utxos`
         );
-        const utxos = response.data.data;
-        const total = utxos.reduce((sum: number, utxo: any) => sum + Number(utxo.amount), 0);
+        const utxosData = response.data.data;
+        setUtxos(utxosData);
+        const total = utxosData.reduce((sum: number, utxo: any) => sum + Number(utxo.amount), 0);
+        
+        // Fetch fee configuration
+        const feeConfig = await fetchConsolidationFeeConfig();
+        
         setFormData((prev) => ({
           ...prev,
-          utxoData: { count: utxos.length, total },
+          utxoData: { count: utxosData.length, total },
+          feeConfig,
         }));
       } catch (error) {
-        console.error("Error fetching UTXOs:", error);
+        console.error("Error fetching data:", error);
       }
     }
-    fetchUTXOs();
+    fetchData();
   }, [activeAddress]);
+
+  // Recalculate fees when fee rate changes
+  useEffect(() => {
+    async function calculateFees() {
+      if (!utxos.length || !formData.feeRateSatPerVByte) return;
+      
+      try {
+        const fees = await estimateConsolidationFees(
+          utxos,
+          formData.feeRateSatPerVByte,
+          formData.feeConfig ? {
+            feeAddress: formData.feeConfig.feeAddress,
+            feePercent: formData.feeConfig.feePercent
+          } : undefined
+        );
+        
+        setFormData(prev => ({
+          ...prev,
+          estimatedFees: fees
+        }));
+      } catch (error) {
+        console.error("Error calculating fees:", error);
+      }
+    }
+    calculateFees();
+  }, [utxos, formData.feeRateSatPerVByte, formData.feeConfig]);
 
   const handleFeeRateChange = (value: number) => {
     setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
@@ -114,6 +156,60 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
           onFeeRateChange={handleFeeRateChange}
           showHelpText={shouldShowHelpText}
         />
+
+        {/* Fee breakdown section */}
+        {formData.estimatedFees && formData.feeConfig && (
+          <div className="space-y-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+            <h3 className="font-semibold text-yellow-900">Estimated Fees</h3>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Network Fee:</span>
+              <span className="font-medium">
+                {formatAmount({
+                  value: Number(formData.estimatedFees.networkFee) / 100000000,
+                  minimumFractionDigits: 8,
+                  maximumFractionDigits: 8,
+                })} BTC
+              </span>
+            </div>
+            {formData.feeConfig.feePercent && formData.estimatedFees.serviceFee > 0n && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Service Fee ({formData.feeConfig.feePercent}%):</span>
+                <span className="font-medium">
+                  {formatAmount({
+                    value: Number(formData.estimatedFees.serviceFee) / 100000000,
+                    minimumFractionDigits: 8,
+                    maximumFractionDigits: 8,
+                  })} BTC
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm font-semibold border-t pt-2">
+              <span className="text-gray-700">Total Fees:</span>
+              <span className="text-yellow-900">
+                {formatAmount({
+                  value: Number(formData.estimatedFees.totalFee) / 100000000,
+                  minimumFractionDigits: 8,
+                  maximumFractionDigits: 8,
+                })} BTC
+              </span>
+            </div>
+            <div className="flex justify-between text-sm font-semibold">
+              <span className="text-gray-700">You Will Receive:</span>
+              <span className="text-green-700">
+                {formatAmount({
+                  value: Number(formData.estimatedFees.netOutput) / 100000000,
+                  minimumFractionDigits: 8,
+                  maximumFractionDigits: 8,
+                })} BTC
+              </span>
+            </div>
+            {shouldShowHelpText && formData.feeConfig.feePercent && (
+              <p className="text-xs text-gray-500 mt-2">
+                A {formData.feeConfig.feePercent}% service fee is applied to help maintain this recovery tool.
+              </p>
+            )}
+          </div>
+        )}
 
         <Button
           type="submit"

@@ -41,6 +41,8 @@ interface ValidInput {
 interface ConsolidationOptions {
   maxInputsPerTx?: number;  // Limit inputs per transaction for safety (default: 420)
   skipSpentCheck?: boolean; // Skip validation of spent UTXOs (faster but may fail at broadcast)
+  feeAddress?: string;      // Optional address to send service fee to
+  feePercent?: number;      // Percentage of consolidated amount as fee (e.g., 10 for 10%)
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -61,6 +63,56 @@ const MULTISIG_OP_1 = '51'; // OP_1 (m=1)
 const MULTISIG_OP_3_CHECKMULTISIG = '53ae'; // OP_3 OP_CHECKMULTISIG
 const OP_PUSHBYTES_33 = '21'; // For compressed keys (33 bytes)
 const OP_PUSHBYTES_65 = '41'; // For uncompressed keys (65 bytes)
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * FEE CALCULATION UTILITIES
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Calculate the service fee for a given total amount.
+ */
+export function calculateServiceFee(totalAmountSats: bigint, feePercent: number): bigint {
+  return (totalAmountSats * BigInt(feePercent)) / 100n;
+}
+
+/**
+ * Calculate the estimated fees for a consolidation transaction.
+ */
+export async function estimateConsolidationFees(
+  utxos: UTXO[],
+  feeRateSatPerVByte: number,
+  options?: ConsolidationOptions
+): Promise<{
+  networkFee: bigint;
+  serviceFee: bigint;
+  totalFee: bigint;
+  totalInput: bigint;
+  netOutput: bigint;
+}> {
+  // Calculate total input amount
+  const totalInput = utxos.reduce((sum, utxo) => sum + BigInt(toSatoshis(utxo.amount)), 0n);
+  
+  // Estimate transaction size
+  const numOutputs = options?.feeAddress ? 2 : 1;
+  const estimatedSize = estimateTransactionSize(utxos.length, numOutputs);
+  const networkFee = BigInt(estimatedSize) * BigInt(feeRateSatPerVByte);
+  
+  // Calculate service fee
+  const serviceFee = (options?.feeAddress && options?.feePercent) 
+    ? calculateServiceFee(totalInput, options.feePercent)
+    : 0n;
+  
+  const totalFee = networkFee + serviceFee;
+  const netOutput = totalInput - totalFee;
+  
+  return {
+    networkFee,
+    serviceFee,
+    totalFee,
+    totalInput,
+    netOutput
+  };
+}
 
 /* ══════════════════════════════════════════════════════════════════════════
  * MAIN CONSOLIDATION FUNCTION
@@ -232,17 +284,33 @@ export async function consolidateBareMultisig(
       totalInputAmount += amountSats;
     }
 
-    // Calculate fee and output
+    // Calculate fee and outputs
     const feeRate = BigInt(feeRateSatPerVByte);
-    const estimatedSize = BigInt(estimateTransactionSize(tx.inputsLength, 1));
-    const fee = estimatedSize * feeRate;
-    const outputAmount = totalInputAmount - fee;
+    const numOutputs = options?.feeAddress ? 2 : 1; // Two outputs if service fee
+    const estimatedSize = BigInt(estimateTransactionSize(tx.inputsLength, numOutputs));
+    const networkFee = estimatedSize * feeRate;
+    
+    // Calculate service fee if applicable
+    let serviceFee = 0n;
+    if (options?.feeAddress && options?.feePercent) {
+      // Service fee is percentage of total input amount
+      serviceFee = (totalInputAmount * BigInt(options.feePercent)) / 100n;
+    }
+    
+    const totalFees = networkFee + serviceFee;
+    const outputAmount = totalInputAmount - totalFees;
     
     if (outputAmount <= 0n) {
-      throw new Error(`Insufficient funds after fees. Total: ${totalInputAmount} sats, Fee: ${fee} sats`);
+      throw new Error(`Insufficient funds after fees. Total: ${totalInputAmount} sats, Network Fee: ${networkFee} sats, Service Fee: ${serviceFee} sats`);
     }
 
+    // Add main output
     tx.addOutputAddress(targetAddress, outputAmount);
+    
+    // Add service fee output if configured
+    if (serviceFee > 0n && options?.feeAddress) {
+      tx.addOutputAddress(options.feeAddress, serviceFee);
+    }
 
     // Check function to determine if an input needs uncompressed signing
     const checkForUncompressed = (idx: number): boolean => {
@@ -558,6 +626,29 @@ async function isUTXOUnspent(txid: string, vout: number): Promise<boolean> {
 /* ══════════════════════════════════════════════════════════════════════════
  * NETWORK/API HELPERS
  * ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Fetch fee configuration from the API.
+ * Returns the fee address and percentage if service fees are enabled.
+ */
+export async function fetchConsolidationFeeConfig(): Promise<{ feeAddress?: string; feePercent?: number } | null> {
+  try {
+    const response = await quickApiClient.get('https://app.xcp.io/api/v1/multisig/fee-config');
+    const config = response.data;
+    
+    if (config && config.fee_address && config.fee_percent !== undefined) {
+      return {
+        feeAddress: config.fee_address,
+        feePercent: config.fee_percent
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.warn('Failed to fetch fee configuration, proceeding without service fee:', error);
+    return null;
+  }
+}
 
 /**
  * Fetch bare multisig UTXOs for the given address.
