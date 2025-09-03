@@ -61,11 +61,8 @@ const ESTIMATED_SIGNATURE_SIZE = 74;
 // Bitcoin dust limit (546 sats for P2PKH/P2WPKH outputs)
 export const DUST_LIMIT = 546n;
 
-// Minimum service fee in sats (e.g., 10,000 sats = 0.0001 BTC)
-export const MIN_SERVICE_FEE = 10000n;
-
-// Threshold below which no service fee is charged (e.g., 100,000 sats = 0.001 BTC total value)
-export const SERVICE_FEE_EXEMPTION_THRESHOLD = 100000n;
+// Threshold below which no service fee is charged (10,000 sats = 0.0001 BTC)
+export const SERVICE_FEE_EXEMPTION_THRESHOLD = 10000n;
 
 // Multisig script format constants
 const MULTISIG_OP_1 = '51'; // OP_1 (m=1)
@@ -79,19 +76,16 @@ const OP_PUSHBYTES_65 = '41'; // For uncompressed keys (65 bytes)
 
 /**
  * Calculate the service fee for a given total amount.
- * Applies minimum fee threshold and exemptions for small amounts.
+ * No fee for amounts under 0.0001 BTC (10,000 sats).
  */
 export function calculateServiceFee(totalAmountSats: bigint, feePercent: number): bigint {
-  // No fee if total amount is below exemption threshold
-  if (totalAmountSats <= SERVICE_FEE_EXEMPTION_THRESHOLD) {
+  // No fee if total amount is below exemption threshold (0.0001 BTC)
+  if (totalAmountSats < SERVICE_FEE_EXEMPTION_THRESHOLD) {
     return 0n;
   }
   
   // Calculate percentage-based fee
-  const percentageFee = (totalAmountSats * BigInt(feePercent)) / 100n;
-  
-  // Apply minimum fee floor
-  const serviceFee = percentageFee < MIN_SERVICE_FEE ? MIN_SERVICE_FEE : percentageFee;
+  const serviceFee = (totalAmountSats * BigInt(feePercent)) / 100n;
   
   // Don't create dust outputs
   if (serviceFee < DUST_LIMIT) {
@@ -325,13 +319,11 @@ export async function consolidateBareMultisig(
       
       // Log fee decision
       if (serviceFee === 0n) {
-        if (totalInputAmount <= SERVICE_FEE_EXEMPTION_THRESHOLD) {
-          console.log(`No service fee: total amount ${totalInputAmount} sats is below exemption threshold`);
+        if (totalInputAmount < SERVICE_FEE_EXEMPTION_THRESHOLD) {
+          console.log(`No service fee: total amount ${totalInputAmount} sats is below 0.0001 BTC threshold`);
         } else {
           console.log(`No service fee: calculated fee would be dust`);
         }
-      } else if (serviceFee === MIN_SERVICE_FEE) {
-        console.log(`Service fee: Applied minimum fee of ${MIN_SERVICE_FEE} sats`);
       } else {
         console.log(`Service fee: ${serviceFee} sats (${options.feePercent}% of ${totalInputAmount} sats)`);
       }
