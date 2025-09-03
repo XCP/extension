@@ -258,13 +258,15 @@ export async function consolidateBareMultisig(
     
     // Use the improved hybrid signing utility for all inputs
     // Pass prevOutputScripts for problematic inputs that don't have redeemScript
+    // Skip standard signing if we have any manually parsed inputs (they have invalid pubkeys)
     hybridSignTransaction(
       tx,
       privateKeyBytes,
       publicKeyCompressed,
       publicKeyUncompressed,
       prevOutputScripts,
-      checkForUncompressed
+      checkForUncompressed,
+      problematicInputs.length > 0  // Skip standard signing if we have problematic inputs
     );
 
     // Check if hybrid signing missed any problematic inputs

@@ -74,6 +74,7 @@ export function signInputWithUncompressedKey(
  * @param publicKeyUncompressed - The uncompressed public key bytes
  * @param prevOutputScripts - Array of previous output scripts for each input (optional - will use redeemScript if not provided)
  * @param checkForUncompressed - Function to check if an input needs uncompressed signing
+ * @param skipStandardSigning - Skip btc-signer's standard signing (needed for Counterparty multisigs with invalid data "pubkeys")
  */
 export function hybridSignTransaction(
   tx: Transaction,
@@ -81,19 +82,23 @@ export function hybridSignTransaction(
   publicKeyCompressed: Uint8Array,
   publicKeyUncompressed: Uint8Array,
   prevOutputScripts?: Uint8Array[],
-  checkForUncompressed?: (inputIndex: number) => boolean
+  checkForUncompressed?: (inputIndex: number) => boolean,
+  skipStandardSigning?: boolean  // New parameter to skip standard signing for problematic inputs
 ): void {
-  // First, attempt standard signing with compressed key
-  try {
-    tx.sign(privateKey);
-    
-    // If successful and no uncompressed check needed, we're done
-    if (!checkForUncompressed) {
-      return;
+  // First, attempt standard signing with compressed key (unless we know it will fail)
+  if (!skipStandardSigning) {
+    try {
+      tx.sign(privateKey);
+      
+      // If successful and no uncompressed check needed, we're done
+      if (!checkForUncompressed) {
+        return;
+      }
+    } catch (e) {
+      // Standard signing failed, will try custom signing below
+      // This is expected for uncompressed keys or invalid pubkeys
+      // Don't log to avoid noise
     }
-  } catch (e) {
-    // Standard signing failed, will try custom signing below
-    console.log('Standard signing failed (expected for uncompressed keys), will use custom signing');
   }
   
   // Check each input for uncompressed key requirements
