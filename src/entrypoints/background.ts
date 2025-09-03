@@ -217,44 +217,45 @@ export default defineBackground(() => {
       eventData = eventOrData;
     }
     
-    // Only query tabs that might have our content script
-    // Content script is injected on xcp.io domains
+    // Query all tabs - we'll handle errors gracefully
     const tabs = await browser.tabs.query({});
-    const relevantTabs = tabs.filter(tab => {
-      if (!tab.url) return false;
-      
-      // Check if it's a tab where our content script might be injected
-      const url = tab.url.toLowerCase();
-      return url.includes('xcp.io') || 
-             url.startsWith('chrome-extension://') ||
-             url.startsWith('moz-extension://');
-    });
     
-    relevantTabs.forEach(tab => {
-      // If origin specified, only send to matching tabs
-      if (origin && tab.url && !new URL(tab.url).origin.startsWith(origin)) {
+    tabs.forEach(tab => {
+      // Skip tabs without URLs (like chrome:// pages we can't access)
+      if (!tab.url || !tab.id) return;
+      
+      // Skip system pages that can't have content scripts
+      if (tab.url.startsWith('chrome://') || 
+          tab.url.startsWith('chrome-extension://') && !tab.url.includes(chrome.runtime.id) ||
+          tab.url.startsWith('about:') ||
+          tab.url.startsWith('edge://') ||
+          tab.url.startsWith('brave://')) {
         return;
       }
       
-      if (tab.id) {
-        // Use callback style to properly check lastError
-        chrome.tabs.sendMessage(
-          tab.id,
-          {
-            type: 'PROVIDER_EVENT',
-            event,
-            data: eventData
-          },
-          () => {
-            // Check and clear lastError to prevent unchecked error warnings
-            if (chrome.runtime.lastError) {
-              // Tab doesn't have content script, which is expected
-              // Just clear the error by accessing it
-              void chrome.runtime.lastError.message;
-            }
-          }
-        );
+      // If origin specified, only send to matching tabs
+      if (origin && !new URL(tab.url).origin.startsWith(origin)) {
+        return;
       }
+      
+      // Try to send message, handling error gracefully
+      chrome.tabs.sendMessage(
+        tab.id,
+        {
+          type: 'PROVIDER_EVENT',
+          event,
+          data: eventData
+        },
+        () => {
+          // Check and clear lastError to prevent unchecked error warnings
+          // This is the standard pattern for handling optional message targets
+          if (chrome.runtime.lastError) {
+            // Tab doesn't have our content script, which is normal
+            // Just acknowledge the error by accessing it
+            void chrome.runtime.lastError;
+          }
+        }
+      );
     });
   }
 
