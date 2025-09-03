@@ -40,9 +40,10 @@ const CONSTANTS = {
 export default function AddressTypeSettings(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { activeWallet, updateWalletAddressFormat } = useWallet();
-  // We'll use sample addresses for preview since we don't need actual wallet addresses
+  const { activeWallet, updateWalletAddressFormat, getPreviewAddressForFormat } = useWallet();
+  const [addresses, setAddresses] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedFormat, setSelectedFormat] = useState<AddressFormat | null>(null);
   const originalAddressFormat = useRef<AddressFormat | null>(null);
@@ -72,6 +73,36 @@ export default function AddressTypeSettings(): ReactElement {
     });
   }, [setHeaderProps, navigate]);
 
+
+  // Load preview addresses
+  useEffect(() => {
+    const loadAddresses = async () => {
+      if (!activeWallet) {
+        setIsInitialLoading(false);
+        return;
+      }
+      
+      setIsInitialLoading(true);
+      const addressMap: { [key: string]: string } = {};
+      
+      for (const format of CONSTANTS.AVAILABLE_ADDRESS_TYPES) {
+        try {
+          // Try to get cached or generate preview
+          const preview = await getPreviewAddressForFormat(activeWallet.id, format);
+          addressMap[format] = preview;
+        } catch (err) {
+          // Fall back to sample address if can't get real preview
+          console.debug(`Using sample for ${format}:`, err);
+          addressMap[format] = getSampleAddressForFormat(format);
+        }
+      }
+      
+      setAddresses(addressMap);
+      setIsInitialLoading(false);
+    };
+    
+    loadAddresses();
+  }, [activeWallet, getPreviewAddressForFormat]);
 
   // Sync selected type with active wallet and store original
   useEffect(() => {
@@ -139,6 +170,14 @@ export default function AddressTypeSettings(): ReactElement {
   };
 
   
+  if (isInitialLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Spinner />
+      </div>
+    );
+  }
+  
   if (!activeWallet) {
     return <div className="p-4 text-center text-gray-500">No wallet available</div>;
   }
@@ -172,9 +211,9 @@ export default function AddressTypeSettings(): ReactElement {
             const isCounterwallet = activeWallet?.addressFormat === AddressFormat.Counterwallet;
             const isDisabled = isCounterwallet && type !== AddressFormat.Counterwallet;
             const disabledReason = (isCounterwallet && type !== AddressFormat.Counterwallet) ? "Create new wallet to use this address type" : undefined;
-            // Use sample addresses for preview
-            const sampleAddress = getSampleAddressForFormat(type);
-            const addressPreview = sampleAddress ? formatAddress(sampleAddress) : "";
+            // Use loaded address preview
+            const address = addresses[type] || "";
+            const addressPreview = address ? formatAddress(address) : "Loading...";
 
             return (
               <SelectionCard

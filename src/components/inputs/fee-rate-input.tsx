@@ -246,35 +246,37 @@ export function FeeRateInput({
             <input type="hidden" name="sat_per_vbyte" value={currentFeeRate.toString()} />
             
             {feeRates && (
-              <Listbox value={feeOptions.find((opt) => opt.id === selectedOption)} onChange={handleOptionSelect}>
-                <ListboxButton
-                  className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
-                  disabled={disabled}
-                >
-                  {({ value }) => (
-                    <div className="flex justify-between">
-                      <span>{value?.name}</span>
-                      {value?.id !== "custom" && (
-                        <span className="text-gray-500">{value.value} sat/vB</span>
-                      )}
-                    </div>
-                  )}
-                </ListboxButton>
-                <ListboxOptions className="w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
-                  {feeOptions.map((option) => (
-                    <ListboxOption key={option.id} value={option} className="p-2 cursor-pointer hover:bg-gray-100">
-                      {({ selected }) => (
-                        <div className="flex justify-between">
-                          <span className={selected ? "font-medium" : ""}>{option.name}</span>
-                          {option.id !== "custom" && (
-                            <span className="text-gray-500">{option.value} sat/vB</span>
-                          )}
-                        </div>
-                      )}
-                    </ListboxOption>
-                  ))}
-                </ListboxOptions>
-              </Listbox>
+              <div className="relative">
+                <Listbox value={feeOptions.find((opt) => opt.id === selectedOption)} onChange={handleOptionSelect}>
+                  <ListboxButton
+                    className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+                    disabled={disabled}
+                  >
+                    {({ value }) => (
+                      <div className="flex justify-between">
+                        <span>{value?.name}</span>
+                        {value?.id !== "custom" && (
+                          <span className="text-gray-500">{value.value} sat/vB</span>
+                        )}
+                      </div>
+                    )}
+                  </ListboxButton>
+                  <ListboxOptions className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                    {feeOptions.map((option) => (
+                      <ListboxOption key={option.id} value={option} className="p-2 cursor-pointer hover:bg-gray-100">
+                        {({ selected }) => (
+                          <div className="flex justify-between">
+                            <span className={selected ? "font-medium" : ""}>{option.name}</span>
+                            {option.id !== "custom" && (
+                              <span className="text-gray-500">{option.value} sat/vB</span>
+                            )}
+                          </div>
+                        )}
+                      </ListboxOption>
+                    ))}
+                  </ListboxOptions>
+                </Listbox>
+              </div>
             )}
           </>
         )}

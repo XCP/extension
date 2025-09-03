@@ -66,6 +66,13 @@ export function ActionCard({
     }
   };
 
+  // Determine title color based on border class in className prop
+  const getTitleColor = () => {
+    if (className?.includes('border-green')) return 'text-green-600';
+    if (className?.includes('border-red')) return 'text-red-600';
+    return 'text-gray-900';
+  };
+
   return (
     <div
       onClick={handleClick}
@@ -87,7 +94,7 @@ export function ActionCard({
 
         {/* Content */}
         <div className="flex-grow min-w-0">
-          <div className="text-sm font-medium text-gray-900 mb-1">
+          <div className={`text-sm font-medium ${getTitleColor()} mb-1`}>
             {title}
           </div>
           {description && (
