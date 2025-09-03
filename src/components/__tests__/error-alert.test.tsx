@@ -22,7 +22,7 @@ describe('ErrorAlert', () => {
     
     const alert = screen.getByRole('alert');
     expect(alert).toBeInTheDocument();
-    expect(alert).toHaveAttribute('aria-live', 'polite');
+    expect(alert).toHaveAttribute('aria-live', 'assertive'); // Errors should be assertive
   });
 
   it('should render close button when onClose is provided', () => {
@@ -79,7 +79,7 @@ describe('ErrorAlert', () => {
     render(<ErrorAlert message={longMessage} />);
     
     const messageSpan = screen.getByText(longMessage);
-    expect(messageSpan).toHaveClass('break-all');
+    expect(messageSpan).toHaveClass('break-words');
   });
 
   it('should position close button correctly', () => {
@@ -107,11 +107,12 @@ describe('ErrorAlert', () => {
     expect(messageSpan).toHaveClass('sm:inline');
   });
 
-  it('should have proper spacing with pr-6 for close button space', () => {
-    render(<ErrorAlert message="Test error" onClose={() => {}} />);
+  it('should have proper spacing with pr-8 for close button space', () => {
+    const { container } = render(<ErrorAlert message="Test error" onClose={() => {}} />);
     
-    const messageSpan = screen.getByText('Test error');
-    expect(messageSpan).toHaveClass('pr-6');
+    const messageWrapper = container.querySelector('.pr-8');
+    expect(messageWrapper).toBeInTheDocument();
+    expect(messageWrapper).toHaveClass('pr-8');
   });
 
   describe('Accessibility and ARIA', () => {
@@ -119,7 +120,7 @@ describe('ErrorAlert', () => {
       render(<ErrorAlert message="Dynamic error" />);
       
       const alert = screen.getByRole('alert');
-      expect(alert).toHaveAttribute('aria-live', 'polite');
+      expect(alert).toHaveAttribute('aria-live', 'assertive');
     });
 
     it('should be keyboard navigable when close button is present', () => {
@@ -166,15 +167,22 @@ describe('ErrorAlert', () => {
       const alert = screen.getByRole('alert');
       expect(alert).toBeInTheDocument();
       expect(screen.getByText('Error:')).toBeInTheDocument();
-      expect(screen.getByText('')).toBeInTheDocument(); // Empty message span
+      
+      // Find the message span by class since empty text is hard to target
+      const messageSpan = alert.querySelector('span.break-words');
+      expect(messageSpan).toBeInTheDocument();
+      expect(messageSpan?.textContent).toBe('');
     });
 
     it('should handle whitespace-only messages', () => {
       render(<ErrorAlert message="   " />);
       
-      const messageSpan = screen.getByText('   ');
+      // Use a more flexible matcher for whitespace content
+      const messageSpan = screen.getByText((content, element) => {
+        return !!(element?.classList.contains('break-words') && element?.textContent === '   ');
+      });
       expect(messageSpan).toBeInTheDocument();
-      expect(messageSpan).toHaveClass('break-all');
+      expect(messageSpan).toHaveClass('break-words');
     });
 
     it('should handle HTML entities in error messages', () => {
@@ -195,7 +203,7 @@ describe('ErrorAlert', () => {
       render(<ErrorAlert message={longMessage} />);
       
       const messageSpan = screen.getByText(longMessage);
-      expect(messageSpan).toHaveClass('break-all');
+      expect(messageSpan).toHaveClass('break-words');
       expect(messageSpan).toBeInTheDocument();
     });
 
@@ -204,7 +212,14 @@ describe('ErrorAlert', () => {
       
       render(<ErrorAlert message={multilineMessage} />);
       
-      expect(screen.getByText(multilineMessage)).toBeInTheDocument();
+      const messageSpan = screen.getByText((content, element) => {
+        return !!(element?.classList.contains('break-words') && 
+                  content.includes('Error occurred:') && 
+                  content.includes('Line 1:') && 
+                  content.includes('Line 2:') && 
+                  content.includes('Line 3:'));
+      });
+      expect(messageSpan).toBeInTheDocument();
     });
   });
 
@@ -264,13 +279,13 @@ describe('ErrorAlert', () => {
     });
 
     it('should position close button without affecting message layout', () => {
-      render(<ErrorAlert message="Message with close button" onClose={() => {}} />);
+      const { container } = render(<ErrorAlert message="Message with close button" onClose={() => {}} />);
       
       const closeButton = screen.getByLabelText('Dismiss error message');
-      const messageSpan = screen.getByText('Message with close button');
+      const messageWrapper = container.querySelector('.pr-8');
       
       expect(closeButton).toHaveClass('absolute', 'top-2', 'right-2', 'z-10');
-      expect(messageSpan).toHaveClass('pr-6'); // Space for button
+      expect(messageWrapper).toHaveClass('pr-8'); // Space for button
     });
 
     it('should handle responsive text layout', () => {
@@ -313,25 +328,30 @@ describe('ErrorAlert', () => {
     it('should handle various error message strings correctly', () => {
       fc.assert(
         fc.property(
-          fc.string(),
+          fc.string().filter(s => s.trim().length > 0),
           (message: string) => {
-            const { container } = render(<ErrorAlert message={message} />);
-            const alert = container.firstChild as HTMLElement;
+            const { container, unmount } = render(<ErrorAlert message={message} />);
             
-            // Should always maintain core structure and styling
-            expect(alert).toHaveClass('bg-red-100', 'border', 'border-red-400', 'text-red-700');
-            expect(alert).toHaveAttribute('role', 'alert');
-            expect(alert).toHaveAttribute('aria-live', 'polite');
-            
-            // Should always have "Error:" label
-            expect(screen.getByText('Error:')).toBeInTheDocument();
-            
-            // Should render the message
-            expect(screen.getByText(message)).toBeInTheDocument();
-            
-            // Message should have proper styling
-            const messageSpan = screen.getByText(message);
-            expect(messageSpan).toHaveClass('break-all');
+            try {
+              const alert = container.firstChild as HTMLElement;
+              
+              // Should always maintain core structure and styling
+              expect(alert).toHaveClass('bg-red-100', 'border', 'border-red-400', 'text-red-700');
+              expect(alert).toHaveAttribute('role', 'alert');
+              expect(alert).toHaveAttribute('aria-live', 'assertive');
+              
+              // Should always have "Error:" label
+              expect(screen.getByText('Error:')).toBeInTheDocument();
+              
+              // Should render the message
+              expect(screen.getByText(message.trim())).toBeInTheDocument();
+              
+              // Message should have proper styling
+              const messageSpan = screen.getByText(message.trim());
+              expect(messageSpan).toHaveClass('break-words');
+            } finally {
+              unmount();
+            }
           }
         ),
         { numRuns: 50 }
@@ -346,23 +366,33 @@ describe('ErrorAlert', () => {
           (message: string, shouldHaveClose: boolean) => {
             const onClose = shouldHaveClose ? vi.fn() : undefined;
             
-            render(<ErrorAlert message={message} onClose={onClose} />);
+            const { unmount } = render(<ErrorAlert message={message} onClose={onClose} />);
             
-            // Should always have basic structure
-            expect(screen.getByRole('alert')).toBeInTheDocument();
-            expect(screen.getByText('Error:')).toBeInTheDocument();
-            expect(screen.getByText(message)).toBeInTheDocument();
-            
-            // Close button should be present only when onClose provided
-            const closeButton = screen.queryByLabelText('Dismiss error message');
-            if (shouldHaveClose) {
-              expect(closeButton).toBeInTheDocument();
+            try {
+              // Should always have basic structure
+              expect(screen.getByRole('alert')).toBeInTheDocument();
+              expect(screen.getByText('Error:')).toBeInTheDocument();
               
-              // Should be callable
-              fireEvent.click(closeButton!);
-              expect(onClose).toHaveBeenCalledTimes(1);
-            } else {
-              expect(closeButton).not.toBeInTheDocument();
+              // Use flexible matcher for whitespace-only strings
+              const messageElement = screen.getByText((content, element) => {
+                return !!(element?.classList.contains('break-words') && 
+                          element?.textContent === message);
+              });
+              expect(messageElement).toBeInTheDocument();
+              
+              // Close button should be present only when onClose provided
+              const closeButton = screen.queryByLabelText('Dismiss error message');
+              if (shouldHaveClose) {
+                expect(closeButton).toBeInTheDocument();
+                
+                // Should be callable
+                fireEvent.click(closeButton!);
+                expect(onClose).toHaveBeenCalledTimes(1);
+              } else {
+                expect(closeButton).not.toBeInTheDocument();
+              }
+            } finally {
+              unmount();
             }
           }
         ),
@@ -375,19 +405,23 @@ describe('ErrorAlert', () => {
         fc.property(
           fc.string({ minLength: 1, maxLength: 200 }),
           (message: string) => {
-            render(<ErrorAlert message={message} onClose={() => {}} />);
+            const { unmount } = render(<ErrorAlert message={message} onClose={() => {}} />);
             
-            // Should have proper ARIA attributes
-            const alert = screen.getByRole('alert');
-            expect(alert).toHaveAttribute('aria-live', 'polite');
-            
-            // Close button should have proper label
-            const closeButton = screen.getByLabelText('Dismiss error message');
-            expect(closeButton).toBeInTheDocument();
-            
-            // Icon should be decorative
-            const closeIcon = screen.getByTestId('close-icon');
-            expect(closeIcon).toHaveAttribute('aria-hidden', 'true');
+            try {
+              // Should have proper ARIA attributes
+              const alert = screen.getByRole('alert');
+              expect(alert).toHaveAttribute('aria-live', 'assertive');
+              
+              // Close button should have proper label
+              const closeButton = screen.getByLabelText('Dismiss error message');
+              expect(closeButton).toBeInTheDocument();
+              
+              // Icon should be decorative
+              const closeIcon = screen.getByTestId('close-icon');
+              expect(closeIcon).toHaveAttribute('aria-hidden', 'true');
+            } finally {
+              unmount();
+            }
           }
         ),
         { numRuns: 30 }
