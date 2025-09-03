@@ -107,42 +107,50 @@ test.describe('Address Preview Cache', () => {
       initialAddresses.push({ title: titleText, description: descText });
     }
     
-    // Navigate back to settings main page
-    await page.goBack();
-    await page.waitForTimeout(500);
+    // Navigate back to main index page before locking
+    await navigateViaFooter(page, 'wallet');
+    await page.waitForTimeout(1000);
     
-    // Lock the wallet using the helper function
+    // Lock the wallet
     await lockWallet(page);
     
     // Should be redirected to unlock page
-    await expect(page.locator('text=Enter Password')).toBeVisible({ timeout: 5000 });
+    await expect(page).toHaveURL(/unlock/);
+    await expect(page.locator('input[name="password"]')).toBeVisible();
     
-    // Unlock the wallet again using the helper function
+    // Unlock with correct password
     await unlockWallet(page, TEST_PASSWORD);
-    await page.waitForTimeout(1000);
     
     // Navigate back to settings
     await navigateViaFooter(page, 'settings');
     await page.waitForTimeout(1000);
     
     // Navigate to Address Type settings
+    await expect(page.locator('text=Address Type')).toBeVisible({ timeout: 5000 });
     await page.click('text=Address Type');
-    await page.waitForTimeout(2000);
+    await page.waitForURL('**/address-type*', { timeout: 5000 });
     
-    // Get addresses after unlock
+    // Wait for address cards to load and get addresses after unlock
+    await expect(page.locator('[role="radio"]').first()).toBeVisible({ timeout: 10000 });
     const cardsAfter = await page.locator('[role="radio"]').all();
     const addressesAfterUnlock = [];
+    
     for (const card of cardsAfter) {
       const titleText = await card.locator('.text-sm.font-medium').textContent();
       const descText = await card.locator('.text-xs').textContent();
       addressesAfterUnlock.push({ title: titleText, description: descText });
     }
     
+    console.log(`Found ${initialAddresses.length} initial addresses and ${addressesAfterUnlock.length} addresses after unlock`);
+    
     // Verify addresses are the same (cached)
-    for (let i = 0; i < initialAddresses.length; i++) {
-      const initial = initialAddresses[i];
+    expect(initialAddresses.length).toBeGreaterThan(0);
+    expect(addressesAfterUnlock.length).toBe(initialAddresses.length);
+    
+    for (const initial of initialAddresses) {
       const after = addressesAfterUnlock.find(a => a.title === initial.title);
       console.log(`Comparing ${initial.title}: "${initial.description}" vs "${after?.description}"`);
+      expect(after).toBeDefined();
       expect(after?.description).toBe(initial.description);
     }
     
