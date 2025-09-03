@@ -7,7 +7,7 @@ import { FiDownload } from "react-icons/fi";
 import { Button } from "@/components/button";
 import { Spinner } from "@/components/spinner";
 import { ErrorAlert } from "@/components/error-alert";
-import { AuthorizationModal } from "@/components/modals/authorization-modal";
+import { UnlockScreen } from "@/components/screens/unlock-screen";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { signMessage, getSigningCapabilities } from "@/utils/blockchain/bitcoin";
@@ -305,10 +305,25 @@ export default function SignMessage(): ReactElement {
       
       {/* Authorization Modal */}
       {showAuthModal && (
-        <AuthorizationModal
-          onUnlock={handleUnlockAndSign}
-          onCancel={() => setShowAuthModal(false)}
-        />
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div 
+            className="w-full max-w-lg animate-slideUp"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <UnlockScreen
+              title="Authorization Required"
+              subtitle="Please enter your password to sign this message."
+              onUnlock={handleUnlockAndSign}
+              onCancel={() => setShowAuthModal(false)}
+              submitText="Authorize"
+              showLockIcon
+            />
+          </div>
+        </div>
       )}
     </div>
   );

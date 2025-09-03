@@ -76,9 +76,9 @@ vi.mock('webext-bridge/popup', () => ({
   onMessage: vi.fn()
 }));
 
-vi.mock('@/components/modals/authorization-modal', () => ({
-  AuthorizationModal: ({ onUnlock, onCancel }: any) => (
-    <div data-testid="auth-modal">
+vi.mock('@/components/screens/unlock-screen', () => ({
+  UnlockScreen: ({ onUnlock, onCancel }: any) => (
+    <div data-testid="unlock-screen">
       <button onClick={() => onUnlock('password123')}>Unlock</button>
       <button onClick={onCancel}>Cancel</button>
     </div>
@@ -271,7 +271,7 @@ describe('Composer', () => {
     fireEvent.click(signButton);
     
     await waitFor(() => {
-      expect(screen.getByTestId('auth-modal')).toBeInTheDocument();
+      expect(screen.getByTestId('unlock-screen')).toBeInTheDocument();
     });
   });
 
