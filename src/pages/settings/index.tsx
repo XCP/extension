@@ -66,11 +66,24 @@ export default function Settings(): ReactElement {
   }, [setHeaderProps, navigate]);
 
   /**
-   * Gets a human-readable description for the wallet's address type.
-   * @returns {string} The description of the address type.
+   * Gets a preview address or description for the wallet's address type.
+   * @returns {string} The address preview or type description.
    */
   const getAddressTypeDescription = (): string => {
     if (!activeWallet) return "";
+    
+    // If wallet has addresses, show the current address
+    if (activeWallet.addresses && activeWallet.addresses.length > 0) {
+      const currentAddress = activeWallet.addresses[0].address;
+      if (currentAddress) {
+        // Format the address (truncate for display)
+        const start = currentAddress.slice(0, 6);
+        const end = currentAddress.slice(-6);
+        return `${start}...${end}`;
+      }
+    }
+    
+    // Fall back to showing the address type description
     switch (activeWallet.addressFormat) {
       case AddressFormat.P2PKH:
         return "Legacy (P2PKH)";
