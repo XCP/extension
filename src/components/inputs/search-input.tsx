@@ -96,7 +96,7 @@ export function SearchInput({
           placeholder={placeholder}
           disabled={disabled}
           required={required}
-          className={`block w-full pl-10 pr-10 p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+          className={`block w-full pl-8 pr-8 p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
             label ? "mt-1" : ""
           } ${disabled ? "bg-gray-100 cursor-not-allowed" : ""}`}
           aria-label={label || "Search"}

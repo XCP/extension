@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
+import { AssetHeader } from "@/components/headers/asset-header";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
@@ -43,15 +44,22 @@ export function LockSupplyForm({
   return (
     <ComposerForm
       formAction={formAction}
+      header={
+        <AssetHeader
+          assetInfo={{
+            asset: asset,
+            asset_longname: assetInfo?.asset_longname ?? null,
+            divisible: assetInfo?.divisible ?? false,
+            locked: assetInfo?.locked ?? false,
+            description: assetInfo?.description ?? "",
+            issuer: assetInfo?.issuer ?? "",
+            supply: assetInfo?.supply ?? "0",
+            supply_normalized: assetInfo?.supply_normalized || '0'
+          }}
+          className="mt-1 mb-5"
+        />
+      }
     >
-      <div className="mb-4 p-3 bg-gray-50 rounded-md">
-        <h3 className="text-sm font-medium text-gray-700">Asset Details</h3>
-        <div className="mt-2 text-sm text-gray-600">
-          <p>Current Supply: {assetInfo?.supply || "0"}</p>
-          <p>Divisible: {assetInfo?.divisible ? "Yes" : "No"}</p>
-          <p>Locked: {assetInfo?.locked ? "Yes" : "No"}</p>
-        </div>
-      </div>
       <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
         <p className="text-sm text-yellow-700">
           Warning: Locking the token supply is an irreversible action. Once locked, you will not be

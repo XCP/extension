@@ -51,6 +51,7 @@ export function DividendForm({
   const [quantityPerUnit, setQuantityPerUnit] = useState<string>(
     initialFormData?.quantity_per_unit || ""
   );
+  const amountRef = useRef<HTMLInputElement>(null);
 
   // Effects - composer error first
   useEffect(() => {
@@ -58,6 +59,15 @@ export function DividendForm({
       setError({ message: state.error });
     }
   }, [state.error]);
+
+  // Focus on amount input on mount
+  useEffect(() => {
+    // Small timeout to ensure the input is rendered
+    setTimeout(() => {
+      const amountInput = document.querySelector('input[name="quantity_per_unit"]') as HTMLInputElement;
+      amountInput?.focus();
+    }, 100);
+  }, []);
 
   // Fetch dividend asset balance when it changes
   useEffect(() => {

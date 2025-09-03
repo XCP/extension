@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer-form";
+import { Spinner } from "@/components/spinner";
+import { AssetHeader } from "@/components/headers/asset-header";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
-import { AssetNameInput } from "@/components/inputs/asset-name-input";
-import { NumberInput } from "@/components/inputs/number-input";
-import { TextAreaInput } from "@/components/inputs/textarea-input";
+import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { useComposer } from "@/contexts/composer-context";
+import { useAssetInfo } from "@/hooks/useAssetInfo";
+import { toBigNumber, fromBigNumber } from "@/utils/numeric";
 import { formatAmount } from "@/utils/format";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
@@ -30,67 +32,138 @@ export function IssueSupplyForm({
   initialParentAsset,
 }: IssueSupplyFormProps): ReactElement {
   // Context hooks
-  const { showHelpText } = useComposer();
+  const { showHelpText, activeAddress } = useComposer();
+  
+  // Data fetching hooks
+  const asset = initialParentAsset || initialFormData?.asset || "";
+  const { error: assetError, data: assetInfo, isLoading: assetLoading } = useAssetInfo(asset);
   
   // Form status
   const { pending } = useFormStatus();
   
   // Form state
-  const [assetName, setAssetName] = useState(initialFormData?.asset || (initialParentAsset ? `${initialParentAsset}.` : ""));
-  const [isAssetNameValid, setIsAssetNameValid] = useState(false);
   const [quantity, setQuantity] = useState(initialFormData?.quantity?.toString() || "");
-  const [description, setDescription] = useState(initialFormData?.description || "");
+  const [lock, setLock] = useState(initialFormData?.lock || false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Calculate maximum issuable amount
+  const calculateMaxAmount = (): string => {
+    if (!assetInfo) return "0";
+    
+    const isDivisible = assetInfo.divisible ?? false;
+    const currentSupply = toBigNumber(assetInfo.supply || "0");
+    
+    // Max int is 2^63 - 1 = 9223372036854775807
+    const maxInt = toBigNumber("9223372036854775807");
+    const maxIssuable = maxInt.minus(currentSupply);
+    
+    if (maxIssuable.isLessThanOrEqualTo(0)) {
+      return "0";
+    }
+    
+    // Convert to normalized amount (divide by 10^8 if divisible)
+    const normalizedMax = isDivisible 
+      ? fromBigNumber(maxIssuable, 8)
+      : maxIssuable.toString();
+    
+    return formatAmount({
+      value: normalizedMax,
+      maximumFractionDigits: isDivisible ? 8 : 0,
+      minimumFractionDigits: 0
+    });
+  };
+
+  // Process form action to convert quantity to integer
+  const processedFormAction = async (formData: FormData) => {
+    if (assetInfo) {
+      const isDivisible = assetInfo.divisible ?? false;
+      const quantityInt = isDivisible 
+        ? toBigNumber(quantity).multipliedBy(100000000).toFixed(0)
+        : toBigNumber(quantity).toFixed(0);
+      
+      formData.set('quantity', quantityInt);
+      formData.set('asset', asset);
+      formData.set('divisible', String(isDivisible));
+      formData.set('lock', String(lock));
+      formData.set('description', ''); // Empty description for issue supply
+    }
+    
+    formAction(formData);
+  };
+
+  // Early returns
+  if (assetLoading) {
+    return <Spinner message="Loading asset details..." />;
+  }
+
+  if (assetError || !assetInfo) {
+    return (
+      <div className="p-4 text-red-500">
+        Unable to load asset details. Please ensure the asset exists and you have the necessary
+        permissions.
+      </div>
+    );
+  }
+  
+  if (asset === "BTC") {
+    return <div className="p-4 text-red-500">Cannot issue additional supply of BTC</div>;
+  }
+
+  if (assetInfo.locked) {
+    return (
+      <div className="p-4">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+          <p className="text-yellow-800">
+            This asset's supply is locked and cannot be increased.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ComposerForm
-      formAction={formAction}
+      formAction={processedFormAction}
+      header={
+        <AssetHeader
+          assetInfo={{
+            asset: asset,
+            asset_longname: assetInfo?.asset_longname ?? null,
+            divisible: assetInfo?.divisible ?? false,
+            locked: assetInfo?.locked ?? false,
+            description: assetInfo?.description ?? "",
+            issuer: assetInfo?.issuer ?? "",
+            supply: assetInfo?.supply ?? "0",
+            supply_normalized: assetInfo?.supply_normalized || '0'
+          }}
+          className="mt-1 mb-5"
+        />
+      }
     >
-        <AssetNameInput
-          value={assetName}
-          onChange={setAssetName}
-          onValidationChange={setIsAssetNameValid}
-          label="Asset Name"
-          required={true}
-          placeholder={initialParentAsset ? `${initialParentAsset}.SUBASSET` : "Enter asset name"}
-          disabled={pending}
-          showHelpText={showHelpText}
-          helpText={initialParentAsset
-            ? `Enter a subasset name after "${initialParentAsset}." to create a subasset`
-            : "The name of the asset to issue."}
-        />
-        <NumberInput
+        <AmountWithMaxInput
+          asset={asset}
+          availableBalance={calculateMaxAmount()}
           value={quantity}
-          onChange={(val) => setQuantity(String(val))}
+          onChange={setQuantity}
+          sat_per_vbyte={1} // Not used for token issuance
+          setError={setError}
+          showHelpText={showHelpText}
+          sourceAddress={activeAddress}
+          maxAmount={calculateMaxAmount()}
           label="Amount"
-          required={true}
-          disabled={pending}
-          decimals={initialFormData?.divisible ?? true ? 8 : 0}
-          min={0}
-          showHelpText={showHelpText}
-          helpText={`The quantity of the asset to issue ${initialFormData?.divisible ?? true ? "(up to 8 decimal places)" : "(whole numbers only)"}.`}
+          name="quantity_display"
+          description={`Amount of ${asset} to issue (max: ${calculateMaxAmount()})`}
+          disableMaxButton={false}
+          autoFocus={true}
         />
-        <div className="grid grid-cols-2 gap-4">
-          <CheckboxInput
-            name="divisible"
-            label="Divisible"
-            defaultChecked={initialFormData?.divisible ?? true}
-            disabled={pending}
-          />
-          <CheckboxInput
-            name="lock"
-            label="Locked"
-            defaultChecked={initialFormData?.lock || false}
-            disabled={pending}
-          />
-        </div>
-        <TextAreaInput
-          value={description}
-          onChange={setDescription}
-          label="Description"
-          rows={2}
+        
+        <CheckboxInput
+          name="lock_checkbox"
+          label="Lock Supply"
+          checked={lock}
+          onChange={(e) => setLock(e.target.checked)}
           disabled={pending}
-          showHelpText={showHelpText}
-          helpText="A textual description for the asset."
+          helpText="Permanently lock the supply after this issuance (cannot be undone)"
         />
 
     </ComposerForm>
