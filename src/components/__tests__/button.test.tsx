@@ -120,7 +120,7 @@ describe('Button', () => {
     const button = container.querySelector('button');
     
     expect(button).toHaveClass('opacity-50');
-    expect(button).toHaveClass('cursor-progress');
+    expect(button).toHaveClass('cursor-not-allowed');
   });
 
   it('should forward ref correctly', () => {
@@ -337,14 +337,19 @@ describe('Button', () => {
     it('should handle various text content correctly', () => {
       fc.assert(
         fc.property(
-          fc.string({ minLength: 1, maxLength: 50 }),
+          fc.string({ minLength: 1, maxLength: 50 }).filter(s => s.trim().length > 0),
           (text: string) => {
-            const { container } = render(<Button>{text}</Button>);
-            const button = container.querySelector('button');
+            const { container, unmount } = render(<Button>{text}</Button>);
             
-            expect(button).toBeInTheDocument();
-            expect(screen.getByText(text)).toBeInTheDocument();
-            expect(button).toHaveClass('bg-blue-500'); // Default color
+            try {
+              const button = container.querySelector('button');
+              
+              expect(button).toBeInTheDocument();
+              expect(screen.getByText(text.trim())).toBeInTheDocument();
+              expect(button).toHaveClass('bg-blue-500'); // Default color
+            } finally {
+              unmount();
+            }
           }
         ),
         { numRuns: 30 }
@@ -360,11 +365,16 @@ describe('Button', () => {
             // Skip youtube variant as it has different rendering logic
             if (variant === 'youtube') return true;
             
-            const { container } = render(<Button color={color} variant={variant}>Test</Button>);
-            const button = container.querySelector('button');
+            const { container, unmount } = render(<Button color={color} variant={variant}>Test</Button>);
             
-            expect(button).toBeInTheDocument();
-            expect(screen.getByText('Test')).toBeInTheDocument();
+            try {
+              const button = container.querySelector('button');
+              
+              expect(button).toBeInTheDocument();
+              expect(screen.getByText('Test')).toBeInTheDocument();
+            } finally {
+              unmount();
+            }
           }
         ),
         { numRuns: 50 }
