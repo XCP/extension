@@ -238,23 +238,53 @@ describe('WalletManager', () => {
       );
     });
 
-    it('should throw error for locked wallet', async () => {
+    it('should throw error for locked wallet without cached preview', async () => {
       const wallet = createTestWallet();
       walletManager['wallets'] = [wallet];
       
+      // Mock no cached previews in storage
+      mocks.walletStorage.getAllEncryptedWallets.mockResolvedValue([]);
       mocks.sessionManager.getUnlockedSecret.mockResolvedValue(null);
       
       await expect(
         walletManager.getPreviewAddressForFormat(wallet.id, AddressFormat.P2WPKH)
-      ).rejects.toThrow('Wallet is locked');
+      ).rejects.toThrow('Wallet is locked and no cached preview available');
+    });
+    
+    it('should return cached preview for locked wallet', async () => {
+      const wallet = createTestWallet();
+      walletManager['wallets'] = [wallet];
+      
+      // Mock wallet with cached previews
+      mocks.walletStorage.getAllEncryptedWallets.mockResolvedValue([
+        {
+          id: wallet.id,
+          name: wallet.name,
+          type: wallet.type,
+          addressFormat: wallet.addressFormat,
+          encryptedSecret: 'encrypted',
+          previewAddress: 'bc1qtest',
+          addressPreviews: {
+            [AddressFormat.P2WPKH]: 'bc1qcached',
+          },
+          addressCount: 1,
+        }
+      ]);
+      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(null);
+      
+      const preview = await walletManager.getPreviewAddressForFormat(wallet.id, AddressFormat.P2WPKH);
+      
+      expect(preview).toBe('bc1qcached');
     });
 
     it('should throw error for non-existent wallet', async () => {
-      // For a non-existent wallet, sessionManager.getUnlockedSecret returns null
-      // which causes 'Wallet is locked' error to be thrown first
+      // Mock no wallets in storage
+      mocks.walletStorage.getAllEncryptedWallets.mockResolvedValue([]);
+      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(null);
+      
       await expect(
         walletManager.getPreviewAddressForFormat('non-existent', AddressFormat.P2WPKH)
-      ).rejects.toThrow('Wallet is locked');
+      ).rejects.toThrow('Wallet is locked and no cached preview available');
     });
   });
 

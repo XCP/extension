@@ -62,13 +62,17 @@ export class WalletManager {
         } else {
           addresses = [this.deriveAddressFromPrivateKey(unlockedSecret, rec.addressFormat)];
         }
-      } else if (rec.previewAddress) {
-        addresses = [{
-          name: 'Address 1',
-          path: '',
-          address: rec.previewAddress,
-          pubKey: '',
-        }];
+      } else {
+        // Try to get preview from addressPreviews first, then fall back to previewAddress
+        const preview = rec.addressPreviews?.[rec.addressFormat] || rec.previewAddress;
+        if (preview) {
+          addresses = [{
+            name: 'Address 1',
+            path: '',
+            address: preview,
+            pubKey: '',
+          }];
+        }
       }
       return {
         id: rec.id,
@@ -137,7 +141,10 @@ export class WalletManager {
       addressFormat,
       addressCount: 1,
       encryptedSecret: encryptedMnemonic,
-      previewAddress,
+      previewAddress,  // Keep for backward compatibility
+      addressPreviews: {
+        [addressFormat]: previewAddress,
+      },
     };
     await addEncryptedWallet(record);
     const wallet: Wallet = {
@@ -186,7 +193,10 @@ export class WalletManager {
       addressFormat,
       addressCount: 1,
       encryptedSecret: encryptedPrivateKey,
-      previewAddress,
+      previewAddress,  // Keep for backward compatibility
+      addressPreviews: {
+        [addressFormat]: previewAddress,
+      },
     };
     await addEncryptedWallet(record);
     const wallet: Wallet = {
@@ -234,6 +244,9 @@ export class WalletManager {
       
       // Set up session expiry alarm
       await this.scheduleSessionExpiry(timeout);
+      
+      // Cache address previews for all formats
+      await this.cacheAddressPreviews(walletId);
     } catch (err) {
       if (err instanceof DecryptionError) throw err;
       throw new Error('Invalid password or corrupted data.');
@@ -253,6 +266,58 @@ export class WalletManager {
     await chrome.alarms.create('session-expiry', {
       when: Date.now() + timeout
     });
+  }
+
+  /**
+   * Cache address previews for all address formats when wallet is unlocked
+   * This allows the settings page to show real addresses even when wallet is locked later
+   */
+  private async cacheAddressPreviews(walletId: string): Promise<void> {
+    try {
+      const wallet = this.getWalletById(walletId);
+      if (!wallet) return;
+      
+      const secret = await sessionManager.getUnlockedSecret(walletId);
+      if (!secret) return;
+      
+      const previews: { [key in AddressFormat]?: string } = {};
+      const formats = Object.values(AddressFormat) as AddressFormat[];
+      
+      for (const format of formats) {
+        try {
+          let address: string;
+          
+          if (wallet.type === 'mnemonic') {
+            // Generate first address for this format
+            address = getAddressFromMnemonic(
+              secret,
+              `${getDerivationPathForAddressFormat(format)}/0`,
+              format
+            );
+          } else {
+            // For private key wallets, generate address in the format
+            const { key: privateKeyHex, compressed } = JSON.parse(secret);
+            address = getAddressFromPrivateKey(privateKeyHex, format, compressed);
+          }
+          
+          previews[format] = address;
+        } catch (err) {
+          // Some formats might not be supported for certain wallet types
+          console.debug(`Could not generate ${format} preview for wallet ${walletId}:`, err);
+        }
+      }
+      
+      // Save previews directly to wallet record
+      const allRecords = await getAllEncryptedWallets();
+      const record = allRecords.find((r) => r.id === walletId);
+      if (record) {
+        record.addressPreviews = previews;
+        await updateEncryptedWallet(record);
+      }
+    } catch (error) {
+      console.error('Error caching address previews:', error);
+      // Don't throw - this is a non-critical operation
+    }
   }
 
   public async lockWallet(walletId: string): Promise<void> {
@@ -303,6 +368,7 @@ export class WalletManager {
     this.wallets.splice(idx, 1);
     sessionManager.clearUnlockedSecret(walletId);
     await removeEncryptedWallet(walletId);
+    // Address previews are removed automatically with the wallet record
     
     if (this.activeWalletId === walletId) {
       this.activeWalletId = null;
@@ -401,7 +467,13 @@ export class WalletManager {
     
     record.addressFormat = newType;
     record.addressCount = 1;
-    record.previewAddress = wallet.addresses[0].address;
+    record.previewAddress = wallet.addresses[0].address;  // Keep for backward compatibility
+    
+    // Update addressPreviews for the new format
+    if (!record.addressPreviews) {
+      record.addressPreviews = {};
+    }
+    record.addressPreviews[newType] = wallet.addresses[0].address;
     
     await updateEncryptedWallet(record);
 
@@ -473,24 +545,47 @@ export class WalletManager {
   }
 
   public async getPreviewAddressForFormat(walletId: string, addressFormat: AddressFormat): Promise<string> {
+    // First check if we have a cached preview
+    const allRecords = await getAllEncryptedWallets();
+    const record = allRecords.find((r) => r.id === walletId);
+    
+    if (record?.addressPreviews?.[addressFormat]) {
+      return record.addressPreviews[addressFormat];
+    }
+    
+    // If no cached preview, generate it (requires wallet to be unlocked)
     const secret = await sessionManager.getUnlockedSecret(walletId);
     if (!secret) {
-      throw new Error('Wallet is locked');
+      throw new Error('Wallet is locked and no cached preview available');
     }
+    
     const wallet = this.getWalletById(walletId);
     if (!wallet) {
       throw new Error('Wallet not found');
     }
+    
+    let address: string;
     if (wallet.type === 'mnemonic') {
-      return getAddressFromMnemonic(
+      address = getAddressFromMnemonic(
         secret,
         `${getDerivationPathForAddressFormat(addressFormat)}/0`,
         addressFormat
       );
     } else {
       const { key: privateKeyHex, compressed } = JSON.parse(secret);
-      return getAddressFromPrivateKey(privateKeyHex, addressFormat, compressed);
+      address = getAddressFromPrivateKey(privateKeyHex, addressFormat, compressed);
     }
+    
+    // Cache this preview for future use
+    if (record) {
+      if (!record.addressPreviews) {
+        record.addressPreviews = {};
+      }
+      record.addressPreviews[addressFormat] = address;
+      await updateEncryptedWallet(record);
+    }
+    
+    return address;
   }
 
   public async signTransaction(rawTxHex: string, sourceAddress: string): Promise<string> {
