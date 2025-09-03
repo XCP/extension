@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { FiChevronDown, FiCheck } from "react-icons/fi";
 import { Field, Label, Description, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
@@ -111,7 +111,14 @@ export function DispenserCloseForm({
               balance={{
                 asset: initialFormData?.asset || asset,
                 quantity_normalized: assetDetails.availableBalance,
-                asset_info: assetDetails.assetInfo || { divisible: true, asset_longname: null, description: "", issuer: "", locked: false },
+                asset_info: assetDetails.assetInfo ? {
+                  asset_longname: assetDetails.assetInfo.asset_longname,
+                  description: assetDetails.assetInfo.description || '',
+                  issuer: assetDetails.assetInfo.issuer || 'Unknown',
+                  divisible: assetDetails.assetInfo.divisible,
+                  locked: assetDetails.assetInfo.locked,
+                  supply: assetDetails.assetInfo.supply,
+                } : { divisible: true, asset_longname: null, description: "", issuer: "", locked: false },
               }}
               className="mt-1 mb-5"
             />

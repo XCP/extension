@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { AssetNameInput } from "@/components/inputs/asset-name-input";
@@ -110,8 +110,8 @@ export function DestroySupplyForm({
               asset: asset,
               asset_info: {
                 asset_longname: assetDetails.assetInfo?.asset_longname || null,
-                description: assetDetails.assetInfo?.description,
-                issuer: assetDetails.assetInfo?.issuer,
+                description: assetDetails.assetInfo?.description || '',
+                issuer: assetDetails.assetInfo?.issuer || 'Unknown',
                 divisible: assetDetails.assetInfo?.divisible ?? false,
                 locked: assetDetails.assetInfo?.locked ?? false,
                 supply: assetDetails.assetInfo?.supply

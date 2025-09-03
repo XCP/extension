@@ -3,10 +3,10 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHelpCircle } from "react-icons/fi";
-import { TbPinned, TbPinnedFilled } from "react-icons/tb";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { Button } from "@/components/button";
 import { SearchInput } from "@/components/inputs/search-input";
+import { PinnableAssetCard } from "@/components/cards/pinnable-asset-card";
 import { ErrorAlert } from "@/components/error-alert";
 import { Spinner } from "@/components/spinner";
 import { useHeader } from "@/contexts/header-context";
@@ -129,50 +129,26 @@ export default function PinnedAssetsSettings(): ReactElement {
 
 
   const SearchItemComponent = ({ asset }: { asset: { symbol: string } }): ReactElement => {
-    const imageUrl = `https://app.xcp.io/img/icon/${asset.symbol}`;
     const isPinned = pinnedAssets.includes(asset.symbol);
-    const [isAnimating, setIsAnimating] = useState(false);
 
-    const handlePinToggle = async (e: React.MouseEvent) => {
-      // Prevent event bubbling to maintain focus
-      e.preventDefault();
-      e.stopPropagation();
-      
-      setIsAnimating(true);
+    const handlePinToggle = async (symbol: string) => {
       if (isPinned) {
-        await handleRemoveAsset(asset.symbol);
+        await handleRemoveAsset(symbol);
       } else {
-        await handleAddAsset(asset.symbol);
+        await handleAddAsset(symbol);
       }
-      // Reset animation after a short delay
-      setTimeout(() => setIsAnimating(false), 300);
     };
 
     return (
-      <div className="flex items-center justify-between p-3 rounded-lg shadow-sm bg-white hover:bg-gray-50">
-        <div className="flex items-center flex-1">
-          <div className="w-8 h-8 flex-shrink-0">
-            <img src={imageUrl} alt={asset.symbol} className="w-full h-full object-cover" />
-          </div>
-          <div className="ml-2">
-            <div className="font-medium text-sm text-gray-900">{asset.symbol}</div>
-          </div>
-        </div>
-        <Button
-          color={isPinned ? "blue" : "gray"}
-          onClick={handlePinToggle}
-          className={`!p-1 transition-transform ${isAnimating ? 'scale-125' : ''}`}
-          aria-label={isPinned ? "Unpin asset" : "Pin asset"}
-        >
-          {isPinned ? <TbPinnedFilled className="text-white" /> : <TbPinned />}
-        </Button>
-      </div>
+      <PinnableAssetCard
+        symbol={asset.symbol}
+        isPinned={isPinned}
+        onPinToggle={handlePinToggle}
+      />
     );
   };
 
   const PinnedItemComponent = ({ symbol }: { symbol: string }): ReactElement => {
-    const imageUrl = `https://app.xcp.io/img/icon/${symbol}`;
-
     return (
       <Draggable key={symbol} draggableId={symbol} index={pinnedAssets.indexOf(symbol)}>
         {(provided, snapshot) => (
@@ -180,31 +156,14 @@ export default function PinnedAssetsSettings(): ReactElement {
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            className={`flex items-center justify-between p-3 bg-white rounded-lg shadow-sm hover:bg-gray-50 cursor-move ${
-              snapshot.isDragging ? "shadow-lg" : ""
-            }`}
+            className="cursor-move"
           >
-            <div className="flex items-center flex-1">
-              <div className="w-8 h-8 flex-shrink-0">
-                <img src={imageUrl} alt={symbol} className="w-full h-full object-cover" />
-              </div>
-              <div className="ml-2">
-                <div className="font-medium text-sm text-gray-900">{symbol}</div>
-              </div>
-            </div>
-            <Button
-              color="blue"
-              onClick={(e) => {
-                // Prevent event bubbling to maintain focus
-                e.preventDefault();
-                e.stopPropagation();
-                handleRemoveAsset(symbol);
-              }}
-              className="!p-1"
-              aria-label="Unpin asset"
-            >
-              <TbPinnedFilled className="text-white" />
-            </Button>
+            <PinnableAssetCard
+              symbol={symbol}
+              isPinned={true}
+              isDragging={snapshot.isDragging}
+              onPinToggle={handleRemoveAsset}
+            />
           </div>
         )}
       </Draggable>

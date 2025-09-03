@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { Spinner } from "@/components/spinner";
 import { AssetHeader } from "@/components/headers/asset-header";
 import { AssetSelectInput } from "@/components/inputs/asset-select-input";

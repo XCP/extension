@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Input, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
@@ -250,7 +250,14 @@ export function WeeklyBetForm({ formAction }: BetFormProps): ReactElement {
             balance={{
               asset: "XCP",
               quantity_normalized: assetDetails.availableBalance,
-              asset_info: assetDetails.assetInfo || undefined,
+              asset_info: assetDetails.assetInfo ? {
+                asset_longname: assetDetails.assetInfo.asset_longname,
+                description: assetDetails.assetInfo.description || '',
+                issuer: assetDetails.assetInfo.issuer || 'Unknown',
+                divisible: assetDetails.assetInfo.divisible,
+                locked: assetDetails.assetInfo.locked,
+                supply: assetDetails.assetInfo.supply,
+              } : undefined,
             }}
             className="mt-1 mb-5"
           />

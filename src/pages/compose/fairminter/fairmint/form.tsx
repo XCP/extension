@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback, startTransition } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { useFormStatus } from "react-dom";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { FairminterSelectInput, type Fairminter } from "@/components/inputs/fairminter-select-input";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
@@ -225,7 +225,14 @@ export function FairmintForm({
               balance={{
                 asset: currencyType,
                 quantity_normalized: currencyDetails.availableBalance || "0",
-                asset_info: currencyDetails.assetInfo || undefined,
+                asset_info: currencyDetails.assetInfo ? {
+                  asset_longname: currencyDetails.assetInfo.asset_longname,
+                  description: currencyDetails.assetInfo.description || '',
+                  issuer: currencyDetails.assetInfo.issuer || 'Unknown',
+                  divisible: currencyDetails.assetInfo.divisible,
+                  locked: currencyDetails.assetInfo.locked,
+                  supply: currencyDetails.assetInfo.supply,
+                } : undefined,
               }}
               className="mb-3" 
             />

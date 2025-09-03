@@ -7,7 +7,12 @@ import React, {
   type ReactElement,
   type ReactNode,
 } from "react";
-import { getKeychainSettings, updateKeychainSettings, type KeychainSettings } from "@/utils/storage";
+import { 
+  getKeychainSettings, 
+  updateKeychainSettings, 
+  DEFAULT_KEYCHAIN_SETTINGS,
+  type KeychainSettings 
+} from "@/utils/storage";
 
 /**
  * Context value for settings management.
@@ -18,24 +23,6 @@ interface SettingsContextValue {
   isLoading: boolean;
 }
 
-const defaultSettings: KeychainSettings = {
-  lastActiveWalletId: undefined,
-  lastActiveAddress: undefined,
-  autoLockTimeout: 5 * 60 * 1000,
-  connectedWebsites: [],
-  showHelpText: false,
-  analyticsAllowed: true,
-  allowUnconfirmedTxs: true,
-  autoLockTimer: "5m",
-  enableMPMA: false,
-  enableAdvancedBroadcasts: false,
-  enableAdvancedBetting: false,
-  transactionDryRun: false,
-  pinnedAssets: ["XCP", "PEPECASH", "BITCRYSTALS", "BITCORN", "CROPS", "MINTS"],
-  counterpartyApiBase: 'https://api.counterparty.io:4000',
-  defaultOrderExpiration: 1000
-};
-
 const SettingsContext = createContext<SettingsContextValue | undefined>(undefined);
 
 /**
@@ -45,7 +32,7 @@ const SettingsContext = createContext<SettingsContextValue | undefined>(undefine
  * @returns {ReactElement} Context provider
  */
 export function SettingsProvider({ children }: { children: ReactNode }): ReactElement {
-  const [settings, setSettings] = useState<KeychainSettings>(defaultSettings);
+  const [settings, setSettings] = useState<KeychainSettings>(DEFAULT_KEYCHAIN_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadSettings = useCallback(async () => {

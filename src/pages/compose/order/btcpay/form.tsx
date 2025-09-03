@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { HashInput } from "@/components/inputs/hash-input";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";

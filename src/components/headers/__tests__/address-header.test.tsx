@@ -62,7 +62,7 @@ describe('AddressHeader', () => {
   it('should render logo with correct attributes', () => {
     render(<AddressHeader address={mockAddress} />);
     
-    const logo = screen.getByAltText('Logo');
+    const logo = screen.getByAltText('XCP Wallet');
     expect(logo).toHaveAttribute('src', 'mocked-logo-path.png');
     expect(logo).toHaveClass('w-12');
     expect(logo).toHaveClass('h-12');
@@ -73,7 +73,7 @@ describe('AddressHeader', () => {
   it('should apply custom className', () => {
     render(<AddressHeader address={mockAddress} className="custom-class" />);
     
-    const container = screen.getByAltText('Logo').closest('.flex');
+    const container = screen.getByAltText('XCP Wallet').closest('.flex');
     expect(container).toHaveClass('custom-class');
   });
 
@@ -139,7 +139,7 @@ describe('AddressHeader', () => {
   it('should apply correct CSS classes', () => {
     render(<AddressHeader address={mockAddress} />);
     
-    const container = screen.getByAltText('Logo').closest('.flex');
+    const container = screen.getByAltText('XCP Wallet').closest('.flex');
     expect(container).toHaveClass('flex');
     expect(container).toHaveClass('items-center');
   });
@@ -168,14 +168,14 @@ describe('AddressHeader', () => {
     render(<AddressHeader address="" />);
     
     // Should still render without errors
-    expect(screen.getByAltText('Logo')).toBeInTheDocument();
+    expect(screen.getByAltText('XCP Wallet')).toBeInTheDocument();
   });
 
   it('should handle empty wallet name gracefully', () => {
     render(<AddressHeader address={mockAddress} walletName="" />);
     
     // Empty wallet name should not render the p element with wallet name
-    const container = screen.getByAltText('Logo').parentElement;
+    const container = screen.getByAltText('XCP Wallet').parentElement;
     const paragraphs = container?.querySelectorAll('p.text-sm.text-gray-600');
     expect(paragraphs?.length).toBe(0);
   });
@@ -230,7 +230,7 @@ describe('AddressHeader', () => {
     render(<AddressHeader address={mockAddress} />);
     
     // Should not render wallet name paragraph
-    const container = screen.getByAltText('Logo').parentElement;
+    const container = screen.getByAltText('XCP Wallet').parentElement;
     const paragraphs = container?.querySelectorAll('p');
     expect(paragraphs?.length).toBe(0);
   });
@@ -279,7 +279,7 @@ describe('AddressHeader', () => {
   it('should maintain layout structure', () => {
     render(<AddressHeader address={mockAddress} walletName="Test" />);
     
-    const logo = screen.getByAltText('Logo');
+    const logo = screen.getByAltText('XCP Wallet');
     const container = logo.parentElement;
     
     expect(container).toHaveClass('flex');

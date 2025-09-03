@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSpinner } from "react-icons/fa";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { AddressHeader } from "@/components/headers/address-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
 import { useComposer } from "@/contexts/composer-context";

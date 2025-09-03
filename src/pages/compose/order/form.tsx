@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { FaCog } from "react-icons/fa";
 import { OrderSettings } from "@/pages/settings/order-settings";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
@@ -141,7 +141,14 @@ export function OrderForm({
           balance={{
             asset: giveAsset,
             quantity_normalized: giveAssetDetails.availableBalance,
-            asset_info: giveAssetDetails.assetInfo || undefined,
+            asset_info: giveAssetDetails.assetInfo ? {
+              asset_longname: giveAssetDetails.assetInfo.asset_longname,
+              description: giveAssetDetails.assetInfo.description || '',
+              issuer: giveAssetDetails.assetInfo.issuer || 'Unknown',
+              divisible: giveAssetDetails.assetInfo.divisible,
+              locked: giveAssetDetails.assetInfo.locked,
+              supply: giveAssetDetails.assetInfo.supply,
+            } : undefined,
           }}
           className="mb-3"
         />

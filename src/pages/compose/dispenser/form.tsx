@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, memo, useCallback } from "react";
 import { useFormStatus } from "react-dom";
 import axios from "axios";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
@@ -183,7 +183,14 @@ export const DispenserForm = memo(function DispenserForm({
             balance={{
               asset: asset,
               quantity_normalized: availableBalance,
-              asset_info: assetDetails.assetInfo || {
+              asset_info: assetDetails.assetInfo ? {
+                asset_longname: assetDetails.assetInfo.asset_longname,
+                description: assetDetails.assetInfo.description || '',
+                issuer: assetDetails.assetInfo.issuer || 'Unknown',
+                divisible: assetDetails.assetInfo.divisible,
+                locked: assetDetails.assetInfo.locked,
+                supply: assetDetails.assetInfo.supply,
+              } : {
                 asset_longname: null,
                 description: "",
                 issuer: "",

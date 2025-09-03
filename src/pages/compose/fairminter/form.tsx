@@ -17,7 +17,7 @@ import {
   DisclosureButton,
   DisclosurePanel,
 } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { BlockHeightInput } from "@/components/inputs/block-height-input";
 import { SettingSwitch } from "@/components/inputs/setting-switch";
@@ -176,7 +176,8 @@ export function FairminterForm({
                 issuer: assetInfo.issuer,
                 divisible: assetInfo.divisible ?? true,
                 locked: assetInfo.locked ?? false,
-                supply: assetInfo.supply
+                supply: assetInfo.supply,
+                supply_normalized: assetInfo.supply_normalized || '0'
               }}
               className="mt-1 mb-5" 
             />

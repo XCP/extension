@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description } from "@headlessui/react";
 import { TextAreaInput } from "@/components/inputs/textarea-input";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { AssetNameInput } from "@/components/inputs/asset-name-input";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
@@ -122,7 +122,7 @@ export function IssuanceForm({
 
   return (
     <ComposeForm
-      formAction={async formData => {
+      formAction={async (formData: FormData) => {
         // If inscribing, convert file to base64 and set as description
         if (inscribeEnabled) {
           if (selectedFile) {
@@ -155,7 +155,8 @@ export function IssuanceForm({
                   issuer: parentAssetDetails.assetInfo.issuer,
                   divisible: parentAssetDetails.assetInfo.divisible ?? false,
                   locked: parentAssetDetails.assetInfo.locked ?? false,
-                  supply: parentAssetDetails.assetInfo.supply
+                  supply: parentAssetDetails.assetInfo.supply,
+                  supply_normalized: parentAssetDetails.assetInfo.supply_normalized || '0'
                 }}
                 className="mt-1 mb-5"
               />

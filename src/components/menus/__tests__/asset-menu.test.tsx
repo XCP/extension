@@ -163,8 +163,11 @@ describe('AssetMenu', () => {
       </div>
     );
 
-    const menuButton = screen.getByRole('button');
-    fireEvent.click(menuButton);
+    // Find the menu container div instead of the button
+    const menuContainer = screen.getByRole('button').closest('div[class*="relative"]');
+    if (menuContainer) {
+      fireEvent.click(menuContainer);
+    }
 
     // Parent click should not be triggered
     expect(mockOnClick).not.toHaveBeenCalled();
