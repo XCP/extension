@@ -20,6 +20,7 @@ export async function consolidateBareMultisig(
   destinationAddress?: string,
   options?: {
     maxInputsPerTx?: number;  // Limit inputs per transaction for safety (default: 420)
+    skipSpentCheck?: boolean; // Skip validation of spent UTXOs (faster but may fail at broadcast)
   }
 ): Promise<string> {
   const targetAddress = destinationAddress || sourceAddress;
@@ -34,10 +35,26 @@ export async function consolidateBareMultisig(
   const publicKeyUncompressed: Uint8Array = getPublicKey(privateKeyBytes, false);
   const publicKeyUncompressedHex = bytesToHex(publicKeyUncompressed);
 
-  const utxos = await fetchBareMultisigUTXOs(sourceAddress);
+  let utxos = await fetchBareMultisigUTXOs(sourceAddress);
   if (utxos.length === 0) throw new Error('No bare multisig UTXOs found');
   
   console.log(`Found ${utxos.length} potential bare multisig UTXOs to consolidate`);
+  
+  // Filter out already-spent UTXOs to avoid broadcast failures (unless skipped)
+  if (!options?.skipSpentCheck) {
+    const unspentUTXOs = await filterUnspentUTXOs(utxos);
+    if (unspentUTXOs.length === 0) {
+      throw new Error('All UTXOs have already been spent');
+    }
+    
+    if (unspentUTXOs.length < utxos.length) {
+      console.log(`Using ${unspentUTXOs.length} unspent UTXOs out of ${utxos.length} total`);
+    }
+    
+    utxos = unspentUTXOs;
+  } else {
+    console.log('Skipping spent UTXO validation (may fail at broadcast if UTXOs are spent)');
+  }
 
   // Try to build transaction with all valid UTXOs, skipping problematic ones
   const validInputs: Array<{ 
@@ -403,6 +420,70 @@ async function fetchBareMultisigUTXOs(address: string): Promise<UTXO[]> {
     scriptPubKeyType: utxo.scriptPubKeyType,
     requiredSignatures: utxo.required_signatures || 1,
   }));
+}
+
+/**
+ * Check if a UTXO is still unspent by querying the blockchain.
+ * Returns true if unspent, false if spent or unknown.
+ */
+async function isUTXOUnspent(txid: string, vout: number): Promise<boolean> {
+  try {
+    // Try multiple endpoints for redundancy
+    const endpoints = [
+      `https://blockstream.info/api/tx/${txid}/outspend/${vout}`,
+      `https://mempool.space/api/tx/${txid}/outspend/${vout}`
+    ];
+    
+    for (const endpoint of endpoints) {
+      try {
+        const response = await quickApiClient.get(endpoint);
+        // If the UTXO is spent, the response will have a 'spent' field set to true
+        // or will have 'txid' field indicating the spending transaction
+        if (response.data) {
+          const isSpent = response.data.spent === true || response.data.txid !== undefined;
+          if (isSpent) {
+            console.log(`UTXO ${txid}:${vout} is already spent`);
+            return false;
+          }
+          return true;
+        }
+      } catch (error) {
+        // Try next endpoint
+        continue;
+      }
+    }
+    
+    // If we can't determine status, assume it's valid (will fail at broadcast if wrong)
+    console.warn(`Could not verify UTXO status for ${txid}:${vout}, assuming unspent`);
+    return true;
+  } catch (error) {
+    console.warn(`Error checking UTXO ${txid}:${vout}:`, error);
+    return true; // Assume valid if we can't check
+  }
+}
+
+/**
+ * Filter out already-spent UTXOs from a list.
+ * Checks each UTXO against the blockchain to verify it's still unspent.
+ */
+async function filterUnspentUTXOs(utxos: UTXO[]): Promise<UTXO[]> {
+  console.log(`Validating ${utxos.length} UTXOs for spent status...`);
+  
+  // Check UTXOs in parallel for speed
+  const validationPromises = utxos.map(async (utxo) => {
+    const isUnspent = await isUTXOUnspent(utxo.txid, utxo.vout);
+    return isUnspent ? utxo : null;
+  });
+  
+  const results = await Promise.all(validationPromises);
+  const unspentUTXOs = results.filter((u): u is UTXO => u !== null);
+  
+  const spentCount = utxos.length - unspentUTXOs.length;
+  if (spentCount > 0) {
+    console.log(`Filtered out ${spentCount} already-spent UTXOs`);
+  }
+  
+  return unspentUTXOs;
 }
 
 /**
