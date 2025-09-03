@@ -17,6 +17,9 @@ export async function consolidateBareMultisig(
   sourceAddress: string,
   feeRateSatPerVByte: number,
   destinationAddress?: string,
+  options?: {
+    maxInputsPerTx?: number;  // Limit inputs per transaction for safety (default: 420)
+  }
 ): Promise<string> {
   const targetAddress = destinationAddress || sourceAddress;
 
@@ -32,95 +35,176 @@ export async function consolidateBareMultisig(
 
   const utxos = await fetchBareMultisigUTXOs(sourceAddress);
   if (utxos.length === 0) throw new Error('No bare multisig UTXOs found');
+  
+  console.log(`Found ${utxos.length} potential bare multisig UTXOs to consolidate`);
 
-  const tx = new Transaction({ disableScriptCheck: true });
+  // Try to build transaction with all valid UTXOs, skipping problematic ones
+  const validInputs: Array<{ 
+    utxo: UTXO; 
+    scriptPubKey: Uint8Array; 
+    prevTxHex: string; 
+    amountSats: bigint;
+    needsUncompressed: boolean;
+  }> = [];
+  const skippedUtxos: Array<{ utxo: UTXO; reason: string }> = [];
   const prevTxCache = new Map<string, string>();
 
-  let totalInputAmount = 0n;
+  // First pass: validate and collect UTXOs
   for (const utxo of utxos) {
-    const amountSats = BigInt(toSatoshis(utxo.amount));
+    try {
+      const amountSats = BigInt(toSatoshis(utxo.amount));
 
-    let prevTxHex = prevTxCache.get(utxo.txid);
-    if (!prevTxHex) {
-      const fetchedHex = await fetchPreviousRawTransaction(utxo.txid);
-      if (!fetchedHex) {
-        console.warn(`Skipping UTXO ${utxo.txid}:${utxo.vout}, no prevTx`);
+      // Fetch previous transaction
+      let prevTxHex = prevTxCache.get(utxo.txid);
+      if (!prevTxHex) {
+        const fetchedHex = await fetchPreviousRawTransaction(utxo.txid);
+        if (!fetchedHex) {
+          skippedUtxos.push({ utxo, reason: 'Could not fetch previous transaction' });
+          continue;
+        }
+        prevTxHex = fetchedHex;
+        prevTxCache.set(utxo.txid, prevTxHex);
+      }
+
+      // Decode and validate script
+      const scriptPubKey = hexToBytes(utxo.scriptPubKeyHex);
+      let decoded;
+      try {
+        decoded = OutScript.decode(scriptPubKey);
+      } catch (e) {
+        skippedUtxos.push({ utxo, reason: `Failed to decode script: ${e}` });
         continue;
       }
-      prevTxHex = fetchedHex;
-      prevTxCache.set(utxo.txid, prevTxHex);
+
+      if (decoded.type !== 'ms') {
+        skippedUtxos.push({ utxo, reason: 'Not a multisig script' });
+        continue;
+      }
+
+      const pubkeys = decoded.pubkeys;
+      const hasCompressed = pubkeys.some((pk: Uint8Array) => bytesToHex(pk) === publicKeyCompressedHex);
+      const hasUncompressed = pubkeys.some((pk: Uint8Array) => bytesToHex(pk) === publicKeyUncompressedHex);
+      
+      if (!hasCompressed && !hasUncompressed) {
+        skippedUtxos.push({ utxo, reason: 'Does not contain our public key' });
+        continue;
+      }
+
+      // Log details for debugging
+      console.log(`UTXO ${utxo.txid}:${utxo.vout} - Amount: ${utxo.amount} BTC, Has compressed: ${hasCompressed}, Has uncompressed: ${hasUncompressed}`);
+      
+      validInputs.push({ utxo, scriptPubKey, prevTxHex, amountSats, needsUncompressed: hasUncompressed });
+    } catch (error) {
+      console.error(`Error processing UTXO ${utxo.txid}:${utxo.vout}:`, error);
+      skippedUtxos.push({ utxo, reason: `Processing error: ${error}` });
     }
-
-    const scriptPubKey = hexToBytes(utxo.scriptPubKeyHex);
-    const decoded = OutScript.decode(scriptPubKey);
-    if (decoded.type !== 'ms') continue; // Not a multisig script.
-    const pubkeys = decoded.pubkeys;
-    // Accept UTXOs if the multisig redeem script contains either our compressed or uncompressed pubkey.
-    const hasOurKey = pubkeys.some((pk: Uint8Array) =>
-      bytesToHex(pk) === publicKeyCompressedHex ||
-      bytesToHex(pk) === publicKeyUncompressedHex
-    );
-    if (!hasOurKey) continue;
-
-    // Add the input.
-    tx.addInput({
-      txid: hexToBytes(utxo.txid),
-      index: utxo.vout,
-      sequence: 0xfffffffd, // Enable RBF.
-      nonWitnessUtxo: hexToBytes(prevTxHex),
-      // For bare multisig, the redeemScript is identical to the scriptPubKey.
-      redeemScript: scriptPubKey,
-    });
-    totalInputAmount += amountSats;
   }
 
-  if (tx.inputsLength === 0) throw new Error('No suitable UTXOs after filtering.');
-
-  const feeRate = BigInt(feeRateSatPerVByte);
-  const estimatedSize = BigInt(estimateTransactionSize(tx.inputsLength, 1));
-  const fee = estimatedSize * feeRate;
-  const outputAmount = totalInputAmount - fee;
-  if (outputAmount <= 0n) throw new Error('Insufficient funds');
-
-  tx.addOutputAddress(targetAddress, outputAmount);
-
-  // Collect redeem scripts for each input (for bare multisig, the redeemScript is the scriptPubKey)
-  const prevOutputScripts: Uint8Array[] = [];
-  for (let i = 0; i < tx.inputsLength; i++) {
-    const input = tx.getInput(i);
-    if (!input.redeemScript) {
-      throw new Error(`Missing redeemScript for input ${i}`);
-    }
-    prevOutputScripts.push(input.redeemScript);
+  if (validInputs.length === 0) {
+    console.error('All UTXOs were skipped:', skippedUtxos);
+    throw new Error('No suitable UTXOs after filtering.');
   }
 
-  // Check function to determine if an input needs uncompressed signing
-  const checkForUncompressed = (idx: number): boolean => {
-    const input = tx.getInput(idx);
-    if (!input.redeemScript) return false;
-    
-    const decoded = OutScript.decode(input.redeemScript);
-    if (decoded.type !== 'ms') return false;
-    
-    const pubkeysHex = decoded.pubkeys.map((pk: Uint8Array) => bytesToHex(pk));
-    return pubkeysHex.includes(bytesToHex(publicKeyUncompressed));
-  };
+  if (skippedUtxos.length > 0) {
+    console.warn(`Skipped ${skippedUtxos.length} UTXOs:`, skippedUtxos.map(s => `${s.utxo.txid}:${s.utxo.vout} - ${s.reason}`));
+  }
 
-  // Use hybrid signing from shared utility
-  hybridSignTransaction(
-    tx,
-    privateKeyBytes,
-    publicKeyCompressed,
-    publicKeyUncompressed,
-    prevOutputScripts,
-    checkForUncompressed
-  );
+  // Apply max inputs limit - default to 420 for safety (keeps tx under ~63KB)
+  // Bitcoin network limits: max standard tx is 100KB, but we want to stay well under that
+  // Each bare multisig input is ~110-150 bytes with signature
+  const maxInputs = options?.maxInputsPerTx ?? 420;
+  if (validInputs.length > maxInputs) {
+    console.log(`Limiting to ${maxInputs} inputs per transaction for safety (had ${validInputs.length})`);
+    console.log(`Remaining ${validInputs.length - maxInputs} UTXOs will need separate consolidation`);
+    validInputs.splice(maxInputs);
+  }
 
-  // Finalize the transaction (build final unlocking scripts).
-  tx.finalize();
+  // Now try to build and sign the transaction
+  // We'll attempt multiple times, removing problematic inputs if needed
+  let attemptInputs = [...validInputs];
+  let lastError: any = null;
 
-  const signedTx = tx.hex;
-  return signedTx;
+  while (attemptInputs.length > 0) {
+    try {
+      const tx = new Transaction({ disableScriptCheck: true });
+      let totalInputAmount = 0n;
+
+      // Add all inputs for this attempt
+      for (const { utxo, scriptPubKey, prevTxHex, amountSats } of attemptInputs) {
+        tx.addInput({
+          txid: hexToBytes(utxo.txid),
+          index: utxo.vout,
+          sequence: 0xfffffffd, // Enable RBF.
+          nonWitnessUtxo: hexToBytes(prevTxHex),
+          redeemScript: scriptPubKey, // For bare multisig, the redeemScript is identical to the scriptPubKey.
+        });
+        totalInputAmount += amountSats;
+      }
+
+      // Calculate fee and output
+      const feeRate = BigInt(feeRateSatPerVByte);
+      const estimatedSize = BigInt(estimateTransactionSize(tx.inputsLength, 1));
+      const fee = estimatedSize * feeRate;
+      const outputAmount = totalInputAmount - fee;
+      
+      if (outputAmount <= 0n) {
+        console.warn(`Insufficient funds after fees. Total: ${totalInputAmount}, Fee: ${fee}`);
+        // Try with fewer inputs if we have more than one
+        if (attemptInputs.length > 1) {
+          attemptInputs.pop(); // Remove the last input and try again
+          continue;
+        }
+        throw new Error('Insufficient funds');
+      }
+
+      tx.addOutputAddress(targetAddress, outputAmount);
+
+      // Check function to determine if an input needs uncompressed signing
+      const checkForUncompressed = (idx: number): boolean => {
+        if (idx >= attemptInputs.length) return false;
+        return attemptInputs[idx].needsUncompressed;
+      };
+
+      // Use the improved hybrid signing utility
+      // We don't need to pass prevOutputScripts since redeemScript is already set on inputs
+      hybridSignTransaction(
+        tx,
+        privateKeyBytes,
+        publicKeyCompressed,
+        publicKeyUncompressed,
+        undefined, // Will use redeemScript from inputs
+        checkForUncompressed
+      );
+
+      // Try to finalize
+      tx.finalize();
+      
+      const signedTx = tx.hex;
+      console.log(`Successfully consolidated ${attemptInputs.length} UTXOs out of ${utxos.length} total`);
+      return signedTx;
+      
+    } catch (error) {
+      lastError = error;
+      console.error(`Attempt failed with ${attemptInputs.length} inputs:`, error);
+      
+      // If finalization failed, try removing the last input
+      // The library throws "Reader(): Output/multisig: wrong pubkey" when it can't match signatures
+      if (attemptInputs.length > 1 && 
+          (String(error).includes('wrong pubkey') || 
+           String(error).includes('Output/multisig') ||
+           String(error).includes('finalize'))) {
+        const removed = attemptInputs.pop();
+        console.log(`Removing problematic input ${removed?.utxo.txid}:${removed?.utxo.vout} and retrying`);
+        continue;
+      }
+      
+      // Otherwise, give up
+      break;
+    }
+  }
+
+  // If we get here, all attempts failed
+  throw lastError || new Error('Failed to consolidate any UTXOs');
 }
 
 /* ───────── Helper Functions ───────── */

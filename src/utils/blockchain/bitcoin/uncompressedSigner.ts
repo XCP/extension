@@ -72,7 +72,7 @@ export function signInputWithUncompressedKey(
  * @param privateKey - The private key bytes
  * @param publicKeyCompressed - The compressed public key bytes
  * @param publicKeyUncompressed - The uncompressed public key bytes
- * @param prevOutputScripts - Array of previous output scripts for each input
+ * @param prevOutputScripts - Array of previous output scripts for each input (optional - will use redeemScript if not provided)
  * @param checkForUncompressed - Function to check if an input needs uncompressed signing
  */
 export function hybridSignTransaction(
@@ -93,6 +93,7 @@ export function hybridSignTransaction(
     }
   } catch (e) {
     // Standard signing failed, will try custom signing below
+    console.log('Standard signing failed (expected for uncompressed keys), will use custom signing');
   }
   
   // Check each input for uncompressed key requirements
@@ -109,9 +110,17 @@ export function hybridSignTransaction(
       continue;
     }
     
-    // We need the previous output script for this input
-    if (!prevOutputScripts || !prevOutputScripts[i]) {
-      console.warn(`No previous output script for input ${i}, skipping custom signing`);
+    // Get the script to use for signing
+    // For bare multisig, the redeemScript is the scriptPubKey itself
+    let scriptForSigning: Uint8Array | undefined;
+    
+    if (prevOutputScripts && prevOutputScripts[i]) {
+      scriptForSigning = prevOutputScripts[i];
+    } else if (input.redeemScript) {
+      // Fallback to redeemScript if no prevOutputScripts provided
+      scriptForSigning = input.redeemScript;
+    } else {
+      console.warn(`No script available for input ${i}, skipping custom signing`);
       continue;
     }
     
@@ -121,7 +130,7 @@ export function hybridSignTransaction(
       i,
       privateKey,
       publicKeyUncompressed,
-      prevOutputScripts[i],
+      scriptForSigning,
       SigHash.ALL
     );
   }
