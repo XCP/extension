@@ -66,10 +66,12 @@ describe('UnlockScreen', () => {
       expect(screen.getByRole('button', { name: 'Authorize' })).toBeInTheDocument();
     });
 
-    it('should display help text at the bottom', () => {
+    it('should display simple clean interface', () => {
       render(<UnlockScreen onUnlock={mockOnUnlock} />);
       
-      expect(screen.getByText(/Your password is never stored/)).toBeInTheDocument();
+      // Should have the clean white box without extra help text
+      const container = screen.getByRole('button', { name: 'Unlock' }).closest('.bg-white');
+      expect(container).toHaveClass('rounded-lg', 'shadow-md');
     });
   });
 
