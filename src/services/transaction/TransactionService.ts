@@ -528,7 +528,7 @@ export class TransactionService extends BaseService {
   }
 
   private generateCacheKey(type: string, params: any): string {
-    return `${type}_${JSON.stringify(params)}_${Date.now()}`;
+    return `${type}_${JSON.stringify(params)}`;
   }
 
   private getCachedComposition(key: string): TransactionComposition | null {
