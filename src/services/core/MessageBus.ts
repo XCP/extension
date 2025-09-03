@@ -128,30 +128,34 @@ export class MessageBus {
     data: MessageProtocol[K]['input'],
     target: MessageTarget
   ): Promise<void> {
+    // For popup target, we need to handle the fact that the UI can run in multiple contexts:
+    // - Popup window (chrome.extension.getViews({ type: 'popup' }))
+    // - Tab (chrome.extension.getViews({ type: 'tab' }))
+    // - Side panel (not detectable via getViews, opened via chrome.sidePanel API)
+    // 
+    // Since we can't reliably detect all contexts, we'll attempt to send and handle
+    // failures gracefully. This is the most robust approach.
+    
     try {
-      // For popup target, first check if popup is actually open
-      if (target === 'popup') {
-        try {
-          // Check if popup view exists
-          const views = chrome.extension?.getViews?.({ type: 'popup' }) || [];
-          if (views.length === 0) {
-            // Popup not open, silently skip
-            return;
-          }
-        } catch {
-          // If we can't check views, continue with send attempt
-        }
-      }
-      
       await MessageBus.send(message, data, target, { timeout: 5000 });
     } catch (error) {
-      // Only log if not a connection error (which is expected when target isn't available)
+      // Silently handle expected errors when target isn't available
+      // These are normal and expected when:
+      // - Popup is closed
+      // - Tab is closed
+      // - Sidepanel is closed
+      // - Service worker hasn't initialized the target yet
       const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Only log unexpected errors
       if (!errorMessage.includes('Could not establish connection') && 
           !errorMessage.includes('Message timeout') &&
-          !errorMessage.includes('fingerprint')) {
+          !errorMessage.includes('fingerprint') &&
+          !errorMessage.includes('receiving end does not exist')) {
         console.warn(`One-way message '${String(message)}' failed:`, error);
       }
+      
+      // Don't throw - one-way messages should fail silently
     }
   }
   
