@@ -1,32 +1,41 @@
 # Contexts Directory
 
-This directory contains React Context providers for global state management in the XCP Wallet extension.
+This directory contains React Context providers for state management in the XCP Wallet extension. The architecture includes **5 app-level contexts** and **1 component-level context** for optimal performance and state isolation.
 
-## Context Architecture
+## Context Architecture (Updated)
 
-### Provider Hierarchy
-The app uses a nested provider structure with specialized contexts:
+### Provider Hierarchy (6 Contexts Total)
+The app uses **5 app-level contexts** + **1 component-level context**:
+
 ```tsx
+// App-Level Contexts (5) - Globally provided via app-providers.tsx
 <AppProviders>
   <SettingsProvider>
     <WalletProvider>
       <PriceProvider>
         <LoadingProvider>
           <HeaderProvider>
-            <ComposerProvider>
-              {children}
-            </ComposerProvider>
+            {children} // ComposerProvider NOT here!
           </HeaderProvider>
         </LoadingProvider>
       </PriceProvider>
     </WalletProvider>
   </SettingsProvider>
 </AppProviders>
+
+// Component-Level Context (1) - Per-use instantiation
+<ComposerProvider composeApi={composeMethod}>
+  <ComposerInner />
+</ComposerProvider>
 ```
+
+**Key Architecture Update**: Composer context is **NOT app-wide** but instantiated per-component for state isolation.
 
 ## Context Files
 
-### Core Contexts
+### App-Level Contexts (5) - Globally Provided
+
+These contexts are provided globally via `app-providers.tsx` and available throughout the application:
 
 #### wallet-context.tsx
 **Purpose**: Manages wallet authentication, encryption, and active wallet/address state
@@ -54,19 +63,90 @@ The app uses a nested provider structure with specialized contexts:
 - Persistent storage sync
 - Migration handling for schema changes
 
-#### composer-context.tsx
-**Purpose**: Orchestrates transaction composition workflow
-**Key State**:
-- `composerState`: Current transaction being composed
-- `formData`: Transaction parameters
-- `signedTransaction`: Signed tx ready for broadcast
-**Workflow**:
-1. `setFormData()`: Set transaction parameters
-2. `composeTransaction()`: Build unsigned transaction
-3. `signTransaction()`: Sign with wallet
-4. `broadcastTransaction()`: Submit to network
+#### composer-context.tsx (Component-Level Context)
+**Purpose**: Orchestrates transaction composition workflow with isolated state per-use
+**Architecture**: Per-component instantiation, not globally provided
 
-### Support Contexts
+**Key State**:
+```typescript
+interface ComposerState<T> {
+  step: "form" | "review" | "success";
+  formData: T | null;
+  apiResponse: ApiResponse | null;
+  error: string | null;
+  isComposing: boolean;
+  isSigning: boolean;
+  showAuthModal: boolean;
+}
+```
+
+**Advanced Features**:
+- **State Isolation**: Each compose workflow has independent state
+- **Auto-Reset Logic**: Clears state on address/wallet/auth changes
+- **Change Detection**: Uses refs to efficiently track state changes
+- **Multi-Step Workflow**: form → review → success pattern
+- **Background Integration**: webext-bridge for wallet operations
+- **Help Text Management**: Local help state with global settings fallback
+
+**Usage Pattern**:
+```typescript
+// Each form gets its own ComposerProvider instance
+export function SendForm() {
+  return (
+    <ComposerProvider<SendFormData> 
+      composeApi={composeSend} 
+      initialTitle="Send Transaction"
+    >
+      <SendFormInner />
+      <ReviewScreen />
+      <SuccessScreen />
+    </ComposerProvider>
+  );
+}
+```
+
+### Component-Level Context (1) - Per-Use Instantiation
+
+#### composer-context.tsx (Detailed Analysis)
+**Purpose**: Manages isolated transaction composition workflows
+**Instantiation**: Per-component, not global
+**State Management**: Complex state with automatic cleanup
+
+```typescript
+// Complex state management with refs for change detection
+const previousAddressRef = useRef<string | undefined>(activeAddress?.address);
+const previousWalletRef = useRef<string | undefined>(activeWallet?.id);
+const previousAuthStateRef = useRef<string>(authState);
+const currentComposeTypeRef = useRef<string | undefined>(undefined);
+```
+
+**Auto-Reset Logic**:
+```typescript
+// Resets state when critical dependencies change
+useEffect(() => {
+  if (activeAddress?.address !== previousAddressRef.current ||
+      activeWallet?.id !== previousWalletRef.current ||
+      authState !== previousAuthStateRef.current) {
+    // Reset composer state
+    setState(initialState);
+  }
+}, [activeAddress, activeWallet, authState]);
+```
+
+**Form-to-Transaction Workflow**:
+1. **Form Step**: Collect user input, validate, normalize data
+2. **Review Step**: Display composed transaction for approval  
+3. **Success Step**: Show broadcast result and navigation options
+
+**Background Service Integration**:
+```typescript
+// Uses wallet service for signing and broadcasting
+const { signTransaction, broadcastTransaction } = useWallet();
+const signedTx = await signTransaction(rawTx, activeAddress.address);
+const result = await broadcastTransaction(signedTx);
+```
+
+### Additional Support Contexts
 
 #### price-context.tsx
 **Purpose**: Provides Bitcoin price data
@@ -98,11 +178,13 @@ The app uses a nested provider structure with specialized contexts:
 - Custom actions per page
 
 #### app-providers.tsx
-**Purpose**: Combines all providers in correct order
+**Purpose**: Combines app-level providers in correct dependency order
 **Features**:
-- Single import for all contexts
-- Ensures proper dependency order
-- Handles provider composition
+- Single import for 5 app-level contexts
+- Ensures proper dependency order (Settings → Wallet → others)
+- **Does NOT include ComposerProvider** (component-level context)
+- Enhanced error boundaries and React 19 patterns
+- Handles provider composition with performance optimizations
 
 ## Context Patterns
 
@@ -249,21 +331,27 @@ export function useAuthenticatedContext() {
 4. **Don't use contexts for local state** - Keep it component-local
 5. **Don't ignore TypeScript** - Fully type context values
 
-## Context Dependencies
+## Context Dependencies (Updated)
 
 ```typescript
-// Wallet depends on Settings
-// Composer depends on Wallet
-// Price is independent
-// Loading is independent
-// Header is independent
+// App-Level Context Dependencies (5 contexts):
+// Settings -> Wallet -> Price, Loading, Header (parallel)
 
 // Dependency graph:
-// Settings -> Wallet -> Composer
-//          -> Price
-//          -> Loading
-//          -> Header
+Settings (foundational)
+    ↓
+Wallet (auth & wallet state)
+    ↓
+Price, Loading, Header (parallel, independent)
+
+// Component-Level Context (1 context):
+// Composer depends on Wallet context but is instantiated per-use
+ComposerProvider (per-component)
+    ↓ 
+    uses: Wallet, Settings, Loading, Header (via hooks)
 ```
+
+**Key Insight**: Composer context is **not in the dependency chain** but **consumes** app-level contexts through hooks when instantiated.
 
 ## Debugging Tips
 
