@@ -11,21 +11,83 @@ import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/session
 import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, createJsonRpcError } from '@/utils/constants/errorCodes';
 
 export default defineBackground(() => {
-  // Global error handler for any unchecked chrome.runtime.lastError
-  // Many Chrome APIs can trigger this error when contexts are unavailable
-  // This is a catch-all to prevent console warnings
-  const handleChromeError = () => {
-    // Just accessing chrome.runtime.lastError marks it as "checked"
-    if (chrome.runtime?.lastError) {
-      // Most of these are expected (e.g., tab closed, popup closed, etc.)
-      // We handle them gracefully throughout the codebase
-      void chrome.runtime.lastError;
-    }
+  // Comprehensive Chrome API wrapper to ensure runtime.lastError is always checked
+  // This prevents "Unchecked runtime.lastError" warnings from any source (including WXT)
+  
+  // Helper to wrap callbacks and always check lastError
+  const wrapCallback = (callback?: Function) => {
+    return (...args: any[]) => {
+      // Always check lastError first (this marks it as "checked")
+      const error = chrome.runtime?.lastError;
+      if (error) {
+        // Error occurred but was checked - this prevents the warning
+        // Most of these are expected (tab closed, no content script, etc.)
+      }
+      // Call original callback if provided
+      if (callback) {
+        return callback(...args);
+      }
+    };
   };
   
-  // Check periodically for any stragglers
-  // Some async operations might set lastError outside our control
-  setInterval(handleChromeError, 500);
+  // Wrap chrome.tabs.sendMessage to always check lastError
+  if (chrome.tabs?.sendMessage) {
+    const original = chrome.tabs.sendMessage.bind(chrome.tabs);
+    (chrome.tabs as any).sendMessage = function(tabId: number, message: any, options?: any, callback?: any) {
+      // Handle different argument patterns
+      if (typeof options === 'function') {
+        // No options provided, third arg is callback
+        return original(tabId, message, wrapCallback(options));
+      } else if (typeof callback === 'function') {
+        // Options provided, fourth arg is callback
+        return original(tabId, message, options, wrapCallback(callback));
+      } else {
+        // No callback provided, add one to check errors
+        return original(tabId, message, options, wrapCallback());
+      }
+    };
+  }
+  
+  // Wrap chrome.tabs.query to always check lastError
+  if (chrome.tabs?.query) {
+    const original = chrome.tabs.query.bind(chrome.tabs);
+    chrome.tabs.query = function(queryInfo: any, callback?: any) {
+      return original(queryInfo, wrapCallback(callback));
+    } as any;
+  }
+  
+  // Wrap chrome.runtime.sendMessage to always check lastError  
+  if (chrome.runtime?.sendMessage) {
+    const original = chrome.runtime.sendMessage.bind(chrome.runtime);
+    (chrome.runtime as any).sendMessage = function(extensionId?: any, message?: any, options?: any, callback?: any) {
+      // Handle different argument patterns
+      if (typeof extensionId === 'object' && arguments.length <= 2) {
+        // First arg is message (no extensionId)
+        const msg = extensionId;
+        const cb = message;
+        return original(msg, wrapCallback(cb));
+      } else if (typeof message === 'function') {
+        // extensionId and message provided, third arg is callback
+        return original(extensionId, wrapCallback(message));
+      } else if (typeof options === 'function') {
+        // extensionId, message provided, third arg is callback
+        return original(extensionId, message, wrapCallback(options));
+      } else if (typeof callback === 'function') {
+        // All args provided
+        return original(extensionId, message, options, wrapCallback(callback));
+      } else {
+        // No callback, add one
+        return original(extensionId, message, options, wrapCallback());
+      }
+    };
+  }
+  
+  // Also periodically check for any stragglers from other APIs
+  setInterval(() => {
+    if (chrome.runtime?.lastError) {
+      void chrome.runtime.lastError;
+    }
+  }, 100);
   
   // Initialize service registry
   const serviceRegistry = ServiceRegistry.getInstance();
