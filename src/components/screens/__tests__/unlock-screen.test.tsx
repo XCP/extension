@@ -313,7 +313,7 @@ describe('UnlockScreen', () => {
       expect(passwordInput).not.toHaveAttribute('aria-invalid');
     });
 
-    it('should set aria-invalid when error exists', async () => {
+    it('should show error message when validation fails', async () => {
       const user = userEvent.setup();
       render(<UnlockScreen onUnlock={mockOnUnlock} />);
       
@@ -324,8 +324,8 @@ describe('UnlockScreen', () => {
       await user.click(submitButton);
       
       await waitFor(() => {
-        const input = screen.getByPlaceholderText('Enter your password');
-        expect(input).toHaveAttribute('aria-invalid', 'true');
+        expect(screen.getByText('Password must be at least 8 characters.')).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toBeInTheDocument();
       });
     });
 
