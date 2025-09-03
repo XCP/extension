@@ -6,10 +6,10 @@ import { FaExternalLinkAlt, FaChevronLeft, FaChevronRight } from "react-icons/fa
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { Spinner } from "@/components/spinner";
+import { TransactionCard } from "@/components/cards/transaction-card";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchTransactions, type TransactionResponse, type Transaction } from "@/utils/blockchain/counterparty";
-import { formatDate, formatTimeAgo } from "@/utils/format";
 import type { ReactElement } from "react";
 
 /**
@@ -171,46 +171,13 @@ export default function AddressHistory(): ReactElement {
               </div>
             )}
             {transactions.map((tx) => (
-              <div
+              <TransactionCard
                 key={tx.tx_hash}
+                transaction={tx}
                 onClick={() =>
                   navigate(`${CONSTANTS.PATHS.TRANSACTION}/${tx.tx_hash}`, { state: { page: currentPage } })
                 }
-                className={`block hover:shadow-lg transition-shadow cursor-pointer ${
-                  tx.confirmed === false ? "opacity-75" : ""
-                }`}
-                role="button"
-                tabIndex={0}
-                aria-label={`View transaction ${tx.tx_hash}`}
-              >
-                <div className={`rounded-lg shadow p-4 space-y-2 ${
-                  tx.confirmed === false 
-                    ? "bg-yellow-50 border-2 border-yellow-200" 
-                    : "bg-white"
-                }`}>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <div className="text-sm font-medium text-gray-900">
-                        {tx.unpacked_data.message_type.toUpperCase().replace(/_/g, " ")}
-                      </div>
-                      {tx.confirmed === false && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                          Pending
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-500" title={tx.confirmed === false ? "Unconfirmed" : formatDate(tx.block_time)}>
-                      {tx.confirmed === false ? "Mempool" : formatTimeAgo(tx.block_time)}
-                    </div>
-                  </div>
-                  <div className="text-xs text-gray-400 break-all flex items-center gap-1">
-                    TX: {tx.tx_hash}
-                    {tx.confirmed === false && (
-                      <span className="text-yellow-600 ml-2">(0 confirmations)</span>
-                    )}
-                  </div>
-                </div>
-              </div>
+              />
             ))}
           </div>
         ) : (

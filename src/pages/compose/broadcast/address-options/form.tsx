@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { AddressHeader } from "@/components/headers/address-header";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { useComposer } from "@/contexts/composer-context";

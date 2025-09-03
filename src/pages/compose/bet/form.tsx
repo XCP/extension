@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { FiCheck } from "react-icons/fi";
 import { Field, Label, Description, Input, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
 import { useComposer } from "@/contexts/composer-context";
@@ -123,7 +123,14 @@ export function BetForm({
             balance={{
               asset: "XCP",
               quantity_normalized: assetDetails.availableBalance,
-              asset_info: assetDetails.assetInfo || undefined,
+              asset_info: assetDetails.assetInfo ? {
+                asset_longname: assetDetails.assetInfo.asset_longname,
+                description: assetDetails.assetInfo.description || '',
+                issuer: assetDetails.assetInfo.issuer || 'Unknown',
+                divisible: assetDetails.assetInfo.divisible,
+                locked: assetDetails.assetInfo.locked,
+                supply: assetDetails.assetInfo.supply,
+              } : undefined,
             }}
             className="mt-1 mb-5"
           />

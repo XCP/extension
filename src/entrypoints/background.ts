@@ -1,13 +1,165 @@
 import { registerWalletService, getWalletService } from '@/services/walletService';
 import { registerProviderService, getProviderService } from '@/services/providerService';
+import { registerBlockchainService, getBlockchainService } from '@/services/blockchain';
+import { registerConnectionService } from '@/services/connection';
+import { registerApprovalService } from '@/services/approval';
+import { registerTransactionService } from '@/services/transaction';
 import { eventEmitterService } from '@/services/eventEmitterService';
-import { analyzePhishingRisk, shouldBlockConnection } from '@/utils/security/phishingDetection';
-import { requestSigner } from '@/utils/security/requestSigning';
+import { ServiceRegistry } from '@/services/core/ServiceRegistry';
+import { MessageBus, type ProviderMessage, type ApprovalMessage, type EventMessage } from '@/services/core/MessageBus';
 import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/sessionManager';
+import { shouldBlockConnection, getPhishingWarning } from '@/utils/security/phishingDetection';
+import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, createJsonRpcError } from '@/utils/constants/errorCodes';
 
 export default defineBackground(() => {
+  // Initialize service registry
+  const serviceRegistry = ServiceRegistry.getInstance();
+  
+  // Initialize core services (non-blocking)
+  serviceRegistry.register(eventEmitterService)
+    .then(() => {
+      console.log('Core services initialized');
+    })
+    .catch((error) => {
+      console.error('Failed to initialize core services:', error);
+    });
+  
+  // Register proxy services (existing pattern)
   registerWalletService();
   registerProviderService();
+  registerBlockchainService();
+  registerConnectionService();
+  registerApprovalService();
+  registerTransactionService();
+  
+  // Set up MessageBus handlers for provider requests
+  MessageBus.onMessage('provider-request', async (data) => {
+    const message = data as ProviderMessage;
+    console.debug('Provider request received:', {
+      origin: message.origin,
+      method: message.data?.method,
+      hasParams: !!message.data?.params,
+      timestamp: message.timestamp
+    });
+
+    try {
+      const providerService = getProviderService();
+      
+      // Extract request details
+      const { origin, data: requestData } = message;
+      const { method, params = [], metadata = {} } = requestData || {};
+
+      if (!method) {
+        return {
+          success: false,
+          error: createJsonRpcError(
+            JSON_RPC_ERROR_CODES.INVALID_REQUEST,
+            'Method is required'
+          )
+        };
+      }
+
+      // Security check - phishing detection
+      const phishingWarning = await getPhishingWarning(origin);
+      if (phishingWarning && await shouldBlockConnection(origin)) {
+        console.warn('Blocked request from suspicious origin:', origin);
+        
+        return {
+          success: false,
+          error: createJsonRpcError(
+            PROVIDER_ERROR_CODES.UNAUTHORIZED,
+            'Connection blocked: Suspicious domain detected'
+          ),
+          requiresPhishingReview: true,
+          phishingWarning
+        };
+      }
+
+      // Handle the request through provider service
+      const result = await providerService.handleRequest(
+        origin,
+        method,
+        params,
+        metadata
+      );
+
+      return {
+        success: true,
+        result,
+        method // Include method for response handling
+      };
+    } catch (error: any) {
+      console.error('Provider request failed:', error);
+      
+      // Determine appropriate error code
+      let errorCode: number = JSON_RPC_ERROR_CODES.INTERNAL_ERROR;
+      
+      if (error.message?.includes('User denied') || error.message?.includes('User rejected')) {
+        errorCode = PROVIDER_ERROR_CODES.USER_REJECTED;
+      } else if (error.message?.includes('not connected') || error.message?.includes('Unauthorized')) {
+        errorCode = PROVIDER_ERROR_CODES.UNAUTHORIZED;
+      } else if (error.message?.includes('not supported') || error.message?.includes('not found')) {
+        errorCode = JSON_RPC_ERROR_CODES.METHOD_NOT_FOUND;
+      } else if (error.message?.includes('Invalid params')) {
+        errorCode = JSON_RPC_ERROR_CODES.INVALID_PARAMS;
+      }
+      
+      return {
+        success: false,
+        error: createJsonRpcError(
+          error.code || errorCode,
+          error.message || 'Unknown error'
+        )
+      };
+    }
+  });
+
+  // Handle approval resolution from popup
+  MessageBus.onMessage('resolve-provider-request', async (data) => {
+    const message = data as ApprovalMessage;
+    const { requestId, approved, updatedParams } = message;
+    
+    try {
+      // Use the eventEmitterService pattern
+      eventEmitterService.emit(`resolve-${requestId}`, { 
+        approved, 
+        updatedParams 
+      });
+      
+      // Also emit the old event for backward compatibility
+      eventEmitterService.emit('resolve-pending-request', {
+        requestId,
+        approved,
+        updatedParams
+      });
+      
+      return { success: true };
+    } catch (error: any) {
+      console.error('Failed to resolve provider request:', error);
+      return { 
+        success: false, 
+        error: error.message 
+      };
+    }
+  });
+  
+  // Handle provider event emission (for accountsChanged, disconnect, etc.)
+  MessageBus.onMessage('provider-event', async (data) => {
+    const message = data as EventMessage;
+    const { origin, event, data: eventData } = message;
+    
+    try {
+      if (origin) {
+        await emitProviderEvent(origin, event, eventData);
+      } else {
+        await emitProviderEvent(event, eventData);
+      }
+      return { success: true };
+    } catch (error: any) {
+      console.error('Failed to emit provider event:', error);
+      return { success: false, error: error.message };
+    }
+  });
   
   // Check session recovery state on startup (non-blocking)
   checkSessionRecovery().then(recoveryState => {
@@ -58,159 +210,6 @@ export default defineBackground(() => {
     });
   }
 
-  // Handle provider requests from content scripts
-  browser.runtime.onMessage.addListener((message: any, sender: any, sendResponse: any) => {
-    console.debug('Background received message:', { 
-      type: message.type, 
-      origin: message.origin, 
-      hasData: !!message.data,
-      messageKeys: Object.keys(message || {}),
-      senderId: sender.id,
-      senderUrl: sender.url,
-      extensionId: browser.runtime.id
-    });
-    
-    if (message.type === 'PROVIDER_REQUEST' && message.origin && message.data && message.xcpWalletVersion === '2.0') {
-      // Handle async response
-      (async () => {
-        try {
-          // Security: Reject requests from iframes
-          if (sender.frameId && sender.frameId !== 0) {
-            console.warn('Provider request rejected: iframe requests not allowed', { 
-              origin: message.origin, 
-              frameId: sender.frameId 
-            });
-            sendResponse({
-              success: false,
-              error: {
-                message: 'Requests from iframes not allowed for security reasons',
-                code: 4100 // Unauthorized
-              }
-            });
-            return;
-          }
-          
-          // Security: Check for phishing domains for connection requests
-          if (message.data.method === 'xcp_requestAccounts') {
-            const analysis = analyzePhishingRisk(message.origin);
-            if (analysis.isSuspicious) {
-              console.warn('Suspicious domain detected:', message.origin, analysis);
-              
-              // For blocked risk, show warning page first
-              if (analysis.riskLevel === 'blocked') {
-                // Open phishing warning page instead of normal approval
-                const window = await browser.windows.create({
-                  url: browser.runtime.getURL(`/popup.html#/provider/phishing-warning?origin=${encodeURIComponent(message.origin)}&returnTo=${encodeURIComponent('/provider/approval-queue')}`),
-                  type: 'popup',
-                  width: 350,
-                  height: 600,
-                  focused: true
-                });
-                
-                sendResponse({
-                  success: false,
-                  error: {
-                    message: 'Phishing protection activated - user must review warning',
-                    code: 4001 // User rejected
-                  },
-                  requiresPhishingReview: true,
-                  windowId: window?.id
-                });
-                return;
-              }
-            }
-            
-            // Block critical risk domains entirely
-            if (await shouldBlockConnection(message.origin)) {
-              sendResponse({
-                success: false,
-                error: {
-                  message: 'Connection blocked: Suspicious domain detected',
-                  code: 4100 // Unauthorized
-                }
-              });
-              return;
-            }
-          }
-          
-          const providerService = getProviderService();
-          const { method, params } = message.data;
-          
-          // Sign the request for authenticity verification
-          try {
-            const signedRequest = await requestSigner.signRequest(message.origin, method, params);
-            
-            // Verify our own signature (sanity check)
-            if (!requestSigner.verifyRequest(signedRequest)) {
-              console.error('Request signing verification failed');
-            }
-            
-            // Add signature info to the request metadata
-            const requestMetadata = {
-              signature: signedRequest.signature,
-              publicKey: signedRequest.publicKey,
-              nonce: signedRequest.nonce,
-              timestamp: signedRequest.timestamp
-            };
-            
-            const result = await providerService.handleRequest(message.origin, method, params, requestMetadata);
-            console.debug('Provider request succeeded:', { method, result });
-            sendResponse({ 
-              success: true, 
-              result,
-              method // Include method for response handling
-            });
-          } catch (error) {
-            console.error('Provider request failed:', { method, error });
-            sendResponse({ 
-              success: false, 
-              error: { 
-                message: (error as any).message || 'Unknown error',
-                code: (error as any).code || -32603 // Internal error
-              } 
-            });
-          }
-        } catch (outerError) {
-          console.error('Unexpected error in message handler:', outerError);
-          sendResponse({
-            success: false,
-            error: {
-              message: 'Internal extension error',
-              code: -32603
-            }
-          });
-        }
-      })();
-      return true; // Will respond asynchronously
-    }
-    
-    // Handle approval resolution from popup
-    if (message.type === 'RESOLVE_PROVIDER_REQUEST' && message.requestId) {
-      // Use the event emitter service to notify the provider service
-      eventEmitterService.emit('resolve-pending-request', {
-        requestId: message.requestId,
-        approved: message.approved,
-        updatedParams: message.updatedParams
-      });
-      sendResponse({ success: true });
-      return true;
-    }
-    
-    // Handle provider event emission from popup
-    if (message.type === 'EMIT_PROVIDER_EVENT' && message.event) {
-      // Forward the event to the appropriate origin
-      if (message.origin) {
-        emitProviderEvent(message.origin, message.event, message.data);
-      } else {
-        emitProviderEvent(message.event, message.data);
-      }
-      sendResponse({ success: true });
-      return true;
-    }
-    
-    // Return false to indicate we're not handling this message
-    return false;
-  });
 
   // Emit events to content scripts
   // This will be used for accountsChanged, disconnect, etc.
@@ -265,5 +264,31 @@ export default defineBackground(() => {
   });
   
 
-  console.debug('Background script initialized with provider support');
+  // Add cleanup handlers for service worker termination
+  if ('onSuspend' in chrome.runtime) {
+    chrome.runtime.onSuspend.addListener(() => {
+      console.log('Service worker suspending, cleaning up all services...');
+      
+      // Destroy all services via registry
+      serviceRegistry.destroyAll().catch(console.error);
+      
+      // Also cleanup provider service (until it's migrated to BaseService)
+      const providerService = getProviderService();
+      if (providerService.destroy) {
+        providerService.destroy().catch(console.error);
+      }
+    });
+  }
+  
+  // Alternative cleanup for when service worker is about to be terminated
+  if ('onSuspendCanceled' in chrome.runtime) {
+    chrome.runtime.onSuspendCanceled.addListener(() => {
+      console.log('Service worker suspension canceled');
+    });
+  }
+  
+  // Note: chrome.runtime.onShutdown is not available in all browsers
+  // The onSuspend handler above will handle most cleanup scenarios
+
+  console.debug('Background script initialized with ServiceRegistry and cleanup handlers');
 });

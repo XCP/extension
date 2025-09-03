@@ -7,16 +7,24 @@ import * as settingsStorage from '@/utils/storage/settingsStorage';
 import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
 import { approvalQueue } from '@/utils/provider/approvalQueue';
+import { registerBlockchainService, getBlockchainService } from '../blockchain/blockchainServiceHandler';
+import { getConnectionService } from '../connection';
+import { getTransactionService } from '../transaction';
+import { getApprovalService } from '../approval';
 
 // Mock the dependencies
 vi.mock('webext-bridge/background', () => ({
-  sendMessage: vi.fn(),
+  sendMessage: vi.fn().mockResolvedValue({ success: true, data: {} }),
   onMessage: vi.fn()
 }));
 
 vi.mock('../walletService');
 vi.mock('@/utils/storage/settingsStorage');
 vi.mock('@/utils/provider/rateLimiter');
+vi.mock('../blockchain/blockchainServiceHandler');
+vi.mock('../connection');
+vi.mock('../transaction');
+vi.mock('../approval');
 
 // Mock CSP validation to avoid timeout issues
 vi.mock('@/utils/security/cspValidation', () => ({
@@ -101,6 +109,67 @@ describe('ProviderService Security Tests', () => {
       isAnyWalletUnlocked: vi.fn().mockResolvedValue(true)
     } as any);
     
+    // Setup blockchain service mocks
+    vi.mocked(registerBlockchainService).mockResolvedValue(undefined);
+    
+    // Mock the blockchain service with basic functionality
+    const mockBlockchainService = {
+      getBTCBalance: vi.fn().mockResolvedValue('0.001'),
+      getTokenBalances: vi.fn().mockResolvedValue([]),
+      getAssetDetails: vi.fn().mockResolvedValue({ asset: 'TOKENA', supply: '1000' }),
+      getTransactions: vi.fn().mockResolvedValue([]),
+      getUTXOs: vi.fn().mockResolvedValue([]),
+      getFeeRates: vi.fn().mockResolvedValue({ fastestFee: 1, halfHourFee: 1, hourFee: 1 }),
+      getBlockHeight: vi.fn().mockResolvedValue(850000),
+      getBTCPrice: vi.fn().mockResolvedValue(45000),
+      broadcastTransaction: vi.fn().mockResolvedValue({ txid: 'test123' }),
+      getPreviousRawTransaction: vi.fn().mockResolvedValue('0102030405'),
+      getBitcoinTransaction: vi.fn().mockResolvedValue({ txid: 'test123' }),
+      getTokenBalance: vi.fn().mockResolvedValue('0'),
+      getAssetDetailsAndBalance: vi.fn().mockResolvedValue({ asset: 'TOKENA', balance: '0' }),
+      getOrders: vi.fn().mockResolvedValue([]),
+      getDispensers: vi.fn().mockResolvedValue([]),
+      getAssetHistory: vi.fn().mockResolvedValue([]),
+      formatInputsSet: vi.fn().mockReturnValue([]),
+      getUtxoByTxid: vi.fn().mockReturnValue(null),
+      clearAllCaches: vi.fn(),
+      clearCachePattern: vi.fn(),
+      getCacheStats: vi.fn().mockReturnValue({ size: 0 })
+    };
+    
+    vi.mocked(getBlockchainService).mockReturnValue(mockBlockchainService as any);
+    
+    // Setup connection service mocks - will be updated per test
+    const mockConnectionService = {
+      hasPermission: vi.fn().mockImplementation(async (origin: string) => {
+        const settings = await settingsStorage.getKeychainSettings();
+        return settings.connectedWebsites?.includes(origin) || false;
+      }),
+      requestPermission: vi.fn().mockResolvedValue(true),
+      revokePermission: vi.fn().mockResolvedValue(true),
+      checkPermission: vi.fn().mockResolvedValue(false),
+      getPermissionStatus: vi.fn().mockResolvedValue('denied')
+    };
+    vi.mocked(getConnectionService).mockReturnValue(mockConnectionService as any);
+    
+    // Setup transaction service mocks  
+    const mockTransactionService = {
+      composeSend: vi.fn().mockRejectedValue(new Error('Unauthorized')),
+      composeOrder: vi.fn().mockRejectedValue(new Error('Unauthorized')),
+      signTransaction: vi.fn().mockRejectedValue(new Error('Unauthorized')),
+      broadcastTransaction: vi.fn().mockRejectedValue(new Error('Unauthorized')),
+      signMessage: vi.fn().mockRejectedValue(new Error('Message is required'))
+    };
+    vi.mocked(getTransactionService).mockReturnValue(mockTransactionService as any);
+    
+    // Setup approval service mocks
+    const mockApprovalService = {
+      requestApproval: vi.fn().mockRejectedValue(new Error('Unauthorized')),
+      processApproval: vi.fn().mockRejectedValue(new Error('Unauthorized')),
+      denyApproval: vi.fn().mockResolvedValue(true)
+    };
+    vi.mocked(getApprovalService).mockReturnValue(mockApprovalService as any);
+    
     providerService = createProviderService();
   });
   
@@ -127,17 +196,28 @@ describe('ProviderService Security Tests', () => {
       // xcp_signMessage requires specific parameters
       await expect(
         providerService.handleRequest('https://evil.com', 'xcp_signMessage', [])
-      ).rejects.toThrow('Message and address required');
+      ).rejects.toThrow('Message is required');
       
-      // Other methods should throw Unauthorized or not supported
+      // Other methods should throw Unauthorized or not supported, or parameter validation errors
       const otherMethods = unauthorizedMethods.filter(m => m !== 'xcp_signMessage');
       for (const method of otherMethods) {
-        // xcp_getAssets is not supported
         if (method === 'xcp_getAssets') {
+          // xcp_getAssets is not supported
           await expect(
             providerService.handleRequest('https://evil.com', method, [])
           ).rejects.toThrow('Method xcp_getAssets is not supported');
+        } else if (method === 'xcp_signTransaction') {
+          // xcp_signTransaction validates parameters before authorization
+          await expect(
+            providerService.handleRequest('https://evil.com', method, [])
+          ).rejects.toThrow('Raw transaction is required');
+        } else if (method === 'xcp_getHistory') {
+          // xcp_getHistory has a special privacy error message
+          await expect(
+            providerService.handleRequest('https://evil.com', method, [])
+          ).rejects.toThrow('Permission denied - transaction history not available through provider');
         } else {
+          // Other methods check authorization first
           await expect(
             providerService.handleRequest('https://evil.com', method, [])
           ).rejects.toThrow('Unauthorized');
@@ -159,7 +239,7 @@ describe('ProviderService Security Tests', () => {
       // net_version is not supported
       await expect(
         providerService.handleRequest('https://any.com', 'net_version', [])
-      ).rejects.toThrow('Method net_version is not supported');
+      ).rejects.toThrow('Unsupported method: net_version');
     });
     
     it('should not allow websites to bypass authorization', async () => {
@@ -294,7 +374,7 @@ describe('ProviderService Security Tests', () => {
       
       await expect(
         providerService.handleRequest('https://connected.com', 'xcp_signTransaction', [])
-      ).rejects.toThrow('Transaction required');
+      ).rejects.toThrow('Raw transaction is required');
     });
     
     it('should not expose sensitive wallet data in errors', async () => {

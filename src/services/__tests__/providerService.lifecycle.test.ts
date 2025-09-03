@@ -9,6 +9,10 @@ import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 import * as walletService from '../walletService';
 
 // Mock dependencies
+vi.mock('webext-bridge/background', () => ({
+  sendMessage: vi.fn(),
+  onMessage: vi.fn(),
+}));
 vi.mock('../walletService');
 vi.mock('@/utils/storage/settingsStorage');
 // Mock CSP validation to avoid network calls

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Textarea } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
 import { fetchDispenserByHash } from "@/utils/blockchain/counterparty";

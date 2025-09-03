@@ -66,45 +66,68 @@ export default defineUnlistedScript(() => {
 
   // Listen for responses from content script
   window.addEventListener('message', (event) => {
-    if (event.source !== window) return;
-    
-    if (event.data?.target === 'xcp-wallet-injected') {
-      if (event.data.type === 'XCP_WALLET_RESPONSE') {
-        const { id, data, error } = event.data;
-        console.debug('Injected script received response:', { id, data, error });
-        const pending = pendingRequests.get(id);
-        
-        if (pending) {
-          pendingRequests.delete(id);
-          if (error) {
-            pending.reject(new Error(error.message));
-          } else {
-            // Update connection state based on responses
-            if (data?.method === 'xcp_requestAccounts' || data?.method === 'xcp_accounts') {
-              console.debug('Processing accounts response:', { method: data?.method, result: data?.result });
-              if (Array.isArray(data.result) && data.result.length > 0) {
-                isConnected = true;
-                accounts = data.result;
-                eventEmitter.emit('accountsChanged', accounts);
+    try {
+      if (event.source !== window) return;
+      
+      // Defensive check for event.data structure
+      if (!event.data || typeof event.data !== 'object') {
+        return;
+      }
+      
+      if (event.data.target === 'xcp-wallet-injected') {
+        if (event.data.type === 'XCP_WALLET_RESPONSE') {
+          const { id, data, error } = event.data;
+          const pending = pendingRequests.get(id);
+          
+          if (pending) {
+            pendingRequests.delete(id);
+            if (error) {
+              let errorMessage = error?.message || error || 'Unknown error';
+              
+              // Special handling for fingerprint errors (from minified webext-bridge code)
+              if (errorMessage.includes('fingerprint')) {
+                errorMessage = 'Extension services not available. Please try reloading the extension.';
               }
+              
+              pending.reject(new Error(errorMessage));
+            } else {
+              // Update connection state based on responses
+              if (data?.method === 'xcp_requestAccounts' || data?.method === 'xcp_accounts') {
+                if (Array.isArray(data.result) && data.result.length > 0) {
+                  isConnected = true;
+                  accounts = data.result;
+                  eventEmitter.emit('accountsChanged', accounts);
+                }
+              }
+              pending.resolve(data?.result);
             }
-            console.debug('Resolving with result:', data?.result);
-            pending.resolve(data?.result);
           }
+        } else if (event.data.type === 'XCP_WALLET_EVENT') {
+          // Handle provider events from wallet
+          const { event: eventName, data } = event.data;
+          
+          if (eventName === 'accountsChanged') {
+            accounts = data || [];
+            isConnected = accounts.length > 0;
+          } else if (eventName === 'disconnect') {
+            isConnected = false;
+            accounts = [];
+          }
+          
+          eventEmitter.emit(eventName, data);
         }
-      } else if (event.data.type === 'XCP_WALLET_EVENT') {
-        // Handle provider events from wallet
-        const { event: eventName, data } = event.data;
-        
-        if (eventName === 'accountsChanged') {
-          accounts = data || [];
-          isConnected = accounts.length > 0;
-        } else if (eventName === 'disconnect') {
-          isConnected = false;
-          accounts = [];
-        }
-        
-        eventEmitter.emit(eventName, data);
+      }
+    } catch (error) {
+      console.error('Error in injected script message handler:', error);
+      // Special handling for fingerprint errors
+      const errorMessage = error instanceof Error && error.message.includes('fingerprint')
+        ? 'Extension services not available. Please try reloading the extension.'
+        : (error instanceof Error ? error.message : 'Unknown error in injected script');
+      
+      // Reject any pending requests
+      for (const [id, pending] of pendingRequests.entries()) {
+        pendingRequests.delete(id);
+        pending.reject(new Error(errorMessage));
       }
     }
   });
@@ -112,23 +135,29 @@ export default defineUnlistedScript(() => {
   // Send request to content script
   function sendRequest(method: string, params?: any[]): Promise<any> {
     return new Promise((resolve, reject) => {
-      const id = ++requestId;
-      pendingRequests.set(id, { resolve, reject });
-      
-      window.postMessage({
-        target: 'xcp-wallet-content',
-        type: 'XCP_WALLET_REQUEST',
-        id,
-        data: { method, params }
-      }, window.location.origin);
-      
-      // Timeout after 60 seconds
-      setTimeout(() => {
-        if (pendingRequests.has(id)) {
-          pendingRequests.delete(id);
-          reject(new Error('Request timeout'));
-        }
-      }, 60000);
+      try {
+        const id = ++requestId;
+        pendingRequests.set(id, { resolve, reject });
+        
+        window.postMessage({
+          target: 'xcp-wallet-content',
+          type: 'XCP_WALLET_REQUEST',
+          id,
+          data: { method, params }
+        }, window.location.origin);
+        
+        // Timeout after 60 seconds
+        setTimeout(() => {
+          if (pendingRequests.has(id)) {
+            pendingRequests.delete(id);
+            reject(new Error('Request timeout'));
+          }
+        }, 60000);
+      } catch (error) {
+        console.error('Error in sendRequest:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error in sendRequest';
+        reject(new Error(errorMessage));
+      }
     });
   }
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";

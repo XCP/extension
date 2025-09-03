@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Textarea } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { Spinner } from "@/components/spinner";
 import { SettingSwitch } from "@/components/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
@@ -92,7 +92,8 @@ export function UpdateDescriptionForm({
             issuer: assetInfo?.issuer,
             divisible: assetInfo?.divisible ?? false,
             locked: assetInfo?.locked ?? false,
-            supply: assetInfo?.supply
+            supply: assetInfo?.supply,
+            supply_normalized: assetInfo?.supply_normalized || '0'
           }}
           className="mt-1 mb-5"
         />

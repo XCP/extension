@@ -1,456 +1,620 @@
 # Services Directory
 
-This directory contains service classes that manage cross-context communication in the XCP Wallet extension.
+This directory contains the refactored service architecture for the XCP Wallet browser extension, providing a clean separation of concerns and robust cross-context communication.
 
-## Service Architecture
+## Service Architecture Overview
 
-### Proxy Service Pattern
-The extension uses `@webext-core/proxy-service` to enable seamless communication between different extension contexts (popup, background, content script).
+The extension follows a **service-oriented architecture** with four layers:
+
+1. **Core Services** (`core/`) - Base infrastructure and utilities
+2. **Domain Services** - Specialized services for specific functionality
+3. **Legacy Service** (`providerService.ts`) - Main dApp interface (being refactored)
+4. **Utility Services** (`eventEmitterService.ts`, `walletService.ts`) - Supporting services
+
+### Key Design Principles
+
+- **BaseService Pattern**: All services extend `BaseService` for lifecycle management
+- **Dependency Injection**: ServiceRegistry manages service dependencies
+- **State Persistence**: Services survive service worker restarts
+- **Health Monitoring**: All services provide health status
+- **Proxy Communication**: Cross-context communication via `@webext-core/proxy-service`
+
+## Core Infrastructure
+
+### BaseService (`core/BaseService.ts`)
+
+**Purpose**: Abstract foundation for all services with lifecycle management, state persistence, and health monitoring.
 
 ```typescript
-// Service runs in background
-class WalletService {
-  async unlockWallet(password: string): Promise<boolean> {
-    // Implementation in background context
-  }
-}
+export abstract class BaseService {
+  protected serviceName: string;
+  protected serviceStartTime: number;
+  private initialized: boolean = false;
 
-// Proxy allows calling from popup
-const walletService = proxyService<WalletService>('WalletService');
-await walletService.unlockWallet(password); // Calls background method
+  // Lifecycle methods
+  async initialize(): Promise<void>;
+  async destroy(): Promise<void>;
+  
+  // State management
+  protected abstract getSerializableState(): any;
+  protected abstract hydrateState(state: any): void;
+  
+  // Health monitoring
+  async getHealth(): Promise<ServiceHealthStatus>;
+  protected abstract checkHealth(): Promise<ServiceHealthStatus>;
+  
+  // Utility methods
+  isInitialized(): boolean;
+  getServiceName(): string;
+  getStartTime(): number;
+}
 ```
 
-## Available Services
+**Key Features**:
+- **Automatic state persistence** every 5 minutes
+- **Service worker keep-alive** mechanism
+- **Health status tracking** (healthy/degraded/unhealthy)
+- **Lifecycle hooks** for initialization and cleanup
+- **Version-aware state** with migration support
 
-### walletService.ts
+### ServiceRegistry (`core/ServiceRegistry.ts`)
 
-**Purpose**: Core wallet operations and state management
-**Context**: Background service worker
-**Key Methods**:
+**Purpose**: Centralized service management with dependency injection and lifecycle coordination.
 
 ```typescript
-class WalletService {
-  // Authentication
-  async createWallet(params: CreateWalletParams): Promise<Wallet>
-  async importWallet(params: ImportWalletParams): Promise<Wallet>
-  async unlockWallet(password: string): Promise<boolean>
-  async lockWallet(): Promise<void>
+class ServiceRegistry {
+  async register(service: BaseService): Promise<void>;
+  get<T extends BaseService>(name: string): T;
+  async initialize(serviceName: string): Promise<void>;
+  async destroy(serviceName: string): Promise<void>;
+  async destroyAll(): Promise<void>;
+  getServiceNames(): string[];
+  async getSystemHealth(): Promise<SystemHealthStatus>;
+}
+```
+
+**Usage**:
+```typescript
+// In background.ts
+const serviceRegistry = ServiceRegistry.getInstance();
+
+// Register services
+await serviceRegistry.register(new ConnectionService());
+await serviceRegistry.register(new ApprovalService());
+await serviceRegistry.register(new TransactionService());
+await serviceRegistry.register(new BlockchainService());
+
+// Get services
+const connectionService = serviceRegistry.get<ConnectionService>('ConnectionService');
+```
+
+### RequestManager (`core/RequestManager.ts`)
+
+**Purpose**: Memory-safe request handling with automatic cleanup and timeout management.
+
+```typescript
+export class RequestManager {
+  createManagedPromise<T>(id: string, metadata?: Partial<PendingRequest>): Promise<T>;
+  resolve(id: string, result: any): boolean;
+  reject(id: string, error: Error): boolean;
+  remove(id: string): boolean;
+  getStats(): RequestManagerStats;
+  cleanupExpired(): number;
+  destroy(): void;
+}
+```
+
+**Key Features**:
+- **Automatic timeout handling** (default 5 minutes)
+- **Memory leak prevention** via periodic cleanup
+- **Request tracking** and statistics
+- **Graceful promise resolution**
+
+### MessageBus (`core/MessageBus.ts`)
+
+**Purpose**: Standardized cross-context messaging system replacing direct `browser.runtime.sendMessage` calls.
+
+```typescript
+export class MessageBus {
+  static async send<K extends keyof MessageProtocol>(
+    message: K, 
+    data: MessageProtocol[K]['input'], 
+    target: MessageTarget = 'background'
+  ): Promise<MessageProtocol[K]['output']>;
   
+  static setupMessageHandler<K extends keyof MessageProtocol>(
+    message: K,
+    handler: MessageHandler<MessageProtocol[K]['input'], MessageProtocol[K]['output']>
+  ): void;
+}
+```
+
+## Domain Services
+
+### ConnectionService (`connection/ConnectionService.ts`)
+
+**Purpose**: dApp connection and permission management with security validation.
+
+```typescript
+export class ConnectionService extends BaseService {
+  async hasPermission(origin: string): Promise<boolean>;
+  async connect(origin: string, address: string, walletId: string): Promise<string[]>;
+  async disconnect(origin: string): Promise<void>;
+  async getConnectedSites(): Promise<string[]>;
+  async validateOrigin(origin: string): Promise<ValidationResult>;
+}
+```
+
+**Key Features**:
+- **Permission validation** before operations
+- **Security checks** (phishing detection, CSP analysis)
+- **Rate limiting** per origin
+- **Connection state persistence**
+- **Approval workflow integration**
+
+**Usage**:
+```typescript
+const connectionService = getConnectionService();
+
+// Check if dApp is connected
+const hasPermission = await connectionService.hasPermission('https://dapp.com');
+
+// Connect dApp (triggers user approval)
+const accounts = await connectionService.connect(
+  'https://dapp.com',
+  '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+  'wallet-123'
+);
+
+// Disconnect dApp
+await connectionService.disconnect('https://dapp.com');
+```
+
+### ApprovalService (`approval/ApprovalService.ts`)
+
+**Purpose**: User approval workflow management for all extension operations requiring consent.
+
+```typescript
+export class ApprovalService extends BaseService {
+  async requestApproval<T>(options: ApprovalRequestOptions): Promise<T>;
+  resolveApproval(id: string, result: ApprovalResult): boolean;
+  async getApprovalQueue(): Promise<ApprovalRequest[]>;
+  async removeApprovalRequest(id: string): Promise<boolean>;
+}
+```
+
+**Approval Types**:
+- **Connection requests** - dApp wants to connect to wallet
+- **Transaction signing** - User must approve transaction
+- **Message signing** - Authentication message approval
+- **Transaction composition** - DEX orders, sends, etc.
+
+**Usage**:
+```typescript
+const approvalService = getApprovalService();
+
+// Request user approval for transaction
+const result = await approvalService.requestApproval({
+  type: 'transaction',
+  origin: 'https://dapp.com',
+  metadata: {
+    domain: 'dapp.com',
+    title: 'Sign Transaction',
+    description: 'Send 1.0 XCP to address',
+    rawTransaction: '0x123456...',
+    fee: 2000,
+  },
+});
+
+if (result.approved) {
+  // User approved - proceed with signing
+  const signedTx = result.signedTransaction;
+}
+```
+
+### TransactionService (`transaction/TransactionService.ts`)
+
+**Purpose**: Comprehensive transaction operations including composition, signing, and broadcasting.
+
+```typescript
+export class TransactionService extends BaseService {
+  // Transaction Composition
+  async composeSend(origin: string, params: SendOptions): Promise<TransactionComposition>;
+  async composeOrder(origin: string, params: OrderOptions): Promise<TransactionComposition>;
+  async composeDispenser(origin: string, params: DispenserOptions): Promise<TransactionComposition>;
+  async composeDividend(origin: string, params: DividendOptions): Promise<TransactionComposition>;
+  async composeIssuance(origin: string, params: IssuanceOptions): Promise<TransactionComposition>;
+  
+  // Transaction Signing
+  async signTransaction(origin: string, rawTx: string, address?: string): Promise<SignedTransactionResult>;
+  async signMessage(origin: string, message: string, address: string): Promise<string>;
+  
+  // Transaction Broadcasting
+  async broadcastTransaction(origin: string, signedTx: string): Promise<TransactionBroadcastResult>;
+  
+  // History and Analytics
+  getTransactionHistory(origin?: string, limit?: number): TransactionHistoryEntry[];
+  getTransactionStats(): TransactionStats;
+  clearTransactionCache(pattern?: string): void;
+}
+```
+
+**Key Features**:
+- **All Counterparty transaction types** (Send, Order, Dispenser, Dividend, Issuance)
+- **User approval integration** for sensitive operations
+- **Intelligent caching** with TTL management
+- **Replay prevention** for broadcast operations
+- **Performance tracking** and statistics
+- **Rate limiting** per origin
+
+**Usage**:
+```typescript
+const transactionService = getTransactionService();
+
+// Compose a send transaction
+const composition = await transactionService.composeSend('https://dapp.com', {
+  destination: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
+  asset: 'XCP',
+  quantity: 100000000, // 1.0 XCP
+  memo: 'Hello World',
+  fee_rate: 2,
+});
+
+// Sign transaction (requires user approval)
+const signResult = await transactionService.signTransaction(
+  'https://dapp.com',
+  composition.rawtransaction
+);
+
+// Broadcast transaction
+const broadcastResult = await transactionService.broadcastTransaction(
+  'https://dapp.com',
+  signResult.signedTransaction
+);
+```
+
+### BlockchainService (`blockchain/BlockchainService.ts`)
+
+**Purpose**: Consolidated blockchain operations and API integration for Bitcoin and Counterparty.
+
+```typescript
+export class BlockchainService extends BaseService {
+  // Bitcoin Operations
+  async fetchBTCBalance(address: string): Promise<number>;
+  async fetchUTXOs(address: string): Promise<UTXO[]>;
+  async getCurrentBlockHeight(): Promise<number>;
+  async estimateFeeRate(targetBlocks: number): Promise<number>;
+  async broadcastTransaction(rawTx: string): Promise<BroadcastResult>;
+  
+  // Counterparty Operations
+  async fetchTokenBalances(address: string, options?: BalanceOptions): Promise<TokenBalance[]>;
+  async fetchTransactions(address: string, options?: TransactionOptions): Promise<Transaction[]>;
+  async fetchOrders(address: string, options?: OrderOptions): Promise<Order[]>;
+  async fetchAssetInfo(asset: string): Promise<AssetInfo>;
+  
+  // Transaction Composition
+  async composeSend(params: SendOptions): Promise<TransactionComposition>;
+  async composeOrder(params: OrderOptions): Promise<TransactionComposition>;
+  async composeDispenser(params: DispenserOptions): Promise<TransactionComposition>;
+  async composeDividend(params: DividendOptions): Promise<TransactionComposition>;
+  async composeIssuance(params: IssuanceOptions): Promise<TransactionComposition>;
+}
+```
+
+**Key Features**:
+- **Multi-layer caching** with different TTLs by data type
+- **Circuit breaker pattern** for API resilience
+- **Retry logic** with exponential backoff
+- **Performance metrics** tracking
+- **Health monitoring** of external APIs
+
+## Legacy Services
+
+### ProviderService (`providerService.ts`)
+
+**Purpose**: Main dApp interface implementing EIP-1193-like provider API.
+
+**Status**: 🔄 **Being Refactored** - Currently delegates some operations to new focused services.
+
+```typescript
+interface ProviderService {
+  handleRequest(origin: string, method: string, params?: any[], metadata?: any): Promise<any>;
+  isConnected(origin: string): Promise<boolean>;
+  disconnect(origin: string): Promise<void>;
+  getApprovalQueue(): Promise<ApprovalRequest[]>;
+  removeApprovalRequest(id: string): Promise<boolean>;
+  getRequestStats(): Promise<any>;
+  destroy(): Promise<void>;
+}
+```
+
+**Supported Methods**:
+- `xcp_requestAccounts` - Connect to wallet
+- `xcp_accounts` - Get connected accounts
+- `xcp_chainId` / `xcp_getNetwork` - Network info
+- `xcp_signMessage` - Sign authentication messages
+- `xcp_getBalances` - Get BTC/XCP balances
+- `xcp_compose*` - Transaction composition (Send, Order, Dispenser, Dividend, Issuance)
+- `xcp_signTransaction` - Sign composed transactions
+- `xcp_broadcastTransaction` - Broadcast signed transactions
+
+### WalletService (`walletService.ts`)
+
+**Purpose**: Core wallet and cryptographic operations.
+
+```typescript
+interface WalletService {
   // Wallet Management
-  async getWallets(): Promise<Wallet[]>
-  async removeWallet(walletId: string): Promise<void>
-  async renameWallet(walletId: string, name: string): Promise<void>
-  async switchWallet(walletId: string): Promise<void>
+  createWallet(params: CreateWalletParams): Promise<Wallet>;
+  importWallet(params: ImportWalletParams): Promise<Wallet>;
+  getWallets(): Promise<Wallet[]>;
+  switchWallet(walletId: string): Promise<void>;
+  
+  // Authentication
+  unlockWallet(password: string): Promise<boolean>;
+  lockWallet(): Promise<void>;
+  isAnyWalletUnlocked(): Promise<boolean>;
   
   // Address Management
-  async addAddress(walletId: string): Promise<Address>
-  async getAddresses(walletId: string): Promise<Address[]>
-  async switchAddress(addressId: string): Promise<void>
+  addAddress(walletId: string): Promise<Address>;
+  getAddresses(walletId: string): Promise<Address[]>;
+  switchAddress(addressId: string): Promise<void>;
   
-  // Transaction Operations
-  async signTransaction(psbt: string): Promise<string>
-  async broadcastTransaction(hex: string): Promise<string>
-  async signMessage(message: string): Promise<string>
-  
-  // State Queries
-  async getAuthState(): Promise<AuthState>
-  async getActiveWallet(): Promise<Wallet | null>
-  async getActiveAddress(): Promise<Address | null>
+  // Signing Operations
+  signTransaction(rawTx: string, address?: string): Promise<SignedTransactionResult>;
+  signMessage(message: string, address?: string): Promise<MessageSignatureResult>;
 }
 ```
 
-**Usage from Popup**:
-```typescript
-import { proxyService } from '@webext-core/proxy-service';
-import type { WalletService } from '@/services/walletService';
+### EventEmitterService (`eventEmitterService.ts`)
 
-const walletService = proxyService<WalletService>('WalletService', {
-  namespace: 'wallet',
-});
-
-// Use in React component
-export function WalletComponent() {
-  const handleUnlock = async (password: string) => {
-    const success = await walletService.unlockWallet(password);
-    if (success) {
-      // Handle success
-    }
-  };
-}
-```
-
-### providerService.ts
-
-**Purpose**: Web3 provider API for dApp integration
-**Context**: Background service worker
-**Key Methods**:
+**Purpose**: Cross-context event communication and coordination.
 
 ```typescript
-class ProviderService {
-  // Connection Management
-  async connect(origin: string): Promise<string[]>
-  async disconnect(origin: string): Promise<void>
-  async isConnected(origin: string): Promise<boolean>
-  
-  // Account Methods
-  async getAccounts(origin: string): Promise<string[]>
-  async requestAccounts(origin: string): Promise<string[]>
-  
-  // Transaction Methods
-  async sendTransaction(params: TransactionParams): Promise<string>
-  async signTransaction(params: TransactionParams): Promise<string>
-  async signMessage(message: string, origin: string): Promise<string>
-  
-  // Counterparty Methods
-  async composeTransaction(type: string, params: any): Promise<ComposedTx>
-  async broadcastTransaction(signedTx: string): Promise<string>
-  
-  // Permission Management
-  async requestPermission(origin: string, method: string): Promise<boolean>
-  async getPermissions(origin: string): Promise<string[]>
-  async revokePermission(origin: string, method: string): Promise<void>
-}
-```
-
-**Provider API Interface** (EIP-1193-like):
-```typescript
-interface CounterpartyProvider {
-  isConnected(): boolean;
-  request(args: RequestArguments): Promise<any>;
+class EventEmitterService extends BaseService {
+  emit(event: string, data?: any): void;
   on(event: string, handler: Function): void;
-  removeListener(event: string, handler: Function): void;
-}
-
-// Injected into web pages as window.counterparty
-window.counterparty = {
-  request: async ({ method, params }) => {
-    return providerService.request(method, params);
-  },
-  // ... other methods
-};
-```
-
-## Service Patterns
-
-### Creating a Service
-
-**1. Define Service Class** (runs in background):
-```typescript
-// services/myService.ts
-export class MyService {
-  private state: ServiceState = initialState;
-  
-  async performAction(params: ActionParams): Promise<ActionResult> {
-    // Validate params
-    if (!this.validateParams(params)) {
-      throw new Error('Invalid parameters');
-    }
-    
-    // Perform action
-    const result = await this.executeAction(params);
-    
-    // Update state
-    this.state = { ...this.state, lastAction: Date.now() };
-    
-    // Persist if needed
-    await this.persistState();
-    
-    return result;
-  }
-  
-  private async persistState(): Promise<void> {
-    await chrome.storage.local.set({ serviceState: this.state });
-  }
+  off(event: string, handler: Function): void;
+  emitProviderEvent(origin: string, event: string, data?: any): void;
+  emitProviderEvent(event: string, data?: any): void;
 }
 ```
 
-**2. Register in Background**:
+## Service Integration and Usage
+
+### Service Registration
+
+Services are registered in the background script with proper dependency injection:
+
 ```typescript
 // entrypoints/background.ts
-import { registerService } from '@webext-core/proxy-service';
-import { MyService } from '@/services/myService';
-
-const myService = new MyService();
-registerService('MyService', myService);
-```
-
-**3. Create Proxy for Popup**:
-```typescript
-// services/myService.proxy.ts
-import { proxyService } from '@webext-core/proxy-service';
-import type { MyService } from './myService';
-
-export const myService = proxyService<MyService>('MyService');
-```
-
-**4. Use in Components**:
-```typescript
-// components/MyComponent.tsx
-import { myService } from '@/services/myService.proxy';
-
-export function MyComponent() {
-  const handleAction = async () => {
-    try {
-      const result = await myService.performAction(params);
-      // Handle result
-    } catch (error) {
-      // Handle error
-    }
-  };
-}
-```
-
-### Error Handling
-
-**Service-Level Errors**:
-```typescript
-export class ServiceWithErrors {
-  async riskyOperation(): Promise<Result> {
-    try {
-      const data = await fetchExternalData();
-      return processData(data);
-    } catch (error) {
-      // Log for debugging
-      console.error('Service operation failed:', error);
-      
-      // Throw user-friendly error
-      throw new Error('Operation failed. Please try again.');
-    }
-  }
-}
-```
-
-**Consumer-Level Handling**:
-```typescript
-const handleServiceCall = async () => {
-  try {
-    const result = await service.riskyOperation();
-    setData(result);
-  } catch (error) {
-    setError(error.message);
-    // Show user notification
-  }
-};
-```
-
-### State Synchronization
-
-**Keeping UI in Sync**:
-```typescript
-// Service emits events
-export class StatefulService extends EventEmitter {
-  private state: State;
+export default defineBackground(() => {
+  const serviceRegistry = ServiceRegistry.getInstance();
   
-  async updateState(newState: Partial<State>): Promise<void> {
-    this.state = { ...this.state, ...newState };
-    
-    // Notify all contexts
-    this.emit('stateChanged', this.state);
-    
-    // Persist
-    await this.saveState();
-  }
-}
-
-// UI subscribes to changes
-useEffect(() => {
-  const handleStateChange = (newState: State) => {
-    setState(newState);
-  };
+  // Initialize core services
+  serviceRegistry.register(eventEmitterService)
+    .then(() => console.log('Core services initialized'))
+    .catch(console.error);
   
-  service.on('stateChanged', handleStateChange);
-  return () => service.off('stateChanged', handleStateChange);
-}, []);
-```
-
-## Testing Services
-
-### Unit Testing
-```typescript
-describe('WalletService', () => {
-  let service: WalletService;
+  // Register proxy services
+  registerWalletService();
+  registerProviderService();
+  registerBlockchainService();
+  registerConnectionService();
+  registerApprovalService();
+  registerTransactionService();
   
-  beforeEach(() => {
-    service = new WalletService();
-    // Mock chrome.storage
-    global.chrome = {
-      storage: {
-        local: {
-          get: jest.fn(),
-          set: jest.fn(),
-        },
-      },
-    };
-  });
-  
-  it('should unlock wallet with correct password', async () => {
-    const mockWallet = createMockWallet();
-    chrome.storage.local.get.mockResolvedValue({ wallets: [mockWallet] });
-    
-    const result = await service.unlockWallet('correct-password');
-    
-    expect(result).toBe(true);
-    expect(service.getAuthState()).toBe('unlocked');
+  // Cleanup on service worker termination
+  chrome.runtime.onSuspend.addListener(() => {
+    serviceRegistry.destroyAll().catch(console.error);
   });
 });
 ```
 
-### Integration Testing
-```typescript
-describe('Service Integration', () => {
-  it('should handle cross-service communication', async () => {
-    const wallet = await walletService.createWallet(params);
-    const provider = await providerService.connect('https://dapp.com');
-    
-    const accounts = await provider.getAccounts();
-    expect(accounts).toContain(wallet.address);
-  });
-});
+### Service Dependencies
+
+Services follow a clear dependency hierarchy:
+
+```
+BlockchainService (foundational)
+    ↓
+ConnectionService → ApprovalService → TransactionService
+    ↓                    ↓                 ↓
+EventEmitterService ← ProviderService ← WalletService
 ```
 
-## Performance Considerations
+### Cross-Context Communication
 
-### Caching
+Services use proxy pattern for popup/content script access:
+
 ```typescript
-export class CachedService {
-  private cache = new Map<string, CacheEntry>();
-  private readonly CACHE_TTL = 60000; // 1 minute
-  
-  async getData(key: string): Promise<Data> {
-    // Check cache
-    const cached = this.cache.get(key);
-    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-      return cached.data;
-    }
-    
-    // Fetch fresh data
-    const data = await this.fetchData(key);
-    
-    // Update cache
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-    });
-    
-    return data;
-  }
-}
-```
+// In popup components
+import { getConnectionService } from '@/services/connection';
+import { getTransactionService } from '@/services/transaction';
 
-### Batching Operations
-```typescript
-export class BatchedService {
-  private queue: Operation[] = [];
-  private timer: NodeJS.Timeout | null = null;
-  
-  async queueOperation(op: Operation): Promise<void> {
-    this.queue.push(op);
-    
-    if (!this.timer) {
-      this.timer = setTimeout(() => this.processBatch(), 100);
-    }
-  }
-  
-  private async processBatch(): Promise<void> {
-    const batch = [...this.queue];
-    this.queue = [];
-    this.timer = null;
-    
-    await this.executeBatch(batch);
-  }
-}
-```
-
-## Security Best Practices
-
-### Permission Checking
-```typescript
-export class SecureService {
-  async performRestrictedAction(origin: string, action: string): Promise<void> {
-    // Check permission
-    if (!await this.hasPermission(origin, action)) {
-      throw new Error('Permission denied');
-    }
-    
-    // Log action for audit
-    await this.logAction(origin, action);
-    
-    // Perform action
-    return this.executeAction(action);
-  }
-  
-  private async hasPermission(origin: string, action: string): Promise<boolean> {
-    const permissions = await this.getPermissions(origin);
-    return permissions.includes(action);
-  }
-}
-```
-
-### Input Validation
-```typescript
-export class ValidatedService {
-  async processInput(input: unknown): Promise<Result> {
-    // Validate structure
-    if (!this.isValidInput(input)) {
-      throw new Error('Invalid input format');
-    }
-    
-    // Sanitize data
-    const sanitized = this.sanitizeInput(input);
-    
-    // Process
-    return this.process(sanitized);
-  }
-  
-  private isValidInput(input: unknown): input is ValidInput {
-    return (
-      typeof input === 'object' &&
-      input !== null &&
-      'requiredField' in input
+export function DAppConnection() {
+  const handleConnect = async () => {
+    const connectionService = getConnectionService();
+    const accounts = await connectionService.connect(
+      'https://dapp.com',
+      selectedAddress,
+      walletId
     );
-  }
-}
-```
-
-## Common Patterns
-
-### Singleton Services
-```typescript
-class SingletonService {
-  private static instance: SingletonService | null = null;
+  };
   
-  static getInstance(): SingletonService {
-    if (!this.instance) {
-      this.instance = new SingletonService();
-    }
-    return this.instance;
-  }
-  
-  private constructor() {
-    // Private constructor prevents direct instantiation
-  }
+  const handleSendTransaction = async () => {
+    const transactionService = getTransactionService();
+    const composition = await transactionService.composeSend('https://dapp.com', {
+      destination: recipientAddress,
+      asset: 'XCP',
+      quantity: amount,
+    });
+  };
 }
 ```
 
-### Service Factory
+## Testing
+
+All services include comprehensive unit tests using Vitest:
+
 ```typescript
-export function createService(config: ServiceConfig): Service {
-  switch (config.type) {
-    case 'wallet':
-      return new WalletService(config);
-    case 'provider':
-      return new ProviderService(config);
-    default:
-      throw new Error(`Unknown service type: ${config.type}`);
-  }
+// Example test structure
+describe('TransactionService', () => {
+  let transactionService: TransactionService;
+  
+  beforeEach(async () => {
+    // Mock dependencies
+    const mockConnectionService = createMockConnectionService();
+    const mockApprovalService = createMockApprovalService();
+    const mockBlockchainService = createMockBlockchainService();
+    
+    transactionService = new TransactionService(
+      mockConnectionService,
+      mockApprovalService,
+      mockBlockchainService
+    );
+    
+    await transactionService.initialize();
+  });
+  
+  it('should compose send transaction with permission check', async () => {
+    mockConnectionService.hasPermission.mockResolvedValue(true);
+    mockBlockchainService.composeSend.mockResolvedValue(mockComposition);
+    
+    const result = await transactionService.composeSend('https://dapp.com', sendParams);
+    
+    expect(result).toEqual(mockComposition);
+    expect(mockConnectionService.hasPermission).toHaveBeenCalledWith('https://dapp.com');
+  });
+});
+```
+
+### Running Tests
+
+```bash
+# Run specific service tests
+npx vitest src/services/connection/__tests__/ConnectionService.test.ts
+npx vitest src/services/approval/__tests__/ApprovalService.test.ts
+npx vitest src/services/transaction/__tests__/TransactionService.test.ts
+npx vitest src/services/blockchain/__tests__/BlockchainService.unit.test.ts
+npx vitest src/services/core/__tests__/BaseService.test.ts
+
+# Run all service tests
+npx vitest src/services/
+```
+
+## Performance and Monitoring
+
+### Health Monitoring
+
+All services provide health status:
+
+```typescript
+const health = await service.getHealth();
+// Returns:
+// {
+//   status: 'healthy' | 'degraded' | 'unhealthy',
+//   message: 'Service is operating normally',
+//   metrics: {
+//     uptime: 123456,
+//     cacheSize: 42,
+//     // ... service-specific metrics
+//   }
+// }
+```
+
+### System Health Dashboard
+
+```typescript
+const serviceRegistry = ServiceRegistry.getInstance();
+const systemHealth = await serviceRegistry.getSystemHealth();
+// Returns health status for all registered services
+```
+
+### Caching Strategy
+
+Services implement intelligent caching with different TTLs:
+
+- **Asset Info**: 1 hour (static data)
+- **Block Height**: 10 minutes (slow-changing)
+- **BTC Balance**: 30 seconds (frequent updates)
+- **Transaction Composition**: 5 minutes (user workflow)
+
+### Performance Metrics
+
+Services track key performance indicators:
+
+```typescript
+const transactionService = getTransactionService();
+const stats = transactionService.getTransactionStats();
+// Returns:
+// {
+//   totalOperations: 1234,
+//   successRate: 0.98,
+//   cacheHitRate: 0.85,
+//   averageCompositionTime: 450,
+//   pendingSignatures: 2,
+//   historyEntries: 100,
+//   cacheEntries: 25
+// }
+```
+
+## Security Features
+
+### Rate Limiting
+
+All services implement per-origin rate limiting:
+
+- **Connection requests**: 5 per minute
+- **Transaction operations**: 10 per minute  
+- **API requests**: 60 per minute
+
+### Permission Validation
+
+Every operation validates origin permissions:
+
+```typescript
+// Before any operation
+if (!await connectionService.hasPermission(origin)) {
+  throw new Error('Unauthorized - not connected to wallet');
 }
 ```
 
-## Anti-Patterns to Avoid
+### Replay Prevention
 
-1. **Don't store sensitive data in service state** - Use secure storage
-2. **Don't skip permission checks** - Always validate access
-3. **Don't ignore service boundaries** - Keep services focused
-4. **Don't create circular dependencies** - Use events for loose coupling
-5. **Don't block the event loop** - Use async operations
-6. **Don't expose internal state directly** - Use getter methods
+Transaction broadcasting includes replay protection:
+
+```typescript
+// Automatically prevents duplicate transactions
+const result = await transactionService.broadcastTransaction(origin, signedTx);
+// Second identical broadcast throws: "Duplicate transaction detected"
+```
+
+### User Approval Integration
+
+Sensitive operations require explicit user consent:
+
+```typescript
+// Automatically triggers approval UI
+const result = await transactionService.signTransaction(origin, rawTx);
+// User must approve in popup before signing occurs
+```
+
+## Migration and Future Plans
+
+### Current Status
+- ✅ **Core infrastructure** implemented and tested
+- ✅ **Domain services** implemented and tested  
+- ✅ **Service registration** complete
+- 🔄 **ProviderService refactoring** in progress
+- ⏳ **Full integration testing** pending
+
+### Planned Improvements
+- **Multi-signature support** for enterprise wallets
+- **Batch transaction processing** for efficiency
+- **Advanced analytics** and reporting
+- **Custom fee estimation** algorithms
+- **Enhanced security scanning** for transactions
+- **Service mesh monitoring** for production debugging
+
+This architecture provides a solid foundation for the XCP Wallet extension with clear separation of concerns, comprehensive testing, and robust error handling.

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Description } from "@headlessui/react";
-import { ComposeForm } from "@/components/forms/compose-form";
+import { ComposeForm } from "@/components/compose-form";
 import { Spinner } from "@/components/spinner";
 import { AssetHeader } from "@/components/headers/asset-header";
 import { useComposer } from "@/contexts/composer-context";
@@ -79,7 +79,8 @@ export function LockDescriptionForm({
             issuer: assetInfo?.issuer,
             divisible: assetInfo?.divisible ?? false,
             locked: assetInfo?.locked ?? false,
-            supply: assetInfo?.supply
+            supply: assetInfo?.supply,
+            supply_normalized: assetInfo?.supply_normalized || '0'
           }}
           className="mt-1 mb-5"
         />
