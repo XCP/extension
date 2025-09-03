@@ -9,26 +9,11 @@ import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { MessageBus, type ProviderMessage, type ApprovalMessage, type EventMessage } from '@/services/core/MessageBus';
 import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/sessionManager';
 import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, createJsonRpcError } from '@/utils/constants/errorCodes';
+import { checkForLastError, wrapRuntimeCallback } from '@/utils/browser-runtime';
 
 export default defineBackground(() => {
-  // Comprehensive Chrome API wrapper to ensure runtime.lastError is always checked
+  // Setup global Chrome API wrappers to ensure runtime.lastError is always checked
   // This prevents "Unchecked runtime.lastError" warnings from any source (including WXT)
-  
-  // Helper to wrap callbacks and always check lastError
-  const wrapCallback = (callback?: Function) => {
-    return (...args: any[]) => {
-      // Always check lastError first (this marks it as "checked")
-      const error = chrome.runtime?.lastError;
-      if (error) {
-        // Error occurred but was checked - this prevents the warning
-        // Most of these are expected (tab closed, no content script, etc.)
-      }
-      // Call original callback if provided
-      if (callback) {
-        return callback(...args);
-      }
-    };
-  };
   
   // Wrap chrome.tabs.sendMessage to always check lastError
   if (chrome.tabs?.sendMessage) {
@@ -37,13 +22,13 @@ export default defineBackground(() => {
       // Handle different argument patterns
       if (typeof options === 'function') {
         // No options provided, third arg is callback
-        return original(tabId, message, wrapCallback(options));
+        return original(tabId, message, wrapRuntimeCallback(options));
       } else if (typeof callback === 'function') {
         // Options provided, fourth arg is callback
-        return original(tabId, message, options, wrapCallback(callback));
+        return original(tabId, message, options, wrapRuntimeCallback(callback));
       } else {
         // No callback provided, add one to check errors
-        return original(tabId, message, options, wrapCallback());
+        return original(tabId, message, options, wrapRuntimeCallback());
       }
     };
   }
@@ -52,7 +37,7 @@ export default defineBackground(() => {
   if (chrome.tabs?.query) {
     const original = chrome.tabs.query.bind(chrome.tabs);
     chrome.tabs.query = function(queryInfo: any, callback?: any) {
-      return original(queryInfo, wrapCallback(callback));
+      return original(queryInfo, wrapRuntimeCallback(callback));
     } as any;
   }
   
@@ -65,28 +50,26 @@ export default defineBackground(() => {
         // First arg is message (no extensionId)
         const msg = extensionId;
         const cb = message;
-        return original(msg, wrapCallback(cb));
+        return original(msg, wrapRuntimeCallback(cb));
       } else if (typeof message === 'function') {
         // extensionId and message provided, third arg is callback
-        return original(extensionId, wrapCallback(message));
+        return original(extensionId, wrapRuntimeCallback(message));
       } else if (typeof options === 'function') {
         // extensionId, message provided, third arg is callback
-        return original(extensionId, message, wrapCallback(options));
+        return original(extensionId, message, wrapRuntimeCallback(options));
       } else if (typeof callback === 'function') {
         // All args provided
-        return original(extensionId, message, options, wrapCallback(callback));
+        return original(extensionId, message, options, wrapRuntimeCallback(callback));
       } else {
         // No callback, add one
-        return original(extensionId, message, options, wrapCallback());
+        return original(extensionId, message, options, wrapRuntimeCallback());
       }
     };
   }
   
-  // Also periodically check for any stragglers from other APIs
+  // Periodically check for any unchecked errors from other APIs
   setInterval(() => {
-    if (chrome.runtime?.lastError) {
-      void chrome.runtime.lastError;
-    }
+    checkForLastError(); // Just accessing it marks as checked
   }, 100);
   
   // Initialize service registry
@@ -332,25 +315,16 @@ export default defineBackground(() => {
     for (const tab of validTabs) {
       if (!tab.id) continue;
       
-      // Try to send message without waiting for response
-      // Using callbacks instead of promises to avoid unchecked runtime.lastError
+      // Send message using our wrapped API that always checks lastError
+      // This prevents errors when content script isn't injected yet
       chrome.tabs.sendMessage(
         tab.id,
         {
           type: 'PROVIDER_EVENT',
           event,
           data: eventData
-        },
-        // Empty callback to handle the response
-        () => {
-          // Check and clear lastError to prevent unchecked error warnings
-          const lastError = chrome.runtime.lastError;
-          if (lastError) {
-            // This is expected when content script isn't injected yet
-            // Just acknowledge the error by accessing it
-            void lastError;
-          }
         }
+        // No callback needed - wrapper handles error checking
       );
     }
   }
