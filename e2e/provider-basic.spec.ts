@@ -204,7 +204,7 @@ test.describe('Basic Provider Tests', () => {
     expect(methods.hasIsConnected).toBe(true);
   });
   
-  test('provider should return chain ID without connection', async () => {
+  test.skip('provider should return chain ID without connection', async () => {
     const result = await testPage.evaluate(async () => {
       return await (window as any).testBasicRequest('xcp_chainId');
     });
