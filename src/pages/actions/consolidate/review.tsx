@@ -19,6 +19,7 @@ interface ConsolidationReviewProps {
       networkFee: bigint;
       serviceFee: bigint;
       totalFee: bigint;
+      totalInput: bigint;
       netOutput: bigint;
     } | null;
   };

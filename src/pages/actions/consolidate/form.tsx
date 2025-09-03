@@ -6,7 +6,12 @@ import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useWallet } from "@/contexts/wallet-context";
 import { formatAmount } from "@/utils/format";
 import { useSettings } from "@/contexts/settings-context";
-import { fetchConsolidationFeeConfig, estimateConsolidationFees } from "@/utils/blockchain/bitcoin";
+import { 
+  fetchConsolidationFeeConfig, 
+  estimateConsolidationFees,
+  MIN_SERVICE_FEE,
+  SERVICE_FEE_EXEMPTION_THRESHOLD 
+} from "@/utils/blockchain/bitcoin";
 
 export interface ConsolidationFormData {
   feeRateSatPerVByte: number;
@@ -17,6 +22,7 @@ export interface ConsolidationFormData {
     networkFee: bigint;
     serviceFee: bigint;
     totalFee: bigint;
+    totalInput: bigint;
     netOutput: bigint;
   } | null;
 }
@@ -171,18 +177,37 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
                 })} BTC
               </span>
             </div>
-            {formData.feeConfig.feePercent && formData.estimatedFees.serviceFee > 0n && (
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Service Fee ({formData.feeConfig.feePercent}%):</span>
-                <span className="font-medium">
-                  {formatAmount({
-                    value: Number(formData.estimatedFees.serviceFee) / 100000000,
-                    minimumFractionDigits: 8,
-                    maximumFractionDigits: 8,
-                  })} BTC
-                </span>
-              </div>
+            
+            {/* Service fee display with special cases */}
+            {formData.feeConfig.feePercent !== undefined && (
+              <>
+                {formData.estimatedFees.serviceFee === 0n && formData.estimatedFees.totalInput <= SERVICE_FEE_EXEMPTION_THRESHOLD && (
+                  <div className="text-sm text-green-700 italic">
+                    ✓ Service fee waived (amount below {formatAmount({
+                      value: Number(SERVICE_FEE_EXEMPTION_THRESHOLD) / 100000000,
+                      minimumFractionDigits: 8,
+                      maximumFractionDigits: 8,
+                    })} BTC)
+                  </div>
+                )}
+                {formData.estimatedFees.serviceFee > 0n && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">
+                      Service Fee ({formData.feeConfig.feePercent}%
+                      {formData.estimatedFees.serviceFee === MIN_SERVICE_FEE && " - minimum"}):
+                    </span>
+                    <span className="font-medium">
+                      {formatAmount({
+                        value: Number(formData.estimatedFees.serviceFee) / 100000000,
+                        minimumFractionDigits: 8,
+                        maximumFractionDigits: 8,
+                      })} BTC
+                    </span>
+                  </div>
+                )}
+              </>
             )}
+            
             <div className="flex justify-between text-sm font-semibold border-t pt-2">
               <span className="text-gray-700">Total Fees:</span>
               <span className="text-yellow-900">
@@ -203,10 +228,24 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
                 })} BTC
               </span>
             </div>
+            
             {shouldShowHelpText && formData.feeConfig.feePercent && (
-              <p className="text-xs text-gray-500 mt-2">
-                A {formData.feeConfig.feePercent}% service fee is applied to help maintain this recovery tool.
-              </p>
+              <div className="text-xs text-gray-500 mt-2 space-y-1">
+                <p>
+                  Service fee: {formData.feeConfig.feePercent}% (minimum {formatAmount({
+                    value: Number(MIN_SERVICE_FEE) / 100000000,
+                    minimumFractionDigits: 8,
+                    maximumFractionDigits: 8,
+                  })} BTC)
+                </p>
+                <p>
+                  Fee waived for amounts under {formatAmount({
+                    value: Number(SERVICE_FEE_EXEMPTION_THRESHOLD) / 100000000,
+                    minimumFractionDigits: 8,
+                    maximumFractionDigits: 8,
+                  })} BTC
+                </p>
+              </div>
             )}
           </div>
         )}

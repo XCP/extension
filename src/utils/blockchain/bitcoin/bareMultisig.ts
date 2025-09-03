@@ -58,6 +58,15 @@ const RBF_SEQUENCE = 0xfffffffd;
 // Estimated signature size for fee calculation
 const ESTIMATED_SIGNATURE_SIZE = 74;
 
+// Bitcoin dust limit (546 sats for P2PKH/P2WPKH outputs)
+export const DUST_LIMIT = 546n;
+
+// Minimum service fee in sats (e.g., 10,000 sats = 0.0001 BTC)
+export const MIN_SERVICE_FEE = 10000n;
+
+// Threshold below which no service fee is charged (e.g., 100,000 sats = 0.001 BTC total value)
+export const SERVICE_FEE_EXEMPTION_THRESHOLD = 100000n;
+
 // Multisig script format constants
 const MULTISIG_OP_1 = '51'; // OP_1 (m=1)
 const MULTISIG_OP_3_CHECKMULTISIG = '53ae'; // OP_3 OP_CHECKMULTISIG
@@ -70,9 +79,26 @@ const OP_PUSHBYTES_65 = '41'; // For uncompressed keys (65 bytes)
 
 /**
  * Calculate the service fee for a given total amount.
+ * Applies minimum fee threshold and exemptions for small amounts.
  */
 export function calculateServiceFee(totalAmountSats: bigint, feePercent: number): bigint {
-  return (totalAmountSats * BigInt(feePercent)) / 100n;
+  // No fee if total amount is below exemption threshold
+  if (totalAmountSats <= SERVICE_FEE_EXEMPTION_THRESHOLD) {
+    return 0n;
+  }
+  
+  // Calculate percentage-based fee
+  const percentageFee = (totalAmountSats * BigInt(feePercent)) / 100n;
+  
+  // Apply minimum fee floor
+  const serviceFee = percentageFee < MIN_SERVICE_FEE ? MIN_SERVICE_FEE : percentageFee;
+  
+  // Don't create dust outputs
+  if (serviceFee < DUST_LIMIT) {
+    return 0n;
+  }
+  
+  return serviceFee;
 }
 
 /**
@@ -286,15 +312,29 @@ export async function consolidateBareMultisig(
 
     // Calculate fee and outputs
     const feeRate = BigInt(feeRateSatPerVByte);
-    const numOutputs = options?.feeAddress ? 2 : 1; // Two outputs if service fee
-    const estimatedSize = BigInt(estimateTransactionSize(tx.inputsLength, numOutputs));
+    // First calculate with potential for 2 outputs to get accurate fee estimate
+    const potentialOutputs = options?.feeAddress ? 2 : 1;
+    const estimatedSize = BigInt(estimateTransactionSize(tx.inputsLength, potentialOutputs));
     const networkFee = estimatedSize * feeRate;
     
     // Calculate service fee if applicable
     let serviceFee = 0n;
     if (options?.feeAddress && options?.feePercent) {
-      // Service fee is percentage of total input amount
-      serviceFee = (totalInputAmount * BigInt(options.feePercent)) / 100n;
+      // Use the calculateServiceFee function which includes minimum threshold and dust checks
+      serviceFee = calculateServiceFee(totalInputAmount, options.feePercent);
+      
+      // Log fee decision
+      if (serviceFee === 0n) {
+        if (totalInputAmount <= SERVICE_FEE_EXEMPTION_THRESHOLD) {
+          console.log(`No service fee: total amount ${totalInputAmount} sats is below exemption threshold`);
+        } else {
+          console.log(`No service fee: calculated fee would be dust`);
+        }
+      } else if (serviceFee === MIN_SERVICE_FEE) {
+        console.log(`Service fee: Applied minimum fee of ${MIN_SERVICE_FEE} sats`);
+      } else {
+        console.log(`Service fee: ${serviceFee} sats (${options.feePercent}% of ${totalInputAmount} sats)`);
+      }
     }
     
     const totalFees = networkFee + serviceFee;
