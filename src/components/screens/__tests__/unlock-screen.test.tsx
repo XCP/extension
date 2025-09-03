@@ -35,11 +35,17 @@ describe('UnlockScreen', () => {
       expect(screen.getByText('Custom subtitle text')).toBeInTheDocument();
     });
 
-    it('should show lock icon when showLockIcon is true', () => {
-      render(<UnlockScreen onUnlock={mockOnUnlock} showLockIcon />);
+    it('should show title and subtitle correctly', () => {
+      render(
+        <UnlockScreen 
+          onUnlock={mockOnUnlock} 
+          title="XCP Wallet"
+          subtitle="v0.0.1"
+        />
+      );
       
-      const lockIconContainer = screen.getByText('Unlock Wallet').parentElement?.parentElement;
-      expect(lockIconContainer?.querySelector('svg')).toBeInTheDocument();
+      expect(screen.getByText('XCP Wallet')).toBeInTheDocument();
+      expect(screen.getByText('v0.0.1')).toBeInTheDocument();
     });
 
     it('should show cancel button when onCancel is provided', () => {

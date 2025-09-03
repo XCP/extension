@@ -315,7 +315,6 @@ export default function SignMessage(): ReactElement {
               onUnlock={handleUnlockAndSign}
               onCancel={() => setShowAuthModal(false)}
               submitText="Authorize"
-              showLockIcon
             />
           </div>
         </div>
