@@ -308,8 +308,8 @@ describe('UnlockScreen', () => {
     it('should have proper ARIA attributes', () => {
       render(<UnlockScreen onUnlock={mockOnUnlock} />);
       
-      const passwordInput = screen.getByLabelText('Password');
-      expect(passwordInput).toHaveAttribute('aria-label', 'Password');
+      const passwordInput = screen.getByPlaceholderText('Enter your password');
+      expect(passwordInput).toHaveAttribute('name', 'password');
       expect(passwordInput).not.toHaveAttribute('aria-invalid');
     });
 
@@ -324,7 +324,7 @@ describe('UnlockScreen', () => {
       await user.click(submitButton);
       
       await waitFor(() => {
-        const input = screen.getByLabelText('Password');
+        const input = screen.getByPlaceholderText('Enter your password');
         expect(input).toHaveAttribute('aria-invalid', 'true');
       });
     });

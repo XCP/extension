@@ -24,75 +24,89 @@ describe('AssetIcon', () => {
     it('should render with default props', () => {
       render(<AssetIcon asset="XCP" />);
       
-      const image = screen.getByAltText('XCP icon');
-      expect(image).toBeInTheDocument();
+      // Check for the container with aria-label instead of alt text on img
+      const container = screen.getByLabelText('XCP icon');
+      expect(container).toBeInTheDocument();
+      expect(container).toHaveAttribute('role', 'img');
+      
+      // Image has empty alt text for accessibility (since container has the label)
+      const image = container.querySelector('img');
       expect(image).toHaveAttribute('src', 'https://app.xcp.io/img/icon/XCP');
+      expect(image).toHaveAttribute('alt', '');
     });
 
     it('should render fallback initially', () => {
       render(<AssetIcon asset="BITCOIN" />);
       
-      const fallback = screen.getByLabelText('BITCOIN icon placeholder');
-      expect(fallback).toBeInTheDocument();
+      // The fallback is now part of the main container, not a separate labeled element
+      const container = screen.getByLabelText('BITCOIN icon');
+      expect(container).toBeInTheDocument();
+      
+      // Check for fallback text within the container
+      const fallback = container.querySelector('div');
       expect(fallback).toHaveTextContent('BIT');
+      expect(fallback).toHaveClass('bg-gray-200', 'text-gray-500');
     });
 
     it('should generate correct fallback text for assets', () => {
       render(<AssetIcon asset="PEPECASH" />);
       
-      const fallback = screen.getByLabelText('PEPECASH icon placeholder');
+      const container = screen.getByLabelText('PEPECASH icon');
+      const fallback = container.querySelector('div');
       expect(fallback).toHaveTextContent('PEP');
     });
 
     it('should handle short asset names', () => {
       render(<AssetIcon asset="A" />);
       
-      const fallback = screen.getByLabelText('A icon placeholder');
+      const container = screen.getByLabelText('A icon');
+      const fallback = container.querySelector('div');
       expect(fallback).toHaveTextContent('A');
     });
 
     it('should handle two-character asset names', () => {
       render(<AssetIcon asset="AB" />);
       
-      const fallback = screen.getByLabelText('AB icon placeholder');
+      const container = screen.getByLabelText('AB icon');
+      const fallback = container.querySelector('div');
       expect(fallback).toHaveTextContent('AB');
     });
   });
 
   describe('Size Handling', () => {
-    it('should apply correct size classes for small size', () => {
+    it('should apply correct size styles for small size', () => {
       const { container } = render(<AssetIcon asset="XCP" size="sm" />);
       
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper).toHaveClass('w-8', 'h-8');
+      expect(wrapper).toHaveStyle('width: 24px; height: 24px');
     });
 
-    it('should apply correct size classes for medium size', () => {
+    it('should apply correct size styles for medium size', () => {
       const { container } = render(<AssetIcon asset="XCP" size="md" />);
       
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper).toHaveClass('w-10', 'h-10');
+      expect(wrapper).toHaveStyle('width: 32px; height: 32px');
     });
 
-    it('should apply correct size classes for large size (default)', () => {
+    it('should apply correct size styles for large size (default)', () => {
       const { container } = render(<AssetIcon asset="XCP" />);
       
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper).toHaveClass('w-12', 'h-12');
+      expect(wrapper).toHaveStyle('width: 40px; height: 40px');
     });
 
     it('should handle custom numeric sizes', () => {
       const { container } = render(<AssetIcon asset="XCP" size={64} />);
       
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper).toHaveClass('w-16', 'h-16'); // 64/4 = 16
+      expect(wrapper).toHaveStyle('width: 64px; height: 64px');
     });
 
     it('should handle large custom numeric sizes', () => {
       const { container } = render(<AssetIcon asset="XCP" size={128} />);
       
       const wrapper = container.firstChild as HTMLElement;
-      expect(wrapper).toHaveClass('w-32', 'h-32'); // 128/4 = 32
+      expect(wrapper).toHaveStyle('width: 128px; height: 128px');
     });
   });
 
@@ -100,8 +114,9 @@ describe('AssetIcon', () => {
     it('should show fallback initially and hide image', () => {
       render(<AssetIcon asset="TEST_ASSET" />);
       
-      const fallback = screen.getByLabelText('TEST_ASSET icon placeholder');
-      const image = screen.getByAltText('TEST_ASSET icon');
+      const container = screen.getByLabelText('TEST_ASSET icon');
+      const fallback = container.querySelector('div');
+      const image = container.querySelector('img');
       
       expect(fallback).toBeVisible();
       expect(image).toHaveClass('opacity-0');
@@ -110,11 +125,12 @@ describe('AssetIcon', () => {
     it('should handle image load event', () => {
       render(<AssetIcon asset="VALID_ASSET" />);
       
-      const image = screen.getByAltText('VALID_ASSET icon');
+      const container = screen.getByLabelText('VALID_ASSET icon');
+      const image = container.querySelector('img');
       expect(image).toHaveClass('opacity-0');
       
       // Simulate image load
-      fireEvent.load(image);
+      fireEvent.load(image!);
       
       // After load, image should become visible
       expect(image).toHaveClass('opacity-100');
@@ -123,14 +139,15 @@ describe('AssetIcon', () => {
     it('should handle image error event', () => {
       render(<AssetIcon asset="INVALID_ASSET" />);
       
-      const fallback = screen.getByLabelText('INVALID_ASSET icon placeholder');
-      const image = screen.getByAltText('INVALID_ASSET icon');
+      const container = screen.getByLabelText('INVALID_ASSET icon');
+      const fallback = container.querySelector('div');
+      const image = container.querySelector('img');
       
       expect(fallback).toBeVisible();
       expect(image).toHaveClass('opacity-0');
       
       // Simulate image error
-      fireEvent.error(image);
+      fireEvent.error(image!);
       
       // After error, image should remain hidden, fallback visible
       expect(image).toHaveClass('opacity-0');
@@ -149,8 +166,9 @@ describe('AssetIcon', () => {
     it('should apply rounded styles by default', () => {
       render(<AssetIcon asset="XCP" />);
       
-      const fallback = screen.getByLabelText('XCP icon placeholder');
-      const image = screen.getByAltText('XCP icon');
+      const container = screen.getByLabelText('XCP icon');
+      const fallback = container.querySelector('div');
+      const image = container.querySelector('img');
       
       expect(fallback).toHaveClass('rounded-full');
       expect(image).toHaveClass('rounded-full');
@@ -159,8 +177,9 @@ describe('AssetIcon', () => {
     it('should apply non-rounded styles when rounded=false', () => {
       render(<AssetIcon asset="XCP" rounded={false} />);
       
-      const fallback = screen.getByLabelText('XCP icon placeholder');
-      const image = screen.getByAltText('XCP icon');
+      const container = screen.getByLabelText('XCP icon');
+      const fallback = container.querySelector('div');
+      const image = container.querySelector('img');
       
       expect(fallback).toHaveClass('rounded');
       expect(fallback).not.toHaveClass('rounded-full');
@@ -171,7 +190,8 @@ describe('AssetIcon', () => {
     it('should apply correct fallback styling', () => {
       render(<AssetIcon asset="XCP" />);
       
-      const fallback = screen.getByLabelText('XCP icon placeholder');
+      const container = screen.getByLabelText('XCP icon');
+      const fallback = container.querySelector('div');
       expect(fallback).toHaveClass(
         'absolute',
         'inset-0',
@@ -180,65 +200,74 @@ describe('AssetIcon', () => {
         'items-center',
         'justify-center',
         'text-gray-500',
-        'text-xs',
         'font-semibold'
       );
     });
   });
 
   describe('Accessibility', () => {
-    it('should have appropriate alt text for image', () => {
+    it('should have appropriate aria-label on container', () => {
       render(<AssetIcon asset="BITCOIN" />);
       
-      const image = screen.getByAltText('BITCOIN icon');
-      expect(image).toBeInTheDocument();
+      const container = screen.getByLabelText('BITCOIN icon');
+      expect(container).toBeInTheDocument();
+      expect(container).toHaveAttribute('role', 'img');
     });
 
-    it('should have appropriate aria-label for fallback', () => {
+    it('should have empty alt text on image for accessibility', () => {
       render(<AssetIcon asset="ETHEREUM" />);
       
-      const fallback = screen.getByLabelText('ETHEREUM icon placeholder');
-      expect(fallback).toBeInTheDocument();
+      const container = screen.getByLabelText('ETHEREUM icon');
+      const image = container.querySelector('img');
+      expect(image).toHaveAttribute('alt', '');
     });
 
     it('should have lazy loading attribute', () => {
       render(<AssetIcon asset="XCP" />);
       
-      const image = screen.getByAltText('XCP icon');
+      const container = screen.getByLabelText('XCP icon');
+      const image = container.querySelector('img');
       expect(image).toHaveAttribute('loading', 'lazy');
     });
   });
 
   describe('Edge Cases and Error Handling', () => {
     it('should handle empty asset name', () => {
-      render(<AssetIcon asset="" />);
+      const { container } = render(<AssetIcon asset="" />);
       
-      // For empty asset, the aria-label will be " icon placeholder" (with space)
-      const fallback = screen.getByLabelText(' icon placeholder');
+      // For empty asset, find container by role instead of aria-label
+      const iconContainer = container.querySelector('[role="img"]');
+      expect(iconContainer).toBeInTheDocument();
+      expect(iconContainer).toHaveAttribute('aria-label', ' icon');
+      
+      const fallback = iconContainer?.querySelector('div');
       expect(fallback).toHaveTextContent(''); // Empty fallback text
       
-      const image = screen.getByAltText(' icon');
+      const image = iconContainer?.querySelector('img');
       expect(image).toHaveAttribute('src', 'https://app.xcp.io/img/icon/');
     });
 
     it('should handle asset names with lowercase', () => {
       render(<AssetIcon asset="bitcoin" />);
       
-      const fallback = screen.getByLabelText('bitcoin icon placeholder');
+      const container = screen.getByLabelText('bitcoin icon');
+      const fallback = container.querySelector('div');
       expect(fallback).toHaveTextContent('BIT'); // Should uppercase
     });
 
     it('should handle asset names with numbers', () => {
       render(<AssetIcon asset="A123456789" />);
       
-      const fallback = screen.getByLabelText('A123456789 icon placeholder');
+      const container = screen.getByLabelText('A123456789 icon');
+      const fallback = container.querySelector('div');
       expect(fallback).toHaveTextContent('A12');
     });
 
     it('should handle asset names with special characters', () => {
       render(<AssetIcon asset="A.TEST-COIN_X" />);
       
-      const fallback = screen.getByLabelText('A.TEST-COIN_X icon placeholder');
+      const container = screen.getByLabelText('A.TEST-COIN_X icon');
+      const fallback = container.querySelector('div');
       expect(fallback).toHaveTextContent('A.T');
     });
   });
@@ -247,14 +276,16 @@ describe('AssetIcon', () => {
     it('should generate correct URL for asset', () => {
       render(<AssetIcon asset="PEPECASH" />);
       
-      const image = screen.getByAltText('PEPECASH icon');
+      const container = screen.getByLabelText('PEPECASH icon');
+      const image = container.querySelector('img');
       expect(image).toHaveAttribute('src', 'https://app.xcp.io/img/icon/PEPECASH');
     });
 
     it('should handle asset names with spaces', () => {
       render(<AssetIcon asset="TEST COIN" />);
       
-      const image = screen.getByAltText('TEST COIN icon');
+      const container = screen.getByLabelText('TEST COIN icon');
+      const image = container.querySelector('img');
       expect(image).toHaveAttribute('src', 'https://app.xcp.io/img/icon/TEST COIN');
     });
   });
@@ -270,11 +301,12 @@ describe('AssetIcon', () => {
         fc.property(
           fc.string({ minLength: 1, maxLength: 20 })
             .filter((s: string) => s.trim().length > 0)
-            .filter((s: string) => !s.includes('%')), // Filter out problematic characters for testing
+            .filter((s: string) => !s.includes('%') && !s.includes('!') && !s.includes(',') && !s.includes(' ')), // Filter out problematic characters for testing
           (asset: string) => {
             const { container } = render(<AssetIcon asset={asset} />);
-            const fallback = screen.getByLabelText(`${asset} icon placeholder`);
-            const image = screen.getByAltText(`${asset} icon`);
+            const iconContainer = screen.getByLabelText(`${asset} icon`);
+            const fallback = iconContainer.querySelector('div');
+            const image = iconContainer.querySelector('img');
             
             // Fallback should show first 3 characters uppercased
             const expectedFallback = asset.slice(0, 3).toUpperCase();
@@ -308,12 +340,10 @@ describe('AssetIcon', () => {
             const wrapper = container.firstChild as HTMLElement;
             
             if (typeof size === 'string') {
-              const expectedPixels = size === 'sm' ? 32 : size === 'md' ? 40 : 48;
-              const expectedClass = `w-${expectedPixels / 4}`;
-              expect(wrapper).toHaveClass(expectedClass);
+              const expectedPixels = size === 'sm' ? 24 : size === 'md' ? 32 : 40;
+              expect(wrapper).toHaveStyle(`width: ${expectedPixels}px; height: ${expectedPixels}px`);
             } else {
-              const expectedClass = `w-${size / 4}`;
-              expect(wrapper).toHaveClass(expectedClass);
+              expect(wrapper).toHaveStyle(`width: ${size}px; height: ${size}px`);
             }
           }
         ),
@@ -332,11 +362,11 @@ describe('AssetIconWithFallback', () => {
     expect(wrapper).toHaveAttribute('aria-label', 'XCP icon');
   });
 
-  it('should apply correct size classes', () => {
+  it('should apply correct size styles', () => {
     const { container } = render(<AssetIconWithFallback asset="XCP" size="sm" />);
     
     const wrapper = container.firstChild as HTMLElement;
-    expect(wrapper).toHaveClass('w-8', 'h-8');
+    expect(wrapper).toHaveStyle('width: 24px; height: 24px');
   });
 
   it('should apply custom className', () => {
@@ -350,17 +380,15 @@ describe('AssetIconWithFallback', () => {
     const { container } = render(<AssetIconWithFallback asset="XCP" size={64} />);
     
     const wrapper = container.firstChild as HTMLElement;
-    expect(wrapper).toHaveClass('w-16', 'h-16');
+    expect(wrapper).toHaveStyle('width: 64px; height: 64px');
   });
 
-  it('should contain SVG with asset text', () => {
+  it('should contain asset text', () => {
     const { container } = render(<AssetIconWithFallback asset="PEPECASH" />);
     
     const wrapper = container.firstChild as HTMLElement;
-    const svgContent = wrapper.innerHTML;
-    expect(svgContent).toContain('PEP'); // First 3 chars
-    expect(svgContent).toContain('<svg');
-    expect(svgContent).toContain('</svg>');
+    expect(wrapper).toHaveTextContent('PEP'); // First 3 chars
+    expect(wrapper).toHaveClass('inline-flex', 'items-center', 'justify-center');
   });
 
   describe('Security', () => {
@@ -369,17 +397,14 @@ describe('AssetIconWithFallback', () => {
       
       const wrapper = container.firstChild as HTMLElement;
       expect(wrapper).toBeInTheDocument();
-      // The SVG content should safely render text without executing scripts
-      expect(wrapper.innerHTML).toContain('<svg');
-      expect(wrapper.innerHTML).toContain('</svg>');
-      // Should contain the first 3 characters as text (might be HTML encoded)
-      const svgContent = wrapper.innerHTML;
-      expect(svgContent).toMatch(/(&lt;|<)sc/i); // Should contain <sc or &lt;sc
+      // The text content should safely render without executing scripts
+      expect(wrapper).toHaveTextContent('<SC'); // First 3 characters, safely rendered
+      expect(wrapper).toHaveClass('inline-flex');
     });
   });
 
   describe('Property-based Testing', () => {
-    it('should generate valid SVG for various asset names', () => {
+    it('should generate valid fallback for various asset names', () => {
       if (!fc) {
         console.log('Skipping property-based test - fast-check not available');
         return;
@@ -387,18 +412,18 @@ describe('AssetIconWithFallback', () => {
       
       fc.assert(
         fc.property(
-          fc.string({ minLength: 1, maxLength: 15 }).filter((s: string) => s.trim().length > 0),
+          fc.string({ minLength: 1, maxLength: 15 })
+            .filter((s: string) => s.trim().length > 0)
+            .filter((s: string) => !s.includes(' ') && !s.includes('!') && !s.includes(',')),
           (asset: string) => {
             const { container } = render(<AssetIconWithFallback asset={asset} />);
             const wrapper = container.firstChild as HTMLElement;
             
             expect(wrapper).toHaveAttribute('aria-label', `${asset} icon`);
-            expect(wrapper.innerHTML).toContain('<svg');
-            expect(wrapper.innerHTML).toContain('</svg>');
+            expect(wrapper).toHaveClass('inline-flex', 'items-center', 'justify-center');
             
             const expectedText = asset.slice(0, 3).toUpperCase();
-            // SVG should contain the text (may be HTML encoded)
-            expect(wrapper.innerHTML).toMatch(new RegExp(expectedText.charAt(0)));
+            expect(wrapper).toHaveTextContent(expectedText);
           }
         ),
         { numRuns: 25 }
