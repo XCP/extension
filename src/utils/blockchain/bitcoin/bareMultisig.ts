@@ -170,8 +170,10 @@ export async function consolidateBareMultisig(
   
   console.log(`Found ${utxos.length} potential bare multisig UTXOs to consolidate`);
   
-  // Filter out already-spent UTXOs to avoid broadcast failures (unless skipped)
-  if (!options?.skipSpentCheck) {
+  // Laravel API already filters spent UTXOs, so we can skip the defensive check
+  // unless explicitly requested for testing
+  if (options?.skipSpentCheck === false) {
+    // Only do spent check if explicitly set to false (for testing)
     const unspentUTXOs = await filterUnspentUTXOs(utxos);
     if (unspentUTXOs.length === 0) {
       throw new Error('All UTXOs have already been spent');
@@ -183,7 +185,8 @@ export async function consolidateBareMultisig(
     
     utxos = unspentUTXOs;
   } else {
-    console.log('Skipping spent UTXO validation (may fail at broadcast if UTXOs are spent)');
+    // Trust Laravel's real-time spent status (default)
+    console.log('Using Laravel-verified UTXOs (spent status maintained server-side)');
   }
 
   // Try to build transaction with all valid UTXOs, skipping problematic ones
@@ -196,9 +199,10 @@ export async function consolidateBareMultisig(
     try {
       const amountSats = BigInt(toSatoshis(utxo.amount));
 
-      // Fetch previous transaction
+      // Check if we have the previous transaction (from Laravel or cache)
       let prevTxHex = prevTxCache.get(utxo.txid);
       if (!prevTxHex) {
+        // If Laravel didn't provide it, fetch it (fallback)
         const fetchedHex = await fetchPreviousRawTransaction(utxo.txid);
         if (!fetchedHex) {
           skippedUtxos.push({ utxo, reason: 'Could not fetch previous transaction' });
@@ -718,89 +722,100 @@ async function getLaravelApiBase(): Promise<string> {
 }
 
 /**
- * Fetch claimable bare multisig UTXOs for the given address using Laravel API.
- * This uses the new claimable endpoint that returns UTXOs the address can actually spend.
+ * Fetch claimable bare multisig UTXOs using the new consolidation endpoint.
+ * This endpoint provides everything needed in a single call.
  * @param address - The address to fetch UTXOs for
  * @param excludeStamps - Whether to exclude stamp UTXOs (reduces fees but may miss some recoverable BTC)
+ * @param batch - Which batch to fetch for large UTXO sets (default: 1)
  */
-async function fetchBareMultisigUTXOs(address: string, excludeStamps: boolean = false): Promise<UTXO[]> {
+async function fetchBareMultisigUTXOs(address: string, excludeStamps: boolean = false, batch: number = 1): Promise<UTXO[]> {
   try {
-    // First try the new Laravel claimable API
+    // Use the new comprehensive consolidation endpoint
     const laravelApiBase = await getLaravelApiBase();
     const params = new URLSearchParams({
-      min_probability: '50', // Only get UTXOs we're confident we can spend
-      include_metadata: 'false', // We don't need extra metadata
+      include_stamps: (!excludeStamps).toString(),
+      include_prev_tx: 'true', // We need this for signing
+      max_utxos: '420',
+      batch: batch.toString()
     });
     
     const response = await quickApiClient.get<{
-      status: string;
       summary: {
-        total_claimable_utxos: number;
-        recoverable_utxos: number;
-        total_claimable_btc: number;
+        total_utxos: number;
+        total_btc: number;
+        batches_required: number;
+        current_batch: number;
+        utxos_in_batch: number;
+      };
+      fee_config: {
+        fee_address: string;
+        fee_percent: number;
       };
       utxos: Array<{
         txid: string;
         vout: number;
-        value_btc: number;
-        type: string;
-        probability: number;
-        recoverable: boolean;
-        recovery_type: string;
+        amount: number; // in BTC
+        scriptPubKeyHex: string;
+        scriptPubKeyType: string;
+        prevTxHex?: string;
+        keyType?: 'compressed' | 'uncompressed';
+        needsManualParsing?: boolean;
       }>;
-    }>(`${laravelApiBase}/api/v1/address/${address}/claimable?${params.toString()}`);
+      pagination: {
+        has_more: boolean;
+        next_batch?: number;
+        total_batches: number;
+      };
+    }>(`${laravelApiBase}/api/v1/address/${address}/consolidation?${params.toString()}`);
     
-    if (response.data.status === 'success' && response.data.utxos) {
-      console.log(`Laravel API: Found ${response.data.summary.total_claimable_utxos} claimable UTXOs (${response.data.summary.recoverable_utxos} recoverable)`);
-      
-      // Filter out stamps if requested (stamps have recovery_type containing 'stamp')
-      let utxos = response.data.utxos;
-      if (excludeStamps) {
-        utxos = utxos.filter(u => !u.recovery_type?.toLowerCase().includes('stamp'));
-        console.log(`After excluding stamps: ${utxos.length} UTXOs`);
-      }
-      
-      // We still need the scriptPubKeyHex, so fetch from XCP.io for now
-      // In the future, the Laravel API should include this
-      const xcpResponse = await quickApiClient.get<{ data: any[] }>(
-        `https://app.xcp.io/api/v1/address/${address}/utxos`
-      );
-      
-      const xcpUtxosMap = new Map(
-        xcpResponse.data.data.map((u: any) => [`${u.txid}:${u.vout}`, u])
-      );
-      
-      // Map Laravel UTXOs to the format we need, enriching with XCP.io data
-      return utxos.map(utxo => {
-        const xcpUtxo = xcpUtxosMap.get(`${utxo.txid}:${utxo.vout}`);
-        return {
-          txid: utxo.txid,
-          vout: utxo.vout,
-          amount: utxo.value_btc,
-          scriptPubKeyHex: xcpUtxo?.scriptPubKeyHex || '',
-          scriptPubKeyType: xcpUtxo?.scriptPubKeyType || utxo.type,
-          requiredSignatures: xcpUtxo?.required_signatures || 1,
-        };
-      }).filter(u => u.scriptPubKeyHex); // Only keep UTXOs we have script data for
+    const data = response.data;
+    
+    // Log batch info
+    if (data.summary.batches_required > 1) {
+      console.log(`Laravel API: Processing batch ${data.summary.current_batch} of ${data.summary.batches_required} (${data.summary.utxos_in_batch} UTXOs)`);
+    } else {
+      console.log(`Laravel API: Found ${data.summary.total_utxos} UTXOs (${data.summary.total_btc} BTC)`);
     }
+    
+    // Store previous transactions in cache for later use
+    data.utxos.forEach(utxo => {
+      if (utxo.prevTxHex) {
+        // Cache the prev tx for when we need it during signing
+        prevTxCache.set(utxo.txid, utxo.prevTxHex);
+      }
+    });
+    
+    // Return in the format expected by consolidateBareMultisig
+    return data.utxos.map(utxo => ({
+      txid: utxo.txid,
+      vout: utxo.vout,
+      amount: utxo.amount,
+      scriptPubKeyHex: utxo.scriptPubKeyHex,
+      scriptPubKeyType: utxo.scriptPubKeyType,
+      requiredSignatures: 1, // For 1-of-3 multisig
+    }));
+    
   } catch (error) {
-    console.warn('Laravel API unavailable, falling back to XCP.io:', error);
+    console.warn('Laravel consolidation API unavailable, falling back to XCP.io:', error);
+    
+    // Fallback to original XCP.io API if Laravel API fails
+    const params = excludeStamps ? '?exclude_stamps=true' : '';
+    const response = await quickApiClient.get<{ data: any[] }>(`https://app.xcp.io/api/v1/address/${address}/utxos${params}`);
+    const utxos = response.data.data;
+    if (!utxos || utxos.length === 0) throw new Error('No bare multisig UTXOs found');
+    return utxos.map((utxo: any) => ({
+      txid: utxo.txid,
+      vout: utxo.vout,
+      amount: parseFloat(utxo.amount),
+      scriptPubKeyHex: utxo.scriptPubKeyHex,
+      scriptPubKeyType: utxo.scriptPubKeyType,
+      requiredSignatures: utxo.required_signatures || 1,
+    }));
   }
-  
-  // Fallback to original XCP.io API if Laravel API fails
-  const params = excludeStamps ? '?exclude_stamps=true' : '';
-  const response = await quickApiClient.get<{ data: any[] }>(`https://app.xcp.io/api/v1/address/${address}/utxos${params}`);
-  const utxos = response.data.data;
-  if (!utxos || utxos.length === 0) throw new Error('No bare multisig UTXOs found');
-  return utxos.map((utxo: any) => ({
-    txid: utxo.txid,
-    vout: utxo.vout,
-    amount: parseFloat(utxo.amount),
-    scriptPubKeyHex: utxo.scriptPubKeyHex,
-    scriptPubKeyType: utxo.scriptPubKeyType,
-    requiredSignatures: utxo.required_signatures || 1,
-  }));
 }
+
+// Cache for previous transactions from Laravel API
+const prevTxCache = new Map<string, string>();
 
 /**
  * Fetch a previous transaction's raw hex given its txid.

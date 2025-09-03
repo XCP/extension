@@ -55,45 +55,46 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
         let total = 0;
         
         try {
-          // Get the Laravel API base URL (update this to your actual Laravel API)
+          // Get the Laravel API base URL  
           const laravelApiBase = process.env.LARAVEL_API_URL || 'https://xcp.io';
           const params = new URLSearchParams({
-            min_probability: '50',
-            include_metadata: 'false'
+            include_stamps: formData.includeStamps.toString(),
+            include_prev_tx: 'false', // Don't need for display
+            max_utxos: '420',
+            batch: '1'
           });
           
           const laravelResponse = await axios.get(
-            `${laravelApiBase}/api/v1/address/${activeAddress.address}/claimable?${params.toString()}`
+            `${laravelApiBase}/api/v1/address/${activeAddress.address}/consolidation?${params.toString()}`
           );
           
-          if (laravelResponse.data.status === 'success') {
-            // Filter stamps if needed
-            let claimableUtxos = laravelResponse.data.utxos;
-            if (!formData.includeStamps) {
-              claimableUtxos = claimableUtxos.filter((u: any) => 
-                !u.recovery_type?.toLowerCase().includes('stamp')
-              );
+          if (laravelResponse.data) {
+            const data = laravelResponse.data;
+            
+            // Use Laravel's comprehensive data
+            utxosData = data.utxos;
+            total = data.summary.total_btc;
+            
+            // Store batch info if more than 1 batch
+            if (data.summary.batches_required > 1) {
+              console.log(`Laravel API: ${data.summary.total_utxos} UTXOs will require ${data.summary.batches_required} batches`);
+            } else {
+              console.log(`Laravel API: ${data.summary.total_utxos} UTXOs (${data.summary.total_btc} BTC)`);
             }
             
-            // Still need to fetch full UTXO data from XCP.io for scriptPubKeyHex
-            const xcpUrl = `https://app.xcp.io/api/v1/address/${activeAddress.address}/utxos`;
-            const xcpResponse = await axios.get(xcpUrl);
-            const xcpUtxosMap = new Map(
-              xcpResponse.data.data.map((u: any) => [`${u.txid}:${u.vout}`, u])
-            );
-            
-            // Map claimable UTXOs to full UTXO data
-            utxosData = claimableUtxos.map((u: any) => {
-              const xcpUtxo = xcpUtxosMap.get(`${u.txid}:${u.vout}`);
-              return xcpUtxo || { ...u, amount: u.value_btc };
-            }).filter((u: any) => u.scriptPubKeyHex);
-            
-            total = utxosData.reduce((sum: number, utxo: any) => sum + Number(utxo.amount), 0);
-            
-            console.log(`Using Laravel API: ${claimableUtxos.length} claimable UTXOs`);
+            // Store fee config from Laravel
+            if (data.fee_config) {
+              setFormData((prev) => ({
+                ...prev,
+                feeConfig: {
+                  feeAddress: data.fee_config.fee_address,
+                  feePercent: data.fee_config.fee_percent
+                }
+              }));
+            }
           }
         } catch (laravelError) {
-          console.warn('Laravel API unavailable, using XCP.io:', laravelError);
+          console.warn('Laravel consolidation API unavailable, using XCP.io:', laravelError);
           
           // Fallback to XCP.io API
           const excludeStamps = !formData.includeStamps;
