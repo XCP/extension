@@ -1,101 +1,143 @@
-import React, { type ReactElement, useState, useEffect } from "react";
+import { type ReactElement, type ReactNode } from "react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { formatAddress, formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 
 /**
- * Props for the ReviewScreen component.
+ * Transaction result from API response
+ */
+interface TransactionResult {
+  params: {
+    source: string;
+    destination?: string;
+    [key: string]: any;
+  };
+  btc_fee: number;
+  [key: string]: any;
+}
+
+/**
+ * API response structure for transaction composition
+ */
+interface ApiResponse {
+  result: TransactionResult;
+  [key: string]: any;
+}
+
+/**
+ * Custom field for displaying transaction details
+ */
+interface CustomField {
+  label: string;
+  value: string | number | ReactNode;
+  rightElement?: ReactNode;
+}
+
+/**
+ * Props for the ReviewScreen component
  */
 interface ReviewScreenProps {
-  apiResponse: any; // Consider typing this more strictly based on your API response shape
+  /** API response containing transaction details */
+  apiResponse: ApiResponse;
+  /** Callback when user clicks sign button */
   onSign: () => void;
+  /** Callback when user clicks back button */
   onBack: () => void;
-  customFields: {
-    label: string;
-    value: string | number;
-    rightElement?: React.ReactNode;
-  }[];
-  error: string | null; // Managed by useActionState in Composer
-  isSigning: boolean; // Passed from useActionState in Composer
+  /** Additional fields to display in the review */
+  customFields: CustomField[];
+  /** Error message to display */
+  error: string | null;
+  /** Whether the transaction is being signed */
+  isSigning: boolean;
 }
 
 /**
  * Displays a transaction review screen with details and actions.
- * @param {ReviewScreenProps} props - Component props
- * @returns {ReactElement} Review UI with transaction details
+ * 
+ * This component shows transaction details in a structured format,
+ * allowing users to review before signing and broadcasting.
+ * 
+ * @example
+ * ```tsx
+ * <ReviewScreen
+ *   apiResponse={composedTransaction}
+ *   onSign={() => signTransaction()}
+ *   onBack={() => goBack()}
+ *   customFields={[
+ *     { label: "Amount", value: "100 XCP" },
+ *     { label: "Memo", value: "Payment for services" }
+ *   ]}
+ *   error={null}
+ *   isSigning={false}
+ * />
+ * ```
  */
 export function ReviewScreen({
   apiResponse,
   onSign,
   onBack,
   customFields,
-  error: errorProp,
+  error,
   isSigning,
 }: ReviewScreenProps): ReactElement {
   const { result } = apiResponse;
-  
-  // Local error state management (same pattern as form.tsx)
-  const [error, setError] = useState<string | null>(null);
-  
-  // Sync error prop to local state
-  useEffect(() => {
-    if (errorProp) {
-      setError(errorProp);
-    }
-  }, [errorProp]);
-
-  const handleSignClick = () => {
-    // Clear any existing error when attempting to sign again
-    setError(null);
-    onSign();
-  };
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
-      <h3 className="text-lg font-bold">Review Transaction</h3>
+      <h3 className="text-lg font-bold text-gray-900">Review Transaction</h3>
+      
       {error && (
         <ErrorAlert 
           message={error}
-          onClose={() => setError(null)}
+          onClose={() => {
+            // Error dismissal is handled by parent component
+            // This is just for UI feedback
+          }}
         />
       )}
+      
       <div className="space-y-4">
+        {/* Source Address */}
         <div className="space-y-1">
-          <span className="font-semibold text-gray-700">From:</span>
+          <label className="font-semibold text-gray-700">From:</label>
           <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
             {formatAddress(result.params.source, true)}
           </div>
         </div>
+        
+        {/* Destination Address (if present) */}
         {result.params.destination && (
           <div className="space-y-1">
-            <span className="font-semibold text-gray-700">To:</span>
+            <label className="font-semibold text-gray-700">To:</label>
             <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
-              {result.params.destination}
+              {formatAddress(result.params.destination, true)}
             </div>
           </div>
         )}
+        
+        {/* Custom Fields */}
         {customFields.map((field, idx) => (
-          <div key={idx} className="space-y-1">
-            <span className="font-semibold text-gray-700">{field.label}:</span>
+          <div key={`field-${idx}-${field.label}`} className="space-y-1">
+            <label className="font-semibold text-gray-700">{field.label}:</label>
             <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
-              {typeof field.value === 'string' || typeof field.value === 'number' ? (
-                field.value.toString().includes('\n') ? (
-                  <div className="whitespace-pre-line">{field.value}</div>
-                ) : (
-                  <div className="flex justify-between items-center">
-                    <span className="break-all">{field.value}</span>
-                    {field.rightElement}
-                  </div>
-                )
+              {typeof field.value === 'string' && field.value.includes('\n') ? (
+                <div className="whitespace-pre-line">{field.value}</div>
+              ) : typeof field.value === 'string' || typeof field.value === 'number' ? (
+                <div className="flex justify-between items-center">
+                  <span className="break-all">{field.value}</span>
+                  {field.rightElement}
+                </div>
               ) : (
                 field.value
               )}
             </div>
           </div>
         ))}
+        
+        {/* Transaction Fee */}
         <div className="space-y-1">
-          <span className="font-semibold text-gray-700">Fee:</span>
+          <label className="font-semibold text-gray-700">Fee:</label>
           <div className="bg-gray-50 p-2 rounded text-gray-900">
             {formatAmount({
               value: fromSatoshis(result.btc_fee, true),
@@ -106,21 +148,34 @@ export function ReviewScreen({
           </div>
         </div>
       </div>
-      <div className="mt-4">
-        <details>
-          <summary className="text-md font-semibold cursor-pointer text-gray-700 hover:text-gray-900">
-            Raw Transaction
-          </summary>
-          <pre className="mt-2 overflow-y-auto overflow-x-auto text-sm bg-gray-50 p-3 rounded-md h-44 border border-gray-200">
-            {JSON.stringify(apiResponse, null, 2)}
-          </pre>
-        </details>
-      </div>
+      
+      {/* Raw Transaction Details (Collapsible) */}
+      <details className="mt-4">
+        <summary className="text-md font-semibold cursor-pointer text-gray-700 hover:text-gray-900 select-none">
+          Raw Transaction
+        </summary>
+        <pre className="mt-2 overflow-auto text-sm bg-gray-50 p-3 rounded-md h-44 border border-gray-200">
+          {JSON.stringify(apiResponse, null, 2)}
+        </pre>
+      </details>
+      
+      {/* Action Buttons */}
       <div className="flex space-x-4">
-        <Button onClick={onBack} color="gray">
+        <Button 
+          onClick={onBack} 
+          color="gray"
+          disabled={isSigning}
+          aria-label="Go back to edit transaction"
+        >
           Back
         </Button>
-        <Button onClick={handleSignClick} color="blue" fullWidth disabled={isSigning}>
+        <Button 
+          onClick={onSign} 
+          color="blue" 
+          fullWidth 
+          disabled={isSigning}
+          aria-label={isSigning ? "Signing transaction..." : "Sign and broadcast transaction"}
+        >
           {isSigning ? "Signing..." : "Sign & Broadcast"}
         </Button>
       </div>
