@@ -29,7 +29,7 @@ describe('AmountWithMaxInput', () => {
     onChange: vi.fn(),
     sat_per_vbyte: 1,
     setError: vi.fn(),
-    shouldShowHelpText: true,
+    showHelpText: true,
     sourceAddress: { address: 'bc1qtest123' },
     maxAmount: '100.00000000',
     label: 'Amount',
@@ -74,14 +74,14 @@ describe('AmountWithMaxInput', () => {
     expect(setError).toHaveBeenCalledWith(null);
   });
 
-  it('should show help text when shouldShowHelpText is true', () => {
-    render(<AmountWithMaxInput {...defaultProps} shouldShowHelpText={true} />);
+  it('should show help text when showHelpText is true', () => {
+    render(<AmountWithMaxInput {...defaultProps} showHelpText={true} />);
     
     expect(screen.getByText('Enter the amount of XCP you want to send.')).toBeInTheDocument();
   });
 
-  it('should not show help text when shouldShowHelpText is false', () => {
-    render(<AmountWithMaxInput {...defaultProps} shouldShowHelpText={false} />);
+  it('should not show help text when showHelpText is false', () => {
+    render(<AmountWithMaxInput {...defaultProps} showHelpText={false} />);
     
     expect(screen.queryByText(/Enter the amount of/)).not.toBeInTheDocument();
   });

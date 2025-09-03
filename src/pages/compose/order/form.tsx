@@ -261,7 +261,7 @@ export function OrderForm({
               onChange={setAmount}
               sat_per_vbyte={initialFormData?.sat_per_vbyte || 0.1}
               setError={setValidationError}
-              shouldShowHelpText={showHelpText}
+              showHelpText={showHelpText}
               sourceAddress={activeAddress}
               maxAmount={isBuy ? (price ? formatAmount({
                 value: toBigNumber(orderAssetBalance).dividedBy(toBigNumber(price)).toNumber(),
@@ -278,13 +278,13 @@ export function OrderForm({
               selectedAsset={quoteAsset}
               onChange={setQuoteAsset}
               label="Quote"
-              shouldShowHelpText={showHelpText}
+              showHelpText={showHelpText}
             />
             <PriceWithSuggestInput
               value={price}
               onChange={handlePriceChange}
               tradingPairData={tradingPairData}
-              shouldShowHelpText={showHelpText}
+              showHelpText={showHelpText}
               label="Price"
               name="price"
               priceDescription={`Price per unit in ${quoteAsset}`}

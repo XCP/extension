@@ -2,10 +2,12 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
-import { Field, Label, Description, Input } from "@headlessui/react";
+import { Field, Label, Description } from "@headlessui/react";
 import { ComposeForm } from "@/components/compose-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
+import { AssetNameInput } from "@/components/inputs/asset-name-input";
+import { TextInput } from "@/components/inputs/text-input";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useComposer } from "@/contexts/composer-context";
 import { validateQuantity } from "@/utils/validation";
@@ -44,6 +46,9 @@ export function DestroySupplyForm({
     initialFormData?.quantity?.toString() || ""
   );
   const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
+  const [assetName, setAssetName] = useState(initialFormData?.asset || "");
+  const [isAssetNameValid, setIsAssetNameValid] = useState(false);
+  const [tag, setTag] = useState(initialFormData?.tag || "");
   
   // Computed values
   const isDivisible = useMemo(() => {
@@ -124,26 +129,17 @@ export function DestroySupplyForm({
           {initialAsset ? (
             <input type="hidden" name="asset" value={initialAsset} />
           ) : (
-            <Field>
-              <Label htmlFor="asset" className="block text-sm font-medium text-gray-700">
-                Asset Name <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="asset"
-                name="asset"
-                type="text"
-                defaultValue={initialFormData?.asset || ""}
-                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
-                required
-                placeholder="Enter asset name"
-                disabled={pending}
-              />
-              {showHelpText && (
-                <Description className="mt-2 text-sm text-gray-500">
-                  The name of the asset to destroy supply from.
-                </Description>
-              )}
-            </Field>
+            <AssetNameInput
+              value={assetName}
+              onChange={setAssetName}
+              onValidationChange={setIsAssetNameValid}
+              label="Asset Name"
+              required={true}
+              placeholder="Enter asset name"
+              disabled={pending}
+              showHelpText={showHelpText}
+              helpText="The name of the asset to destroy supply from."
+            />
           )}
 
           <AmountWithMaxInput
@@ -155,7 +151,7 @@ export function DestroySupplyForm({
             setError={(message) => {}}
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.availableBalance || "0"}
-            shouldShowHelpText={showHelpText}
+            showHelpText={showHelpText}
             label="Amount to Destroy"
             name="quantity"
             description={
@@ -166,26 +162,17 @@ export function DestroySupplyForm({
             disabled={pending}
           />
 
-          <Field>
-            <Label htmlFor="tag" className="block text-sm font-medium text-gray-700">
-              Message (Optional)
-            </Label>
-            <Input
-              id="tag"
-              name="tag"
-              type="text"
-              defaultValue={initialFormData?.tag || ""}
-              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
-              disabled={pending}
-              maxLength={34}
-              placeholder="Optional reference or note (max 34 characters)"
-            />
-            {showHelpText && (
-              <Description className="mt-2 text-sm text-gray-500">
-                Optional tag to attach to this destroy action. This can be used for notes, references, or any metadata up to 34 characters.
-              </Description>
-            )}
-          </Field>
+          <TextInput
+            value={tag}
+            onChange={setTag}
+            label="Message (Optional)"
+            name="tag"
+            maxLength={34}
+            placeholder="Optional reference or note (max 34 characters)"
+            disabled={pending}
+            showHelpText={showHelpText}
+            helpText="Optional tag to attach to this destroy action. This can be used for notes, references, or any metadata up to 34 characters."
+          />
 
     </ComposeForm>
   );

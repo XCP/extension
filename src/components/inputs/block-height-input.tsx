@@ -8,7 +8,7 @@ interface BlockHeightInputProps {
   value: string;
   onChange: (value: string) => void;
   setError?: (message: string | null) => void;
-  shouldShowHelpText?: boolean;
+  showHelpText?: boolean;
   label?: string;
   name: string;
   description?: string;
@@ -24,7 +24,7 @@ export function BlockHeightInput({
   value,
   onChange,
   setError,
-  shouldShowHelpText = false,
+  showHelpText = false,
   label = "Block Height",
   name,
   description,
@@ -96,7 +96,7 @@ export function BlockHeightInput({
           </Button>
         </div>
       </div>
-      {shouldShowHelpText && (
+      {showHelpText && (
         <Description id={`${name}-description`} className="mt-2 text-sm text-gray-500">
           {description || "Enter a block height or click 'Now' to use the current block height."}
         </Description>

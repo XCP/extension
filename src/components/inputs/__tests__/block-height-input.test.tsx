@@ -71,14 +71,14 @@ describe('BlockHeightInput', () => {
     expect(setError).toHaveBeenCalledWith(null);
   });
 
-  it('should show help text when shouldShowHelpText is true', () => {
-    render(<BlockHeightInput {...defaultProps} shouldShowHelpText={true} />);
+  it('should show help text when showHelpText is true', () => {
+    render(<BlockHeightInput {...defaultProps} showHelpText={true} />);
     
     expect(screen.getByText("Enter a block height or click 'Now' to use the current block height.")).toBeInTheDocument();
   });
 
   it('should show custom description when provided', () => {
-    render(<BlockHeightInput {...defaultProps} shouldShowHelpText={true} description="Custom help text" />);
+    render(<BlockHeightInput {...defaultProps} showHelpText={true} description="Custom help text" />);
     
     expect(screen.getByText('Custom help text')).toBeInTheDocument();
   });

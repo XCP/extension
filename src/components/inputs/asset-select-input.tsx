@@ -22,7 +22,7 @@ interface AssetSelectInputProps {
   selectedAsset: string;
   onChange: (asset: string) => void;
   label: string;
-  shouldShowHelpText?: boolean;
+  showHelpText?: boolean;
   description?: string;
   required?: boolean;
 }
@@ -31,7 +31,7 @@ export function AssetSelectInput({
   selectedAsset,
   onChange,
   label,
-  shouldShowHelpText,
+  showHelpText,
   description,
   required = false,
 }: AssetSelectInputProps) {
@@ -190,7 +190,7 @@ export function AssetSelectInput({
           </div>
         </div>
       </Combobox>
-      {shouldShowHelpText && (
+      {showHelpText && (
         <p className="mt-2 text-sm text-gray-500">
           {description || "Search and select an asset by name or symbol"}
         </p>

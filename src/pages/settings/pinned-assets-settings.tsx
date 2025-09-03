@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaSearch, FaTimes } from "react-icons/fa";
 import { FiHelpCircle } from "react-icons/fi";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
+import { Button } from "@/components/button";
+import { SearchInput } from "@/components/inputs/search-input";
 import { PinnableAssetCard } from "@/components/cards/pinnable-asset-card";
 import { ErrorAlert } from "@/components/error-alert";
 import { Spinner } from "@/components/spinner";
@@ -126,10 +127,6 @@ export default function PinnedAssetsSettings(): ReactElement {
     }
   };
 
-  const handleClearSearch = () => {
-    setSearchQuery("");
-    searchInputRef.current?.focus();
-  };
 
   const SearchItemComponent = ({ asset }: { asset: { symbol: string } }): ReactElement => {
     const isPinned = pinnedAssets.includes(asset.symbol);
@@ -240,26 +237,14 @@ export default function PinnedAssetsSettings(): ReactElement {
           </div>
         )}
         
-        <div className="relative mb-4">
-          <input
-            ref={searchInputRef}
-            type="text"
-            className="w-full p-2 pl-8 pr-8 border border-gray-300 rounded-lg bg-white"
-            placeholder="Search assets to pin..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <FaSearch className="absolute left-3 top-3 text-gray-400" />
-          {searchQuery && (
-            <button
-              onClick={handleClearSearch}
-              className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-              aria-label="Clear search"
-            >
-              <FaTimes />
-            </button>
-          )}
-        </div>
+        <SearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search assets to pin..."
+          className="mb-4"
+          showClearButton={true}
+          isLoading={isSearching}
+        />
         
         <div className="overflow-y-auto">
           {renderContent()}

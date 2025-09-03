@@ -122,8 +122,8 @@ describe('PriceWithSuggestInput', () => {
     expect(onChange).toHaveBeenCalledWith('100.50000000');
   });
 
-  it('should show help text when shouldShowHelpText is true', () => {
-    render(<PriceWithSuggestInput {...defaultProps} shouldShowHelpText={true} priceDescription="Enter the price per unit" />);
+  it('should show help text when showHelpText is true', () => {
+    render(<PriceWithSuggestInput {...defaultProps} showHelpText={true} priceDescription="Enter the price per unit" />);
     
     expect(screen.getByText('Enter the price per unit')).toBeInTheDocument();
   });
@@ -134,7 +134,7 @@ describe('PriceWithSuggestInput', () => {
       name: 'XCP/BTC'
     };
     
-    render(<PriceWithSuggestInput {...defaultProps} tradingPairData={tradingPairData} shouldShowHelpText={true} />);
+    render(<PriceWithSuggestInput {...defaultProps} tradingPairData={tradingPairData} showHelpText={true} />);
     
     expect(screen.getByText(/Last trade:/)).toBeInTheDocument();
   });
@@ -348,7 +348,7 @@ describe('PriceWithSuggestInput', () => {
       <PriceWithSuggestInput 
         {...defaultProps} 
         tradingPairData={tradingPairData} 
-        shouldShowHelpText={true}
+        showHelpText={true}
         showPairFlip={true}
         isPairFlipped={true}
       />

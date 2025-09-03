@@ -259,7 +259,7 @@ export function FairmintForm({
             onChange={handleFairminterChange}
             label="Fairminter Asset"
             required
-            shouldShowHelpText={showHelpText}
+            showHelpText={showHelpText}
             description={`Select an available fairminter asset${currencyType ? ` that uses ${currencyType}` : ""}`}
             currencyFilter={currencyType}
           />
@@ -287,7 +287,7 @@ export function FairmintForm({
               }}
               sat_per_vbyte={formData.sat_per_vbyte}
               setError={(msg) => setValidationError(msg)}
-              shouldShowHelpText={showHelpText}
+              showHelpText={showHelpText}
               sourceAddress={activeAddress}
               maxAmount={calculateMaxQuantity()}
               label="Amount"

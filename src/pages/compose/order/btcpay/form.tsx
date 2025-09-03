@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Field, Label, Description, Textarea } from "@headlessui/react";
 import { ComposeForm } from "@/components/compose-form";
+import { HashInput } from "@/components/inputs/hash-input";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
 import type { BTCPayOptions } from "@/utils/blockchain/counterparty";
@@ -25,12 +25,7 @@ export function BTCPayForm({
 }: BTCPayFormProps): ReactElement {
   // Context hooks
   const { activeAddress, activeWallet, settings, showHelpText } = useComposer();
-
-  // Focus order_match_id textarea on mount
-  useEffect(() => {
-    const textarea = document.querySelector("textarea[name='order_match_id']") as HTMLTextAreaElement;
-    textarea?.focus();
-  }, []);
+  const [orderMatchId, setOrderMatchId] = useState(initialFormData?.order_match_id || "");
 
   return (
     <ComposeForm
@@ -41,25 +36,19 @@ export function BTCPayForm({
         )
       }
     >
-          <Field>
-            <Label htmlFor="order_match_id" className="block text-sm font-medium text-gray-700">
-              Order Match ID <span className="text-red-500">*</span>
-            </Label>
-            <Textarea
-              id="order_match_id"
-              name="order_match_id"
-              defaultValue={initialFormData?.order_match_id || ""}
-              rows={3}
-              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
-              disabled={false}
-            />
-            {showHelpText && (
-              <Description className="mt-2 text-sm text-gray-500">
-                Enter the ID of the order match you want to pay for.
-              </Description>
-            )}
-          </Field>
+          <HashInput
+            value={orderMatchId}
+            onChange={setOrderMatchId}
+            label="Order Match ID"
+            name="order_match_id"
+            hashType="match"
+            placeholder="Enter order match ID (hash_hash format)..."
+            required={true}
+            showHelpText={showHelpText}
+            description="Enter the ID of the order match you want to pay for."
+            showCopyButton={true}
+          />
+          <input type="hidden" name="order_match_id" value={orderMatchId} />
 
     </ComposeForm>
   );

@@ -76,8 +76,8 @@ describe('AssetSelectInput', () => {
     expect(input).toHaveValue('BTC');
   });
 
-  it('should show help text when shouldShowHelpText is true', () => {
-    render(<AssetSelectInput {...defaultProps} shouldShowHelpText />);
+  it('should show help text when showHelpText is true', () => {
+    render(<AssetSelectInput {...defaultProps} showHelpText />);
     
     expect(screen.getByText('Search and select an asset by name or symbol')).toBeInTheDocument();
   });
@@ -86,7 +86,7 @@ describe('AssetSelectInput', () => {
     render(
       <AssetSelectInput 
         {...defaultProps} 
-        shouldShowHelpText 
+        showHelpText 
         description="Custom help text" 
       />
     );
