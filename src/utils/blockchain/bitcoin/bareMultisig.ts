@@ -1,4 +1,5 @@
 import { Transaction, SigHash, OutScript } from '@scure/btc-signer';
+import { signECDSA } from '@scure/btc-signer/utils';
 import { quickApiClient, API_TIMEOUTS } from '@/utils/api/axiosConfig';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
@@ -45,6 +46,7 @@ export async function consolidateBareMultisig(
     prevTxHex: string; 
     amountSats: bigint;
     needsUncompressed: boolean;
+    wasManuallyParsed: boolean; // Track if we had to bypass btc-signer's validation
   }> = [];
   const skippedUtxos: Array<{ utxo: UTXO; reason: string }> = [];
   const prevTxCache = new Map<string, string>();
@@ -72,16 +74,16 @@ export async function consolidateBareMultisig(
       try {
         decoded = OutScript.decode(scriptPubKey);
       } catch (e) {
-        // Check if it's an invalid elliptic curve point error
-        const errorMsg = String(e);
-        if (errorMsg.includes('wrong pubkey')) {
-          // These UTXOs contain mathematically invalid public keys that don't lie on the secp256k1 curve
-          // They are permanently unspendable and were likely created by buggy software
-          skippedUtxos.push({ utxo, reason: `Contains invalid elliptic curve points (permanently unspendable)` });
+        // If standard decoding fails, try manual parsing for bare multisig
+        // We only need OUR key to be valid for 1-of-3 multisig
+        const manuallyParsed = tryManualMultisigParse(utxo.scriptPubKeyHex, publicKeyCompressedHex, publicKeyUncompressedHex);
+        if (manuallyParsed) {
+          decoded = manuallyParsed;
+          console.log(`Manually parsed multisig for ${utxo.txid}:${utxo.vout} (bypassed validation of other pubkeys)`);
         } else {
           skippedUtxos.push({ utxo, reason: `Failed to decode script: ${e}` });
+          continue;
         }
-        continue;
       }
 
       if (decoded.type !== 'ms') {
@@ -90,8 +92,9 @@ export async function consolidateBareMultisig(
       }
 
       const pubkeys = decoded.pubkeys;
-      const hasCompressed = pubkeys.some((pk: Uint8Array) => bytesToHex(pk) === publicKeyCompressedHex);
-      const hasUncompressed = pubkeys.some((pk: Uint8Array) => bytesToHex(pk) === publicKeyUncompressedHex);
+      // For manually parsed scripts, we already checked for our key
+      const hasCompressed = decoded.ourKeyIndex !== undefined || pubkeys.some((pk: Uint8Array) => bytesToHex(pk) === publicKeyCompressedHex);
+      const hasUncompressed = decoded.ourKeyIndex !== undefined || pubkeys.some((pk: Uint8Array) => bytesToHex(pk) === publicKeyUncompressedHex);
       
       if (!hasCompressed && !hasUncompressed) {
         skippedUtxos.push({ utxo, reason: 'Does not contain our public key' });
@@ -99,9 +102,10 @@ export async function consolidateBareMultisig(
       }
 
       // Log details for debugging
-      console.log(`UTXO ${utxo.txid}:${utxo.vout} - Amount: ${utxo.amount} BTC, Has compressed: ${hasCompressed}, Has uncompressed: ${hasUncompressed}`);
+      const wasManuallyParsed = decoded.ourKeyIndex !== undefined;
+      console.log(`UTXO ${utxo.txid}:${utxo.vout} - Amount: ${utxo.amount} BTC, Has compressed: ${hasCompressed}, Has uncompressed: ${hasUncompressed}, Manually parsed: ${wasManuallyParsed}`);
       
-      validInputs.push({ utxo, scriptPubKey, prevTxHex, amountSats, needsUncompressed: hasUncompressed });
+      validInputs.push({ utxo, scriptPubKey, prevTxHex, amountSats, needsUncompressed: hasUncompressed, wasManuallyParsed });
     } catch (error) {
       console.error(`Error processing UTXO ${utxo.txid}:${utxo.vout}:`, error);
       skippedUtxos.push({ utxo, reason: `Processing error: ${error}` });
@@ -133,16 +137,33 @@ export async function consolidateBareMultisig(
   try {
     const tx = new Transaction({ disableScriptCheck: true });
     let totalInputAmount = 0n;
+    const problematicInputs: number[] = []; // Track which inputs need manual handling
 
     // Add all inputs
-    for (const { utxo, scriptPubKey, prevTxHex, amountSats } of attemptInputs) {
-      tx.addInput({
-        txid: hexToBytes(utxo.txid),
-        index: utxo.vout,
-        sequence: 0xfffffffd, // Enable RBF.
-        nonWitnessUtxo: hexToBytes(prevTxHex),
-        redeemScript: scriptPubKey, // For bare multisig, the redeemScript is identical to the scriptPubKey.
-      });
+    for (let i = 0; i < attemptInputs.length; i++) {
+      const { utxo, scriptPubKey, prevTxHex, amountSats, needsUncompressed, wasManuallyParsed } = attemptInputs[i];
+      
+      // If this was manually parsed, btc-signer can't handle it normally
+      if (wasManuallyParsed) {
+        // Add without redeemScript - we'll handle signing manually
+        tx.addInput({
+          txid: hexToBytes(utxo.txid),
+          index: utxo.vout,
+          sequence: 0xfffffffd, // Enable RBF.
+          nonWitnessUtxo: hexToBytes(prevTxHex),
+          // NO redeemScript - we'll construct the scriptSig manually
+        });
+        problematicInputs.push(i);
+      } else {
+        // Normal input with redeemScript
+        tx.addInput({
+          txid: hexToBytes(utxo.txid),
+          index: utxo.vout,
+          sequence: 0xfffffffd, // Enable RBF.
+          nonWitnessUtxo: hexToBytes(prevTxHex),
+          redeemScript: scriptPubKey,
+        });
+      }
       totalInputAmount += amountSats;
     }
 
@@ -164,7 +185,7 @@ export async function consolidateBareMultisig(
       return attemptInputs[idx].needsUncompressed;
     };
 
-    // Use the improved hybrid signing utility
+    // Use the improved hybrid signing utility for normal inputs
     // We don't need to pass prevOutputScripts since redeemScript is already set on inputs
     hybridSignTransaction(
       tx,
@@ -174,6 +195,22 @@ export async function consolidateBareMultisig(
       undefined, // Will use redeemScript from inputs
       checkForUncompressed
     );
+
+    // Manually handle problematic inputs that btc-signer couldn't parse
+    for (const inputIdx of problematicInputs) {
+      const { scriptPubKey } = attemptInputs[inputIdx];
+      const success = manuallySignMultisigInput(
+        tx,
+        inputIdx,
+        privateKeyBytes,
+        publicKeyCompressed,
+        publicKeyUncompressed,
+        scriptPubKey
+      );
+      if (!success) {
+        console.warn(`Failed to manually sign problematic input ${inputIdx}`);
+      }
+    }
 
     // Try to finalize
     tx.finalize();
@@ -196,6 +233,130 @@ export async function consolidateBareMultisig(
 }
 
 /* ───────── Helper Functions ───────── */
+
+/**
+ * Manually parse a multisig script without validating all pubkeys.
+ * This is needed because btc-signer validates ALL pubkeys even though
+ * we only need one valid key for 1-of-3 multisig.
+ * 
+ * @param scriptHex - The hex string of the script
+ * @param ourCompressedKey - Our compressed public key hex
+ * @param ourUncompressedKey - Our uncompressed public key hex
+ * @returns A decoded object compatible with OutScript.decode() or null
+ */
+function tryManualMultisigParse(scriptHex: string, ourCompressedKey: string, ourUncompressedKey: string): any {
+  try {
+    // Expected format for 1-of-3: 51 21 [key1] 21 [key2] 21 [key3] 53 ae
+    // 51 = OP_1 (m=1)
+    // 21 = OP_PUSHBYTES_33
+    // 53 = OP_3 (n=3) 
+    // ae = OP_CHECKMULTISIG
+    
+    if (!scriptHex.startsWith('5121') || !scriptHex.endsWith('53ae')) {
+      return null; // Not a 1-of-3 multisig
+    }
+    
+    // Extract the three pubkeys (each should be 33 bytes = 66 hex chars after '21')
+    const pubkeys: Uint8Array[] = [];
+    let foundOurKey = false;
+    let ourKeyIndex = -1;
+    
+    // Parse each of the 3 keys
+    for (let i = 0; i < 3; i++) {
+      const offset = 4 + (i * 68); // 51 21 (4 chars), then each key is 21 (2 chars) + 66 chars = 68 chars
+      if (scriptHex.substr(offset, 2) !== '21') {
+        return null; // Expected PUSHBYTES_33
+      }
+      
+      const keyHex = scriptHex.substr(offset + 2, 66);
+      if (keyHex.length !== 66) {
+        return null; // Wrong key length
+      }
+      
+      // Check if this is our key (we don't validate the others)
+      if (keyHex === ourCompressedKey.toLowerCase() || keyHex === ourUncompressedKey.toLowerCase()) {
+        foundOurKey = true;
+        ourKeyIndex = i;
+      }
+      
+      pubkeys.push(hexToBytes(keyHex));
+    }
+    
+    if (!foundOurKey) {
+      return null; // Our key isn't in this multisig
+    }
+    
+    // Return a structure compatible with what OutScript.decode would return
+    // btc-signer expects this shape for multisig
+    return {
+      type: 'ms',
+      m: 1,
+      n: 3,
+      pubkeys: pubkeys,
+      ourKeyIndex: ourKeyIndex // Store which position our key is in
+    };
+  } catch (error) {
+    console.error('Manual multisig parsing failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Manually sign a problematic multisig input that btc-signer can't handle.
+ * This bypasses btc-signer's validation and directly constructs the scriptSig.
+ * 
+ * @param tx - The transaction
+ * @param inputIdx - Index of the input to sign
+ * @param privateKey - Private key bytes
+ * @param compressedPubkey - Compressed public key
+ * @param uncompressedPubkey - Uncompressed public key  
+ * @param scriptPubKey - The scriptPubKey from the UTXO being spent
+ * @returns true if successful
+ */
+function manuallySignMultisigInput(
+  tx: Transaction,
+  inputIdx: number,
+  privateKey: Uint8Array,
+  compressedPubkey: Uint8Array,
+  uncompressedPubkey: Uint8Array,
+  scriptPubKey: Uint8Array
+): boolean {
+  try {
+    // Get the preimage hash for signing
+    const preimageLegacy = (tx as any).preimageLegacy;
+    if (typeof preimageLegacy !== 'function') {
+      console.error('preimageLegacy not accessible');
+      return false;
+    }
+    
+    // Create the hash to sign
+    const hash = preimageLegacy.call(tx, inputIdx, scriptPubKey, SigHash.ALL);
+    
+    // Sign with our key
+    const sig = signECDSA(hash, privateKey, (tx as any).opts?.lowR);
+    
+    // Append sighash byte
+    const sigWithHash = new Uint8Array(sig.length + 1);
+    sigWithHash.set(sig);
+    sigWithHash[sig.length] = SigHash.ALL;
+    
+    // For bare multisig, the scriptSig is: OP_0 <signature>
+    // OP_0 is required due to a bug in the original Bitcoin implementation
+    const scriptSig = new Uint8Array(1 + 1 + sigWithHash.length);
+    scriptSig[0] = 0x00; // OP_0
+    scriptSig[1] = sigWithHash.length; // Push signature length
+    scriptSig.set(sigWithHash, 2);
+    
+    // Set the finalScriptSig directly to bypass validation
+    tx.updateInput(inputIdx, { finalScriptSig: scriptSig }, true);
+    
+    console.log(`Manually signed problematic multisig input ${inputIdx}`);
+    return true;
+  } catch (error) {
+    console.error(`Failed to manually sign input ${inputIdx}:`, error);
+    return false;
+  }
+}
 
 /**
  * Roughly estimates a transaction's size in bytes.
