@@ -136,7 +136,7 @@ test.describe('Verify Message', () => {
     
     // Should show invalid signature
     await expect(page.locator('textarea.border-red-500')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('text=Signature Invalid')).toBeVisible();
+    await expect(page.locator('text=Signature Invalid - Does not match')).toBeVisible();
     
     await cleanup(context);
   });
