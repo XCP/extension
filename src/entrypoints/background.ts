@@ -9,7 +9,7 @@ import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { MessageBus, type ProviderMessage, type ApprovalMessage, type EventMessage } from '@/services/core/MessageBus';
 import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/sessionManager';
 import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, createJsonRpcError } from '@/utils/constants/errorCodes';
-import { checkForLastError, wrapRuntimeCallback } from '@/utils/browser-runtime';
+import { checkForLastError, wrapRuntimeCallback } from '@/utils/browser';
 
 export default defineBackground(() => {
   // Setup global Chrome API wrappers to ensure runtime.lastError is always checked

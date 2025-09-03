@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { launchExtension, setupWallet, cleanup, navigateViaFooter } from './helpers/test-helpers';
+import { launchExtension, setupWallet, cleanup, navigateViaFooter, lockWallet, unlockWallet, TEST_PASSWORD } from './helpers/test-helpers';
 
 test.describe('Address Preview Cache', () => {
   test('should cache and display address previews when wallet unlocked', async () => {
@@ -107,22 +107,18 @@ test.describe('Address Preview Cache', () => {
       initialAddresses.push({ title: titleText, description: descText });
     }
     
-    // Navigate back to settings
-    await page.locator('button:has-text("Address Type")').first().click();
+    // Navigate back to settings main page
+    await page.goBack();
     await page.waitForTimeout(500);
     
-    // Go to Security and lock the wallet
-    await page.click('text=Security');
-    await page.waitForTimeout(500);
-    await page.click('text=Lock Wallet');
-    await page.waitForTimeout(1000);
+    // Lock the wallet using the helper function
+    await lockWallet(page);
     
     // Should be redirected to unlock page
     await expect(page.locator('text=Enter Password')).toBeVisible({ timeout: 5000 });
     
-    // Enter password to unlock again
-    await page.fill('input[type="password"]', 'test123456');
-    await page.click('button:has-text("Unlock")');
+    // Unlock the wallet again using the helper function
+    await unlockWallet(page, TEST_PASSWORD);
     await page.waitForTimeout(1000);
     
     // Navigate back to settings
