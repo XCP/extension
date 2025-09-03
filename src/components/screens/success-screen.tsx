@@ -71,10 +71,7 @@ export function SuccessScreen({
       setCopiedToClipboard(true);
       
       // Reset the copied state after 2 seconds
-      const timeoutId = setTimeout(() => setCopiedToClipboard(false), 2000);
-      
-      // Cleanup function to clear timeout if component unmounts
-      return () => clearTimeout(timeoutId);
+      setTimeout(() => setCopiedToClipboard(false), 2000);
     } catch (err) {
       console.error("Failed to copy transaction ID:", err);
       // Could add error toast here if we have a toast system
