@@ -16,10 +16,36 @@ vi.mock('@/utils/validation', () => ({
   isValidBitcoinAddress: vi.fn((address) => {
     return address && (address.startsWith('1') || address.startsWith('3') || address.startsWith('bc1'));
   }),
+  validateBitcoinAddress: vi.fn((address) => ({
+    isValid: address && (address.startsWith('1') || address.startsWith('3') || address.startsWith('bc1')),
+    error: address && (address.startsWith('1') || address.startsWith('3') || address.startsWith('bc1')) ? null : 'Invalid address'
+  })),
   lookupAssetOwner: vi.fn().mockResolvedValue({ isValid: false, ownerAddress: null, error: null }),
   shouldTriggerAssetLookup: vi.fn().mockReturnValue(false),
   isMPMASupported: vi.fn((asset) => asset !== 'BTC'),
-  validateDestinations: vi.fn(() => ({ errors: {}, duplicates: new Set(), isValid: true })),
+  validateDestinations: vi.fn((destinations: any[]) => {
+    const errors: Record<string, string> = {};
+    const duplicates = new Set();
+    let isValid = true;
+    
+    destinations.forEach((dest: any, index: number) => {
+      if (!dest.address || dest.address === 'invalid-address') {
+        errors[dest.id] = 'Invalid address';
+        isValid = false;
+      }
+      
+      // Check for duplicates
+      const duplicateIndex = destinations.findIndex((d: any, i: number) => 
+        i !== index && d.address.toLowerCase() === dest.address.toLowerCase()
+      );
+      if (duplicateIndex !== -1) {
+        duplicates.add(dest.address);
+        isValid = false;
+      }
+    });
+    
+    return { errors, duplicates, isValid };
+  }),
   areDestinationsComplete: vi.fn(() => true),
   validateDestinationCount: vi.fn(() => ({ isValid: true })),
   parseMultiLineDestinations: vi.fn((text: string) => text.split('\n').filter((line: string) => line.trim()))
