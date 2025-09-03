@@ -10,13 +10,6 @@ export default defineContentScript({
       
       // Check for XCP wallet messages
       if (event.data?.target === 'xcp-wallet-content' && event.data?.type === 'XCP_WALLET_REQUEST') {
-        console.debug('Content script sending message to background:', {
-          type: 'PROVIDER_REQUEST',
-          origin: window.location.origin,
-          data: event.data.data,
-          extensionId: browser.runtime.id
-        });
-        
         try {
           // Use MessageBus for standardized communication
           const { MessageBus } = await import('@/services/core/MessageBus');
@@ -28,8 +21,6 @@ export default defineContentScript({
             xcpWalletVersion: '2.0',
             timestamp: Date.now()
           }, 'background');
-          
-          console.debug('Content script received response from background:', response);
           
           // Handle the response properly
           if (!response) {
@@ -67,14 +58,22 @@ export default defineContentScript({
             }, window.location.origin);
           }
         } catch (error) {
+          console.error('Content script error handling provider request:', error);
           // Send error back to page
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error in content script';
+          
+          // Special handling for fingerprint errors (from minified webext-bridge code)
+          const finalErrorMessage = errorMessage.includes('fingerprint') 
+            ? 'Extension services not available. Please try reloading the extension.'
+            : errorMessage;
+          
           window.postMessage({
             target: 'xcp-wallet-injected',
             type: 'XCP_WALLET_RESPONSE',
             id: event.data.id,
             error: {
-              message: (error as any).message || 'Unknown error',
-              code: (error as any).code || -1
+              message: finalErrorMessage,
+              code: error && typeof error === 'object' && 'code' in error ? (error as any).code : -32603
             }
           }, window.location.origin);
         }
