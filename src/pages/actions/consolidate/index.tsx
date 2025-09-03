@@ -87,7 +87,9 @@ export function Consolidate() {
       setError(null);
       await consolidateAndBroadcast(
         formData.feeRateSatPerVByte,
-        formData.destinationAddress
+        formData.destinationAddress,
+        true, // includeServiceFee
+        formData.includeStamps // pass includeStamps option
       );
       // Handle success (e.g., navigate away or show success message)
     } catch (err) {

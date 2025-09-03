@@ -43,6 +43,7 @@ interface ConsolidationOptions {
   skipSpentCheck?: boolean; // Skip validation of spent UTXOs (faster but may fail at broadcast)
   feeAddress?: string;      // Optional address to send service fee to
   feePercent?: number;      // Percentage of consolidated amount as fee (e.g., 10 for 10%)
+  includeStamps?: boolean;  // Whether to include stamp UTXOs (default: false to minimize fees)
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -162,7 +163,9 @@ export async function consolidateBareMultisig(
   const publicKeyUncompressed: Uint8Array = getPublicKey(privateKeyBytes, false);
   const publicKeyUncompressedHex = bytesToHex(publicKeyUncompressed);
 
-  let utxos = await fetchBareMultisigUTXOs(sourceAddress);
+  // Fetch UTXOs, excluding stamps by default to minimize fees
+  const excludeStamps = !(options?.includeStamps ?? false);
+  let utxos = await fetchBareMultisigUTXOs(sourceAddress, excludeStamps);
   if (utxos.length === 0) throw new Error('No bare multisig UTXOs found');
   
   console.log(`Found ${utxos.length} potential bare multisig UTXOs to consolidate`);
@@ -684,9 +687,12 @@ export async function fetchConsolidationFeeConfig(): Promise<{ feeAddress?: stri
 
 /**
  * Fetch bare multisig UTXOs for the given address.
+ * @param address - The address to fetch UTXOs for
+ * @param excludeStamps - Whether to exclude stamp UTXOs (reduces fees but may miss some recoverable BTC)
  */
-async function fetchBareMultisigUTXOs(address: string): Promise<UTXO[]> {
-  const response = await quickApiClient.get<{ data: any[] }>(`https://app.xcp.io/api/v1/address/${address}/utxos`);
+async function fetchBareMultisigUTXOs(address: string, excludeStamps: boolean = false): Promise<UTXO[]> {
+  const params = excludeStamps ? '?exclude_stamps=true' : '';
+  const response = await quickApiClient.get<{ data: any[] }>(`https://app.xcp.io/api/v1/address/${address}/utxos${params}`);
   const utxos = response.data.data;
   if (!utxos || utxos.length === 0) throw new Error('No bare multisig UTXOs found');
   return utxos.map((utxo: any) => ({

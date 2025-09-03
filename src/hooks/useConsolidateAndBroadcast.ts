@@ -19,7 +19,8 @@ export function useConsolidateAndBroadcast() {
   const consolidateAndBroadcast = async (
     feeRateSatPerVByte: number,
     destinationAddress?: string,
-    includeServiceFee: boolean = true
+    includeServiceFee: boolean = true,
+    includeStamps: boolean = false
   ) => {
     if (!activeWallet || !activeAddress) {
       throw new Error('Wallet not properly initialized');
@@ -34,16 +35,18 @@ export function useConsolidateAndBroadcast() {
       );
       const privateKey = privateKeyResult.key;
 
+      // Build consolidation options
+      let consolidationOptions: any = {
+        includeStamps // Pass the includeStamps option
+      };
+      
       // Fetch fee configuration if service fee is enabled
-      let consolidationOptions = undefined;
       if (includeServiceFee) {
         const config = await fetchConsolidationFeeConfig();
         if (config) {
           setFeeConfig(config);
-          consolidationOptions = {
-            feeAddress: config.feeAddress,
-            feePercent: config.feePercent
-          };
+          consolidationOptions.feeAddress = config.feeAddress;
+          consolidationOptions.feePercent = config.feePercent;
         }
       }
 

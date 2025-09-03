@@ -15,6 +15,7 @@ import {
 export interface ConsolidationFormData {
   feeRateSatPerVByte: number;
   destinationAddress: string;
+  includeStamps: boolean;
   utxoData: { count: number; total: number } | null;
   feeConfig?: { feeAddress?: string; feePercent?: number } | null;
   estimatedFees?: {
@@ -29,6 +30,7 @@ export interface ConsolidationFormData {
 const DEFAULT_FORM_DATA: ConsolidationFormData = {
   feeRateSatPerVByte: 0.1,
   destinationAddress: "",
+  includeStamps: false,
   utxoData: null,
 };
 
@@ -48,10 +50,12 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
     async function fetchData() {
       if (!activeAddress) return;
       try {
+        // Build the URL with exclude_stamps parameter based on includeStamps setting
+        const excludeStamps = !formData.includeStamps;
+        const url = `https://app.xcp.io/api/v1/address/${activeAddress.address}/utxos${excludeStamps ? '?exclude_stamps=true' : ''}`;
+        
         // Fetch UTXOs
-        const response = await axios.get(
-          `https://app.xcp.io/api/v1/address/${activeAddress.address}/utxos`
-        );
+        const response = await axios.get(url);
         const utxosData = response.data.data;
         setUtxos(utxosData);
         const total = utxosData.reduce((sum: number, utxo: any) => sum + Number(utxo.amount), 0);
@@ -69,7 +73,7 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
       }
     }
     fetchData();
-  }, [activeAddress]);
+  }, [activeAddress, formData.includeStamps]);
 
   // Recalculate fees when fee rate changes
   useEffect(() => {
@@ -103,6 +107,10 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
 
   const handleDestinationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, destinationAddress: e.target.value.trim() }));
+  };
+
+  const handleIncludeStampsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({ ...prev, includeStamps: e.target.checked }));
   };
 
   const handleSubmitInternal = (e: React.FormEvent<HTMLFormElement>) => {
@@ -155,6 +163,30 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
           <p className={`text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
             If left empty, UTXOs will be consolidated to your source address.
           </p>
+        </div>
+
+        {/* Include Stamps toggle */}
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+          <div className="flex flex-col">
+            <label htmlFor="includeStamps" className="text-sm font-medium text-gray-700">
+              Include Stamp UTXOs
+            </label>
+            <span className="text-xs text-gray-500">
+              {formData.includeStamps 
+                ? "Including stamps will increase transaction fees"
+                : "Excluding stamps reduces fees and transaction size"}
+            </span>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              id="includeStamps"
+              type="checkbox"
+              className="sr-only peer"
+              checked={formData.includeStamps}
+              onChange={handleIncludeStampsChange}
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
         </div>
 
         <FeeRateInput
