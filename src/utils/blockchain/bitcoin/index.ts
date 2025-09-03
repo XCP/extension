@@ -7,7 +7,6 @@ export * from './messageSigner';
 export * from './messageVerifier';
 export * from './price';
 export * from './privateKey';
-export * from './sampleAddresses';
 export * from './transactionBroadcaster';
 export * from './transactionSigner';
 export * from './uncompressedSigner';

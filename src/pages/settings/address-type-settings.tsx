@@ -9,7 +9,7 @@ import { ErrorAlert } from "@/components/error-alert";
 import { Spinner } from "@/components/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat, getSampleAddressForFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import { formatAddress } from "@/utils/format";
 import type { ReactElement } from "react";
 
@@ -91,9 +91,9 @@ export default function AddressTypeSettings(): ReactElement {
           const preview = await getPreviewAddressForFormat(activeWallet.id, format);
           addressMap[format] = preview;
         } catch (err) {
-          // Fall back to sample address if can't get real preview
-          console.debug(`Using sample for ${format}:`, err);
-          addressMap[format] = getSampleAddressForFormat(format);
+          // If no cached preview available, leave empty
+          console.debug(`No preview available for ${format}:`, err);
+          addressMap[format] = "";
         }
       }
       
@@ -213,7 +213,7 @@ export default function AddressTypeSettings(): ReactElement {
             const disabledReason = (isCounterwallet && type !== AddressFormat.Counterwallet) ? "Create new wallet to use this address type" : undefined;
             // Use loaded address preview
             const address = addresses[type] || "";
-            const addressPreview = address ? formatAddress(address) : "Loading...";
+            const addressPreview = address ? formatAddress(address) : "";
 
             return (
               <SelectionCard
