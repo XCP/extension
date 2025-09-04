@@ -1,6 +1,6 @@
 import { defineAppConfig } from 'wxt/utils/define-app-config';
 import { storage } from 'wxt/storage';
-import { fathom } from '@/utils/analytics/providers/fathom';
+import { fathom } from '@/utils/fathom';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 export default defineAppConfig({
