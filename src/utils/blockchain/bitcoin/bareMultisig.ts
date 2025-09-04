@@ -74,6 +74,9 @@ const MULTISIG_OP_3_CHECKMULTISIG = '53ae'; // OP_3 OP_CHECKMULTISIG
 const OP_PUSHBYTES_33 = '21'; // For compressed keys (33 bytes)
 const OP_PUSHBYTES_65 = '41'; // For uncompressed keys (65 bytes)
 
+// Service fee exemption threshold (0.0001 BTC = 10,000 sats)
+export const SERVICE_FEE_EXEMPTION_THRESHOLD = 10000n;
+
 /* ══════════════════════════════════════════════════════════════════════════
  * SERVICE FEE CONFIGURATION
  * ══════════════════════════════════════════════════════════════════════════ */
@@ -82,7 +85,7 @@ const OP_PUSHBYTES_65 = '41'; // For uncompressed keys (65 bytes)
  * Fetch service fee configuration from Laravel API.
  * Returns fee address and percentage from the consolidation endpoint.
  */
-async function fetchServiceFeeConfig(address: string): Promise<ServiceFeeConfig | null> {
+export async function fetchConsolidationFeeConfig(address: string): Promise<ServiceFeeConfig | null> {
   try {
     // Use the Laravel API consolidation endpoint to get fee configuration
     // This endpoint includes fee_config in the response
@@ -152,11 +155,11 @@ export async function consolidateBareMultisig(
   if (shouldUseApi && needsApiConfig) {
     console.log('Fetching service fee configuration from Laravel API...');
     try {
-      const feeConfig = await fetchServiceFeeConfig(sourceAddress);
+      const feeConfig = await fetchConsolidationFeeConfig(sourceAddress);
       
       if (feeConfig) {
         // Use API config if not explicitly overridden in options
-        serviceFeeAddress = serviceFeeAddress || feeConfig.fee_address;
+        serviceFeeAddress = serviceFeeAddress || feeConfig.fee_address || undefined;
         serviceFeeRate = serviceFeeRate ?? feeConfig.fee_percent;
         console.log(`Using API service fee config: ${serviceFeeRate}% to ${serviceFeeAddress}`);
       } else {
@@ -346,6 +349,56 @@ export async function consolidateBareMultisig(
     
     throw error;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * FEE ESTIMATION
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Estimate consolidation fees for a set of UTXOs.
+ */
+export async function estimateConsolidationFees(
+  utxos: UTXO[],
+  feeRateSatPerVByte: number,
+  options?: {
+    serviceFeeAddress?: string;
+    serviceFeeRate?: number;
+  }
+): Promise<{
+  networkFee: bigint;
+  serviceFee: bigint;
+  totalFee: bigint;
+  totalInput: bigint;
+  netOutput: bigint;
+}> {
+  // Calculate total input amount
+  const totalInput = utxos.reduce((sum, utxo) => sum + BigInt(toSatoshis(utxo.amount)), 0n);
+  
+  // Estimate transaction size
+  const numOutputs = options?.serviceFeeAddress ? 2 : 1;
+  const estimatedSize = estimateTransactionSize(utxos.length, numOutputs);
+  const networkFee = BigInt(estimatedSize) * BigInt(feeRateSatPerVByte);
+  
+  // Calculate service fee
+  let serviceFee = 0n;
+  if (options?.serviceFeeAddress && options?.serviceFeeRate) {
+    const recoverableAmount = totalInput - networkFee;
+    if (recoverableAmount >= SERVICE_FEE_EXEMPTION_THRESHOLD) {
+      serviceFee = recoverableAmount * BigInt(options.serviceFeeRate) / 100n;
+    }
+  }
+  
+  const totalFee = networkFee + serviceFee;
+  const netOutput = totalInput - totalFee;
+  
+  return {
+    networkFee,
+    serviceFee,
+    totalFee,
+    totalInput,
+    netOutput
+  };
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

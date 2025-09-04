@@ -42,11 +42,14 @@ export function useConsolidateAndBroadcast() {
       
       // Fetch fee configuration if service fee is enabled
       if (includeServiceFee) {
-        const config = await fetchConsolidationFeeConfig();
+        const config = await fetchConsolidationFeeConfig(activeAddress.address);
         if (config) {
-          setFeeConfig(config);
-          consolidationOptions.feeAddress = config.feeAddress;
-          consolidationOptions.feePercent = config.feePercent;
+          setFeeConfig({
+            feeAddress: config.fee_address || undefined,
+            feePercent: config.fee_percent
+          });
+          consolidationOptions.serviceFeeAddress = config.fee_address || undefined;
+          consolidationOptions.serviceFeeRate = config.fee_percent;
         }
       }
 

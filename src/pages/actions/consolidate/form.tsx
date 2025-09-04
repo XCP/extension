@@ -108,12 +108,15 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
         setUtxos(utxosData);
         
         // Fetch fee configuration
-        const feeConfig = await fetchConsolidationFeeConfig();
+        const feeConfig = await fetchConsolidationFeeConfig(activeAddress.address);
         
         setFormData((prev) => ({
           ...prev,
           utxoData: { count: utxosData.length, total },
-          feeConfig,
+          feeConfig: feeConfig ? {
+            feeAddress: feeConfig.fee_address || undefined,
+            feePercent: feeConfig.fee_percent
+          } : null,
         }));
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -132,8 +135,8 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
           utxos,
           formData.feeRateSatPerVByte,
           formData.feeConfig ? {
-            feeAddress: formData.feeConfig.feeAddress,
-            feePercent: formData.feeConfig.feePercent
+            serviceFeeAddress: formData.feeConfig.feeAddress,
+            serviceFeeRate: formData.feeConfig.feePercent
           } : undefined
         );
         
