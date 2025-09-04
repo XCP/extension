@@ -96,7 +96,7 @@ export function hybridSignTransaction(
     console.log('Standard signing failed (expected for uncompressed keys), will use custom signing');
   }
   
-  // Check each input for uncompressed key requirements
+  // Check each input for custom signing requirements
   for (let i = 0; i < tx.inputsLength; i++) {
     const input = tx.getInput(i);
     
@@ -105,8 +105,9 @@ export function hybridSignTransaction(
       continue;
     }
     
-    // Check if this input needs uncompressed signing
-    if (checkForUncompressed && !checkForUncompressed(i)) {
+    // When skipStandardSigning is true, we must sign ALL inputs
+    // When it's false, only sign inputs that need uncompressed keys
+    if (!skipStandardSigning && checkForUncompressed && !checkForUncompressed(i)) {
       continue;
     }
     
@@ -124,12 +125,16 @@ export function hybridSignTransaction(
       continue;
     }
     
-    // Sign with uncompressed key
+    // Determine which pubkey to use based on checkForUncompressed
+    const useUncompressed = checkForUncompressed ? checkForUncompressed(i) : false;
+    const pubkeyToUse = useUncompressed ? publicKeyUncompressed : publicKeyCompressed;
+    
+    // Sign with the appropriate key
     signInputWithUncompressedKey(
       tx,
       i,
       privateKey,
-      publicKeyUncompressed,
+      pubkeyToUse,
       scriptForSigning,
       SigHash.ALL
     );
