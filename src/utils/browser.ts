@@ -46,13 +46,39 @@ export function wrapRuntimeCallback<T extends any[]>(
   callback?: (...args: T) => any,
   logErrors = false
 ): (...args: T) => any {
+  // If no callback provided, create one that just checks the error
+  if (!callback) {
+    return () => {
+      // Just check and consume the error
+      if (chrome.runtime?.lastError) {
+        // Silently consume expected connection errors
+        const message = chrome.runtime.lastError.message || '';
+        if (!message.includes('Could not establish connection') && 
+            !message.includes('Receiving end does not exist') &&
+            logErrors) {
+          console.warn('Chrome runtime error:', message);
+        }
+      }
+    };
+  }
+  
   return (...args: T) => {
     // Always check for errors first (marks as "checked")
-    const error = logErrors ? checkForLastErrorAndWarn() : checkForLastError();
+    const error = chrome.runtime?.lastError;
     
-    // Call original callback if provided and no error occurred
-    if (callback && !error) {
-      return callback(...args);
+    if (error) {
+      // Silently consume expected connection errors
+      const message = error.message || '';
+      if (!message.includes('Could not establish connection') && 
+          !message.includes('Receiving end does not exist') &&
+          logErrors) {
+        console.warn('Chrome runtime error:', message);
+      }
+      // Don't call the original callback if there was an error
+      return;
     }
+    
+    // Call original callback only if no error
+    return callback(...args);
   };
 }
