@@ -35,7 +35,10 @@ vi.mock('@/utils/blockchain/bitcoin', () => ({
   consolidateBareMultisig: vi.fn(),
   broadcastTransaction: vi.fn(),
   getFeeRates: vi.fn(),
-  fetchUTXOs: vi.fn()
+  fetchUTXOs: vi.fn(),
+  fetchConsolidationFeeConfig: vi.fn(),
+  estimateConsolidationFees: vi.fn(),
+  SERVICE_FEE_EXEMPTION_THRESHOLD: 500000
 }));
 
 describe('useConsolidateAndBroadcast', () => {
@@ -157,7 +160,10 @@ describe('useConsolidateAndBroadcast', () => {
         expect.any(String),
         'bc1qtest123',
         30,
-        'bc1qdifferent'
+        'bc1qdifferent',
+        expect.objectContaining({
+          includeStamps: false
+        })
       );
     });
   });

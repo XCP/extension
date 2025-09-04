@@ -3,12 +3,21 @@ import { consolidateBareMultisig } from '@/utils/blockchain/bitcoin/bareMultisig
 import { Transaction, OutScript } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
-import axios from 'axios';
 
-vi.mock('axios');
+// Mock the quickApiClient
+vi.mock('@/utils/api/axiosConfig', () => ({
+  quickApiClient: {
+    get: vi.fn()
+  },
+  API_TIMEOUTS: {
+    DEFAULT: 10000,
+    LONG: 30000
+  }
+}));
 vi.mock('@/utils/storage/settingsStorage');
 
-const mockAxios = axios as any;
+import { quickApiClient } from '@/utils/api/axiosConfig';
+const mockQuickApiClient = quickApiClient as any;
 
 describe('Bare Multisig Utilities', () => {
   const mockPrivateKey = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -35,7 +44,7 @@ describe('Bare Multisig Utilities', () => {
     });
 
     it('should throw error when no UTXOs are found', async () => {
-      mockAxios.get.mockResolvedValue({
+      mockQuickApiClient.get.mockResolvedValue({
         data: { data: [] }
       });
 
@@ -52,7 +61,7 @@ describe('Bare Multisig Utilities', () => {
         scriptPubKeyType: 'p2pkh'
       }];
 
-      mockAxios.get
+      mockQuickApiClient.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
         // Mock UTXO validation call
         .mockResolvedValueOnce({ data: { spent: false } })
@@ -98,7 +107,7 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockAxios.get
+      mockQuickApiClient.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
         // Mock UTXO validation call
         .mockResolvedValueOnce({ data: { spent: false } })
@@ -145,7 +154,7 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockAxios.get
+      mockQuickApiClient.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
         // Skip UTXO validation in this test
         .mockResolvedValueOnce({ data: mockRawTx });
@@ -153,7 +162,7 @@ describe('Bare Multisig Utilities', () => {
       const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10, destinationAddress, { skipSpentCheck: true });
       
       expect(result).toBeDefined();
-      expect(mockAxios.get).toHaveBeenCalledTimes(2); // UTXOs + raw tx
+      expect(mockQuickApiClient.get).toHaveBeenCalledTimes(2); // UTXOs + raw tx
     });
 
     it('should handle insufficient funds error', async () => {
@@ -188,7 +197,7 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockAxios.get
+      mockQuickApiClient.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
         .mockResolvedValueOnce({ data: mockRawTx });
 
@@ -216,7 +225,7 @@ describe('Bare Multisig Utilities', () => {
       }];
 
       // Mock all endpoints to fail
-      mockAxios.get
+      mockQuickApiClient.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
         // Mock UTXO validation
         .mockResolvedValueOnce({ data: { spent: false } })
@@ -271,7 +280,7 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockAxios.get
+      mockQuickApiClient.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
         // Mock UTXO validation for both UTXOs
         .mockResolvedValueOnce({ data: { spent: false } })
@@ -282,7 +291,7 @@ describe('Bare Multisig Utilities', () => {
       
       expect(result).toBeDefined();
       // Should fetch: UTXOs, 2 validation checks, 1 raw tx
-      expect(mockAxios.get).toHaveBeenCalledTimes(4);
+      expect(mockQuickApiClient.get).toHaveBeenCalledTimes(4);
     });
 
     it('should work with compressed public key in multisig script', async () => {
@@ -317,7 +326,7 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockAxios.get
+      mockQuickApiClient.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
         // Skip validation for simplicity
         .mockResolvedValueOnce({ data: mockRawTx });
@@ -368,7 +377,7 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockAxios.get
+      mockQuickApiClient.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
         // First UTXO is unspent
         .mockResolvedValueOnce({ data: { spent: false } })
@@ -381,7 +390,7 @@ describe('Bare Multisig Utilities', () => {
       
       expect(result).toBeDefined();
       // Should only process the unspent UTXO
-      expect(mockAxios.get).toHaveBeenCalledTimes(4);
+      expect(mockQuickApiClient.get).toHaveBeenCalledTimes(4);
     });
 
   });
@@ -418,7 +427,7 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockAxios.get
+      mockQuickApiClient.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
         // Skip validation
         // First endpoint fails
@@ -430,7 +439,7 @@ describe('Bare Multisig Utilities', () => {
       
       expect(result).toBeDefined();
       // Should have tried multiple endpoints
-      expect(mockAxios.get.mock.calls.length).toBeGreaterThan(2);
+      expect(mockQuickApiClient.get.mock.calls.length).toBeGreaterThan(2);
     });
   });
 
@@ -480,7 +489,7 @@ describe('Bare Multisig Utilities', () => {
         outputsHex + // All 500 outputs
         '00000000'; // Locktime
 
-      mockAxios.get
+      mockQuickApiClient.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
         .mockResolvedValue({ data: mockRawTx });
 
@@ -529,7 +538,7 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockAxios.get
+      mockQuickApiClient.get
         .mockResolvedValueOnce({ data: { data: mockUtxos } })
         .mockResolvedValueOnce({ data: mockRawTx });
 
@@ -543,7 +552,7 @@ describe('Bare Multisig Utilities', () => {
       
       expect(result).toBeDefined();
       // Should only call API twice: UTXOs fetch and raw tx fetch
-      expect(mockAxios.get).toHaveBeenCalledTimes(2);
+      expect(mockQuickApiClient.get).toHaveBeenCalledTimes(2);
     });
   });
 });
