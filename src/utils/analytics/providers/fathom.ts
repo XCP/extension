@@ -1,4 +1,5 @@
 import { defineAnalyticsProvider } from '@wxt-dev/analytics/client';
+import { sanitizePath } from '@/utils/fathom';
 
 export interface FathomProviderOptions {
   siteId: string;
@@ -53,12 +54,13 @@ export const fathom = defineAnalyticsProvider<FathomProviderOptions>(
       page: async (event) => {
         // For extensions, we use a virtual domain since they run on chrome-extension://
         const hostname = `https://${options.domain}`;
-        const pathname = event.page.url || '/';
+        // Sanitize the pathname to remove sensitive information
+        const pathname = sanitizePath(event.page.url || '/');
         
         await send({
           h: hostname,
           p: pathname,
-          r: event.meta.referrer || '',
+          r: event.meta.referrer ? sanitizePath(event.meta.referrer) : '',
           sid: options.siteId,
           qs: JSON.stringify({}),
         });
@@ -67,14 +69,15 @@ export const fathom = defineAnalyticsProvider<FathomProviderOptions>(
       track: async (event) => {
         // Fathom uses a different endpoint for events
         const hostname = `https://${options.domain}`;
-        const pathname = event.meta.url || '/';
+        // Sanitize the pathname to remove sensitive information
+        const pathname = sanitizePath(event.meta.url || '/');
         
         // Map event properties to Fathom's format
         const payload: Record<string, any> = {
           name: event.event.name,
           p: pathname,
           h: hostname,
-          r: event.meta.referrer || '',
+          r: event.meta.referrer ? sanitizePath(event.meta.referrer) : '',
           sid: options.siteId,
         };
         

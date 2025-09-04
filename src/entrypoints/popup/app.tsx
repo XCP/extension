@@ -6,6 +6,7 @@ import { useWallet } from '@/contexts/wallet-context';
 import { AuthRequired } from '@/components/router/auth-required';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { analytics } from '#analytics';
+import { sanitizePath } from '@/utils/fathom';
 
 // Auth
 import Onboarding from '@/pages/auth/onboarding';
@@ -110,8 +111,10 @@ export default function App() {
   
   // Track page views when route changes
   useEffect(() => {
+    // Sanitize the path to remove sensitive information
+    const sanitizedPath = sanitizePath(location.pathname);
     analytics.page({
-      url: location.pathname,
+      url: sanitizedPath,
       title: document.title || 'XCP Wallet',
     }).catch(console.error);
   }, [location.pathname]);
