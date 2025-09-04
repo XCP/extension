@@ -289,9 +289,9 @@ export default defineBackground(() => {
     
     try {
       // Query all tabs - we'll handle errors gracefully
-      let tabs: browser.Tabs.Tab[] = [];
+      let tabs: chrome.tabs.Tab[] = [];
       try {
-        tabs = await browser.tabs.query({});
+        tabs = await chrome.tabs.query({});
       } catch (queryError) {
         // If we can't query tabs, just return silently
         console.debug('Failed to query tabs for provider event:', queryError);
@@ -331,12 +331,13 @@ export default defineBackground(() => {
       // Send messages only to valid tabs
       // Use Promise.allSettled to handle errors gracefully
       const sendPromises = validTabs.map(tab => {
-        if (!tab.id) return Promise.resolve();
+        const tabId = tab.id;
+        if (!tabId) return Promise.resolve();
         
         return new Promise<void>((resolve) => {
           // Always resolve, never reject - we don't care if individual tabs fail
           chrome.tabs.sendMessage(
-            tab.id,
+            tabId,
             {
               type: 'PROVIDER_EVENT',
               event,
