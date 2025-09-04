@@ -1,11 +1,14 @@
-import { Transaction, SigHash, OutScript } from '@scure/btc-signer';
-import { signECDSA } from '@scure/btc-signer/utils';
+import { Transaction, SigHash } from '@scure/btc-signer';
 import { quickApiClient, API_TIMEOUTS } from '@/utils/api/axiosConfig';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 import { toSatoshis } from '@/utils/numeric';
-import { hybridSignTransaction } from '@/utils/blockchain/bitcoin';
+import { 
+  analyzeMultisigScript, 
+  signAndFinalizeBareMultisig,
+  type MultisigInputInfo 
+} from './multisigSigner';
 
 /* ══════════════════════════════════════════════════════════════════════════
  * TYPE DEFINITIONS
@@ -28,11 +31,9 @@ interface UTXO {
  */
 interface ValidInput {
   utxo: UTXO;
-  scriptPubKey: Uint8Array;
   prevTxHex: string;
   amountSats: bigint;
-  needsUncompressed: boolean;
-  wasManuallyParsed: boolean; // Track if we had to bypass btc-signer's validation
+  inputInfo: MultisigInputInfo;
 }
 
 /**
@@ -41,6 +42,17 @@ interface ValidInput {
 interface ConsolidationOptions {
   maxInputsPerTx?: number;  // Limit inputs per transaction for safety (default: 420)
   skipSpentCheck?: boolean; // Skip validation of spent UTXOs (faster but may fail at broadcast)
+  serviceFeeAddress?: string; // Address to send 10% service fee to (will be fetched from API if not provided)
+  serviceFeeRate?: number; // Service fee percentage (will be fetched from API if not provided)
+  useApiServiceFee?: boolean; // Whether to fetch service fee config from Laravel API (default: true)
+}
+
+/**
+ * Service fee configuration from Laravel API.
+ */
+interface ServiceFeeConfig {
+  fee_address: string | null;
+  fee_percent: number;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -61,6 +73,48 @@ const MULTISIG_OP_1 = '51'; // OP_1 (m=1)
 const MULTISIG_OP_3_CHECKMULTISIG = '53ae'; // OP_3 OP_CHECKMULTISIG
 const OP_PUSHBYTES_33 = '21'; // For compressed keys (33 bytes)
 const OP_PUSHBYTES_65 = '41'; // For uncompressed keys (65 bytes)
+
+// Service fee exemption threshold (0.0001 BTC = 10,000 sats)
+export const SERVICE_FEE_EXEMPTION_THRESHOLD = 10000n;
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * SERVICE FEE CONFIGURATION
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Fetch service fee configuration from Laravel API.
+ * Returns fee address and percentage from the consolidation endpoint.
+ */
+export async function fetchConsolidationFeeConfig(address: string): Promise<ServiceFeeConfig | null> {
+  try {
+    // Use the Laravel API consolidation endpoint to get fee configuration
+    // This endpoint includes fee_config in the response
+    const response = await quickApiClient.get<{
+      fee_config: ServiceFeeConfig;
+      summary: any;
+      utxos: any[];
+    }>(`https://app.xcp.io/api/v1/address/${address}/consolidation?max_utxos=1`);
+    
+    if (response.data?.fee_config) {
+      const feeConfig = response.data.fee_config;
+      
+      // Validate the response
+      if (feeConfig.fee_address && feeConfig.fee_percent > 0) {
+        console.log(`Service fee config: ${feeConfig.fee_percent}% to ${feeConfig.fee_address}`);
+        return feeConfig;
+      } else {
+        console.log('Service fees are disabled in the API configuration');
+        return null;
+      }
+    }
+    
+    console.warn('No fee_config found in API response');
+    return null;
+  } catch (error) {
+    console.warn('Failed to fetch service fee config from API:', error);
+    return null;
+  }
+}
 
 /* ══════════════════════════════════════════════════════════════════════════
  * MAIN CONSOLIDATION FUNCTION
@@ -89,6 +143,36 @@ export async function consolidateBareMultisig(
 
   const publicKeyUncompressed: Uint8Array = getPublicKey(privateKeyBytes, false);
   const publicKeyUncompressedHex = bytesToHex(publicKeyUncompressed);
+
+  // Fetch service fee configuration from Laravel API (unless disabled or overridden)
+  let serviceFeeAddress = options?.serviceFeeAddress;
+  let serviceFeeRate = options?.serviceFeeRate;
+  
+  // By default, use API service fee configuration unless explicitly disabled
+  const shouldUseApi = options?.useApiServiceFee !== false;
+  const needsApiConfig = !serviceFeeAddress || serviceFeeRate === undefined;
+  
+  if (shouldUseApi && needsApiConfig) {
+    console.log('Fetching service fee configuration from Laravel API...');
+    try {
+      const feeConfig = await fetchConsolidationFeeConfig(sourceAddress);
+      
+      if (feeConfig) {
+        // Use API config if not explicitly overridden in options
+        serviceFeeAddress = serviceFeeAddress || feeConfig.fee_address || undefined;
+        serviceFeeRate = serviceFeeRate ?? feeConfig.fee_percent;
+        console.log(`Using API service fee config: ${serviceFeeRate}% to ${serviceFeeAddress}`);
+      } else {
+        console.log('Service fees are disabled in the API configuration, proceeding without service fees');
+      }
+    } catch (error) {
+      console.warn('Failed to fetch service fee config from API, proceeding without service fees:', error);
+    }
+  } else if (!shouldUseApi && needsApiConfig) {
+    console.log('API service fee integration is disabled and no manual config provided, proceeding without service fees');
+  } else if (serviceFeeAddress && serviceFeeRate) {
+    console.log(`Using manual service fee config: ${serviceFeeRate}% to ${serviceFeeAddress}`);
+  }
 
   let utxos = await fetchBareMultisigUTXOs(sourceAddress);
   if (utxos.length === 0) throw new Error('No bare multisig UTXOs found');
@@ -133,44 +217,17 @@ export async function consolidateBareMultisig(
         prevTxCache.set(utxo.txid, prevTxHex);
       }
 
-      // Decode and validate script
+      // Analyze the script to determine signing approach
       const scriptPubKey = hexToBytes(utxo.scriptPubKeyHex);
-      let decoded;
-      try {
-        decoded = OutScript.decode(scriptPubKey);
-      } catch (e) {
-        // If standard decoding fails, try manual parsing for bare multisig
-        // We only need OUR key to be valid for 1-of-3 multisig
-        const manuallyParsed = tryManualMultisigParse(utxo.scriptPubKeyHex, publicKeyCompressedHex, publicKeyUncompressedHex);
-        if (manuallyParsed) {
-          decoded = manuallyParsed;
-          console.log(`Manually parsed multisig for ${utxo.txid}:${utxo.vout} (bypassed validation of other pubkeys)`);
-        } else {
-          skippedUtxos.push({ utxo, reason: `Failed to decode script: ${e}` });
-          continue;
-        }
-      }
-
-      if (decoded.type !== 'ms') {
-        skippedUtxos.push({ utxo, reason: 'Not a multisig script' });
+      const inputInfo = analyzeMultisigScript(scriptPubKey, publicKeyCompressed, publicKeyUncompressed);
+      
+      if (!inputInfo) {
+        skippedUtxos.push({ utxo, reason: 'Not a multisig script or does not contain our key' });
         continue;
       }
-
-      const pubkeys = decoded.pubkeys;
-      // For manually parsed scripts, we already checked for our key
-      const hasCompressed = decoded.ourKeyIndex !== undefined || pubkeys.some((pk: Uint8Array) => bytesToHex(pk) === publicKeyCompressedHex);
-      const hasUncompressed = decoded.ourKeyIndex !== undefined || pubkeys.some((pk: Uint8Array) => bytesToHex(pk) === publicKeyUncompressedHex);
       
-      if (!hasCompressed && !hasUncompressed) {
-        skippedUtxos.push({ utxo, reason: 'Does not contain our public key' });
-        continue;
-      }
-
-      // Log details for debugging
-      const wasManuallyParsed = decoded.ourKeyIndex !== undefined;
-      console.log(`UTXO ${utxo.txid}:${utxo.vout} - Amount: ${utxo.amount} BTC, Has compressed: ${hasCompressed}, Has uncompressed: ${hasUncompressed}, Manually parsed: ${wasManuallyParsed}`);
-      
-      validInputs.push({ utxo, scriptPubKey, prevTxHex, amountSats, needsUncompressed: hasUncompressed, wasManuallyParsed });
+      console.log(`UTXO ${utxo.txid}:${utxo.vout} - ${inputInfo.signType} multisig`);
+      validInputs.push({ utxo, prevTxHex, amountSats, inputInfo });
     } catch (error) {
       console.error(`Error processing UTXO ${utxo.txid}:${utxo.vout}:`, error);
       skippedUtxos.push({ utxo, reason: `Processing error: ${error}` });
@@ -202,96 +259,80 @@ export async function consolidateBareMultisig(
   try {
     const tx = new Transaction({ disableScriptCheck: true });
     let totalInputAmount = 0n;
-    const problematicInputs: number[] = []; // Track which inputs need manual handling
 
     // Add all inputs
     for (let i = 0; i < attemptInputs.length; i++) {
-      const { utxo, scriptPubKey, prevTxHex, amountSats, needsUncompressed, wasManuallyParsed } = attemptInputs[i];
+      const { utxo, prevTxHex, amountSats, inputInfo } = attemptInputs[i];
       
-      // If this was manually parsed, btc-signer can't handle it normally
-      if (wasManuallyParsed) {
-        // Add without redeemScript - we'll handle signing manually
+      // For inputs with invalid pubkeys, don't add redeemScript to avoid validation errors
+      if (inputInfo.signType === 'invalid-pubkeys') {
         tx.addInput({
           txid: hexToBytes(utxo.txid),
           index: utxo.vout,
-          sequence: RBF_SEQUENCE, // Enable RBF.
+          sequence: RBF_SEQUENCE,
           nonWitnessUtxo: hexToBytes(prevTxHex),
-          // NO redeemScript - we'll construct the scriptSig manually
+          // NO redeemScript - multisigSigner will handle this
         });
-        problematicInputs.push(i);
       } else {
-        // Normal input with redeemScript
+        // Standard compressed or uncompressed - add with redeemScript
         tx.addInput({
           txid: hexToBytes(utxo.txid),
           index: utxo.vout,
-          sequence: RBF_SEQUENCE, // Enable RBF.
+          sequence: RBF_SEQUENCE,
           nonWitnessUtxo: hexToBytes(prevTxHex),
-          redeemScript: scriptPubKey,
+          redeemScript: inputInfo.scriptPubKey,
         });
       }
       totalInputAmount += amountSats;
     }
 
-    // Calculate fee and output
+    // Determine if we have a service fee using the fetched or provided configuration
+    const hasServiceFee = serviceFeeAddress && serviceFeeRate && serviceFeeRate > 0;
+    const numOutputs = hasServiceFee ? 2 : 1;
+    
+    // Calculate network fee
     const feeRate = BigInt(feeRateSatPerVByte);
-    const estimatedSize = BigInt(estimateTransactionSize(tx.inputsLength, 1));
-    const fee = estimatedSize * feeRate;
-    const outputAmount = totalInputAmount - fee;
+    const estimatedSize = BigInt(estimateTransactionSize(tx.inputsLength, numOutputs));
+    const networkFee = estimatedSize * feeRate;
     
-    if (outputAmount <= 0n) {
-      throw new Error(`Insufficient funds after fees. Total: ${totalInputAmount} sats, Fee: ${fee} sats`);
-    }
-
-    tx.addOutputAddress(targetAddress, outputAmount);
-
-    // Check function to determine if an input needs uncompressed signing
-    const checkForUncompressed = (idx: number): boolean => {
-      if (idx >= attemptInputs.length) return false;
-      return attemptInputs[idx].needsUncompressed;
-    };
-
-    // Prepare prevOutputScripts array for inputs that need it
-    const prevOutputScripts: Uint8Array[] = [];
-    for (let i = 0; i < attemptInputs.length; i++) {
-      prevOutputScripts.push(attemptInputs[i].scriptPubKey);
+    let userAmount = totalInputAmount - networkFee;
+    let serviceFeeAmount = 0n;
+    
+    if (hasServiceFee) {
+      // Calculate service fee from the recoverable amount (after network fees)
+      const recoverableAmount = totalInputAmount - networkFee;
+      serviceFeeAmount = recoverableAmount * BigInt(serviceFeeRate!) / 100n;
+      userAmount = recoverableAmount - serviceFeeAmount;
+      
+      console.log(`Consolidation breakdown: User: ${userAmount} sats (${100-serviceFeeRate!}%), Service Fee: ${serviceFeeAmount} sats (${serviceFeeRate}%), Network Fee: ${networkFee} sats`);
     }
     
-    // Use the improved hybrid signing utility for all inputs
-    // Pass prevOutputScripts for problematic inputs that don't have redeemScript
-    // Skip standard signing if we have any manually parsed inputs (they have invalid pubkeys)
-    hybridSignTransaction(
+    if (userAmount <= 0n || (hasServiceFee && serviceFeeAmount <= 0n)) {
+      throw new Error(`Insufficient funds after fees. Total: ${totalInputAmount} sats, Network Fee: ${networkFee} sats, Service Fee: ${serviceFeeAmount} sats`);
+    }
+
+    // Add consolidation output for user
+    tx.addOutputAddress(targetAddress, userAmount);
+    
+    // Add service fee output if configured
+    if (hasServiceFee && serviceFeeAmount > 0n && serviceFeeAddress) {
+      tx.addOutputAddress(serviceFeeAddress, serviceFeeAmount);
+    }
+
+    // Extract input infos for the multisigSigner
+    const inputInfos = attemptInputs.map(input => input.inputInfo);
+    
+    // Use our specialized multisig signer that handles all cases:
+    // - Standard compressed keys
+    // - Uncompressed keys  
+    // - Invalid pubkeys (Counterparty data)
+    signAndFinalizeBareMultisig(
       tx,
       privateKeyBytes,
       publicKeyCompressed,
       publicKeyUncompressed,
-      prevOutputScripts,
-      checkForUncompressed,
-      problematicInputs.length > 0  // Skip standard signing if we have problematic inputs
+      inputInfos
     );
-
-    // Check if hybrid signing missed any problematic inputs
-    // This should only happen if hybrid signing couldn't find the script
-    for (const inputIdx of problematicInputs) {
-      const input = tx.getInput(inputIdx);
-      // Only manually sign if hybrid signing didn't already handle it
-      if (!input.partialSig || input.partialSig.length === 0) {
-        const { scriptPubKey } = attemptInputs[inputIdx];
-        const success = manuallySignMultisigInput(
-          tx,
-          inputIdx,
-          privateKeyBytes,
-          publicKeyCompressed,
-          publicKeyUncompressed,
-          scriptPubKey
-        );
-        if (!success) {
-          console.warn(`Failed to manually sign problematic input ${inputIdx}`);
-        }
-      }
-    }
-
-    // Try to finalize
-    tx.finalize();
     
     const signedTx = tx.hex;
     console.log(`Successfully consolidated ${attemptInputs.length} UTXOs out of ${utxos.length} total`);
@@ -303,7 +344,7 @@ export async function consolidateBareMultisig(
     // Log which inputs we tried so user can investigate
     console.log('Failed transaction included these inputs:');
     attemptInputs.forEach((input, idx) => {
-      console.log(`  ${idx}: ${input.utxo.txid}:${input.utxo.vout} (${input.needsUncompressed ? 'uncompressed' : 'compressed'})`);
+      console.log(`  ${idx}: ${input.utxo.txid}:${input.utxo.vout} (${input.inputInfo.signType})`);
     });
     
     throw error;
@@ -311,159 +352,53 @@ export async function consolidateBareMultisig(
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
- * SCRIPT PARSING HELPERS
+ * FEE ESTIMATION
  * ══════════════════════════════════════════════════════════════════════════ */
 
 /**
- * Manually parse a multisig script without validating all pubkeys.
- * This is needed because btc-signer validates ALL pubkeys even though
- * we only need one valid key for 1-of-3 multisig.
- * Handles both compressed (33 bytes) and uncompressed (65 bytes) public keys.
- * 
- * @param scriptHex - The hex string of the script
- * @param ourCompressedKey - Our compressed public key hex
- * @param ourUncompressedKey - Our uncompressed public key hex
- * @returns A decoded object compatible with OutScript.decode() or null
+ * Estimate consolidation fees for a set of UTXOs.
  */
-function tryManualMultisigParse(scriptHex: string, ourCompressedKey: string, ourUncompressedKey: string): any {
-  try {
-    // Expected format for 1-of-3 multisig: 
-    // 51 [pushop] [key1] [pushop] [key2] [pushop] [key3] 53 ae
-    // 51 = OP_1 (m=1)
-    // pushop = 21 (OP_PUSHBYTES_33) for compressed or 41 (OP_PUSHBYTES_65) for uncompressed
-    // 53 = OP_3 (n=3) 
-    // ae = OP_CHECKMULTISIG
-    
-    // Check if it starts with OP_1 and ends with OP_3 OP_CHECKMULTISIG
-    if (!scriptHex.startsWith(MULTISIG_OP_1) || !scriptHex.endsWith(MULTISIG_OP_3_CHECKMULTISIG)) {
-      return null; // Not a 1-of-3 multisig
-    }
-    
-    // Extract the three pubkeys (can be compressed or uncompressed)
-    const pubkeys: Uint8Array[] = [];
-    let foundOurKey = false;
-    let ourKeyIndex = -1;
-    let currentOffset = 2; // Start after '51' (OP_1)
-    
-    // Parse each of the 3 keys
-    for (let i = 0; i < 3; i++) {
-      if (currentOffset >= scriptHex.length - 4) { // Need at least 4 chars for '53ae'
-        return null; // Script too short
-      }
-      
-      const pushOp = scriptHex.substr(currentOffset, 2);
-      currentOffset += 2;
-      
-      let keyLength: number;
-      if (pushOp === OP_PUSHBYTES_33) {
-        // Compressed key (33 bytes = 66 hex chars)
-        keyLength = 66;
-      } else if (pushOp === OP_PUSHBYTES_65) {
-        // Uncompressed key (65 bytes = 130 hex chars)
-        keyLength = 130;
-      } else {
-        return null; // Unexpected push opcode
-      }
-      
-      if (currentOffset + keyLength > scriptHex.length) {
-        return null; // Script too short for key
-      }
-      
-      const keyHex = scriptHex.substr(currentOffset, keyLength);
-      currentOffset += keyLength;
-      
-      // Check if this is our key (we don't validate the others)
-      if (keyHex === ourCompressedKey.toLowerCase() || keyHex === ourUncompressedKey.toLowerCase()) {
-        foundOurKey = true;
-        ourKeyIndex = i;
-      }
-      
-      pubkeys.push(hexToBytes(keyHex));
-    }
-    
-    // Verify we're at the expected position (should be at '53ae')
-    if (scriptHex.substr(currentOffset) !== MULTISIG_OP_3_CHECKMULTISIG) {
-      return null; // Script doesn't end with OP_3 OP_CHECKMULTISIG
-    }
-    
-    if (!foundOurKey) {
-      return null; // Our key isn't in this multisig
-    }
-    
-    // Return a structure compatible with what OutScript.decode would return
-    // btc-signer expects this shape for multisig
-    return {
-      type: 'ms',
-      m: 1,
-      n: 3,
-      pubkeys: pubkeys,
-      ourKeyIndex: ourKeyIndex // Store which position our key is in
-    };
-  } catch (error) {
-    console.error('Manual multisig parsing failed:', error);
-    return null;
+export async function estimateConsolidationFees(
+  utxos: UTXO[],
+  feeRateSatPerVByte: number,
+  options?: {
+    serviceFeeAddress?: string;
+    serviceFeeRate?: number;
   }
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
- * SIGNING HELPERS
- * ══════════════════════════════════════════════════════════════════════════ */
-
-/**
- * Manually sign a problematic multisig input that btc-signer can't handle.
- * This bypasses btc-signer's validation and directly constructs the scriptSig.
- * 
- * @param tx - The transaction
- * @param inputIdx - Index of the input to sign
- * @param privateKey - Private key bytes
- * @param compressedPubkey - Compressed public key
- * @param uncompressedPubkey - Uncompressed public key  
- * @param scriptPubKey - The scriptPubKey from the UTXO being spent
- * @returns true if successful
- */
-function manuallySignMultisigInput(
-  tx: Transaction,
-  inputIdx: number,
-  privateKey: Uint8Array,
-  compressedPubkey: Uint8Array,
-  uncompressedPubkey: Uint8Array,
-  scriptPubKey: Uint8Array
-): boolean {
-  try {
-    // Get the preimage hash for signing
-    const preimageLegacy = (tx as any).preimageLegacy;
-    if (typeof preimageLegacy !== 'function') {
-      console.error('preimageLegacy not accessible');
-      return false;
+): Promise<{
+  networkFee: bigint;
+  serviceFee: bigint;
+  totalFee: bigint;
+  totalInput: bigint;
+  netOutput: bigint;
+}> {
+  // Calculate total input amount
+  const totalInput = utxos.reduce((sum, utxo) => sum + BigInt(toSatoshis(utxo.amount)), 0n);
+  
+  // Estimate transaction size
+  const numOutputs = options?.serviceFeeAddress ? 2 : 1;
+  const estimatedSize = estimateTransactionSize(utxos.length, numOutputs);
+  const networkFee = BigInt(estimatedSize) * BigInt(feeRateSatPerVByte);
+  
+  // Calculate service fee
+  let serviceFee = 0n;
+  if (options?.serviceFeeAddress && options?.serviceFeeRate) {
+    const recoverableAmount = totalInput - networkFee;
+    if (recoverableAmount >= SERVICE_FEE_EXEMPTION_THRESHOLD) {
+      serviceFee = recoverableAmount * BigInt(options.serviceFeeRate) / 100n;
     }
-    
-    // Create the hash to sign
-    const hash = preimageLegacy.call(tx, inputIdx, scriptPubKey, SigHash.ALL);
-    
-    // Sign with our key
-    const sig = signECDSA(hash, privateKey, (tx as any).opts?.lowR);
-    
-    // Append sighash byte
-    const sigWithHash = new Uint8Array(sig.length + 1);
-    sigWithHash.set(sig);
-    sigWithHash[sig.length] = SigHash.ALL;
-    
-    // For bare multisig, the scriptSig is: OP_0 <signature>
-    // OP_0 is required due to a bug in the original Bitcoin implementation
-    const scriptSig = new Uint8Array(1 + 1 + sigWithHash.length);
-    scriptSig[0] = 0x00; // OP_0
-    scriptSig[1] = sigWithHash.length; // Push signature length
-    scriptSig.set(sigWithHash, 2);
-    
-    // Set the finalScriptSig directly to bypass validation
-    tx.updateInput(inputIdx, { finalScriptSig: scriptSig }, true);
-    
-    console.log(`Manually signed problematic multisig input ${inputIdx}`);
-    return true;
-  } catch (error) {
-    console.error(`Failed to manually sign input ${inputIdx}:`, error);
-    return false;
   }
+  
+  const totalFee = networkFee + serviceFee;
+  const netOutput = totalInput - totalFee;
+  
+  return {
+    networkFee,
+    serviceFee,
+    totalFee,
+    totalInput,
+    netOutput
+  };
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
