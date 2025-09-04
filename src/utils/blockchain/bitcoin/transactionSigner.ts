@@ -1,7 +1,7 @@
 import { Transaction, p2pkh, p2wpkh, p2sh, p2tr, SigHash, Address as BtcAddress } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
-import { fetchUTXOs, getUtxoByTxid, fetchPreviousRawTransaction, signAllInputsWithUncompressedKey } from '@/utils/blockchain/bitcoin';
+import { fetchUTXOs, getUtxoByTxid, fetchPreviousRawTransaction, hybridSignTransaction } from '@/utils/blockchain/bitcoin';
 import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import type { Wallet, Address } from '@/utils/wallet';
 
@@ -137,8 +137,17 @@ export async function signTransaction(
 
   // Sign the transaction
   if (!compressed && (wallet.addressFormat === AddressFormat.P2PKH || wallet.addressFormat === AddressFormat.Counterwallet)) {
-    // Uncompressed P2PKH requires custom signing
-    signAllInputsWithUncompressedKey(tx, privateKeyBytes, pubkeyBytes, prevOutputScripts);
+    // Uncompressed P2PKH - use hybrid signing approach
+    // This will try standard signing first, then fall back to uncompressed for each input
+    const compressedPubkey = getPublicKey(privateKeyBytes, true);
+    hybridSignTransaction(
+      tx,
+      privateKeyBytes,
+      compressedPubkey,
+      pubkeyBytes, // uncompressed pubkey
+      prevOutputScripts,
+      () => true // All inputs need uncompressed signing in this case
+    );
   } else {
     // Standard signing for all compressed keys
     tx.sign(privateKeyBytes);
