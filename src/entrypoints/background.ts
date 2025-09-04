@@ -68,8 +68,17 @@ export default defineBackground(() => {
   }
   
   // Periodically check for any unchecked errors from other APIs
+  // This catches errors from any Chrome APIs we might have missed
   setInterval(() => {
-    checkForLastError(); // Just accessing it marks as checked
+    if (chrome.runtime?.lastError) {
+      // Silently consume the error - just accessing it marks as checked
+      const message = chrome.runtime.lastError.message || '';
+      // Only log unexpected errors
+      if (!message.includes('Could not establish connection') && 
+          !message.includes('Receiving end does not exist')) {
+        console.debug('Unchecked runtime error caught by interval:', message);
+      }
+    }
   }, 100);
   
   // Initialize service registry
@@ -278,54 +287,75 @@ export default defineBackground(() => {
       eventData = eventOrData;
     }
     
-    // Query all tabs - we'll handle errors gracefully
-    const tabs = await browser.tabs.query({});
-    
-    // Filter tabs to only those that can have content scripts
-    const validTabs = tabs.filter(tab => {
-      // Must have URL and ID
-      if (!tab.url || !tab.id) return false;
-      
-      // Check if URL matches our content script patterns
-      // Content script runs on: https://*/*, http://localhost/*, http://127.0.0.1/*, file:///*
-      const url = tab.url;
-      const isValidUrl = (
-        url.startsWith('https://') ||
-        url.startsWith('http://localhost') ||
-        url.startsWith('http://127.0.0.1') ||
-        url.startsWith('file:///')
-      );
-      
-      if (!isValidUrl) return false;
-      
-      // If origin specified, only send to matching tabs
-      if (origin) {
-        try {
-          const tabOrigin = new URL(url).origin;
-          return tabOrigin === origin;
-        } catch {
-          return false;
-        }
+    try {
+      // Query all tabs - we'll handle errors gracefully
+      let tabs: chrome.tabs.Tab[] = [];
+      try {
+        tabs = await chrome.tabs.query({});
+      } catch (queryError) {
+        // If we can't query tabs, just return silently
+        console.debug('Failed to query tabs for provider event:', queryError);
+        return;
       }
       
-      return true;
-    });
-    
-    // Send messages only to valid tabs
-    for (const tab of validTabs) {
-      if (!tab.id) continue;
-      
-      // Send message using our wrapped API that always checks lastError
-      // This prevents errors when content script isn't injected yet
-      chrome.tabs.sendMessage(
-        tab.id,
-        {
-          type: 'PROVIDER_EVENT',
-          event,
-          data: eventData
+      // Filter tabs to only those that can have content scripts
+      const validTabs = tabs.filter(tab => {
+        // Must have URL and ID
+        if (!tab.url || !tab.id) return false;
+        
+        // Check if URL matches our content script patterns
+        // Content script runs on: https://*/*, http://localhost/*, http://127.0.0.1/*, file:///*
+        const url = tab.url;
+        const isValidUrl = (
+          url.startsWith('https://') ||
+          url.startsWith('http://localhost') ||
+          url.startsWith('http://127.0.0.1') ||
+          url.startsWith('file:///')
+        );
+        
+        if (!isValidUrl) return false;
+        
+        // If origin specified, only send to matching tabs
+        if (origin) {
+          try {
+            const tabOrigin = new URL(url).origin;
+            return tabOrigin === origin;
+          } catch {
+            return false;
+          }
         }
-        // No callback needed - wrapper handles error checking
-      );
+        
+        return true;
+      });
+      
+      // Send messages only to valid tabs
+      // Use Promise.allSettled to handle errors gracefully
+      const sendPromises = validTabs.map(tab => {
+        const tabId = tab.id;
+        if (!tabId) return Promise.resolve();
+        
+        return new Promise<void>((resolve) => {
+          // Always resolve, never reject - we don't care if individual tabs fail
+          chrome.tabs.sendMessage(
+            tabId,
+            {
+              type: 'PROVIDER_EVENT',
+              event,
+              data: eventData
+            },
+            wrapRuntimeCallback(() => {
+              // Message sent successfully or error was handled
+              resolve();
+            })
+          );
+        });
+      });
+      
+      // Wait for all messages to be attempted, but don't fail if some error
+      await Promise.allSettled(sendPromises);
+    } catch (error) {
+      // Silently handle any errors - this is best-effort broadcasting
+      console.debug('Error broadcasting provider event:', error);
     }
   }
 
