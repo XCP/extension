@@ -6,6 +6,7 @@ import { WalletList } from '@/components/lists/wallet-list';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { ErrorAlert } from '@/components/error-alert';
+import { MAX_WALLETS } from '@/utils/wallet/walletManager';
 import type { Wallet } from '@/utils/wallet';
 
 /**
@@ -13,7 +14,7 @@ import type { Wallet } from '@/utils/wallet';
  *
  * Features:
  * - Displays a list of wallets for selection
- * - Provides an option to add a new wallet with a limit of 10
+ * - Provides an option to add a new wallet with a limit of 20
  * - Navigates to the index on wallet selection
  */
 function SelectWallet() {
@@ -22,13 +23,12 @@ function SelectWallet() {
   const { wallets, activeWallet, setActiveWallet } = useWallet();
   const [error, setError] = useState<string | null>(null);
 
-  // Constants for paths and limits
+  // Constants for paths
   const PATHS = {
     BACK: '/',
     ADD_WALLET: '/add-wallet',
     INDEX: '/index',
   } as const;
-  const MAX_WALLETS = 10;
 
   const handleAddWallet = useCallback(() => {
     if (wallets.length >= MAX_WALLETS) {

@@ -8,14 +8,14 @@ import { ErrorAlert } from "@/components/error-alert";
 import { AddressList } from "@/components/lists/address-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { MAX_ADDRESSES_PER_WALLET } from "@/utils/wallet/walletManager";
 import type { Address } from "@/utils/wallet";
 import type { ReactElement } from "react";
 
 /**
- * Constants for navigation paths and address limits.
+ * Constants for navigation paths.
  */
 const CONSTANTS = {
-  MAX_ADDRESSES: 20,
   PATHS: {
     UNLOCK: "/unlock",
     INDEX: "/index",
@@ -28,7 +28,7 @@ const CONSTANTS = {
  *
  * Features:
  * - Displays a list of addresses from the active wallet
- * - Provides an option to add a new address (mnemonic wallets only, up to 20)
+ * - Provides an option to add a new address (mnemonic wallets only, up to 100)
  * - Redirects to unlock if wallet is locked
  *
  * @returns {ReactElement} The rendered address selection UI.
@@ -38,14 +38,16 @@ export default function AddressSelection(): ReactElement {
   const { setHeaderProps } = useHeader();
   const { activeWallet, activeAddress, setActiveAddress, addAddress, walletLocked } = useWallet();
   const [error, setError] = useState<string | null>(null);
+  const [isAddingAddress, setIsAddingAddress] = useState(false);
 
   /**
    * Handles adding a new address to the active wallet.
    */
   const handleAddAddress = useCallback(async () => {
     if (!activeWallet?.id || activeWallet.type !== "mnemonic") return;
-    if (activeWallet.addresses.length >= CONSTANTS.MAX_ADDRESSES) {
-      setError(`Maximum number of addresses (${CONSTANTS.MAX_ADDRESSES}) reached`);
+    if (isAddingAddress) return; // Prevent spam clicks
+    if (activeWallet.addresses.length >= MAX_ADDRESSES_PER_WALLET) {
+      setError(`Maximum number of addresses (${MAX_ADDRESSES_PER_WALLET}) reached`);
       return;
     }
 
@@ -56,13 +58,16 @@ export default function AddressSelection(): ReactElement {
         });
         return;
       }
+      setIsAddingAddress(true);
       await addAddress(activeWallet.id);
       setError(null);
     } catch (err) {
       console.error("Failed to add address:", err);
       setError("Failed to add address. Please try again.");
+    } finally {
+      setIsAddingAddress(false);
     }
-  }, [activeWallet, walletLocked, addAddress, navigate]);
+  }, [activeWallet, walletLocked, addAddress, navigate, isAddingAddress]);
 
   /**
    * Handles selecting an address and navigating to the index.
@@ -83,7 +88,7 @@ export default function AddressSelection(): ReactElement {
       title: "Addresses",
       onBack: () => navigate(-1),
       rightButton:
-        activeWallet?.type === "mnemonic"
+        activeWallet?.type === "mnemonic" && !isAddingAddress
           ? {
               icon: <FaPlus aria-hidden="true" />,
               onClick: handleAddAddress,
@@ -91,7 +96,7 @@ export default function AddressSelection(): ReactElement {
             }
           : undefined,
     });
-  }, [setHeaderProps, navigate, activeWallet?.type, handleAddAddress]);
+  }, [setHeaderProps, navigate, activeWallet?.type, handleAddAddress, isAddingAddress]);
 
   if (!activeWallet) return <div className="p-4">No active wallet found</div>;
 
@@ -113,14 +118,15 @@ export default function AddressSelection(): ReactElement {
           fullWidth
           onClick={handleAddAddress}
           disabled={
-            activeWallet.addresses.length >= CONSTANTS.MAX_ADDRESSES ||
+            activeWallet.addresses.length >= MAX_ADDRESSES_PER_WALLET ||
             walletLocked ||
-            activeWallet.type !== "mnemonic"
+            activeWallet.type !== "mnemonic" ||
+            isAddingAddress
           }
           aria-label="Add Address"
         >
           <FaPlus className="mr-2" aria-hidden="true" />
-          {walletLocked ? "Unlock to Add Address" : "Add Address"}
+          {isAddingAddress ? "Adding..." : walletLocked ? "Unlock to Add Address" : "Add Address"}
         </Button>
       </div>
     </div>

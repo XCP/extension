@@ -28,8 +28,8 @@ export interface Wallet {
   addresses: Address[];
 }
 
-const MAX_WALLETS = 20;
-const MAX_ADDRESSES_PER_WALLET = 100;
+export const MAX_WALLETS = 20;
+export const MAX_ADDRESSES_PER_WALLET = 100;
 
 export class WalletManager {
   private wallets: Wallet[] = [];
