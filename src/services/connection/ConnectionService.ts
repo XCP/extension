@@ -15,7 +15,7 @@ import { getWalletService } from '@/services/walletService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { connectionRateLimiter } from '@/utils/provider/rateLimiter';
 import { analyzeCSP } from '@/utils/security/cspValidation';
-import { trackEvent } from '@/utils/fathom';
+import { analytics } from '#analytics';
 import { approvalQueue } from '@/utils/provider/approvalQueue';
 import type { Address, Wallet } from '@/utils/wallet';
 
@@ -106,7 +106,7 @@ export class ConnectionService extends BaseService {
     await this.performSecurityChecks(origin);
 
     // Track the connection request
-    await trackEvent('connection_request');
+    await analytics.track('connection_request');
 
     const requestId = `${origin}-${Date.now()}`;
     this.state.pendingPermissionRequests.add(requestId);
@@ -210,7 +210,7 @@ export class ConnectionService extends BaseService {
 
     if (approved) {
       // Track successful connection
-      await trackEvent('connection_established');
+      await analytics.track('connection_established');
 
       // Add to connected websites
       const settings = await getKeychainSettings();
@@ -258,7 +258,7 @@ export class ConnectionService extends BaseService {
     this.state.connectionCache.delete(origin);
 
     // Track disconnect event
-    await trackEvent('connection_disconnected', { _value: 1 });
+    await analytics.track('connection_disconnected', { value: 1 });
 
     // Emit disconnect events
     eventEmitterService.emitProviderEvent(origin, 'accountsChanged', []);
@@ -316,8 +316,8 @@ export class ConnectionService extends BaseService {
     }
 
     // Track bulk disconnect
-    await trackEvent('connection_disconnect_all', {
-      _value: connectedSites.length,
+    await analytics.track('connection_disconnect_all', {
+      value: connectedSites.length,
     });
 
     console.debug('Disconnected all websites:', connectedSites.length);

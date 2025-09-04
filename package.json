@@ -37,6 +37,7 @@
     "@scure/btc-signer": "2.0.0",
     "@tailwindcss/vite": "4.1.12",
     "@webext-core/proxy-service": "1.2.1",
+    "@wxt-dev/analytics": "^0.5.1",
     "axios": "1.11.0",
     "bignumber.js": "9.3.1",
     "next-qrcode": "2.5.1",

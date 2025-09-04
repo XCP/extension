@@ -1,9 +1,11 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { FaSpinner } from "react-icons/fa";
 import { Layout } from '@/components/layout';
 import { useWallet } from '@/contexts/wallet-context';
 import { AuthRequired } from '@/components/router/auth-required';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { analytics } from '#analytics';
 
 // Auth
 import Onboarding from '@/pages/auth/onboarding';
@@ -104,6 +106,20 @@ import NotFound from '@/pages/not-found';
 
 export default function App() {
   const { wallets, walletLocked, loaded } = useWallet();
+  const location = useLocation();
+  
+  // Track page views when route changes
+  useEffect(() => {
+    analytics.page({
+      url: location.pathname,
+      title: document.title || 'XCP Wallet',
+    }).catch(console.error);
+  }, [location.pathname]);
+  
+  // Set up auto-tracking for UI events on mount
+  useEffect(() => {
+    analytics.autoTrack(document.body);
+  }, []);
 
   // Until the wallet metadata has been loaded from storage,
   // render a loading state.
