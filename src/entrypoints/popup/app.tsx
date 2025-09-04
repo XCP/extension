@@ -117,10 +117,6 @@ export default function App() {
     analytics.page(sanitizedPath).catch(console.error);
   }, [location.pathname]);
   
-  // Set up auto-tracking for UI events on mount
-  useEffect(() => {
-    analytics.autoTrack(document.body);
-  }, []);
 
   // Until the wallet metadata has been loaded from storage,
   // render a loading state.
