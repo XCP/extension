@@ -1,4 +1,4 @@
-import { defineAnalyticsProvider } from '@wxt-dev/analytics/client';
+import { defineAnalyticsProvider } from '@wxt-dev/analytics';
 import { sanitizePath } from '@/utils/fathom';
 
 export interface FathomProviderOptions {
@@ -54,8 +54,9 @@ export const fathom = defineAnalyticsProvider<FathomProviderOptions>(
       page: async (event) => {
         // For extensions, we use a virtual domain since they run on chrome-extension://
         const hostname = `https://${options.domain}`;
-        // Sanitize the pathname to remove sensitive information
-        const pathname = sanitizePath(event.page.url || '/');
+        // The 'location' field contains the string passed to analytics.page()
+        // The 'url' field contains the actual location.href (chrome-extension://...)
+        const pathname = sanitizePath(event.page.location || event.page.url || '/');
         
         await send({
           h: hostname,

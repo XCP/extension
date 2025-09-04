@@ -1,4 +1,4 @@
-import { defineAppConfig } from '@wxt-dev/analytics/config';
+import { defineAppConfig } from 'wxt/utils/define-app-config';
 import { storage } from 'wxt/storage';
 import { fathom } from '@/utils/analytics/providers/fathom';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';

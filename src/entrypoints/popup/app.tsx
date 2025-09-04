@@ -113,10 +113,8 @@ export default function App() {
   useEffect(() => {
     // Sanitize the path to remove sensitive information
     const sanitizedPath = sanitizePath(location.pathname);
-    analytics.page({
-      url: sanitizedPath,
-      title: document.title || 'XCP Wallet',
-    }).catch(console.error);
+    // WXT Analytics page() expects just a string URL, not an object
+    analytics.page(sanitizedPath).catch(console.error);
   }, [location.pathname]);
   
   // Set up auto-tracking for UI events on mount
