@@ -98,7 +98,7 @@ export default defineContentScript({
 
     // Listen for provider events from background
     // Important: We need to handle messages but not interfere with the injected script loading
-    browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    const runtimeMessageHandler = (message: any, sender: any, sendResponse: any) => {
       // Handle ping requests to check if content script is ready
       if (message.action === 'ping') {
         sendResponse({ status: 'ready', timestamp: Date.now() });
@@ -119,7 +119,9 @@ export default defineContentScript({
       
       // For unhandled messages, don't respond
       return false;
-    });
+    };
+    
+    browser.runtime.onMessage.addListener(runtimeMessageHandler);
 
     try {
       await injectScript("/injected.js", {
@@ -132,6 +134,7 @@ export default defineContentScript({
     // Clean up event listeners when context is invalidated
     ctx.onInvalidated(() => {
       window.removeEventListener('message', messageHandler);
+      browser.runtime.onMessage.removeListener(runtimeMessageHandler);
       console.log('XCP Wallet content script cleaned up.');
     });
   },

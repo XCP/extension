@@ -442,12 +442,20 @@ describe('Content Script', () => {
         mockWindow.location.origin
       );
       
-      // Simulate runtime event
-      runtimeMessageListener({
-        type: 'PROVIDER_EVENT',
-        event: 'test-event',
-        data: 'test-data'
-      });
+      // Simulate runtime event with proper parameters
+      const mockSendResponse = vi.fn();
+      runtimeMessageListener(
+        {
+          type: 'PROVIDER_EVENT',
+          event: 'test-event',
+          data: 'test-data'
+        },
+        {}, // sender
+        mockSendResponse
+      );
+      
+      // Should have called sendResponse
+      expect(mockSendResponse).toHaveBeenCalledWith({ received: true, event: 'test-event' });
       
       // Should forward event to window
       expect(mockWindow.postMessage).toHaveBeenCalledWith(
