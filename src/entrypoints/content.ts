@@ -11,16 +11,29 @@ export default defineContentScript({
       // Check for XCP wallet messages
       if (event.data?.target === 'xcp-wallet-content' && event.data?.type === 'XCP_WALLET_REQUEST') {
         try {
-          // Use MessageBus for standardized communication
-          const { MessageBus } = await import('@/services/core/MessageBus');
+          let response: any;
           
-          const response: any = await MessageBus.send('provider-request', {
-            type: 'PROVIDER_REQUEST',
-            origin: window.location.origin,
-            data: event.data.data,
-            xcpWalletVersion: '2.0',
-            timestamp: Date.now()
-          }, 'background');
+          // Try to use MessageBus, fall back to chrome.runtime.sendMessage
+          try {
+            const { MessageBus } = await import('@/services/core/MessageBus');
+            response = await MessageBus.send('provider-request', {
+              type: 'PROVIDER_REQUEST',
+              origin: window.location.origin,
+              data: event.data.data,
+              xcpWalletVersion: '2.0',
+              timestamp: Date.now()
+            }, 'background');
+          } catch (importError) {
+            // Fallback to direct chrome.runtime.sendMessage for test environments
+            console.warn('MessageBus import failed, using fallback:', importError);
+            response = await browser.runtime.sendMessage({
+              type: 'PROVIDER_REQUEST',
+              origin: window.location.origin,
+              data: event.data.data,
+              xcpWalletVersion: '2.0',
+              timestamp: Date.now()
+            });
+          }
           
           // Handle the response properly
           if (!response) {
