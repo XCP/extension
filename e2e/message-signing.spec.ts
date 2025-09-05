@@ -141,7 +141,21 @@ test.describe('Message Signing', () => {
   test.beforeEach(async () => {
     testPage = await context.newPage();
     await testPage.goto(serverUrl);
-    await testPage.waitForTimeout(2000);
+    
+    // Wait for provider to be injected with longer timeout and retries
+    let providerFound = false;
+    for (let i = 0; i < 10; i++) {
+      providerFound = await testPage.evaluate(() => {
+        return typeof (window as any).xcpwallet !== 'undefined';
+      });
+      if (providerFound) break;
+      await testPage.waitForTimeout(1000);
+    }
+    
+    // If still no provider after 10 seconds, wait another 2 seconds
+    if (!providerFound) {
+      await testPage.waitForTimeout(2000);
+    }
   });
   
   test.afterEach(async () => {
