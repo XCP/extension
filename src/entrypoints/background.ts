@@ -9,77 +9,23 @@ import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { MessageBus, type ProviderMessage, type ApprovalMessage, type EventMessage } from '@/services/core/MessageBus';
 import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/sessionManager';
 import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, createJsonRpcError } from '@/utils/constants/errorCodes';
-import { checkForLastError, wrapRuntimeCallback } from '@/utils/browser';
+import { checkForLastError, wrapRuntimeCallback, broadcastToTabs, sendMessageToTab } from '@/utils/browser';
+// Import onMessage directly from webext-bridge/background to prevent runtime.lastError
+import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
 
 export default defineBackground(() => {
-  // Setup global Chrome API wrappers to ensure runtime.lastError is always checked
-  // This prevents "Unchecked runtime.lastError" warnings from any source (including WXT)
+  // Initialize webext-bridge immediately to prevent runtime.lastError
+  // This dummy handler ensures webext-bridge is properly set up
+  // See: https://github.com/zikaari/webext-bridge/issues/67
+  webextBridgeOnMessage('webext-bridge-keep-alive', () => {
+    // This is a dummy handler to ensure webext-bridge is initialized
+    // It prevents "Unchecked runtime.lastError" issues
+    return { alive: true };
+  });
   
-  // Wrap chrome.tabs.sendMessage to always check lastError
-  if (chrome.tabs?.sendMessage) {
-    const original = chrome.tabs.sendMessage.bind(chrome.tabs);
-    (chrome.tabs as any).sendMessage = function(tabId: number, message: any, options?: any, callback?: any) {
-      // Handle different argument patterns
-      if (typeof options === 'function') {
-        // No options provided, third arg is callback
-        return original(tabId, message, wrapRuntimeCallback(options));
-      } else if (typeof callback === 'function') {
-        // Options provided, fourth arg is callback
-        return original(tabId, message, options, wrapRuntimeCallback(callback));
-      } else {
-        // No callback provided, add one to check errors
-        return original(tabId, message, options, wrapRuntimeCallback());
-      }
-    };
-  }
-  
-  // Wrap chrome.tabs.query to always check lastError
-  if (chrome.tabs?.query) {
-    const original = chrome.tabs.query.bind(chrome.tabs);
-    chrome.tabs.query = function(queryInfo: any, callback?: any) {
-      return original(queryInfo, wrapRuntimeCallback(callback));
-    } as any;
-  }
-  
-  // Wrap chrome.runtime.sendMessage to always check lastError  
-  if (chrome.runtime?.sendMessage) {
-    const original = chrome.runtime.sendMessage.bind(chrome.runtime);
-    (chrome.runtime as any).sendMessage = function(extensionId?: any, message?: any, options?: any, callback?: any) {
-      // Handle different argument patterns
-      if (typeof extensionId === 'object' && arguments.length <= 2) {
-        // First arg is message (no extensionId)
-        const msg = extensionId;
-        const cb = message;
-        return original(msg, wrapRuntimeCallback(cb));
-      } else if (typeof message === 'function') {
-        // extensionId and message provided, third arg is callback
-        return original(extensionId, wrapRuntimeCallback(message));
-      } else if (typeof options === 'function') {
-        // extensionId, message provided, third arg is callback
-        return original(extensionId, message, wrapRuntimeCallback(options));
-      } else if (typeof callback === 'function') {
-        // All args provided
-        return original(extensionId, message, options, wrapRuntimeCallback(callback));
-      } else {
-        // No callback, add one
-        return original(extensionId, message, options, wrapRuntimeCallback());
-      }
-    };
-  }
-  
-  // Periodically check for any unchecked errors from other APIs
-  // This catches errors from any Chrome APIs we might have missed
-  setInterval(() => {
-    if (chrome.runtime?.lastError) {
-      // Silently consume the error - just accessing it marks as checked
-      const message = chrome.runtime.lastError.message || '';
-      // Only log unexpected errors
-      if (!message.includes('Could not establish connection') && 
-          !message.includes('Receiving end does not exist')) {
-        console.debug('Unchecked runtime error caught by interval:', message);
-      }
-    }
-  }, 100);
+  // Note: We're using our safe messaging utilities (broadcastToTabs, sendMessageToTab)
+  // from utils/browser.ts instead of wrapping Chrome APIs globally. This provides
+  // better control and doesn't interfere with other extensions or libraries.
   
   // Initialize service registry
   const serviceRegistry = ServiceRegistry.getInstance();
@@ -287,76 +233,26 @@ export default defineBackground(() => {
       eventData = eventOrData;
     }
     
-    try {
-      // Query all tabs - we'll handle errors gracefully
-      let tabs: chrome.tabs.Tab[] = [];
+    // Use our safe broadcasting utility
+    const message = {
+      type: 'PROVIDER_EVENT',
+      event,
+      data: eventData
+    };
+    
+    // If origin specified, filter tabs by origin
+    const filter = origin ? (tab: chrome.tabs.Tab) => {
+      if (!tab.url) return false;
       try {
-        tabs = await chrome.tabs.query({});
-      } catch (queryError) {
-        // If we can't query tabs, just return silently
-        console.debug('Failed to query tabs for provider event:', queryError);
-        return;
+        const tabOrigin = new URL(tab.url).origin;
+        return tabOrigin === origin;
+      } catch {
+        return false;
       }
-      
-      // Filter tabs to only those that can have content scripts
-      const validTabs = tabs.filter(tab => {
-        // Must have URL and ID
-        if (!tab.url || !tab.id) return false;
-        
-        // Check if URL matches our content script patterns
-        // Content script runs on: https://*/*, http://localhost/*, http://127.0.0.1/*, file:///*
-        const url = tab.url;
-        const isValidUrl = (
-          url.startsWith('https://') ||
-          url.startsWith('http://localhost') ||
-          url.startsWith('http://127.0.0.1') ||
-          url.startsWith('file:///')
-        );
-        
-        if (!isValidUrl) return false;
-        
-        // If origin specified, only send to matching tabs
-        if (origin) {
-          try {
-            const tabOrigin = new URL(url).origin;
-            return tabOrigin === origin;
-          } catch {
-            return false;
-          }
-        }
-        
-        return true;
-      });
-      
-      // Send messages only to valid tabs
-      // Use Promise.allSettled to handle errors gracefully
-      const sendPromises = validTabs.map(tab => {
-        const tabId = tab.id;
-        if (!tabId) return Promise.resolve();
-        
-        return new Promise<void>((resolve) => {
-          // Always resolve, never reject - we don't care if individual tabs fail
-          chrome.tabs.sendMessage(
-            tabId,
-            {
-              type: 'PROVIDER_EVENT',
-              event,
-              data: eventData
-            },
-            wrapRuntimeCallback(() => {
-              // Message sent successfully or error was handled
-              resolve();
-            })
-          );
-        });
-      });
-      
-      // Wait for all messages to be attempted, but don't fail if some error
-      await Promise.allSettled(sendPromises);
-    } catch (error) {
-      // Silently handle any errors - this is best-effort broadcasting
-      console.debug('Error broadcasting provider event:', error);
-    }
+    } : undefined;
+    
+    // Broadcast using our safe utility
+    await broadcastToTabs(message, filter);
   }
 
   // Register the emitProviderEvent function with the event emitter service
