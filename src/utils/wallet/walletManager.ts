@@ -240,8 +240,10 @@ export class WalletManager {
       addressFormat = AddressFormat.P2PKH; // Default
     }
 
-    // Generate unique ID for test wallet
-    const id = `test_${address}_${Date.now()}`;
+    // Generate proper SHA-256 hash ID for test wallet (similar to private key wallets)
+    const testData = `TEST_WALLET_${address}_${addressFormat}_${Date.now()}`;
+    const hash = sha256(utf8ToBytes(testData));
+    const id = bytesToHex(hash);
     const walletName = name || `Test: ${address.slice(0, 8)}...`;
 
     // Create a special encrypted record that marks this as test-only
@@ -312,7 +314,7 @@ export class WalletManager {
     if (!record) throw new Error('Wallet record not found in storage.');
     
     // Special handling for test wallets
-    if (record.isTestOnly || walletId.startsWith('test_')) {
+    if (record.isTestOnly) {
       // Test wallets are always "unlocked" - just restore the address
       const testData = JSON.parse((record.encryptedSecret as any).e);
       wallet.addresses = [{
