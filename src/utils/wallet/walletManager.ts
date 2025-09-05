@@ -60,6 +60,22 @@ export class WalletManager {
           addresses = Array.from({ length: count }, (_, i) =>
             this.deriveMnemonicAddress(unlockedSecret, rec.addressFormat, i)
           );
+        } else if (rec.isTestOnly) {
+          // Special handling for test wallets - parse the test data
+          try {
+            const testData = JSON.parse(unlockedSecret);
+            if (testData.isTestWallet && testData.address) {
+              addresses = [{
+                name: "Test Address",
+                path: "m/test",
+                address: testData.address,
+                pubKey: ''
+              }];
+            }
+          } catch (e) {
+            console.warn('Failed to parse test wallet data:', e);
+            addresses = [];
+          }
         } else {
           addresses = [this.deriveAddressFromPrivateKey(unlockedSecret, rec.addressFormat)];
         }
@@ -82,6 +98,7 @@ export class WalletManager {
         addressFormat: rec.addressFormat,
         addressCount: rec.addressCount || 1,
         addresses,
+        isTestOnly: rec.isTestOnly,
       };
     }));
     const settings: KeychainSettings = await settingsManager.loadSettings();
