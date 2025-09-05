@@ -33,7 +33,21 @@ vi.mock('../walletService');
 vi.mock('@/utils/storage/settingsStorage');
 vi.mock('@/utils/provider/approvalQueue');
 vi.mock('@/utils/provider/rateLimiter');
-vi.mock('@/utils/fathom');
+vi.mock('@/utils/fathom', () => ({
+  sanitizePath: vi.fn((path: string) => path),
+  fathom: vi.fn(() => ({
+    name: 'fathom',
+    setup: vi.fn(),
+  })),
+}));
+
+// Mock analytics
+vi.mock('#analytics', () => ({
+  analytics: {
+    track: vi.fn(),
+    page: vi.fn(),
+  },
+}));
 vi.mock('@/utils/security/replayPrevention');
 vi.mock('@/utils/security/cspValidation');
 // Setup fake browser with required APIs
