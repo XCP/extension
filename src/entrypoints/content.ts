@@ -1,7 +1,7 @@
 import { defineContentScript, injectScript } from '#imports';
 
 export default defineContentScript({
-  matches: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*', 'file:///*'],
+  matches: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'],
   async main(ctx) {
     // Set up message relay between page and background
     const messageHandler = async (event: MessageEvent) => {

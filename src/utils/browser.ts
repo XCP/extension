@@ -164,8 +164,7 @@ export async function broadcastToTabs(
       const isValidUrl = (
         url.startsWith('https://') ||
         url.startsWith('http://localhost') ||
-        url.startsWith('http://127.0.0.1') ||
-        url.startsWith('file:///')
+        url.startsWith('http://127.0.0.1')
       );
       
       if (!isValidUrl) return false;

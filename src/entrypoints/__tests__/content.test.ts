@@ -336,8 +336,7 @@ describe('Content Script', () => {
       expect(contentScript.default.matches).toEqual([
         'https://*/*',
         'http://localhost/*',
-        'http://127.0.0.1/*',
-        'file:///*'
+        'http://127.0.0.1/*'
       ]);
     });
 
