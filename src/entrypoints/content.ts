@@ -97,37 +97,29 @@ export default defineContentScript({
     window.addEventListener('message', messageHandler);
 
     // Listen for provider events from background
-    // Use async handler and always return a promise to prevent runtime.lastError
-    const runtimeMessageHandler = async (message: any, sender: any): Promise<any> => {
-      try {
-        // Handle ping requests to check if content script is ready
-        if (message.action === 'ping') {
-          return Promise.resolve({ status: 'ready', timestamp: Date.now() });
-        }
-        
-        // Handle provider events
-        if (message.type === 'PROVIDER_EVENT') {
-          window.postMessage({
-            target: 'xcp-wallet-injected',
-            type: 'XCP_WALLET_EVENT',
-            event: message.event,
-            data: message.data
-          }, window.location.origin);
-          // Always return a response to prevent runtime.lastError
-          return Promise.resolve({ received: true, event: message.event });
-        }
-        
-        // For any unhandled message types, return null to indicate we didn't process it
-        // This prevents the "message port closed" error
-        return Promise.resolve(null);
-      } catch (error) {
-        console.error('Error in content script message handler:', error);
-        // Even on error, return something to prevent runtime.lastError
-        return Promise.resolve({ error: error instanceof Error ? error.message : 'Unknown error' });
+    // Important: We need to handle messages but not interfere with the injected script loading
+    browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      // Handle ping requests to check if content script is ready
+      if (message.action === 'ping') {
+        sendResponse({ status: 'ready', timestamp: Date.now() });
+        return true; // Will respond asynchronously
       }
-    };
-    
-    browser.runtime.onMessage.addListener(runtimeMessageHandler);
+      
+      // Handle provider events
+      if (message.type === 'PROVIDER_EVENT') {
+        window.postMessage({
+          target: 'xcp-wallet-injected',
+          type: 'XCP_WALLET_EVENT',
+          event: message.event,
+          data: message.data
+        }, window.location.origin);
+        sendResponse({ received: true, event: message.event });
+        return true; // Will respond asynchronously
+      }
+      
+      // For unhandled messages, don't respond
+      return false;
+    });
 
     try {
       await injectScript("/injected.js", {
@@ -140,7 +132,6 @@ export default defineContentScript({
     // Clean up event listeners when context is invalidated
     ctx.onInvalidated(() => {
       window.removeEventListener('message', messageHandler);
-      browser.runtime.onMessage.removeListener(runtimeMessageHandler);
       console.log('XCP Wallet content script cleaned up.');
     });
   },
