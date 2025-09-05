@@ -240,6 +240,48 @@ npm run test:all      # Build + E2E tests
    - This prevents duplicate wallets with same secret but different address types
    - Preview addresses shown for locked wallets without exposing secrets
 
+### Messaging Architecture
+
+The extension uses a hybrid messaging approach with different systems for different communication needs:
+
+```
+Page Context          Content Script         Background          Popup/UI
+    |                      |                     |                 |
+    |<-- postMessage ----->|                     |                 |
+    |   (required for      |<-- chrome.runtime ->|                 |
+    |    isolation)        |   (broadcasting &   |<- MessageBus -->|
+    |                      |    simple events)   | (complex ops)   |
+```
+
+1. **MessageBus/webext-bridge** (Background ↔ Popup)
+   - Complex request/response operations
+   - Type-safe messaging with structured protocols
+   - Service calls (wallet operations, provider requests)
+   - Used by: WalletService, ProviderService, BlockchainService
+
+2. **Direct chrome.runtime** (Background ↔ Content Scripts)
+   - Broadcasting events to multiple tabs (accountsChanged, disconnect)
+   - Simple notifications that don't need responses
+   - Content script readiness checking (`ping` messages)
+   - Performance-critical paths without serialization overhead
+
+3. **postMessage** (Content Script ↔ Injected Script)
+   - ONLY way to cross the page isolation boundary
+   - Provides window.counterparty API to web pages
+   - Cannot be replaced with any extension API
+
+4. **Why Not Everything on MessageBus?**
+   - MessageBus is 1:1, not 1:many (can't broadcast efficiently)
+   - webext-bridge adds overhead for simple messages
+   - Content script readiness checks need direct API access
+   - postMessage is required by browser security model
+
+5. **Runtime.lastError Prevention**
+   - webext-bridge initialization handler at start of background.ts
+   - Content scripts always return Promises (never undefined)
+   - Readiness checks before sending to tabs
+   - Safe utilities in utils/browser.ts for error handling
+
 ### Storage Design
 
 1. **Generic Storage Pattern**
