@@ -114,7 +114,7 @@ export default function App() {
     // Sanitize the path to remove sensitive information
     const sanitizedPath = sanitizePath(location.pathname);
     // WXT Analytics page() expects just a string URL, not an object
-    analytics.page(sanitizedPath).catch(console.error);
+    analytics.page(sanitizedPath);
   }, [location.pathname]);
   
 

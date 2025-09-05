@@ -107,7 +107,7 @@ export function createProviderService(): ProviderService {
       const MAX_PARAM_SIZE = 1024 * 1024; // 1MB limit
       const paramSize = JSON.stringify(params).length;
       if (paramSize > MAX_PARAM_SIZE) {
-        await analytics.track('request_rejected', { value: 1 });
+        await analytics.track('request_rejected', { value: '1' });
         console.warn('Request parameters too large', { 
           origin: new URL(origin).hostname, 
           method, 
@@ -449,7 +449,7 @@ export function createProviderService(): ProviderService {
       });
       
       // Track error event (trackEvent doesn't support custom objects, just _value)
-      await analytics.track('provider_error', { value: 1 });
+      await analytics.track('provider_error', { value: '1' });
       
       throw error;
     }
@@ -530,7 +530,7 @@ export function createProviderService(): ProviderService {
     
     // Track the approval/rejection event
     const eventName = approved ? 'request_approved' : 'request_rejected';
-    analytics.track(eventName).catch(console.error);
+    analytics.track(eventName);
     
     // Resolve the approval
     approvalService.resolveApproval(requestId, {

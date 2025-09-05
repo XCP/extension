@@ -1,5 +1,4 @@
 import { defineAppConfig } from 'wxt/utils/define-app-config';
-import { storage } from 'wxt/storage';
 import { fathom } from '@/utils/fathom';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
@@ -18,10 +17,6 @@ export default defineAppConfig({
         console.warn('Analytics enabled state should be changed through Settings page');
       }
     },
-    // Generate a random user ID for privacy-preserving analytics
-    userId: storage.defineItem('local:analytics-user-id', {
-      init: () => crypto.randomUUID(),
-    }),
     providers: [
       fathom({
         siteId: 'PEMZGNDB',

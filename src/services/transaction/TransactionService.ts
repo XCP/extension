@@ -392,7 +392,7 @@ export class TransactionService extends BaseService {
     const signedTx = await walletService.signTransaction(rawTx, activeAddress);
     
     // Track signing event
-    await analytics.track('transaction_signed', { value: 1 });
+    await analytics.track('transaction_signed', { value: '1' });
 
     return { signedTransaction: signedTx };
   }
@@ -427,7 +427,7 @@ export class TransactionService extends BaseService {
     const result = await walletService.signMessage(message, address);
 
     // Track successful signature
-    await analytics.track('message_signed', { value: 1 });
+    await analytics.track('message_signed', { value: '1' });
 
     return result.signature;
   }

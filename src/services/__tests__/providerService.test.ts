@@ -166,8 +166,7 @@ describe.skip('ProviderService', () => {
       directives: {}
     });
     
-    // Setup fathom mock
-    vi.mocked(fathom.trackEvent).mockResolvedValue(undefined);
+    // Analytics mocked in module setup
     
     // Create a fresh instance for each test
     providerService = createProviderService();
