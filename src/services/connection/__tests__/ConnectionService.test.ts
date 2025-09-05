@@ -109,13 +109,23 @@ const mockEventEmitterService = eventEmitterService as any;
 import { connectionRateLimiter } from '@/utils/provider/rateLimiter';
 
 // Mock browser.runtime.connect for analytics
-global.browser = fakeBrowser;
+(global as any).browser = fakeBrowser;
 fakeBrowser.runtime.connect = vi.fn(() => ({
-  onMessage: { addListener: vi.fn() },
-  onDisconnect: { addListener: vi.fn() },
+  name: 'analytics',
+  sender: undefined,
+  onMessage: { 
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    hasListener: vi.fn(),
+  },
+  onDisconnect: { 
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    hasListener: vi.fn(),
+  },
   postMessage: vi.fn(),
   disconnect: vi.fn(),
-}));
+})) as any;
 
 // Mock chrome storage for BaseService
 const mockStorage = {
