@@ -2,6 +2,7 @@ import { defineContentScript, injectScript } from '#imports';
 
 export default defineContentScript({
   matches: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'],
+  excludeMatches: ['about:*', 'chrome:*', 'chrome-extension:*', 'moz-extension:*'],
   async main(ctx) {
     // Set up message relay between page and background
     const messageHandler = async (event: MessageEvent) => {
@@ -13,7 +14,7 @@ export default defineContentScript({
         try {
           let response: any;
           
-          // Try to use MessageBus, fall back to chrome.runtime.sendMessage
+          // Use MessageBus with simplified error handling (background has proper listeners now)
           try {
             const { MessageBus } = await import('@/services/core/MessageBus');
             response = await MessageBus.send('provider-request', {
@@ -23,16 +24,9 @@ export default defineContentScript({
               xcpWalletVersion: '2.0',
               timestamp: Date.now()
             }, 'background');
-          } catch (importError) {
-            // Fallback to direct chrome.runtime.sendMessage for test environments
-            console.warn('MessageBus import failed, using fallback:', importError);
-            response = await browser.runtime.sendMessage({
-              type: 'PROVIDER_REQUEST',
-              origin: window.location.origin,
-              data: event.data.data,
-              xcpWalletVersion: '2.0',
-              timestamp: Date.now()
-            });
+          } catch (error) {
+            console.debug('MessageBus request failed:', error);
+            response = null;
           }
           
           // Handle the response properly
@@ -93,35 +87,58 @@ export default defineContentScript({
       }
     };
 
-    // Add message event listener
-    window.addEventListener('message', messageHandler);
+    // Add message event listeners
+    if (messageHandler) {
+      window.addEventListener('message', messageHandler);
+    }
 
     // Listen for provider events from background
     // Important: We need to handle messages but not interfere with the injected script loading
     const runtimeMessageHandler = (message: any, sender: any, sendResponse: any) => {
-      // Handle ping requests to check if content script is ready
-      if (message.action === 'ping') {
-        sendResponse({ status: 'ready', timestamp: Date.now() });
-        return true; // Will respond asynchronously
+      // Always send a response to prevent runtime.lastError
+      const safeResponse = (responseData: any) => {
+        try {
+          sendResponse(responseData);
+        } catch (error) {
+          // Silently handle cases where response channel is closed
+          console.debug('Failed to send response, channel may be closed:', error);
+        }
+      };
+      
+      // Handle startup health checks
+      if (message?.type === 'startup-health-check' || message?.action === 'ping') {
+        safeResponse({ status: 'ready', timestamp: Date.now(), context: 'content-script' });
+        return true;
       }
       
       // Handle provider events
-      if (message.type === 'PROVIDER_EVENT') {
-        window.postMessage({
-          target: 'xcp-wallet-injected',
-          type: 'XCP_WALLET_EVENT',
-          event: message.event,
-          data: message.data
-        }, window.location.origin);
-        sendResponse({ received: true, event: message.event });
-        return true; // Will respond asynchronously
+      if (message?.type === 'PROVIDER_EVENT') {
+        try {
+          window.postMessage({
+            target: 'xcp-wallet-injected',
+            type: 'XCP_WALLET_EVENT',
+            event: message.event,
+            data: message.data
+          }, window.location.origin);
+          safeResponse({ received: true, event: message.event });
+        } catch (error) {
+          console.error('Failed to post provider event:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          safeResponse({ received: false, error: errorMessage });
+        }
+        return true;
       }
       
-      // For unhandled messages, don't respond
-      return false;
+      // For other messages, send acknowledgment to prevent runtime errors
+      safeResponse({ handled: false, reason: 'Unknown message type' });
+      return true; // Always indicate we will respond
     };
     
-    browser.runtime.onMessage.addListener(runtimeMessageHandler);
+    if (runtimeMessageHandler) {
+      browser.runtime.onMessage.addListener(runtimeMessageHandler);
+    }
+    
+    console.log('XCP Wallet content script loaded on:', window.location.href);
 
     try {
       await injectScript("/injected.js", {
@@ -133,8 +150,18 @@ export default defineContentScript({
 
     // Clean up event listeners when context is invalidated
     ctx.onInvalidated(() => {
-      window.removeEventListener('message', messageHandler);
-      browser.runtime.onMessage.removeListener(runtimeMessageHandler);
+      try {
+        window.removeEventListener('message', messageHandler);
+      } catch (error) {
+        console.debug('Failed to remove window message listener:', error);
+      }
+      
+      try {
+        browser.runtime.onMessage.removeListener(runtimeMessageHandler);
+      } catch (error) {
+        console.debug('Failed to remove runtime message listener:', error);
+      }
+      
       console.log('XCP Wallet content script cleaned up.');
     });
   },

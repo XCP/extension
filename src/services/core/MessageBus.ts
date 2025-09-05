@@ -139,20 +139,12 @@ export class MessageBus {
     try {
       await MessageBus.send(message, data, target, { timeout: 5000 });
     } catch (error) {
-      // Silently handle expected errors when target isn't available
-      // These are normal and expected when:
-      // - Popup is closed
-      // - Tab is closed
-      // - Sidepanel is closed
-      // - Service worker hasn't initialized the target yet
+      // With proper top-level listeners, most connection errors should be resolved
+      // Only log truly unexpected errors now
       const errorMessage = error instanceof Error ? error.message : String(error);
       
-      // Only log unexpected errors
-      if (!errorMessage.includes('Could not establish connection') && 
-          !errorMessage.includes('Message timeout') &&
-          !errorMessage.includes('fingerprint') &&
-          !errorMessage.includes('receiving end does not exist')) {
-        console.warn(`One-way message '${String(message)}' failed:`, error);
+      if (!errorMessage.includes('Message timeout')) {
+        console.debug(`One-way message '${String(message)}' to ${target} failed:`, errorMessage);
       }
       
       // Don't throw - one-way messages should fail silently

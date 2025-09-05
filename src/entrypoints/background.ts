@@ -14,18 +14,60 @@ import { checkForLastError, wrapRuntimeCallback, broadcastToTabs, sendMessageToT
 import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
 
 export default defineBackground(() => {
-  // Initialize webext-bridge immediately to prevent runtime.lastError
-  // This dummy handler ensures webext-bridge is properly set up
-  // See: https://github.com/zikaari/webext-bridge/issues/67
+  // TOP LEVEL MESSAGE LISTENERS - Critical for MV3 service worker wake-up
+  // In WXT, these need to be inside defineBackground() but still at the top
+  
+  // Set up core message listener immediately
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Handle ping requests immediately
+    if (message?.action === 'ping' || message?.type === 'startup-health-check') {
+      sendResponse({ status: 'ready', timestamp: Date.now(), context: 'background' });
+      return true;
+    }
+    
+    // Check for lastError to prevent console warnings
+    if (chrome.runtime.lastError) {
+      // Error already "checked" by accessing it
+    }
+    
+    // Let other handlers process the message
+    return false;
+  });
+  
+  // Set up connection listener
+  chrome.runtime.onConnect.addListener((port) => {
+    port.onMessage.addListener((msg) => {
+      if (msg?.action === 'ping') {
+        port.postMessage({ status: 'ready', timestamp: Date.now() });
+      }
+    });
+    
+    port.onDisconnect.addListener(() => {
+      // Check lastError to prevent warnings
+      if (chrome.runtime.lastError) {
+        // Error acknowledged
+      }
+    });
+  });
+  
+  console.log('Background service worker: Core listeners registered');
+  // Initialize webext-bridge handlers at top level of defineBackground
+  // This ensures they're registered when the service worker starts
   webextBridgeOnMessage('webext-bridge-keep-alive', () => {
-    // This is a dummy handler to ensure webext-bridge is initialized
-    // It prevents "Unchecked runtime.lastError" issues
     return { alive: true };
   });
   
-  // Note: We're using our safe messaging utilities (broadcastToTabs, sendMessageToTab)
-  // from utils/browser.ts instead of wrapping Chrome APIs globally. This provides
-  // better control and doesn't interfere with other extensions or libraries.
+  webextBridgeOnMessage('startup-health-check', () => {
+    return { 
+      status: 'ready', 
+      timestamp: Date.now(),
+      services: 'ready'
+    };
+  });
+  
+  console.log('Background: webext-bridge handlers registered');
+  
+  // Using robust messaging utilities with ping-inject-retry pattern
   
   // Initialize service registry
   const serviceRegistry = ServiceRegistry.getInstance();

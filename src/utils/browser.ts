@@ -37,7 +37,7 @@ export function checkForLastErrorAndWarn(): Error | undefined {
 
 /**
  * Wrap a callback function to automatically check for chrome.runtime.lastError.
- * This prevents "Unchecked runtime.lastError" warnings while preserving callback functionality.
+ * Simplified - with proper listeners, most connection errors should be resolved.
  * 
  * @param callback - Optional callback function to wrap
  * @param logErrors - Whether to log errors (default: false)
@@ -47,18 +47,11 @@ export function wrapRuntimeCallback<T extends any[]>(
   callback?: (...args: T) => any,
   logErrors = false
 ): (...args: T) => any {
-  // If no callback provided, create one that just checks the error
   if (!callback) {
     return () => {
-      // Just check and consume the error
-      if (chrome.runtime?.lastError) {
-        // Silently consume expected connection errors
-        const message = chrome.runtime.lastError.message || '';
-        if (!message.includes('Could not establish connection') && 
-            !message.includes('Receiving end does not exist') &&
-            logErrors) {
-          console.warn('Chrome runtime error:', message);
-        }
+      // Just check and consume any error
+      if (chrome.runtime?.lastError && logErrors) {
+        console.debug('Runtime error (handled):', chrome.runtime.lastError.message);
       }
     };
   }
@@ -68,12 +61,8 @@ export function wrapRuntimeCallback<T extends any[]>(
     const error = chrome.runtime?.lastError;
     
     if (error) {
-      // Silently consume expected connection errors
-      const message = error.message || '';
-      if (!message.includes('Could not establish connection') && 
-          !message.includes('Receiving end does not exist') &&
-          logErrors) {
-        console.warn('Chrome runtime error:', message);
+      if (logErrors) {
+        console.debug('Runtime error (handled):', error.message);
       }
       // Don't call the original callback if there was an error
       return;
@@ -85,25 +74,37 @@ export function wrapRuntimeCallback<T extends any[]>(
 }
 
 /**
- * Check if a tab can receive messages (has our content script)
+ * Robust ping function to check if content script is available
  */
 export async function canReceiveMessages(tabId: number): Promise<boolean> {
-  return new Promise<boolean>((resolve) => {
-    const timeoutId = setTimeout(() => resolve(false), 100);
+  try {
+    const response = await new Promise<any>((resolve, reject) => {
+      const timeoutId = setTimeout(() => reject(new Error('Ping timeout')), 200);
+      
+      chrome.tabs.sendMessage(
+        tabId,
+        { action: 'ping' },
+        (response) => {
+          clearTimeout(timeoutId);
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(response);
+          }
+        }
+      );
+    });
     
-    chrome.tabs.sendMessage(
-      tabId,
-      { action: 'ping' },
-      wrapRuntimeCallback((response) => {
-        clearTimeout(timeoutId);
-        resolve(response?.status === 'ready');
-      })
-    );
-  });
+    return Boolean(response?.status === 'ready' || response?.status === 'initializing');
+  } catch (error) {
+    // Ping failed - content script not available
+    return false;
+  }
 }
 
 /**
- * Send message to tab with retry logic and content script verification
+ * Robust tab messaging with ping-inject-retry pattern
+ * Follows MV3 best practices for reliable content script communication
  */
 export async function sendMessageToTab(
   tabId: number,
@@ -112,41 +113,79 @@ export async function sendMessageToTab(
     maxRetries?: number;
     retryDelay?: number;
     skipReadinessCheck?: boolean;
+    autoInject?: boolean;
   }
 ): Promise<any> {
-  const { maxRetries = 3, retryDelay = 100, skipReadinessCheck = false } = options || {};
+  const { 
+    maxRetries = 3, 
+    retryDelay = 100, 
+    skipReadinessCheck = false,
+    autoInject = true 
+  } = options || {};
   
-  // Check if content script is ready (unless explicitly skipped)
-  if (!skipReadinessCheck) {
-    let isReady = false;
-    for (let i = 0; i < maxRetries; i++) {
-      isReady = await canReceiveMessages(tabId);
-      if (isReady) break;
-      if (i < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
+  // Helper function to send message safely
+  const sendToTab = (tabId: number, payload: any): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.tabs.sendMessage(tabId, payload, (response) => {
+          if (chrome.runtime.lastError) {
+            const error = new Error(chrome.runtime.lastError.message || 'Unknown runtime error');
+            reject(error);
+          } else {
+            resolve(response);
+          }
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+  
+  // Ping-inject-retry pattern
+  const ensureContentScriptAndSend = async (tabId: number, payload: any): Promise<any> => {
+    try {
+      return await sendToTab(tabId, payload);
+    } catch (error: any) {
+      const errorMsg = String(error?.message || error);
+      const receivingEndMissing = 
+        errorMsg.includes('Receiving end does not exist') ||
+        errorMsg.includes('Could not establish connection');
+      
+      if (!receivingEndMissing || !autoInject) {
+        throw error;
+      }
+      
+      // Try to inject content script and retry
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ['/content-scripts/content.js'] // WXT output path
+        });
+        
+        // Small delay to let content script initialize
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // Retry the message
+        return await sendToTab(tabId, payload);
+      } catch (injectError: any) {
+        // Injection failed, probably restricted URL
+        const errorMessage = injectError instanceof Error ? injectError.message : String(injectError);
+        throw new Error(`Content script injection failed: ${errorMessage}`);
       }
     }
-    
-    if (!isReady) {
-      // Content script not ready, return silently
-      return null;
-    }
+  };
+  
+  if (!skipReadinessCheck) {
+    return await ensureContentScriptAndSend(tabId, message);
   }
   
-  // Send the actual message
-  return new Promise((resolve) => {
-    chrome.tabs.sendMessage(
-      tabId,
-      message,
-      wrapRuntimeCallback((response) => {
-        resolve(response || null);
-      })
-    );
-  });
+  // Direct send without checks
+  return await sendToTab(tabId, message);
 }
 
 /**
  * Broadcast message to all valid tabs with content script
+ * Uses ping-inject-retry pattern for reliable delivery
  */
 export async function broadcastToTabs(
   message: any,
@@ -167,7 +206,16 @@ export async function broadcastToTabs(
         url.startsWith('http://127.0.0.1')
       );
       
-      if (!isValidUrl) return false;
+      // Skip restricted URLs where injection fails
+      const isRestrictedUrl = (
+        url.startsWith('chrome://') ||
+        url.startsWith('chrome-extension://') ||
+        url.startsWith('moz-extension://') ||
+        url.includes('chrome.google.com/webstore') ||
+        url.startsWith('about:')
+      );
+      
+      if (!isValidUrl || isRestrictedUrl) return false;
       
       // Apply additional filter if provided
       if (filter) {
@@ -177,23 +225,24 @@ export async function broadcastToTabs(
       return true;
     });
     
-    // Send to all valid tabs in parallel
+    // Send to all valid tabs with proper error handling
     const sendPromises = validTabs.map(tab => {
       if (!tab.id) return Promise.resolve();
-      return sendMessageToTab(tab.id, message).catch(() => {
-        // Silently ignore failures for individual tabs
-      });
+      return sendMessageToTab(tab.id, message, { autoInject: true })
+        .catch((error) => {
+          // Log injection failures but don't throw
+          console.debug(`Failed to send to tab ${tab.id}:`, error.message);
+        });
     });
     
     await Promise.allSettled(sendPromises);
   } catch (error) {
-    // Silently handle any errors in broadcasting
     console.debug('Error broadcasting to tabs:', error);
   }
 }
 
 /**
- * Send a response-expecting message with timeout
+ * Send a response-expecting message with timeout (simplified)
  */
 export async function sendMessageWithTimeout(
   message: any,
@@ -242,12 +291,25 @@ export function setupSafeMessageHandler(
       }
     };
     
+    // Safe response function that handles closed response channels
+    const safeResponse = (responseData: any) => {
+      try {
+        sendResponse(responseData);
+      } catch (error) {
+        // Response channel closed, this is expected during rapid startup/shutdown
+        console.debug('Response channel closed:', error);
+      }
+    };
+    
     // Execute handler and send response
-    handleMessage().then(sendResponse).catch((error) => {
-      sendResponse({ error: error.message, handled: false });
+    handleMessage().then(safeResponse).catch((error) => {
+      safeResponse({ error: error.message, handled: false });
     });
     
     // Return true to indicate async response
     return true;
   });
 }
+
+// Removed initializeEarlyErrorHandling() - no longer needed with proper top-level listeners
+// The ping-inject-retry pattern and proper listener setup handle connection issues

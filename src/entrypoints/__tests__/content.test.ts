@@ -338,6 +338,13 @@ describe('Content Script', () => {
         'http://localhost/*',
         'http://127.0.0.1/*'
       ]);
+      
+      expect(contentScript.default.excludeMatches).toEqual([
+        'about:*',
+        'chrome:*', 
+        'chrome-extension:*',
+        'moz-extension:*'
+      ]);
     });
 
     it('should export a content script with main function', async () => {
