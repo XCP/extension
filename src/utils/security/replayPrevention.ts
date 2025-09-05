@@ -5,7 +5,6 @@
  * and broadcasted transaction hashes.
  */
 
-import { trackEvent } from '@/utils/fathom';
 
 // Types for replay prevention
 interface TransactionRecord {
@@ -198,7 +197,7 @@ export async function checkReplayAttempt(
     if (idempotencyKey) {
       const cachedResult = store.getIdempotencyResult(idempotencyKey);
       if (cachedResult) {
-        await trackEvent('replay_prevented');
+        // Analytics: replay_prevented
         
         return {
           isReplay: true,
@@ -211,7 +210,7 @@ export async function checkReplayAttempt(
     // Check nonce if required
     if (requireNonce && nonce !== undefined && address) {
       if (!validateNonce(origin, address, nonce)) {
-        await trackEvent('replay_prevented');
+        // Analytics: replay_prevented
         
         return {
           isReplay: true,
@@ -233,7 +232,7 @@ export async function checkReplayAttempt(
         (now - record.timestamp) < recentThreshold &&
         record.status !== 'failed'
       ) {
-        await trackEvent('replay_prevented');
+        // Analytics: replay_prevented
         
         return {
           isReplay: true,
@@ -436,7 +435,7 @@ export async function withReplayPrevention<T>(
     
   } catch (error) {
     // Track failed requests
-    await trackEvent('request_failed');
+    // Analytics: request_failed
     
     throw error;
   }

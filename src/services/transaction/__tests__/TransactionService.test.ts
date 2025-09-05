@@ -17,10 +17,41 @@ vi.mock('webext-bridge/background', () => ({
   onMessage: vi.fn(),
 }));
 
-// Mock Fathom analytics to prevent network errors in tests
+// Mock Fathom analytics provider
 vi.mock('@/utils/fathom', () => ({
-  trackEvent: vi.fn().mockResolvedValue(undefined),
+  sanitizePath: vi.fn((path: string) => path),
+  fathom: vi.fn(() => ({
+    name: 'fathom',
+    setup: vi.fn(),
+  })),
 }));
+
+// Mock analytics
+vi.mock('#analytics', () => ({
+  analytics: {
+    track: vi.fn(),
+    page: vi.fn(),
+  },
+}));
+
+// Mock browser.runtime.connect for analytics
+(global as any).browser = fakeBrowser;
+fakeBrowser.runtime.connect = vi.fn(() => ({
+  name: 'analytics',
+  sender: undefined,
+  onMessage: { 
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    hasListener: vi.fn(),
+  },
+  onDisconnect: { 
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    hasListener: vi.fn(),
+  },
+  postMessage: vi.fn(),
+  disconnect: vi.fn(),
+})) as any;
 
 // Mock the compose utility
 import { composeTransaction } from '@/utils/blockchain/counterparty/compose';

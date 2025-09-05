@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { fakeBrowser } from 'wxt/testing';
 
 // Mock webext-bridge to prevent browser API issues  
 vi.mock('webext-bridge/background', () => ({
@@ -66,9 +67,21 @@ vi.mock('@/utils/security/cspValidation', () => ({
   }),
 }));
 
-// Mock fathom analytics
+// Mock fathom analytics provider
 vi.mock('@/utils/fathom', () => ({
-  trackEvent: vi.fn().mockResolvedValue(undefined),
+  sanitizePath: vi.fn((path: string) => path),
+  fathom: vi.fn(() => ({
+    name: 'fathom',
+    setup: vi.fn(),
+  })),
+}));
+
+// Mock analytics
+vi.mock('#analytics', () => ({
+  analytics: {
+    track: vi.fn(),
+    page: vi.fn(),
+  },
 }));
 
 // Mock approval queue
@@ -94,6 +107,25 @@ const mockEventEmitterService = eventEmitterService as any;
 
 // Get access to rate limiter mock
 import { connectionRateLimiter } from '@/utils/provider/rateLimiter';
+
+// Mock browser.runtime.connect for analytics
+(global as any).browser = fakeBrowser;
+fakeBrowser.runtime.connect = vi.fn(() => ({
+  name: 'analytics',
+  sender: undefined,
+  onMessage: { 
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    hasListener: vi.fn(),
+  },
+  onDisconnect: { 
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    hasListener: vi.fn(),
+  },
+  postMessage: vi.fn(),
+  disconnect: vi.fn(),
+})) as any;
 
 // Mock chrome storage for BaseService
 const mockStorage = {

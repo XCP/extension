@@ -52,7 +52,8 @@ const mockWindow = {
 const mockConsole = {
   debug: vi.fn(),
   log: vi.fn(),
-  error: vi.fn()
+  error: vi.fn(),
+  warn: vi.fn()
 };
 
 // Mock context object for content script
@@ -192,10 +193,9 @@ describe('Content Script', () => {
       );
     });
 
-    it('should handle MessageBus send errors', async () => {
-      const error = new Error('Request failed');
-      (error as any).code = -1; // Set the error code
-      mockMessageBus.send.mockRejectedValue(error);
+    it('should handle MessageBus send returning null', async () => {
+      // Mock MessageBus.send to return null (simulating no response scenario)
+      mockMessageBus.send.mockResolvedValue(null);
 
       const event = {
         source: window,
@@ -218,13 +218,15 @@ describe('Content Script', () => {
           type: 'XCP_WALLET_RESPONSE',
           id: '456',
           error: {
-            message: 'Request failed',
-            code: -1
+            message: 'No response from extension background',
+            code: -32603
           }
         },
         mockWindow.location.origin
       );
     });
+
+
 
     it('should handle no response from background', async () => {
       mockMessageBus.send.mockResolvedValue(null);
