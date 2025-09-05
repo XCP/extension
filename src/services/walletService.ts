@@ -25,6 +25,7 @@ interface WalletService {
     name?: string,
     addressFormat?: AddressFormat
   ) => Promise<Wallet>;
+  importTestAddress: (address: string, name?: string) => Promise<Wallet>;
   addAddress: (walletId: string) => Promise<Address>;
   verifyPassword: (password: string) => Promise<boolean>;
   resetAllWallets: (password: string) => Promise<void>;
@@ -109,6 +110,13 @@ function createWalletService(): WalletService {
     },
     createPrivateKeyWallet: async (privateKey, password, name, addressFormat) => {
       return walletManager.createPrivateKeyWallet(privateKey, password, name, addressFormat);
+    },
+    importTestAddress: async (address: string, name?: string) => {
+      // Development-only feature for testing UI with watch-only addresses
+      if (process.env.NODE_ENV !== 'development') {
+        throw new Error('Test address import is only available in development mode');
+      }
+      return walletManager.importTestAddress(address, name);
     },
     addAddress: async (walletId) => walletManager.addAddress(walletId),
     verifyPassword: async (password) => walletManager.verifyPassword(password),

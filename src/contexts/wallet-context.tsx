@@ -90,6 +90,7 @@ interface WalletContextType {
     name?: string,
     addressFormat?: AddressFormat
   ) => Promise<Wallet>;
+  importTestAddress: (address: string, name?: string) => Promise<Wallet>;
   resetAllWallets: (password: string) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ key: string; compressed: boolean }>;
@@ -366,6 +367,10 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }),
     createAndUnlockPrivateKeyWallet: withRefresh(walletService.createAndUnlockPrivateKeyWallet, async () => {
+      await refreshWalletState();
+      setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
+    }),
+    importTestAddress: withRefresh(walletService.importTestAddress, async () => {
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }),

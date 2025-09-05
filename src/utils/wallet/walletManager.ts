@@ -26,6 +26,7 @@ export interface Wallet {
   addressFormat: AddressFormat;
   addressCount: number;
   addresses: Address[];
+  isTestOnly?: boolean;
 }
 
 export const MAX_WALLETS = 20;
@@ -211,12 +212,123 @@ export class WalletManager {
     return wallet;
   }
 
+  public async importTestAddress(
+    address: string,
+    name?: string
+  ): Promise<Wallet> {
+    // Development-only feature for UI testing with watch-only addresses
+    if (process.env.NODE_ENV !== 'development') {
+      throw new Error('Test address import is only available in development mode');
+    }
+
+    // Basic validation - just check if it looks like a Bitcoin address
+    if (!address.match(/^[13bc][a-km-zA-HJ-NP-Z0-9]{25,62}$/)) {
+      throw new Error('Invalid Bitcoin address format');
+    }
+
+    // Detect address format from the address string
+    let addressFormat: AddressFormat;
+    if (address.startsWith('1')) {
+      addressFormat = AddressFormat.P2PKH;
+    } else if (address.startsWith('3')) {
+      addressFormat = AddressFormat.P2SH_P2WPKH;
+    } else if (address.startsWith('bc1q')) {
+      addressFormat = AddressFormat.P2WPKH;
+    } else if (address.startsWith('bc1p')) {
+      addressFormat = AddressFormat.P2TR;
+    } else {
+      addressFormat = AddressFormat.P2PKH; // Default
+    }
+
+    // Generate unique ID for test wallet
+    const id = `test_${address}_${Date.now()}`;
+    const walletName = name || `Test: ${address.slice(0, 8)}...`;
+
+    // Create a special encrypted record that marks this as test-only
+    // We use a special format that won't decrypt to a valid private key
+    const testMarker = {
+      isTestWallet: true,
+      address: address,
+      warning: 'This is a test wallet for UI development only. It cannot sign transactions.'
+    };
+    
+    // Create a fake encrypted private key structure for consistency
+    // This allows the wallet to work with existing code but won't decrypt properly
+    const fakeEncrypted = {
+      v: 1,
+      e: JSON.stringify(testMarker),
+      t: 'test',
+      s: 'test'
+    };
+    
+    const record: EncryptedWalletRecord = {
+      id,
+      name: walletName,
+      encryptedSecret: fakeEncrypted as any,
+      type: 'privateKey',
+      addressFormat,
+      createdAt: Date.now(),
+      isTestOnly: true,
+    } as any;
+    
+    await addEncryptedWallet(record);
+    
+    // Create wallet object with the test address
+    const wallet: Wallet = {
+      id,
+      name: walletName,
+      type: 'privateKey',
+      addressFormat,
+      addressCount: 1,
+      addresses: [{
+        name: "Test Address",
+        path: "m/test", // Fake path for test addresses
+        address: address,
+        pubKey: '' // No real public key for test addresses
+      }],
+      isTestOnly: true,
+    };
+    
+    this.wallets.push(wallet);
+    
+    // Set as active wallet
+    this.activeWalletId = id;
+    
+    // Store a fake "unlocked" secret so the wallet appears unlocked
+    // This will prevent signing but allow UI testing
+    sessionManager.storeUnlockedSecret(id, JSON.stringify({
+      isTestWallet: true,
+      address: address
+    }));
+    
+    return wallet;
+  }
+
   public async unlockWallet(walletId: string, password: string): Promise<void> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found in memory.');
     const allRecords = await getAllEncryptedWallets();
     const record = allRecords.find((r) => r.id === walletId);
     if (!record) throw new Error('Wallet record not found in storage.');
+    
+    // Special handling for test wallets
+    if (record.isTestOnly || walletId.startsWith('test_')) {
+      // Test wallets are always "unlocked" - just restore the address
+      const testData = JSON.parse((record.encryptedSecret as any).e);
+      wallet.addresses = [{
+        name: "Test Address",
+        path: "m/test",
+        address: testData.address,
+        pubKey: ''
+      }];
+      wallet.addressCount = 1;
+      this.activeWalletId = walletId;
+      
+      // Store fake secret for test wallet
+      sessionManager.storeUnlockedSecret(walletId, JSON.stringify(testData));
+      return;
+    }
+    
     try {
       if (record.type === 'mnemonic') {
         if (!record.encryptedSecret) throw new Error('Missing encrypted secret.');
