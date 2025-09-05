@@ -34,6 +34,8 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
   const { activeAddress, activeWallet } = useWallet();
   const [formData, setFormData] = useState<ConsolidationFormData>(DEFAULT_FORM_DATA);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText;
@@ -43,7 +45,13 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
     async function fetchData() {
       if (!activeAddress) return;
       
-      setIsLoading(true);
+      // Only show loading state on initial load, not on stamp toggle
+      if (isInitialLoad) {
+        setIsLoading(true);
+      } else {
+        // Show updating state for subsequent fetches
+        setIsUpdating(true);
+      }
       setError(null);
       
       try {
@@ -58,16 +66,22 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
           consolidationData: batches[0], // First batch for initial display
           allBatches: batches
         }));
+        
+        // Mark initial load as complete
+        if (isInitialLoad) {
+          setIsInitialLoad(false);
+        }
       } catch (err) {
         console.error("Error fetching consolidation data:", err);
         setError(err instanceof Error ? err.message : "Failed to fetch consolidation data");
       } finally {
         setIsLoading(false);
+        setIsUpdating(false);
       }
     }
     
     fetchData();
-  }, [activeAddress, formData.includeStamps]);
+  }, [activeAddress, formData.includeStamps, isInitialLoad]);
 
 
   const handleFeeRateChange = (value: number) => {
@@ -103,64 +117,60 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
           </div>
         )}
         
-        {isLoading && (
-          <div className="text-center py-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-sm text-gray-600">Loading consolidation data...</p>
-          </div>
-        )}
-        
-        {formData.consolidationData && (
-          <>
-            <div className="space-y-2">
-              <h3 className="font-semibold">Recoverable</h3>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Total Bitcoin</span>
-                <span className="font-medium">
-                  {`${formatAmount({
-                    value: formData.consolidationData.summary.total_btc,
-                    minimumFractionDigits: 8,
-                    maximumFractionDigits: 8,
-                  })} BTC`}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Total UTXOs</span>
-                <span className="font-medium">{formData.consolidationData.summary.total_utxos}</span>
-              </div>
-              {formData.consolidationData.summary.batches_required > 1 && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Batches Required</span>
-                  <span className="font-medium text-blue-600">
-                    {formData.consolidationData.summary.batches_required} batches
-                  </span>
-                </div>
+        {/* Always show the data section to prevent layout shift */}
+        <div className="space-y-2">
+          <h3 className="font-semibold">Recoverable</h3>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Total Bitcoin</span>
+            <span className="font-medium">
+              {isLoading ? (
+                <span className="text-gray-400">...</span>
+              ) : formData.consolidationData ? (
+                `${formatAmount({
+                  value: formData.consolidationData.summary.total_btc,
+                  minimumFractionDigits: 8,
+                  maximumFractionDigits: 8,
+                })} BTC`
+              ) : (
+                <span className="text-gray-400">—</span>
               )}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Total UTXOs</span>
+            <span className="font-medium">
+              {isLoading ? (
+                <span className="text-gray-400">...</span>
+              ) : formData.consolidationData ? (
+                formData.consolidationData.summary.total_utxos
+              ) : (
+                <span className="text-gray-400">—</span>
+              )}
+            </span>
+          </div>
+          {!isLoading && formData.consolidationData && formData.consolidationData.summary.batches_required > 1 && (
+            <div className="flex justify-between">
+              <span className="text-gray-600"># of Batches</span>
+              <span className="font-medium">
+                {formData.consolidationData.summary.batches_required} txs
+              </span>
             </div>
-            
-            {formData.consolidationData.summary.batches_required > 1 && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-sm text-blue-900">
-                  <strong>Note:</strong> Your {formData.consolidationData.summary.total_utxos} UTXOs will be consolidated in {formData.consolidationData.summary.batches_required} batches of up to 420 UTXOs each. All batches will be signed and broadcast automatically.
-                </p>
-              </div>
-            )}
-            
-            {formData.consolidationData.validation_summary?.requires_special_handling && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
-                <p className="text-sm text-amber-900">
-                  <strong>Note:</strong> Some UTXOs require special handling. This is normal for older Counterparty transactions and will be handled automatically.
-                </p>
-              </div>
-            )}
-          </>
+          )}
+        </div>
+        
+        {!isLoading && formData.consolidationData && formData.consolidationData.validation_summary?.requires_special_handling && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+            <p className="text-sm text-amber-900">
+              <strong>Note:</strong> Some UTXOs require special handling. This is normal for older Counterparty transactions and will be handled automatically.
+            </p>
+          </div>
         )}
 
         {/* Include Stamps toggle */}
         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
           <div className="flex flex-col">
             <label htmlFor="includeStamps" className="text-sm font-medium text-gray-700">
-              Allow STAMPS to be spent
+              Allow STAMPS to be spent {isUpdating && <span className="text-gray-400 text-xs ml-2">(updating...)</span>}
             </label>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">

@@ -80,9 +80,59 @@ export interface MessageProtocol {
  */
 export class MessageBus {
   private static readonly MESSAGE_TIMEOUT = 10000; // 10 seconds
+  private static readonly STARTUP_TIMEOUT = 3000; // 3 seconds for background to be ready
+  
+  private static backgroundReady = false;
+  private static readinessPromise: Promise<boolean> | null = null;
   
   /**
-   * Send a message to another extension context
+   * Check if background service worker is ready to receive messages
+   */
+  private static async ensureBackgroundReady(): Promise<boolean> {
+    if (MessageBus.backgroundReady) {
+      return true;
+    }
+    
+    if (MessageBus.readinessPromise) {
+      return MessageBus.readinessPromise;
+    }
+    
+    MessageBus.readinessPromise = new Promise((resolve) => {
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      const checkReady = async () => {
+        try {
+          // Try to ping the background
+          const response = await bridgeSendMessage('startup-health-check', {}, 'background');
+          if (response && typeof response === 'object' && 'status' in response && response.status === 'ready') {
+            MessageBus.backgroundReady = true;
+            resolve(true);
+            return;
+          }
+        } catch (error) {
+          // Background not ready yet
+        }
+        
+        attempts++;
+        if (attempts >= maxAttempts) {
+          console.warn('Background service worker not ready after', maxAttempts, 'attempts');
+          resolve(false);
+        } else {
+          // Exponential backoff: 50ms, 100ms, 200ms, 400ms...
+          const delay = Math.min(50 * Math.pow(2, attempts), 1000);
+          setTimeout(checkReady, delay);
+        }
+      };
+      
+      checkReady();
+    });
+    
+    return MessageBus.readinessPromise;
+  }
+  
+  /**
+   * Send a message to another extension context with background readiness check
    */
   static async send<K extends keyof MessageProtocol>(
     message: K,
@@ -91,9 +141,23 @@ export class MessageBus {
     options: {
       timeout?: number;
       retries?: number;
+      skipReadinessCheck?: boolean;
     } = {}
   ): Promise<MessageProtocol[K]['output']> {
-    const { timeout = MessageBus.MESSAGE_TIMEOUT, retries = 0 } = options;
+    const { timeout = MessageBus.MESSAGE_TIMEOUT, retries = 0, skipReadinessCheck = false } = options;
+    
+    // Optional debug logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[MessageBus] Sending message:', message, 'to:', target);
+    }
+    
+    // Ensure background is ready for background-targeted messages
+    if (target === 'background' && !skipReadinessCheck) {
+      const isReady = await MessageBus.ensureBackgroundReady();
+      if (!isReady) {
+        throw new Error('Background service worker not ready');
+      }
+    }
     
     let lastError: Error | null = null;
     
@@ -109,6 +173,10 @@ export class MessageBus {
         return result;
       } catch (error) {
         lastError = error as Error;
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[MessageBus] Message failed:', message, 'to:', target, 'error:', errorMessage);
+        }
         
         if (attempt < retries) {
           console.warn(`Message attempt ${attempt + 1} failed, retrying...`, error);

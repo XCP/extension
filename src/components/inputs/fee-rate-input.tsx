@@ -32,6 +32,10 @@ export function FeeRateInput({
   const [customInput, setCustomInput] = useState<string>("0.1");
   const [internalError, setInternalError] = useState<string | null>(null);
   const isInitial = useRef(true);
+  
+  // Store callback in a ref to prevent infinite loops
+  const onFeeRateChangeRef = useRef(onFeeRateChange);
+  onFeeRateChangeRef.current = onFeeRateChange;
 
   // Calculate the current fee rate value based on selection
   const currentFeeRate = selectedOption === "custom" 
@@ -44,19 +48,19 @@ export function FeeRateInput({
       setCustomInput(initialValue.toString());
       setSelectedOption("fast");
       isInitial.current = false;
-      onFeeRateChange?.(initialValue); // Notify parent of initial value
+      onFeeRateChangeRef.current?.(initialValue); // Notify parent of initial value
     }
-  }, [feeRates, onFeeRateChange]);
+  }, [feeRates]);
 
   useEffect(() => {
     if (feeRates && selectedOption !== "custom") {
       const preset = uniquePresetOptions.find((opt) => opt.id === selectedOption);
       if (preset) {
         setCustomInput(preset.value.toString());
-        onFeeRateChange?.(preset.value); // Notify parent of preset change
+        onFeeRateChangeRef.current?.(preset.value); // Notify parent of preset change
       }
     }
-  }, [selectedOption, feeRates, uniquePresetOptions, onFeeRateChange]);
+  }, [selectedOption, feeRates, uniquePresetOptions]);
 
   const feeOptions = feeRates
     ? [...uniquePresetOptions, { id: "custom", name: "Custom", value: parseFloat(customInput) || 0.1 }]
@@ -92,7 +96,7 @@ export function FeeRateInput({
         minimumFractionDigits: 0
       });
       setCustomInput(formattedValue);
-      onFeeRateChange?.(parseFloat(formattedValue));
+      onFeeRateChangeRef.current?.(parseFloat(formattedValue));
       return;
     }
     
@@ -102,7 +106,7 @@ export function FeeRateInput({
     // Use validation utility to check if value is valid before notifying parent
     const validation = validateFeeRate(num, { minRate: 0.1, warnHighFee: false });
     if (validation.isValid && validation.satsPerVByte) {
-      onFeeRateChange?.(validation.satsPerVByte);
+      onFeeRateChangeRef.current?.(validation.satsPerVByte);
     }
   };
 
@@ -113,7 +117,7 @@ export function FeeRateInput({
     if (trimmed === "") {
       setCustomInput("0.1");
       setInternalError("Fee rate is required");
-      onFeeRateChange?.(0.1);
+      onFeeRateChangeRef.current?.(0.1);
       return;
     }
     
@@ -124,7 +128,7 @@ export function FeeRateInput({
       // Use the error message from validation or default
       setInternalError(validation.error || "Invalid fee rate");
       setCustomInput("0.1");
-      onFeeRateChange?.(0.1);
+      onFeeRateChangeRef.current?.(0.1);
       return;
     }
     
@@ -145,7 +149,7 @@ export function FeeRateInput({
     if (option.id !== "custom") {
       setCustomInput(option.value.toString());
       setInternalError(null);
-      onFeeRateChange?.(option.value); // Notify parent of selected preset
+      onFeeRateChangeRef.current?.(option.value); // Notify parent of selected preset
     }
   };
 
@@ -155,7 +159,7 @@ export function FeeRateInput({
       setSelectedOption(firstPreset.id);
       setCustomInput(firstPreset.value.toString());
       setInternalError(null);
-      onFeeRateChange?.(firstPreset.value); // Notify parent of reset
+      onFeeRateChangeRef.current?.(firstPreset.value); // Notify parent of reset
     }
   };
 
@@ -249,37 +253,24 @@ export function FeeRateInput({
               <div className="relative">
                 <Listbox value={feeOptions.find((opt) => opt.id === selectedOption)} onChange={handleOptionSelect}>
                   <ListboxButton
-                    className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 hover:bg-gray-100 focus:border-blue-500 focus:ring-blue-500 focus:outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
                     disabled={disabled}
                   >
-                    {({ value, open }) => (
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center space-x-2">
-                          <span>{value?.name}</span>
-                          {value?.id !== "custom" && (
-                            <span className="text-gray-500">{value.value} sat/vB</span>
-                          )}
-                        </div>
-                        <svg 
-                          className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} 
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
+                    {({ value }) => (
+                      <div className="flex justify-between">
+                        <span>{value?.name}</span>
+                        {value?.id !== "custom" && (
+                          <span className="text-gray-500">{value.value} sat/vB</span>
+                        )}
                       </div>
                     )}
                   </ListboxButton>
-                  <ListboxOptions 
-                    className="w-full bg-white border rounded-md shadow-lg max-h-60 overflow-auto focus:outline-none z-10"
-                    anchor={{ to: 'bottom start', gap: '4px' }}
-                  >
+                  <ListboxOptions className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
                     {feeOptions.map((option) => (
                       <ListboxOption 
                         key={option.id} 
                         value={option} 
-                        className="p-2 cursor-pointer hover:bg-gray-100 focus:bg-gray-100 focus:outline-none ui-active:bg-gray-100"
+                        className="p-2 cursor-pointer hover:bg-gray-100"
                       >
                         {({ selected }) => (
                           <div className="flex justify-between">

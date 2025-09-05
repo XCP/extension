@@ -152,6 +152,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       
       await walletService.loadWallets();
       const allWallets = await walletService.getWallets();
+      
       const newState: WalletState = { ...walletState };
 
       let walletsEqual = walletsEqualArray(newState.wallets, allWallets);
@@ -235,7 +236,10 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
   }, [walletService, walletState]);
 
   useEffect(() => {
-    refreshWalletState();
+    // Simple delay to let background initialize, then rely on service-level error handling
+    setTimeout(() => {
+      refreshWalletState();
+    }, 100);
 
     // Listen for wallet lock events from background
     const handleLockMessage = ({ data }: { data: { locked: boolean } }) => {

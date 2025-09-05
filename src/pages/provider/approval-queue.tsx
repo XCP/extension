@@ -6,6 +6,7 @@ import { type ApprovalRequest } from '@/utils/provider/approvalQueue';
 import { formatAddress } from '@/utils/format';
 import { getProviderService } from '@/services/providerService';
 import { useHeader } from '@/contexts/header-context';
+import { safeSendMessage } from '@/utils/browser';
 
 export default function ApprovalQueue() {
   const navigate = useNavigate();
@@ -89,7 +90,7 @@ export default function ApprovalQueue() {
 
     try {
       // Send approval to background
-      await browser.runtime.sendMessage({
+      await safeSendMessage({
         type: 'RESOLVE_PROVIDER_REQUEST',
         requestId: currentRequest.id,
         approved: true
@@ -120,7 +121,7 @@ export default function ApprovalQueue() {
 
     try {
       // Send rejection to background
-      await browser.runtime.sendMessage({
+      await safeSendMessage({
         type: 'RESOLVE_PROVIDER_REQUEST',
         requestId: currentRequest.id,
         approved: false
@@ -151,7 +152,7 @@ export default function ApprovalQueue() {
       const providerService = getProviderService();
       for (const request of requests) {
         try {
-          await browser.runtime.sendMessage({
+          await safeSendMessage({
             type: 'RESOLVE_PROVIDER_REQUEST',
             requestId: request.id,
             approved: false

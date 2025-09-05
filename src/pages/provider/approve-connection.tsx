@@ -6,6 +6,7 @@ import { FiGlobe, FiShield, FiX, FiCheck } from "react-icons/fi";
 import { Button } from "@/components/button";
 import { useWallet } from "@/contexts/wallet-context";
 import { useHeader } from "@/contexts/header-context";
+import { safeSendMessage } from "@/utils/browser";
 // We'll communicate with background script to resolve the request
 import type { ReactElement } from "react";
 
@@ -58,7 +59,7 @@ export default function ApproveConnection(): ReactElement {
     setIsProcessing(true);
     try {
       // Send message to background script to resolve the request
-      await browser.runtime.sendMessage({
+      await safeSendMessage({
         type: 'RESOLVE_PROVIDER_REQUEST',
         requestId,
         approved: true
@@ -78,7 +79,7 @@ export default function ApproveConnection(): ReactElement {
     setIsProcessing(true);
     try {
       // Send message to background script to resolve the request
-      await browser.runtime.sendMessage({
+      await safeSendMessage({
         type: 'RESOLVE_PROVIDER_REQUEST',
         requestId,
         approved: false

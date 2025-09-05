@@ -177,7 +177,15 @@ function createWalletService(): WalletService {
   };
 }
 
-export const [registerWalletService, getWalletService] = defineProxyService(
+// Create the proxy service
+const [registerWalletService, getWalletServiceRaw] = defineProxyService(
   'WalletService',
   createWalletService
 );
+
+// Get the wallet service directly from the proxy
+function getWalletService(): WalletService {
+  return getWalletServiceRaw();
+}
+
+export { registerWalletService, getWalletService };

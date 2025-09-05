@@ -313,6 +313,12 @@ export class WalletManager {
     // Set as active wallet
     this.activeWalletId = id;
     
+    // Set the test address as the last active address
+    await settingsManager.updateSettings({ 
+      lastActiveWalletId: id,
+      lastActiveAddress: address 
+    });
+    
     // Store a fake "unlocked" secret so the wallet appears unlocked
     // This will prevent signing but allow UI testing
     sessionManager.storeUnlockedSecret(id, JSON.stringify({

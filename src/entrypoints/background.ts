@@ -17,8 +17,13 @@ export default defineBackground(() => {
   // TOP LEVEL MESSAGE LISTENERS - Critical for MV3 service worker wake-up
   // In WXT, these need to be inside defineBackground() but still at the top
   
-  // Set up core message listener immediately
+  // Set up core message listener immediately with debugging
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Debug logging in development only
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Background] Received message:', message?.type || message?.action, 'from:', sender.tab?.url || sender.url || 'extension');
+    }
+    
     // Handle ping requests immediately
     if (message?.action === 'ping' || message?.type === 'startup-health-check') {
       sendResponse({ status: 'ready', timestamp: Date.now(), context: 'background' });
@@ -33,6 +38,8 @@ export default defineBackground(() => {
     // Let other handlers process the message
     return false;
   });
+  
+  console.log('[Background] Core message listener registered');
   
   // Set up connection listener
   chrome.runtime.onConnect.addListener((port) => {

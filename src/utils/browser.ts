@@ -123,23 +123,8 @@ export async function sendMessageToTab(
     autoInject = true 
   } = options || {};
   
-  // Helper function to send message safely
-  const sendToTab = (tabId: number, payload: any): Promise<any> => {
-    return new Promise((resolve, reject) => {
-      try {
-        chrome.tabs.sendMessage(tabId, payload, (response) => {
-          if (chrome.runtime.lastError) {
-            const error = new Error(chrome.runtime.lastError.message || 'Unknown runtime error');
-            reject(error);
-          } else {
-            resolve(response);
-          }
-        });
-      } catch (error) {
-        reject(error);
-      }
-    });
-  };
+  // Use the safe wrapper for consistent error handling
+  const sendToTab = sendMessageToTabSafe;
   
   // Ping-inject-retry pattern
   const ensureContentScriptAndSend = async (tabId: number, payload: any): Promise<any> => {
@@ -179,70 +164,119 @@ export async function sendMessageToTab(
     return await ensureContentScriptAndSend(tabId, message);
   }
   
-  // Direct send without checks
-  return await sendToTab(tabId, message);
+  // Direct send without checks using the safe wrapper
+  return await sendMessageToTabSafe(tabId, message);
 }
 
 /**
- * Broadcast message to all valid tabs with content script
- * Uses ping-inject-retry pattern for reliable delivery
+ * Get list of tabs that can receive messages (have our content script)
+ */
+export async function listMessageableTabs(filter?: (tab: chrome.tabs.Tab) => boolean): Promise<chrome.tabs.Tab[]> {
+  // Use chrome.tabs.query with URL patterns that match our content script
+  const tabs = await chrome.tabs.query({
+    url: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*']
+  });
+  
+  // Filter out URLs where Chrome won't allow messaging or CS can't run
+  const isAllowed = (tab: chrome.tabs.Tab): boolean => {
+    const url = tab.url || '';
+    if (!url || !tab.id) return false;
+    
+    // Exclude schemes Chrome won't message or we explicitly exclude
+    return !/^((chrome|edge|brave|opera|vivaldi|about|devtools|view-source|chrome-extension|moz-extension):)/.test(url);
+  };
+  
+  return tabs.filter(tab => isAllowed(tab) && (!filter || filter(tab)));
+}
+
+/**
+ * Send message to specific tab with proper lastError checking
+ */
+export function sendMessageToTabSafe<T = any>(
+  tabId: number,
+  message: unknown,
+  options?: chrome.tabs.MessageSendOptions
+): Promise<T | undefined> {
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.tabs.sendMessage(tabId, message as any, options, (response) => {
+        // Always read runtime.lastError to prevent "Unchecked" warnings
+        const error = chrome.runtime.lastError;
+        if (error) {
+          reject(new Error(error.message || 'Unknown runtime error'));
+        } else {
+          resolve(response as T);
+        }
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+/**
+ * Ping a tab to check if content script is available
+ */
+export async function pingTab(tabId: number): Promise<boolean> {
+  try {
+    const response = await sendMessageToTabSafe(tabId, { 
+      action: 'ping', 
+      type: 'startup-health-check' 
+    });
+    return Boolean(response);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Broadcast message to tabs with content script, using ping-first pattern
  */
 export async function broadcastToTabs(
   message: any,
   filter?: (tab: chrome.tabs.Tab) => boolean
-): Promise<void> {
+): Promise<{ tabId: number; ok: boolean; error?: string }[]> {
   try {
-    const tabs = await chrome.tabs.query({});
+    // Only get tabs where our content script can run
+    const tabs = await listMessageableTabs(filter);
+    const results: { tabId: number; ok: boolean; error?: string }[] = [];
     
-    const validTabs = tabs.filter(tab => {
-      // Must have URL and ID
-      if (!tab.url || !tab.id) return false;
+    for (const tab of tabs) {
+      const tabId = tab.id!;
       
-      // Check if URL matches our content script patterns
-      const url = tab.url;
-      const isValidUrl = (
-        url.startsWith('https://') ||
-        url.startsWith('http://localhost') ||
-        url.startsWith('http://127.0.0.1')
-      );
-      
-      // Skip restricted URLs where injection fails
-      const isRestrictedUrl = (
-        url.startsWith('chrome://') ||
-        url.startsWith('chrome-extension://') ||
-        url.startsWith('moz-extension://') ||
-        url.includes('chrome.google.com/webstore') ||
-        url.startsWith('about:')
-      );
-      
-      if (!isValidUrl || isRestrictedUrl) return false;
-      
-      // Apply additional filter if provided
-      if (filter) {
-        return filter(tab);
+      // Ping first to check if CS is available
+      const hasReceiver = await pingTab(tabId);
+      if (!hasReceiver) {
+        results.push({ tabId, ok: false, error: 'no-receiver' });
+        continue;
       }
       
-      return true;
-    });
+      // Send the actual message
+      try {
+        await sendMessageToTabSafe(tabId, message);
+        results.push({ tabId, ok: true });
+      } catch (error: any) {
+        const errorMsg = String(error?.message || error);
+        
+        // Only log unexpected errors (not the common "no receiver" cases)
+        if (!/Receiving end does not exist|Could not establish connection/i.test(errorMsg)) {
+          console.warn('Unexpected sendMessage failure:', { tabId, error: errorMsg });
+        }
+        
+        results.push({ tabId, ok: false, error: errorMsg });
+      }
+    }
     
-    // Send to all valid tabs with proper error handling
-    const sendPromises = validTabs.map(tab => {
-      if (!tab.id) return Promise.resolve();
-      return sendMessageToTab(tab.id, message, { autoInject: true })
-        .catch((error) => {
-          // Log injection failures but don't throw
-          console.debug(`Failed to send to tab ${tab.id}:`, error.message);
-        });
-    });
-    
-    await Promise.allSettled(sendPromises);
+    return results;
   } catch (error) {
-    console.debug('Error broadcasting to tabs:', error);
+    console.debug('Error in broadcastToTabs:', error);
+    return [];
   }
 }
 
 /**
  * Send a response-expecting message with timeout (simplified)
+ * @deprecated Use safeSendMessage instead for better error handling
  */
 export async function sendMessageWithTimeout(
   message: any,
@@ -311,5 +345,42 @@ export function setupSafeMessageHandler(
   });
 }
 
-// Removed initializeEarlyErrorHandling() - no longer needed with proper top-level listeners
-// The ping-inject-retry pattern and proper listener setup handle connection issues
+/**
+ * Safe wrapper for browser.runtime.sendMessage with proper error handling
+ * Use this instead of direct browser.runtime.sendMessage calls
+ */
+export async function safeSendMessage(message: any, options?: {
+  timeout?: number;
+  logErrors?: boolean;
+}): Promise<any> {
+  const { timeout = 5000, logErrors = false } = options || {};
+  
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`Safe message timeout after ${timeout}ms`));
+    }, timeout);
+    
+    try {
+      chrome.runtime.sendMessage(message, (response) => {
+        clearTimeout(timeoutId);
+        
+        if (chrome.runtime.lastError) {
+          const error = new Error(chrome.runtime.lastError.message || 'Unknown runtime error');
+          if (logErrors) {
+            console.error('[safeSendMessage] Runtime error:', error.message);
+          }
+          resolve(null); // Return null instead of rejecting for connection errors
+        } else {
+          resolve(response);
+        }
+      });
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (logErrors) {
+        console.error('[safeSendMessage] Send error:', error);
+      }
+      resolve(null);
+    }
+  });
+}
+

@@ -100,7 +100,7 @@ class ConsolidationApiService {
   constructor() {
     // For browser extensions, hardcode the production URL
     // Environment variables can be configured at build time if needed
-    this.baseUrl = 'https://xcp.io';
+    this.baseUrl = 'https://api.xcp.io';
   }
 
   /**

@@ -2,7 +2,8 @@ import { defineContentScript, injectScript } from '#imports';
 
 export default defineContentScript({
   matches: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'],
-  excludeMatches: ['about:*', 'chrome:*', 'chrome-extension:*', 'moz-extension:*'],
+  // Note: excludeMatches only supports http(s) schemes, not chrome:// or about:
+  // The browser automatically excludes restricted schemes
   async main(ctx) {
     // Set up message relay between page and background
     const messageHandler = async (event: MessageEvent) => {
