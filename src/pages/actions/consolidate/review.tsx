@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { formatAddress, formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
+import { type ConsolidationData } from "@/services/consolidationApiService";
+import { type ConsolidationResult } from "@/hooks/useMultiBatchConsolidation";
 
 interface ConsolidationReviewProps {
   apiResponse: {
@@ -11,45 +12,64 @@ interface ConsolidationReviewProps {
       destination: string;
       feeRateSatPerVByte: number;
     };
-    // Include the UTXO data from the form
-    utxoData: { count: number; total: number } | null;
-    // Include fee configuration and estimates
-    feeConfig?: { feeAddress?: string; feePercent?: number } | null;
-    estimatedFees?: {
-      networkFee: bigint;
-      serviceFee: bigint;
-      totalFee: bigint;
-      totalInput: bigint;
-      netOutput: bigint;
-    } | null;
+    consolidationData: ConsolidationData | null;
+    allBatches: ConsolidationData[];
   };
   onSign: () => void;
   onBack: () => void;
   error: string | null;
   setError: (error: string | null) => void;
+  isProcessing?: boolean;
+  currentBatch?: number;
+  results?: ConsolidationResult[];
 }
 
-// Helper to compute the size of a varint given a number
-function varIntSize(n: number): number {
-  if (n < 0xfd) return 1;
-  else if (n <= 0xffff) return 3;
-  else if (n <= 0xffffffff) return 5;
-  else return 9;
-}
-
-// Estimate transaction size (in bytes) using a rough calculation similar to your consolidation function
-function estimateTransactionSize(numInputs: number, numOutputs: number): number {
-  let size = 8; // version (4 bytes) + locktime (4 bytes)
-  size += varIntSize(numInputs);
-  for (let i = 0; i < numInputs; i++) {
-    const signaturesSize = 74; // approximate signature size
-    size += 36 + varIntSize(signaturesSize) + signaturesSize + 4;
-  }
-  size += varIntSize(numOutputs);
-  for (let i = 0; i < numOutputs; i++) {
-    size += 8 + varIntSize(25) + 25; // output: amount + script length + script (assumed 25 bytes)
-  }
-  return size;
+// Calculate estimated fees for all batches
+function calculateBatchFees(
+  batches: ConsolidationData[],
+  feeRate: number
+): {
+  totalNetworkFee: number;
+  totalServiceFee: number;
+  totalInput: number;
+  totalOutput: number;
+} {
+  let totalNetworkFee = 0;
+  let totalServiceFee = 0;
+  let totalInput = 0;
+  
+  batches.forEach(batch => {
+    // Use actual total from API
+    const inputSats = Math.floor(batch.summary.total_btc * 100000000 / batch.summary.batches_required);
+    totalInput += inputSats;
+    
+    // More accurate size estimation for bare multisig
+    const bytesPerInput = 147; // 1-of-2 bare multisig
+    const baseOverhead = 10;
+    const bytesPerOutput = 34;
+    const numOutputs = batch.fee_config?.fee_percent > 0 ? 2 : 1;
+    
+    const estimatedSize = (batch.summary.batch_utxos * bytesPerInput) + baseOverhead + (numOutputs * bytesPerOutput);
+    const networkFee = Math.ceil(estimatedSize * feeRate);
+    totalNetworkFee += networkFee;
+    
+    // Calculate service fee
+    if (batch.fee_config && batch.fee_config.fee_percent > 0) {
+      const afterNetworkFee = inputSats - networkFee;
+      if (afterNetworkFee > batch.fee_config.exemption_threshold) {
+        totalServiceFee += Math.floor(afterNetworkFee * batch.fee_config.fee_percent / 100);
+      }
+    }
+  });
+  
+  const totalOutput = totalInput - totalNetworkFee - totalServiceFee;
+  
+  return {
+    totalNetworkFee,
+    totalServiceFee,
+    totalInput,
+    totalOutput
+  };
 }
 
 export const ConsolidationReview = ({
@@ -57,35 +77,31 @@ export const ConsolidationReview = ({
   onSign,
   onBack,
   error,
-  setError
+  setError,
+  isProcessing = false,
+  currentBatch = 0,
+  results = []
 }: ConsolidationReviewProps) => {
   const [isSigning, setIsSigning] = useState(false);
-  const { params, utxoData, feeConfig, estimatedFees } = apiResponse;
+  const { params, consolidationData, allBatches } = apiResponse;
 
-  // Use provided estimates if available, otherwise calculate
-  let consolidatingBtc = 0;
-  let networkFeeBtc = 0;
-  let serviceFeeBtc = 0;
-  let totalFeeBtc = 0;
-  let netTotalBtc = 0;
-
-  if (estimatedFees) {
-    // Use the pre-calculated estimates
-    networkFeeBtc = Number(estimatedFees.networkFee) / 100000000; // Convert sats to BTC
-    serviceFeeBtc = Number(estimatedFees.serviceFee) / 100000000;
-    totalFeeBtc = Number(estimatedFees.totalFee) / 100000000;
-    netTotalBtc = Number(estimatedFees.netOutput) / 100000000;
-    consolidatingBtc = utxoData ? utxoData.total : 0;
-  } else if (utxoData) {
-    // Fallback to simple calculation
-    consolidatingBtc = utxoData.total;
-    const numOutputs = feeConfig?.feeAddress ? 2 : 1;
-    const estimatedSize = estimateTransactionSize(utxoData.count, numOutputs);
-    const feeSats = estimatedSize * params.feeRateSatPerVByte;
-    networkFeeBtc = fromSatoshis(feeSats, true);
-    totalFeeBtc = networkFeeBtc;
-    netTotalBtc = consolidatingBtc - totalFeeBtc;
+  if (!consolidationData) {
+    return (
+      <div className="p-4 bg-white rounded-lg shadow-lg">
+        <p className="text-red-600">No consolidation data available</p>
+        <Button onClick={onBack} color="gray" className="mt-4">
+          Back
+        </Button>
+      </div>
+    );
   }
+
+  // Calculate fees for all batches
+  const fees = calculateBatchFees(allBatches, params.feeRateSatPerVByte);
+  const totalBtc = consolidationData.summary.total_btc;
+  const totalUtxos = consolidationData.summary.total_utxos;
+  const numBatches = consolidationData.summary.batches_required;
+  const feeConfig = consolidationData.fee_config;
 
   const handleSignClick = async () => {
     setIsSigning(true);
@@ -104,7 +120,60 @@ export const ConsolidationReview = ({
 
       {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
 
+      {/* Progress indicator for multi-batch processing */}
+      {isProcessing && currentBatch > 0 && numBatches > 1 && (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <h4 className="font-semibold text-blue-900 mb-2">Processing Batches...</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>Current Batch:</span>
+              <span className="font-medium">{currentBatch} of {numBatches}</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(currentBatch / numBatches) * 100}%` }}
+              />
+            </div>
+            {results.length > 0 && (
+              <div className="mt-2 text-xs">
+                {results.map((result, idx) => (
+                  <div key={idx} className={`flex justify-between ${result.status === 'error' ? 'text-red-700' : 'text-green-700'}`}>
+                    <span>Batch {result.batchNumber}:</span>
+                    <span>{result.status === 'success' ? '✓ Broadcast' : '✗ Failed'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
+        {/* Batch Information */}
+        {numBatches > 1 && (
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <h4 className="font-semibold text-blue-900 mb-2">Batch Consolidation</h4>
+            <div className="text-sm text-blue-800 space-y-1">
+              <div className="flex justify-between">
+                <span>Total Batches:</span>
+                <span className="font-medium">{numBatches}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>UTXOs per Batch:</span>
+                <span className="font-medium">Up to 420</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Total UTXOs:</span>
+                <span className="font-medium">{totalUtxos}</span>
+              </div>
+            </div>
+            <p className="text-xs text-blue-700 mt-2 italic">
+              All {numBatches} batches will be signed and broadcast automatically with one click.
+            </p>
+          </div>
+        )}
+
         {/* From Address */}
         <div className="space-y-1">
           <span className="font-semibold text-gray-700">From:</span>
@@ -121,6 +190,19 @@ export const ConsolidationReview = ({
           </div>
         </div>
 
+        {/* Consolidation Summary */}
+        <div className="space-y-1">
+          <span className="font-semibold text-gray-700">Consolidating:</span>
+          <div className="text-gray-900 bg-gray-50 p-2 rounded">
+            {formatAmount({
+              value: totalBtc,
+              minimumFractionDigits: 8,
+              maximumFractionDigits: 8,
+            })}{" "}
+            BTC ({totalUtxos} UTXOs)
+          </div>
+        </div>
+
         {/* Fee Rate */}
         <div className="space-y-1">
           <span className="font-semibold text-gray-700">Fee Rate:</span>
@@ -129,85 +211,81 @@ export const ConsolidationReview = ({
           </div>
         </div>
 
-        {/* Additional Information */}
-        {utxoData && (
-          <>
-            <div className="space-y-1">
-              <span className="font-semibold text-gray-700">Consolidating:</span>
-              <div className="text-gray-900 bg-gray-50 p-2 rounded">
-                {formatAmount({
-                  value: consolidatingBtc,
+        {/* Fee Breakdown */}
+        <div className="space-y-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+          <h4 className="font-semibold text-yellow-900">
+            Fee Breakdown {numBatches > 1 ? `(${numBatches} batches total)` : ''}
+          </h4>
+          
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-700">Network Fee:</span>
+            <span className="text-gray-900">
+              ~{formatAmount({
+                value: fees.totalNetworkFee / 100000000,
+                minimumFractionDigits: 8,
+                maximumFractionDigits: 8,
+              })}{" "}
+              BTC
+            </span>
+          </div>
+          
+          {fees.totalServiceFee > 0 && feeConfig && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-700">Service Fee ({feeConfig.fee_percent}%):</span>
+              <span className="text-gray-900">
+                ~{formatAmount({
+                  value: fees.totalServiceFee / 100000000,
                   minimumFractionDigits: 8,
                   maximumFractionDigits: 8,
                 })}{" "}
                 BTC
-              </div>
+              </span>
             </div>
+          )}
+          
+          <div className="flex justify-between text-sm font-semibold border-t pt-2">
+            <span className="text-gray-700">Total Fees:</span>
+            <span className="text-yellow-900">
+              ~{formatAmount({
+                value: (fees.totalNetworkFee + fees.totalServiceFee) / 100000000,
+                minimumFractionDigits: 8,
+                maximumFractionDigits: 8,
+              })}{" "}
+              BTC
+            </span>
+          </div>
 
-            {/* Fee breakdown */}
-            <div className="space-y-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-              <h4 className="font-semibold text-yellow-900">Fee Breakdown</h4>
-              
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-700">Network Fee:</span>
-                <span className="text-gray-900">
-                  {formatAmount({
-                    value: networkFeeBtc,
-                    minimumFractionDigits: 8,
-                    maximumFractionDigits: 8,
-                  })}{" "}
-                  BTC
-                </span>
-              </div>
-              
-              {serviceFeeBtc > 0 && feeConfig?.feePercent && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-700">Service Fee ({feeConfig.feePercent}%):</span>
-                  <span className="text-gray-900">
-                    {formatAmount({
-                      value: serviceFeeBtc,
-                      minimumFractionDigits: 8,
-                      maximumFractionDigits: 8,
-                    })}{" "}
-                    BTC
-                  </span>
-                </div>
-              )}
-              
-              <div className="flex justify-between text-sm font-semibold border-t pt-2">
-                <span className="text-gray-700">Total Fees:</span>
-                <span className="text-yellow-900">
-                  {formatAmount({
-                    value: totalFeeBtc,
-                    minimumFractionDigits: 8,
-                    maximumFractionDigits: 8,
-                  })}{" "}
-                  BTC
-                </span>
-              </div>
-            </div>
+          {fees.totalServiceFee === 0 && feeConfig && (
+            <p className="text-xs text-green-700 italic">
+              ✓ Service fee waived (amount below threshold)
+            </p>
+          )}
+        </div>
 
-            <div className="space-y-1">
-              <span className="font-semibold text-gray-700">Net Total:</span>
-              <div className="text-gray-900 bg-gray-50 p-2 rounded">
-                {formatAmount({
-                  value: netTotalBtc,
-                  minimumFractionDigits: 8,
-                  maximumFractionDigits: 8,
-                })}{" "}
-                BTC
-              </div>
-            </div>
-          </>
-        )}
+        {/* Net Total */}
+        <div className="space-y-1">
+          <span className="font-semibold text-gray-700">You Will Receive:</span>
+          <div className="text-green-700 font-medium bg-green-50 p-2 rounded">
+            ~{formatAmount({
+              value: fees.totalOutput / 100000000,
+              minimumFractionDigits: 8,
+              maximumFractionDigits: 8,
+            })}{" "}
+            BTC
+          </div>
+        </div>
       </div>
 
       <div className="flex space-x-4">
         <Button onClick={onBack} color="gray">
           Back
         </Button>
-        <Button onClick={handleSignClick} color="blue" fullWidth disabled={isSigning}>
-          {isSigning ? "Broadcasting..." : "Broadcast Transaction"}
+        <Button onClick={handleSignClick} color="blue" fullWidth disabled={isSigning || isProcessing}>
+          {isProcessing 
+            ? `Processing Batch ${currentBatch} of ${numBatches}...` 
+            : isSigning 
+              ? "Signing & Broadcasting..." 
+              : `Sign & Broadcast ${numBatches > 1 ? `${numBatches} Transactions` : 'Transaction'}`}
         </Button>
       </div>
     </div>

@@ -90,6 +90,7 @@ interface WalletContextType {
     name?: string,
     addressFormat?: AddressFormat
   ) => Promise<Wallet>;
+  importTestAddress: (address: string, name?: string) => Promise<Wallet>;
   resetAllWallets: (password: string) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ key: string; compressed: boolean }>;
@@ -151,6 +152,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       
       await walletService.loadWallets();
       const allWallets = await walletService.getWallets();
+      
       const newState: WalletState = { ...walletState };
 
       let walletsEqual = walletsEqualArray(newState.wallets, allWallets);
@@ -234,7 +236,10 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
   }, [walletService, walletState]);
 
   useEffect(() => {
-    refreshWalletState();
+    // Simple delay to let background initialize, then rely on service-level error handling
+    setTimeout(() => {
+      refreshWalletState();
+    }, 100);
 
     // Listen for wallet lock events from background
     const handleLockMessage = ({ data }: { data: { locked: boolean } }) => {
@@ -366,6 +371,10 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }),
     createAndUnlockPrivateKeyWallet: withRefresh(walletService.createAndUnlockPrivateKeyWallet, async () => {
+      await refreshWalletState();
+      setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
+    }),
+    importTestAddress: withRefresh(walletService.importTestAddress, async () => {
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }),

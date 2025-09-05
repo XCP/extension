@@ -12,6 +12,7 @@ export interface EncryptedWalletRecord extends StoredRecord {
   encryptedSecret: string;
   previewAddress?: string;
   addressPreviews?: { [key in AddressFormat]?: string }; // Cached preview addresses for each format
+  isTestOnly?: boolean; // For development-only test addresses
 }
 
 /**

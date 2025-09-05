@@ -2,6 +2,7 @@ export * from './address';
 export * from './balance';
 export * from './bareMultisig';
 export { getCurrentBlockHeight } from './blockHeight';
+export * from './consolidateBatch';
 export * from './feeRate';
 export * from './messageSigner';
 export * from './messageVerifier';

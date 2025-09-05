@@ -1,4 +1,3 @@
-import axios from "axios";
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/button";
 import { AddressHeader } from "@/components/headers/address-header";
@@ -7,31 +6,24 @@ import { useWallet } from "@/contexts/wallet-context";
 import { formatAmount } from "@/utils/format";
 import { useSettings } from "@/contexts/settings-context";
 import { 
-  fetchConsolidationFeeConfig, 
-  estimateConsolidationFees,
-  SERVICE_FEE_EXEMPTION_THRESHOLD 
-} from "@/utils/blockchain/bitcoin";
+  consolidationApi,
+  type ConsolidationData
+} from "@/services/consolidationApiService";
 
 export interface ConsolidationFormData {
   feeRateSatPerVByte: number;
   destinationAddress: string;
   includeStamps: boolean;
-  utxoData: { count: number; total: number } | null;
-  feeConfig?: { feeAddress?: string; feePercent?: number } | null;
-  estimatedFees?: {
-    networkFee: bigint;
-    serviceFee: bigint;
-    totalFee: bigint;
-    totalInput: bigint;
-    netOutput: bigint;
-  } | null;
+  consolidationData: ConsolidationData | null;
+  allBatches: ConsolidationData[];
 }
 
 const DEFAULT_FORM_DATA: ConsolidationFormData = {
-  feeRateSatPerVByte: 0.1,
+  feeRateSatPerVByte: 1,
   destinationAddress: "",
   includeStamps: false,
-  utxoData: null,
+  consolidationData: null,
+  allBatches: [],
 };
 
 interface ConsolidationFormProps {
@@ -41,115 +33,56 @@ interface ConsolidationFormProps {
 export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
   const { activeAddress, activeWallet } = useWallet();
   const [formData, setFormData] = useState<ConsolidationFormData>(DEFAULT_FORM_DATA);
-  const [utxos, setUtxos] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText;
 
-  // Fetch UTXO summary and fee configuration for the active address
+  // Fetch consolidation data when address or stamps option changes
   useEffect(() => {
     async function fetchData() {
       if (!activeAddress) return;
+      
+      // Only show loading state on initial load, not on stamp toggle
+      if (isInitialLoad) {
+        setIsLoading(true);
+      } else {
+        // Show updating state for subsequent fetches
+        setIsUpdating(true);
+      }
+      setError(null);
+      
       try {
-        // Try Laravel claimable API first
-        let utxosData: any[] = [];
-        let total = 0;
-        
-        try {
-          // Get the Laravel API base URL  
-          const laravelApiBase = process.env.LARAVEL_API_URL || 'https://xcp.io';
-          const params = new URLSearchParams({
-            include_stamps: formData.includeStamps.toString(),
-            include_prev_tx: 'false', // Don't need for display
-            max_utxos: '420',
-            batch: '1'
-          });
-          
-          const laravelResponse = await axios.get(
-            `${laravelApiBase}/api/v1/address/${activeAddress.address}/consolidation?${params.toString()}`
-          );
-          
-          if (laravelResponse.data) {
-            const data = laravelResponse.data;
-            
-            // Use Laravel's comprehensive data
-            utxosData = data.utxos;
-            total = data.summary.total_btc;
-            
-            // Store batch info if more than 1 batch
-            if (data.summary.batches_required > 1) {
-              console.log(`Laravel API: ${data.summary.total_utxos} UTXOs will require ${data.summary.batches_required} batches`);
-            } else {
-              console.log(`Laravel API: ${data.summary.total_utxos} UTXOs (${data.summary.total_btc} BTC)`);
-            }
-            
-            // Store fee config from Laravel
-            if (data.fee_config) {
-              setFormData((prev) => ({
-                ...prev,
-                feeConfig: {
-                  feeAddress: data.fee_config.fee_address,
-                  feePercent: data.fee_config.fee_percent
-                }
-              }));
-            }
-          }
-        } catch (laravelError) {
-          console.warn('Laravel consolidation API unavailable, using XCP.io:', laravelError);
-          
-          // Fallback to XCP.io API
-          const excludeStamps = !formData.includeStamps;
-          const url = `https://app.xcp.io/api/v1/address/${activeAddress.address}/utxos${excludeStamps ? '?exclude_stamps=true' : ''}`;
-          
-          const response = await axios.get(url);
-          utxosData = response.data.data;
-          total = utxosData.reduce((sum: number, utxo: any) => sum + Number(utxo.amount), 0);
-        }
-        
-        setUtxos(utxosData);
-        
-        // Fetch fee configuration
-        const feeConfig = await fetchConsolidationFeeConfig(activeAddress.address);
+        // Fetch all batches to show complete overview
+        const batches = await consolidationApi.fetchAllBatches(
+          activeAddress.address,
+          formData.includeStamps
+        );
         
         setFormData((prev) => ({
           ...prev,
-          utxoData: { count: utxosData.length, total },
-          feeConfig: feeConfig ? {
-            feeAddress: feeConfig.fee_address || undefined,
-            feePercent: feeConfig.fee_percent
-          } : null,
+          consolidationData: batches[0], // First batch for initial display
+          allBatches: batches
         }));
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      }
-    }
-    fetchData();
-  }, [activeAddress, formData.includeStamps]);
-
-  // Recalculate fees when fee rate changes
-  useEffect(() => {
-    async function calculateFees() {
-      if (!utxos.length || !formData.feeRateSatPerVByte) return;
-      
-      try {
-        const fees = await estimateConsolidationFees(
-          utxos,
-          formData.feeRateSatPerVByte,
-          formData.feeConfig ? {
-            serviceFeeAddress: formData.feeConfig.feeAddress,
-            serviceFeeRate: formData.feeConfig.feePercent
-          } : undefined
-        );
         
-        setFormData(prev => ({
-          ...prev,
-          estimatedFees: fees
-        }));
-      } catch (error) {
-        console.error("Error calculating fees:", error);
+        // Mark initial load as complete
+        if (isInitialLoad) {
+          setIsInitialLoad(false);
+        }
+      } catch (err) {
+        console.error("Error fetching consolidation data:", err);
+        setError(err instanceof Error ? err.message : "Failed to fetch consolidation data");
+      } finally {
+        setIsLoading(false);
+        setIsUpdating(false);
       }
     }
-    calculateFees();
-  }, [utxos, formData.feeRateSatPerVByte, formData.feeConfig]);
+    
+    fetchData();
+  }, [activeAddress, formData.includeStamps, isInitialLoad]);
+
 
   const handleFeeRateChange = (value: number) => {
     setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
@@ -178,23 +111,58 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
         />
       )}
       <form onSubmit={handleSubmitInternal} className="bg-white rounded-lg shadow-lg p-4 space-y-6">
-        {formData.utxoData && (
-          <div className="space-y-2">
-            <h3 className="font-semibold">Recoverable</h3>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Bitcoin</span>
-              <span className="font-medium">
-                {`${formatAmount({
-                  value: formData.utxoData.total,
+        {error && (
+          <div className="p-3 bg-red-100 text-red-700 rounded-md">
+            {error}
+          </div>
+        )}
+        
+        {/* Always show the data section to prevent layout shift */}
+        <div className="space-y-2">
+          <h3 className="font-semibold">Recoverable</h3>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Total Bitcoin</span>
+            <span className="font-medium">
+              {isLoading ? (
+                <span className="text-gray-400">...</span>
+              ) : formData.consolidationData ? (
+                `${formatAmount({
+                  value: formData.consolidationData.summary.total_btc,
                   minimumFractionDigits: 8,
                   maximumFractionDigits: 8,
-                })} BTC`}
+                })} BTC`
+              ) : (
+                <span className="text-gray-400">—</span>
+              )}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Total UTXOs</span>
+            <span className="font-medium">
+              {isLoading ? (
+                <span className="text-gray-400">...</span>
+              ) : formData.consolidationData ? (
+                formData.consolidationData.summary.total_utxos
+              ) : (
+                <span className="text-gray-400">—</span>
+              )}
+            </span>
+          </div>
+          {!isLoading && formData.consolidationData && formData.consolidationData.summary.batches_required > 1 && (
+            <div className="flex justify-between">
+              <span className="text-gray-600"># of Batches</span>
+              <span className="font-medium">
+                {formData.consolidationData.summary.batches_required} txs
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">UTXOs</span>
-              <span className="font-medium">{formData.utxoData.count}</span>
-            </div>
+          )}
+        </div>
+        
+        {!isLoading && formData.consolidationData && formData.consolidationData.validation_summary?.requires_special_handling && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+            <p className="text-sm text-amber-900">
+              <strong>Note:</strong> Some UTXOs require special handling. This is normal for older Counterparty transactions and will be handled automatically.
+            </p>
           </div>
         )}
 
@@ -202,7 +170,7 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
           <div className="flex flex-col">
             <label htmlFor="includeStamps" className="text-sm font-medium text-gray-700">
-              Allow STAMPS to be spent
+              Allow STAMPS to be spent {isUpdating && <span className="text-gray-400 text-xs ml-2">(updating...)</span>}
             </label>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
@@ -239,91 +207,13 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
           showHelpText={shouldShowHelpText}
         />
 
-        {/* Fee breakdown section */}
-        {formData.estimatedFees && formData.feeConfig && (
-          <div className="space-y-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-            <h3 className="font-semibold text-yellow-900">Estimated Fees</h3>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Network Fee:</span>
-              <span className="font-medium">
-                {formatAmount({
-                  value: Number(formData.estimatedFees.networkFee) / 100000000,
-                  minimumFractionDigits: 8,
-                  maximumFractionDigits: 8,
-                })} BTC
-              </span>
-            </div>
-            
-            {/* Service fee display with special cases */}
-            {formData.feeConfig.feePercent !== undefined && (
-              <>
-                {formData.estimatedFees.serviceFee === 0n && formData.estimatedFees.totalInput < SERVICE_FEE_EXEMPTION_THRESHOLD && (
-                  <div className="text-sm text-green-700 italic">
-                    ✓ Service fee waived (amount below {formatAmount({
-                      value: Number(SERVICE_FEE_EXEMPTION_THRESHOLD) / 100000000,
-                      minimumFractionDigits: 8,
-                      maximumFractionDigits: 8,
-                    })} BTC)
-                  </div>
-                )}
-                {formData.estimatedFees.serviceFee > 0n && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">
-                      Service Fee ({formData.feeConfig.feePercent}%):
-                    </span>
-                    <span className="font-medium">
-                      {formatAmount({
-                        value: Number(formData.estimatedFees.serviceFee) / 100000000,
-                        minimumFractionDigits: 8,
-                        maximumFractionDigits: 8,
-                      })} BTC
-                    </span>
-                  </div>
-                )}
-              </>
-            )}
-            
-            <div className="flex justify-between text-sm font-semibold border-t pt-2">
-              <span className="text-gray-700">Total Fees:</span>
-              <span className="text-yellow-900">
-                {formatAmount({
-                  value: Number(formData.estimatedFees.totalFee) / 100000000,
-                  minimumFractionDigits: 8,
-                  maximumFractionDigits: 8,
-                })} BTC
-              </span>
-            </div>
-            <div className="flex justify-between text-sm font-semibold">
-              <span className="text-gray-700">You Will Receive:</span>
-              <span className="text-green-700">
-                {formatAmount({
-                  value: Number(formData.estimatedFees.netOutput) / 100000000,
-                  minimumFractionDigits: 8,
-                  maximumFractionDigits: 8,
-                })} BTC
-              </span>
-            </div>
-            
-            {shouldShowHelpText && formData.feeConfig.feePercent && (
-              <p className="text-xs text-gray-500 mt-2">
-                A {formData.feeConfig.feePercent}% service fee helps maintain this recovery tool.
-                No fee for amounts under {formatAmount({
-                  value: Number(SERVICE_FEE_EXEMPTION_THRESHOLD) / 100000000,
-                  minimumFractionDigits: 8,
-                  maximumFractionDigits: 8,
-                })} BTC.
-              </p>
-            )}
-          </div>
-        )}
-
         <Button
           type="submit"
           color="blue"
           fullWidth
-          disabled={!formData.utxoData || formData.utxoData.count === 0 || formData.feeRateSatPerVByte <= 0}
+          disabled={!formData.consolidationData || formData.consolidationData.summary.total_utxos === 0 || formData.feeRateSatPerVByte <= 0 || isLoading}
         >
-          Continue
+          {isLoading ? "Loading..." : "Continue to Review"}
         </Button>
       </form>
     </div>

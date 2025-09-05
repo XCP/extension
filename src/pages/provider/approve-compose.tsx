@@ -8,6 +8,7 @@ import { fromSatoshis, toBigNumber } from '@/utils/numeric';
 import { useWallet } from '@/contexts/wallet-context';
 import { useSettings } from '@/contexts/settings-context';
 import { FeeRateInput } from '@/components/inputs/fee-rate-input';
+import { safeSendMessage } from '@/utils/browser';
 
 export default function ApproveCompose() {
   const [searchParams] = useSearchParams();
@@ -167,7 +168,7 @@ export default function ApproveCompose() {
       }
       
       // Send message to background script to resolve the request with updated params
-      await browser.runtime.sendMessage({
+      await safeSendMessage({
         type: 'RESOLVE_PROVIDER_REQUEST',
         requestId,
         approved: true,
@@ -189,7 +190,7 @@ export default function ApproveCompose() {
     setIsProcessing(true);
     try {
       // Send message to background script to resolve the request
-      await browser.runtime.sendMessage({
+      await safeSendMessage({
         type: 'RESOLVE_PROVIDER_REQUEST',
         requestId,
         approved: false

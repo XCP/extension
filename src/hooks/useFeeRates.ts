@@ -13,8 +13,6 @@ export function useFeeRates(autoFetch = true) {
   const [feeRates, setFeeRates] = useState<FeeRates | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(autoFetch);
   const [error, setError] = useState<string | null>(null);
-  
-  const isMountedRef = useRef(true);
 
   useEffect(() => {
     if (!autoFetch) {
@@ -26,13 +24,13 @@ export function useFeeRates(autoFetch = true) {
     
     getFeeRates()
       .then((rates) => {
-        if (!isCancelled && isMountedRef.current) {
+        if (!isCancelled) {
           setFeeRates(rates);
           setIsLoading(false);
         }
       })
       .catch((err) => {
-        if (!isCancelled && isMountedRef.current) {
+        if (!isCancelled) {
           console.error('Fee rates fetch error:', err);
           setError('Unable to fetch fee rates.');
           setIsLoading(false);
@@ -43,13 +41,6 @@ export function useFeeRates(autoFetch = true) {
       isCancelled = true;
     };
   }, [autoFetch]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
 
   const uniquePresetOptions = useMemo<FeeOption[]>(() => {
     if (!feeRates) return [];

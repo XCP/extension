@@ -336,9 +336,11 @@ describe('Content Script', () => {
       expect(contentScript.default.matches).toEqual([
         'https://*/*',
         'http://localhost/*',
-        'http://127.0.0.1/*',
-        'file:///*'
+        'http://127.0.0.1/*'
       ]);
+      
+      // excludeMatches removed - browser automatically excludes restricted schemes
+      expect(contentScript.default.excludeMatches).toBeUndefined();
     });
 
     it('should export a content script with main function', async () => {
