@@ -339,12 +339,8 @@ describe('Content Script', () => {
         'http://127.0.0.1/*'
       ]);
       
-      expect(contentScript.default.excludeMatches).toEqual([
-        'about:*',
-        'chrome:*', 
-        'chrome-extension:*',
-        'moz-extension:*'
-      ]);
+      // excludeMatches removed - browser automatically excludes restricted schemes
+      expect(contentScript.default.excludeMatches).toBeUndefined();
     });
 
     it('should export a content script with main function', async () => {
