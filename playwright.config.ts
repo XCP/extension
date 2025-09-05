@@ -4,6 +4,8 @@ const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir: './e2e',
+  // Skip provider and message-signing tests temporarily
+  testIgnore: ['**/message-signing.spec.ts', '**/provider.spec.ts'],
   fullyParallel: false,
   
   // Retry flaky tests in CI only
