@@ -98,8 +98,9 @@ class ConsolidationApiService {
   private baseUrl: string;
 
   constructor() {
-    // Use Laravel API URL from environment or fallback to production
-    this.baseUrl = process.env.LARAVEL_API_URL || 'https://xcp.io';
+    // For browser extensions, hardcode the production URL
+    // Environment variables can be configured at build time if needed
+    this.baseUrl = 'https://xcp.io';
   }
 
   /**
