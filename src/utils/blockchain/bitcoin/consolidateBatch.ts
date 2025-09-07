@@ -81,7 +81,7 @@ export async function consolidateBareMultisigBatch(
     
     // Determine which pubkey to use based on position
     const pubkeyToUse = utxo.position === 0 
-      ? batchData.pubkey // Uncompressed for position 0
+      ? batchData.pubkey_uncompressed // Uncompressed for position 0
       : batchData.pubkey_compressed; // Compressed for position 1
     
     // Check if this UTXO has invalid pubkeys (from API validation)

@@ -44,7 +44,7 @@ export interface MempoolStatus {
 
 export interface ConsolidationData {
   address: string;
-  pubkey: string; // Uncompressed pubkey
+  pubkey_uncompressed: string; // Uncompressed pubkey
   pubkey_compressed: string; // Compressed pubkey
   summary: ConsolidationSummary;
   fee_config: ConsolidationFeeConfig;

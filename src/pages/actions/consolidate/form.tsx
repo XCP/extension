@@ -117,6 +117,16 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
           </div>
         )}
         
+        {/* Mempool warning */}
+        {!isLoading && formData.consolidationData?.mempool_status && 
+         formData.consolidationData.mempool_status.pending_consolidations > 0 && (
+          <div className="p-3 bg-amber-100 text-amber-700 rounded-md">
+            <strong>Warning:</strong> You have {formData.consolidationData.mempool_status.pending_consolidations} pending recovery 
+            transaction{formData.consolidationData.mempool_status.pending_consolidations > 1 ? 's' : ''}. 
+            Please wait for {formData.consolidationData.mempool_status.pending_consolidations > 1 ? 'them' : 'it'} to confirm before starting new ones.
+          </div>
+        )}
+        
         {/* Always show the data section to prevent layout shift */}
         <div className="space-y-2">
           <h3 className="font-semibold">Recoverable</h3>
@@ -170,7 +180,7 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
           <div className="flex flex-col">
             <label htmlFor="includeStamps" className="text-sm font-medium text-gray-700">
-              Allow STAMPS to be spent {isUpdating && <span className="text-gray-400 text-xs ml-2">(updating...)</span>}
+              Allow STAMPS to be spent
             </label>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
@@ -216,6 +226,19 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
           {isLoading ? "Loading..." : "Continue to Review"}
         </Button>
       </form>
+      
+      {/* YouTube Tutorial Button */}
+      <div className="mt-4 bg-white rounded-lg shadow-lg p-4">
+        <button
+          onClick={() => window.open('https://www.youtube.com/watch?v=YOUR_VIDEO_ID', '_blank')}
+          className="w-full flex items-center justify-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-md transition-colors"
+        >
+          <svg className="w-5 h-5 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+          </svg>
+          <span className="text-sm font-medium text-gray-700">Watch Tutorial: How to Recover Bitcoin</span>
+        </button>
+      </div>
     </div>
   );
 }

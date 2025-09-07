@@ -30,6 +30,7 @@ export interface KeychainSettings {
   pinnedAssets: string[];
   counterpartyApiBase: string;
   defaultOrderExpiration: number; // in blocks (default: 8064 = ~8 weeks)
+  hasVisitedRecoverBitcoin?: boolean; // Track if user has visited the recover bitcoin page
 }
 
 /**
@@ -49,6 +50,7 @@ export const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
   enableAdvancedBetting: false,
   transactionDryRun: process.env.NODE_ENV === 'development',
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
+  hasVisitedRecoverBitcoin: false,
   counterpartyApiBase: 'https://api.counterparty.io:4000',
   defaultOrderExpiration: 8064, // ~8 weeks (56 days) at 10min/block
 };
