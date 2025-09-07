@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FiHelpCircle } from "react-icons/fi";
 import { ConsolidationForm, ConsolidationFormData } from "./form";
 import { ConsolidationReview } from "./review";
+import { ConsolidationHistory } from "./history";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
@@ -29,6 +30,13 @@ export function Consolidate() {
     updateSettings({ showHelpText: !settings?.showHelpText });
   };
 
+  // Mark the recover bitcoin page as visited
+  useEffect(() => {
+    if (!settings?.hasVisitedRecoverBitcoin) {
+      updateSettings({ hasVisitedRecoverBitcoin: true });
+    }
+  }, []); // Only run once on mount
+  
   useEffect(() => {
     if (step === 'form') {
       setHeaderProps({
@@ -105,7 +113,10 @@ export function Consolidate() {
       )}
 
       {step === 'form' && (
-        <ConsolidationForm onSubmit={handleFormSubmit} />
+        <>
+          <ConsolidationForm onSubmit={handleFormSubmit} />
+          <ConsolidationHistory address={activeAddress.address} />
+        </>
       )}
 
       {step === 'review' && txDetails && (

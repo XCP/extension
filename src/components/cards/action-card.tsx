@@ -19,6 +19,8 @@ interface ActionCardProps {
   className?: string;
   /** Optional aria-label for accessibility */
   ariaLabel?: string;
+  /** Whether to show a notification badge */
+  showNotification?: boolean;
 }
 
 /**
@@ -53,7 +55,8 @@ export function ActionCard({
   icon,
   showChevron = true,
   className = "",
-  ariaLabel
+  ariaLabel,
+  showNotification = false
 }: ActionCardProps): ReactElement {
   const handleClick = () => {
     onClick();
@@ -70,6 +73,7 @@ export function ActionCard({
   const getTitleColor = () => {
     if (className?.includes('border-green')) return 'text-green-600';
     if (className?.includes('border-red')) return 'text-red-600';
+    if (className?.includes('border-orange')) return 'text-orange-600';
     return 'text-gray-900';
   };
 
@@ -94,8 +98,11 @@ export function ActionCard({
 
         {/* Content */}
         <div className="flex-grow min-w-0">
-          <div className={`text-sm font-medium ${getTitleColor()} mb-1`}>
+          <div className={`text-sm font-medium ${getTitleColor()} mb-1 flex items-center`}>
             {title}
+            {showNotification && (
+              <span className="ml-2 h-2 w-2 bg-orange-500 rounded-full inline-block"></span>
+            )}
           </div>
           {description && (
             <div className="text-xs text-gray-500 leading-relaxed">
