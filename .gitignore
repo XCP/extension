@@ -37,6 +37,7 @@ userData/onboarding/
 
 scan.py
 output.txt
+find-xcp-both.ts
 
 # Claude Code settings
 .claude/

@@ -103,8 +103,10 @@ export function AssetSelectInput({
     );
   }
 
-  const handleAssetChange = (asset: string) => {
-    onChange(asset);
+  const handleAssetChange = (asset: string | null) => {
+    if (asset) {
+      onChange(asset);
+    }
   };
 
   const handleSearch = (searchQuery: string) => {

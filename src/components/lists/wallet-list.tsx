@@ -9,10 +9,16 @@ interface WalletListProps {
 }
 
 export function WalletList({ wallets, selectedWallet, onSelectWallet }: WalletListProps) {
+  const handleWalletChange = (wallet: Wallet | null) => {
+    if (wallet) {
+      onSelectWallet(wallet);
+    }
+  };
+
   return (
     <RadioGroup
       value={selectedWallet}
-      onChange={onSelectWallet}
+      onChange={handleWalletChange}
       className="space-y-2"
     >
       {wallets.map((wallet) => (

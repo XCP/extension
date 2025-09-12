@@ -7,7 +7,7 @@
  */
 
 import { Transaction, SigHash } from '@scure/btc-signer';
-import { signECDSA } from '@scure/btc-signer/utils';
+import { signECDSA } from '@scure/btc-signer/utils.js';
 
 /**
  * Concatenates multiple Uint8Arrays into a single Uint8Array.

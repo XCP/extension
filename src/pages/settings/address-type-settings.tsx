@@ -119,7 +119,8 @@ export default function AddressTypeSettings(): ReactElement {
    * Updates the wallet's address type and refreshes the preview address.
    * @param newType - The new address type to set.
    */
-  const handleAddressFormatChange = async (newType: AddressFormat) => {
+  const handleAddressFormatChange = async (newType: AddressFormat | null) => {
+    if (!newType) return;
     if (!activeWallet || isChanging.current) return;
 
     // Update selected type immediately for instant UI response

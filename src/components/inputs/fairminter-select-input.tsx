@@ -119,9 +119,11 @@ export function FairminterSelectInput({
     );
   }
 
-  const handleAssetChange = (asset: string) => {
-    const fairminter = fairminters.find(f => f.asset === asset);
-    onChange(asset, fairminter);
+  const handleAssetChange = (asset: string | null) => {
+    if (asset) {
+      const fairminter = fairminters.find(f => f.asset === asset);
+      onChange(asset, fairminter);
+    }
   };
 
   const handleSearch = (searchQuery: string) => {
