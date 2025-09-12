@@ -62,7 +62,7 @@ export function FeeRateInput({
     }
   }, [selectedOption, feeRates, uniquePresetOptions]);
 
-  const feeOptions = feeRates
+  const feeOptions: { id: LocalFeeRateOption; name: string; value: number; }[] = feeRates
     ? [...uniquePresetOptions, { id: "custom", name: "Custom", value: parseFloat(customInput) || 0.1 }]
     : [{ id: "custom", name: "Custom", value: parseFloat(customInput) || 0.1 }];
 
@@ -144,7 +144,9 @@ export function FeeRateInput({
     onFeeRateChange?.(parseFloat(formattedValue));
   };
 
-  const handleOptionSelect = (option: { id: LocalFeeRateOption; name: string; value: number }) => {
+  const handleOptionSelect = (option: { id: LocalFeeRateOption; name: string; value: number } | null) => {
+    if (!option) return;
+    
     setSelectedOption(option.id);
     if (option.id !== "custom") {
       setCustomInput(option.value.toString());
@@ -251,7 +253,7 @@ export function FeeRateInput({
             
             {feeRates && (
               <div className="relative">
-                <Listbox value={feeOptions.find((opt) => opt.id === selectedOption)} onChange={handleOptionSelect}>
+                <Listbox value={feeOptions.find((opt) => opt.id === selectedOption) || null} onChange={handleOptionSelect}>
                   <ListboxButton
                     className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
                     disabled={disabled}

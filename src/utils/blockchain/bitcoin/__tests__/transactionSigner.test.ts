@@ -22,7 +22,7 @@ const mockFetchPreviousRawTransaction = vi.mocked(fetchPreviousRawTransaction);
 
 // Import necessary functions for test setup
 import { getPublicKey } from '@noble/secp256k1';
-import { hash160 } from '@scure/btc-signer/utils';
+import { hash160 } from '@scure/btc-signer/utils.js';
 
 describe('Transaction Signer Utilities', () => {
   // Use a valid secp256k1 private key

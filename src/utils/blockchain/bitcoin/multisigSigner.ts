@@ -12,7 +12,7 @@
  */
 
 import { Transaction, SigHash, OutScript } from '@scure/btc-signer';
-import { signECDSA } from '@scure/btc-signer/utils';
+import { signECDSA } from '@scure/btc-signer/utils.js';
 import { bytesToHex } from '@noble/hashes/utils';
 
 /**
