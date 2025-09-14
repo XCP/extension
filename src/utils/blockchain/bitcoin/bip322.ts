@@ -270,20 +270,25 @@ export async function verifyBIP322Signature(
     // Verify the signature matches the expected address
     let expectedAddress: string;
 
+    // Determine network from address prefix
+    const network = address.startsWith('bc1') || address.startsWith('3') || address.startsWith('1')
+      ? btc.NETWORK
+      : btc.TEST_NETWORK;
+
     switch (addressType) {
       case 'P2PKH':
-        expectedAddress = btc.p2pkh(publicKey).address!;
+        expectedAddress = btc.p2pkh(publicKey, undefined, network).address!;
         break;
       case 'P2WPKH':
-        expectedAddress = btc.p2wpkh(publicKey).address!;
+        expectedAddress = btc.p2wpkh(publicKey, undefined, network).address!;
         break;
       case 'P2SH':
         // For P2SH-P2WPKH, we need the redeem script
         if (!redeemScript) {
           return false;
         }
-        const p2wpkh = btc.p2wpkh(publicKey);
-        expectedAddress = btc.p2sh(p2wpkh).address!;
+        const p2wpkh = btc.p2wpkh(publicKey, undefined, network);
+        expectedAddress = btc.p2sh(p2wpkh, undefined, network).address!;
         break;
       default:
         return false;
