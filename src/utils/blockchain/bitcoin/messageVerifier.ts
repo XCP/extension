@@ -233,7 +233,7 @@ export async function verifyMessageWithMethod(
       }
     }
 
-    // 3. If all verification methods fail
+    // If all verification methods fail
     return { valid: false };
   } catch (error) {
     console.error('Message verification failed:', error);
@@ -315,8 +315,8 @@ export async function parseSignature(signature: string): Promise<{
         r: sigHex.slice(0, 64),
         s: sigHex.slice(64, 128)
       };
-    } else if (bip322Parsed.type === 'legacy' || bip322Parsed.type === 'segwit') {
-      // Classic signature format
+    } else if ((bip322Parsed.type === 'legacy' || bip322Parsed.type === 'segwit') && bip322Parsed.data.length === 65) {
+      // Classic signature format (65 bytes with recovery flag)
       const flag = bip322Parsed.data[0];
       const r = hex.encode(bip322Parsed.data.slice(1, 33));
       const s = hex.encode(bip322Parsed.data.slice(33, 65));
@@ -332,6 +332,13 @@ export async function parseSignature(signature: string): Promise<{
         flag,
         r,
         s
+      };
+    } else if (bip322Parsed.type === 'segwit' && bip322Parsed.data.length > 65) {
+      // Witness data format from BIP-322 signing
+      // This is valid BIP-322 but we can't extract r/s easily
+      return {
+        valid: true,
+        type: 'BIP-322 Witness'
       };
     }
   }

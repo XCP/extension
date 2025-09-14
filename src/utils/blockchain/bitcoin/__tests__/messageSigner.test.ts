@@ -213,7 +213,7 @@ describe('messageSign', () => {
         AddressFormat.P2PKH,
         true
       );
-      
+
       const isValid = await verifyMessage(testMessage, signature, address);
       expect(isValid).toBe(true);
     });

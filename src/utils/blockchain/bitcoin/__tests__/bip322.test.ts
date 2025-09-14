@@ -56,7 +56,7 @@ describe('BIP-322 Implementation', () => {
 
       // Check transaction structure
       expect(tx.inputsLength).toBe(1);
-      expect(tx.outputsLength).toBe(2); // Two outputs as per BIP-322 spec
+      expect(tx.outputsLength).toBe(1); // One output as per BIP-322 spec
 
       // Check input is the null input
       const input = tx.getInput(0);
@@ -68,18 +68,23 @@ describe('BIP-322 Implementation', () => {
 
     it('should create a valid to_sign transaction', () => {
       const toSpendTxId = '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+      // Create a mock to_spend transaction bytes
+      const message = 'Test message';
+      const messageHash = bip322MessageHash(message);
       const scriptPubKey = new Uint8Array([0x00, 0x14, ...new Uint8Array(20)]); // P2WPKH
+      const toSpend = createToSpendTransaction(messageHash, scriptPubKey);
+      const toSpendBytes = toSpend.toBytes();
 
-      const tx = createToSignTransaction(toSpendTxId, scriptPubKey);
+      const tx = createToSignTransaction(toSpendTxId, toSpendBytes);
 
       // Check transaction structure
       expect(tx.inputsLength).toBe(1);
       expect(tx.outputsLength).toBe(1);
 
-      // Check input references to_spend transaction output 1 (the scriptPubKey output)
+      // Check input references to_spend transaction output 0 (the scriptPubKey output)
       const input = tx.getInput(0);
       expect(hex.encode(input.txid!)).toBe(toSpendTxId);
-      expect(input.index).toBe(1); // Index 1 to spend the scriptPubKey output
+      expect(input.index).toBe(0); // Index 0 to spend the scriptPubKey output
     });
   });
 

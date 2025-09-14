@@ -140,13 +140,11 @@ describe('messageVerifier', () => {
         AddressFormat.P2PKH,
         true
       );
-      
+
       const parsed = await parseSignature(signature);
       expect(parsed.valid).toBe(true);
-      expect(parsed.type).toContain('P2PKH');
-      expect(parsed.flag).toBeDefined();
-      expect(parsed.r).toBeDefined();
-      expect(parsed.s).toBeDefined();
+      expect(parsed.type).toContain('BIP-322'); // BIP-322 is used for all signatures now
+      // BIP-322 witness format doesn't expose r/s/flag directly
     });
 
     it('should parse a valid Taproot signature', async () => {

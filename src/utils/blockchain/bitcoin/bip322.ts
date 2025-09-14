@@ -1,18 +1,266 @@
 /**
- * BIP-322 Generic Signed Message Format Implementation
- *
- * Implements BIP-322 for verifying signed messages from Taproot and other address types
- * Reference: https://github.com/bitcoin/bips/blob/master/bip-0322.mediawiki
+ * Complete BIP-322 Implementation
+ * Built from scratch using noble/scure libraries
+ * No dependency on btc-signer's transaction handling
  */
 
 import { sha256 } from '@noble/hashes/sha2';
-import * as btc from '@scure/btc-signer';
-import { hex } from '@scure/base';
+import { hmac } from '@noble/hashes/hmac';
+import { hex, base64 } from '@scure/base';
 import * as secp256k1 from '@noble/secp256k1';
-import { SigHash } from '@scure/btc-signer';
+import * as btc from '@scure/btc-signer';
+
+// Required initialization for @noble/secp256k1 v3
+import { hashes } from '@noble/secp256k1';
+
+// Ensure secp256k1 hashes are properly initialized
+if (!hashes.sha256) {
+  hashes.sha256 = sha256;
+}
+if (!hashes.hmacSha256) {
+  hashes.hmacSha256 = (key: Uint8Array, msg: Uint8Array): Uint8Array => {
+    return hmac(sha256, key, msg);
+  };
+  hashes.hmacSha256Async = async (key: Uint8Array, msg: Uint8Array): Promise<Uint8Array> => {
+    return hmac(sha256, key, msg);
+  };
+  hashes.sha256Async = async (msg: Uint8Array): Promise<Uint8Array> => {
+    return sha256(msg);
+  };
+}
 
 // BIP-322 tagged hash prefix
 const BIP322_TAG = 'BIP0322-signed-message';
+
+/**
+ * Helper functions for serialization
+ */
+function writeUint32LE(n: number): Uint8Array {
+  const bytes = new Uint8Array(4);
+  bytes[0] = n & 0xff;
+  bytes[1] = (n >> 8) & 0xff;
+  bytes[2] = (n >> 16) & 0xff;
+  bytes[3] = (n >> 24) & 0xff;
+  return bytes;
+}
+
+function writeUint64LE(n: bigint): Uint8Array {
+  const bytes = new Uint8Array(8);
+  for (let i = 0; i < 8; i++) {
+    bytes[i] = Number((n >> BigInt(i * 8)) & 0xffn);
+  }
+  return bytes;
+}
+
+function writeCompactSize(n: number): Uint8Array {
+  if (n < 0xfd) {
+    return new Uint8Array([n]);
+  } else if (n <= 0xffff) {
+    const bytes = new Uint8Array(3);
+    bytes[0] = 0xfd;
+    bytes[1] = n & 0xff;
+    bytes[2] = (n >> 8) & 0xff;
+    return bytes;
+  } else if (n <= 0xffffffff) {
+    const bytes = new Uint8Array(5);
+    bytes[0] = 0xfe;
+    bytes[1] = n & 0xff;
+    bytes[2] = (n >> 8) & 0xff;
+    bytes[3] = (n >> 16) & 0xff;
+    bytes[4] = (n >> 24) & 0xff;
+    return bytes;
+  } else {
+    throw new Error('Value too large for CompactSize');
+  }
+}
+
+/**
+ * Create a BIP-322 tagged hash of a message
+ */
+export function bip322MessageHash(message: string): Uint8Array {
+  const encoder = new TextEncoder();
+  const messageBytes = encoder.encode(message);
+  const tagHash = sha256(encoder.encode(BIP322_TAG));
+
+  const preimage = new Uint8Array(tagHash.length * 2 + messageBytes.length);
+  preimage.set(tagHash, 0);
+  preimage.set(tagHash, tagHash.length);
+  preimage.set(messageBytes, tagHash.length * 2);
+
+  return sha256(preimage);
+}
+
+/**
+ * Manually serialize the to_spend transaction
+ */
+function serializeToSpend(messageHash: Uint8Array, scriptPubKey: Uint8Array): Uint8Array {
+  const parts: Uint8Array[] = [];
+
+  // Version (4 bytes) - 0
+  parts.push(writeUint32LE(0));
+
+  // Input count (CompactSize) - 1
+  parts.push(writeCompactSize(1));
+
+  // Input 0:
+  // - Previous output hash (32 bytes) - all zeros
+  parts.push(new Uint8Array(32));
+
+  // - Previous output index (4 bytes) - 0xFFFFFFFF
+  parts.push(new Uint8Array([0xFF, 0xFF, 0xFF, 0xFF]));
+
+  // - Script length and script (OP_0 PUSH32 messageHash)
+  const scriptSig = new Uint8Array(1 + 1 + 32);
+  scriptSig[0] = 0x00; // OP_0
+  scriptSig[1] = 0x20; // PUSH 32 bytes
+  scriptSig.set(messageHash, 2);
+
+  parts.push(writeCompactSize(scriptSig.length));
+  parts.push(scriptSig);
+
+  // - Sequence (4 bytes) - 0
+  parts.push(writeUint32LE(0));
+
+  // Output count (CompactSize) - 1
+  parts.push(writeCompactSize(1));
+
+  // Output 0:
+  // - Amount (8 bytes) - 0
+  parts.push(writeUint64LE(BigInt(0)));
+
+  // - Script length and script
+  parts.push(writeCompactSize(scriptPubKey.length));
+  parts.push(scriptPubKey);
+
+  // Locktime (4 bytes) - 0
+  parts.push(writeUint32LE(0));
+
+  // Concatenate all parts
+  const totalLength = parts.reduce((sum, part) => sum + part.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const part of parts) {
+    result.set(part, offset);
+    offset += part.length;
+  }
+
+  return result;
+}
+
+/**
+ * Manually serialize the to_sign transaction (unsigned)
+ */
+function serializeToSignUnsigned(toSpendTxId: string, scriptPubKey: Uint8Array): Uint8Array {
+  const parts: Uint8Array[] = [];
+
+  // Version (4 bytes) - 0
+  parts.push(writeUint32LE(0));
+
+  // Input count (CompactSize) - 1
+  parts.push(writeCompactSize(1));
+
+  // Input 0:
+  // - Previous output hash (32 bytes) - toSpendTxId (reversed for little-endian)
+  const txidBytes = hex.decode(toSpendTxId);
+  const reversedTxid = new Uint8Array(32);
+  for (let i = 0; i < 32; i++) {
+    reversedTxid[i] = txidBytes[31 - i];
+  }
+  parts.push(reversedTxid);
+
+  // - Previous output index (4 bytes) - 0
+  parts.push(writeUint32LE(0));
+
+  // - Script length - 0 (unsigned)
+  parts.push(writeCompactSize(0));
+
+  // - Sequence (4 bytes) - 0
+  parts.push(writeUint32LE(0));
+
+  // Output count (CompactSize) - 1
+  parts.push(writeCompactSize(1));
+
+  // Output 0 (OP_RETURN):
+  // - Amount (8 bytes) - 0
+  parts.push(writeUint64LE(BigInt(0)));
+
+  // - Script length and script (OP_RETURN)
+  const opReturn = new Uint8Array([0x6a]); // OP_RETURN
+  parts.push(writeCompactSize(opReturn.length));
+  parts.push(opReturn);
+
+  // Locktime (4 bytes) - 0
+  parts.push(writeUint32LE(0));
+
+  // Concatenate all parts
+  const totalLength = parts.reduce((sum, part) => sum + part.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const part of parts) {
+    result.set(part, offset);
+    offset += part.length;
+  }
+
+  return result;
+}
+
+/**
+ * Calculate legacy sighash for P2PKH
+ */
+function calculateLegacySighashManual(
+  toSignBytes: Uint8Array,
+  inputIndex: number,
+  scriptPubKey: Uint8Array,
+  hashType: number = 0x01 // SIGHASH_ALL
+): Uint8Array {
+  // For legacy sighash, we need to:
+  // 1. Copy the transaction
+  // 2. Clear all input scripts
+  // 3. Set the script for the input we're signing to scriptPubKey
+  // 4. Append hashType and double SHA256
+
+  const modifiedTx = toSignBytes.slice(); // Copy
+
+  // Find and replace the empty scriptSig with scriptPubKey
+  // This is a simplified version - in production you'd parse properly
+  // For our to_sign tx, the scriptSig is at a known position
+
+  // The structure is:
+  // version(4) + input_count(1) + txid(32) + index(4) + script_length(1) + script(0) + sequence(4)
+  // So scriptSig length is at byte 42
+
+  const scriptLengthPos = 42;
+  const scriptPos = 43;
+
+  // Create new transaction with scriptPubKey
+  const parts: Uint8Array[] = [];
+
+  // Everything before script length
+  parts.push(modifiedTx.slice(0, scriptLengthPos));
+
+  // New script length and script
+  parts.push(writeCompactSize(scriptPubKey.length));
+  parts.push(scriptPubKey);
+
+  // Everything after the original empty script (sequence onwards)
+  parts.push(modifiedTx.slice(scriptPos));
+
+  // Concatenate
+  const withScript = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+  let offset = 0;
+  for (const part of parts) {
+    withScript.set(part, offset);
+    offset += part.length;
+  }
+
+  // Append hashType (4 bytes, little-endian)
+  const withHashType = new Uint8Array(withScript.length + 4);
+  withHashType.set(withScript, 0);
+  withHashType.set(writeUint32LE(hashType), withScript.length);
+
+  // Double SHA256
+  return sha256(sha256(withHashType));
+}
 
 /**
  * DER encode a signature
@@ -55,303 +303,32 @@ function encodeDER(r: Uint8Array, s: Uint8Array): Uint8Array {
 }
 
 /**
- * Create a BIP-322 tagged hash of a message
- * Tagged hash: sha256(sha256(tag) || sha256(tag) || message)
+ * Encode witness stack to consensus format
  */
-export function bip322MessageHash(message: string): Uint8Array {
-  const encoder = new TextEncoder();
-  const messageBytes = encoder.encode(message);
-
-  // Create tag hash
-  const tagHash = sha256(encoder.encode(BIP322_TAG));
-
-  // Create tagged hash: sha256(tagHash || tagHash || message)
-  const preimage = new Uint8Array(tagHash.length * 2 + messageBytes.length);
-  preimage.set(tagHash, 0);
-  preimage.set(tagHash, tagHash.length);
-  preimage.set(messageBytes, tagHash.length * 2);
-
-  return sha256(preimage);
-}
-
-/**
- * Create the "to_spend" virtual transaction for BIP-322
- * This transaction has outputs with the script commitments
- */
-export function createToSpendTransaction(
-  messageHash: Uint8Array,
-  scriptPubKey: Uint8Array
-): btc.Transaction {
-  const tx = new btc.Transaction({ allowUnknownOutputs: true } as any);
-
-  // Add a dummy input (0000...0000:0xFFFFFFFF)
-  tx.addInput({
-    txid: '0000000000000000000000000000000000000000000000000000000000000000',
-    index: 0xFFFFFFFF,
-    sequence: 0,
-  });
-
-  // Add two outputs as per BIP-322 spec:
-  // Output 0: OP_RETURN <tagged_hash>
-  const outputScript = btc.Script.encode([
-    'RETURN',
-    messageHash,
-  ]);
-
-  tx.addOutput({
-    script: outputScript,
-    amount: BigInt(0),
-  });
-
-  // Output 1: The actual scriptPubKey that will be "spent" by toSign
-  tx.addOutput({
-    script: scriptPubKey,
-    amount: BigInt(0),
-  });
-
-  return tx;
-}
-
-/**
- * Create the "to_sign" virtual transaction for BIP-322
- * This spends from the to_spend transaction
- */
-export function createToSignTransaction(
-  toSpendTxId: string,
-  scriptPubKey: Uint8Array,
-  toSpendTx?: btc.Transaction
-): btc.Transaction {
-  const tx = new btc.Transaction({
-    allowUnknownOutputs: true,
-    allowUnknownInputs: true
-  } as any);
-
-  // Input spending from to_spend tx output 1 (the scriptPubKey output)
-  tx.addInput({
-    txid: toSpendTxId,
-    index: 1,  // Index 1 to spend the scriptPubKey output
-    sequence: 0,
-    witnessUtxo: toSpendTx ? {
-      script: scriptPubKey,
-      amount: BigInt(0),
-    } : undefined,
-  });
-
-  // Add OP_RETURN output as per BIP-322
-  tx.addOutput({
-    script: btc.Script.encode(['RETURN']),
-    amount: BigInt(0),
-  });
-
-  return tx;
-}
-
-/**
- * Verify a BIP-322 signature for any address type
- */
-export async function verifyBIP322Signature(
-  message: string,
-  signature: string,
-  address: string
-): Promise<boolean> {
-  try {
-    const addressType = getAddressType(address);
-
-    const messageHash = bip322MessageHash(message);
-
-    // Handle Taproot signatures
-    if (addressType === 'P2TR') {
-      if (!signature.startsWith('tr:')) {
-        return false;
-      }
-
-      const sigHex = signature.slice(3);
-
-      // Check for extended format with public key (tr:signature:pubkey)
-      const parts = sigHex.split(':');
-      let sigBytes: Uint8Array;
-      let providedPubKey: Uint8Array | undefined;
-
-      if (parts.length === 2) {
-        // Extended format: signature and public key provided
-        if (parts[0].length !== 128 || parts[1].length !== 64) {
-          return false;
-        }
-        sigBytes = hex.decode(parts[0]);
-        providedPubKey = hex.decode(parts[1]);
-      } else if (sigHex.length === 128) {
-        // Simple format: just signature
-        sigBytes = hex.decode(sigHex);
-      } else {
-        return false;
-      }
-
-      const network = address.startsWith('bc1') ? btc.NETWORK : btc.TEST_NETWORK;
-      const decoded = btc.Address(network).decode(address);
-
-      if (!decoded || decoded.type !== 'tr') {
-        return false;
-      }
-
-      const tweakedPubKeyFromAddress = decoded.pubkey;
-
-      // If public key was provided, verify it matches the address
-      if (providedPubKey) {
-        // Best practice: assume BIP341 tweaking first (standard)
-        const tweakedKey = btc.p2tr(providedPubKey, undefined, network);
-        if (tweakedKey.address === address) {
-          // Address was created with BIP341 tweaking (best practice)
-          // Verify with the untweaked key
-          return secp256k1.schnorr.verify(sigBytes, messageHash, providedPubKey);
-        }
-
-        // Fallback: check if the address was created without tweaking (raw x-only encoding)
-        // This is for backwards compatibility with older implementations
-        const decoded = btc.Address(network).decode(address);
-        if (decoded && decoded.type === 'tr' && decoded.pubkey) {
-          // Compare the raw x-only public keys
-          if (Buffer.from(decoded.pubkey).equals(Buffer.from(providedPubKey))) {
-            // Address uses raw encoding (legacy), verify with the provided key directly
-            return secp256k1.schnorr.verify(sigBytes, messageHash, providedPubKey);
-          }
-        }
-
-        return false;
-      }
-
-      // Without the untweaked public key, we cannot properly verify
-      // This is a fundamental limitation of Taproot addresses
-      return false;
-    }
-
-    // Handle other address types (P2PKH, P2WPKH, P2SH-P2WPKH)
-    // These use base64-encoded witness data
-    const { base64 } = await import('@scure/base');
-    let witnessData: Uint8Array;
-
-    try {
-      witnessData = base64.decode(signature);
-    } catch {
-      return false;
-    }
-
-    // Parse witness data to extract signature and public key
-    if (witnessData.length < 3) {
-      return false;
-    }
-
-    const stackItemCount = witnessData[0];
-    if (stackItemCount < 2) {
-      return false;
-    }
-
-    // Extract items from witness stack
-    let offset = 1;
-    const items: Uint8Array[] = [];
-
-    for (let i = 0; i < stackItemCount && offset < witnessData.length; i++) {
-      const itemLength = witnessData[offset++];
-      if (offset + itemLength > witnessData.length) {
-        return false;
-      }
-      items.push(witnessData.slice(offset, offset + itemLength));
-      offset += itemLength;
-    }
-
-    if (items.length < 2) {
-      return false;
-    }
-
-    // Items should be [signature, publicKey] or [signature, publicKey, redeemScript]
-    const sigWithHashType = items[0];
-    const publicKey = items[1];
-    const redeemScript = items.length > 2 ? items[2] : undefined;
-
-    // Verify the signature matches the expected address
-    let expectedAddress: string;
-
-    // Determine network from address prefix
-    const network = address.startsWith('bc1') || address.startsWith('3') || address.startsWith('1')
-      ? btc.NETWORK
-      : btc.TEST_NETWORK;
-
-    switch (addressType) {
-      case 'P2PKH':
-        expectedAddress = btc.p2pkh(publicKey, undefined, network).address!;
-        break;
-      case 'P2WPKH':
-        expectedAddress = btc.p2wpkh(publicKey, undefined, network).address!;
-        break;
-      case 'P2SH':
-        // For P2SH-P2WPKH, we need the redeem script
-        if (!redeemScript) {
-          return false;
-        }
-        const p2wpkh = btc.p2wpkh(publicKey, undefined, network);
-        expectedAddress = btc.p2sh(p2wpkh, undefined, network).address!;
-        break;
-      default:
-        return false;
-    }
-
-    if (expectedAddress.toLowerCase() !== address.toLowerCase()) {
-      return false;
-    }
-
-    // Create and verify the virtual transactions
-    let scriptPubKey: Uint8Array;
-
-    switch (addressType) {
-      case 'P2PKH':
-        scriptPubKey = btc.p2pkh(publicKey).script!;
-        break;
-      case 'P2WPKH':
-        scriptPubKey = btc.p2wpkh(publicKey).script!;
-        break;
-      case 'P2SH':
-        const p2wpkh = btc.p2wpkh(publicKey);
-        scriptPubKey = btc.p2sh(p2wpkh).script!;
-        break;
-      default:
-        return false;
-    }
-
-    const toSpend = createToSpendTransaction(messageHash, scriptPubKey);
-    const toSpendBytes = toSpend.toBytes();
-    const toSpendTxId = hex.encode(sha256(sha256(toSpendBytes)));
-
-    // Verify the signature (simplified - would need full transaction verification)
-    // For now, we trust that if the address matches, the signature is valid
-    // A full implementation would reconstruct and verify the complete transaction
-    return true;
-  } catch (error) {
-    console.error('BIP-322 verification failed:', error);
-    return false;
+function encodeWitnessStack(stack: Uint8Array[]): Uint8Array {
+  let totalSize = 1; // stack item count
+  for (const item of stack) {
+    // For witness stack, we just use a single byte for length if < 253
+    totalSize += 1 + item.length;
   }
-}
 
-import { AddressFormat } from './address';
+  const result = new Uint8Array(totalSize);
+  let offset = 0;
 
-/**
- * Get address type from an address string
- */
-export function getAddressType(address: string): 'P2PKH' | 'P2SH' | 'P2WPKH' | 'P2WSH' | 'P2TR' | 'unknown' {
-  if (address.startsWith('1') || address.startsWith('m') || address.startsWith('n')) {
-    return 'P2PKH';
-  } else if (address.startsWith('3') || address.startsWith('2')) {
-    return 'P2SH';
-  } else if (address.startsWith('bc1q') || address.startsWith('tb1q')) {
-    // Check length to distinguish P2WPKH from P2WSH
-    const decoded = address.substring(4); // Skip 'bc1q' or 'tb1q'
-    return decoded.length === 39 ? 'P2WPKH' : 'P2WSH';
-  } else if (address.startsWith('bc1p') || address.startsWith('tb1p')) {
-    return 'P2TR';
+  result[offset++] = stack.length;
+
+  for (const item of stack) {
+    // For witness stack items, we use simple length encoding
+    result[offset++] = item.length;
+    result.set(item, offset);
+    offset += item.length;
   }
-  return 'unknown';
+
+  return result;
 }
 
 /**
- * Sign a message using BIP-322 for P2PKH addresses
+ * Sign BIP-322 for P2PKH addresses - Complete implementation
  */
 export async function signBIP322P2PKH(
   message: string,
@@ -363,240 +340,195 @@ export async function signBIP322P2PKH(
   const p2pkh = btc.p2pkh(publicKey);
   const scriptPubKey = p2pkh.script!;
 
-  // Create virtual transactions
-  const toSpend = createToSpendTransaction(messageHash, scriptPubKey);
-  const toSpendBytes = toSpend.toBytes();
-  const toSpendTxId = hex.encode(sha256(sha256(toSpendBytes))); // Double SHA256 for txid
+  // Manually create and serialize to_spend transaction
+  const toSpendBytes = serializeToSpend(messageHash, scriptPubKey);
+  const toSpendTxId = hex.encode(sha256(sha256(toSpendBytes)));
 
-  // Create toSign transaction with proper input
-  const toSign = new btc.Transaction({
-    allowUnknownOutputs: true,
-    allowUnknownInputs: true
-  } as any);
+  // Create unsigned to_sign transaction
+  const toSignUnsigned = serializeToSignUnsigned(toSpendTxId, scriptPubKey);
 
-  // Add input spending from to_spend
-  toSign.addInput({
-    txid: toSpendTxId,
-    index: 1,
-    sequence: 0,
-    nonWitnessUtxo: toSpendBytes, // Provide the full transaction for P2PKH
-  });
+  // Calculate sighash
+  const sighash = calculateLegacySighashManual(toSignUnsigned, 0, scriptPubKey, 0x01);
 
-  // Add OP_RETURN output
-  toSign.addOutput({
-    script: btc.Script.encode(['RETURN']),
-    amount: BigInt(0),
-  });
+  // Debug removed - verification working
 
-  // Sign the transaction properly
-  toSign.sign(privateKey);
-  toSign.finalize();
+  // Sign with ECDSA - no prehash option, secp256k1 will handle appropriately
+  const signature = secp256k1.sign(sighash, privateKey);
 
-  // Extract the signature from the signed transaction
-  const signedInput = toSign.getInput(0);
-  const scriptSig = signedInput.finalScriptSig;
+  // Create DER-encoded signature with SIGHASH_ALL
+  const r = signature.slice(0, 32);
+  const s = signature.slice(32, 64);
+  const derSig = encodeDER(r, s);
+  const sigWithHashType = new Uint8Array(derSig.length + 1);
+  sigWithHashType.set(derSig);
+  sigWithHashType[derSig.length] = 0x01; // SIGHASH_ALL
 
-  if (!scriptSig) {
-    throw new Error('Failed to create scriptSig');
-  }
+  // Create witness stack
+  const witnessStack = [sigWithHashType, publicKey];
+  const witnessData = encodeWitnessStack(witnessStack);
 
-  // For BIP-322, encode as witness format
-  // Parse the scriptSig to extract signature and public key
-  const decoded = btc.Script.decode(scriptSig);
-  if (decoded.length !== 2) {
-    throw new Error('Invalid scriptSig structure');
-  }
-
-  // Extract the items (they should be Uint8Arrays)
-  const sig = decoded[0] as Uint8Array;
-  const pubkey = decoded[1] as Uint8Array;
-
-  if (!(sig instanceof Uint8Array) || !(pubkey instanceof Uint8Array)) {
-    throw new Error('Invalid scriptSig items');
-  }
-
-  // Create witness-style encoding
-  const witnessData = new Uint8Array(1 + 1 + sig.length + 1 + pubkey.length);
-  let offset = 0;
-  witnessData[offset++] = 2; // Two items
-  witnessData[offset++] = sig.length;
-  witnessData.set(sig, offset);
-  offset += sig.length;
-  witnessData[offset++] = pubkey.length;
-  witnessData.set(pubkey, offset);
-
-  // Encode as base64
-  const { base64 } = await import('@scure/base');
   return base64.encode(witnessData);
 }
 
 /**
- * Sign a message using BIP-322 for P2WPKH addresses
+ * Calculate BIP-143 witness v0 sighash
+ */
+function calculateWitnessV0SighashManual(
+  toSpendTxId: string,
+  scriptCode: Uint8Array,
+  amount: bigint,
+  hashType: number = 0x01
+): Uint8Array {
+  // Simplified BIP-143 for our specific case (single input, single output)
+  const parts: Uint8Array[] = [];
+
+  // 1. nVersion (4 bytes) - 0
+  parts.push(writeUint32LE(0));
+
+  // 2. hashPrevouts (32 bytes) - hash of all prevouts
+  const txidBytes = hex.decode(toSpendTxId);
+  const reversedTxid = new Uint8Array(32);
+  for (let i = 0; i < 32; i++) {
+    reversedTxid[i] = txidBytes[31 - i];
+  }
+  const prevout = new Uint8Array(36);
+  prevout.set(reversedTxid, 0);
+  prevout.set(writeUint32LE(0), 32);
+  parts.push(sha256(sha256(prevout)));
+
+  // 3. hashSequence (32 bytes) - hash of all sequences
+  parts.push(sha256(sha256(writeUint32LE(0))));
+
+  // 4. outpoint (36 bytes)
+  parts.push(prevout);
+
+  // 5. scriptCode with length
+  parts.push(writeCompactSize(scriptCode.length));
+  parts.push(scriptCode);
+
+  // 6. amount (8 bytes)
+  parts.push(writeUint64LE(amount));
+
+  // 7. nSequence (4 bytes)
+  parts.push(writeUint32LE(0));
+
+  // 8. hashOutputs (32 bytes) - hash of all outputs
+  const opReturn = new Uint8Array([0x6a]);
+  const output = new Uint8Array(8 + 1 + opReturn.length);
+  output.set(writeUint64LE(BigInt(0)), 0);
+  output[8] = opReturn.length;
+  output.set(opReturn, 9);
+  parts.push(sha256(sha256(output)));
+
+  // 9. nLockTime (4 bytes)
+  parts.push(writeUint32LE(0));
+
+  // 10. sighash type (4 bytes)
+  parts.push(writeUint32LE(hashType));
+
+  // Concatenate all parts
+  const preimage = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+  let offset = 0;
+  for (const part of parts) {
+    preimage.set(part, offset);
+    offset += part.length;
+  }
+
+  // Double SHA256
+  return sha256(sha256(preimage));
+}
+
+/**
+ * Sign BIP-322 for P2WPKH addresses
  */
 export async function signBIP322P2WPKH(
   message: string,
   privateKey: Uint8Array
 ): Promise<string> {
   const messageHash = bip322MessageHash(message);
-  const publicKey = secp256k1.getPublicKey(privateKey, true); // Always compressed for SegWit
+  const publicKey = secp256k1.getPublicKey(privateKey, true);
   const p2wpkh = btc.p2wpkh(publicKey);
   const scriptPubKey = p2wpkh.script!;
 
-  // Create virtual transactions
-  const toSpend = createToSpendTransaction(messageHash, scriptPubKey);
-  const toSpendBytes = toSpend.toBytes();
-  const toSpendTxId = hex.encode(sha256(sha256(toSpendBytes))); // Double SHA256 for txid
+  // Create to_spend transaction
+  const toSpendBytes = serializeToSpend(messageHash, scriptPubKey);
+  const toSpendTxId = hex.encode(sha256(sha256(toSpendBytes)));
 
-  // Create toSign transaction with witness UTXO
-  const toSign = new btc.Transaction({
-    allowUnknownOutputs: true,
-    allowUnknownInputs: true
-  } as any);
+  // Calculate witness v0 sighash - need to use P2PKH-style scriptCode for BIP-143
+  const pubkeyHash = btc.p2wpkh(publicKey).hash;
+  const scriptCode = btc.Script.encode(['DUP', 'HASH160', pubkeyHash, 'EQUALVERIFY', 'CHECKSIG']);
 
-  toSign.addInput({
-    txid: toSpendTxId,
-    index: 1,
-    sequence: 0,
-    witnessUtxo: {
-      script: scriptPubKey,
-      amount: BigInt(0),
-    },
-  });
+  // Debug removed - verification working
+  const sighash = calculateWitnessV0SighashManual(toSpendTxId, scriptCode, BigInt(0), 0x01);
 
-  toSign.addOutput({
-    script: btc.Script.encode(['RETURN']),
-    amount: BigInt(0),
-  });
+  // Sign with ECDSA
+  const signature = secp256k1.sign(sighash, privateKey);
 
-  // Sign the transaction properly
-  toSign.sign(privateKey);
-  toSign.finalize();
+  // Create DER-encoded signature with SIGHASH_ALL
+  const r = signature.slice(0, 32);
+  const s = signature.slice(32, 64);
+  const derSig = encodeDER(r, s);
+  const sigWithHashType = new Uint8Array(derSig.length + 1);
+  sigWithHashType.set(derSig);
+  sigWithHashType[derSig.length] = 0x01;
 
-  // Extract the witness from the signed transaction
-  const signedInput = toSign.getInput(0);
-  const witness = signedInput.finalScriptWitness;
+  // Create witness stack
+  const witnessStack = [sigWithHashType, publicKey];
+  const witnessData = encodeWitnessStack(witnessStack);
 
-  if (!witness || witness.length !== 2) {
-    throw new Error('Failed to create witness');
-  }
-
-  // Encode witness data for BIP-322
-  let totalLength = 1; // witness stack count
-  for (const item of witness) {
-    totalLength += 1 + item.length; // length byte + data
-  }
-
-  const witnessData = new Uint8Array(totalLength);
-  let offset = 0;
-  witnessData[offset++] = witness.length; // stack item count
-
-  for (const item of witness) {
-    witnessData[offset++] = item.length;
-    witnessData.set(item, offset);
-    offset += item.length;
-  }
-
-  // Encode as base64
-  const { base64 } = await import('@scure/base');
   return base64.encode(witnessData);
 }
 
 /**
- * Sign a message using BIP-322 for P2SH-P2WPKH addresses
+ * Sign BIP-322 for P2SH-P2WPKH addresses
  */
 export async function signBIP322P2SH_P2WPKH(
   message: string,
   privateKey: Uint8Array
 ): Promise<string> {
   const messageHash = bip322MessageHash(message);
-  const publicKey = secp256k1.getPublicKey(privateKey, true); // Always compressed for SegWit
+  const publicKey = secp256k1.getPublicKey(privateKey, true);
   const p2wpkh = btc.p2wpkh(publicKey);
   const p2sh = btc.p2sh(p2wpkh);
   const scriptPubKey = p2sh.script!;
   const redeemScript = p2wpkh.script!;
 
-  // Create virtual transactions
-  const toSpend = createToSpendTransaction(messageHash, scriptPubKey);
-  const toSpendBytes = toSpend.toBytes();
-  const toSpendTxId = hex.encode(sha256(sha256(toSpendBytes))); // Double SHA256 for txid
+  // Create to_spend transaction
+  const toSpendBytes = serializeToSpend(messageHash, scriptPubKey);
+  const toSpendTxId = hex.encode(sha256(sha256(toSpendBytes)));
 
-  // Create toSign transaction
-  const toSign = new btc.Transaction({
-    allowUnknownOutputs: true,
-    allowUnknownInputs: true
-  } as any);
+  // For P2SH-P2WPKH, sign with the P2PKH-style scriptCode (not the P2WPKH script directly)
+  const pubkeyHash = btc.p2wpkh(publicKey).hash;
+  const scriptCode = btc.Script.encode(['DUP', 'HASH160', pubkeyHash, 'EQUALVERIFY', 'CHECKSIG']);
+  const sighash = calculateWitnessV0SighashManual(toSpendTxId, scriptCode, BigInt(0), 0x01);
 
-  toSign.addInput({
-    txid: toSpendTxId,
-    index: 1,
-    sequence: 0,
-    witnessUtxo: {
-      script: scriptPubKey,
-      amount: BigInt(0),
-    },
-    redeemScript: redeemScript, // Need redeem script for P2SH
-  });
+  // Sign with ECDSA
+  const signature = secp256k1.sign(sighash, privateKey);
 
-  toSign.addOutput({
-    script: btc.Script.encode(['RETURN']),
-    amount: BigInt(0),
-  });
+  // Create DER-encoded signature with SIGHASH_ALL
+  const r = signature.slice(0, 32);
+  const s = signature.slice(32, 64);
+  const derSig = encodeDER(r, s);
+  const sigWithHashType = new Uint8Array(derSig.length + 1);
+  sigWithHashType.set(derSig);
+  sigWithHashType[derSig.length] = 0x01;
 
-  // Sign the transaction properly
-  toSign.sign(privateKey);
-  toSign.finalize();
+  // Create witness stack
+  const witnessStack = [sigWithHashType, publicKey];
+  const witnessData = encodeWitnessStack(witnessStack);
 
-  // Extract the witness and scriptSig from the signed transaction
-  const signedInput = toSign.getInput(0);
-  const witness = signedInput.finalScriptWitness;
-  const scriptSig = signedInput.finalScriptSig;
-
-  if (!witness || witness.length !== 2) {
-    throw new Error('Failed to create witness');
-  }
-
-  // For P2SH-P2WPKH, we need both scriptSig (with redeemScript) and witness
-  // For BIP-322 encoding, we include the witness data and redeem script
-  const items = [...witness]; // [signature, pubkey]
-  if (scriptSig) {
-    // The scriptSig should contain the redeem script
-    const decoded = btc.Script.decode(scriptSig);
-    if (decoded.length > 0) {
-      items.push(decoded[0] as Uint8Array); // Add redeem script
-    }
-  }
-
-  // Encode witness data for BIP-322
-  let totalLength = 1; // witness stack count
-  for (const item of items) {
-    totalLength += 1 + item.length; // length byte + data
-  }
-
-  const witnessData = new Uint8Array(totalLength);
-  let offset = 0;
-  witnessData[offset++] = items.length; // stack item count
-
-  for (const item of items) {
-    witnessData[offset++] = item.length;
-    witnessData.set(item, offset);
-    offset += item.length;
-  }
-
-  // Encode as base64
-  const { base64 } = await import('@scure/base');
   return base64.encode(witnessData);
 }
 
 /**
- * Sign a message using BIP-322 for Taproot addresses
+ * Sign BIP-322 for Taproot addresses
  */
 export async function signBIP322P2TR(
   message: string,
   privateKey: Uint8Array
 ): Promise<string> {
-  // Ensure private key is 32 bytes
   if (privateKey.length !== 32) {
-    throw new Error(`Invalid private key length: ${privateKey.length}, expected 32`);
+    throw new Error('Invalid private key length for Taproot');
   }
 
   const messageHash = bip322MessageHash(message);
@@ -605,18 +537,264 @@ export async function signBIP322P2TR(
   const publicKey = secp256k1.getPublicKey(privateKey, true);
   const xOnlyPubKey = publicKey.slice(1, 33);
 
-  // For Taproot BIP322, we use Schnorr signatures directly on the message hash
-  // We sign with the untweaked private key
+  // Sign directly with Schnorr
   const signature = secp256k1.schnorr.sign(messageHash, privateKey);
 
-  // Format as extended BIP-322 Taproot signature including the untweaked public key
-  // This allows verification without needing to \"untweak\" the address public key
-  return formatTaprootSignatureExtended(signature, xOnlyPubKey);
+  // Extended format with untweaked public key
+  return 'tr:' + hex.encode(signature) + ':' + hex.encode(xOnlyPubKey);
+}
+
+// Export other required functions
+export { bip322MessageHash as getMessageHash };
+export function getAddressType(address: string): 'P2PKH' | 'P2SH' | 'P2WPKH' | 'P2WSH' | 'P2TR' | 'unknown' {
+  if (address.startsWith('1') || address.startsWith('m') || address.startsWith('n')) {
+    return 'P2PKH';
+  } else if (address.startsWith('3') || address.startsWith('2')) {
+    return 'P2SH';
+  } else if (address.startsWith('bc1q') || address.startsWith('tb1q')) {
+    const decoded = address.substring(4);
+    return decoded.length === 38 ? 'P2WPKH' : 'P2WSH';
+  } else if (address.startsWith('bc1p') || address.startsWith('tb1p')) {
+    return 'P2TR';
+  }
+  return 'unknown';
+}
+
+// Parse witness stack from encoded bytes (for verification)
+function parseWitnessStack(witnessData: Uint8Array): Uint8Array[] | null {
+  try {
+    if (witnessData.length < 1) return null;
+
+    const stackItemCount = witnessData[0];
+    if (stackItemCount === 0) return [];
+
+    const items: Uint8Array[] = [];
+    let offset = 1;
+
+    for (let i = 0; i < stackItemCount && offset < witnessData.length; i++) {
+      // For witness stack, we use simple byte length
+      const itemLength = witnessData[offset];
+      offset += 1;
+
+      if (offset + itemLength > witnessData.length) return null;
+
+      items.push(witnessData.slice(offset, offset + itemLength));
+      offset += itemLength;
+    }
+
+    return items;
+  } catch {
+    return null;
+  }
+}
+
+// Verify a BIP-322 signature
+export async function verifyBIP322Signature(
+  message: string,
+  signature: string,
+  address: string
+): Promise<boolean> {
+  try {
+    const addressType = getAddressType(address);
+    const messageHash = bip322MessageHash(message);
+
+    // Handle Taproot signatures
+    if (addressType === 'P2TR') {
+      if (!signature.startsWith('tr:')) {
+        return false;
+      }
+
+      const sigHex = signature.slice(3);
+      const parts = sigHex.split(':');
+
+      if (parts.length === 2) {
+        // Extended format with public key
+        if (parts[0].length !== 128 || parts[1].length !== 64) {
+          return false;
+        }
+
+        const sigBytes = hex.decode(parts[0]);
+        const providedPubKey = hex.decode(parts[1]);
+
+        // Verify signature with provided untweaked key
+        const isValid = secp256k1.schnorr.verify(sigBytes, messageHash, providedPubKey);
+
+        if (!isValid) return false;
+
+        // Verify the address matches
+        const p2tr = btc.p2tr(providedPubKey);
+        return p2tr.address === address;
+      }
+
+      return false;
+    }
+
+    // Handle other address types with witness data
+    let witnessData: Uint8Array;
+    try {
+      witnessData = base64.decode(signature);
+    } catch {
+      return false;
+    }
+
+    // For BIP-322 signatures we created, we have a specific format
+    // Try parsing as witness stack first
+    const witnessStack = parseWitnessStack(witnessData);
+    if (!witnessStack || witnessStack.length < 2) {
+      return false;
+    }
+
+    // Extract signature and public key
+    const sigDER = witnessStack[0];
+    const pubkey = witnessStack[1];
+
+    // Verify the public key matches the address
+    let derivedAddress: string;
+    let scriptPubKey: Uint8Array;
+
+    if (addressType === 'P2PKH') {
+      const p2pkh = btc.p2pkh(pubkey);
+      derivedAddress = p2pkh.address!;
+      scriptPubKey = p2pkh.script!;
+    } else if (addressType === 'P2WPKH') {
+      const p2wpkh = btc.p2wpkh(pubkey);
+      derivedAddress = p2wpkh.address!;
+      scriptPubKey = p2wpkh.script!;
+    } else if (addressType === 'P2SH') {
+      // Assume P2SH-P2WPKH
+      const p2wpkh = btc.p2wpkh(pubkey);
+      const p2sh = btc.p2sh(p2wpkh);
+      derivedAddress = p2sh.address!;
+      scriptPubKey = p2sh.script!;
+    } else {
+      return false;
+    }
+
+    // Check address matches first
+    if (derivedAddress.toLowerCase() !== address.toLowerCase()) {
+      console.error('Address mismatch:', {
+        derived: derivedAddress,
+        expected: address,
+        pubkey: hex.encode(pubkey)
+      });
+      return false;
+    }
+
+    // Parse DER signature - remove the sighash type byte if present
+    let sigBytes = sigDER;
+    if (sigBytes.length > 0 && sigBytes[sigBytes.length - 1] === 0x01) {
+      sigBytes = sigBytes.slice(0, -1);
+    }
+
+    const sig = parseDERSignature(sigBytes);
+    if (!sig) {
+      console.error('Failed to parse DER signature');
+      return false;
+    }
+
+    // Create the sighash based on address type
+    let sighash: Uint8Array;
+
+    if (addressType === 'P2PKH') {
+      // Legacy sighash calculation
+      const toSpend = serializeToSpend(messageHash, scriptPubKey);
+      const toSpendTxId = hex.encode(sha256(sha256(toSpend)));
+      const toSign = serializeToSignUnsigned(toSpendTxId, scriptPubKey);
+
+      // Debug removed - verification working
+
+      sighash = calculateLegacySighashManual(toSign, 0, scriptPubKey, 0x01);
+    } else {
+      // Witness v0 sighash calculation (P2WPKH and P2SH-P2WPKH)
+      const toSpend = serializeToSpend(messageHash, scriptPubKey);
+      const toSpendTxId = hex.encode(sha256(sha256(toSpend)));
+
+      // Calculate proper scriptCode for witness
+      let scriptCode: Uint8Array;
+      if (addressType === 'P2WPKH') {
+        // For P2WPKH, scriptCode is P2PKH-style
+        const pubkeyHash = btc.p2wpkh(pubkey).hash;
+        scriptCode = btc.Script.encode(['DUP', 'HASH160', pubkeyHash, 'EQUALVERIFY', 'CHECKSIG']);
+        // Debug removed - verification working
+      } else {
+        // For P2SH-P2WPKH, also P2PKH-style
+        const pubkeyHash = btc.p2wpkh(pubkey).hash;
+        scriptCode = btc.Script.encode(['DUP', 'HASH160', pubkeyHash, 'EQUALVERIFY', 'CHECKSIG']);
+      }
+
+      sighash = calculateWitnessV0SighashManual(toSpendTxId, scriptCode, 0n, 0x01);
+    }
+
+    // Implement proper cryptographic verification
+    try {
+      // Parse the DER signature and convert to 64-byte format for verification
+      const signature64 = parseDERSignature(sigBytes);
+      if (!signature64) {
+        console.error('Failed to parse DER signature for verification');
+        return false;
+      }
+
+      // Verify the signature using the calculated sighash
+      const isValidSignature = secp256k1.verify(signature64, sighash, pubkey);
+
+      if (!isValidSignature) {
+        return false;
+      }
+      return true; // Full cryptographic verification passed
+    } catch (error) {
+      console.error('BIP-322 cryptographic verification error:', error);
+      return false;
+    }
+  } catch (error) {
+    console.error('BIP-322 verification failed:', error);
+    return false;
+  }
 }
 
 /**
- * Universal BIP-322 signing function
+ * Parse DER-encoded signature
  */
+function parseDERSignature(der: Uint8Array): Uint8Array | null {
+  try {
+    // Basic DER structure validation
+    if (der[0] !== 0x30) return null;
+
+    let offset = 2;
+
+    // Parse r
+    if (der[offset] !== 0x02) return null;
+    const rLen = der[offset + 1];
+    const r = der.slice(offset + 2, offset + 2 + rLen);
+    offset += 2 + rLen;
+
+    // Parse s
+    if (der[offset] !== 0x02) return null;
+    const sLen = der[offset + 1];
+    const s = der.slice(offset + 2, offset + 2 + sLen);
+
+    // Remove padding and ensure 32 bytes
+    const rBytes = r[0] === 0 ? r.slice(1) : r;
+    const sBytes = s[0] === 0 ? s.slice(1) : s;
+
+    // Pad to 32 bytes if needed
+    const signature = new Uint8Array(64);
+    signature.set(rBytes, 32 - rBytes.length);
+    signature.set(sBytes, 64 - sBytes.length);
+
+    return signature;
+  } catch {
+    return null;
+  }
+}
+
+// Compatibility exports
+export { serializeToSpend as createToSpendTransaction };
+export { serializeToSignUnsigned as createToSignTransaction };
+
+// Import AddressFormat for compatibility
+import { AddressFormat } from './address';
+
+// Universal BIP-322 signing function
 export async function signBIP322Universal(
   message: string,
   privateKey: Uint8Array,
@@ -638,95 +816,25 @@ export async function signBIP322Universal(
   }
 }
 
-/**
- * Sign a message using BIP-322 for Taproot addresses (legacy name for compatibility)
- * Creates a valid BIP-322 signature
- */
+// Legacy compatibility function
 export async function signBIP322(
   message: string,
   privateKey: Uint8Array,
   address: string
 ): Promise<string> {
-  try {
-    // Validate Taproot address
-    if (!address.startsWith('bc1p') && !address.startsWith('tb1p')) {
-      throw new Error('BIP-322 signing requires a Taproot address');
-    }
-
-    return await signBIP322P2TR(message, privateKey);
-  } catch (error) {
-    console.error('BIP-322 signing failed:', error);
-    throw error;
-  }
+  return await signBIP322P2TR(message, privateKey);
 }
 
-/**
- * Simple format BIP-322 signature verification
- * This is a simplified version that doesn't create full virtual transactions
- */
+// Simple verification (just delegates to main)
 export async function verifySimpleBIP322(
   message: string,
   signature: string,
   address: string
 ): Promise<boolean> {
-  try {
-    // Validate address format
-    if (!address.startsWith('bc1p') && !address.startsWith('tb1p')) {
-      return false;
-    }
-
-    // Decode address to get the public key
-    const network = address.startsWith('bc1') ? btc.NETWORK : btc.TEST_NETWORK;
-    const decoded = btc.Address(network).decode(address);
-
-    if (!decoded || decoded.type !== 'tr') {
-      return false;
-    }
-
-    // Parse signature
-    let sigBytes: Uint8Array;
-    if (signature.startsWith('tr:')) {
-      const sigHex = signature.slice(3);
-      if (sigHex.length !== 128) {
-        return false;
-      }
-      sigBytes = hex.decode(sigHex);
-    } else {
-      return false;
-    }
-
-    // Create BIP-322 message hash
-    const messageHash = bip322MessageHash(message);
-
-    // For simple verification, we check if the signature is valid
-    // against the message hash using the public key from the address
-    // The public key from the address is already x-only (32 bytes)
-    const publicKey = decoded.pubkey;
-
-    // Ensure public key is 32 bytes (x-only)
-    if (publicKey.length !== 32) {
-      console.error(`Invalid public key length: ${publicKey.length}, expected 32`);
-      return false;
-    }
-
-    // Verify Schnorr signature
-    const isValid = secp256k1.schnorr.verify(
-      sigBytes,
-      messageHash,
-      publicKey
-    );
-
-    return isValid;
-  } catch (error) {
-    console.error('Simple BIP-322 verification failed:', error);
-    return false;
-  }
+  return verifyBIP322Signature(message, signature, address);
 }
 
-/**
- * Format a signature for BIP-322 Taproot addresses
- * Converts a raw Schnorr signature to the "tr:" prefixed format
- */
+// Format functions
 export function formatTaprootSignature(signature: Uint8Array): string {
   if (signature.length !== 64) {
     throw new Error('Invalid Schnorr signature length');
@@ -734,9 +842,6 @@ export function formatTaprootSignature(signature: Uint8Array): string {
   return 'tr:' + hex.encode(signature);
 }
 
-/**
- * Format a Schnorr signature with public key for BIP-322 Taproot (extended format)
- */
 export function formatTaprootSignatureExtended(signature: Uint8Array, publicKey: Uint8Array): string {
   if (signature.length !== 64) {
     throw new Error('Invalid Schnorr signature length');
@@ -747,51 +852,34 @@ export function formatTaprootSignatureExtended(signature: Uint8Array, publicKey:
   return 'tr:' + hex.encode(signature) + ':' + hex.encode(publicKey);
 }
 
-/**
- * Parse a BIP-322 signature
- */
+// Parse signature
 export async function parseBIP322Signature(signature: string): Promise<{
   type: 'taproot' | 'legacy' | 'segwit' | 'unknown';
   data: Uint8Array;
 } | null> {
   try {
     if (signature.startsWith('tr:')) {
-      // Taproot signature
       const sigData = signature.slice(3);
-
-      // Check for extended format (signature:pubkey)
       const parts = sigData.split(':');
       if (parts.length === 2 && parts[0].length === 128 && parts[1].length === 64) {
-        // Extended format - return just the signature part
-        return {
-          type: 'taproot',
-          data: hex.decode(parts[0]),
-        };
+        return { type: 'taproot', data: hex.decode(parts[0]) };
       } else if (sigData.length === 128) {
-        // Simple format
-        return {
-          type: 'taproot',
-          data: hex.decode(sigData),
-        };
-      } else {
-        return null;
+        return { type: 'taproot', data: hex.decode(sigData) };
       }
+      return null;
     }
 
-    // Could be base64 encoded legacy/segwit signature
-    // Try to decode as base64
     try {
-      const { base64 } = await import('@scure/base');
       const decoded = base64.decode(signature);
-
       if (decoded.length === 65) {
-        // Classic signature with recovery flag
         const flag = decoded[0];
         if (flag >= 27 && flag <= 34) {
           return { type: 'legacy', data: decoded };
         } else if (flag >= 35 && flag <= 42) {
           return { type: 'segwit', data: decoded };
         }
+      } else if (decoded.length > 3 && decoded[0] >= 2) {
+        return { type: 'segwit', data: decoded };
       }
     } catch {
       // Not base64
@@ -803,29 +891,7 @@ export async function parseBIP322Signature(signature: string): Promise<{
   }
 }
 
-/**
- * Check if an address supports BIP-322
- */
+// Check if address supports BIP-322
 export function supportsBIP322(address: string): boolean {
-  // Taproot addresses always support BIP-322
-  if (address.startsWith('bc1p') || address.startsWith('tb1p')) {
-    return true;
-  }
-
-  // P2WPKH (native segwit) can support BIP-322
-  if (address.startsWith('bc1q') || address.startsWith('tb1q')) {
-    return true;
-  }
-
-  // P2SH could support it if it's P2SH-P2WPKH
-  if (address.startsWith('3') || address.startsWith('2')) {
-    return true;
-  }
-
-  // Legacy P2PKH uses traditional signing but can be wrapped in BIP-322 format
-  if (address.startsWith('1') || address.startsWith('m') || address.startsWith('n')) {
-    return true;
-  }
-
-  return false;
+  return true; // All our address types support BIP-322
 }
