@@ -18,7 +18,7 @@ import { transactionRateLimiter } from '@/utils/provider/rateLimiter';
 import { withReplayPrevention, recordTransaction, markTransactionBroadcasted } from '@/utils/security/replayPrevention';
 import { composeTransaction } from '@/utils/blockchain/counterparty/compose';
 import type { OrderOptions, SendOptions, DispenserOptions, DividendOptions, IssuanceOptions } from '@/utils/blockchain/counterparty/compose';
-import { analytics } from '#analytics';
+import { analytics } from '@/utils/fathom';
 
 export interface TransactionComposition {
   rawtransaction: string;

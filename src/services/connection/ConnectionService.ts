@@ -15,7 +15,7 @@ import { getWalletService } from '@/services/walletService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { connectionRateLimiter } from '@/utils/provider/rateLimiter';
 import { analyzeCSP } from '@/utils/security/cspValidation';
-import { analytics } from '#analytics';
+import { analytics } from '@/utils/fathom';
 import { approvalQueue } from '@/utils/provider/approvalQueue';
 import type { Address, Wallet } from '@/utils/wallet';
 

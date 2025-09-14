@@ -14,7 +14,7 @@ import { RequestManager } from '@/services/core/RequestManager';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { approvalQueue, getApprovalBadgeText } from '@/utils/provider/approvalQueue';
 import type { ApprovalRequest } from '@/utils/provider/approvalQueue';
-import { analytics } from '#analytics';
+import { analytics } from '@/utils/fathom';
 
 export interface ApprovalRequestOptions {
   id: string;
