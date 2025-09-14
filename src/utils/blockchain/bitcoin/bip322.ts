@@ -893,5 +893,23 @@ export async function parseBIP322Signature(signature: string): Promise<{
 
 // Check if address supports BIP-322
 export function supportsBIP322(address: string): boolean {
-  return true; // All our address types support BIP-322
+  if (!address) return false;
+
+  try {
+    // Only support mainnet addresses
+    const decoded = btc.Address(btc.NETWORK).decode(address);
+
+    // Check if it's one of our supported types
+    if (decoded.type === 'pkh' || // P2PKH (legacy)
+        decoded.type === 'sh' ||  // P2SH
+        decoded.type === 'wpkh' || // P2WPKH (native segwit)
+        decoded.type === 'tr') {   // P2TR (taproot)
+      return true;
+    }
+
+    return false;
+  } catch {
+    // Invalid address format or not mainnet
+    return false;
+  }
 }
