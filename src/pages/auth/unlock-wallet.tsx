@@ -9,7 +9,7 @@ import { useWallet } from "@/contexts/wallet-context";
 
 const UnlockWallet = () => {
   const navigate = useNavigate();
-  const { unlockWallet, wallets } = useWallet();
+  const { unlockWallet, wallets, activeWallet } = useWallet();
   const { setHeaderProps } = useHeader();
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -41,9 +41,11 @@ const UnlockWallet = () => {
       if (!wallets.length) {
         throw new Error("No wallets found. Please create or import a wallet first.");
       }
-      
-      const walletId = wallets[0].id;
-      await unlockWallet(walletId, password);
+
+      // Unlock the previously active wallet if it exists, otherwise the first wallet
+      // This preserves the user's last active wallet selection after session timeout
+      const walletToUnlock = activeWallet || wallets[0];
+      await unlockWallet(walletToUnlock.id, password);
       navigate(PATHS.SUCCESS);
     } catch (err) {
       console.error("Error unlocking wallet:", err);
