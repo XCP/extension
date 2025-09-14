@@ -60,20 +60,14 @@ function recoverPublicKey(
 }
 
 /**
- * Verify a signed message with full validation
+ * Verify using legacy BIP-137 format
  */
-export async function verifyMessage(
+async function verifyLegacyFormat(
   message: string,
   signature: string,
   address: string
 ): Promise<boolean> {
   try {
-    // Handle Taproot signatures with BIP-322 verification
-    if (signature.startsWith('tr:')) {
-      // Use full BIP-322 verification for Taproot addresses
-      return await verifyBIP322Signature(message, signature, address);
-    }
-    
     // Decode base64 signature
     let sigBytes: Uint8Array;
     try {
@@ -81,23 +75,23 @@ export async function verifyMessage(
     } catch {
       return false;
     }
-    
+
     // Signature must be 65 bytes (flag + r + s)
     if (sigBytes.length !== 65) {
       return false;
     }
-    
+
     // Extract recovery flag and signature components
     const flag = sigBytes[0];
-    
+
     // Format and hash the message
     const formattedMessage = formatMessageForSigning(message);
     const messageHash = sha256(sha256(formattedMessage));
-    
+
     // Determine recovery id and compression from flag
     let recoveryId: number;
     let compressed: boolean;
-    
+
     if (flag >= 27 && flag <= 30) {
       // P2PKH uncompressed
       recoveryId = flag - 27;
@@ -117,21 +111,19 @@ export async function verifyMessage(
     } else {
       return false;
     }
-    
+
     // Recover public key
     const publicKey = recoverPublicKey(messageHash, sigBytes, recoveryId);
     if (!publicKey) {
       return false;
     }
-    
+
     // Derive address from recovered public key based on flag
     let derivedAddress: string;
-    
+
     if (flag >= 27 && flag <= 34) {
       // P2PKH
-      // Use the recovered public key directly
-      const pubKeyToUse = publicKey;
-      derivedAddress = btc.p2pkh(pubKeyToUse).address!;
+      derivedAddress = btc.p2pkh(publicKey).address!;
     } else if (flag >= 35 && flag <= 38) {
       // P2SH-P2WPKH
       const p2wpkh = btc.p2wpkh(publicKey);
@@ -142,12 +134,110 @@ export async function verifyMessage(
     } else {
       return false;
     }
-    
+
     // Compare addresses (case-insensitive for compatibility)
     return derivedAddress.toLowerCase() === address.toLowerCase();
   } catch (error) {
-    console.error('Message verification failed:', error);
     return false;
+  }
+}
+
+/**
+ * Determine if an address is P2PKH
+ */
+function isP2PKH(address: string): boolean {
+  return address.startsWith('1') || address.startsWith('m') || address.startsWith('n');
+}
+
+/**
+ * Determine if an address is P2WPKH
+ */
+function isP2WPKH(address: string): boolean {
+  if (!address.startsWith('bc1q') && !address.startsWith('tb1q')) {
+    return false;
+  }
+  // P2WPKH addresses are shorter than P2WSH
+  return address.length === 42 || address.length === 62; // mainnet or testnet
+}
+
+/**
+ * Determine if an address is P2SH
+ */
+function isP2SH(address: string): boolean {
+  return address.startsWith('3') || address.startsWith('2');
+}
+
+/**
+ * Verify a signed message with full validation
+ * Implements fallback chain: BIP-322 → BIP-137 → Legacy
+ */
+export async function verifyMessage(
+  message: string,
+  signature: string,
+  address: string
+): Promise<boolean> {
+  const result = await verifyMessageWithMethod(message, signature, address);
+  return result.valid;
+}
+
+/**
+ * Verify a signed message and return the method used
+ */
+export async function verifyMessageWithMethod(
+  message: string,
+  signature: string,
+  address: string
+): Promise<{ valid: boolean; method?: string }> {
+  try {
+    // Import BIP-322 verification functions
+    const { verifyBIP322Signature, getAddressType } = await import('./bip322');
+
+    // 1. Try BIP-322 verification first (works for all address types)
+    try {
+      const isValid = await verifyBIP322Signature(message, signature, address);
+      if (isValid) {
+        const addressType = getAddressType(address);
+        if (addressType === 'P2TR') {
+          return { valid: true, method: 'BIP-322 (Taproot/Schnorr)' };
+        } else if (addressType === 'P2WPKH') {
+          return { valid: true, method: 'BIP-322 (Native SegWit)' };
+        } else if (addressType === 'P2SH') {
+          return { valid: true, method: 'BIP-322 (Nested SegWit)' };
+        } else {
+          return { valid: true, method: 'BIP-322' };
+        }
+      }
+    } catch (e) {
+      // BIP-322 verification failed, continue to fallback
+      console.debug('BIP-322 verification failed, trying fallback:', e);
+    }
+
+    // 2. Try BIP-137/Legacy format as fallback
+    const addressType = getAddressType(address);
+
+    // BIP-137/Legacy only works for certain address types
+    if (addressType === 'P2PKH' || addressType === 'P2WPKH' || addressType === 'P2SH') {
+      try {
+        const isValid = await verifyLegacyFormat(message, signature, address);
+        if (isValid) {
+          if (addressType === 'P2WPKH') {
+            return { valid: true, method: 'BIP-137 (Native SegWit)' };
+          } else if (addressType === 'P2SH') {
+            return { valid: true, method: 'BIP-137 (Nested SegWit)' };
+          } else {
+            return { valid: true, method: 'BIP-137/Legacy' };
+          }
+        }
+      } catch (e) {
+        console.debug('BIP-137/Legacy verification failed:', e);
+      }
+    }
+
+    // 3. If all verification methods fail
+    return { valid: false };
+  } catch (error) {
+    console.error('Message verification failed:', error);
+    return { valid: false };
   }
 }
 
@@ -221,7 +311,7 @@ export async function parseSignature(signature: string): Promise<{
       const sigHex = hex.encode(bip322Parsed.data);
       return {
         valid: true,
-        type: 'Taproot (BIP-322)',
+        type: 'Taproot',
         r: sigHex.slice(0, 64),
         s: sigHex.slice(64, 128)
       };

@@ -254,31 +254,31 @@ describe('messageSign', () => {
     it('should return capabilities for P2PKH', () => {
       const caps = getSigningCapabilities(AddressFormat.P2PKH);
       expect(caps.canSign).toBe(true);
-      expect(caps.method).toContain('BIP-137');
+      expect(caps.method).toContain('BIP-322');
     });
 
     it('should return capabilities for P2WPKH', () => {
       const caps = getSigningCapabilities(AddressFormat.P2WPKH);
       expect(caps.canSign).toBe(true);
-      expect(caps.method).toContain('SegWit');
+      expect(caps.method).toContain('BIP-322');
     });
 
     it('should return capabilities for P2SH-P2WPKH', () => {
       const caps = getSigningCapabilities(AddressFormat.P2SH_P2WPKH);
       expect(caps.canSign).toBe(true);
-      expect(caps.method).toContain('SegWit');
+      expect(caps.method).toContain('BIP-322');
     });
 
     it('should return capabilities for P2TR', () => {
       const caps = getSigningCapabilities(AddressFormat.P2TR);
       expect(caps.canSign).toBe(true);
-      expect(caps.method).toContain('Taproot');
+      expect(caps.method).toContain('BIP-322');
     });
 
     it('should return capabilities for Counterwallet', () => {
       const caps = getSigningCapabilities(AddressFormat.Counterwallet);
       expect(caps.canSign).toBe(true);
-      expect(caps.method).toContain('BIP-137');
+      expect(caps.method).toContain('BIP-322');
     });
 
     it('should handle case variations', () => {
