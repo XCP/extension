@@ -141,7 +141,7 @@ describe('messageVerifier', () => {
         true
       );
       
-      const parsed = parseSignature(signature);
+      const parsed = await parseSignature(signature);
       expect(parsed.valid).toBe(true);
       expect(parsed.type).toContain('P2PKH');
       expect(parsed.flag).toBeDefined();
@@ -157,20 +157,20 @@ describe('messageVerifier', () => {
         true
       );
       
-      const parsed = parseSignature(signature);
+      const parsed = await parseSignature(signature);
       expect(parsed.valid).toBe(true);
       expect(parsed.type).toBe('Taproot');
       expect(parsed.r).toBeDefined();
       expect(parsed.s).toBeDefined();
     });
 
-    it('should reject invalid signatures', () => {
-      const parsed = parseSignature('invalid');
+    it('should reject invalid signatures', async () => {
+      const parsed = await parseSignature('invalid');
       expect(parsed.valid).toBe(false);
     });
 
-    it('should reject signatures with wrong length', () => {
-      const parsed = parseSignature('AAAA'); // Too short base64
+    it('should reject signatures with wrong length', async () => {
+      const parsed = await parseSignature('AAAA'); // Too short base64
       expect(parsed.valid).toBe(false);
     });
   });

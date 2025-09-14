@@ -6,6 +6,7 @@ export * from './consolidateBatch';
 export * from './feeRate';
 export * from './messageSigner';
 export * from './messageVerifier';
+export * from './bip322';
 export * from './multisigSigner';
 export * from './price';
 export * from './privateKey';

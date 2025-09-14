@@ -10,6 +10,7 @@ import * as btc from '@scure/btc-signer';
 import { hex, base64 } from '@scure/base';
 import * as secp256k1 from '@noble/secp256k1';
 import { formatMessageForSigning } from '@/utils/blockchain/bitcoin/messageSigner';
+import { verifyBIP322Signature, verifySimpleBIP322, parseBIP322Signature } from '@/utils/blockchain/bitcoin/bip322';
 
 // Required initialization for @noble/secp256k1 v3
 import { hashes } from '@noble/secp256k1';
@@ -67,20 +68,10 @@ export async function verifyMessage(
   address: string
 ): Promise<boolean> {
   try {
-    // Handle Taproot signatures differently (simplified verification)
+    // Handle Taproot signatures with BIP-322 verification
     if (signature.startsWith('tr:')) {
-      // For Taproot, we'd need BIP-322 verification
-      // This is a simplified check for now
-      const sigHex = signature.slice(3);
-      if (sigHex.length !== 128) return false;
-      
-      // Check if address is Taproot
-      if (!address.startsWith('bc1p') && !address.startsWith('tb1p')) {
-        return false;
-      }
-      
-      // TODO: Implement full BIP-322 verification
-      return true;
+      // Use full BIP-322 verification for Taproot addresses
+      return await verifyBIP322Signature(message, signature, address);
     }
     
     // Decode base64 signature
@@ -161,38 +152,39 @@ export async function verifyMessage(
 }
 
 /**
- * Verify a Taproot signature (simplified version)
- * Full BIP-322 verification would be more complex
+ * Verify a Taproot signature using BIP-322
+ * This implements full BIP-322 verification for Taproot addresses
  */
 export async function verifyTaprootSignature(
   message: string,
   signature: string,
   address: string
 ): Promise<boolean> {
-  // This is a placeholder for full BIP-322 verification
-  // For now, we just do basic format validation
-  
+  // Validate signature format
   if (!signature.startsWith('tr:')) {
     return false;
   }
-  
-  const sigHex = signature.slice(3);
-  if (sigHex.length !== 128) {
-    return false;
-  }
-  
+
   // Check if address is a valid Taproot address
   if (!address.startsWith('bc1p') && !address.startsWith('tb1p')) {
     return false;
   }
-  
-  // TODO: Implement full BIP-322 verification
-  // This would involve:
-  // 1. Creating a virtual transaction
-  // 2. Verifying the Schnorr signature
-  // 3. Checking the signature against the address
-  
-  return true;
+
+  // Use the full BIP-322 verification implementation
+  try {
+    // Try full BIP-322 verification first
+    const isValid = await verifyBIP322Signature(message, signature, address);
+
+    if (!isValid) {
+      // Fall back to simple BIP-322 verification as some wallets may use simplified format
+      return await verifySimpleBIP322(message, signature, address);
+    }
+
+    return isValid;
+  } catch (error) {
+    console.error('Taproot signature verification failed:', error);
+    return false;
+  }
 }
 
 /**
@@ -214,13 +206,47 @@ export function getAddressTypeFromFlag(flag: number): string | null {
 /**
  * Parse a signature to extract its components
  */
-export function parseSignature(signature: string): {
+export async function parseSignature(signature: string): Promise<{
   valid: boolean;
   type?: string;
   flag?: number;
   r?: string;
   s?: string;
-} {
+}> {
+  // Try BIP-322 parser first
+  const bip322Parsed = await parseBIP322Signature(signature);
+  if (bip322Parsed) {
+    if (bip322Parsed.type === 'taproot') {
+      // Taproot Schnorr signature (64 bytes)
+      const sigHex = hex.encode(bip322Parsed.data);
+      return {
+        valid: true,
+        type: 'Taproot (BIP-322)',
+        r: sigHex.slice(0, 64),
+        s: sigHex.slice(64, 128)
+      };
+    } else if (bip322Parsed.type === 'legacy' || bip322Parsed.type === 'segwit') {
+      // Classic signature format
+      const flag = bip322Parsed.data[0];
+      const r = hex.encode(bip322Parsed.data.slice(1, 33));
+      const s = hex.encode(bip322Parsed.data.slice(33, 65));
+
+      const addressType = getAddressTypeFromFlag(flag);
+      if (!addressType) {
+        return { valid: false };
+      }
+
+      return {
+        valid: true,
+        type: addressType,
+        flag,
+        r,
+        s
+      };
+    }
+  }
+
+  // Fallback to manual parsing if BIP-322 parser doesn't recognize it
   // Handle Taproot signatures
   if (signature.startsWith('tr:')) {
     const sigHex = signature.slice(3);
@@ -234,24 +260,24 @@ export function parseSignature(signature: string): {
     }
     return { valid: false };
   }
-  
+
   // Try to decode as base64
   try {
     const sigBytes = base64.decode(signature);
-    
+
     if (sigBytes.length !== 65) {
       return { valid: false };
     }
-    
+
     const flag = sigBytes[0];
     const r = hex.encode(sigBytes.slice(1, 33));
     const s = hex.encode(sigBytes.slice(33, 65));
-    
+
     const addressType = getAddressTypeFromFlag(flag);
     if (!addressType) {
       return { valid: false };
     }
-    
+
     return {
       valid: true,
       type: addressType,
