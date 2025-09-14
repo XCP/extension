@@ -5,7 +5,7 @@ import removeConsole from 'vite-plugin-remove-console';
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   srcDir: 'src',
-  modules: ['@wxt-dev/module-react', '@wxt-dev/analytics/module'],
+  modules: ['@wxt-dev/module-react'],
   manifest: {
     name: "XCP Wallet",
     web_accessible_resources: [

@@ -43,11 +43,12 @@ vi.mock('@/services/eventEmitterService', () => ({
   },
 }));
 
-// Mock analytics
-vi.mock('#analytics', () => ({
+// Mock fathom analytics
+vi.mock('@/utils/fathom', () => ({
+  sanitizePath: vi.fn((path: string) => path),
   analytics: {
-    track: vi.fn(),
-    page: vi.fn(),
+    track: vi.fn().mockResolvedValue(undefined),
+    page: vi.fn().mockResolvedValue(undefined),
   },
 }));
 

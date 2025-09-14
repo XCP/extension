@@ -5,7 +5,7 @@ import { Layout } from '@/components/layout';
 import { useWallet } from '@/contexts/wallet-context';
 import { AuthRequired } from '@/components/router/auth-required';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { analytics } from '#analytics';
+import { analytics } from '@/utils/fathom';
 import { sanitizePath } from '@/utils/fathom';
 
 // Auth

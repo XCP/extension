@@ -18,7 +18,7 @@ import { getTransactionService } from '@/services/transaction';
 import { getBlockchainService } from '@/services/blockchain';
 import type { ApprovalRequest } from '@/utils/provider/approvalQueue';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
-import { analytics } from '#analytics';
+import { analytics } from '@/utils/fathom';
 import { analyzeCSP } from '@/utils/security/cspValidation';
 
 export interface ProviderService {
