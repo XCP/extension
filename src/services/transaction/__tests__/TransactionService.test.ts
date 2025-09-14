@@ -24,13 +24,9 @@ vi.mock('@/utils/fathom', () => ({
     name: 'fathom',
     setup: vi.fn(),
   })),
-}));
-
-// Mock analytics
-vi.mock('#analytics', () => ({
   analytics: {
-    track: vi.fn(),
-    page: vi.fn(),
+    track: vi.fn().mockResolvedValue(undefined),
+    page: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
