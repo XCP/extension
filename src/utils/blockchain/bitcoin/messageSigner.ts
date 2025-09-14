@@ -202,6 +202,9 @@ export async function signMessageTaproot(
 /**
  * Main message signing function that handles all address types
  * Uses BIP-322 exclusively for all address types
+ *
+ * Note: This function returns an address for backward compatibility with tests,
+ * but real usage should use the actual wallet address
  */
 export async function signMessage(
   message: string,
@@ -220,37 +223,39 @@ export async function signMessage(
     signBIP322P2TR,
   } = await import('./bip322');
 
+  // Import address encoding for test compatibility
+  const { encodeAddress } = await import('./address');
+
   // Use BIP-322 exclusively for all address types
   let signature: string;
-  let address: string;
+  let address: string = '';
 
   switch (addressFormat) {
     case AddressFormat.P2PKH:
     case AddressFormat.Counterwallet:
       // Use BIP-322 for P2PKH
       signature = await signBIP322P2PKH(message, privateKey, compressed);
-      address = btc.p2pkh(publicKey).address!;
+      // Generate address for test compatibility
+      address = encodeAddress(publicKey, AddressFormat.P2PKH);
       break;
 
     case AddressFormat.P2WPKH:
       // Use BIP-322 for P2WPKH
       signature = await signBIP322P2WPKH(message, privateKey);
-      address = btc.p2wpkh(publicKey).address!;
+      address = encodeAddress(publicKey, AddressFormat.P2WPKH);
       break;
 
     case AddressFormat.P2SH_P2WPKH:
       // Use BIP-322 for P2SH-P2WPKH
       signature = await signBIP322P2SH_P2WPKH(message, privateKey);
-      const p2wpkh = btc.p2wpkh(publicKey);
-      address = btc.p2sh(p2wpkh).address!;
+      address = encodeAddress(publicKey, AddressFormat.P2SH_P2WPKH);
       break;
 
     case AddressFormat.P2TR:
       // Use BIP-322 for Taproot (Schnorr signatures)
       signature = await signBIP322P2TR(message, privateKey);
-      const xOnlyPubKey = publicKey.slice(1, 33);
-      // Use mainnet by default, tests should override if needed
-      address = btc.p2tr(xOnlyPubKey, undefined, btc.NETWORK).address!;
+      // For Taproot, use the same raw encoding as the wallet
+      address = encodeAddress(publicKey, AddressFormat.P2TR);
       break;
 
     default:

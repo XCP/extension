@@ -195,16 +195,28 @@ export async function verifyBIP322Signature(
 
       const tweakedPubKeyFromAddress = decoded.pubkey;
 
-      // If public key was provided, verify it matches the address when tweaked
+      // If public key was provided, verify it matches the address
       if (providedPubKey) {
-        // Tweak the provided public key and compare with address
+        // Best practice: assume BIP341 tweaking first (standard)
         const tweakedKey = btc.p2tr(providedPubKey, undefined, network);
-        if (tweakedKey.address !== address) {
-          return false;
+        if (tweakedKey.address === address) {
+          // Address was created with BIP341 tweaking (best practice)
+          // Verify with the untweaked key
+          return secp256k1.schnorr.verify(sigBytes, messageHash, providedPubKey);
         }
 
-        // Verify signature with the untweaked public key
-        return secp256k1.schnorr.verify(sigBytes, messageHash, providedPubKey);
+        // Fallback: check if the address was created without tweaking (raw x-only encoding)
+        // This is for backwards compatibility with older implementations
+        const decoded = btc.Address(network).decode(address);
+        if (decoded && decoded.type === 'tr' && decoded.pubkey) {
+          // Compare the raw x-only public keys
+          if (Buffer.from(decoded.pubkey).equals(Buffer.from(providedPubKey))) {
+            // Address uses raw encoding (legacy), verify with the provided key directly
+            return secp256k1.schnorr.verify(sigBytes, messageHash, providedPubKey);
+          }
+        }
+
+        return false;
       }
 
       // Without the untweaked public key, we cannot properly verify
@@ -740,14 +752,25 @@ export async function parseBIP322Signature(signature: string): Promise<{
   try {
     if (signature.startsWith('tr:')) {
       // Taproot signature
-      const sigHex = signature.slice(3);
-      if (sigHex.length !== 128) {
+      const sigData = signature.slice(3);
+
+      // Check for extended format (signature:pubkey)
+      const parts = sigData.split(':');
+      if (parts.length === 2 && parts[0].length === 128 && parts[1].length === 64) {
+        // Extended format - return just the signature part
+        return {
+          type: 'taproot',
+          data: hex.decode(parts[0]),
+        };
+      } else if (sigData.length === 128) {
+        // Simple format
+        return {
+          type: 'taproot',
+          data: hex.decode(sigData),
+        };
+      } else {
         return null;
       }
-      return {
-        type: 'taproot',
-        data: hex.decode(sigHex),
-      };
     }
 
     // Could be base64 encoded legacy/segwit signature

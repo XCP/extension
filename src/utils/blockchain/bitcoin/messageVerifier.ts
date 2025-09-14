@@ -339,13 +339,25 @@ export async function parseSignature(signature: string): Promise<{
   // Fallback to manual parsing if BIP-322 parser doesn't recognize it
   // Handle Taproot signatures
   if (signature.startsWith('tr:')) {
-    const sigHex = signature.slice(3);
-    if (sigHex.length === 128) {
+    const sigData = signature.slice(3);
+
+    // Check for extended format (signature:pubkey)
+    const parts = sigData.split(':');
+    if (parts.length === 2 && parts[0].length === 128 && parts[1].length === 64) {
+      // Extended format with public key
       return {
         valid: true,
         type: 'Taproot',
-        r: sigHex.slice(0, 64),
-        s: sigHex.slice(64, 128)
+        r: parts[0].slice(0, 64),
+        s: parts[0].slice(64, 128)
+      };
+    } else if (sigData.length === 128) {
+      // Simple format
+      return {
+        valid: true,
+        type: 'Taproot',
+        r: sigData.slice(0, 64),
+        s: sigData.slice(64, 128)
       };
     }
     return { valid: false };
