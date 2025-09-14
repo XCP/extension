@@ -133,7 +133,9 @@ export function TextAreaInput({
         className={`block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 resize-none ${
           !isValid
             ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-            : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+            : className && className.includes('border-')
+              ? "focus:ring-blue-500"
+              : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
         } ${label ? "mt-1" : ""} ${
           disabled ? "bg-gray-100 cursor-not-allowed" : ""
         } ${readOnly ? "bg-gray-100" : ""} ${autoResize ? "overflow-hidden" : ""} ${className}`}
