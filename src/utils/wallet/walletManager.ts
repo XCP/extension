@@ -235,8 +235,14 @@ export class WalletManager {
         wallet.addresses = [this.deriveAddressFromPrivateKey(privKeyData, wallet.addressFormat)];
         wallet.addressCount = 1;
       }
-      this.activeWalletId = walletId;
-      
+
+      // Don't override the active wallet when unlocking
+      // The active wallet should be preserved from settings (lastActiveWalletId)
+      // Only set it if there's no active wallet yet
+      if (!this.activeWalletId) {
+        this.activeWalletId = walletId;
+      }
+
       // Initialize session with timeout from settings
       const settings = await settingsManager.getSettings();
       const timeout = settings?.autoLockTimeout || 5 * 60 * 1000; // Default 5 minutes
