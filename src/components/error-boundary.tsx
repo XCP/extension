@@ -1,4 +1,4 @@
-import React, { Component, ReactNode, ErrorInfo } from 'react';
+import { Component, ReactNode, ErrorInfo, ComponentType } from 'react';
 import { BiError } from 'react-icons/bi';
 import { FiRefreshCw } from 'react-icons/fi';
 
@@ -91,7 +91,7 @@ export class ErrorBoundary extends Component<Props, State> {
  * Higher-order component to wrap any component with an error boundary
  */
 export function withErrorBoundary<P extends object>(
-  Component: React.ComponentType<P>,
+  Component: ComponentType<P>,
   errorBoundaryProps?: Omit<Props, 'children'>
 ) {
   const WrappedComponent = (props: P) => (

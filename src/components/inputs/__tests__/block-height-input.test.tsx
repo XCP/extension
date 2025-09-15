@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { BlockHeightInput } from '../block-height-input';
-import React from 'react';
 
 // Mock the useBlockHeight hook
 vi.mock('@/hooks/useBlockHeight', () => ({

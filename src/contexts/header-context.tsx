@@ -1,8 +1,9 @@
-import React, {
+import {
   createContext,
   useCallback,
   useMemo,
   useReducer,
+  use,
   type ReactElement,
   type ReactNode,
 } from "react";
@@ -309,7 +310,7 @@ export function HeaderProvider({ children }: HeaderProviderProps): ReactElement 
  * @throws {Error} If used outside HeaderProvider
  */
 export function useHeader(): HeaderContextType {
-  const context = React.use(HeaderContext);
+  const context = use(HeaderContext);
   if (!context) {
     throw new Error("useHeader must be used within a HeaderProvider component.");
   }

@@ -1,8 +1,9 @@
-import React, {
+import {
   createContext,
   useCallback,
   useEffect,
   useMemo,
+  use,
   useState,
   type ReactElement,
   type ReactNode,
@@ -87,7 +88,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
  * @throws {Error} If used outside SettingsProvider
  */
 export function useSettings(): SettingsContextValue {
-  const context = React.use(SettingsContext);
+  const context = use(SettingsContext);
   if (!context) {
     throw new Error("useSettings must be used within a SettingsProvider");
   }

@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect } from "react";
+import { forwardRef, useEffect, ChangeEvent } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { isValidBitcoinAddress, shouldTriggerAssetLookup } from "@/utils/validation";
 import { useAssetOwnerLookup } from "@/hooks/useAssetOwnerLookup";
@@ -45,7 +45,7 @@ export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputPro
       performLookup(value);
     }, [value, performLookup]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value.trim();
       onChange(newValue);
       

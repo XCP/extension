@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useState, useRef } from "react";
+import { forwardRef, useEffect, useState, useRef } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty";
 import { useWallet } from "@/contexts/wallet-context";

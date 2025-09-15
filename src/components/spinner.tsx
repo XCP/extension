@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo } from 'react';
 import { FaSpinner } from 'react-icons/fa';
 
 interface SpinnerProps {
@@ -34,7 +34,7 @@ const COLORS = {
  * - Memoized component to prevent unnecessary re-renders
  * - Better accessibility with role and aria-label
  */
-export const Spinner = React.memo<SpinnerProps>(({ 
+export const Spinner = memo<SpinnerProps>(({ 
   className = '', 
   message,
   size = 'lg',
