@@ -107,10 +107,16 @@ describe('counterparty/api.ts', () => {
 
   describe('fetchTokenBalances', () => {
     it('should return token balances array on valid response', async () => {
-      const mockData = { 
+      const mockData = {
         result: [mockTokenBalance],
       };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const balances = await fetchTokenBalances(mockAddress, { verbose: true });
 
@@ -129,7 +135,13 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should return empty array if response format is invalid', async () => {
-      mockedApiClient.get.mockResolvedValue({ data: { result: null } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: null },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const balances = await fetchTokenBalances(mockAddress);
 
@@ -138,14 +150,20 @@ describe('counterparty/api.ts', () => {
 
     it('should handle custom options correctly', async () => {
       const mockData = { result: [mockTokenBalance] };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       await fetchTokenBalances(mockAddress, {
         limit: 50,
         offset: 10,
         verbose: false,
         sort: 'asset',
-      });
+      } as any);
 
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         expect.any(String),
@@ -172,7 +190,13 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should return empty array for non-array result', async () => {
-      mockedApiClient.get.mockResolvedValue({ data: { result: 'invalid' } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: 'invalid' },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const balances = await fetchTokenBalances(mockAddress);
 
@@ -183,7 +207,13 @@ describe('counterparty/api.ts', () => {
   describe('fetchTokenBalance', () => {
     it('should return token balance for existing asset', async () => {
       const mockData = { result: [mockTokenBalance] };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const balance = await fetchTokenBalance(mockAddress, 'XCP');
 
@@ -197,7 +227,13 @@ describe('counterparty/api.ts', () => {
 
     it('should return zero balance for non-existent asset', async () => {
       const mockData = { result: [] };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const balance = await fetchTokenBalance(mockAddress, 'NONEXISTENT');
 
@@ -227,14 +263,20 @@ describe('counterparty/api.ts', () => {
         quantity: 25000000,
         quantity_normalized: '0.25000000',
       };
-      const mockData = { 
-        result: [mockBalanceWithUtxo, mockBalanceWithoutUtxo] 
+      const mockData = {
+        result: [mockBalanceWithUtxo, mockBalanceWithoutUtxo]
       };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const balance = await fetchTokenBalance(mockAddress, 'XCP', { 
         excludeUtxos: true 
-      });
+      } as any);
 
       expect(balance?.quantity).toBe(25000000);
       expect(balance?.quantity_normalized).toBe('0.25');
@@ -244,7 +286,13 @@ describe('counterparty/api.ts', () => {
       const balance1 = { ...mockTokenBalance, quantity: 50000000, quantity_normalized: '0.5' };
       const balance2 = { ...mockTokenBalance, quantity: 25000000, quantity_normalized: '0.25' };
       const mockData = { result: [balance1, balance2] };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const balance = await fetchTokenBalance(mockAddress, 'XCP');
 
@@ -264,7 +312,13 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should return null for missing result', async () => {
-      mockedApiClient.get.mockResolvedValue({ data: { result: null } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: null },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const balance = await fetchTokenBalance(mockAddress, 'XCP');
 
@@ -280,7 +334,13 @@ describe('counterparty/api.ts', () => {
         utxo_address: mockAddress,
       };
       const mockData = { result: [mockUtxoBalance] };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const utxos = await fetchTokenUtxos(mockAddress, 'XCP');
 
@@ -291,7 +351,13 @@ describe('counterparty/api.ts', () => {
       const mockBalanceWithUtxo = { ...mockTokenBalance, utxo: 'abc123:0' };
       const mockBalanceWithoutUtxo = { ...mockTokenBalance, utxo: null };
       const mockData = { result: [mockBalanceWithUtxo, mockBalanceWithoutUtxo] };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const utxos = await fetchTokenUtxos(mockAddress, 'XCP');
 
@@ -313,7 +379,13 @@ describe('counterparty/api.ts', () => {
   describe('fetchAssetDetails', () => {
     it('should return asset details for valid asset', async () => {
       const mockData = { result: mockAssetInfo };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const assetDetails = await fetchAssetDetails('XCP');
 
@@ -327,7 +399,13 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should return null for non-existent asset', async () => {
-      mockedApiClient.get.mockResolvedValue({ data: { result: null } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: null },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const assetDetails = await fetchAssetDetails('NONEXISTENT');
 
@@ -361,12 +439,24 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should fetch asset details and balance for non-BTC assets', async () => {
-      const mockAssetResponse = { data: { result: mockAssetInfo } };
+      const mockAssetResponse = {
+        data: { result: mockAssetInfo },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any;
       mockedApiClient.get.mockResolvedValueOnce(mockAssetResponse);
       
       // Mock fetchTokenBalance call within the function
       const mockBalance = { quantity_normalized: '100.00000000' };
-      const mockBalanceResponse = { data: { result: [mockBalance] } };
+      const mockBalanceResponse = {
+        data: { result: [mockBalance] },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any;
       mockedApiClient.get.mockResolvedValueOnce(mockBalanceResponse);
 
       const result = await fetchAssetDetailsAndBalance('XCP', mockAddress);
@@ -408,7 +498,13 @@ describe('counterparty/api.ts', () => {
         next_cursor: null,
         result_count: 1,
       };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchUtxoBalances('abc123:0');
 
@@ -426,14 +522,20 @@ describe('counterparty/api.ts', () => {
 
     it('should handle custom options', async () => {
       const mockData = { result: [], next_cursor: null, result_count: 0 };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       await fetchUtxoBalances('abc123:0', {
         cursor: 'next123',
         limit: 50,
         offset: 10,
         show_unconfirmed: true,
-      });
+      } as any);
 
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         expect.any(String),
@@ -471,7 +573,13 @@ describe('counterparty/api.ts', () => {
         result: [mockOrder],
         result_count: 1,
       };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchOrders(mockAddress);
 
@@ -489,14 +597,20 @@ describe('counterparty/api.ts', () => {
 
     it('should handle filter options', async () => {
       const mockData = { result: [mockOrder], result_count: 1 };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       await fetchOrders(mockAddress, {
         status: 'open',
         limit: 50,
         offset: 10,
         verbose: false,
-      });
+      } as any);
 
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         expect.any(String),
@@ -536,7 +650,13 @@ describe('counterparty/api.ts', () => {
         get_price: 100,
         confirmed: true,
       };
-      mockedApiClient.get.mockResolvedValue({ data: { result: mockOrderDetails } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: mockOrderDetails },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchOrder('abc123');
 
@@ -553,7 +673,13 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should return null for non-existent order', async () => {
-      mockedApiClient.get.mockResolvedValue({ data: { result: null } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: null },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchOrder('nonexistent');
 
@@ -561,12 +687,18 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should handle custom options', async () => {
-      mockedApiClient.get.mockResolvedValue({ data: { result: null } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: null },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       await fetchOrder('abc123', {
         verbose: false,
         showUnconfirmed: true,
-      });
+      } as any);
 
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         expect.any(String),
@@ -593,7 +725,13 @@ describe('counterparty/api.ts', () => {
 
   describe('fetchTransaction', () => {
     it('should fetch transaction successfully', async () => {
-      mockedApiClient.get.mockResolvedValue({ data: { result: mockTransaction } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: mockTransaction },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchTransaction('abc123');
 
@@ -610,7 +748,13 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should return null for non-existent transaction', async () => {
-      mockedApiClient.get.mockResolvedValue({ data: { result: null } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: null },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchTransaction('nonexistent');
 
@@ -633,7 +777,13 @@ describe('counterparty/api.ts', () => {
         result: [mockTransaction],
         result_count: 1,
       };
-      mockedApiClient.get.mockResolvedValue({ data: mockResponse });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchTransactions(mockAddress);
 
@@ -653,14 +803,20 @@ describe('counterparty/api.ts', () => {
 
     it('should handle custom options', async () => {
       const mockResponse = { result: [], result_count: 0 };
-      mockedApiClient.get.mockResolvedValue({ data: mockResponse });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       await fetchTransactions(mockAddress, {
         limit: 50,
         offset: 10,
         verbose: false,
         show_unconfirmed: false,
-      });
+      } as any);
 
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         expect.any(String),
@@ -706,7 +862,13 @@ describe('counterparty/api.ts', () => {
         result: [mockDispenser],
         result_count: 1,
       };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchAddressDispensers(mockAddress);
 
@@ -720,14 +882,20 @@ describe('counterparty/api.ts', () => {
 
     it('should handle filter options', async () => {
       const mockData = { result: [], result_count: 0 };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       await fetchAddressDispensers(mockAddress, {
         status: 'open',
         limit: 50,
         offset: 10,
         verbose: false,
-      });
+      } as any);
 
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         expect.any(String),
@@ -762,7 +930,13 @@ describe('counterparty/api.ts', () => {
         give_remaining: 1000000,
         give_remaining_normalized: '10.00000000',
       };
-      mockedApiClient.get.mockResolvedValue({ data: { result: mockDispenser } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: mockDispenser },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchDispenserByHash('abc123');
 
@@ -776,7 +950,13 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should return null for non-existent dispenser', async () => {
-      mockedApiClient.get.mockResolvedValue({ data: { result: null } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: null },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchDispenserByHash('nonexistent');
 
@@ -805,7 +985,13 @@ describe('counterparty/api.ts', () => {
         locked: false,
       };
       const mockData = { result: [mockOwnedAsset] };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchOwnedAssets(mockAddress);
 
@@ -819,7 +1005,13 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should return empty array for no owned assets', async () => {
-      mockedApiClient.get.mockResolvedValue({ data: { result: null } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: null },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchOwnedAssets(mockAddress);
 
@@ -844,7 +1036,13 @@ describe('counterparty/api.ts', () => {
       mockedGetKeychainSettings.mockResolvedValue({ counterpartyApiBase: customApiBase } as any);
       
       const mockData = { result: [] };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       await fetchTokenBalances(mockAddress);
 
@@ -865,11 +1063,23 @@ describe('counterparty/api.ts', () => {
   describe('integration scenarios', () => {
     it('should handle complete token information flow', async () => {
       // Mock asset details
-      const assetResponse = { data: { result: mockAssetInfo } };
+      const assetResponse = {
+        data: { result: mockAssetInfo },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any;
       mockedApiClient.get.mockResolvedValueOnce(assetResponse);
       
-      // Mock token balance  
-      const balanceResponse = { data: { result: [mockTokenBalance] } };
+      // Mock token balance
+      const balanceResponse = {
+        data: { result: [mockTokenBalance] },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any;
       mockedApiClient.get.mockResolvedValueOnce(balanceResponse);
 
       const result = await fetchAssetDetailsAndBalance('XCP', mockAddress);
@@ -881,12 +1091,18 @@ describe('counterparty/api.ts', () => {
 
     it('should handle pagination correctly', async () => {
       const mockData = { result: [mockTransaction], result_count: 100 };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchTransactions(mockAddress, { 
         limit: 10, 
         offset: 20 
-      });
+      } as any);
 
       expect(result.result_count).toBe(100);
       expect(mockedApiClient.get).toHaveBeenCalledWith(
@@ -902,7 +1118,13 @@ describe('counterparty/api.ts', () => {
 
     it('should handle verbose mode correctly across functions', async () => {
       const mockData = { result: [] };
-      mockedApiClient.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       // Test multiple functions with verbose: false
       await fetchTokenBalances(mockAddress, { verbose: false });
