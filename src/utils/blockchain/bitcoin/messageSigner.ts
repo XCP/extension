@@ -12,6 +12,13 @@ import { hex, base64 } from '@scure/base';
 import { bytesToHex } from '@noble/hashes/utils';
 import * as secp256k1 from '@noble/secp256k1';
 import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { encodeAddress } from './address';
+import {
+  signBIP322P2PKH,
+  signBIP322P2WPKH,
+  signBIP322P2SH_P2WPKH,
+  signBIP322P2TR,
+} from './bip322';
 
 // Required initialization for @noble/secp256k1 v3
 // Set up the HMAC and SHA256 functions needed for deterministic signatures
@@ -93,10 +100,11 @@ function encodeVarInt(n: number): Uint8Array {
 }
 
 /**
- * Sign a message with a private key for Legacy (P2PKH) addresses
+ * [DEPRECATED] Sign a message with a private key for Legacy (P2PKH) addresses
  * This follows the traditional Bitcoin message signing format
+ * @deprecated Use BIP-322 signing instead
  */
-export async function signMessageLegacy(
+async function signMessageLegacy(
   message: string,
   privateKey: Uint8Array,
   compressed: boolean = true
@@ -136,10 +144,11 @@ export async function signMessageLegacy(
 }
 
 /**
- * Sign a message for SegWit addresses (P2WPKH, P2SH-P2WPKH)
+ * [DEPRECATED] Sign a message for SegWit addresses (P2WPKH, P2SH-P2WPKH)
  * Uses the same format as Legacy but with different recovery flags
+ * @deprecated Use BIP-322 signing instead
  */
-export async function signMessageSegwit(
+async function signMessageSegwit(
   message: string,
   privateKey: Uint8Array,
   addressFormat: 'p2wpkh' | 'p2sh-p2wpkh'
@@ -183,34 +192,23 @@ export async function signMessageSegwit(
 
 /**
  * Sign a message for Taproot addresses (P2TR)
- * This is a simplified version - full BIP-322 would be more complex
+ * Uses BIP-322 compatible Schnorr signatures
  */
 export async function signMessageTaproot(
   message: string,
   privateKey: Uint8Array,
   publicKey: Uint8Array
 ): Promise<string> {
-  // For Taproot, we'll use a standard ECDSA signature for now
-  // Full BIP-322 implementation would require creating a virtual transaction
-  
-  // Format the message
-  const formattedMessage = formatMessageForSigning(message);
-  const messageHash = sha256(sha256(formattedMessage));
-  
-  // Create signature (v3 returns compact signature by default for Taproot)
-  const sigBytes = secp256k1.sign(messageHash, privateKey, { prehash: true });
-  
-  // Convert to hex
-  const rHex = bytesToHex(sigBytes.slice(0, 32));
-  const sHex = bytesToHex(sigBytes.slice(32, 64));
-  
-  // For Taproot, we return a hex signature with a special prefix
-  // to indicate it's a Taproot signature
-  return 'tr:' + rHex + sHex;
+  // Use BIP-322 signing for Taproot
+  return await signBIP322P2TR(message, privateKey);
 }
 
 /**
  * Main message signing function that handles all address types
+ * Uses BIP-322 exclusively for all address types
+ *
+ * Note: This function returns an address for backward compatibility with tests,
+ * but real usage should use the actual wallet address
  */
 export async function signMessage(
   message: string,
@@ -220,42 +218,43 @@ export async function signMessage(
 ): Promise<{ signature: string; address: string }> {
   const privateKey = hex.decode(privateKeyHex);
   const publicKey = secp256k1.getPublicKey(privateKey, compressed);
-  
+
+  // Use BIP-322 exclusively for all address types
   let signature: string;
-  let address: string;
-  
-  // Normalize address type for comparison
-  const normalizedType = addressFormat.toUpperCase();
-  
-  switch (normalizedType) {
-    case 'P2PKH':
-    case 'COUNTERWALLET':  // Counterwallet uses P2PKH addresses and signing
-      signature = await signMessageLegacy(message, privateKey, compressed);
-      address = btc.p2pkh(publicKey).address!;
+  let address: string = '';
+
+  switch (addressFormat) {
+    case AddressFormat.P2PKH:
+    case AddressFormat.Counterwallet:
+      // Use BIP-322 for P2PKH
+      signature = await signBIP322P2PKH(message, privateKey, compressed);
+      // Generate address for test compatibility
+      address = encodeAddress(publicKey, AddressFormat.P2PKH);
       break;
-      
-    case 'P2WPKH':
-      signature = await signMessageSegwit(message, privateKey, 'p2wpkh');
-      address = btc.p2wpkh(publicKey).address!;
+
+    case AddressFormat.P2WPKH:
+      // Use BIP-322 for P2WPKH
+      signature = await signBIP322P2WPKH(message, privateKey);
+      address = encodeAddress(publicKey, AddressFormat.P2WPKH);
       break;
-      
-    case 'P2SH-P2WPKH':
-      signature = await signMessageSegwit(message, privateKey, 'p2sh-p2wpkh');
-      const p2wpkh = btc.p2wpkh(publicKey);
-      address = btc.p2sh(p2wpkh).address!;
+
+    case AddressFormat.P2SH_P2WPKH:
+      // Use BIP-322 for P2SH-P2WPKH
+      signature = await signBIP322P2SH_P2WPKH(message, privateKey);
+      address = encodeAddress(publicKey, AddressFormat.P2SH_P2WPKH);
       break;
-      
-    case 'P2TR':
-      // Taproot uses x-only public key (32 bytes)
-      const xOnlyPubKey = publicKey.slice(1, 33);
-      signature = await signMessageTaproot(message, privateKey, xOnlyPubKey);
-      address = btc.p2tr(xOnlyPubKey).address!;
+
+    case AddressFormat.P2TR:
+      // Use BIP-322 for Taproot (Schnorr signatures)
+      signature = await signBIP322P2TR(message, privateKey);
+      // For Taproot, use the same raw encoding as the wallet
+      address = encodeAddress(publicKey, AddressFormat.P2TR);
       break;
-      
+
     default:
-      throw new Error(`Unsupported address type for message signing: ${ addressFormat }`);
+      throw new Error(`Unsupported address type for message signing: ${addressFormat}`);
   }
-  
+
   return { signature, address };
 }
 
@@ -269,43 +268,43 @@ export function getSigningCapabilities(addressFormat: AddressFormat | string): {
 } {
   // Normalize the address type to handle case variations
   const normalizedType = addressFormat.charAt(0).toUpperCase() + addressFormat.slice(1).toLowerCase();
-  
+
   switch (normalizedType) {
     case 'P2pkh':
       return {
         canSign: true,
-        method: 'Legacy (BIP-137)',
-        notes: 'Full support for traditional Bitcoin message signing'
+        method: 'BIP-322',
+        notes: 'Generic signed message format (BIP-322) with P2PKH virtual transaction'
       };
-      
+
     case 'P2wpkh':
       return {
         canSign: true,
-        method: 'SegWit Native (BIP-137 extended)',
-        notes: 'Uses SegWit-specific recovery flags'
+        method: 'BIP-322',
+        notes: 'Generic signed message format (BIP-322) with P2WPKH witness'
       };
-      
+
     case 'P2sh-p2wpkh':
       return {
         canSign: true,
-        method: 'SegWit Nested (BIP-137 extended)',
-        notes: 'Uses nested SegWit recovery flags'
+        method: 'BIP-322',
+        notes: 'Generic signed message format (BIP-322) with P2SH-P2WPKH witness'
       };
-      
+
     case 'P2tr':
       return {
         canSign: true,
-        method: 'Taproot (Simplified)',
-        notes: 'Uses ECDSA signatures, limited compatibility'
+        method: 'BIP-322',
+        notes: 'Generic signed message format (BIP-322) with Schnorr signatures'
       };
-      
+
     case 'Counterwallet':
       return {
         canSign: true,
-        method: 'Legacy (BIP-137)',
-        notes: 'Uses standard P2PKH signing (Counterwallet compatible)'
+        method: 'BIP-322',
+        notes: 'Generic signed message format (BIP-322) with P2PKH virtual transaction'
       };
-      
+
     default:
       return {
         canSign: false,
