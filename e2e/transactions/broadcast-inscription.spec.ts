@@ -4,7 +4,7 @@ import {
   setupWallet,
   navigateViaFooter,
   cleanup
-} from './helpers/test-helpers';
+} from '../helpers/test-helpers';
 
 test.describe('Broadcast Form', () => {
   test('basic broadcast form functionality', async () => {

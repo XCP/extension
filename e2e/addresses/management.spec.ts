@@ -6,7 +6,7 @@ import {
   getCurrentAddress,
   cleanup,
   TEST_PASSWORD 
-} from './helpers/test-helpers';
+} from '../helpers/test-helpers';
 
 test.describe('Address Management', () => {
   test('copy address from blue button on index', async () => {

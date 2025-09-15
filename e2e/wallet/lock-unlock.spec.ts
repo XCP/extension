@@ -7,7 +7,7 @@ import {
   navigateViaFooter,
   cleanup,
   TEST_PASSWORD 
-} from './helpers/test-helpers';
+} from '../helpers/test-helpers';
 
 test.describe('Wallet Lock and Unlock', () => {
   test('lock and unlock wallet', async () => {

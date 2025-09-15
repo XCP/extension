@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { launchExtension, cleanup } from './helpers/test-helpers';
+import { launchExtension, cleanup } from '../helpers/test-helpers';
 
 test('extension loads', async () => {
   const { context, page } = await launchExtension('basic');

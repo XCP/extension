@@ -7,7 +7,7 @@ import {
   importWallet,
   unlockWallet,
   cleanup
-} from './helpers/test-helpers';
+} from '../helpers/test-helpers';
 
 let extensionContext: ExtensionContext;
 

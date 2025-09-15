@@ -10,7 +10,7 @@ import {
   grantClipboardPermissions,
   cleanup,
   TEST_PASSWORD 
-} from './helpers/test-helpers';
+} from '../helpers/test-helpers';
 
 test.describe('Wallet Functionality', () => {
   test('displays wallet balance and assets correctly', async () => {

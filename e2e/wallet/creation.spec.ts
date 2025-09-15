@@ -4,7 +4,7 @@ import {
   createWallet,
   cleanup,
   TEST_PASSWORD 
-} from './helpers/test-helpers';
+} from '../helpers/test-helpers';
 
 test.describe('Wallet Creation', () => {
   test('can navigate to create wallet page', async () => {

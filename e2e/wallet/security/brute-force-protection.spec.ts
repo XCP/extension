@@ -6,7 +6,7 @@ import {
   unlockWallet,
   cleanup,
   TEST_PASSWORD 
-} from './helpers/test-helpers';
+} from '../../helpers/test-helpers';
 
 test.describe('Wallet Brute Force Protection', () => {
   test('should resist brute force attempts on unlock screen', async () => {

@@ -1,5 +1,5 @@
 import { test, expect, Page, BrowserContext } from '@playwright/test';
-import { launchExtension, setupWallet, cleanup } from './helpers/test-helpers';
+import { launchExtension, setupWallet, cleanup } from '../helpers/test-helpers';
 import * as http from 'http';
 
 test.describe('Message Signing', () => {

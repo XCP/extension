@@ -11,7 +11,7 @@ import {
   TEST_PASSWORD,
   TEST_MNEMONIC,
   TEST_PRIVATE_KEY 
-} from './helpers/test-helpers';
+} from '../helpers/test-helpers';
 
 test.describe('Wallet Management Features', () => {
   test('access wallet management from header', async () => {

@@ -6,7 +6,7 @@ import {
   cleanup,
   grantClipboardPermissions,
   TEST_PASSWORD 
-} from './helpers/test-helpers';
+} from '../helpers/test-helpers';
 
 test.describe('Sign Message', () => {
   test('should navigate to sign message page', async () => {
