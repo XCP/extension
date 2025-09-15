@@ -44,7 +44,7 @@ export function useIdleTimer(options: UseIdleTimerOptions) {
   }, [onIdle, onActive]);
 
   const reset = useCallback(() => {
-    if (disabled) return;
+    if (disabled || timeout <= 0) return;
 
     clearTimeout(timeoutRef.current);
 
@@ -68,47 +68,36 @@ export function useIdleTimer(options: UseIdleTimerOptions) {
   }, [reset, disabled, stopOnIdle]);
 
   useEffect(() => {
+    // Clear any existing timeout
+    clearTimeout(timeoutRef.current);
+
+    // Remove all existing event listeners
+    eventsRef.current.forEach(event => {
+      window.removeEventListener(event, handleActivity);
+    });
+
     if (disabled) {
-      clearTimeout(timeoutRef.current);
+      // If disabled, don't set up timer or events
       return;
     }
 
     // Start the timer
     reset();
 
-    // Add event listeners
-    eventsRef.current.forEach(event => {
+    // Update events and add event listeners
+    eventsRef.current = events;
+    events.forEach(event => {
       window.addEventListener(event, handleActivity);
     });
 
     // Cleanup
     return () => {
       clearTimeout(timeoutRef.current);
-      eventsRef.current.forEach(event => {
+      events.forEach(event => {
         window.removeEventListener(event, handleActivity);
       });
     };
-  }, [handleActivity, reset, disabled]);
-
-  // Update events if they change
-  useEffect(() => {
-    const oldEvents = eventsRef.current;
-    const newEvents = events;
-
-    // Remove old event listeners
-    const eventsToRemove = oldEvents.filter(e => !newEvents.includes(e));
-    eventsToRemove.forEach(event => {
-      window.removeEventListener(event, handleActivity);
-    });
-
-    // Add new event listeners
-    const eventsToAdd = newEvents.filter(e => !oldEvents.includes(e));
-    eventsToAdd.forEach(event => {
-      window.addEventListener(event, handleActivity);
-    });
-
-    eventsRef.current = newEvents;
-  }, [events, handleActivity]);
+  }, [handleActivity, reset, disabled, events]);
 
   return {
     isIdle,
