@@ -45,7 +45,7 @@ test.describe('Idle Timer Debug', () => {
         chrome.storage.local.get([storageKey], (data) => {
           console.log('[TEST] Current storage data:', data);
           const records = data[storageKey] || [];
-          const settingsIndex = records.findIndex(r => r.id === 'keychain-settings');
+          const settingsIndex = records.findIndex((r: any) => r.id === 'keychain-settings');
 
           if (settingsIndex !== -1) {
             console.log('[TEST] Found settings record, updating...');

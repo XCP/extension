@@ -17,7 +17,7 @@ test.describe('Idle Timer Auto-Lock', () => {
       return new Promise((resolve) => {
         chrome.storage.local.get(['records'], (data) => {
           const records = data.records || [];
-          const settingsIndex = records.findIndex(r => r.id === 'keychain-settings');
+          const settingsIndex = records.findIndex((r: any) => r.id === 'keychain-settings');
 
           if (settingsIndex !== -1) {
             records[settingsIndex].autoLockTimer = '10s';
@@ -77,7 +77,7 @@ test.describe('Idle Timer Auto-Lock', () => {
       return new Promise((resolve) => {
         chrome.storage.local.get(['records'], (data) => {
           const records = data.records || [];
-          const settingsIndex = records.findIndex(r => r.id === 'keychain-settings');
+          const settingsIndex = records.findIndex((r: any) => r.id === 'keychain-settings');
 
           if (settingsIndex !== -1) {
             records[settingsIndex].autoLockTimer = '10s';

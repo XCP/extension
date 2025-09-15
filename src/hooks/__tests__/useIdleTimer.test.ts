@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { vi } from 'vitest';
+import { vi, describe, it, beforeEach, afterEach, expect } from 'vitest';
 import { useIdleTimer } from '../useIdleTimer';
 
 // Mock timers
