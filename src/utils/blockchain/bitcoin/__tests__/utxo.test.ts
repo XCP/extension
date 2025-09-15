@@ -49,7 +49,7 @@ describe('UTXO Utilities', () => {
   describe('fetchUTXOs', () => {
     it('should fetch UTXOs successfully', async () => {
       const mockUtxos = [mockUtxo];
-      mockApi.get.mockResolvedValue({ data: mockUtxos });
+      mockApi.get.mockResolvedValue(mockUtxos);
 
       const result = await fetchUTXOs(mockAddress);
       
@@ -63,7 +63,7 @@ describe('UTXO Utilities', () => {
     it('should fetch UTXOs with AbortSignal', async () => {
       const mockUtxos = [mockUtxo];
       const abortController = new AbortController();
-      mockApi.get.mockResolvedValue({ data: mockUtxos });
+      mockApi.get.mockResolvedValue(mockUtxos);
 
       const result = await fetchUTXOs(mockAddress, abortController.signal);
       
@@ -75,7 +75,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should return empty array when no UTXOs found', async () => {
-      mockApi.get.mockResolvedValue({ data: [] });
+      mockApi.get.mockResolvedValue([]);
 
       const result = await fetchUTXOs(mockAddress);
       
@@ -113,7 +113,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle malformed response data', async () => {
-      mockApi.get.mockResolvedValue({ data: null });
+      mockApi.get.mockResolvedValue(null);
 
       const result = await fetchUTXOs(mockAddress);
       expect(result).toBe(null);
@@ -125,7 +125,7 @@ describe('UTXO Utilities', () => {
         { ...mockUtxo, vout: 1 },
         { ...mockUtxo, vout: 2, value: 200000 }
       ];
-      mockApi.get.mockResolvedValue({ data: mockUtxos });
+      mockApi.get.mockResolvedValue(mockUtxos);
 
       const result = await fetchUTXOs(mockAddress);
       
@@ -144,7 +144,7 @@ describe('UTXO Utilities', () => {
         }
       };
       const mockUtxos = [mockUtxo, unconfirmedUtxo];
-      mockApi.get.mockResolvedValue({ data: mockUtxos });
+      mockApi.get.mockResolvedValue(mockUtxos);
 
       const result = await fetchUTXOs(mockAddress);
       
@@ -301,9 +301,7 @@ describe('UTXO Utilities', () => {
     const mockRawHex = '01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff08044c86041b020602ffffffff0100f2052a010000004341041b0e8c2567c12536aa13357b79a073dc4444acb83c4ec7a0e2f99dd7457516c5817242da796924ca4e99947d087fedf9ce467cb9f7c6287078f801df276fdf84424ac00000000';
 
     it('should fetch raw transaction successfully', async () => {
-      mockApi.get.mockResolvedValue({
-        data: { result: { hex: mockRawHex } }
-      });
+      mockApi.get.mockResolvedValue({ result: { hex: mockRawHex } });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
       
@@ -314,9 +312,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should return null when transaction not found', async () => {
-      mockApi.get.mockResolvedValue({
-        data: { result: null }
-      });
+      mockApi.get.mockResolvedValue({ result: null });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
       
@@ -324,9 +320,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should return null when hex not present in response', async () => {
-      mockApi.get.mockResolvedValue({
-        data: { result: { no_hex_field: 'data' } }
-      });
+      mockApi.get.mockResolvedValue({ result: { no_hex_field: 'data' } });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
       
@@ -334,9 +328,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should return null when response data is malformed', async () => {
-      mockApi.get.mockResolvedValue({
-        data: null
-      });
+      mockApi.get.mockResolvedValue(null);
 
       const result = await fetchPreviousRawTransaction(mockTxid);
       
@@ -344,9 +336,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should return null when result is undefined', async () => {
-      mockApi.get.mockResolvedValue({
-        data: { result: undefined }
-      });
+      mockApi.get.mockResolvedValue({ result: undefined });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
       
@@ -385,9 +375,7 @@ describe('UTXO Utilities', () => {
         counterpartyApiBase: 'https://custom.api.com'
       });
 
-      mockApi.get.mockResolvedValue({
-        data: { result: { hex: mockRawHex } }
-      });
+      mockApi.get.mockResolvedValue({ result: { hex: mockRawHex } });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
       
@@ -398,9 +386,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle empty hex field', async () => {
-      mockApi.get.mockResolvedValue({
-        data: { result: { hex: '' } }
-      });
+      mockApi.get.mockResolvedValue({ result: { hex: '' } });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
       
@@ -409,9 +395,7 @@ describe('UTXO Utilities', () => {
 
     it('should handle very long transaction hex', async () => {
       const longHex = 'a'.repeat(10000);
-      mockApi.get.mockResolvedValue({
-        data: { result: { hex: longHex } }
-      });
+      mockApi.get.mockResolvedValue({ result: { hex: longHex } });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
       
@@ -420,9 +404,7 @@ describe('UTXO Utilities', () => {
 
     it('should handle special characters in txid', async () => {
       const specialTxid = 'abc-def_123';
-      mockApi.get.mockResolvedValue({
-        data: { result: { hex: mockRawHex } }
-      });
+      mockApi.get.mockResolvedValue({ result: { hex: mockRawHex } });
 
       await fetchPreviousRawTransaction(specialTxid);
       
@@ -433,14 +415,12 @@ describe('UTXO Utilities', () => {
 
     it('should handle response with extra fields', async () => {
       mockApi.get.mockResolvedValue({
-        data: { 
-          result: { 
-            hex: mockRawHex,
-            extra_field: 'extra_data',
-            another_field: 123
-          },
-          extra_top_level: 'data'
-        }
+        result: {
+          hex: mockRawHex,
+          extra_field: 'extra_data',
+          another_field: 123
+        },
+        extra_top_level: 'data'
       });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
@@ -449,9 +429,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle null hex value', async () => {
-      mockApi.get.mockResolvedValue({
-        data: { result: { hex: null } }
-      });
+      mockApi.get.mockResolvedValue({ result: { hex: null } });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
       
@@ -459,9 +437,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle undefined hex value', async () => {
-      mockApi.get.mockResolvedValue({
-        data: { result: { hex: undefined } }
-      });
+      mockApi.get.mockResolvedValue({ result: { hex: undefined } });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
       

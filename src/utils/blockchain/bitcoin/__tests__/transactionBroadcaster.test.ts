@@ -76,8 +76,11 @@ describe('Transaction Broadcaster Utilities', () => {
   describe('broadcastTransaction with real endpoints', () => {
     it('should broadcast successfully using counterparty endpoint', async () => {
       mockBroadcastClient.post.mockResolvedValue({
+        data: { result: mockTxid },
         status: 200,
-        data: { result: mockTxid }
+        statusText: 'OK',
+        headers: {},
+        config: {}
       });
 
       const result = await broadcastTransaction(mockSignedTxHex);
@@ -94,13 +97,16 @@ describe('Transaction Broadcaster Utilities', () => {
       mockBroadcastClient.post
         .mockRejectedValueOnce(new Error('Counterparty failed'))
         .mockResolvedValueOnce({
-          status: 201,
-          data: { 
-            tx: { 
+          data: {
+            tx: {
               hash: mockTxid,
               fees: 2500
             }
-          }
+          },
+          status: 201,
+          statusText: 'Created',
+          headers: {},
+          config: {}
         });
 
       const result = await broadcastTransaction(mockSignedTxHex);
@@ -119,8 +125,11 @@ describe('Transaction Broadcaster Utilities', () => {
         .mockRejectedValueOnce(new Error('Counterparty failed'))
         .mockRejectedValueOnce(new Error('Blockcypher failed'))
         .mockResolvedValueOnce({
+          data: mockTxid,
           status: 200,
-          data: mockTxid
+          statusText: 'OK',
+          headers: {},
+          config: {}
         });
 
       const result = await broadcastTransaction(mockSignedTxHex);
@@ -139,8 +148,11 @@ describe('Transaction Broadcaster Utilities', () => {
         .mockRejectedValueOnce(new Error('Blockcypher failed'))
         .mockRejectedValueOnce(new Error('Blockstream failed'))
         .mockResolvedValueOnce({
+          data: ` ${mockTxid} `, // With whitespace to test trimming
           status: 200,
-          data: ` ${mockTxid} ` // With whitespace to test trimming
+          statusText: 'OK',
+          headers: {},
+          config: {}
         });
 
       const result = await broadcastTransaction(mockSignedTxHex);
@@ -164,12 +176,18 @@ describe('Transaction Broadcaster Utilities', () => {
     it('should handle HTTP error status codes', async () => {
       mockBroadcastClient.post
         .mockResolvedValueOnce({
+          data: { error: 'Bad request' },
           status: 400,
-          data: { error: 'Bad request' }
+          statusText: 'Bad Request',
+          headers: {},
+          config: {}
         })
         .mockResolvedValueOnce({
+          data: { tx: { hash: mockTxid } },
           status: 200,
-          data: { tx: { hash: mockTxid } }
+          statusText: 'OK',
+          headers: {},
+          config: {}
         });
 
       const result = await broadcastTransaction(mockSignedTxHex);
@@ -179,12 +197,18 @@ describe('Transaction Broadcaster Utilities', () => {
     it('should handle responses without valid txid', async () => {
       mockBroadcastClient.post
         .mockResolvedValueOnce({
+          data: { result: null }, // No valid txid
           status: 200,
-          data: { result: null } // No valid txid
+          statusText: 'OK',
+          headers: {},
+          config: {}
         })
         .mockResolvedValueOnce({
+          data: { tx: { hash: mockTxid } },
           status: 200,
-          data: { tx: { hash: mockTxid } }
+          statusText: 'OK',
+          headers: {},
+          config: {}
         });
 
       const result = await broadcastTransaction(mockSignedTxHex);
@@ -194,12 +218,18 @@ describe('Transaction Broadcaster Utilities', () => {
     it('should handle empty response data', async () => {
       mockBroadcastClient.post
         .mockResolvedValueOnce({
+          data: null,
           status: 200,
-          data: null
+          statusText: 'OK',
+          headers: {},
+          config: {}
         })
         .mockResolvedValueOnce({
+          data: { tx: { hash: mockTxid } },  // blockcypher format
           status: 200,
-          data: { tx: { hash: mockTxid } }  // blockcypher format
+          statusText: 'OK',
+          headers: {},
+          config: {}
         });
 
       const result = await broadcastTransaction(mockSignedTxHex);
@@ -209,8 +239,11 @@ describe('Transaction Broadcaster Utilities', () => {
     it('should properly encode URL parameters for counterparty', async () => {
       const specialCharHex = 'abc+def/123=456';
       mockBroadcastClient.post.mockResolvedValue({
+        data: { result: mockTxid },
         status: 200,
-        data: { result: mockTxid }
+        statusText: 'OK',
+        headers: {},
+        config: {}
       });
 
       await broadcastTransaction(specialCharHex);
@@ -227,8 +260,11 @@ describe('Transaction Broadcaster Utilities', () => {
       mockBroadcastClient.post
         .mockRejectedValueOnce({ code: 'ECONNABORTED', message: 'timeout' })
         .mockResolvedValueOnce({
+          data: { tx: { hash: mockTxid } },  // blockcypher format
           status: 200,
-          data: { tx: { hash: mockTxid } }  // blockcypher format
+          statusText: 'OK',
+          headers: {},
+          config: {}
         });
 
       const result = await broadcastTransaction(mockSignedTxHex);
@@ -239,8 +275,11 @@ describe('Transaction Broadcaster Utilities', () => {
       mockBroadcastClient.post
         .mockRejectedValueOnce(new Error('JSON parse error'))
         .mockResolvedValueOnce({
+          data: { tx: { hash: mockTxid } },
           status: 200,
-          data: { tx: { hash: mockTxid } }
+          statusText: 'OK',
+          headers: {},
+          config: {}
         });
 
       const result = await broadcastTransaction(mockSignedTxHex);
@@ -250,8 +289,11 @@ describe('Transaction Broadcaster Utilities', () => {
     it('should handle response format differences correctly', async () => {
       // Test counterparty format
       mockBroadcastClient.post.mockResolvedValueOnce({
+        data: { result: mockTxid },
         status: 200,
-        data: { result: mockTxid }
+        statusText: 'OK',
+        headers: {},
+        config: {}
       });
 
       let result = await broadcastTransaction(mockSignedTxHex);
@@ -263,13 +305,16 @@ describe('Transaction Broadcaster Utilities', () => {
       mockBroadcastClient.post
         .mockRejectedValueOnce(new Error('First failed'))
         .mockResolvedValueOnce({
-          status: 200,
-          data: { 
-            tx: { 
+          data: {
+            tx: {
               hash: mockTxid,
               fees: 1500
             }
-          }
+          },
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {}
         });
 
       result = await broadcastTransaction(mockSignedTxHex);
@@ -286,8 +331,11 @@ describe('Transaction Broadcaster Utilities', () => {
       });
 
       mockBroadcastClient.post.mockResolvedValue({
+        data: { result: mockTxid },
         status: 200,
-        data: { result: mockTxid }
+        statusText: 'OK',
+        headers: {},
+        config: {}
       });
 
       await broadcastTransaction(mockSignedTxHex);
@@ -302,8 +350,11 @@ describe('Transaction Broadcaster Utilities', () => {
     it('should handle very long transaction hex', async () => {
       const longHex = 'a'.repeat(10000);
       mockBroadcastClient.post.mockResolvedValue({
+        data: { result: mockTxid },
         status: 200,
-        data: { result: mockTxid }
+        statusText: 'OK',
+        headers: {},
+        config: {}
       });
 
       const result = await broadcastTransaction(longHex);
@@ -313,8 +364,11 @@ describe('Transaction Broadcaster Utilities', () => {
     it('should handle successful response with status code edge cases', async () => {
       // Test status 201 (Created)
       mockBroadcastClient.post.mockResolvedValueOnce({
+        data: { result: mockTxid },
         status: 201,
-        data: { result: mockTxid }
+        statusText: 'Created',
+        headers: {},
+        config: {}
       });
 
       const result = await broadcastTransaction(mockSignedTxHex);
@@ -329,8 +383,11 @@ describe('Transaction Broadcaster Utilities', () => {
         .mockRejectedValueOnce(new Error('First failed'))  // counterparty fails
         .mockRejectedValueOnce(new Error('Second failed'))  // blockcypher fails
         .mockResolvedValueOnce({
+          data: mockTxid,  // blockstream returns plain string
           status: 202,
-          data: mockTxid  // blockstream returns plain string
+          statusText: 'Accepted',
+          headers: {},
+          config: {}
         });
 
       const result2 = await broadcastTransaction(mockSignedTxHex);
@@ -353,8 +410,11 @@ describe('Transaction Broadcaster Utilities', () => {
     it('should handle unknown endpoint format gracefully', async () => {
       // This test simulates an internal error in formatResponse
       mockBroadcastClient.post.mockResolvedValue({
+        data: { result: mockTxid },
         status: 200,
-        data: { result: mockTxid }
+        statusText: 'OK',
+        headers: {},
+        config: {}
       });
 
       // Mock a scenario where formatResponse would throw

@@ -35,7 +35,7 @@ describe('Compose Specialized Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetKeychainSettings.mockResolvedValue(mockSettings as any);
-    mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+    mockedApi.get.mockResolvedValue(createMockComposeResult());
   });
 
   describe('composeTransaction (generic)', () => {
@@ -108,7 +108,7 @@ describe('Compose Specialized Operations', () => {
       
       for (const bet_type of betTypes) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
         
         const params = { ...defaultParams, bet_type };
         await composeBet({
@@ -169,7 +169,7 @@ describe('Compose Specialized Operations', () => {
       
       for (const value of values) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
         
         const params = { ...defaultParams, value };
         await composeBroadcast({
@@ -225,7 +225,7 @@ describe('Compose Specialized Operations', () => {
       
       for (const order_match_id of matchIds) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
         
         await composeBTCPay({
           sourceAddress: mockAddress,
@@ -290,7 +290,7 @@ describe('Compose Specialized Operations', () => {
       
       for (const assets of assetSets) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
         
         const destinations = assets.map((_, i) => `bc1qdest${i + 1}`);
         const quantities = assets.map((_, i) => `${(i + 1) * 1000}`);
@@ -400,7 +400,7 @@ describe('Compose Specialized Operations', () => {
       
       for (const quantity of quantities) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
         
         const params = { ...defaultParams, quantity };
         await composeFairmint({
@@ -458,7 +458,7 @@ describe('Compose Specialized Operations', () => {
   describe('getAttachEstimateXcpFee', () => {
     it('should get attach fee estimate', async () => {
       const mockFeeEstimate = 25000000;
-      mockedApi.get.mockResolvedValueOnce({ data: { result: mockFeeEstimate } });
+      mockedApi.get.mockResolvedValueOnce({ result: mockFeeEstimate });
 
       const result = await getAttachEstimateXcpFee(mockAddress);
 
@@ -512,7 +512,7 @@ describe('Compose Specialized Operations', () => {
       
       for (const sourceUtxo of utxos) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
         
         const params = { ...defaultParams, sourceUtxo };
         await composeDetach({
@@ -570,7 +570,7 @@ describe('Compose Specialized Operations', () => {
       
       for (const sourceUtxo of utxos) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
         
         const params = { ...defaultParams, sourceUtxo };
         await composeMove({

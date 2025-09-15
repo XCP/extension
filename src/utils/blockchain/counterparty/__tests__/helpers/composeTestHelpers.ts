@@ -60,17 +60,15 @@ export const createMockComposeResult = (overrides?: Partial<ComposeResult>): Com
 /**
  * Create a mock API response
  */
-export const createMockApiResponse = <T = ComposeResult>(data: T) => ({
-  data: data,
-});
+export const createMockApiResponse = <T = ComposeResult>(data: T) => data;
 
 /**
  * Setup common mocks for compose tests
  */
 export const setupComposeMocks = () => {
   const mockedAxios = {
-    get: vi.fn().mockResolvedValue(createMockApiResponse(createMockComposeResult())),
-    post: vi.fn().mockResolvedValue(createMockApiResponse(createMockComposeResult())),
+    get: vi.fn().mockResolvedValue(createMockComposeResult()),
+    post: vi.fn().mockResolvedValue(createMockComposeResult()),
   };
   
   const mockedGetKeychainSettings = vi.fn().mockResolvedValue(mockSettings);

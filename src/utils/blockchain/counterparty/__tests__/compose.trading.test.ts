@@ -26,8 +26,8 @@ describe('Compose Trading Operations', () => {
     vi.clearAllMocks();
     mockedGetKeychainSettings.mockResolvedValue(mockSettings as any);
     // Mock both get and post methods since different functions may use different HTTP methods
-    mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-    mockedApi.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+    mockedApi.get.mockResolvedValue(createMockComposeResult());
+    mockedApi.post.mockResolvedValue(createMockComposeResult());
   });
 
   describe('composeOrder', () => {
@@ -179,8 +179,8 @@ describe('Compose Trading Operations', () => {
       
       for (const offer_hash of hashes) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        mockedApi.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
+        mockedApi.post.mockResolvedValue(createMockComposeResult());
         
         const result = await composeCancel({
           sourceAddress: mockAddress,
@@ -285,8 +285,8 @@ describe('Compose Trading Operations', () => {
       
       for (const mainchainrate of rates) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        mockedApi.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
+        mockedApi.post.mockResolvedValue(createMockComposeResult());
         
         const params = { ...defaultParams, mainchainrate };
         const result = await composeDispenser({
@@ -339,8 +339,8 @@ describe('Compose Trading Operations', () => {
       
       for (const quantity of quantities) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        mockedApi.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
+        mockedApi.post.mockResolvedValue(createMockComposeResult());
         
         const params = { ...defaultParams, quantity };
         const result = await composeDispense({
@@ -359,8 +359,8 @@ describe('Compose Trading Operations', () => {
       
       for (const dispenser of dispensers) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        mockedApi.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
+        mockedApi.post.mockResolvedValue(createMockComposeResult());
         
         const params = { ...defaultParams, dispenser };
         const result = await composeDispense({

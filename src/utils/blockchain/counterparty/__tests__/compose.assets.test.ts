@@ -31,7 +31,7 @@ describe('Compose Asset Management Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetKeychainSettings.mockResolvedValue(mockSettings as any);
-    mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+    mockedApi.get.mockResolvedValue(createMockComposeResult());
   });
 
   describe('composeIssuance', () => {
@@ -207,7 +207,7 @@ describe('Compose Asset Management Operations', () => {
       
       for (const asset of assets) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
         
         const params = { ...defaultParams, asset };
         await composeDestroy({
@@ -227,7 +227,7 @@ describe('Compose Asset Management Operations', () => {
       
       for (const quantity of quantities) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
         
         const params = { ...defaultParams, quantity };
         await composeDestroy({
@@ -297,7 +297,7 @@ describe('Compose Asset Management Operations', () => {
       
       for (const quantity_per_unit of rates) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
         
         const params = { ...defaultParams, quantity_per_unit };
         await composeDividend({
@@ -316,7 +316,7 @@ describe('Compose Asset Management Operations', () => {
   describe('getDividendEstimateXcpFee', () => {
     it('should get dividend fee estimate', async () => {
       const mockFeeEstimate = { result: 50000000 };
-      mockedApi.get.mockResolvedValueOnce({ data: mockFeeEstimate });
+      mockedApi.get.mockResolvedValueOnce(mockFeeEstimate);
 
       const result = await getDividendEstimateXcpFee(mockAddress, 'SHARETOKEN');
 
@@ -374,7 +374,7 @@ describe('Compose Asset Management Operations', () => {
       
       for (const quantity of amounts) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
         
         await composeBurn({
           sourceAddress: mockAddress,

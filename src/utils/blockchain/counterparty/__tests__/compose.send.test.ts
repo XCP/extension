@@ -27,7 +27,7 @@ describe('Compose Send Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetKeychainSettings.mockResolvedValue(mockSettings as any);
-    mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+    mockedApi.get.mockResolvedValue(createMockComposeResult());
   });
 
   describe('composeSend', () => {
@@ -169,7 +169,7 @@ describe('Compose Send Operations', () => {
       
       for (const flags of flagValues) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
         
         const params = { ...defaultParams, flags };
         await composeSweep({
@@ -187,7 +187,7 @@ describe('Compose Send Operations', () => {
   describe('getSweepEstimateXcpFee', () => {
     it('should get sweep fee estimate', async () => {
       const mockFeeEstimate = 10000000;
-      mockedApi.get.mockResolvedValueOnce({ data: { result: mockFeeEstimate } });
+      mockedApi.get.mockResolvedValueOnce({ result: mockFeeEstimate });
 
       const result = await getSweepEstimateXcpFee(mockAddress);
 
@@ -207,7 +207,7 @@ describe('Compose Send Operations', () => {
 
     it('should use correct API endpoint', async () => {
       const mockFeeEstimate = 10000000;
-      mockedApi.get.mockResolvedValueOnce({ data: { result: mockFeeEstimate } });
+      mockedApi.get.mockResolvedValueOnce({ result: mockFeeEstimate });
 
       await getSweepEstimateXcpFee(mockAddress);
 
@@ -263,7 +263,7 @@ describe('Compose Send Operations', () => {
 
       for (const sourceUtxo of utxos) {
         vi.clearAllMocks();
-        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockComposeResult());
         
         const params = { ...defaultParams, sourceUtxo };
         await composeMove({

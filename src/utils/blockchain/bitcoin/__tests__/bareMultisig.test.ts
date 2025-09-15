@@ -28,7 +28,7 @@ const createMockGetImplementation = (mockResponses: Map<string, any>) => {
       if (response instanceof Error) {
         return Promise.reject(response);
       }
-      return Promise.resolve({ data: response });
+      return Promise.resolve(response);
     }
     
     // Check if it's a spent check request
@@ -37,7 +37,7 @@ const createMockGetImplementation = (mockResponses: Map<string, any>) => {
       if (response instanceof Error) {
         return Promise.reject(response);
       }
-      return Promise.resolve({ data: response });
+      return Promise.resolve(response);
     }
     
     // Check if it's a raw transaction fetch
@@ -46,7 +46,7 @@ const createMockGetImplementation = (mockResponses: Map<string, any>) => {
       if (response instanceof Error) {
         return Promise.reject(response);
       }
-      return Promise.resolve({ data: response });
+      return Promise.resolve(response);
     }
     
     // Default: reject with not found
@@ -79,9 +79,7 @@ describe('Bare Multisig Utilities', () => {
     });
 
     it('should throw error when no UTXOs are found', async () => {
-      mockQuickApiClient.get.mockResolvedValue({
-        data: { data: [] }
-      });
+      mockQuickApiClient.get.mockResolvedValue({ data: [] });
 
       await expect(consolidateBareMultisig(mockPrivateKey, mockAddress, 10))
         .rejects.toThrow('No bare multisig UTXOs found');
@@ -146,15 +144,15 @@ describe('Bare Multisig Utilities', () => {
         callCount++;
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve({ data: mockUtxos });
         }
         // Spent check
         if (url.includes('/v2/utxos/')) {
-          return Promise.resolve({ data: { spent: false } });
+          return Promise.resolve({ spent: false });
         }
         // Raw tx fetch
         if ((url.includes('blockstream.info') || url.includes('mempool.space')) && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+          return Promise.resolve(mockRawTx);
         }
         return Promise.reject(new Error('Not found'));
       });
@@ -202,11 +200,11 @@ describe('Bare Multisig Utilities', () => {
       mockQuickApiClient.get = vi.fn((url: string) => {
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve({ data: mockUtxos });
         }
         // Raw tx fetch
         if ((url.includes('blockstream.info') || url.includes('mempool.space')) && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+          return Promise.resolve(mockRawTx);
         }
         return Promise.reject(new Error('Not found'));
       });
@@ -252,11 +250,11 @@ describe('Bare Multisig Utilities', () => {
       mockQuickApiClient.get = vi.fn((url: string) => {
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve({ data: mockUtxos });
         }
         // Raw tx fetch
         if ((url.includes('blockstream.info') || url.includes('mempool.space')) && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+          return Promise.resolve(mockRawTx);
         }
         return Promise.reject(new Error('Not found'));
       });
@@ -290,7 +288,7 @@ describe('Bare Multisig Utilities', () => {
         callCount++;
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve({ data: mockUtxos });
         }
         // Raw tx fetch - all endpoints fail
         if (url.includes('/tx/') && url.includes('/hex')) {
@@ -353,15 +351,15 @@ describe('Bare Multisig Utilities', () => {
       mockQuickApiClient.get = vi.fn((url: string) => {
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve({ data: mockUtxos });
         }
         // Spent check
         if (url.includes('/v2/utxos/')) {
-          return Promise.resolve({ data: { spent: false } });
+          return Promise.resolve({ spent: false });
         }
         // Raw tx fetch
         if ((url.includes('blockstream.info') || url.includes('mempool.space')) && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+          return Promise.resolve(mockRawTx);
         }
         return Promise.reject(new Error('Not found'));
       });
@@ -408,11 +406,11 @@ describe('Bare Multisig Utilities', () => {
       mockQuickApiClient.get = vi.fn((url: string) => {
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve({ data: mockUtxos });
         }
         // Raw tx fetch
         if ((url.includes('blockstream.info') || url.includes('mempool.space')) && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+          return Promise.resolve(mockRawTx);
         }
         return Promise.reject(new Error('Not found'));
       });
@@ -467,20 +465,20 @@ describe('Bare Multisig Utilities', () => {
       mockQuickApiClient.get = vi.fn((url: string) => {
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve({ data: mockUtxos });
         }
         // Spent check - first is unspent, second is spent
         if (url.includes('/v2/utxos/')) {
           spentCheckCount++;
           if (spentCheckCount === 1) {
-            return Promise.resolve({ data: { spent: false } });
+            return Promise.resolve({ spent: false });
           } else {
-            return Promise.resolve({ data: { spent: true, txid: 'spending_tx_id' } });
+            return Promise.resolve({ spent: true, txid: 'spending_tx_id' });
           }
         }
         // Raw tx fetch
         if ((url.includes('blockstream.info') || url.includes('mempool.space')) && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+          return Promise.resolve(mockRawTx);
         }
         return Promise.reject(new Error('Not found'));
       });
@@ -531,14 +529,14 @@ describe('Bare Multisig Utilities', () => {
         callCount++;
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve({ data: mockUtxos });
         }
         // Raw tx fetch - first endpoint fails, second succeeds
         if (url.includes('blockstream.info') && url.includes('/tx/') && url.includes('/hex')) {
           return Promise.reject(new Error('Not found'));
         }
         if (url.includes('mempool.space') && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+          return Promise.resolve(mockRawTx);
         }
         return Promise.reject(new Error('Not found'));
       });
@@ -600,11 +598,11 @@ describe('Bare Multisig Utilities', () => {
       mockQuickApiClient.get = vi.fn((url: string) => {
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve({ data: mockUtxos });
         }
         // Raw tx fetch
         if ((url.includes('blockstream.info') || url.includes('mempool.space')) && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+          return Promise.resolve(mockRawTx);
         }
         return Promise.reject(new Error('Not found'));
       });
@@ -657,11 +655,11 @@ describe('Bare Multisig Utilities', () => {
       mockQuickApiClient.get = vi.fn((url: string) => {
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve({ data: mockUtxos });
         }
         // Raw tx fetch
         if ((url.includes('blockstream.info') || url.includes('mempool.space')) && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+          return Promise.resolve(mockRawTx);
         }
         return Promise.reject(new Error('Not found'));
       });
