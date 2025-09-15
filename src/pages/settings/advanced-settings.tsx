@@ -20,6 +20,7 @@ const CONSTANTS = {
     BACK: -1, // Using -1 for navigate(-1)
   } as const,
   AUTO_LOCK_OPTIONS: [
+    { value: "10s" as AutoLockTimer, label: "10 Seconds (Test)" },
     { value: "1m" as AutoLockTimer, label: "1 Minute" },
     { value: "5m" as AutoLockTimer, label: "5 Minutes" },
     { value: "15m" as AutoLockTimer, label: "15 Minutes" },
