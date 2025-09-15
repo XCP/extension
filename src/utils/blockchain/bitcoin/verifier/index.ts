@@ -7,15 +7,23 @@
  * 3. Verification chain with fallbacks
  */
 
-export { verifyBIP137 } from './bip137';
-export { verifyBIP322 } from './bip322';
-export { verifyLegacy } from './legacy';
-export { verifyMessage, VerificationResult } from './verifier';
+// Main verifier - clean architecture
+export {
+  verifyMessage,
+  verifyMessageWithMethod,
+  isSpecCompliant,
+  getVerificationReport,
+  VerificationResult,
+  VerificationOptions
+} from './verifier';
 
-// Platform-specific verifiers
-export { verifyBitcoinCore } from './platforms/bitcoin-core';
-export { verifyBitcore } from './platforms/bitcore';
-export { verifyFreeWallet } from './platforms/freewallet';
-export { verifySparrow } from './platforms/sparrow';
-export { verifyLedger } from './platforms/ledger';
-export { verifyElectrum } from './platforms/electrum';
+// Spec-compliant implementations
+export { verifyBIP322 } from './specs/bip322';
+export { verifyBIP137 } from './specs/bip137';
+export { verifyLegacy } from './specs/legacy';
+
+// Compatibility layer
+export { verifyLooseBIP137 } from './compatibility/loose-bip137';
+
+// Utilities
+export { recoverPublicKeyFromSignature } from './secp-recovery';

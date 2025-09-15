@@ -1,31 +1,30 @@
 /**
- * Main Message Verifier
+ * Main Message Verifier - Clean Architecture
  *
  * Verification order:
- * 1. BIP-322 (most modern, supports all address types)
- * 2. BIP-137 (widely supported, P2PKH/P2WPKH/P2SH-P2WPKH)
- * 3. Legacy (Bitcoin Core style, P2PKH only)
- * 4. Platform-specific quirks (if enabled)
+ * 1. Spec-compliant verifiers (if strict mode or always try first)
+ * 2. Compatibility layer (if not strict mode)
  */
 
 import { VerificationResult, VerificationOptions } from './types';
-import { verifyBIP322 } from './bip322';
-import { verifyBIP137 } from './bip137';
-import { verifyLegacy } from './legacy';
 
-// Platform-specific verifiers (to be implemented)
-import { verifyBitcoinCore } from './platforms/bitcoin-core';
-import { verifyBitcore } from './platforms/bitcore';
-import { verifyFreeWallet } from './platforms/freewallet';
-import { verifySparrow } from './platforms/sparrow';
-import { verifyLedger } from './platforms/ledger';
-import { verifyElectrum } from './platforms/electrum';
+// Spec-compliant verifiers
+import { verifyBIP322 } from './specs/bip322';
+import { verifyBIP137 } from './specs/bip137';
+import { verifyLegacy } from './specs/legacy';
+
+// Compatibility layer
+import { verifyLooseBIP137 } from './compatibility/loose-bip137';
 
 export { VerificationResult, VerificationOptions };
 
 /**
  * Main verification function
- * Tries all methods in order until one succeeds
+ *
+ * @param message - The message to verify
+ * @param signature - The signature to verify
+ * @param address - The Bitcoin address
+ * @param options - Verification options
  */
 export async function verifyMessage(
   message: string,
@@ -33,28 +32,18 @@ export async function verifyMessage(
   address: string,
   options: VerificationOptions = {}
 ): Promise<VerificationResult> {
-  const { strict = false, tryPlatformQuirks = true, platform } = options;
+  const { strict = false } = options;
 
-  // If a specific platform is specified, try that first
-  if (platform) {
-    const platformResult = await verifyWithPlatform(message, signature, address, platform);
-    if (platformResult.valid) {
-      return platformResult;
-    }
-    // If platform-specific fails and strict mode, return the failure
-    if (strict) {
-      return platformResult;
-    }
-  }
+  // Always try spec-compliant verifiers first
 
-  // 1. Try BIP-322 (most modern)
+  // 1. Try BIP-322 (most modern, supports all address types)
   const bip322Result = await verifyBIP322(message, signature, address);
   if (bip322Result.valid) {
     return bip322Result;
   }
 
-  // 2. Try BIP-137 (widely supported)
-  const bip137Result = await verifyBIP137(message, signature, address, strict);
+  // 2. Try BIP-137 (spec-compliant)
+  const bip137Result = await verifyBIP137(message, signature, address);
   if (bip137Result.valid) {
     return bip137Result;
   }
@@ -65,99 +54,76 @@ export async function verifyMessage(
     return legacyResult;
   }
 
-  // 4. Try platform-specific quirks if enabled
-  if (tryPlatformQuirks && !strict) {
-    const quirksResult = await tryAllPlatformQuirks(message, signature, address);
-    if (quirksResult.valid) {
-      return quirksResult;
-    }
+  // If strict mode, stop here
+  if (strict) {
+    return {
+      valid: false,
+      details: `Strict mode: No spec-compliant verifier succeeded.\nBIP-322: ${bip322Result.details}\nBIP-137: ${bip137Result.details}\nLegacy: ${legacyResult.details}`
+    };
   }
 
-  // Nothing worked, return the most informative error
+  // Try compatibility layer for cross-platform support
+
+  // 4. Try Loose BIP-137 (handles wrong flags, Taproot with BIP-137, etc.)
+  const looseResult = await verifyLooseBIP137(message, signature, address);
+  if (looseResult.valid) {
+    return looseResult;
+  }
+
+  // Nothing worked
   return {
     valid: false,
-    details: combineErrors([
-      bip322Result,
-      bip137Result,
-      legacyResult
-    ])
+    details: `All verification methods failed.\nBIP-322: ${bip322Result.details}\nBIP-137: ${bip137Result.details}\nLegacy: ${legacyResult.details}\nLoose BIP-137: ${looseResult.details}`
   };
 }
 
 /**
- * Try platform-specific verification
+ * Verify and return which method succeeded
  */
-async function verifyWithPlatform(
+export async function verifyMessageWithMethod(
   message: string,
   signature: string,
   address: string,
-  platform: string
+  options: VerificationOptions = {}
 ): Promise<VerificationResult> {
-  switch (platform) {
-    case 'bitcoin-core':
-      return await verifyBitcoinCore(message, signature, address);
-    case 'bitcore':
-      return await verifyBitcore(message, signature, address);
-    case 'freewallet':
-      return await verifyFreeWallet(message, signature, address);
-    case 'sparrow':
-      return await verifySparrow(message, signature, address);
-    case 'ledger':
-      return await verifyLedger(message, signature, address);
-    case 'electrum':
-      return await verifyElectrum(message, signature, address);
-    default:
-      return { valid: false, details: `Unknown platform: ${platform}` };
-  }
+  return verifyMessage(message, signature, address, options);
 }
 
 /**
- * Try all platform-specific quirks
+ * Test if a signature is spec-compliant
  */
-async function tryAllPlatformQuirks(
+export async function isSpecCompliant(
   message: string,
   signature: string,
   address: string
-): Promise<VerificationResult> {
-  // Try each platform's specific quirks
-  const platforms = [
-    { name: 'FreeWallet', verify: verifyFreeWallet },
-    { name: 'Bitcore', verify: verifyBitcore },
-    { name: 'Electrum', verify: verifyElectrum },
-    { name: 'Ledger', verify: verifyLedger },
-    { name: 'Sparrow', verify: verifySparrow },
-    { name: 'Bitcoin Core', verify: verifyBitcoinCore }
-  ];
-
-  for (const { name, verify } of platforms) {
-    try {
-      const result = await verify(message, signature, address);
-      if (result.valid) {
-        return {
-          ...result,
-          method: `${result.method} (${name} quirks)`
-        };
-      }
-    } catch (error) {
-      console.debug(`${name} quirks failed:`, error);
-    }
-  }
-
-  return { valid: false, details: 'No platform-specific quirks matched' };
+): Promise<boolean> {
+  const result = await verifyMessage(message, signature, address, { strict: true });
+  return result.valid;
 }
 
 /**
- * Combine error messages from multiple results
+ * Get detailed verification report
  */
-function combineErrors(results: VerificationResult[]): string {
-  const errors = results
-    .filter(r => !r.valid && r.details)
-    .map(r => r.details)
-    .filter(Boolean);
+export async function getVerificationReport(
+  message: string,
+  signature: string,
+  address: string
+): Promise<{
+  specCompliant: boolean;
+  compatibilityMode: boolean;
+  method?: string;
+  details?: string;
+}> {
+  // Check spec compliance
+  const strictResult = await verifyMessage(message, signature, address, { strict: true });
 
-  if (errors.length === 0) {
-    return 'Verification failed for all methods';
-  }
+  // Check with compatibility
+  const compatResult = await verifyMessage(message, signature, address, { strict: false });
 
-  return 'Verification failed:\n' + errors.join('\n');
+  return {
+    specCompliant: strictResult.valid,
+    compatibilityMode: !strictResult.valid && compatResult.valid,
+    method: compatResult.method,
+    details: compatResult.details
+  };
 }

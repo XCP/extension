@@ -1,22 +1,24 @@
 /**
- * BIP-322: Generic Signed Message Format
+ * BIP-322: Generic Signed Message Format - SPEC COMPLIANT
  * https://github.com/bitcoin/bips/blob/master/bip-0322.mediawiki
+ *
+ * THIS IS THE PURE SPEC IMPLEMENTATION - DO NOT MODIFY FOR COMPATIBILITY
  *
  * Supports all address types including SegWit and Taproot
  * Uses virtual transactions for verification
  */
 
-import { VerificationResult } from './types';
-import { getAddressType } from './utils';
+import { VerificationResult } from '../types';
+import { getAddressType } from '../utils';
 
 // Import from our existing BIP-322 implementation
 import {
   verifyBIP322Signature as verifyBIP322Full,
   verifySimpleBIP322
-} from '../bip322';
+} from '../../bip322';
 
 /**
- * Verify a BIP-322 signature
+ * Verify a BIP-322 signature according to the specification
  * Supports both simple and full formats
  */
 export async function verifyBIP322(
@@ -38,7 +40,7 @@ export async function verifyBIP322(
         };
       }
     } catch (error) {
-      console.debug('Full BIP-322 failed:', error);
+      console.debug('Full BIP-322 verification failed:', error);
     }
 
     // Try simple BIP-322 as fallback
@@ -52,7 +54,7 @@ export async function verifyBIP322(
         };
       }
     } catch (error) {
-      console.debug('Simple BIP-322 failed:', error);
+      console.debug('Simple BIP-322 verification failed:', error);
     }
 
     return {

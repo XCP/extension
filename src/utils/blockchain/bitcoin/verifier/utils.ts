@@ -6,6 +6,7 @@ import { sha256 } from '@noble/hashes/sha2';
 import { hmac } from '@noble/hashes/hmac';
 import * as secp256k1 from '@noble/secp256k1';
 import { AddressType } from './types';
+import { recoverPublicKeyFromSignature } from './secp-recovery';
 
 // Initialize secp256k1
 import { hashes } from '@noble/secp256k1';
@@ -116,42 +117,26 @@ export function getAddressType(address: string): AddressType {
 
 /**
  * Recover public key from ECDSA signature
- * This is the CRITICAL function that needs to work correctly
+ * Uses isolated recovery utility (currently tiny-secp256k1, will migrate to noble)
  */
 export function recoverPublicKey(
-  messageHash: Uint8Array,
   signature: Uint8Array,
+  messageHash: Uint8Array,
   recoveryId: number,
   compressed: boolean = true
 ): Uint8Array | null {
-  try {
-    // Ensure we have a 64-byte signature (r + s)
-    if (signature.length < 64) {
-      return null;
-    }
+  return recoverPublicKeyFromSignature(signature, messageHash, recoveryId, compressed);
+}
 
-    // Extract r and s
-    const r = signature.slice(0, 32);
-    const s = signature.slice(32, 64);
-
-    // Create signature object
-    const sig = new secp256k1.Signature(
-      BigInt('0x' + Buffer.from(r).toString('hex')),
-      BigInt('0x' + Buffer.from(s).toString('hex'))
-    );
-
-    // Add recovery bit
-    const sigWithRecovery = sig.addRecoveryBit(recoveryId);
-
-    // Recover public key
-    const point = sigWithRecovery.recoverPublicKey(messageHash);
-
-    // Return in requested format
-    return point.toRawBytes(compressed);
-  } catch (error) {
-    console.debug('Public key recovery failed:', error);
-    return null;
+/**
+ * Convert bytes to BigInt (helper function)
+ */
+function bytesToBigInt(bytes: Uint8Array): bigint {
+  let result = 0n;
+  for (let i = 0; i < bytes.length; i++) {
+    result = (result << 8n) | BigInt(bytes[i]);
   }
+  return result;
 }
 
 /**

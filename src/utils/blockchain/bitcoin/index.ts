@@ -5,7 +5,7 @@ export { getCurrentBlockHeight } from './blockHeight';
 export * from './consolidateBatch';
 export * from './feeRate';
 export * from './messageSigner';
-export * from './messageVerifier';
+export * from './verifier';
 export * from './bip322';
 export * from './multisigSigner';
 export * from './price';

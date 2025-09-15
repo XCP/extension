@@ -1,6 +1,8 @@
 /**
- * Legacy Bitcoin Message Verification
+ * Legacy Bitcoin Message Verification - SPEC COMPLIANT
  * Pre-BIP era signing, still used by Bitcoin Core for P2PKH addresses
+ *
+ * THIS IS THE PURE SPEC IMPLEMENTATION - DO NOT MODIFY FOR COMPATIBILITY
  *
  * Format is essentially the same as BIP-137 but only supports:
  * - P2PKH addresses
@@ -9,12 +11,12 @@
 
 import * as btc from '@scure/btc-signer';
 import { base64 } from '@scure/base';
-import { VerificationResult } from './types';
-import { hashMessage, recoverPublicKey, getAddressType } from './utils';
+import { VerificationResult } from '../types';
+import { hashMessage, recoverPublicKey, getAddressType } from '../utils';
 
 /**
  * Verify a legacy Bitcoin message signature
- * Only works with P2PKH addresses
+ * Only works with P2PKH addresses as per Bitcoin Core
  */
 export async function verifyLegacy(
   message: string,
@@ -27,7 +29,7 @@ export async function verifyLegacy(
     if (addressType !== 'P2PKH') {
       return {
         valid: false,
-        details: `Legacy signatures only work with P2PKH addresses, got ${addressType}`
+        details: `Legacy signatures only support P2PKH addresses, got ${addressType}`
       };
     }
 
