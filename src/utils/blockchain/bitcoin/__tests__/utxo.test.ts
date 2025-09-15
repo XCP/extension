@@ -155,19 +155,19 @@ describe('UTXO Utilities', () => {
 
     it('should handle very large UTXO values', async () => {
       const largeUtxo = { ...mockUtxo, value: 2100000000000000 }; // 21M BTC in sats
-      mockApi.get.mockResolvedValue({ data: [largeUtxo] });
+      mockApi.get.mockResolvedValue([largeUtxo]);
 
       const result = await fetchUTXOs(mockAddress);
-      
+
       expect(result[0].value).toBe(2100000000000000);
     });
 
     it('should handle zero-value UTXOs', async () => {
       const zeroUtxo = { ...mockUtxo, value: 0 };
-      mockApi.get.mockResolvedValue({ data: [zeroUtxo] });
+      mockApi.get.mockResolvedValue([zeroUtxo]);
 
       const result = await fetchUTXOs(mockAddress);
-      
+
       expect(result[0].value).toBe(0);
     });
   });
