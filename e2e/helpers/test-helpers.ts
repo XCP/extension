@@ -27,6 +27,7 @@ export interface ExtensionContext {
  * @returns Extension context with browser, page, and extension ID
  */
 export async function launchExtension(testName: string): Promise<ExtensionContext> {
+  // Use consistent build for all tests
   const pathToExtension = path.resolve('.output/chrome-mv3');
   
   // Determine if we're running in CI environment

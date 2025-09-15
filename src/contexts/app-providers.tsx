@@ -48,6 +48,13 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
     }
   }, [authState, setLastActiveTime]);
 
+  const handleActive = useCallback(() => {
+    // This only triggers when transitioning from idle back to active
+    if (authState === 'UNLOCKED') {
+      setLastActiveTime();
+    }
+  }, [authState, setLastActiveTime]);
+
   // Disable idle timer if timeout is 0 or undefined
   const isIdleTimerEnabled = settings.autoLockTimeout && settings.autoLockTimeout > 0;
 
@@ -55,7 +62,8 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
   useIdleTimer({
     timeout: settings.autoLockTimeout || 0,
     onIdle: handleIdle,
-    onActive: handleAction,
+    onActive: handleActive,
+    onAction: handleAction,
     disabled: !isIdleTimerEnabled || authState !== 'UNLOCKED',
     stopOnIdle: true,
   });

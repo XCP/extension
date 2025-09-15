@@ -46,6 +46,7 @@ export default function AdvancedSettings(): ReactElement {
   const { settings, updateSettings, isLoading } = useSettings();
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
 
+
   // Configure header
   useEffect(() => {
     setHeaderProps({

@@ -88,7 +88,7 @@ describe('settingsStorage.ts', () => {
       expect(settings.autoLockTimeout).toBe(15 * 60 * 1000);
     });
 
-    it('should default invalid autoLockTimer to 5m', async () => {
+    it('should default invalid autoLockTimer to 1m', async () => {
       const invalidSettings = {
         id: 'keychain-settings',
         autoLockTimer: 'always' as any,
@@ -96,8 +96,8 @@ describe('settingsStorage.ts', () => {
       };
       await addRecord(invalidSettings);
       const settings = await getKeychainSettings();
-      expect(settings.autoLockTimer).toBe('5m');
-      expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
+      expect(settings.autoLockTimer).toBe('1m');
+      expect(settings.autoLockTimeout).toBe(1 * 60 * 1000);
     });
   });
 
@@ -161,15 +161,15 @@ describe('settingsStorage.ts', () => {
   });
 
   describe('migration and edge cases', () => {
-    it('should migrate autoLockTimeout of 0 to 5m', async () => {
+    it('should migrate autoLockTimeout of 0 to 1m', async () => {
       const legacySettings = {
         id: 'keychain-settings',
         autoLockTimeout: 0,
       };
       await addRecord(legacySettings);
       const settings = await getKeychainSettings();
-      expect(settings.autoLockTimer).toBe('5m');
-      expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
+      expect(settings.autoLockTimer).toBe('1m');
+      expect(settings.autoLockTimeout).toBe(1 * 60 * 1000);
     });
 
     it('should handle invalid autoLockTimeout values', async () => {
@@ -182,8 +182,8 @@ describe('settingsStorage.ts', () => {
       };
       await updateRecord(invalidSettings); // Use update instead of add to avoid duplicate
       const settings = await getKeychainSettings();
-      expect(settings.autoLockTimer).toBe('5m');
-      expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
+      expect(settings.autoLockTimer).toBe('1m');
+      expect(settings.autoLockTimeout).toBe(1 * 60 * 1000);
     });
 
     it('should not throw on duplicate ID during initial creation', async () => {
@@ -224,6 +224,7 @@ describe('settingsStorage.ts', () => {
         expect(settings.autoLockTimer).toBe(timer);
         
         const expectedTimeout = {
+          '10s': 10 * 1000,
           '1m': 1 * 60 * 1000,
           '5m': 5 * 60 * 1000,
           '15m': 15 * 60 * 1000,
@@ -257,7 +258,7 @@ describe('settingsStorage.ts', () => {
       expect(typeof DEFAULT_KEYCHAIN_SETTINGS.showHelpText).toBe('boolean');
       expect(typeof DEFAULT_KEYCHAIN_SETTINGS.analyticsAllowed).toBe('boolean');
       expect(typeof DEFAULT_KEYCHAIN_SETTINGS.allowUnconfirmedTxs).toBe('boolean');
-      expect(['1m', '5m', '15m', '30m']).toContain(DEFAULT_KEYCHAIN_SETTINGS.autoLockTimer);
+      expect(['10s', '1m', '5m', '15m', '30m']).toContain(DEFAULT_KEYCHAIN_SETTINGS.autoLockTimer);
       expect(typeof DEFAULT_KEYCHAIN_SETTINGS.enableMPMA).toBe('boolean');
       expect(typeof DEFAULT_KEYCHAIN_SETTINGS.enableAdvancedBroadcasts).toBe('boolean');
       expect(typeof DEFAULT_KEYCHAIN_SETTINGS.transactionDryRun).toBe('boolean');
@@ -267,6 +268,7 @@ describe('settingsStorage.ts', () => {
 
     it('should have consistent autoLockTimer and autoLockTimeout', () => {
       const expectedTimeout = {
+        '10s': 10 * 1000,
         '1m': 1 * 60 * 1000,
         '5m': 5 * 60 * 1000,
         '15m': 15 * 60 * 1000,
