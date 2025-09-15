@@ -13,6 +13,28 @@ export const API_TIMEOUTS = {
   BROADCAST: 45000,   // 45 seconds for transaction broadcasts
 } as const;
 
+// URL patterns mapped to timeouts for intelligent timeout selection
+const TIMEOUT_PATTERNS = [
+  { pattern: /\/utxos?/i, timeout: API_TIMEOUTS.QUICK },         // UTXO lookups - 10s
+  { pattern: /\/balance/i, timeout: API_TIMEOUTS.QUICK },        // Balance checks - 10s
+  { pattern: /\/broadcast/i, timeout: API_TIMEOUTS.BROADCAST },  // Broadcasting - 45s
+  { pattern: /\/compose/i, timeout: API_TIMEOUTS.LONG },         // Composition - 60s
+  { pattern: /\/tx\//i, timeout: API_TIMEOUTS.QUICK },           // Transaction lookups - 10s
+  { pattern: /\/transactions/i, timeout: API_TIMEOUTS.DEFAULT }, // Transaction lists - 30s
+] as const;
+
+/**
+ * Get appropriate timeout for a URL automatically
+ */
+export function getTimeoutForUrl(url: string): number {
+  for (const { pattern, timeout } of TIMEOUT_PATTERNS) {
+    if (pattern.test(url)) {
+      return timeout;
+    }
+  }
+  return API_TIMEOUTS.DEFAULT;
+}
+
 // Retry configuration
 const RETRY_CONFIG = {
   maxRetries: 3,
@@ -145,11 +167,76 @@ export async function withRetry<T>(
   throw lastError;
 }
 
-// Pre-configured instances for different use cases
-export const apiClient = createAxiosInstance({}, API_TIMEOUTS.DEFAULT);
-export const quickApiClient = createAxiosInstance({}, API_TIMEOUTS.QUICK);
-export const longApiClient = createAxiosInstance({}, API_TIMEOUTS.LONG);
-export const broadcastApiClient = createAxiosInstance({}, API_TIMEOUTS.BROADCAST);
+/**
+ * Unified smart client that automatically selects appropriate timeouts
+ * based on URL patterns and provides built-in retry logic
+ */
+export const apiClient = {
+  /**
+   * GET request with automatic timeout selection
+   */
+  async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<import('axios').AxiosResponse<T>> {
+    const timeout = config?.timeout || getTimeoutForUrl(url);
+    const instance = createAxiosInstance({}, timeout);
+
+    return withRetry(() => instance.get<T>(url, config));
+  },
+
+  /**
+   * POST request with automatic timeout selection
+   */
+  async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<import('axios').AxiosResponse<T>> {
+    const timeout = config?.timeout || getTimeoutForUrl(url);
+    const instance = createAxiosInstance({}, timeout);
+
+    return withRetry(() => instance.post<T>(url, data, config));
+  },
+
+  /**
+   * PUT request with automatic timeout selection
+   */
+  async put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<import('axios').AxiosResponse<T>> {
+    const timeout = config?.timeout || getTimeoutForUrl(url);
+    const instance = createAxiosInstance({}, timeout);
+
+    return withRetry(() => instance.put<T>(url, data, config));
+  },
+
+  /**
+   * DELETE request with automatic timeout selection
+   */
+  async delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<import('axios').AxiosResponse<T>> {
+    const timeout = config?.timeout || getTimeoutForUrl(url);
+    const instance = createAxiosInstance({}, timeout);
+
+    return withRetry(() => instance.delete<T>(url, config));
+  },
+
+  /**
+   * PATCH request with automatic timeout selection
+   */
+  async patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<import('axios').AxiosResponse<T>> {
+    const timeout = config?.timeout || getTimeoutForUrl(url);
+    const instance = createAxiosInstance({}, timeout);
+
+    return withRetry(() => instance.patch<T>(url, data, config));
+  },
+
+  /**
+   * Generic request with automatic timeout selection
+   */
+  async request<T = any>(config: AxiosRequestConfig): Promise<import('axios').AxiosResponse<T>> {
+    const url = config.url || '';
+    const timeout = config.timeout || getTimeoutForUrl(url);
+    const instance = createAxiosInstance({}, timeout);
+
+    return withRetry(() => instance.request<T>({ ...config, timeout }));
+  },
+};
+
+// Export apiClient as the default recommended client
+export default apiClient;
+
 
 /**
  * Helper to make a request with a specific timeout
@@ -161,4 +248,57 @@ export async function requestWithTimeout<T>(
   const instance = createAxiosInstance({}, timeout);
   const response = await instance.request<T>(config);
   return response.data;
+}
+
+/**
+ * Type guard to check if an error is an AxiosError
+ */
+export function isAxiosError(error: any): error is AxiosError {
+  return axios.isAxiosError(error);
+}
+
+/**
+ * Enhanced error checker that also checks for specific error types
+ */
+export function isApiError(error: any): error is AxiosError {
+  return isAxiosError(error);
+}
+
+/**
+ * Check if error is a timeout error
+ */
+export function isTimeoutError(error: any): boolean {
+  return isAxiosError(error) && (
+    error.code === 'ECONNABORTED' ||
+    error.message.includes('timeout') ||
+    (error as any).code === 'TIMEOUT'
+  );
+}
+
+/**
+ * Check if error is a network error
+ */
+export function isNetworkError(error: any): boolean {
+  return isAxiosError(error) && !error.response;
+}
+
+/**
+ * Get a user-friendly error message from an error
+ */
+export function getErrorMessage(error: any): string {
+  if (isTimeoutError(error)) {
+    return 'Request timed out. Please check your connection and try again.';
+  }
+
+  if (isNetworkError(error)) {
+    return 'Network error. Please check your internet connection.';
+  }
+
+  if (isAxiosError(error) && error.response) {
+    return (error.response.data as any)?.message ||
+           error.response.statusText ||
+           `Request failed with status ${error.response.status}`;
+  }
+
+  return error.message || 'An unexpected error occurred';
 }

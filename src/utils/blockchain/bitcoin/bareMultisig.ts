@@ -1,5 +1,5 @@
 import { Transaction, SigHash } from '@scure/btc-signer';
-import { quickApiClient, API_TIMEOUTS } from '@/utils/api/axiosConfig';
+import { apiClient, API_TIMEOUTS } from '@/utils/axios';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
@@ -89,7 +89,7 @@ export async function fetchConsolidationFeeConfig(address: string): Promise<Serv
   try {
     // Use the Laravel API consolidation endpoint to get fee configuration
     // This endpoint includes fee_config in the response
-    const response = await quickApiClient.get<{
+    const response = await apiClient.get<{
       fee_config: ServiceFeeConfig;
       summary: any;
       utxos: any[];
@@ -477,7 +477,7 @@ async function isUTXOUnspent(txid: string, vout: number): Promise<boolean> {
     
     for (const endpoint of endpoints) {
       try {
-        const response = await quickApiClient.get(endpoint);
+        const response = await apiClient.get(endpoint);
         // If the UTXO is spent, the response will have a 'spent' field set to true
         // or will have 'txid' field indicating the spending transaction
         if (response.data) {
@@ -511,7 +511,7 @@ async function isUTXOUnspent(txid: string, vout: number): Promise<boolean> {
  * Fetch bare multisig UTXOs for the given address.
  */
 async function fetchBareMultisigUTXOs(address: string): Promise<UTXO[]> {
-  const response = await quickApiClient.get<{ data: any[] }>(`https://app.xcp.io/api/v1/address/${address}/utxos`);
+  const response = await apiClient.get<{ data: any[] }>(`https://app.xcp.io/api/v1/address/${address}/utxos`);
   const utxos = response.data.data;
   if (!utxos || utxos.length === 0) throw new Error('No bare multisig UTXOs found');
   return utxos.map((utxo: any) => ({
@@ -540,7 +540,7 @@ async function fetchPreviousRawTransaction(txid: string): Promise<string | null>
     try {
       const url = typeof endpoint.url === 'function' ? await endpoint.url() : endpoint.url;
       // Use quickApiClient with 10 second timeout for transaction lookups
-      const response = await quickApiClient.get(url);
+      const response = await apiClient.get(url);
       return endpoint.transform(response.data);
     } catch (_) {
       continue;
