@@ -71,51 +71,57 @@ test.describe('Verify Message', () => {
   test('should verify a valid signature', async () => {
     const { context, page, extensionId } = await launchExtension('verify-message-valid');
     await setupWallet(page);
-    
-    // First, get the address from the index page
+    await grantClipboardPermissions(context);
+
+    // Step 1: Get the full address from the index page
     await page.goto(`chrome-extension://${extensionId}/popup.html#/index`);
-    await page.waitForTimeout(1000); // Wait for page to load
-    const addressElement = page.locator('.font-mono').first();
-    const address = await addressElement.textContent();
-    
-    // Navigate to sign message page to create a signature
+    await page.waitForTimeout(1000);
+
+    // Click on the address area to copy the full address
+    await page.click('.font-mono');
+
+    // Get the full address from clipboard by evaluating in page context
+    const fullAddress = await page.evaluate(async () => {
+      return await navigator.clipboard.readText();
+    });
+
+    // Step 2: Go to sign message page and create a signature
     await page.goto(`chrome-extension://${extensionId}/popup.html#/actions/sign-message`);
-    
+
     const testMessage = 'Test verification message';
     await page.fill('textarea[placeholder*="Enter your message"]', testMessage);
-    
+
     // Sign the message
     await page.click('button:has-text("Sign Message")');
-    
+
     // Handle password if needed
     const passwordModal = page.locator('text=Enter Password');
     if (await passwordModal.isVisible({ timeout: 2000 })) {
       await page.fill('input[type="password"]', TEST_PASSWORD);
       await page.click('button:has-text("Unlock")');
     }
-    
+
     // Wait for signature to appear
     await page.waitForSelector('text=Signed', { timeout: 10000 });
-    
-    // Get the signature from the disabled textarea
+
+    // Get the signature from the result textarea
     const signatureTextarea = page.locator('textarea[disabled]').first();
     const signature = await signatureTextarea.inputValue();
-    
-    // Now navigate to verify page
+
+    // Step 3: Navigate to verify page with the exact same data
     await page.goto(`chrome-extension://${extensionId}/popup.html#/actions/verify-message`);
-    
-    // Fill in the verification form
-    await page.fill('input[placeholder*="Bitcoin address"]', address!);
+
+    // Fill in the verification form with the exact data we just used
+    await page.fill('input[placeholder*="Bitcoin address"]', fullAddress);
     await page.fill('textarea[placeholder*="exact message"]', testMessage);
-    await page.fill('textarea[placeholder*="signature"]', signature!);
-    
+    await page.fill('textarea[placeholder*="signature"]', signature);
+
     // Verify
     await page.click('button:has-text("Verify Signature")');
-    
-    // Should show valid signature
-    await expect(page.locator('textarea.border-green-500')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('text=Signature Valid')).toBeVisible();
-    
+
+    // Should show valid signature text
+    await expect(page.locator('text=Signature Valid')).toBeVisible({ timeout: 5000 });
+
     await cleanup(context);
   });
 

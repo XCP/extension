@@ -10,7 +10,12 @@ import * as btc from '@scure/btc-signer';
 import { hex, base64 } from '@scure/base';
 import * as secp256k1 from '@noble/secp256k1';
 import { formatMessageForSigning } from '@/utils/blockchain/bitcoin/messageSigner';
-import { verifyBIP322Signature, verifySimpleBIP322, parseBIP322Signature } from '@/utils/blockchain/bitcoin/bip322';
+import {
+  verifyBIP322Signature,
+  verifySimpleBIP322,
+  parseBIP322Signature,
+  getAddressType
+} from '@/utils/blockchain/bitcoin/bip322';
 
 // Required initialization for @noble/secp256k1 v3
 import { hashes } from '@noble/secp256k1';
@@ -189,9 +194,6 @@ export async function verifyMessageWithMethod(
   address: string
 ): Promise<{ valid: boolean; method?: string }> {
   try {
-    // Import BIP-322 verification functions
-    const { verifyBIP322Signature, getAddressType } = await import('./bip322');
-
     // 1. Try BIP-322 verification first (works for all address types)
     try {
       const isValid = await verifyBIP322Signature(message, signature, address);

@@ -12,6 +12,13 @@ import { hex, base64 } from '@scure/base';
 import { bytesToHex } from '@noble/hashes/utils';
 import * as secp256k1 from '@noble/secp256k1';
 import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { encodeAddress } from './address';
+import {
+  signBIP322P2PKH,
+  signBIP322P2WPKH,
+  signBIP322P2SH_P2WPKH,
+  signBIP322P2TR,
+} from './bip322';
 
 // Required initialization for @noble/secp256k1 v3
 // Set up the HMAC and SHA256 functions needed for deterministic signatures
@@ -192,9 +199,6 @@ export async function signMessageTaproot(
   privateKey: Uint8Array,
   publicKey: Uint8Array
 ): Promise<string> {
-  // Import BIP-322 signing
-  const { signBIP322P2TR } = await import('./bip322');
-
   // Use BIP-322 signing for Taproot
   return await signBIP322P2TR(message, privateKey);
 }
@@ -214,17 +218,6 @@ export async function signMessage(
 ): Promise<{ signature: string; address: string }> {
   const privateKey = hex.decode(privateKeyHex);
   const publicKey = secp256k1.getPublicKey(privateKey, compressed);
-
-  // Import BIP-322 signing functions
-  const {
-    signBIP322P2PKH,
-    signBIP322P2WPKH,
-    signBIP322P2SH_P2WPKH,
-    signBIP322P2TR,
-  } = await import('./bip322');
-
-  // Import address encoding for test compatibility
-  const { encodeAddress } = await import('./address');
 
   // Use BIP-322 exclusively for all address types
   let signature: string;
