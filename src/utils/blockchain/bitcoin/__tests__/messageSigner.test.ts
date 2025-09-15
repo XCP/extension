@@ -215,7 +215,7 @@ describe('messageSign', () => {
       );
 
       const isValid = await verifyMessage(testMessage, signature, address);
-      expect(isValid).toBe(true);
+      expect(isValid.valid).toBe(true);
     });
 
     it('should verify a valid Taproot signature', async () => {
@@ -228,7 +228,7 @@ describe('messageSign', () => {
       
       // Current implementation is simplified
       const isValid = await verifyMessage(testMessage, signature, address);
-      expect(isValid).toBe(true);
+      expect(isValid.valid).toBe(true);
     });
 
     it('should reject invalid signatures', async () => {
@@ -237,7 +237,7 @@ describe('messageSign', () => {
         'invalid_signature',
         '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'
       );
-      expect(isValid).toBe(false);
+      expect(isValid.valid).toBe(false);
     });
 
     it('should reject signatures with wrong format', async () => {
@@ -246,7 +246,7 @@ describe('messageSign', () => {
         'short',
         '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'
       );
-      expect(isValid).toBe(false);
+      expect(isValid.valid).toBe(false);
     });
   });
 
