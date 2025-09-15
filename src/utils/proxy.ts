@@ -3,6 +3,25 @@
  *
  * This utility provides a simple way to expose services from the background
  * script to other contexts (popup, content scripts) using Chrome's runtime messaging.
+ *
+ * WHY THIS EXISTS:
+ * - Security: Reduces dependencies (replaced @webext-core/proxy-service)
+ * - Control: Full control over service communication patterns
+ * - Type Safety: Maintains TypeScript types across contexts
+ *
+ * HOW IT WORKS:
+ * 1. Services are defined and registered in the background script
+ * 2. Other contexts get a proxy object that looks like the real service
+ * 3. Method calls on the proxy are converted to Chrome runtime messages
+ * 4. Background script receives messages, calls real service, returns results
+ *
+ * USED BY:
+ * - WalletService: Core wallet operations
+ * - ProviderService: Web3 provider methods
+ * - BlockchainService: Blockchain data fetching
+ * - ConnectionService: DApp connection management
+ * - ApprovalService: User approval flows
+ * - TransactionService: Transaction building
  */
 
 type ServiceFactory<T> = () => T;
@@ -117,8 +136,13 @@ export function defineProxyService<T extends Record<string, any>>(
             };
 
             chrome.runtime.sendMessage(message, (response: ProxyResponse) => {
-              if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
+              // ALWAYS check lastError first to prevent console warnings
+              const error = chrome.runtime.lastError;
+
+              if (error) {
+                // Just pass through the original error message
+                // Don't change it as tests/UI might depend on specific messages
+                reject(new Error(error.message || 'Unknown runtime error'));
                 return;
               }
 

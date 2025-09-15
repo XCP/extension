@@ -14,27 +14,62 @@ import { checkForLastError, wrapRuntimeCallback, broadcastToTabs, sendMessageToT
 import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
 
 export default defineBackground(() => {
-  // TOP LEVEL MESSAGE LISTENERS - Critical for MV3 service worker wake-up
-  // In WXT, these need to be inside defineBackground() but still at the top
-  
-  // Set up core message listener immediately with debugging
+  /**
+   * CRITICAL: Chrome Runtime Error Prevention
+   *
+   * Chrome fires connection attempts immediately when the extension loads/updates,
+   * often before our service worker is fully initialized. If these errors aren't
+   * consumed, Chrome logs "Unchecked runtime.lastError" warnings to the console.
+   *
+   * These listeners MUST be the first thing registered to consume errors immediately.
+   * They run synchronously before any async operations or other initialization.
+   */
+
+  // Primary error consumer for message-based connections
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Immediately check and consume lastError to prevent console warnings
+    if (chrome.runtime.lastError) {
+      // Error consumed - prevents "Unchecked runtime.lastError" spam
+      // Common during extension startup when Chrome tries to reconnect to tabs
+    }
+    // DON'T respond - let the actual handlers do their job
+    // Just consuming the error is enough
+    return false; // Let other handlers process the message
+  });
+
+  // Secondary error consumer for port-based connections
+  chrome.runtime.onConnect.addListener((port) => {
+    // Check for connection errors immediately
+    if (chrome.runtime.lastError) {
+      // Error consumed - handles port connection failures
+    }
+
+    port.onDisconnect.addListener(() => {
+      // Consume disconnect errors
+      if (chrome.runtime.lastError) {
+        // Error consumed - handles port disconnection issues
+      }
+    });
+  });
+
+  // Now set up the actual message handlers with proper logic
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Debug logging in development only
     if (process.env.NODE_ENV === 'development') {
       console.log('[Background] Received message:', message?.type || message?.action, 'from:', sender.tab?.url || sender.url || 'extension');
     }
-    
+
     // Handle ping requests immediately
     if (message?.action === 'ping' || message?.type === 'startup-health-check') {
       sendResponse({ status: 'ready', timestamp: Date.now(), context: 'background' });
       return true;
     }
-    
+
     // Check for lastError to prevent console warnings
     if (chrome.runtime.lastError) {
       // Error already "checked" by accessing it
     }
-    
+
     // Let other handlers process the message
     return false;
   });
