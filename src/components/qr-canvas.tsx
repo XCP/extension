@@ -140,6 +140,11 @@ export const QRCanvas = React.memo(({
       ref={canvasRef}
       className={className}
       style={{ display: 'block', maxWidth: '100%', height: 'auto' }}
+      data-testid="qr-canvas"
+      data-text={text}
+      data-width={size.toString()}
+      data-logo-src={logo?.src}
+      data-logo-width={logo?.width?.toString()}
     />
   );
 });
