@@ -19,12 +19,13 @@ const CONSTANTS = {
   PATHS: {
     BACK: -1, // Using -1 for navigate(-1)
   } as const,
-  AUTO_LOCK_OPTIONS: [
+  BASE_AUTO_LOCK_OPTIONS: [
     { value: "1m" as AutoLockTimer, label: "1 Minute" },
     { value: "5m" as AutoLockTimer, label: "5 Minutes" },
     { value: "15m" as AutoLockTimer, label: "15 Minutes" },
     { value: "30m" as AutoLockTimer, label: "30 Minutes" },
   ],
+  DEV_AUTO_LOCK_OPTION: { value: "10s" as AutoLockTimer, label: "10 Seconds (Dev)" },
 } as const;
 
 /**
@@ -45,6 +46,11 @@ export default function AdvancedSettings(): ReactElement {
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings, isLoading } = useSettings();
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
+
+  // Dynamically add dev option when in development mode
+  const autoLockOptions = process.env.NODE_ENV === 'development'
+    ? [CONSTANTS.DEV_AUTO_LOCK_OPTION, ...CONSTANTS.BASE_AUTO_LOCK_OPTIONS]
+    : CONSTANTS.BASE_AUTO_LOCK_OPTIONS;
 
   // Configure header
   useEffect(() => {
@@ -98,7 +104,7 @@ export default function AdvancedSettings(): ReactElement {
           className="mt-4"
         >
           <SelectionCardGroup>
-            {CONSTANTS.AUTO_LOCK_OPTIONS.map((option) => (
+            {autoLockOptions.map((option) => (
               <SelectionCard
                 key={option.value}
                 value={option.value}
@@ -158,43 +164,13 @@ export default function AdvancedSettings(): ReactElement {
       />
 
       {process.env.NODE_ENV === 'development' && (
-        <>
-          <SettingSwitch
-            label="Transaction Dry Run"
-            description="When enabled, transactions will be simulated instead of being broadcast to the network."
-            checked={settings.transactionDryRun}
-            onChange={(checked) => updateSettings({ transactionDryRun: checked })}
-            showHelpText={shouldShowHelpText}
-          />
-
-          <Field>
-            <div className="space-y-2">
-              <Label className="font-bold">Idle Timer Testing</Label>
-              {shouldShowHelpText && (
-                <Description className="text-sm text-gray-500">
-                  Development tools for testing the idle timer functionality.
-                </Description>
-              )}
-            <div className="flex gap-2">
-              <button
-                onClick={() => updateSettings({ autoLockTimer: '10s', autoLockTimeout: 10000 })}
-                className="px-3 py-1 text-sm bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
-              >
-                Enable 10s Test Timer
-              </button>
-              <button
-                onClick={() => updateSettings({ autoLockTimer: '5m', autoLockTimeout: 5 * 60 * 1000 })}
-                className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-              >
-                Reset to 5m Default
-              </button>
-            </div>
-              <p className="text-xs text-gray-600">
-                Current timeout: {settings.autoLockTimeout}ms ({settings.autoLockTimer})
-              </p>
-            </div>
-          </Field>
-        </>
+        <SettingSwitch
+          label="Transaction Dry Run"
+          description="When enabled, transactions will be simulated instead of being broadcast to the network."
+          checked={settings.transactionDryRun}
+          onChange={(checked) => updateSettings({ transactionDryRun: checked })}
+          showHelpText={shouldShowHelpText}
+        />
       )}
     </div>
   );

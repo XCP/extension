@@ -18,36 +18,38 @@ test('UI-based idle timer test', async () => {
   // Wait for page to load completely
   await page.waitForTimeout(2000);
 
-  // Look for the development-only 10s timer button first
-  console.log('[TEST] Looking for 10s test timer button...');
-  const testButton = page.locator('text="Enable 10s Test Timer"');
-
-  // Check if the dev section is visible
-  const idleTimerSection = page.locator('text="Idle Timer Testing"');
-  const isDevSectionVisible = await idleTimerSection.isVisible();
-  console.log('[TEST] Dev section visible:', isDevSectionVisible);
+  // Look for the 10 seconds dev option in the radio list
+  console.log('[TEST] Looking for timer options...');
 
   let usingTestTimer = false;
-  if (isDevSectionVisible && await testButton.isVisible()) {
-    console.log('[TEST] Found 10s test timer button, clicking...');
-    await testButton.click();
-    await page.waitForTimeout(1000);
+
+  // First check if we have the 10 seconds dev option (only in dev mode)
+  const tenSecondsOption = page.locator('text="10 Seconds (Dev)"');
+  const hasTenSecondsOption = await tenSecondsOption.isVisible();
+
+  if (hasTenSecondsOption) {
+    console.log('[TEST] Found 10 seconds dev option, clicking...');
+    await tenSecondsOption.click();
+
+    // Wait for settings to save
+    await page.waitForTimeout(2000);
+
+    // Verify the selection was saved by checking if it's selected
+    const isSelected = await page.locator('input[type="radio"]:checked').isVisible();
+    console.log('[TEST] Radio button selected:', isSelected);
+
     usingTestTimer = true;
   } else {
-    console.log('[TEST] 10s test timer button not found, looking for radio buttons...');
+    console.log('[TEST] No 10 seconds dev option found, using 1 minute option...');
 
-    // Look for any radio button first
-    const radioButtons = page.locator('input[type="radio"]');
-    const radioCount = await radioButtons.count();
-    console.log('[TEST] Found', radioCount, 'radio buttons');
-
-    if (radioCount > 0) {
-      // Try clicking the first radio button (1 minute should be first)
-      console.log('[TEST] Clicking first radio button...');
-      await radioButtons.first().click();
+    // Click the 1 minute option
+    const oneMinuteOption = page.locator('text="1 Minute"');
+    if (await oneMinuteOption.isVisible()) {
+      console.log('[TEST] Clicking 1 minute option...');
+      await oneMinuteOption.click();
       await page.waitForTimeout(1000);
     } else {
-      console.log('[TEST] No radio buttons found, taking screenshot for debugging...');
+      console.log('[TEST] No timer options found, taking screenshot for debugging...');
       await page.screenshot({ path: 'debug-advanced-settings.png' });
       throw new Error('No timer controls found on advanced settings page');
     }
@@ -57,6 +59,20 @@ test('UI-based idle timer test', async () => {
   console.log('[TEST] Navigating back to main page...');
   await page.goto(page.url().replace('#/settings/advanced', '#/index'));
   await page.waitForURL(/.*\/index$/);
+
+  // Wait a bit for settings to propagate
+  await page.waitForTimeout(3000);
+
+  // Reload the page to ensure settings are fresh
+  console.log('[TEST] Reloading page to ensure settings are loaded...');
+  await page.reload();
+  await page.waitForTimeout(2000);
+
+  // Debug: Check if idle timer config is correct
+  const debugInfo = await page.evaluate(() => {
+    return (window as any).idleTimerDebug;
+  });
+  console.log('[TEST] Idle timer debug info after reload:', debugInfo);
 
   console.log('[TEST] Starting wait for idle timer...');
   const startTime = Date.now();
