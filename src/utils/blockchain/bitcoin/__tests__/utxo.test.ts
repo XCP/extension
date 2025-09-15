@@ -6,12 +6,13 @@ import {
   getUtxoByTxid,
   fetchPreviousRawTransaction
 } from '@/utils/blockchain/bitcoin/utxo';
-import api from '@/utils/api-client';
+import api, { quickApiClient } from '@/utils/api-client';
 
 vi.mock('@/utils/api-client');
 vi.mock('@/utils/storage/settingsStorage');
 
 const mockApi = api as any;
+const mockQuickApiClient = quickApiClient as any;
 const mockGetKeychainSettings = vi.fn();
 
 describe('UTXO Utilities', () => {
@@ -49,12 +50,12 @@ describe('UTXO Utilities', () => {
   describe('fetchUTXOs', () => {
     it('should fetch UTXOs successfully', async () => {
       const mockUtxos = [mockUtxo];
-      mockApi.get.mockResolvedValue(mockUtxos);
+      mockQuickApiClient.get.mockResolvedValue({ data: mockUtxos });
 
       const result = await fetchUTXOs(mockAddress);
-      
+
       expect(result).toEqual(mockUtxos);
-      expect(mockApi.get).toHaveBeenCalledWith(
+      expect(mockQuickApiClient.get).toHaveBeenCalledWith(
         `https://mempool.space/api/address/${mockAddress}/utxo`,
         { signal: undefined }
       );
@@ -63,33 +64,33 @@ describe('UTXO Utilities', () => {
     it('should fetch UTXOs with AbortSignal', async () => {
       const mockUtxos = [mockUtxo];
       const abortController = new AbortController();
-      mockApi.get.mockResolvedValue(mockUtxos);
+      mockQuickApiClient.get.mockResolvedValue({ data: mockUtxos });
 
       const result = await fetchUTXOs(mockAddress, abortController.signal);
-      
+
       expect(result).toEqual(mockUtxos);
-      expect(mockApi.get).toHaveBeenCalledWith(
+      expect(mockQuickApiClient.get).toHaveBeenCalledWith(
         `https://mempool.space/api/address/${mockAddress}/utxo`,
         { signal: abortController.signal }
       );
     });
 
     it('should return empty array when no UTXOs found', async () => {
-      mockApi.get.mockResolvedValue([]);
+      mockQuickApiClient.get.mockResolvedValue({ data: [] });
 
       const result = await fetchUTXOs(mockAddress);
-      
+
       expect(result).toEqual([]);
     });
 
     it('should handle network errors', async () => {
-      mockApi.get.mockRejectedValue(new Error('Network error'));
+      mockQuickApiClient.get.mockRejectedValue(new Error('Network error'));
 
       await expect(fetchUTXOs(mockAddress)).rejects.toThrow('Failed to fetch UTXOs.');
     });
 
     it('should handle HTTP error responses', async () => {
-      mockApi.get.mockRejectedValue({
+      mockQuickApiClient.get.mockRejectedValue({
         response: { status: 404, data: 'Not found' }
       });
 
@@ -100,20 +101,20 @@ describe('UTXO Utilities', () => {
       const cancelError = new Error('Request cancelled');
       Object.defineProperty(cancelError, 'name', { value: 'AbortError' });
       mockApi.isApiError.mockReturnValue(true);
-      mockApi.get.mockRejectedValue(cancelError);
+      mockQuickApiClient.get.mockRejectedValue(cancelError);
 
       await expect(fetchUTXOs(mockAddress)).rejects.toThrow('Request cancelled');
       expect(mockApi.isApiError).toHaveBeenCalledWith(cancelError);
     });
 
     it('should handle timeout errors', async () => {
-      mockApi.get.mockRejectedValue({ code: 'ECONNABORTED' });
+      mockQuickApiClient.get.mockRejectedValue({ code: 'ECONNABORTED' });
 
       await expect(fetchUTXOs(mockAddress)).rejects.toThrow('Failed to fetch UTXOs.');
     });
 
     it('should handle malformed response data', async () => {
-      mockApi.get.mockResolvedValue(null);
+      mockQuickApiClient.get.mockResolvedValue({ data: null });
 
       const result = await fetchUTXOs(mockAddress);
       expect(result).toBe(null);
@@ -125,10 +126,10 @@ describe('UTXO Utilities', () => {
         { ...mockUtxo, vout: 1 },
         { ...mockUtxo, vout: 2, value: 200000 }
       ];
-      mockApi.get.mockResolvedValue(mockUtxos);
+      mockQuickApiClient.get.mockResolvedValue({ data: mockUtxos });
 
       const result = await fetchUTXOs(mockAddress);
-      
+
       expect(result).toEqual(mockUtxos);
       expect(result).toHaveLength(3);
     });
@@ -144,10 +145,10 @@ describe('UTXO Utilities', () => {
         }
       };
       const mockUtxos = [mockUtxo, unconfirmedUtxo];
-      mockApi.get.mockResolvedValue(mockUtxos);
+      mockQuickApiClient.get.mockResolvedValue({ data: mockUtxos });
 
       const result = await fetchUTXOs(mockAddress);
-      
+
       expect(result).toEqual(mockUtxos);
       expect(result[0].status.confirmed).toBe(true);
       expect(result[1].status.confirmed).toBe(false);
@@ -155,7 +156,7 @@ describe('UTXO Utilities', () => {
 
     it('should handle very large UTXO values', async () => {
       const largeUtxo = { ...mockUtxo, value: 2100000000000000 }; // 21M BTC in sats
-      mockApi.get.mockResolvedValue([largeUtxo]);
+      mockQuickApiClient.get.mockResolvedValue({ data: [largeUtxo] });
 
       const result = await fetchUTXOs(mockAddress);
 
@@ -164,7 +165,7 @@ describe('UTXO Utilities', () => {
 
     it('should handle zero-value UTXOs', async () => {
       const zeroUtxo = { ...mockUtxo, value: 0 };
-      mockApi.get.mockResolvedValue([zeroUtxo]);
+      mockQuickApiClient.get.mockResolvedValue({ data: [zeroUtxo] });
 
       const result = await fetchUTXOs(mockAddress);
 
