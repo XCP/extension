@@ -137,11 +137,13 @@ Chrome immediately attempts to establish connections when an extension loads or 
 
 ### The Solution
 
-We register error-consuming listeners at the earliest possible moment in each context:
+We use a multi-layered approach to prevent runtime.lastError warnings:
 
 1. **Background**: First lines of [`defineBackground()`](../src/entrypoints/background.ts) register listeners that immediately check `chrome.runtime.lastError`
-2. **Content Script**: Main handler in [`content.ts`](../src/entrypoints/content.ts) checks errors before processing
-3. **Proxy Service**: [`proxy.ts`](../src/utils/proxy.ts) always checks `lastError` before accessing response
+2. **Content Script Readiness**: Content scripts send a ready signal on load, background tracks which tabs have active listeners
+3. **Content Script**: Main handler in [`content.ts`](../src/entrypoints/content.ts) checks errors before processing
+4. **Proxy Service**: [`proxy.ts`](../src/utils/proxy.ts) always checks `lastError` before accessing response and includes retry logic
+5. **Browser Utils**: [`browser.ts`](../src/utils/browser.ts) functions gracefully handle missing content scripts
 
 ### Key Principles
 
