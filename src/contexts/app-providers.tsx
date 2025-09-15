@@ -1,5 +1,4 @@
 import React, { useCallback, type ReactNode, type ReactElement } from 'react';
-import { IdleTimerProvider } from 'react-idle-timer';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { HeaderProvider } from './header-context';
 import { LoadingProvider } from './loading-context';
@@ -8,6 +7,7 @@ import { SettingsProvider } from './settings-context';
 import { WalletProvider } from './wallet-context';
 import { useWallet } from './wallet-context';
 import { useSettings } from './settings-context';
+import { useIdleTimer } from '@/hooks/useIdleTimer';
 
 /**
  * Props for the AppProviders component.
@@ -51,22 +51,16 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
   // Disable idle timer if timeout is 0 or undefined
   const isIdleTimerEnabled = settings.autoLockTimeout && settings.autoLockTimeout > 0;
 
-  if (!isIdleTimerEnabled) {
-    // If idle timer is disabled, just render children
-    return <>{children}</>;
-  }
+  // Use native idle timer hook
+  useIdleTimer({
+    timeout: settings.autoLockTimeout || 0,
+    onIdle: handleIdle,
+    onActive: handleAction,
+    disabled: !isIdleTimerEnabled || authState !== 'UNLOCKED',
+    stopOnIdle: true,
+  });
 
-  return (
-    <IdleTimerProvider
-      timeout={settings.autoLockTimeout}
-      onAction={handleAction}
-      onIdle={handleIdle}
-      disabled={authState !== 'UNLOCKED'} // Disable timer when not unlocked
-      stopOnIdle={true} // Stop timer when idle to save resources
-    >
-      {children}
-    </IdleTimerProvider>
-  );
+  return <>{children}</>;
 }
 
 /**
