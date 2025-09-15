@@ -4,7 +4,7 @@
  * Provides type-safe access to TransactionService from popup/content contexts
  */
 
-import { defineProxyService } from '@webext-core/proxy-service';
+import { defineProxyService } from '@/utils/proxy';
 import { TransactionService } from './TransactionService';
 
 export const [registerTransactionService, getTransactionService] = defineProxyService(
