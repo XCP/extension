@@ -27,7 +27,6 @@
   },
   "dependencies": {
     "@headlessui/react": "2.2.8",
-    "@hello-pangea/dnd": "18.0.1",
     "@noble/curves": "2.0.0",
     "@noble/hashes": "2.0.0",
     "@noble/secp256k1": "3.0.0",
@@ -38,12 +37,9 @@
     "@webext-core/proxy-service": "1.2.1",
     "@wxt-dev/analytics": "0.5.1",
     "bignumber.js": "9.3.1",
-    "next-qrcode": "2.5.1",
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "react-icons": "5.5.0",
-    "react-idle-timer": "5.7.2",
-    "react-intersection-observer": "9.16.0",
     "react-router-dom": "7.9.0",
     "webext-bridge": "6.0.1"
   },
@@ -64,5 +60,9 @@
     "vite-plugin-remove-console": "2.2.0",
     "vitest": "3.2.4",
     "wxt": "0.20.11"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.50.1",
+    "lightningcss-linux-x64-gnu": "^1.30.1"
   }
 }

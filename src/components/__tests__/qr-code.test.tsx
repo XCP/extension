@@ -3,19 +3,12 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { QRCode } from '../qr-code';
 
-// Mock next-qrcode
-vi.mock('next-qrcode', () => ({
-  useQRCode: () => ({
-    Canvas: ({ text, options, logo, ...props }: any) => (
-      <canvas 
-        data-testid="qr-canvas" 
-        data-text={text}
-        data-width={options?.width}
-        data-logo-src={logo?.src}
-        data-logo-width={logo?.options?.width}
-        {...props}
-      />
-    )
+// Mock the QR generator to avoid complex canvas operations in tests
+vi.mock('@/utils/qr-generator', () => ({
+  generateQRMatrix: vi.fn(() => {
+    // Return a simple 25x25 matrix for testing
+    const size = 25;
+    return Array(size).fill(null).map(() => Array(size).fill(false));
   })
 }));
 

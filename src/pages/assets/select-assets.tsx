@@ -5,7 +5,7 @@ import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { FaSearch } from "react-icons/fa";
 import { FiHelpCircle } from "react-icons/fi";
 import { TbPinned, TbPinnedFilled } from "react-icons/tb";
-import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { useHeader } from "@/contexts/header-context";
@@ -184,14 +184,11 @@ export default function SelectAssets(): ReactElement {
 
   /**
    * Reorders pinned assets after drag-and-drop.
-   * @param result - The drag-and-drop result.
+   * @param items - The reordered items array.
    */
-  const handleDragEnd = async (result: DropResult) => {
-    if (!result.destination || !activeWallet) return;
+  const handleReorder = async (items: string[]) => {
+    if (!activeWallet) return;
 
-    const items = Array.from(pinnedAssets);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
     setPinnedAssets(items);
     try {
       await updateSettings({ pinnedAssets: items });
@@ -201,6 +198,19 @@ export default function SelectAssets(): ReactElement {
       setError("Failed to reorder assets.");
     }
   };
+
+  const {
+    draggedIndex,
+    dragOverIndex,
+    handleDragStart,
+    handleDragOver,
+    handleDragEnd,
+    handleDrop,
+    handleDragLeave,
+  } = useDragAndDrop({
+    items: pinnedAssets,
+    onReorder: handleReorder,
+  });
 
   const shouldShowHelpText = isHelpTextOverride ? !localHelpText : localHelpText;
 
@@ -254,39 +264,39 @@ export default function SelectAssets(): ReactElement {
               </p>
             )}
             <div className="flex-1 overflow-y-auto mb-4">
-              <DragDropContext onDragEnd={handleDragEnd}>
-                <Droppable droppableId="pinnedAssets" type="PINNED_ASSETS">
-                  {(provided) => (
-                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
-                      {pinnedAssets.map((asset, index) => (
-                        <Draggable key={asset} draggableId={asset} index={index}>
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className={`flex items-center justify-between p-3 bg-white rounded-lg shadow-sm ${
-                                snapshot.isDragging ? "shadow-lg" : ""
-                              }`}
-                            >
-                              <AssetWithIcon symbol={asset} />
-                              <Button
-                                color="gray"
-                                onClick={() => handleRemoveAsset(asset)}
-                                className="!p-2"
-                                aria-label={`Remove ${asset} from pinned`}
-                              >
-                                <TbPinnedFilled aria-hidden="true" />
-                              </Button>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
+              <div className="space-y-2">
+                {pinnedAssets.map((asset, index) => {
+                  const isDragging = draggedIndex === index;
+                  const isDragOver = dragOverIndex === index;
+
+                  return (
+                    <div
+                      key={asset}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDrop={(e) => handleDrop(e, index)}
+                      onDragEnd={handleDragEnd}
+                      onDragLeave={handleDragLeave}
+                      className={`flex items-center justify-between p-3 bg-white rounded-lg shadow-sm cursor-move transition-all ${
+                        isDragging ? "shadow-lg opacity-50" : ""
+                      } ${
+                        isDragOver ? "border-t-2 border-blue-500" : ""
+                      }`}
+                    >
+                      <AssetWithIcon symbol={asset} />
+                      <Button
+                        color="gray"
+                        onClick={() => handleRemoveAsset(asset)}
+                        className="!p-2"
+                        aria-label={`Remove ${asset} from pinned`}
+                      >
+                        <TbPinnedFilled aria-hidden="true" />
+                      </Button>
                     </div>
-                  )}
-                </Droppable>
-              </DragDropContext>
+                  );
+                })}
+              </div>
             </div>
           </div>
         ) : (
