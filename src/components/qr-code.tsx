@@ -56,3 +56,5 @@ export const QRCode = memo(({
     </div>
   );
 });
+
+QRCode.displayName = 'QRCode';
