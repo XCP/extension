@@ -72,7 +72,7 @@ export function getUtxoByTxid(utxos: UTXO[], txid: string, vout: number): UTXO |
 export async function fetchPreviousRawTransaction(txid: string): Promise<string | null> {
   try {
     const settings = await getKeychainSettings();
-    const response = await axios.get<{ result: any }>(
+    const response = await apiClient.get<{ result: any }>(
       `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
     );
 
@@ -97,7 +97,7 @@ export async function fetchPreviousRawTransaction(txid: string): Promise<string 
 export async function fetchBitcoinTransaction(txid: string): Promise<any | null> {
   try {
     const settings = await getKeychainSettings();
-    const response = await axios.get<{ result: any }>(
+    const response = await apiClient.get<{ result: any }>(
       `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
     );
 
