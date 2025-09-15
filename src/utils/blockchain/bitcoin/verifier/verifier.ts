@@ -17,8 +17,6 @@ import { verifyLegacy } from './specs/legacy';
 // Compatibility layer
 import { verifyLooseBIP137 } from './compatibility/loose-bip137';
 
-export { VerificationResult, VerificationOptions };
-
 /**
  * Main verification function
  *

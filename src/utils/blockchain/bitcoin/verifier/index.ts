@@ -12,10 +12,16 @@ export {
   verifyMessage,
   verifyMessageWithMethod,
   isSpecCompliant,
-  getVerificationReport,
-  VerificationResult,
-  VerificationOptions
+  getVerificationReport
 } from './verifier';
+
+// Types
+export {
+  VerificationResult,
+  VerificationOptions,
+  AddressType,
+  SignatureInfo
+} from './types';
 
 // Spec-compliant implementations
 export { verifyBIP322 } from './specs/bip322';
