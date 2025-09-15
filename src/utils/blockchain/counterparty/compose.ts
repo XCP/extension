@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { apiClient, longApiClient } from '@/utils/api/axiosConfig';
+import { apiClient } from '@/utils/axios';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 export interface SignedTxEstimatedSize {
@@ -258,7 +258,7 @@ async function composeTransactionWithArrays<T>(
   
   try {
     // Use longApiClient for transaction composition (60 second timeout)
-    const response = await longApiClient.get<ApiResponse>(url, {
+    const response = await apiClient.get<ApiResponse>(url, {
       headers: { 'Content-Type': 'application/json' },
     });
     return response.data;

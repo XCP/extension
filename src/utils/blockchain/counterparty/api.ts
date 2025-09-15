@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { apiClient, quickApiClient, API_TIMEOUTS } from '@/utils/api/axiosConfig';
+import { apiClient, API_TIMEOUTS } from '@/utils/axios';
 import { fetchBTCBalance } from '@/utils/blockchain/bitcoin';
 import { formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
@@ -180,7 +179,7 @@ async function cpApiGet<T = any>(
 ): Promise<T> {
   const base = await getApiBase();
   const url = `${base}${path}`;
-  const client = useQuickTimeout ? quickApiClient : apiClient;
+  const client = apiClient;
   
   const response = await client.get<T>(url, { params });
   return response.data;
@@ -252,7 +251,7 @@ export async function fetchTokenBalance(
     const verbose = options.verbose ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await apiClient.get(
       `${base}/v2/addresses/${address}/balances/${asset}`,
       {
         params: {
@@ -350,7 +349,7 @@ export async function fetchTokenUtxos(
     const verbose = options.verbose ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await apiClient.get(
       `${base}/v2/addresses/${address}/balances/${asset}`,
       {
         params: {
@@ -389,7 +388,7 @@ export async function fetchAssetDetails(
     const verbose = options.verbose ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await apiClient.get(
       `${base}/v2/assets/${asset}`,
       {
         params: {
@@ -464,7 +463,7 @@ export async function fetchAssetDetailsAndBalance(
       const base = await getApiBase();
 
       // Fetch asset details from Counterparty API.
-      const assetResponse = await axios.get(
+      const assetResponse = await apiClient.get(
         `${base}/v2/assets/${asset}`,
         {
           params: {
@@ -519,7 +518,7 @@ export async function fetchUtxoBalances(
     const show_unconfirmed = options.show_unconfirmed ?? false;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await apiClient.get(
       `${base}/v2/utxos/${utxo}/balances`,
       {
         params: {
@@ -563,7 +562,7 @@ export async function fetchOrders(
     const verbose = options.verbose ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await apiClient.get(
       `${base}/v2/addresses/${address}/orders`,
       {
         params: {
@@ -604,7 +603,7 @@ export async function fetchOrder(
     const showUnconfirmed = options.showUnconfirmed ?? false;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await apiClient.get(
       `${base}/v2/orders/${orderHash}`,
       {
         params: {
@@ -642,7 +641,7 @@ export async function fetchTransaction(
     const verbose = options.verbose ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await apiClient.get(
       `${base}/v2/transactions/${txHash}`,
       {
         params: {
@@ -686,7 +685,7 @@ export async function fetchTransactions(
     const show_unconfirmed = options.show_unconfirmed ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await apiClient.get(
       `${base}/v2/addresses/${address}/transactions`,
       {
         params: {
@@ -752,7 +751,7 @@ export async function fetchCredits(
       params.asset = options.asset;
     }
     
-    const response = await axios.get(
+    const response = await apiClient.get(
       `${base}/v2/addresses/${address}/credits`,
       { params }
     );
@@ -790,7 +789,7 @@ export async function fetchDebits(
       params.asset = options.asset;
     }
     
-    const response = await axios.get(
+    const response = await apiClient.get(
       `${base}/v2/addresses/${address}/debits`,
       { params }
     );
@@ -817,7 +816,7 @@ export async function fetchAddressDispensers(
     const verbose = options.verbose ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await apiClient.get(
       `${base}/v2/addresses/${address}/dispensers`,
       {
         params: {
@@ -856,7 +855,7 @@ export async function fetchDispenserByHash(
     const verbose = options.verbose ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await apiClient.get(
       `${base}/v2/dispensers/${txHash}`,
       {
         params: {
@@ -892,7 +891,7 @@ export async function fetchDispenserDispenses(
 ): Promise<{ dispenses: any[] }> {
   try {
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await apiClient.get(
       `${base}/v2/dispensers/${dispenserHash}/dispenses`,
       {
         params: {
@@ -939,7 +938,7 @@ export async function fetchOwnedAssets(
     const verbose = options.verbose ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await apiClient.get(
       `${base}/v2/addresses/${address}/assets/owned`,
       {
         params: {
@@ -1027,7 +1026,7 @@ export async function fetchBets(
     if (options.offset) params.append('offset', options.offset.toString());
     params.append('verbose', verbose.toString());
 
-    const response = await axios.get(
+    const response = await apiClient.get(
       `${base}/v2/addresses/${feedAddress}/bets?${params.toString()}`
     );
 
@@ -1153,7 +1152,7 @@ export async function fetchDividendsByAsset(
     const offset = options.offset ?? 0;
     
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await apiClient.get(
       `${base}/v2/assets/${asset}/dividends`,
       {
         params: {
