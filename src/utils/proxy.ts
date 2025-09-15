@@ -140,13 +140,9 @@ export function defineProxyService<T extends Record<string, any>>(
               const error = chrome.runtime.lastError;
 
               if (error) {
-                // Common case during startup - service not ready yet
-                if (error.message?.includes('Could not establish connection') ||
-                    error.message?.includes('Receiving end does not exist')) {
-                  reject(new Error(`Extension service not ready. Please try again.`));
-                } else {
-                  reject(new Error(error.message || 'Unknown runtime error'));
-                }
+                // Just pass through the original error message
+                // Don't change it as tests/UI might depend on specific messages
+                reject(new Error(error.message || 'Unknown runtime error'));
                 return;
               }
 
