@@ -127,6 +127,7 @@ export default function PinnedAssetsSettings(): ReactElement {
     draggedIndex,
     dragOverIndex,
     handleDragStart,
+    handleDragEnter,
     handleDragOver,
     handleDragEnd,
     handleDrop,
@@ -165,6 +166,7 @@ export default function PinnedAssetsSettings(): ReactElement {
       <div
         draggable
         onDragStart={(e) => handleDragStart(e, index)}
+        onDragEnter={(e) => handleDragEnter(e, index)}
         onDragOver={(e) => handleDragOver(e, index)}
         onDrop={(e) => handleDrop(e, index)}
         onDragEnd={handleDragEnd}
