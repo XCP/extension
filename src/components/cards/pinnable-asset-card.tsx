@@ -1,4 +1,4 @@
-import React, { type ReactElement } from "react";
+import { type ReactElement } from "react";
 import { TbPinned, TbPinnedFilled } from "react-icons/tb";
 import { AssetIcon } from "@/components/asset-icon";
 

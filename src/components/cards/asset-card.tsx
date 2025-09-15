@@ -1,4 +1,4 @@
-import React, { type ReactElement } from "react";
+import { type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import { AssetIcon } from "@/components/asset-icon";
 import { AssetMenu } from "@/components/menus/asset-menu";

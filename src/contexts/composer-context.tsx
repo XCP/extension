@@ -1,8 +1,10 @@
 "use client";
 
+import React, { useMemo } from "react";
 import axios from "axios";
-import React, {
+import {
   createContext,
+  use,
   useCallback,
   useEffect,
   useRef,
@@ -76,7 +78,7 @@ interface ComposerProviderProps<T> {
 const ComposerContext = createContext<ComposerContextType<any> | undefined>(undefined);
 
 export function useComposer<T>(): ComposerContextType<T> {
-  const context = React.use(ComposerContext);
+  const context = use(ComposerContext);
   if (!context) {
     throw new Error("useComposer must be used within a ComposerProvider");
   }
@@ -358,7 +360,7 @@ export function ComposerProvider<T>({
   
   
   // Provide unlock handler for auth modal
-  const contextValue = React.useMemo(() => ({
+  const contextValue = useMemo(() => ({
     state,
     composeTransaction,
     signAndBroadcast,

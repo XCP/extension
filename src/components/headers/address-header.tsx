@@ -1,5 +1,5 @@
 import logo from '@/assets/logo.png';
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useHeader } from '@/contexts/header-context';
 import { formatAddress } from '@/utils/format';
 

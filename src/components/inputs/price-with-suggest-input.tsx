@@ -1,4 +1,3 @@
-import React from 'react';
 import { Field, Label, Description } from '@headlessui/react';
 import { formatAmount } from '@/utils/format';
 import { Button } from '@/components/button';

@@ -1,5 +1,9 @@
 name: Nightly Tests
 
+permissions:
+  contents: read
+  issues: write  # For creating failure notification issues
+
 on:
   schedule:
     # Run at 2 AM UTC every day

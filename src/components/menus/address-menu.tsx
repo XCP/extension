@@ -1,4 +1,4 @@
-import React, { useCallback, type ReactElement } from 'react';
+import { useCallback, type ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaCopy } from 'react-icons/fa';
 import { GiBroom } from 'react-icons/gi';

@@ -1,4 +1,4 @@
-import React, { type ReactElement, type ReactNode } from 'react';
+import { type ReactElement, type ReactNode } from 'react';
 import { Menu, MenuButton, MenuItems } from '@headlessui/react';
 
 /**

@@ -43,5 +43,4 @@ find-xcp-both.ts
 .claude/
 
 # Local reference folders (not part of repo)
-web/
 counterparty-core/

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, type ReactElement } from "react";
+import { useState, useEffect, useCallback, type ReactElement } from "react";
 import { useInView } from "@/hooks/useInView";
 import { Spinner } from "@/components/spinner";
 import { SearchInput } from "@/components/inputs/search-input";
