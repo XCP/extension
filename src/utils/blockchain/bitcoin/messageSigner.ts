@@ -49,28 +49,34 @@ const BITCOIN_MESSAGE_MAGIC = '\x18Bitcoin Signed Message:\n';
  */
 export function formatMessageForSigning(message: string): Uint8Array {
   const messageBytes = new TextEncoder().encode(message);
-  const messageLengthBytes = encodeVarInt(messageBytes.length);
-  
+
+  // The magic string already includes \x18 which is its length
   const magicBytes = new TextEncoder().encode(BITCOIN_MESSAGE_MAGIC);
-  const magicLengthBytes = encodeVarInt(magicBytes.length - 1); // -1 because \x18 is already the length byte
-  
-  // Combine: magic_length + magic + message_length + message
+
+  // Encode message length as varint
+  let messageLengthBytes: Uint8Array;
+  if (messageBytes.length < 0xfd) {
+    messageLengthBytes = new Uint8Array([messageBytes.length]);
+  } else if (messageBytes.length <= 0xffff) {
+    messageLengthBytes = new Uint8Array([0xfd, messageBytes.length & 0xff, (messageBytes.length >> 8) & 0xff]);
+  } else {
+    throw new Error('Message too long for signing');
+  }
+
+  // Combine: magic + message_length_varint + message
   const combined = new Uint8Array(
-    magicLengthBytes.length + 
-    magicBytes.length - 1 + // -1 because we skip \x18
-    messageLengthBytes.length + 
+    magicBytes.length +
+    messageLengthBytes.length +
     messageBytes.length
   );
-  
+
   let offset = 0;
-  combined.set(magicLengthBytes, offset);
-  offset += magicLengthBytes.length;
-  combined.set(magicBytes.slice(1), offset); // Skip \x18
-  offset += magicBytes.length - 1;
+  combined.set(magicBytes, offset);
+  offset += magicBytes.length;
   combined.set(messageLengthBytes, offset);
   offset += messageLengthBytes.length;
   combined.set(messageBytes, offset);
-  
+
   return combined;
 }
 
