@@ -37,8 +37,8 @@ export function checkForLastErrorAndWarn(): Error | undefined {
 
 /**
  * Wrap a callback function to automatically check for chrome.runtime.lastError.
- * Simplified - with proper listeners, most connection errors should be resolved.
- * 
+ * Simplified - just consume the error and optionally log it.
+ *
  * @param callback - Optional callback function to wrap
  * @param logErrors - Whether to log errors (default: false)
  * @returns Wrapped callback that checks for errors
@@ -47,29 +47,20 @@ export function wrapRuntimeCallback<T extends any[]>(
   callback?: (...args: T) => any,
   logErrors = false
 ): (...args: T) => any {
-  if (!callback) {
-    return () => {
-      // Just check and consume any error
-      if (chrome.runtime?.lastError && logErrors) {
-        console.debug('Runtime error (handled):', chrome.runtime.lastError.message);
-      }
-    };
-  }
-  
   return (...args: T) => {
-    // Always check for errors first (marks as "checked")
+    // Always check and consume lastError first
     const error = chrome.runtime?.lastError;
-    
+
     if (error) {
       if (logErrors) {
         console.debug('Runtime error (handled):', error.message);
       }
-      // Don't call the original callback if there was an error
+      // Don't proceed if there was an error
       return;
     }
-    
+
     // Call original callback only if no error
-    return callback(...args);
+    return callback?.(...args);
   };
 }
 
@@ -200,10 +191,16 @@ export function sendMessageToTabSafe<T = any>(
   return new Promise((resolve, reject) => {
     try {
       chrome.tabs.sendMessage(tabId, message as any, options, (response) => {
-        // Always read runtime.lastError to prevent "Unchecked" warnings
+        // ALWAYS check lastError first to prevent console warnings
         const error = chrome.runtime.lastError;
         if (error) {
-          reject(new Error(error.message || 'Unknown runtime error'));
+          // Common during startup/shutdown - don't reject, just resolve undefined
+          if (error.message?.includes('Could not establish connection') ||
+              error.message?.includes('Receiving end does not exist')) {
+            resolve(undefined);
+          } else {
+            reject(new Error(error.message || 'Unknown runtime error'));
+          }
         } else {
           resolve(response as T);
         }
@@ -286,20 +283,18 @@ export async function sendMessageWithTimeout(
     const timeoutId = setTimeout(() => {
       reject(new Error(`Message timeout after ${timeout}ms`));
     }, timeout);
-    
-    chrome.runtime.sendMessage(
-      message,
-      wrapRuntimeCallback((response) => {
-        clearTimeout(timeoutId);
-        
-        const error = checkForLastError();
-        if (error) {
-          reject(error);
-        } else {
-          resolve(response);
-        }
-      })
-    );
+
+    chrome.runtime.sendMessage(message, (response) => {
+      clearTimeout(timeoutId);
+
+      // Check lastError first
+      const error = chrome.runtime.lastError;
+      if (error) {
+        reject(new Error(error.message || 'Unknown runtime error'));
+      } else {
+        resolve(response);
+      }
+    });
   });
 }
 
@@ -354,22 +349,23 @@ export async function safeSendMessage(message: any, options?: {
   logErrors?: boolean;
 }): Promise<any> {
   const { timeout = 5000, logErrors = false } = options || {};
-  
-  return new Promise((resolve, reject) => {
+
+  return new Promise((resolve) => {
     const timeoutId = setTimeout(() => {
-      reject(new Error(`Safe message timeout after ${timeout}ms`));
+      resolve(null); // Timeout - resolve null instead of rejecting
     }, timeout);
-    
+
     try {
       chrome.runtime.sendMessage(message, (response) => {
         clearTimeout(timeoutId);
-        
-        if (chrome.runtime.lastError) {
-          const error = new Error(chrome.runtime.lastError.message || 'Unknown runtime error');
-          if (logErrors) {
-            console.error('[safeSendMessage] Runtime error:', error.message);
+
+        // ALWAYS check lastError first
+        const error = chrome.runtime.lastError;
+        if (error) {
+          if (logErrors && !error.message?.includes('Could not establish connection')) {
+            console.debug('[safeSendMessage] Runtime error:', error.message);
           }
-          resolve(null); // Return null instead of rejecting for connection errors
+          resolve(null); // Return null for any error
         } else {
           resolve(response);
         }
@@ -377,7 +373,7 @@ export async function safeSendMessage(message: any, options?: {
     } catch (error) {
       clearTimeout(timeoutId);
       if (logErrors) {
-        console.error('[safeSendMessage] Send error:', error);
+        console.debug('[safeSendMessage] Send error:', error);
       }
       resolve(null);
     }

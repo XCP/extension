@@ -1,0 +1,232 @@
+# XCP Wallet Extension - Messaging Architecture
+
+## Overview
+
+The XCP Wallet extension uses a multi-layered messaging architecture to enable communication between different contexts (web pages, content scripts, background service worker, and popup/sidepanel). This document explains the message flows, their purposes, and how we handle Chrome runtime errors.
+
+## Extension Contexts
+
+1. **Injected Script** (`src/entrypoints/injected.ts`)
+   - Runs in the web page context
+   - Exposes `window.xcpwallet` provider API
+   - Cannot directly access extension APIs
+
+2. **Content Script** (`src/entrypoints/content.ts`)
+   - Runs in isolated world with access to DOM
+   - Bridge between web page and extension
+   - Can access both `window` and Chrome extension APIs
+
+3. **Background Service Worker** (`src/entrypoints/background.ts`)
+   - Central hub for all extension logic
+   - Handles provider requests, manages wallet state
+   - Only context that can access sensitive wallet operations
+
+4. **Popup/Sidepanel** (`src/entrypoints/popup`, `src/entrypoints/sidepanel`)
+   - User interface for wallet management
+   - Communicates with background for all operations
+
+## Message Flow Architecture
+
+### 1. Web3 Provider Flow (DApp → Wallet)
+
+```
+Web Page (DApp)
+    ↓ window.xcpwallet.request()
+Injected Script (injected.ts)
+    ↓ window.postMessage()
+Content Script (content.ts)
+    ↓ MessageBus (webext-bridge)
+Background Service Worker (background.ts)
+    ↓ ProviderService handles request
+    ↓ May show approval UI in popup
+    ↓ Returns result
+Content Script
+    ↓ window.postMessage()
+Injected Script
+    ↓ Resolves promise
+Web Page (DApp) receives result
+```
+
+**Purpose**: Allows DApps to interact with the wallet using the standard Web3 provider interface.
+
+**Key Files**:
+- `injected.ts`: Implements EIP-1193 provider interface
+- `content.ts`: Relays messages between page and background
+- `providerService.ts`: Handles provider method implementations
+
+### 2. Service Proxy Flow (Popup ↔ Background)
+
+```
+Popup/Sidepanel UI
+    ↓ getWalletService() / getProviderService()
+Proxy Layer (proxy.ts)
+    ↓ chrome.runtime.sendMessage()
+Background Service Worker
+    ↓ Service instance handles request
+    ↓ Returns result
+Proxy Layer
+    ↓ Returns to UI
+Popup/Sidepanel UI updates
+```
+
+**Purpose**: Allows UI components to call background services as if they were local functions.
+
+**Key Files**:
+- `proxy.ts`: Custom service proxy implementation (replaced @webext-core/proxy-service for security)
+- `walletService.ts`, `providerService.ts`: Service definitions
+- Services are registered in background, accessed via proxy in UI
+
+### 3. Event Broadcasting Flow (Background → All Contexts)
+
+```
+Background Service Worker (event occurs)
+    ↓ broadcastToTabs() or MessageBus
+Content Scripts (all tabs)
+    ↓ window.postMessage()
+Injected Scripts
+    ↓ EventEmitter
+DApps (receive events like 'accountsChanged')
+```
+
+**Purpose**: Notifies all connected DApps of wallet state changes.
+
+**Common Events**:
+- `accountsChanged`: When user switches accounts
+- `disconnect`: When user disconnects from DApp
+- `chainChanged`: When network changes
+
+## Messaging Systems
+
+### 1. Native Chrome APIs
+**Used by**: `proxy.ts`, some utilities in `browser.ts`
+**Purpose**: Service proxy pattern for popup ↔ background communication
+**Why native**: Direct, synchronous-feeling API for service calls
+
+```javascript
+// In proxy.ts
+chrome.runtime.sendMessage(message, (response) => {
+  // Handle response
+});
+```
+
+### 2. webext-bridge
+**Used by**: `MessageBus.ts`, content ↔ background messaging
+**Purpose**: Type-safe, promise-based messaging with better error handling
+**Why webext-bridge**: Handles browser differences, provides better DX
+
+```javascript
+// In MessageBus.ts
+import { sendMessage, onMessage } from 'webext-bridge/background';
+```
+
+### 3. window.postMessage
+**Used by**: injected ↔ content script communication
+**Purpose**: Only way to communicate between web page and extension contexts
+**Why postMessage**: Browser security model requires this for page ↔ extension
+
+```javascript
+// In content.ts
+window.postMessage({ target: 'xcp-wallet-injected', ... });
+```
+
+## Chrome runtime.lastError Handling
+
+### The Problem
+
+Chrome immediately attempts to establish connections when an extension loads or updates. If message listeners aren't registered fast enough, Chrome logs "Unchecked runtime.lastError: Could not establish connection" errors to the console.
+
+### The Solution
+
+We register error-consuming listeners at the earliest possible moment in each context:
+
+1. **Background**: First lines of `defineBackground()` register listeners that immediately check `chrome.runtime.lastError`
+2. **Content Script**: Early listener consumes errors before main logic runs
+3. **Proxy Service**: Always checks `lastError` before accessing response
+
+### Key Principles
+
+1. **Always check `chrome.runtime.lastError` FIRST** in any Chrome API callback
+2. **Register listeners synchronously** at the top of each context
+3. **Always send a response** to keep message channels alive
+4. **Gracefully handle startup race conditions** by resolving with null instead of throwing
+
+### Example Pattern
+
+```javascript
+// CORRECT - Check lastError first
+chrome.runtime.sendMessage(message, (response) => {
+  // Always check lastError first
+  const error = chrome.runtime.lastError;
+  if (error) {
+    // Handle error gracefully
+    return;
+  }
+  // Now safe to use response
+  processResponse(response);
+});
+
+// INCORRECT - Accessing response before checking lastError
+chrome.runtime.sendMessage(message, (response) => {
+  if (response) { // Can trigger "Unchecked runtime.lastError"
+    processResponse(response);
+  }
+});
+```
+
+## Service Architecture
+
+### Core Services
+
+1. **WalletService**: Manages wallet operations (create, import, unlock, sign)
+2. **ProviderService**: Handles Web3 provider methods
+3. **BlockchainService**: Blockchain interactions and data fetching
+4. **ConnectionService**: Manages DApp connections
+5. **ApprovalService**: Handles user approval flows
+6. **TransactionService**: Transaction building and management
+
+### Service Registration Pattern
+
+Services are registered in background and accessed via proxy:
+
+```javascript
+// In background.ts
+registerWalletService();  // Creates service instance in background
+
+// In popup/content
+const walletService = getWalletService();  // Returns proxy to background service
+await walletService.getWallets();  // Proxied to background via chrome.runtime.sendMessage
+```
+
+## Security Considerations
+
+1. **Sensitive operations ONLY in background**: Private keys, mnemonics never leave background context
+2. **Origin validation**: All provider requests include and validate origin
+3. **User approval**: Sensitive operations require explicit user approval
+4. **Message validation**: All messages are validated for structure and content
+5. **Minimal dependencies**: Custom proxy implementation reduces attack surface
+
+## Debugging Tips
+
+1. **Check message flow**: Use console.log at each step to trace message path
+2. **Verify listeners are registered**: Check that listeners exist before sending messages
+3. **Check for lastError**: Always check `chrome.runtime.lastError` in callbacks
+4. **Use development mode logging**: Many components have dev-only logging
+5. **Check service worker status**: Ensure background script is running
+
+## Common Issues and Solutions
+
+### "Could not establish connection"
+- **Cause**: Message sent before listener registered
+- **Solution**: Our early error consumers handle this
+
+### "The message port closed before a response was received"
+- **Cause**: Listener didn't send response or didn't return true
+- **Solution**: Always send response and return true for async responses
+
+### Service not available in popup
+- **Cause**: Service not registered or background not ready
+- **Solution**: Ensure services are registered before use
+
+### DApp can't connect
+- **Cause**: Content script not injected or message relay broken
+- **Solution**: Check content script is loaded and message handlers are set up
