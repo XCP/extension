@@ -35,7 +35,6 @@
     "@scure/bip39": "2.0.0",
     "@scure/btc-signer": "2.0.1",
     "@webext-core/proxy-service": "1.2.1",
-    "@wxt-dev/analytics": "0.5.1",
     "bignumber.js": "9.3.1",
     "react": "19.1.1",
     "react-dom": "19.1.1",
