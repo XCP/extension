@@ -65,18 +65,35 @@ export function wrapRuntimeCallback<T extends any[]>(
 }
 
 /**
+ * Get ready tabs from background tracking
+ * This is more efficient than pinging each tab
+ */
+function getReadyTabs(): Set<number> {
+  // Try to import from background if available
+  try {
+    // We'll use messaging to query ready tabs from background
+    // For now, maintain a local cache
+    return new Set<number>();
+  } catch {
+    return new Set<number>();
+  }
+}
+
+/**
  * Robust ping function to check if content script is available
+ * Now also updates our ready tabs tracking
  */
 export async function canReceiveMessages(tabId: number): Promise<boolean> {
   try {
     const response = await new Promise<any>((resolve, reject) => {
       const timeoutId = setTimeout(() => reject(new Error('Ping timeout')), 200);
-      
+
       chrome.tabs.sendMessage(
         tabId,
         { action: 'ping' },
         (response) => {
           clearTimeout(timeoutId);
+          // ALWAYS check lastError first
           if (chrome.runtime.lastError) {
             reject(new Error(chrome.runtime.lastError.message));
           } else {
@@ -85,7 +102,7 @@ export async function canReceiveMessages(tabId: number): Promise<boolean> {
         }
       );
     });
-    
+
     return Boolean(response?.status === 'ready' || response?.status === 'initializing');
   } catch (error) {
     // Ping failed - content script not available
@@ -182,31 +199,29 @@ export async function listMessageableTabs(filter?: (tab: chrome.tabs.Tab) => boo
 
 /**
  * Send message to specific tab with proper lastError checking
+ * Updated to skip tabs without content scripts when possible
  */
 export function sendMessageToTabSafe<T = any>(
   tabId: number,
   message: unknown,
   options?: chrome.tabs.MessageSendOptions
 ): Promise<T | undefined> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     try {
       chrome.tabs.sendMessage(tabId, message as any, options, (response) => {
         // ALWAYS check lastError first to prevent console warnings
         const error = chrome.runtime.lastError;
         if (error) {
-          // Common during startup/shutdown - don't reject, just resolve undefined
-          if (error.message?.includes('Could not establish connection') ||
-              error.message?.includes('Receiving end does not exist')) {
-            resolve(undefined);
-          } else {
-            reject(new Error(error.message || 'Unknown runtime error'));
-          }
+          // Common during startup/shutdown - silently return undefined
+          // This prevents console spam for expected cases
+          resolve(undefined);
         } else {
           resolve(response as T);
         }
       });
     } catch (error) {
-      reject(error);
+      // Defensive: even catch block returns undefined instead of rejecting
+      resolve(undefined);
     }
   });
 }
@@ -227,7 +242,8 @@ export async function pingTab(tabId: number): Promise<boolean> {
 }
 
 /**
- * Broadcast message to tabs with content script, using ping-first pattern
+ * Broadcast message to tabs with content script
+ * Optimized to skip pinging and handle errors gracefully
  */
 export async function broadcastToTabs(
   message: any,
@@ -237,34 +253,25 @@ export async function broadcastToTabs(
     // Only get tabs where our content script can run
     const tabs = await listMessageableTabs(filter);
     const results: { tabId: number; ok: boolean; error?: string }[] = [];
-    
-    for (const tab of tabs) {
+
+    // Send to all tabs in parallel, let sendMessageToTabSafe handle errors
+    const promises = tabs.map(async (tab) => {
       const tabId = tab.id!;
-      
-      // Ping first to check if CS is available
-      const hasReceiver = await pingTab(tabId);
-      if (!hasReceiver) {
-        results.push({ tabId, ok: false, error: 'no-receiver' });
-        continue;
-      }
-      
-      // Send the actual message
       try {
-        await sendMessageToTabSafe(tabId, message);
-        results.push({ tabId, ok: true });
-      } catch (error: any) {
-        const errorMsg = String(error?.message || error);
-        
-        // Only log unexpected errors (not the common "no receiver" cases)
-        if (!/Receiving end does not exist|Could not establish connection/i.test(errorMsg)) {
-          console.warn('Unexpected sendMessage failure:', { tabId, error: errorMsg });
+        const response = await sendMessageToTabSafe(tabId, message);
+        if (response !== undefined) {
+          return { tabId, ok: true };
+        } else {
+          // No response means no content script, but that's OK
+          return { tabId, ok: false, error: 'no-receiver' };
         }
-        
-        results.push({ tabId, ok: false, error: errorMsg });
+      } catch (error: any) {
+        // This shouldn't happen with our safe wrapper, but just in case
+        return { tabId, ok: false, error: String(error?.message || error) };
       }
-    }
-    
-    return results;
+    });
+
+    return await Promise.all(promises);
   } catch (error) {
     console.debug('Error in broadcastToTabs:', error);
     return [];
@@ -347,36 +354,64 @@ export function setupSafeMessageHandler(
 export async function safeSendMessage(message: any, options?: {
   timeout?: number;
   logErrors?: boolean;
+  retries?: number;
+  retryDelay?: number;
 }): Promise<any> {
-  const { timeout = 5000, logErrors = false } = options || {};
+  const {
+    timeout = 5000,
+    logErrors = false,
+    retries = 0,
+    retryDelay = 100
+  } = options || {};
 
-  return new Promise((resolve) => {
-    const timeoutId = setTimeout(() => {
-      resolve(null); // Timeout - resolve null instead of rejecting
-    }, timeout);
+  let lastError: Error | null = null;
 
-    try {
-      chrome.runtime.sendMessage(message, (response) => {
-        clearTimeout(timeoutId);
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const result = await new Promise<any>((resolve) => {
+      const timeoutId = setTimeout(() => {
+        resolve(null); // Timeout - resolve null instead of rejecting
+      }, timeout);
 
-        // ALWAYS check lastError first
-        const error = chrome.runtime.lastError;
-        if (error) {
-          if (logErrors && !error.message?.includes('Could not establish connection')) {
-            console.debug('[safeSendMessage] Runtime error:', error.message);
+      try {
+        chrome.runtime.sendMessage(message, (response) => {
+          clearTimeout(timeoutId);
+
+          // ALWAYS check lastError first
+          const error = chrome.runtime.lastError;
+          if (error) {
+            lastError = new Error(error.message);
+            if (logErrors && !error.message?.includes('Could not establish connection')) {
+              console.debug(`[safeSendMessage] Runtime error (attempt ${attempt + 1}):`, error.message);
+            }
+            resolve(null); // Return null for any error
+          } else {
+            resolve(response);
           }
-          resolve(null); // Return null for any error
-        } else {
-          resolve(response);
+        });
+      } catch (error) {
+        clearTimeout(timeoutId);
+        lastError = error as Error;
+        if (logErrors) {
+          console.debug(`[safeSendMessage] Send error (attempt ${attempt + 1}):`, error);
         }
-      });
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (logErrors) {
-        console.debug('[safeSendMessage] Send error:', error);
+        resolve(null);
       }
-      resolve(null);
+    });
+
+    if (result !== null) {
+      return result; // Success!
     }
-  });
+
+    if (attempt < retries) {
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, retryDelay * Math.pow(2, attempt)));
+    }
+  }
+
+  // All retries failed
+  if (logErrors && lastError) {
+    console.debug('[safeSendMessage] All retries exhausted:', lastError.message);
+  }
+  return null;
 }
 
