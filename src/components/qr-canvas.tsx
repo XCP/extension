@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { generateQRMatrix } from '@/utils/qr-generator';
+import { generateQRMatrix } from '@/utils/qr-code';
 
 interface QRCanvasProps {
   /**
