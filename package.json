@@ -64,6 +64,7 @@
     "wxt": "0.20.11"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.50.1"
+    "@rollup/rollup-linux-x64-gnu": "^4.50.1",
+    "lightningcss-linux-x64-gnu": "^1.30.1"
   }
 }
