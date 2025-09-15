@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Idle Timer</title>
+</head>
+<body>
+    <h1>Debug Idle Timer</h1>
+    <div id="status">Initializing...</div>
+    <div id="logs"></div>
+
+    <script>
+        // Simplified version of our useIdleTimer implementation
+        const DEFAULT_EVENTS = [
+            'mousedown',
+            'mousemove',
+            'keydown',
+            'wheel',
+            'touchstart',
+            'touchmove',
+            'scroll',
+            'resize',
+        ];
+
+        class IdleTimer {
+            constructor(options) {
+                this.timeout = options.timeout || 10000; // 10 seconds for testing
+                this.onIdle = options.onIdle || (() => {});
+                this.onActive = options.onActive || (() => {});
+                this.onAction = options.onAction || (() => {});
+                this.events = options.events || DEFAULT_EVENTS;
+                this.disabled = options.disabled || false;
+                this.stopOnIdle = options.stopOnIdle || false;
+
+                this.isIdle = false;
+                this.timeoutId = null;
+                this.listeners = [];
+                this.lastActiveTime = Date.now();
+
+                this.handleActivity = this.handleActivity.bind(this);
+                this.log('IdleTimer created with timeout:', this.timeout);
+
+                if (!this.disabled) {
+                    this.start();
+                }
+            }
+
+            log(...args) {
+                const logDiv = document.getElementById('logs');
+                const time = new Date().toLocaleTimeString();
+                logDiv.innerHTML += `<div>[${time}] ${args.join(' ')}</div>`;
+                console.log('[IdleTimer]', ...args);
+            }
+
+            start() {
+                this.log('Starting idle timer');
+                this.reset();
+                this.addEventListeners();
+            }
+
+            reset() {
+                this.log('Resetting timer');
+                clearTimeout(this.timeoutId);
+
+                if (this.isIdle) {
+                    this.log('Transitioning from idle to active');
+                    this.isIdle = false;
+                    this.onActive();
+                    this.updateStatus('Active');
+                }
+
+                this.timeoutId = setTimeout(() => {
+                    this.log('Timeout expired, going idle');
+                    this.isIdle = true;
+                    this.onIdle();
+                    this.updateStatus('Idle');
+                }, this.timeout);
+            }
+
+            handleActivity(event) {
+                if (this.disabled) {
+                    this.log('Activity ignored - disabled');
+                    return;
+                }
+                if (this.stopOnIdle && this.isIdle) {
+                    this.log('Activity ignored - stopOnIdle and currently idle');
+                    return;
+                }
+
+                this.log('Activity detected:', event?.type || 'unknown');
+                this.onAction();
+                this.reset();
+                this.lastActiveTime = Date.now();
+            }
+
+            addEventListeners() {
+                this.log('Adding event listeners for events:', this.events.join(', '));
+                this.events.forEach(event => {
+                    window.addEventListener(event, this.handleActivity, { passive: true });
+                    this.listeners.push(() => window.removeEventListener(event, this.handleActivity));
+                });
+            }
+
+            removeEventListeners() {
+                this.log('Removing event listeners');
+                this.listeners.forEach(cleanup => cleanup());
+                this.listeners = [];
+            }
+
+            updateStatus(status) {
+                document.getElementById('status').textContent = `Status: ${status} (Last active: ${new Date(this.lastActiveTime).toLocaleTimeString()})`;
+            }
+
+            destroy() {
+                this.log('Destroying idle timer');
+                clearTimeout(this.timeoutId);
+                this.removeEventListeners();
+            }
+        }
+
+        // Initialize timer when page loads
+        window.addEventListener('load', () => {
+            const timer = new IdleTimer({
+                timeout: 10000, // 10 seconds
+                onIdle: () => {
+                    console.log('USER WENT IDLE');
+                    document.body.style.backgroundColor = '#ffcccc';
+                },
+                onActive: () => {
+                    console.log('USER BECAME ACTIVE');
+                    document.body.style.backgroundColor = '#ccffcc';
+                },
+                onAction: () => {
+                    console.log('USER ACTION DETECTED');
+                }
+            });
+
+            timer.updateStatus('Active');
+            timer.log('Test page loaded, timer started');
+        });
+    </script>
+</body>
+</html>

@@ -35,7 +35,7 @@ test('Direct idle timer injection test', async () => {
         isIdle = true;
 
         // Direct navigation to unlock page
-        window.location.hash = '/auth/unlock-wallet';
+        window.location.hash = '/unlock-wallet';
         console.log('[DIRECT] Navigated to unlock page');
       }, 5000);
     }

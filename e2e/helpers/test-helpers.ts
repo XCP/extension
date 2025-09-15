@@ -27,7 +27,9 @@ export interface ExtensionContext {
  * @returns Extension context with browser, page, and extension ID
  */
 export async function launchExtension(testName: string): Promise<ExtensionContext> {
-  const pathToExtension = path.resolve('.output/chrome-mv3');
+  // Use dev build for idle timer tests to access development-only features
+  const isIdleTimerTest = testName.includes('idle');
+  const pathToExtension = path.resolve(isIdleTimerTest ? '.output/chrome-mv3-dev' : '.output/chrome-mv3');
   
   // Determine if we're running in CI environment
   const isCI = process.env.CI === 'true';

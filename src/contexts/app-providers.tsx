@@ -26,7 +26,15 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
   const { setLastActiveTime, lockAll, loaded: walletLoaded, authState } = useWallet();
   const { settings, isLoading: settingsLoading } = useSettings();
 
+  console.log('[IdleTimerWrapper] State:', {
+    walletLoaded,
+    settingsLoading,
+    authState,
+    autoLockTimeout: settings.autoLockTimeout
+  });
+
   if (!walletLoaded || settingsLoading) {
+    console.log('[IdleTimerWrapper] Not ready, returning null');
     // Wait for both wallet and settings to load before rendering
     return null;
   }
@@ -50,24 +58,40 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
     }
   }, [authState, setLastActiveTime]);
 
+  const handleActive = useCallback(() => {
+    console.log('[IdleTimer] onActive triggered - user returned from idle state');
+    // This only triggers when transitioning from idle back to active
+    if (authState === 'UNLOCKED') {
+      setLastActiveTime();
+    }
+  }, [authState, setLastActiveTime]);
+
   // Disable idle timer if timeout is 0 or undefined
   const isIdleTimerEnabled = settings.autoLockTimeout && settings.autoLockTimeout > 0;
 
-  console.log('[IdleTimer] Config:', {
+  // Debug output that works in production builds
+  const debugInfo = {
     enabled: isIdleTimerEnabled,
     timeout: settings.autoLockTimeout,
     authState,
-    disabled: !isIdleTimerEnabled || authState !== 'UNLOCKED',
+    disabled: !isIdleTimerEnabled,
     settings: settings
-  });
+  };
 
+  // Store debug info on window for debugging
+  if (typeof window !== 'undefined') {
+    (window as any).idleTimerDebug = debugInfo;
+  }
+
+  console.log('[IdleTimer] Config:', debugInfo);
 
   // Use native idle timer hook
   useIdleTimer({
     timeout: settings.autoLockTimeout || 0,
     onIdle: handleIdle,
-    onActive: handleAction,
-    disabled: !isIdleTimerEnabled || authState !== 'UNLOCKED',
+    onActive: handleActive,
+    onAction: handleAction, // Track all user activity for last active time
+    disabled: !isIdleTimerEnabled, // Simplified for debugging - remove authState check
     stopOnIdle: true,
   });
 

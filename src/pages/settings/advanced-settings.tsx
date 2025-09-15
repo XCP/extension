@@ -167,13 +167,14 @@ export default function AdvancedSettings(): ReactElement {
             showHelpText={shouldShowHelpText}
           />
 
-          <div className="space-y-2">
-            <Label className="font-bold">Idle Timer Testing</Label>
-            {shouldShowHelpText && (
-              <Description className="text-sm text-gray-500">
-                Development tools for testing the idle timer functionality.
-              </Description>
-            )}
+          <Field>
+            <div className="space-y-2">
+              <Label className="font-bold">Idle Timer Testing</Label>
+              {shouldShowHelpText && (
+                <Description className="text-sm text-gray-500">
+                  Development tools for testing the idle timer functionality.
+                </Description>
+              )}
             <div className="flex gap-2">
               <button
                 onClick={() => updateSettings({ autoLockTimer: '10s', autoLockTimeout: 10000 })}
@@ -188,10 +189,11 @@ export default function AdvancedSettings(): ReactElement {
                 Reset to 5m Default
               </button>
             </div>
-            <p className="text-xs text-gray-600">
-              Current timeout: {settings.autoLockTimeout}ms ({settings.autoLockTimer})
-            </p>
-          </div>
+              <p className="text-xs text-gray-600">
+                Current timeout: {settings.autoLockTimeout}ms ({settings.autoLockTimer})
+              </p>
+            </div>
+          </Field>
         </>
       )}
     </div>
