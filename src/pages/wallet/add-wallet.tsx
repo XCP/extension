@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiDownload, FiKey, FiX } from 'react-icons/fi';
+import { FiDownload, FiKey, FiX, FiEye } from 'react-icons/fi';
 import { IoCreateOutline } from 'react-icons/io5';
 import { Button } from '@/components/button';
 import { useHeader } from '@/contexts/header-context';
 import { ErrorAlert } from '@/components/error-alert';
 import { useWallet } from '@/contexts/wallet-context';
-
-const MAX_WALLETS = 20;
+import { MAX_WALLETS } from '@/utils/wallet/walletManager';
 
 /**
  * AddWallet component provides options for creating or importing a wallet.
@@ -29,7 +28,11 @@ function AddWallet() {
     CREATE_WALLET: '/create-wallet',
     IMPORT_WALLET: '/import-wallet',
     IMPORT_PRIVATE_KEY: '/import-private-key',
+    IMPORT_TEST_ADDRESS: '/import-test-address',
   } as const;
+  
+  // Check if we're in development mode
+  const isDevelopment = process.env.NODE_ENV === 'development';
 
   // Configure header with logo and close button
   useEffect(() => {
@@ -54,6 +57,10 @@ function AddWallet() {
 
   const handleImportPrivateKey = () => {
     navigate(PATHS.IMPORT_PRIVATE_KEY);
+  };
+  
+  const handleImportTestAddress = () => {
+    navigate(PATHS.IMPORT_TEST_ADDRESS);
   };
 
   const handleAddWallet = () => {
@@ -100,6 +107,19 @@ function AddWallet() {
               <FiKey className="w-4 h-4 mr-2" aria-hidden="true" />
               Import Private Key
             </Button>
+            
+            {/* Show Test Address option only in development mode */}
+            {isDevelopment && (
+              <Button
+                color="gray"
+                fullWidth
+                onClick={handleImportTestAddress}
+                aria-label="Import Test Address (Dev Only)"
+              >
+                <FiEye className="w-4 h-4 mr-2" aria-hidden="true" />
+                Import Test Address (Dev)
+              </Button>
+            )}
           </div>
         </div>
       </div>

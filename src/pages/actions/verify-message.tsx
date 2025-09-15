@@ -8,7 +8,7 @@ import { TextAreaInput } from "@/components/inputs/textarea-input";
 import { DestinationInput } from "@/components/inputs/destination-input";
 import { ErrorAlert } from "@/components/error-alert";
 import { useHeader } from "@/contexts/header-context";
-import { verifyMessage } from "@/utils/blockchain/bitcoin";
+import { verifyMessageWithMethod } from "@/utils/blockchain/bitcoin/messageVerifier";
 import type { ReactElement } from "react";
 
 /**
@@ -24,6 +24,7 @@ export default function VerifyMessage(): ReactElement {
   const [signature, setSignature] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState<boolean | null>(null);
+  const [verificationMethod, setVerificationMethod] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   
   const handleClear = () => {
@@ -31,6 +32,7 @@ export default function VerifyMessage(): ReactElement {
     setMessage("");
     setSignature("");
     setVerificationResult(null);
+    setVerificationMethod(null);
     setError(null);
   };
   
@@ -38,7 +40,7 @@ export default function VerifyMessage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: "Verify Message",
-      onBack: () => navigate("/actions"),
+      onBack: () => navigate("/"),
       rightButton: {
         ariaLabel: "Reset form",
         icon: <FaRedo className="w-3 h-3" />,
@@ -67,10 +69,12 @@ export default function VerifyMessage(): ReactElement {
     setIsVerifying(true);
     setError(null);
     setVerificationResult(null);
-    
+    setVerificationMethod(null);
+
     try {
-      const isValid = await verifyMessage(message, signature, address);
-      setVerificationResult(isValid);
+      const result = await verifyMessageWithMethod(message, signature, address);
+      setVerificationResult(result.valid);
+      setVerificationMethod(result.method || null);
     } catch (err) {
       console.error("Failed to verify message:", err);
       setError(err instanceof Error ? err.message : "Failed to verify message");
@@ -125,7 +129,7 @@ export default function VerifyMessage(): ReactElement {
           onChange={setAddress}
           label="Address"
           placeholder="Enter the Bitcoin address"
-          required={true}
+          required={false}
           showHelpText={false}
         />
         
@@ -137,7 +141,7 @@ export default function VerifyMessage(): ReactElement {
             label="Message"
             placeholder="Enter the exact message that was signed..."
             rows={4}
-            required={true}
+            required={false}
             showCharCount={true}
             description="Must match exactly"
           />
@@ -151,7 +155,7 @@ export default function VerifyMessage(): ReactElement {
             label="Signature"
             placeholder="Enter the signature (base64 or hex format)..."
             rows={3}
-            required={true}
+            required={false}
             className={verificationResult !== null && !error
               ? verificationResult
                 ? "border-green-500"
@@ -160,12 +164,19 @@ export default function VerifyMessage(): ReactElement {
             }
           />
           {verificationResult !== null && !error && (
-            <div className="mt-2 flex items-center gap-1">
+            <div className="mt-2">
               {verificationResult ? (
-                <>
-                  <FaCheckCircle className="text-green-600 text-sm" />
-                  <span className="text-xs text-green-600">Signature Valid</span>
-                </>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1">
+                    <FaCheckCircle className="text-green-600 text-sm" />
+                    <span className="text-xs text-green-600">Signature Valid</span>
+                  </div>
+                  {verificationMethod && (
+                    <div className="text-xs text-gray-500">
+                      Verified using: {verificationMethod}
+                    </div>
+                  )}
+                </div>
               ) : (
                 <span className="text-xs text-red-600">Signature Invalid - Does not match the message and address provided</span>
               )}

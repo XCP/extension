@@ -1,4 +1,4 @@
-import React, { type ReactElement, type ReactNode } from "react";
+import { type ReactElement, type ReactNode } from "react";
 import { ActionCard } from "@/components/cards/action-card";
 
 /**
@@ -21,6 +21,8 @@ export interface ActionItem {
   className?: string;
   /** Optional aria-label for accessibility */
   ariaLabel?: string;
+  /** Whether to show a notification badge */
+  showNotification?: boolean;
 }
 
 /**
@@ -120,6 +122,7 @@ export function ActionList({
                   showChevron={item.showChevron}
                   className={item.className}
                   ariaLabel={item.ariaLabel}
+                  showNotification={item.showNotification}
                 />
               ))}
             </div>

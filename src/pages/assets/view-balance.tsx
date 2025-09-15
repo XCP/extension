@@ -125,12 +125,14 @@ export default function ViewBalance(): ReactElement {
             title: "Attach",
             description: "Attach this asset to a Bitcoin UTXO",
             onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/utxo/attach/${asset}`),
+            className: "!border !border-green-500",
           },
           {
             id: "destroy",
             title: "Destroy",
             description: "Permanently destroy token supply",
             onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/destroy/${asset}`),
+            className: "!border !border-red-500",
           },
         ]
       : [
@@ -157,12 +159,14 @@ export default function ViewBalance(): ReactElement {
             title: "Attach",
             description: "Attach this asset to a Bitcoin UTXO",
             onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/utxo/attach/${asset}`),
+            className: "!border !border-green-500",
           },
           {
             id: "destroy",
             title: "Destroy",
             description: "Permanently destroy token supply",
             onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/destroy/${asset}`),
+            className: "!border !border-red-500",
           },
         ];
     return [{ items }];

@@ -9,8 +9,73 @@ import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { MessageBus, type ProviderMessage, type ApprovalMessage, type EventMessage } from '@/services/core/MessageBus';
 import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/sessionManager';
 import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, createJsonRpcError } from '@/utils/constants/errorCodes';
+import { checkForLastError, wrapRuntimeCallback, broadcastToTabs, sendMessageToTab } from '@/utils/browser';
+// Import onMessage directly from webext-bridge/background to prevent runtime.lastError
+import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
 
 export default defineBackground(() => {
+  // TOP LEVEL MESSAGE LISTENERS - Critical for MV3 service worker wake-up
+  // In WXT, these need to be inside defineBackground() but still at the top
+  
+  // Set up core message listener immediately with debugging
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Debug logging in development only
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Background] Received message:', message?.type || message?.action, 'from:', sender.tab?.url || sender.url || 'extension');
+    }
+    
+    // Handle ping requests immediately
+    if (message?.action === 'ping' || message?.type === 'startup-health-check') {
+      sendResponse({ status: 'ready', timestamp: Date.now(), context: 'background' });
+      return true;
+    }
+    
+    // Check for lastError to prevent console warnings
+    if (chrome.runtime.lastError) {
+      // Error already "checked" by accessing it
+    }
+    
+    // Let other handlers process the message
+    return false;
+  });
+  
+  console.log('[Background] Core message listener registered');
+  
+  // Set up connection listener
+  chrome.runtime.onConnect.addListener((port) => {
+    port.onMessage.addListener((msg) => {
+      if (msg?.action === 'ping') {
+        port.postMessage({ status: 'ready', timestamp: Date.now() });
+      }
+    });
+    
+    port.onDisconnect.addListener(() => {
+      // Check lastError to prevent warnings
+      if (chrome.runtime.lastError) {
+        // Error acknowledged
+      }
+    });
+  });
+  
+  console.log('Background service worker: Core listeners registered');
+  // Initialize webext-bridge handlers at top level of defineBackground
+  // This ensures they're registered when the service worker starts
+  webextBridgeOnMessage('webext-bridge-keep-alive', () => {
+    return { alive: true };
+  });
+  
+  webextBridgeOnMessage('startup-health-check', () => {
+    return { 
+      status: 'ready', 
+      timestamp: Date.now(),
+      services: 'ready'
+    };
+  });
+  
+  console.log('Background: webext-bridge handlers registered');
+  
+  // Using robust messaging utilities with ping-inject-retry pattern
+  
   // Initialize service registry
   const serviceRegistry = ServiceRegistry.getInstance();
   
@@ -217,23 +282,26 @@ export default defineBackground(() => {
       eventData = eventOrData;
     }
     
-    const tabs = await browser.tabs.query({});
-    tabs.forEach(tab => {
-      // If origin specified, only send to matching tabs
-      if (origin && tab.url && !new URL(tab.url).origin.startsWith(origin)) {
-        return;
+    // Use our safe broadcasting utility
+    const message = {
+      type: 'PROVIDER_EVENT',
+      event,
+      data: eventData
+    };
+    
+    // If origin specified, filter tabs by origin
+    const filter = origin ? (tab: chrome.tabs.Tab) => {
+      if (!tab.url) return false;
+      try {
+        const tabOrigin = new URL(tab.url).origin;
+        return tabOrigin === origin;
+      } catch {
+        return false;
       }
-      
-      if (tab.id) {
-        browser.tabs.sendMessage(tab.id, {
-          type: 'PROVIDER_EVENT',
-          event,
-          data: eventData
-        }).catch(() => {
-          // Ignore errors for tabs without content script
-        });
-      }
-    });
+    } : undefined;
+    
+    // Broadcast using our safe utility
+    await broadcastToTabs(message, filter);
   }
 
   // Register the emitProviderEvent function with the event emitter service

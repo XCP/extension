@@ -1,4 +1,4 @@
-import React, { type ReactElement } from "react";
+import { type ReactElement } from "react";
 import type { Transaction } from "@/utils/blockchain/counterparty/api";
 import { formatTimeAgo, formatDate } from "@/utils/format";
 

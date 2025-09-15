@@ -45,7 +45,11 @@ vi.mock('@/services/eventEmitterService', () => ({
 
 // Mock fathom analytics
 vi.mock('@/utils/fathom', () => ({
-  trackEvent: vi.fn().mockResolvedValue(undefined),
+  sanitizePath: vi.fn((path: string) => path),
+  analytics: {
+    track: vi.fn().mockResolvedValue(undefined),
+    page: vi.fn().mockResolvedValue(undefined),
+  },
 }));
 
 // Now import the service
@@ -55,14 +59,12 @@ import { ApprovalService } from '../ApprovalService';
 import { RequestManager } from '../../core/RequestManager';
 import { approvalQueue, getApprovalBadgeText } from '@/utils/provider/approvalQueue';
 import { eventEmitterService } from '@/services/eventEmitterService';
-import { trackEvent } from '@/utils/fathom';
 
 // Type the mocked functions
 const MockedRequestManager = RequestManager as unknown as ReturnType<typeof vi.mocked>;
 const mockedApprovalQueue = approvalQueue as any;
 const mockedGetApprovalBadgeText = getApprovalBadgeText as ReturnType<typeof vi.fn>;
 const mockedEventEmitterService = eventEmitterService as any;
-const mockedTrackEvent = trackEvent as ReturnType<typeof vi.fn>;
 
 // Mock chrome APIs
 const mockStorage = {

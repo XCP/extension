@@ -1,8 +1,9 @@
-import React, {
+import {
   createContext,
   useCallback,
   useEffect,
   useRef,
+  use,
   useState,
   type ReactElement,
   type ReactNode,
@@ -125,7 +126,7 @@ export function LoadingProvider({
  * @throws {Error} If used outside LoadingProvider
  */
 export function useLoading(): LoadingContextType {
-  const context = React.use(LoadingContext);
+  const context = use(LoadingContext);
   if (!context) throw new Error("useLoading must be used within a LoadingProvider");
   return context;
 }

@@ -1,10 +1,12 @@
-import React, {
+import {
   createContext,
   useCallback,
   useEffect,
   useState,
+  useRef,
   type ReactElement,
   type ReactNode,
+  use
 } from "react";
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import { getWalletService } from "@/services/walletService";
@@ -90,6 +92,7 @@ interface WalletContextType {
     name?: string,
     addressFormat?: AddressFormat
   ) => Promise<Wallet>;
+  importTestAddress: (address: string, name?: string) => Promise<Wallet>;
   resetAllWallets: (password: string) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ key: string; compressed: boolean }>;
@@ -137,7 +140,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     walletLocked: true,
     loaded: false,
   });
-  const refreshInProgress = React.useRef(false);
+  const refreshInProgress = useRef(false);
 
   const refreshWalletState = useCallback(async () => {
     // Use proper locking instead of simple ref check
@@ -151,6 +154,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       
       await walletService.loadWallets();
       const allWallets = await walletService.getWallets();
+      
       const newState: WalletState = { ...walletState };
 
       let walletsEqual = walletsEqualArray(newState.wallets, allWallets);
@@ -234,7 +238,10 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
   }, [walletService, walletState]);
 
   useEffect(() => {
-    refreshWalletState();
+    // Simple delay to let background initialize, then rely on service-level error handling
+    setTimeout(() => {
+      refreshWalletState();
+    }, 100);
 
     // Listen for wallet lock events from background
     const handleLockMessage = ({ data }: { data: { locked: boolean } }) => {
@@ -369,6 +376,10 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }),
+    importTestAddress: withRefresh(walletService.importTestAddress, async () => {
+      await refreshWalletState();
+      setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
+    }),
     resetAllWallets: async (password) => {
       await walletService.resetAllWallets(password);
       setWalletState({
@@ -401,7 +412,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
  * @throws {Error} If used outside WalletProvider
  */
 export function useWallet(): WalletContextType {
-  const context = React.use(WalletContext);
+  const context = use(WalletContext);
   if (!context) throw new Error("useWallet must be used within a WalletProvider");
   return context;
 }

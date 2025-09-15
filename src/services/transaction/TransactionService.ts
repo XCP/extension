@@ -18,7 +18,7 @@ import { transactionRateLimiter } from '@/utils/provider/rateLimiter';
 import { withReplayPrevention, recordTransaction, markTransactionBroadcasted } from '@/utils/security/replayPrevention';
 import { composeTransaction } from '@/utils/blockchain/counterparty/compose';
 import type { OrderOptions, SendOptions, DispenserOptions, DividendOptions, IssuanceOptions } from '@/utils/blockchain/counterparty/compose';
-import { trackEvent } from '@/utils/fathom';
+import { analytics } from '@/utils/fathom';
 
 export interface TransactionComposition {
   rawtransaction: string;
@@ -392,7 +392,7 @@ export class TransactionService extends BaseService {
     const signedTx = await walletService.signTransaction(rawTx, activeAddress);
     
     // Track signing event
-    await trackEvent('transaction_signed', { _value: 1 });
+    await analytics.track('transaction_signed', { value: '1' });
 
     return { signedTransaction: signedTx };
   }
@@ -427,7 +427,7 @@ export class TransactionService extends BaseService {
     const result = await walletService.signMessage(message, address);
 
     // Track successful signature
-    await trackEvent('message_signed', { _value: 1 });
+    await analytics.track('message_signed', { value: '1' });
 
     return result.signature;
   }

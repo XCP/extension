@@ -37,10 +37,10 @@ userData/onboarding/
 
 scan.py
 output.txt
+find-xcp-both.ts
 
 # Claude Code settings
 .claude/
 
 # Local reference folders (not part of repo)
-web/
 counterparty-core/

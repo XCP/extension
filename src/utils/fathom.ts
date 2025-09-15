@@ -1,20 +1,14 @@
-import { settingsManager } from '@/utils/wallet/settingsManager';
+/**
+ * Fathom Analytics implementation for XCP Wallet
+ * Provides privacy-focused analytics without relying on WXT modules
+ */
 
-// Define types for window.fathom and window.currentVirtualPath
-declare global {
-  interface Window {
-    fathom?: {
-      trackEvent: (eventId: string, opts?: { _value?: number }) => void;
-      trackPageview: (opts?: { url?: string; referrer?: string }) => void;
-      setSite: (siteId: string) => void;
-    };
-    currentVirtualPath?: string; // To store the sanitized path
-  }
-}
+import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 // Fathom configuration constants
-const FATHOM_SITE_ID = 'PEMZGNDB';
-const TRACKER_URL = 'https://cdn.usefathom.com/';
+export const FATHOM_SITE_ID = 'PEMZGNDB';
+export const TRACKER_URL = 'https://cdn.usefathom.com/';
+export const VIRTUAL_DOMAIN = 'xcp-wallet.ext';
 
 // Path sanitization mappings
 const SENSITIVE_PATH_MAPPINGS: Record<string, string> = {
@@ -26,7 +20,10 @@ const SENSITIVE_PATH_MAPPINGS: Record<string, string> = {
   '/utxo/': '/utxo',
 };
 
-// Sanitize the path based on predefined mappings and patterns
+/**
+ * Sanitize the path to remove sensitive information like wallet IDs, asset names, etc.
+ * This ensures user privacy while still tracking page views.
+ */
 export const sanitizePath = (path: string): string => {
   // Check for sensitive paths
   for (const [prefix, replacement] of Object.entries(SENSITIVE_PATH_MAPPINGS)) {
@@ -54,132 +51,149 @@ export const sanitizePath = (path: string): string => {
   return path;
 };
 
-// Initialize the Fathom tracker
-if (typeof window !== 'undefined') {
-  window.fathom = (() => {
-  // Helper function to check if analytics is allowed
-  async function checkAnalyticsAllowed(): Promise<boolean> {
-    const settings = await settingsManager.loadSettings();
+/**
+ * Check if we're in an extension context with browser APIs available
+ */
+const isExtensionContext = (): boolean => {
+  return typeof browser !== 'undefined' && browser?.runtime?.id !== undefined;
+};
+
+/**
+ * Get analytics settings from storage
+ * Returns false if we can't access storage (e.g., in injected scripts)
+ */
+async function isAnalyticsEnabled(): Promise<boolean> {
+  if (!isExtensionContext()) {
+    return false;
+  }
+
+  try {
+    const settings = await getKeychainSettings();
     return settings.analyticsAllowed;
-  }
-
-  // Encode parameters for tracking URLs
-  function encodeParameters(params: Record<string, any>) {
-    params.cid = Math.floor(Math.random() * 1e8) + 1;
-    return (
-      '?' +
-      Object.keys(params)
-        .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`)
-        .join('&')
-    );
-  }
-
-  // Get the location object, optionally based on a URL
-  function getLocation(params: { url?: string } = {}) {
-    if (params.url) {
-      const location = document.createElement('a');
-      location.href = params.url;
-      return location;
+  } catch (error) {
+    // If we can't get settings, don't track
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('Failed to get analytics settings:', error);
     }
-    return window.location;
+    return false;
   }
-
-  // Send tracking data using an image beacon
-  async function send(params: Record<string, any>) {
-    const analyticsAllowed = await checkAnalyticsAllowed();
-    if (!analyticsAllowed) return;
-
-    const img = document.createElement('img');
-    img.setAttribute('alt', '');
-    img.setAttribute('aria-hidden', 'true');
-    img.style.position = 'absolute';
-    img.src = TRACKER_URL + encodeParameters(params);
-
-    img.addEventListener('load', () => img.parentNode?.removeChild(img));
-    img.addEventListener('error', () => img.parentNode?.removeChild(img));
-
-    document.body.appendChild(img);
-  }
-
-  // Send tracking data using the Beacon API
-  async function beacon(params: Record<string, any>) {
-    const analyticsAllowed = await checkAnalyticsAllowed();
-    if (!analyticsAllowed) return;
-
-    navigator.sendBeacon(TRACKER_URL + encodeParameters(params));
-  }
-
-  return {
-    /**
-     * Track a pageview with an optional URL and referrer.
-     * @param params Object containing optional URL and referrer.
-     */
-    trackPageview: async (params: { url?: string; referrer?: string } = {}) => {
-      const analyticsAllowed = await checkAnalyticsAllowed();
-      if (!analyticsAllowed) return;
-
-      const location = getLocation(params);
-      const hostname = location.protocol + '//' + location.hostname;
-      const pathname = sanitizePath(location.pathname) || '/';
-
-      // Update the global currentVirtualPath
-      window.currentVirtualPath = pathname;
-
-      send({
-        h: hostname,
-        p: pathname,
-        r: params.referrer && params.referrer.indexOf(hostname) < 0 ? params.referrer : '',
-        sid: FATHOM_SITE_ID,
-      });
-    },
-
-    /**
-     * Track an event with a name and optional payload.
-     * @param name The event name.
-     * @param payload Optional event payload.
-     */
-    trackEvent: async (name: string, payload: Record<string, any> = {}) => {
-      const analyticsAllowed = await checkAnalyticsAllowed();
-      if (!analyticsAllowed) return;
-
-      const location = getLocation();
-      const hostname = location.protocol + '//' + location.hostname;
-      const pathname = window.currentVirtualPath || sanitizePath(location.pathname) || '/';
-
-      beacon({
-        name,
-        payload: JSON.stringify(payload),
-        p: pathname,
-        h: hostname,
-        r: document.referrer.indexOf(hostname) < 0 ? document.referrer : '',
-        sid: FATHOM_SITE_ID,
-      });
-    },
-
-    /**
-     * Set a new site ID.
-     * @param siteId The new Fathom site ID.
-     */
-    setSite: (siteId: string) => {
-      // No-op implementation as per original script
-    },
-  };
-  })();
 }
 
-// Export tracking functions that check analytics settings
-export const trackEvent = async (eventId: string, opts?: { _value?: number }) => {
-  if (typeof window === 'undefined') return;
-  const settings = await settingsManager.loadSettings();
-  if (settings.analyticsAllowed) {
-    window.fathom?.trackEvent(eventId, opts);
+/**
+ * Encode parameters for tracking URLs
+ */
+function encodeParameters(params: Record<string, any>): string {
+  params.cid = Math.floor(Math.random() * 1e8) + 1;
+  return '?' + Object.keys(params)
+    .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`)
+    .join('&');
+}
+
+/**
+ * Send tracking data to Fathom
+ */
+async function sendToFathom(params: Record<string, any>): Promise<void> {
+  const enabled = await isAnalyticsEnabled();
+  if (!enabled) {
+    return;
   }
+
+  const url = TRACKER_URL + encodeParameters(params);
+
+  try {
+    // Try using sendBeacon first (preferred for analytics)
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(url);
+    } else {
+      // Fallback to fetch for older browsers
+      await fetch(url, {
+        method: 'GET',
+        mode: 'no-cors',
+        credentials: 'omit',
+      });
+    }
+  } catch (error) {
+    // Silently fail - analytics should never break the app
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('Analytics send failed:', error);
+    }
+  }
+}
+
+/**
+ * Analytics API compatible with WXT analytics module interface
+ * This can be used as a drop-in replacement for #analytics
+ */
+export const analytics = {
+  /**
+   * Track a page view
+   * @param path - The path to track (will be sanitized)
+   */
+  async page(path: string): Promise<void> {
+    if (!isExtensionContext()) {
+      return;
+    }
+
+    const sanitizedPath = sanitizePath(path);
+    await sendToFathom({
+      h: `https://${VIRTUAL_DOMAIN}`,
+      p: sanitizedPath,
+      r: '', // No referrer for extension pages
+      sid: FATHOM_SITE_ID,
+      qs: JSON.stringify({}),
+    });
+  },
+
+  /**
+   * Track a custom event
+   * @param eventName - The name of the event to track
+   * @param properties - Optional properties to include with the event
+   */
+  async track(eventName: string, properties?: { value?: string; [key: string]: any }): Promise<void> {
+    if (!isExtensionContext()) {
+      return;
+    }
+
+    const payload: Record<string, any> = {
+      name: eventName,
+      p: '/', // Default path for events
+      h: `https://${VIRTUAL_DOMAIN}`,
+      r: '',
+      sid: FATHOM_SITE_ID,
+      qs: JSON.stringify({}),
+    };
+
+    // Include event properties if provided
+    if (properties && Object.keys(properties).length > 0) {
+      payload.payload = JSON.stringify(properties);
+    }
+
+    await sendToFathom(payload);
+  },
+
+  /**
+   * Identify a user (not supported by Fathom, no-op)
+   */
+  async identify(): Promise<void> {
+    // Fathom doesn't support user identification
+  },
+};
+
+// Legacy exports for backward compatibility
+export const trackEvent = async (eventId: string, opts?: { _value?: number }) => {
+  await analytics.track(eventId, { value: opts?._value?.toString() });
 };
 
 export const trackPageview = async (opts?: { url?: string; referrer?: string }) => {
-  if (typeof window === 'undefined') return;
-  const settings = await settingsManager.loadSettings();
-  if (settings.analyticsAllowed) {
-    window.fathom?.trackPageview(opts);
-  }
+  await analytics.page(opts?.url || '/');
 };
+
+// Export a no-op version for non-extension contexts
+export const noopAnalytics = {
+  page: async () => {},
+  track: async () => {},
+  identify: async () => {},
+};
+
+// Default export based on context
+export default isExtensionContext() ? analytics : noopAnalytics;

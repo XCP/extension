@@ -1,8 +1,8 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { DestinationInput } from '../destination-input';
-import React from 'react';
 
 // Mock the bitcoin validation utility
 vi.mock('@/utils/validation', () => ({

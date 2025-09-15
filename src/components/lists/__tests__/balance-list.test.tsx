@@ -97,7 +97,7 @@ vi.mock('@/hooks/useSearchQuery', () => ({
 }));
 
 const mockInView = vi.fn(() => false);
-vi.mock('react-intersection-observer', () => ({
+vi.mock('@/hooks/useInView', () => ({
   useInView: () => ({
     ref: vi.fn(),
     inView: mockInView()
@@ -528,8 +528,8 @@ describe('BalanceList', () => {
     const searchInput = screen.getByPlaceholderText('Search balances...');
     expect(searchInput).toHaveClass('w-full');
     expect(searchInput).toHaveClass('p-2');
-    expect(searchInput).toHaveClass('pl-10');
-    expect(searchInput).toHaveClass('pr-10');
+    expect(searchInput).toHaveClass('pl-8');
+    expect(searchInput).toHaveClass('pr-8');
     expect(searchInput).toHaveClass('border');
     expect(searchInput).toHaveClass('rounded-md');
     expect(searchInput).toHaveClass('bg-gray-50');

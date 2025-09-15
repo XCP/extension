@@ -9,7 +9,7 @@
  * - WalletService: Wallet state and cryptographic operations
  */
 
-import { defineProxyService } from '@webext-core/proxy-service';
+import { defineProxyService } from '@/utils/proxy';
 import { getWalletService } from '@/services/walletService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getConnectionService } from '@/services/connection';
@@ -18,7 +18,7 @@ import { getTransactionService } from '@/services/transaction';
 import { getBlockchainService } from '@/services/blockchain';
 import type { ApprovalRequest } from '@/utils/provider/approvalQueue';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
-import { trackEvent } from '@/utils/fathom';
+import { analytics } from '@/utils/fathom';
 import { analyzeCSP } from '@/utils/security/cspValidation';
 
 export interface ProviderService {
@@ -107,7 +107,7 @@ export function createProviderService(): ProviderService {
       const MAX_PARAM_SIZE = 1024 * 1024; // 1MB limit
       const paramSize = JSON.stringify(params).length;
       if (paramSize > MAX_PARAM_SIZE) {
-        await trackEvent('request_rejected', { _value: 1 });
+        await analytics.track('request_rejected', { value: '1' });
         console.warn('Request parameters too large', { 
           origin: new URL(origin).hostname, 
           method, 
@@ -198,7 +198,7 @@ export function createProviderService(): ProviderService {
           const accounts = await connectionService.connect(origin, activeAddress.address, activeWallet.id);
           
           // Track successful connection
-          await trackEvent('connection_established');
+          await analytics.track('connection_established');
           
           return accounts;
         }
@@ -253,7 +253,7 @@ export function createProviderService(): ProviderService {
           const signature = await transactionService.signMessage(origin, message, signingAddress);
           
           // Track successful signature
-          await trackEvent('message_signed');
+          await analytics.track('message_signed');
           
           return signature;
         }
@@ -275,7 +275,7 @@ export function createProviderService(): ProviderService {
           const result = await transactionService.signTransaction(origin, rawTx);
           
           // Track successful signing
-          await trackEvent('transaction_signed');
+          await analytics.track('transaction_signed');
           
           return {
             signedTransaction: result.signedTransaction,
@@ -431,7 +431,7 @@ export function createProviderService(): ProviderService {
           const result = await transactionService.broadcastTransaction(origin, signedTx);
           
           // Track successful broadcast
-          await trackEvent('transaction_broadcasted');
+          await analytics.track('transaction_broadcasted');
           
           return result;
         }
@@ -449,7 +449,7 @@ export function createProviderService(): ProviderService {
       });
       
       // Track error event (trackEvent doesn't support custom objects, just _value)
-      await trackEvent('provider_error', { _value: 1 });
+      await analytics.track('provider_error', { value: '1' });
       
       throw error;
     }
@@ -530,7 +530,7 @@ export function createProviderService(): ProviderService {
     
     // Track the approval/rejection event
     const eventName = approved ? 'request_approved' : 'request_rejected';
-    trackEvent(eventName).catch(console.error);
+    analytics.track(eventName);
     
     // Resolve the approval
     approvalService.resolveApproval(requestId, {

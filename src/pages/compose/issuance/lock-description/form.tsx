@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Field, Description } from "@headlessui/react";
+import { Field, Label } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer-form";
 import { Spinner } from "@/components/spinner";
 import { AssetHeader } from "@/components/headers/asset-header";
+import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
@@ -33,6 +34,7 @@ export function LockDescriptionForm({
   const { showHelpText } = useComposer();
   const { error: assetError, data: assetInfo, isLoading: assetLoading } = useAssetInfo(asset);
   const { pending } = useFormStatus();
+  const [isChecked, setIsChecked] = useState(false);
 
   if (assetLoading) {
     return <Spinner message="Loading asset details..." />;
@@ -67,6 +69,10 @@ export function LockDescriptionForm({
     );
   }
 
+  const handleCheckboxChange = (checked: boolean) => {
+    setIsChecked(checked);
+  };
+
   return (
     <ComposerForm
       formAction={formAction}
@@ -85,35 +91,39 @@ export function LockDescriptionForm({
           className="mt-1 mb-5"
         />
       }
-      submitText="Lock Description Permanently"
+      submitText="Continue"
+      submitDisabled={!isChecked}
     >
-      {/* Warning message */}
-      <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-amber-800 mb-2">⚠️ Warning</h3>
-        <p className="text-sm text-amber-700">
-          Locking the description is <strong>permanent and irreversible</strong>. 
-          Once locked, you will never be able to change the asset description again.
-        </p>
-        {currentDescription && (
-          <div className="mt-3 pt-3 border-t border-amber-200">
-            <p className="text-xs text-amber-600">Current description:</p>
-            <p className="text-sm font-medium text-amber-800 mt-1">{currentDescription}</p>
-          </div>
-        )}
-      </div>
-          {/* Hidden fields for the issuance parameters */}
-          <input type="hidden" name="asset" value={asset} />
-          <input type="hidden" name="quantity" value="0" />
-          <input type="hidden" name="description" value="LOCK" />
-          
-      {showHelpText && (
-        <Field>
-          <Description className="text-sm text-gray-500">
-            This action will permanently lock the description for {asset}. 
-            The current description "{currentDescription || "(empty)"}" will be the final description forever.
-          </Description>
-        </Field>
-      )}
+      <Field>
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+          <p className="text-sm text-yellow-700">
+            Locking the description is permanent and irreversible. Once locked, you will never be able to change the asset description again.
+          </p>
+          {currentDescription && (
+            <div className="mt-3 pt-3 border-t border-yellow-200">
+              <p className="text-xs text-yellow-600">Current description:</p>
+              <p className="text-sm font-medium text-yellow-700 mt-1">{currentDescription}</p>
+            </div>
+          )}
+        </div>
+        
+        <div className="mb-2">
+          <Label className="text-sm font-medium text-gray-700">Confirmation</Label>
+        </div>
+        
+        <CheckboxInput
+          name="confirm"
+          label={`I understand that locking the description for ${asset} is permanent and cannot be undone`}
+          disabled={pending}
+          checked={isChecked}
+          onChange={handleCheckboxChange}
+        />
+        
+        {/* Hidden fields for the issuance parameters */}
+        <input type="hidden" name="asset" value={asset} />
+        <input type="hidden" name="quantity" value="0" />
+        <input type="hidden" name="description" value="LOCK" />
+      </Field>
     </ComposerForm>
   );
 }

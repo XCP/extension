@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AssetMenu } from "@/components/menus/asset-menu";
 import { SearchInput } from "@/components/inputs/search-input";

@@ -3,15 +3,21 @@ import { useNavigate } from "react-router-dom";
 import { FiHelpCircle } from "react-icons/fi";
 import { ConsolidationForm, ConsolidationFormData } from "./form";
 import { ConsolidationReview } from "./review";
+import { ConsolidationHistory } from "./history";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { useConsolidateAndBroadcast } from "@/hooks/useConsolidateAndBroadcast";
+import { useMultiBatchConsolidation } from "@/hooks/useMultiBatchConsolidation";
 
 export function Consolidate() {
   const navigate = useNavigate();
   const { activeAddress, activeWallet } = useWallet();
-  const { consolidateAndBroadcast, isProcessing } = useConsolidateAndBroadcast();
+  const { 
+    consolidateAllBatches, 
+    isProcessing,
+    currentBatch,
+    results
+  } = useMultiBatchConsolidation();
   const [step, setStep] = useState<'form' | 'review'>('form');
   const [error, setError] = useState<string | null>(null);
   // Use the form data type that includes utxoData
@@ -24,6 +30,13 @@ export function Consolidate() {
     updateSettings({ showHelpText: !settings?.showHelpText });
   };
 
+  // Mark the recover bitcoin page as visited
+  useEffect(() => {
+    if (!settings?.hasVisitedRecoverBitcoin) {
+      updateSettings({ hasVisitedRecoverBitcoin: true });
+    }
+  }, []); // Only run once on mount
+  
   useEffect(() => {
     if (step === 'form') {
       setHeaderProps({
@@ -49,17 +62,18 @@ export function Consolidate() {
   const handleFormSubmit = async (data: ConsolidationFormData) => {
     try {
       setError(null);
-      // Store form data (including utxoData)
+      // Store form data
       setFormData(data);
       
-      // Pass extra data (utxoData) to the review screen
+      // Pass consolidation data to the review screen
       setTxDetails({
         params: {
           source: activeAddress.address,
           destination: data.destinationAddress || activeAddress.address,
           feeRateSatPerVByte: data.feeRateSatPerVByte,
         },
-        utxoData: data.utxoData, // <-- extra info for review
+        consolidationData: data.consolidationData,
+        allBatches: data.allBatches,
       });
 
       setStep('review');
@@ -74,15 +88,17 @@ export function Consolidate() {
   };
 
   const handleSign = async () => {
-    if (!formData) return;
+    if (!formData || !formData.allBatches.length) return;
     
     try {
       setError(null);
-      await consolidateAndBroadcast(
+      await consolidateAllBatches(
+        formData.allBatches,
         formData.feeRateSatPerVByte,
-        formData.destinationAddress
+        formData.destinationAddress || undefined,
+        formData.includeStamps
       );
-      // Handle success (e.g., navigate away or show success message)
+      // Navigation to success is handled by the hook
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -97,7 +113,10 @@ export function Consolidate() {
       )}
 
       {step === 'form' && (
-        <ConsolidationForm onSubmit={handleFormSubmit} />
+        <>
+          <ConsolidationForm onSubmit={handleFormSubmit} />
+          <ConsolidationHistory address={activeAddress.address} />
+        </>
       )}
 
       {step === 'review' && txDetails && (
@@ -107,6 +126,9 @@ export function Consolidate() {
           onBack={handleBack}
           error={error}
           setError={setError}
+          isProcessing={isProcessing}
+          currentBatch={currentBatch}
+          results={results}
         />
       )}
     </div>

@@ -1,22 +1,29 @@
-import axios from "axios";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/button";
 import { AddressHeader } from "@/components/headers/address-header";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
 import { useWallet } from "@/contexts/wallet-context";
 import { formatAmount } from "@/utils/format";
 import { useSettings } from "@/contexts/settings-context";
+import { 
+  consolidationApi,
+  type ConsolidationData
+} from "@/services/consolidationApiService";
 
 export interface ConsolidationFormData {
   feeRateSatPerVByte: number;
   destinationAddress: string;
-  utxoData: { count: number; total: number } | null;
+  includeStamps: boolean;
+  consolidationData: ConsolidationData | null;
+  allBatches: ConsolidationData[];
 }
 
 const DEFAULT_FORM_DATA: ConsolidationFormData = {
-  feeRateSatPerVByte: 0.1,
+  feeRateSatPerVByte: 1,
   destinationAddress: "",
-  utxoData: null,
+  includeStamps: false,
+  consolidationData: null,
+  allBatches: [],
 };
 
 interface ConsolidationFormProps {
@@ -26,29 +33,56 @@ interface ConsolidationFormProps {
 export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
   const { activeAddress, activeWallet } = useWallet();
   const [formData, setFormData] = useState<ConsolidationFormData>(DEFAULT_FORM_DATA);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText;
 
-  // Fetch UTXO summary for the active address
+  // Fetch consolidation data when address or stamps option changes
   useEffect(() => {
-    async function fetchUTXOs() {
+    async function fetchData() {
       if (!activeAddress) return;
+      
+      // Only show loading state on initial load, not on stamp toggle
+      if (isInitialLoad) {
+        setIsLoading(true);
+      } else {
+        // Show updating state for subsequent fetches
+        setIsUpdating(true);
+      }
+      setError(null);
+      
       try {
-        const response = await axios.get(
-          `https://app.xcp.io/api/v1/address/${activeAddress.address}/utxos`
+        // Fetch all batches to show complete overview
+        const batches = await consolidationApi.fetchAllBatches(
+          activeAddress.address,
+          formData.includeStamps
         );
-        const utxos = response.data.data;
-        const total = utxos.reduce((sum: number, utxo: any) => sum + Number(utxo.amount), 0);
+        
         setFormData((prev) => ({
           ...prev,
-          utxoData: { count: utxos.length, total },
+          consolidationData: batches[0], // First batch for initial display
+          allBatches: batches
         }));
-      } catch (error) {
-        console.error("Error fetching UTXOs:", error);
+        
+        // Mark initial load as complete
+        if (isInitialLoad) {
+          setIsInitialLoad(false);
+        }
+      } catch (err) {
+        console.error("Error fetching consolidation data:", err);
+        setError(err instanceof Error ? err.message : "Failed to fetch consolidation data");
+      } finally {
+        setIsLoading(false);
+        setIsUpdating(false);
       }
     }
-    fetchUTXOs();
-  }, [activeAddress]);
+    
+    fetchData();
+  }, [activeAddress, formData.includeStamps, isInitialLoad]);
+
 
   const handleFeeRateChange = (value: number) => {
     setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
@@ -56,6 +90,10 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
 
   const handleDestinationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, destinationAddress: e.target.value.trim() }));
+  };
+
+  const handleIncludeStampsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({ ...prev, includeStamps: e.target.checked }));
   };
 
   const handleSubmitInternal = (e: React.FormEvent<HTMLFormElement>) => {
@@ -73,25 +111,89 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
         />
       )}
       <form onSubmit={handleSubmitInternal} className="bg-white rounded-lg shadow-lg p-4 space-y-6">
-        {formData.utxoData && (
-          <div className="space-y-2">
-            <h3 className="font-semibold">Recoverable</h3>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Bitcoin</span>
-              <span className="font-medium">
-                {`${formatAmount({
-                  value: formData.utxoData.total,
-                  minimumFractionDigits: 8,
-                  maximumFractionDigits: 8,
-                })} BTC`}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">UTXOs</span>
-              <span className="font-medium">{formData.utxoData.count}</span>
-            </div>
+        {error && (
+          <div className="p-3 bg-red-100 text-red-700 rounded-md">
+            {error}
           </div>
         )}
+        
+        {/* Mempool warning */}
+        {!isLoading && formData.consolidationData?.mempool_status && 
+         formData.consolidationData.mempool_status.pending_consolidations > 0 && (
+          <div className="p-3 bg-amber-100 text-amber-700 rounded-md">
+            <strong>Warning:</strong> You have {formData.consolidationData.mempool_status.pending_consolidations} pending recovery 
+            transaction{formData.consolidationData.mempool_status.pending_consolidations > 1 ? 's' : ''}. 
+            Please wait for {formData.consolidationData.mempool_status.pending_consolidations > 1 ? 'them' : 'it'} to confirm before starting new ones.
+          </div>
+        )}
+        
+        {/* Always show the data section to prevent layout shift */}
+        <div className="space-y-2">
+          <h3 className="font-semibold">Recoverable</h3>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Total Bitcoin</span>
+            <span className="font-medium">
+              {isLoading ? (
+                <span className="text-gray-400">...</span>
+              ) : formData.consolidationData ? (
+                `${formatAmount({
+                  value: formData.consolidationData.summary.total_btc,
+                  minimumFractionDigits: 8,
+                  maximumFractionDigits: 8,
+                })} BTC`
+              ) : (
+                <span className="text-gray-400">—</span>
+              )}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Total UTXOs</span>
+            <span className="font-medium">
+              {isLoading ? (
+                <span className="text-gray-400">...</span>
+              ) : formData.consolidationData ? (
+                formData.consolidationData.summary.total_utxos
+              ) : (
+                <span className="text-gray-400">—</span>
+              )}
+            </span>
+          </div>
+          {!isLoading && formData.consolidationData && formData.consolidationData.summary.batches_required > 1 && (
+            <div className="flex justify-between">
+              <span className="text-gray-600"># of Batches</span>
+              <span className="font-medium">
+                {formData.consolidationData.summary.batches_required} txs
+              </span>
+            </div>
+          )}
+        </div>
+        
+        {!isLoading && formData.consolidationData && formData.consolidationData.validation_summary?.requires_special_handling && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+            <p className="text-sm text-amber-900">
+              <strong>Note:</strong> Some UTXOs require special handling. This is normal for older Counterparty transactions and will be handled automatically.
+            </p>
+          </div>
+        )}
+
+        {/* Include Stamps toggle */}
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+          <div className="flex flex-col">
+            <label htmlFor="includeStamps" className="text-sm font-medium text-gray-700">
+              Allow STAMPS to be spent
+            </label>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              id="includeStamps"
+              type="checkbox"
+              className="sr-only peer"
+              checked={formData.includeStamps}
+              onChange={handleIncludeStampsChange}
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
 
         <div className="space-y-2">
           <label htmlFor="destinationAddress" className="block text-sm font-medium text-gray-700">
@@ -119,11 +221,24 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
           type="submit"
           color="blue"
           fullWidth
-          disabled={!formData.utxoData || formData.utxoData.count === 0 || formData.feeRateSatPerVByte <= 0}
+          disabled={!formData.consolidationData || formData.consolidationData.summary.total_utxos === 0 || formData.feeRateSatPerVByte <= 0 || isLoading}
         >
-          Continue
+          {isLoading ? "Loading..." : "Continue to Review"}
         </Button>
       </form>
+      
+      {/* YouTube Tutorial Button */}
+      <div className="mt-4 bg-white rounded-lg shadow-lg p-4">
+        <button
+          onClick={() => window.open('https://www.youtube.com/watch?v=YOUR_VIDEO_ID', '_blank')}
+          className="w-full flex items-center justify-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-md transition-colors"
+        >
+          <svg className="w-5 h-5 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+          </svg>
+          <span className="text-sm font-medium text-gray-700">Watch Tutorial: How to Recover Bitcoin</span>
+        </button>
+      </div>
     </div>
   );
 }

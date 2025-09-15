@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaChevronRight, FaClipboard, FaCheck } from "react-icons/fa";
+import { FaClipboard, FaCheck } from "react-icons/fa";
 import { ErrorAlert } from "@/components/error-alert";
 import { AddressHeader } from "@/components/headers/address-header";
+import { ActionList } from "@/components/lists/action-list";
+import type { ActionSection } from "@/components/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchUtxoBalances, type UtxoBalance } from "@/utils/blockchain/counterparty";
@@ -13,16 +15,6 @@ import { formatTxid, formatAmount, formatTimeAgo } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 import type { ReactElement } from "react";
 
-/**
- * Interface for an actionable option for a UTXO.
- */
-interface Action {
-  id: string;
-  name: string;
-  description: string;
-  path: string;
-  variant?: "default" | "success" | "destructive";
-}
 
 /**
  * Constants for navigation paths.
@@ -125,23 +117,27 @@ export default function ViewUtxo(): ReactElement {
 
   /**
    * Generates a list of available actions for the UTXO.
-   * @returns {Action[]} The list of actionable options for the UTXO.
+   * @returns {ActionSection[]} The list of actionable options for the UTXO.
    */
-  const getActions = (): Action[] => {
+  const getActionSections = (): ActionSection[] => {
     if (!txid) return [];
     return [
       {
-        id: "move",
-        name: "Move",
-        description: "Move this UTXO to another address",
-        path: `${CONSTANTS.PATHS.COMPOSE}/utxo/move/${txid}`,
-      },
-      {
-        id: "detach",
-        name: "Detach",
-        description: "Detach assets from this UTXO",
-        path: `${CONSTANTS.PATHS.COMPOSE}/utxo/detach/${txid}`,
-        variant: "destructive",
+        items: [
+          {
+            id: "move",
+            title: "Move",
+            description: "Move this UTXO to another address",
+            onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/utxo/move/${txid}`),
+          },
+          {
+            id: "detach",
+            title: "Detach",
+            description: "Detach assets from this UTXO",
+            onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/utxo/detach/${txid}`),
+            className: "!border !border-red-500",
+          },
+        ],
       },
     ];
   };
@@ -218,36 +214,7 @@ export default function ViewUtxo(): ReactElement {
           </>
         )}
       </div>
-      <div className="space-y-2">
-        {getActions().map((action) => (
-          <div
-            key={action.id}
-            onClick={() => navigate(action.path)}
-            className={`
-              bg-white rounded-lg p-4 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors
-              ${action.variant === "destructive" ? "border border-red-200" : ""}
-            `}
-            role="button"
-            tabIndex={0}
-            aria-label={action.name}
-          >
-            <div className="flex justify-between items-center">
-              <div>
-                <h3
-                  className={`
-                    text-sm font-medium
-                    ${action.variant === "destructive" ? "text-red-600" : "text-gray-900"}
-                  `}
-                >
-                  {action.name}
-                </h3>
-                <p className="text-xs text-gray-500 mt-1">{action.description}</p>
-              </div>
-              <FaChevronRight className="text-gray-400 w-4 h-4" aria-hidden="true" />
-            </div>
-          </div>
-        ))}
-      </div>
+      <ActionList sections={getActionSections()} />
     </div>
   );
 }

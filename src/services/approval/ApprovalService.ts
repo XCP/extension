@@ -14,7 +14,7 @@ import { RequestManager } from '@/services/core/RequestManager';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { approvalQueue, getApprovalBadgeText } from '@/utils/provider/approvalQueue';
 import type { ApprovalRequest } from '@/utils/provider/approvalQueue';
-import { trackEvent } from '@/utils/fathom';
+import { analytics } from '@/utils/fathom';
 
 export interface ApprovalRequestOptions {
   id: string;
@@ -287,7 +287,7 @@ export class ApprovalService extends BaseService {
     const eventName = approved ? 'request_approved' : 'request_rejected';
     const hostname = new URL(options.origin).hostname;
 
-    await trackEvent(eventName, { _value: 1 });
+    await analytics.track(eventName, { value: '1' });
   }
 
   /**

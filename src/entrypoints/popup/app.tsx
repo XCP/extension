@@ -1,9 +1,12 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { FaSpinner } from "react-icons/fa";
 import { Layout } from '@/components/layout';
 import { useWallet } from '@/contexts/wallet-context';
 import { AuthRequired } from '@/components/router/auth-required';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { analytics } from '@/utils/fathom';
+import { sanitizePath } from '@/utils/fathom';
 
 // Auth
 import Onboarding from '@/pages/auth/onboarding';
@@ -20,6 +23,8 @@ import DispenserManagement from '@/pages/dispensers/manage';
 
 // Actions
 import Consolidate from '@/pages/actions/consolidate';
+import ConsolidationSuccess from '@/pages/actions/consolidate/success';
+import ConsolidationStatus from '@/pages/actions/consolidate/status';
 import SignMessage from '@/pages/actions/sign-message';
 import VerifyMessage from '@/pages/actions/verify-message';
 
@@ -36,6 +41,7 @@ import SelectWallet from '@/pages/wallet/select-wallet';
 import CreateWallet from '@/pages/wallet/create-wallet';
 import ImportWallet from '@/pages/wallet/import-wallet';
 import ImportPrivateKey from '@/pages/wallet/import-private-key';
+import ImportTestAddress from '@/pages/wallet/import-test-address';
 import ResetWallet from '@/pages/wallet/reset-wallet';
 import RemoveWallet from '@/pages/wallet/remove-wallet';
 import ShowPassphrase from '@/pages/secrets/show-passphrase';
@@ -99,11 +105,22 @@ import ComposeUtxoAttach from '@/pages/compose/utxo/attach';
 import ComposeUtxoDetach from '@/pages/compose/utxo/detach';
 import ComposeUtxoMove from '@/pages/compose/utxo/move';
 
+
 // Utility
 import NotFound from '@/pages/not-found';
 
 export default function App() {
   const { wallets, walletLocked, loaded } = useWallet();
+  const location = useLocation();
+  
+  // Track page views when route changes
+  useEffect(() => {
+    // Sanitize the path to remove sensitive information
+    const sanitizedPath = sanitizePath(location.pathname);
+    // WXT Analytics page() expects just a string URL, not an object
+    analytics.page(sanitizedPath);
+  }, [location.pathname]);
+  
 
   // Until the wallet metadata has been loaded from storage,
   // render a loading state.
@@ -162,6 +179,8 @@ export default function App() {
             
             {/* Actions */}
             <Route path="/consolidate" element={<Consolidate />} />
+            <Route path="/consolidation-success" element={<ConsolidationSuccess />} />
+            <Route path="/consolidation-status" element={<ConsolidationStatus />} />
             <Route path="/actions/sign-message" element={<SignMessage />} />
             <Route path="/actions/verify-message" element={<VerifyMessage />} />
             
@@ -177,6 +196,7 @@ export default function App() {
             <Route path="/select-wallet" element={<SelectWallet />} />
             <Route path="/reset-wallet" element={<ResetWallet />} />
             <Route path="/import-private-key" element={<ImportPrivateKey />} />
+            <Route path="/import-test-address" element={<ImportTestAddress />} />
             <Route path="/remove-wallet/:walletId" element={<RemoveWallet />} />
             <Route path="/show-passphrase/:walletId" element={<ShowPassphrase />} />
             <Route path="/show-private-key/:walletId/:addressPath?" element={<ShowPrivateKey />} />
@@ -238,6 +258,7 @@ export default function App() {
             <Route path="/provider/approve-transaction" element={<ApproveTransaction />} />
             <Route path="/provider/approve-compose" element={<ApproveCompose />} />
             <Route path="/provider/approval-queue" element={<ApprovalQueue />} />
+            
           </Route>
         </Route>
 

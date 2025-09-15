@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getWalletService } from '@/services/walletService';
+import { safeSendMessage } from '@/utils/browser';
 
 export default function ApproveTransaction() {
   const [searchParams] = useSearchParams();
@@ -32,10 +33,13 @@ export default function ApproveTransaction() {
     setIsLoading(true);
     try {
       // Send approval to background
-      await browser.runtime.sendMessage({
+      await safeSendMessage({
         type: 'RESOLVE_PROVIDER_REQUEST',
         requestId,
         approved: true,
+      }).catch((error) => {
+        console.error('Failed to send approval to background:', error);
+        throw error;
       });
       
       // Close window
@@ -49,10 +53,13 @@ export default function ApproveTransaction() {
   const handleReject = async () => {
     try {
       // Send rejection to background
-      await browser.runtime.sendMessage({
+      await safeSendMessage({
         type: 'RESOLVE_PROVIDER_REQUEST',
         requestId,
         approved: false,
+      }).catch((error) => {
+        console.error('Failed to send rejection to background:', error);
+        throw error;
       });
       
       // Close window

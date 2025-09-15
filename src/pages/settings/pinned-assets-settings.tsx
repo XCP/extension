@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHelpCircle } from "react-icons/fi";
-import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { Button } from "@/components/button";
 import { SearchInput } from "@/components/inputs/search-input";
 import { PinnableAssetCard } from "@/components/cards/pinnable-asset-card";
@@ -112,11 +112,7 @@ export default function PinnedAssetsSettings(): ReactElement {
     }
   }, [pinnedAssets, setError, updateSettings]);
 
-  const handleDragEnd = async (result: DropResult) => {
-    if (!result.destination || !pinnedAssets.length) return;
-    const items = Array.from(pinnedAssets);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
+  const handleReorder = async (items: string[]) => {
     setPinnedAssets(items);
     try {
       // Use the settings context directly to ensure proper update
@@ -126,6 +122,19 @@ export default function PinnedAssetsSettings(): ReactElement {
       setError("Failed to reorder assets.");
     }
   };
+
+  const {
+    draggedIndex,
+    dragOverIndex,
+    handleDragStart,
+    handleDragOver,
+    handleDragEnd,
+    handleDrop,
+    handleDragLeave,
+  } = useDragAndDrop({
+    items: pinnedAssets,
+    onReorder: handleReorder,
+  });
 
 
   const SearchItemComponent = ({ asset }: { asset: { symbol: string } }): ReactElement => {
@@ -148,25 +157,31 @@ export default function PinnedAssetsSettings(): ReactElement {
     );
   };
 
-  const PinnedItemComponent = ({ symbol }: { symbol: string }): ReactElement => {
+  const PinnedItemComponent = ({ symbol, index }: { symbol: string; index: number }): ReactElement => {
+    const isDragging = draggedIndex === index;
+    const isDragOver = dragOverIndex === index;
+
     return (
-      <Draggable key={symbol} draggableId={symbol} index={pinnedAssets.indexOf(symbol)}>
-        {(provided, snapshot) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.draggableProps}
-            {...provided.dragHandleProps}
-            className="cursor-move"
-          >
-            <PinnableAssetCard
-              symbol={symbol}
-              isPinned={true}
-              isDragging={snapshot.isDragging}
-              onPinToggle={handleRemoveAsset}
-            />
-          </div>
-        )}
-      </Draggable>
+      <div
+        draggable
+        onDragStart={(e) => handleDragStart(e, index)}
+        onDragOver={(e) => handleDragOver(e, index)}
+        onDrop={(e) => handleDrop(e, index)}
+        onDragEnd={handleDragEnd}
+        onDragLeave={handleDragLeave}
+        className={`cursor-move transition-all ${
+          isDragging ? "opacity-50" : ""
+        } ${
+          isDragOver ? "border-t-2 border-blue-500" : ""
+        }`}
+      >
+        <PinnableAssetCard
+          symbol={symbol}
+          isPinned={true}
+          isDragging={isDragging}
+          onPinToggle={handleRemoveAsset}
+        />
+      </div>
     );
   };
 
@@ -203,18 +218,11 @@ export default function PinnedAssetsSettings(): ReactElement {
                 Pin up to 10 assets to the top of your main screen. Drag to reorder.
               </p>
             )}
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <Droppable droppableId="pinnedAssets" type="PINNED_ASSETS">
-                {(provided) => (
-                  <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
-                    {pinnedAssets.map((symbol) => (
-                      <PinnedItemComponent key={symbol} symbol={symbol} />
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </DragDropContext>
+            <div className="space-y-2">
+              {pinnedAssets.map((symbol, index) => (
+                <PinnedItemComponent key={symbol} symbol={symbol} index={index} />
+              ))}
+            </div>
           </>
         ) : (
           <div className="text-center py-4 text-gray-500">
@@ -238,6 +246,7 @@ export default function PinnedAssetsSettings(): ReactElement {
         )}
         
         <SearchInput
+          ref={searchInputRef}
           value={searchQuery}
           onChange={setSearchQuery}
           placeholder="Search assets to pin..."

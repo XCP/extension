@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Field,
   Label,
@@ -32,6 +32,10 @@ export function FeeRateInput({
   const [customInput, setCustomInput] = useState<string>("0.1");
   const [internalError, setInternalError] = useState<string | null>(null);
   const isInitial = useRef(true);
+  
+  // Store callback in a ref to prevent infinite loops
+  const onFeeRateChangeRef = useRef(onFeeRateChange);
+  onFeeRateChangeRef.current = onFeeRateChange;
 
   // Calculate the current fee rate value based on selection
   const currentFeeRate = selectedOption === "custom" 
@@ -44,21 +48,21 @@ export function FeeRateInput({
       setCustomInput(initialValue.toString());
       setSelectedOption("fast");
       isInitial.current = false;
-      onFeeRateChange?.(initialValue); // Notify parent of initial value
+      onFeeRateChangeRef.current?.(initialValue); // Notify parent of initial value
     }
-  }, [feeRates, onFeeRateChange]);
+  }, [feeRates]);
 
   useEffect(() => {
     if (feeRates && selectedOption !== "custom") {
       const preset = uniquePresetOptions.find((opt) => opt.id === selectedOption);
       if (preset) {
         setCustomInput(preset.value.toString());
-        onFeeRateChange?.(preset.value); // Notify parent of preset change
+        onFeeRateChangeRef.current?.(preset.value); // Notify parent of preset change
       }
     }
-  }, [selectedOption, feeRates, uniquePresetOptions, onFeeRateChange]);
+  }, [selectedOption, feeRates, uniquePresetOptions]);
 
-  const feeOptions = feeRates
+  const feeOptions: { id: LocalFeeRateOption; name: string; value: number; }[] = feeRates
     ? [...uniquePresetOptions, { id: "custom", name: "Custom", value: parseFloat(customInput) || 0.1 }]
     : [{ id: "custom", name: "Custom", value: parseFloat(customInput) || 0.1 }];
 
@@ -92,7 +96,7 @@ export function FeeRateInput({
         minimumFractionDigits: 0
       });
       setCustomInput(formattedValue);
-      onFeeRateChange?.(parseFloat(formattedValue));
+      onFeeRateChangeRef.current?.(parseFloat(formattedValue));
       return;
     }
     
@@ -102,7 +106,7 @@ export function FeeRateInput({
     // Use validation utility to check if value is valid before notifying parent
     const validation = validateFeeRate(num, { minRate: 0.1, warnHighFee: false });
     if (validation.isValid && validation.satsPerVByte) {
-      onFeeRateChange?.(validation.satsPerVByte);
+      onFeeRateChangeRef.current?.(validation.satsPerVByte);
     }
   };
 
@@ -113,7 +117,7 @@ export function FeeRateInput({
     if (trimmed === "") {
       setCustomInput("0.1");
       setInternalError("Fee rate is required");
-      onFeeRateChange?.(0.1);
+      onFeeRateChangeRef.current?.(0.1);
       return;
     }
     
@@ -124,7 +128,7 @@ export function FeeRateInput({
       // Use the error message from validation or default
       setInternalError(validation.error || "Invalid fee rate");
       setCustomInput("0.1");
-      onFeeRateChange?.(0.1);
+      onFeeRateChangeRef.current?.(0.1);
       return;
     }
     
@@ -140,12 +144,14 @@ export function FeeRateInput({
     onFeeRateChange?.(parseFloat(formattedValue));
   };
 
-  const handleOptionSelect = (option: { id: LocalFeeRateOption; name: string; value: number }) => {
+  const handleOptionSelect = (option: { id: LocalFeeRateOption; name: string; value: number } | null) => {
+    if (!option) return;
+    
     setSelectedOption(option.id);
     if (option.id !== "custom") {
       setCustomInput(option.value.toString());
       setInternalError(null);
-      onFeeRateChange?.(option.value); // Notify parent of selected preset
+      onFeeRateChangeRef.current?.(option.value); // Notify parent of selected preset
     }
   };
 
@@ -155,7 +161,7 @@ export function FeeRateInput({
       setSelectedOption(firstPreset.id);
       setCustomInput(firstPreset.value.toString());
       setInternalError(null);
-      onFeeRateChange?.(firstPreset.value); // Notify parent of reset
+      onFeeRateChangeRef.current?.(firstPreset.value); // Notify parent of reset
     }
   };
 
@@ -246,35 +252,41 @@ export function FeeRateInput({
             <input type="hidden" name="sat_per_vbyte" value={currentFeeRate.toString()} />
             
             {feeRates && (
-              <Listbox value={feeOptions.find((opt) => opt.id === selectedOption)} onChange={handleOptionSelect}>
-                <ListboxButton
-                  className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
-                  disabled={disabled}
-                >
-                  {({ value }) => (
-                    <div className="flex justify-between">
-                      <span>{value?.name}</span>
-                      {value?.id !== "custom" && (
-                        <span className="text-gray-500">{value.value} sat/vB</span>
-                      )}
-                    </div>
-                  )}
-                </ListboxButton>
-                <ListboxOptions className="w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
-                  {feeOptions.map((option) => (
-                    <ListboxOption key={option.id} value={option} className="p-2 cursor-pointer hover:bg-gray-100">
-                      {({ selected }) => (
-                        <div className="flex justify-between">
-                          <span className={selected ? "font-medium" : ""}>{option.name}</span>
-                          {option.id !== "custom" && (
-                            <span className="text-gray-500">{option.value} sat/vB</span>
-                          )}
-                        </div>
-                      )}
-                    </ListboxOption>
-                  ))}
-                </ListboxOptions>
-              </Listbox>
+              <div className="relative">
+                <Listbox value={feeOptions.find((opt) => opt.id === selectedOption) || null} onChange={handleOptionSelect}>
+                  <ListboxButton
+                    className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+                    disabled={disabled}
+                  >
+                    {({ value }) => (
+                      <div className="flex justify-between">
+                        <span>{value?.name}</span>
+                        {value?.id !== "custom" && (
+                          <span className="text-gray-500">{value.value} sat/vB</span>
+                        )}
+                      </div>
+                    )}
+                  </ListboxButton>
+                  <ListboxOptions className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                    {feeOptions.map((option) => (
+                      <ListboxOption 
+                        key={option.id} 
+                        value={option} 
+                        className="p-2 cursor-pointer hover:bg-gray-100"
+                      >
+                        {({ selected }) => (
+                          <div className="flex justify-between">
+                            <span className={selected ? "font-medium" : ""}>{option.name}</span>
+                            {option.id !== "custom" && (
+                              <span className="text-gray-500">{option.value} sat/vB</span>
+                            )}
+                          </div>
+                        )}
+                      </ListboxOption>
+                    ))}
+                  </ListboxOptions>
+                </Listbox>
+              </div>
             )}
           </>
         )}

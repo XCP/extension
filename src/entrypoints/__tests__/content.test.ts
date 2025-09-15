@@ -52,7 +52,8 @@ const mockWindow = {
 const mockConsole = {
   debug: vi.fn(),
   log: vi.fn(),
-  error: vi.fn()
+  error: vi.fn(),
+  warn: vi.fn()
 };
 
 // Mock context object for content script
@@ -192,10 +193,9 @@ describe('Content Script', () => {
       );
     });
 
-    it('should handle MessageBus send errors', async () => {
-      const error = new Error('Request failed');
-      (error as any).code = -1; // Set the error code
-      mockMessageBus.send.mockRejectedValue(error);
+    it('should handle MessageBus send returning null', async () => {
+      // Mock MessageBus.send to return null (simulating no response scenario)
+      mockMessageBus.send.mockResolvedValue(null);
 
       const event = {
         source: window,
@@ -218,13 +218,15 @@ describe('Content Script', () => {
           type: 'XCP_WALLET_RESPONSE',
           id: '456',
           error: {
-            message: 'Request failed',
-            code: -1
+            message: 'No response from extension background',
+            code: -32603
           }
         },
         mockWindow.location.origin
       );
     });
+
+
 
     it('should handle no response from background', async () => {
       mockMessageBus.send.mockResolvedValue(null);
@@ -334,9 +336,11 @@ describe('Content Script', () => {
       expect(contentScript.default.matches).toEqual([
         'https://*/*',
         'http://localhost/*',
-        'http://127.0.0.1/*',
-        'file:///*'
+        'http://127.0.0.1/*'
       ]);
+      
+      // excludeMatches removed - browser automatically excludes restricted schemes
+      expect(contentScript.default.excludeMatches).toBeUndefined();
     });
 
     it('should export a content script with main function', async () => {
@@ -440,12 +444,20 @@ describe('Content Script', () => {
         mockWindow.location.origin
       );
       
-      // Simulate runtime event
-      runtimeMessageListener({
-        type: 'PROVIDER_EVENT',
-        event: 'test-event',
-        data: 'test-data'
-      });
+      // Simulate runtime event with proper parameters
+      const mockSendResponse = vi.fn();
+      runtimeMessageListener(
+        {
+          type: 'PROVIDER_EVENT',
+          event: 'test-event',
+          data: 'test-data'
+        },
+        {}, // sender
+        mockSendResponse
+      );
+      
+      // Should have called sendResponse
+      expect(mockSendResponse).toHaveBeenCalledWith({ received: true, event: 'test-event' });
       
       // Should forward event to window
       expect(mockWindow.postMessage).toHaveBeenCalledWith(

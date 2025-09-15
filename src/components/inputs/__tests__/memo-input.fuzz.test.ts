@@ -54,9 +54,13 @@ describe('Memo Input Validation Fuzz Tests', () => {
     it('should correctly identify non-hex strings', () => {
       fc.assert(
         fc.property(
-          fc.string().filter(s => !/^[0-9a-fA-F]*$/.test(s) || s.length % 2 !== 0),
+          fc.string().filter(s => {
+            const trimmed = s.trim();
+            // After trimming, it should not be valid hex
+            return !/^[0-9a-fA-F]*$/.test(trimmed) || trimmed.length % 2 !== 0;
+          }),
           (text) => {
-            if (!text.startsWith('0x')) {
+            if (!text.trim().startsWith('0x')) {
               expect(isHexMemo(text)).toBe(false);
             }
           }

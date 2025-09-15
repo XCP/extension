@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Textarea } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer-form";
@@ -38,6 +38,7 @@ export function UpdateDescriptionForm({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [description, setDescription] = useState(initialFormData?.description || "");
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   
   // Check if active wallet uses SegWit addresses
   const isSegwitAddress = activeWallet?.addressFormat && isSegwitFormat(activeWallet.addressFormat);
@@ -58,13 +59,12 @@ export function UpdateDescriptionForm({
   };
 
 
-  // Focus description textarea on mount (only if not inscribing)
+  // Focus description textarea on mount
   useEffect(() => {
     if (!inscribeEnabled) {
-      const textarea = document.querySelector("textarea[name='description']") as HTMLTextAreaElement;
-      textarea?.focus();
+      descriptionRef.current?.focus();
     }
-  }, [inscribeEnabled]);
+  }, []);
 
   if (assetLoading) {
     return <Spinner message="Loading asset details..." />;
@@ -134,6 +134,7 @@ export function UpdateDescriptionForm({
                 Description <span className="text-red-500">*</span>
               </Label>
               <Textarea
+                ref={descriptionRef}
                 id="description"
                 name="description"
                 value={description}

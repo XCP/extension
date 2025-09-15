@@ -1,4 +1,4 @@
-import React, { type ReactElement } from "react";
+import { type ReactElement } from "react";
 import { formatAmount } from "@/utils/format";
 import { divide, roundDown, toNumber } from "@/utils/numeric";
 import type { Dispenser } from "@/utils/blockchain/counterparty/api";

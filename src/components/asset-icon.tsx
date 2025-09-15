@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 
 /**
  * Props for the AssetIcon component.
@@ -58,7 +58,7 @@ const FALLBACK_COLORS = {
  * <AssetIcon asset="RARE" fallbackColor="blue" />
  * ```
  */
-export const AssetIcon = React.memo<AssetIconProps>(({ 
+export const AssetIcon = memo<AssetIconProps>(({ 
   asset, 
   size = 'lg', 
   className = '', 
@@ -142,7 +142,7 @@ AssetIcon.displayName = 'AssetIcon';
  * 
  * A skeleton loader for AssetIcon, useful for loading states
  */
-export const AssetIconSkeleton = React.memo<{ 
+export const AssetIconSkeleton = memo<{ 
   size?: AssetIconProps['size']; 
   rounded?: boolean;
   className?: string;
@@ -174,7 +174,7 @@ AssetIconSkeleton.displayName = 'AssetIconSkeleton';
  * @param props - The component props (subset of AssetIconProps)
  * @returns A React element representing the asset icon with SVG fallback
  */
-export const AssetIconWithFallback = React.memo<{ 
+export const AssetIconWithFallback = memo<{ 
   asset: string;
   size?: AssetIconProps['size']; 
   className?: string;

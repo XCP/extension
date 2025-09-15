@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { Footer } from '../footer';
+import { SettingsProvider } from '@/contexts/settings-context';
 
 // Mock React Router
 const mockNavigate = vi.fn();
@@ -26,8 +27,16 @@ describe('Footer', () => {
     mockLocation.pathname = '/index';
   });
 
+  const renderFooter = () => {
+    return render(
+      <SettingsProvider>
+        <Footer />
+      </SettingsProvider>
+    );
+  };
+
   it('should render all navigation buttons', () => {
-    render(<Footer />);
+    renderFooter();
     
     expect(screen.getByTestId('wallet-icon')).toBeInTheDocument();
     expect(screen.getByTestId('university-icon')).toBeInTheDocument();
@@ -36,14 +45,14 @@ describe('Footer', () => {
   });
 
   it('should have 4 navigation buttons', () => {
-    render(<Footer />);
+    renderFooter();
     
     const buttons = screen.getAllByRole('button');
     expect(buttons).toHaveLength(4);
   });
 
   it('should navigate to index when wallet button is clicked', () => {
-    render(<Footer />);
+    renderFooter();
     
     const walletButton = screen.getByTestId('wallet-icon').parentElement?.parentElement;
     fireEvent.click(walletButton!);
@@ -52,7 +61,7 @@ describe('Footer', () => {
   });
 
   it('should navigate to market when university button is clicked', () => {
-    render(<Footer />);
+    renderFooter();
     
     const marketButton = screen.getByTestId('university-icon').parentElement?.parentElement;
     fireEvent.click(marketButton!);
@@ -61,7 +70,7 @@ describe('Footer', () => {
   });
 
   it('should navigate to actions when tools button is clicked', () => {
-    render(<Footer />);
+    renderFooter();
     
     const actionsButton = screen.getByTestId('tools-icon').parentElement?.parentElement;
     fireEvent.click(actionsButton!);
@@ -70,7 +79,7 @@ describe('Footer', () => {
   });
 
   it('should navigate to settings when cog button is clicked', () => {
-    render(<Footer />);
+    renderFooter();
     
     const settingsButton = screen.getByTestId('cog-icon').parentElement?.parentElement;
     fireEvent.click(settingsButton!);
@@ -80,7 +89,7 @@ describe('Footer', () => {
 
   it('should highlight active route with blue color', () => {
     mockLocation.pathname = '/index';
-    render(<Footer />);
+    renderFooter();
     
     const walletButton = screen.getByTestId('wallet-icon').parentElement?.parentElement;
     expect(walletButton).toHaveClass('text-blue-600');
@@ -91,7 +100,7 @@ describe('Footer', () => {
 
   it('should highlight market when on market route', () => {
     mockLocation.pathname = '/market';
-    render(<Footer />);
+    renderFooter();
     
     const marketButton = screen.getByTestId('university-icon').parentElement?.parentElement;
     expect(marketButton).toHaveClass('text-blue-600');
@@ -102,7 +111,7 @@ describe('Footer', () => {
 
   it('should highlight actions when on actions route', () => {
     mockLocation.pathname = '/actions';
-    render(<Footer />);
+    renderFooter();
     
     const actionsButton = screen.getByTestId('tools-icon').parentElement?.parentElement;
     expect(actionsButton).toHaveClass('text-blue-600');
@@ -113,7 +122,7 @@ describe('Footer', () => {
 
   it('should highlight settings when on settings route', () => {
     mockLocation.pathname = '/settings';
-    render(<Footer />);
+    renderFooter();
     
     const settingsButton = screen.getByTestId('cog-icon').parentElement?.parentElement;
     expect(settingsButton).toHaveClass('text-blue-600');
@@ -123,7 +132,7 @@ describe('Footer', () => {
   });
 
   it('should apply hover styles to buttons', () => {
-    render(<Footer />);
+    renderFooter();
     
     const buttons = screen.getAllByRole('button');
     buttons.forEach(button => {
@@ -132,7 +141,7 @@ describe('Footer', () => {
   });
 
   it('should apply transparent variant to all buttons', () => {
-    render(<Footer />);
+    renderFooter();
     
     const buttons = screen.getAllByRole('button');
     buttons.forEach(button => {
@@ -142,7 +151,7 @@ describe('Footer', () => {
   });
 
   it('should apply fullWidth to all buttons', () => {
-    render(<Footer />);
+    renderFooter();
     
     const buttons = screen.getAllByRole('button');
     buttons.forEach(button => {
@@ -151,7 +160,7 @@ describe('Footer', () => {
   });
 
   it('should have correct container styles', () => {
-    const { container } = render(<Footer />);
+    const { container } = renderFooter();
     
     const footerContainer = container.firstChild as HTMLElement;
     expect(footerContainer).toHaveClass('p-2');
@@ -161,7 +170,7 @@ describe('Footer', () => {
   });
 
   it('should use grid layout for buttons', () => {
-    const { container } = render(<Footer />);
+    const { container } = renderFooter();
     
     const gridContainer = container.querySelector('.grid');
     expect(gridContainer).toBeInTheDocument();
@@ -170,7 +179,7 @@ describe('Footer', () => {
   });
 
   it('should center icons in buttons', () => {
-    render(<Footer />);
+    renderFooter();
     
     const iconContainers = screen.getAllByRole('button').map(button => 
       button.querySelector('.flex.flex-col.items-center')
@@ -185,7 +194,7 @@ describe('Footer', () => {
   });
 
   it('should apply correct icon styles', () => {
-    render(<Footer />);
+    renderFooter();
     
     const icons = [
       screen.getByTestId('wallet-icon'),
@@ -201,7 +210,7 @@ describe('Footer', () => {
   });
 
   it('should handle rapid navigation clicks', () => {
-    render(<Footer />);
+    renderFooter();
     
     const walletButton = screen.getByTestId('wallet-icon').parentElement?.parentElement;
     const marketButton = screen.getByTestId('university-icon').parentElement?.parentElement;
@@ -218,7 +227,7 @@ describe('Footer', () => {
 
   it('should not highlight any button for unknown route', () => {
     mockLocation.pathname = '/unknown';
-    render(<Footer />);
+    renderFooter();
     
     const buttons = screen.getAllByRole('button');
     buttons.forEach(button => {
@@ -228,7 +237,7 @@ describe('Footer', () => {
   });
 
   it('should pass event name to handleNavigation', () => {
-    render(<Footer />);
+    renderFooter();
     
     // Note: The handleNavigation function passes a second parameter
     // but doesn't use it. This is likely for analytics/tracking
@@ -240,7 +249,7 @@ describe('Footer', () => {
   });
 
   it('should maintain layout on different screen sizes', () => {
-    const { container } = render(<Footer />);
+    const { container } = renderFooter();
     
     const gridContainer = container.querySelector('.grid');
     // Grid should always be 4 columns

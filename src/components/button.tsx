@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { forwardRef, useMemo } from 'react';
 import { Button as HeadlessButton } from '@headlessui/react';
 import { FaYoutube } from 'react-icons/fa';
 
@@ -67,7 +67,7 @@ const VARIANT_STYLES: Record<ButtonVariant, string> = {
   youtube: '', // Handled separately
 };
 
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   color = 'blue',
   variant = 'solid',
   children,

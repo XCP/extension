@@ -17,7 +17,7 @@ const PATHS = {
   BACK: "/index",
 } as const;
 
-const getActionSections = (isSegwitWallet: boolean, enableMPMA: boolean, enableAdvancedBetting: boolean, navigate: (path: string) => void): ActionSection[] => {
+const getActionSections = (isSegwitWallet: boolean, enableMPMA: boolean, enableAdvancedBetting: boolean, showRecoverBitcoinNotification: boolean, navigate: (path: string) => void): ActionSection[] => {
   const sections: ActionSection[] = [
     {
       title: "Tools",
@@ -39,6 +39,8 @@ const getActionSections = (isSegwitWallet: boolean, enableMPMA: boolean, enableA
           title: "Recover Bitcoin",
           description: "Find and consolidate bare multisig UTXOs", 
           onClick: () => navigate("/consolidate"),
+          showNotification: showRecoverBitcoinNotification,
+          className: showRecoverBitcoinNotification ? "!border !border-orange-500" : "",
         },
         ...(enableMPMA ? [{
           id: "upload-mpma",
@@ -159,8 +161,11 @@ export default function ActionsScreen(): ReactElement {
   // Check if Advanced Betting is enabled
   const enableAdvancedBetting = settings?.enableAdvancedBetting ?? false;
 
+  // Check if user has visited recover bitcoin page
+  const showRecoverBitcoinNotification = !settings?.hasVisitedRecoverBitcoin;
+  
   // Get dynamic action sections based on wallet type and settings
-  const actionSections = getActionSections(isSegwitWallet, enableMPMA, enableAdvancedBetting, navigate);
+  const actionSections = getActionSections(isSegwitWallet, enableMPMA, enableAdvancedBetting, showRecoverBitcoinNotification, navigate);
 
   // Configure header
   useEffect(() => {

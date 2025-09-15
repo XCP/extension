@@ -3,6 +3,7 @@ import { sha256 } from '@noble/hashes/sha2';
 import { bech32, bech32m, base58, createBase58check } from '@scure/base';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
+import * as btc from '@scure/btc-signer';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
 
 /**
@@ -152,10 +153,11 @@ export function encodeAddress(publicKey: Uint8Array, addressFormat: AddressForma
       return bech32.encode('bc', [0, ...words]);
     }
     case AddressFormat.P2TR: {
-      // For Taproot, assume an x-only public key (skip first byte).
+      // For Taproot, use BIP341 tweaking (best practice)
       const xOnlyPubKey = publicKey.slice(1, 33);
-      const words = bech32.toWords(xOnlyPubKey);
-      return bech32m.encode('bc', [1, ...words]);
+      // Use btc.p2tr to apply BIP341 tweaking
+      const p2tr = btc.p2tr(xOnlyPubKey, undefined, btc.NETWORK);
+      return p2tr.address!;
     }
     case AddressFormat.Counterwallet: {
       // For Counterwallet, we use a legacy P2PKH scheme.
