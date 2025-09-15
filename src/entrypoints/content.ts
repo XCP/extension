@@ -122,7 +122,7 @@ export default defineContentScript({
      * IMPORTANT: Always returns true for async responses to prevent
      * "The message port closed before a response was received" errors
      */
-    browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    const runtimeMessageHandler = (message: any, sender: any, sendResponse: any) => {
       // ALWAYS check lastError first to consume any errors
       if (chrome.runtime?.lastError) {
         // Error consumed
@@ -155,8 +155,11 @@ export default defineContentScript({
       // Default response for unknown messages
       sendResponse({ handled: false });
       return true; // Always return true to indicate async response
-    });
-    
+    };
+
+    // Register the runtime message handler
+    browser.runtime.onMessage.addListener(runtimeMessageHandler);
+
     console.log('XCP Wallet content script loaded on:', window.location.href);
 
     try {
@@ -173,6 +176,12 @@ export default defineContentScript({
         window.removeEventListener('message', messageHandler);
       } catch (error) {
         console.debug('Failed to remove window message listener:', error);
+      }
+
+      try {
+        browser.runtime.onMessage.removeListener(runtimeMessageHandler);
+      } catch (error) {
+        console.debug('Failed to remove runtime message listener:', error);
       }
 
       console.log('XCP Wallet content script cleaned up.');
