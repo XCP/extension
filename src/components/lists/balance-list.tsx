@@ -27,7 +27,7 @@ export const BalanceList = (): ReactElement => {
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const { searchQuery, setSearchQuery, searchResults, isSearching } = useSearchQuery();
 
-  const { ref: loadMoreRef, inView } = useInView({ rootMargin: "200px", threshold: 0 });
+  const { ref: loadMoreRef, inView } = useInView({ rootMargin: "100px", threshold: 0.1 });
 
   useEffect(() => {
     setInitialLoaded(false);
@@ -48,7 +48,11 @@ export const BalanceList = (): ReactElement => {
 
   useEffect(() => {
     if (!activeAddress || !activeWallet || initialLoaded) {
-      if (!activeAddress || !activeWallet) setAllBalances([]);
+      if (!activeAddress || !activeWallet) {
+        setAllBalances([]);
+        setOffset(0);
+        setHasMore(true);
+      }
       return;
     }
 
@@ -99,33 +103,40 @@ export const BalanceList = (): ReactElement => {
   }, [activeAddress, activeWallet, upsertBalance, initialLoaded, settings?.pinnedAssets]);
 
   useEffect(() => {
-    if (!activeAddress || !activeWallet || !hasMore || isFetchingMore || !inView) return;
+    if (!activeAddress || !activeWallet || !hasMore || isFetchingMore || !initialLoaded) return;
 
-    let isCancelled = false;
+    if (inView) {
+      let isCancelled = false;
 
-    const loadMoreBalances = async () => {
-      setIsFetchingMore(true);
-      try {
-        const fetchedBalances = await fetchTokenBalances(activeAddress.address, { limit: 10, offset });
-        if (!isCancelled) {
-          if (fetchedBalances.length < 10) setHasMore(false);
-          fetchedBalances.forEach((balance) => {
-            upsertBalance(balance);
-          });
-          setOffset((prev) => prev + 10);
+      const loadMoreBalances = async () => {
+        setIsFetchingMore(true);
+        try {
+          const limit = 10; // Keep small batch size for API performance
+          const fetchedBalances = await fetchTokenBalances(activeAddress.address, { limit, offset });
+          if (!isCancelled) {
+            if (fetchedBalances.length < limit) setHasMore(false);
+            if (fetchedBalances.length === 0) {
+              setHasMore(false);
+            } else {
+              fetchedBalances.forEach((balance) => {
+                upsertBalance(balance);
+              });
+              setOffset((prev) => prev + fetchedBalances.length);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching more balances:", error);
+          if (!isCancelled) setHasMore(false);
+        } finally {
+          if (!isCancelled) setIsFetchingMore(false);
         }
-      } catch (error) {
-        console.error("Error fetching more balances:", error);
-        if (!isCancelled) setHasMore(false);
-      } finally {
-        if (!isCancelled) setIsFetchingMore(false);
-      }
-    };
+      };
 
-    loadMoreBalances();
+      loadMoreBalances();
 
-    return () => { isCancelled = true; };
-  }, [inView, activeAddress, activeWallet, hasMore, offset, upsertBalance, isFetchingMore]);
+      return () => { isCancelled = true; };
+    }
+  }, [inView, activeAddress, activeWallet, hasMore, offset, upsertBalance, isFetchingMore, initialLoaded]);
 
   const pinnedAssets = (settings?.pinnedAssets || []).map((a) => a.toUpperCase()).concat("BTC");
   const pinnedBalances = allBalances.filter((balance) => {
