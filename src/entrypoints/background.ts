@@ -32,10 +32,9 @@ export default defineBackground(() => {
       // Error consumed - prevents "Unchecked runtime.lastError" spam
       // Common during extension startup when Chrome tries to reconnect to tabs
     }
-    // Always send a response to keep the connection alive
-    sendResponse({ received: true });
-    // Return false to allow other handlers to process the message
-    return false;
+    // DON'T respond - let the actual handlers do their job
+    // Just consuming the error is enough
+    return false; // Let other handlers process the message
   });
 
   // Secondary error consumer for port-based connections
