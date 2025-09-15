@@ -146,23 +146,41 @@ We register error-consuming listeners at the earliest possible moment in each co
 ### Key Principles
 
 1. **Always check `chrome.runtime.lastError` FIRST** in any Chrome API callback
-2. **Register listeners synchronously** at the top of each context
-3. **Always send a response** to keep message channels alive
-4. **Gracefully handle startup race conditions** by resolving with null instead of throwing
+2. **Just accessing lastError is enough** - You don't need to handle it, just check it
+3. **Don't let error consumers interfere** - Early error checkers should NOT send responses
+4. **Each handler checks its own errors** - Every callback should check lastError independently
 
-### Example Pattern
+### Understanding chrome.runtime.lastError
+
+Based on Chrome's documentation:
+- **lastError only exists within callback scope** - It's not persistent
+- **Chrome checks if you ACCESS it** - Just `if (chrome.runtime.lastError)` prevents warnings
+- **The warning is thrown AFTER callback completes** - Doesn't break execution
+- **You don't need to respond** - Just accessing the variable is sufficient
+
+### Example Patterns
 
 ```javascript
 // CORRECT - Check lastError first
 chrome.runtime.sendMessage(message, (response) => {
   // Always check lastError first
-  const error = chrome.runtime.lastError;
-  if (error) {
-    // Handle error gracefully
+  if (chrome.runtime.lastError) {
+    // Just checking it prevents the warning
+    // You can handle it or ignore it based on your needs
     return;
   }
   // Now safe to use response
   processResponse(response);
+});
+
+// CORRECT - Early error consumer pattern (for background script)
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Just check lastError to consume it
+  if (chrome.runtime.lastError) {
+    // Error consumed - prevents console spam
+  }
+  // DON'T send a response here - let actual handlers respond
+  return false; // Allow other handlers to process
 });
 
 // INCORRECT - Accessing response before checking lastError
@@ -170,6 +188,13 @@ chrome.runtime.sendMessage(message, (response) => {
   if (response) { // Can trigger "Unchecked runtime.lastError"
     processResponse(response);
   }
+});
+
+// INCORRECT - Early consumer that responds
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (chrome.runtime.lastError) { }
+  sendResponse({ received: true }); // BAD - breaks actual handlers
+  return false;
 });
 ```
 
@@ -215,9 +240,12 @@ await walletService.getWallets();  // Proxied to background via chrome.runtime.s
 
 ## Common Issues and Solutions
 
-### "Could not establish connection"
-- **Cause**: Message sent before listener registered
-- **Solution**: Our early error consumers handle this
+### "Could not establish connection" / "Unchecked runtime.lastError"
+- **Cause**: Chrome tries to message tabs before listeners are ready, or callbacks don't check lastError
+- **Solution**:
+  - Background script has early error consumer that checks lastError
+  - All callbacks check `chrome.runtime.lastError` before using response
+  - Just accessing the variable is enough: `if (chrome.runtime.lastError) { }`
 
 ### "The message port closed before a response was received"
 - **Cause**: Listener didn't send response or didn't return true
@@ -230,3 +258,16 @@ await walletService.getWallets();  // Proxied to background via chrome.runtime.s
 ### DApp can't connect
 - **Cause**: Content script not injected or message relay broken
 - **Solution**: Check content script is loaded and message handlers are set up
+
+### Early error consumer breaks actual handlers
+- **Cause**: Error consumer sends a response, preventing real handlers from responding
+- **Solution**: Error consumers should ONLY check lastError, not send responses:
+  ```javascript
+  // Good - just check error
+  if (chrome.runtime.lastError) { }
+  return false;
+
+  // Bad - sends response that breaks real handlers
+  sendResponse({ received: true });
+  return false;
+  ```
