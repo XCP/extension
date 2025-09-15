@@ -18,9 +18,10 @@ export default defineContentScript({
       // Check and consume lastError immediately
       if (chrome.runtime?.lastError) {
         // Error consumed - prevents console spam
+        sendResponse({ received: true });
+        return false;
       }
-      // Always respond to keep channel alive
-      sendResponse({ received: true });
+      // Don't respond to normal messages - let the main handler do that
       return false; // Allow other handlers to process
     });
 
