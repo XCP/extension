@@ -1,5 +1,5 @@
 import React from 'react';
-import { useQRCode } from 'next-qrcode';
+import { QRCanvas } from './qr-canvas';
 import logo from '@/assets/qr-code.png';
 
 interface QRCodeProps {
@@ -36,8 +36,6 @@ export const QRCode = React.memo(({
   className = '',
   ariaLabel,
 }: QRCodeProps) => {
-  const { Canvas } = useQRCode();
-
   const logoConfig = customLogo || {
     src: logo,
     width: 60
@@ -45,25 +43,14 @@ export const QRCode = React.memo(({
 
   return (
     <div className={`bg-white p-4 rounded-lg shadow-md ${className}`} aria-label={ariaLabel}>
-      <Canvas
+      <QRCanvas
         text={text}
-        options={{
-          errorCorrectionLevel: 'M',
-          margin: 2,
-          scale: 4,
-          width,
-          color: {
-            dark: '#000000FF',
-            light: '#FFFFFFFF',
-          },
-        }}
+        size={width}
+        errorCorrectionLevel="M"
+        margin={2}
         logo={{
           src: logoConfig.src,
-          options: {
-            width: logoConfig.width,
-            x: undefined,
-            y: undefined,
-          },
+          width: logoConfig.width,
         }}
       />
     </div>
