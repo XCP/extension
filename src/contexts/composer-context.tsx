@@ -1,6 +1,6 @@
 "use client";
 
-import api from '@/utils/api-client';
+import api from '@/utils/fetch';
 import React, {
   createContext,
   useCallback,

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import api from '@/utils/api-client';
+import api from '@/utils/fetch';
 
 interface SyncStatus {
   status: 'idle' | 'syncing' | 'completed' | 'error';

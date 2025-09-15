@@ -1,4 +1,4 @@
-import api from '@/utils/api-client';
+import api from '@/utils/fetch';
 
 /**
  * Interface for Counterparty API validation result

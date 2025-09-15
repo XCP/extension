@@ -1,4 +1,4 @@
-import api, { broadcastApiClient, withRetry, ApiResponse } from '@/utils/api-client';
+import api, { broadcastApiClient, withRetry, ApiResponse } from '@/utils/fetch';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 export interface TransactionResponse {

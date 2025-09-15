@@ -3,7 +3,7 @@
  * Handles communication with the Laravel consolidation API for batched UTXO recovery
  */
 
-import api, { apiClient, API_TIMEOUTS } from '@/utils/api-client';
+import api, { apiClient, API_TIMEOUTS } from '@/utils/fetch';
 
 /* ══════════════════════════════════════════════════════════════════════════
  * TYPE DEFINITIONS

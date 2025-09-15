@@ -5,7 +5,7 @@ import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 
 // Mock the quickApiClient
-vi.mock('@/utils/api-client', () => ({
+vi.mock('@/utils/fetch', () => ({
   quickApiClient: {
     get: vi.fn()
   },
@@ -16,7 +16,7 @@ vi.mock('@/utils/api-client', () => ({
 }));
 vi.mock('@/utils/storage/settingsStorage');
 
-import { quickApiClient } from '@/utils/api-client';
+import { quickApiClient } from '@/utils/fetch';
 const mockQuickApiClient = quickApiClient as any;
 
 // Helper function to create ApiResponse objects for quickApiClient mocks

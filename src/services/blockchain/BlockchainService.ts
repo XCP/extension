@@ -43,7 +43,7 @@ import {
   Order,
   OrderDetails
 } from '@/utils/blockchain/counterparty/api';
-import api, { ApiError } from '@/utils/api-client';
+import api, { ApiError } from '@/utils/fetch';
 
 // Cache interfaces
 interface CacheEntry<T> {

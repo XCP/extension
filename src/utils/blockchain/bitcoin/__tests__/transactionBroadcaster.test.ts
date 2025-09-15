@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { broadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
-import api from '@/utils/api-client';
+import api from '@/utils/fetch';
 import { getKeychainSettings, DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage';
 
-vi.mock('@/utils/api-client');
+vi.mock('@/utils/fetch');
 vi.mock('@/utils/storage/settingsStorage');
 
 const mockApi = api as any;
 
 // Import the mocked modules
-import { broadcastApiClient } from '@/utils/api-client';
+import { broadcastApiClient } from '@/utils/fetch';
 const mockBroadcastClient = broadcastApiClient as any;
 
 describe('Transaction Broadcaster Utilities', () => {
@@ -427,7 +427,7 @@ describe('Transaction Broadcaster Utilities', () => {
       console.error = originalConsoleError;
     });
 
-    it('should handle axios request config errors', async () => {
+    it('should handle fetch request config errors', async () => {
       mockBroadcastClient.post.mockRejectedValue({
         config: {},
         request: {},

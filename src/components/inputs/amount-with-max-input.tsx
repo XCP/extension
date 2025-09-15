@@ -1,4 +1,4 @@
-import api from '@/utils/api-client';
+import api from '@/utils/fetch';
 import React, { useState, ChangeEvent, useEffect } from "react";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";

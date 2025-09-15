@@ -6,9 +6,9 @@ import {
   getUtxoByTxid,
   fetchPreviousRawTransaction
 } from '@/utils/blockchain/bitcoin/utxo';
-import api, { quickApiClient } from '@/utils/api-client';
+import api, { quickApiClient } from '@/utils/fetch';
 
-vi.mock('@/utils/api-client');
+vi.mock('@/utils/fetch');
 vi.mock('@/utils/storage/settingsStorage');
 
 const mockApi = api as any;

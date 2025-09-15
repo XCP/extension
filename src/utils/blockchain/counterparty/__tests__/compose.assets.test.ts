@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import api from '@/utils/api-client';
+import api from '@/utils/fetch';
 import { 
   composeIssuance, 
   composeDestroy, 
@@ -21,7 +21,7 @@ import {
 } from './helpers/composeTestHelpers';
 
 // Mock dependencies
-vi.mock('@/utils/api-client');
+vi.mock('@/utils/fetch');
 vi.mock('@/utils/storage/settingsStorage');
 
 const mockedApi = vi.mocked(api, true);

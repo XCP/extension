@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import api from '@/utils/api-client';
+import api from '@/utils/fetch';
 import {
   fetchTokenBalances,
   fetchTokenBalance,
@@ -27,7 +27,7 @@ import * as bitcoinBalance from '@/utils/blockchain/bitcoin/balance';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
 
 // Mock dependencies
-vi.mock('@/utils/api-client');
+vi.mock('@/utils/fetch');
 vi.mock('@/utils/format');
 vi.mock('@/utils/blockchain/bitcoin/balance');
 vi.mock('@/utils/storage/settingsStorage');
@@ -157,7 +157,7 @@ describe('counterparty/api.ts', () => {
       );
     });
 
-    it('should handle axios errors gracefully', async () => {
+    it('should handle fetch errors gracefully', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockedApi.get.mockRejectedValue(new Error('Network error'));
 
@@ -249,7 +249,7 @@ describe('counterparty/api.ts', () => {
       expect(balance?.quantity_normalized).toBe('0.75');
     });
 
-    it('should handle axios errors and return null', async () => {
+    it('should handle fetch errors and return null', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockedApi.get.mockRejectedValue(new Error('Network error'));
 
@@ -331,7 +331,7 @@ describe('counterparty/api.ts', () => {
       expect(assetDetails).toBeNull();
     });
 
-    it('should handle axios errors and return null', async () => {
+    it('should handle fetch errors and return null', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockedApi.get.mockRejectedValue(new Error('Network error'));
 
@@ -508,7 +508,7 @@ describe('counterparty/api.ts', () => {
       );
     });
 
-    it('should throw error on axios failure', async () => {
+    it('should throw error on fetch failure', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockedApi.get.mockRejectedValue(new Error('Network error'));
 
@@ -614,7 +614,7 @@ describe('counterparty/api.ts', () => {
       expect(result).toBeNull();
     });
 
-    it('should throw error on axios failure', async () => {
+    it('should throw error on fetch failure', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockedApi.get.mockRejectedValue(new Error('Network error'));
 
@@ -672,7 +672,7 @@ describe('counterparty/api.ts', () => {
       );
     });
 
-    it('should throw error on axios failure', async () => {
+    it('should throw error on fetch failure', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockedApi.get.mockRejectedValue(new Error('Network error'));
 
@@ -739,7 +739,7 @@ describe('counterparty/api.ts', () => {
       );
     });
 
-    it('should throw error on axios failure', async () => {
+    it('should throw error on fetch failure', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockedApi.get.mockRejectedValue(new Error('Network error'));
 

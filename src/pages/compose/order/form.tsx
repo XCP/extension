@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import api from '@/utils/api-client';
+import api from '@/utils/fetch';
 import { FaCog } from "react-icons/fa";
 import { OrderSettings } from "@/pages/settings/order-settings";
 import { ComposerForm } from "@/components/composer-form";

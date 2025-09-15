@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, memo, useCallback } from "react";
 import { useFormStatus } from "react-dom";
-import api from '@/utils/api-client';
+import api from '@/utils/fetch';
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";

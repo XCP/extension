@@ -1,4 +1,4 @@
-import api, { quickApiClient } from '@/utils/api-client';
+import api, { quickApiClient } from '@/utils/fetch';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 /**

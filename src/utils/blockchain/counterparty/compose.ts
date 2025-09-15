@@ -1,4 +1,4 @@
-import api, { longApiClient } from '@/utils/api-client';
+import api, { longApiClient } from '@/utils/fetch';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 export interface SignedTxEstimatedSize {

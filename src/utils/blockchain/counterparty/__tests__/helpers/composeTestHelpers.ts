@@ -66,15 +66,15 @@ export const createMockApiResponse = <T = ComposeResult>(data: T) => data;
  * Setup common mocks for compose tests
  */
 export const setupComposeMocks = () => {
-  const mockedAxios = {
+  const mockedApi = {
     get: vi.fn().mockResolvedValue(createMockComposeResult()),
     post: vi.fn().mockResolvedValue(createMockComposeResult()),
   };
-  
+
   const mockedGetKeychainSettings = vi.fn().mockResolvedValue(mockSettings);
-  
+
   return {
-    mockedAxios,
+    mockedApi,
     mockedGetKeychainSettings,
   };
 };
@@ -83,15 +83,15 @@ export const setupComposeMocks = () => {
  * Assert that the compose URL was called correctly
  */
 export const assertComposeUrlCalled = (
-  mockedAxios: any,
+  mockedApi: any,
   endpoint: string,
   expectedParams: Record<string, any>
 ) => {
   const baseUrl = `${mockApiBase}/v2/addresses/${mockAddress}/compose/${endpoint}`;
-  
+
   // Get the actual call - could be either get or post
-  const getCall = mockedAxios.get.mock.calls[0];
-  const postCall = mockedAxios.post.mock.calls[0];
+  const getCall = mockedApi.get.mock.calls[0];
+  const postCall = mockedApi.post.mock.calls[0];
   
   if (getCall) {
     const actualUrl = getCall[0];
@@ -130,13 +130,13 @@ export const testOptionalParameters = (
   endpoint: string,
   requiredParams: Record<string, any>,
   optionalParams: Record<string, any>,
-  mockedAxios: any
+  mockedApi: any
 ) => {
   return async () => {
     await composeFn(mockAddress, requiredParams, optionalParams);
     
     const expectedUrl = `${mockApiBase}/api/v2/addresses/${mockAddress}/compose/${endpoint}`;
-    const actualCall = mockedAxios.post.mock.calls[0];
+    const actualCall = mockedApi.post.mock.calls[0];
     const actualParams = actualCall[1];
     
     // Check all optional params were included
@@ -152,11 +152,11 @@ export const testOptionalParameters = (
 export const testErrorHandling = (
   composeFn: Function,
   requiredParams: any,
-  mockedAxios: any
+  mockedApi: any
 ) => {
   return async () => {
     const errorMessage = 'API Error';
-    mockedAxios.post.mockRejectedValueOnce(new Error(errorMessage));
+    mockedApi.post.mockRejectedValueOnce(new Error(errorMessage));
     
     await expect(composeFn(mockAddress, requiredParams)).rejects.toThrow(errorMessage);
   };
@@ -225,11 +225,11 @@ export const createComposeTestSuite = (
       const result = await composeFn(mockAddress, requiredParams);
       
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mocks.mockedAxios, endpoint, requiredParams);
+      assertComposeUrlCalled(mocks.mockedApi, endpoint, requiredParams);
     });
 
     it('should handle API errors', async () => {
-      await testErrorHandling(composeFn, requiredParams, mocks.mockedAxios)();
+      await testErrorHandling(composeFn, requiredParams, mocks.mockedApi)();
     });
 
     it('should get settings before making request', async () => {

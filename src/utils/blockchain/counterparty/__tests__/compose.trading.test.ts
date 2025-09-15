@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import api from '@/utils/api-client';
+import api from '@/utils/fetch';
 import { composeOrder, composeCancel, composeDispenser, composeDispense } from '../compose';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
 import {
@@ -15,7 +15,7 @@ import {
 } from './helpers/composeTestHelpers';
 
 // Mock dependencies
-vi.mock('@/utils/api-client');
+vi.mock('@/utils/fetch');
 vi.mock('@/utils/storage/settingsStorage');
 
 const mockedApi = vi.mocked(api, true);
@@ -135,7 +135,7 @@ describe('Compose Trading Operations', () => {
         ...fillOrKillParams,
       });
       
-      // Check if axios.get was called with query parameters
+      // Check if api.get was called with query parameters
       const actualUrl = mockedApi.get.mock.calls[0][0];
       const url = new URL(actualUrl);
       expect(url.searchParams.get('expiration')).toBe('0');

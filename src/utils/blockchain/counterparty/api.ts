@@ -1,4 +1,4 @@
-import api, { apiClient, quickApiClient, API_TIMEOUTS } from '@/utils/api-client';
+import api, { apiClient, quickApiClient, API_TIMEOUTS } from '@/utils/fetch';
 import { fetchBTCBalance } from '@/utils/blockchain/bitcoin';
 import { formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
