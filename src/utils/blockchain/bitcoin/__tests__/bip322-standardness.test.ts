@@ -13,7 +13,7 @@ import {
   signBIP322P2SH_P2WPKH,
   signBIP322P2TR
 } from '../bip322';
-import { verifyMessage, verifyMessageWithMethod } from '../messageVerifier';
+import { verifyMessage, verifyMessageWithMethod } from '../verifier';
 import * as secp256k1 from '@noble/secp256k1';
 import * as btc from '@scure/btc-signer';
 

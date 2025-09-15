@@ -278,7 +278,7 @@ describe('BIP-322 Implementation', () => {
     let verifyTaprootSignature: any;
 
     beforeEach(async () => {
-      const module = await import('../messageVerifier');
+      const module = await import('../verifier');
       verifyMessage = module.verifyMessage;
       verifyTaprootSignature = module.verifyTaprootSignature;
     });
