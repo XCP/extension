@@ -31,7 +31,7 @@ export function useIdleTimer(options: UseIdleTimerOptions) {
   } = options;
 
   const [isIdle, setIsIdle] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const isIdleRef = useRef(false);
   const eventsRef = useRef(events);
   const onIdleRef = useRef(onIdle);
