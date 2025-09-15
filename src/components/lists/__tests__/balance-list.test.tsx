@@ -97,7 +97,7 @@ vi.mock('@/hooks/useSearchQuery', () => ({
 }));
 
 const mockInView = vi.fn(() => false);
-vi.mock('react-intersection-observer', () => ({
+vi.mock('@/hooks/useInView', () => ({
   useInView: () => ({
     ref: vi.fn(),
     inView: mockInView()
