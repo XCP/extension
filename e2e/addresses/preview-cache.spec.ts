@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { launchExtension, setupWallet, cleanup, navigateViaFooter, lockWallet, unlockWallet, TEST_PASSWORD } from './helpers/test-helpers';
+import { launchExtension, setupWallet, cleanup, navigateViaFooter, lockWallet, unlockWallet, TEST_PASSWORD } from '../helpers/test-helpers';
 
 test.describe('Address Preview Cache', () => {
   test('should cache and display address previews when wallet unlocked', async () => {

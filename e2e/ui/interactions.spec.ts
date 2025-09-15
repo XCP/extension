@@ -6,7 +6,7 @@ import {
   cleanup,
   TEST_PASSWORD,
   TEST_MNEMONIC 
-} from './helpers/test-helpers';
+} from '../helpers/test-helpers';
 
 test.describe('Wallet UI Interactions', () => {
   test('refresh mnemonic button on create wallet', async () => {

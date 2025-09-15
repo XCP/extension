@@ -4,7 +4,7 @@ import {
   setupWallet, 
   navigateViaFooter,
   cleanup,
-} from './helpers/test-helpers';
+} from '../helpers/test-helpers';
 
 test.describe('Settings Address Preview Tests', () => {
   test('should show preview address in settings index under Address Type', async () => {

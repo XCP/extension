@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { launchExtension, setupWallet, cleanup } from './helpers/test-helpers';
+import { launchExtension, setupWallet, cleanup } from '../helpers/test-helpers';
 
 test.describe('Compose Dispense', () => {
 

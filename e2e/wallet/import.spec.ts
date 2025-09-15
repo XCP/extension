@@ -7,7 +7,7 @@ import {
   cleanup,
   TEST_PASSWORD,
   TEST_MNEMONIC 
-} from './helpers/test-helpers';
+} from '../helpers/test-helpers';
 
 // Expected addresses for the test mnemonic across different address types
 const EXPECTED_ADDRESSES = {

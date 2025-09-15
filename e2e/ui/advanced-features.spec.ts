@@ -5,7 +5,7 @@ import {
   navigateViaFooter,
   cleanup,
   TEST_PASSWORD 
-} from './helpers/test-helpers';
+} from '../helpers/test-helpers';
 
 test.describe('Advanced Features', () => {
   test('connected sites management', async () => {

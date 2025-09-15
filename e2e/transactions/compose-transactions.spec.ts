@@ -6,7 +6,7 @@ import {
   navigateToCompose,
   cleanup,
   TEST_PASSWORD 
-} from './helpers/test-helpers';
+} from '../helpers/test-helpers';
 
 async function enableDryRunMode(page: any) {
   try {

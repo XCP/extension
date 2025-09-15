@@ -9,7 +9,7 @@ import {
   hasError,
   cleanup,
   TEST_PASSWORD 
-} from './helpers/test-helpers';
+} from '../helpers/test-helpers';
 
 test.describe('Error Handling', () => {
   test('invalid mnemonic phrase import', async () => {

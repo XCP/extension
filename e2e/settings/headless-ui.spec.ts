@@ -6,7 +6,7 @@ import {
   getCurrentAddress,
   cleanup,
   TEST_PASSWORD 
-} from './helpers/test-helpers';
+} from '../helpers/test-helpers';
 
 test.describe('Settings with Headless UI Components', () => {
   test('change address type using Headless UI RadioGroup', async () => {
