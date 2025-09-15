@@ -148,3 +148,5 @@ export const QRCanvas = memo(({
     />
   );
 });
+
+QRCanvas.displayName = 'QRCanvas';

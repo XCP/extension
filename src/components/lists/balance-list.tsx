@@ -101,16 +101,19 @@ export const BalanceList = (): ReactElement => {
   useEffect(() => {
     if (!activeAddress || !activeWallet || !hasMore || isFetchingMore || !inView) return;
 
+    let isCancelled = false;
+
     const loadMoreBalances = async () => {
-      let isCancelled = false;
       setIsFetchingMore(true);
       try {
         const fetchedBalances = await fetchTokenBalances(activeAddress.address, { limit: 10, offset });
-        if (fetchedBalances.length < 10) setHasMore(false);
-        fetchedBalances.forEach((balance) => {
-          if (!isCancelled) upsertBalance(balance);
-        });
-        if (!isCancelled) setOffset((prev) => prev + 10);
+        if (!isCancelled) {
+          if (fetchedBalances.length < 10) setHasMore(false);
+          fetchedBalances.forEach((balance) => {
+            upsertBalance(balance);
+          });
+          setOffset((prev) => prev + 10);
+        }
       } catch (error) {
         console.error("Error fetching more balances:", error);
         if (!isCancelled) setHasMore(false);
@@ -121,8 +124,8 @@ export const BalanceList = (): ReactElement => {
 
     loadMoreBalances();
 
-    return () => {};
-  }, [inView, activeAddress, activeWallet, hasMore, offset, upsertBalance]);
+    return () => { isCancelled = true; };
+  }, [inView, activeAddress, activeWallet, hasMore, offset, upsertBalance, isFetchingMore]);
 
   const pinnedAssets = (settings?.pinnedAssets || []).map((a) => a.toUpperCase()).concat("BTC");
   const pinnedBalances = allBalances.filter((balance) => {
