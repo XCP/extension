@@ -280,7 +280,7 @@ describe('BIP-322 Implementation', () => {
     beforeEach(async () => {
       const module = await import('../verifier');
       verifyMessage = module.verifyMessage;
-      verifyTaprootSignature = module.verifyTaprootSignature;
+      verifyTaprootSignature = module.verifyBIP322; // Use BIP-322 for Taproot
     });
 
     it('should delegate Taproot signatures to BIP-322 verification', async () => {
@@ -295,7 +295,7 @@ describe('BIP-322 Implementation', () => {
       );
 
       // Will be false because signature is invalid, but should not throw
-      expect(result).toBe(false);
+      expect(result.valid).toBe(false);
     });
 
     it('should handle Taproot verification with fallback', async () => {
@@ -309,7 +309,7 @@ describe('BIP-322 Implementation', () => {
       );
 
       // Will be false because signature is invalid, but should not throw
-      expect(result).toBe(false);
+      expect(result.valid).toBe(false);
     });
   });
 });

@@ -33,7 +33,8 @@ describe('BIP-322 Standardness Tests from bip322-js', () => {
       console.log('Verification details:', resultWithMethod);
 
       // For now, we'll check that it at least runs without error
-      expect(typeof result).toBe('boolean');
+      expect(typeof result).toBe('object');
+      expect(typeof result.valid).toBe('boolean');
     });
   });
 
@@ -102,7 +103,8 @@ describe('BIP-322 Standardness Tests from bip322-js', () => {
       }
 
       // For now, we'll check that it at least runs without error
-      expect(typeof p2pkhResult).toBe('boolean');
+      expect(typeof p2pkhResult).toBe('object');
+      expect(typeof p2pkhResult.valid).toBe('boolean');
     });
   });
 

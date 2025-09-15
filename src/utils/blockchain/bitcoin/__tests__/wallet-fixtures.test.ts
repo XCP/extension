@@ -92,11 +92,11 @@ describe('Wallet Implementation Test Fixtures', () => {
         console.log(`${fixture.wallet} P2PKH verification:`, p2pkhResult);
 
         // Test with Taproot address using loose verification
-        const taprootResult = await verifyMessageWithLooseBIP137(
+        const { verifyLooseBIP137 } = await import('../verifier');
+        const taprootResult = await verifyLooseBIP137(
           fixture.message,
           fixture.signature,
-          fixture.taprootAddress,
-          true // Use loose verification
+          fixture.taprootAddress
         );
 
         console.log(`${fixture.wallet} Taproot verification (loose):`, taprootResult);
