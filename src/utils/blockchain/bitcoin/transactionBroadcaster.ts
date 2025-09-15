@@ -44,7 +44,7 @@ const broadcastEndpoints: BroadcastEndpoint[] = [
   },
 ];
 
-const formatResponse = (endpoint: BroadcastEndpoint, response: ApiResponse): TransactionResponse | null => {
+const formatResponse = (endpoint: BroadcastEndpoint, response: any): TransactionResponse | null => {
   try {
     if (endpoint.name === 'counterparty') {
       const txid = response?.result;
@@ -105,7 +105,7 @@ export async function broadcastTransaction(signedTxHex: string): Promise<Transac
         2 // Only retry twice for broadcasts
       );
       if (response && response.status >= 200 && response.status < 300) {
-        const formatted = formatResponse(endpoint, response);
+        const formatted = formatResponse(endpoint, response.data);
         if (formatted && formatted.txid) {
           return formatted;
         }

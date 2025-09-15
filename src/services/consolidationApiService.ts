@@ -124,11 +124,11 @@ class ConsolidationApiService {
         max_utxos: maxUtxos.toString()
       });
 
-      const response = await apiClient.get<ConsolidationData>(
+      const data = await api.get<ConsolidationData>(
         `${this.baseUrl}/api/v1/address/${address}/consolidation?${params.toString()}`
       );
 
-      return response;
+      return data;
     } catch (error) {
       console.error('Failed to fetch consolidation batch:', error);
       throw new Error('Failed to fetch consolidation data. Please try again.');
@@ -182,12 +182,12 @@ class ConsolidationApiService {
     report: ConsolidationReport
   ): Promise<ConsolidationReportResponse> {
     try {
-      const response = await apiClient.post<ConsolidationReportResponse>(
+      const data = await api.post<ConsolidationReportResponse>(
         `${this.baseUrl}/api/v1/address/${address}/consolidation/report`,
         report
       );
 
-      return response;
+      return data;
     } catch (error) {
       console.error('Failed to report consolidation:', error);
       // Don't throw - reporting is optional for tracking
@@ -208,11 +208,11 @@ class ConsolidationApiService {
     address: string
   ): Promise<ConsolidationStatusResponse> {
     try {
-      const response = await apiClient.get<ConsolidationStatusResponse>(
+      const data = await api.get<ConsolidationStatusResponse>(
         `${this.baseUrl}/api/v1/address/${address}/consolidation/status`
       );
 
-      return response;
+      return data;
     } catch (error) {
       console.error('Failed to fetch consolidation status:', error);
       throw new Error('Failed to fetch consolidation status.');
