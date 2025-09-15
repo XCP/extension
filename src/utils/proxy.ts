@@ -1,0 +1,158 @@
+/**
+ * Native proxy service replacement for @webext-core/proxy-service
+ *
+ * This utility provides a simple way to expose services from the background
+ * script to other contexts (popup, content scripts) using Chrome's runtime messaging.
+ */
+
+type ServiceFactory<T> = () => T;
+
+interface ProxyMessage {
+  serviceName: string;
+  methodName: string;
+  args: any[];
+}
+
+interface ProxyResponse {
+  success: boolean;
+  result?: any;
+  error?: string;
+}
+
+/**
+ * Creates a proxy service that can be registered in the background script
+ * and accessed from other contexts.
+ *
+ * @param serviceName - Unique name for the service
+ * @param factory - Factory function that creates the service instance
+ * @returns Tuple of [registerFunction, getServiceFunction]
+ */
+export function defineProxyService<T extends Record<string, any>>(
+  serviceName: string,
+  factory: ServiceFactory<T>
+): [() => T, () => T] {
+  let serviceInstance: T | undefined;
+
+  // Register function for background script
+  const register = (): T => {
+    if (!isBackgroundScript()) {
+      throw new Error(
+        `[ProxyService] ${serviceName} can only be registered in the background script`
+      );
+    }
+
+    if (typeof chrome === 'undefined' || !chrome.runtime) {
+      throw new Error(`[ProxyService] Chrome runtime not available for ${serviceName}`);
+    }
+
+    // Create service instance
+    serviceInstance = factory();
+
+    // Listen for messages from other contexts
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.serviceName !== serviceName) {
+        return false;
+      }
+
+      const { methodName, args } = message as ProxyMessage;
+
+      // Check if method exists on service
+      if (!serviceInstance || !(methodName in serviceInstance) || typeof serviceInstance[methodName] !== 'function') {
+        sendResponse({
+          success: false,
+          error: `Method ${methodName} not found on ${serviceName}`
+        } as ProxyResponse);
+        return true;
+      }
+
+      // Execute the method
+      const executeMethod = async () => {
+        try {
+          const result = await serviceInstance![methodName](...args);
+          sendResponse({
+            success: true,
+            result
+          } as ProxyResponse);
+        } catch (error) {
+          sendResponse({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          } as ProxyResponse);
+        }
+      };
+
+      executeMethod();
+      return true; // Keep message channel open for async response
+    });
+
+    console.log(`[ProxyService] Registered ${serviceName}`);
+    return serviceInstance;
+  };
+
+  // Get service function for popup/content scripts
+  const getService = (): T => {
+    // If we're in the background script, return the actual service instance
+    if (isBackgroundScript()) {
+      if (!serviceInstance) {
+        throw new Error(
+          `Failed to get an instance of ${serviceName}: in background, but registerService has not been called. Did you forget to call registerService?`
+        );
+      }
+      return serviceInstance;
+    }
+    // Create a proxy object that forwards all method calls to the background script
+    return new Proxy({} as T, {
+      get: (target, prop: string) => {
+        // Return a function that sends a message to the background script
+        return async (...args: any[]) => {
+          if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
+            throw new Error(`Chrome runtime not available for ${serviceName}`);
+          }
+
+          return new Promise((resolve, reject) => {
+            const message: ProxyMessage = {
+              serviceName,
+              methodName: prop,
+              args
+            };
+
+            chrome.runtime.sendMessage(message, (response: ProxyResponse) => {
+              if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+              }
+
+              if (!response) {
+                reject(new Error(`No response from ${serviceName}.${prop}`));
+                return;
+              }
+
+              if (response.success) {
+                resolve(response.result);
+              } else {
+                reject(new Error(response.error || `${serviceName}.${prop} failed`));
+              }
+            });
+          });
+        };
+      }
+    });
+  };
+
+  return [register, getService];
+}
+
+/**
+ * Helper to check if we're in the background script context
+ * (Manifest V3 service worker only)
+ */
+export function isBackgroundScript(): boolean {
+  // Check if we can access the extension API
+  if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
+    return false;
+  }
+
+  // For Manifest V3: Check if we're in a service worker context
+  // Service workers have `self` but no `window`
+  return typeof self !== 'undefined' && typeof window === 'undefined';
+}

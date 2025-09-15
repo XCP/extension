@@ -1,4 +1,4 @@
-import { defineProxyService } from '@webext-core/proxy-service';
+import { defineProxyService } from '@/utils/proxy';
 import { MessageBus } from '@/services/core/MessageBus';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { AddressFormat } from '@/utils/blockchain/bitcoin';
