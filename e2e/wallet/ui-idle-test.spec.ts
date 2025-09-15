@@ -17,29 +17,18 @@ test('UI-based idle timer test', async () => {
   // Wait for page to load completely
   await page.waitForTimeout(2000);
 
-  // Look for the 10 seconds dev option in the radio list
-  let usingTestTimer = false;
+  // The 1 minute option should be selected by default
+  const oneMinuteOption = page.locator('text="1 Minute"');
+  const hasOneMinuteOption = await oneMinuteOption.isVisible();
 
-  // First check if we have the 10 seconds dev option (only in dev mode)
-  const tenSecondsOption = page.locator('text="10 Seconds (Dev)"');
-  const hasTenSecondsOption = await tenSecondsOption.isVisible();
-
-  if (hasTenSecondsOption) {
-    await tenSecondsOption.click();
-    // Wait for settings to save
-    await page.waitForTimeout(2000);
-    usingTestTimer = true;
-  } else {
-
-    // Click the 1 minute option
-    const oneMinuteOption = page.locator('text="1 Minute"');
-    if (await oneMinuteOption.isVisible()) {
-      await oneMinuteOption.click();
-      await page.waitForTimeout(1000);
-    } else {
-      throw new Error('No timer controls found on advanced settings page');
-    }
+  if (!hasOneMinuteOption) {
+    throw new Error('1 Minute option not found');
   }
+
+  // Click to ensure it's selected (it should be default)
+  await oneMinuteOption.click();
+  // Wait for settings to save
+  await page.waitForTimeout(2000);
 
   // Navigate back to main page
   await page.goto(page.url().replace('#/settings/advanced', '#/index'));
@@ -51,11 +40,9 @@ test('UI-based idle timer test', async () => {
   // Reload the page to ensure settings are fresh
   await page.reload();
   await page.waitForTimeout(2000);
-  const startTime = Date.now();
 
-  // Use different wait times based on what we clicked
-  const waitTime = usingTestTimer ? 15000 : 70000; // 15 seconds for 10s, 70 seconds for 1 minute
-  await page.waitForTimeout(waitTime);
+  // Wait 65 seconds for the 1-minute timer to trigger (with 5 second buffer)
+  await page.waitForTimeout(65000);
 
   const url = page.url();
 

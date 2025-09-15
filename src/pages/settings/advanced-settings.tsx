@@ -19,13 +19,12 @@ const CONSTANTS = {
   PATHS: {
     BACK: -1, // Using -1 for navigate(-1)
   } as const,
-  BASE_AUTO_LOCK_OPTIONS: [
+  AUTO_LOCK_OPTIONS: [
     { value: "1m" as AutoLockTimer, label: "1 Minute" },
     { value: "5m" as AutoLockTimer, label: "5 Minutes" },
     { value: "15m" as AutoLockTimer, label: "15 Minutes" },
     { value: "30m" as AutoLockTimer, label: "30 Minutes" },
   ],
-  DEV_AUTO_LOCK_OPTION: { value: "10s" as AutoLockTimer, label: "10 Seconds (Dev)" },
 } as const;
 
 /**
@@ -47,10 +46,6 @@ export default function AdvancedSettings(): ReactElement {
   const { settings, updateSettings, isLoading } = useSettings();
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
 
-  // Dynamically add dev option when in development mode
-  const autoLockOptions = process.env.NODE_ENV === 'development'
-    ? [CONSTANTS.DEV_AUTO_LOCK_OPTION, ...CONSTANTS.BASE_AUTO_LOCK_OPTIONS]
-    : CONSTANTS.BASE_AUTO_LOCK_OPTIONS;
 
   // Configure header
   useEffect(() => {
@@ -104,7 +99,7 @@ export default function AdvancedSettings(): ReactElement {
           className="mt-4"
         >
           <SelectionCardGroup>
-            {autoLockOptions.map((option) => (
+            {CONSTANTS.AUTO_LOCK_OPTIONS.map((option) => (
               <SelectionCard
                 key={option.value}
                 value={option.value}
