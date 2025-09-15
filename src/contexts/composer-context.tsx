@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useMemo } from "react";
 import axios from "axios";
 import {
   createContext,
@@ -359,7 +360,7 @@ export function ComposerProvider<T>({
   
   
   // Provide unlock handler for auth modal
-  const contextValue = React.useMemo(() => ({
+  const contextValue = useMemo(() => ({
     state,
     composeTransaction,
     signAndBroadcast,
