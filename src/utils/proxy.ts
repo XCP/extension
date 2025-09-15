@@ -144,6 +144,7 @@ export function defineProxyService<T extends Record<string, any>>(
 
 /**
  * Helper to check if we're in the background script context
+ * (Manifest V3 service worker only)
  */
 export function isBackgroundScript(): boolean {
   // Check if we can access the extension API
@@ -152,20 +153,6 @@ export function isBackgroundScript(): boolean {
   }
 
   // For Manifest V3: Check if we're in a service worker context
-  if (typeof self !== 'undefined' && typeof window === 'undefined') {
-    return true;
-  }
-
-  // For Manifest V2: Check if we're in a background page
-  // Known background page pathnames (Firefox uses this)
-  const KNOWN_BACKGROUND_PAGE_PATHNAMES = [
-    '/_generated_background_page.html',
-    '/background.html'
-  ];
-
-  if (typeof window !== 'undefined' && typeof location !== 'undefined') {
-    return KNOWN_BACKGROUND_PAGE_PATHNAMES.includes(location.pathname);
-  }
-
-  return false;
+  // Service workers have `self` but no `window`
+  return typeof self !== 'undefined' && typeof window === 'undefined';
 }
