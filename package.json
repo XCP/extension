@@ -62,5 +62,8 @@
     "vite-plugin-remove-console": "2.2.0",
     "vitest": "3.2.4",
     "wxt": "0.20.11"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.50.1"
   }
 }
