@@ -1,4 +1,4 @@
-import { useState, useRef, DragEvent } from "react";
+import { useState, useRef, DragEvent, useEffect } from "react";
 
 export interface UseDragAndDropOptions<T> {
   items: T[];
@@ -8,12 +8,15 @@ export interface UseDragAndDropOptions<T> {
 export interface UseDragAndDropResult {
   draggedIndex: number | null;
   dragOverIndex: number | null;
+  isDragging: boolean;
+  ghostPosition: { x: number; y: number } | null;
   handleDragStart: (e: DragEvent<HTMLElement>, index: number) => void;
   handleDragEnter: (e: DragEvent<HTMLElement>, index: number) => void;
   handleDragOver: (e: DragEvent<HTMLElement>, index: number) => void;
   handleDragEnd: (e: DragEvent<HTMLElement>) => void;
   handleDrop: (e: DragEvent<HTMLElement>, dropIndex: number) => void;
   handleDragLeave: (e: DragEvent<HTMLElement>) => void;
+  handleMouseMove: (e: MouseEvent) => void;
 }
 
 export function useDragAndDrop<T>({
@@ -22,13 +25,23 @@ export function useDragAndDrop<T>({
 }: UseDragAndDropOptions<T>): UseDragAndDropResult {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [ghostPosition, setGhostPosition] = useState<{ x: number; y: number } | null>(null);
   const draggedIndexRef = useRef<number | null>(null);
 
   const handleDragStart = (e: DragEvent<HTMLElement>, index: number) => {
     draggedIndexRef.current = index;
     setDraggedIndex(index);
+    setIsDragging(true);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/html", e.currentTarget.innerHTML);
+
+    // Create a custom drag image (transparent 1x1 pixel) - only if available (not in tests)
+    if (e.dataTransfer.setDragImage) {
+      const img = new Image();
+      img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=';
+      e.dataTransfer.setDragImage(img, 0, 0);
+    }
   };
 
   const handleDragEnter = (e: DragEvent<HTMLElement>, index: number) => {
@@ -57,6 +70,8 @@ export function useDragAndDrop<T>({
     if (dragIndex === null || dragIndex === dropIndex) {
       setDraggedIndex(null);
       setDragOverIndex(null);
+      setIsDragging(false);
+      setGhostPosition(null);
       draggedIndexRef.current = null;
       return;
     }
@@ -68,6 +83,8 @@ export function useDragAndDrop<T>({
     onReorder(newItems);
     setDraggedIndex(null);
     setDragOverIndex(null);
+    setIsDragging(false);
+    setGhostPosition(null);
     draggedIndexRef.current = null;
   };
 
@@ -75,17 +92,41 @@ export function useDragAndDrop<T>({
     e.preventDefault();
     setDraggedIndex(null);
     setDragOverIndex(null);
+    setIsDragging(false);
+    setGhostPosition(null);
     draggedIndexRef.current = null;
   };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isDragging) {
+      setGhostPosition({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  // Add and cleanup mouse move listener when dragging
+  useEffect(() => {
+    if (isDragging) {
+      const handleGlobalMouseMove = (e: MouseEvent) => {
+        setGhostPosition({ x: e.clientX, y: e.clientY });
+      };
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      return () => {
+        document.removeEventListener('mousemove', handleGlobalMouseMove);
+      };
+    }
+  }, [isDragging]);
 
   return {
     draggedIndex,
     dragOverIndex,
+    isDragging,
+    ghostPosition,
     handleDragStart,
     handleDragEnter,
     handleDragOver,
     handleDragEnd,
     handleDrop,
     handleDragLeave,
+    handleMouseMove,
   };
 }
