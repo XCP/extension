@@ -33,13 +33,15 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
 
   // Handle edge cases for idle timer
   const handleIdle = useCallback(() => {
+    console.log('[IdleTimer] onIdle triggered, authState:', authState, 'timeout:', settings.autoLockTimeout);
     // Only lock if we're currently unlocked
     if (authState === 'UNLOCKED') {
+      console.log('[IdleTimer] Locking wallet due to idle');
       lockAll().catch(error => {
         console.error('[IdleTimer] Failed to lock wallet on idle:', error);
       });
     }
-  }, [authState, lockAll]);
+  }, [authState, lockAll, settings.autoLockTimeout]);
 
   const handleAction = useCallback(() => {
     // Only update last active time if we're unlocked
@@ -50,6 +52,14 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
 
   // Disable idle timer if timeout is 0 or undefined
   const isIdleTimerEnabled = settings.autoLockTimeout && settings.autoLockTimeout > 0;
+
+  console.log('[IdleTimer] Config:', {
+    enabled: isIdleTimerEnabled,
+    timeout: settings.autoLockTimeout,
+    authState,
+    disabled: !isIdleTimerEnabled || authState !== 'UNLOCKED',
+    settings: settings
+  });
 
 
   // Use native idle timer hook

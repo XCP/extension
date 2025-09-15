@@ -158,13 +158,41 @@ export default function AdvancedSettings(): ReactElement {
       />
 
       {process.env.NODE_ENV === 'development' && (
-        <SettingSwitch
-          label="Transaction Dry Run"
-          description="When enabled, transactions will be simulated instead of being broadcast to the network."
-          checked={settings.transactionDryRun}
-          onChange={(checked) => updateSettings({ transactionDryRun: checked })}
-          showHelpText={shouldShowHelpText}
-        />
+        <>
+          <SettingSwitch
+            label="Transaction Dry Run"
+            description="When enabled, transactions will be simulated instead of being broadcast to the network."
+            checked={settings.transactionDryRun}
+            onChange={(checked) => updateSettings({ transactionDryRun: checked })}
+            showHelpText={shouldShowHelpText}
+          />
+
+          <div className="space-y-2">
+            <Label className="font-bold">Idle Timer Testing</Label>
+            {shouldShowHelpText && (
+              <Description className="text-sm text-gray-500">
+                Development tools for testing the idle timer functionality.
+              </Description>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => updateSettings({ autoLockTimer: '10s', autoLockTimeout: 10000 })}
+                className="px-3 py-1 text-sm bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
+              >
+                Enable 10s Test Timer
+              </button>
+              <button
+                onClick={() => updateSettings({ autoLockTimer: '5m', autoLockTimeout: 5 * 60 * 1000 })}
+                className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+              >
+                Reset to 5m Default
+              </button>
+            </div>
+            <p className="text-xs text-gray-600">
+              Current timeout: {settings.autoLockTimeout}ms ({settings.autoLockTimer})
+            </p>
+          </div>
+        </>
       )}
     </div>
   );
