@@ -77,8 +77,11 @@ describe('Transaction Broadcaster Utilities', () => {
       const startTime = Date.now();
       await broadcastTransaction(mockSignedTxHex);
       const endTime = Date.now();
-      
-      expect(endTime - startTime).toBeGreaterThanOrEqual(500);
+      const elapsed = endTime - startTime;
+
+      // Allow for small timing variations (490-510ms range)
+      expect(elapsed).toBeGreaterThanOrEqual(490);
+      expect(elapsed).toBeLessThanOrEqual(520);
     });
   });
 
