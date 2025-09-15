@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from '@/utils/api-client';
 import { FaCog } from "react-icons/fa";
 import { OrderSettings } from "@/pages/settings/order-settings";
 import { ComposerForm } from "@/components/composer-form";
@@ -106,9 +106,9 @@ export function OrderForm({
       try {
         const give = isBuy ? quoteAsset : giveAsset;
         const get = isBuy ? giveAsset : quoteAsset;
-        const response = await axios.get(`https://app.xcp.io/api/v1/swap/${give}/${get}`);
-        const lastTradePrice = response.data?.data?.trading_pair?.last_trade_price || null;
-        const tradingPairName = response.data?.data?.trading_pair?.name || "";
+        const response = await api.get(`https://app.xcp.io/api/v1/swap/${give}/${get}`);
+        const lastTradePrice = response?.data?.trading_pair?.last_trade_price || null;
+        const tradingPairName = response?.data?.trading_pair?.name || "";
         setTradingPairData({ last_trade_price: lastTradePrice, name: tradingPairName });
       } catch (err) {
         console.error("Failed to fetch trading pair data:", err);

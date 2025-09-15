@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, memo, useCallback } from "react";
 import { useFormStatus } from "react-dom";
-import axios from "axios";
+import api from '@/utils/api-client';
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
@@ -97,8 +97,8 @@ export const DispenserForm = memo(function DispenserForm({
           setAvailableBalance(assetDetails.availableBalance);
         }
 
-        const response = await axios.get(`https://app.xcp.io/api/v1/swap/${asset}/BTC`);
-        const lastTradePrice = response.data?.data?.trading_pair?.last_trade_price || null;
+        const response = await api.get(`https://app.xcp.io/api/v1/swap/${asset}/BTC`);
+        const lastTradePrice = response?.data?.trading_pair?.last_trade_price || null;
         setTradingPairData((prev) => {
           // Only update if the data has changed
           if (prev?.last_trade_price === lastTradePrice && prev?.name === "BTC") {

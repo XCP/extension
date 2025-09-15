@@ -3,8 +3,7 @@
  * Handles communication with the Laravel consolidation API for batched UTXO recovery
  */
 
-import axios from 'axios';
-import { apiClient, API_TIMEOUTS } from '@/utils/api/axiosConfig';
+import api, { apiClient, API_TIMEOUTS } from '@/utils/api-client';
 
 /* ══════════════════════════════════════════════════════════════════════════
  * TYPE DEFINITIONS
@@ -129,7 +128,7 @@ class ConsolidationApiService {
         `${this.baseUrl}/api/v1/address/${address}/consolidation?${params.toString()}`
       );
 
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Failed to fetch consolidation batch:', error);
       throw new Error('Failed to fetch consolidation data. Please try again.');
@@ -188,7 +187,7 @@ class ConsolidationApiService {
         report
       );
 
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Failed to report consolidation:', error);
       // Don't throw - reporting is optional for tracking
@@ -213,7 +212,7 @@ class ConsolidationApiService {
         `${this.baseUrl}/api/v1/address/${address}/consolidation/status`
       );
 
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Failed to fetch consolidation status:', error);
       throw new Error('Failed to fetch consolidation status.');

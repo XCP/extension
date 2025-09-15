@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { quickApiClient } from '@/utils/api/axiosConfig';
+import api, { quickApiClient } from '@/utils/api-client';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 /**
@@ -33,7 +32,7 @@ export async function fetchUTXOs(address: string, signal?: AbortSignal): Promise
     );
     return response.data;
   } catch (error) {
-    if (axios.isCancel(error)) {
+    if (api.isApiError(error) && error.code === 'ECONNABORTED') {
       throw error; // Re-throw cancellation errors
     }
     console.error(`Error fetching UTXOs for address ${address}:`, error);
@@ -72,12 +71,12 @@ export function getUtxoByTxid(utxos: UTXO[], txid: string, vout: number): UTXO |
 export async function fetchPreviousRawTransaction(txid: string): Promise<string | null> {
   try {
     const settings = await getKeychainSettings();
-    const response = await axios.get<{ result: any }>(
+    const response = await api.get<{ result: any }>(
       `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
     );
 
-    if (response.data && response.data.result && response.data.result.hasOwnProperty('hex') && response.data.result.hex !== undefined) {
-      return response.data.result.hex;
+    if (response && response.result && response.result.hasOwnProperty('hex') && response.result.hex !== undefined) {
+      return response.result.hex;
     } else {
       console.error(`Raw transaction hex not found for txid: ${txid}`);
       return null;
@@ -97,12 +96,12 @@ export async function fetchPreviousRawTransaction(txid: string): Promise<string 
 export async function fetchBitcoinTransaction(txid: string): Promise<any | null> {
   try {
     const settings = await getKeychainSettings();
-    const response = await axios.get<{ result: any }>(
+    const response = await api.get<{ result: any }>(
       `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
     );
 
-    if (response.data && response.data.result) {
-      return response.data.result;
+    if (response && response.result) {
+      return response.result;
     } else {
       console.error(`Transaction details not found for txid: ${txid}`);
       return null;

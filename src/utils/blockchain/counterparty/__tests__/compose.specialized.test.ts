@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import axios from 'axios';
+import api from '@/utils/api-client';
 import { 
   composeBet,
   composeBroadcast,
@@ -25,17 +25,17 @@ import {
 } from './helpers/composeTestHelpers';
 
 // Mock dependencies
-vi.mock('axios');
+vi.mock('@/utils/api-client');
 vi.mock('@/utils/storage/settingsStorage');
 
-const mockedAxios = vi.mocked(axios, true);
+const mockedApi = vi.mocked(api, true);
 const mockedGetKeychainSettings = vi.mocked(settingsStorage.getKeychainSettings);
 
 describe('Compose Specialized Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetKeychainSettings.mockResolvedValue(mockSettings as any);
-    mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+    mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
   });
 
   describe('composeTransaction (generic)', () => {
@@ -49,13 +49,13 @@ describe('Compose Specialized Operations', () => {
       expect(result).toEqual(createMockComposeResult());
       
       const expectedUrl = `${mockApiBase}/v2/addresses/${mockAddress}/compose/${endpoint}`;
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApi.get.mock.calls[0];
       expect(actualCall[0]).toContain(expectedUrl);
       expect(actualCall[1]?.headers?.['Content-Type']).toBe('application/json');
     });
 
     it('should handle errors in generic composition', async () => {
-      mockedAxios.get.mockRejectedValueOnce(new Error('Composition failed'));
+      mockedApi.get.mockRejectedValueOnce(new Error('Composition failed'));
 
       await expect(
         composeTransaction('endpoint', {}, mockAddress, 10)
@@ -83,7 +83,7 @@ describe('Compose Specialized Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'bet', defaultParams);
+      assertComposeUrlCalled(mockedApi, 'bet', defaultParams);
     });
 
     it('should include optional parameters', async () => {
@@ -98,7 +98,7 @@ describe('Compose Specialized Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApi.get.mock.calls[0];
       const url = actualCall[0] as string;
       expect(url).toContain('target_value=2000');
     });
@@ -108,7 +108,7 @@ describe('Compose Specialized Operations', () => {
       
       for (const bet_type of betTypes) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
         
         const params = { ...defaultParams, bet_type };
         await composeBet({
@@ -117,7 +117,7 @@ describe('Compose Specialized Operations', () => {
           ...params,
         });
         
-        const actualCall = mockedAxios.get.mock.calls[0];
+        const actualCall = mockedApi.get.mock.calls[0];
         const url = actualCall[0] as string;
         const urlParams = new URLSearchParams(url.split('?')[1]);
         const actualParams = Object.fromEntries(urlParams.entries());
@@ -142,7 +142,7 @@ describe('Compose Specialized Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'broadcast', defaultParams);
+      assertComposeUrlCalled(mockedApi, 'broadcast', defaultParams);
     });
 
     it('should include optional parameters', async () => {
@@ -158,7 +158,7 @@ describe('Compose Specialized Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApi.get.mock.calls[0];
       const url = actualCall[0] as string;
       expect(url).toContain('inscription=SGVsbG8gV29ybGQ%3D');
       expect(url).toContain('mime_type=text%2Fplain');
@@ -169,7 +169,7 @@ describe('Compose Specialized Operations', () => {
       
       for (const value of values) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
         
         const params = { ...defaultParams, value };
         await composeBroadcast({
@@ -178,7 +178,7 @@ describe('Compose Specialized Operations', () => {
           ...params,
         });
         
-        const actualCall = mockedAxios.get.mock.calls[0];
+        const actualCall = mockedApi.get.mock.calls[0];
         const url = actualCall[0] as string;
         const urlParams = new URLSearchParams(url.split('?')[1]);
         const actualParams = Object.fromEntries(urlParams.entries());
@@ -200,7 +200,7 @@ describe('Compose Specialized Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'btcpay', defaultParams);
+      assertComposeUrlCalled(mockedApi, 'btcpay', defaultParams);
     });
 
     it('should include optional parameters', async () => {
@@ -215,7 +215,7 @@ describe('Compose Specialized Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApi.get.mock.calls[0];
       const url = actualCall[0] as string;
       expect(url).toContain('max_fee=5000');
     });
@@ -225,7 +225,7 @@ describe('Compose Specialized Operations', () => {
       
       for (const order_match_id of matchIds) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
         
         await composeBTCPay({
           sourceAddress: mockAddress,
@@ -233,7 +233,7 @@ describe('Compose Specialized Operations', () => {
           order_match_id,
         });
         
-        const actualCall = mockedAxios.get.mock.calls[0];
+        const actualCall = mockedApi.get.mock.calls[0];
       const url = actualCall[0] as string;
       const urlParams = new URLSearchParams(url.split('?')[1]);
       const actualParams = Object.fromEntries(urlParams.entries());
@@ -257,7 +257,7 @@ describe('Compose Specialized Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'mpma', defaultParams);
+      assertComposeUrlCalled(mockedApi, 'mpma', defaultParams);
     });
 
     it('should include optional parameters', async () => {
@@ -273,7 +273,7 @@ describe('Compose Specialized Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApi.get.mock.calls[0];
       const url = actualCall[0] as string;
       expect(url).toContain('memos[]=memo1');
       expect(url).toContain('memos[]=memo2');
@@ -290,7 +290,7 @@ describe('Compose Specialized Operations', () => {
       
       for (const assets of assetSets) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
         
         const destinations = assets.map((_, i) => `bc1qdest${i + 1}`);
         const quantities = assets.map((_, i) => `${(i + 1) * 1000}`);
@@ -303,7 +303,7 @@ describe('Compose Specialized Operations', () => {
           quantities,
         });
         
-        const actualCall = mockedAxios.get.mock.calls[0];
+        const actualCall = mockedApi.get.mock.calls[0];
         const url = actualCall[0] as string;
         expect(url).toContain(`assets=${encodeURIComponent(assets.join(','))}`);
       }
@@ -329,7 +329,7 @@ describe('Compose Specialized Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'fairminter', defaultParams);
+      assertComposeUrlCalled(mockedApi, 'fairminter', defaultParams);
     });
 
     it('should include optional parameters', async () => {
@@ -349,7 +349,7 @@ describe('Compose Specialized Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApi.get.mock.calls[0];
       const url = actualCall[0] as string;
       const urlParams = new URLSearchParams(url.split('?')[1]);
       const actualParams = Object.fromEntries(urlParams.entries());
@@ -375,7 +375,7 @@ describe('Compose Specialized Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'fairmint', defaultParams);
+      assertComposeUrlCalled(mockedApi, 'fairmint', defaultParams);
     });
 
     it('should include optional parameters', async () => {
@@ -390,7 +390,7 @@ describe('Compose Specialized Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApi.get.mock.calls[0];
       const url = actualCall[0] as string;
       expect(url).toContain('quantity=200');
     });
@@ -400,7 +400,7 @@ describe('Compose Specialized Operations', () => {
       
       for (const quantity of quantities) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
         
         const params = { ...defaultParams, quantity };
         await composeFairmint({
@@ -409,7 +409,7 @@ describe('Compose Specialized Operations', () => {
           ...params,
         });
         
-        const actualCall = mockedAxios.get.mock.calls[0];
+        const actualCall = mockedApi.get.mock.calls[0];
       const url = actualCall[0] as string;
       const urlParams = new URLSearchParams(url.split('?')[1]);
       const actualParams = Object.fromEntries(urlParams.entries());
@@ -432,7 +432,7 @@ describe('Compose Specialized Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'attach', defaultParams);
+      assertComposeUrlCalled(mockedApi, 'attach', defaultParams);
     });
 
     it('should include optional parameters', async () => {
@@ -448,7 +448,7 @@ describe('Compose Specialized Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApi.get.mock.calls[0];
       const url = actualCall[0] as string;
       expect(url).toContain('utxo_value=10000');
       expect(url).toContain('destination_vout=1');
@@ -458,14 +458,14 @@ describe('Compose Specialized Operations', () => {
   describe('getAttachEstimateXcpFee', () => {
     it('should get attach fee estimate', async () => {
       const mockFeeEstimate = 25000000;
-      mockedAxios.get.mockResolvedValueOnce({ data: { result: mockFeeEstimate } });
+      mockedApi.get.mockResolvedValueOnce({ data: { result: mockFeeEstimate } });
 
       const result = await getAttachEstimateXcpFee(mockAddress);
 
       expect(result).toBe(mockFeeEstimate);
       
       const expectedUrl = `${mockApiBase}/v2/addresses/${mockAddress}/compose/attach/estimatexcpfees`;
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApi.get.mock.calls[0];
       expect(actualCall[0]).toBe(expectedUrl);
     });
   });
@@ -486,7 +486,7 @@ describe('Compose Specialized Operations', () => {
       expect(result).toEqual(createMockComposeResult());
       
       const expectedUrl = `${mockApiBase}/v2/utxos/${defaultParams.sourceUtxo}/compose/detach`;
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApi.get.mock.calls[0];
       expect(actualCall[0]).toContain(expectedUrl);
     });
 
@@ -502,7 +502,7 @@ describe('Compose Specialized Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApi.get.mock.calls[0];
       const url = actualCall[0] as string;
       expect(url).toContain('destination=bc1qoptionaldest');
     });
@@ -512,7 +512,7 @@ describe('Compose Specialized Operations', () => {
       
       for (const sourceUtxo of utxos) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
         
         const params = { ...defaultParams, sourceUtxo };
         await composeDetach({
@@ -521,7 +521,7 @@ describe('Compose Specialized Operations', () => {
           ...params,
         });
         
-        const actualCall = mockedAxios.get.mock.calls[0];
+        const actualCall = mockedApi.get.mock.calls[0];
         const url = actualCall[0] as string;
         expect(url).toContain(`/v2/utxos/${sourceUtxo}/compose/detach`);
       }
@@ -546,7 +546,7 @@ describe('Compose Specialized Operations', () => {
       expect(result).toEqual(createMockComposeResult());
       
       const expectedUrl = `${mockApiBase}/v2/utxos/${defaultParams.sourceUtxo}/compose/movetoutxo`;
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApi.get.mock.calls[0];
       expect(actualCall[0]).toContain(expectedUrl);
     });
 
@@ -559,7 +559,7 @@ describe('Compose Specialized Operations', () => {
         ...defaultParams,
       });
 
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApi.get.mock.calls[0];
       const url = actualCall[0] as string;
       expect(url).toContain('destination=bc1qdestination');
     });
@@ -570,7 +570,7 @@ describe('Compose Specialized Operations', () => {
       
       for (const sourceUtxo of utxos) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
         
         const params = { ...defaultParams, sourceUtxo };
         await composeMove({
@@ -579,7 +579,7 @@ describe('Compose Specialized Operations', () => {
           ...params,
         });
         
-        const actualCall = mockedAxios.get.mock.calls[0];
+        const actualCall = mockedApi.get.mock.calls[0];
         const url = actualCall[0] as string;
         expect(url).toContain(`/v2/utxos/${sourceUtxo}/compose/movetoutxo`);
       }

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from '@/utils/api-client';
 
 /**
  * Interface for Counterparty API validation result
@@ -33,12 +33,12 @@ export async function validateCounterpartyApi(url: string): Promise<ApiValidatio
 
   try {
     // Test the API endpoint
-    const response = await axios.get(`${url}/v2`, {
+    const response = await api.get(`${url}/v2`, {
       timeout: 5000,
       validateStatus: (status) => status === 200,
     });
 
-    const data = response.data;
+    const data = response;
     
     // Check for required fields
     if (!data?.result) {
@@ -64,8 +64,8 @@ export async function validateCounterpartyApi(url: string): Promise<ApiValidatio
       }
     };
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.code === 'ECONNABORTED') {
+    if (api.isApiError(error)) {
+      if (error.code === 'ECONNABORTED' || error.code === 'TIMEOUT') {
         return { isValid: false, error: "Connection timeout - API not reachable" };
       } else if (error.response) {
         return { isValid: false, error: `API returned error: ${error.response.status}` };

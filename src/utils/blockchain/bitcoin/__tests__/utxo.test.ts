@@ -6,12 +6,12 @@ import {
   getUtxoByTxid,
   fetchPreviousRawTransaction
 } from '@/utils/blockchain/bitcoin/utxo';
-import axios from 'axios';
+import api from '@/utils/api-client';
 
-vi.mock('axios');
+vi.mock('@/utils/api-client');
 vi.mock('@/utils/storage/settingsStorage');
 
-const mockAxios = axios as any;
+const mockApi = api as any;
 const mockGetKeychainSettings = vi.fn();
 
 describe('UTXO Utilities', () => {
@@ -49,12 +49,12 @@ describe('UTXO Utilities', () => {
   describe('fetchUTXOs', () => {
     it('should fetch UTXOs successfully', async () => {
       const mockUtxos = [mockUtxo];
-      mockAxios.get.mockResolvedValue({ data: mockUtxos });
+      mockApi.get.mockResolvedValue({ data: mockUtxos });
 
       const result = await fetchUTXOs(mockAddress);
       
       expect(result).toEqual(mockUtxos);
-      expect(mockAxios.get).toHaveBeenCalledWith(
+      expect(mockApi.get).toHaveBeenCalledWith(
         `https://mempool.space/api/address/${mockAddress}/utxo`,
         { signal: undefined }
       );
@@ -63,19 +63,19 @@ describe('UTXO Utilities', () => {
     it('should fetch UTXOs with AbortSignal', async () => {
       const mockUtxos = [mockUtxo];
       const abortController = new AbortController();
-      mockAxios.get.mockResolvedValue({ data: mockUtxos });
+      mockApi.get.mockResolvedValue({ data: mockUtxos });
 
       const result = await fetchUTXOs(mockAddress, abortController.signal);
       
       expect(result).toEqual(mockUtxos);
-      expect(mockAxios.get).toHaveBeenCalledWith(
+      expect(mockApi.get).toHaveBeenCalledWith(
         `https://mempool.space/api/address/${mockAddress}/utxo`,
         { signal: abortController.signal }
       );
     });
 
     it('should return empty array when no UTXOs found', async () => {
-      mockAxios.get.mockResolvedValue({ data: [] });
+      mockApi.get.mockResolvedValue({ data: [] });
 
       const result = await fetchUTXOs(mockAddress);
       
@@ -83,13 +83,13 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle network errors', async () => {
-      mockAxios.get.mockRejectedValue(new Error('Network error'));
+      mockApi.get.mockRejectedValue(new Error('Network error'));
 
       await expect(fetchUTXOs(mockAddress)).rejects.toThrow('Failed to fetch UTXOs.');
     });
 
     it('should handle HTTP error responses', async () => {
-      mockAxios.get.mockRejectedValue({
+      mockApi.get.mockRejectedValue({
         response: { status: 404, data: 'Not found' }
       });
 
@@ -99,21 +99,21 @@ describe('UTXO Utilities', () => {
     it('should re-throw cancellation errors', async () => {
       const cancelError = new Error('Request cancelled');
       Object.defineProperty(cancelError, 'name', { value: 'AbortError' });
-      mockAxios.isCancel.mockReturnValue(true);
-      mockAxios.get.mockRejectedValue(cancelError);
+      mockApi.isApiError.mockReturnValue(true);
+      mockApi.get.mockRejectedValue(cancelError);
 
       await expect(fetchUTXOs(mockAddress)).rejects.toThrow('Request cancelled');
-      expect(mockAxios.isCancel).toHaveBeenCalledWith(cancelError);
+      expect(mockApi.isApiError).toHaveBeenCalledWith(cancelError);
     });
 
     it('should handle timeout errors', async () => {
-      mockAxios.get.mockRejectedValue({ code: 'ECONNABORTED' });
+      mockApi.get.mockRejectedValue({ code: 'ECONNABORTED' });
 
       await expect(fetchUTXOs(mockAddress)).rejects.toThrow('Failed to fetch UTXOs.');
     });
 
     it('should handle malformed response data', async () => {
-      mockAxios.get.mockResolvedValue({ data: null });
+      mockApi.get.mockResolvedValue({ data: null });
 
       const result = await fetchUTXOs(mockAddress);
       expect(result).toBe(null);
@@ -125,7 +125,7 @@ describe('UTXO Utilities', () => {
         { ...mockUtxo, vout: 1 },
         { ...mockUtxo, vout: 2, value: 200000 }
       ];
-      mockAxios.get.mockResolvedValue({ data: mockUtxos });
+      mockApi.get.mockResolvedValue({ data: mockUtxos });
 
       const result = await fetchUTXOs(mockAddress);
       
@@ -144,7 +144,7 @@ describe('UTXO Utilities', () => {
         }
       };
       const mockUtxos = [mockUtxo, unconfirmedUtxo];
-      mockAxios.get.mockResolvedValue({ data: mockUtxos });
+      mockApi.get.mockResolvedValue({ data: mockUtxos });
 
       const result = await fetchUTXOs(mockAddress);
       
@@ -155,7 +155,7 @@ describe('UTXO Utilities', () => {
 
     it('should handle very large UTXO values', async () => {
       const largeUtxo = { ...mockUtxo, value: 2100000000000000 }; // 21M BTC in sats
-      mockAxios.get.mockResolvedValue({ data: [largeUtxo] });
+      mockApi.get.mockResolvedValue({ data: [largeUtxo] });
 
       const result = await fetchUTXOs(mockAddress);
       
@@ -164,7 +164,7 @@ describe('UTXO Utilities', () => {
 
     it('should handle zero-value UTXOs', async () => {
       const zeroUtxo = { ...mockUtxo, value: 0 };
-      mockAxios.get.mockResolvedValue({ data: [zeroUtxo] });
+      mockApi.get.mockResolvedValue({ data: [zeroUtxo] });
 
       const result = await fetchUTXOs(mockAddress);
       
@@ -301,20 +301,20 @@ describe('UTXO Utilities', () => {
     const mockRawHex = '01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff08044c86041b020602ffffffff0100f2052a010000004341041b0e8c2567c12536aa13357b79a073dc4444acb83c4ec7a0e2f99dd7457516c5817242da796924ca4e99947d087fedf9ce467cb9f7c6287078f801df276fdf84424ac00000000';
 
     it('should fetch raw transaction successfully', async () => {
-      mockAxios.get.mockResolvedValue({
+      mockApi.get.mockResolvedValue({
         data: { result: { hex: mockRawHex } }
       });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
       
       expect(result).toBe(mockRawHex);
-      expect(mockAxios.get).toHaveBeenCalledWith(
+      expect(mockApi.get).toHaveBeenCalledWith(
         `https://api.counterparty.io/v2/bitcoin/transactions/${mockTxid}`
       );
     });
 
     it('should return null when transaction not found', async () => {
-      mockAxios.get.mockResolvedValue({
+      mockApi.get.mockResolvedValue({
         data: { result: null }
       });
 
@@ -324,7 +324,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should return null when hex not present in response', async () => {
-      mockAxios.get.mockResolvedValue({
+      mockApi.get.mockResolvedValue({
         data: { result: { no_hex_field: 'data' } }
       });
 
@@ -334,7 +334,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should return null when response data is malformed', async () => {
-      mockAxios.get.mockResolvedValue({
+      mockApi.get.mockResolvedValue({
         data: null
       });
 
@@ -344,7 +344,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should return null when result is undefined', async () => {
-      mockAxios.get.mockResolvedValue({
+      mockApi.get.mockResolvedValue({
         data: { result: undefined }
       });
 
@@ -354,7 +354,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle network errors gracefully', async () => {
-      mockAxios.get.mockRejectedValue(new Error('Network error'));
+      mockApi.get.mockRejectedValue(new Error('Network error'));
 
       const result = await fetchPreviousRawTransaction(mockTxid);
       
@@ -362,7 +362,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle HTTP error responses', async () => {
-      mockAxios.get.mockRejectedValue({
+      mockApi.get.mockRejectedValue({
         response: { status: 404, data: 'Transaction not found' }
       });
 
@@ -372,7 +372,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle timeout errors', async () => {
-      mockAxios.get.mockRejectedValue({ code: 'ECONNABORTED' });
+      mockApi.get.mockRejectedValue({ code: 'ECONNABORTED' });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
       
@@ -385,20 +385,20 @@ describe('UTXO Utilities', () => {
         counterpartyApiBase: 'https://custom.api.com'
       });
 
-      mockAxios.get.mockResolvedValue({
+      mockApi.get.mockResolvedValue({
         data: { result: { hex: mockRawHex } }
       });
 
       const result = await fetchPreviousRawTransaction(mockTxid);
       
       expect(result).toBe(mockRawHex);
-      expect(mockAxios.get).toHaveBeenCalledWith(
+      expect(mockApi.get).toHaveBeenCalledWith(
         `https://custom.api.com/v2/bitcoin/transactions/${mockTxid}`
       );
     });
 
     it('should handle empty hex field', async () => {
-      mockAxios.get.mockResolvedValue({
+      mockApi.get.mockResolvedValue({
         data: { result: { hex: '' } }
       });
 
@@ -409,7 +409,7 @@ describe('UTXO Utilities', () => {
 
     it('should handle very long transaction hex', async () => {
       const longHex = 'a'.repeat(10000);
-      mockAxios.get.mockResolvedValue({
+      mockApi.get.mockResolvedValue({
         data: { result: { hex: longHex } }
       });
 
@@ -420,19 +420,19 @@ describe('UTXO Utilities', () => {
 
     it('should handle special characters in txid', async () => {
       const specialTxid = 'abc-def_123';
-      mockAxios.get.mockResolvedValue({
+      mockApi.get.mockResolvedValue({
         data: { result: { hex: mockRawHex } }
       });
 
       await fetchPreviousRawTransaction(specialTxid);
       
-      expect(mockAxios.get).toHaveBeenCalledWith(
+      expect(mockApi.get).toHaveBeenCalledWith(
         `https://api.counterparty.io/v2/bitcoin/transactions/${specialTxid}`
       );
     });
 
     it('should handle response with extra fields', async () => {
-      mockAxios.get.mockResolvedValue({
+      mockApi.get.mockResolvedValue({
         data: { 
           result: { 
             hex: mockRawHex,
@@ -449,7 +449,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle null hex value', async () => {
-      mockAxios.get.mockResolvedValue({
+      mockApi.get.mockResolvedValue({
         data: { result: { hex: null } }
       });
 
@@ -459,7 +459,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle undefined hex value', async () => {
-      mockAxios.get.mockResolvedValue({
+      mockApi.get.mockResolvedValue({
         data: { result: { hex: undefined } }
       });
 

@@ -1,5 +1,4 @@
-import axios, { AxiosResponse } from 'axios';
-import { broadcastApiClient, withRetry } from '@/utils/api/axiosConfig';
+import api, { broadcastApiClient, withRetry, ApiResponse } from '@/utils/api-client';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 export interface TransactionResponse {
@@ -45,18 +44,18 @@ const broadcastEndpoints: BroadcastEndpoint[] = [
   },
 ];
 
-const formatResponse = (endpoint: BroadcastEndpoint, response: AxiosResponse): TransactionResponse | null => {
+const formatResponse = (endpoint: BroadcastEndpoint, response: ApiResponse): TransactionResponse | null => {
   try {
     if (endpoint.name === 'counterparty') {
-      const txid = response.data?.result;
+      const txid = response?.result;
       return txid ? { txid } : null;
     }
     if (endpoint.name === 'blockcypher') {
-      const txid = response.data?.tx?.hash;
-      return txid ? { txid, fees: response.data?.tx?.fees } : null;
+      const txid = response?.tx?.hash;
+      return txid ? { txid, fees: response?.tx?.fees } : null;
     }
     if (endpoint.name === 'blockstream' || endpoint.name === 'mempool') {
-      const txid = typeof response.data === 'string' ? response.data.trim() : null;
+      const txid = typeof response === 'string' ? response.trim() : null;
       return txid ? { txid } : null;
     }
     return null;
@@ -115,7 +114,7 @@ export async function broadcastTransaction(signedTxHex: string): Promise<Transac
       lastError = error as Error;
       
       // Extract the actual error message from the API response
-      if (axios.isAxiosError(error) && error.response?.data) {
+      if (api.isApiError(error) && error.response?.data) {
         const data = error.response.data;
         if (typeof data === 'string') {
           errorMessage = data;

@@ -43,7 +43,7 @@ import {
   Order,
   OrderDetails
 } from '@/utils/blockchain/counterparty/api';
-import axios, { AxiosError } from 'axios';
+import api, { ApiError } from '@/utils/api-client';
 
 // Cache interfaces
 interface CacheEntry<T> {
@@ -680,12 +680,12 @@ export class BlockchainService extends BaseService {
   }
 
   private isNonRetryableError(error: any): boolean {
-    if (axios.isAxiosError(error)) {
+    if (api.isApiError(error)) {
       const status = error.response?.status;
       // Don't retry on 4xx errors (except 429 - rate limited)
       return status !== undefined && status >= 400 && status < 500 && status !== 429;
     }
-    
+
     // Don't retry on abort errors
     return error.name === 'AbortError';
   }

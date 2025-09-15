@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { apiClient, quickApiClient, API_TIMEOUTS } from '@/utils/api/axiosConfig';
+import api, { apiClient, quickApiClient, API_TIMEOUTS } from '@/utils/api-client';
 import { fetchBTCBalance } from '@/utils/blockchain/bitcoin';
 import { formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
@@ -252,7 +251,7 @@ export async function fetchTokenBalance(
     const verbose = options.verbose ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await api.get(
       `${base}/v2/addresses/${address}/balances/${asset}`,
       {
         params: {
@@ -260,7 +259,7 @@ export async function fetchTokenBalance(
         },
       }
     );
-    const data = response.data;
+    const data = response;
 
     if (!data.result) {
       return null;
@@ -350,7 +349,7 @@ export async function fetchTokenUtxos(
     const verbose = options.verbose ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await api.get(
       `${base}/v2/addresses/${address}/balances/${asset}`,
       {
         params: {
@@ -358,7 +357,7 @@ export async function fetchTokenUtxos(
         },
       }
     );
-    const data = response.data;
+    const data = response;
 
     if (!data.result || !Array.isArray(data.result)) {
       return [];
@@ -389,7 +388,7 @@ export async function fetchAssetDetails(
     const verbose = options.verbose ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await api.get(
       `${base}/v2/assets/${asset}`,
       {
         params: {
@@ -397,7 +396,7 @@ export async function fetchAssetDetails(
         },
       }
     );
-    const data = response.data;
+    const data = response;
 
     if (!data.result) {
       return null;
@@ -464,7 +463,7 @@ export async function fetchAssetDetailsAndBalance(
       const base = await getApiBase();
 
       // Fetch asset details from Counterparty API.
-      const assetResponse = await axios.get(
+      const assetResponse = await api.get(
         `${base}/v2/assets/${asset}`,
         {
           params: {
@@ -472,7 +471,7 @@ export async function fetchAssetDetailsAndBalance(
           },
         }
       );
-      const assetData = assetResponse.data.result;
+      const assetData = assetResponse.result;
       isDivisible = assetData.divisible;
       assetInfo = assetData;
 
@@ -519,7 +518,7 @@ export async function fetchUtxoBalances(
     const show_unconfirmed = options.show_unconfirmed ?? false;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await api.get(
       `${base}/v2/utxos/${utxo}/balances`,
       {
         params: {
@@ -532,7 +531,7 @@ export async function fetchUtxoBalances(
       }
     );
 
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching UTXO balances:', error);
     return {
@@ -563,7 +562,7 @@ export async function fetchOrders(
     const verbose = options.verbose ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await api.get(
       `${base}/v2/addresses/${address}/orders`,
       {
         params: {
@@ -576,8 +575,8 @@ export async function fetchOrders(
     );
 
     return {
-      orders: response.data.result,
-      total: response.data.result_count,
+      orders: response.result,
+      total: response.result_count,
     };
   } catch (error) {
     console.error('Failed to fetch orders:', error);
@@ -604,7 +603,7 @@ export async function fetchOrder(
     const showUnconfirmed = options.showUnconfirmed ?? false;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await api.get(
       `${base}/v2/orders/${orderHash}`,
       {
         params: {
@@ -614,11 +613,11 @@ export async function fetchOrder(
       }
     );
 
-    if (!response.data.result) {
+    if (!response.result) {
       return null;
     }
 
-    return response.data.result;
+    return response.result;
   } catch (error) {
     console.error('Error fetching order details:', error);
     return null;
@@ -642,7 +641,7 @@ export async function fetchTransaction(
     const verbose = options.verbose ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await api.get(
       `${base}/v2/transactions/${txHash}`,
       {
         params: {
@@ -652,11 +651,11 @@ export async function fetchTransaction(
       }
     );
 
-    if (!response.data.result) {
+    if (!response.result) {
       return null;
     }
 
-    return response.data.result;
+    return response.result;
   } catch (error) {
     console.error('Error fetching transaction:', error);
     throw new Error('Failed to fetch transaction');
@@ -686,7 +685,7 @@ export async function fetchTransactions(
     const show_unconfirmed = options.show_unconfirmed ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await api.get(
       `${base}/v2/addresses/${address}/transactions`,
       {
         params: {
@@ -697,7 +696,7 @@ export async function fetchTransactions(
         },
       }
     );
-    return response.data;
+    return response;
   } catch (error) {
     console.error("Error fetching transactions:", error);
     throw error;
@@ -752,11 +751,11 @@ export async function fetchCredits(
       params.asset = options.asset;
     }
     
-    const response = await axios.get(
+    const response = await api.get(
       `${base}/v2/addresses/${address}/credits`,
       { params }
     );
-    return response.data;
+    return response;
   } catch (error) {
     console.error("Error fetching credits:", error);
     throw error;
@@ -790,11 +789,11 @@ export async function fetchDebits(
       params.asset = options.asset;
     }
     
-    const response = await axios.get(
+    const response = await api.get(
       `${base}/v2/addresses/${address}/debits`,
       { params }
     );
-    return response.data;
+    return response;
   } catch (error) {
     console.error("Error fetching debits:", error);
     throw error;
@@ -817,7 +816,7 @@ export async function fetchAddressDispensers(
     const verbose = options.verbose ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await api.get(
       `${base}/v2/addresses/${address}/dispensers`,
       {
         params: {
@@ -830,8 +829,8 @@ export async function fetchAddressDispensers(
     );
 
     return {
-      dispensers: response.data.result,
-      total: response.data.result_count,
+      dispensers: response.result,
+      total: response.result_count,
     };
   } catch (error) {
     console.error('Failed to fetch dispensers:', error);
@@ -856,7 +855,7 @@ export async function fetchDispenserByHash(
     const verbose = options.verbose ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await api.get(
       `${base}/v2/dispensers/${txHash}`,
       {
         params: {
@@ -865,11 +864,11 @@ export async function fetchDispenserByHash(
       }
     );
 
-    if (!response.data.result) {
+    if (!response.result) {
       return null;
     }
 
-    return response.data.result;
+    return response.result;
   } catch (error) {
     console.error('Error fetching dispenser details:', error);
     return null;
@@ -892,7 +891,7 @@ export async function fetchDispenserDispenses(
 ): Promise<{ dispenses: any[] }> {
   try {
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await api.get(
       `${base}/v2/dispensers/${dispenserHash}/dispenses`,
       {
         params: {
@@ -903,11 +902,11 @@ export async function fetchDispenserDispenses(
       }
     );
 
-    if (!response.data.result) {
+    if (!response.result) {
       return { dispenses: [] };
     }
 
-    return { dispenses: response.data.result };
+    return { dispenses: response.result };
   } catch (error) {
     console.error('Error fetching dispenser dispenses:', error);
     return { dispenses: [] };
@@ -939,7 +938,7 @@ export async function fetchOwnedAssets(
     const verbose = options.verbose ?? true;
 
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await api.get(
       `${base}/v2/addresses/${address}/assets/owned`,
       {
         params: {
@@ -948,11 +947,11 @@ export async function fetchOwnedAssets(
       }
     );
 
-    if (!response.data.result) {
+    if (!response.result) {
       return [];
     }
 
-    return response.data.result;
+    return response.result;
   } catch (error) {
     console.error('Error fetching owned assets:', error);
     return [];
@@ -1027,11 +1026,11 @@ export async function fetchBets(
     if (options.offset) params.append('offset', options.offset.toString());
     params.append('verbose', verbose.toString());
 
-    const response = await axios.get(
+    const response = await api.get(
       `${base}/v2/addresses/${feedAddress}/bets?${params.toString()}`
     );
 
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching bets:', error);
     return {
@@ -1153,7 +1152,7 @@ export async function fetchDividendsByAsset(
     const offset = options.offset ?? 0;
     
     const base = await getApiBase();
-    const response = await axios.get(
+    const response = await api.get(
       `${base}/v2/assets/${asset}/dividends`,
       {
         params: {
@@ -1163,7 +1162,7 @@ export async function fetchDividendsByAsset(
         },
       }
     );
-    return response.data;
+    return response;
   } catch (error) {
     console.error("Error fetching asset dividends:", error);
     throw error;

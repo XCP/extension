@@ -5,7 +5,7 @@ import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 
 // Mock the quickApiClient
-vi.mock('@/utils/api/axiosConfig', () => ({
+vi.mock('@/utils/api-client', () => ({
   quickApiClient: {
     get: vi.fn()
   },
@@ -16,7 +16,7 @@ vi.mock('@/utils/api/axiosConfig', () => ({
 }));
 vi.mock('@/utils/storage/settingsStorage');
 
-import { quickApiClient } from '@/utils/api/axiosConfig';
+import { quickApiClient } from '@/utils/api-client';
 const mockQuickApiClient = quickApiClient as any;
 
 // Helper function to create a mock implementation that handles URLs

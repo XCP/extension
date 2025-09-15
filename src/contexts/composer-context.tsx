@@ -1,6 +1,6 @@
 "use client";
 
-import axios from "axios";
+import api from '@/utils/api-client';
 import React, {
   createContext,
   useCallback,
@@ -214,7 +214,7 @@ export function ComposerProvider<T>({
     } catch (err) {
       console.error("Compose error:", err);
       let errorMessage = "An error occurred while composing the transaction.";
-      if (axios.isAxiosError(err) && err.response?.data?.error) {
+      if (api.isApiError(err) && err.response?.data?.error) {
         errorMessage = err.response.data.error;
       } else if (err instanceof Error) {
         errorMessage = err.message;

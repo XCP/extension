@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import axios from 'axios';
+import api from '@/utils/api-client';
 import { composeOrder, composeCancel, composeDispenser, composeDispense } from '../compose';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
 import {
@@ -15,10 +15,10 @@ import {
 } from './helpers/composeTestHelpers';
 
 // Mock dependencies
-vi.mock('axios');
+vi.mock('@/utils/api-client');
 vi.mock('@/utils/storage/settingsStorage');
 
-const mockedAxios = vi.mocked(axios, true);
+const mockedApi = vi.mocked(api, true);
 const mockedGetKeychainSettings = vi.mocked(settingsStorage.getKeychainSettings);
 
 describe('Compose Trading Operations', () => {
@@ -26,8 +26,8 @@ describe('Compose Trading Operations', () => {
     vi.clearAllMocks();
     mockedGetKeychainSettings.mockResolvedValue(mockSettings as any);
     // Mock both get and post methods since different functions may use different HTTP methods
-    mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-    mockedAxios.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+    mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+    mockedApi.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
   });
 
   describe('composeOrder', () => {
@@ -48,7 +48,7 @@ describe('Compose Trading Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'order', defaultParams);
+      assertComposeUrlCalled(mockedApi, 'order', defaultParams);
     });
 
     it('should include optional parameters', async () => {
@@ -66,7 +66,7 @@ describe('Compose Trading Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      expect(mockedAxios.get).toHaveBeenCalled();
+      expect(mockedApi.get).toHaveBeenCalled();
     });
 
     it('should handle sell orders (give XCP, get BTC)', async () => {
@@ -84,7 +84,7 @@ describe('Compose Trading Operations', () => {
         sat_per_vbyte: mockSatPerVbyte,
         ...sellParams,
       });
-      assertComposeUrlCalled(mockedAxios, 'order', sellParams);
+      assertComposeUrlCalled(mockedApi, 'order', sellParams);
     });
 
     it('should handle buy orders (give BTC, get XCP)', async () => {
@@ -102,7 +102,7 @@ describe('Compose Trading Operations', () => {
         sat_per_vbyte: mockSatPerVbyte,
         ...buyParams,
       });
-      assertComposeUrlCalled(mockedAxios, 'order', buyParams);
+      assertComposeUrlCalled(mockedApi, 'order', buyParams);
     });
 
     it('should handle asset-to-asset trades', async () => {
@@ -120,7 +120,7 @@ describe('Compose Trading Operations', () => {
         sat_per_vbyte: mockSatPerVbyte,
         ...assetTradeParams,
       });
-      assertComposeUrlCalled(mockedAxios, 'order', assetTradeParams);
+      assertComposeUrlCalled(mockedApi, 'order', assetTradeParams);
     });
 
     it('should handle zero expiration (fill or kill)', async () => {
@@ -136,7 +136,7 @@ describe('Compose Trading Operations', () => {
       });
       
       // Check if axios.get was called with query parameters
-      const actualUrl = mockedAxios.get.mock.calls[0][0];
+      const actualUrl = mockedApi.get.mock.calls[0][0];
       const url = new URL(actualUrl);
       expect(url.searchParams.get('expiration')).toBe('0');
     });
@@ -155,7 +155,7 @@ describe('Compose Trading Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'cancel', defaultParams);
+      assertComposeUrlCalled(mockedApi, 'cancel', defaultParams);
     });
 
     it('should include optional parameters', async () => {
@@ -171,7 +171,7 @@ describe('Compose Trading Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      expect(mockedAxios.get).toHaveBeenCalled();
+      expect(mockedApi.get).toHaveBeenCalled();
     });
 
     it('should handle multiple offer hashes', async () => {
@@ -179,8 +179,8 @@ describe('Compose Trading Operations', () => {
       
       for (const offer_hash of hashes) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        mockedAxios.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
         
         const result = await composeCancel({
           sourceAddress: mockAddress,
@@ -189,7 +189,7 @@ describe('Compose Trading Operations', () => {
         });
         
         expect(result).toEqual(createMockComposeResult());
-        expect(mockedAxios.get).toHaveBeenCalled();
+        expect(mockedApi.get).toHaveBeenCalled();
       }
     });
 
@@ -198,7 +198,7 @@ describe('Compose Trading Operations', () => {
       vi.clearAllMocks();
       mockedGetKeychainSettings.mockResolvedValue(mockSettings as any);
       const error = new Error('Invalid offer hash');
-      mockedAxios.get.mockRejectedValueOnce(error);
+      mockedApi.get.mockRejectedValueOnce(error);
 
       await expect(
         composeCancel({
@@ -227,7 +227,7 @@ describe('Compose Trading Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'dispenser', defaultParams);
+      assertComposeUrlCalled(mockedApi, 'dispenser', defaultParams);
     });
 
     it('should include optional parameters', async () => {
@@ -245,7 +245,7 @@ describe('Compose Trading Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      expect(mockedAxios.get).toHaveBeenCalled();
+      expect(mockedApi.get).toHaveBeenCalled();
     });
 
     it('should handle opening a dispenser', async () => {
@@ -261,7 +261,7 @@ describe('Compose Trading Operations', () => {
       });
       
       expect(result).toEqual(createMockComposeResult());
-      expect(mockedAxios.get).toHaveBeenCalled();
+      expect(mockedApi.get).toHaveBeenCalled();
     });
 
     it('should handle closing a dispenser', async () => {
@@ -277,7 +277,7 @@ describe('Compose Trading Operations', () => {
       });
       
       expect(result).toEqual(createMockComposeResult());
-      expect(mockedAxios.get).toHaveBeenCalled();
+      expect(mockedApi.get).toHaveBeenCalled();
     });
 
     it('should handle different mainchain rates', async () => {
@@ -285,8 +285,8 @@ describe('Compose Trading Operations', () => {
       
       for (const mainchainrate of rates) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        mockedAxios.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
         
         const params = { ...defaultParams, mainchainrate };
         const result = await composeDispenser({
@@ -296,7 +296,7 @@ describe('Compose Trading Operations', () => {
         });
         
         expect(result).toEqual(createMockComposeResult());
-        expect(mockedAxios.get).toHaveBeenCalled();
+        expect(mockedApi.get).toHaveBeenCalled();
       }
     });
   });
@@ -315,7 +315,7 @@ describe('Compose Trading Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'dispense', defaultParams);
+      assertComposeUrlCalled(mockedApi, 'dispense', defaultParams);
     });
 
     it('should include optional parameters', async () => {
@@ -331,7 +331,7 @@ describe('Compose Trading Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      expect(mockedAxios.get).toHaveBeenCalled();
+      expect(mockedApi.get).toHaveBeenCalled();
     });
 
     it('should handle different quantities', async () => {
@@ -339,8 +339,8 @@ describe('Compose Trading Operations', () => {
       
       for (const quantity of quantities) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        mockedAxios.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
         
         const params = { ...defaultParams, quantity };
         const result = await composeDispense({
@@ -350,7 +350,7 @@ describe('Compose Trading Operations', () => {
         });
         
         expect(result).toEqual(createMockComposeResult());
-        expect(mockedAxios.get).toHaveBeenCalled();
+        expect(mockedApi.get).toHaveBeenCalled();
       }
     });
 
@@ -359,8 +359,8 @@ describe('Compose Trading Operations', () => {
       
       for (const dispenser of dispensers) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        mockedAxios.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApi.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
         
         const params = { ...defaultParams, dispenser };
         const result = await composeDispense({
@@ -370,7 +370,7 @@ describe('Compose Trading Operations', () => {
         });
         
         expect(result).toEqual(createMockComposeResult());
-        expect(mockedAxios.get).toHaveBeenCalled();
+        expect(mockedApi.get).toHaveBeenCalled();
       }
     });
 
@@ -379,7 +379,7 @@ describe('Compose Trading Operations', () => {
       vi.clearAllMocks();
       mockedGetKeychainSettings.mockResolvedValue(mockSettings as any);
       const error = new Error('Insufficient BTC for dispense');
-      mockedAxios.get.mockRejectedValueOnce(error);
+      mockedApi.get.mockRejectedValueOnce(error);
 
       await expect(
         composeDispense({

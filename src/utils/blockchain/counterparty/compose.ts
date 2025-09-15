@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { apiClient, longApiClient } from '@/utils/api/axiosConfig';
+import api, { longApiClient } from '@/utils/api-client';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 export interface SignedTxEstimatedSize {
@@ -298,10 +297,10 @@ export async function composeTransaction<T>(
   });
 
   try {
-    const response = await axios.get<ApiResponse>(`${apiUrl}?${params.toString()}`, {
+    const response = await api.get<ApiResponse>(`${apiUrl}?${params.toString()}`, {
       headers: { 'Content-Type': 'application/json' },
     });
-    return response.data;
+    return response;
   } catch (error: any) {
     console.error('Compose transaction failed:', {
       endpoint,
@@ -337,10 +336,10 @@ export async function composeUtxoTransaction<T>(
     ...(encoding && { encoding }),
   });
 
-  const response = await axios.get<ApiResponse>(`${apiUrl}?${params.toString()}`, {
+  const response = await api.get<ApiResponse>(`${apiUrl}?${params.toString()}`, {
     headers: { 'Content-Type': 'application/json' },
   });
-  return response.data;
+  return response;
 }
 
 export async function composeBet(options: BetOptions): Promise<ApiResponse> {
@@ -505,8 +504,8 @@ export async function getDividendEstimateXcpFee(sourceAddress: string, asset: st
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/dividend/estimatexcpfees`;
   const params = new URLSearchParams({ asset });
-  const response = await axios.get<{ result: number }>(`${apiUrl}?${params.toString()}`);
-  return response.data.result;
+  const response = await api.get<{ result: number }>(`${apiUrl}?${params.toString()}`);
+  return response.result;
 }
 
 export async function composeIssuance(options: IssuanceOptions): Promise<ApiResponse> {
@@ -647,8 +646,8 @@ export async function composeSweep(options: SweepOptions): Promise<ApiResponse> 
 export async function getSweepEstimateXcpFee(sourceAddress: string): Promise<number> {
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/sweep/estimatexcpfees`;
-  const response = await axios.get<{ result: number }>(apiUrl);
-  return response.data.result;
+  const response = await api.get<{ result: number }>(apiUrl);
+  return response.result;
 }
 
 export async function composeFairminter(options: FairminterOptions): Promise<ApiResponse> {
@@ -739,8 +738,8 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
 export async function getAttachEstimateXcpFee(sourceAddress: string): Promise<number> {
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/attach/estimatexcpfees`;
-  const response = await axios.get<{ result: number }>(apiUrl);
-  return response.data.result;
+  const response = await api.get<{ result: number }>(apiUrl);
+  return response.result;
 }
 
 export async function composeDetach(options: DetachOptions): Promise<ApiResponse> {

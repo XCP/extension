@@ -1,5 +1,5 @@
 import { Transaction, SigHash } from '@scure/btc-signer';
-import { quickApiClient, API_TIMEOUTS } from '@/utils/api/axiosConfig';
+import { quickApiClient, API_TIMEOUTS } from '@/utils/api-client';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';

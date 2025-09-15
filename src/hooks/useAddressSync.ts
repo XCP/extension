@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api from '@/utils/api-client';
 
 interface SyncStatus {
   status: 'idle' | 'syncing' | 'completed' | 'error';
@@ -50,7 +50,7 @@ export function useAddressSync(
     
     try {
       // First try to get consolidation data
-      const response = await axios.get(
+      const response = await api.get(
         `https://app.xcp.io/api/v1/address/${address}/consolidation`
       );
       
@@ -61,7 +61,7 @@ export function useAddressSync(
       }
       
       // Check if data exists and when it was last updated
-      const data = response.data;
+      const data = response;
       if (!data.utxos || data.utxos.length === 0) {
         // No data yet, probably needs indexing
         setIsStale(true);
@@ -76,7 +76,7 @@ export function useAddressSync(
       }
     } catch (error) {
       // If we get 202, data is being indexed
-      if (axios.isAxiosError(error) && error.response?.status === 202) {
+      if (api.isApiError(error) && error.response?.status === 202) {
         setIsStale(true);
         // Auto-trigger sync since it's already started
         setSyncStatus({
@@ -91,11 +91,11 @@ export function useAddressSync(
   // Poll for sync status
   const pollStatus = useCallback(async (syncId: string) => {
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `https://app.xcp.io/api/v1/sync/${syncId}/status`
       );
-      
-      const data = response.data;
+
+      const data = response;
       
       if (data.status === 'completed') {
         // Stop polling
@@ -157,11 +157,11 @@ export function useAddressSync(
     });
     
     try {
-      const response = await axios.post(
+      const response = await api.post(
         `https://app.xcp.io/api/v1/address/${address}/sync`
       );
-      
-      const { sync_id, message, estimated_seconds } = response.data;
+
+      const { sync_id, message, estimated_seconds } = response;
       
       // Store sync ID
       syncIdRef.current = sync_id;
@@ -189,7 +189,7 @@ export function useAddressSync(
       
       setSyncStatus({
         status: 'error',
-        message: axios.isAxiosError(error) 
+        message: api.isApiError(error)
           ? error.response?.data?.error || 'Failed to start sync'
           : 'Failed to start sync'
       });

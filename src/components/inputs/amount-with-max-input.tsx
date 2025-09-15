@@ -1,4 +1,4 @@
-import axios from "axios";
+import api from '@/utils/api-client';
 import React, { useState, ChangeEvent, useEffect } from "react";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
@@ -134,7 +134,7 @@ export function AmountWithMaxInput({
       onChange(finalAmount);
     } catch (err: any) {
       console.error("Failed to calculate max amount:", err);
-      if (axios.isAxiosError(err)) {
+      if (api.isApiError(err)) {
         setError(err.response?.data?.error || err.message);
       } else if (err instanceof Error) {
         setError(err.message);

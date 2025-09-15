@@ -1,24 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { broadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
-import axios from 'axios';
+import api from '@/utils/api-client';
 import { getKeychainSettings, DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage';
 
-vi.mock('axios');
+vi.mock('@/utils/api-client');
 vi.mock('@/utils/storage/settingsStorage');
-vi.mock('@/utils/api/axiosConfig', () => ({
-  broadcastApiClient: {
-    post: vi.fn()
-  },
-  withRetry: vi.fn((fn) => fn()),
-  API_TIMEOUTS: {
-    BROADCAST: 45000
-  }
-}));
 
-const mockAxios = axios as any;
+const mockApi = api as any;
 
-// Import the mocked modules  
-import { broadcastApiClient } from '@/utils/api/axiosConfig';
+// Import the mocked modules
+import { broadcastApiClient } from '@/utils/api-client';
 const mockBroadcastClient = broadcastApiClient as any;
 
 describe('Transaction Broadcaster Utilities', () => {
