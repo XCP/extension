@@ -10,7 +10,7 @@ const mockChrome = {
       removeListener: vi.fn(),
     },
     sendMessage: vi.fn(),
-    lastError: null,
+    lastError: null as { message: string } | null,
   },
 };
 
