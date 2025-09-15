@@ -26,30 +26,20 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
   const { setLastActiveTime, lockAll, loaded: walletLoaded, authState } = useWallet();
   const { settings, isLoading: settingsLoading } = useSettings();
 
-  console.log('[IdleTimerWrapper] State:', {
-    walletLoaded,
-    settingsLoading,
-    authState,
-    autoLockTimeout: settings.autoLockTimeout
-  });
-
   if (!walletLoaded || settingsLoading) {
-    console.log('[IdleTimerWrapper] Not ready, returning null');
     // Wait for both wallet and settings to load before rendering
     return null;
   }
 
   // Handle edge cases for idle timer
   const handleIdle = useCallback(() => {
-    console.log('[IdleTimer] onIdle triggered, authState:', authState, 'timeout:', settings.autoLockTimeout);
     // Only lock if we're currently unlocked
     if (authState === 'UNLOCKED') {
-      console.log('[IdleTimer] Locking wallet due to idle');
       lockAll().catch(error => {
         console.error('[IdleTimer] Failed to lock wallet on idle:', error);
       });
     }
-  }, [authState, lockAll, settings.autoLockTimeout]);
+  }, [authState, lockAll]);
 
   const handleAction = useCallback(() => {
     // Only update last active time if we're unlocked
@@ -59,7 +49,6 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
   }, [authState, setLastActiveTime]);
 
   const handleActive = useCallback(() => {
-    console.log('[IdleTimer] onActive triggered - user returned from idle state');
     // This only triggers when transitioning from idle back to active
     if (authState === 'UNLOCKED') {
       setLastActiveTime();
@@ -69,29 +58,13 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
   // Disable idle timer if timeout is 0 or undefined
   const isIdleTimerEnabled = settings.autoLockTimeout && settings.autoLockTimeout > 0;
 
-  // Debug output that works in production builds
-  const debugInfo = {
-    enabled: isIdleTimerEnabled,
-    timeout: settings.autoLockTimeout,
-    authState,
-    disabled: !isIdleTimerEnabled,
-    settings: settings
-  };
-
-  // Store debug info on window for debugging
-  if (typeof window !== 'undefined') {
-    (window as any).idleTimerDebug = debugInfo;
-  }
-
-  console.log('[IdleTimer] Config:', debugInfo);
-
   // Use native idle timer hook
   useIdleTimer({
     timeout: settings.autoLockTimeout || 0,
     onIdle: handleIdle,
     onActive: handleActive,
-    onAction: handleAction, // Track all user activity for last active time
-    disabled: !isIdleTimerEnabled, // Simplified for debugging - remove authState check
+    onAction: handleAction,
+    disabled: !isIdleTimerEnabled || authState !== 'UNLOCKED',
     stopOnIdle: true,
   });
 

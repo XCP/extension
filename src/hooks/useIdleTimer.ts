@@ -75,23 +75,19 @@ export function useIdleTimer(options: UseIdleTimerOptions) {
 
   const reset = useCallback(() => {
     if (disabled || timeout <= 0) {
-      console.log('[useIdleTimer] Reset called but disabled or invalid timeout:', { disabled, timeout });
       return;
     }
 
-    console.log('[useIdleTimer] Resetting timer with timeout:', timeout);
     clearTimeout(timeoutRef.current);
 
     // Only call onActive when transitioning from idle to active
     if (isIdleRef.current) {
-      console.log('[useIdleTimer] Transitioning from idle to active');
       isIdleRef.current = false;
       setIsIdle(false);
       onActiveRef.current?.();
     }
 
     timeoutRef.current = setTimeout(() => {
-      console.log('[useIdleTimer] Timeout expired, setting idle state');
       isIdleRef.current = true;
       setIsIdle(true);
       onIdleRef.current?.();
@@ -100,15 +96,11 @@ export function useIdleTimer(options: UseIdleTimerOptions) {
 
   const handleActivity = useCallback((event?: Event) => {
     if (disabled) {
-      console.log('[useIdleTimer] Activity ignored - disabled');
       return;
     }
     if (stopOnIdle && isIdleRef.current) {
-      console.log('[useIdleTimer] Activity ignored - stopOnIdle and currently idle');
       return;
     }
-
-    console.log('[useIdleTimer] Activity detected:', event?.type || 'unknown');
 
     // Call onAction for all activity (for tracking last active time)
     onActionRef.current?.();
@@ -129,7 +121,6 @@ export function useIdleTimer(options: UseIdleTimerOptions) {
 
   // Single effect for managing the idle timer and event listeners
   useEffect(() => {
-    console.log('[useIdleTimer] Effect running with:', { disabled, timeout, eventsCount: events.length });
 
     // Cleanup previous event listeners
     eventsListenersRef.current.forEach(cleanup => cleanup());
@@ -138,7 +129,6 @@ export function useIdleTimer(options: UseIdleTimerOptions) {
     clearTimeout(timeoutRef.current);
 
     if (disabled) {
-      console.log('[useIdleTimer] Timer disabled, cleaning up');
       // If disabled, reset state and don't set up timer or events
       if (isIdleRef.current) {
         isIdleRef.current = false;
@@ -147,7 +137,6 @@ export function useIdleTimer(options: UseIdleTimerOptions) {
       return;
     }
 
-    console.log('[useIdleTimer] Starting timer and adding event listeners');
     // Start the timer
     reset();
 
@@ -155,7 +144,6 @@ export function useIdleTimer(options: UseIdleTimerOptions) {
     events.forEach(event => {
       const handler = throttledActivity.current;
       window.addEventListener(event, handler, { passive: true });
-      console.log('[useIdleTimer] Added listener for:', event);
 
       // Store cleanup function
       eventsListenersRef.current.push(() => {
@@ -165,7 +153,6 @@ export function useIdleTimer(options: UseIdleTimerOptions) {
 
     // Cleanup function
     return () => {
-      console.log('[useIdleTimer] Cleaning up timer and event listeners');
       clearTimeout(timeoutRef.current);
       eventsListenersRef.current.forEach(cleanup => cleanup());
       eventsListenersRef.current = [];
