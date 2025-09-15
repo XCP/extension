@@ -25,14 +25,17 @@ import {
 import * as formatUtils from '@/utils/format';
 import * as bitcoinBalance from '@/utils/blockchain/bitcoin/balance';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
+import { apiClient } from '@/utils/axios';
 
 // Mock dependencies
 vi.mock('axios');
+vi.mock('@/utils/axios');
 vi.mock('@/utils/format');
 vi.mock('@/utils/blockchain/bitcoin/balance');
 vi.mock('@/utils/storage/settingsStorage');
 
 const mockedAxios = vi.mocked(axios, true);
+const mockedApiClient = vi.mocked(apiClient, true);
 const mockedFormatAmount = vi.mocked(formatUtils.formatAmount);
 const mockedFetchBTCBalance = vi.mocked(bitcoinBalance.fetchBTCBalance);
 const mockedGetKeychainSettings = vi.mocked(settingsStorage.getKeychainSettings);
@@ -104,16 +107,22 @@ describe('counterparty/api.ts', () => {
 
   describe('fetchTokenBalances', () => {
     it('should return token balances array on valid response', async () => {
-      const mockData = { 
+      const mockData = {
         result: [mockTokenBalance],
       };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const balances = await fetchTokenBalances(mockAddress, { verbose: true });
 
       expect(Array.isArray(balances)).toBe(true);
       expect(balances[0]).toEqual(mockTokenBalance);
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${mockApiBase}/v2/addresses/${mockAddress}/balances`,
         expect.objectContaining({
           params: expect.objectContaining({
@@ -126,7 +135,13 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should return empty array if response format is invalid', async () => {
-      mockedAxios.get.mockResolvedValue({ data: { result: null } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: null },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const balances = await fetchTokenBalances(mockAddress);
 
@@ -135,16 +150,22 @@ describe('counterparty/api.ts', () => {
 
     it('should handle custom options correctly', async () => {
       const mockData = { result: [mockTokenBalance] };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       await fetchTokenBalances(mockAddress, {
         limit: 50,
         offset: 10,
         verbose: false,
         sort: 'asset',
-      });
+      } as any);
 
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           params: expect.objectContaining({
@@ -159,7 +180,7 @@ describe('counterparty/api.ts', () => {
 
     it('should handle axios errors gracefully', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockedAxios.get.mockRejectedValue(new Error('Network error'));
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       const balances = await fetchTokenBalances(mockAddress);
 
@@ -169,7 +190,13 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should return empty array for non-array result', async () => {
-      mockedAxios.get.mockResolvedValue({ data: { result: 'invalid' } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: 'invalid' },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const balances = await fetchTokenBalances(mockAddress);
 
@@ -180,7 +207,13 @@ describe('counterparty/api.ts', () => {
   describe('fetchTokenBalance', () => {
     it('should return token balance for existing asset', async () => {
       const mockData = { result: [mockTokenBalance] };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const balance = await fetchTokenBalance(mockAddress, 'XCP');
 
@@ -194,7 +227,13 @@ describe('counterparty/api.ts', () => {
 
     it('should return zero balance for non-existent asset', async () => {
       const mockData = { result: [] };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const balance = await fetchTokenBalance(mockAddress, 'NONEXISTENT');
 
@@ -224,14 +263,20 @@ describe('counterparty/api.ts', () => {
         quantity: 25000000,
         quantity_normalized: '0.25000000',
       };
-      const mockData = { 
-        result: [mockBalanceWithUtxo, mockBalanceWithoutUtxo] 
+      const mockData = {
+        result: [mockBalanceWithUtxo, mockBalanceWithoutUtxo]
       };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const balance = await fetchTokenBalance(mockAddress, 'XCP', { 
         excludeUtxos: true 
-      });
+      } as any);
 
       expect(balance?.quantity).toBe(25000000);
       expect(balance?.quantity_normalized).toBe('0.25');
@@ -241,7 +286,13 @@ describe('counterparty/api.ts', () => {
       const balance1 = { ...mockTokenBalance, quantity: 50000000, quantity_normalized: '0.5' };
       const balance2 = { ...mockTokenBalance, quantity: 25000000, quantity_normalized: '0.25' };
       const mockData = { result: [balance1, balance2] };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const balance = await fetchTokenBalance(mockAddress, 'XCP');
 
@@ -251,7 +302,7 @@ describe('counterparty/api.ts', () => {
 
     it('should handle axios errors and return null', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockedAxios.get.mockRejectedValue(new Error('Network error'));
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       const balance = await fetchTokenBalance(mockAddress, 'XCP');
 
@@ -261,7 +312,13 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should return null for missing result', async () => {
-      mockedAxios.get.mockResolvedValue({ data: { result: null } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: null },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const balance = await fetchTokenBalance(mockAddress, 'XCP');
 
@@ -277,7 +334,13 @@ describe('counterparty/api.ts', () => {
         utxo_address: mockAddress,
       };
       const mockData = { result: [mockUtxoBalance] };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const utxos = await fetchTokenUtxos(mockAddress, 'XCP');
 
@@ -288,7 +351,13 @@ describe('counterparty/api.ts', () => {
       const mockBalanceWithUtxo = { ...mockTokenBalance, utxo: 'abc123:0' };
       const mockBalanceWithoutUtxo = { ...mockTokenBalance, utxo: null };
       const mockData = { result: [mockBalanceWithUtxo, mockBalanceWithoutUtxo] };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const utxos = await fetchTokenUtxos(mockAddress, 'XCP');
 
@@ -297,7 +366,7 @@ describe('counterparty/api.ts', () => {
 
     it('should return empty array on error', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockedAxios.get.mockRejectedValue(new Error('Network error'));
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       const utxos = await fetchTokenUtxos(mockAddress, 'XCP');
 
@@ -310,12 +379,18 @@ describe('counterparty/api.ts', () => {
   describe('fetchAssetDetails', () => {
     it('should return asset details for valid asset', async () => {
       const mockData = { result: mockAssetInfo };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const assetDetails = await fetchAssetDetails('XCP');
 
       expect(assetDetails).toEqual(mockAssetInfo);
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${mockApiBase}/v2/assets/XCP`,
         expect.objectContaining({
           params: { verbose: true },
@@ -324,7 +399,13 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should return null for non-existent asset', async () => {
-      mockedAxios.get.mockResolvedValue({ data: { result: null } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: null },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const assetDetails = await fetchAssetDetails('NONEXISTENT');
 
@@ -333,7 +414,7 @@ describe('counterparty/api.ts', () => {
 
     it('should handle axios errors and return null', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockedAxios.get.mockRejectedValue(new Error('Network error'));
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       const assetDetails = await fetchAssetDetails('XCP');
 
@@ -358,19 +439,31 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should fetch asset details and balance for non-BTC assets', async () => {
-      const mockAssetResponse = { data: { result: mockAssetInfo } };
-      mockedAxios.get.mockResolvedValueOnce(mockAssetResponse);
+      const mockAssetResponse = {
+        data: { result: mockAssetInfo },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any;
+      mockedApiClient.get.mockResolvedValueOnce(mockAssetResponse);
       
       // Mock fetchTokenBalance call within the function
       const mockBalance = { quantity_normalized: '100.00000000' };
-      const mockBalanceResponse = { data: { result: [mockBalance] } };
-      mockedAxios.get.mockResolvedValueOnce(mockBalanceResponse);
+      const mockBalanceResponse = {
+        data: { result: [mockBalance] },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any;
+      mockedApiClient.get.mockResolvedValueOnce(mockBalanceResponse);
 
       const result = await fetchAssetDetailsAndBalance('XCP', mockAddress);
 
       expect(result.isDivisible).toBe(mockAssetInfo.divisible);
       expect(result.assetInfo).toEqual(mockAssetInfo);
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${mockApiBase}/v2/assets/XCP`,
         expect.any(Object)
       );
@@ -378,7 +471,7 @@ describe('counterparty/api.ts', () => {
 
     it('should handle errors gracefully with default values', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockedAxios.get.mockRejectedValue(new Error('Network error'));
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       const result = await fetchAssetDetailsAndBalance('BADTOKEN', mockAddress);
 
@@ -405,12 +498,18 @@ describe('counterparty/api.ts', () => {
         next_cursor: null,
         result_count: 1,
       };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchUtxoBalances('abc123:0');
 
       expect(result).toEqual(mockData);
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${mockApiBase}/v2/utxos/abc123:0/balances`,
         expect.objectContaining({
           params: expect.objectContaining({
@@ -423,16 +522,22 @@ describe('counterparty/api.ts', () => {
 
     it('should handle custom options', async () => {
       const mockData = { result: [], next_cursor: null, result_count: 0 };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       await fetchUtxoBalances('abc123:0', {
         cursor: 'next123',
         limit: 50,
         offset: 10,
         show_unconfirmed: true,
-      });
+      } as any);
 
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           params: expect.objectContaining({
@@ -448,7 +553,7 @@ describe('counterparty/api.ts', () => {
 
     it('should return empty response on error', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockedAxios.get.mockRejectedValue(new Error('Network error'));
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       const result = await fetchUtxoBalances('abc123:0');
 
@@ -468,13 +573,19 @@ describe('counterparty/api.ts', () => {
         result: [mockOrder],
         result_count: 1,
       };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchOrders(mockAddress);
 
       expect(result.orders).toEqual([mockOrder]);
       expect(result.total).toBe(1);
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${mockApiBase}/v2/addresses/${mockAddress}/orders`,
         expect.objectContaining({
           params: expect.objectContaining({
@@ -486,16 +597,22 @@ describe('counterparty/api.ts', () => {
 
     it('should handle filter options', async () => {
       const mockData = { result: [mockOrder], result_count: 1 };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       await fetchOrders(mockAddress, {
         status: 'open',
         limit: 50,
         offset: 10,
         verbose: false,
-      });
+      } as any);
 
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           params: expect.objectContaining({
@@ -510,7 +627,7 @@ describe('counterparty/api.ts', () => {
 
     it('should throw error on axios failure', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockedAxios.get.mockRejectedValue(new Error('Network error'));
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       await expect(fetchOrders(mockAddress)).rejects.toThrow('Failed to fetch orders');
       expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch orders:', expect.any(Error));
@@ -533,12 +650,18 @@ describe('counterparty/api.ts', () => {
         get_price: 100,
         confirmed: true,
       };
-      mockedAxios.get.mockResolvedValue({ data: { result: mockOrderDetails } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: mockOrderDetails },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchOrder('abc123');
 
       expect(result).toEqual(mockOrderDetails);
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${mockApiBase}/v2/orders/abc123`,
         expect.objectContaining({
           params: expect.objectContaining({
@@ -550,7 +673,13 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should return null for non-existent order', async () => {
-      mockedAxios.get.mockResolvedValue({ data: { result: null } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: null },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchOrder('nonexistent');
 
@@ -558,14 +687,20 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should handle custom options', async () => {
-      mockedAxios.get.mockResolvedValue({ data: { result: null } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: null },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       await fetchOrder('abc123', {
         verbose: false,
         showUnconfirmed: true,
-      });
+      } as any);
 
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           params: expect.objectContaining({
@@ -578,7 +713,7 @@ describe('counterparty/api.ts', () => {
 
     it('should return null on error', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockedAxios.get.mockRejectedValue(new Error('Network error'));
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       const result = await fetchOrder('abc123');
 
@@ -590,12 +725,18 @@ describe('counterparty/api.ts', () => {
 
   describe('fetchTransaction', () => {
     it('should fetch transaction successfully', async () => {
-      mockedAxios.get.mockResolvedValue({ data: { result: mockTransaction } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: mockTransaction },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchTransaction('abc123');
 
       expect(result).toEqual(mockTransaction);
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${mockApiBase}/v2/transactions/abc123`,
         expect.objectContaining({
           params: expect.objectContaining({
@@ -607,7 +748,13 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should return null for non-existent transaction', async () => {
-      mockedAxios.get.mockResolvedValue({ data: { result: null } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: null },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchTransaction('nonexistent');
 
@@ -616,7 +763,7 @@ describe('counterparty/api.ts', () => {
 
     it('should throw error on axios failure', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockedAxios.get.mockRejectedValue(new Error('Network error'));
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       await expect(fetchTransaction('abc123')).rejects.toThrow('Failed to fetch transaction');
       expect(consoleSpy).toHaveBeenCalledWith('Error fetching transaction:', expect.any(Error));
@@ -630,12 +777,18 @@ describe('counterparty/api.ts', () => {
         result: [mockTransaction],
         result_count: 1,
       };
-      mockedAxios.get.mockResolvedValue({ data: mockResponse });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchTransactions(mockAddress);
 
       expect(result).toEqual(mockResponse);
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${mockApiBase}/v2/addresses/${mockAddress}/transactions`,
         expect.objectContaining({
           params: expect.objectContaining({
@@ -650,16 +803,22 @@ describe('counterparty/api.ts', () => {
 
     it('should handle custom options', async () => {
       const mockResponse = { result: [], result_count: 0 };
-      mockedAxios.get.mockResolvedValue({ data: mockResponse });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       await fetchTransactions(mockAddress, {
         limit: 50,
         offset: 10,
         verbose: false,
         show_unconfirmed: false,
-      });
+      } as any);
 
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           params: expect.objectContaining({
@@ -674,7 +833,7 @@ describe('counterparty/api.ts', () => {
 
     it('should throw error on axios failure', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockedAxios.get.mockRejectedValue(new Error('Network error'));
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       await expect(fetchTransactions(mockAddress)).rejects.toThrow();
       expect(consoleSpy).toHaveBeenCalledWith('Error fetching transactions:', expect.any(Error));
@@ -703,13 +862,19 @@ describe('counterparty/api.ts', () => {
         result: [mockDispenser],
         result_count: 1,
       };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchAddressDispensers(mockAddress);
 
       expect(result.dispensers).toEqual([mockDispenser]);
       expect(result.total).toBe(1);
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${mockApiBase}/v2/addresses/${mockAddress}/dispensers`,
         expect.any(Object)
       );
@@ -717,16 +882,22 @@ describe('counterparty/api.ts', () => {
 
     it('should handle filter options', async () => {
       const mockData = { result: [], result_count: 0 };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       await fetchAddressDispensers(mockAddress, {
         status: 'open',
         limit: 50,
         offset: 10,
         verbose: false,
-      });
+      } as any);
 
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           params: expect.objectContaining({
@@ -741,7 +912,7 @@ describe('counterparty/api.ts', () => {
 
     it('should throw error on axios failure', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockedAxios.get.mockRejectedValue(new Error('Network error'));
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       await expect(fetchAddressDispensers(mockAddress)).rejects.toThrow('Failed to fetch dispensers');
       expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch dispensers:', expect.any(Error));
@@ -759,12 +930,18 @@ describe('counterparty/api.ts', () => {
         give_remaining: 1000000,
         give_remaining_normalized: '10.00000000',
       };
-      mockedAxios.get.mockResolvedValue({ data: { result: mockDispenser } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: mockDispenser },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchDispenserByHash('abc123');
 
       expect(result).toEqual(mockDispenser);
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${mockApiBase}/v2/dispensers/abc123`,
         expect.objectContaining({
           params: { verbose: true },
@@ -773,7 +950,13 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should return null for non-existent dispenser', async () => {
-      mockedAxios.get.mockResolvedValue({ data: { result: null } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: null },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchDispenserByHash('nonexistent');
 
@@ -782,7 +965,7 @@ describe('counterparty/api.ts', () => {
 
     it('should return null on error', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockedAxios.get.mockRejectedValue(new Error('Network error'));
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       const result = await fetchDispenserByHash('abc123');
 
@@ -802,12 +985,18 @@ describe('counterparty/api.ts', () => {
         locked: false,
       };
       const mockData = { result: [mockOwnedAsset] };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchOwnedAssets(mockAddress);
 
       expect(result).toEqual([mockOwnedAsset]);
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${mockApiBase}/v2/addresses/${mockAddress}/assets/owned`,
         expect.objectContaining({
           params: { verbose: true },
@@ -816,7 +1005,13 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should return empty array for no owned assets', async () => {
-      mockedAxios.get.mockResolvedValue({ data: { result: null } });
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: null },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchOwnedAssets(mockAddress);
 
@@ -825,7 +1020,7 @@ describe('counterparty/api.ts', () => {
 
     it('should return empty array on error', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockedAxios.get.mockRejectedValue(new Error('Network error'));
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       const result = await fetchOwnedAssets(mockAddress);
 
@@ -841,11 +1036,17 @@ describe('counterparty/api.ts', () => {
       mockedGetKeychainSettings.mockResolvedValue({ counterpartyApiBase: customApiBase } as any);
       
       const mockData = { result: [] };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       await fetchTokenBalances(mockAddress);
 
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${customApiBase}/v2/addresses/${mockAddress}/balances`,
         expect.any(Object)
       );
@@ -862,31 +1063,49 @@ describe('counterparty/api.ts', () => {
   describe('integration scenarios', () => {
     it('should handle complete token information flow', async () => {
       // Mock asset details
-      const assetResponse = { data: { result: mockAssetInfo } };
-      mockedAxios.get.mockResolvedValueOnce(assetResponse);
+      const assetResponse = {
+        data: { result: mockAssetInfo },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any;
+      mockedApiClient.get.mockResolvedValueOnce(assetResponse);
       
-      // Mock token balance  
-      const balanceResponse = { data: { result: [mockTokenBalance] } };
-      mockedAxios.get.mockResolvedValueOnce(balanceResponse);
+      // Mock token balance
+      const balanceResponse = {
+        data: { result: [mockTokenBalance] },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any;
+      mockedApiClient.get.mockResolvedValueOnce(balanceResponse);
 
       const result = await fetchAssetDetailsAndBalance('XCP', mockAddress);
 
       expect(result.assetInfo).toEqual(mockAssetInfo);
       expect(result.isDivisible).toBe(true);
-      expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+      expect(mockedApiClient.get).toHaveBeenCalledTimes(2);
     });
 
     it('should handle pagination correctly', async () => {
       const mockData = { result: [mockTransaction], result_count: 100 };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       const result = await fetchTransactions(mockAddress, { 
         limit: 10, 
         offset: 20 
-      });
+      } as any);
 
       expect(result.result_count).toBe(100);
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           params: expect.objectContaining({
@@ -899,15 +1118,21 @@ describe('counterparty/api.ts', () => {
 
     it('should handle verbose mode correctly across functions', async () => {
       const mockData = { result: [] };
-      mockedAxios.get.mockResolvedValue({ data: mockData });
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
 
       // Test multiple functions with verbose: false
       await fetchTokenBalances(mockAddress, { verbose: false });
       await fetchAssetDetails('XCP', { verbose: false });
       await fetchOrders(mockAddress, { verbose: false });
 
-      expect(mockedAxios.get).toHaveBeenCalledTimes(3);
-      mockedAxios.get.mock.calls.forEach(call => {
+      expect(mockedApiClient.get).toHaveBeenCalledTimes(3);
+      mockedApiClient.get.mock.calls.forEach(call => {
         expect(call[1]?.params?.verbose).toBe(false);
       });
     });

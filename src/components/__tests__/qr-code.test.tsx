@@ -4,7 +4,7 @@ import '@testing-library/jest-dom/vitest';
 import { QRCode } from '../qr-code';
 
 // Mock the QR generator to avoid complex canvas operations in tests
-vi.mock('@/utils/qr-generator', () => ({
+vi.mock('@/utils/qr-code', () => ({
   generateQRMatrix: vi.fn(() => {
     // Return a simple 25x25 matrix for testing
     const size = 25;

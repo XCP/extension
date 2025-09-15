@@ -1,8 +1,8 @@
+import React from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, renderHook, waitFor } from '@testing-library/react';
 import { LoadingProvider, useLoading } from '../loading-context';
 import { Spinner } from '../../components/spinner';
-import React from 'react';
 
 describe('LoadingContext', () => {
   beforeEach(() => {

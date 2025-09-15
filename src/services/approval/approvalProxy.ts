@@ -4,7 +4,7 @@
  * Provides type-safe access to ApprovalService from popup/content contexts
  */
 
-import { defineProxyService } from '@webext-core/proxy-service';
+import { defineProxyService } from '@/utils/proxy';
 import { ApprovalService } from './ApprovalService';
 
 export const [registerApprovalService, getApprovalService] = defineProxyService(

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { quickApiClient } from '@/utils/api/axiosConfig';
+import { apiClient } from '@/utils/axios';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 
 /**
@@ -27,7 +27,7 @@ export interface UTXO {
 export async function fetchUTXOs(address: string, signal?: AbortSignal): Promise<UTXO[]> {
   try {
     // Use quickApiClient with 10 second timeout for UTXO lookups
-    const response = await quickApiClient.get<UTXO[]>(
+    const response = await apiClient.get<UTXO[]>(
       `https://mempool.space/api/address/${address}/utxo`,
       { signal }
     );
@@ -72,7 +72,7 @@ export function getUtxoByTxid(utxos: UTXO[], txid: string, vout: number): UTXO |
 export async function fetchPreviousRawTransaction(txid: string): Promise<string | null> {
   try {
     const settings = await getKeychainSettings();
-    const response = await axios.get<{ result: any }>(
+    const response = await apiClient.get<{ result: any }>(
       `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
     );
 
@@ -97,7 +97,7 @@ export async function fetchPreviousRawTransaction(txid: string): Promise<string 
 export async function fetchBitcoinTransaction(txid: string): Promise<any | null> {
   try {
     const settings = await getKeychainSettings();
-    const response = await axios.get<{ result: any }>(
+    const response = await apiClient.get<{ result: any }>(
       `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
     );
 

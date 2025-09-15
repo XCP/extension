@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useState, ChangeEvent, useEffect } from "react";
+import { useState, ChangeEvent, useEffect } from "react";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { isValidBase58Address } from "@/utils/blockchain/bitcoin";

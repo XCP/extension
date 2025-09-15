@@ -1,4 +1,4 @@
-import React, { type ReactElement, useEffect, useState } from "react";
+import { type ReactElement, useEffect, useState } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAssetQuantity } from "@/utils/format";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty";

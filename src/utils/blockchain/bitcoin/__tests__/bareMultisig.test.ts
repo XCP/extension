@@ -4,9 +4,9 @@ import { Transaction, OutScript } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 
-// Mock the quickApiClient
-vi.mock('@/utils/api/axiosConfig', () => ({
-  quickApiClient: {
+// Mock the apiClient
+vi.mock('@/utils/axios', () => ({
+  apiClient: {
     get: vi.fn()
   },
   API_TIMEOUTS: {
@@ -16,8 +16,8 @@ vi.mock('@/utils/api/axiosConfig', () => ({
 }));
 vi.mock('@/utils/storage/settingsStorage');
 
-import { quickApiClient } from '@/utils/api/axiosConfig';
-const mockQuickApiClient = quickApiClient as any;
+import { apiClient } from '@/utils/axios';
+const mockApiClient = apiClient as any;
 
 // Helper function to create a mock implementation that handles URLs
 const createMockGetImplementation = (mockResponses: Map<string, any>) => {
@@ -79,7 +79,7 @@ describe('Bare Multisig Utilities', () => {
     });
 
     it('should throw error when no UTXOs are found', async () => {
-      mockQuickApiClient.get.mockResolvedValue({
+      mockApiClient.get.mockResolvedValue({
         data: { data: [] }
       });
 
@@ -100,7 +100,7 @@ describe('Bare Multisig Utilities', () => {
         ['utxos', { data: mockUtxos }],
         ['rawtx', 'deadbeef']
       ]);
-      mockQuickApiClient.get = createMockGetImplementation(mockResponses);
+      mockApiClient.get = createMockGetImplementation(mockResponses);
 
       await expect(consolidateBareMultisig(mockPrivateKey, mockAddress, 10, undefined, { skipSpentCheck: true }))
         .rejects.toThrow('No suitable UTXOs after filtering.');
@@ -142,7 +142,7 @@ describe('Bare Multisig Utilities', () => {
         '00000000'; // Locktime
 
       let callCount = 0;
-      mockQuickApiClient.get = vi.fn((url: string) => {
+      mockApiClient.get = vi.fn((url: string) => {
         callCount++;
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
@@ -199,7 +199,7 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockQuickApiClient.get = vi.fn((url: string) => {
+      mockApiClient.get = vi.fn((url: string) => {
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
           return Promise.resolve({ data: { data: mockUtxos } });
@@ -214,7 +214,7 @@ describe('Bare Multisig Utilities', () => {
       const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10, destinationAddress, { skipSpentCheck: true });
       
       expect(result).toBeDefined();
-      expect(mockQuickApiClient.get).toHaveBeenCalled();
+      expect(mockApiClient.get).toHaveBeenCalled();
     });
 
     it('should handle insufficient funds error', async () => {
@@ -249,7 +249,7 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockQuickApiClient.get = vi.fn((url: string) => {
+      mockApiClient.get = vi.fn((url: string) => {
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
           return Promise.resolve({ data: { data: mockUtxos } });
@@ -286,7 +286,7 @@ describe('Bare Multisig Utilities', () => {
 
       // Mock all endpoints to fail
       let callCount = 0;
-      mockQuickApiClient.get = vi.fn((url: string) => {
+      mockApiClient.get = vi.fn((url: string) => {
         callCount++;
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
@@ -350,7 +350,7 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockQuickApiClient.get = vi.fn((url: string) => {
+      mockApiClient.get = vi.fn((url: string) => {
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
           return Promise.resolve({ data: { data: mockUtxos } });
@@ -370,7 +370,7 @@ describe('Bare Multisig Utilities', () => {
       
       expect(result).toBeDefined();
       // The mock implementation is being called more times due to fallbacks
-      expect(mockQuickApiClient.get).toHaveBeenCalled();
+      expect(mockApiClient.get).toHaveBeenCalled();
     });
 
     it('should work with compressed public key in multisig script', async () => {
@@ -405,7 +405,7 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockQuickApiClient.get = vi.fn((url: string) => {
+      mockApiClient.get = vi.fn((url: string) => {
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
           return Promise.resolve({ data: { data: mockUtxos } });
@@ -464,7 +464,7 @@ describe('Bare Multisig Utilities', () => {
         '00000000'; // Locktime
 
       let spentCheckCount = 0;
-      mockQuickApiClient.get = vi.fn((url: string) => {
+      mockApiClient.get = vi.fn((url: string) => {
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
           return Promise.resolve({ data: { data: mockUtxos } });
@@ -489,7 +489,7 @@ describe('Bare Multisig Utilities', () => {
       
       expect(result).toBeDefined();
       // Multiple calls due to spent checks and raw tx fetches for both UTXOs
-      expect(mockQuickApiClient.get).toHaveBeenCalled();
+      expect(mockApiClient.get).toHaveBeenCalled();
     });
 
   });
@@ -527,7 +527,7 @@ describe('Bare Multisig Utilities', () => {
         '00000000'; // Locktime
 
       let callCount = 0;
-      mockQuickApiClient.get = vi.fn((url: string) => {
+      mockApiClient.get = vi.fn((url: string) => {
         callCount++;
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
@@ -597,7 +597,7 @@ describe('Bare Multisig Utilities', () => {
         outputsHex + // All 500 outputs
         '00000000'; // Locktime
 
-      mockQuickApiClient.get = vi.fn((url: string) => {
+      mockApiClient.get = vi.fn((url: string) => {
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
           return Promise.resolve({ data: { data: mockUtxos } });
@@ -654,7 +654,7 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockQuickApiClient.get = vi.fn((url: string) => {
+      mockApiClient.get = vi.fn((url: string) => {
         // UTXO fetch
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
           return Promise.resolve({ data: { data: mockUtxos } });
@@ -676,7 +676,7 @@ describe('Bare Multisig Utilities', () => {
       
       expect(result).toBeDefined();
       // Should call API at least twice: UTXOs fetch and raw tx fetch
-      expect(mockQuickApiClient.get).toHaveBeenCalledTimes(3);
+      expect(mockApiClient.get).toHaveBeenCalledTimes(3);
     });
   });
 });

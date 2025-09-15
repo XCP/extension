@@ -1,10 +1,12 @@
-import React, {
+import {
   createContext,
   useCallback,
   useEffect,
   useState,
+  useRef,
   type ReactElement,
   type ReactNode,
+  use
 } from "react";
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import { getWalletService } from "@/services/walletService";
@@ -138,7 +140,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     walletLocked: true,
     loaded: false,
   });
-  const refreshInProgress = React.useRef(false);
+  const refreshInProgress = useRef(false);
 
   const refreshWalletState = useCallback(async () => {
     // Use proper locking instead of simple ref check
@@ -410,7 +412,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
  * @throws {Error} If used outside WalletProvider
  */
 export function useWallet(): WalletContextType {
-  const context = React.use(WalletContext);
+  const context = use(WalletContext);
   if (!context) throw new Error("useWallet must be used within a WalletProvider");
   return context;
 }

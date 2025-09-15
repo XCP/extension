@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useState, useEffect, use, type ReactNode } from "react";
 import { getBtcPrice } from "@/utils/blockchain/bitcoin";
 
 /**
@@ -76,7 +76,7 @@ export const PriceProvider = ({ children }: { children: ReactNode }): React.Reac
  * @throws {Error} If used outside a PriceProvider.
  */
 export const usePrice = (): PriceContextValue => {
-  const context = React.use(PriceContext);
+  const context = use(PriceContext);
   if (!context) {
     throw new Error("usePrice must be used within a PriceProvider");
   }

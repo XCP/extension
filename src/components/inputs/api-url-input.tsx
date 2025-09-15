@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { FiRotateCcw } from 'react-icons/fi';
 import { Input } from '@headlessui/react';
 import { validateCounterpartyApi } from '@/utils/validation';

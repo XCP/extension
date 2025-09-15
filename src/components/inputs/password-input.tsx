@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { Field, Input, Label, Description } from '@headlessui/react';
 import { Button } from '@/components/button';

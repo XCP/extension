@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { generateQRMatrix } from '@/utils/qr-generator';
+import { useEffect, useRef, memo } from 'react';
+import { generateQRMatrix } from '@/utils/qr-code';
 
 interface QRCanvasProps {
   /**
@@ -45,7 +45,7 @@ interface QRCanvasProps {
   className?: string;
 }
 
-export const QRCanvas = React.memo(({
+export const QRCanvas = memo(({
   text,
   size = 200,
   errorCorrectionLevel = 'M',

@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { Header } from '../header';
-import React from 'react';
 
 // Mock the logo import
 vi.mock('@/assets/logo.png', () => ({

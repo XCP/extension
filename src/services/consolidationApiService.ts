@@ -4,7 +4,7 @@
  */
 
 import axios from 'axios';
-import { apiClient, API_TIMEOUTS } from '@/utils/api/axiosConfig';
+import { apiClient, API_TIMEOUTS } from '@/utils/axios';
 
 /* ══════════════════════════════════════════════════════════════════════════
  * TYPE DEFINITIONS
