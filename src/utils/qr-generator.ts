@@ -179,7 +179,8 @@ function encodeData(text: string, mode: Mode): number[] {
     case Mode.BYTE: {
       const encoder = new TextEncoder();
       const bytes = encoder.encode(text);
-      for (const byte of bytes) {
+      for (let i = 0; i < bytes.length; i++) {
+        const byte = bytes[i];
         for (let j = 7; j >= 0; j--) {
           bits.push((byte >> j) & 1);
         }
