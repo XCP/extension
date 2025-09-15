@@ -7,6 +7,7 @@
  */
 
 import { VerificationResult, VerificationOptions } from './types';
+import { validateMessage, detectAndNormalizeSignature, validateSignatureFormat } from './utils';
 
 // Spec-compliant verifiers
 import { verifyBIP322 } from './specs/bip322';
@@ -34,6 +35,49 @@ export async function verifyMessage(
 ): Promise<VerificationResult> {
   const { strict = false } = options;
 
+  // First, try verification with original inputs (no normalization)
+  const originalResult = await tryVerificationSequence(message, signature, address, strict);
+  if (originalResult.valid) {
+    return originalResult;
+  }
+
+  // If original failed and we're not in strict mode, try with normalization
+  if (!strict) {
+    const messageValidation = validateMessage(message);
+    const signatureValidation = detectAndNormalizeSignature(signature);
+
+    // Only try normalization if we have actual normalization to apply
+    const hasMessageNormalization = messageValidation.normalized !== message;
+    const hasSignatureNormalization = signatureValidation.normalized !== signature && signatureValidation.valid;
+
+    if (hasMessageNormalization || hasSignatureNormalization) {
+      const normalizedMessage = messageValidation.normalized;
+      const normalizedSignature = hasSignatureNormalization ? signatureValidation.normalized : signature;
+
+      const normalizedResult = await tryVerificationSequence(normalizedMessage, normalizedSignature, address, strict);
+      if (normalizedResult.valid) {
+        return {
+          ...normalizedResult,
+          method: `${normalizedResult.method} (normalized)`,
+          details: `Succeeded with normalization: ${hasMessageNormalization ? 'message' : ''}${hasMessageNormalization && hasSignatureNormalization ? '+' : ''}${hasSignatureNormalization ? 'signature' : ''}`
+        };
+      }
+    }
+  }
+
+  // Return the original failure result
+  return originalResult;
+}
+
+/**
+ * Try the complete verification sequence with given inputs
+ */
+async function tryVerificationSequence(
+  message: string,
+  signature: string,
+  address: string,
+  strict: boolean
+): Promise<VerificationResult> {
   // Always try spec-compliant verifiers first
 
   // 1. Try BIP-322 (most modern, supports all address types)

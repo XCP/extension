@@ -13,6 +13,9 @@ This implementation follows a **clean architecture pattern** that separates spec
 - ✅ **Cross-platform compatibility** - Works with FreeWallet, Ledger, Sparrow, and other wallets
 - ✅ **Clear separation of concerns** - Spec compliance vs compatibility workarounds
 - ✅ **Verification order control** - Strict mode vs compatibility mode
+- ✅ **Smart normalization** - Tries original inputs first, then normalization if needed
+- ✅ **Format detection** - Handles hex, base64, and BIP-322 signature formats
+- ✅ **Message normalization** - Handles line ending variations and encoding issues
 
 ## Architecture
 
@@ -68,17 +71,19 @@ console.log(report.method);            // which method succeeded
 
 ## Compatibility Matrix
 
-Based on actual test results:
+Based on specification research and testing:
 
 | Wallet/Platform | Address Types | Status | Method | Notes |
 |----------------|---------------|--------|---------|-------|
+| **Bitcoin Core** | **P2PKH only** | ✅ Expected | **Legacy `signmessage`** | No segwit/taproot signing; BIP-322 only in PRs |
+| **Electrum** | P2PKH, P2WPKH, P2SH-P2WPKH | ✅ Expected | **BIP-137 segwit variant** | "Segwit message signing" - not pure BIP-322 |
+| **Sparrow** | **P2WPKH, P2TR (singlesig)** | ✅ Expected | **BIP-322 (simple)** | Implements BIP-322 for singlesig only |
 | **FreeWallet** | P2PKH | ✅ Tested | Loose BIP-137 | Verified with real signature |
-| **Ledger** | P2TR (via BIP-137) | ✅ Tested | Loose BIP-137 | Uses BIP-137 for Taproot (non-standard) |
-| **Bitcoin Core** | P2PKH | ✅ Expected | BIP-137/Legacy | Standard implementation |
-| **Electrum** | P2PKH, P2WPKH, P2SH-P2WPKH | ✅ Expected | BIP-137 | Should follow standard |
-| **Sparrow** | All types | ✅ Expected | BIP-137/Loose | May need compatibility |
-| **Bitcore** | P2PKH, P2WPKH | ✅ Expected | BIP-137/Loose | Various quirks |
-| **Modern Wallets** | P2TR | ⚠️ Limited | BIP-322 | Depends on external BIP-322 impl |
+| **Ledger** | P2PKH, P2WPKH (device-dep.) | ✅ Expected | Legacy/BIP-137 | Taproot support varies by device/app version |
+| **Trezor Suite** | P2PKH, P2WPKH (device-dep.) | ✅ Expected | Legacy/BIP-137 | Hardware wallet cross-check |
+| **Bitcoin Knots** | P2WPKH, P2TR | ✅ Expected | **BIP-322, BIP-137, Legacy** | Modern node with full support |
+| **Xverse** | **P2TR** | ✅ Expected | **BIP-322** | Mobile Taproot vectors |
+| **Bitcore** | P2PKH, P2WPKH | ✅ Expected | BIP-137/Loose | Various implementation quirks |
 
 ### Legend
 - **✅ Tested**: Actually tested with real signatures
