@@ -41,23 +41,32 @@ if (!hashes.hmacSha256) {
 function recoverPublicKey(
   messageHash: Uint8Array,
   signature: Uint8Array,
-  recovery: number
+  recovery: number,
+  compressed: boolean = true
 ): Uint8Array | null {
   try {
     // Extract r and s from signature
     const r = signature.slice(1, 33);
     const s = signature.slice(33, 65);
-    
-    // Create signature with recovery byte for recoverPublicKey
-    // v3 expects: recovery (1 byte) + r (32 bytes) + s (32 bytes)
-    const sigWithRecovery = new Uint8Array(65);
-    sigWithRecovery[0] = recovery;
-    sigWithRecovery.set(r, 1);
-    sigWithRecovery.set(s, 33);
-    
-    // Recover the public key using the recovered format
-    const pubKey = secp256k1.recoverPublicKey(sigWithRecovery, messageHash, { prehash: true });
-    return pubKey; // Already compressed bytes
+
+    // Create signature object for noble/secp256k1
+    const sig = new secp256k1.Signature(
+      BigInt('0x' + hex.encode(r)),
+      BigInt('0x' + hex.encode(s))
+    );
+
+    // Add recovery information
+    const sigWithRecovery = sig.addRecoveryBit(recovery);
+
+    // Recover the public key
+    const point = sigWithRecovery.recoverPublicKey(messageHash);
+
+    // Return in appropriate format
+    if (compressed) {
+      return point.toRawBytes(true);
+    } else {
+      return point.toRawBytes(false);
+    }
   } catch (error) {
     console.error('Public key recovery failed:', error);
     return null;
@@ -65,12 +74,15 @@ function recoverPublicKey(
 }
 
 /**
- * Verify using legacy BIP-137 format
+ * Verify using legacy BIP-137 format with optional loose verification
+ * Loose verification allows signatures with incorrect header flags to be validated
+ * by checking if the recovered public key can derive the target address
  */
 async function verifyLegacyFormat(
   message: string,
   signature: string,
-  address: string
+  address: string,
+  useLooseVerification: boolean = true
 ): Promise<boolean> {
   try {
     // Decode base64 signature
@@ -117,31 +129,77 @@ async function verifyLegacyFormat(
       return false;
     }
 
-    // Recover public key
-    const publicKey = recoverPublicKey(messageHash, sigBytes, recoveryId);
+    // Recover public key with correct compression
+    const publicKey = recoverPublicKey(messageHash, sigBytes, recoveryId, compressed);
     if (!publicKey) {
       return false;
     }
 
-    // Derive address from recovered public key based on flag
-    let derivedAddress: string;
+    // Use the recovered public key
+    const finalPublicKey = publicKey;
 
-    if (flag >= 27 && flag <= 34) {
-      // P2PKH
-      derivedAddress = btc.p2pkh(publicKey).address!;
-    } else if (flag >= 35 && flag <= 38) {
-      // P2SH-P2WPKH
-      const p2wpkh = btc.p2wpkh(publicKey);
-      derivedAddress = btc.p2sh(p2wpkh).address!;
-    } else if (flag >= 39 && flag <= 42) {
+    if (useLooseVerification) {
+      // Loose verification: Check if the recovered public key can derive the target address
+      // This allows signatures with "wrong" header flags to still verify
+      // as long as the public key matches
+
+      // Try to derive different address types from the recovered public key
+      const possibleAddresses: string[] = [];
+
+      // P2PKH (handle both compressed and uncompressed)
+      try {
+        if (finalPublicKey.length === 65) {
+          // Uncompressed key - also try compressed version
+          const compressed = secp256k1.Point.fromHex(hex.encode(finalPublicKey)).toRawBytes(true);
+          possibleAddresses.push(btc.p2pkh(compressed).address!);
+        }
+        possibleAddresses.push(btc.p2pkh(finalPublicKey).address!);
+      } catch {}
+
       // P2WPKH
-      derivedAddress = btc.p2wpkh(publicKey).address!;
-    } else {
-      return false;
-    }
+      try {
+        possibleAddresses.push(btc.p2wpkh(finalPublicKey).address!);
+      } catch {}
 
-    // Compare addresses (case-insensitive for compatibility)
-    return derivedAddress.toLowerCase() === address.toLowerCase();
+      // P2SH-P2WPKH
+      try {
+        const p2wpkh = btc.p2wpkh(finalPublicKey);
+        possibleAddresses.push(btc.p2sh(p2wpkh).address!);
+      } catch {}
+
+      // P2TR (Taproot) - for compatibility with Ledger/Sparrow
+      try {
+        const xOnlyPubKey = finalPublicKey.length === 33 ? finalPublicKey.slice(1, 33) : finalPublicKey;
+        if (xOnlyPubKey.length === 32) {
+          possibleAddresses.push(btc.p2tr(xOnlyPubKey).address!);
+        }
+      } catch {}
+
+      // Check if any derived address matches the target address
+      return possibleAddresses.some(addr =>
+        addr.toLowerCase() === address.toLowerCase()
+      );
+    } else {
+      // Strict verification: Address must match the flag type exactly
+      let derivedAddress: string;
+
+      if (flag >= 27 && flag <= 34) {
+        // P2PKH
+        derivedAddress = btc.p2pkh(publicKey).address!;
+      } else if (flag >= 35 && flag <= 38) {
+        // P2SH-P2WPKH
+        const p2wpkh = btc.p2wpkh(publicKey);
+        derivedAddress = btc.p2sh(p2wpkh).address!;
+      } else if (flag >= 39 && flag <= 42) {
+        // P2WPKH
+        derivedAddress = btc.p2wpkh(publicKey).address!;
+      } else {
+        return false;
+      }
+
+      // Compare addresses (case-insensitive for compatibility)
+      return derivedAddress.toLowerCase() === address.toLowerCase();
+    }
   } catch (error) {
     return false;
   }
@@ -293,6 +351,29 @@ export function getAddressTypeFromFlag(flag: number): string | null {
     return 'P2WPKH';
   }
   return null;
+}
+
+/**
+ * Verify a message with explicit loose/strict BIP-137 verification
+ * @param message - The message to verify
+ * @param signature - The signature to verify
+ * @param address - The Bitcoin address
+ * @param useLooseVerification - Whether to use loose BIP-137 verification (default: true)
+ */
+export async function verifyMessageWithLooseBIP137(
+  message: string,
+  signature: string,
+  address: string,
+  useLooseVerification: boolean = true
+): Promise<boolean> {
+  // First try BIP-322
+  try {
+    const isValid = await verifyBIP322Signature(message, signature, address);
+    if (isValid) return true;
+  } catch {}
+
+  // Then try BIP-137 with specified loose/strict mode
+  return await verifyLegacyFormat(message, signature, address, useLooseVerification);
 }
 
 /**
