@@ -6,22 +6,22 @@ The XCP Wallet extension uses a multi-layered messaging architecture to enable c
 
 ## Extension Contexts
 
-1. **Injected Script** (`src/entrypoints/injected.ts`)
+1. **Injected Script** ([`src/entrypoints/injected.ts`](../src/entrypoints/injected.ts))
    - Runs in the web page context
    - Exposes `window.xcpwallet` provider API
    - Cannot directly access extension APIs
 
-2. **Content Script** (`src/entrypoints/content.ts`)
+2. **Content Script** ([`src/entrypoints/content.ts`](../src/entrypoints/content.ts))
    - Runs in isolated world with access to DOM
    - Bridge between web page and extension
    - Can access both `window` and Chrome extension APIs
 
-3. **Background Service Worker** (`src/entrypoints/background.ts`)
+3. **Background Service Worker** ([`src/entrypoints/background.ts`](../src/entrypoints/background.ts))
    - Central hub for all extension logic
    - Handles provider requests, manages wallet state
    - Only context that can access sensitive wallet operations
 
-4. **Popup/Sidepanel** (`src/entrypoints/popup`, `src/entrypoints/sidepanel`)
+4. **Popup/Sidepanel** ([`src/entrypoints/popup`](../src/entrypoints/popup), [`src/entrypoints/sidepanel`](../src/entrypoints/sidepanel))
    - User interface for wallet management
    - Communicates with background for all operations
 
@@ -50,9 +50,9 @@ Web Page (DApp) receives result
 **Purpose**: Allows DApps to interact with the wallet using the standard Web3 provider interface.
 
 **Key Files**:
-- `injected.ts`: Implements EIP-1193 provider interface
-- `content.ts`: Relays messages between page and background
-- `providerService.ts`: Handles provider method implementations
+- [`injected.ts`](../src/entrypoints/injected.ts): Implements EIP-1193 provider interface
+- [`content.ts`](../src/entrypoints/content.ts): Relays messages between page and background
+- [`providerService.ts`](../src/services/providerService.ts): Handles provider method implementations
 
 ### 2. Service Proxy Flow (Popup ↔ Background)
 
@@ -72,8 +72,8 @@ Popup/Sidepanel UI updates
 **Purpose**: Allows UI components to call background services as if they were local functions.
 
 **Key Files**:
-- `proxy.ts`: Custom service proxy implementation (replaced @webext-core/proxy-service for security)
-- `walletService.ts`, `providerService.ts`: Service definitions
+- [`proxy.ts`](../src/utils/proxy.ts): Custom service proxy implementation (replaced @webext-core/proxy-service for security)
+- [`walletService.ts`](../src/services/walletService.ts), [`providerService.ts`](../src/services/providerService.ts): Service definitions
 - Services are registered in background, accessed via proxy in UI
 
 ### 3. Event Broadcasting Flow (Background → All Contexts)
@@ -98,7 +98,7 @@ DApps (receive events like 'accountsChanged')
 ## Messaging Systems
 
 ### 1. Native Chrome APIs
-**Used by**: `proxy.ts`, some utilities in `browser.ts`
+**Used by**: [`proxy.ts`](../src/utils/proxy.ts), some utilities in [`browser.ts`](../src/utils/browser.ts)
 **Purpose**: Service proxy pattern for popup ↔ background communication
 **Why native**: Direct, synchronous-feeling API for service calls
 
@@ -110,7 +110,7 @@ chrome.runtime.sendMessage(message, (response) => {
 ```
 
 ### 2. webext-bridge
-**Used by**: `MessageBus.ts`, content ↔ background messaging
+**Used by**: [`MessageBus.ts`](../src/services/core/MessageBus.ts), content ↔ background messaging
 **Purpose**: Type-safe, promise-based messaging with better error handling
 **Why webext-bridge**: Handles browser differences, provides better DX
 
@@ -139,9 +139,9 @@ Chrome immediately attempts to establish connections when an extension loads or 
 
 We register error-consuming listeners at the earliest possible moment in each context:
 
-1. **Background**: First lines of `defineBackground()` register listeners that immediately check `chrome.runtime.lastError`
-2. **Content Script**: Early listener consumes errors before main logic runs
-3. **Proxy Service**: Always checks `lastError` before accessing response
+1. **Background**: First lines of [`defineBackground()`](../src/entrypoints/background.ts) register listeners that immediately check `chrome.runtime.lastError`
+2. **Content Script**: Main handler in [`content.ts`](../src/entrypoints/content.ts) checks errors before processing
+3. **Proxy Service**: [`proxy.ts`](../src/utils/proxy.ts) always checks `lastError` before accessing response
 
 ### Key Principles
 
