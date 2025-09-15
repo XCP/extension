@@ -43,10 +43,16 @@ const RS_BLOCK_TABLE = [
 
 // Galois field arithmetic for Reed-Solomon
 class GF256 {
-  private static EXP_TABLE = new Array(256);
-  private static LOG_TABLE = new Array(256);
+  private static EXP_TABLE: number[];
+  private static LOG_TABLE: number[];
+  private static initialized = false;
 
-  static {
+  private static initialize(): void {
+    if (GF256.initialized) return;
+
+    GF256.EXP_TABLE = new Array(256);
+    GF256.LOG_TABLE = new Array(256);
+
     let x = 1;
     for (let i = 0; i < 256; i++) {
       GF256.EXP_TABLE[i] = x;
@@ -56,14 +62,17 @@ class GF256 {
         x ^= 0x11d;
       }
     }
+    GF256.initialized = true;
   }
 
   static multiply(a: number, b: number): number {
+    GF256.initialize();
     if (a === 0 || b === 0) return 0;
     return GF256.EXP_TABLE[(GF256.LOG_TABLE[a] + GF256.LOG_TABLE[b]) % 255];
   }
 
   static exp(a: number): number {
+    GF256.initialize();
     return GF256.EXP_TABLE[a % 255];
   }
 }
