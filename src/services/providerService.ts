@@ -9,7 +9,7 @@
  * - WalletService: Wallet state and cryptographic operations
  */
 
-import { defineProxyService } from '@webext-core/proxy-service';
+import { defineProxyService } from '@/utils/proxy';
 import { getWalletService } from '@/services/walletService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getConnectionService } from '@/services/connection';
