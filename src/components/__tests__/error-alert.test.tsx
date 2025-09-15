@@ -343,11 +343,21 @@ describe('ErrorAlert', () => {
               // Should always have "Error:" label
               expect(screen.getByText('Error:')).toBeInTheDocument();
               
-              // Should render the message
-              expect(screen.getByText(message.trim())).toBeInTheDocument();
+              // Should render the message - use partial matching for whitespace handling
+              expect(screen.getByText((content, element) => {
+                if (!element || !element.textContent) return false;
+                const normalizedText = element.textContent.replace(/\s+/g, ' ').trim();
+                const normalizedMessage = message.replace(/\s+/g, ' ').trim();
+                return normalizedText === normalizedMessage;
+              })).toBeInTheDocument();
               
               // Message should have proper styling
-              const messageSpan = screen.getByText(message.trim());
+              const messageSpan = screen.getByText((content, element) => {
+                if (!element || !element.textContent) return false;
+                const normalizedText = element.textContent.replace(/\s+/g, ' ').trim();
+                const normalizedMessage = message.replace(/\s+/g, ' ').trim();
+                return normalizedText === normalizedMessage;
+              });
               expect(messageSpan).toHaveClass('break-words');
             } finally {
               unmount();
