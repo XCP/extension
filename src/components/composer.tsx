@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, type ReactElement } from "react";
+import { useEffect, useMemo, type ReactElement } from "react";
 import { FiHelpCircle, FiX, FiRefreshCw } from "react-icons/fi";
 import { onMessage } from 'webext-bridge/popup';
 import { useNavigate } from "react-router-dom";

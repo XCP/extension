@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHelpCircle } from "react-icons/fi";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";

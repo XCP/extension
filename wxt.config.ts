@@ -27,15 +27,5 @@ export default defineConfig({
       ...(configEnv.mode === 'production' ? [removeConsole({ includes: ['log', 'error'] })] : []),
       tailwindcss(),
     ],
-    optimizeDeps: {
-      include: ['qrcode'],
-    },
-    build: {
-      commonjsOptions: {
-        // This forces transformation of mixed ESM/CJS modules
-        transformMixedEsModules: true,
-        include: [/node_modules/],
-      },
-    },
   }),
 });

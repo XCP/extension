@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo } from 'react';
 import { IoClose } from 'react-icons/io5';
 import { Button } from '@/components/button';
 
@@ -43,7 +43,7 @@ const SEVERITY_STYLES = {
  * - Optional custom title
  * - More flexible styling options
  */
-export const ErrorAlert = React.memo<ErrorAlertProps>(({ 
+export const ErrorAlert = memo<ErrorAlertProps>(({ 
   message, 
   onClose,
   severity = 'error',
@@ -85,7 +85,7 @@ ErrorAlert.displayName = 'ErrorAlert';
  * 
  * A lighter-weight error display for inline form validation
  */
-export const InlineError = React.memo<{ message: string; className?: string }>(({ 
+export const InlineError = memo<{ message: string; className?: string }>(({ 
   message, 
   className = '' 
 }) => {

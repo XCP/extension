@@ -1,4 +1,4 @@
-import React, { useCallback, type ReactNode, type ReactElement } from 'react';
+import { useCallback, type ReactNode, type ReactElement } from 'react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { HeaderProvider } from './header-context';
 import { LoadingProvider } from './loading-context';

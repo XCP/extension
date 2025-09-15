@@ -1,4 +1,3 @@
-import React from 'react';
 import { QRCanvas } from './qr-canvas';
 import logo from '@/assets/qr-code.png';
 
@@ -29,7 +28,7 @@ interface QRCodeProps {
   ariaLabel?: string;
 }
 
-export const QRCode = React.memo(({
+export const QRCode = ({
   text,
   width = 270,
   logo: customLogo,
@@ -55,6 +54,4 @@ export const QRCode = React.memo(({
       />
     </div>
   );
-});
-
-QRCode.displayName = 'QRCode'; 
+}); 

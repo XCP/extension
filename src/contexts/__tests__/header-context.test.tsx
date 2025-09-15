@@ -1,7 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { HeaderProvider, useHeader } from '../header-context';
-import React from 'react';
 
 describe('HeaderContext', () => {
   beforeEach(() => {

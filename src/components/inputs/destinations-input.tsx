@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { FiPlus, FiMinus } from "react-icons/fi";
 import { 

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useHeader } from '@/contexts/header-context';
 import { AssetIcon } from '@/components/asset-icon';
 import { formatAmount } from '@/utils/format';

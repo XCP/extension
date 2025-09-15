@@ -1,4 +1,4 @@
-import React, { ChangeEvent } from "react";
+import { ChangeEvent } from "react";
 import { FaSpinner } from "react-icons/fa";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
