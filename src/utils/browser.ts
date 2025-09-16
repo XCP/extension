@@ -409,8 +409,9 @@ export async function safeSendMessage(message: any, options?: {
   }
 
   // All retries failed
-  if (logErrors && lastError) {
-    console.debug('[safeSendMessage] All retries exhausted:', lastError.message || 'Unknown error');
+  if (logErrors) {
+    const errorMessage = lastError instanceof Error ? lastError.message : 'Unknown error';
+    console.debug('[safeSendMessage] All retries exhausted:', errorMessage);
   }
   return null;
 }
