@@ -104,46 +104,26 @@ export const QRCanvas = memo(({
         const logoX = (actualSize - logoSize) / 2;
         const logoY = (actualSize - logoHeight) / 2;
 
-        // Create rounded white background for logo
+        // Create circular white background for logo
         const padding = cellSize * 1.5; // Reduced padding from 2 to 1.5
-        const bgX = logoX - padding;
-        const bgY = logoY - padding;
-        const bgWidth = logoSize + padding * 2;
-        const bgHeight = logoHeight + padding * 2;
-        const cornerRadius = padding; // Rounded corners
+        const bgCenterX = logoX + logoSize / 2;
+        const bgCenterY = logoY + logoHeight / 2;
+        const bgRadius = (Math.max(logoSize, logoHeight) / 2) + padding;
 
-        // Draw rounded rectangle background
+        // Draw circular background
         ctx.fillStyle = lightColor;
         ctx.beginPath();
-        ctx.moveTo(bgX + cornerRadius, bgY);
-        ctx.lineTo(bgX + bgWidth - cornerRadius, bgY);
-        ctx.quadraticCurveTo(bgX + bgWidth, bgY, bgX + bgWidth, bgY + cornerRadius);
-        ctx.lineTo(bgX + bgWidth, bgY + bgHeight - cornerRadius);
-        ctx.quadraticCurveTo(bgX + bgWidth, bgY + bgHeight, bgX + bgWidth - cornerRadius, bgY + bgHeight);
-        ctx.lineTo(bgX + cornerRadius, bgY + bgHeight);
-        ctx.quadraticCurveTo(bgX, bgY + bgHeight, bgX, bgY + bgHeight - cornerRadius);
-        ctx.lineTo(bgX, bgY + cornerRadius);
-        ctx.quadraticCurveTo(bgX, bgY, bgX + cornerRadius, bgY);
-        ctx.closePath();
+        ctx.arc(bgCenterX, bgCenterY, bgRadius, 0, Math.PI * 2);
         ctx.fill();
 
-        // Create clipping path for rounded logo
+        // Create circular clipping path for logo
         ctx.save();
         ctx.beginPath();
-        const logoRadius = logoSize * 0.1; // Rounded corners for logo itself
-        ctx.moveTo(logoX + logoRadius, logoY);
-        ctx.lineTo(logoX + logoSize - logoRadius, logoY);
-        ctx.quadraticCurveTo(logoX + logoSize, logoY, logoX + logoSize, logoY + logoRadius);
-        ctx.lineTo(logoX + logoSize, logoY + logoHeight - logoRadius);
-        ctx.quadraticCurveTo(logoX + logoSize, logoY + logoHeight, logoX + logoSize - logoRadius, logoY + logoHeight);
-        ctx.lineTo(logoX + logoRadius, logoY + logoHeight);
-        ctx.quadraticCurveTo(logoX, logoY + logoHeight, logoX, logoY + logoHeight - logoRadius);
-        ctx.lineTo(logoX, logoY + logoRadius);
-        ctx.quadraticCurveTo(logoX, logoY, logoX + logoRadius, logoY);
-        ctx.closePath();
+        const logoRadius = Math.min(logoSize, logoHeight) / 2;
+        ctx.arc(bgCenterX, bgCenterY, logoRadius, 0, Math.PI * 2);
         ctx.clip();
 
-        // Draw logo with clipping
+        // Draw logo with circular clipping
         ctx.drawImage(img, logoX, logoY, logoSize, logoHeight);
         ctx.restore();
       };
