@@ -153,19 +153,28 @@ export const BalanceList = (): ReactElement => {
         const fetchedBalances = await fetchTokenBalances(activeAddress.address, { limit, offset });
         console.log('[BalanceList] Fetched', fetchedBalances.length, 'balances');
 
+        // If we get less than requested, or no balances at all, no more to load
         if (fetchedBalances.length < limit) {
+          console.log('[BalanceList] No more balances to load (got', fetchedBalances.length, 'of', limit, ')');
           setHasMore(false);
         }
 
-        console.log('[BalanceList] Processing fetched balances...');
-        fetchedBalances.forEach((balance) => {
-          upsertBalance(balance);
-        });
+        // Only process if we have balances
+        if (fetchedBalances.length > 0) {
+          console.log('[BalanceList] Processing fetched balances...');
+          fetchedBalances.forEach((balance) => {
+            upsertBalance(balance);
+          });
 
-        setOffset((prev) => {
-          console.log('[BalanceList] Updating offset from', prev, 'to', prev + limit);
-          return prev + limit;
-        });
+          // Only increment offset if we processed some balances
+          setOffset((prev) => {
+            console.log('[BalanceList] Updating offset from', prev, 'to', prev + limit);
+            return prev + limit;
+          });
+        } else {
+          console.log('[BalanceList] No balances returned, stopping pagination');
+          setHasMore(false);
+        }
       } catch (error) {
         console.error("Error fetching more balances:", error);
         setHasMore(false);
