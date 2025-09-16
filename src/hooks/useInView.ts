@@ -3,16 +3,30 @@ import { useState, useEffect, useRef, useCallback } from "react";
 export function useInView(options?: IntersectionObserverInit) {
   const [inView, setInView] = useState(false);
   const [element, setElement] = useState<HTMLDivElement | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   const ref = useCallback((node: HTMLDivElement | null) => {
+    // Disconnect previous observer if it exists
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+
+    // Store the new element
     setElement(node);
-  }, []);
 
-  useEffect(() => {
-    if (!element) return;
+    // If no node, we're done
+    if (!node) return;
 
+    // Create and start observing immediately
     const observer = new IntersectionObserver(
       ([entry]) => {
+        console.log('[useInView] Intersection:', {
+          isIntersecting: entry.isIntersecting,
+          intersectionRatio: entry.intersectionRatio,
+          boundingClientRect: entry.boundingClientRect,
+          rootBounds: entry.rootBounds
+        });
         setInView(entry.isIntersecting);
       },
       {
@@ -22,12 +36,18 @@ export function useInView(options?: IntersectionObserverInit) {
       }
     );
 
-    observer.observe(element);
+    observer.observe(node);
+    observerRef.current = observer;
+  }, [options?.root, options?.rootMargin, options?.threshold]);
 
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
-      observer.disconnect();
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
     };
-  }, [element, options?.root, options?.rootMargin, options?.threshold]);
+  }, []);
 
   return { ref, inView };
 }
