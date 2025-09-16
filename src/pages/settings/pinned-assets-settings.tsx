@@ -210,7 +210,6 @@ export default function PinnedAssetsSettings(): ReactElement {
             <PinnableAssetCard
               symbol={symbol}
               isPinned={true}
-              isDragging={isBeingDragged}
               onPinToggle={handleRemoveAsset}
             />
           </div>
