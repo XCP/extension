@@ -73,7 +73,8 @@ export default defineBackground(() => {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Debug logging in development only
     if (process.env.NODE_ENV === 'development') {
-      console.log('[Background] Received message:', message?.type || message?.action, 'from:', sender.tab?.url || sender.url || 'extension');
+      const messageType = message?.type || message?.action || (message?.serviceName ? `${message.serviceName}.${message.methodName}` : 'unknown');
+      console.log('[Background] Received message:', messageType, 'from:', sender.tab?.url || sender.url || 'extension');
     }
 
     // Handle ping requests immediately
