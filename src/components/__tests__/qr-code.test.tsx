@@ -26,11 +26,11 @@ describe('QRCode', () => {
     expect(canvas).toHaveAttribute('data-text', 'bitcoin:bc1qtest123');
   });
 
-  it('should apply default width of 270', () => {
+  it('should apply default width of 286', () => {
     render(<QRCode text="test-address" />);
-    
+
     const canvas = screen.getByTestId('qr-canvas');
-    expect(canvas).toHaveAttribute('data-width', '270');
+    expect(canvas).toHaveAttribute('data-width', '286');
   });
 
   it('should apply custom width', () => {
@@ -45,7 +45,7 @@ describe('QRCode', () => {
     
     const canvas = screen.getByTestId('qr-canvas');
     expect(canvas).toHaveAttribute('data-logo-src', 'default-logo.png');
-    expect(canvas).toHaveAttribute('data-logo-width', '60');
+    expect(canvas).toHaveAttribute('data-logo-width', '50');
   });
 
   it('should use custom logo when provided', () => {

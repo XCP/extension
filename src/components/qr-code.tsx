@@ -99,23 +99,53 @@ export const QRCanvas = memo(({
       img.crossOrigin = 'anonymous';
 
       img.onload = () => {
-        const logoSize = logo.width || actualSize * 0.2;
+        const logoSize = logo.width || actualSize * 0.15; // Reduced from 0.2 to 0.15
         const logoHeight = logo.height || logoSize;
         const logoX = (actualSize - logoSize) / 2;
         const logoY = (actualSize - logoHeight) / 2;
 
-        // Create white background for logo
-        const padding = cellSize * 2;
-        ctx.fillStyle = lightColor;
-        ctx.fillRect(
-          logoX - padding,
-          logoY - padding,
-          logoSize + padding * 2,
-          logoHeight + padding * 2
-        );
+        // Create rounded white background for logo
+        const padding = cellSize * 1.5; // Reduced padding from 2 to 1.5
+        const bgX = logoX - padding;
+        const bgY = logoY - padding;
+        const bgWidth = logoSize + padding * 2;
+        const bgHeight = logoHeight + padding * 2;
+        const cornerRadius = padding; // Rounded corners
 
-        // Draw logo
+        // Draw rounded rectangle background
+        ctx.fillStyle = lightColor;
+        ctx.beginPath();
+        ctx.moveTo(bgX + cornerRadius, bgY);
+        ctx.lineTo(bgX + bgWidth - cornerRadius, bgY);
+        ctx.quadraticCurveTo(bgX + bgWidth, bgY, bgX + bgWidth, bgY + cornerRadius);
+        ctx.lineTo(bgX + bgWidth, bgY + bgHeight - cornerRadius);
+        ctx.quadraticCurveTo(bgX + bgWidth, bgY + bgHeight, bgX + bgWidth - cornerRadius, bgY + bgHeight);
+        ctx.lineTo(bgX + cornerRadius, bgY + bgHeight);
+        ctx.quadraticCurveTo(bgX, bgY + bgHeight, bgX, bgY + bgHeight - cornerRadius);
+        ctx.lineTo(bgX, bgY + cornerRadius);
+        ctx.quadraticCurveTo(bgX, bgY, bgX + cornerRadius, bgY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Create clipping path for rounded logo
+        ctx.save();
+        ctx.beginPath();
+        const logoRadius = logoSize * 0.1; // Rounded corners for logo itself
+        ctx.moveTo(logoX + logoRadius, logoY);
+        ctx.lineTo(logoX + logoSize - logoRadius, logoY);
+        ctx.quadraticCurveTo(logoX + logoSize, logoY, logoX + logoSize, logoY + logoRadius);
+        ctx.lineTo(logoX + logoSize, logoY + logoHeight - logoRadius);
+        ctx.quadraticCurveTo(logoX + logoSize, logoY + logoHeight, logoX + logoSize - logoRadius, logoY + logoHeight);
+        ctx.lineTo(logoX + logoRadius, logoY + logoHeight);
+        ctx.quadraticCurveTo(logoX, logoY + logoHeight, logoX, logoY + logoHeight - logoRadius);
+        ctx.lineTo(logoX, logoY + logoRadius);
+        ctx.quadraticCurveTo(logoX, logoY, logoX + logoRadius, logoY);
+        ctx.closePath();
+        ctx.clip();
+
+        // Draw logo with clipping
         ctx.drawImage(img, logoX, logoY, logoSize, logoHeight);
+        ctx.restore();
       };
 
       img.onerror = () => {
@@ -159,7 +189,7 @@ interface QRCodeProps {
   text: string;
   /**
    * Optional width of the QR code in pixels
-   * @default 270
+   * @default 286
    */
   width?: number;
   /**
@@ -181,14 +211,14 @@ interface QRCodeProps {
 
 export const QRCode = memo(({
   text,
-  width = 270,
+  width = 286,
   logo: customLogo,
   className = '',
   ariaLabel,
 }: QRCodeProps) => {
   const logoConfig = customLogo || {
     src: logo,
-    width: 60
+    width: 50 // Reduced from 60 to better fit smaller logo area
   };
 
   return (
