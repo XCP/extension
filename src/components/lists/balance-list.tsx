@@ -111,18 +111,31 @@ export const BalanceList = (): ReactElement => {
       const loadMoreBalances = async () => {
         setIsFetchingMore(true);
         try {
-          const limit = 10; // Keep small batch size for API performance
-          const fetchedBalances = await fetchTokenBalances(activeAddress.address, { limit, offset });
+          const fetchedBalances = await fetchTokenBalances(activeAddress.address, { limit: 10, offset });
           if (!isCancelled) {
-            if (fetchedBalances.length < limit) setHasMore(false);
-            if (fetchedBalances.length === 0) {
-              setHasMore(false);
-            } else {
-              fetchedBalances.forEach((balance) => {
-                upsertBalance(balance);
+            if (fetchedBalances.length < 10) setHasMore(false);
+
+            // Get pinned assets including BTC and XCP
+            const pinnedAssetsList = (settings?.pinnedAssets || [])
+              .map(a => a.toUpperCase())
+              .concat(["BTC", "XCP"]);
+
+            setAllBalances((prev) => {
+              // Create a set of existing assets for quick lookup
+              const existingAssets = new Set(prev.map(b => b.asset.toUpperCase()));
+
+              // Filter out:
+              // 1. Assets that already exist (duplicates)
+              // 2. Pinned assets that were already loaded initially
+              const newBalances = fetchedBalances.filter(balance => {
+                const assetUpper = balance.asset.toUpperCase();
+                // Skip if already exists OR if it's a pinned asset (already loaded initially)
+                return !existingAssets.has(assetUpper) && !pinnedAssetsList.includes(assetUpper);
               });
-              setOffset((prev) => prev + fetchedBalances.length);
-            }
+
+              return [...prev, ...newBalances];
+            });
+            setOffset((prev) => prev + fetchedBalances.length);
           }
         } catch (error) {
           console.error("Error fetching more balances:", error);
@@ -136,7 +149,7 @@ export const BalanceList = (): ReactElement => {
 
       return () => { isCancelled = true; };
     }
-  }, [inView, activeAddress, activeWallet, hasMore, offset, upsertBalance, isFetchingMore, initialLoaded]);
+  }, [inView, activeAddress, activeWallet, hasMore, offset, isFetchingMore, initialLoaded, settings?.pinnedAssets]);
 
   const pinnedAssets = (settings?.pinnedAssets || []).map((a) => a.toUpperCase()).concat("BTC");
   const pinnedBalances = allBalances.filter((balance) => {
