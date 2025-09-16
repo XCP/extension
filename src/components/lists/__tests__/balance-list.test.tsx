@@ -437,7 +437,7 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      expect(mockFetchTokenBalances).toHaveBeenCalledWith('bc1qtest123', { limit: 10, offset: 0 });
+      expect(mockFetchTokenBalances).toHaveBeenCalledWith('bc1qtest123', { limit: 20, offset: 0 });
     });
   });
 

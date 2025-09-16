@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type ReactElement } from "react";
+import { useState, useEffect, useCallback, useRef, type ReactElement } from "react";
 import { useInView } from "@/hooks/useInView";
 import { Spinner } from "@/components/spinner";
 import { SearchInput } from "@/components/inputs/search-input";
@@ -27,21 +27,43 @@ export const BalanceList = (): ReactElement => {
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const { searchQuery, setSearchQuery, searchResults, isSearching } = useSearchQuery();
 
-  const { ref: loadMoreRef, inView } = useInView({ rootMargin: "100px", threshold: 0.1 });
+  const { ref: loadMoreRef, inView } = useInView({ rootMargin: "300px", threshold: 0 });
+
+  // Debug logging
+  console.log('[BalanceList] State:', {
+    inView,
+    hasMore,
+    isFetchingMore,
+    offset,
+    balanceCount: allBalances.length,
+    initialLoaded
+  });
 
   useEffect(() => {
     setInitialLoaded(false);
   }, [settings?.pinnedAssets]);
 
   const upsertBalance = useCallback((balance: TokenBalance) => {
-    if (!balance?.asset || !balance?.quantity_normalized) return;
+    console.log('[upsertBalance] Called with:', {
+      asset: balance?.asset,
+      quantity_normalized: balance?.quantity_normalized,
+      hasAssetInfo: !!balance?.asset_info
+    });
+
+    if (!balance?.asset || balance?.quantity_normalized === undefined) {
+      console.log('[upsertBalance] REJECTED - missing asset or quantity_normalized');
+      return;
+    }
+
     setAllBalances((prev) => {
       const idx = prev.findIndex((b) => b.asset.toUpperCase() === balance.asset.toUpperCase());
       if (idx > -1) {
         const newBalances = [...prev];
         newBalances[idx] = balance;
+        console.log('[upsertBalance] Updated existing:', balance.asset);
         return newBalances;
       }
+      console.log('[upsertBalance] Added new:', balance.asset);
       return [...prev, balance];
     });
   }, []);
@@ -59,6 +81,7 @@ export const BalanceList = (): ReactElement => {
     let isCancelled = false;
 
     const loadInitialBalances = async () => {
+      console.log('[BalanceList] Loading initial balances...');
       setIsInitialLoading(true);
       try {
         const balanceSats = await fetchBTCBalance(activeAddress.address);
@@ -70,7 +93,14 @@ export const BalanceList = (): ReactElement => {
             maximumFractionDigits: 8,
             minimumFractionDigits: 8
           }),
-          asset_info: { asset_longname: null, description: "Bitcoin", issuer: "", divisible: true, locked: true, supply: "21000000" },
+          asset_info: {
+            asset_longname: null,
+            description: "Bitcoin",
+            issuer: "",
+            divisible: true,
+            locked: true,
+            supply: "21000000"
+          },
         };
         if (!isCancelled) upsertBalance(btcBalance);
 
@@ -79,16 +109,22 @@ export const BalanceList = (): ReactElement => {
         const balancePromises = nonBTCAssets.map((asset) =>
           fetchTokenBalance(activeAddress.address, asset)
             .then((balance) => ({ asset, balance }))
-            .catch((error) => { console.error(`Error fetching ${asset} balance:`, error); return null; })
+            .catch((error) => {
+              console.error(`Error fetching ${asset} balance:`, error);
+              return null;
+            })
         );
         const results = await Promise.all(balancePromises);
         results.forEach((result) => {
-          if (result && result.balance && !isCancelled) upsertBalance(result.balance);
+          if (result && result.balance && !isCancelled) {
+            upsertBalance(result.balance);
+          }
         });
       } catch (error) {
         console.error("Error in loadInitialBalances:", error);
       } finally {
         if (!isCancelled) {
+          console.log('[BalanceList] Initial load complete');
           setIsInitialLoading(false);
           setInitialLoaded(true);
           setOffset(0);
@@ -102,50 +138,75 @@ export const BalanceList = (): ReactElement => {
     return () => { isCancelled = true; };
   }, [activeAddress, activeWallet, upsertBalance, initialLoaded, settings?.pinnedAssets]);
 
+  // Load more on scroll
   useEffect(() => {
-    if (!activeAddress || !activeWallet || !hasMore || isFetchingMore || !initialLoaded) return;
-
-    if (inView) {
-      let isCancelled = false;
-
-      const loadMoreBalances = async () => {
-        setIsFetchingMore(true);
-        try {
-          const limit = 10; // Keep small batch size for API performance
-          const fetchedBalances = await fetchTokenBalances(activeAddress.address, { limit, offset });
-          if (!isCancelled) {
-            if (fetchedBalances.length < limit) setHasMore(false);
-            if (fetchedBalances.length === 0) {
-              setHasMore(false);
-            } else {
-              fetchedBalances.forEach((balance) => {
-                upsertBalance(balance);
-              });
-              setOffset((prev) => prev + fetchedBalances.length);
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching more balances:", error);
-          if (!isCancelled) setHasMore(false);
-        } finally {
-          if (!isCancelled) setIsFetchingMore(false);
-        }
-      };
-
-      loadMoreBalances();
-
-      return () => { isCancelled = true; };
+    if (!activeAddress || !activeWallet || !hasMore || isFetchingMore || !inView) {
+      return;
     }
-  }, [inView, activeAddress, activeWallet, hasMore, offset, upsertBalance, isFetchingMore, initialLoaded]);
 
-  const pinnedAssets = (settings?.pinnedAssets || []).map((a) => a.toUpperCase()).concat("BTC");
+    console.log('[BalanceList] Loading more from offset:', offset);
+
+    const loadMoreBalances = async () => {
+      setIsFetchingMore(true);
+      try {
+        const limit = 20; // Increased from 10 to 20
+        const fetchedBalances = await fetchTokenBalances(activeAddress.address, { limit, offset });
+        console.log('[BalanceList] Fetched', fetchedBalances.length, 'balances');
+
+        // If we get less than requested, or no balances at all, no more to load
+        if (fetchedBalances.length < limit) {
+          console.log('[BalanceList] No more balances to load (got', fetchedBalances.length, 'of', limit, ')');
+          setHasMore(false);
+        }
+
+        // Only process if we have balances
+        if (fetchedBalances.length > 0) {
+          console.log('[BalanceList] Processing fetched balances...');
+          fetchedBalances.forEach((balance) => {
+            upsertBalance(balance);
+          });
+
+          // Only increment offset if we processed some balances
+          setOffset((prev) => {
+            console.log('[BalanceList] Updating offset from', prev, 'to', prev + limit);
+            return prev + limit;
+          });
+        } else {
+          console.log('[BalanceList] No balances returned, stopping pagination');
+          setHasMore(false);
+        }
+      } catch (error) {
+        console.error("Error fetching more balances:", error);
+        setHasMore(false);
+      } finally {
+        setIsFetchingMore(false);
+      }
+    };
+
+    loadMoreBalances();
+  }, [inView, activeAddress, activeWallet, hasMore, offset, upsertBalance, isFetchingMore]);
+
+  // BTC is always pinned, plus user's pinned assets
+  const pinnedAssets = ["BTC"].concat((settings?.pinnedAssets || []).map((a) => a.toUpperCase()));
+
   const pinnedBalances = allBalances.filter((balance) => {
-    const isPinned = pinnedAssets.includes(balance.asset.toUpperCase());
-    const isSpecialAsset = balance.asset.toUpperCase() === "BTC" || balance.asset.toUpperCase() === "XCP";
-    const hasNonZeroBalance = Number(balance.quantity_normalized) > 0;
-    return isPinned && (isSpecialAsset || hasNonZeroBalance);
+    const assetUpper = balance.asset.toUpperCase();
+    const isPinned = pinnedAssets.includes(assetUpper);
+    if (!isPinned) return false;
+
+    // BTC always shows even if 0
+    if (assetUpper === "BTC") return true;
+
+    // XCP shows even if 0 only when pinned
+    if (assetUpper === "XCP" && isPinned) return true;
+
+    // Other pinned assets only show if non-zero
+    return Number(balance.quantity_normalized) > 0;
   });
-  const otherBalances = allBalances.filter((balance) => !pinnedAssets.includes(balance.asset.toUpperCase()));
+
+  const otherBalances = allBalances.filter((balance) =>
+    !pinnedAssets.includes(balance.asset.toUpperCase())
+  );
 
   if (isInitialLoading) return <Spinner message="Loading balances..." />;
 
