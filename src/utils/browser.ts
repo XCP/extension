@@ -364,7 +364,7 @@ export async function safeSendMessage(message: any, options?: {
     retryDelay = 100
   } = options || {};
 
-  let lastError: Error | null = null;
+  let lastErrorMessage: string | null = null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     const result = await new Promise<any>((resolve) => {
@@ -379,7 +379,7 @@ export async function safeSendMessage(message: any, options?: {
           // ALWAYS check lastError first
           const error = chrome.runtime.lastError;
           if (error) {
-            lastError = new Error(error.message);
+            lastErrorMessage = error.message || 'Unknown runtime error';
             if (logErrors && !error.message?.includes('Could not establish connection')) {
               console.debug(`[safeSendMessage] Runtime error (attempt ${attempt + 1}):`, error.message);
             }
@@ -390,7 +390,7 @@ export async function safeSendMessage(message: any, options?: {
         });
       } catch (error) {
         clearTimeout(timeoutId);
-        lastError = error as Error;
+        lastErrorMessage = error instanceof Error ? error.message : String(error);
         if (logErrors) {
           console.debug(`[safeSendMessage] Send error (attempt ${attempt + 1}):`, error);
         }
@@ -409,9 +409,8 @@ export async function safeSendMessage(message: any, options?: {
   }
 
   // All retries failed
-  if (logErrors) {
-    const errorMessage = lastError instanceof Error ? lastError.message : 'Unknown error';
-    console.debug('[safeSendMessage] All retries exhausted:', errorMessage);
+  if (logErrors && lastErrorMessage) {
+    console.debug('[safeSendMessage] All retries exhausted:', lastErrorMessage);
   }
   return null;
 }
