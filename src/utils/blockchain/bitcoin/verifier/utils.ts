@@ -5,7 +5,7 @@
 import { sha256 } from '@noble/hashes/sha2';
 import { hmac } from '@noble/hashes/hmac';
 import * as secp256k1 from '@noble/secp256k1';
-import { AddressType } from './types';
+import type { AddressType } from './types';
 import { recoverPublicKeyFromSignature } from './secp-recovery';
 
 // Initialize secp256k1

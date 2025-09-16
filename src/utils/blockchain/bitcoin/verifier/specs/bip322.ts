@@ -8,7 +8,7 @@
  * Uses virtual transactions for verification
  */
 
-import { VerificationResult } from '../types';
+import type { VerificationResult } from '../types';
 import { getAddressType } from '../utils';
 
 // Import from our existing BIP-322 implementation

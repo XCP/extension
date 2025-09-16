@@ -11,7 +11,7 @@
 
 import * as btc from '@scure/btc-signer';
 import { base64 } from '@scure/base';
-import { VerificationResult } from '../types';
+import type { VerificationResult } from '../types';
 import { hashMessage, recoverPublicKey, getAddressType } from '../utils';
 
 /**

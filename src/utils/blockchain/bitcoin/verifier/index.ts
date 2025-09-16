@@ -16,7 +16,7 @@ export {
 } from './verifier';
 
 // Types
-export {
+export type {
   VerificationResult,
   VerificationOptions,
   AddressType,

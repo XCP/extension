@@ -6,7 +6,7 @@
  * 2. Compatibility layer (if not strict mode)
  */
 
-import { VerificationResult, VerificationOptions } from './types';
+import type { VerificationResult, VerificationOptions } from './types';
 import { validateMessage, detectAndNormalizeSignature, validateSignatureFormat } from './utils';
 
 // Spec-compliant verifiers
