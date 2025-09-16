@@ -410,7 +410,7 @@ export async function safeSendMessage(message: any, options?: {
 
   // All retries failed
   if (logErrors && lastError) {
-    console.debug('[safeSendMessage] All retries exhausted:', lastError.message);
+    console.debug('[safeSendMessage] All retries exhausted:', lastError?.message || 'Unknown error');
   }
   return null;
 }
