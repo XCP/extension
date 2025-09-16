@@ -25,6 +25,8 @@ vi.mock('@/components/asset-icon', () => ({
 describe('PinnableAssetCard', () => {
   const mockOnPinToggle = vi.fn();
   const mockOnClick = vi.fn();
+  const mockOnMoveUp = vi.fn();
+  const mockOnMoveDown = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -131,19 +133,85 @@ describe('PinnableAssetCard', () => {
     expect(mockOnClick).toHaveBeenCalledWith('XCP');
   });
 
-  it('applies dragging styles when isDragging is true', () => {
-    const { container } = render(
+  it('shows arrow buttons when showArrows is true', () => {
+    render(
       <PinnableAssetCard
         symbol="XCP"
-        isPinned={false}
+        isPinned={true}
         onPinToggle={mockOnPinToggle}
-        isDragging={true}
+        showArrows={true}
+        onMoveUp={mockOnMoveUp}
+        onMoveDown={mockOnMoveDown}
       />
     );
-    
-    const card = container.firstChild as HTMLElement;
-    expect(card.className).toContain('shadow-lg');
-    expect(card.className).toContain('opacity-90');
+
+    expect(screen.getByLabelText('Move XCP up')).toBeInTheDocument();
+    expect(screen.getByLabelText('Move XCP down')).toBeInTheDocument();
+  });
+
+  it('disables up arrow when onMoveUp is not provided', () => {
+    render(
+      <PinnableAssetCard
+        symbol="XCP"
+        isPinned={true}
+        onPinToggle={mockOnPinToggle}
+        showArrows={true}
+        onMoveDown={mockOnMoveDown}
+      />
+    );
+
+    const upButton = screen.getByLabelText('Move XCP up');
+    expect(upButton).toBeDisabled();
+  });
+
+  it('calls onMoveUp when up arrow is clicked', () => {
+    render(
+      <PinnableAssetCard
+        symbol="XCP"
+        isPinned={true}
+        onPinToggle={mockOnPinToggle}
+        showArrows={true}
+        onMoveUp={mockOnMoveUp}
+        onMoveDown={mockOnMoveDown}
+      />
+    );
+
+    const upButton = screen.getByLabelText('Move XCP up');
+    fireEvent.click(upButton);
+
+    expect(mockOnMoveUp).toHaveBeenCalled();
+  });
+
+  it('calls onMoveDown when down arrow is clicked', () => {
+    render(
+      <PinnableAssetCard
+        symbol="XCP"
+        isPinned={true}
+        onPinToggle={mockOnPinToggle}
+        showArrows={true}
+        onMoveUp={mockOnMoveUp}
+        onMoveDown={mockOnMoveDown}
+      />
+    );
+
+    const downButton = screen.getByLabelText('Move XCP down');
+    fireEvent.click(downButton);
+
+    expect(mockOnMoveDown).toHaveBeenCalled();
+  });
+
+  it('does not show arrows when showArrows is false', () => {
+    render(
+      <PinnableAssetCard
+        symbol="XCP"
+        isPinned={true}
+        onPinToggle={mockOnPinToggle}
+        showArrows={false}
+      />
+    );
+
+    expect(screen.queryByLabelText('Move XCP up')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Move XCP down')).not.toBeInTheDocument();
   });
 
   it('applies custom className', () => {
