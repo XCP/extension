@@ -74,6 +74,7 @@ export const BalanceList = (): ReactElement => {
         };
         if (!isCancelled) upsertBalance(btcBalance);
 
+        // BTC is always pinned, plus user's pinned assets (XCP is pinned by default)
         const pinnedAssets = settings?.pinnedAssets || [];
         const nonBTCAssets = pinnedAssets.filter((asset) => asset.toUpperCase() !== "BTC");
         const balancePromises = nonBTCAssets.map((asset) =>
@@ -111,31 +112,43 @@ export const BalanceList = (): ReactElement => {
       const loadMoreBalances = async () => {
         setIsFetchingMore(true);
         try {
-          const fetchedBalances = await fetchTokenBalances(activeAddress.address, { limit: 10, offset });
+          const limit = 10; // Keep small batch size for API performance
+          const fetchedBalances = await fetchTokenBalances(activeAddress.address, { limit, offset });
           if (!isCancelled) {
-            if (fetchedBalances.length < 10) setHasMore(false);
+            if (fetchedBalances.length < limit) setHasMore(false);
+            if (fetchedBalances.length === 0) {
+              setHasMore(false);
+            } else {
+              // Get pinned assets - BTC is always pinned, plus user's pinned assets
+              const pinnedAssetsList = ["BTC"]
+                .concat((settings?.pinnedAssets || []).map(a => a.toUpperCase()));
 
-            // Get pinned assets including BTC and XCP
-            const pinnedAssetsList = (settings?.pinnedAssets || [])
-              .map(a => a.toUpperCase())
-              .concat(["BTC", "XCP"]);
+              setAllBalances((prev) => {
+                // Create a set of existing assets for quick lookup
+                const existingAssets = new Set(prev.map(b => b.asset.toUpperCase()));
 
-            setAllBalances((prev) => {
-              // Create a set of existing assets for quick lookup
-              const existingAssets = new Set(prev.map(b => b.asset.toUpperCase()));
+                // Filter out:
+                // 1. Assets that already exist (duplicates)
+                // 2. Pinned assets that were already loaded initially
+                const newBalances = fetchedBalances.filter(balance => {
+                  const assetUpper = balance.asset.toUpperCase();
+                  // Skip if already exists OR if it's a pinned asset (already loaded initially)
+                  return !existingAssets.has(assetUpper) && !pinnedAssetsList.includes(assetUpper);
+                });
 
-              // Filter out:
-              // 1. Assets that already exist (duplicates)
-              // 2. Pinned assets that were already loaded initially
-              const newBalances = fetchedBalances.filter(balance => {
-                const assetUpper = balance.asset.toUpperCase();
-                // Skip if already exists OR if it's a pinned asset (already loaded initially)
-                return !existingAssets.has(assetUpper) && !pinnedAssetsList.includes(assetUpper);
+                console.log('Pagination debug:', {
+                  fetchedCount: fetchedBalances.length,
+                  existingCount: prev.length,
+                  newCount: newBalances.length,
+                  offset,
+                  pinnedAssets: pinnedAssetsList,
+                  firstFewFetched: fetchedBalances.slice(0, 3).map(b => b.asset)
+                });
+
+                return [...prev, ...newBalances];
               });
-
-              return [...prev, ...newBalances];
-            });
-            setOffset((prev) => prev + fetchedBalances.length);
+              setOffset((prev) => prev + fetchedBalances.length);
+            }
           }
         } catch (error) {
           console.error("Error fetching more balances:", error);
@@ -151,14 +164,24 @@ export const BalanceList = (): ReactElement => {
     }
   }, [inView, activeAddress, activeWallet, hasMore, offset, isFetchingMore, initialLoaded, settings?.pinnedAssets]);
 
-  const pinnedAssets = (settings?.pinnedAssets || []).map((a) => a.toUpperCase()).concat("BTC");
+  // BTC is always pinned, plus user's pinned assets
+  const pinnedAssets = ["BTC"].concat((settings?.pinnedAssets || []).map((a) => a.toUpperCase()));
+
   const pinnedBalances = allBalances.filter((balance) => {
-    const isPinned = pinnedAssets.includes(balance.asset.toUpperCase());
-    const isSpecialAsset = balance.asset.toUpperCase() === "BTC" || balance.asset.toUpperCase() === "XCP";
-    const hasNonZeroBalance = Number(balance.quantity_normalized) > 0;
-    return isPinned && (isSpecialAsset || hasNonZeroBalance);
+    const assetUpper = balance.asset.toUpperCase();
+    const isPinned = pinnedAssets.includes(assetUpper);
+    if (!isPinned) return false;
+
+    // BTC and XCP always show even if 0 balance
+    if (assetUpper === "BTC" || assetUpper === "XCP") return true;
+
+    // Other pinned assets only show if non-zero
+    return Number(balance.quantity_normalized) > 0;
   });
-  const otherBalances = allBalances.filter((balance) => !pinnedAssets.includes(balance.asset.toUpperCase()));
+
+  const otherBalances = allBalances.filter((balance) =>
+    !pinnedAssets.includes(balance.asset.toUpperCase())
+  );
 
   if (isInitialLoading) return <Spinner message="Loading balances..." />;
 
