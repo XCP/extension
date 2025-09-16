@@ -13,6 +13,14 @@ import { checkForLastError, wrapRuntimeCallback, broadcastToTabs, sendMessageToT
 // Import onMessage directly from webext-bridge/background to prevent runtime.lastError
 import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
 
+// Track which tabs have content scripts ready
+const readyTabs = new Set<number>();
+
+// Export for use in browser.ts
+export function isTabReady(tabId: number): boolean {
+  return readyTabs.has(tabId);
+}
+
 export default defineBackground(() => {
   /**
    * CRITICAL: Chrome Runtime Error Prevention
@@ -32,6 +40,15 @@ export default defineBackground(() => {
       // Error consumed - prevents "Unchecked runtime.lastError" spam
       // Common during extension startup when Chrome tries to reconnect to tabs
     }
+
+    // Track content script readiness
+    if (message && message.__xcp_cs_ready && sender.tab?.id) {
+      readyTabs.add(sender.tab.id);
+      console.log(`[Background] Content script ready on tab ${sender.tab.id}:`, message.tabUrl);
+      // Don't respond - this is just a signal
+      return false;
+    }
+
     // DON'T respond - let the actual handlers do their job
     // Just consuming the error is enough
     return false; // Let other handlers process the message
@@ -75,7 +92,26 @@ export default defineBackground(() => {
   });
   
   console.log('[Background] Core message listener registered');
-  
+
+  // Track tab lifecycle - remove from ready set when tabs navigate or close
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.status === 'loading') {
+      // Tab is navigating, content script will reload
+      readyTabs.delete(tabId);
+    }
+  });
+
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    // Tab closed, remove from ready set
+    readyTabs.delete(tabId);
+  });
+
+  // Clear ready tabs on extension install/update
+  chrome.runtime.onInstalled.addListener(() => {
+    readyTabs.clear();
+    console.log('[Background] Extension installed/updated - cleared ready tabs');
+  });
+
   // Set up connection listener
   chrome.runtime.onConnect.addListener((port) => {
     port.onMessage.addListener((msg) => {

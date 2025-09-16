@@ -140,8 +140,45 @@ export function defineProxyService<T extends Record<string, any>>(
               const error = chrome.runtime.lastError;
 
               if (error) {
-                // Just pass through the original error message
-                // Don't change it as tests/UI might depend on specific messages
+                // For "Receiving end does not exist" errors, retry with exponential backoff
+                if (error.message?.includes('Could not establish connection') ||
+                    error.message?.includes('Receiving end does not exist')) {
+                  // Retry logic for startup race conditions
+                  let retries = 3;
+                  let delay = 100;
+
+                  const retry = () => {
+                    if (retries > 0) {
+                      retries--;
+                      setTimeout(() => {
+                        chrome.runtime.sendMessage(message, (retryResponse: ProxyResponse) => {
+                          const retryError = chrome.runtime.lastError;
+                          if (retryError) {
+                            if (retries > 0) {
+                              delay *= 2; // Exponential backoff
+                              retry();
+                            } else {
+                              reject(new Error(retryError.message || 'Unknown runtime error'));
+                            }
+                          } else if (!retryResponse) {
+                            reject(new Error(`No response from ${serviceName}.${prop}`));
+                          } else if (retryResponse.success) {
+                            resolve(retryResponse.result);
+                          } else {
+                            reject(new Error(retryResponse.error || `${serviceName}.${prop} failed`));
+                          }
+                        });
+                      }, delay);
+                    } else {
+                      reject(new Error(error.message || 'Unknown runtime error'));
+                    }
+                  };
+
+                  retry();
+                  return;
+                }
+
+                // Other errors - don't retry
                 reject(new Error(error.message || 'Unknown runtime error'));
                 return;
               }

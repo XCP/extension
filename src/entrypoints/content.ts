@@ -6,6 +6,21 @@ export default defineContentScript({
   // The browser automatically excludes restricted schemes
   async main(ctx) {
     /**
+     * CRITICAL: Send "ready" signal to background immediately
+     * This tells the background which tabs have content scripts loaded,
+     * preventing "Receiving end does not exist" errors when broadcasting.
+     */
+    try {
+      chrome.runtime.sendMessage({ __xcp_cs_ready: true, tabUrl: window.location.href }, () => {
+        // Always consume lastError to prevent console warnings
+        if (chrome.runtime.lastError) {
+          // Expected during extension startup - background might not be ready yet
+        }
+      });
+    } catch (e) {
+      // Ignore errors during initial handshake
+    }
+    /**
      * Main message handler for background → content script communication
      * We register this EARLY to consume any Chrome runtime errors
      *
