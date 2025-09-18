@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
+import { fetchBTCBalance, hasAddressActivity } from '@/utils/blockchain/bitcoin/balance';
 
 describe('Bitcoin Balance Utilities', () => {
   const originalFetch = globalThis.fetch;
@@ -288,5 +288,138 @@ describe('Bitcoin Balance Utilities', () => {
 
     const balance = await fetchBTCBalance(mockAddress);
     expect(balance).toBe(400000);
+  });
+
+  describe('hasAddressActivity', () => {
+    it('should return true when address has transaction history', async () => {
+      const mockResponse = {
+        chain_stats: { tx_count: 5 },
+        mempool_stats: { tx_count: 0 }
+      };
+
+      (globalThis.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const hasActivity = await hasAddressActivity(mockAddress);
+      expect(hasActivity).toBe(true);
+    });
+
+    it('should return true when address has mempool transactions', async () => {
+      const mockResponse = {
+        chain_stats: { tx_count: 0 },
+        mempool_stats: { tx_count: 2 }
+      };
+
+      (globalThis.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const hasActivity = await hasAddressActivity(mockAddress);
+      expect(hasActivity).toBe(true);
+    });
+
+    it('should return false when address has no transactions', async () => {
+      const mockResponse = {
+        chain_stats: { tx_count: 0 },
+        mempool_stats: { tx_count: 0 }
+      };
+
+      (globalThis.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const hasActivity = await hasAddressActivity(mockAddress);
+      expect(hasActivity).toBe(false);
+    });
+
+    it('should fallback to mempool.space when blockstream fails', async () => {
+      (globalThis.fetch as any)
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            chain_stats: { tx_count: 10 },
+            mempool_stats: { tx_count: 0 }
+          }),
+        });
+
+      const hasActivity = await hasAddressActivity(mockAddress);
+      expect(hasActivity).toBe(true);
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should return false when all endpoints fail', async () => {
+      (globalThis.fetch as any).mockRejectedValue(new Error('Network error'));
+
+      const hasActivity = await hasAddressActivity(mockAddress);
+      expect(hasActivity).toBe(false);
+    });
+
+    it('should handle HTTP error responses', async () => {
+      (globalThis.fetch as any)
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            chain_stats: { tx_count: 3 },
+            mempool_stats: { tx_count: 1 }
+          }),
+        });
+
+      const hasActivity = await hasAddressActivity(mockAddress);
+      expect(hasActivity).toBe(true);
+    });
+
+    it('should use custom timeout value', async () => {
+      const customTimeout = 3000;
+      let timeoutUsed = 0;
+
+      const mockController = {
+        abort: vi.fn(),
+        signal: { aborted: false }
+      };
+      vi.spyOn(globalThis, 'AbortController').mockImplementation(() => mockController as any);
+      const originalSetTimeout = globalThis.setTimeout;
+      vi.spyOn(globalThis, 'setTimeout').mockImplementation((callback, timeout) => {
+        timeoutUsed = timeout || 0;
+        return originalSetTimeout(callback, timeout);
+      });
+
+      (globalThis.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          chain_stats: { tx_count: 0 },
+          mempool_stats: { tx_count: 0 }
+        }),
+      });
+
+      await hasAddressActivity(mockAddress, customTimeout);
+      expect(timeoutUsed).toBe(customTimeout);
+    });
+
+    it('should handle malformed response data', async () => {
+      (globalThis.fetch as any)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ invalid: 'data' }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            chain_stats: { tx_count: 5 },
+            mempool_stats: { tx_count: 0 }
+          }),
+        });
+
+      const hasActivity = await hasAddressActivity(mockAddress);
+      expect(hasActivity).toBe(true);
+    });
   });
 });
