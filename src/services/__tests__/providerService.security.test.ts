@@ -7,7 +7,7 @@ import * as settingsStorage from '@/utils/storage/settingsStorage';
 import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
 import { approvalQueue } from '@/utils/provider/approvalQueue';
-import { registerBlockchainService, getBlockchainService } from '../blockchain/blockchainServiceHandler';
+import { registerBlockchainService, getBlockchainService } from '../blockchain';
 import { getConnectionService } from '../connection';
 import { getTransactionService } from '../transaction';
 import { getApprovalService } from '../approval';
@@ -21,7 +21,7 @@ vi.mock('webext-bridge/background', () => ({
 vi.mock('../walletService');
 vi.mock('@/utils/storage/settingsStorage');
 vi.mock('@/utils/provider/rateLimiter');
-vi.mock('../blockchain/blockchainServiceHandler');
+vi.mock('../blockchain');
 vi.mock('../connection');
 vi.mock('../transaction');
 vi.mock('../approval');
@@ -110,7 +110,7 @@ describe('ProviderService Security Tests', () => {
     } as any);
     
     // Setup blockchain service mocks
-    vi.mocked(registerBlockchainService).mockResolvedValue(undefined);
+    vi.mocked(registerBlockchainService).mockReturnValue({} as any);
     
     // Mock the blockchain service with basic functionality
     const mockBlockchainService = {
