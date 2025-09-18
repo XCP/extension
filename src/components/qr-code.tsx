@@ -1,5 +1,5 @@
 import { useEffect, useRef, memo } from 'react';
-import { generateQRMatrix } from '@/utils/qr-code';
+import { generateQR } from '@/utils/qr-code';
 import logo from '@/assets/qr-code.png';
 
 interface QRCanvasProps {
@@ -66,12 +66,13 @@ export const QRCanvas = memo(({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Generate QR code matrix
-    const matrix = generateQRMatrix(text, errorCorrectionLevel);
+    // Generate QR code matrix with specified error correction level
+    const matrix = generateQR(text, errorCorrectionLevel);
     const matrixSize = matrix.length;
     const totalSize = matrixSize + margin * 2;
     const cellSize = Math.floor(size / totalSize);
-    const actualSize = cellSize * totalSize;
+    // Use the requested size directly for the canvas
+    const actualSize = size;
 
     // Set canvas size
     canvas.width = actualSize;
@@ -81,14 +82,15 @@ export const QRCanvas = memo(({
     ctx.fillStyle = lightColor;
     ctx.fillRect(0, 0, actualSize, actualSize);
 
-    // Draw QR code
+    // Draw QR code - use floating point to fill exact size
     ctx.fillStyle = darkColor;
+    const exactCellSize = actualSize / totalSize;
     for (let row = 0; row < matrixSize; row++) {
       for (let col = 0; col < matrixSize; col++) {
         if (matrix[row][col]) {
-          const x = (col + margin) * cellSize;
-          const y = (row + margin) * cellSize;
-          ctx.fillRect(x, y, cellSize, cellSize);
+          const x = (col + margin) * exactCellSize;
+          const y = (row + margin) * exactCellSize;
+          ctx.fillRect(x, y, exactCellSize, exactCellSize);
         }
       }
     }
@@ -97,6 +99,7 @@ export const QRCanvas = memo(({
     if (logo?.src) {
       const img = new Image();
       img.crossOrigin = 'anonymous';
+      const cellSizeForLogo = exactCellSize; // Capture for closure
 
       img.onload = () => {
         const logoSize = logo.width || actualSize * 0.15; // Reduced from 0.2 to 0.15
@@ -105,7 +108,7 @@ export const QRCanvas = memo(({
         const logoY = (actualSize - logoHeight) / 2;
 
         // Create circular white background for logo
-        const padding = cellSize * 1.5; // Reduced padding from 2 to 1.5
+        const padding = cellSizeForLogo * 1.5; // Reduced padding from 2 to 1.5
         const bgCenterX = logoX + logoSize / 2;
         const bgCenterY = logoY + logoHeight / 2;
         const bgRadius = (Math.max(logoSize, logoHeight) / 2) + padding;
