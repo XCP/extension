@@ -12,11 +12,12 @@ vi.mock('@/utils/blockchain/bitcoin/balance');
 describe('Address Type Detector', () => {
   const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
-  const mockAddresses = {
+  const mockAddresses: Record<AddressFormat, string> = {
     [AddressFormat.P2PKH]: '1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA',
     [AddressFormat.P2WPKH]: 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu',
     [AddressFormat.P2SH_P2WPKH]: '37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf',
     [AddressFormat.P2TR]: 'bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr',
+    [AddressFormat.Counterwallet]: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr',
   };
 
   beforeEach(() => {
