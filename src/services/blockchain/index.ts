@@ -17,12 +17,6 @@ export type { BlockchainServiceState } from './BlockchainService';
 export { BlockchainServiceProxy, blockchainService } from './blockchainProxy';
 export type { BlockchainServiceMessage } from './blockchainProxy';
 
-// Service registration and handlers
-export { 
-  registerBlockchainService, 
-  getBlockchainService 
-} from './blockchainServiceHandler';
-
 // Re-export types from blockchain utilities for convenience
 export type {
   FeeRates,

@@ -15,7 +15,7 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 import { getConnectionService } from '@/services/connection';
 import { getApprovalService } from '@/services/approval';
 import { getTransactionService } from '@/services/transaction';
-import { getBlockchainService } from '@/services/blockchain';
+import { getBlockchainService } from '@/services/blockchain/blockchainServiceHandler';
 import type { ApprovalRequest } from '@/utils/provider/approvalQueue';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
 import { analytics } from '@/utils/fathom';
