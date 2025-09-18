@@ -1,5 +1,5 @@
 import { useEffect, useRef, memo } from 'react';
-import { generateQRMatrix } from '@/utils/qr-code';
+import { generateQR } from '@/utils/qr-code';
 import logo from '@/assets/qr-code.png';
 
 interface QRCanvasProps {
@@ -66,12 +66,13 @@ export const QRCanvas = memo(({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Generate QR code matrix
-    const matrix = generateQRMatrix(text, errorCorrectionLevel);
+    // Generate QR code matrix with specified error correction level
+    const matrix = generateQR(text, errorCorrectionLevel);
     const matrixSize = matrix.length;
     const totalSize = matrixSize + margin * 2;
     const cellSize = Math.floor(size / totalSize);
-    const actualSize = cellSize * totalSize;
+    // Use the requested size directly for the canvas
+    const actualSize = size;
 
     // Set canvas size
     canvas.width = actualSize;
@@ -81,14 +82,15 @@ export const QRCanvas = memo(({
     ctx.fillStyle = lightColor;
     ctx.fillRect(0, 0, actualSize, actualSize);
 
-    // Draw QR code
+    // Draw QR code - use floating point to fill exact size
     ctx.fillStyle = darkColor;
+    const exactCellSize = actualSize / totalSize;
     for (let row = 0; row < matrixSize; row++) {
       for (let col = 0; col < matrixSize; col++) {
         if (matrix[row][col]) {
-          const x = (col + margin) * cellSize;
-          const y = (row + margin) * cellSize;
-          ctx.fillRect(x, y, cellSize, cellSize);
+          const x = (col + margin) * exactCellSize;
+          const y = (row + margin) * exactCellSize;
+          ctx.fillRect(x, y, exactCellSize, exactCellSize);
         }
       }
     }
@@ -97,6 +99,7 @@ export const QRCanvas = memo(({
     if (logo?.src) {
       const img = new Image();
       img.crossOrigin = 'anonymous';
+      const cellSizeForLogo = exactCellSize; // Capture for closure
 
       img.onload = () => {
         const logoSize = logo.width || actualSize * 0.15; // Reduced from 0.2 to 0.15
@@ -104,46 +107,26 @@ export const QRCanvas = memo(({
         const logoX = (actualSize - logoSize) / 2;
         const logoY = (actualSize - logoHeight) / 2;
 
-        // Create rounded white background for logo
-        const padding = cellSize * 1.5; // Reduced padding from 2 to 1.5
-        const bgX = logoX - padding;
-        const bgY = logoY - padding;
-        const bgWidth = logoSize + padding * 2;
-        const bgHeight = logoHeight + padding * 2;
-        const cornerRadius = padding; // Rounded corners
+        // Create circular white background for logo
+        const padding = cellSizeForLogo * 1.5; // Reduced padding from 2 to 1.5
+        const bgCenterX = logoX + logoSize / 2;
+        const bgCenterY = logoY + logoHeight / 2;
+        const bgRadius = (Math.max(logoSize, logoHeight) / 2) + padding;
 
-        // Draw rounded rectangle background
+        // Draw circular background
         ctx.fillStyle = lightColor;
         ctx.beginPath();
-        ctx.moveTo(bgX + cornerRadius, bgY);
-        ctx.lineTo(bgX + bgWidth - cornerRadius, bgY);
-        ctx.quadraticCurveTo(bgX + bgWidth, bgY, bgX + bgWidth, bgY + cornerRadius);
-        ctx.lineTo(bgX + bgWidth, bgY + bgHeight - cornerRadius);
-        ctx.quadraticCurveTo(bgX + bgWidth, bgY + bgHeight, bgX + bgWidth - cornerRadius, bgY + bgHeight);
-        ctx.lineTo(bgX + cornerRadius, bgY + bgHeight);
-        ctx.quadraticCurveTo(bgX, bgY + bgHeight, bgX, bgY + bgHeight - cornerRadius);
-        ctx.lineTo(bgX, bgY + cornerRadius);
-        ctx.quadraticCurveTo(bgX, bgY, bgX + cornerRadius, bgY);
-        ctx.closePath();
+        ctx.arc(bgCenterX, bgCenterY, bgRadius, 0, Math.PI * 2);
         ctx.fill();
 
-        // Create clipping path for rounded logo
+        // Create circular clipping path for logo
         ctx.save();
         ctx.beginPath();
-        const logoRadius = logoSize * 0.1; // Rounded corners for logo itself
-        ctx.moveTo(logoX + logoRadius, logoY);
-        ctx.lineTo(logoX + logoSize - logoRadius, logoY);
-        ctx.quadraticCurveTo(logoX + logoSize, logoY, logoX + logoSize, logoY + logoRadius);
-        ctx.lineTo(logoX + logoSize, logoY + logoHeight - logoRadius);
-        ctx.quadraticCurveTo(logoX + logoSize, logoY + logoHeight, logoX + logoSize - logoRadius, logoY + logoHeight);
-        ctx.lineTo(logoX + logoRadius, logoY + logoHeight);
-        ctx.quadraticCurveTo(logoX, logoY + logoHeight, logoX, logoY + logoHeight - logoRadius);
-        ctx.lineTo(logoX, logoY + logoRadius);
-        ctx.quadraticCurveTo(logoX, logoY, logoX + logoRadius, logoY);
-        ctx.closePath();
+        const logoRadius = Math.min(logoSize, logoHeight) / 2;
+        ctx.arc(bgCenterX, bgCenterY, logoRadius, 0, Math.PI * 2);
         ctx.clip();
 
-        // Draw logo with clipping
+        // Draw logo with circular clipping
         ctx.drawImage(img, logoX, logoY, logoSize, logoHeight);
         ctx.restore();
       };
