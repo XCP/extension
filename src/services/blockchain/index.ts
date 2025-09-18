@@ -1,6 +1,6 @@
 /**
  * Blockchain Service Module
- * 
+ *
  * Provides consolidated blockchain operations for the extension:
  * - Bitcoin operations (balance, UTXO, fees, broadcasting, block height)
  * - Counterparty API integration (tokens, assets, transactions, orders)
@@ -13,15 +13,11 @@
 export { BlockchainService } from './BlockchainService';
 export type { BlockchainServiceState } from './BlockchainService';
 
-// Service proxy for cross-context communication
-export { BlockchainServiceProxy, blockchainService } from './blockchainProxy';
-export type { BlockchainServiceMessage } from './blockchainProxy';
-
-// Service registration and handlers
-export { 
-  registerBlockchainService, 
-  getBlockchainService 
-} from './blockchainServiceHandler';
+// Service proxy and registration (using standard defineProxyService pattern)
+export {
+  registerBlockchainService,
+  getBlockchainService
+} from './blockchainProxy';
 
 // Re-export types from blockchain utilities for convenience
 export type {
