@@ -12,7 +12,7 @@ import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { PasswordInput } from "@/components/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat, detectAddressFormat } from '@/utils/blockchain/bitcoin';
 import { isValidCounterwalletMnemonic } from "@/utils/blockchain/counterwallet";
 
 function ImportWallet() {
@@ -62,9 +62,21 @@ function ImportWallet() {
       }
 
       try {
-        const addressFormat = isValidCounterwalletMnemonic(mnemonic)
-          ? AddressFormat.Counterwallet
-          : AddressFormat.P2WPKH;
+        let addressFormat: AddressFormat;
+
+        // Detect address format
+        if (isValidCounterwalletMnemonic(mnemonic)) {
+          addressFormat = AddressFormat.Counterwallet;
+        } else {
+          // Try to detect from blockchain activity, fallback to P2TR
+          try {
+            addressFormat = await detectAddressFormat(mnemonic);
+          } catch (detectError) {
+            console.warn('Address format detection failed, using P2TR default:', detectError);
+            addressFormat = AddressFormat.P2TR;
+          }
+        }
+
         const newWallet = await createAndUnlockMnemonicWallet(mnemonic, password, undefined, addressFormat);
         await unlockWallet(newWallet.id, password);
         navigate(PATHS.SUCCESS);
@@ -95,18 +107,18 @@ function ImportWallet() {
   }, []);
 
   const handleWordChange = (index: number, value: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const words = value.trim().split(/\s+/);
+    const trimmedValue = value.trim();
+    const words = trimmedValue.split(/\s+/);
     const newMnemonicWords = [...mnemonicWords];
-    if (words.length > 1) {
+
+    if (words.length > 1 && trimmedValue.length > 0) {
       // Pasting multiple words
       let lastFilledIndex = index;
       for (let i = 0; i < words.length && index + i < 12; i++) {
         newMnemonicWords[index + i] = words[i];
-        const input = inputRefs.current[index + i];
-        if (input) input.value = words[i];
         lastFilledIndex = index + i;
       }
-      
+
       // If we filled exactly 12 words from the paste, blur to mask all
       if (lastFilledIndex === 11 && words.length >= 12 - index) {
         // Small delay to ensure the last word is set before blurring
@@ -123,8 +135,8 @@ function ImportWallet() {
         setFocusedIndex(null);
       }
     } else {
-      newMnemonicWords[index] = value.trim();
-      inputRefs.current[index]!.value = value.trim();
+      // Single word input or deletion
+      newMnemonicWords[index] = trimmedValue;
     }
     setMnemonicWords(newMnemonicWords);
   };
@@ -187,11 +199,12 @@ function ImportWallet() {
                     <span className="absolute left-2 w-6 text-right mr-2 text-gray-500" aria-hidden="true">
                       {index + 1}.
                     </span>
-                    <div className="ml-8 w-full relative">
+                    <div className="ml-8 w-full relative overflow-hidden">
                       <HeadlessInput
                         name={`word-${index}`}
                         ref={(el: HTMLInputElement | null) => { inputRefs.current[index] = el; }}
                         type={showMnemonic ? "text" : "password"}
+                        value={word}
                         onChange={(e) => handleWordChange(index, e.target.value, e)}
                         onKeyDown={(e) => handleWordKeyDown(e, index)}
                         onFocus={() => setFocusedIndex(index)}
@@ -202,8 +215,8 @@ function ImportWallet() {
                         disabled={isPending}
                       />
                       {!showMnemonic && hasValue && (
-                        <div 
-                          className="absolute inset-0 font-mono pointer-events-none"
+                        <div
+                          className="absolute inset-0 font-mono pointer-events-none overflow-hidden text-ellipsis whitespace-nowrap"
                           aria-hidden="true"
                         >
                           {displayContent}

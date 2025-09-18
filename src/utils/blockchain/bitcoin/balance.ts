@@ -1,6 +1,46 @@
 import { toSatoshis } from '@/utils/numeric';
 
 /**
+ * Checks if a Bitcoin address has any transaction history (received or sent)
+ * @param address - The Bitcoin address to check
+ * @param timeoutMs - Timeout in milliseconds for the API request (default: 5000ms)
+ * @returns A Promise that resolves to true if the address has activity, false otherwise
+ */
+export async function hasAddressActivity(address: string, timeoutMs = 5000): Promise<boolean> {
+  const endpoints = [
+    `https://blockstream.info/api/address/${address}`,
+    `https://mempool.space/api/address/${address}`,
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const resp = await fetchWithTimeout(endpoint, { timeout: timeoutMs });
+      if (!resp.ok) {
+        console.warn(`API call failed with HTTP ${resp.status}: ${endpoint}`);
+        continue;
+      }
+      const data = await resp.json();
+
+      // Check if address has any transaction history
+      if (data.chain_stats?.tx_count > 0 || data.mempool_stats?.tx_count > 0) {
+        return true;
+      }
+
+      // If we got a valid response with 0 transactions, return false
+      if (data.chain_stats?.tx_count === 0 && data.mempool_stats?.tx_count === 0) {
+        return false;
+      }
+    } catch (error) {
+      console.warn(`Error calling ${endpoint}:`, error);
+      continue;
+    }
+  }
+
+  // If all endpoints failed, return false (assume no activity)
+  return false;
+}
+
+/**
  * Fetches the Bitcoin balance (in satoshis) for a given address by querying multiple API endpoints.
  * The function returns as soon as one of the endpoints successfully returns a balance.
  *
