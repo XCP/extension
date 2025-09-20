@@ -1,2 +1,8 @@
-// Barrel export for core services
-// Reserved for future use
+/**
+ * Core service utilities and base classes
+ */
+
+export * from './BaseService';
+export * from './ServiceRegistry';
+export * from './RequestManager';
+export * from './MessageBus';
