@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { detectAddressFormat, detectAddressFormatFromPreviews, getPreviewAddresses } from '@/utils/blockchain/bitcoin/addressTypeDetector';
+import { detectAddressFormat, detectAddressFormatFromPreviews, getPreviewAddresses } from '@/utils/blockchain/bitcoin/address';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
 import { hasAddressActivity } from '@/utils/blockchain/bitcoin/balance';

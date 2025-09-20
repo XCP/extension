@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { verifyMessage, verifyMessageWithMethod } from '../verifier';
+import { verifyMessage, verifyMessageWithMethod } from '../messageVerifier';
 
 describe('Wallet Implementation Test Fixtures', () => {
   describe('Bitcore/FreeWallet Fixtures', () => {

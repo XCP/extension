@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { verifyMessage, getVerificationReport } from '../verifier';
+import { verifyMessage, getVerificationReport } from '../messageVerifier';
 
 describe('Real-World Bitcoin Signature Compatibility', () => {
 
