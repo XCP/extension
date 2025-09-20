@@ -14,7 +14,6 @@ import {
   supportsBIP322,
 } from '../bip322';
 import { hex } from '@scure/base';
-import * as btc from '@scure/btc-signer';
 
 describe('BIP-322 Implementation', () => {
   describe('bip322MessageHash', () => {

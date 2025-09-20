@@ -1,5 +1,4 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAmount } from "@/utils/format";
 
 /**
  * Props for the ReviewDividend component.

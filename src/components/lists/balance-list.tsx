@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback, useRef, type ReactElement } from "react";
+import { useState, useEffect, useCallback, type ReactElement } from "react";
 import { useInView } from "@/hooks/useInView";
 import { Spinner } from "@/components/spinner";
 import { SearchInput } from "@/components/inputs/search-input";
-import { BalanceMenu } from "@/components/menus/balance-menu";
 import { BalanceCard } from "@/components/cards/balance-card";
 import { SearchResultCard } from "@/components/cards/search-result-card";
 import { useWallet } from "@/contexts/wallet-context";

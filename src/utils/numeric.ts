@@ -253,9 +253,10 @@ export const divide = (dividend: string | number | BigNumber, divisor: string | 
  * @param roundingMode - The rounding mode (default: ROUND_DOWN)
  * @returns The rounded integer as a BigNumber
  */
-export const toInteger = (value: string | number | BigNumber, roundingMode = BigNumber.ROUND_DOWN): BigNumber => {
-  return toBigNumber(value).integerValue(roundingMode);
-};
+// Unused but kept for potential future use
+// export const toInteger = (value: string | number | BigNumber, roundingMode = BigNumber.ROUND_DOWN): BigNumber => {
+//   return toBigNumber(value).integerValue(roundingMode);
+// };
 
 /**
  * Rounds up a value to an integer (ceiling)

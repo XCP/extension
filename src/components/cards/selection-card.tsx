@@ -155,4 +155,3 @@ export function SelectionCardGroup({
   );
 }
 
-export default SelectionCard;

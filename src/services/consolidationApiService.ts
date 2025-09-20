@@ -3,8 +3,7 @@
  * Handles communication with the Laravel consolidation API for batched UTXO recovery
  */
 
-import axios from 'axios';
-import { apiClient, API_TIMEOUTS } from '@/utils/axios';
+import { apiClient } from '@/utils/axios';
 
 /* ══════════════════════════════════════════════════════════════════════════
  * TYPE DEFINITIONS

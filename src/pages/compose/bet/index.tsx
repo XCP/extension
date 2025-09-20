@@ -4,7 +4,7 @@ import { Composer } from "@/components/composer";
 import { composeBet } from "@/utils/blockchain/counterparty";
 import type { BetOptions } from "@/utils/blockchain/counterparty";
 
-export function ComposeBet() {
+function ComposeBet() {
   return (
     <div className="p-4">
       <Composer<BetOptions>

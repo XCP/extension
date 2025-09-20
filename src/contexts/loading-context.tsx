@@ -8,7 +8,6 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
-import { FaSpinner } from "react-icons/fa";
 
 /**
  * State for a loading instance.

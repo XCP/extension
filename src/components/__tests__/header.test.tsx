@@ -119,8 +119,7 @@ describe('Header', () => {
     };
     
     render(<Header leftButton={leftButton} />);
-    
-    const button = screen.getByLabelText('Menu Button');
+
     expect(screen.getByTestId('menu-icon')).toBeInTheDocument();
     // Icon should not have margin when no label
     const icon = screen.getByTestId('menu-icon').parentElement;

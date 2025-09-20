@@ -183,23 +183,5 @@ export function checkSecretLimit(
   }
 }
 
-/**
- * Type guard to check if a value is a valid wallet ID
- * @param value - The value to check
- * @returns True if the value is a valid wallet ID
- */
-export function isValidWalletId(value: unknown): boolean {
-  if (typeof value !== 'string') return false;
-  if (!value || value.length > MAX_WALLET_ID_LENGTH) return false;
-  return WALLET_ID_REGEX.test(value);
-}
-
-/**
- * Type guard to check if a value is a valid timeout
- * @param value - The value to check
- * @returns True if the value is a valid timeout
- */
-export function isValidTimeout(value: unknown): boolean {
-  if (typeof value !== 'number' || isNaN(value)) return false;
-  return value >= MIN_TIMEOUT_MS && value <= MAX_TIMEOUT_MS;
-}
+// Unused validation functions - removed
+// These could be re-added if session validation is needed in the future

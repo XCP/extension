@@ -19,7 +19,7 @@ export interface VerificationOptions {
 
 export type AddressType = 'P2PKH' | 'P2SH' | 'P2WPKH' | 'P2WSH' | 'P2TR' | 'Unknown';
 
-export interface SignatureInfo {
+interface SignatureInfo {
   raw: Uint8Array;
   flag?: number;
   r?: Uint8Array;

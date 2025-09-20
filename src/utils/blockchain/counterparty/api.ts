@@ -719,7 +719,7 @@ export interface CreditDebit {
   confirmed?: boolean;
 }
 
-export interface CreditDebitResponse {
+interface CreditDebitResponse {
   result: CreditDebit[];
   result_count: number;
 }

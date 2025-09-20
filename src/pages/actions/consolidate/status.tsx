@@ -8,7 +8,7 @@ import { formatAddress, formatAmount } from "@/utils/format";
 import { consolidationApi } from "@/services/consolidationApiService";
 import type { ConsolidationStatusResponse } from "@/services/consolidationApiService";
 
-export function ConsolidationStatus() {
+function ConsolidationStatus() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeAddress } = useWallet();

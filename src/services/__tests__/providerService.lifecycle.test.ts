@@ -1,12 +1,11 @@
 import './setup'; // Must be first to setup browser mocks
-import { describe, it, expect, beforeEach, beforeAll, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing';
 import { createProviderService } from '../providerService';
 import { approvalQueue } from '@/utils/provider/approvalQueue';
 import { requestCleanup } from '@/utils/provider/requestCleanup';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
 import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
-import * as walletService from '../walletService';
 
 // Mock dependencies
 vi.mock('webext-bridge/background', () => ({
@@ -31,7 +30,6 @@ vi.mock('@/utils/security/cspValidation', () => ({
 
 describe('Provider Service Lifecycle Tests', () => {
   let providerService: ReturnType<typeof createProviderService>;
-
   beforeEach(() => {
     vi.clearAllMocks();
     fakeBrowser.reset();
@@ -67,6 +65,7 @@ describe('Provider Service Lifecycle Tests', () => {
     } as any);
     
     providerService = createProviderService();
+    // Store reference for potential future use in tests
   });
 
   describe('Request Expiration', () => {
@@ -232,7 +231,6 @@ describe('Provider Service Lifecycle Tests', () => {
       } as any);
       
       // Simulate multiple rapid requests
-      const promises = [];
       for (let i = 0; i < 3; i++) {
         approvalQueue.add({
           id: `concurrent-${i}`,

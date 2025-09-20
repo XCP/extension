@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { FaChevronDown, FaChevronRight, FaHistory } from "react-icons/fa";
 import { formatAmount } from "@/utils/format";
 import { consolidationApi, type ConsolidationStatusResponse } from "@/services/consolidationApiService";
-import { Spinner } from "@/components/spinner";
 
 interface ConsolidationHistoryProps {
   address: string;

@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { ComposerForm } from "@/components/composer-form";
 import { useComposer } from "@/contexts/composer-context";
-import { formatAmount } from "@/utils/format";
 import { fetchAssetDetails, isHexMemo, stripHexPrefix, isValidMemoLength } from "@/utils/blockchain/counterparty";
 import { validateBitcoinAddress } from "@/utils/validation";
 import { ErrorAlert } from "@/components/error-alert";
@@ -29,7 +28,7 @@ export function MPMAForm({
   initialFormData,
 }: MPMAFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet, settings, showHelpText } = useComposer();
+  const { showHelpText } = useComposer();
   
   // Error state management
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -38,7 +37,6 @@ export function MPMAForm({
   const [csvData, setCsvData] = useState<ParsedRow[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string>("");
-  const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
   
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);

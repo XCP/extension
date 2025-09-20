@@ -1,6 +1,6 @@
 import { ripemd160 } from '@noble/hashes/legacy';
 import { sha256 } from '@noble/hashes/sha2';
-import { bech32, bech32m, base58, createBase58check } from '@scure/base';
+import { bech32, base58, createBase58check } from '@scure/base';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import * as btc from '@scure/btc-signer';

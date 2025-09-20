@@ -183,7 +183,6 @@ describe('UtxoDetachForm', () => {
   });
 
   it('should allow submission without destination (optional field)', async () => {
-    const user = userEvent.setup();
     render(
       <TestWrapper>
         <UtxoDetachForm {...defaultProps} />
@@ -304,7 +303,6 @@ describe('UtxoDetachForm', () => {
   });
 
   it('should submit form with empty destination', async () => {
-    const user = userEvent.setup();
     const formAction = vi.fn();
     
     render(

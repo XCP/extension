@@ -24,7 +24,6 @@ import * as walletService from '../walletService';
 import * as settingsStorage from '@/utils/storage';
 import * as approvalQueue from '@/utils/provider/approvalQueue';
 import * as rateLimiter from '@/utils/provider/rateLimiter';
-import * as fathom from '@/utils/fathom';
 import * as replayPrevention from '@/utils/security/replayPrevention';
 import * as cspValidation from '@/utils/security/cspValidation';
 
@@ -220,7 +219,7 @@ describe.skip('ProviderService', () => {
         const localProviderService = createProviderService();
         
         // Start the request promise (but don't await it to avoid timeout)
-        const requestPromise = localProviderService.handleRequest(
+        localProviderService.handleRequest(
           'https://newsite.com',
           'xcp_requestAccounts',
           []

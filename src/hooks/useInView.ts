@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 export function useInView(options?: IntersectionObserverInit) {
   const [inView, setInView] = useState(false);
-  const [element, setElement] = useState<HTMLDivElement | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   const ref = useCallback((node: HTMLDivElement | null) => {
@@ -11,9 +10,6 @@ export function useInView(options?: IntersectionObserverInit) {
       observerRef.current.disconnect();
       observerRef.current = null;
     }
-
-    // Store the new element
-    setElement(node);
 
     // If no node, we're done
     if (!node) return;

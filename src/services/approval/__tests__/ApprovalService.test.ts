@@ -58,13 +58,11 @@ import { ApprovalService } from '../ApprovalService';
 // Import mocked modules to access them in tests
 import { RequestManager } from '../../core/RequestManager';
 import { approvalQueue, getApprovalBadgeText } from '@/utils/provider/approvalQueue';
-import { eventEmitterService } from '@/services/eventEmitterService';
 
 // Type the mocked functions
 const MockedRequestManager = RequestManager as unknown as ReturnType<typeof vi.mocked>;
 const mockedApprovalQueue = approvalQueue as any;
 const mockedGetApprovalBadgeText = getApprovalBadgeText as ReturnType<typeof vi.fn>;
-const mockedEventEmitterService = eventEmitterService as any;
 
 // Mock chrome APIs
 const mockStorage = {

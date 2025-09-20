@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useState, ChangeEvent, useEffect } from "react";
+import { useState, ChangeEvent } from "react";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
@@ -10,8 +10,7 @@ import {
   fromSatoshis,
   subtractSatoshis,
   divideSatoshis,
-  isLessThanOrEqualToSatoshis,
-  isLessThanSatoshis
+  isLessThanOrEqualToSatoshis
 } from "@/utils/numeric";
 import { isDustAmount } from "@/utils/validation";
 

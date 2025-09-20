@@ -235,7 +235,6 @@ export const apiClient = {
 };
 
 // Export apiClient as the default recommended client
-export default apiClient;
 
 
 

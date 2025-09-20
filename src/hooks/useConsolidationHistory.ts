@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { consolidationApi, type ConsolidationStatusResponse } from "@/services/consolidationApiService";
+import { consolidationApi } from "@/services/consolidationApiService";
 
 export function useConsolidationHistory(address: string) {
   const [hasHistory, setHasHistory] = useState(false);

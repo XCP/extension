@@ -491,7 +491,6 @@ export async function signBIP322P2SH_P2WPKH(
   const p2wpkh = btc.p2wpkh(publicKey);
   const p2sh = btc.p2sh(p2wpkh);
   const scriptPubKey = p2sh.script!;
-  const redeemScript = p2wpkh.script!;
 
   // Create to_spend transaction
   const toSpendBytes = serializeToSpend(messageHash, scriptPubKey);
@@ -791,8 +790,6 @@ function parseDERSignature(der: Uint8Array): Uint8Array | null {
 export { serializeToSpend as createToSpendTransaction };
 export { serializeToSignUnsigned as createToSignTransaction };
 
-// Import AddressFormat for compatibility
-import { AddressFormat } from './address';
 
 // Simple verification (just delegates to main)
 export async function verifySimpleBIP322(

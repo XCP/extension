@@ -5,7 +5,7 @@ import { Composer } from "@/components/composer";
 import { composeDispenser } from "@/utils/blockchain/counterparty";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty";
 
-export function ComposeDispenserPage() {
+function ComposeDispenserPage() {
   const { asset } = useParams<{ asset?: string }>();
 
   return (

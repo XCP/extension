@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaCopy, FaCheck, FaLock, FaCheckCircle, FaInfoCircle, FaRedo } from "react-icons/fa";
-import { FiDownload } from "react-icons/fi";
+import { FaCheck, FaLock, FaCheckCircle, FaRedo } from "react-icons/fa";
 import { Button } from "@/components/button";
 import { TextAreaInput } from "@/components/inputs/textarea-input";
 import { Spinner } from "@/components/spinner";

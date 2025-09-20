@@ -5,7 +5,7 @@ import { Composer } from "@/components/composer";
 import { composeDetach } from "@/utils/blockchain/counterparty";
 import type { DetachOptions } from "@/utils/blockchain/counterparty";
 
-export function ComposeUtxoDetach() {
+function ComposeUtxoDetach() {
   const { txid } = useParams<{ txid: string }>();
 
   return (

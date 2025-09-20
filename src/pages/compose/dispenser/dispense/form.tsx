@@ -115,7 +115,7 @@ export function DispenseForm({
   initialFormData
 }: DispenseFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet, settings, showHelpText, state } = useComposer();
+  const { activeAddress, activeWallet, showHelpText, state } = useComposer();
   const { pending } = useFormStatus();
   const feeRate = initialFormData?.sat_per_vbyte || DEFAULT_FEE_RATE;
   

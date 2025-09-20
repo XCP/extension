@@ -87,4 +87,3 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walle
   );
 };
 
-export default AddressList;

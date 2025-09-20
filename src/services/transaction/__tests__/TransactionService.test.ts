@@ -403,7 +403,6 @@ describe('TransactionService', () => {
 
   describe('signTransaction', () => {
     const mockRawTransaction = '0x1234567890abcdef...';
-    const mockAddress = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
 
     it('should successfully sign transaction with user approval', async () => {
       mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
@@ -626,7 +625,7 @@ describe('TransactionService', () => {
         }
       }
       
-      const limitedHistory = transactionService.getTransactionHistory();
+      transactionService.getTransactionHistory();
       // History is managed internally with a max size
     });
   });

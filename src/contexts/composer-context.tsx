@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import axios from "axios";
 import {
   createContext,
@@ -13,7 +13,6 @@ import {
   type ReactNode,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { useHeader } from "@/contexts/header-context";
 import { useLoading } from "@/contexts/loading-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
@@ -95,7 +94,6 @@ export function ComposerProvider<T>({
   const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, unlockWallet, isWalletLocked } = useWallet();
   const { settings } = useSettings();
   const { showLoading, hideLoading } = useLoading();
-  const { setHeaderProps } = useHeader();
   
   const previousAddressRef = useRef<string | undefined>(activeAddress?.address);
   const previousWalletRef = useRef<string | undefined>(activeWallet?.id);

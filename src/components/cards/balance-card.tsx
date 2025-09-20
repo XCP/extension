@@ -96,4 +96,3 @@ export function BalanceCard({
   );
 }
 
-export default BalanceCard;

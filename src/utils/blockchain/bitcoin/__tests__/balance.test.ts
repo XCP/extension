@@ -195,7 +195,7 @@ describe('Bitcoin Balance Utilities', () => {
       }), 10000))
     );
 
-    const timeoutPromise = fetchBTCBalance(mockAddress, 100);
+    fetchBTCBalance(mockAddress, 100);
     
     // Wait a bit to ensure timeout is triggered
     await new Promise(resolve => setTimeout(resolve, 150));

@@ -143,4 +143,3 @@ export function DispenserCard({
   );
 }
 
-export default DispenserCard;

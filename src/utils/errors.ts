@@ -86,7 +86,9 @@ export const PROVIDER_ERROR_CODES = {
  * Custom XCP Wallet Error Codes
  * Application-specific error codes for the XCP Wallet extension
  */
-export const XCP_ERROR_CODES = {
+// TODO: Update error handling to use these constants instead of string literals
+// Currently unused but should be used for consistent error codes
+// export const XCP_ERROR_CODES = {
   /**
    * Wallet is locked and requires unlocking
    */

@@ -28,7 +28,7 @@ export function AddressOptionsForm({
   initialFormData
 }: AddressOptionsFormProps): ReactElement {
   // Get everything from composer context
-  const { activeAddress, activeWallet, showHelpText } = useComposer<BroadcastOptions>();
+  const { activeAddress, activeWallet } = useComposer<BroadcastOptions>();
   const { pending } = useFormStatus();
   
   const initialRequireMemo = initialFormData?.text === `options ${ADDRESS_OPTION_REQUIRE_MEMO}`;

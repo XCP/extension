@@ -14,7 +14,7 @@ interface MPMAData {
   sat_per_vbyte: number;
 }
 
-export function ComposeMPMA() {
+function ComposeMPMA() {
   const composeTransaction = async (data: MPMAData): Promise<ApiResponse> => {
     // Parse the comma-separated values
     const assets = data.assets.split(',');

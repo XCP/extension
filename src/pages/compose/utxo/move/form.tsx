@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSpinner } from "react-icons/fa";
-import { Field, Label, Description, Input } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer-form";
 import { AddressHeader } from "@/components/headers/address-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
@@ -32,7 +31,7 @@ export function UtxoMoveForm({
   initialUtxo,
 }: UtxoMoveFormProps): ReactElement {
   const navigate = useNavigate();
-  const { activeAddress, activeWallet, settings, showHelpText } = useComposer();
+  const { activeAddress, activeWallet, showHelpText } = useComposer();
   const [validationError, setValidationError] = useState<string | null>(null);
   const [destination, setDestination] = useState(initialFormData?.destination || "");
   const [destinationValid, setDestinationValid] = useState(false);

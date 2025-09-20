@@ -205,10 +205,8 @@ describe('Message Passing Between Contexts', () => {
   describe('Error Handling', () => {
     it('should handle timeout in injected script', async () => {
       // This would be tested with actual timeout logic
-      const TIMEOUT = 60000; // 60 seconds
       
       // Simulate a request that times out
-      const startTime = Date.now();
       const timeoutPromise = new Promise((resolve, reject) => {
         setTimeout(() => {
           reject(new Error('Request timeout'));

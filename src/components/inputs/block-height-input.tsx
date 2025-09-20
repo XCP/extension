@@ -1,5 +1,4 @@
 import React, { ChangeEvent } from "react";
-import { FaSpinner } from "react-icons/fa";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { useBlockHeight } from "@/hooks/useBlockHeight";
@@ -32,7 +31,7 @@ export function BlockHeightInput({
   placeholder = "Enter block height",
 }: BlockHeightInputProps) {
   // Use our custom hook with autoFetch set to false
-  const { blockHeight, isLoading, error, refresh } = useBlockHeight({ autoFetch: false });
+  const { isLoading, error, refresh } = useBlockHeight({ autoFetch: false });
   
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);

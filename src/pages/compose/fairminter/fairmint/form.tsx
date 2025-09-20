@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, startTransition } from "react";
-import { Field, Label, Description, Input } from "@headlessui/react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
@@ -32,10 +31,10 @@ export function FairmintForm({
   asset = ""
 }: FairmintFormProps) {
   // Context hooks
-  const { activeAddress, activeWallet, settings, showHelpText, state } = useComposer();
+  const { activeAddress, showHelpText } = useComposer();
   
   // Form status from React hook
-  const { pending } = useFormStatus();
+  const {} = useFormStatus();
   
   // Determine if we're minting with BTC or XCP based on the route
   const currencyType = asset === "BTC" ? "BTC" : asset === "XCP" ? "XCP" : "";
@@ -73,7 +72,7 @@ export function FairmintForm({
   );
 
   // Data fetching hooks
-  const { error: assetError, data: assetDetails } = useAssetDetails(
+  const { error: assetError } = useAssetDetails(
     formData.asset || "", // Pass empty string if no asset selected
     {
       // These callbacks run in the useAssetDetails hook
@@ -144,9 +143,6 @@ export function FairmintForm({
     setValidationError(null); // Clear validation errors when asset changes
   }, []);
 
-  const handleFeeRateChange = useCallback((satPerVbyte: number) => {
-    setFormData(prev => ({ ...prev, sat_per_vbyte: satPerVbyte }));
-  }, []);
 
   const handleSubmit = (submittedFormData: FormData) => {
     // Clear previous validation errors
@@ -190,7 +186,6 @@ export function FairmintForm({
       return;
     }
 
-    const isDivisible = assetDetails?.assetInfo?.divisible ?? selectedFairminter?.divisible ?? true;
     
     // For free mints, quantity is 0; for paid mints, use the entered quantity
     const quantityToSubmit = isFreeMint ? "0" : formData.quantity;

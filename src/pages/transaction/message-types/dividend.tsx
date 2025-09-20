@@ -11,7 +11,6 @@ export function dividend(tx: Transaction): Array<{ label: string; value: string 
   if (!params) return [];
   
   const quantityPerUnit = fromSatoshis(params.quantity_per_unit, true);
-  const isDivisibleAsset = params.asset_info?.divisible ?? true;
   const isDivisibleDividend = params.dividend_asset_info?.divisible ?? true;
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [

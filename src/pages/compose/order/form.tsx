@@ -48,7 +48,7 @@ export function OrderForm({
   giveAsset,
 }: OrderFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet, settings, showHelpText } = useComposer();
+  const { activeAddress, settings, showHelpText } = useComposer();
   
   // Data fetching hooks
   const { data: giveAssetDetails } = useAssetDetails(giveAsset);
@@ -82,7 +82,6 @@ export function OrderForm({
   
   // Computed values
   const isGiveAssetDivisible = giveAssetDetails?.isDivisible ?? true;
-  const isOrderAssetDivisible = orderAssetDetails?.isDivisible ?? true;
   const isGetAssetDivisible = getAssetDetails?.isDivisible ?? true;
   const availableBalance = giveAssetDetails?.availableBalance ?? "0";
   const orderAssetBalance = orderAssetDetails?.availableBalance ?? "0";

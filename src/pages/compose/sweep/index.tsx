@@ -6,11 +6,10 @@ import { composeSweep } from "@/utils/blockchain/counterparty";
 import { useWallet } from "@/contexts/wallet-context";
 import type { SweepOptions } from "@/utils/blockchain/counterparty";
 
-export function ComposeSweep() {
-  const { address } = useParams<{ address?: string }>();
-  const { activeAddress } = useWallet();
+function ComposeSweep() {
+  const {} = useParams<{ address?: string }>();
+  const {} = useWallet();
   
-  const initialAddress = address || activeAddress?.address;
 
   return (
     <div className="p-4">
