@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FiCheckCircle, FiExternalLink, FiCopy } from "react-icons/fi";
+import { FiCheckCircle, FiExternalLink, FiCopy, FiX } from "react-icons/fi";
 import { Button } from "@/components/button";
 import { useHeader } from "@/contexts/header-context";
 import { formatAddress } from "@/utils/format";
@@ -21,11 +21,16 @@ export function ConsolidationSuccess() {
   
   useEffect(() => {
     setHeaderProps({
-      title: "Consolidation Complete",
-      onBack: undefined, // No back button on success
+      title: "Started Recovery",
+      onBack: () => navigate('/actions/consolidate'), // Back to recovery tool homepage
+      rightButton: {
+        icon: <FiX />,
+        onClick: () => navigate('/'),
+        ariaLabel: "Close and go home"
+      }
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps]);
+  }, [setHeaderProps, navigate]);
   
   if (!state || !state.results) {
     navigate('/');

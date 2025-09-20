@@ -198,12 +198,12 @@ export function IssuanceForm({
             maxAmount={getMaxAmount()}
             label="Amount"
             name="quantity"
-            description={`The quantity of the asset to issue ${isDivisible ? "(up to 8 decimal places)" : "(whole numbers only)"}.`}
+            description="The quantity of the asset to issue."
             disabled={pending}
             disableMaxButton={false}
             onMaxClick={() => setAmount(getMaxAmount())}
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <CheckboxInput
               name="divisible"
               label="Divisible"

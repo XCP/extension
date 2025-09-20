@@ -34,7 +34,7 @@ export default function SignMessage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: "Sign Message",
-      onBack: () => navigate("/"),
+      onBack: () => navigate("/actions"),
       rightButton: {
         ariaLabel: "Reset form",
         icon: <FaRedo className="w-3 h-3" />,
@@ -175,16 +175,19 @@ export default function SignMessage(): ReactElement {
           placeholder="Enter your message here..."
           rows={4}
           required={false}
-          showCharCount={true}
+          showCharCount={false}
           disabled={!signingCapabilities.canSign || isSigning}
         />
-        {message && (
-          <div className="mt-2 flex justify-end">
+        <div className="mt-2 flex justify-between items-center">
+          <span className="text-xs text-gray-500">
+            {message.length} characters
+          </span>
+          {message && (
             <button
               onClick={() => handleCopy(message, 'message')}
               className={`text-xs transition-all duration-200 cursor-pointer flex items-center gap-1 ${
-                copiedField === 'message' 
-                  ? 'text-green-600 hover:text-green-700' 
+                copiedField === 'message'
+                  ? 'text-green-600 hover:text-green-700'
                   : 'text-blue-600 hover:text-blue-700'
               }`}
             >
@@ -197,8 +200,8 @@ export default function SignMessage(): ReactElement {
                 'Copy message'
               )}
             </button>
-          </div>
-        )}
+          )}
+        </div>
         
         {/* Signature Output */}
         <div className="mt-4">

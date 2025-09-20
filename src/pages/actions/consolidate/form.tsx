@@ -28,9 +28,10 @@ const DEFAULT_FORM_DATA: ConsolidationFormData = {
 
 interface ConsolidationFormProps {
   onSubmit: (data: ConsolidationFormData) => void;
+  hasHistory?: boolean;
 }
 
-export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
+export function ConsolidationForm({ onSubmit, hasHistory = false }: ConsolidationFormProps) {
   const { activeAddress, activeWallet } = useWallet();
   const [formData, setFormData] = useState<ConsolidationFormData>(DEFAULT_FORM_DATA);
   const [isLoading, setIsLoading] = useState(false);
@@ -226,19 +227,21 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
           {isLoading ? "Loading..." : "Continue to Review"}
         </Button>
       </form>
-      
-      {/* YouTube Tutorial Button */}
-      <div className="mt-4 bg-white rounded-lg shadow-lg p-4">
-        <button
-          onClick={() => window.open('https://www.youtube.com/watch?v=YOUR_VIDEO_ID', '_blank')}
-          className="w-full flex items-center justify-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-md transition-colors"
-        >
-          <svg className="w-5 h-5 text-red-600" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-          </svg>
-          <span className="text-sm font-medium text-gray-700">Watch Tutorial: How to Recover Bitcoin</span>
-        </button>
-      </div>
+
+      {/* YouTube Tutorial Button - only show if no history */}
+      {!hasHistory && (
+        <div className="mt-4 bg-white rounded-lg shadow-lg p-4">
+          <button
+            onClick={() => window.open('https://www.youtube.com/watch?v=YOUR_VIDEO_ID', '_blank')}
+            className="w-full flex items-center justify-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-md transition-colors"
+          >
+            <svg className="w-5 h-5 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+            </svg>
+            <span className="text-sm font-medium text-gray-700">Watch: How to Recover Bitcoin</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

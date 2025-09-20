@@ -32,10 +32,13 @@ export function FeeRateInput({
   const [customInput, setCustomInput] = useState<string>("0.1");
   const [internalError, setInternalError] = useState<string | null>(null);
   const isInitial = useRef(true);
-  
+
   // Store callback in a ref to prevent infinite loops
   const onFeeRateChangeRef = useRef(onFeeRateChange);
   onFeeRateChangeRef.current = onFeeRateChange;
+
+  // Create disabled props object once to reuse
+  const disabledProps = disabled === true ? { disabled: true } : {};
 
   // Calculate the current fee rate value based on selection
   const currentFeeRate = selectedOption === "custom" 
@@ -195,7 +198,7 @@ export function FeeRateInput({
             onChange={handleCustomInputChange}
             onBlur={handleCustomInputBlur}
             required
-            disabled={disabled}
+            {...disabledProps}
             invalid={!!internalError}
             aria-label="Custom Fee Rate"
             aria-invalid={!!internalError}
@@ -233,7 +236,7 @@ export function FeeRateInput({
               onChange={handleCustomInputChange}
               onBlur={handleCustomInputBlur}
               required
-              disabled={disabled}
+              {...disabledProps}
               invalid={!!internalError}
               aria-label="Custom Fee Rate"
               aria-invalid={!!internalError}
@@ -241,7 +244,7 @@ export function FeeRateInput({
               className="block w-full p-2 rounded-md border bg-gray-50 pr-16 focus:border-blue-500 focus:ring-blue-500"
             />
             {feeRates && (
-              <Button variant="input" onClick={handleEscClick} aria-label="Reset to first preset" disabled={disabled}>
+              <Button variant="input" onClick={handleEscClick} aria-label="Reset to first preset" {...disabledProps}>
                 Esc
               </Button>
             )}
@@ -251,12 +254,12 @@ export function FeeRateInput({
             {/* Hidden input that will be included in form submission when using dropdown */}
             <input type="hidden" name="sat_per_vbyte" value={currentFeeRate.toString()} />
             
-            {feeRates && (
+            {feeRates && feeOptions.length > 0 && (
               <div className="relative">
-                <Listbox value={feeOptions.find((opt) => opt.id === selectedOption) || null} onChange={handleOptionSelect}>
+                <Listbox value={feeOptions.find((opt) => opt.id === selectedOption) || feeOptions[0]} onChange={handleOptionSelect}>
                   <ListboxButton
-                    className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
-                    disabled={disabled}
+                    className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 cursor-pointer"
+                    {...disabledProps}
                   >
                     {({ value }) => (
                       <div className="flex justify-between">
@@ -269,9 +272,9 @@ export function FeeRateInput({
                   </ListboxButton>
                   <ListboxOptions className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
                     {feeOptions.map((option) => (
-                      <ListboxOption 
-                        key={option.id} 
-                        value={option} 
+                      <ListboxOption
+                        key={option.id}
+                        value={option}
                         className="p-2 cursor-pointer hover:bg-gray-100"
                       >
                         {({ selected }) => (

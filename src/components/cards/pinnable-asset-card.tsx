@@ -99,7 +99,7 @@ export function PinnableAssetCard({
       <div className="flex items-center gap-1">
         {/* Up/Down arrows */}
         {showArrows && (
-          <div className="flex items-center gap-0.5">
+          <div className="flex flex-col">
             <button
               onClick={(e) => {
                 e.preventDefault();
@@ -107,7 +107,7 @@ export function PinnableAssetCard({
                 onMoveUp?.();
               }}
               disabled={!onMoveUp}
-              className={`p-1 rounded transition-all ${
+              className={`p-0.5 rounded transition-all ${
                 !onMoveUp
                   ? "text-gray-300 cursor-not-allowed"
                   : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
@@ -115,7 +115,7 @@ export function PinnableAssetCard({
               aria-label={`Move ${symbol} up`}
               title="Move up"
             >
-              <FiChevronUp className="w-4 h-4" />
+              <FiChevronUp className="w-3 h-3" />
             </button>
             <button
               onClick={(e) => {
@@ -124,7 +124,7 @@ export function PinnableAssetCard({
                 onMoveDown?.();
               }}
               disabled={!onMoveDown}
-              className={`p-1 rounded transition-all ${
+              className={`p-0.5 rounded transition-all ${
                 !onMoveDown
                   ? "text-gray-300 cursor-not-allowed"
                   : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
@@ -132,7 +132,7 @@ export function PinnableAssetCard({
               aria-label={`Move ${symbol} down`}
               title="Move down"
             >
-              <FiChevronDown className="w-4 h-4" />
+              <FiChevronDown className="w-3 h-3" />
             </button>
           </div>
         )}

@@ -40,7 +40,7 @@ export default function VerifyMessage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: "Verify Message",
-      onBack: () => navigate("/"),
+      onBack: () => navigate("/actions"),
       rightButton: {
         ariaLabel: "Reset form",
         icon: <FaRedo className="w-3 h-3" />,
@@ -48,7 +48,7 @@ export default function VerifyMessage(): ReactElement {
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate]);
+  }, [setHeaderProps, navigate, handleClear]);
   
   const handleVerify = async () => {
     if (!address.trim()) {

@@ -84,8 +84,8 @@ export function SweepForm({
           {/* Hidden input for form submission */}
           <input type="hidden" name="flags" value={selectedSweepType.value} />
           
-          <Listbox value={selectedSweepType} onChange={setSelectedSweepType} disabled={pending}>
-            <ListboxButton className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+          <Listbox value={selectedSweepType} onChange={setSelectedSweepType}>
+            <ListboxButton className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" {...(pending === true && { disabled: true })}>
               {selectedSweepType.name}
             </ListboxButton>
             <ListboxOptions className="w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">

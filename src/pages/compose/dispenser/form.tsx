@@ -165,7 +165,7 @@ export const DispenserForm = memo(function DispenserForm({
     
     // Add the asset parameter
     processedFormData.append("asset", asset);
-    
+
     processedFormData.append("escrow_quantity", escrowQuantity);
     processedFormData.append("mainchainrate", mainchainRate);
     processedFormData.append("give_quantity", giveQuantity);
@@ -174,9 +174,15 @@ export const DispenserForm = memo(function DispenserForm({
     formAction(processedFormData);
   }, [asset, escrowQuantity, mainchainRate, giveQuantity, formAction]);
 
+  // Validation for submit button - ensure all required fields have values
+  const isFormValid = escrowQuantity.trim() !== "" &&
+                      mainchainRate.trim() !== "" &&
+                      giveQuantity.trim() !== "";
+
   return (
     <ComposerForm
       formAction={handleFormAction}
+      submitDisabled={!isFormValid || !!error}
       header={
         asset && activeAddress && assetDetails ? (
           <BalanceHeader

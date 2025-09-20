@@ -100,7 +100,7 @@ export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputPro
             className={`mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 ${
               isInvalid ? "border-red-500 focus:border-red-500 focus:ring-red-500" : 
               lookupResult && isValidAddress ? "border-green-500 focus:border-green-500 focus:ring-green-500" :
-              "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+              "border-gray-200 focus:ring-blue-500 focus:border-blue-500"
             } ${className}`}
           />
           {isLookingUp && (
