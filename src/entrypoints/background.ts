@@ -11,6 +11,7 @@ import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/session
 import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, createJsonRpcError } from '@/utils/constants/errorCodes';
 import { checkForLastError, wrapRuntimeCallback, broadcastToTabs, sendMessageToTab } from '@/utils/browser';
 import { getUpdateService } from '@/services/updateService';
+import { getPopupMonitorService } from '@/services/popupMonitorService';
 // Import onMessage directly from webext-bridge/background to prevent runtime.lastError
 import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
 
@@ -166,6 +167,10 @@ export default defineBackground(() => {
   getUpdateService().initialize().catch((error) => {
     console.error('Failed to initialize update service:', error);
   });
+
+  // Initialize popup monitor service for handling abandoned requests
+  // Handles cases where user closes popup or walks away
+  getPopupMonitorService().initialize();
   
   // Register proxy services (existing pattern)
   registerWalletService();
