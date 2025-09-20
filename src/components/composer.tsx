@@ -34,6 +34,10 @@ interface ComposerProps<T> {
     onBack?: () => void;
     onToggleHelp?: () => void;
   };
+  // Provider request handling
+  composeRequestId?: string | null;
+  initialFormData?: T | null;
+  onSuccess?: (result: any) => void;
 }
 
 /**
@@ -44,7 +48,9 @@ function ComposerInner<T>({
   FormComponent,
   ReviewComponent,
   headerCallbacks,
-}: Omit<ComposerProps<T>, "composeApiMethod">): ReactElement {
+  composeRequestId,
+  onSuccess,
+}: Omit<ComposerProps<T>, "composeApiMethod" | "initialFormData">): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const {
@@ -58,6 +64,14 @@ function ComposerInner<T>({
     toggleHelpText,
     handleUnlockAndSign,
   } = useComposer<T>();
+
+  // Handle success for provider requests
+  useEffect(() => {
+    if (state.step === "success" && state.apiResponse && composeRequestId && onSuccess) {
+      // Call the success callback with the result
+      onSuccess(state.apiResponse);
+    }
+  }, [state.step, state.apiResponse, composeRequestId, onSuccess]);
 
   // Header configuration based on current step
   const headerConfig = useMemo(() => {
@@ -223,17 +237,23 @@ export function Composer<T>({
   ReviewComponent,
   composeApiMethod,
   headerCallbacks,
+  composeRequestId,
+  initialFormData,
+  onSuccess,
 }: ComposerProps<T>): ReactElement {
   return (
     <ComposerProvider<T>
       composeApi={composeApiMethod}
       initialTitle={initialTitle}
+      initialFormData={initialFormData}
     >
       <ComposerInner<T>
         initialTitle={initialTitle}
         FormComponent={FormComponent}
         ReviewComponent={ReviewComponent}
         headerCallbacks={headerCallbacks}
+        composeRequestId={composeRequestId}
+        onSuccess={onSuccess}
       />
     </ComposerProvider>
   );

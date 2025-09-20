@@ -79,19 +79,35 @@ export default defineContentScript({
         try {
           let response: any;
           
-          // Use MessageBus with simplified error handling (background has proper listeners now)
+          // Use Proxy Pattern (same as popup) with retry logic for service worker
           try {
-            const { MessageBus } = await import('@/services/core/MessageBus');
-            response = await MessageBus.send('provider-request', {
-              type: 'PROVIDER_REQUEST',
-              origin: window.location.origin,
-              data: event.data.data,
-              xcpWalletVersion: '2.0',
-              timestamp: Date.now()
-            }, 'background');
-          } catch (error) {
-            console.debug('MessageBus request failed:', error);
-            response = null;
+            const { getProviderService } = await import('@/services/providerService');
+            const providerService = getProviderService();
+
+            // The provider service expects method and params from the request
+            const { method, params } = event.data.data;
+            const result = await providerService.handleRequest(
+              window.location.origin,
+              method,
+              params
+            );
+
+            // Format response to match expected structure
+            response = {
+              success: true,
+              method,
+              result
+            };
+          } catch (error: any) {
+            console.debug('Provider service request failed:', error);
+            // Format error response
+            response = {
+              success: false,
+              error: {
+                message: error?.message || 'Provider service request failed',
+                code: error?.code || -32603
+              }
+            };
           }
           
           // Handle the response properly
@@ -133,18 +149,13 @@ export default defineContentScript({
           console.error('Content script error handling provider request:', error);
           // Send error back to page
           const errorMessage = error instanceof Error ? error.message : 'Unknown error in content script';
-          
-          // Special handling for fingerprint errors (from minified webext-bridge code)
-          const finalErrorMessage = errorMessage.includes('fingerprint') 
-            ? 'Extension services not available. Please try reloading the extension.'
-            : errorMessage;
-          
+
           window.postMessage({
             target: 'xcp-wallet-injected',
             type: 'XCP_WALLET_RESPONSE',
             id: event.data.id,
             error: {
-              message: finalErrorMessage,
+              message: errorMessage,
               code: error && typeof error === 'object' && 'code' in error ? (error as any).code : -32603
             }
           }, window.location.origin);

@@ -45,6 +45,29 @@ export default function Index(): ReactElement {
   const activeTab = (searchParams.get("tab") as "Assets" | "Balances") || "Balances";
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
 
+  // Check for pending approvals on mount and navigate if needed
+  useEffect(() => {
+    const checkPendingApprovals = async () => {
+      try {
+        const { getProviderService } = await import('@/services/providerService');
+        const providerService = getProviderService();
+        const approvalQueue = await providerService.getApprovalQueue();
+
+        if (approvalQueue.length > 0) {
+          // Redirect to approval queue
+          navigate('/provider/approval-queue');
+        }
+      } catch (error) {
+        console.debug('Failed to check approval queue:', error);
+      }
+    };
+
+    // Only check if loaded and we have a wallet
+    if (loaded && activeWallet) {
+      checkPendingApprovals();
+    }
+  }, [loaded, activeWallet, navigate]);
+
   useEffect(() => {
     setHeaderProps({
       useLogoTitle: true,

@@ -4,6 +4,7 @@ import { ReviewSend } from "./review";
 import { Composer } from "@/components/composer";
 import { composeSend, composeMPMA, isHexMemo, stripHexPrefix } from "@/utils/blockchain/counterparty";
 import type { SendOptions, MPMAOptions, ApiResponse } from "@/utils/blockchain/counterparty";
+import { useProviderRequest } from "@/hooks/useProviderRequest";
 
 interface ExtendedSendOptions extends SendOptions {
   destinations?: string; // Comma-separated list for MPMA
@@ -11,6 +12,14 @@ interface ExtendedSendOptions extends SendOptions {
 
 export function ComposeSend() {
   const { asset } = useParams<{ asset?: string }>();
+
+  // Use the provider request hook
+  const {
+    providerFormData,
+    composeRequestId,
+    handleSuccess,
+    handleCancel
+  } = useProviderRequest<SendOptions>('send');
 
   // Wrapper function that determines which compose function to use
   const composeTransaction = async (data: ExtendedSendOptions): Promise<ApiResponse> => {
@@ -68,6 +77,9 @@ export function ComposeSend() {
         FormComponent={(props) => <SendForm {...props} initialAsset={asset || "BTC"} />}
         ReviewComponent={ReviewSend}
         composeApiMethod={composeTransaction}
+        composeRequestId={composeRequestId}
+        initialFormData={providerFormData}
+        onSuccess={handleSuccess}
       />
     </div>
   );
