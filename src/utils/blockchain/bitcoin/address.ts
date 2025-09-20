@@ -217,12 +217,6 @@ export const isValidBase58Address = (address: string): boolean => {
 
 // Address Type Detection functions (previously in addressTypeDetector.ts)
 
-interface AddressTypeCheck {
-  format: AddressFormat;
-  address: string;
-  hasTransactions: boolean;
-}
-
 /**
  * Check if an address has any transaction history using existing API utilities
  * Returns true if any provider confirms transactions or token balances
@@ -240,6 +234,7 @@ async function checkAddressActivity(address: string): Promise<boolean> {
   }
 
   // Check Bitcoin transaction history using our balance module helper
+  // Using dynamic import to avoid circular dependency
   try {
     const { hasAddressActivity } = await import('./balance');
     const hasActivity = await hasAddressActivity(address);
