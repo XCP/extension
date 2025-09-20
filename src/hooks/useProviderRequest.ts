@@ -71,7 +71,7 @@ export function useProviderRequest<T = any>(
   const handleCancel = async () => {
     if (composeRequestId) {
       // Notify the provider that the compose was cancelled
-      eventEmitterService.emit(`compose-cancel-${composeRequestId}`);
+      eventEmitterService.emit(`compose-cancel-${composeRequestId}`, { reason: 'User cancelled' });
 
       // Clean up the request
       await composeRequestStorage.remove(composeRequestId);

@@ -267,9 +267,10 @@ export function ComposerProvider<T>({
       const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
 
       // Record transaction before broadcast to prevent double-broadcast
-      const txid = state.apiResponse.result.tx_hash || 'pending';
+      // The actual txid comes from broadcast response, so we use a placeholder
+      const placeholderTxid = `pending-${Date.now()}`;
       recordTransaction(
-        txid,
+        placeholderTxid,
         window.location.origin,
         'broadcast_transaction',
         [rawTxHex],
@@ -345,9 +346,10 @@ export function ComposerProvider<T>({
       const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
 
       // Record transaction before broadcast
-      const txid = state.apiResponse.result.tx_hash || 'pending';
+      // The actual txid comes from broadcast response, so we use a placeholder
+      const placeholderTxid = `pending-${Date.now()}`;
       recordTransaction(
-        txid,
+        placeholderTxid,
         window.location.origin,
         'broadcast_transaction',
         [rawTxHex],

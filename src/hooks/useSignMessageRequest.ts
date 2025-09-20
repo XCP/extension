@@ -72,7 +72,7 @@ export function useSignMessageRequest() {
   const handleCancel = async () => {
     if (signMessageRequestId) {
       // Notify the provider that the sign message was cancelled
-      eventEmitterService.emit(`sign-message-cancel-${signMessageRequestId}`);
+      eventEmitterService.emit(`sign-message-cancel-${signMessageRequestId}`, { reason: 'User cancelled' });
 
       // Clean up the request
       await signMessageRequestStorage.remove(signMessageRequestId);

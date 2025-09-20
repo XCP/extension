@@ -810,98 +810,87 @@ export function createProviderService(): ProviderService {
         }
         
         case 'xcp_composeDividend': {
-          // Check if connected
-          if (!await connectionService.hasPermission(origin)) {
-            throw new Error('Unauthorized - not connected to wallet');
-          }
-          
-          const dividendParams = params?.[0];
-          if (!dividendParams) {
-            throw new Error('Dividend parameters required');
-          }
-          
-          // Delegate to TransactionService
-          return await transactionService.composeDividend(origin, dividendParams);
+          return await handleComposeRequest(origin, params, 'dividend', 'Dividend parameters required', '/compose/dividend');
         }
         
         case 'xcp_composeIssuance': {
-          return await this.handleComposeRequest(origin, params, 'issuance', 'Issuance parameters required', '/compose/issuance');
+          return await handleComposeRequest(origin, params, 'issuance', 'Issuance parameters required', '/compose/issuance');
         }
 
         case 'xcp_composeDispense': {
-          return await this.handleComposeRequest(origin, params, 'dispense', 'Dispense parameters required', '/compose/dispenser/dispense');
+          return await handleComposeRequest(origin, params, 'dispense', 'Dispense parameters required', '/compose/dispenser/dispense');
         }
 
         case 'xcp_composeFairminter': {
-          return await this.handleComposeRequest(origin, params, 'fairminter', 'Fairminter parameters required', '/compose/fairminter');
+          return await handleComposeRequest(origin, params, 'fairminter', 'Fairminter parameters required', '/compose/fairminter');
         }
 
         case 'xcp_composeFairmint': {
-          return await this.handleComposeRequest(origin, params, 'fairmint', 'Fairmint parameters required', '/compose/fairmint');
+          return await handleComposeRequest(origin, params, 'fairmint', 'Fairmint parameters required', '/compose/fairmint');
         }
 
         case 'xcp_composeSweep': {
-          return await this.handleComposeRequest(origin, params, 'sweep', 'Sweep parameters required', '/compose/sweep');
+          return await handleComposeRequest(origin, params, 'sweep', 'Sweep parameters required', '/compose/sweep');
         }
 
         case 'xcp_composeBTCPay': {
-          return await this.handleComposeRequest(origin, params, 'btcpay', 'BTC pay parameters required', '/compose/btcpay');
+          return await handleComposeRequest(origin, params, 'btcpay', 'BTC pay parameters required', '/compose/btcpay');
         }
 
         case 'xcp_composeCancel': {
-          return await this.handleComposeRequest(origin, params, 'cancel', 'Cancel parameters required', '/compose/cancel');
+          return await handleComposeRequest(origin, params, 'cancel', 'Cancel parameters required', '/compose/cancel');
         }
 
         case 'xcp_composeDispenserCloseByHash': {
-          return await this.handleComposeRequest(origin, params, 'dispenser-close-by-hash', 'Dispenser close by hash parameters required', '/compose/dispenser/close-by-hash');
+          return await handleComposeRequest(origin, params, 'dispenser-close-by-hash', 'Dispenser close by hash parameters required', '/compose/dispenser/close-by-hash');
         }
 
         case 'xcp_composeBet': {
-          return await this.handleComposeRequest(origin, params, 'bet', 'Bet parameters required', '/compose/bet');
+          return await handleComposeRequest(origin, params, 'bet', 'Bet parameters required', '/compose/bet');
         }
 
         case 'xcp_composeBroadcast': {
-          return await this.handleComposeRequest(origin, params, 'broadcast', 'Broadcast parameters required', '/compose/broadcast');
+          return await handleComposeRequest(origin, params, 'broadcast', 'Broadcast parameters required', '/compose/broadcast');
         }
 
         case 'xcp_composeAttach': {
-          return await this.handleComposeRequest(origin, params, 'attach', 'Attach parameters required', '/compose/utxo/attach');
+          return await handleComposeRequest(origin, params, 'attach', 'Attach parameters required', '/compose/utxo/attach');
         }
 
         case 'xcp_composeDetach': {
-          return await this.handleComposeRequest(origin, params, 'detach', 'Detach parameters required', '/compose/utxo/detach');
+          return await handleComposeRequest(origin, params, 'detach', 'Detach parameters required', '/compose/utxo/detach');
         }
 
         case 'xcp_composeMoveUTXO': {
-          return await this.handleComposeRequest(origin, params, 'move-utxo', 'Move UTXO parameters required', '/compose/utxo/move');
+          return await handleComposeRequest(origin, params, 'move-utxo', 'Move UTXO parameters required', '/compose/utxo/move');
         }
 
         case 'xcp_composeDestroy': {
-          return await this.handleComposeRequest(origin, params, 'destroy', 'Destroy parameters required', '/compose/destroy');
+          return await handleComposeRequest(origin, params, 'destroy', 'Destroy parameters required', '/compose/destroy');
         }
 
         case 'xcp_composeIssueSupply': {
-          return await this.handleComposeRequest(origin, params, 'issue-supply', 'Issue supply parameters required', '/compose/issuance/issue-supply');
+          return await handleComposeRequest(origin, params, 'issue-supply', 'Issue supply parameters required', '/compose/issuance/issue-supply');
         }
 
         case 'xcp_composeLockSupply': {
-          return await this.handleComposeRequest(origin, params, 'lock-supply', 'Lock supply parameters required', '/compose/issuance/lock-supply');
+          return await handleComposeRequest(origin, params, 'lock-supply', 'Lock supply parameters required', '/compose/issuance/lock-supply');
         }
 
         case 'xcp_composeResetSupply': {
-          return await this.handleComposeRequest(origin, params, 'reset-supply', 'Reset supply parameters required', '/compose/issuance/reset-supply');
+          return await handleComposeRequest(origin, params, 'reset-supply', 'Reset supply parameters required', '/compose/issuance/reset-supply');
         }
 
         case 'xcp_composeTransfer': {
-          return await this.handleComposeRequest(origin, params, 'transfer', 'Transfer parameters required', '/compose/issuance/transfer-ownership');
+          return await handleComposeRequest(origin, params, 'transfer', 'Transfer parameters required', '/compose/issuance/transfer-ownership');
         }
 
         case 'xcp_composeUpdateDescription': {
-          return await this.handleComposeRequest(origin, params, 'update-description', 'Update description parameters required', '/compose/issuance/update-description');
+          return await handleComposeRequest(origin, params, 'update-description', 'Update description parameters required', '/compose/issuance/update-description');
         }
 
         case 'xcp_composeLockDescription': {
-          return await this.handleComposeRequest(origin, params, 'lock-description', 'Lock description parameters required', '/compose/issuance/lock-description');
+          return await handleComposeRequest(origin, params, 'lock-description', 'Lock description parameters required', '/compose/issuance/lock-description');
         }
         
         // ==================== Transaction Broadcasting ====================
@@ -1013,17 +1002,14 @@ export function createProviderService(): ProviderService {
    * Get statistics about pending requests
    */
   async function getRequestStats(): Promise<any> {
-    const transactionService = getTransactionService();
     const connectionService = getConnectionService();
     const approvalService = getApprovalService();
     
     // Gather stats from all services
-    const transactionStats = transactionService.getTransactionStats();
     const connectedSites = await connectionService.getConnectedWebsites();
     const approvalQueue = await approvalService.getApprovalQueue();
-    
+
     return {
-      transaction: transactionStats,
       connections: {
         connectedSites: connectedSites.length,
         sites: connectedSites
