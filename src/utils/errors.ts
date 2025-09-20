@@ -82,61 +82,6 @@ export const PROVIDER_ERROR_CODES = {
   CHAINS_NOT_ADDED: 4902,
 } as const;
 
-/**
- * Custom XCP Wallet Error Codes
- * Application-specific error codes for the XCP Wallet extension
- */
-export const XCP_ERROR_CODES = {
-  /**
-   * Wallet is locked and requires unlocking
-   */
-  WALLET_LOCKED: -32001,
-
-  /**
-   * No wallet exists, user needs to create or import one
-   */
-  NO_WALLET: -32002,
-
-  /**
-   * Transaction creation or composition failed
-   */
-  TRANSACTION_FAILED: -32003,
-
-  /**
-   * Insufficient balance for the requested operation
-   */
-  INSUFFICIENT_BALANCE: -32004,
-
-  /**
-   * Rate limit exceeded for the origin
-   */
-  RATE_LIMITED: -32005,
-
-  /**
-   * Invalid address format or checksum
-   */
-  INVALID_ADDRESS: -32006,
-
-  /**
-   * Asset not found or invalid
-   */
-  ASSET_NOT_FOUND: -32007,
-
-  /**
-   * Network error when communicating with blockchain APIs
-   */
-  NETWORK_ERROR: -32008,
-
-  /**
-   * Origin/domain is not connected to the wallet
-   */
-  NOT_CONNECTED: -32009,
-
-  /**
-   * Operation timed out
-   */
-  TIMEOUT: -32010,
-} as const;
 
 /**
  * Helper function to create a JSON-RPC error object

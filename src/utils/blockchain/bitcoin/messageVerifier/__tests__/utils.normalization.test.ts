@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { verifyMessage } from '../messageVerifier';
+import { verifyMessage } from '../verifier';
 import { normalizeMessage, detectAndNormalizeSignature, validateMessage } from '../utils';
 
 describe('Message and Signature Normalization', () => {

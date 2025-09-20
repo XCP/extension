@@ -75,14 +75,6 @@ async function persistRecords(records: StoredRecord[]): Promise<void> {
   }
 }
 
-/**
- * Invalidates the cache, forcing next read to fetch from storage.
- * Useful when external changes to storage are expected.
- */
-export function invalidateCache(): void {
-  recordsCache = null;
-  cacheTimestamp = 0;
-}
 
 /**
  * Retrieves all records from storage.

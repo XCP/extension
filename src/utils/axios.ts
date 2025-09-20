@@ -238,10 +238,4 @@ export const apiClient = {
 export default apiClient;
 
 
-/**
- * Type guard to check if an error is an AxiosError
- */
-export function isAxiosError(error: any): error is AxiosError {
-  return axios.isAxiosError(error);
-}
 
