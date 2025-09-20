@@ -794,37 +794,6 @@ export { serializeToSignUnsigned as createToSignTransaction };
 // Import AddressFormat for compatibility
 import { AddressFormat } from './address';
 
-// Universal BIP-322 signing function
-export async function signBIP322Universal(
-  message: string,
-  privateKey: Uint8Array,
-  addressFormat: AddressFormat,
-  compressed: boolean = true
-): Promise<string> {
-  switch (addressFormat) {
-    case AddressFormat.P2PKH:
-    case AddressFormat.Counterwallet:
-      return await signBIP322P2PKH(message, privateKey, compressed);
-    case AddressFormat.P2WPKH:
-      return await signBIP322P2WPKH(message, privateKey);
-    case AddressFormat.P2SH_P2WPKH:
-      return await signBIP322P2SH_P2WPKH(message, privateKey);
-    case AddressFormat.P2TR:
-      return await signBIP322P2TR(message, privateKey);
-    default:
-      throw new Error(`Unsupported address type for BIP-322: ${addressFormat}`);
-  }
-}
-
-// Legacy compatibility function
-export async function signBIP322(
-  message: string,
-  privateKey: Uint8Array,
-  address: string
-): Promise<string> {
-  return await signBIP322P2TR(message, privateKey);
-}
-
 // Simple verification (just delegates to main)
 export async function verifySimpleBIP322(
   message: string,
@@ -842,15 +811,6 @@ export function formatTaprootSignature(signature: Uint8Array): string {
   return 'tr:' + hex.encode(signature);
 }
 
-export function formatTaprootSignatureExtended(signature: Uint8Array, publicKey: Uint8Array): string {
-  if (signature.length !== 64) {
-    throw new Error('Invalid Schnorr signature length');
-  }
-  if (publicKey.length !== 32) {
-    throw new Error('Invalid public key length for Taproot (must be x-only, 32 bytes)');
-  }
-  return 'tr:' + hex.encode(signature) + ':' + hex.encode(publicKey);
-}
 
 // Parse signature
 export async function parseBIP322Signature(signature: string): Promise<{

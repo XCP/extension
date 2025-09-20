@@ -85,19 +85,6 @@ export function invalidateCache(): void {
 }
 
 /**
- * Watch for changes to records in storage and automatically invalidate cache.
- * Useful when multiple extension contexts might modify the same storage.
- * 
- * @returns Function to stop watching
- */
-export function watchStorageChanges(): (() => void) {
-  return localRecords.watch(() => {
-    // Invalidate cache when storage changes externally
-    invalidateCache();
-  });
-}
-
-/**
  * Retrieves all records from storage.
  * Returns a deep copy to prevent external mutations of the internal state.
  *

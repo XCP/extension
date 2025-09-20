@@ -15,9 +15,6 @@ import {
 
 // Re-export most utilities unchanged
 export const isHexMemo = _isHexMemo;
-export const validateMemo = _validateMemo;
-export const hexToText = _hexToText;
-export const textToHex = _textToHex;
 
 // Counterparty-specific hex prefix stripping (handles both cases)
 export function stripHexPrefix(hex: string): string {

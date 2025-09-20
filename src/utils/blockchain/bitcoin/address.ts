@@ -31,14 +31,6 @@ export const AddressFormat = {
 export type AddressFormat = typeof AddressFormat[keyof typeof AddressFormat];
 
 /**
- * Type guard to check if a value is a valid AddressFormat.
- */
-export function isAddressFormat(value: unknown): value is AddressFormat {
-  return typeof value === 'string' &&
-    Object.values(AddressFormat).includes(value as AddressFormat);
-}
-
-/**
  * Check if an address format is a SegWit format (P2WPKH, P2SH-P2WPKH, or P2TR).
  */
 export function isSegwitFormat(format: AddressFormat): boolean {
@@ -47,48 +39,6 @@ export function isSegwitFormat(format: AddressFormat): boolean {
          format === AddressFormat.P2TR;
 }
 
-/**
- * Get human-readable label for an address format.
- */
-export function getAddressFormatLabel(format: AddressFormat): string {
-  switch (format) {
-    case AddressFormat.P2PKH:
-      return 'Legacy';
-    case AddressFormat.P2SH_P2WPKH:
-      return 'Nested SegWit';
-    case AddressFormat.P2WPKH:
-      return 'Native SegWit';
-    case AddressFormat.P2TR:
-      return 'Taproot';
-    case AddressFormat.Counterwallet:
-      return 'Counterwallet';
-    default:
-      // TypeScript will error if we miss a case
-      const exhaustive: never = format;
-      return exhaustive;
-  }
-}
-
-/**
- * Get address prefix hint for an address format.
- */
-export function getAddressFormatHint(format: AddressFormat): string {
-  switch (format) {
-    case AddressFormat.P2PKH:
-      return '1...';
-    case AddressFormat.P2SH_P2WPKH:
-      return '3...';
-    case AddressFormat.P2WPKH:
-      return 'bc1q...';
-    case AddressFormat.P2TR:
-      return 'bc1p...';
-    case AddressFormat.Counterwallet:
-      return '1...';
-    default:
-      const exhaustive: never = format;
-      return exhaustive;
-  }
-}
 
 // Create a base58check encoder instance using SHA-256.
 const base58check = createBase58check(sha256);
