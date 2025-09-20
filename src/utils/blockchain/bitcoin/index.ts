@@ -2,9 +2,22 @@ export * from './address';
 export * from './balance';
 export * from './bareMultisig';
 export * from './bip322';
-export * from './blockHeight';
+export {
+  clearBlockHeightCache,
+  fetchFromBlockchainInfo,
+  fetchFromBlockstream as fetchBlockHeightFromBlockstream,
+  fetchFromMempoolSpace as fetchBlockHeightFromMempoolSpace,
+  fetchBlockHeightRace,
+  fetchBlockHeightSequential,
+  getCurrentBlockHeight
+} from './blockHeight';
 export * from './consolidateBatch';
-export * from './feeRate';
+export {
+  type FeeRates,
+  fetchFromMempoolSpace as fetchFeeRateFromMempoolSpace,
+  fetchFromBlockstream as fetchFeeRateFromBlockstream,
+  getFeeRates
+} from './feeRate';
 export * from './messageVerifier';
 export * from './messageSigner';
 export * from './multisigSigner';
