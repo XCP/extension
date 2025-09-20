@@ -6,6 +6,7 @@ import { mnemonicToSeedSync } from '@scure/bip39';
 import * as btc from '@scure/btc-signer';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
 import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
+import { hasAddressActivity } from './balance';
 
 /**
  * Bitcoin address formats supported by the wallet.
@@ -184,9 +185,7 @@ async function checkAddressActivity(address: string): Promise<boolean> {
   }
 
   // Check Bitcoin transaction history using our balance module helper
-  // Using dynamic import to avoid circular dependency
   try {
-    const { hasAddressActivity } = await import('./balance');
     const hasActivity = await hasAddressActivity(address);
     if (hasActivity) {
       console.log(`Address ${address} has Bitcoin transaction history`);
