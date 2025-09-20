@@ -162,7 +162,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
             newValue = prefix;
           } else {
             // They might be trying to type the parent name, skip it
-            const withoutPrefix = newValue.replace(new RegExp(`^${parentAsset}\.?`), '');
+            const withoutPrefix = newValue.replace(new RegExp(`^${parentAsset}\\.?`), '');
             newValue = prefix + withoutPrefix;
           }
         }
