@@ -186,7 +186,7 @@ describe('ApprovalService', () => {
       expect(mockWindows.create).toHaveBeenCalledWith({
         url: expect.stringContaining('/popup.html#/provider/approval-queue'),
         type: 'popup',
-        width: 350,
+        width: 400,
         height: 600,
         focused: true,
       });
@@ -275,7 +275,31 @@ describe('ApprovalService', () => {
         metadata: { domain: 'first.com', title: 'First', description: 'First request' },
       });
       
-      // At this point, the window should be created and stored in state
+      // Mock session storage to track the window ID
+      let sessionState: any = {};
+      mockStorage.set.mockImplementation((items, callback) => {
+        Object.assign(sessionState, items);
+        if (callback) callback();
+      });
+      mockStorage.get.mockImplementation((keys, callback) => {
+        if (Array.isArray(keys)) {
+          const result: any = {};
+          keys.forEach(key => {
+            if (sessionState[key] !== undefined) {
+              result[key] = sessionState[key];
+            }
+          });
+          callback(result);
+        } else if (typeof keys === 'string') {
+          callback({ [keys]: sessionState[keys] });
+        } else {
+          callback(sessionState);
+        }
+      });
+
+      // Simulate that the first window was stored
+      sessionState.pendingApprovalWindowId = 100;
+
       // Create second approval request which should focus existing window
       await approvalService.requestApproval({
         id: 'connection-https://second.com-101',
@@ -285,7 +309,7 @@ describe('ApprovalService', () => {
         type: 'connection',
         metadata: { domain: 'second.com', title: 'Second', description: 'Second request' },
       });
-      
+
       // Should focus existing window instead of creating new one
       expect(mockWindows.update).toHaveBeenCalledWith(100, { focused: true });
     });

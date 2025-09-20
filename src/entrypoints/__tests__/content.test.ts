@@ -21,6 +21,15 @@ vi.mock('@/services/core/MessageBus', () => ({
   MessageBus: mockMessageBus
 }));
 
+// Mock provider service
+const mockProviderService = {
+  handleRequest: vi.fn()
+};
+
+vi.mock('@/services/providerService', () => ({
+  getProviderService: () => mockProviderService
+}));
+
 // Setup fake browser
 fakeBrowser.runtime.sendMessage = vi.fn();
 fakeBrowser.runtime.onMessage.addListener = vi.fn();
@@ -135,8 +144,8 @@ describe('Content Script', () => {
     beforeEach(async () => {
       // Clear all mocks first
       vi.clearAllMocks();
-      // Mock MessageBus.send to return successful response
-      mockMessageBus.send.mockResolvedValue({ success: true, result: 'test' });
+      // Mock providerService.handleRequest to return successful response
+      mockProviderService.handleRequest.mockResolvedValue('test-result');
       
       const contentScript = await import('../content');
       
@@ -151,8 +160,8 @@ describe('Content Script', () => {
     });
 
     it('should handle XCP wallet request messages', async () => {
-      const mockResponse = { success: true, result: 'test-result' };
-      mockMessageBus.send.mockResolvedValue(mockResponse);
+      const mockResult = 'test-result';
+      mockProviderService.handleRequest.mockResolvedValue(mockResult);
 
       // Simulate XCP wallet request
       const event = {
@@ -170,13 +179,11 @@ describe('Content Script', () => {
 
       await messageListener(event);
 
-      expect(mockMessageBus.send).toHaveBeenCalledWith('provider-request', {
-        type: 'PROVIDER_REQUEST',
-        origin: mockWindow.location.origin,
-        data: event.data.data,
-        xcpWalletVersion: '2.0',
-        timestamp: expect.any(Number)
-      }, 'background');
+      expect(mockProviderService.handleRequest).toHaveBeenCalledWith(
+        mockWindow.location.origin,
+        'xcp_requestAccounts',
+        []
+      );
 
       // Should post response back
       expect(mockWindow.postMessage).toHaveBeenCalledWith(
@@ -193,9 +200,9 @@ describe('Content Script', () => {
       );
     });
 
-    it('should handle MessageBus send returning null', async () => {
-      // Mock MessageBus.send to return null (simulating no response scenario)
-      mockMessageBus.send.mockResolvedValue(null);
+    it('should handle providerService returning null', async () => {
+      // Mock providerService.handleRequest to return null (simulating no response scenario)
+      mockProviderService.handleRequest.mockResolvedValue(null);
 
       const event = {
         source: window,
@@ -212,14 +219,15 @@ describe('Content Script', () => {
 
       await messageListener(event);
 
+      // When providerService returns null, it's wrapped as a successful response with null result
       expect(mockWindow.postMessage).toHaveBeenCalledWith(
         {
           target: 'xcp-wallet-injected',
           type: 'XCP_WALLET_RESPONSE',
           id: '456',
-          error: {
-            message: 'No response from extension background',
-            code: -32603
+          data: {
+            method: 'xcp_getBalance',
+            result: null
           }
         },
         mockWindow.location.origin
@@ -228,8 +236,9 @@ describe('Content Script', () => {
 
 
 
-    it('should handle no response from background', async () => {
-      mockMessageBus.send.mockResolvedValue(null);
+    it('should handle error from providerService', async () => {
+      // Mock providerService.handleRequest to throw an error
+      mockProviderService.handleRequest.mockRejectedValue(new Error('Provider error'));
 
       const event = {
         source: window,
@@ -252,7 +261,7 @@ describe('Content Script', () => {
           type: 'XCP_WALLET_RESPONSE',
           id: '789',
           error: {
-            message: 'No response from extension background',
+            message: 'Provider error',
             code: -32603
           }
         },
@@ -272,7 +281,7 @@ describe('Content Script', () => {
 
       await messageListener(event);
 
-      expect(mockMessageBus.send).not.toHaveBeenCalled();
+      expect(mockProviderService.handleRequest).not.toHaveBeenCalled();
       expect(mockWindow.postMessage).not.toHaveBeenCalled();
     });
 
@@ -293,7 +302,7 @@ describe('Content Script', () => {
 
       await messageListener(event);
 
-      expect(mockMessageBus.send).not.toHaveBeenCalled();
+      expect(mockProviderService.handleRequest).not.toHaveBeenCalled();
       expect(mockWindow.postMessage).not.toHaveBeenCalled();
     });
   });
@@ -398,7 +407,7 @@ describe('Content Script', () => {
   describe('Integration', () => {
     it('should set up complete message flow', async () => {
       mockInjectScript.mockResolvedValue(undefined);
-      mockMessageBus.send.mockResolvedValue({ success: true, result: 'integration-test' });
+      mockProviderService.handleRequest.mockResolvedValue('integration-test');
       
       const contentScript = await import('../content');
       
@@ -431,8 +440,8 @@ describe('Content Script', () => {
         }
       });
       
-      // Should have sent message via MessageBus
-      expect(mockMessageBus.send).toHaveBeenCalled();
+      // Should have sent message via providerService
+      expect(mockProviderService.handleRequest).toHaveBeenCalled();
       
       // Should have posted response to window
       expect(mockWindow.postMessage).toHaveBeenCalledWith(
