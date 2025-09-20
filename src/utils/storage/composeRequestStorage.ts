@@ -8,7 +8,7 @@
 
 export interface ComposeRequest {
   id: string;
-  type: 'send' | 'order' | 'dispenser' | 'issuance' | 'dividend';
+  type: 'send' | 'order' | 'dispenser' | 'dispense' | 'fairminter' | 'fairmint' | 'dividend' | 'sweep' | 'btcpay' | 'cancel' | 'dispenser-close-by-hash' | 'bet' | 'broadcast' | 'attach' | 'detach' | 'move-utxo' | 'destroy' | 'issue-supply' | 'lock-supply' | 'reset-supply' | 'transfer' | 'update-description' | 'lock-description';
   origin: string;
   params: any;
   timestamp: number;

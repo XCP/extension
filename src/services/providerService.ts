@@ -22,6 +22,11 @@ import { analyzeCSP } from '@/utils/security/cspValidation';
 import { composeRequestStorage } from '@/utils/storage/composeRequestStorage';
 import { signMessageRequestStorage } from '@/utils/storage/signMessageRequestStorage';
 import { getUpdateService } from '@/services/updateService';
+import type {
+  SendOptions, OrderOptions, DispenserOptions, DispenseOptions, DividendOptions, IssuanceOptions,
+  SweepOptions, BTCPayOptions, CancelOptions, BetOptions, BroadcastOptions, FairminterOptions,
+  FairmintOptions, AttachOptions, DetachOptions, MoveOptions, DestroyOptions
+} from '@/utils/blockchain/counterparty/compose';
 
 export interface ProviderService {
   /**
@@ -89,6 +94,135 @@ export function createProviderService(): ProviderService {
     
     return isConnected ? [activeAddress.address] : [];
   }
+
+  /**
+   * Helper function for handling compose requests with UI routing
+   * Uses proper typing from compose.ts for parameter validation
+   */
+  async function handleComposeRequest<T = any>(
+    origin: string,
+    params: any[],
+    composeType: string,
+    errorMessage: string,
+    routePath: string,
+    validator?: (params: any) => params is T
+  ): Promise<any> {
+    const requestParams = params?.[0];
+    if (!requestParams) {
+      throw new Error(errorMessage);
+    }
+
+    // Optional type validation
+    if (validator && !validator(requestParams)) {
+      throw new Error(`Invalid parameters for ${composeType} operation`);
+    }
+
+    // Check if connected
+    const connectionService = getConnectionService();
+    if (!await connectionService.hasPermission(origin)) {
+      throw new Error('Unauthorized - not connected to wallet');
+    }
+
+    // Get active address for the request
+    const walletService = getWalletService();
+    const activeAddress = await walletService.getActiveAddress();
+    if (!activeAddress) {
+      throw new Error('No active address');
+    }
+
+    // Store the compose request for the popup to retrieve
+    const composeRequestId = `compose-${composeType}-${Date.now()}`;
+    await composeRequestStorage.store({
+      id: composeRequestId,
+      type: composeType as any, // Type assertion since we know it's valid
+      origin,
+      params: {
+        ...requestParams,
+        sourceAddress: activeAddress.address // Ensure we have source address
+      },
+      timestamp: Date.now()
+    });
+
+    // Send message to popup to navigate to compose form
+    chrome.runtime.sendMessage({
+      type: 'NAVIGATE_TO_COMPOSE',
+      composeType,
+      composeRequestId,
+      routePath
+    }).catch(() => {
+      // Popup might not be open yet
+    });
+
+    // Open popup at the compose form
+    try {
+      await chrome.action.openPopup();
+    } catch (e) {
+      // Fallback: create a new window with the compose form
+      const extensionUrl = chrome.runtime.getURL(`popup.html#${routePath}?composeRequestId=${composeRequestId}`);
+      await chrome.windows.create({
+        url: extensionUrl,
+        type: 'popup',
+        width: 400,
+        height: 600,
+        focused: true
+      });
+    }
+
+    // Track as critical operation to prevent extension updates during compose
+    const updateService = getUpdateService();
+    updateService.registerCriticalOperation(`compose-${composeRequestId}`);
+
+    // Return a promise that will resolve when the user completes the compose flow
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        updateService.unregisterCriticalOperation(`compose-${composeRequestId}`);
+        eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
+        eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
+        reject(new Error('Compose request timeout'));
+      }, 10 * 60 * 1000); // 10 minute timeout
+
+      const handleComplete = (result: any) => {
+        clearTimeout(timeout);
+        updateService.unregisterCriticalOperation(`compose-${composeRequestId}`);
+        eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
+        resolve(result);
+      };
+
+      const handleCancel = () => {
+        clearTimeout(timeout);
+        updateService.unregisterCriticalOperation(`compose-${composeRequestId}`);
+        eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
+        reject(new Error('User cancelled compose request'));
+      };
+
+      // Listen for completion events
+      eventEmitterService.on(`compose-complete-${composeRequestId}`, handleComplete);
+      eventEmitterService.on(`compose-cancel-${composeRequestId}`, handleCancel);
+    });
+  }
+
+  // Type validators for common compose operations
+  const isSendOptions = (params: any): params is Partial<SendOptions> => {
+    return typeof params === 'object' &&
+           typeof params.destination === 'string' &&
+           typeof params.asset === 'string' &&
+           (typeof params.quantity === 'number' || typeof params.quantity === 'string');
+  };
+
+  const isOrderOptions = (params: any): params is Partial<OrderOptions> => {
+    return typeof params === 'object' &&
+           typeof params.give_asset === 'string' &&
+           typeof params.get_asset === 'string' &&
+           (typeof params.give_quantity === 'number' || typeof params.give_quantity === 'string') &&
+           (typeof params.get_quantity === 'number' || typeof params.get_quantity === 'string');
+  };
+
+  const isDispenserOptions = (params: any): params is Partial<DispenserOptions> => {
+    return typeof params === 'object' &&
+           typeof params.asset === 'string' &&
+           (typeof params.give_quantity === 'number' || typeof params.give_quantity === 'string') &&
+           (typeof params.escrow_quantity === 'number' || typeof params.escrow_quantity === 'string');
+  };
 
   /**
    * Handle provider requests from dApps
@@ -691,18 +825,83 @@ export function createProviderService(): ProviderService {
         }
         
         case 'xcp_composeIssuance': {
-          // Check if connected
-          if (!await connectionService.hasPermission(origin)) {
-            throw new Error('Unauthorized - not connected to wallet');
-          }
-          
-          const issuanceParams = params?.[0];
-          if (!issuanceParams) {
-            throw new Error('Issuance parameters required');
-          }
-          
-          // Delegate to TransactionService
-          return await transactionService.composeIssuance(origin, issuanceParams);
+          return await this.handleComposeRequest(origin, params, 'issuance', 'Issuance parameters required', '/compose/issuance');
+        }
+
+        case 'xcp_composeDispense': {
+          return await this.handleComposeRequest(origin, params, 'dispense', 'Dispense parameters required', '/compose/dispenser/dispense');
+        }
+
+        case 'xcp_composeFairminter': {
+          return await this.handleComposeRequest(origin, params, 'fairminter', 'Fairminter parameters required', '/compose/fairminter');
+        }
+
+        case 'xcp_composeFairmint': {
+          return await this.handleComposeRequest(origin, params, 'fairmint', 'Fairmint parameters required', '/compose/fairmint');
+        }
+
+        case 'xcp_composeSweep': {
+          return await this.handleComposeRequest(origin, params, 'sweep', 'Sweep parameters required', '/compose/sweep');
+        }
+
+        case 'xcp_composeBTCPay': {
+          return await this.handleComposeRequest(origin, params, 'btcpay', 'BTC pay parameters required', '/compose/btcpay');
+        }
+
+        case 'xcp_composeCancel': {
+          return await this.handleComposeRequest(origin, params, 'cancel', 'Cancel parameters required', '/compose/cancel');
+        }
+
+        case 'xcp_composeDispenserCloseByHash': {
+          return await this.handleComposeRequest(origin, params, 'dispenser-close-by-hash', 'Dispenser close by hash parameters required', '/compose/dispenser/close-by-hash');
+        }
+
+        case 'xcp_composeBet': {
+          return await this.handleComposeRequest(origin, params, 'bet', 'Bet parameters required', '/compose/bet');
+        }
+
+        case 'xcp_composeBroadcast': {
+          return await this.handleComposeRequest(origin, params, 'broadcast', 'Broadcast parameters required', '/compose/broadcast');
+        }
+
+        case 'xcp_composeAttach': {
+          return await this.handleComposeRequest(origin, params, 'attach', 'Attach parameters required', '/compose/utxo/attach');
+        }
+
+        case 'xcp_composeDetach': {
+          return await this.handleComposeRequest(origin, params, 'detach', 'Detach parameters required', '/compose/utxo/detach');
+        }
+
+        case 'xcp_composeMoveUTXO': {
+          return await this.handleComposeRequest(origin, params, 'move-utxo', 'Move UTXO parameters required', '/compose/utxo/move');
+        }
+
+        case 'xcp_composeDestroy': {
+          return await this.handleComposeRequest(origin, params, 'destroy', 'Destroy parameters required', '/compose/destroy');
+        }
+
+        case 'xcp_composeIssueSupply': {
+          return await this.handleComposeRequest(origin, params, 'issue-supply', 'Issue supply parameters required', '/compose/issuance/issue-supply');
+        }
+
+        case 'xcp_composeLockSupply': {
+          return await this.handleComposeRequest(origin, params, 'lock-supply', 'Lock supply parameters required', '/compose/issuance/lock-supply');
+        }
+
+        case 'xcp_composeResetSupply': {
+          return await this.handleComposeRequest(origin, params, 'reset-supply', 'Reset supply parameters required', '/compose/issuance/reset-supply');
+        }
+
+        case 'xcp_composeTransfer': {
+          return await this.handleComposeRequest(origin, params, 'transfer', 'Transfer parameters required', '/compose/issuance/transfer-ownership');
+        }
+
+        case 'xcp_composeUpdateDescription': {
+          return await this.handleComposeRequest(origin, params, 'update-description', 'Update description parameters required', '/compose/issuance/update-description');
+        }
+
+        case 'xcp_composeLockDescription': {
+          return await this.handleComposeRequest(origin, params, 'lock-description', 'Lock description parameters required', '/compose/issuance/lock-description');
         }
         
         // ==================== Transaction Broadcasting ====================
