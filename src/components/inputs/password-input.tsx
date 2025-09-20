@@ -66,6 +66,7 @@ export function PasswordInput({
           variant="input"
           disabled={disabled}
           aria-label={showPassword ? "Hide password" : "Show password"}
+          className={label ? "!top-[calc(50%+0.125rem)]" : ""}
         >
           {showPassword ? (
             <FaEyeSlash aria-hidden="true" />

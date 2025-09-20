@@ -180,26 +180,29 @@ export function finalizeBareMultisigTransaction(
   if (tx.inputsLength !== inputInfos.length) {
     throw new Error(`Input count mismatch: tx has ${tx.inputsLength}, provided ${inputInfos.length} infos`);
   }
-  
+
   for (let i = 0; i < tx.inputsLength; i++) {
     const input = tx.getInput(i);
     const info = inputInfos[i];
-    
+
     // Skip if already finalized (invalid-pubkeys are finalized during signing)
     if (input.finalScriptSig && input.finalScriptSig.length > 0) {
+      console.log(`Input ${i} already finalized, skipping. Length: ${input.finalScriptSig.length}`);
       continue;
     }
-    
+
     if (info.signType === 'invalid-pubkeys') {
       // This should have been handled during signing
       throw new Error(`Input ${i} with invalid pubkeys was not finalized during signing`);
     }
-    
+
     // For compressed and uncompressed, use btc-signer's finalize
     // It should work since we used partialSig
     try {
       tx.finalizeIdx(i);
+      console.log(`Input ${i} finalized via btc-signer`);
     } catch (e) {
+      console.log(`Input ${i} btc-signer finalize failed, using manual construction:`, e);
       // If btc-signer's finalize fails, manually construct the scriptSig
       if (input.partialSig && input.partialSig.length > 0) {
         const sig = input.partialSig[0][1];
@@ -207,8 +210,9 @@ export function finalizeBareMultisigTransaction(
         scriptSig[0] = 0x00; // OP_0
         scriptSig[1] = sig.length;
         scriptSig.set(sig, 2);
-        
+
         tx.updateInput(i, { finalScriptSig: scriptSig }, true);
+        console.log(`Input ${i} manually finalized with scriptSig length: ${scriptSig.length}`);
       } else {
         throw new Error(`Failed to finalize input ${i}: ${e}`);
       }

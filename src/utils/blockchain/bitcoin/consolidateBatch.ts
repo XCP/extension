@@ -169,21 +169,32 @@ export async function consolidateBareMultisigBatch(
   
   // Sign all inputs - create signing info for each input
   // We need to adapt our ConsolidationInput format to what signAndFinalizeBareMultisig expects
-  const signingInputs: MultisigInputInfo[] = inputs.map(input => {
+  const signingInputs: MultisigInputInfo[] = inputs.map((input, idx) => {
     // Analyze the script with the pubkeys
     const scriptAnalysis = analyzeMultisigScript(input.script, compressedPubkey, uncompressedPubkey);
-    
+
     if (!scriptAnalysis) {
       throw new Error(`Failed to analyze multisig script for input ${input.index}`);
     }
-    
+
     // Use the API validation flag to determine sign type
-    const signType = input.hasInvalidPubkeys 
+    const signType = input.hasInvalidPubkeys
       ? 'invalid-pubkeys' as const
-      : input.pubkeyHex.length === 130 
+      : input.pubkeyHex.length === 130
         ? 'uncompressed' as const
         : 'compressed' as const;
-    
+
+    // Debug logging for the failing transaction
+    if (idx === 0) {
+      console.log(`First input debug:
+        - UTXO: ${batchData.utxos[idx].txid}:${batchData.utxos[idx].vout}
+        - Has invalid pubkeys: ${input.hasInvalidPubkeys}
+        - Sign type: ${signType}
+        - Script analysis signType: ${scriptAnalysis.signType}
+        - Position: ${input.position}
+        - Pubkey length: ${input.pubkeyHex.length}`);
+    }
+
     return {
       signType,
       scriptPubKey: input.script,

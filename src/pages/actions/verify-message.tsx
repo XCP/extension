@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCheckCircle, FaUpload, FaRedo } from "react-icons/fa";
 import { Button } from "@/components/button";
@@ -27,20 +27,20 @@ export default function VerifyMessage(): ReactElement {
   const [verificationMethod, setVerificationMethod] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     setAddress("");
     setMessage("");
     setSignature("");
     setVerificationResult(null);
     setVerificationMethod(null);
     setError(null);
-  };
-  
+  }, []);
+
   // Configure header with reset button
   useEffect(() => {
     setHeaderProps({
       title: "Verify Message",
-      onBack: () => navigate("/"),
+      onBack: () => navigate("/actions"),
       rightButton: {
         ariaLabel: "Reset form",
         icon: <FaRedo className="w-3 h-3" />,
@@ -48,7 +48,7 @@ export default function VerifyMessage(): ReactElement {
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate]);
+  }, [setHeaderProps, navigate, handleClear]);
   
   const handleVerify = async () => {
     if (!address.trim()) {

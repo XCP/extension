@@ -83,10 +83,12 @@ export interface ConsolidationStatusResponse {
   recent_consolidations: Array<{
     txid: string;
     timestamp: string;
-    status: 'pending' | 'confirmed';
+    status: 'pending' | 'confirmed' | 'replaced';
     confirmations: number;
     utxos_consolidated: number;
     amount_recovered: number;
+    replaced_by?: string;
+    replaced_at?: string;
   }>;
 }
 

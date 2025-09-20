@@ -75,25 +75,16 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
   }
 
   return (
-    <div className="mt-6 bg-white rounded-lg shadow-sm">
+    <div className="mt-4 bg-white rounded-lg shadow-sm">
       <button
         onClick={() => setShowHistory(!showHistory)}
-        className="w-full p-4 flex justify-between items-center hover:bg-gray-50 transition-colors"
+        className="w-full p-4 flex justify-between items-center hover:bg-gray-50 transition-colors cursor-pointer"
         aria-expanded={showHistory}
         aria-controls="recovery-history"
       >
         <div className="flex items-center gap-2">
           <FaHistory className="text-gray-500 w-4 h-4" aria-hidden="true" />
           <h3 className="text-sm font-medium text-gray-900">Recovery History</h3>
-          {status && status.status.total_recovered_btc > 0 && (
-            <span className="text-xs text-green-600 font-medium">
-              ({formatAmount({
-                value: status.status.total_recovered_btc,
-                minimumFractionDigits: 8,
-                maximumFractionDigits: 8,
-              })} BTC recovered)
-            </span>
-          )}
         </div>
         {showHistory ? (
           <FaChevronDown className="text-gray-400 w-4 h-4" aria-hidden="true" />
@@ -113,28 +104,10 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
               No recovery transactions yet
             </div>
           ) : (
-            <div className="p-4 space-y-3">
-              {/* Summary Stats */}
-              {(status.status.available_utxos > 0 || status.status.pending_utxos > 0) && (
-                <div className="grid grid-cols-3 gap-2 mb-4 text-xs">
-                  <div className="bg-gray-50 rounded p-2">
-                    <div className="text-gray-500">Available</div>
-                    <div className="font-semibold">{status.status.available_utxos} UTXOs</div>
-                  </div>
-                  <div className="bg-yellow-50 rounded p-2">
-                    <div className="text-gray-500">Pending</div>
-                    <div className="font-semibold text-yellow-600">{status.status.pending_utxos} UTXOs</div>
-                  </div>
-                  <div className="bg-green-50 rounded p-2">
-                    <div className="text-gray-500">Recovered</div>
-                    <div className="font-semibold text-green-600">{status.status.confirmed_consolidations} TXs</div>
-                  </div>
-                </div>
-              )}
-
+            <div className="p-4">
               {/* Transaction List */}
               <div className="space-y-2">
-                {status.recent_consolidations.map((tx) => (
+                {status.recent_consolidations.filter(tx => tx.status !== 'replaced').map((tx) => (
                   <div
                     key={tx.txid}
                     className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors"
@@ -172,7 +145,7 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
                         </span>
                       ) : (
                         <span className="px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded">
-                          {tx.confirmations} conf
+                          Confirmed
                         </span>
                       )}
                     </div>

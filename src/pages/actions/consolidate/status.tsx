@@ -153,7 +153,7 @@ export function ConsolidationStatus() {
         <div className="bg-white rounded-lg shadow-lg p-4">
           <h3 className="font-semibold mb-3">Recent Consolidations</h3>
           <div className="space-y-2">
-            {status.recent_consolidations.map((tx) => (
+            {status.recent_consolidations.filter(tx => tx.status !== 'replaced').map((tx) => (
               <div 
                 key={tx.txid}
                 className="p-3 bg-gray-50 rounded-md border border-gray-200"
@@ -166,7 +166,7 @@ export function ConsolidationStatus() {
                           ? 'bg-green-100 text-green-700' 
                           : 'bg-yellow-100 text-yellow-700'
                       }`}>
-                        {tx.status === 'confirmed' ? `${tx.confirmations} confirmations` : 'Pending'}
+                        {tx.status === 'confirmed' ? 'Confirmed' : 'Pending'}
                       </span>
                       <span className="text-xs text-gray-500">
                         {new Date(tx.timestamp).toLocaleDateString()}
