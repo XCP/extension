@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaCheck, FaLock, FaCheckCircle, FaRedo } from "react-icons/fa";
+import { useSignMessageRequest } from "@/hooks/useSignMessageRequest";
+import { FaCopy, FaCheck, FaLock, FaCheckCircle, FaInfoCircle, FaRedo } from "react-icons/fa";
+import { FiDownload } from "react-icons/fi";
 import { Button } from "@/components/button";
 import { TextAreaInput } from "@/components/inputs/textarea-input";
 import { Spinner } from "@/components/spinner";
@@ -20,7 +22,17 @@ export default function SignMessage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeWallet, activeAddress, unlockWallet, isWalletLocked, getPrivateKey } = useWallet();
-  
+
+  // Provider request hook for handling dApp integration
+  const {
+    providerMessage,
+    providerOrigin,
+    signMessageRequestId,
+    handleSuccess,
+    handleCancel,
+    isProviderRequest
+  } = useSignMessageRequest();
+
   // State
   const [message, setMessage] = useState("");
   const [signature, setSignature] = useState("");
@@ -29,11 +41,22 @@ export default function SignMessage(): ReactElement {
   const [copiedField, setCopiedField] = useState<'message' | 'signature' | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   
+  // Load provider message if coming from dApp request
+  useEffect(() => {
+    if (providerMessage && !message) {
+      setMessage(providerMessage);
+    }
+  }, [providerMessage, message]);
+
   // Configure header with reset button (always icon-only)
   useEffect(() => {
+    const headerTitle = isProviderRequest
+      ? `Sign Message - ${new URL(providerOrigin || '').hostname}`
+      : "Sign Message";
+
     setHeaderProps({
-      title: "Sign Message",
-      onBack: () => navigate("/actions"),
+      title: headerTitle,
+      onBack: isProviderRequest ? handleCancel : () => navigate("/actions"),
       rightButton: {
         ariaLabel: "Reset form",
         icon: <FaRedo className="w-3 h-3" />,
@@ -45,7 +68,7 @@ export default function SignMessage(): ReactElement {
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate]);
+  }, [setHeaderProps, navigate, isProviderRequest, providerOrigin, handleCancel]);
   
   // Get signing capabilities for current address
   const addressFormat = activeWallet?.addressFormat;
@@ -105,6 +128,11 @@ export default function SignMessage(): ReactElement {
       );
       
       setSignature(result.signature);
+
+      // If this is a provider request, notify the provider of success
+      if (isProviderRequest) {
+        await handleSuccess({ signature: result.signature });
+      }
     } catch (err) {
       console.error("Failed to sign message:", err);
       setError(err instanceof Error ? err.message : "Failed to sign message");
@@ -292,13 +320,15 @@ export default function SignMessage(): ReactElement {
         </div>
       )}
       
-      {/* YouTube Tutorial */}
-      <Button 
+      {/* YouTube Tutorial - Hidden until we have a video URL */}
+      {/* TODO: Add YouTube tutorial link when available
+      <Button
         variant="youtube"
-        href=""
+        href="https://youtube.com/watch?v=XXXXX"
       >
         Learn how to sign and verify messages
       </Button>
+      */}
       
       {/* Authorization Modal */}
       {showAuthModal && (

@@ -88,7 +88,9 @@ function createWalletService(): WalletService {
     },
     unlockWallet: async (walletId, password) => {
       await walletManager.unlockWallet(walletId, password);
-      // Don't emit events here - connections are per-address and per-site
+      // Emit wallet-unlocked event for any pending connection requests
+      eventEmitterService.emit('wallet-unlocked', { walletId });
+      // Don't emit provider events here - connections are per-address and per-site
       // The provider service will handle this when sites check connection status
     },
     lockAllWallets: async () => {

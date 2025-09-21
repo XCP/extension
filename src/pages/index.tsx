@@ -17,8 +17,10 @@ import { RadioGroup } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { AssetList } from "@/components/lists/asset-list";
 import { BalanceList } from "@/components/lists/balance-list";
+import { RequestRecoveryPrompt } from "@/components/provider/RequestRecoveryPrompt";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { useProviderRequestRecovery } from "@/hooks/useProviderRequestRecovery";
 import { formatAddress } from "@/utils/format";
 import type { ReactElement } from "react";
 
@@ -44,6 +46,38 @@ export default function Index(): ReactElement {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = (searchParams.get("tab") as "Assets" | "Balances") || "Balances";
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
+
+  // Check for pending provider requests
+  const {
+    pendingRequest,
+    showRecoveryPrompt,
+    resumeRequest,
+    cancelRequest,
+    requestAge
+  } = useProviderRequestRecovery();
+
+  // Check for pending approvals on mount and navigate if needed
+  useEffect(() => {
+    const checkPendingApprovals = async () => {
+      try {
+        const { getProviderService } = await import('@/services/providerService');
+        const providerService = getProviderService();
+        const approvalQueue = await providerService.getApprovalQueue();
+
+        if (approvalQueue.length > 0) {
+          // Redirect to approval queue
+          navigate('/provider/approval-queue');
+        }
+      } catch (error) {
+        console.debug('Failed to check approval queue:', error);
+      }
+    };
+
+    // Only check if loaded and we have a wallet
+    if (loaded && activeWallet) {
+      checkPendingApprovals();
+    }
+  }, [loaded, activeWallet, navigate]);
 
   useEffect(() => {
     setHeaderProps({
@@ -211,6 +245,17 @@ export default function Index(): ReactElement {
           <AssetList />
         </div>
       </div>
+
+      {/* Request Recovery Prompt */}
+      {showRecoveryPrompt && pendingRequest && (
+        <RequestRecoveryPrompt
+          origin={pendingRequest.origin}
+          requestType={pendingRequest.type}
+          requestAge={requestAge}
+          onResume={resumeRequest}
+          onCancel={cancelRequest}
+        />
+      )}
     </div>
   );
 }

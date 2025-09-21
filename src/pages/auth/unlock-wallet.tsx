@@ -13,10 +13,13 @@ const UnlockWallet = () => {
   const { setHeaderProps } = useHeader();
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  const [pendingApprovals, setPendingApprovals] = useState(false);
+  const [onUnlockDestination, setOnUnlockDestination] = useState<string | null>(null);
 
   const PATHS = {
     SUCCESS: "/index",
-    HELP_URL: "https://youtube.com", // Replace with actual help URL
+    APPROVE: "/provider/approval-queue",
+    HELP_URL: "https://youtube.com/droplister",
   } as const;
 
   useEffect(() => {
@@ -29,6 +32,43 @@ const UnlockWallet = () => {
       },
     });
   }, [setHeaderProps]);
+
+  // Check for pending approvals on mount
+  useEffect(() => {
+    const checkPendingApprovals = async () => {
+      try {
+        // Import dynamically to avoid circular dependencies
+        const { getProviderService } = await import('@/services/providerService');
+        const providerService = getProviderService();
+        const approvalQueue = await providerService.getApprovalQueue();
+
+        if (approvalQueue.length > 0) {
+          setPendingApprovals(true);
+          setOnUnlockDestination(PATHS.APPROVE);
+        }
+      } catch (error) {
+        console.debug('Failed to check approval queue:', error);
+      }
+    };
+
+    // Also check for any pending unlock-connection messages from the background
+    const handleMessage = (message: any) => {
+      if (message.type === 'NAVIGATE_TO_APPROVAL_QUEUE' ||
+          message.type === 'pending-unlock-connection') {
+        setPendingApprovals(true);
+        setOnUnlockDestination(PATHS.APPROVE);
+      }
+    };
+
+    checkPendingApprovals();
+
+    // Listen for messages from background
+    chrome.runtime.onMessage.addListener(handleMessage);
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(handleMessage);
+    };
+  }, []);
 
   /**
    * Handle password unlock
@@ -46,7 +86,16 @@ const UnlockWallet = () => {
       // This preserves the user's last active wallet selection after session timeout
       const walletToUnlock = activeWallet || wallets[0];
       await unlockWallet(walletToUnlock.id, password);
-      navigate(PATHS.SUCCESS);
+
+      // Navigate to the appropriate destination
+      // Priority: onUnlockDestination > approval queue > default success
+      if (onUnlockDestination) {
+        navigate(onUnlockDestination);
+      } else if (pendingApprovals) {
+        navigate(PATHS.APPROVE);
+      } else {
+        navigate(PATHS.SUCCESS);
+      }
     } catch (err) {
       console.error("Error unlocking wallet:", err);
       

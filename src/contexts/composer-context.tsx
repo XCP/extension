@@ -18,6 +18,7 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { getComposeType, normalizeFormData } from "@/utils/blockchain/counterparty";
 import type { ApiResponse } from "@/utils/blockchain/counterparty";
+import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from "@/utils/security/replayPrevention";
 
 /**
  * Composer state shape
@@ -248,15 +249,45 @@ export function ComposerProvider<T>({
     
     try {
       const rawTxHex = state.apiResponse.result.rawtransaction;
+
+      // Check for replay attempt before signing
+      const replayCheck = await checkReplayAttempt(
+        window.location.origin, // Use current origin for internal transactions
+        'broadcast_transaction',
+        [rawTxHex],
+        { address: activeAddress.address }
+      );
+
+      if (replayCheck.isReplay) {
+        throw new Error(`Transaction replay detected: ${replayCheck.reason}`);
+      }
+
       const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
+
+      // Record transaction before broadcast to prevent double-broadcast
+      // The actual txid comes from broadcast response, so we use a placeholder
+      const placeholderTxid = `pending-${Date.now()}`;
+      recordTransaction(
+        placeholderTxid,
+        window.location.origin,
+        'broadcast_transaction',
+        [rawTxHex],
+        { status: 'pending' }
+      );
+
       const broadcastResponse = await broadcastTransaction(signedTxHex);
-      
+
+      // Mark as successfully broadcasted
+      if (broadcastResponse.txid) {
+        markTransactionBroadcasted(broadcastResponse.txid);
+      }
+
       // Add broadcast response to apiResponse
       const apiResponseWithBroadcast = {
         ...state.apiResponse,
         broadcast: broadcastResponse
       };
-      
+
       setState(prev => ({
         ...prev,
         step: "success",
@@ -295,11 +326,41 @@ export function ComposerProvider<T>({
       await unlockWallet(activeWallet.id, password);
       setState(prev => ({ ...prev, showAuthModal: false }));
       
-      // Now sign and broadcast
+      // Now sign and broadcast with replay prevention
       const rawTxHex = state.apiResponse.result.rawtransaction;
+
+      // Check for replay attempt
+      const replayCheck = await checkReplayAttempt(
+        window.location.origin,
+        'broadcast_transaction',
+        [rawTxHex],
+        { address: activeAddress.address }
+      );
+
+      if (replayCheck.isReplay) {
+        throw new Error(`Transaction replay detected: ${replayCheck.reason}`);
+      }
+
       const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
+
+      // Record transaction before broadcast
+      // The actual txid comes from broadcast response, so we use a placeholder
+      const placeholderTxid = `pending-${Date.now()}`;
+      recordTransaction(
+        placeholderTxid,
+        window.location.origin,
+        'broadcast_transaction',
+        [rawTxHex],
+        { status: 'pending' }
+      );
+
       const broadcastResponse = await broadcastTransaction(signedTxHex);
-      
+
+      // Mark as successfully broadcasted
+      if (broadcastResponse.txid) {
+        markTransactionBroadcasted(broadcastResponse.txid);
+      }
+
       const apiResponseWithBroadcast = {
         ...state.apiResponse,
         broadcast: broadcastResponse

@@ -35,51 +35,67 @@ test.describe('Sign Message', () => {
   });
 
   test('should show message input and signature fields', async () => {
-    const { context, page, extensionId } = await launchExtension('sign-message-fields');
+    const { context, page } = await launchExtension('sign-message-fields');
     await setupWallet(page);
-    
-    // Navigate to sign message
-    await page.goto(`chrome-extension://${extensionId}/popup.html#/actions/sign-message`);
+
+    // Navigate via footer to avoid React hydration errors
+    await navigateViaFooter(page, 'actions');
     await page.waitForLoadState('networkidle');
-    
+
+    // Click on Sign Message
+    await page.click('text=Sign Message');
+    await page.waitForURL('**/actions/sign-message', { timeout: 15000 });
+    await page.waitForLoadState('networkidle');
+
     // Should show message input
     await expect(page.locator('label:has-text("Message")')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('textarea[placeholder*="Enter your message"]')).toBeVisible();
-    
+
     // Should show signature field
     await expect(page.locator('label:has-text("Signature")')).toBeVisible();
     await expect(page.locator('textarea[placeholder*="Signature will appear"]')).toBeVisible();
-    
+
     await cleanup(context);
   });
 
   test('should require message before signing', async () => {
-    const { context, page, extensionId } = await launchExtension('sign-message-require');
+    const { context, page } = await launchExtension('sign-message-require');
     await setupWallet(page);
-    
-    // Navigate to sign message
-    await page.goto(`chrome-extension://${extensionId}/popup.html#/actions/sign-message`);
-    
+
+    // Navigate via footer to avoid React hydration errors
+    await navigateViaFooter(page, 'actions');
+    await page.waitForLoadState('networkidle');
+
+    // Click on Sign Message
+    await page.click('text=Sign Message');
+    await page.waitForURL('**/actions/sign-message', { timeout: 15000 });
+    await page.waitForLoadState('networkidle');
+
     // Sign button should be disabled when message is empty
     const signButton = page.locator('button:has-text("Sign Message")');
     await expect(signButton).toBeDisabled();
-    
+
     // Enter a message
     const messageInput = page.locator('textarea[placeholder*="Enter your message"]');
     await messageInput.fill('Test message for signing');
-    
+
     // Sign button should now be enabled
     await expect(signButton).toBeEnabled();
-    
+
     await cleanup(context);
   });
 
   test('should sign a message successfully', async () => {
-    const { context, page, extensionId } = await launchExtension('sign-message-sign');
+    const { context, page } = await launchExtension('sign-message-sign');
     await setupWallet(page);
-    
-    // Navigate to sign message
-    await page.goto(`chrome-extension://${extensionId}/popup.html#/actions/sign-message`);
+
+    // Navigate via footer to avoid React hydration errors
+    await navigateViaFooter(page, 'actions');
+    await page.waitForLoadState('networkidle');
+
+    // Click on Sign Message
+    await page.click('text=Sign Message');
+    await page.waitForURL('**/actions/sign-message', { timeout: 15000 });
     await page.waitForLoadState('networkidle');
     
     // Wait for message input to be visible
@@ -117,14 +133,17 @@ test.describe('Sign Message', () => {
   });
 
   test('should copy signature to clipboard', async () => {
-    const { context, page, extensionId } = await launchExtension('sign-message-copy');
+    const { context, page } = await launchExtension('sign-message-copy');
     await setupWallet(page);
     await grantClipboardPermissions(context);
-    
-    // Navigate to sign message
-    await page.goto(`chrome-extension://${extensionId}/popup.html#/actions/sign-message`);
-    
-    // Wait for page to fully load
+
+    // Navigate via footer to avoid React hydration errors
+    await navigateViaFooter(page, 'actions');
+    await page.waitForLoadState('networkidle');
+
+    // Click on Sign Message
+    await page.click('text=Sign Message');
+    await page.waitForURL('**/actions/sign-message', { timeout: 15000 });
     await page.waitForLoadState('networkidle');
     await page.waitForSelector('textarea[placeholder*="Enter your message"]', { timeout: 15000 });
     
@@ -164,11 +183,16 @@ test.describe('Sign Message', () => {
   });
 
   test('should export signature as JSON', async () => {
-    const { context, page, extensionId } = await launchExtension('sign-message-json');
+    const { context, page } = await launchExtension('sign-message-json');
     await setupWallet(page);
-    
-    // Navigate to sign message
-    await page.goto(`chrome-extension://${extensionId}/popup.html#/actions/sign-message`);
+
+    // Navigate via footer to avoid React hydration errors
+    await navigateViaFooter(page, 'actions');
+    await page.waitForLoadState('networkidle');
+
+    // Click on Sign Message
+    await page.click('text=Sign Message');
+    await page.waitForURL('**/actions/sign-message', { timeout: 15000 });
     await page.waitForLoadState('networkidle');
     
     // Sign a message
@@ -213,11 +237,17 @@ test.describe('Sign Message', () => {
   });
 
   test('should show character count', async () => {
-    const { context, page, extensionId } = await launchExtension('sign-message-char-count');
+    const { context, page } = await launchExtension('sign-message-char-count');
     await setupWallet(page);
-    
-    // Navigate to sign message
-    await page.goto(`chrome-extension://${extensionId}/popup.html#/actions/sign-message`);
+
+    // Navigate via footer to avoid React hydration errors
+    await navigateViaFooter(page, 'actions');
+    await page.waitForLoadState('networkidle');
+
+    // Click on Sign Message
+    await page.click('text=Sign Message');
+    await page.waitForURL('**/actions/sign-message', { timeout: 15000 });
+    await page.waitForLoadState('networkidle');
     
     const messageInput = page.locator('textarea[placeholder*="Enter your message"]');
     
@@ -246,11 +276,16 @@ test.describe('Sign Message', () => {
   });
 
   test('should handle special characters in messages', async () => {
-    const { context, page, extensionId } = await launchExtension('sign-message-special');
+    const { context, page } = await launchExtension('sign-message-special');
     await setupWallet(page);
-    
-    // Navigate to sign message
-    await page.goto(`chrome-extension://${extensionId}/popup.html#/actions/sign-message`);
+
+    // Navigate via footer to avoid React hydration errors
+    await navigateViaFooter(page, 'actions');
+    await page.waitForLoadState('networkidle');
+
+    // Click on Sign Message
+    await page.click('text=Sign Message');
+    await page.waitForURL('**/actions/sign-message', { timeout: 15000 });
     await page.waitForLoadState('networkidle');
     
     // Wait for message input
@@ -281,11 +316,16 @@ test.describe('Sign Message', () => {
   });
 
   test('should show verification instructions', async () => {
-    const { context, page, extensionId } = await launchExtension('sign-message-verify-inst');
+    const { context, page } = await launchExtension('sign-message-verify-inst');
     await setupWallet(page);
-    
-    // Navigate to sign message
-    await page.goto(`chrome-extension://${extensionId}/popup.html#/actions/sign-message`);
+
+    // Navigate via footer to avoid React hydration errors
+    await navigateViaFooter(page, 'actions');
+    await page.waitForLoadState('networkidle');
+
+    // Click on Sign Message
+    await page.click('text=Sign Message');
+    await page.waitForURL('**/actions/sign-message', { timeout: 15000 });
     await page.waitForTimeout(2000);
     
     // Check for verification related content - be more flexible
@@ -300,11 +340,16 @@ test.describe('Sign Message', () => {
   });
 
   test('should handle different wallet types', async () => {
-    const { context, page, extensionId } = await launchExtension('sign-message-wallet-types');
+    const { context, page } = await launchExtension('sign-message-wallet-types');
     await setupWallet(page);
-    
-    // Navigate to sign message
-    await page.goto(`chrome-extension://${extensionId}/popup.html#/actions/sign-message`);
+
+    // Navigate via footer to avoid React hydration errors
+    await navigateViaFooter(page, 'actions');
+    await page.waitForLoadState('networkidle');
+
+    // Click on Sign Message
+    await page.click('text=Sign Message');
+    await page.waitForURL('**/actions/sign-message', { timeout: 15000 });
     await page.waitForLoadState('networkidle');
     
     // Wait for page to load

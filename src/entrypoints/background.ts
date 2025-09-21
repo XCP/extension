@@ -9,7 +9,9 @@ import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { MessageBus, type ProviderMessage, type ApprovalMessage, type EventMessage } from '@/services/core/MessageBus';
 import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/sessionManager';
 import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, createJsonRpcError } from '@/utils/errors';
-import { broadcastToTabs } from '@/utils/browser';
+import { checkForLastError, wrapRuntimeCallback, broadcastToTabs, sendMessageToTab } from '@/utils/browser';
+import { getUpdateService } from '@/services/updateService';
+import { getPopupMonitorService } from '@/services/popupMonitorService';
 // Import onMessage directly from webext-bridge/background to prevent runtime.lastError
 import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
 
@@ -159,6 +161,16 @@ export default defineBackground(() => {
     .catch((error) => {
       console.error('Failed to initialize core services:', error);
     });
+
+  // Initialize update service for handling Chrome extension updates
+  // Critical for extensions with persistent connections or native messaging
+  getUpdateService().initialize().catch((error) => {
+    console.error('Failed to initialize update service:', error);
+  });
+
+  // Initialize popup monitor service for handling abandoned requests
+  // Handles cases where user closes popup or walks away
+  getPopupMonitorService().initialize();
   
   // Register proxy services (existing pattern)
   registerWalletService();
@@ -400,6 +412,10 @@ export default defineBackground(() => {
       if (providerService.destroy) {
         providerService.destroy().catch(console.error);
       }
+
+      // Cleanup update service
+      const updateService = getUpdateService();
+      updateService.destroy();
     });
   }
   
