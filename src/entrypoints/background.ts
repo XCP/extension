@@ -1,6 +1,6 @@
 import { registerWalletService, getWalletService } from '@/services/walletService';
 import { registerProviderService, getProviderService } from '@/services/providerService';
-import { registerBlockchainService, getBlockchainService } from '@/services/blockchain';
+import { registerBlockchainService } from '@/services/blockchain';
 import { registerConnectionService } from '@/services/connection';
 import { registerApprovalService } from '@/services/approval';
 import { registerTransactionService } from '@/services/transaction';

@@ -2,14 +2,13 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
-import { FiCheck } from "react-icons/fi";
 import { Field, Label, Description, Input, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { formatAmount, formatDateToLocal } from "@/utils/format";
+import { formatDateToLocal } from "@/utils/format";
 import type { BetOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -49,7 +48,7 @@ export function BetForm({
   const { pending } = useFormStatus();
 
   // Form state
-  const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
+  const [satPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
   const [selectedBetType, setSelectedBetType] = useState<BetTypeOption>(
     betTypeOptions.find(option => option.id === initialFormData?.bet_type) || betTypeOptions[0]
   );
@@ -70,7 +69,6 @@ export function BetForm({
   const feedAddressRef = useRef<HTMLInputElement>(null);
   
   // Computed values
-  const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
 
   // Focus feed_address input on mount
   useEffect(() => {

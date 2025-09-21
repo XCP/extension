@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act, renderHook, waitFor } from '@testing-library/react';
+import { render, screen, act, renderHook } from '@testing-library/react';
 import { LoadingProvider, useLoading } from '../loading-context';
 import { Spinner } from '../../components/spinner';
 
@@ -183,10 +183,9 @@ describe('LoadingContext', () => {
       });
 
       const onError = vi.fn();
-      let loadingId: string;
-      
+
       act(() => {
-        loadingId = result.current.showLoading('Long operation', { onError });
+        result.current.showLoading('Long operation', { onError });
       });
 
       // Advance requestAnimationFrame timer for initial state update
@@ -297,11 +296,11 @@ describe('LoadingContext', () => {
         wrapper: LoadingProvider,
       });
 
-      let id1: string, id2: string, id3: string;
+      let id2: string;
       act(() => {
-        id1 = result.current.showLoading('Loading 1');
+        result.current.showLoading('Loading 1');
         id2 = result.current.showLoading('Loading 2');
-        id3 = result.current.showLoading('Loading 3');
+        result.current.showLoading('Loading 3');
       });
 
       // Advance requestAnimationFrame timer for initial state update

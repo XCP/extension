@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { broadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
-import axios from 'axios';
 import { getKeychainSettings, DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage';
 
 vi.mock('axios');
@@ -15,7 +14,6 @@ vi.mock('@/utils/axios', () => ({
   }
 }));
 
-const mockAxios = axios as any;
 
 // Import the mocked modules  
 import { apiClient } from '@/utils/axios';

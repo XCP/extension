@@ -19,19 +19,11 @@ export function DispenserCloseByHashForm({
   initialFormData,
   initialTxHash,
 }: DispenserCloseByHashFormProps): ReactElement {
-  const { activeAddress, activeWallet, settings, showHelpText, state } = useComposer();
+  const { activeAddress, activeWallet, showHelpText } = useComposer();
   const { pending } = useFormStatus();
   const [txHash, setTxHash] = useState<string>(initialTxHash || initialFormData?.open_address || "");
   const [selectedDispenser, setSelectedDispenser] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<{ message: string } | null>(null);
-
-  // Set composer error when it occurs
-  useEffect(() => {
-    if (state.error) {
-      setError({ message: state.error });
-    }
-  }, [state.error]);
 
   // Fetch dispenser data when initialTxHash is provided or when txHash changes
   useEffect(() => {
@@ -48,7 +40,6 @@ export function DispenserCloseByHashForm({
         handleLookup(txHash);
       } else {
         setSelectedDispenser(null);
-        setError(null);
       }
     }, 500); // Debounce for 500ms
 
@@ -65,21 +56,17 @@ export function DispenserCloseByHashForm({
     if (!hashToLookup) return;
     
     setIsLoading(true);
-    setError(null);
     
     try {
       const dispenser = await fetchDispenserByHash(hashToLookup);
       if (dispenser && dispenser.status === 0) { // STATUS_OPEN
         setSelectedDispenser(dispenser);
-        setError(null);
       } else {
         setSelectedDispenser(null);
-        setError({ message: "No open dispenser found for this hash." });
       }
     } catch (err) {
       console.error("Failed to fetch dispenser:", err);
       setSelectedDispenser(null);
-      setError({ message: "Failed to fetch dispenser. Please check the hash and try again." });
     } finally {
       setIsLoading(false);
     }

@@ -2,7 +2,7 @@
  * Integration test to verify RequestManager fixes memory leaks
  */
 
-import { describe, it, expect, beforeEach, afterEach, test } from 'vitest';
+import { describe, expect, beforeEach, afterEach, test } from 'vitest';
 import { RequestManager } from '../RequestManager';
 
 describe('RequestManager Integration', () => {
@@ -22,7 +22,6 @@ describe('RequestManager Integration', () => {
 
   test('should handle multiple concurrent requests without memory leak', async () => {
     const promises: Promise<any>[] = [];
-    const results: any[] = [];
 
     // Create multiple concurrent requests
     for (let i = 0; i < 10; i++) {

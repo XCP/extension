@@ -3,13 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { FiX, FiAlertCircle, FiGlobe, FiEdit, FiLock, FiSend } from 'react-icons/fi';
 import { Button } from '@/components/button';
 import { type ApprovalRequest } from '@/utils/provider/approvalQueue';
-import { formatAddress } from '@/utils/format';
 import { getProviderService } from '@/services/providerService';
 import { useHeader } from '@/contexts/header-context';
 import { safeSendMessage } from '@/utils/browser';
 
 export default function ApprovalQueue() {
-  const navigate = useNavigate();
+  const {} = useNavigate();
   const { setHeaderProps } = useHeader();
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -77,13 +76,6 @@ export default function ApprovalQueue() {
 
   const currentRequest = requests[currentIndex];
 
-  const handleTimeout = async () => {
-    // Request has expired, show user feedback and remove
-    if (currentRequest) {
-      const providerService = getProviderService();
-      await providerService.removeApprovalRequest(currentRequest.id);
-    }
-  };
 
   const handleApprove = async () => {
     if (!currentRequest) return;
@@ -311,15 +303,6 @@ function ConnectionApproval({ request }: { request: ApprovalRequest }) {
 }
 
 function ComposeApproval({ request }: { request: ApprovalRequest }) {
-  const domain = getDomain(request.origin);
-  
-  function getDomain(origin: string) {
-    try {
-      return new URL(origin).hostname;
-    } catch {
-      return origin;
-    }
-  }
 
   // Navigate to the dedicated compose approval page
   useEffect(() => {

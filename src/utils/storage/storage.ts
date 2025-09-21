@@ -75,27 +75,6 @@ async function persistRecords(records: StoredRecord[]): Promise<void> {
   }
 }
 
-/**
- * Invalidates the cache, forcing next read to fetch from storage.
- * Useful when external changes to storage are expected.
- */
-export function invalidateCache(): void {
-  recordsCache = null;
-  cacheTimestamp = 0;
-}
-
-/**
- * Watch for changes to records in storage and automatically invalidate cache.
- * Useful when multiple extension contexts might modify the same storage.
- * 
- * @returns Function to stop watching
- */
-export function watchStorageChanges(): (() => void) {
-  return localRecords.watch(() => {
-    // Invalidate cache when storage changes externally
-    invalidateCache();
-  });
-}
 
 /**
  * Retrieves all records from storage.

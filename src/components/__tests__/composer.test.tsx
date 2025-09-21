@@ -4,7 +4,6 @@ import '@testing-library/jest-dom/vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { Composer } from '../composer';
 import { ComposerProvider } from '@/contexts/composer-context';
-import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 import type { ReactElement } from 'react';
 
 // Mock dependencies

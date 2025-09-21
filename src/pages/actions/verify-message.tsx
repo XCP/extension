@@ -8,7 +8,7 @@ import { TextAreaInput } from "@/components/inputs/textarea-input";
 import { DestinationInput } from "@/components/inputs/destination-input";
 import { ErrorAlert } from "@/components/error-alert";
 import { useHeader } from "@/contexts/header-context";
-import { verifyMessageWithMethod } from "@/utils/blockchain/bitcoin/verifier";
+import { verifyMessageWithMethod } from "@/utils/blockchain/bitcoin/messageVerifier";
 import type { ReactElement } from "react";
 
 /**

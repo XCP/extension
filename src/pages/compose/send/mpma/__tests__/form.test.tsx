@@ -1,10 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { MPMAForm } from '../form';
 import { ComposerProvider } from '@/contexts/composer-context';
-import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 
 // Mock the counterparty functions
 vi.mock('@/utils/blockchain/counterparty', () => ({

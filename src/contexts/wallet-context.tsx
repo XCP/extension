@@ -3,7 +3,6 @@ import {
   useCallback,
   useEffect,
   useState,
-  useRef,
   type ReactElement,
   type ReactNode,
   use
@@ -140,7 +139,6 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     walletLocked: true,
     loaded: false,
   });
-  const refreshInProgress = useRef(false);
 
   const refreshWalletState = useCallback(async () => {
     // Use proper locking instead of simple ref check

@@ -12,7 +12,6 @@
 import { BaseService } from '@/services/core/BaseService';
 import { getConnectionService } from '@/services/connection';
 import { getApprovalService } from '@/services/approval';
-import { getBlockchainService } from '@/services/blockchain';
 import { getWalletService } from '@/services/walletService';
 import { transactionRateLimiter } from '@/utils/provider/rateLimiter';
 import { withReplayPrevention, recordTransaction, markTransactionBroadcasted } from '@/utils/security/replayPrevention';

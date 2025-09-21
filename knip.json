@@ -1,0 +1,28 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "src/entrypoints/**/*.{ts,tsx}"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "!src/**/*.test.{ts,tsx}",
+    "!src/**/*.spec.{ts,tsx}",
+    "!src/**/__tests__/**"
+  ],
+  "ignore": [
+    "src/**/*.d.ts",
+    "src/utils/qr-code/qrcodegen.ts",
+    ".output/**",
+    "dist/**",
+    "build/**"
+  ],
+  "ignoreDependencies": [
+    "@types/*"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "webpack": false,
+  "vite": true,
+  "typescript": {
+    "config": ["tsconfig.json"]
+  }
+}

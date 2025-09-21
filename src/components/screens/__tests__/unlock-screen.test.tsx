@@ -221,7 +221,6 @@ describe('UnlockScreen', () => {
     });
 
     it('should prevent Enter key submission when isSubmitting', async () => {
-      const user = userEvent.setup();
       render(<UnlockScreen onUnlock={mockOnUnlock} isSubmitting />);
       
       const passwordInput = screen.getByPlaceholderText('Enter your password');

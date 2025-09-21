@@ -397,13 +397,11 @@ describe('Block Height Utilities', () => {
 
     it('should handle concurrent requests properly', async () => {
       let resolveFirst: (value: any) => void;
-      let resolveSecond: (value: any) => void;
-      let resolveThird: (value: any) => void;
 
       (globalThis.fetch as any)
         .mockImplementationOnce(() => new Promise(resolve => { resolveFirst = resolve; }))
-        .mockImplementationOnce(() => new Promise(resolve => { resolveSecond = resolve; }))
-        .mockImplementationOnce(() => new Promise(resolve => { resolveThird = resolve; }));
+        .mockImplementationOnce(() => new Promise(() => {}))
+        .mockImplementationOnce(() => new Promise(() => {}));
 
       // Start one request (race calls all 3 endpoints)
       const promise1 = getCurrentBlockHeight();

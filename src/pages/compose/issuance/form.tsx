@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Field, Label, Description } from "@headlessui/react";
 import { TextAreaInput } from "@/components/inputs/textarea-input";
 import { ComposerForm } from "@/components/composer-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
@@ -15,7 +14,7 @@ import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { toBigNumber } from "@/utils/numeric";
-import { AddressFormat, isSegwitFormat } from '@/utils/blockchain/bitcoin';
+import { isSegwitFormat } from '@/utils/blockchain/bitcoin';
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 

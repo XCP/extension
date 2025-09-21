@@ -17,7 +17,6 @@ import { connectionRateLimiter } from '@/utils/provider/rateLimiter';
 import { analyzeCSP } from '@/utils/security/cspValidation';
 import { analytics } from '@/utils/fathom';
 import { approvalQueue } from '@/utils/provider/approvalQueue';
-import type { Address, Wallet } from '@/utils/wallet';
 
 export interface ConnectionStatus {
   origin: string;
@@ -28,7 +27,7 @@ export interface ConnectionStatus {
   lastActive?: number;
 }
 
-export interface ConnectionPermissionRequest {
+interface ConnectionPermissionRequest {
   origin: string;
   address: string;
   walletId: string;

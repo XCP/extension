@@ -48,28 +48,37 @@ function AddWallet() {
   }, [setHeaderProps, navigate]);
 
   const handleCreateWallet = () => {
-    navigate(PATHS.CREATE_WALLET);
-  };
-
-  const handleImportWallet = () => {
-    navigate(PATHS.IMPORT_WALLET);
-  };
-
-  const handleImportPrivateKey = () => {
-    navigate(PATHS.IMPORT_PRIVATE_KEY);
-  };
-  
-  const handleImportTestAddress = () => {
-    navigate(PATHS.IMPORT_TEST_ADDRESS);
-  };
-
-  const handleAddWallet = () => {
     if (wallets.length >= MAX_WALLETS) {
       setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
       return;
     }
-    // ... rest of the function
+    navigate(PATHS.CREATE_WALLET);
   };
+
+  const handleImportWallet = () => {
+    if (wallets.length >= MAX_WALLETS) {
+      setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+      return;
+    }
+    navigate(PATHS.IMPORT_WALLET);
+  };
+
+  const handleImportPrivateKey = () => {
+    if (wallets.length >= MAX_WALLETS) {
+      setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+      return;
+    }
+    navigate(PATHS.IMPORT_PRIVATE_KEY);
+  };
+  
+  const handleImportTestAddress = () => {
+    if (wallets.length >= MAX_WALLETS) {
+      setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+      return;
+    }
+    navigate(PATHS.IMPORT_TEST_ADDRESS);
+  };
+
 
   return (
     <div className="flex flex-col h-full" role="main" aria-labelledby="add-wallet-title">

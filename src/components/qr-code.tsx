@@ -70,7 +70,6 @@ export const QRCanvas = memo(({
     const matrix = generateQR(text, errorCorrectionLevel);
     const matrixSize = matrix.length;
     const totalSize = matrixSize + margin * 2;
-    const cellSize = Math.floor(size / totalSize);
     // Use the requested size directly for the canvas
     const actualSize = size;
 

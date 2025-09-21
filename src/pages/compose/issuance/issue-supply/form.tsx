@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer-form";
 import { Spinner } from "@/components/spinner";
@@ -44,7 +44,7 @@ export function IssueSupplyForm({
   // Form state
   const [quantity, setQuantity] = useState(initialFormData?.quantity?.toString() || "");
   const [lock, setLock] = useState(initialFormData?.lock || false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
 
   // Calculate maximum issuable amount
   const calculateMaxAmount = (): string => {

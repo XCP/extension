@@ -369,7 +369,7 @@ describe('SettingsContext', () => {
 
   describe('Settings Persistence', () => {
     it('should persist settings across remounts', async () => {
-      const { result, rerender, unmount } = renderHook(() => useSettings(), {
+      const { result, unmount } = renderHook(() => useSettings(), {
         wrapper: SettingsProvider
       });
 

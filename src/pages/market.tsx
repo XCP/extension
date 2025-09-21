@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaStore, FaExchangeAlt, FaSync, FaCog, FaPlus } from "react-icons/fa";
+import { FaExchangeAlt, FaSync, FaCog, FaPlus } from "react-icons/fa";
 import { Button } from "@/components/button";
 import { useHeader } from "@/contexts/header-context";
 import type { ReactElement } from "react";

@@ -109,7 +109,6 @@ describe('Bare Multisig Utilities', () => {
     it('should successfully consolidate bare multisig UTXOs', async () => {
       const privateKeyBytes = hexToBytes(mockPrivateKey);
       const uncompressedPubKey = getPublicKey(privateKeyBytes, false);
-      const uncompressedPubKeyHex = bytesToHex(uncompressedPubKey);
 
       // Create a mock bare multisig script with our uncompressed public key
       const mockMultisigScript = OutScript.encode({

@@ -29,19 +29,17 @@ export function DispenserCloseForm({
   initialAsset,
 }: DispenserCloseFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet, settings, showHelpText, state } = useComposer();
-  
+  const { activeAddress, activeWallet, showHelpText, state } = useComposer();
+
   // Data fetching hooks
   const { data: assetDetails, error: assetDetailsError } = useAssetDetails(
     initialAsset || initialFormData?.asset || "BTC"
   );
-  
+
   // Form status
   const { pending } = useFormStatus();
-  
-  // Error state management
-  const [error, setError] = useState<{ message: string } | null>(null);
-  
+
+
   // Form state
   const [selectedTxHash, setSelectedTxHash] = useState<string | null>(null);
   const [dispensers, setDispensers] = useState<any[]>([]);
@@ -55,7 +53,7 @@ export function DispenserCloseForm({
   // Effects - composer error first
   useEffect(() => {
     if (state.error) {
-      setError({ message: state.error });
+      // Error is shown through composer state
     }
   }, [state.error]);
 
@@ -65,7 +63,6 @@ export function DispenserCloseForm({
       if (!activeAddress) return;
       
       setIsLoading(true);
-      setError(null);
       
       try {
         const { dispensers: fetchedDispensers } = await fetchAddressDispensers(
@@ -75,7 +72,6 @@ export function DispenserCloseForm({
         setDispensers(fetchedDispensers);
       } catch (err) {
         console.error("Failed to load dispensers:", err);
-        setError({ message: "Failed to load dispensers. Please try again." });
       } finally {
         setIsLoading(false);
       }

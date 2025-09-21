@@ -4,10 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHelpCircle, FiGlobe } from "react-icons/fi";
 import { FaSync } from "react-icons/fa";
-import { Button } from "@/components/button";
 import { ConnectedSiteCard } from "@/components/cards/connected-site-card";
 import { useHeader } from "@/contexts/header-context";
-import { getKeychainSettings, updateKeychainSettings } from "@/utils/storage/settingsStorage";
+import { getKeychainSettings } from "@/utils/storage/settingsStorage";
 import { getProviderService } from "@/services/providerService";
 import type { ReactElement } from "react";
 

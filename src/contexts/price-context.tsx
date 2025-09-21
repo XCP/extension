@@ -83,5 +83,3 @@ export const usePrice = (): PriceContextValue => {
   return context;
 };
 
-// Deprecated alias for backwards compatibility
-export const usePrices = usePrice;

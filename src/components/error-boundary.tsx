@@ -1,4 +1,4 @@
-import { Component, ReactNode, ErrorInfo, ComponentType } from 'react';
+import { Component, ComponentType, ReactNode, ErrorInfo } from 'react';
 import { BiError } from 'react-icons/bi';
 import { FiRefreshCw } from 'react-icons/fi';
 

@@ -10,7 +10,7 @@ import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
  * This creates an issuance transaction with description="LOCK" to permanently
  * prevent future description changes.
  */
-export function ComposeLockDescription() {
+function ComposeLockDescription() {
   const { asset } = useParams<{ asset?: string }>();
 
   if (!asset) {

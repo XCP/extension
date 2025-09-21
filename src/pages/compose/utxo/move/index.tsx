@@ -5,7 +5,7 @@ import { Composer } from "@/components/composer";
 import { composeMove } from "@/utils/blockchain/counterparty";
 import type { MoveOptions } from "@/utils/blockchain/counterparty";
 
-export function ComposeUtxoMove() {
+function ComposeUtxoMove() {
   const { txid } = useParams<{ txid: string }>();
 
   return (

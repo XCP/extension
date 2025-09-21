@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useConsolidateAndBroadcast } from '../useConsolidateAndBroadcast';
 import { useWallet } from '@/contexts/wallet-context';
-import { consolidateBareMultisig, broadcastTransaction, fetchUTXOs, getFeeRates } from '@/utils/blockchain/bitcoin';
+import { consolidateBareMultisig } from '@/utils/blockchain/bitcoin';
 
 // Mock webext-bridge
 vi.mock('webext-bridge/popup', () => ({

@@ -104,4 +104,3 @@ export function ConnectedSiteCard({
   );
 }
 
-export default ConnectedSiteCard;

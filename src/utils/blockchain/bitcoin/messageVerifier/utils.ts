@@ -4,7 +4,6 @@
 
 import { sha256 } from '@noble/hashes/sha2';
 import { hmac } from '@noble/hashes/hmac';
-import * as secp256k1 from '@noble/secp256k1';
 import type { AddressType } from './types';
 import { recoverPublicKeyFromSignature } from './secp-recovery';
 
@@ -301,16 +300,6 @@ export function recoverPublicKey(
   return recoverPublicKeyFromSignature(signature, messageHash, recoveryId, compressed);
 }
 
-/**
- * Convert bytes to BigInt (helper function)
- */
-function bytesToBigInt(bytes: Uint8Array): bigint {
-  let result = 0n;
-  for (let i = 0; i < bytes.length; i++) {
-    result = (result << 8n) | BigInt(bytes[i]);
-  }
-  return result;
-}
 
 /**
  * Parse BIP-137 signature header flag

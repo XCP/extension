@@ -3,7 +3,6 @@ import * as fc from 'fast-check';
 import { BigNumber } from 'bignumber.js';
 import {
   toBigNumber,
-  formatBigNumber,
   isValidPositiveNumber,
   roundDownToMultiple,
   toSatoshis,
@@ -15,7 +14,6 @@ import {
   multiply,
   subtract,
   divide,
-  toInteger,
   roundUp,
   roundDown,
   isLessThanOrEqualToZero,

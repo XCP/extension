@@ -8,7 +8,7 @@ import { Button } from "@/components/button";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchAddressDispensers, type Dispenser } from "@/utils/blockchain/counterparty/api";
-import { formatAmount, formatTimeAgo } from "@/utils/format";
+import { formatAmount } from "@/utils/format";
 import type { ReactElement } from "react";
 
 /**

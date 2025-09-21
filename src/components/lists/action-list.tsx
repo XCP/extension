@@ -133,4 +133,3 @@ export function ActionList({
   );
 }
 
-export default ActionList;

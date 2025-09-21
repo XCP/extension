@@ -101,4 +101,3 @@ export function AssetCard({
   );
 }
 
-export default AssetCard;

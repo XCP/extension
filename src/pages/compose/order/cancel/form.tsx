@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ComposerForm } from "@/components/composer-form";
 import { HashInput } from "@/components/inputs/hash-input";
 import { AddressHeader } from "@/components/headers/address-header";
@@ -26,7 +26,7 @@ export function CancelForm({
   initialHash,
 }: CancelFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet, settings, showHelpText } = useComposer();
+  const { activeAddress, activeWallet, showHelpText } = useComposer();
   const [offerHash, setOfferHash] = useState(initialFormData?.offer_hash || initialHash || "");
 
   return (

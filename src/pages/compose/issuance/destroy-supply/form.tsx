@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
-import { Field, Label, Description } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
@@ -36,7 +35,7 @@ export function DestroySupplyForm({
   
   // Data fetching hooks
   const asset = initialAsset || initialFormData?.asset || "";
-  const { data: assetDetails, error: assetDetailsError } = useAssetDetails(asset);
+  const { data: assetDetails } = useAssetDetails(asset);
   
   // Form status
   const { pending } = useFormStatus();
@@ -45,9 +44,9 @@ export function DestroySupplyForm({
   const [amount, setAmount] = useState<string>(
     initialFormData?.quantity?.toString() || ""
   );
-  const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
+  const [satPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
   const [assetName, setAssetName] = useState(initialFormData?.asset || "");
-  const [isAssetNameValid, setIsAssetNameValid] = useState(false);
+  const [, setIsAssetNameValid] = useState(false);
   const [tag, setTag] = useState(initialFormData?.tag || "");
   
   // Computed values

@@ -5,7 +5,7 @@ import { Composer } from "@/components/composer";
 import { composeDestroy } from "@/utils/blockchain/counterparty";
 import type { DestroyOptions } from "@/utils/blockchain/counterparty";
 
-export function ComposeDestroy() {
+function ComposeDestroy() {
   const { asset } = useParams<{ asset?: string }>();
 
   return (

@@ -6,7 +6,7 @@ import { ReviewIssuanceResetSupply } from "./review";
 import { composeIssuance } from "@/utils/blockchain/counterparty";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 
-export function ComposeIssuanceResetSupply() {
+function ComposeIssuanceResetSupply() {
   const { asset } = useParams<{ asset?: string }>();
 
   if (!asset) {

@@ -27,7 +27,6 @@ import * as blockchainService from '../blockchain';
 import * as settingsStorage from '@/utils/storage';
 import * as approvalQueue from '@/utils/provider/approvalQueue';
 import * as rateLimiter from '@/utils/provider/rateLimiter';
-import * as fathom from '@/utils/fathom';
 import * as replayPrevention from '@/utils/security/replayPrevention';
 import * as cspValidation from '@/utils/security/cspValidation';
 import * as composeRequestStorage from '@/utils/storage/composeRequestStorage';
@@ -321,6 +320,17 @@ describe('ProviderService', () => {
           approvalPromiseResolve = resolve;
         });
         mockApprovalService.requestApproval = vi.fn().mockReturnValue(approvalPromise);
+
+        // Mock window.create using fakeBrowser
+        const mockWindowCreate = vi.fn().mockResolvedValue({ id: 123 });
+        fakeBrowser.windows.create = mockWindowCreate;
+
+        // Also mock windows.update and onRemoved since the code uses them
+        fakeBrowser.windows.update = vi.fn().mockResolvedValue({});
+        fakeBrowser.windows.onRemoved = {
+          addListener: vi.fn(),
+          removeListener: vi.fn()
+        } as any;
 
         // Start the request promise
         const requestPromise = providerService.handleRequest(

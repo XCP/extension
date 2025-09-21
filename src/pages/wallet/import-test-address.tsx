@@ -5,7 +5,7 @@ import { Button } from '@/components/button';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
 
-export function ImportTestAddress() {
+function ImportTestAddress() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { importTestAddress } = useWallet();

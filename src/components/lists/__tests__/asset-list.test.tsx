@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { useState, useEffect } from 'react';
 import { AssetList } from '../asset-list';
 import type { OwnedAsset } from '@/utils/blockchain/counterparty/api';
 

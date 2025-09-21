@@ -101,7 +101,7 @@ describe('DestinationInput', () => {
     const onValidationChange = vi.fn();
     const onChange = vi.fn();
     
-    const { rerender } = render(<DestinationInput value="test" onChange={onChange} onValidationChange={onValidationChange} required={true} />);
+    render(<DestinationInput value="test" onChange={onChange} onValidationChange={onValidationChange} required={true} />);
     
     // Clear the validation mock to test the empty change
     onValidationChange.mockClear();
@@ -116,7 +116,7 @@ describe('DestinationInput', () => {
     const onValidationChange = vi.fn();
     const onChange = vi.fn();
     
-    const { rerender } = render(<DestinationInput value="test" onChange={onChange} onValidationChange={onValidationChange} required={false} />);
+    render(<DestinationInput value="test" onChange={onChange} onValidationChange={onValidationChange} required={false} />);
     
     // Clear the validation mock to test the empty change
     onValidationChange.mockClear();

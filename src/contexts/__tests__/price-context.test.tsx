@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach, type MockedFunction } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
-import { PriceProvider, usePrices, __clearCache } from '../price-context';
+import { renderHook, waitFor } from '@testing-library/react';
+import { PriceProvider, usePrice, __clearCache } from '../price-context';
 import { getBtcPrice } from '@/utils/blockchain/bitcoin';
 
 // Mock the price fetching module
@@ -27,7 +27,7 @@ describe('PriceContext', () => {
 
   describe('PriceProvider', () => {
     it('should provide initial price state', () => {
-      const { result } = renderHook(() => usePrices(), {
+      const { result } = renderHook(() => usePrice(), {
         wrapper: PriceProvider,
       });
 
@@ -35,18 +35,18 @@ describe('PriceContext', () => {
       expect(result.current.error).toBeNull();
     });
 
-    it('should throw error when usePrices is used outside provider', () => {
+    it('should throw error when usePrice is used outside provider', () => {
       const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
       
       expect(() => {
-        renderHook(() => usePrices());
+        renderHook(() => usePrice());
       }).toThrow('usePrice must be used within a PriceProvider');
       
       spy.mockRestore();
     });
 
     it('should fetch Bitcoin price on mount', async () => {
-      const { result } = renderHook(() => usePrices(), {
+      const { result } = renderHook(() => usePrice(), {
         wrapper: PriceProvider,
       });
 
@@ -63,7 +63,7 @@ describe('PriceContext', () => {
       const error = new Error('Failed to fetch price');
       mockGetBtcPrice.mockRejectedValueOnce(error);
 
-      const { result } = renderHook(() => usePrices(), {
+      const { result } = renderHook(() => usePrice(), {
         wrapper: PriceProvider,
       });
 
@@ -78,7 +78,7 @@ describe('PriceContext', () => {
     it('should refresh price periodically', async () => {
       // This test checks that the interval mechanism exists
       // We'll verify that a second call would happen after the interval
-      const { result } = renderHook(() => usePrices(), {
+      const { result } = renderHook(() => usePrice(), {
         wrapper: PriceProvider,
       });
 
@@ -108,7 +108,7 @@ describe('PriceContext', () => {
       mockGetBtcPrice.mockReset();
       mockGetBtcPrice.mockResolvedValue(50000);
       
-      const { result } = renderHook(() => usePrices(), {
+      const { result } = renderHook(() => usePrice(), {
         wrapper: PriceProvider,
       });
 
@@ -129,7 +129,7 @@ describe('PriceContext', () => {
     it('should clear interval on unmount', () => {
       const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
       
-      const { unmount } = renderHook(() => usePrices(), {
+      const { unmount } = renderHook(() => usePrice(), {
         wrapper: PriceProvider,
       });
 
@@ -140,7 +140,7 @@ describe('PriceContext', () => {
     });
 
     it('should not fetch after unmount', async () => {
-      const { unmount, result } = renderHook(() => usePrices(), {
+      const { unmount, result } = renderHook(() => usePrice(), {
         wrapper: PriceProvider,
       });
 
@@ -166,7 +166,7 @@ describe('PriceContext', () => {
     it('should return null when price fetch fails', async () => {
       mockGetBtcPrice.mockResolvedValue(null);
 
-      const { result } = renderHook(() => usePrices(), {
+      const { result } = renderHook(() => usePrice(), {
         wrapper: PriceProvider,
       });
 
@@ -180,7 +180,7 @@ describe('PriceContext', () => {
 
     it('should handle network errors gracefully', async () => {
       // First successful fetch
-      const { result } = renderHook(() => usePrices(), {
+      const { result } = renderHook(() => usePrice(), {
         wrapper: PriceProvider,
       });
 

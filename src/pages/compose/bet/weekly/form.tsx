@@ -5,7 +5,6 @@ import { useFormStatus } from "react-dom";
 import { Field, Label, Input, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
-import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
 import { fetchOpenInterest } from "@/utils/blockchain/counterparty/api";
@@ -35,28 +34,6 @@ const getNextMondayOpen = (): Date => {
   return nextMonday;
 };
 
-// Get betting window times in user's local timezone
-const getBettingWindowTimes = () => {
-  const saturday = new Date();
-  saturday.setUTCDate(saturday.getUTCDate() + (6 - saturday.getUTCDay()));
-  saturday.setUTCHours(0, 0, 0, 0);
-  
-  const monday = new Date();
-  monday.setUTCDate(monday.getUTCDate() + ((1 + 7 - monday.getUTCDay()) % 7));
-  monday.setUTCHours(14, 30, 0, 0);
-  
-  const formatter = new Intl.DateTimeFormat('default', {
-    weekday: 'long',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZoneName: 'short'
-  });
-  
-  return {
-    start: formatter.format(saturday),
-    end: formatter.format(monday)
-  };
-};
 
 // Get next Friday close time (when betting opens again)
 const getNextFridayClose = (): Date => {
@@ -137,7 +114,6 @@ interface Market {
 
 export function WeeklyBetForm({ formAction }: BetFormProps): ReactElement {
   // Get everything from composer context
-  const { showHelpText } = useComposer();
   const { error: assetError, data: assetDetails } = useAssetDetails("XCP");
   const { pending } = useFormStatus();
   const [selectedChoice, setSelectedChoice] = useState<BetChoice>({
@@ -147,9 +123,7 @@ export function WeeklyBetForm({ formAction }: BetFormProps): ReactElement {
   });
   const [wagerAmount, setWagerAmount] = useState<string>("");
   const [isWindowOpen, setIsWindowOpen] = useState<boolean>(isBettingWindowOpen());
-  const [bettingWindowTimes] = useState(getBettingWindowTimes());
   const [selectedMarket] = useState<Market>(mockApiResponse.markets[0]); // Always S&P 500
-  const [markets] = useState<Market[]>(mockApiResponse.markets); // Keep for future use
   const [openInterest, setOpenInterest] = useState<{ yesTotal: number; noTotal: number; betsCount: number } | null>(null);
   const [loadingOpenInterest, setLoadingOpenInterest] = useState(true);
 

@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useState, useRef } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty";
 import { useWallet } from "@/contexts/wallet-context";
-import { validateAssetName, validateParentAsset } from "@/utils/validation";
+import { validateAssetName } from "@/utils/validation";
 
 interface AssetNameInputProps {
   value: string;
@@ -23,116 +23,6 @@ interface AssetNameInputProps {
 
 // The component uses the validation from utils internally
 // No need to re-export since consumers should use @/utils/validation directly
-
-// Keep the original function for internal use if needed
-function validateAssetNameInternal(assetName: string, isSubasset: boolean): { isValid: boolean; error?: string } {
-  if (!assetName) {
-    return { isValid: false, error: "Asset name is required" };
-  }
-
-  if (isSubasset) {
-    // Full subasset validation (PARENT.CHILD format)
-    if (!assetName.includes('.')) {
-      return { isValid: false, error: "Invalid subasset format" };
-    }
-    
-    const parts = assetName.split('.');
-    if (parts.length !== 2) {
-      return { isValid: false, error: "Invalid subasset format" };
-    }
-    
-    const [parentAsset, subassetChild] = parts;
-    
-    // Validate parent asset
-    const parentValidation = validateParentAsset(parentAsset);
-    if (!parentValidation.isValid) {
-      return parentValidation;
-    }
-    
-    // Validate subasset child (part after the dot)
-    if (!subassetChild) {
-      return { isValid: false, error: "Subasset name cannot be empty" };
-    }
-    
-    // Subasset child can contain: a-zA-Z0-9.-_@!
-    const validChars = /^[a-zA-Z0-9.\-_@!]+$/;
-    if (!validChars.test(subassetChild)) {
-      return { isValid: false, error: "Invalid characters in subasset (allowed: a-zA-Z0-9.-_@!)" };
-    }
-    
-    // Cannot start or end with period, no consecutive periods
-    if (subassetChild.startsWith('.')) {
-      return { isValid: false, error: "Subasset cannot start with period" };
-    }
-    if (subassetChild.endsWith('.')) {
-      return { isValid: false, error: "Subasset cannot end with period" };
-    }
-    if (subassetChild.includes('..')) {
-      return { isValid: false, error: "Subasset cannot have consecutive periods" };
-    }
-    
-    // Total length check
-    if (assetName.length > 250) {
-      return { isValid: false, error: "Total name too long (max 250 characters)" };
-    }
-  } else {
-    // Regular asset validation
-    return validateParentAsset(assetName);
-  }
-
-  return { isValid: true };
-}
-
-
-// Keep internal version if needed
-function validateParentAssetInternal(assetName: string): { isValid: boolean; error?: string } {
-  // Cannot be reserved names
-  if (assetName === 'BTC' || assetName === 'XCP') {
-    return { isValid: false, error: "Cannot use reserved asset names" };
-  }
-  
-  // Check if it's a numeric asset (A followed by 17-20 digits)
-  const numericPattern = /^A(\d+)$/;
-  const numericMatch = assetName.match(numericPattern);
-  
-  if (numericMatch) {
-    // Numeric asset validation
-    const digits = numericMatch[1];
-    if (digits.length < 17 || digits.length > 20) {
-      return { isValid: false, error: "Numeric assets: A + 17-20 digits" };
-    }
-    
-    // Check numeric bounds: 26^12 + 1 <= value <= 256^8
-    const numericValue = BigInt(digits);
-    const lowerBound = BigInt(26) ** BigInt(12) + BigInt(1);
-    const upperBound = BigInt(256) ** BigInt(8);
-    
-    if (numericValue < lowerBound || numericValue >= upperBound) {
-      return { isValid: false, error: "Numeric value out of valid range" };
-    }
-  } else {
-    // Non-numeric asset validation
-    // Must be 4-12 characters
-    if (assetName.length < 4) {
-      return { isValid: false, error: "Asset name too short (min 4 characters)" };
-    }
-    if (assetName.length > 12) {
-      return { isValid: false, error: "Asset name too long (max 12 characters)" };
-    }
-    
-    // Must only contain A-Z
-    if (!/^[A-Z]+$/.test(assetName)) {
-      return { isValid: false, error: "Asset names must contain only A-Z" };
-    }
-    
-    // Cannot start with 'A' (unless numeric, which we already handled)
-    if (assetName.startsWith('A')) {
-      return { isValid: false, error: "Non-numeric assets cannot start with 'A'" };
-    }
-  }
-  
-  return { isValid: true };
-}
 
 export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
   (
@@ -197,7 +87,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
           // For subassets, check parent asset ownership and status
           if (isSubasset && value.includes('.')) {
             const [parentName] = value.split('.');
-            
+
             // Check if parent asset exists and get its details
             const parentAssetInfo = await fetchAssetDetails(parentName);
             if (!parentAssetInfo || !parentAssetInfo.asset) {
@@ -208,7 +98,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
               }
               return;
             }
-            
+
             // Check if user owns the parent asset
             if (activeAddress && parentAssetInfo.issuer !== activeAddress.address) {
               setAvailabilityError("You don't own the parent asset");
@@ -218,10 +108,10 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
               }
               return;
             }
-            
+
             // Note: Locked parent assets CAN issue subassets, so we don't check for locked status
           }
-          
+
           // Check if asset already exists
           const assetInfo = await fetchAssetDetails(value);
           // If we get asset info back, it exists
@@ -262,7 +152,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       let newValue = e.target.value;
-      
+
       // If we have a frozen parent asset prefix, ensure it's preserved
       if (parentAsset && isSubasset) {
         const prefix = `${parentAsset}.`;
@@ -277,7 +167,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
           }
         }
       }
-      
+
       // Smart casing: uppercase parent asset, preserve case for subasset
       if (newValue.includes('.')) {
         const dotIndex = newValue.indexOf('.');
@@ -288,9 +178,9 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
         // No dot and not a subasset, uppercase everything (regular asset)
         newValue = newValue.toUpperCase();
       }
-      
+
       onChange(newValue);
-      
+
       // Immediate format validation
       if (onValidationChange) {
         const validation = validateAssetName(newValue, isSubasset);
@@ -299,14 +189,14 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
         }
       }
     };
-    
+
     // Handle keyboard navigation when frozen parent is present
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (parentAsset && isSubasset) {
         const prefix = `${parentAsset}.`;
         const target = e.currentTarget;
         const selectionStart = target.selectionStart || 0;
-        
+
         // Prevent backspace/delete from removing the prefix
         if ((e.key === 'Backspace' || e.key === 'Delete') && selectionStart <= prefix.length) {
           if (value === prefix) {
@@ -317,13 +207,13 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
             target.setSelectionRange(prefix.length, prefix.length);
           }
         }
-        
+
         // Prevent left arrow from going into the prefix
         if (e.key === 'ArrowLeft' && selectionStart <= prefix.length) {
           e.preventDefault();
           target.setSelectionRange(prefix.length, prefix.length);
         }
-        
+
         // On Home key, go to start of editable part
         if (e.key === 'Home') {
           e.preventDefault();
@@ -339,7 +229,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
     const showGreenBorder = value && isValid && !hasError && !isChecking;
 
     // Determine placeholder based on context
-    const defaultPlaceholder = isSubasset 
+    const defaultPlaceholder = isSubasset
       ? (parentAsset ? `${parentAsset}.subasset` : "PARENT.subasset")
       : "Enter an asset name";
 
@@ -384,9 +274,9 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
             placeholder={placeholder || defaultPlaceholder}
             disabled={disabled}
             className={`mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 ${
-              hasError 
-                ? "border-red-500 focus:border-red-500 focus:ring-red-500" 
-                : showGreenBorder 
+              hasError
+                ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                : showGreenBorder
                   ? "border-green-500 focus:border-green-500 focus:ring-green-500"
                   : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             } ${className}`}

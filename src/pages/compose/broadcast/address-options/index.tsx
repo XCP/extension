@@ -4,7 +4,7 @@ import { Composer } from "@/components/composer";
 import { composeBroadcast } from "@/utils/blockchain/counterparty";
 import type { BroadcastOptions } from "@/utils/blockchain/counterparty";
 
-export function ComposeBroadcastAddressOptions() {
+function ComposeBroadcastAddressOptions() {
   return (
     <div className="p-4">
       <Composer<BroadcastOptions>
