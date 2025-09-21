@@ -203,6 +203,8 @@ describe('ProviderService', () => {
       hasPermission: vi.fn().mockResolvedValue(false),
       requestPermission: vi.fn().mockResolvedValue(true),
       revokePermission: vi.fn().mockResolvedValue(undefined),
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      connect: vi.fn().mockResolvedValue(['bc1qtest123']),
       getConnectedSites: vi.fn().mockResolvedValue([]),
       initialize: vi.fn().mockResolvedValue(undefined),
       destroy: vi.fn().mockResolvedValue(undefined)
@@ -686,11 +688,10 @@ describe('ProviderService', () => {
   
   describe('isConnected', () => {
     it('should return true if origin is in connected websites', async () => {
-      vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-        ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
-        connectedWebsites: ['https://connected.com']
-      });
-      
+      // Mock connection service to return true for this origin
+      const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+
       const result = await providerService.isConnected('https://connected.com');
       expect(result).toBe(true);
     });

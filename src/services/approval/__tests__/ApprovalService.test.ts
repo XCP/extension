@@ -251,31 +251,7 @@ describe('ApprovalService', () => {
     });
 
     it('should focus existing window if approval already pending', async () => {
-      // Mock existing window
-      mockWindows.create
-        .mockResolvedValueOnce({ id: 100 }) // First request creates window
-        .mockResolvedValue({ id: 101 }); // Second request would create new
-      
-      mockWindows.update.mockResolvedValue({});
-      
-      const mockPromise1 = Promise.resolve(true);
-      const mockPromise2 = Promise.resolve(false);
-      
-      mockRequestManagerInstance.createManagedPromise
-        .mockReturnValueOnce(mockPromise1)
-        .mockReturnValueOnce(mockPromise2);
-      
-      // Create first approval request
-      await approvalService.requestApproval({
-        id: 'connection-https://first.com-100',
-        origin: 'https://first.com',
-        method: 'connection',
-        params: [],
-        type: 'connection',
-        metadata: { domain: 'first.com', title: 'First', description: 'First request' },
-      });
-      
-      // Mock session storage to track the window ID
+      // Set up session storage mock to properly track window ID
       let sessionState: any = {};
       mockStorage.set.mockImplementation((items, callback) => {
         Object.assign(sessionState, items);
@@ -297,8 +273,29 @@ describe('ApprovalService', () => {
         }
       });
 
-      // Simulate that the first window was stored
-      sessionState.pendingApprovalWindowId = 100;
+      // Mock existing window
+      mockWindows.create.mockResolvedValueOnce({ id: 100 }); // First request creates window
+      mockWindows.update.mockResolvedValue({});
+
+      const mockPromise1 = Promise.resolve(true);
+      const mockPromise2 = Promise.resolve(false);
+
+      mockRequestManagerInstance.createManagedPromise
+        .mockReturnValueOnce(mockPromise1)
+        .mockReturnValueOnce(mockPromise2);
+
+      // Create first approval request - this should create a window and store its ID
+      await approvalService.requestApproval({
+        id: 'connection-https://first.com-100',
+        origin: 'https://first.com',
+        method: 'connection',
+        params: [],
+        type: 'connection',
+        metadata: { domain: 'first.com', title: 'First', description: 'First request' },
+      });
+
+      // Verify that window ID was stored
+      expect(sessionState.pendingApprovalWindowId).toBe(100);
 
       // Create second approval request which should focus existing window
       await approvalService.requestApproval({

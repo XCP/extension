@@ -207,10 +207,10 @@ describe('ProviderService Security Tests', () => {
             providerService.handleRequest('https://evil.com', method, [])
           ).rejects.toThrow('Method xcp_getAssets is not supported');
         } else if (method === 'xcp_signTransaction') {
-          // xcp_signTransaction validates parameters before authorization
+          // xcp_signTransaction is now deprecated
           await expect(
             providerService.handleRequest('https://evil.com', method, [])
-          ).rejects.toThrow('Raw transaction is required');
+          ).rejects.toThrow('xcp_signTransaction is deprecated');
         } else if (method === 'xcp_getHistory') {
           // xcp_getHistory has a special privacy error message
           await expect(
@@ -374,7 +374,7 @@ describe('ProviderService Security Tests', () => {
       
       await expect(
         providerService.handleRequest('https://connected.com', 'xcp_signTransaction', [])
-      ).rejects.toThrow('Raw transaction is required');
+      ).rejects.toThrow('xcp_signTransaction is deprecated');
     });
     
     it('should not expose sensitive wallet data in errors', async () => {
@@ -414,18 +414,32 @@ describe('ProviderService Security Tests', () => {
     
     it('should not allow auto-approval of transactions', async () => {
       // There should be no way to bypass the approval popup
-      // Even if a site is connected, compose operations require approval
-      
-      vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-        ...DEFAULT_KEYCHAIN_SETTINGS,
-        connectedWebsites: ['https://trusted.com']
+      // Even if a site is connected, compose operations require explicit approval
+
+      // Mock connection service to return true (site is connected)
+      const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
+      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+
+      // Mock wallet service to have an active address
+      const mockWalletService = vi.mocked(walletService.getWalletService)();
+      mockWalletService.getActiveAddress = vi.fn().mockResolvedValue({
+        id: 'addr1',
+        address: 'bc1qtest123',
+        label: 'Test Address',
+        walletId: 'wallet1',
+        walletName: 'Test Wallet',
+        index: 0
       });
-      
-      const mockWindowCreate = vi.fn().mockResolvedValue({ id: 12345 });
-      fakeBrowser.windows.create = mockWindowCreate;
-      
-      // Even for a site in connectedWebsites, compose operations will try to execute
-      // Since we're testing with real parameters, it might hit the API
+
+      // Mock the compose request storage
+      vi.mocked(composeRequestStorage).composeRequestStorage.store = vi.fn().mockResolvedValue(undefined);
+
+      // Mock chrome runtime sendMessage to simulate popup handling
+      global.chrome.runtime.sendMessage = vi.fn().mockImplementation(() => {
+        throw new Error('User must approve transaction through popup');
+      });
+
+      // Even for a connected site, compose operations should require user approval
       await expect(
         providerService.handleRequest(
           'https://trusted.com',
@@ -436,10 +450,10 @@ describe('ProviderService Security Tests', () => {
             quantity: 1000000000
           }]
         )
-      ).rejects.toThrow(); // Will throw some error (API error or validation error)
-      
-      // Should still try to open approval popup if it was connected
-      // But since we're not connected, it should fail with Unauthorized
+      ).rejects.toThrow('User must approve transaction through popup');
+
+      // Verify that compose request was stored for popup approval
+      expect(vi.mocked(composeRequestStorage).composeRequestStorage.store).toHaveBeenCalled();
     });
   });
 
