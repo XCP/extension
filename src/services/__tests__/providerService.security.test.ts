@@ -27,6 +27,7 @@ vi.mock('../blockchain');
 vi.mock('../connection');
 vi.mock('../transaction');
 vi.mock('../approval');
+vi.mock('@/utils/storage/composeRequestStorage');
 
 // Mock CSP validation to avoid timeout issues
 vi.mock('@/utils/security/cspValidation', () => ({
@@ -434,7 +435,8 @@ describe('ProviderService Security Tests', () => {
       });
 
       // Mock the compose request storage
-      vi.mocked(composeRequestStorage).composeRequestStorage = {
+      const mockComposeStorage = vi.mocked(composeRequestStorage);
+      mockComposeStorage.composeRequestStorage = {
         store: vi.fn().mockResolvedValue(undefined),
         get: vi.fn().mockResolvedValue(null),
         remove: vi.fn().mockResolvedValue(undefined)
@@ -459,7 +461,7 @@ describe('ProviderService Security Tests', () => {
       ).rejects.toThrow('User must approve transaction through popup');
 
       // Verify that compose request was stored for popup approval
-      expect(vi.mocked(composeRequestStorage).composeRequestStorage.store).toHaveBeenCalled();
+      expect(mockComposeStorage.composeRequestStorage.store).toHaveBeenCalled();
     });
   });
 

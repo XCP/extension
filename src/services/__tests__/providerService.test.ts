@@ -340,6 +340,9 @@ describe('ProviderService', () => {
           []
         );
 
+        // Wait for async operations
+        await new Promise(resolve => setTimeout(resolve, 10));
+
         // Verify approval was requested
         expect(mockApprovalService.requestApproval).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -529,27 +532,34 @@ describe('ProviderService', () => {
         ).rejects.toThrow('Unauthorized - not connected to wallet');
       });
       
-      it('should require active address', async () => {
+      it('should store compose request for popup approval', async () => {
         // Mock connection service to return true (connected)
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
         mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
 
-        // Override specific methods for this test
-        const mockWalletService = vi.mocked(walletService.getWalletService)();
-        mockWalletService.getActiveAddress = vi.fn().mockResolvedValue(null);
+        // Mock storage
+        const mockStorage = vi.mocked(composeRequestStorage).composeRequestStorage;
 
-        await expect(
-          providerService.handleRequest(
-            'https://connected.com',
-            'xcp_composeOrder',
-            [{
-              give_asset: 'XCP',
-              give_quantity: 100,
-              get_asset: 'BTC',
-              get_quantity: 1000
-            }]
-          )
-        ).rejects.toThrow('No active address');
+        // The compose request will create a promise that waits for events
+        // We need to catch it to avoid timeout
+        await providerService.handleRequest(
+          'https://connected.com',
+          'xcp_composeOrder',
+          [{
+            give_asset: 'XCP',
+            give_quantity: 100,
+            get_asset: 'BTC',
+            get_quantity: 1000
+          }]
+        ).catch(() => {}); // Catch as it will wait for popup approval
+
+        // Verify the request was stored for popup
+        expect(mockStorage.store).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'order',
+            origin: 'https://connected.com'
+          })
+        );
       });
     });
     
@@ -822,11 +832,15 @@ describe('ProviderService', () => {
         const message = 'Hello Bitcoin';
         const address = 'bc1qtest123';
 
-        await providerService.handleRequest(
+        // Start the request - it will return a promise that waits for events
+        providerService.handleRequest(
           'https://test.com',
           'xcp_signMessage',
           [message, address]
         ).catch(() => {}); // Catch as it will try to open popup
+
+        // Wait for async operations
+        await new Promise(resolve => setTimeout(resolve, 10));
 
         // Verify storage was called
         expect(mockStorage.store).toHaveBeenCalledWith(
@@ -875,11 +889,15 @@ describe('ProviderService', () => {
           // Mock storage
           const mockStorage = vi.mocked(composeRequestStorage).composeRequestStorage;
 
-          await providerService.handleRequest(
+          // Start the request - it will return a promise that waits for events
+          providerService.handleRequest(
             'https://test.com',
             method,
             [params]
           ).catch(() => {}); // Catch as it will try to open popup
+
+          // Wait for async operations
+          await new Promise(resolve => setTimeout(resolve, 10));
 
           // Verify storage was called with correct type
           expect(mockStorage.store).toHaveBeenCalledWith(
@@ -898,11 +916,15 @@ describe('ProviderService', () => {
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
         mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
 
-        await providerService.handleRequest(
+        // Start the request - it will return a promise that waits for events
+        providerService.handleRequest(
           'https://test.com',
           'xcp_composeSend',
           [{ destination: 'bc1q', asset: 'XCP', quantity: 100 }]
         ).catch(() => {});
+
+        // Wait for async operations
+        await new Promise(resolve => setTimeout(resolve, 10));
 
         // Verify critical operation was registered
         expect(mockUpdateService.registerCriticalOperation).toHaveBeenCalledWith(
