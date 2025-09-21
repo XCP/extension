@@ -1,10 +1,8 @@
 /**
- * ProviderService - Refactored Web3 Provider API
- * 
- * Main interface for dApp integration, delegating all operations to focused services:
+ * ProviderService - Web3 Provider API
+ *
+ * Main interface for dApp integration, working with:
  * - ConnectionService: Permission and connection management
- * - TransactionService: Transaction composition, signing, and broadcasting
- * - BlockchainService: Blockchain data queries
  * - ApprovalService: User approval workflows
  * - WalletService: Wallet state and cryptographic operations
  */
@@ -14,7 +12,6 @@ import { getWalletService } from '@/services/walletService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getConnectionService } from '@/services/connection';
 import { getApprovalService } from '@/services/approval';
-import { getBlockchainService } from '@/services/blockchain';
 import type { ApprovalRequest } from '@/utils/provider/approvalQueue';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
 import { analytics } from '@/utils/fathom';
@@ -276,7 +273,6 @@ export function createProviderService(): ProviderService {
       // Get services
       const walletService = getWalletService();
       const connectionService = getConnectionService();
-      const blockchainService = getBlockchainService();
       
       switch (method) {
         // ==================== Connection Methods ====================
@@ -557,16 +553,20 @@ export function createProviderService(): ProviderService {
           }
           
           try {
+            // Import the API functions we need
+            const { fetchBTCBalance } = await import('@/utils/blockchain/bitcoin');
+            const { fetchTokenBalances } = await import('@/utils/blockchain/counterparty');
+
             // Fetch BTC balance
-            const btcBalance = await blockchainService.getBTCBalance(activeAddress.address);
-            
+            const btcBalance = await fetchBTCBalance(activeAddress.address);
+
             // Fetch token balances
-            const tokenBalances = await blockchainService.getTokenBalances(activeAddress.address, {
+            const tokenBalances = await fetchTokenBalances(activeAddress.address, {
               verbose: true
             });
-            
+
             const xcpBalance = tokenBalances?.find((b: any) => b.asset === 'XCP');
-            
+
             return {
               address: activeAddress.address,
               btc: {

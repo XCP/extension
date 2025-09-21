@@ -23,7 +23,6 @@ import { createProviderService } from '../providerService';
 import * as walletService from '../walletService';
 import * as connectionService from '../connection';
 import * as approvalService from '../approval';
-import * as blockchainService from '../blockchain';
 import * as settingsStorage from '@/utils/storage';
 import * as approvalQueue from '@/utils/provider/approvalQueue';
 import * as rateLimiter from '@/utils/provider/rateLimiter';
@@ -38,7 +37,6 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 vi.mock('../walletService');
 vi.mock('../connection');
 vi.mock('../approval');
-vi.mock('../blockchain');
 vi.mock('@/utils/storage/settingsStorage');
 vi.mock('@/utils/storage/composeRequestStorage');
 vi.mock('@/utils/storage/signMessageRequestStorage');
@@ -223,16 +221,6 @@ describe('ProviderService', () => {
     };
     vi.mocked(approvalService.getApprovalService).mockReturnValue(mockApprovalService as any);
 
-    // Mock blockchain service
-    const mockBlockchainService = {
-      getBalance: vi.fn().mockResolvedValue('100000000'),
-      getAssets: vi.fn().mockResolvedValue([]),
-      getHistory: vi.fn().mockResolvedValue([]),
-      getMempool: vi.fn().mockResolvedValue([]),
-      getUTXOs: vi.fn().mockResolvedValue([]),
-      broadcastTransaction: vi.fn().mockResolvedValue({ txid: 'test-txid' })
-    };
-    vi.mocked(blockchainService.getBlockchainService).mockReturnValue(mockBlockchainService as any);
 
     // Mock update service
     const mockUpdateService = {

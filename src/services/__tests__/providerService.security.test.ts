@@ -8,9 +8,7 @@ import * as settingsStorage from '@/utils/storage/settingsStorage';
 import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
 import { approvalQueue } from '@/utils/provider/approvalQueue';
-import { registerBlockchainService, getBlockchainService } from '../blockchain';
 import { getConnectionService } from '../connection';
-import { getTransactionService } from '../transaction';
 import { getApprovalService } from '../approval';
 import * as composeRequestStorage from '@/utils/storage/composeRequestStorage';
 
@@ -23,9 +21,7 @@ vi.mock('webext-bridge/background', () => ({
 vi.mock('../walletService');
 vi.mock('@/utils/storage/settingsStorage');
 vi.mock('@/utils/provider/rateLimiter');
-vi.mock('../blockchain');
 vi.mock('../connection');
-vi.mock('../transaction');
 vi.mock('../approval');
 vi.mock('@/utils/storage/composeRequestStorage');
 
@@ -112,35 +108,6 @@ describe('ProviderService Security Tests', () => {
       isAnyWalletUnlocked: vi.fn().mockResolvedValue(true)
     } as any);
     
-    // Setup blockchain service mocks
-    vi.mocked(registerBlockchainService).mockReturnValue({} as any);
-    
-    // Mock the blockchain service with basic functionality
-    const mockBlockchainService = {
-      getBTCBalance: vi.fn().mockResolvedValue('0.001'),
-      getTokenBalances: vi.fn().mockResolvedValue([]),
-      getAssetDetails: vi.fn().mockResolvedValue({ asset: 'TOKENA', supply: '1000' }),
-      getTransactions: vi.fn().mockResolvedValue([]),
-      getUTXOs: vi.fn().mockResolvedValue([]),
-      getFeeRates: vi.fn().mockResolvedValue({ fastestFee: 1, halfHourFee: 1, hourFee: 1 }),
-      getBlockHeight: vi.fn().mockResolvedValue(850000),
-      getBTCPrice: vi.fn().mockResolvedValue(45000),
-      broadcastTransaction: vi.fn().mockResolvedValue({ txid: 'test123' }),
-      getPreviousRawTransaction: vi.fn().mockResolvedValue('0102030405'),
-      getBitcoinTransaction: vi.fn().mockResolvedValue({ txid: 'test123' }),
-      getTokenBalance: vi.fn().mockResolvedValue('0'),
-      getAssetDetailsAndBalance: vi.fn().mockResolvedValue({ asset: 'TOKENA', balance: '0' }),
-      getOrders: vi.fn().mockResolvedValue([]),
-      getDispensers: vi.fn().mockResolvedValue([]),
-      getAssetHistory: vi.fn().mockResolvedValue([]),
-      formatInputsSet: vi.fn().mockReturnValue([]),
-      getUtxoByTxid: vi.fn().mockReturnValue(null),
-      clearAllCaches: vi.fn(),
-      clearCachePattern: vi.fn(),
-      getCacheStats: vi.fn().mockReturnValue({ size: 0 })
-    };
-    
-    vi.mocked(getBlockchainService).mockReturnValue(mockBlockchainService as any);
     
     // Setup connection service mocks - will be updated per test
     const mockConnectionService = {
@@ -155,15 +122,6 @@ describe('ProviderService Security Tests', () => {
     };
     vi.mocked(getConnectionService).mockReturnValue(mockConnectionService as any);
     
-    // Setup transaction service mocks  
-    const mockTransactionService = {
-      composeSend: vi.fn().mockRejectedValue(new Error('Unauthorized')),
-      composeOrder: vi.fn().mockRejectedValue(new Error('Unauthorized')),
-      signTransaction: vi.fn().mockRejectedValue(new Error('Unauthorized')),
-      broadcastTransaction: vi.fn().mockRejectedValue(new Error('Unauthorized')),
-      signMessage: vi.fn().mockRejectedValue(new Error('Message is required'))
-    };
-    vi.mocked(getTransactionService).mockReturnValue(mockTransactionService as any);
     
     // Setup approval service mocks
     const mockApprovalService = {

@@ -77,6 +77,28 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   href,
   ...props
 }, ref) => {
+  // Memoize the class computation to avoid recalculation on every render
+  // MUST be called before any early returns to follow Rules of Hooks
+  const computedClassName = useMemo(() => {
+    const getColorStyle = (active: boolean) => {
+      if (variant === 'solid') {
+        const colorConfig = COLOR_STYLES[color];
+        return active ? colorConfig.active : colorConfig.base;
+      }
+      return '';
+    };
+
+    return (active: boolean) => {
+      const baseStyle = BASE_STYLES[variant];
+      const variantStyle = VARIANT_STYLES[variant];
+      const colorStyle = getColorStyle(active);
+      const widthStyle = fullWidth ? 'w-full' : '';
+      const disabledStyle = disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer';
+
+      return `${baseStyle} ${variantStyle} ${colorStyle} ${widthStyle} ${disabledStyle} ${className}`.trim();
+    };
+  }, [variant, color, fullWidth, disabled, className]);
+
   // YouTube variant is a special case - render as link
   if (variant === 'youtube') {
     const youtubeHref = href || 'https://youtube.com/';
@@ -95,27 +117,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
       </div>
     );
   }
-
-  // Memoize the class computation to avoid recalculation on every render
-  const computedClassName = useMemo(() => {
-    const getColorStyle = (active: boolean) => {
-      if (variant === 'solid') {
-        const colorConfig = COLOR_STYLES[color];
-        return active ? colorConfig.active : colorConfig.base;
-      }
-      return '';
-    };
-
-    return (active: boolean) => {
-      const baseStyle = BASE_STYLES[variant];
-      const variantStyle = VARIANT_STYLES[variant];
-      const colorStyle = getColorStyle(active);
-      const widthStyle = fullWidth ? 'w-full' : '';
-      const disabledStyle = disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer';
-      
-      return `${baseStyle} ${variantStyle} ${colorStyle} ${widthStyle} ${disabledStyle} ${className}`.trim();
-    };
-  }, [variant, color, fullWidth, disabled, className]);
 
   return (
     <HeadlessButton

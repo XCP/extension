@@ -26,11 +26,6 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
   const { setLastActiveTime, lockAll, loaded: walletLoaded, authState } = useWallet();
   const { settings, isLoading: settingsLoading } = useSettings();
 
-  if (!walletLoaded || settingsLoading) {
-    // Wait for both wallet and settings to load before rendering
-    return null;
-  }
-
   // Handle edge cases for idle timer
   const handleIdle = useCallback(() => {
     // Only lock if we're currently unlocked
@@ -56,17 +51,22 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
   }, [authState, setLastActiveTime]);
 
   // Disable idle timer if timeout is 0 or undefined
-  const isIdleTimerEnabled = settings.autoLockTimeout && settings.autoLockTimeout > 0;
+  const isIdleTimerEnabled = settings?.autoLockTimeout && settings.autoLockTimeout > 0;
 
-  // Use native idle timer hook
+  // Use native idle timer hook - MUST be called before any early returns
   useIdleTimer({
-    timeout: settings.autoLockTimeout || 0,
+    timeout: settings?.autoLockTimeout || 0,
     onIdle: handleIdle,
     onActive: handleActive,
     onAction: handleAction,
-    disabled: !isIdleTimerEnabled || authState !== 'UNLOCKED',
+    disabled: !isIdleTimerEnabled || authState !== 'UNLOCKED' || !walletLoaded || settingsLoading,
     stopOnIdle: true,
   });
+
+  if (!walletLoaded || settingsLoading) {
+    // Wait for both wallet and settings to load before rendering
+    return null;
+  }
 
   return <>{children}</>;
 }
