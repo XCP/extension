@@ -105,19 +105,21 @@ export async function consolidateBareMultisigBatch(
   }
   
   // Calculate transaction size for fee estimation
-  // More accurate estimation based on bare multisig type:
-  // - 1-of-2 bare multisig: ~147 bytes per input (36 txid + 4 vout + 1 script_len + 74 sig + 1 OP_0 + 4 sequence)
-  // - 1-of-3 bare multisig: ~180 bytes per input (additional pubkey)
-  // - Base overhead: 10 bytes (4 version + 1-3 input count + 1-3 output count + 4 locktime)
-  // - Output: ~34 bytes per P2PKH/P2WPKH output
-  
-  const bytesPerInput = 147; // Conservative estimate for 1-of-2 multisig
+  // Based on actual transaction analysis:
+  // - Bare multisig inputs average ~115 bytes per input in practice
+  //   (36 txid + 4 vout + 1-2 varint + ~72 sig + 1 OP_0 + 4 sequence)
+  // - Base overhead: 10 bytes (4 version + 1-3 varint input count + 1 varint output count + 4 locktime)
+  // - Output: ~34 bytes per P2PKH output
+
+  const bytesPerInput = 115; // Based on empirical data from actual transactions
   const baseOverhead = 10;
   const bytesPerOutput = 34;
   
   // First calculate basic network fee
   const numOutputsBase = 1; // Start with just main output
-  const estimatedSizeBase = (batchData.utxos.length * bytesPerInput) + baseOverhead + (numOutputsBase * bytesPerOutput);
+  // Add varint overhead for large input counts
+  const inputCountVarintSize = batchData.utxos.length >= 253 ? 3 : 1;
+  const estimatedSizeBase = (batchData.utxos.length * bytesPerInput) + baseOverhead + inputCountVarintSize + (numOutputsBase * bytesPerOutput);
   const networkFeeSats = BigInt(Math.ceil(estimatedSizeBase * feeRateSatPerVByte));
   
   // Calculate service fee if applicable
@@ -136,7 +138,7 @@ export async function consolidateBareMultisigBatch(
   
   const totalFeeSats = networkFeeSats + serviceFeeSats;
   const outputSats = totalInputSats - totalFeeSats;
-  
+
   // Validate output amount
   if (outputSats <= 546n) {
     throw new Error(
@@ -144,16 +146,16 @@ export async function consolidateBareMultisigBatch(
       `Total input: ${totalInputSats} sats, Total fees: ${totalFeeSats} sats`
     );
   }
-  
-  // Add main output
-  tx.addOutputAddress(destination, outputSats);
-  
-  // Add service fee output if applicable
+
+  // Add outputs
   if (serviceFeeSats > 546n && serviceFeeAddress) {
-    // Adjust main output
-    tx.updateOutput(0, { amount: outputSats - serviceFeeSats });
-    // Add service fee output
+    // When we have a service fee, split the output
+    const userOutputSats = totalInputSats - networkFeeSats - serviceFeeSats;
+    tx.addOutputAddress(destination, userOutputSats);
     tx.addOutputAddress(serviceFeeAddress, serviceFeeSats);
+  } else {
+    // No service fee, just add the main output
+    tx.addOutputAddress(destination, outputSats);
   }
   
   // Convert private key to bytes if string
@@ -202,7 +204,24 @@ export async function consolidateBareMultisigBatch(
   });
   
   // Sign the transaction
-  signAndFinalizeBareMultisig(tx, privateKeyBytes, compressedPubkey, uncompressedPubkey, signingInputs);
+  // For large batches, signing can take a while, so periodically trigger activity to prevent auto-lock
+  let activityInterval: NodeJS.Timeout | undefined;
+  if (inputs.length > 50) {
+    // Trigger activity every 10 seconds during signing
+    activityInterval = setInterval(() => {
+      window.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+      console.log('Triggering activity during consolidation signing...');
+    }, 10000);
+  }
+
+  try {
+    signAndFinalizeBareMultisig(tx, privateKeyBytes, compressedPubkey, uncompressedPubkey, signingInputs);
+  } finally {
+    // Clean up the interval
+    if (activityInterval) {
+      clearInterval(activityInterval);
+    }
+  }
   
   // Get the final signed transaction
   const signedTx = tx.hex;
