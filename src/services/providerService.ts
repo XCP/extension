@@ -107,6 +107,12 @@ export function createProviderService(): ProviderService {
     routePath: string,
     validator?: (params: any) => params is T
   ): Promise<any> {
+    // Check if connected FIRST before parameter validation
+    const connectionService = getConnectionService();
+    if (!await connectionService.hasPermission(origin)) {
+      throw new Error('Unauthorized - not connected to wallet');
+    }
+
     const requestParams = params?.[0];
     if (!requestParams) {
       throw new Error(errorMessage);
@@ -115,12 +121,6 @@ export function createProviderService(): ProviderService {
     // Optional type validation
     if (validator && !validator(requestParams)) {
       throw new Error(`Invalid parameters for ${composeType} operation`);
-    }
-
-    // Check if connected
-    const connectionService = getConnectionService();
-    if (!await connectionService.hasPermission(origin)) {
-      throw new Error('Unauthorized - not connected to wallet');
     }
 
     // Get active address for the request

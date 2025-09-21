@@ -708,35 +708,21 @@ describe('ProviderService', () => {
   
   describe('disconnect', () => {
     it('should remove origin from connected websites', async () => {
-      const mockSettings = {
-        ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
-        connectedWebsites: ['https://site1.com', 'https://site2.com']
-      };
-      
-      vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue(mockSettings);
-      
+      const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
+
       await providerService.disconnect('https://site1.com');
-      
-      // Should update settings to remove the origin
-      expect(settingsStorage.updateKeychainSettings).toHaveBeenCalledWith({
-        connectedWebsites: ['https://site2.com']
-      });
+
+      // Should call connectionService.disconnect
+      expect(mockConnectionService.disconnect).toHaveBeenCalledWith('https://site1.com');
     });
     
     it('should handle disconnect even if origin was not connected', async () => {
-      const mockSettings = {
-        ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
-        connectedWebsites: ['https://site1.com']
-      };
-      
-      vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue(mockSettings);
-      
+      const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
+
       await providerService.disconnect('https://notconnected.com');
-      
-      // Should update settings but the array stays the same (origin wasn't connected)
-      expect(settingsStorage.updateKeychainSettings).toHaveBeenCalledWith({
-        connectedWebsites: ['https://site1.com']
-      });
+
+      // Should still call connectionService.disconnect even if not connected
+      expect(mockConnectionService.disconnect).toHaveBeenCalledWith('https://notconnected.com');
     });
   });
 
@@ -787,7 +773,7 @@ describe('ProviderService', () => {
         }
 
         // Expect rejection with user cancelled
-        await expect(requestPromise).rejects.toThrow('User cancelled');
+        await expect(requestPromise).rejects.toThrow('User cancelled compose request');
       });
 
       it('should store requests with TTL for automatic cleanup', async () => {
@@ -797,17 +783,30 @@ describe('ProviderService', () => {
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
         mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
 
-        await providerService.handleRequest(
+        // Start the request but don't await it (it will wait for events)
+        const requestPromise = providerService.handleRequest(
           'https://test.com',
           'xcp_composeSend',
           [{ destination: 'bc1q', asset: 'XCP', quantity: 100 }]
-        ).catch(() => {});
+        );
+
+        // Wait for async operations
+        await new Promise(resolve => setTimeout(resolve, 10));
 
         expect(mockStorage.store).toHaveBeenCalledWith(
           expect.objectContaining({
             timestamp: expect.any(Number)
           })
         );
+
+        // Cancel the request to clean up
+        const storeCall = (mockStorage.store as any).mock.calls[0];
+        if (storeCall && storeCall[0]) {
+          const composeRequestId = storeCall[0].id;
+          eventEmitterService.emit(`compose-cancel-${composeRequestId}`, {});
+        }
+
+        await expect(requestPromise).rejects.toThrow('User cancelled compose request');
       });
     });
 
