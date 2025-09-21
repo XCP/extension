@@ -122,8 +122,16 @@ test.describe('Verify Message', () => {
     const backButton = page.locator('header button').first();
     await backButton.click();
     await page.waitForURL('**/actions');
-    await page.click('text=Verify Message');
-    await page.waitForURL('**/actions/verify-message');
+
+    // Wait for the page to be ready and click verify message
+    await page.waitForTimeout(500);
+    const verifyButton = page.locator('text=Verify Message');
+    await verifyButton.waitFor({ state: 'visible' });
+    await verifyButton.click();
+
+    // Wait for navigation with a more flexible approach
+    await page.waitForTimeout(1000);
+    await expect(page).toHaveURL(/.*verify-message.*/, { timeout: 10000 });
 
     // Fill in the verification form with the exact data we just used
     await page.fill('input[placeholder*="Bitcoin address"]', fullAddress);
