@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, beforeAll, vi, afterEach } from 'vite
 import { fakeBrowser } from 'wxt/testing';
 import { createProviderService } from '../providerService';
 import * as walletService from '../walletService';
+import * as connectionService from '../connection';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
 import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
@@ -11,6 +12,7 @@ import { registerBlockchainService, getBlockchainService } from '../blockchain';
 import { getConnectionService } from '../connection';
 import { getTransactionService } from '../transaction';
 import { getApprovalService } from '../approval';
+import * as composeRequestStorage from '@/utils/storage/composeRequestStorage';
 
 // Mock the dependencies
 vi.mock('webext-bridge/background', () => ({
@@ -432,7 +434,11 @@ describe('ProviderService Security Tests', () => {
       });
 
       // Mock the compose request storage
-      vi.mocked(composeRequestStorage).composeRequestStorage.store = vi.fn().mockResolvedValue(undefined);
+      vi.mocked(composeRequestStorage).composeRequestStorage = {
+        store: vi.fn().mockResolvedValue(undefined),
+        get: vi.fn().mockResolvedValue(null),
+        remove: vi.fn().mockResolvedValue(undefined)
+      } as any;
 
       // Mock chrome runtime sendMessage to simulate popup handling
       global.chrome.runtime.sendMessage = vi.fn().mockImplementation(() => {
