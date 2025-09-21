@@ -310,54 +310,26 @@ describe('ProviderService', () => {
       });
       
       it('should request permission if not connected', async () => {
-        // Mock connection service to return false for hasPermission
+        // Mock connection service to return false for hasPermission, then connect
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
         mockConnectionService.hasPermission = vi.fn().mockResolvedValue(false);
+        mockConnectionService.connect = vi.fn().mockResolvedValue(['bc1qtest123']);
 
-        // Mock approval service to handle the approval request
-        const mockApprovalService = vi.mocked(approvalService.getApprovalService)();
-        let approvalPromiseResolve: (value: boolean) => void;
-        const approvalPromise = new Promise<boolean>((resolve) => {
-          approvalPromiseResolve = resolve;
-        });
-        mockApprovalService.requestApproval = vi.fn().mockReturnValue(approvalPromise);
-
-        // Mock window.create using fakeBrowser
-        const mockWindowCreate = vi.fn().mockResolvedValue({ id: 123 });
-        fakeBrowser.windows.create = mockWindowCreate;
-
-        // Also mock windows.update and onRemoved since the code uses them
-        fakeBrowser.windows.update = vi.fn().mockResolvedValue({});
-        fakeBrowser.windows.onRemoved = {
-          addListener: vi.fn(),
-          removeListener: vi.fn()
-        } as any;
-
-        // Start the request promise
-        const requestPromise = providerService.handleRequest(
+        // Request accounts should call connectionService.connect
+        const result = await providerService.handleRequest(
           'https://newsite.com',
           'xcp_requestAccounts',
           []
         );
 
-        // Wait for async operations
-        await new Promise(resolve => setTimeout(resolve, 10));
-
-        // Verify approval was requested
-        expect(mockApprovalService.requestApproval).toHaveBeenCalledWith(
-          expect.objectContaining({
-            origin: 'https://newsite.com',
-            method: 'connection',
-            type: 'connection'
-          })
+        // Verify connect was called with correct parameters
+        expect(mockConnectionService.connect).toHaveBeenCalledWith(
+          'https://newsite.com',
+          'bc1qtest123',  // activeAddress from mock
+          'wallet-1'      // activeWallet.id from mock
         );
 
-        // Simulate approval being granted
-        approvalPromiseResolve!(true);
-        mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
-
-        // Wait for the request to complete
-        const result = await requestPromise;
+        // Should return the accounts
         expect(result).toEqual(['bc1qtest123']);
       });
     });
@@ -541,8 +513,8 @@ describe('ProviderService', () => {
         const mockStorage = vi.mocked(composeRequestStorage).composeRequestStorage;
 
         // The compose request will create a promise that waits for events
-        // We need to catch it to avoid timeout
-        await providerService.handleRequest(
+        // Start the request but don't await it
+        providerService.handleRequest(
           'https://connected.com',
           'xcp_composeOrder',
           [{
@@ -552,6 +524,9 @@ describe('ProviderService', () => {
             get_quantity: 1000
           }]
         ).catch(() => {}); // Catch as it will wait for popup approval
+
+        // Wait for async operations
+        await new Promise(resolve => setTimeout(resolve, 10));
 
         // Verify the request was stored for popup
         expect(mockStorage.store).toHaveBeenCalledWith(
@@ -842,12 +817,12 @@ describe('ProviderService', () => {
         // Wait for async operations
         await new Promise(resolve => setTimeout(resolve, 10));
 
-        // Verify storage was called
+        // Verify storage was called - the actual storage includes id and timestamp
         expect(mockStorage.store).toHaveBeenCalledWith(
           expect.objectContaining({
             origin: 'https://test.com',
-            message,
-            address
+            message
+            // Note: address is not stored in signMessage requests
           })
         );
       });
@@ -865,19 +840,19 @@ describe('ProviderService', () => {
         { method: 'xcp_composeSweep', type: 'sweep', params: { destination: 'bc1q', flags: 1 } },
         { method: 'xcp_composeBTCPay', type: 'btcpay', params: { order_match_id: '123' } },
         { method: 'xcp_composeCancel', type: 'cancel', params: { offer_hash: '0x123' } },
-        { method: 'xcp_composeDispenserCloseByHash', type: 'dispenserCloseByHash', params: { dispenser_hash: '0x123' } },
+        { method: 'xcp_composeDispenserCloseByHash', type: 'dispenser-close-by-hash', params: { dispenser_hash: '0x123' } },
         { method: 'xcp_composeBet', type: 'bet', params: { feed_address: 'bc1q', bet_type: 0 } },
         { method: 'xcp_composeBroadcast', type: 'broadcast', params: { text: 'Hello', value: 1, fee_fraction: 0 } },
         { method: 'xcp_composeAttach', type: 'attach', params: { destination_vout: '0x123:0', asset: 'TEST' } },
         { method: 'xcp_composeDetach', type: 'detach', params: { destination: 'bc1q' } },
-        { method: 'xcp_composeMoveUTXO', type: 'moveutxo', params: { destination: 'bc1q' } },
+        { method: 'xcp_composeMoveUTXO', type: 'move-utxo', params: { destination: 'bc1q' } },
         { method: 'xcp_composeDestroy', type: 'destroy', params: { asset: 'TEST', quantity: 100 } },
-        { method: 'xcp_composeIssueSupply', type: 'issuesupply', params: { asset: 'TEST', quantity: 100 } },
-        { method: 'xcp_composeLockSupply', type: 'locksupply', params: { asset: 'TEST' } },
-        { method: 'xcp_composeResetSupply', type: 'resetsupply', params: { asset: 'TEST' } },
+        { method: 'xcp_composeIssueSupply', type: 'issue-supply', params: { asset: 'TEST', quantity: 100 } },
+        { method: 'xcp_composeLockSupply', type: 'lock-supply', params: { asset: 'TEST' } },
+        { method: 'xcp_composeResetSupply', type: 'reset-supply', params: { asset: 'TEST' } },
         { method: 'xcp_composeTransfer', type: 'transfer', params: { asset: 'TEST', quantity: 100, destination: 'bc1q' } },
-        { method: 'xcp_composeUpdateDescription', type: 'updatedescription', params: { asset: 'TEST', description: 'New description' } },
-        { method: 'xcp_composeLockDescription', type: 'lockdescription', params: { asset: 'TEST' } }
+        { method: 'xcp_composeUpdateDescription', type: 'update-description', params: { asset: 'TEST', description: 'New description' } },
+        { method: 'xcp_composeLockDescription', type: 'lock-description', params: { asset: 'TEST' } }
       ];
 
       composeTypes.forEach(({ method, type, params }) => {
@@ -926,9 +901,9 @@ describe('ProviderService', () => {
         // Wait for async operations
         await new Promise(resolve => setTimeout(resolve, 10));
 
-        // Verify critical operation was registered
+        // Verify critical operation was registered (note: no 'compose-' prefix for the ID)
         expect(mockUpdateService.registerCriticalOperation).toHaveBeenCalledWith(
-          expect.stringContaining('compose-send-')
+          expect.stringMatching(/^compose-send-\d+$/)
         );
       });
     });

@@ -629,6 +629,10 @@ export function createProviderService(): ProviderService {
             timestamp: Date.now()
           });
 
+          // Register critical operation to prevent updates during compose
+          const updateService = getUpdateService();
+          updateService.registerCriticalOperation(composeRequestId);
+
           // Send message to popup to navigate to compose form
           chrome.runtime.sendMessage({
             type: 'NAVIGATE_TO_COMPOSE',
@@ -657,6 +661,7 @@ export function createProviderService(): ProviderService {
           // Return a promise that will resolve when the user completes the compose flow
           return new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
+              updateService.unregisterCriticalOperation(composeRequestId);
               eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
               eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
               reject(new Error('Compose request timeout'));
@@ -664,12 +669,14 @@ export function createProviderService(): ProviderService {
 
             const handleComplete = (result: any) => {
               clearTimeout(timeout);
+              updateService.unregisterCriticalOperation(composeRequestId);
               eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
               resolve(result);
             };
 
             const handleCancel = () => {
               clearTimeout(timeout);
+              updateService.unregisterCriticalOperation(composeRequestId);
               eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
               reject(new Error('User cancelled compose request'));
             };
@@ -678,7 +685,7 @@ export function createProviderService(): ProviderService {
             eventEmitterService.on(`compose-cancel-${composeRequestId}`, handleCancel);
           });
         }
-        
+
         case 'xcp_composeOrder': {
           // Check if connected
           if (!await connectionService.hasPermission(origin)) {
@@ -690,14 +697,28 @@ export function createProviderService(): ProviderService {
             throw new Error('Order parameters required');
           }
 
-          // Store the compose parameters for the popup to use
+          // Get active address for the request
+          const activeAddress = await walletService.getActiveAddress();
+          if (!activeAddress) {
+            throw new Error('No active address');
+          }
+
+          // Store the compose request for the popup to retrieve
           const composeRequestId = `compose-order-${Date.now()}`;
-          eventEmitterService.emit('compose-request', {
+          await composeRequestStorage.store({
             id: composeRequestId,
             type: 'order',
             origin,
-            params: orderParams
+            params: {
+              ...orderParams,
+              sourceAddress: activeAddress.address // Ensure we have source address
+            },
+            timestamp: Date.now()
           });
+
+          // Register critical operation
+          const updateService = getUpdateService();
+          updateService.registerCriticalOperation(composeRequestId);
 
           // Open popup at the compose order form
           try {
@@ -717,6 +738,7 @@ export function createProviderService(): ProviderService {
           // Return a promise that will resolve when the user completes the compose flow
           return new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
+              updateService.unregisterCriticalOperation(composeRequestId);
               eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
               eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
               reject(new Error('Compose request timeout'));
@@ -724,12 +746,14 @@ export function createProviderService(): ProviderService {
 
             const handleComplete = (result: any) => {
               clearTimeout(timeout);
+              updateService.unregisterCriticalOperation(composeRequestId);
               eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
               resolve(result);
             };
 
             const handleCancel = () => {
               clearTimeout(timeout);
+              updateService.unregisterCriticalOperation(composeRequestId);
               eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
               reject(new Error('User cancelled compose request'));
             };
@@ -738,7 +762,7 @@ export function createProviderService(): ProviderService {
             eventEmitterService.on(`compose-cancel-${composeRequestId}`, handleCancel);
           });
         }
-        
+
         case 'xcp_composeDispenser': {
           // Check if connected
           if (!await connectionService.hasPermission(origin)) {
