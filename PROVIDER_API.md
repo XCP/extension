@@ -144,11 +144,14 @@ Send assets to an address.
 const result = await provider.request({
   method: 'xcp_composeSend',
   params: [{
-    destination: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr',
-    asset: 'XCP',
-    quantity: 100000000, // In satoshis for BTC, base units for others
-    memo: 'Payment for services', // Optional
-    memo_is_hex: false // Optional
+    // Required parameters
+    destination: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr', // Recipient address
+    asset: 'XCP',                                      // Asset to send
+    quantity: 100000000,                               // Amount (satoshis for BTC, base units for others)
+
+    // Optional parameters
+    memo: 'Payment for services',                      // Text memo (optional)
+    memo_is_hex: false                                 // Whether memo is hex encoded (optional, default: false)
   }]
 });
 ```
@@ -161,11 +164,15 @@ Create a DEX order.
 const result = await provider.request({
   method: 'xcp_composeOrder',
   params: [{
-    give_asset: 'XCP',
-    give_quantity: 100000000,
-    get_asset: 'PEPECASH',
-    get_quantity: 1000,
-    expiration: 1000 // Blocks until expiration
+    // Required parameters
+    give_asset: 'XCP',                                 // Asset to offer
+    give_quantity: 100000000,                          // Amount to offer (base units)
+    get_asset: 'PEPECASH',                             // Asset to receive
+    get_quantity: 1000,                                // Amount to receive (base units)
+    expiration: 1000,                                  // Blocks until expiration
+
+    // Optional parameters
+    fee_required: 0                                    // BTC fee required from counterparty (optional, default: 0)
   }]
 });
 ```
@@ -178,11 +185,16 @@ Create a token dispenser.
 const result = await provider.request({
   method: 'xcp_composeDispenser',
   params: [{
-    asset: 'MYTOKEN',
-    give_quantity: 100, // Amount per dispense
-    escrow_quantity: 10000, // Total to escrow
-    mainchainrate: 100000, // Satoshis per token
-    status: 0 // 0=open, 10=closed
+    // Required parameters
+    asset: 'MYTOKEN',                                  // Asset to dispense
+    give_quantity: 100,                                // Amount per dispense (base units)
+    escrow_quantity: 10000,                            // Total amount to escrow
+    mainchainrate: 100000,                             // Satoshis per base unit of asset
+
+    // Optional parameters
+    status: 0,                                         // 0=open, 10=closed (optional, default: 0)
+    open_address: '1AddressXXX',                       // Address that can open dispenser (optional)
+    oracle_address: '1OracleXXX'                       // Oracle for price feed (optional)
   }]
 });
 ```
@@ -195,8 +207,9 @@ Dispense from a dispenser.
 const result = await provider.request({
   method: 'xcp_composeDispense',
   params: [{
-    dispenser: '1DispenserAddressXXXXXXXXXXXXX',
-    quantity: 100
+    // Required parameters
+    dispenser: '1DispenserAddressXXXXXXXXXXXXX',      // Dispenser address
+    quantity: 100                                      // Amount to dispense (base units)
   }]
 });
 ```
@@ -209,26 +222,34 @@ Distribute dividends to token holders.
 const result = await provider.request({
   method: 'xcp_composeDividend',
   params: [{
-    asset: 'MYTOKEN', // Token whose holders receive dividend
-    dividend_asset: 'XCP', // What to distribute
-    quantity_per_unit: 1000 // Per base unit of asset
+    // Required parameters
+    asset: 'MYTOKEN',                                  // Token whose holders receive dividend
+    dividend_asset: 'XCP',                             // Asset to distribute as dividend
+    quantity_per_unit: 1000                            // Amount per base unit of holding asset
   }]
 });
 ```
 
 ### xcp_composeIssuance
 
-Issue a new asset.
+Issue a new asset or modify an existing one.
 
 ```javascript
 const result = await provider.request({
   method: 'xcp_composeIssuance',
   params: [{
-    asset: 'MYTOKEN',
-    quantity: 1000000,
-    divisible: true,
-    lock: false,
-    description: 'My awesome token'
+    // Required parameters
+    asset: 'MYTOKEN',                                  // Asset name (A12345... for numeric)
+    quantity: 1000000,                                 // Initial supply (0 for no supply)
+    divisible: true,                                   // Whether divisible (8 decimal places)
+
+    // Optional parameters
+    lock: false,                                       // Lock supply after issuance (optional, default: false)
+    reset: false,                                      // Reset supply to quantity (optional, default: false)
+    description: 'My awesome token',                   // Asset description (optional)
+    transfer_destination: '1NewOwnerXXX',              // Transfer ownership to (optional)
+    inscription: 'base64EncodedData',                  // Inscription data (optional)
+    mime_type: 'image/png'                             // MIME type for inscription (optional)
   }]
 });
 ```
@@ -241,9 +262,12 @@ Sweep all assets from an address.
 const result = await provider.request({
   method: 'xcp_composeSweep',
   params: [{
-    destination: '1DestinationAddressXXXXXXXXXX',
-    flags: 1, // Sweep flags
-    memo: 'Consolidating funds'
+    // Required parameters
+    destination: '1DestinationAddressXXXXXXXXXX',     // Destination for all assets
+    flags: 1,                                          // Sweep flags (1=regular, 2=UTXO, 3=all balances)
+
+    // Optional parameters
+    memo: 'Consolidating funds'                        // Memo text (optional)
   }]
 });
 ```
@@ -256,10 +280,15 @@ Broadcast a message to the network.
 const result = await provider.request({
   method: 'xcp_composeBroadcast',
   params: [{
-    text: 'MYTOKEN is now trading!',
-    value: '0',
-    fee_fraction: '0',
-    timestamp: Math.floor(Date.now() / 1000)
+    // Required parameters
+    text: 'MYTOKEN is now trading!',                   // Broadcast text
+
+    // Optional parameters
+    value: '0',                                        // Numeric value for betting feeds (optional)
+    fee_fraction: '0',                                 // Fee fraction as decimal (optional)
+    timestamp: Math.floor(Date.now() / 1000),          // Unix timestamp (optional, default: current)
+    inscription: 'base64EncodedData',                  // Inscription data (optional)
+    mime_type: 'text/plain'                            // MIME type for inscription (optional)
   }]
 });
 ```
@@ -298,9 +327,12 @@ Destroy (burn) supply of an asset you control.
 const result = await provider.request({
   method: 'xcp_composeDestroy',
   params: [{
-    asset: 'MYTOKEN',
-    quantity: 1000, // Amount to destroy
-    tag: 'cleanup' // Optional tag
+    // Required parameters
+    asset: 'MYTOKEN',                                  // Asset to destroy
+    quantity: 1000,                                    // Amount to destroy (base units)
+
+    // Optional parameters
+    tag: 'cleanup'                                     // Tag for the destruction (optional)
   }]
 });
 ```
@@ -313,13 +345,17 @@ Create a bet (binary option) on a broadcast feed.
 const result = await provider.request({
   method: 'xcp_composeBet',
   params: [{
-    feed_address: '1FeedAddressXXXXXXXXXXXXXXX',
-    bet_type: 0, // 0=BullCFD, 1=BearCFD, 2=Equal, 3=NotEqual
-    deadline: 1234567890, // Unix timestamp
-    wager_quantity: 100000000, // In XCP
-    counterwager_quantity: 100000000,
-    expiration: 1000, // Blocks until expiration
-    target_value: 1.0
+    // Required parameters
+    feed_address: '1FeedAddressXXXXXXXXXXXXXXX',      // Address of broadcast feed
+    bet_type: 0,                                       // 0=BullCFD, 1=BearCFD, 2=Equal, 3=NotEqual
+    deadline: 1234567890,                              // Unix timestamp for deadline
+    wager_quantity: 100000000,                         // Amount to wager (in XCP)
+    counterwager_quantity: 100000000,                  // Amount for counterparty
+    expiration: 1000,                                  // Blocks until expiration
+
+    // Optional parameters
+    leverage: 5040,                                    // Leverage for CFDs (optional, default: 5040)
+    target_value: 1.0                                  // Target value for Equal/NotEqual (optional)
   }]
 });
 ```
@@ -332,16 +368,27 @@ Create a fairminter for fair token distribution.
 const result = await provider.request({
   method: 'xcp_composeFairminter',
   params: [{
-    asset: 'FAIRTOKEN',
-    description: 'Fair launch token',
-    price: 100000, // Satoshis per token
-    quantity_by_price: 1, // Tokens per price unit
-    max_mint_per_tx: 10000, // Max per transaction
-    max_mint_per_address: 100000, // Max per address
-    start_block: 850000,
-    end_block: 860000,
-    lockup_blocks: 1000, // Lock period after mint
-    divisible: true
+    // Required parameters
+    asset: 'FAIRTOKEN',                                // Asset to create fairminter for
+
+    // Optional parameters
+    price: 100000,                                     // Satoshis per token (optional)
+    quantity_by_price: 1,                              // Tokens per price unit (optional)
+    max_mint_per_tx: 10000,                            // Max mint per transaction (optional)
+    hard_cap: 1000000000,                              // Maximum supply (optional)
+    premint_quantity: 100000,                          // Pre-mint for creator (optional)
+    start_block: 850000,                               // Start block (optional)
+    end_block: 860000,                                 // End block (optional)
+    soft_cap: 500000000,                               // Soft cap amount (optional)
+    soft_cap_deadline_block: 855000,                   // Soft cap deadline (optional)
+    minted_asset_commission: 5,                        // Commission percentage (optional)
+    burn_payment: false,                               // Burn payment instead of sending (optional)
+    lock_description: false,                           // Lock description after creation (optional)
+    lock_quantity: false,                              // Lock quantity after creation (optional)
+    divisible: true,                                   // Whether divisible (optional)
+    description: 'Fair launch token',                  // Asset description (optional)
+    inscription: 'base64EncodedData',                  // Inscription data (optional)
+    mime_type: 'image/png'                             // MIME type for inscription (optional)
   }]
 });
 ```
@@ -354,7 +401,11 @@ Mint tokens from a fairminter.
 const result = await provider.request({
   method: 'xcp_composeFairmint',
   params: [{
-    asset: 'FAIRTOKEN'
+    // Required parameters
+    asset: 'FAIRTOKEN',                                // Asset to mint from fairminter
+
+    // Optional parameters
+    quantity: 1000                                     // Specific quantity to mint (optional, uses default if not specified)
   }]
 });
 ```
@@ -367,9 +418,13 @@ Attach assets to a specific UTXO (advanced feature).
 const result = await provider.request({
   method: 'xcp_composeAttach',
   params: [{
-    asset: 'MYTOKEN',
-    quantity: 1000,
-    destination: '1DestinationAddressXXXXXXXXX'
+    // Required parameters
+    asset: 'MYTOKEN',                                  // Asset to attach
+    quantity: 1000,                                    // Amount to attach (base units)
+
+    // Optional parameters (Note: destination_vout and utxo_value have special restrictions)
+    destination_vout: 1,                               // Output index to attach to (optional)
+    utxo_value: 546                                    // UTXO value in satoshis (disabled after block 871900)
   }]
 });
 ```
@@ -382,8 +437,9 @@ Detach assets from a UTXO to make them spendable.
 const result = await provider.request({
   method: 'xcp_composeDetach',
   params: [{
-    asset: 'MYTOKEN',
-    destination: '1DestinationAddressXXXXXXXXX'
+    // Note: The source UTXO is determined from the active address
+    // Optional parameters
+    destination: '1DestinationAddressXXXXXXXXX'       // Destination address (optional, defaults to UTXO's address)
   }]
 });
 ```
@@ -396,8 +452,9 @@ Move a UTXO to a new address (UTXO management).
 const result = await provider.request({
   method: 'xcp_composeMoveUTXO',
   params: [{
-    utxo: 'txid:vout', // UTXO to move
-    destination: '1NewAddressXXXXXXXXXXXXXXX'
+    // Required parameters
+    destination: '1NewAddressXXXXXXXXXXXXXXX'         // Address to move UTXO to
+    // Note: The source UTXO is determined from the active address
   }]
 });
 ```
