@@ -1,31 +1,31 @@
 import { test, expect } from '@playwright/test';
-import { 
-  launchExtension, 
-  setupWallet, 
-  navigateViaFooter, 
+import {
+  launchExtension,
+  setupWallet,
+  navigateViaFooter,
   cleanup,
   grantClipboardPermissions,
-  TEST_PASSWORD 
+  TEST_PASSWORD
 } from '../helpers/test-helpers';
 
 test.describe('Verify Message', () => {
   test('should navigate to verify message page', async () => {
     const { context, page } = await launchExtension('verify-message-nav');
     await setupWallet(page);
-    
+
     // Navigate to Actions page via footer
     await navigateViaFooter(page, 'actions');
-    
+
     // Click on Verify Message
     await page.click('text=Verify Message');
     await page.waitForURL('**/actions/verify-message');
-    
+
     // Verify we're on the verify message page
     await expect(page.locator('h1, h2').filter({ hasText: 'Verify Message' })).toBeVisible();
     await expect(page.locator('label:has-text("Address")')).toBeVisible();
     await expect(page.locator('label:has-text("Message")')).toBeVisible();
     await expect(page.locator('label:has-text("Signature")')).toBeVisible();
-    
+
     await cleanup(context);
   });
 
@@ -40,9 +40,9 @@ test.describe('Verify Message', () => {
     await page.click('text=Verify Message');
     await page.waitForURL('**/actions/verify-message');
 
-    // Should show YouTube tutorial CTA instead of info box
-    await expect(page.locator('text=Learn how to verify message signatures')).toBeVisible();
-    
+    // YouTube tutorial is temporarily hidden until we have a video URL
+    // await expect(page.locator('text=Learn how to verify message signatures')).toBeVisible();
+
     await cleanup(context);
   });
 
@@ -56,23 +56,23 @@ test.describe('Verify Message', () => {
     // Click on Verify Message
     await page.click('text=Verify Message');
     await page.waitForURL('**/actions/verify-message');
-    
+
     // Verify button should be disabled initially
     const verifyButton = page.locator('button:has-text("Verify Signature")');
     await expect(verifyButton).toBeDisabled();
-    
+
     // Fill address only
     await page.fill('input[placeholder*="Bitcoin address"]', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa');
     await expect(verifyButton).toBeDisabled();
-    
+
     // Fill message
     await page.fill('textarea[placeholder*="exact message"]', 'Test message');
     await expect(verifyButton).toBeDisabled();
-    
+
     // Fill signature
     await page.fill('textarea[placeholder*="base64 or hex format"]', 'H1234567890abcdef...');
     await expect(verifyButton).toBeEnabled();
-    
+
     await cleanup(context);
   });
 
@@ -118,19 +118,13 @@ test.describe('Verify Message', () => {
     const signature = await signatureTextarea.inputValue();
 
     // Step 3: Navigate to verify page with the exact same data
-    // Use direct navigation instead of clicking through buttons
+    // Navigate back to actions page
     await navigateViaFooter(page, 'actions');
+    await page.waitForURL('**/actions');
 
-    // Wait for actions page to load completely
-    await page.waitForTimeout(1000);
-
-    // Find and click the Verify Message item - it's in a list item structure
-    const verifyItem = page.locator('li:has-text("Verify Message")').filter({ hasText: 'Verify a signed message' });
-    await verifyItem.waitFor({ state: 'visible' });
-    await verifyItem.click();
-
-    // Wait for navigation to verify-message page
-    await page.waitForURL('**/actions/verify-message', { timeout: 10000 });
+    // Click on Verify Message
+    await page.click('text=Verify Message');
+    await page.waitForURL('**/actions/verify-message');
 
     // Fill in the verification form with the exact data we just used
     await page.fill('input[placeholder*="Bitcoin address"]', fullAddress);
@@ -156,19 +150,19 @@ test.describe('Verify Message', () => {
     // Click on Verify Message
     await page.click('text=Verify Message');
     await page.waitForURL('**/actions/verify-message');
-    
+
     // Fill in invalid data
     await page.fill('input[placeholder*="Bitcoin address"]', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa');
     await page.fill('textarea[placeholder*="exact message"]', 'Wrong message');
     await page.fill('textarea[placeholder*="base64 or hex format"]', 'InvalidSignatureBase64String==');
-    
+
     // Verify
     await page.click('button:has-text("Verify Signature")');
-    
+
     // Should show invalid signature
     await expect(page.locator('textarea.border-red-500')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('text=Signature Invalid - Does not match the message and address provided')).toBeVisible();
-    
+
     await cleanup(context);
   });
 
@@ -182,24 +176,24 @@ test.describe('Verify Message', () => {
     // Click on Verify Message
     await page.click('text=Verify Message');
     await page.waitForURL('**/actions/verify-message');
-    
+
     // Fill in some data
     await page.fill('input[placeholder*="Bitcoin address"]', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa');
     await page.fill('textarea[placeholder*="exact message"]', 'Test message');
     await page.fill('textarea[placeholder*="base64 or hex format"]', 'SomeSignature');
-    
+
     // Use the reset button in the header instead
     await page.click('button[aria-label="Reset form"]');
-    
+
     // All fields should be empty
     const addressInput = page.locator('input[placeholder*="Bitcoin address"]');
     const messageInput = page.locator('textarea[placeholder*="exact message"]');
     const signatureInput = page.locator('textarea[placeholder*="base64 or hex format"]');
-    
+
     await expect(addressInput).toHaveValue('');
     await expect(messageInput).toHaveValue('');
     await expect(signatureInput).toHaveValue('');
-    
+
     await cleanup(context);
   });
 
@@ -214,36 +208,36 @@ test.describe('Verify Message', () => {
     // Click on Verify Message
     await page.click('text=Verify Message');
     await page.waitForURL('**/actions/verify-message');
-    
+
     // Prepare JSON data
     const jsonData = {
       address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
       message: 'Hello from JSON',
       signature: 'Base64SignatureHere'
     };
-    
+
     // Copy JSON to clipboard
     await page.evaluate((json) => {
       navigator.clipboard.writeText(JSON.stringify(json));
     }, jsonData);
-    
+
     // Click Upload JSON button exists but can't test actual upload
     await expect(page.locator('button:has-text("Upload JSON")')).toBeVisible();
-    
+
     // Manually fill the fields instead to test the verification
     await page.fill('input[placeholder*="Bitcoin address"]', jsonData.address);
     await page.fill('textarea[placeholder*="exact message"]', jsonData.message);
     await page.fill('textarea[placeholder*="base64 or hex format"]', jsonData.signature);
-    
+
     // Verify fields are filled
     const addressInput = page.locator('input[placeholder*="Bitcoin address"]');
     const messageInput = page.locator('textarea[placeholder*="exact message"]');
     const signatureInput = page.locator('textarea[placeholder*="base64 or hex format"]');
-    
+
     await expect(addressInput).toHaveValue(jsonData.address);
     await expect(messageInput).toHaveValue(jsonData.message);
     await expect(signatureInput).toHaveValue(jsonData.signature);
-    
+
     await cleanup(context);
   });
 
@@ -257,20 +251,20 @@ test.describe('Verify Message', () => {
     // Click on Verify Message
     await page.click('text=Verify Message');
     await page.waitForURL('**/actions/verify-message');
-    
+
     // Initially should show 0 characters
     await expect(page.locator('text=0 characters - Must match exactly')).toBeVisible();
-    
+
     // Type a message
     const testMessage = 'Hello World';
     await page.fill('textarea[placeholder*="exact message"]', testMessage);
-    
+
     // Should update character count
     await expect(page.locator(`text=${testMessage.length} characters - Must match exactly`)).toBeVisible();
-    
+
     // Should note that it must match exactly
     await expect(page.locator('text=/Must match exactly/').first()).toBeVisible();
-    
+
     await cleanup(context);
   });
 
@@ -284,13 +278,13 @@ test.describe('Verify Message', () => {
     // Click on Verify Message
     await page.click('text=Verify Message');
     await page.waitForURL('**/actions/verify-message');
-    
-    // Should show YouTube tutorial CTA
-    await expect(page.locator('text=Learn how to verify message signatures')).toBeVisible();
-    
+
+    // YouTube tutorial is temporarily hidden until we have a video URL
+    // await expect(page.locator('text=Learn how to verify message signatures')).toBeVisible();
+
     // Should show character count helper
     await expect(page.locator('text=/characters - Must match exactly/')).toBeVisible();
-    
+
     await cleanup(context);
   });
 
@@ -304,26 +298,26 @@ test.describe('Verify Message', () => {
     // Click on Verify Message
     await page.click('text=Verify Message');
     await page.waitForURL('**/actions/verify-message');
-    
+
     // Fill in Taproot-style data
     await page.fill('input[placeholder*="Bitcoin address"]', 'bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0');
     await page.fill('textarea[placeholder*="exact message"]', 'Taproot test');
     await page.fill('textarea[placeholder*="base64 or hex format"]', 'tr:' + '0'.repeat(128)); // Taproot format
-    
+
     // Verify
     await page.click('button:has-text("Verify Signature")');
-    
+
     // Should process without error (simplified verification for Taproot)
     await page.waitForTimeout(1000);
-    
+
     // Should show a result (valid or invalid)
     const greenResult = page.locator('textarea.border-green-500');
     const redResult = page.locator('textarea.border-red-500');
-    
+
     // Either valid or invalid should be shown
     const hasResult = await greenResult.isVisible() || await redResult.isVisible();
     expect(hasResult).toBe(true);
-    
+
     await cleanup(context);
   });
 });

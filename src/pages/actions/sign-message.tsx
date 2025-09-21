@@ -320,13 +320,15 @@ export default function SignMessage(): ReactElement {
         </div>
       )}
       
-      {/* YouTube Tutorial */}
-      <Button 
+      {/* YouTube Tutorial - Hidden until we have a video URL */}
+      {/* TODO: Add YouTube tutorial link when available
+      <Button
         variant="youtube"
-        href=""
+        href="https://youtube.com/watch?v=XXXXX"
       >
         Learn how to sign and verify messages
       </Button>
+      */}
       
       {/* Authorization Modal */}
       {showAuthModal && (
