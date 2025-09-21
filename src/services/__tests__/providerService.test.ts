@@ -32,6 +32,7 @@ import * as cspValidation from '@/utils/security/cspValidation';
 import * as composeRequestStorage from '@/utils/storage/composeRequestStorage';
 import * as signMessageRequestStorage from '@/utils/storage/signMessageRequestStorage';
 import * as updateService from '@/services/updateService';
+import { eventEmitterService } from '@/services/eventEmitterService';
 
 // Mock the imports
 vi.mock('../walletService');
@@ -779,10 +780,10 @@ describe('ProviderService', () => {
         );
 
         // Emit cancel event to end the promise
-        const storeCall = mockStorage.store.mock.calls[0];
+        const storeCall = (mockStorage.store as any).mock.calls[0];
         if (storeCall && storeCall[0]) {
           const composeRequestId = storeCall[0].id;
-          eventEmitterService.emit(`compose-cancel-${composeRequestId}`);
+          eventEmitterService.emit(`compose-cancel-${composeRequestId}`, {});
         }
 
         // Expect rejection with user cancelled
