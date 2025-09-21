@@ -558,15 +558,10 @@ describe('ProviderService', () => {
       });
       
       it('should require parameters', async () => {
-        vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-          ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
-          connectedWebsites: ['https://connected.com']
-        });
-        
-        // Override specific methods for this test
-        const mockWalletService = vi.mocked(walletService.getWalletService)();
-        mockWalletService.getLastActiveAddress = vi.fn().mockResolvedValue('bc1qtest123');
-        
+        // Mock connection service to return true (authorized)
+        const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
+        mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+
         await expect(
           providerService.handleRequest(
             'https://connected.com',
@@ -591,16 +586,14 @@ describe('ProviderService', () => {
       });
       
       it('should require active address', async () => {
-        vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-          ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
-          connectedWebsites: ['https://connected.com']
-        });
-        
-        // Override specific methods for this test  
+        // Mock connection service to return true (authorized)
+        const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
+        mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+
+        // Override specific methods for this test
         const mockWalletService = vi.mocked(walletService.getWalletService)();
-        mockWalletService.getLastActiveAddress = vi.fn().mockResolvedValue(undefined);
         mockWalletService.getActiveAddress = vi.fn().mockResolvedValue(null);
-        
+
         await expect(
           providerService.handleRequest(
             'https://connected.com',
@@ -631,7 +624,7 @@ describe('ProviderService', () => {
             'xcp_getHistory',
             []
           )
-        ).rejects.toThrow('Unauthorized');
+        ).rejects.toThrow('Permission denied - transaction history not available through provider');
       });
     });
     
@@ -753,11 +746,15 @@ describe('ProviderService', () => {
           quantity: 100
         };
 
-        await providerService.handleRequest(
+        // Start the request (it will wait for events)
+        const requestPromise = providerService.handleRequest(
           'https://test.com',
           'xcp_composeSend',
           [params]
-        ).catch(() => {}); // Catch as it will try to open popup
+        );
+
+        // Wait for async operations
+        await new Promise(resolve => setTimeout(resolve, 10));
 
         // Verify storage was called
         expect(mockStorage.store).toHaveBeenCalledWith(
@@ -770,6 +767,16 @@ describe('ProviderService', () => {
             })
           })
         );
+
+        // Emit cancel event to end the promise
+        const storeCall = mockStorage.store.mock.calls[0];
+        if (storeCall && storeCall[0]) {
+          const composeRequestId = storeCall[0].id;
+          eventEmitterService.emit(`compose-cancel-${composeRequestId}`);
+        }
+
+        // Expect rejection with user cancelled
+        await expect(requestPromise).rejects.toThrow('User cancelled');
       });
 
       it('should store requests with TTL for automatic cleanup', async () => {
