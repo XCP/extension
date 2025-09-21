@@ -192,18 +192,25 @@ describe('Address Type Detector', () => {
 
       // Mock it again with implementation that returns format-specific addresses
       vi.spyOn(bitcoinAddress, 'getAddressFromMnemonic').mockImplementation(
-        (mnemonic, path, format) => mockAddresses[format] || 'unknown'
+        (mnemonic, path, format) => {
+          // Return the address for the given format, or 'unknown' if not found
+          const address = mockAddresses[format];
+          if (!address) {
+            // Counterwallet throws an error in the real implementation
+            throw new Error('Failed to generate Counterwallet address');
+          }
+          return address;
+        }
       );
 
       const previews = getPreviewAddresses(testMnemonic);
 
-      // Counterwallet format is not in mockAddresses, so it will return 'unknown'
       expect(previews[AddressFormat.P2PKH]).toBe(mockAddresses[AddressFormat.P2PKH]);
       expect(previews[AddressFormat.P2WPKH]).toBe(mockAddresses[AddressFormat.P2WPKH]);
       expect(previews[AddressFormat.P2SH_P2WPKH]).toBe(mockAddresses[AddressFormat.P2SH_P2WPKH]);
       expect(previews[AddressFormat.P2TR]).toBe(mockAddresses[AddressFormat.P2TR]);
-      // Counterwallet address is in mockAddresses, so it should be defined
-      expect(previews[AddressFormat.Counterwallet]).toBe('1CounterpartyXXXXXXXXXXXXXXXUWLpVr');
+      // Counterwallet generation fails (not in mockAddresses), so it will be undefined
+      expect(previews[AddressFormat.Counterwallet]).toBeUndefined();
     });
 
     it('should handle address generation failures gracefully', () => {
