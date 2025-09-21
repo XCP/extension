@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { verifyMessage, verifyMessageWithMethod } from '../verifier';
+import { verifyMessage, verifyMessageWithMethod } from '../messageVerifier';
 
 describe('Wallet Implementation Test Fixtures', () => {
   describe('Bitcore/FreeWallet Fixtures', () => {
@@ -46,16 +46,7 @@ describe('Wallet Implementation Test Fixtures', () => {
 
   describe('Electrum Fixtures', () => {
     // Electrum uses standard BIP-137 for P2PKH addresses
-    const electrumFixtures = [
-      {
-        // This is a hypothetical fixture - would need real Electrum signatures
-        address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', // Satoshi's address
-        message: 'Chancellor on brink of second bailout for banks',
-        signature: null, // Would need actual Electrum signature
-        wallet: 'Electrum',
-        note: 'P2PKH with compressed key'
-      }
-    ];
+    // TODO: Add real Electrum fixtures when available
 
     it('should handle Electrum signature format', async () => {
       // Document Electrum's expected behavior
@@ -92,7 +83,7 @@ describe('Wallet Implementation Test Fixtures', () => {
         console.log(`${fixture.wallet} P2PKH verification:`, p2pkhResult);
 
         // Test with Taproot address using loose verification
-        const { verifyLooseBIP137 } = await import('../verifier');
+        const { verifyLooseBIP137 } = await import('../messageVerifier');
         const taprootResult = await verifyLooseBIP137(
           fixture.message,
           fixture.signature,
@@ -111,11 +102,27 @@ describe('Wallet Implementation Test Fixtures', () => {
       {
         address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
         message: 'Bitcoin: A Peer-to-Peer Electronic Cash System',
-        signature: null, // Would need actual Bitcoin Core signature
+        signature: null, // TODO: Add actual Bitcoin Core signature
         wallet: 'Bitcoin Core',
-        note: 'Uses strict BIP-137 implementation'
+        note: 'Uses strict BIP-137 implementation',
+        expected: false // Skip validation until we have real signature
       }
     ];
+
+    // Add placeholder test for when we have real fixtures
+    for (const fixture of bitcoinCoreFixtures) {
+      it.skip(`should verify ${fixture.wallet} signature for ${fixture.address}`, async () => {
+        // Will be enabled when we have real signatures
+        if (fixture.signature) {
+          const result = await verifyMessage(
+            fixture.message,
+            fixture.signature,
+            fixture.address
+          );
+          console.log(`${fixture.wallet} verification:`, result);
+        }
+      });
+    }
 
     it('should document Bitcoin Core signature format', async () => {
       console.log('Bitcoin Core signature format:');
@@ -135,11 +142,27 @@ describe('Wallet Implementation Test Fixtures', () => {
         // Example format - would need real Trezor signatures
         address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
         message: 'Test message',
-        signature: null, // Would need actual Trezor signature
+        signature: null, // TODO: Add actual Trezor signature
         wallet: 'Trezor',
-        note: 'P2WPKH with BIP-137 format'
+        note: 'P2WPKH with BIP-137 format',
+        expected: false // Skip validation until we have real signature
       }
     ];
+
+    // Add placeholder test for when we have real fixtures
+    for (const fixture of trezorFixtures) {
+      it.skip(`should verify ${fixture.wallet} signature for ${fixture.address}`, async () => {
+        // Will be enabled when we have real signatures
+        if (fixture.signature) {
+          const result = await verifyMessage(
+            fixture.message,
+            fixture.signature,
+            fixture.address
+          );
+          console.log(`${fixture.wallet} verification:`, result);
+        }
+      });
+    }
 
     it('should document Trezor signature format', async () => {
       console.log('Trezor signature format:');

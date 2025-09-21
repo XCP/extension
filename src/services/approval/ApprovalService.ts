@@ -285,7 +285,6 @@ export class ApprovalService extends BaseService {
     approved: boolean
   ): Promise<void> {
     const eventName = approved ? 'request_approved' : 'request_rejected';
-    const hostname = new URL(options.origin).hostname;
 
     await analytics.track(eventName, { value: '1' });
   }

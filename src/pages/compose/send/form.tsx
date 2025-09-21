@@ -49,7 +49,7 @@ export function SendForm({
   const [amount, setAmount] = useState<string>(
     initialFormData?.quantity?.toString() || ""
   );
-  const [satPerVbyte, setSatPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
+  const [satPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
   
   // Destinations state for MPMA
   const [destinations, setDestinations] = useState<Destination[]>(() => [

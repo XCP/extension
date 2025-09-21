@@ -1,12 +1,10 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { DispenseForm } from '../form';
 import { ComposerProvider } from '@/contexts/composer-context';
-import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 import * as counterpartyApi from '@/utils/blockchain/counterparty/api';
-import * as feeRateUtils from '@/utils/blockchain/bitcoin/feeRate';
 
 // Mock the API module
 vi.mock('@/utils/blockchain/counterparty/api');

@@ -173,9 +173,9 @@ describe('AddressList', () => {
 
   it('should not select address when menu clicked', () => {
     const onSelectAddress = vi.fn();
-    const { container } = render(
-      <AddressList 
-        {...defaultProps} 
+    render(
+      <AddressList
+        {...defaultProps}
         onSelectAddress={onSelectAddress}
       />
     );

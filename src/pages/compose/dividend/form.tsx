@@ -1,20 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useEffect, useState } from "react";
 import { ComposerForm } from "@/components/composer-form";
 import { Spinner } from "@/components/spinner";
+import { ErrorAlert } from "@/components/error-alert";
 import { AssetHeader } from "@/components/headers/asset-header";
 import { AssetSelectInput } from "@/components/inputs/asset-select-input";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
-import { toBigNumber, calculateMaxDividendPerUnit } from "@/utils/numeric";
+import { calculateMaxDividendPerUnit } from "@/utils/numeric";
 import { fetchTokenBalance } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
 
-export interface DividendFormData {
+interface DividendFormData {
   quantity_per_unit: string;
   dividend_asset: string;
   sat_per_vbyte: number;
@@ -34,14 +34,11 @@ export function DividendForm({
   initialFormData
 }: DividendFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, settings, showHelpText, state } = useComposer();
+  const { activeAddress, showHelpText, state } = useComposer();
   
   // Data fetching hooks
   const { data: assetInfo, error: assetError, isLoading: assetLoading } = useAssetDetails(asset);
-  const { data: dividendAssetInfo } = useAssetDetails(initialFormData?.dividend_asset || "XCP");
   
-  // Error state management
-  const [error, setError] = useState<{ message: string } | null>(null);
   
   // Form state
   const [selectedDividendAsset, setSelectedDividendAsset] = useState<string>(
@@ -51,12 +48,12 @@ export function DividendForm({
   const [quantityPerUnit, setQuantityPerUnit] = useState<string>(
     initialFormData?.quantity_per_unit || ""
   );
-  const amountRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Effects - composer error first
   useEffect(() => {
     if (state.error) {
-      setError({ message: state.error });
+      // Error is shown through composer state
     }
   }, [state.error]);
 
@@ -140,7 +137,9 @@ export function DividendForm({
     <ComposerForm
       formAction={processedFormAction}
       header={
-        <AssetHeader
+        <>
+          {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
+          <AssetHeader
           assetInfo={{
             ...assetInfo.assetInfo,
             asset: asset,
@@ -149,6 +148,7 @@ export function DividendForm({
           }}
           className="mt-1 mb-5"
         />
+        </>
       }
     >
           <input type="hidden" name="asset" value={asset} />
@@ -169,7 +169,7 @@ export function DividendForm({
             value={quantityPerUnit}
             onChange={setQuantityPerUnit}
             sat_per_vbyte={1} // Not used for non-BTC assets
-            setError={(msg) => setError(msg ? { message: msg } : null)}
+            setError={setError}
             showHelpText={showHelpText}
             sourceAddress={activeAddress}
             maxAmount={calculateMaxAmountPerUnit()}

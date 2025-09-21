@@ -1,6 +1,6 @@
 import { registerWalletService, getWalletService } from '@/services/walletService';
 import { registerProviderService, getProviderService } from '@/services/providerService';
-import { registerBlockchainService, getBlockchainService } from '@/services/blockchain';
+import { registerBlockchainService } from '@/services/blockchain';
 import { registerConnectionService } from '@/services/connection';
 import { registerApprovalService } from '@/services/approval';
 import { registerTransactionService } from '@/services/transaction';
@@ -8,8 +8,8 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { MessageBus, type ProviderMessage, type ApprovalMessage, type EventMessage } from '@/services/core/MessageBus';
 import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/sessionManager';
-import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, createJsonRpcError } from '@/utils/constants/errorCodes';
-import { checkForLastError, wrapRuntimeCallback, broadcastToTabs, sendMessageToTab } from '@/utils/browser';
+import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, createJsonRpcError } from '@/utils/errors';
+import { broadcastToTabs } from '@/utils/browser';
 // Import onMessage directly from webext-bridge/background to prevent runtime.lastError
 import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
 

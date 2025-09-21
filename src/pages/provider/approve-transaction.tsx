@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { getWalletService } from '@/services/walletService';
 import { safeSendMessage } from '@/utils/browser';
 
 export default function ApproveTransaction() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const {} = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [transactionDetails, setTransactionDetails] = useState<any>(null);
   const [error, setError] = useState<string>('');

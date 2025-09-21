@@ -124,4 +124,3 @@ export function ActionCard({
   );
 }
 
-export default ActionCard;

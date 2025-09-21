@@ -37,7 +37,7 @@ export const DispenserForm = memo(function DispenserForm({
   asset
 }: DispenserFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet, settings, showHelpText, state } = useComposer();
+  const { activeAddress, showHelpText, state } = useComposer();
   
   // Data fetching hooks
   const { error: assetError, data: assetDetails } = useAssetDetails(asset);

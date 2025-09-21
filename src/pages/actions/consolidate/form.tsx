@@ -36,7 +36,6 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
   const [formData, setFormData] = useState<ConsolidationFormData>(DEFAULT_FORM_DATA);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText;
@@ -49,9 +48,6 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
       // Only show loading state on initial load, not on stamp toggle
       if (isInitialLoad) {
         setIsLoading(true);
-      } else {
-        // Show updating state for subsequent fetches
-        setIsUpdating(true);
       }
       setError(null);
       
@@ -77,7 +73,6 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
         setError(err instanceof Error ? err.message : "Failed to fetch consolidation data");
       } finally {
         setIsLoading(false);
-        setIsUpdating(false);
       }
     }
     

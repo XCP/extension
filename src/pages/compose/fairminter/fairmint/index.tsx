@@ -5,7 +5,7 @@ import { Composer } from "@/components/composer";
 import { composeFairmint } from "@/utils/blockchain/counterparty";
 import type { FairmintOptions } from "@/utils/blockchain/counterparty";
 
-export function ComposeFairmint() {
+function ComposeFairmint() {
   const { asset } = useParams<{ asset?: string }>();
 
   return (

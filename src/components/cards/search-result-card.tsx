@@ -92,4 +92,3 @@ export function SearchResultCard({
   );
 }
 
-export default SearchResultCard;

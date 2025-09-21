@@ -5,7 +5,7 @@ import { Composer } from "@/components/composer";
 import { composeIssuance } from "@/utils/blockchain/counterparty";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
 
-export function ComposeIssuance() {
+function ComposeIssuance() {
   const { asset } = useParams<{ asset?: string }>();
 
   return (

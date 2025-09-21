@@ -5,7 +5,7 @@ import { Composer } from "@/components/composer";
 import { composeOrder } from "@/utils/blockchain/counterparty";
 import type { OrderOptions } from "@/utils/blockchain/counterparty";
 
-export function ComposeOrderPage() {
+function ComposeOrderPage() {
   const { asset } = useParams<{ asset?: string }>();
 
   return (

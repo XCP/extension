@@ -6,7 +6,7 @@ import { ErrorAlert } from "@/components/error-alert";
 import { composeAttach } from "@/utils/blockchain/counterparty";
 import type { AttachOptions } from "@/utils/blockchain/counterparty";
 
-export function ComposeUtxoAttach() {
+function ComposeUtxoAttach() {
   const { asset } = useParams<{ asset?: string }>();
 
   if (!asset) {

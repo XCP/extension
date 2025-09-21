@@ -8,7 +8,7 @@ import { ActionList } from "@/components/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { formatAsset, formatAmount, formatTimeAgo } from "@/utils/format";
+import { formatAmount, formatTimeAgo } from "@/utils/format";
 import { AssetHeader } from "@/components/headers/asset-header";
 import { fetchDividendsByAsset, type Dividend, type DividendResponse } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";

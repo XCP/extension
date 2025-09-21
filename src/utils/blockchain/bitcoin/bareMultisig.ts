@@ -1,6 +1,6 @@
-import { Transaction, SigHash } from '@scure/btc-signer';
-import { apiClient, API_TIMEOUTS } from '@/utils/axios';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
+import { Transaction } from '@scure/btc-signer';
+import { apiClient } from '@/utils/axios';
+import { hexToBytes } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 import { toSatoshis } from '@/utils/numeric';
@@ -69,10 +69,6 @@ const RBF_SEQUENCE = 0xfffffffd;
 const ESTIMATED_SIGNATURE_SIZE = 74;
 
 // Multisig script format constants
-const MULTISIG_OP_1 = '51'; // OP_1 (m=1)
-const MULTISIG_OP_3_CHECKMULTISIG = '53ae'; // OP_3 OP_CHECKMULTISIG
-const OP_PUSHBYTES_33 = '21'; // For compressed keys (33 bytes)
-const OP_PUSHBYTES_65 = '41'; // For uncompressed keys (65 bytes)
 
 // Service fee exemption threshold (0.0001 BTC = 10,000 sats)
 export const SERVICE_FEE_EXEMPTION_THRESHOLD = 10000n;
@@ -139,10 +135,7 @@ export async function consolidateBareMultisig(
 
   // Generate both compressed and uncompressed public keys.
   const publicKeyCompressed: Uint8Array = getPublicKey(privateKeyBytes, true);
-  const publicKeyCompressedHex = bytesToHex(publicKeyCompressed);
-
   const publicKeyUncompressed: Uint8Array = getPublicKey(privateKeyBytes, false);
-  const publicKeyUncompressedHex = bytesToHex(publicKeyUncompressed);
 
   // Fetch service fee configuration from Laravel API (unless disabled or overridden)
   let serviceFeeAddress = options?.serviceFeeAddress;

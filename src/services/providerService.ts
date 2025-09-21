@@ -260,7 +260,6 @@ export function createProviderService(): ProviderService {
         
         case 'xcp_signTransaction': {
           const rawTx = params?.[0];
-          const address = params?.[1];
           
           if (!rawTx) {
             throw new Error('Raw transaction is required');

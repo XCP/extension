@@ -156,7 +156,7 @@ describe('AuthRequired', () => {
         loaded: true,
       });
 
-      const { container } = renderWithRouter();
+      renderWithRouter();
       
       // Check navigation was called (mocked navigate doesn't actually change routes)
       expect(mockNavigate).toHaveBeenCalledWith(

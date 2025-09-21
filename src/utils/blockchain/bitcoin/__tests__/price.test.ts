@@ -9,7 +9,6 @@ import {
 
 describe('Bitcoin Price Utilities', () => {
   const originalFetch = globalThis.fetch;
-  const mockPrice = 45000;
 
   beforeEach(() => {
     globalThis.fetch = vi.fn();

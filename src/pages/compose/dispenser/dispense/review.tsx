@@ -16,13 +16,6 @@ interface ReviewDispenseProps {
   isSigning: boolean; // Passed from useActionState in Composer
 }
 
-interface DispenserInfo {
-  asset: string;
-  give_quantity_normalized: string;
-  satoshirate: number;
-  asset_longname?: string;
-  tx_hash?: string;
-}
 
 interface MempoolDispense {
   source: string;
@@ -63,7 +56,6 @@ export function ReviewDispense({
   isSigning,
 }: ReviewDispenseProps): ReactElement {
   const { result } = apiResponse || {};
-  const [dispenserInfo, setDispenserInfo] = useState<DispenserInfo | null>(null);
   const [isLoadingInfo, setIsLoadingInfo] = useState(true);
   const [mempoolDispenses, setMempoolDispenses] = useState<MempoolDispense[]>([]);
   
@@ -103,16 +95,6 @@ export function ReviewDispense({
           const triggeredDispenser = sorted[0];
           
           if (triggeredDispenser) {
-            const isDivisible = triggeredDispenser.asset_info?.divisible ?? false;
-            const divisor = isDivisible ? 1e8 : 1;
-            setDispenserInfo({
-              asset: triggeredDispenser.asset,
-              give_quantity_normalized: triggeredDispenser.give_quantity ? (fromSatoshis(triggeredDispenser.give_quantity, true) / (isDivisible ? 1 : 1e8)).toString() : "0",
-              satoshirate: triggeredDispenser.satoshirate || 0,
-              asset_longname: triggeredDispenser.asset_info?.asset_longname || undefined,
-              tx_hash: triggeredDispenser.tx_hash,
-            });
-            
             // Check for mempool dispenses from the same dispenser
             try {
               const { dispenses } = await fetchDispenserDispenses(
@@ -162,7 +144,6 @@ export function ReviewDispense({
     // Calculate what will be received from all dispensers
     const receivedAssets = allTriggeredDispensers.map(dispenser => {
       const isDivisible = dispenser.asset_info?.divisible ?? false;
-      const divisor = isDivisible ? 1e8 : 1;
       const satoshirate = dispenser.satoshirate || 0;
       const numberOfDispenses = satoshirate > 0 ? Math.floor(btcQuantity / satoshirate) : 0;
       const giveQuantity = (fromSatoshis(dispenser.give_quantity || 0, true) / (isDivisible ? 1 : 1e8));

@@ -10,14 +10,10 @@
  */
 
 // Core service
-export { BlockchainService } from './BlockchainService';
-export type { BlockchainServiceState } from './BlockchainService';
+export * from './BlockchainService';
 
 // Service proxy and registration (using standard defineProxyService pattern)
-export {
-  registerBlockchainService,
-  getBlockchainService
-} from './blockchainProxy';
+export * from './blockchainProxy';
 
 // Re-export types from blockchain utilities for convenience
 export type {

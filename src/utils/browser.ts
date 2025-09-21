@@ -21,19 +21,6 @@ export function checkForLastError(): Error | undefined {
   return undefined;
 }
 
-/**
- * Check for chrome.runtime.lastError and log a warning if present.
- * Use this in callbacks where you want to be notified of errors.
- * 
- * @returns The error if present, undefined otherwise
- */
-export function checkForLastErrorAndWarn(): Error | undefined {
-  const error = checkForLastError();
-  if (error) {
-    console.warn('Chrome runtime error:', error.message);
-  }
-  return error;
-}
 
 /**
  * Wrap a callback function to automatically check for chrome.runtime.lastError.
@@ -79,36 +66,6 @@ function getReadyTabs(): Set<number> {
   }
 }
 
-/**
- * Robust ping function to check if content script is available
- * Now also updates our ready tabs tracking
- */
-export async function canReceiveMessages(tabId: number): Promise<boolean> {
-  try {
-    const response = await new Promise<any>((resolve, reject) => {
-      const timeoutId = setTimeout(() => reject(new Error('Ping timeout')), 200);
-
-      chrome.tabs.sendMessage(
-        tabId,
-        { action: 'ping' },
-        (response) => {
-          clearTimeout(timeoutId);
-          // ALWAYS check lastError first
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-          } else {
-            resolve(response);
-          }
-        }
-      );
-    });
-
-    return Boolean(response?.status === 'ready' || response?.status === 'initializing');
-  } catch (error) {
-    // Ping failed - content script not available
-    return false;
-  }
-}
 
 /**
  * Robust tab messaging with ping-inject-retry pattern
@@ -226,20 +183,6 @@ export function sendMessageToTabSafe<T = any>(
   });
 }
 
-/**
- * Ping a tab to check if content script is available
- */
-export async function pingTab(tabId: number): Promise<boolean> {
-  try {
-    const response = await sendMessageToTabSafe(tabId, { 
-      action: 'ping', 
-      type: 'startup-health-check' 
-    });
-    return Boolean(response);
-  } catch {
-    return false;
-  }
-}
 
 /**
  * Broadcast message to tabs with content script
@@ -278,74 +221,7 @@ export async function broadcastToTabs(
   }
 }
 
-/**
- * Send a response-expecting message with timeout (simplified)
- * @deprecated Use safeSendMessage instead for better error handling
- */
-export async function sendMessageWithTimeout(
-  message: any,
-  timeout: number = 5000
-): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      reject(new Error(`Message timeout after ${timeout}ms`));
-    }, timeout);
 
-    chrome.runtime.sendMessage(message, (response) => {
-      clearTimeout(timeoutId);
-
-      // Check lastError first
-      const error = chrome.runtime.lastError;
-      if (error) {
-        reject(new Error(error.message || 'Unknown runtime error'));
-      } else {
-        resolve(response);
-      }
-    });
-  });
-}
-
-/**
- * Setup a message handler that always returns a response
- * This prevents the "listener indicated async response" error
- */
-export function setupSafeMessageHandler(
-  handler: (message: any, sender: chrome.runtime.MessageSender) => Promise<any> | any
-): void {
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    // Wrap the handler to ensure we always send a response
-    const handleMessage = async () => {
-      try {
-        const result = await handler(message, sender);
-        return result !== undefined ? result : { handled: true };
-      } catch (error) {
-        console.error('Error in message handler:', error);
-        return { 
-          error: error instanceof Error ? error.message : 'Unknown error',
-          handled: false 
-        };
-      }
-    };
-    
-    // Safe response function that handles closed response channels
-    const safeResponse = (responseData: any) => {
-      try {
-        sendResponse(responseData);
-      } catch (error) {
-        // Response channel closed, this is expected during rapid startup/shutdown
-        console.debug('Response channel closed:', error);
-      }
-    };
-    
-    // Execute handler and send response
-    handleMessage().then(safeResponse).catch((error) => {
-      safeResponse({ error: error.message, handled: false });
-    });
-    
-    // Return true to indicate async response
-    return true;
-  });
-}
 
 /**
  * Safe wrapper for browser.runtime.sendMessage with proper error handling

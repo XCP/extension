@@ -42,10 +42,6 @@ vi.mock('@/contexts/header-context', () => ({
 }));
 
 describe('ComposerContext', () => {
-  const mockComposeTransaction = vi.fn();
-  const mockSignFunction = vi.fn();
-  const mockHideLoading = vi.fn();
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -212,46 +208,6 @@ describe('ComposerContext', () => {
           </MemoryRouter>
         ),
       });
-
-      const apiResponse: ApiResponse = {
-        result: {
-          rawtransaction: '0x123abc',
-          btc_in: 100000,
-          btc_out: 95000,
-          btc_change: 0,
-          btc_fee: 5000,
-          data: '',
-          lock_scripts: [],
-          inputs_values: [100000],
-          signed_tx_estimated_size: {
-            vsize: 200,
-            adjusted_vsize: 200,
-            sigops_count: 1,
-          },
-          psbt: 'psbt_data',
-          params: {
-            source: 'bc1qsource',
-            destination: 'bc1qdest',
-            asset: 'BTC',
-            quantity: 0,
-            memo: null,
-            memo_is_hex: false,
-            use_enhanced_send: false,
-            no_dispense: false,
-            skip_validation: false,
-            asset_info: {
-              asset_longname: null,
-              description: '',
-              issuer: '',
-              divisible: true,
-              locked: false,
-              owner: '',
-            },
-            quantity_normalized: '0',
-          },
-          name: 'send',
-        },
-      };
 
       // Manually set api response in state (since signAndBroadcast requires it)
       act(() => {

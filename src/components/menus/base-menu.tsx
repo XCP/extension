@@ -77,4 +77,3 @@ export function BaseMenu({
   );
 }
 
-export default BaseMenu;

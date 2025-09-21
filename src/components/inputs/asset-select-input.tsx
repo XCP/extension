@@ -8,7 +8,6 @@ import {
 } from "@headlessui/react";
 import { FiChevronDown, FiCheck } from "react-icons/fi";
 import { FaSpinner } from "react-icons/fa";
-import { useWallet } from "@/contexts/wallet-context";
 import { useSettings } from "@/contexts/settings-context";
 
 interface Asset {
@@ -39,7 +38,6 @@ export function AssetSelectInput({
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const { activeWallet } = useWallet();
   const { settings } = useSettings();
 
   useEffect(() => {

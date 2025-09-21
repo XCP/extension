@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer-form";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
@@ -27,7 +26,7 @@ export function ResetSupplyForm({
   asset,
 }: ResetSupplyFormProps): ReactElement {
   // Context hooks
-  const { showHelpText } = useComposer();
+  const {} = useComposer();
   
   // Data fetching hooks
   const { error: assetError, data: assetInfo } = useAssetInfo(asset);

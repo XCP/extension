@@ -1,12 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { AssetMenu } from "@/components/menus/asset-menu";
 import { SearchInput } from "@/components/inputs/search-input";
 import { AssetCard } from "@/components/cards/asset-card";
 import { SearchResultCard } from "@/components/cards/search-result-card";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchOwnedAssets, type OwnedAsset } from "@/utils/blockchain/counterparty/api";
-import { formatAsset } from "@/utils/format";
 import { Spinner } from "@/components/spinner";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 

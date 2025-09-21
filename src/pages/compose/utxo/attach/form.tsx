@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Field, Label, Description, Input } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { useComposer } from "@/contexts/composer-context";
 import { ErrorAlert } from "@/components/error-alert";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { formatAmount } from "@/utils/format";
 import type { AttachOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 
@@ -30,7 +28,7 @@ export function UtxoAttachForm({
   initialAsset,
 }: UtxoAttachFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet, settings, showHelpText } = useComposer();
+  const { activeAddress, showHelpText } = useComposer();
   
   // Data fetching hooks
   const asset = initialAsset || initialFormData?.asset || "";

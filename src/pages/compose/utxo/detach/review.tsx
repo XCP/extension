@@ -1,5 +1,4 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAssetQuantity } from "@/utils/format";
 
 /**
  * Props for the ReviewUtxoDetach component.

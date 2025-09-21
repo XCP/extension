@@ -5,7 +5,7 @@ import { Composer } from "@/components/composer";
 import { composeFairminter } from "@/utils/blockchain/counterparty";
 import type { FairminterOptions } from "@/utils/blockchain/counterparty";
 
-export function ComposeFairminterPage() {
+function ComposeFairminterPage() {
   const { asset } = useParams<{ asset?: string }>();
   
   return (

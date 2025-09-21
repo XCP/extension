@@ -5,7 +5,7 @@ import { Composer } from "@/components/composer";
 import { composeCancel } from "@/utils/blockchain/counterparty";
 import type { CancelOptions } from "@/utils/blockchain/counterparty";
 
-export function ComposeCancel() {
+function ComposeCancel() {
   const { hash } = useParams<{ hash?: string }>();
 
   return (

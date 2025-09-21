@@ -43,7 +43,7 @@ import {
   Order,
   OrderDetails
 } from '@/utils/blockchain/counterparty/api';
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 
 // Cache interfaces
 interface CacheEntry<T> {

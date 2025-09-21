@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getFeeRates, FeeRates } from '@/utils/blockchain/bitcoin';
 
 export type FeeRateOption = 'fast' | 'medium' | 'slow';

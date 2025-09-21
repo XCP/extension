@@ -9,7 +9,7 @@ interface ExtendedSendOptions extends SendOptions {
   destinations?: string; // Comma-separated list for MPMA
 }
 
-export function ComposeSend() {
+function ComposeSend() {
   const { asset } = useParams<{ asset?: string }>();
 
   // Wrapper function that determines which compose function to use

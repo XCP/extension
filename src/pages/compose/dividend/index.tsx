@@ -5,7 +5,7 @@ import { Composer } from "@/components/composer";
 import { composeDividend } from "@/utils/blockchain/counterparty";
 import type { DividendOptions } from "@/utils/blockchain/counterparty";
 
-export function ComposeDividendPage() {
+function ComposeDividendPage() {
   const { asset } = useParams<{ asset?: string }>();
 
   return (

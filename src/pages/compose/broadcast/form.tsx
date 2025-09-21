@@ -8,7 +8,7 @@ import { AddressHeader } from "@/components/headers/address-header";
 import { SettingSwitch } from "@/components/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
 import { useComposer } from "@/contexts/composer-context";
-import { AddressFormat, isSegwitFormat } from '@/utils/blockchain/bitcoin';
+import { isSegwitFormat } from '@/utils/blockchain/bitcoin';
 import type { BroadcastOptions } from "@/utils/blockchain/counterparty";
 import type { ReactElement } from "react";
 

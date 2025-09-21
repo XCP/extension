@@ -3,8 +3,8 @@
  * Handles consolidation using data from the Laravel API
  */
 
-import { Transaction, SigHash } from '@scure/btc-signer';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
+import { Transaction } from '@scure/btc-signer';
+import { hexToBytes } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 import { type ConsolidationData } from '@/services/consolidationApiService';
 import { 
@@ -65,7 +65,6 @@ export async function consolidateBareMultisigBatch(
   // Prepare inputs with signing info
   const inputs: ConsolidationInput[] = [];
   let totalInputSats = 0n;
-  let hasInvalidPubkeys = false;
   
   for (const utxo of batchData.utxos) {
     // Add input to transaction
@@ -86,7 +85,6 @@ export async function consolidateBareMultisigBatch(
     
     // Check if this UTXO has invalid pubkeys (from API validation)
     if (utxo.has_invalid_pubkeys) {
-      hasInvalidPubkeys = true;
       console.warn(`UTXO ${utxo.txid}:${utxo.vout} has invalid pubkeys: ${utxo.pubkey_validation_hint || 'data-encoded'}`);
     }
     

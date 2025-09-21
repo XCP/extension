@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ComposerForm } from "@/components/composer-form";
 import { HashInput } from "@/components/inputs/hash-input";
 import { AddressHeader } from "@/components/headers/address-header";
@@ -24,7 +24,7 @@ export function BTCPayForm({
   initialFormData,
 }: BTCPayFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet, settings, showHelpText } = useComposer();
+  const { activeAddress, activeWallet, showHelpText } = useComposer();
   const [orderMatchId, setOrderMatchId] = useState(initialFormData?.order_match_id || "");
 
   return (

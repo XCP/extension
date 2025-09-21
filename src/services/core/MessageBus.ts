@@ -53,7 +53,7 @@ export interface ApprovalMessage {
   updatedParams?: any;
 }
 
-export interface WalletLockMessage {
+interface WalletLockMessage {
   type: 'WALLET_LOCKED';
   locked: boolean;
 }
@@ -80,7 +80,6 @@ export interface MessageProtocol {
  */
 export class MessageBus {
   private static readonly MESSAGE_TIMEOUT = 10000; // 10 seconds
-  private static readonly STARTUP_TIMEOUT = 3000; // 3 seconds for background to be ready
   
   private static backgroundReady = false;
   private static readinessPromise: Promise<boolean> | null = null;

@@ -56,7 +56,7 @@ describe('FileUploadInput', () => {
   });
 
   it('calls onFileChange when file is selected', async () => {
-    const { rerender } = render(
+    render(
       <FileUploadInput
         label="Upload File"
         selectedFile={null}
