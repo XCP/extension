@@ -172,7 +172,7 @@ export function DestinationsInput({
                 ? "Enter destination address"
                 : `Enter destination address ${index + 1}`
             }
-            className={`block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 ${
+            className={`block w-full p-2.5 rounded-md border bg-gray-50 focus:ring-2 ${
               validationErrors[destination.id] 
                 ? "border-red-500 focus:border-red-500 focus:ring-red-500" 
                 : getLookupState(destination.id).isLookingUp 

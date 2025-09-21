@@ -42,7 +42,7 @@ export function BTCPayForm({
             label="Order Match ID"
             name="order_match_id"
             hashType="match"
-            placeholder="Enter order match ID (hash_hash format)..."
+            placeholder="Enter order_match"
             required={true}
             showHelpText={showHelpText}
             description="Enter the ID of the order match you want to pay for."

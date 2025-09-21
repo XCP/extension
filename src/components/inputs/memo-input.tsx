@@ -12,6 +12,7 @@ interface MemoInputProps {
   showHelpText?: boolean;
   required?: boolean;
   className?: string;
+  name?: string;
 }
 
 const MAX_MEMO_LENGTH = 34; // Maximum bytes allowed for memo
@@ -28,6 +29,7 @@ export function MemoInput({
   showHelpText = false,
   required = false,
   className = "",
+  name = "memo",
 }: MemoInputProps): ReactElement {
   const [memo, setMemo] = useState(value);
   const [isValid, setIsValid] = useState(true);
@@ -83,20 +85,20 @@ export function MemoInput({
       </Label>
       <Input
         type="text"
-        name="memo"
+        name={name}
         value={memo}
         onChange={handleMemoChange}
         placeholder="Optional memo"
-        className={`mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 transition-colors ${
-          !isValid 
-            ? "border-red-500 focus:ring-red-500 focus:border-red-500" 
+        className={`mt-1 block w-full p-2.5 rounded-md border bg-gray-50 focus:ring-2 transition-colors ${
+          !isValid
+            ? "border-red-500 focus:ring-red-500 focus:border-red-500"
             : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
         }`}
         disabled={disabled}
         aria-invalid={!isValid}
         aria-describedby={showHelpText ? "memo-description" : undefined}
       />
-      
+
       {showHelpText && (
         <Description id="memo-description" className="mt-2 text-sm text-gray-500">
           Optional memo to include.

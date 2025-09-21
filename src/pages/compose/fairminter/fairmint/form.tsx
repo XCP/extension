@@ -229,7 +229,7 @@ export function FairmintForm({
                   supply: currencyDetails.assetInfo.supply,
                 } : undefined,
               }}
-              className="mb-3" 
+              className="mt-1 mb-5" 
             />
           ) : null}
           

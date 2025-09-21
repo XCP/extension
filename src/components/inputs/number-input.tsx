@@ -180,7 +180,7 @@ export function NumberInput({
           min={min}
           max={max}
           step={step}
-          className={`block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 ${
+          className={`block w-full p-2.5 rounded-md border bg-gray-50 focus:ring-2 ${
             !isValid 
               ? "border-red-500 focus:ring-red-500 focus:border-red-500" 
               : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"

@@ -160,7 +160,7 @@ export function DispenserInput({
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={`mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 ${
+          className={`mt-1 block w-full p-2.5 rounded-md border bg-gray-50 focus:ring-2 ${
             showInvalidBorder ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
           }`}
           required={required}

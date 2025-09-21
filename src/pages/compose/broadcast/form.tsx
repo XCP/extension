@@ -47,6 +47,13 @@ export function BroadcastForm({
   // Computed values
   const isSegwitAddress = activeWallet?.addressFormat && isSegwitFormat(activeWallet.addressFormat);
   
+  // Sync textContent when initialFormData changes
+  useEffect(() => {
+    if (initialFormData?.text) {
+      setTextContent(initialFormData.text);
+    }
+  }, [initialFormData?.text]);
+
   // Focus textarea on mount (only if not inscribing)
   useEffect(() => {
     if (!inscribeEnabled) {

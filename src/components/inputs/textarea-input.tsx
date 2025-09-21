@@ -130,7 +130,7 @@ export function TextAreaInput({
         readOnly={readOnly}
         required={required}
         rows={autoResize ? undefined : rows}
-        className={`block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 resize-none ${
+        className={`block w-full p-2.5 rounded-md border bg-gray-50 focus:ring-2 resize-none ${
           !isValid
             ? "border-red-500 focus:ring-red-500 focus:border-red-500"
             : className && className.includes('border-')

@@ -273,7 +273,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
             required={required}
             placeholder={placeholder || defaultPlaceholder}
             disabled={disabled}
-            className={`mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 ${
+            className={`mt-1 block w-full p-2.5 rounded-md border bg-gray-50 focus:ring-2 ${
               hasError
                 ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                 : showGreenBorder

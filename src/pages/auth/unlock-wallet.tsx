@@ -6,6 +6,7 @@ import { FiHelpCircle } from "react-icons/fi";
 import { UnlockScreen } from "@/components/screens/unlock-screen";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { getDisplayVersion } from "@/utils/version";
 
 const UnlockWallet = () => {
   const navigate = useNavigate();
@@ -113,7 +114,7 @@ const UnlockWallet = () => {
   return (
     <UnlockScreen
       title="XCP Wallet"
-      subtitle="v0.0.1"
+      subtitle={getDisplayVersion()}
       onUnlock={handleUnlock}
       error={error}
       isSubmitting={isUnlocking}

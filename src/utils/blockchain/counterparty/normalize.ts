@@ -49,6 +49,10 @@ const NORMALIZATION_CONFIG: Record<string, {
     quantityFields: ['quantity'],
     assetFields: { quantity: 'asset' }
   },
+  broadcast: {
+    quantityFields: ['value'],
+    assetFields: {}
+  },
   burn: {
     quantityFields: ['quantity'],
     assetFields: { quantity: 'asset' }
@@ -122,6 +126,7 @@ export function getComposeType(formData: Record<string, any>): string | undefine
   if ('flags' in formData && 'destination' in formData && !('quantity' in formData)) return 'sweep';
   if ('utxos' in formData) return 'utxo';
   if ('sends' in formData) return 'mpma';
+  if ('text' in formData) return 'broadcast';
   if ('quantity' in formData && 'asset' in formData) return 'send';
   if ('quantity' in formData && 'asset_name' in formData) return 'issuance';
   if ('destination' in formData && 'asset' in formData) return 'attach';

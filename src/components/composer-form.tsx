@@ -78,9 +78,9 @@ export function ComposerForm({
           {children}
           
           {showFeeRate && (
-            <FeeRateInput 
-              showHelpText={showHelpText} 
-              disabled={isSubmitting || submitDisabled} 
+            <FeeRateInput
+              showHelpText={showHelpText}
+              disabled={isSubmitting}
             />
           )}
           

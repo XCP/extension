@@ -44,7 +44,7 @@ export function CancelForm({
             label="Order Hash"
             name="offer_hash"
             hashType="offer"
-            placeholder="Enter order hash (64 hex characters)..."
+            placeholder="Enter Tx Hash"
             required={true}
             showHelpText={showHelpText}
             description="Enter the hash of the order you want to cancel."

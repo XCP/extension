@@ -218,10 +218,11 @@ export class MessageBus {
       // Only log truly unexpected errors now
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      // Suppress all timeout errors for one-way messages
+      // Suppress all timeout errors and handler registration errors for one-way messages
       // These are expected when the popup isn't ready yet, especially for
       // non-critical messages like walletLocked
-      if (!errorMessage.includes('Message timeout')) {
+      if (!errorMessage.includes('Message timeout') &&
+          !errorMessage.includes('No handler registered')) {
         console.debug(`One-way message '${String(message)}' to ${target} failed:`, errorMessage);
       }
 

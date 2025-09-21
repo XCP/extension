@@ -54,7 +54,7 @@ export function PasswordInput({
           onChange={onChange} // Pass onChange handler
           onKeyDown={onKeyDown} // Pass onKeyDown handler
           className={`
-            w-full p-2 border border-gray-300 rounded-md pr-10 bg-white
+            w-full p-2.5 border border-gray-300 rounded-md pr-10 bg-white
             ${label ? 'mt-1' : ''}
             ${disabled ? 'bg-gray-50 cursor-not-allowed' : ''}
             data-[focus]:ring-2 data-[focus]:ring-blue-500 data-[focus]:border-blue-500

@@ -203,7 +203,7 @@ export function FeeRateInput({
             aria-label="Custom Fee Rate"
             aria-invalid={!!internalError}
             aria-describedby={internalError ? "sat_per_vbyte-error" : undefined}
-            className="block w-full p-2 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+            className="block w-full p-2.5 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
         {showHelpText && (
@@ -241,7 +241,7 @@ export function FeeRateInput({
               aria-label="Custom Fee Rate"
               aria-invalid={!!internalError}
               aria-describedby={internalError ? "sat_per_vbyte-error" : undefined}
-              className="block w-full p-2 rounded-md border bg-gray-50 pr-16 focus:border-blue-500 focus:ring-blue-500"
+              className="block w-full p-2.5 rounded-md border bg-gray-50 pr-16 focus:border-blue-500 focus:ring-blue-500"
             />
             {feeRates && (
               <Button variant="input" onClick={handleEscClick} aria-label="Reset to first preset" {...disabledProps}>
@@ -258,7 +258,7 @@ export function FeeRateInput({
               <div className="relative">
                 <Listbox value={feeOptions.find((opt) => opt.id === selectedOption) || feeOptions[0]} onChange={handleOptionSelect}>
                   <ListboxButton
-                    className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 cursor-pointer"
+                    className="w-full p-2.5 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 cursor-pointer"
                     {...disabledProps}
                   >
                     {({ value }) => (
@@ -275,7 +275,7 @@ export function FeeRateInput({
                       <ListboxOption
                         key={option.id}
                         value={option}
-                        className="p-2 cursor-pointer hover:bg-gray-100"
+                        className="p-2.5 cursor-pointer hover:bg-gray-100"
                       >
                         {({ selected }) => (
                           <div className="flex justify-between">

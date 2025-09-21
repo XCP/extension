@@ -236,7 +236,7 @@ describe('AmountWithMaxInput', () => {
     expect(input).toHaveClass('mt-1');
     expect(input).toHaveClass('block');
     expect(input).toHaveClass('w-full');
-    expect(input).toHaveClass('p-2');
+    expect(input).toHaveClass('p-2.5');
     expect(input).toHaveClass('rounded-md');
     expect(input).toHaveClass('border');
     expect(input).toHaveClass('bg-gray-50');

@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, ChangeEvent } from "react";
+import { forwardRef, useEffect, ChangeEvent, useCallback } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { isValidBitcoinAddress, shouldTriggerAssetLookup } from "@/utils/validation";
 import { useAssetOwnerLookup } from "@/hooks/useAssetOwnerLookup";
@@ -34,10 +34,12 @@ export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputPro
     },
     ref
   ) => {
+    const onResolve = useCallback((assetName: string, ownerAddress: string) => {
+      onChange(ownerAddress);
+    }, [onChange]);
+
     const { isLookingUp, result: lookupResult, error: lookupError, performLookup } = useAssetOwnerLookup({
-      onResolve: (assetName, ownerAddress) => {
-        onChange(ownerAddress);
-      }
+      onResolve
     });
 
     // Asset owner lookup with debouncing
@@ -97,10 +99,10 @@ export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputPro
             required={required}
             placeholder={placeholder}
             disabled={disabled}
-            className={`mt-1 block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 ${
-              isInvalid ? "border-red-500 focus:border-red-500 focus:ring-red-500" : 
-              lookupResult && isValidAddress ? "border-green-500 focus:border-green-500 focus:ring-green-500" :
-              "border-gray-200 focus:ring-blue-500 focus:border-blue-500"
+            className={`mt-1 block w-full p-2.5 rounded-md border border-gray-200 bg-gray-50 focus:ring-2 ${
+              isInvalid ? "!border-red-500 focus:!border-red-500 focus:!ring-red-500" :
+              lookupResult && isValidAddress ? "!border-green-500 focus:!border-green-500 focus:!ring-green-500" :
+              "focus:ring-blue-500 focus:border-blue-500"
             } ${className}`}
           />
           {isLookingUp && (

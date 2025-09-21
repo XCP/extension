@@ -114,7 +114,7 @@ export function PriceWithSuggestInput({
           name={name}
           value={displayValue}
           onChange={handleInputChange}
-          className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-16"
+          className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-16"
           required
           placeholder="0.00000000"
         />

@@ -54,6 +54,7 @@ export function HashInput({
   const [isValid, setIsValid] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [touched, setTouched] = useState(false);
 
   // Get the appropriate pattern and description
   const pattern = HASH_PATTERNS[hashType];
@@ -69,10 +70,16 @@ export function HashInput({
       return true;
     }
 
-    // Check if empty but required
+    // Check if empty but required (only show error if touched)
     if (!trimmed && required) {
-      setError("This field is required");
-      return false;
+      if (touched) {
+        setError("This field is required");
+        return false;
+      } else {
+        // Field is empty and required but not touched yet - don't show red border
+        setError(null);
+        return true;
+      }
     }
 
     // Remove any whitespace for validation
@@ -102,13 +109,14 @@ export function HashInput({
     const valid = validateHash(localValue);
     setIsValid(valid);
     onValidationChange?.(valid);
-  }, [localValue, required, hashType]);
+  }, [localValue, required, hashType, touched]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     setLocalValue(newValue);
     onChange(newValue);
     setCopied(false); // Reset copied state when value changes
+    setTouched(true); // Mark as touched when user types
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -152,7 +160,7 @@ export function HashInput({
           disabled={disabled}
           required={required}
           rows={rows}
-          className={`block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 resize-none font-mono text-xs ${
+          className={`block w-full p-2.5 rounded-md border bg-gray-50 focus:ring-2 resize-none font-mono text-xs ${
             !isValid 
               ? "border-red-500 focus:ring-red-500 focus:border-red-500" 
               : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
