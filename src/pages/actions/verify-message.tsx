@@ -200,13 +200,15 @@ export default function VerifyMessage(): ReactElement {
         <ErrorAlert message={error} onClose={() => setError(null)} />
       )}
       
-      {/* YouTube Tutorial */}
-      <Button 
+      {/* YouTube Tutorial - Hidden until we have a video URL */}
+      {/* TODO: Add YouTube tutorial link when available
+      <Button
         variant="youtube"
-        href=""
+        href="https://youtube.com/watch?v=XXXXX"
       >
         Learn how to verify message signatures
       </Button>
+      */}
     </div>
   );
 }

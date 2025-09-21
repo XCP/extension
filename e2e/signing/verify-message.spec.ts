@@ -122,11 +122,12 @@ test.describe('Verify Message', () => {
     await navigateViaFooter(page, 'actions');
 
     // Wait for actions page to load completely
-    await page.waitForSelector('text=Verify Message', { state: 'visible' });
+    await page.waitForTimeout(1000);
 
-    // Click on Verify Message with a more specific selector
-    const verifyLink = page.locator('a:has-text("Verify Message"), button:has-text("Verify Message")').first();
-    await verifyLink.click();
+    // Find and click the Verify Message item - it's in a list item structure
+    const verifyItem = page.locator('li:has-text("Verify Message")').filter({ hasText: 'Verify a signed message' });
+    await verifyItem.waitFor({ state: 'visible' });
+    await verifyItem.click();
 
     // Wait for navigation to verify-message page
     await page.waitForURL('**/actions/verify-message', { timeout: 10000 });
