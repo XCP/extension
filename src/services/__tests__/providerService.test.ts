@@ -326,7 +326,7 @@ describe('ProviderService', () => {
         expect(mockConnectionService.connect).toHaveBeenCalledWith(
           'https://newsite.com',
           'bc1qtest123',  // activeAddress from mock
-          'wallet-1'      // activeWallet.id from mock
+          'wallet1'       // activeWallet.id from mock (no hyphen)
         );
 
         // Should return the accounts
