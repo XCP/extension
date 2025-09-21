@@ -118,20 +118,18 @@ test.describe('Verify Message', () => {
     const signature = await signatureTextarea.inputValue();
 
     // Step 3: Navigate to verify page with the exact same data
-    // Click the back button (first button in header)
-    const backButton = page.locator('header button').first();
-    await backButton.click();
-    await page.waitForURL('**/actions');
+    // Use direct navigation instead of clicking through buttons
+    await navigateViaFooter(page, 'actions');
 
-    // Wait for the page to be ready and click verify message
-    await page.waitForTimeout(500);
-    const verifyButton = page.locator('text=Verify Message');
-    await verifyButton.waitFor({ state: 'visible' });
-    await verifyButton.click();
+    // Wait for actions page to load completely
+    await page.waitForSelector('text=Verify Message', { state: 'visible' });
 
-    // Wait for navigation with a more flexible approach
-    await page.waitForTimeout(1000);
-    await expect(page).toHaveURL(/.*verify-message.*/, { timeout: 10000 });
+    // Click on Verify Message with a more specific selector
+    const verifyLink = page.locator('a:has-text("Verify Message"), button:has-text("Verify Message")').first();
+    await verifyLink.click();
+
+    // Wait for navigation to verify-message page
+    await page.waitForURL('**/actions/verify-message', { timeout: 10000 });
 
     // Fill in the verification form with the exact data we just used
     await page.fill('input[placeholder*="Bitcoin address"]', fullAddress);

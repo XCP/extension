@@ -3,6 +3,7 @@
  *
  * This hook centralizes the logic for:
  * - Loading compose request data from storage
+ * - Denormalizing provider data for form display
  * - Listening for navigation messages
  * - Handling success/cancel callbacks
  * - Cleaning up storage
@@ -12,6 +13,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { composeRequestStorage, type ComposeRequest } from '@/utils/storage/composeRequestStorage';
 import { eventEmitterService } from '@/services/eventEmitterService';
+import { denormalizeProviderData, getComposeTypeFromProvider } from '@/utils/blockchain/counterparty/denormalize';
 
 export function useProviderRequest<T = any>(
   composeType: ComposeRequest['type']
@@ -26,7 +28,10 @@ export function useProviderRequest<T = any>(
       const loadComposeRequest = async () => {
         const request = await composeRequestStorage.get(composeRequestId);
         if (request && request.type === composeType) {
-          setProviderFormData(request.params);
+          // Denormalize the provider data to convert base units to display values
+          const detectedType = getComposeTypeFromProvider(request.params) || composeType;
+          const { denormalizedData } = await denormalizeProviderData(request.params, detectedType);
+          setProviderFormData(denormalizedData as T);
         }
       };
       loadComposeRequest();
@@ -42,7 +47,10 @@ export function useProviderRequest<T = any>(
           const loadComposeRequest = async () => {
             const request = await composeRequestStorage.get(message.composeRequestId);
             if (request && request.type === composeType) {
-              setProviderFormData(request.params);
+              // Denormalize the provider data to convert base units to display values
+              const detectedType = getComposeTypeFromProvider(request.params) || composeType;
+              const { denormalizedData } = await denormalizeProviderData(request.params, detectedType);
+              setProviderFormData(denormalizedData as T);
             }
           };
           loadComposeRequest();
