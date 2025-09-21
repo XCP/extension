@@ -264,23 +264,238 @@ const result = await provider.request({
 });
 ```
 
-### Other Compose Methods
+### xcp_composeBTCPay
 
-- `xcp_composeBTCPay` - Pay for a BTC order match
-- `xcp_composeCancel` - Cancel an open order
-- `xcp_composeDestroy` - Destroy supply of an asset
-- `xcp_composeBet` - Create a bet (binary option)
-- `xcp_composeFairminter` - Create a fairminter
-- `xcp_composeFairmint` - Mint from a fairminter
-- `xcp_composeAttach` - Attach assets to UTXO
-- `xcp_composeDetach` - Detach assets from UTXO
-- `xcp_composeMoveUTXO` - Move UTXO to new address
-- `xcp_composeIssueSupply` - Issue additional supply
-- `xcp_composeLockSupply` - Lock asset supply
-- `xcp_composeResetSupply` - Reset asset supply
-- `xcp_composeTransfer` - Transfer asset ownership
-- `xcp_composeUpdateDescription` - Update asset description
-- `xcp_composeLockDescription` - Lock asset description
+Pay for a BTC order match (when selling BTC for another asset).
+
+```javascript
+const result = await provider.request({
+  method: 'xcp_composeBTCPay',
+  params: [{
+    order_match_id: 'abc123...def456' // Order match ID to pay for
+  }]
+});
+```
+
+### xcp_composeCancel
+
+Cancel an open order on the DEX.
+
+```javascript
+const result = await provider.request({
+  method: 'xcp_composeCancel',
+  params: [{
+    offer_hash: 'abc123...' // Hash of the order to cancel
+  }]
+});
+```
+
+### xcp_composeDestroy
+
+Destroy (burn) supply of an asset you control.
+
+```javascript
+const result = await provider.request({
+  method: 'xcp_composeDestroy',
+  params: [{
+    asset: 'MYTOKEN',
+    quantity: 1000, // Amount to destroy
+    tag: 'cleanup' // Optional tag
+  }]
+});
+```
+
+### xcp_composeBet
+
+Create a bet (binary option) on a broadcast feed.
+
+```javascript
+const result = await provider.request({
+  method: 'xcp_composeBet',
+  params: [{
+    feed_address: '1FeedAddressXXXXXXXXXXXXXXX',
+    bet_type: 0, // 0=BullCFD, 1=BearCFD, 2=Equal, 3=NotEqual
+    deadline: 1234567890, // Unix timestamp
+    wager_quantity: 100000000, // In XCP
+    counterwager_quantity: 100000000,
+    expiration: 1000, // Blocks until expiration
+    target_value: 1.0
+  }]
+});
+```
+
+### xcp_composeFairminter
+
+Create a fairminter for fair token distribution.
+
+```javascript
+const result = await provider.request({
+  method: 'xcp_composeFairminter',
+  params: [{
+    asset: 'FAIRTOKEN',
+    description: 'Fair launch token',
+    price: 100000, // Satoshis per token
+    quantity_by_price: 1, // Tokens per price unit
+    max_mint_per_tx: 10000, // Max per transaction
+    max_mint_per_address: 100000, // Max per address
+    start_block: 850000,
+    end_block: 860000,
+    lockup_blocks: 1000, // Lock period after mint
+    divisible: true
+  }]
+});
+```
+
+### xcp_composeFairmint
+
+Mint tokens from a fairminter.
+
+```javascript
+const result = await provider.request({
+  method: 'xcp_composeFairmint',
+  params: [{
+    asset: 'FAIRTOKEN'
+  }]
+});
+```
+
+### xcp_composeAttach
+
+Attach assets to a specific UTXO (advanced feature).
+
+```javascript
+const result = await provider.request({
+  method: 'xcp_composeAttach',
+  params: [{
+    asset: 'MYTOKEN',
+    quantity: 1000,
+    destination: '1DestinationAddressXXXXXXXXX'
+  }]
+});
+```
+
+### xcp_composeDetach
+
+Detach assets from a UTXO to make them spendable.
+
+```javascript
+const result = await provider.request({
+  method: 'xcp_composeDetach',
+  params: [{
+    asset: 'MYTOKEN',
+    destination: '1DestinationAddressXXXXXXXXX'
+  }]
+});
+```
+
+### xcp_composeMoveUTXO
+
+Move a UTXO to a new address (UTXO management).
+
+```javascript
+const result = await provider.request({
+  method: 'xcp_composeMoveUTXO',
+  params: [{
+    utxo: 'txid:vout', // UTXO to move
+    destination: '1NewAddressXXXXXXXXXXXXXXX'
+  }]
+});
+```
+
+### xcp_composeIssueSupply
+
+Issue additional supply of an unlocked asset.
+
+```javascript
+const result = await provider.request({
+  method: 'xcp_composeIssueSupply',
+  params: [{
+    asset: 'MYTOKEN',
+    quantity: 1000000 // Additional supply to issue
+  }]
+});
+```
+
+### xcp_composeLockSupply
+
+Lock the supply of an asset (prevent future issuance).
+
+```javascript
+const result = await provider.request({
+  method: 'xcp_composeLockSupply',
+  params: [{
+    asset: 'MYTOKEN'
+  }]
+});
+```
+
+### xcp_composeResetSupply
+
+Reset the supply of an asset to a specific amount.
+
+```javascript
+const result = await provider.request({
+  method: 'xcp_composeResetSupply',
+  params: [{
+    asset: 'MYTOKEN',
+    quantity: 1000000 // New total supply
+  }]
+});
+```
+
+### xcp_composeTransfer
+
+Transfer ownership of an asset to another address.
+
+```javascript
+const result = await provider.request({
+  method: 'xcp_composeTransfer',
+  params: [{
+    asset: 'MYTOKEN',
+    destination: '1NewOwnerAddressXXXXXXXXXX'
+  }]
+});
+```
+
+### xcp_composeUpdateDescription
+
+Update the description of an unlocked asset.
+
+```javascript
+const result = await provider.request({
+  method: 'xcp_composeUpdateDescription',
+  params: [{
+    asset: 'MYTOKEN',
+    description: 'Updated token description'
+  }]
+});
+```
+
+### xcp_composeLockDescription
+
+Lock an asset's description (prevent future changes).
+
+```javascript
+const result = await provider.request({
+  method: 'xcp_composeLockDescription',
+  params: [{
+    asset: 'MYTOKEN'
+  }]
+});
+```
+
+### xcp_composeDispenserCloseByHash
+
+Close a specific dispenser by its hash.
+
+```javascript
+const result = await provider.request({
+  method: 'xcp_composeDispenserCloseByHash',
+  params: [{
+    dispenser_hash: 'abc123...' // Hash of dispenser to close
+  }]
+});
+```
 
 ## Signing Methods
 
@@ -643,3 +858,65 @@ If migrating from MetaMask-style providers:
 - Update transaction builders to use compose methods
 - Adjust for Bitcoin/Counterparty data structures
 - Handle different error messages and codes
+
+## Comparison with Ethereum EIP Standards
+
+### Similarities with EIP-1193
+
+1. **`request()` method pattern**: Both use the same RPC-style request interface:
+   ```javascript
+   provider.request({ method: string, params?: array | object })
+   ```
+
+2. **Event system**: Both implement similar events:
+   - `accountsChanged`
+   - `disconnect`
+   - Event listener methods (`on`, `removeListener`)
+
+3. **Error codes**: XCP uses the same error code standards:
+   - `4001` - User rejected
+   - `4100` - Unauthorized
+   - `4200` - Unsupported method
+
+### Key Differences
+
+1. **Namespace**:
+   - Ethereum: `window.ethereum` (EIP-1193) or `window.evmproviders` (EIP-5749)
+   - XCP: `window.xcpwallet`
+
+2. **Method prefixes**:
+   - Ethereum: `eth_*` methods
+   - XCP: `xcp_*` methods
+
+3. **Transaction flow**:
+   - **Ethereum**: Direct transaction signing (`eth_sendTransaction`)
+   - **XCP**: Compose-first pattern with 23 specialized methods (`xcp_composeSend`, `xcp_composeOrder`, etc.) that open UI for review
+
+4. **Missing Ethereum features**:
+   - No `chainChanged` event (Bitcoin has no chain ID concept)
+   - No `connect` event (uses connection methods instead)
+   - No `message` event for subscriptions
+   - No EIP-6963 multi-provider discovery
+
+5. **XCP-specific features**:
+   - **Compose methods**: Full suite of Counterparty operations (dispensers, dividends, assets, etc.)
+   - **UI-first approach**: All transactions route through extension UI for transparency
+   - **Recovery system**: Handles closed popups and locked wallets with recovery prompts
+   - **Timeout handling**: 2-minute request timeout with grace periods
+
+### Notable Implementation Choices
+
+1. **Security-first design**: Deprecated `xcp_signTransaction` in favor of transparent compose methods
+2. **User control**: All operations open extension UI for review/modification
+3. **Bitcoin-specific**: Handles UTXOs, satoshi-based fees, and Counterparty protocol operations
+4. **Single provider**: No multi-wallet discovery like EIP-5749/EIP-6963
+
+### What's Missing from Ethereum Standards
+
+- No provider info/metadata object (EIP-6963's `ProviderInfo`)
+- No multi-provider support
+- No chain/network switching capability
+- No subscription/polling mechanisms
+- No provider announcement events
+
+The XCP implementation follows EIP-1193's core request/event patterns but adapts them for Bitcoin/Counterparty's unique requirements while prioritizing user transparency through mandatory UI interaction for all compose operations.
