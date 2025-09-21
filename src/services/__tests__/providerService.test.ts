@@ -245,15 +245,13 @@ describe('ProviderService', () => {
     vi.mocked(composeRequestStorage).composeRequestStorage = {
       store: vi.fn().mockResolvedValue(undefined),
       get: vi.fn().mockResolvedValue(null),
-      remove: vi.fn().mockResolvedValue(undefined),
-      cleanup: vi.fn().mockResolvedValue(undefined)
+      remove: vi.fn().mockResolvedValue(undefined)
     } as any;
 
     vi.mocked(signMessageRequestStorage).signMessageRequestStorage = {
       store: vi.fn().mockResolvedValue(undefined),
       get: vi.fn().mockResolvedValue(null),
-      remove: vi.fn().mockResolvedValue(undefined),
-      cleanup: vi.fn().mockResolvedValue(undefined)
+      remove: vi.fn().mockResolvedValue(undefined)
     } as any;
     
     // Setup settings mocks - default to no connected sites
@@ -773,13 +771,24 @@ describe('ProviderService', () => {
         );
       });
 
-      it('should cleanup old requests periodically', async () => {
+      it('should store requests with TTL for automatic cleanup', async () => {
         const mockStorage = vi.mocked(composeRequestStorage).composeRequestStorage;
 
-        // Trigger cleanup somehow (this would be done on a timer in real usage)
-        await mockStorage.cleanup();
+        // Verify that stored requests have a timestamp for TTL
+        const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
+        mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
 
-        expect(mockStorage.cleanup).toHaveBeenCalled();
+        await providerService.handleRequest(
+          'https://test.com',
+          'xcp_composeSend',
+          [{ destination: 'bc1q', asset: 'XCP', quantity: 100 }]
+        ).catch(() => {});
+
+        expect(mockStorage.store).toHaveBeenCalledWith(
+          expect.objectContaining({
+            timestamp: expect.any(Number)
+          })
+        );
       });
     });
 
