@@ -1,15 +1,15 @@
-# XCP Wallet Distribution v0.0.1
+# XCP Wallet Distribution v0.0.2
 
 ## Downloads
 
-- **Chrome Extension**: `xcp-wallet-chrome-0.0.1.zip`
-- **Firefox Extension**: `xcp-wallet-firefox-0.0.1.zip`
+- **Chrome Extension**: `xcp-wallet-chrome-0.0.2.zip`
+- **Firefox Extension**: `xcp-wallet-firefox-0.0.2.zip`
 
 ## SHA256 Checksums
 
 ```
-f5bd97dfb10b3a09f74e9ff1006a5f3aefbdfeb5d93371f0d6d44420308e6b4f  xcp-wallet-chrome-0.0.1.zip
-dae68f50ffff5a1d5e9017a6ca08938bf1ea362e48781a755b2daef4b8cc7bc5  xcp-wallet-firefox-0.0.1.zip
+f5cca9d6892242bf0ccfd924b5c620223f3063d9ba44c32839cafe0f247faca3  xcp-wallet-chrome-0.0.2.zip
+7ec1d86ac32fede64625fa68abec652c7ac8f7bcc097a0c66f4562c6943531c7  xcp-wallet-firefox-0.0.2.zip
 ```
 
 ## Verification
@@ -23,8 +23,8 @@ sha256sum xcp-wallet-*.zip
 
 **Windows:**
 ```cmd
-certUtil -hashfile xcp-wallet-chrome-0.0.1.zip SHA256
-certUtil -hashfile xcp-wallet-firefox-0.0.1.zip SHA256
+certUtil -hashfile xcp-wallet-chrome-0.0.2.zip SHA256
+certUtil -hashfile xcp-wallet-firefox-0.0.2.zip SHA256
 ```
 
 Compare the output with the checksums listed above.
@@ -36,7 +36,7 @@ To verify the build yourself:
 ```bash
 git clone https://github.com/XCP/extension.git
 cd extension
-git checkout v0.0.1
+git checkout v0.0.2
 npm install
 npm run dist
 ```
@@ -58,4 +58,4 @@ Then compare your locally generated checksums with the ones above.
 4. Select the ZIP file or manifest file from extracted directory
 
 ---
-*Generated on: 2025-09-21T15:37:42.076Z*
+*Generated on: 2025-09-22T17:22:32.536Z*
