@@ -587,7 +587,7 @@ describe('Multisig Signer', () => {
 
       expect(() => {
         finalizeBareMultisigTransaction(mockTx, inputInfos);
-      }).toThrow('Failed to finalize input 0: Error: btc-signer finalization failed');
+      }).toThrow('Failed to finalize input 0: missing or invalid partialSig');
     });
 
     it('should handle multiple inputs with mixed types', () => {
