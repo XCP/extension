@@ -91,7 +91,7 @@ export default function ShowPrivateKey(): ReactElement {
           ? await getPrivateKey(walletId)
           : await getPrivateKey(walletId, addressPath);
       if (!privKeyData) throw new Error("Failed to retrieve private key");
-      setPrivateKey(privKeyData.key);
+      setPrivateKey(privKeyData.wif);
       setIsConfirmed(true);
     } catch (err) {
       console.error("Error revealing private key:", err);

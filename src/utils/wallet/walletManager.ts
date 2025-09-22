@@ -637,7 +637,7 @@ export class WalletManager {
     await settingsManager.updateSettings({ pinnedAssets });
   }
 
-  public async getPrivateKey(walletId: string, derivationPath?: string): Promise<{ key: string; compressed: boolean }> {
+  public async getPrivateKey(walletId: string, derivationPath?: string): Promise<{ wif: string; hex: string; compressed: boolean }> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found.');
     const secret = await sessionManager.getUnlockedSecret(walletId);
@@ -649,16 +649,17 @@ export class WalletManager {
         derivationPath ||
         (wallet.addresses[0]?.path ?? `${getDerivationPathForAddressFormat(wallet.addressFormat)}/0`);
       const privateKeyHex = getPrivateKeyFromMnemonic(secret, path, wallet.addressFormat);
-      const wif = encodeWIF(privateKeyHex, true);
+      const wifFormat = encodeWIF(privateKeyHex, true);
       return {
-        key: wif,
+        wif: wifFormat,
+        hex: privateKeyHex,
         compressed: true
       };
     } else {
       // Private key wallets store the compression flag
       const { key: privateKeyHex, compressed } = JSON.parse(secret);
-      const wif = encodeWIF(privateKeyHex, compressed);
-      return { key: wif, compressed };
+      const wifFormat = encodeWIF(privateKeyHex, compressed);
+      return { wif: wifFormat, hex: privateKeyHex, compressed };
     }
   }
 
@@ -744,8 +745,8 @@ export class WalletManager {
     const targetAddress = wallet.addresses.find(addr => addr.address === sourceAddress);
     if (!targetAddress) throw new Error("Source address not found in wallet");
     
-    const { key: privateKeyHex, compressed } = await this.getPrivateKey(wallet.id, targetAddress.path);
-    return btcSignTransaction(rawTxHex, wallet, targetAddress, privateKeyHex, compressed);
+    const privateKeyResult = await this.getPrivateKey(wallet.id, targetAddress.path);
+    return btcSignTransaction(rawTxHex, wallet, targetAddress, privateKeyResult.hex, privateKeyResult.compressed);
   }
 
   public async broadcastTransaction(signedTxHex: string): Promise<{ txid: string; fees?: number }> {
@@ -760,10 +761,10 @@ export class WalletManager {
     const targetAddress = wallet.addresses.find(addr => addr.address === address);
     if (!targetAddress) throw new Error("Address not found in wallet");
     
-    const { key: privateKeyHex, compressed } = await this.getPrivateKey(wallet.id, targetAddress.path);
-    
+    const privateKeyResult = await this.getPrivateKey(wallet.id, targetAddress.path);
+
     // Use the signMessage function
-    return signMessage(message, privateKeyHex, wallet.addressFormat, compressed);
+    return signMessage(message, privateKeyResult.hex, wallet.addressFormat, privateKeyResult.compressed);
   }
 
   private async generateWalletId(mnemonic: string, addressFormat: AddressFormat): Promise<string> {

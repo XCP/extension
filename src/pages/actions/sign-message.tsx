@@ -119,9 +119,11 @@ export default function SignMessage(): ReactElement {
         activeWallet.id,
         activeAddress.path
       );
-      const privateKeyHex = privateKeyResult.key;
+
+      // Use the hex format for signing
+      const privateKeyHex = privateKeyResult.hex;
       const compressed = privateKeyResult.compressed;
-      
+
       // Sign the message
       const result = await signMessage(
         message,

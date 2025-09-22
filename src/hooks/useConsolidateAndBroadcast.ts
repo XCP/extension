@@ -33,7 +33,7 @@ export function useConsolidateAndBroadcast() {
         activeWallet.id,
         activeAddress.path // Use the derivation path from activeAddress
       );
-      const privateKey = privateKeyResult.key;
+      const privateKey = privateKeyResult.hex; // Use hex format for consolidation
 
       // Build consolidation options
       let consolidationOptions: any = {
