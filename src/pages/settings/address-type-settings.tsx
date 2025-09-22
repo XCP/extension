@@ -9,7 +9,7 @@ import { ErrorAlert } from "@/components/error-alert";
 import { Spinner } from "@/components/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat, isCounterwalletFormat } from '@/utils/blockchain/bitcoin';
 import { formatAddress } from "@/utils/format";
 import type { ReactElement } from "react";
 
@@ -165,6 +165,8 @@ export default function AddressTypeSettings(): ReactElement {
         return "Taproot (P2TR)";
       case AddressFormat.Counterwallet:
           return "CounterWallet (P2PKH)";
+      case AddressFormat.CounterwalletSegwit:
+          return "CounterWallet SegWit (P2WPKH)";
       default:
         return type;
     }
@@ -202,16 +204,22 @@ export default function AddressTypeSettings(): ReactElement {
       >
         <SelectionCardGroup>
           {CONSTANTS.AVAILABLE_ADDRESS_TYPES.filter((type) => {
-            // Only show Counterwallet if it's the current address type
-            if (type === AddressFormat.Counterwallet) {
-              return activeWallet?.addressFormat === AddressFormat.Counterwallet;
+            const isCounterwallet = activeWallet?.addressFormat &&
+                                   isCounterwalletFormat(activeWallet.addressFormat);
+
+            // For Counterwallet users, only show Counterwallet and CounterwalletSegwit options
+            if (isCounterwallet) {
+              return isCounterwalletFormat(type);
             }
+
+            // For non-Counterwallet users, hide both Counterwallet formats
+            if (isCounterwalletFormat(type)) {
+              return false;
+            }
+
             return true;
           }).map((type) => {
             const typeLabel = getAddressFormatDescription(type);
-            const isCounterwallet = activeWallet?.addressFormat === AddressFormat.Counterwallet;
-            const isDisabled = isCounterwallet && type !== AddressFormat.Counterwallet;
-            const disabledReason = (isCounterwallet && type !== AddressFormat.Counterwallet) ? "Create new wallet to use this address type" : undefined;
             // Use loaded address preview
             const address = addresses[type] || "";
             const addressPreview = address ? formatAddress(address) : "";
@@ -222,8 +230,6 @@ export default function AddressTypeSettings(): ReactElement {
                 value={type}
                 title={typeLabel}
                 description={addressPreview}
-                disabled={isDisabled}
-                disabledReason={disabledReason}
               />
             );
           })}

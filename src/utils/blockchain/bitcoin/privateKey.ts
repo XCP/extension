@@ -5,7 +5,7 @@ import { createBase58check } from '@scure/base';
 import { HDKey } from '@scure/bip32';
 import { generateMnemonic, mnemonicToSeedSync } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
-import { encodeAddress } from '@/utils/blockchain/bitcoin/address';
+import { encodeAddress, isCounterwalletFormat } from '@/utils/blockchain/bitcoin/address';
 import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
 
@@ -106,12 +106,9 @@ export function getPrivateKeyFromMnemonic(
   path: string,
   addressFormat: AddressFormat
 ): string {
-  let seed: Uint8Array;
-  if (addressFormat === AddressFormat.Counterwallet) {
-    seed = getCounterwalletSeed(mnemonic);
-  } else {
-    seed = mnemonicToSeedSync(mnemonic);
-  }
+  const seed: Uint8Array = isCounterwalletFormat(addressFormat)
+    ? getCounterwalletSeed(mnemonic)
+    : mnemonicToSeedSync(mnemonic);
   const root = HDKey.fromMasterSeed(seed);
   const child = root.derive(path);
   if (!child.privateKey) {

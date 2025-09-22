@@ -123,9 +123,10 @@ export async function signMessage(
       break;
 
     case AddressFormat.P2WPKH:
-      // Use BIP-322 for P2WPKH
+    case AddressFormat.CounterwalletSegwit:
+      // Use BIP-322 for P2WPKH (Native SegWit)
       signature = await signBIP322P2WPKH(message, privateKey);
-      address = encodeAddress(publicKey, AddressFormat.P2WPKH);
+      address = encodeAddress(publicKey, addressFormat as AddressFormat);
       break;
 
     case AddressFormat.P2SH_P2WPKH:
@@ -193,6 +194,13 @@ export function getSigningCapabilities(addressFormat: AddressFormat | string): {
         canSign: true,
         method: 'BIP-322',
         notes: 'Generic signed message format (BIP-322) with P2PKH virtual transaction'
+      };
+
+    case 'Counterwallet-segwit':
+      return {
+        canSign: true,
+        method: 'BIP-322',
+        notes: 'Generic signed message format (BIP-322) with P2WPKH witness'
       };
 
     default:
