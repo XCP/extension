@@ -131,7 +131,7 @@ const mockComposeApi = vi.fn();
 // Test wrapper component
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (
   <MemoryRouter>
-    <ComposerProvider composeApi={mockComposeApi} initialTitle="Test Form">
+    <ComposerProvider composeApi={mockComposeApi} initialTitle="Test Form" composeType="move">
       {children}
     </ComposerProvider>
   </MemoryRouter>

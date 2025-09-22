@@ -21,9 +21,9 @@ describe('normalize.ts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Setup default toSatoshis mock behavior
-    mockToSatoshis.mockImplementation((value: string) => {
-      const num = parseFloat(value);
-      return (num * 100000000).toString();
+    mockToSatoshis.mockImplementation((value: any) => {
+      const num = parseFloat(value.toString());
+      return Math.floor(num * 100000000).toString();
     });
   });
 

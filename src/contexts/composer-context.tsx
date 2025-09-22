@@ -170,7 +170,7 @@ export function ComposerProvider<T>({
   }, [activeWallet?.id, authState]);
   
   // Compose transaction
-  const composeTransaction = useCallback((formData: FormData) => {
+  const composeTransaction = useCallback(async (formData: FormData) => {
     if (!activeAddress) {
       setState(prev => ({ ...prev, error: "No active address available" }));
       return;
@@ -180,7 +180,7 @@ export function ComposerProvider<T>({
     setState(prev => ({ ...prev, isComposing: true, error: null }));
 
     // Execute async operation without awaiting to prevent unmount
-    (async () => {
+    await (async () => {
     
     try {
       // Convert FormData to object

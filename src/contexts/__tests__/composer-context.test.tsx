@@ -51,7 +51,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -74,7 +74,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" initialFormData={initialData}>
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" initialFormData={initialData} composeType="test">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -145,7 +145,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test">
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -179,7 +179,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test">
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -202,7 +202,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -226,7 +226,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -244,7 +244,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" initialFormData={{ test: 'data' }}>
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" initialFormData={{ test: 'data' }} composeType="test">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -311,7 +311,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test">
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -340,7 +340,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -408,7 +408,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test">
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
               {children}
             </ComposerProvider>
           </MemoryRouter>

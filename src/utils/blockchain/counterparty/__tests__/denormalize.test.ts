@@ -21,9 +21,12 @@ describe('denormalize.ts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Setup default fromSatoshis mock behavior
-    mockFromSatoshis.mockImplementation((value: string | number, options?: any) => {
+    mockFromSatoshis.mockImplementation((value: any, options?: any) => {
       const num = parseFloat(value.toString());
       const result = (num / 100000000).toFixed(8);
+      if (options?.asNumber === true || options === true) {
+        return parseFloat(result);
+      }
       if (options?.removeTrailingZeros) {
         return result.replace(/\.?0+$/, '');
       }

@@ -73,7 +73,7 @@ describe('DispenseForm', () => {
     
     return render(
       <MemoryRouter>
-        <ComposerProvider composeApi={mockComposeApi} initialTitle="Dispense">
+        <ComposerProvider composeApi={mockComposeApi} initialTitle="Dispense" composeType="dispense">
           <DispenseForm formAction={mockFormAction} initialFormData={initialFormData} />
         </ComposerProvider>
       </MemoryRouter>

@@ -295,7 +295,7 @@ describe('Session Validation Utilities', () => {
       });
 
       it('should reject missing unlockedAt', () => {
-        const invalidMetadata = { ...validMetadata };
+        const invalidMetadata = { ...validMetadata } as any;
         delete invalidMetadata.unlockedAt;
         expect(() => validateSessionMetadata(invalidMetadata)).toThrow('Invalid unlockedAt timestamp');
       });
@@ -325,7 +325,7 @@ describe('Session Validation Utilities', () => {
       });
 
       it('should reject missing lastActiveTime', () => {
-        const invalidMetadata = { ...validMetadata };
+        const invalidMetadata = { ...validMetadata } as any;
         delete invalidMetadata.lastActiveTime;
         expect(() => validateSessionMetadata(invalidMetadata)).toThrow('Invalid lastActiveTime timestamp');
       });

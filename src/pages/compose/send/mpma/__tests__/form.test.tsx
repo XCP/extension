@@ -91,7 +91,7 @@ describe('MPMAForm', () => {
     
     return render(
       <MemoryRouter>
-        <ComposerProvider composeApi={mockComposeApi} initialTitle="MPMA Send">
+        <ComposerProvider composeApi={mockComposeApi} initialTitle="MPMA Send" composeType="mpma">
           <MPMAForm formAction={mockFormAction} initialFormData={initialFormData} />
         </ComposerProvider>
       </MemoryRouter>

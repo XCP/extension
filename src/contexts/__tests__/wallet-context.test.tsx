@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { WalletProvider, useWallet } from '../wallet-context';
 import { walletManager } from '@/utils/wallet/walletManager';
