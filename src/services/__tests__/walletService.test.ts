@@ -284,11 +284,12 @@ describe('WalletService Proxy', () => {
     });
 
     it('should get private key', async () => {
-      walletService.getPrivateKey.mockResolvedValue('L1234567890');
-      
+      const expectedResult = { wif: 'L1234567890', hex: 'privateKeyHex', compressed: true };
+      walletService.getPrivateKey.mockResolvedValue(expectedResult);
+
       const privateKey = await walletService.getPrivateKey('wallet1', "m/84'/0'/0'/0/0");
-      
-      expect(privateKey).toBe('L1234567890');
+
+      expect(privateKey).toEqual(expectedResult);
     });
   });
 

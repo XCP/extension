@@ -95,7 +95,7 @@ const mockWalletService = {
   updatePassword: vi.fn().mockResolvedValue(undefined),
   resetAllWallets: vi.fn().mockResolvedValue(undefined),
   getUnencryptedMnemonic: vi.fn().mockResolvedValue('test mnemonic'),
-  getPrivateKey: vi.fn().mockResolvedValue('privatekey'),
+  getPrivateKey: vi.fn().mockResolvedValue({ wif: 'L1234567890', hex: 'privatekey', compressed: true }),
   verifyPassword: vi.fn().mockResolvedValue(true),
   updateWalletAddressFormat: vi.fn().mockResolvedValue(undefined),
   getPreviewAddressForFormat: vi.fn().mockResolvedValue('bc1qpreview'),
