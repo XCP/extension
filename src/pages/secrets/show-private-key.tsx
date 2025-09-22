@@ -146,9 +146,9 @@ export default function ShowPrivateKey(): ReactElement {
         <div className="flex flex-col items-center justify-center flex-grow">
           <div className="w-full max-w-md space-y-4">
             <div className="text-center mb-6">
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">Your Private Key</h3>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">Your Private Key (WIF)</h3>
               <p className="text-sm text-gray-600">
-                This is your private key. Never share it with anyone.
+                This is your private key in Wallet Import Format. Never share it with anyone.
               </p>
             </div>
             <div

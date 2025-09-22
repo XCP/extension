@@ -7,7 +7,7 @@ import { settingsManager } from '@/utils/wallet/settingsManager';
 import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, removeEncryptedWallet, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
 import { encryptMnemonic, decryptMnemonic, encryptPrivateKey, decryptPrivateKey, DecryptionError } from '@/utils/encryption/walletEncryption';
 import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressFormat, isCounterwalletFormat } from '@/utils/blockchain/bitcoin/address';
-import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF } from '@/utils/blockchain/bitcoin/privateKey';
+import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';
 import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
 import { KeychainSettings } from '@/utils/storage/settingsStorage';
@@ -642,20 +642,23 @@ export class WalletManager {
     if (!wallet) throw new Error('Wallet not found.');
     const secret = await sessionManager.getUnlockedSecret(walletId);
     if (!secret) throw new Error('Wallet is locked.');
-    
+
     if (wallet.type === 'mnemonic') {
       // Mnemonic wallets always use compressed keys
       const path =
         derivationPath ||
         (wallet.addresses[0]?.path ?? `${getDerivationPathForAddressFormat(wallet.addressFormat)}/0`);
+      const privateKeyHex = getPrivateKeyFromMnemonic(secret, path, wallet.addressFormat);
+      const wif = encodeWIF(privateKeyHex, true);
       return {
-        key: getPrivateKeyFromMnemonic(secret, path, wallet.addressFormat),
+        key: wif,
         compressed: true
       };
     } else {
       // Private key wallets store the compression flag
       const { key: privateKeyHex, compressed } = JSON.parse(secret);
-      return { key: privateKeyHex, compressed };
+      const wif = encodeWIF(privateKeyHex, compressed);
+      return { key: wif, compressed };
     }
   }
 
