@@ -3,12 +3,12 @@
  * Handles consolidation using data from the Laravel API
  */
 
-import { Transaction } from '@scure/btc-signer';
+import { Transaction, OutScript } from '@scure/btc-signer';
 import { hexToBytes } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 import { type ConsolidationData } from '@/services/consolidationApiService';
-import { 
-  analyzeMultisigScript, 
+import {
+  analyzeMultisigScript,
   signAndFinalizeBareMultisig,
   type MultisigInputInfo
 } from './multisigSigner';
@@ -79,16 +79,28 @@ export async function consolidateBareMultisigBatch(
     const scriptBytes = hexToBytes(utxo.script);
     
     // Determine which pubkey to use based on position
-    const pubkeyToUse = utxo.position === 0 
-      ? batchData.pubkey_uncompressed // Uncompressed for position 0
+    // If uncompressed pubkey is not available, use compressed for both positions
+    const pubkeyToUse = utxo.position === 0
+      ? (batchData.pubkey_uncompressed || batchData.pubkey_compressed) // Uncompressed for position 0, fall back to compressed
       : batchData.pubkey_compressed; // Compressed for position 1
-    
-    // Check if this UTXO has invalid pubkeys (from API validation)
-    if (utxo.has_invalid_pubkeys) {
-      console.warn(`UTXO ${utxo.txid}:${utxo.vout} has invalid pubkeys: ${utxo.pubkey_validation_hint || 'data-encoded'}`);
+
+    // Check sign_type from API to detect invalid pubkeys
+    let hasInvalidPubkeys = utxo.sign_type === 'invalid-pubkeys';
+
+    // As a fallback, also try to decode the script to check for invalid pubkeys
+    if (!hasInvalidPubkeys) {
+      try {
+        OutScript.decode(scriptBytes);
+      } catch (e) {
+        // If OutScript.decode fails, it likely has invalid pubkeys (Counterparty data)
+        hasInvalidPubkeys = true;
+        console.warn(`UTXO ${utxo.txid}:${utxo.vout} has invalid pubkeys detected by decode failure (sign_type was: ${utxo.sign_type})`);
+      }
+    } else {
+      console.log(`UTXO ${utxo.txid}:${utxo.vout} has invalid pubkeys (sign_type: ${utxo.sign_type})`);
     }
-    
-    // Prepare signing info with validation flag from API
+
+    // Prepare signing info with validation flag
     const inputInfo: ConsolidationInput = {
       index: inputs.length,
       amount: BigInt(utxo.amount),
@@ -97,7 +109,7 @@ export async function consolidateBareMultisigBatch(
       prevTxHex: utxo.prev_tx_hex,
       pubkeyHex: pubkeyToUse,
       position: utxo.position,
-      hasInvalidPubkeys: utxo.has_invalid_pubkeys || false
+      hasInvalidPubkeys
     };
     
     inputs.push(inputInfo);
@@ -174,7 +186,15 @@ export async function consolidateBareMultisigBatch(
     const scriptAnalysis = analyzeMultisigScript(input.script, compressedPubkey, uncompressedPubkey);
 
     if (!scriptAnalysis) {
-      throw new Error(`Failed to analyze multisig script for input ${input.index}`);
+      // Log more details about why the analysis failed
+      console.error(`Failed to analyze multisig script for input ${input.index}:`, {
+        utxo: `${batchData.utxos[idx].txid}:${batchData.utxos[idx].vout}`,
+        scriptType: batchData.utxos[idx].script_type,
+        ourCompressedKey: bytesToHex(compressedPubkey),
+        ourUncompressedKey: bytesToHex(uncompressedPubkey),
+        scriptHex: batchData.utxos[idx].script
+      });
+      throw new Error(`Failed to analyze multisig script for input ${input.index}. This may be a 2-of-2 multisig where we don't have both keys.`);
     }
 
     // Use the API validation flag to determine sign type
@@ -185,14 +205,17 @@ export async function consolidateBareMultisigBatch(
         : 'compressed' as const;
 
     // Debug logging for the failing transaction
-    if (idx === 0) {
-      console.log(`First input debug:
+    if (idx === 0 || input.hasInvalidPubkeys) {
+      console.log(`Input ${idx} debug:
         - UTXO: ${batchData.utxos[idx].txid}:${batchData.utxos[idx].vout}
         - Has invalid pubkeys: ${input.hasInvalidPubkeys}
+        - Invalid pubkeys: ${input.invalidPubkeys?.join(', ') || 'none'}
         - Sign type: ${signType}
         - Script analysis signType: ${scriptAnalysis.signType}
         - Position: ${input.position}
-        - Pubkey length: ${input.pubkeyHex.length}`);
+        - Pubkey length: ${input.pubkeyHex.length}
+        - Our key is compressed: ${scriptAnalysis.ourKeyIsCompressed}
+        - Our key is uncompressed: ${scriptAnalysis.ourKeyIsUncompressed}`);
     }
 
     return {

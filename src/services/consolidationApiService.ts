@@ -17,8 +17,7 @@ export interface ConsolidationUTXO {
   script: string;
   position: number; // position in multisig (0 or 1)
   script_type: string;
-  has_invalid_pubkeys?: boolean; // Flag from API for data-encoded pubkeys
-  pubkey_validation_hint?: string; // Hint about validation issues
+  sign_type?: 'compressed' | 'uncompressed' | 'valid-mixed' | 'invalid-pubkeys'; // From API when available
 }
 
 export interface ConsolidationSummary {
