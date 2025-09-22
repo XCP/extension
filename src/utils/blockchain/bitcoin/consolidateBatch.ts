@@ -4,7 +4,7 @@
  */
 
 import { Transaction, OutScript } from '@scure/btc-signer';
-import { hexToBytes } from '@noble/hashes/utils';
+import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { getPublicKey } from '@noble/secp256k1';
 import { type ConsolidationData } from '@/services/consolidationApiService';
 import {
@@ -209,7 +209,7 @@ export async function consolidateBareMultisigBatch(
       console.log(`Input ${idx} debug:
         - UTXO: ${batchData.utxos[idx].txid}:${batchData.utxos[idx].vout}
         - Has invalid pubkeys: ${input.hasInvalidPubkeys}
-        - Invalid pubkeys: ${input.invalidPubkeys?.join(', ') || 'none'}
+        - Invalid pubkeys: ${input.hasInvalidPubkeys ? 'yes' : 'no'}
         - Sign type: ${signType}
         - Script analysis signType: ${scriptAnalysis.signType}
         - Position: ${input.position}
