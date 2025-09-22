@@ -1,5 +1,5 @@
 import { Wallet } from './walletManager';
-import { KeychainSettings } from '@/utils/storage';
+import { KeychainSettings } from '@/utils/storage/settingsStorage';
 
 interface Keychain {
   wallets: Wallet[];

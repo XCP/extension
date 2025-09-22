@@ -24,6 +24,9 @@ import type {
   SweepOptions, BTCPayOptions, CancelOptions, BetOptions, BroadcastOptions, FairminterOptions,
   FairmintOptions, AttachOptions, DetachOptions, MoveOptions, DestroyOptions
 } from '@/utils/blockchain/counterparty/compose';
+import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
+import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
+import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from '@/utils/security/replayPrevention';
 
 export interface ProviderService {
   /**
@@ -553,10 +556,6 @@ export function createProviderService(): ProviderService {
           }
           
           try {
-            // Import the API functions we need
-            const { fetchBTCBalance } = await import('@/utils/blockchain/bitcoin');
-            const { fetchTokenBalances } = await import('@/utils/blockchain/counterparty');
-
             // Fetch BTC balance
             const btcBalance = await fetchBTCBalance(activeAddress.address);
 
@@ -929,9 +928,6 @@ export function createProviderService(): ProviderService {
           if (!signedTx) {
             throw new Error('Signed transaction is required');
           }
-
-          // Import replay prevention functions
-          const { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } = await import('@/utils/security/replayPrevention');
 
           // Check for replay attempt before broadcasting
           const replayCheck = await checkReplayAttempt(

@@ -3,7 +3,7 @@ import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAssetQuantity } from "@/utils/format";
 import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
-import { getAttachEstimateXcpFee } from "@/utils/blockchain/counterparty";
+import { getAttachEstimateXcpFee } from "@/utils/blockchain/counterparty/compose";
 
 /**
  * Props for the ReviewUtxoAttach component.

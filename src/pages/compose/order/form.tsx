@@ -14,7 +14,7 @@ import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { toBigNumber } from "@/utils/numeric";
 import { formatAmount } from "@/utils/format";
 import { ErrorAlert } from "@/components/error-alert";
-import type { OrderOptions } from "@/utils/blockchain/counterparty";
+import type { OrderOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
 interface TradingPairData {

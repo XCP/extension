@@ -18,8 +18,8 @@ import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { PasswordInput } from "@/components/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
-import { validatePrivateKeyFormat } from "@/utils/validation";
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { validatePrivateKeyFormat } from "@/utils/validation/privateKey";
 
 const ImportPrivateKey = () => {
   const navigate = useNavigate();

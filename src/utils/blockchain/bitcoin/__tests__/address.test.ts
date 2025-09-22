@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { getDerivationPathForAddressFormat, encodeAddress, getAddressFromMnemonic, isValidBase58Address } from '@/utils/blockchain/bitcoin/address';
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { hexToBytes } from '@noble/hashes/utils';
 
 vi.mock('@/utils/blockchain/counterwallet', () => ({

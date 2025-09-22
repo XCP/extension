@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useAssetDetails } from '../useAssetDetails';
-import { fetchAssetDetailsAndBalance, AssetInfo } from '@/utils/blockchain/counterparty';
+import { fetchAssetDetailsAndBalance, AssetInfo } from '@/utils/blockchain/counterparty/api';
 
 // Mock the API and contexts
 vi.mock('@/utils/blockchain/counterparty', () => ({
@@ -147,7 +147,7 @@ describe('useAssetDetails', () => {
   });
 
   it('should handle BTC as special case', async () => {
-    const { fetchBTCBalance } = await import('@/utils/blockchain/bitcoin');
+    const { fetchBTCBalance } = await import('@/utils/blockchain/bitcoin/balance');
     vi.mocked(fetchBTCBalance).mockResolvedValue(100000000); // 1 BTC in satoshis
 
     const { result } = renderHook(() => useAssetDetails('BTC'));

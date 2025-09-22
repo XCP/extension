@@ -7,6 +7,7 @@ import { UnlockScreen } from "@/components/screens/unlock-screen";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { getDisplayVersion } from "@/utils/version";
+import { getProviderService } from '@/services/providerService';
 
 const UnlockWallet = () => {
   const navigate = useNavigate();
@@ -38,8 +39,6 @@ const UnlockWallet = () => {
   useEffect(() => {
     const checkPendingApprovals = async () => {
       try {
-        // Import dynamically to avoid circular dependencies
-        const { getProviderService } = await import('@/services/providerService');
         const providerService = getProviderService();
         const approvalQueue = await providerService.getApprovalQueue();
 

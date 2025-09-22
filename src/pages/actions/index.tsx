@@ -6,7 +6,7 @@ import { ActionList } from "@/components/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useSettings } from "@/contexts/settings-context";
-import { isSegwitFormat } from '@/utils/blockchain/bitcoin';
+import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
 import type { ReactElement } from "react";
 import type { ActionSection } from "@/components/lists/action-list";
 

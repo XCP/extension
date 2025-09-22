@@ -2,10 +2,10 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { SettingsProvider, useSettings } from '../settings-context';
 import { sendMessage } from 'webext-bridge/popup';
-import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage';
+import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 
 // Mock dependencies
-vi.mock('@/utils/storage', () => ({
+vi.mock('@/utils/storage/settingsStorage', () => ({
   getKeychainSettings: vi.fn(),
   updateKeychainSettings: vi.fn(),
   DEFAULT_KEYCHAIN_SETTINGS: {
@@ -31,7 +31,7 @@ vi.mock('webext-bridge/popup', () => ({
 }));
 
 // Import the mocked functions
-import { getKeychainSettings, updateKeychainSettings } from '@/utils/storage';
+import { getKeychainSettings, updateKeychainSettings } from '@/utils/storage/settingsStorage';
 
 describe('SettingsContext', () => {
   const defaultSettings = DEFAULT_KEYCHAIN_SETTINGS;

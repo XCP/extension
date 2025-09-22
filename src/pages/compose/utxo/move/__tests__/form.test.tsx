@@ -262,7 +262,7 @@ describe('UtxoMoveForm', () => {
   });
 
   it('should handle single balance correctly', async () => {
-    const { fetchUtxoBalances } = await import('@/utils/blockchain/counterparty');
+    const { fetchUtxoBalances } = await import('@/utils/blockchain/counterparty/api');
     (fetchUtxoBalances as any).mockResolvedValueOnce({
       result: [{ asset: 'TESTTOKEN', quantity_normalized: '100' }]
     });
@@ -279,7 +279,7 @@ describe('UtxoMoveForm', () => {
   });
 
   it('should handle empty balances', async () => {
-    const { fetchUtxoBalances } = await import('@/utils/blockchain/counterparty');
+    const { fetchUtxoBalances } = await import('@/utils/blockchain/counterparty/api');
     (fetchUtxoBalances as any).mockResolvedValueOnce({
       result: []
     });

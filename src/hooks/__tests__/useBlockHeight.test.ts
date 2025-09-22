@@ -1,10 +1,10 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useBlockHeight } from '../useBlockHeight';
-import { getCurrentBlockHeight } from '@/utils/blockchain/bitcoin';
+import { getCurrentBlockHeight } from '@/utils/blockchain/bitcoin/blockHeight';
 
 // Mock the block height fetching
-vi.mock('@/utils/blockchain/bitcoin', () => ({
+vi.mock('@/utils/blockchain/bitcoin/blockHeight', () => ({
   getCurrentBlockHeight: vi.fn()
 }));
 

@@ -1,5 +1,5 @@
 import { vi, expect } from 'vitest';
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import type { Wallet, Address } from '../../walletManager';
 
 /**

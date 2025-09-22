@@ -4,8 +4,8 @@ import { ComposerForm } from "@/components/composer-form";
 import { HashInput } from "@/components/inputs/hash-input";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
-import { fetchDispenserByHash } from "@/utils/blockchain/counterparty";
-import type { DispenserOptions } from "@/utils/blockchain/counterparty";
+import { fetchDispenserByHash } from "@/utils/blockchain/counterparty/api";
+import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
 interface DispenserCloseByHashFormProps {

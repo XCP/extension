@@ -11,7 +11,7 @@ import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
 import { toBigNumber, multiply, divide, roundDownToMultiple } from "@/utils/numeric";
-import { FairmintOptions } from "@/utils/blockchain/counterparty";
+import { FairmintOptions } from "@/utils/blockchain/counterparty/compose";
 
 interface FairmintFormDataInternal {
   asset: string;

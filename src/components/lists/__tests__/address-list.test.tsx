@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { AddressList } from '../address-list';
-import type { Address } from '@/utils/wallet';
+import type { Address } from '@/utils/wallet/walletManager';
 
 // Mock dependencies
 vi.mock('@/utils/format', () => ({

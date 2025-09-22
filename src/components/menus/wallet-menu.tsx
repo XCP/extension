@@ -6,7 +6,7 @@ import { VscKey } from 'react-icons/vsc';
 import { MenuItem } from '@headlessui/react';
 import { BaseMenu } from './base-menu';
 import { Button } from '@/components/button';
-import type { Wallet } from '@/utils/wallet';
+import type { Wallet } from '@/utils/wallet/walletManager';
 
 /**
  * Props for the WalletMenu component

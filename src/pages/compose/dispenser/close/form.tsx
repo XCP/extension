@@ -7,8 +7,8 @@ import { BalanceHeader } from "@/components/headers/balance-header";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { fetchAddressDispensers } from "@/utils/blockchain/counterparty";
-import type { DispenserOptions } from "@/utils/blockchain/counterparty";
+import { fetchAddressDispensers } from "@/utils/blockchain/counterparty/api";
+import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
 /**

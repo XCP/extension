@@ -4,7 +4,7 @@ import {
   shouldTriggerAssetLookup, 
   lookupAssetOwner 
 } from '../assetOwner';
-import * as counterpartyApi from '@/utils/blockchain/counterparty';
+import * as counterpartyApi from '@/utils/blockchain/counterparty/api';
 
 // Mock the counterparty API
 vi.mock('@/utils/blockchain/counterparty', () => ({

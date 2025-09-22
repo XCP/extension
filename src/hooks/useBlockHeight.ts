@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getCurrentBlockHeight } from '@/utils/blockchain/bitcoin';
+import { getCurrentBlockHeight } from '@/utils/blockchain/bitcoin/blockHeight';
 
 interface UseBlockHeightOptions {
   autoFetch?: boolean;

@@ -1,8 +1,11 @@
 import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
 import { encryptString, decryptString, DecryptionError } from '@/utils/encryption/encryption';
+
+// Re-export DecryptionError for convenience
+export { DecryptionError };
 
 /**
  * Encrypts a mnemonic after validating it against the specified address type.

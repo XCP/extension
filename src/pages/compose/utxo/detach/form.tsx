@@ -8,9 +8,9 @@ import { AddressHeader } from "@/components/headers/address-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
 import { useComposer } from "@/contexts/composer-context";
 import { ErrorAlert } from "@/components/error-alert";
-import { fetchUtxoBalances, type UtxoBalance } from "@/utils/blockchain/counterparty";
+import { fetchUtxoBalances, type UtxoBalance } from "@/utils/blockchain/counterparty/api";
 import { formatTxid } from "@/utils/format";
-import type { DetachOptions } from "@/utils/blockchain/counterparty";
+import type { DetachOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
 /**

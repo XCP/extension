@@ -3,8 +3,8 @@ import { Composer } from "@/components/composer";
 import { ErrorAlert } from "@/components/error-alert";
 import { TransferOwnershipForm } from "./form";
 import { ReviewIssuanceTransferOwnership } from "./review";
-import { composeIssuance } from "@/utils/blockchain/counterparty";
-import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
+import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
+import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeIssuanceTransferOwnership() {
   const { asset } = useParams<{ asset?: string }>();

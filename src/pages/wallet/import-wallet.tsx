@@ -12,7 +12,7 @@ import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { PasswordInput } from "@/components/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat, detectAddressFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat, detectAddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { isValidCounterwalletMnemonic } from "@/utils/blockchain/counterwallet";
 
 function ImportWallet() {

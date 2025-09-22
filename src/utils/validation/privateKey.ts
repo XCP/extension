@@ -1,4 +1,4 @@
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 /**
  * Private key format validation interface

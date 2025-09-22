@@ -9,7 +9,7 @@ import { sha256 } from '@noble/hashes/sha2';
 import { hmac } from '@noble/hashes/hmac';
 import { hex } from '@scure/base';
 import * as secp256k1 from '@noble/secp256k1';
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { encodeAddress } from './address';
 import {
   signBIP322P2PKH,

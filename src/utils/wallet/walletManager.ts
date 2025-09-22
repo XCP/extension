@@ -5,12 +5,15 @@ import { mnemonicToSeedSync } from '@scure/bip39';
 import * as sessionManager from '@/utils/auth/sessionManager';
 import { settingsManager } from '@/utils/wallet/settingsManager';
 import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, removeEncryptedWallet, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
-import { encryptMnemonic, decryptMnemonic, encryptPrivateKey, decryptPrivateKey, DecryptionError } from '@/utils/encryption';
-import { getAddressFromMnemonic, getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, getDerivationPathForAddressFormat, signMessage } from '@/utils/blockchain/bitcoin';
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { encryptMnemonic, decryptMnemonic, encryptPrivateKey, decryptPrivateKey, DecryptionError } from '@/utils/encryption/walletEncryption';
+import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF } from '@/utils/blockchain/bitcoin/privateKey';
+import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
 import { KeychainSettings } from '@/utils/storage/settingsStorage';
-import { signTransaction as btcSignTransaction, broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin';
+import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
+import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 
 export interface Address {
   name: string;

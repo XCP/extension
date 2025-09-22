@@ -3,8 +3,8 @@ import { Composer } from "@/components/composer";
 import { ErrorAlert } from "@/components/error-alert";
 import { LockSupplyForm } from "./form";
 import { ReviewIssuanceLockSupply } from "./review";
-import { composeIssuance } from "@/utils/blockchain/counterparty";
-import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
+import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
+import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeIssuanceLockSupply() {
   const { asset } = useParams<{ asset?: string }>();

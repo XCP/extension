@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useWallet } from "@/contexts/wallet-context";
 import { useHeader } from "@/contexts/header-context";
-import { fetchBTCBalance } from "@/utils/blockchain/bitcoin";
-import { fetchAssetDetailsAndBalance, AssetInfo } from "@/utils/blockchain/counterparty";
+import { fetchBTCBalance } from "@/utils/blockchain/bitcoin/balance";
+import { fetchAssetDetailsAndBalance, AssetInfo } from "@/utils/blockchain/counterparty/api";
 
 interface BalanceState {
   isLoading: boolean;

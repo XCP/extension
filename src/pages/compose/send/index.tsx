@@ -2,8 +2,9 @@ import { useParams } from "react-router-dom";
 import { SendForm } from "./form";
 import { ReviewSend } from "./review";
 import { Composer } from "@/components/composer";
-import { composeSend, composeMPMA, isHexMemo, stripHexPrefix } from "@/utils/blockchain/counterparty";
-import type { SendOptions, MPMAOptions, ApiResponse } from "@/utils/blockchain/counterparty";
+import { composeSend, composeMPMA } from "@/utils/blockchain/counterparty/compose";
+import { isHexMemo, stripHexPrefix } from "@/utils/blockchain/counterparty/memo";
+import type { SendOptions, MPMAOptions, ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import { useProviderRequest } from "@/hooks/useProviderRequest";
 
 interface ExtendedSendOptions extends SendOptions {

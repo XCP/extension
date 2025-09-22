@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/button";
 import { useFeeRates, FeeRateOption } from "@/hooks/useFeeRates";
 import { formatAmount } from "@/utils/format";
-import { validateFeeRate } from "@/utils/validation";
+import { validateFeeRate } from "@/utils/validation/fee";
 
 interface FeeRateInputProps {
   showHelpText?: boolean;

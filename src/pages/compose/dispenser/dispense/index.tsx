@@ -1,8 +1,8 @@
 import { DispenseForm } from "./form";
 import { ReviewDispense } from "./review";
 import { Composer } from "@/components/composer";
-import { composeDispense } from "@/utils/blockchain/counterparty";
-import type { DispenseOptions } from "@/utils/blockchain/counterparty";
+import { composeDispense } from "@/utils/blockchain/counterparty/compose";
+import type { DispenseOptions } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeDispense() {
   return (

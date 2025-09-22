@@ -11,7 +11,7 @@ import { useComposer } from "@/contexts/composer-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { toBigNumber } from "@/utils/numeric";
 import { formatAmount } from "@/utils/format";
-import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
+import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
 /**

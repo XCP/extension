@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ComposerProvider, useComposer } from '../composer-context';
-import type { ApiResponse } from '@/utils/blockchain/counterparty';
+import type { ApiResponse } from '@/utils/blockchain/counterparty/compose';
 
 // Mock wallet context to avoid webext-bridge dependency in tests
 vi.mock('@/contexts/wallet-context', () => ({

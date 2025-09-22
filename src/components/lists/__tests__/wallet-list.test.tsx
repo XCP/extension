@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { WalletList } from '../wallet-list';
-import type { Wallet } from '@/utils/wallet';
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import type { Wallet } from '@/utils/wallet/walletManager';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 // Mock WalletCard component
 vi.mock('@/components/cards/wallet-card', () => ({

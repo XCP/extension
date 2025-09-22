@@ -7,7 +7,7 @@ import {
   getAddressFromPrivateKey,
   getPrivateKeyFromMnemonic
 } from '@/utils/blockchain/bitcoin/privateKey';
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 vi.mock('@/utils/blockchain/counterwallet', () => ({
   getCounterwalletSeed: vi.fn(() => new Uint8Array(64).fill(1))

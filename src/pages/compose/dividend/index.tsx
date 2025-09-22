@@ -2,8 +2,8 @@ import { useParams } from "react-router-dom";
 import { DividendForm } from "./form";
 import { ReviewDividend } from "./review";
 import { Composer } from "@/components/composer";
-import { composeDividend } from "@/utils/blockchain/counterparty";
-import type { DividendOptions } from "@/utils/blockchain/counterparty";
+import { composeDividend } from "@/utils/blockchain/counterparty/compose";
+import type { DividendOptions } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeDividendPage() {
   const { asset } = useParams<{ asset?: string }>();

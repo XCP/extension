@@ -175,7 +175,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should show loading state aria-label', async () => {
-    const { composeSend } = await import('@/utils/blockchain/counterparty');
+    const { composeSend } = await import('@/utils/blockchain/counterparty/compose');
     (composeSend as any).mockImplementation(() => new Promise(() => {})); // Never resolves
     
     render(<AmountWithMaxInput {...defaultProps} asset="BTC" />);
@@ -189,7 +189,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should handle BTC max calculation with compose API', async () => {
-    const { composeSend } = await import('@/utils/blockchain/counterparty');
+    const { composeSend } = await import('@/utils/blockchain/counterparty/compose');
     (composeSend as any).mockResolvedValue({
       result: { btc_fee: '1000' }
     });
@@ -211,7 +211,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should handle error from compose API', async () => {
-    const { composeSend } = await import('@/utils/blockchain/counterparty');
+    const { composeSend } = await import('@/utils/blockchain/counterparty/compose');
     (composeSend as any).mockRejectedValue(new Error('API Error'));
     
     const setError = vi.fn();

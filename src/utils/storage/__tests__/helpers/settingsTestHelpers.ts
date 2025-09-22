@@ -1,4 +1,4 @@
-import { DEFAULT_KEYCHAIN_SETTINGS, type KeychainSettings } from '@/utils/storage';
+import { DEFAULT_KEYCHAIN_SETTINGS, type KeychainSettings } from '@/utils/storage/settingsStorage';
 
 /**
  * Create test settings by merging with defaults

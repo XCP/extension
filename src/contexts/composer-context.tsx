@@ -16,8 +16,8 @@ import { useNavigate } from "react-router-dom";
 import { useLoading } from "@/contexts/loading-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { getComposeType, normalizeFormData } from "@/utils/blockchain/counterparty";
-import type { ApiResponse } from "@/utils/blockchain/counterparty";
+import { getComposeType, normalizeFormData } from "@/utils/blockchain/counterparty/normalize";
+import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from "@/utils/security/replayPrevention";
 
 /**

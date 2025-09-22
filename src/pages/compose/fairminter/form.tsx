@@ -27,8 +27,8 @@ import { AssetHeader } from "@/components/headers/asset-header";
 import { ErrorAlert } from "@/components/error-alert";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
-import { isSegwitFormat } from '@/utils/blockchain/bitcoin';
-import type { FairminterOptions } from "@/utils/blockchain/counterparty";
+import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
+import type { FairminterOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
 const FAIRMINTER_MODELS = {

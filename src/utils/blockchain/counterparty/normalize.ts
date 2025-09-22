@@ -3,7 +3,7 @@
  * Handles conversion of user-friendly values to API-compatible formats
  */
 
-import type { AssetInfo } from "@/utils/blockchain/counterparty";
+import type { AssetInfo } from "@/utils/blockchain/counterparty/api";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
 import { toSatoshis } from "@/utils/numeric";
 

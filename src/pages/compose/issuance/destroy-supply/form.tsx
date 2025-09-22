@@ -9,8 +9,8 @@ import { AssetNameInput } from "@/components/inputs/asset-name-input";
 import { MemoInput } from "@/components/inputs/memo-input";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useComposer } from "@/contexts/composer-context";
-import { validateQuantity } from "@/utils/validation";
-import type { DestroyOptions } from "@/utils/blockchain/counterparty";
+import { validateQuantity } from "@/utils/validation/amount";
+import type { DestroyOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
 /**

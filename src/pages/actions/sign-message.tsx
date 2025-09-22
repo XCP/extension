@@ -12,7 +12,7 @@ import { ErrorAlert } from "@/components/error-alert";
 import { UnlockScreen } from "@/components/screens/unlock-screen";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { signMessage, getSigningCapabilities } from "@/utils/blockchain/bitcoin";
+import { signMessage, getSigningCapabilities } from "@/utils/blockchain/bitcoin/messageSigner";
 import type { ReactElement } from "react";
 
 /**

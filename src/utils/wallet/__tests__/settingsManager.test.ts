@@ -3,13 +3,14 @@ import { settingsManager } from '../settingsManager';
 import type { KeychainSettings } from '@/utils/storage/settingsStorage';
 
 // Mock the storage functions
-vi.mock('@/utils/storage', () => ({
+vi.mock('@/utils/storage/settingsStorage', () => ({
   getKeychainSettings: vi.fn(),
   updateKeychainSettings: vi.fn(),
+  DEFAULT_KEYCHAIN_SETTINGS: {},
 }));
 
 // Dynamic imports to avoid top-level await
-import * as storageModule from '@/utils/storage';
+import * as storageModule from '@/utils/storage/settingsStorage';
 import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 
 const mockGetKeychainSettings = vi.mocked(storageModule.getKeychainSettings);

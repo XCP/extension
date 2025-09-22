@@ -8,7 +8,7 @@ import { SuccessScreen } from "@/components/screens/success-screen";
 import { UnlockScreen } from "@/components/screens/unlock-screen";
 import { ComposerProvider, useComposer } from "@/contexts/composer-context";
 import { useHeader } from "@/contexts/header-context";
-import type { ApiResponse } from "@/utils/blockchain/counterparty";
+import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 
 /**
  * Props for the Composer component.

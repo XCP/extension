@@ -5,7 +5,7 @@ import { walletManager } from '@/utils/wallet/walletManager';
 import * as sessionManager from '@/utils/auth/sessionManager';
 import { settingsManager } from '@/utils/wallet/settingsManager';
 import { sendMessage } from 'webext-bridge/popup';
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 // Mock webext-bridge first with comprehensive mocking
 vi.mock('webext-bridge/popup', () => ({
@@ -35,8 +35,8 @@ vi.mock('@/utils/storage/settingsStorage', async () => {
 });
 
 // Mock withStateLock to execute functions immediately without locking
-vi.mock('@/utils/wallet', async () => {
-  const actual = await vi.importActual('@/utils/wallet');
+vi.mock('@/utils/wallet/stateLockManager', async () => {
+  const actual = await vi.importActual('@/utils/wallet/stateLockManager');
   return {
     ...actual,
     withStateLock: vi.fn(async (key: string, fn: () => Promise<any>) => {

@@ -2,8 +2,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { WalletMenu } from '../wallet-menu';
-import type { Wallet } from '@/utils/wallet';
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import type { Wallet } from '@/utils/wallet/walletManager';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {

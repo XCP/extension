@@ -3,11 +3,9 @@
 import { useEffect, useState } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { DispenserList, type DispenserOption } from "@/components/lists/dispenser-list";
-import { 
-  fetchAddressDispensers,
-  type DispenseOptions 
-} from "@/utils/blockchain/counterparty";
-import { isValidBitcoinAddress } from "@/utils/validation";
+import { fetchAddressDispensers } from "@/utils/blockchain/counterparty/api";
+import type { DispenseOptions } from "@/utils/blockchain/counterparty/compose";
+import { isValidBitcoinAddress } from "@/utils/validation/bitcoin";
 
 // ============================================================================
 // Types

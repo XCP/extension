@@ -16,7 +16,7 @@ import { AddressHeader } from "@/components/headers/address-header";
 import { DestinationInput } from "@/components/inputs/destination-input";
 import { MemoInput } from "@/components/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context";
-import type { SweepOptions } from "@/utils/blockchain/counterparty";
+import type { SweepOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
 // Define sweep type options

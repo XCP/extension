@@ -5,7 +5,7 @@ import { ComposerForm } from "@/components/composer-form";
 import { HashInput } from "@/components/inputs/hash-input";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
-import type { BTCPayOptions } from "@/utils/blockchain/counterparty";
+import type { BTCPayOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
 /**

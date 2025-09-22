@@ -8,8 +8,8 @@ import { AddressHeader } from "@/components/headers/address-header";
 import { SettingSwitch } from "@/components/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
 import { useComposer } from "@/contexts/composer-context";
-import { isSegwitFormat } from '@/utils/blockchain/bitcoin';
-import type { BroadcastOptions } from "@/utils/blockchain/counterparty";
+import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
+import type { BroadcastOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
 /**

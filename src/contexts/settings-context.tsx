@@ -8,12 +8,12 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
-import { 
-  getKeychainSettings, 
-  updateKeychainSettings, 
+import {
+  getKeychainSettings,
+  updateKeychainSettings,
   DEFAULT_KEYCHAIN_SETTINGS,
-  type KeychainSettings 
-} from "@/utils/storage";
+  type KeychainSettings
+} from "@/utils/storage/settingsStorage";
 
 /**
  * Context value for settings management.

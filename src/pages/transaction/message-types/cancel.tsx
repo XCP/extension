@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import type { Transaction } from "@/utils/blockchain/counterparty";
+import type { Transaction } from "@/utils/blockchain/counterparty/api";
 
 /**
  * Renders detailed information for cancel transactions

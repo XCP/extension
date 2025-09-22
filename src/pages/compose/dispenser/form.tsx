@@ -10,7 +10,7 @@ import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import type { DispenserOptions } from "@/utils/blockchain/counterparty";
+import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
 interface TradingPairData {

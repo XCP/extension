@@ -1,8 +1,8 @@
 import { forwardRef, useEffect, useState, useRef } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { fetchAssetDetails } from "@/utils/blockchain/counterparty";
+import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
 import { useWallet } from "@/contexts/wallet-context";
-import { validateAssetName } from "@/utils/validation";
+import { validateAssetName } from "@/utils/validation/asset";
 
 interface AssetNameInputProps {
   value: string;

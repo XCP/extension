@@ -1,5 +1,5 @@
 import { RadioGroup } from '@headlessui/react';
-import type { Wallet } from '@/utils/wallet';
+import type { Wallet } from '@/utils/wallet/walletManager';
 import { formatAddress } from '@/utils/format';
 import { WalletMenu } from '@/components/menus/wallet-menu';
 

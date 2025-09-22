@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { BalanceList } from '../balance-list';
-import type { TokenBalance } from '@/utils/blockchain/counterparty';
+import type { TokenBalance } from '@/utils/blockchain/counterparty/api';
 
 // Mock dependencies
 const mockNavigate = vi.fn();
@@ -527,7 +527,7 @@ describe('BalanceList', () => {
     // Now check the search input styles
     const searchInput = screen.getByPlaceholderText('Search balances...');
     expect(searchInput).toHaveClass('w-full');
-    expect(searchInput).toHaveClass('p-2');
+    expect(searchInput).toHaveClass('p-2.5');
     expect(searchInput).toHaveClass('pl-8');
     expect(searchInput).toHaveClass('pr-8');
     expect(searchInput).toHaveClass('border');

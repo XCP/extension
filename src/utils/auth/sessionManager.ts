@@ -7,7 +7,7 @@ import {
   clearRateLimit,
   clearAllRateLimits,
   checkSecretLimit,
-} from '@/utils/validation';
+} from '@/utils/validation/session';
 
 // In-memory store for decrypted secrets (by wallet ID).
 let unlockedSecrets: Record<string, string> = {};

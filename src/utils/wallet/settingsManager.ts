@@ -1,4 +1,4 @@
-import { getKeychainSettings, updateKeychainSettings, KeychainSettings } from '@/utils/storage';
+import { getKeychainSettings, updateKeychainSettings, KeychainSettings } from '@/utils/storage/settingsStorage';
 
 /**
  * SettingsManager is responsible for loading and updating persistent keychain settings,

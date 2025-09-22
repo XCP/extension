@@ -2,8 +2,8 @@ import axios from "axios";
 import { useState, ChangeEvent } from "react";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
-import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
-import { composeSend } from "@/utils/blockchain/counterparty";
+import { isValidBase58Address } from "@/utils/blockchain/bitcoin/address";
+import { composeSend } from "@/utils/blockchain/counterparty/compose";
 import { formatAmount } from "@/utils/format";
 import {
   toSatoshis,
@@ -12,7 +12,7 @@ import {
   divideSatoshis,
   isLessThanOrEqualToSatoshis
 } from "@/utils/numeric";
-import { isDustAmount } from "@/utils/validation";
+import { isDustAmount } from "@/utils/validation/amount";
 
 interface AmountWithMaxInputProps {
   asset: string;

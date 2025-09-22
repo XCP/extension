@@ -1,10 +1,10 @@
 import { describe, expect, it, vi, beforeEach, afterEach, type MockedFunction } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { PriceProvider, usePrice, __clearCache } from '../price-context';
-import { getBtcPrice } from '@/utils/blockchain/bitcoin';
+import { getBtcPrice } from '@/utils/blockchain/bitcoin/price';
 
 // Mock the price fetching module
-vi.mock('@/utils/blockchain/bitcoin', () => ({
+vi.mock('@/utils/blockchain/bitcoin/price', () => ({
   getBtcPrice: vi.fn()
 }));
 
