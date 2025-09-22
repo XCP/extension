@@ -11,6 +11,7 @@ function paymentScript(pubkeyBytes: Uint8Array, addressFormat: AddressFormat) {
     case AddressFormat.Counterwallet:
       return p2pkh(pubkeyBytes);
     case AddressFormat.P2WPKH:
+    case AddressFormat.CounterwalletSegwit:
       return p2wpkh(pubkeyBytes);
     case AddressFormat.P2SH_P2WPKH:
       return p2sh(p2wpkh(pubkeyBytes));

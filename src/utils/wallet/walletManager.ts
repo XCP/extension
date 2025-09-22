@@ -762,7 +762,9 @@ export class WalletManager {
   }
 
   private async generateWalletId(mnemonic: string, addressFormat: AddressFormat): Promise<string> {
-    const seed = addressFormat === AddressFormat.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
+    const seed = (addressFormat === AddressFormat.Counterwallet || addressFormat === AddressFormat.CounterwalletSegwit)
+      ? getCounterwalletSeed(mnemonic)
+      : mnemonicToSeedSync(mnemonic);
     const derivationPath = getDerivationPathForAddressFormat(addressFormat);
     const pathParts = derivationPath.split('/').slice(0, -1).join('/');
     const root = HDKey.fromMasterSeed(seed);
@@ -788,7 +790,9 @@ export class WalletManager {
   private deriveMnemonicAddress(mnemonic: string, addressFormat: AddressFormat, index: number): Address {
     const path = `${getDerivationPathForAddressFormat(addressFormat)}/${index}`;
     const address = getAddressFromMnemonic(mnemonic, path, addressFormat);
-    const seed = addressFormat === AddressFormat.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
+    const seed = (addressFormat === AddressFormat.Counterwallet || addressFormat === AddressFormat.CounterwalletSegwit)
+      ? getCounterwalletSeed(mnemonic)
+      : mnemonicToSeedSync(mnemonic);
     const root = HDKey.fromMasterSeed(seed);
     const child = root.derive(path);
     if (!child.publicKey) {

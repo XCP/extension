@@ -107,7 +107,7 @@ export function getPrivateKeyFromMnemonic(
   addressFormat: AddressFormat
 ): string {
   let seed: Uint8Array;
-  if (addressFormat === AddressFormat.Counterwallet) {
+  if (addressFormat === AddressFormat.Counterwallet || addressFormat === AddressFormat.CounterwalletSegwit) {
     seed = getCounterwalletSeed(mnemonic);
   } else {
     seed = mnemonicToSeedSync(mnemonic);

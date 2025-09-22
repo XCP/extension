@@ -165,6 +165,8 @@ export default function AddressTypeSettings(): ReactElement {
         return "Taproot (P2TR)";
       case AddressFormat.Counterwallet:
           return "CounterWallet (P2PKH)";
+      case AddressFormat.CounterwalletSegwit:
+          return "CounterWallet SegWit (bc1)";
       default:
         return type;
     }
@@ -202,16 +204,25 @@ export default function AddressTypeSettings(): ReactElement {
       >
         <SelectionCardGroup>
           {CONSTANTS.AVAILABLE_ADDRESS_TYPES.filter((type) => {
-            // Only show Counterwallet if it's the current address type
-            if (type === AddressFormat.Counterwallet) {
-              return activeWallet?.addressFormat === AddressFormat.Counterwallet;
+            const isCounterwallet = activeWallet?.addressFormat === AddressFormat.Counterwallet ||
+                                    activeWallet?.addressFormat === AddressFormat.CounterwalletSegwit;
+
+            // For Counterwallet users, only show Counterwallet and CounterwalletSegwit options
+            if (isCounterwallet) {
+              return type === AddressFormat.Counterwallet || type === AddressFormat.CounterwalletSegwit;
             }
+
+            // For non-Counterwallet users, hide both Counterwallet formats
+            if (type === AddressFormat.Counterwallet || type === AddressFormat.CounterwalletSegwit) {
+              return false;
+            }
+
             return true;
           }).map((type) => {
             const typeLabel = getAddressFormatDescription(type);
-            const isCounterwallet = activeWallet?.addressFormat === AddressFormat.Counterwallet;
-            const isDisabled = isCounterwallet && type !== AddressFormat.Counterwallet;
-            const disabledReason = (isCounterwallet && type !== AddressFormat.Counterwallet) ? "Create new wallet to use this address type" : undefined;
+            // No addresses should be disabled since we're filtering them properly
+            const isDisabled = false;
+            const disabledReason = undefined;
             // Use loaded address preview
             const address = addresses[type] || "";
             const addressPreview = address ? formatAddress(address) : "";
