@@ -15,6 +15,8 @@ import { hasAddressActivity } from './balance';
 export const AddressFormat = {
   /** Counterwallet style (P2PKH with custom derivation) */
   Counterwallet: 'counterwallet',
+  /** FreeWallet Style SegWit (Native SegWit with Counterwallet derivation) */
+  CounterwalletSegwit: 'counterwallet-segwit',
   /** Taproot (Pay-to-Taproot) */
   P2TR: 'p2tr',
   /** Native SegWit (Pay-to-Witness-PubKey-Hash) */
@@ -27,17 +29,26 @@ export const AddressFormat = {
 
 /**
  * Type representing valid address format values.
- * This creates a union type: 'counterwallet' | 'p2tr' | 'p2wpkh' | 'p2sh-p2wpkh' | 'p2pkh'
+ * This creates a union type: 'counterwallet' | 'counterwallet-segwit' | 'p2tr' | 'p2wpkh' | 'p2sh-p2wpkh' | 'p2pkh'
  */
 export type AddressFormat = typeof AddressFormat[keyof typeof AddressFormat];
 
 /**
- * Check if an address format is a SegWit format (P2WPKH, P2SH-P2WPKH, or P2TR).
+ * Check if an address format is a SegWit format (P2WPKH, P2SH-P2WPKH, CounterwalletSegwit, or P2TR).
  */
 export function isSegwitFormat(format: AddressFormat): boolean {
   return format === AddressFormat.P2WPKH ||
          format === AddressFormat.P2SH_P2WPKH ||
+         format === AddressFormat.CounterwalletSegwit ||
          format === AddressFormat.P2TR;
+}
+
+/**
+ * Check if an address format is a Counterwallet/FreeWallet style format.
+ */
+export function isCounterwalletFormat(format: AddressFormat): boolean {
+  return format === AddressFormat.Counterwallet ||
+         format === AddressFormat.CounterwalletSegwit;
 }
 
 
@@ -62,6 +73,8 @@ export function getDerivationPathForAddressFormat(addressFormat: AddressFormat):
     case AddressFormat.P2TR:
       return "m/86'/0'/0'/0";
     case AddressFormat.Counterwallet:
+      return "m/0'/0";
+    case AddressFormat.CounterwalletSegwit:
       return "m/0'/0";
     default:
       throw new Error(`Unsupported address type: ${ addressFormat }`);
@@ -104,6 +117,12 @@ export function encodeAddress(publicKey: Uint8Array, addressFormat: AddressForma
       const words = bech32.toWords(pubKeyHash);
       return bech32.encode('bc', [0, ...words]);
     }
+    case AddressFormat.CounterwalletSegwit: {
+      // CounterwalletSegwit uses Native SegWit (P2WPKH) encoding
+      const pubKeyHash = ripemd160(sha256(publicKey));
+      const words = bech32.toWords(pubKeyHash);
+      return bech32.encode('bc', [0, ...words]);
+    }
     case AddressFormat.P2TR: {
       // For Taproot, use BIP341 tweaking (best practice)
       const xOnlyPubKey = publicKey.slice(1, 33);
@@ -138,9 +157,10 @@ export function getAddressFromMnemonic(
   path: string,
   addressFormat: AddressFormat
 ): string {
-  // Use a specialized seed for Counterwallet; otherwise use standard BIP39 seed.
-  const seed: Uint8Array =
-    addressFormat === AddressFormat.Counterwallet ? getCounterwalletSeed(mnemonic) : mnemonicToSeedSync(mnemonic);
+  // Use a specialized seed for Counterwallet and CounterwalletSegwit; otherwise use standard BIP39 seed.
+  const seed: Uint8Array = isCounterwalletFormat(addressFormat)
+    ? getCounterwalletSeed(mnemonic)
+    : mnemonicToSeedSync(mnemonic);
   const root = HDKey.fromMasterSeed(seed);
   const child = root.derive(path);
   if (!child.publicKey) {
@@ -211,9 +231,11 @@ export async function detectAddressFormat(
 ): Promise<AddressFormat> {
   // Check these formats for activity (skip Taproot since it's the fallback)
   const addressFormatsToCheck: AddressFormat[] = [
-    AddressFormat.P2PKH,        // Legacy (most common)
-    AddressFormat.P2WPKH,       // Native SegWit (bc1)
-    AddressFormat.P2SH_P2WPKH,  // Nested SegWit (3)
+    AddressFormat.P2PKH,              // Legacy (most common)
+    AddressFormat.P2WPKH,             // Native SegWit (bc1)
+    AddressFormat.P2SH_P2WPKH,        // Nested SegWit (3)
+    AddressFormat.Counterwallet,      // Counterwallet P2PKH
+    AddressFormat.CounterwalletSegwit,// Counterwallet SegWit
   ];
 
   // First, generate all preview addresses (or use cached ones)
@@ -264,6 +286,7 @@ export function getPreviewAddresses(mnemonic: string): Record<AddressFormat, str
     AddressFormat.P2WPKH,
     AddressFormat.P2TR,
     AddressFormat.Counterwallet,
+    AddressFormat.CounterwalletSegwit,
   ];
 
   const previews: Partial<Record<AddressFormat, string>> = {};
@@ -289,9 +312,11 @@ export async function detectAddressFormatFromPreviews(
 ): Promise<AddressFormat> {
   // Check these formats for activity (skip Taproot since it's the fallback)
   const addressFormatsToCheck: AddressFormat[] = [
-    AddressFormat.P2PKH,        // Legacy (most common)
-    AddressFormat.P2WPKH,       // Native SegWit (bc1)
-    AddressFormat.P2SH_P2WPKH,  // Nested SegWit (3)
+    AddressFormat.P2PKH,              // Legacy (most common)
+    AddressFormat.P2WPKH,             // Native SegWit (bc1)
+    AddressFormat.P2SH_P2WPKH,        // Nested SegWit (3)
+    AddressFormat.Counterwallet,      // Counterwallet P2PKH
+    AddressFormat.CounterwalletSegwit,// Counterwallet SegWit
   ];
 
   // Check each preview address for activity

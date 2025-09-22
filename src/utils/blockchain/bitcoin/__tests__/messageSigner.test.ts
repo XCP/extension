@@ -95,12 +95,27 @@ describe('messageSign', () => {
         AddressFormat.Counterwallet,
         true
       );
-      
+
       expect(result).toHaveProperty('signature');
       expect(result).toHaveProperty('address');
       expect(result.signature).toBeTruthy();
       // Counterwallet uses P2PKH addresses
       expect(result.address).toMatch(/^1/);
+    });
+
+    it('should sign a message with CounterwalletSegwit address type', async () => {
+      const result = await signMessage(
+        testMessage,
+        testPrivateKey,
+        AddressFormat.CounterwalletSegwit,
+        true
+      );
+
+      expect(result).toHaveProperty('signature');
+      expect(result).toHaveProperty('address');
+      expect(result.signature).toBeTruthy();
+      // CounterwalletSegwit uses Native SegWit addresses
+      expect(result.address).toMatch(/^bc1/);
     });
 
     it('should handle lowercase counterwallet address type', async () => {
@@ -277,6 +292,12 @@ describe('messageSign', () => {
 
     it('should return capabilities for Counterwallet', () => {
       const caps = getSigningCapabilities(AddressFormat.Counterwallet);
+      expect(caps.canSign).toBe(true);
+      expect(caps.method).toContain('BIP-322');
+    });
+
+    it('should return capabilities for CounterwalletSegwit', () => {
+      const caps = getSigningCapabilities(AddressFormat.CounterwalletSegwit);
       expect(caps.canSign).toBe(true);
       expect(caps.method).toContain('BIP-322');
     });

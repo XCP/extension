@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getDerivationPathForAddressFormat, encodeAddress, getAddressFromMnemonic, isValidBase58Address } from '@/utils/blockchain/bitcoin/address';
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { getDerivationPathForAddressFormat, encodeAddress, getAddressFromMnemonic, isValidBase58Address, isCounterwalletFormat, AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { hexToBytes } from '@noble/hashes/utils';
 
 vi.mock('@/utils/blockchain/counterwallet', () => ({
@@ -27,6 +26,10 @@ describe('Bitcoin Address Utilities', () => {
 
     it('should return the correct derivation path for Counterwallet', () => {
       expect(getDerivationPathForAddressFormat(AddressFormat.Counterwallet)).toBe("m/0'/0");
+    });
+
+    it('should return the correct derivation path for CounterwalletSegwit', () => {
+      expect(getDerivationPathForAddressFormat(AddressFormat.CounterwalletSegwit)).toBe("m/0'/0");
     });
 
     it('should throw error for unsupported address type', () => {
@@ -75,6 +78,13 @@ describe('Bitcoin Address Utilities', () => {
       expect(address.startsWith('1')).toBe(true);
       expect(address.length).toBeGreaterThan(25);
       expect(address.length).toBeLessThan(36);
+    });
+
+    it('should encode CounterwalletSegwit address correctly', () => {
+      const address = encodeAddress(testPubKey, AddressFormat.CounterwalletSegwit);
+      expect(typeof address).toBe('string');
+      expect(address.startsWith('bc1')).toBe(true);
+      expect(address.length).toBe(42); // bech32 P2WPKH is always 42 chars
     });
 
     it('should throw error for unsupported address type', () => {
@@ -152,6 +162,13 @@ describe('Bitcoin Address Utilities', () => {
       expect(address.startsWith('1')).toBe(true);
     });
 
+    it('should derive CounterwalletSegwit address from mnemonic', () => {
+      const address = getAddressFromMnemonic(testMnemonic, "m/0'/0", AddressFormat.CounterwalletSegwit);
+      expect(typeof address).toBe('string');
+      expect(address.startsWith('bc1')).toBe(true);
+      expect(address.length).toBe(42); // bech32 P2WPKH is always 42 chars
+    });
+
     it('should generate different addresses for different paths', () => {
       const address1 = getAddressFromMnemonic(testMnemonic, "m/84'/0'/0'/0/0", AddressFormat.P2WPKH);
       const address2 = getAddressFromMnemonic(testMnemonic, "m/84'/0'/0'/0/1", AddressFormat.P2WPKH);
@@ -200,6 +217,17 @@ describe('Bitcoin Address Utilities', () => {
       
       expect(typeof address).toBe('string');
       expect(address.startsWith('bc1')).toBe(true);
+    });
+  });
+
+  describe('isCounterwalletFormat', () => {
+    it('should correctly identify Counterwallet formats', () => {
+      expect(isCounterwalletFormat(AddressFormat.Counterwallet)).toBe(true);
+      expect(isCounterwalletFormat(AddressFormat.CounterwalletSegwit)).toBe(true);
+      expect(isCounterwalletFormat(AddressFormat.P2PKH)).toBe(false);
+      expect(isCounterwalletFormat(AddressFormat.P2WPKH)).toBe(false);
+      expect(isCounterwalletFormat(AddressFormat.P2SH_P2WPKH)).toBe(false);
+      expect(isCounterwalletFormat(AddressFormat.P2TR)).toBe(false);
     });
   });
 
