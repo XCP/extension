@@ -48,6 +48,11 @@ export function useMultiBatchConsolidation() {
         activeWallet.id,
         activeAddress.path
       );
+
+      if (!privateKeyResult || !privateKeyResult.hex) {
+        throw new Error('Failed to retrieve private key for consolidation');
+      }
+
       const privateKey = privateKeyResult.hex; // Use hex format for consolidation
 
       // Process each batch sequentially

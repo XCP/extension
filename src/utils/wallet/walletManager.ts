@@ -190,16 +190,27 @@ export class WalletManager {
     }
     const walletName = name || `Wallet ${this.wallets.length + 1}`;
     let privateKeyHex: string;
+    let wifFormat: string;
     let compressed = true;
+
     if (isWIF(privateKey)) {
       const decoded = decodeWIF(privateKey);
       privateKeyHex = decoded.privateKey;
       compressed = decoded.compressed;
+      wifFormat = privateKey;
     } else {
       privateKeyHex = privateKey.startsWith('0x') ? privateKey.slice(2) : privateKey;
+      wifFormat = encodeWIF(privateKeyHex, compressed);
     }
+
     getPublicKeyFromPrivateKey(privateKeyHex, compressed);
-    const secretJson = JSON.stringify({ key: privateKeyHex, compressed });
+
+    const secretJson = JSON.stringify({
+      wif: wifFormat,
+      hex: privateKeyHex,
+      compressed
+    });
+
     const id = await this.generateWalletIdFromPrivateKey(privateKeyHex, addressFormat);
     if (this.wallets.some((w) => w.id === id)) {
       throw new Error('A wallet with this private key already exists.');
@@ -639,9 +650,14 @@ export class WalletManager {
 
   public async getPrivateKey(walletId: string, derivationPath?: string): Promise<{ wif: string; hex: string; compressed: boolean }> {
     const wallet = this.getWalletById(walletId);
-    if (!wallet) throw new Error('Wallet not found.');
+    if (!wallet) {
+      throw new Error(`Wallet not found: ${walletId}`);
+    }
+
     const secret = await sessionManager.getUnlockedSecret(walletId);
-    if (!secret) throw new Error('Wallet is locked.');
+    if (!secret) {
+      throw new Error(`Wallet is locked or secret not available: ${walletId}`);
+    }
 
     if (wallet.type === 'mnemonic') {
       // Mnemonic wallets always use compressed keys
@@ -656,10 +672,8 @@ export class WalletManager {
         compressed: true
       };
     } else {
-      // Private key wallets store the compression flag
-      const { key: privateKeyHex, compressed } = JSON.parse(secret);
-      const wifFormat = encodeWIF(privateKeyHex, compressed);
-      return { wif: wifFormat, hex: privateKeyHex, compressed };
+      // Private key wallets
+      return JSON.parse(secret);
     }
   }
 
@@ -814,9 +828,9 @@ export class WalletManager {
   }
 
   private deriveAddressFromPrivateKey(privKeyData: string, addressFormat: AddressFormat): Address {
-    const { key: privateKeyHex, compressed } = JSON.parse(privKeyData);
-    const address = getAddressFromPrivateKey(privateKeyHex, addressFormat, compressed);
-    const pubKey = getPublicKeyFromPrivateKey(privateKeyHex, compressed);
+    const parsed = JSON.parse(privKeyData);
+    const address = getAddressFromPrivateKey(parsed.hex, addressFormat, parsed.compressed);
+    const pubKey = getPublicKeyFromPrivateKey(parsed.hex, parsed.compressed);
     return {
       name: 'Address 1',
       path: '',
