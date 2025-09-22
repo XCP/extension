@@ -21,7 +21,7 @@ describe('denormalize.ts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Setup default fromSatoshis mock behavior
-    mockFromSatoshis.mockImplementation((value: any, options?: any) => {
+    (mockFromSatoshis.mockImplementation as any)((value: any, options?: any) => {
       const num = parseFloat(value.toString());
       const result = (num / 100000000).toFixed(8);
       if (options?.asNumber === true || options === true) {
@@ -123,7 +123,7 @@ describe('denormalize.ts', () => {
           asset: 'BTC'
         };
 
-        mockFromSatoshis.mockReturnValue('1.5');
+        mockFromSatoshis.mockReturnValue('1.5' as any);
 
         const result = await denormalizeProviderData(providerData, 'send');
 
@@ -149,7 +149,7 @@ describe('denormalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
-        mockFromSatoshis.mockReturnValue('0.001');
+        mockFromSatoshis.mockReturnValue('0.001' as any);
 
         const result = await denormalizeProviderData(providerData, 'dispenser');
 
@@ -166,7 +166,7 @@ describe('denormalize.ts', () => {
           asset: 'BTC'
         };
 
-        mockFromSatoshis.mockReturnValue('0');
+        mockFromSatoshis.mockReturnValue('0' as any);
 
         const result = await denormalizeProviderData(providerData, 'send');
 
@@ -180,7 +180,7 @@ describe('denormalize.ts', () => {
           asset: 'BTC'
         };
 
-        mockFromSatoshis.mockReturnValue('21000000');
+        mockFromSatoshis.mockReturnValue('21000000' as any);
 
         const result = await denormalizeProviderData(providerData, 'send');
 
@@ -196,7 +196,7 @@ describe('denormalize.ts', () => {
           asset: 'XCP'
         };
 
-        mockFromSatoshis.mockReturnValue('1.5');
+        mockFromSatoshis.mockReturnValue('1.5' as any);
 
         const result = await denormalizeProviderData(providerData, 'send');
 
@@ -212,8 +212,8 @@ describe('denormalize.ts', () => {
         };
 
         mockFromSatoshis
-          .mockReturnValueOnce('1')
-          .mockReturnValueOnce('2');
+          .mockReturnValueOnce('1' as any)
+          .mockReturnValueOnce('2' as any);
 
         const result = await denormalizeProviderData(providerData, 'bet');
 
@@ -228,7 +228,7 @@ describe('denormalize.ts', () => {
           quantity: '50000000'
         };
 
-        mockFromSatoshis.mockReturnValue('0.5');
+        mockFromSatoshis.mockReturnValue('0.5' as any);
 
         const result = await denormalizeProviderData(providerData, 'burn');
 
@@ -253,7 +253,7 @@ describe('denormalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockDivisibleAsset);
-        mockFromSatoshis.mockReturnValue('1.5');
+        mockFromSatoshis.mockReturnValue('1.5' as any);
 
         const result = await denormalizeProviderData(providerData, 'send');
 
@@ -284,8 +284,8 @@ describe('denormalize.ts', () => {
           .mockResolvedValueOnce(mockAnotherDiv);
 
         mockFromSatoshis
-          .mockReturnValueOnce('2.5')
-          .mockReturnValueOnce('0.001');
+          .mockReturnValueOnce('2.5' as any)
+          .mockReturnValueOnce('0.001' as any);
 
         const result = await denormalizeProviderData(providerData, 'order');
 
@@ -303,7 +303,7 @@ describe('denormalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockDivisibleAsset);
-        mockFromSatoshis.mockReturnValue('0.00000001');
+        mockFromSatoshis.mockReturnValue('0.00000001' as any);
 
         const result = await denormalizeProviderData(providerData, 'send');
 
@@ -318,7 +318,7 @@ describe('denormalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockDivisibleAsset);
-        mockFromSatoshis.mockReturnValue('0.99999999');
+        mockFromSatoshis.mockReturnValue('0.99999999' as any);
 
         const result = await denormalizeProviderData(providerData, 'send');
 
@@ -361,7 +361,7 @@ describe('denormalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockIndivisibleAsset);
-        mockFromSatoshis.mockReturnValue('1.5');
+        mockFromSatoshis.mockReturnValue('1.5' as any);
 
         const result = await denormalizeProviderData(providerData, 'order');
 
@@ -419,8 +419,8 @@ describe('denormalize.ts', () => {
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
         mockFromSatoshis
-          .mockReturnValueOnce('1')
-          .mockReturnValueOnce('2');
+          .mockReturnValueOnce('1' as any)
+          .mockReturnValueOnce('2' as any);
 
         const result = await denormalizeProviderData(providerData, 'order');
 
@@ -459,7 +459,7 @@ describe('denormalize.ts', () => {
           .mockResolvedValueOnce(mockAsset1)
           .mockResolvedValueOnce(mockAsset2);
 
-        mockFromSatoshis.mockReturnValue('1');
+        mockFromSatoshis.mockReturnValue('1' as any);
 
         const result = await denormalizeProviderData(providerData, 'order');
 
@@ -609,7 +609,7 @@ describe('denormalize.ts', () => {
           fee_per_kb: '10000'
         };
 
-        mockFromSatoshis.mockReturnValue('1.5');
+        mockFromSatoshis.mockReturnValue('1.5' as any);
 
         const result = await denormalizeProviderData(providerData, 'send');
 
@@ -626,7 +626,7 @@ describe('denormalize.ts', () => {
           asset: 'BTC'
         };
 
-        mockFromSatoshis.mockReturnValue('1.5');
+        mockFromSatoshis.mockReturnValue('1.5' as any);
 
         const result = await denormalizeProviderData(providerData, 'send');
 
@@ -642,7 +642,7 @@ describe('denormalize.ts', () => {
           asset: 'BTC'
         };
 
-        mockFromSatoshis.mockReturnValue('1.5');
+        mockFromSatoshis.mockReturnValue('1.5' as any);
 
         const result = await denormalizeProviderData(providerData, 'send');
 
@@ -658,8 +658,8 @@ describe('denormalize.ts', () => {
         };
 
         mockFromSatoshis
-          .mockReturnValueOnce('1')
-          .mockReturnValueOnce('2');
+          .mockReturnValueOnce('1' as any)
+          .mockReturnValueOnce('2' as any);
 
         const result = await denormalizeProviderData(providerData, 'order');
 
@@ -673,7 +673,7 @@ describe('denormalize.ts', () => {
           dividend_asset: 'BTC'
         };
 
-        mockFromSatoshis.mockReturnValue('0.5');
+        mockFromSatoshis.mockReturnValue('0.5' as any);
 
         const result = await denormalizeProviderData(providerData, 'dividend');
 
@@ -697,7 +697,7 @@ describe('denormalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
-        mockFromSatoshis.mockReturnValue('0.001');
+        mockFromSatoshis.mockReturnValue('0.001' as any);
 
         const result = await denormalizeProviderData(providerData, 'dispenser');
 
@@ -724,8 +724,8 @@ describe('denormalize.ts', () => {
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
         mockFromSatoshis
-          .mockReturnValueOnce('1')
-          .mockReturnValueOnce('2');
+          .mockReturnValueOnce('1' as any)
+          .mockReturnValueOnce('2' as any);
 
         const result = await denormalizeProviderData(providerData, 'fairminter');
 
@@ -767,7 +767,7 @@ describe('denormalize.ts', () => {
           mainchainrate: '100000'
         };
 
-        mockFromSatoshis.mockReturnValue('0.001');
+        mockFromSatoshis.mockReturnValue('0.001' as any);
 
         const result = await denormalizeProviderData(providerData, 'dispenser');
 
@@ -782,8 +782,8 @@ describe('denormalize.ts', () => {
         };
 
         mockFromSatoshis
-          .mockReturnValueOnce('1')
-          .mockReturnValueOnce('2');
+          .mockReturnValueOnce('1' as any)
+          .mockReturnValueOnce('2' as any);
 
         const result = await denormalizeProviderData(providerData, 'bet');
 
@@ -806,7 +806,7 @@ describe('denormalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
-        mockFromSatoshis.mockReturnValue('1.5');
+        mockFromSatoshis.mockReturnValue('1.5' as any);
 
         const result = await denormalizeProviderData(providerData, 'send');
 
@@ -822,7 +822,7 @@ describe('denormalize.ts', () => {
           asset: 'XCP'
         };
 
-        mockFromSatoshis.mockReturnValue('0.00000001');
+        mockFromSatoshis.mockReturnValue('0.00000001' as any);
 
         const result = await denormalizeProviderData(providerData, 'send');
 
@@ -836,7 +836,7 @@ describe('denormalize.ts', () => {
           asset: 'BTC'
         };
 
-        mockFromSatoshis.mockReturnValue('1'); // With removeTrailingZeros: true
+        mockFromSatoshis.mockReturnValue('1' as any); // With removeTrailingZeros: true
 
         const result = await denormalizeProviderData(providerData, 'send');
 
@@ -850,7 +850,7 @@ describe('denormalize.ts', () => {
           asset: 'BTC'
         };
 
-        mockFromSatoshis.mockReturnValue('1');
+        mockFromSatoshis.mockReturnValue('1' as any);
 
         const result = await denormalizeProviderData(providerData, 'send');
 
@@ -868,7 +868,7 @@ describe('denormalize.ts', () => {
         };
 
         // Mock fromSatoshis to return the actual decimal equivalent
-        mockFromSatoshis.mockReturnValue('1.5');
+        mockFromSatoshis.mockReturnValue('1.5' as any);
 
         const result = await denormalizeProviderData(providerData, 'send');
 
@@ -916,7 +916,7 @@ describe('denormalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
-        mockFromSatoshis.mockReturnValue('10.5');
+        mockFromSatoshis.mockReturnValue('10.5' as any);
 
         const result = await denormalizeProviderData(providerData, 'send');
 
@@ -966,8 +966,8 @@ describe('denormalize.ts', () => {
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
         mockFromSatoshis
-          .mockReturnValueOnce('1')
-          .mockReturnValueOnce('2');
+          .mockReturnValueOnce('1' as any)
+          .mockReturnValueOnce('2' as any);
 
         const result = await denormalizeProviderData(providerData, 'order');
 

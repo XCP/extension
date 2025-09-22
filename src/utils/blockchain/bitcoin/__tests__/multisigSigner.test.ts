@@ -282,11 +282,11 @@ describe('Multisig Signer', () => {
     it('should sign compressed multisig input correctly', () => {
       signBareMultisigTransaction(mockTx, privateKey, compressedPubkey, uncompressedPubkey, inputInfos);
 
-      expect(mockTx.preimageLegacy).toHaveBeenCalledWith(0, inputInfos[0].scriptPubKey, SigHash.ALL);
+      expect((mockTx as any).preimageLegacy).toHaveBeenCalledWith(0, inputInfos[0].scriptPubKey, SigHash.ALL);
       expect(mockSignECDSA).toHaveBeenCalledWith(expect.any(Uint8Array), privateKey, false);
 
       // Verify updateInput was called with correct signature and compressed pubkey
-      expect(mockTx.updateInput).toHaveBeenCalledWith(
+      expect((mockTx as any).updateInput).toHaveBeenCalledWith(
         0,
         {
           partialSig: [[compressedPubkey, expect.any(Uint8Array)]]
@@ -295,7 +295,7 @@ describe('Multisig Signer', () => {
       );
 
       // Check that the signature has SigHash.ALL appended
-      const updateCall = (mockTx.updateInput as any).mock.calls[0];
+      const updateCall = ((mockTx as any).updateInput as any).mock.calls[0];
       const signatureWithHash = updateCall[1].partialSig[0][1];
       expect(signatureWithHash[signatureWithHash.length - 1]).toBe(SigHash.ALL);
     });
@@ -316,7 +316,7 @@ describe('Multisig Signer', () => {
 
       signBareMultisigTransaction(mockTx, privateKey, compressedPubkey, uncompressedPubkey, inputInfos);
 
-      expect(mockTx.updateInput).toHaveBeenCalledWith(
+      expect((mockTx as any).updateInput).toHaveBeenCalledWith(
         0,
         {
           partialSig: [[uncompressedPubkey, expect.any(Uint8Array)]]
@@ -336,7 +336,7 @@ describe('Multisig Signer', () => {
       signBareMultisigTransaction(mockTx, privateKey, compressedPubkey, uncompressedPubkey, inputInfos);
 
       // For invalid-pubkeys, should set finalScriptSig directly
-      expect(mockTx.updateInput).toHaveBeenCalledWith(
+      expect((mockTx as any).updateInput).toHaveBeenCalledWith(
         0,
         {
           finalScriptSig: expect.any(Uint8Array)
@@ -345,7 +345,7 @@ describe('Multisig Signer', () => {
       );
 
       // Check the scriptSig structure: OP_0 <signature>
-      const updateCall = (mockTx.updateInput as any).mock.calls[0];
+      const updateCall = ((mockTx as any).updateInput as any).mock.calls[0];
       const scriptSig = updateCall[1].finalScriptSig;
       expect(scriptSig[0]).toBe(0x00); // OP_0
       expect(scriptSig[1]).toBe(mockSignature.length + 1); // Signature length + sighash byte
@@ -361,7 +361,7 @@ describe('Multisig Signer', () => {
 
       signBareMultisigTransaction(mockTx, privateKey, compressedPubkey, uncompressedPubkey, inputInfos);
 
-      expect(mockTx.updateInput).toHaveBeenCalledWith(
+      expect((mockTx as any).updateInput).toHaveBeenCalledWith(
         0,
         { finalScriptSig: expect.any(Uint8Array) },
         true
@@ -378,7 +378,7 @@ describe('Multisig Signer', () => {
 
       signBareMultisigTransaction(mockTx, privateKey, compressedPubkey, uncompressedPubkey, inputInfos);
 
-      expect(mockTx.updateInput).toHaveBeenCalledWith(
+      expect((mockTx as any).updateInput).toHaveBeenCalledWith(
         0,
         { finalScriptSig: expect.any(Uint8Array) },
         true
@@ -398,7 +398,7 @@ describe('Multisig Signer', () => {
         pubkeys: [uncompressedPubkey]
       });
 
-      mockTx.inputsLength = 2;
+      (mockTx as any).inputsLength = 2;
       inputInfos = [
         {
           signType: 'compressed',
@@ -416,11 +416,11 @@ describe('Multisig Signer', () => {
 
       signBareMultisigTransaction(mockTx, privateKey, compressedPubkey, uncompressedPubkey, inputInfos);
 
-      expect(mockTx.preimageLegacy).toHaveBeenCalledTimes(2);
-      expect(mockTx.updateInput).toHaveBeenCalledTimes(2);
+      expect((mockTx as any).preimageLegacy).toHaveBeenCalledTimes(2);
+      expect((mockTx as any).updateInput).toHaveBeenCalledTimes(2);
 
       // First input should use compressed key
-      expect(mockTx.updateInput).toHaveBeenNthCalledWith(
+      expect((mockTx as any).updateInput).toHaveBeenNthCalledWith(
         1,
         0,
         { partialSig: [[compressedPubkey, expect.any(Uint8Array)]] },
@@ -428,7 +428,7 @@ describe('Multisig Signer', () => {
       );
 
       // Second input should use uncompressed key
-      expect(mockTx.updateInput).toHaveBeenNthCalledWith(
+      expect((mockTx as any).updateInput).toHaveBeenNthCalledWith(
         2,
         1,
         { partialSig: [[uncompressedPubkey, expect.any(Uint8Array)]] },
@@ -437,7 +437,7 @@ describe('Multisig Signer', () => {
     });
 
     it('should throw error when input count mismatch', () => {
-      mockTx.inputsLength = 2;
+      (mockTx as any).inputsLength = 2;
       // inputInfos still has length 1
 
       expect(() => {
@@ -454,7 +454,7 @@ describe('Multisig Signer', () => {
     });
 
     it('should use lowR option when available', () => {
-      mockTx.opts = { lowR: true };
+      (mockTx as any).opts = { lowR: true };
 
       signBareMultisigTransaction(mockTx, privateKey, compressedPubkey, uncompressedPubkey, inputInfos);
 
@@ -508,8 +508,8 @@ describe('Multisig Signer', () => {
     it('should finalize compressed multisig input using btc-signer', () => {
       finalizeBareMultisigTransaction(mockTx, inputInfos);
 
-      expect(mockTx.finalizeIdx).toHaveBeenCalledWith(0);
-      expect(mockTx.updateInput).not.toHaveBeenCalled(); // Should not fall back to manual
+      expect((mockTx as any).finalizeIdx).toHaveBeenCalledWith(0);
+      expect((mockTx as any).updateInput).not.toHaveBeenCalled(); // Should not fall back to manual
     });
 
     it('should finalize uncompressed multisig input using btc-signer', () => {
@@ -517,7 +517,7 @@ describe('Multisig Signer', () => {
 
       finalizeBareMultisigTransaction(mockTx, inputInfos);
 
-      expect(mockTx.finalizeIdx).toHaveBeenCalledWith(0);
+      expect((mockTx as any).finalizeIdx).toHaveBeenCalledWith(0);
     });
 
     it('should skip already finalized inputs', () => {
@@ -525,7 +525,7 @@ describe('Multisig Signer', () => {
 
       finalizeBareMultisigTransaction(mockTx, inputInfos);
 
-      expect(mockTx.finalizeIdx).not.toHaveBeenCalled();
+      expect((mockTx as any).finalizeIdx).not.toHaveBeenCalled();
       expect(console.log).toHaveBeenCalledWith(
         `Input 0 already finalized, skipping. Length: ${mockInput.finalScriptSig.length}`
       );
@@ -546,34 +546,34 @@ describe('Multisig Signer', () => {
 
       finalizeBareMultisigTransaction(mockTx, inputInfos);
 
-      expect(mockTx.finalizeIdx).not.toHaveBeenCalled();
+      expect((mockTx as any).finalizeIdx).not.toHaveBeenCalled();
       expect(console.log).toHaveBeenCalledWith(
         `Input 0 already finalized, skipping. Length: ${mockInput.finalScriptSig.length}`
       );
     });
 
     it('should fall back to manual finalization when btc-signer fails', () => {
-      mockTx.finalizeIdx.mockImplementation(() => {
+      (mockTx as any).finalizeIdx.mockImplementation(() => {
         throw new Error('btc-signer finalization failed');
       });
 
       finalizeBareMultisigTransaction(mockTx, inputInfos);
 
-      expect(mockTx.finalizeIdx).toHaveBeenCalledWith(0);
+      expect((mockTx as any).finalizeIdx).toHaveBeenCalledWith(0);
       expect(console.log).toHaveBeenCalledWith(
         'Input 0 btc-signer finalize failed, using manual construction:',
         expect.any(Error)
       );
 
       // Should fall back to manual construction
-      expect(mockTx.updateInput).toHaveBeenCalledWith(
+      expect((mockTx as any).updateInput).toHaveBeenCalledWith(
         0,
         { finalScriptSig: expect.any(Uint8Array) },
         true
       );
 
       // Check manual scriptSig structure
-      const updateCall = (mockTx.updateInput as any).mock.calls[0];
+      const updateCall = ((mockTx as any).updateInput as any).mock.calls[0];
       const scriptSig = updateCall[1].finalScriptSig;
       expect(scriptSig[0]).toBe(0x00); // OP_0
       expect(scriptSig[1]).toBe(mockSignature.length + 1); // Signature length
@@ -581,7 +581,7 @@ describe('Multisig Signer', () => {
 
     it('should throw error when manual finalization fails due to missing partialSig', () => {
       mockInput.partialSig = []; // No partial signatures
-      mockTx.finalizeIdx.mockImplementation(() => {
+      (mockTx as any).finalizeIdx.mockImplementation(() => {
         throw new Error('btc-signer finalization failed');
       });
 
@@ -596,8 +596,8 @@ describe('Multisig Signer', () => {
         partialSig: []
       };
 
-      mockTx.inputsLength = 2;
-      mockTx.getInput.mockImplementation((idx: number) => idx === 0 ? mockInput : mockInput2);
+      (mockTx as any).inputsLength = 2;
+      (mockTx as any).getInput.mockImplementation((idx: number) => idx === 0 ? mockInput : mockInput2);
 
       inputInfos = [
         {
@@ -616,14 +616,14 @@ describe('Multisig Signer', () => {
 
       finalizeBareMultisigTransaction(mockTx, inputInfos);
 
-      expect(mockTx.finalizeIdx).toHaveBeenCalledWith(0); // First input finalized
+      expect((mockTx as any).finalizeIdx).toHaveBeenCalledWith(0); // First input finalized
       expect(console.log).toHaveBeenCalledWith(
         `Input 1 already finalized, skipping. Length: ${mockInput2.finalScriptSig.length}`
       );
     });
 
     it('should throw error when input count mismatch', () => {
-      mockTx.inputsLength = 2;
+      (mockTx as any).inputsLength = 2;
       // inputInfos still has length 1
 
       expect(() => {
@@ -638,7 +638,7 @@ describe('Multisig Signer', () => {
     });
 
     it('should log successful manual finalization', () => {
-      mockTx.finalizeIdx.mockImplementation(() => {
+      (mockTx as any).finalizeIdx.mockImplementation(() => {
         throw new Error('btc-signer failed');
       });
 
@@ -689,11 +689,11 @@ describe('Multisig Signer', () => {
       signAndFinalizeBareMultisig(mockTx, privateKey, compressedPubkey, uncompressedPubkey, inputInfos);
 
       // Should call signing
-      expect(mockTx.preimageLegacy).toHaveBeenCalledWith(0, inputInfos[0].scriptPubKey, SigHash.ALL);
+      expect((mockTx as any).preimageLegacy).toHaveBeenCalledWith(0, inputInfos[0].scriptPubKey, SigHash.ALL);
       expect(mockSignECDSA).toHaveBeenCalledWith(expect.any(Uint8Array), privateKey, false);
 
       // Should call finalization
-      expect(mockTx.finalizeIdx).toHaveBeenCalledWith(0);
+      expect((mockTx as any).finalizeIdx).toHaveBeenCalledWith(0);
     });
 
     it('should handle complex multi-input scenario', () => {
@@ -715,8 +715,8 @@ describe('Multisig Signer', () => {
         partialSig: []
       };
 
-      mockTx.inputsLength = 2;
-      mockTx.getInput.mockImplementation((idx: number) => idx === 0 ? mockInput1 : mockInput2);
+      (mockTx as any).inputsLength = 2;
+      (mockTx as any).getInput.mockImplementation((idx: number) => idx === 0 ? mockInput1 : mockInput2);
 
       inputInfos = [
         {
@@ -736,32 +736,32 @@ describe('Multisig Signer', () => {
       signAndFinalizeBareMultisig(mockTx, privateKey, compressedPubkey, uncompressedPubkey, inputInfos);
 
       // Should sign both inputs
-      expect(mockTx.preimageLegacy).toHaveBeenCalledTimes(2);
+      expect((mockTx as any).preimageLegacy).toHaveBeenCalledTimes(2);
       expect(mockSignECDSA).toHaveBeenCalledTimes(2);
 
       // First input: normal partialSig
-      expect(mockTx.updateInput).toHaveBeenCalledWith(
+      expect((mockTx as any).updateInput).toHaveBeenCalledWith(
         0,
         { partialSig: [[compressedPubkey, expect.any(Uint8Array)]] },
         true
       );
 
       // Second input: direct finalScriptSig for invalid-pubkeys
-      expect(mockTx.updateInput).toHaveBeenCalledWith(
+      expect((mockTx as any).updateInput).toHaveBeenCalledWith(
         1,
         { finalScriptSig: expect.any(Uint8Array) },
         true
       );
 
       // Should finalize first input (second is already finalized)
-      expect(mockTx.finalizeIdx).toHaveBeenCalledWith(0);
+      expect((mockTx as any).finalizeIdx).toHaveBeenCalledWith(0);
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('Input 1 already finalized, skipping. Length:')
       );
     });
 
     it('should propagate signing errors', () => {
-      mockTx.preimageLegacy.mockImplementation(() => {
+      (mockTx as any).preimageLegacy.mockImplementation(() => {
         throw new Error('Preimage generation failed');
       });
 
@@ -771,7 +771,7 @@ describe('Multisig Signer', () => {
     });
 
     it('should propagate finalization errors', () => {
-      mockTx.finalizeIdx.mockImplementation(() => {
+      (mockTx as any).finalizeIdx.mockImplementation(() => {
         throw new Error('Finalization failed');
       });
 
@@ -780,7 +780,7 @@ describe('Multisig Signer', () => {
         finalScriptSig: null,
         partialSig: []
       };
-      mockTx.getInput.mockReturnValue(mockInputWithoutSig);
+      (mockTx as any).getInput.mockReturnValue(mockInputWithoutSig);
 
       expect(() => {
         signAndFinalizeBareMultisig(mockTx, privateKey, compressedPubkey, uncompressedPubkey, inputInfos);
