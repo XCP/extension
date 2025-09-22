@@ -18,6 +18,7 @@ describe('Address Type Detector', () => {
     [AddressFormat.P2SH_P2WPKH]: '37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf',
     [AddressFormat.P2TR]: 'bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr',
     [AddressFormat.Counterwallet]: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr',
+    [AddressFormat.CounterwalletSegwit]: 'bc1qcounterwalletsegwitexampleaddressxxxxxx',
   };
 
   beforeEach(() => {
@@ -209,12 +210,13 @@ describe('Address Type Detector', () => {
       expect(previews[AddressFormat.P2WPKH]).toBe(mockAddresses[AddressFormat.P2WPKH]);
       expect(previews[AddressFormat.P2SH_P2WPKH]).toBe(mockAddresses[AddressFormat.P2SH_P2WPKH]);
       expect(previews[AddressFormat.P2TR]).toBe(mockAddresses[AddressFormat.P2TR]);
-      // Counterwallet generation fails (not in mockAddresses), so it will be undefined
+      // Counterwallet formats generation fails (not in mockAddresses), so they will be undefined
       expect(previews[AddressFormat.Counterwallet]).toBeUndefined();
+      expect(previews[AddressFormat.CounterwalletSegwit]).toBeUndefined();
     });
 
     it('should handle address generation failures gracefully', () => {
-      // The order in getPreviewAddresses is: P2PKH, P2SH_P2WPKH, P2WPKH, P2TR, Counterwallet
+      // The order in getPreviewAddresses is: P2PKH, P2SH_P2WPKH, P2WPKH, P2TR, Counterwallet, CounterwalletSegwit
       vi.mocked(bitcoinAddress.getAddressFromMnemonic)
         .mockImplementationOnce(() => mockAddresses[AddressFormat.P2PKH])  // P2PKH succeeds
         .mockImplementationOnce(() => { throw new Error('Failed to generate'); })  // P2SH_P2WPKH fails
