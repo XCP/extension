@@ -9,7 +9,7 @@ import { DestinationInput } from "@/components/inputs/destination-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatDateToLocal } from "@/utils/format";
-import type { BetOptions } from "@/utils/blockchain/counterparty";
+import type { BetOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
 /**

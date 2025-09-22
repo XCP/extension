@@ -5,8 +5,11 @@ import '@testing-library/jest-dom/vitest';
 import { DestinationInput } from '../destination-input';
 
 // Mock the bitcoin validation utility
-vi.mock('@/utils/validation', () => ({
-  isValidBitcoinAddress: vi.fn(),
+vi.mock('@/utils/validation/bitcoin', () => ({
+  isValidBitcoinAddress: vi.fn()
+}));
+
+vi.mock('@/utils/validation/assetOwner', () => ({
   lookupAssetOwner: vi.fn().mockResolvedValue({ isValid: false, ownerAddress: null, error: null }),
   shouldTriggerAssetLookup: vi.fn().mockReturnValue(false)
 }));
@@ -22,7 +25,7 @@ vi.mock('@/hooks/useAssetOwnerLookup', () => ({
   }))
 }));
 
-import { isValidBitcoinAddress } from '@/utils/validation';
+import { isValidBitcoinAddress } from '@/utils/validation/bitcoin';
 
 describe('DestinationInput', () => {
   const mockIsValidBitcoinAddress = isValidBitcoinAddress as any;
@@ -133,7 +136,7 @@ describe('DestinationInput', () => {
     render(<DestinationInput value="invalidaddress" onChange={vi.fn()} />);
     
     const input = screen.getByRole('textbox');
-    expect(input).toHaveClass('border-red-500');
+    expect(input).toHaveClass('!border-red-500');
   });
 
   it('should not show invalid border when value is valid', () => {
@@ -244,7 +247,7 @@ describe('DestinationInput', () => {
     expect(input).toHaveClass('mt-1');
     expect(input).toHaveClass('block');
     expect(input).toHaveClass('w-full');
-    expect(input).toHaveClass('p-2');
+    expect(input).toHaveClass('p-2.5');
     expect(input).toHaveClass('rounded-md');
     expect(input).toHaveClass('border');
     expect(input).toHaveClass('bg-gray-50');

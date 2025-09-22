@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { RadioGroup } from '@headlessui/react';
 import WalletCard from '../wallet-card';
-import type { Wallet } from '@/utils/wallet';
+import type { Wallet } from '@/utils/wallet/walletManager';
 
 // Mock the format utils
 vi.mock('@/utils/format', () => ({
@@ -16,7 +16,7 @@ vi.mock('@/utils/format', () => ({
 
 // Mock the WalletMenu component
 vi.mock('@/components/menus/wallet-menu', () => ({
-  WalletMenu: ({ wallet, isOnlyWallet }: { wallet: Wallet; isOnlyWallet: boolean }) => (
+  WalletMenu: ({ wallet, isOnlyWallet }: { wallet: any; isOnlyWallet: boolean }) => (
     <button data-testid={`wallet-menu-${wallet.id}`} className="wallet-menu">
       Menu {isOnlyWallet ? '(Only)' : ''}
     </button>

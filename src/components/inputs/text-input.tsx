@@ -102,7 +102,7 @@ export function TextInput({
         autoComplete={autoComplete}
         autoFocus={autoFocus}
         aria-label={ariaLabel || label}
-        className={`block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+        className={`block w-full p-2.5 rounded-md border border-gray-200 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
           label ? "mt-1" : ""
         } ${disabled ? "bg-gray-100 cursor-not-allowed" : ""} ${
           readOnly ? "bg-gray-100" : ""

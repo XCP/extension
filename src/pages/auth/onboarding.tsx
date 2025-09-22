@@ -4,6 +4,7 @@ import { IoCreateOutline } from 'react-icons/io5';
 import { FiUpload, FiHelpCircle } from 'react-icons/fi';
 import { Button } from '@/components/button';
 import { useHeader } from '@/contexts/header-context';
+import { getDisplayVersion } from '@/utils/version';
 
 /**
  * Onboarding component serves as the entry point for users to create or import a wallet.
@@ -54,7 +55,7 @@ function Onboarding() {
             className="text-3xl mb-5 flex justify-between items-center"
           >
             <span className="font-bold">XCP Wallet</span>
-            <span>v0.0.1</span>
+            <span>{getDisplayVersion()}</span>
           </h1>
           <div className="space-y-4">
             <Button

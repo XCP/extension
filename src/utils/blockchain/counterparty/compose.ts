@@ -258,10 +258,16 @@ async function composeTransactionWithArrays<T>(
   
   try {
     // Use longApiClient for transaction composition (60 second timeout)
-    const response = await apiClient.get<ApiResponse>(url, {
+    const response = await apiClient.get<ApiResponse | { error: string }>(url, {
       headers: { 'Content-Type': 'application/json' },
     });
-    return response.data;
+
+    // Check if the API returned an error response
+    if ('error' in response.data) {
+      throw new Error(response.data.error);
+    }
+
+    return response.data as ApiResponse;
   } catch (error: any) {
     // Handle timeout errors specifically
     if ((error as any).code === 'TIMEOUT') {
@@ -283,10 +289,10 @@ export async function composeTransaction<T>(
 ): Promise<ApiResponse> {
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
-  
+
   // Get user's unconfirmed transaction preference
   const settings = await getKeychainSettings();
-  
+
   const params = new URLSearchParams({
     ...paramsObj as any,
     sat_per_vbyte: sat_per_vbyte.toString(),
@@ -298,10 +304,16 @@ export async function composeTransaction<T>(
   });
 
   try {
-    const response = await axios.get<ApiResponse>(`${apiUrl}?${params.toString()}`, {
+    const response = await axios.get<ApiResponse | { error: string }>(`${apiUrl}?${params.toString()}`, {
       headers: { 'Content-Type': 'application/json' },
     });
-    return response.data;
+
+    // Check if the API returned an error response
+    if ('error' in response.data) {
+      throw new Error(response.data.error);
+    }
+
+    return response.data as ApiResponse;
   } catch (error: any) {
     console.error('Compose transaction failed:', {
       endpoint,
@@ -337,10 +349,16 @@ export async function composeUtxoTransaction<T>(
     ...(encoding && { encoding }),
   });
 
-  const response = await axios.get<ApiResponse>(`${apiUrl}?${params.toString()}`, {
+  const response = await axios.get<ApiResponse | { error: string }>(`${apiUrl}?${params.toString()}`, {
     headers: { 'Content-Type': 'application/json' },
   });
-  return response.data;
+
+  // Check if the API returned an error response
+  if ('error' in response.data) {
+    throw new Error(response.data.error);
+  }
+
+  return response.data as ApiResponse;
 }
 
 export async function composeBet(options: BetOptions): Promise<ApiResponse> {

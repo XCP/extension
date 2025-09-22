@@ -47,34 +47,33 @@ export default function Market(): ReactElement {
             <h1 id="market-title" className="text-3xl font-bold text-gray-900 mb-2">
               XCP DEX
             </h1>
-            <p className="text-lg text-gray-600">
-              Trade Assets Peer-to-Peer
-            </p>
           </div>
 
           {/* Market Actions */}
           <div className="space-y-4">
-            {/* Dispensers Section */}
+            {/* Orders Section */}
             <div className="bg-white rounded-lg shadow-sm p-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Dispensers</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">DEX Orders</h2>
               <p className="text-sm text-gray-600 mb-4">
-                Create automated vending machines for your assets
+                Trade assets peer-to-peer with XCP.
               </p>
               <div className="grid grid-cols-2 gap-3">
-                <Button 
-                  color="blue" 
-                  onClick={() => navigate("/compose/dispenser")} 
-                  className="flex items-center justify-center gap-2" 
-                  aria-label="Create Dispenser"
+                <Button
+                  color="blue"
+                  onClick={() => {}}
+                  className="flex items-center justify-center gap-2"
+                  aria-label="Browse Orders"
+                  disabled
                 >
-                  <FaPlus className="text-sm" aria-hidden="true" />
-                  <span>Create</span>
+                  <FaExchangeAlt className="text-sm" aria-hidden="true" />
+                  <span>Browse</span>
                 </Button>
-                <Button 
-                  color="gray" 
-                  onClick={() => navigate("/dispensers/manage")} 
-                  className="flex items-center justify-center gap-2" 
-                  aria-label="Manage Dispensers"
+                <Button
+                  color="gray"
+                  onClick={() => {}}
+                  className="flex items-center justify-center gap-2"
+                  aria-label="Manage Orders"
+                  disabled
                 >
                   <FaCog className="text-sm" aria-hidden="true" />
                   <span>Manage</span>
@@ -82,31 +81,31 @@ export default function Market(): ReactElement {
               </div>
             </div>
 
-            {/* Orders Section */}
+            {/* Dispensers Section */}
             <div className="bg-white rounded-lg shadow-sm p-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Orders</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">Dispensers</h2>
               <p className="text-sm text-gray-600 mb-4">
-                Trade assets directly on the Counterparty DEX
+                Bitcoin-operated vending machines.
               </p>
               <div className="grid grid-cols-2 gap-3">
-                <Button 
-                  color="blue" 
-                  onClick={() => navigate("/compose/order")} 
-                  className="flex items-center justify-center gap-2" 
-                  aria-label="Create Order"
-                >
-                  <FaPlus className="text-sm" aria-hidden="true" />
-                  <span>Create</span>
-                </Button>
-                <Button 
-                  color="gray" 
-                  onClick={() => {}} 
-                  className="flex items-center justify-center gap-2" 
-                  aria-label="View Orders"
+                <Button
+                  color="blue"
+                  onClick={() => {}}
+                  className="flex items-center justify-center gap-2"
+                  aria-label="Browse Dispensers"
                   disabled
                 >
                   <FaExchangeAlt className="text-sm" aria-hidden="true" />
                   <span>Browse</span>
+                </Button>
+                <Button
+                  color="gray"
+                  onClick={() => navigate("/dispensers/manage")}
+                  className="flex items-center justify-center gap-2"
+                  aria-label="Manage Dispensers"
+                >
+                  <FaCog className="text-sm" aria-hidden="true" />
+                  <span>Manage</span>
                 </Button>
               </div>
             </div>

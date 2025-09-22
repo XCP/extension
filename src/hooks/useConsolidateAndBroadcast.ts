@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useWallet } from '@/contexts/wallet-context';
-import { 
+import {
   consolidateBareMultisig,
   fetchConsolidationFeeConfig,
   estimateConsolidationFees
-} from '@/utils/blockchain/bitcoin';
+} from '@/utils/blockchain/bitcoin/bareMultisig';
 
 export function useConsolidateAndBroadcast() {
   const { 

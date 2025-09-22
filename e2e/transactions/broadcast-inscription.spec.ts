@@ -184,4 +184,164 @@ test.describe('Broadcast Form', () => {
     
     await cleanup(context);
   });
+
+  test('broadcast form submission and navigation to review', async () => {
+    const { context, page } = await launchExtension('broadcast-submission');
+    await setupWallet(page);
+
+    // Mock the compose API endpoint to avoid real API calls
+    await page.route('**/v2/addresses/**/compose/broadcast**', route => {
+      console.log('Mocking broadcast compose API');
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          result: {
+            rawtransaction: '01000000016b6f52ad20c866a095f332950f5df8b891022f426757c2a7b2dc85293fb96fb000000006b483045',
+            btc_in: 100000,
+            btc_out: 99500,
+            btc_change: 0,
+            btc_fee: 500,
+            data: '434e54525052545900000014000000000000000054657374206d657373616765',
+            lock_scripts: [],
+            inputs_values: [100000],
+            signed_tx_estimated_size: {
+              vsize: 250,
+              adjusted_vsize: 250,
+              sigops_count: 1
+            },
+            psbt: '',
+            params: {
+              source: '1BotpWeW4cWRZ26rLvBCRHTeWtaH5fUYPX',
+              text: 'Test broadcast message for e2e testing',
+              value: '0',
+              fee_fraction: '0',
+              timestamp: Math.floor(Date.now() / 1000).toString()
+            },
+            name: 'broadcast'
+          }
+        })
+      });
+    });
+
+    // Enable dry run mode first
+    try {
+      await navigateViaFooter(page, 'settings');
+      await page.locator('div[role="button"][aria-label="Advanced"]').click();
+      await page.waitForTimeout(1000);
+
+      // Enable dry run mode
+      const dryRunSwitch = page.locator('[role="switch"]').filter({ has: page.locator('..').filter({ hasText: 'Dry Run' }) });
+      if (await dryRunSwitch.isVisible({ timeout: 1000 }).catch(() => false)) {
+        const isEnabled = await dryRunSwitch.getAttribute('aria-checked');
+        if (isEnabled !== 'true') {
+          await dryRunSwitch.click();
+          await page.waitForTimeout(500);
+        }
+      }
+
+      // Go back to main page
+      await page.goto(page.url().replace(/#.*/, '#/index'));
+      await page.waitForLoadState('networkidle');
+    } catch (error) {
+      console.log('Could not enable dry run mode:', error);
+    }
+
+    // Navigate to broadcast
+    await navigateViaFooter(page, 'actions');
+    const broadcastButton = page.locator('text=/Broadcast/i').first();
+    if (await broadcastButton.isVisible({ timeout: 5000 })) {
+      await broadcastButton.click();
+    } else {
+      await page.goto(page.url().replace(/\/[^\/]*$/, '/compose/broadcast'));
+    }
+
+    await page.waitForURL('**/compose/broadcast', { timeout: 10000 }).catch(() => {});
+    await page.waitForTimeout(2000);
+
+    // Fill in the broadcast text
+    const textArea = page.locator('textarea[name="text"]');
+    if (await textArea.isVisible({ timeout: 5000 })) {
+      await textArea.fill('Test broadcast message for e2e testing');
+
+      // Submit the form
+      const submitButton = page.locator('button[type="submit"]').or(
+        page.locator('button').filter({ hasText: /^Continue$|^Submit$|^Send$/ })
+      ).first();
+
+      if (await submitButton.isVisible({ timeout: 2000 })) {
+        // Capture console logs
+        page.on('console', msg => {
+          console.log('Browser console:', msg.type(), msg.text());
+        });
+
+        console.log('Clicking submit button...');
+        await submitButton.click();
+
+        // Wait for either loading state or navigation
+        await page.waitForTimeout(1000);
+
+        // Check if we see "Composing transaction..." loading state
+        const loadingVisible = await page.locator('text=/Composing transaction/i').isVisible({ timeout: 3000 }).catch(() => false);
+        if (loadingVisible) {
+          console.log('Saw "Composing transaction..." loading state');
+
+          // Wait for loading to complete (up to 10 seconds)
+          await page.waitForSelector('text=/Composing transaction/i', { state: 'hidden', timeout: 10000 }).catch(() => {
+            console.log('Loading state did not disappear within 10 seconds');
+          });
+        }
+
+        await page.waitForTimeout(2000);
+
+        // Check what page we ended up on
+        const currentUrl = page.url();
+        console.log('Current URL after form submission:', currentUrl);
+
+        // Check if we navigated to review page
+        const onReviewPage = currentUrl.includes('review') ||
+                            await page.locator('text="Review Transaction"').isVisible({ timeout: 2000 }).catch(() => false) ||
+                            await page.locator('text="Sign & Broadcast"').isVisible({ timeout: 2000 }).catch(() => false);
+
+        // Check if we're still on the form page
+        const onFormPage = currentUrl.includes('compose/broadcast') &&
+                          await textArea.isVisible({ timeout: 1000 }).catch(() => false);
+
+        // Check for any error messages
+        const hasError = await page.locator('.text-red-500, .text-red-600, [role="alert"], .bg-red-50').isVisible({ timeout: 1000 }).catch(() => false);
+
+        console.log('Results:');
+        console.log('- On review page:', onReviewPage);
+        console.log('- Still on form page:', onFormPage);
+        console.log('- Has error:', hasError);
+        console.log('- Text area value:', await textArea.inputValue().catch(() => 'N/A'));
+
+        // The test should navigate to review page
+        if (!onReviewPage) {
+          console.log('ISSUE: Did not navigate to review page');
+
+          // Log any console errors
+          page.on('console', msg => {
+            if (msg.type() === 'error') {
+              console.log('Console error:', msg.text());
+            }
+          });
+
+          // Take a screenshot for debugging
+          await page.screenshot({ path: 'broadcast-form-debug.png', fullPage: true });
+        }
+
+        expect(onReviewPage).toBeTruthy();
+
+      } else {
+        console.log('Submit button not found');
+        expect(false).toBeTruthy(); // Fail the test
+      }
+    } else {
+      console.log('Textarea not found - may not be on broadcast form');
+      expect(false).toBeTruthy(); // Fail the test
+    }
+
+    await cleanup(context);
+  });
 });

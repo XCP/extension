@@ -3,7 +3,7 @@
  * Handles conversion of user-friendly values to API-compatible formats
  */
 
-import type { AssetInfo } from "@/utils/blockchain/counterparty";
+import type { AssetInfo } from "@/utils/blockchain/counterparty/api";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
 import { toSatoshis } from "@/utils/numeric";
 
@@ -48,6 +48,10 @@ const NORMALIZATION_CONFIG: Record<string, {
   dispense: {
     quantityFields: ['quantity'],
     assetFields: { quantity: 'asset' }
+  },
+  broadcast: {
+    quantityFields: ['value'],
+    assetFields: {}
   },
   burn: {
     quantityFields: ['quantity'],
@@ -122,6 +126,7 @@ export function getComposeType(formData: Record<string, any>): string | undefine
   if ('flags' in formData && 'destination' in formData && !('quantity' in formData)) return 'sweep';
   if ('utxos' in formData) return 'utxo';
   if ('sends' in formData) return 'mpma';
+  if ('text' in formData) return 'broadcast';
   if ('quantity' in formData && 'asset' in formData) return 'send';
   if ('quantity' in formData && 'asset_name' in formData) return 'issuance';
   if ('destination' in formData && 'asset' in formData) return 'attach';

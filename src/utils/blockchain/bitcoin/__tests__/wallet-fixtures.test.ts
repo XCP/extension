@@ -98,31 +98,12 @@ describe('Wallet Implementation Test Fixtures', () => {
 
   describe('Bitcoin Core Fixtures', () => {
     // Bitcoin Core uses standard BIP-137
-    const bitcoinCoreFixtures = [
-      {
-        address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-        message: 'Bitcoin: A Peer-to-Peer Electronic Cash System',
-        signature: null, // TODO: Add actual Bitcoin Core signature
-        wallet: 'Bitcoin Core',
-        note: 'Uses strict BIP-137 implementation',
-        expected: false // Skip validation until we have real signature
-      }
-    ];
-
-    // Add placeholder test for when we have real fixtures
-    for (const fixture of bitcoinCoreFixtures) {
-      it.skip(`should verify ${fixture.wallet} signature for ${fixture.address}`, async () => {
-        // Will be enabled when we have real signatures
-        if (fixture.signature) {
-          const result = await verifyMessage(
-            fixture.message,
-            fixture.signature,
-            fixture.address
-          );
-          console.log(`${fixture.wallet} verification:`, result);
-        }
-      });
-    }
+    // TODO: Add actual Bitcoin Core test fixtures when available
+    // Expected format:
+    // - address: Bitcoin address
+    // - message: Message that was signed
+    // - signature: Base64 encoded signature from Bitcoin Core
+    // - Uses strict BIP-137 implementation with correct header flags
 
     it('should document Bitcoin Core signature format', async () => {
       console.log('Bitcoin Core signature format:');
@@ -136,33 +117,12 @@ describe('Wallet Implementation Test Fixtures', () => {
   });
 
   describe('Trezor Fixtures', () => {
-    // Trezor test vectors
-    const trezorFixtures = [
-      {
-        // Example format - would need real Trezor signatures
-        address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
-        message: 'Test message',
-        signature: null, // TODO: Add actual Trezor signature
-        wallet: 'Trezor',
-        note: 'P2WPKH with BIP-137 format',
-        expected: false // Skip validation until we have real signature
-      }
-    ];
-
-    // Add placeholder test for when we have real fixtures
-    for (const fixture of trezorFixtures) {
-      it.skip(`should verify ${fixture.wallet} signature for ${fixture.address}`, async () => {
-        // Will be enabled when we have real signatures
-        if (fixture.signature) {
-          const result = await verifyMessage(
-            fixture.message,
-            fixture.signature,
-            fixture.address
-          );
-          console.log(`${fixture.wallet} verification:`, result);
-        }
-      });
-    }
+    // TODO: Add actual Trezor hardware wallet test fixtures when available
+    // Expected format:
+    // - address: Bitcoin address (including segwit)
+    // - message: Message that was signed
+    // - signature: Base64 encoded signature from Trezor
+    // - Uses BIP-137 format for all address types
 
     it('should document Trezor signature format', async () => {
       console.log('Trezor signature format:');

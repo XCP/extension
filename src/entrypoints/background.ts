@@ -1,9 +1,7 @@
 import { registerWalletService, getWalletService } from '@/services/walletService';
 import { registerProviderService, getProviderService } from '@/services/providerService';
-import { registerBlockchainService } from '@/services/blockchain';
 import { registerConnectionService } from '@/services/connection';
 import { registerApprovalService } from '@/services/approval';
-import { registerTransactionService } from '@/services/transaction';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { MessageBus, type ProviderMessage, type ApprovalMessage, type EventMessage } from '@/services/core/MessageBus';
@@ -175,10 +173,8 @@ export default defineBackground(() => {
   // Register proxy services (existing pattern)
   registerWalletService();
   registerProviderService();
-  registerBlockchainService();
   registerConnectionService();
   registerApprovalService();
-  registerTransactionService();
   
   // Set up MessageBus handlers for provider requests
   MessageBus.onMessage('provider-request', async (data) => {

@@ -1,7 +1,6 @@
 import { useCallback, type ReactNode, type ReactElement } from 'react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { HeaderProvider } from './header-context';
-import { LoadingProvider } from './loading-context';
 import { PriceProvider } from './price-context';
 import { SettingsProvider } from './settings-context';
 import { WalletProvider } from './wallet-context';
@@ -25,11 +24,6 @@ interface AppProvidersProps {
 function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement | null {
   const { setLastActiveTime, lockAll, loaded: walletLoaded, authState } = useWallet();
   const { settings, isLoading: settingsLoading } = useSettings();
-
-  if (!walletLoaded || settingsLoading) {
-    // Wait for both wallet and settings to load before rendering
-    return null;
-  }
 
   // Handle edge cases for idle timer
   const handleIdle = useCallback(() => {
@@ -56,17 +50,22 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
   }, [authState, setLastActiveTime]);
 
   // Disable idle timer if timeout is 0 or undefined
-  const isIdleTimerEnabled = settings.autoLockTimeout && settings.autoLockTimeout > 0;
+  const isIdleTimerEnabled = settings?.autoLockTimeout && settings.autoLockTimeout > 0;
 
-  // Use native idle timer hook
+  // Use native idle timer hook - MUST be called before any early returns
   useIdleTimer({
-    timeout: settings.autoLockTimeout || 0,
+    timeout: settings?.autoLockTimeout || 0,
     onIdle: handleIdle,
     onActive: handleActive,
     onAction: handleAction,
-    disabled: !isIdleTimerEnabled || authState !== 'UNLOCKED',
+    disabled: !isIdleTimerEnabled || authState !== 'UNLOCKED' || !walletLoaded || settingsLoading,
     stopOnIdle: true,
   });
+
+  if (!walletLoaded || settingsLoading) {
+    // Wait for both wallet and settings to load before rendering
+    return null;
+  }
 
   return <>{children}</>;
 }
@@ -89,18 +88,17 @@ export function AppProviders({ children }: AppProvidersProps): ReactElement {
         </div>
       }
     >
-      <LoadingProvider disableScroll={true}>
-        <ErrorBoundary
-          fallback={
-            <div className="min-h-screen flex items-center justify-center p-4">
-              <div className="text-center">
-                <h2 className="text-lg font-semibold mb-2">Settings Error</h2>
-                <p className="text-sm text-gray-600">Unable to load settings. Please refresh.</p>
-              </div>
+      <ErrorBoundary
+        fallback={
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <div className="text-center">
+              <h2 className="text-lg font-semibold mb-2">Settings Error</h2>
+              <p className="text-sm text-gray-600">Unable to load settings. Please refresh.</p>
             </div>
-          }
-        >
-          <SettingsProvider>
+          </div>
+        }
+      >
+        <SettingsProvider>
             <ErrorBoundary
               fallback={
                 <div className="min-h-screen flex items-center justify-center p-4">
@@ -122,8 +120,7 @@ export function AppProviders({ children }: AppProvidersProps): ReactElement {
               </WalletProvider>
             </ErrorBoundary>
           </SettingsProvider>
-        </ErrorBoundary>
-      </LoadingProvider>
+      </ErrorBoundary>
     </ErrorBoundary>
   );
 }

@@ -141,9 +141,10 @@ export class MessageBus {
       timeout?: number;
       retries?: number;
       skipReadinessCheck?: boolean;
+      suppressTimeoutLog?: boolean;
     } = {}
   ): Promise<MessageProtocol[K]['output']> {
-    const { timeout = MessageBus.MESSAGE_TIMEOUT, retries = 0, skipReadinessCheck = false } = options;
+    const { timeout = MessageBus.MESSAGE_TIMEOUT, retries = 0, skipReadinessCheck = false, suppressTimeoutLog = false } = options;
     
     // Optional debug logging
     if (process.env.NODE_ENV === 'development') {
@@ -174,7 +175,11 @@ export class MessageBus {
         lastError = error as Error;
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (process.env.NODE_ENV === 'development') {
-          console.error('[MessageBus] Message failed:', message, 'to:', target, 'error:', errorMessage);
+          // Don't log timeout errors if suppressTimeoutLog is true
+          const isTimeout = errorMessage.includes('Message timeout');
+          if (!suppressTimeoutLog || !isTimeout) {
+            console.error('[MessageBus] Message failed:', message, 'to:', target, 'error:', errorMessage);
+          }
         }
         
         if (attempt < retries) {
@@ -199,21 +204,28 @@ export class MessageBus {
     // - Popup window (chrome.extension.getViews({ type: 'popup' }))
     // - Tab (chrome.extension.getViews({ type: 'tab' }))
     // - Side panel (not detectable via getViews, opened via chrome.sidePanel API)
-    // 
+    //
     // Since we can't reliably detect all contexts, we'll attempt to send and handle
     // failures gracefully. This is the most robust approach.
-    
+
     try {
-      await MessageBus.send(message, data, target, { timeout: 5000 });
+      await MessageBus.send(message, data, target, {
+        timeout: 5000,
+        suppressTimeoutLog: true
+      });
     } catch (error) {
       // With proper top-level listeners, most connection errors should be resolved
       // Only log truly unexpected errors now
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
-      if (!errorMessage.includes('Message timeout')) {
+
+      // Suppress all timeout errors and handler registration errors for one-way messages
+      // These are expected when the popup isn't ready yet, especially for
+      // non-critical messages like walletLocked
+      if (!errorMessage.includes('Message timeout') &&
+          !errorMessage.includes('No handler registered')) {
         console.debug(`One-way message '${String(message)}' to ${target} failed:`, errorMessage);
       }
-      
+
       // Don't throw - one-way messages should fail silently
     }
   }

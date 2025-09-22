@@ -11,7 +11,7 @@ import {
   validateMemo as _validateMemo,
   hexToText as _hexToText,
   textToHex as _textToHex
-} from '@/utils/validation';
+} from '@/utils/validation/memo';
 
 // Re-export most utilities unchanged
 export const isHexMemo = _isHexMemo;

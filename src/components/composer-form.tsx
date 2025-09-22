@@ -1,7 +1,6 @@
 "use client";
 
-import { type ReactElement, type ReactNode } from "react";
-import { useFormStatus } from "react-dom";
+import { type ReactElement, type ReactNode, useState, useRef } from "react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
@@ -55,12 +54,11 @@ export function ComposerForm({
 }: ComposerFormProps): ReactElement {
   // Get state from composer context
   const { state, showHelpText, clearError } = useComposer<any>();
-  
-  // Use form status for pending state
-  const { pending } = useFormStatus();
-  
+  const formRef = useRef<HTMLFormElement>(null);
+  const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
+
   // Determine if form is submitting
-  const isSubmitting = pending || state.isComposing;
+  const isSubmitting = isLocalSubmitting || state.isComposing;
   
   return (
     <div className={className}>
@@ -74,20 +72,39 @@ export function ComposerForm({
           />
         )}
         
-        <form action={formAction} className={formClassName}>
+        <form
+          ref={formRef}
+          className={formClassName}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (isLocalSubmitting) return;
+
+            setIsLocalSubmitting(true);
+            try {
+              const formData = new FormData(e.currentTarget);
+              await formAction(formData);
+            } catch (error) {
+              console.error('Form submission error:', error);
+            } finally {
+              setIsLocalSubmitting(false);
+            }
+          }}
+        >
           {children}
           
           {showFeeRate && (
-            <FeeRateInput 
-              showHelpText={showHelpText} 
-              disabled={isSubmitting || submitDisabled} 
+            <FeeRateInput
+              showHelpText={showHelpText}
+              disabled={isSubmitting}
             />
           )}
           
-          <Button 
-            type="submit" 
-            color="blue" 
-            fullWidth 
+          <Button
+            type="submit"
+            color="blue"
+            fullWidth
             disabled={isSubmitting || submitDisabled}
           >
             {isSubmitting ? "Submitting..." : submitText}

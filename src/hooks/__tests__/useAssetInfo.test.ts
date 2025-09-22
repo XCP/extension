@@ -1,12 +1,10 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useAssetInfo } from '../useAssetInfo';
-import { fetchAssetDetailsAndBalance } from '@/utils/blockchain/counterparty';
+import { fetchAssetDetailsAndBalance } from '@/utils/blockchain/counterparty/api';
 
 // Mock the blockchain utilities
-vi.mock('@/utils/blockchain/counterparty', () => ({
-  fetchAssetDetailsAndBalance: vi.fn()
-}));
+vi.mock('@/utils/blockchain/counterparty/api');
 
 // Mock the wallet context
 vi.mock('@/contexts/wallet-context', () => ({

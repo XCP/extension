@@ -1,5 +1,5 @@
 import { apiClient, API_TIMEOUTS } from '@/utils/axios';
-import { fetchBTCBalance } from '@/utils/blockchain/bitcoin';
+import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
 import { formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';

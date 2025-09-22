@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
-import { Field, Label, Description, Textarea } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer-form";
+import { HashInput } from "@/components/inputs/hash-input";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
-import { fetchDispenserByHash } from "@/utils/blockchain/counterparty";
-import type { DispenserOptions } from "@/utils/blockchain/counterparty";
+import { fetchDispenserByHash } from "@/utils/blockchain/counterparty/api";
+import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
 interface DispenserCloseByHashFormProps {
@@ -46,11 +46,7 @@ export function DispenserCloseByHashForm({
     return () => clearTimeout(timeoutId);
   }, [txHash]);
 
-  // Focus textarea on mount
-  useEffect(() => {
-    const textarea = document.querySelector("textarea[name='open_address']") as HTMLTextAreaElement;
-    textarea?.focus();
-  }, []);
+  // Auto-focus handled by HashInput component
 
   const handleLookup = async (hashToLookup: string) => {
     if (!hashToLookup) return;
@@ -88,37 +84,31 @@ export function DispenserCloseByHashForm({
       {isLoading ? (
         <div className="py-4 text-center">Loading dispenser details...</div>
       ) : (
-            <Field>
-              <Label htmlFor="open_address" className="block text-sm font-medium text-gray-700">
-                Transaction Hash <span className="text-red-500">*</span>
-              </Label>
-              <Textarea
-                id="open_address"
-                name="open_address" // Maps to `open_address` in DispenserOptions
-                value={txHash}
-                onChange={(e) => setTxHash(e.target.value)}
-                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter dispenser transaction hash"
-                disabled={pending}
-                rows={3}
-              />
-              {selectedDispenser && (
-                <div className="mt-2 text-sm text-gray-700">
-                  <p>Asset: {selectedDispenser.asset}</p>
-                  <p>Give Quantity: {selectedDispenser.give_quantity_normalized}</p>
-                  <p>Escrow Quantity: {selectedDispenser.escrow_quantity_normalized}</p>
-                  <p>Price: {selectedDispenser.price_normalized}</p>
-                  <p>Source: {selectedDispenser.source}</p>
-                </div>
-              )}
-              {showHelpText && (
-                <Description className="mt-2 text-sm text-gray-500">
-                  Enter the transaction hash of the dispenser you want to close.
-                </Description>
-              )}
-              <input type="hidden" name="asset" value={selectedDispenser?.asset || ""} />
-            </Field>
-
+        <>
+          <HashInput
+            value={txHash}
+            onChange={setTxHash}
+            label="Transaction Hash"
+            name="open_address"
+            hashType="transaction"
+            placeholder="Enter Tx Hash"
+            required={true}
+            disabled={pending}
+            showHelpText={showHelpText}
+            description="Enter the transaction hash of the dispenser you want to close."
+            showCopyButton={true}
+          />
+          {selectedDispenser && (
+            <div className="mt-2 text-sm text-gray-700 p-3 bg-gray-50 rounded-md">
+              <p><strong>Asset:</strong> {selectedDispenser.asset}</p>
+              <p><strong>Give Quantity:</strong> {selectedDispenser.give_quantity_normalized}</p>
+              <p><strong>Escrow Quantity:</strong> {selectedDispenser.escrow_quantity_normalized}</p>
+              <p><strong>Price:</strong> {selectedDispenser.price_normalized}</p>
+              <p><strong>Source:</strong> {selectedDispenser.source}</p>
+            </div>
+          )}
+          <input type="hidden" name="asset" value={selectedDispenser?.asset || ""} />
+        </>
       )}
     </ComposerForm>
   );

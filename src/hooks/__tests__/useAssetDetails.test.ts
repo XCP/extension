@@ -1,16 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useAssetDetails } from '../useAssetDetails';
-import { fetchAssetDetailsAndBalance, AssetInfo } from '@/utils/blockchain/counterparty';
+import { fetchAssetDetailsAndBalance, AssetInfo, fetchTokenUtxos } from '@/utils/blockchain/counterparty/api';
 
 // Mock the API and contexts
-vi.mock('@/utils/blockchain/counterparty', () => ({
-  fetchAssetDetailsAndBalance: vi.fn(),
-  fetchTokenUtxos: vi.fn().mockResolvedValue([])
-}));
-vi.mock('@/utils/blockchain/bitcoin', () => ({
-  fetchBTCBalance: vi.fn()
-}));
+vi.mock('@/utils/blockchain/counterparty/api');
+vi.mock('@/utils/blockchain/bitcoin/balance');
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
     activeAddress: { address: 'bc1qtest123' }
@@ -44,6 +39,8 @@ describe('useAssetDetails', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Mock fetchTokenUtxos to return empty array by default
+    vi.mocked(fetchTokenUtxos).mockResolvedValue([]);
   });
 
   it('should fetch asset details on mount', async () => {
@@ -147,8 +144,8 @@ describe('useAssetDetails', () => {
   });
 
   it('should handle BTC as special case', async () => {
-    const { fetchBTCBalance } = await import('@/utils/blockchain/bitcoin');
-    vi.mocked(fetchBTCBalance).mockResolvedValue(100000000); // 1 BTC in satoshis
+    const { fetchBTCBalance } = await import('@/utils/blockchain/bitcoin/balance');
+    (fetchBTCBalance as any).mockResolvedValue(100000000); // 1 BTC in satoshis
 
     const { result } = renderHook(() => useAssetDetails('BTC'));
 

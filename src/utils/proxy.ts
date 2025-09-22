@@ -18,10 +18,8 @@
  * USED BY:
  * - WalletService: Core wallet operations
  * - ProviderService: Web3 provider methods
- * - BlockchainService: Blockchain data fetching
  * - ConnectionService: DApp connection management
  * - ApprovalService: User approval flows
- * - TransactionService: Transaction building
  */
 
 type ServiceFactory<T> = () => T;

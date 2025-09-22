@@ -5,7 +5,7 @@ import {
   encryptPrivateKey,
   decryptPrivateKey,
 } from '../walletEncryption';
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { DecryptionError } from '../encryption';
 
 // Mock the underlying encryption module

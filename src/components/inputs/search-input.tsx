@@ -100,7 +100,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>((
           placeholder={placeholder}
           disabled={disabled}
           required={required}
-          className={`block w-full pl-8 pr-8 p-2 rounded-md border border-gray-200 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+          className={`block w-full pl-8 pr-8 p-2.5 rounded-md border border-gray-200 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
             label ? "mt-1" : ""
           } ${disabled ? "bg-gray-100 cursor-not-allowed" : ""}`}
           aria-label={label || "Search"}

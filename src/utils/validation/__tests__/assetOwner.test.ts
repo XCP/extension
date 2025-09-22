@@ -4,14 +4,12 @@ import {
   shouldTriggerAssetLookup, 
   lookupAssetOwner 
 } from '../assetOwner';
-import * as counterpartyApi from '@/utils/blockchain/counterparty';
+import * as counterpartyApi from '@/utils/blockchain/counterparty/api';
 
 // Mock the counterparty API
-vi.mock('@/utils/blockchain/counterparty', () => ({
-  fetchAssetDetails: vi.fn(),
-}));
+vi.mock('@/utils/blockchain/counterparty/api');
 
-const mockFetchAssetDetails = vi.mocked(counterpartyApi.fetchAssetDetails);
+const mockFetchAssetDetails = counterpartyApi.fetchAssetDetails as any;
 
 describe('Asset Owner Validation', () => {
   beforeEach(() => {

@@ -1,8 +1,8 @@
 import { MPMAForm } from "./form";
 import { ReviewMPMA } from "./review";
 import { Composer } from "@/components/composer";
-import { composeMPMA } from "@/utils/blockchain/counterparty";
-import type { MPMAOptions, ApiResponse } from "@/utils/blockchain/counterparty";
+import { composeMPMA } from "@/utils/blockchain/counterparty/compose";
+import type { MPMAOptions, ApiResponse } from "@/utils/blockchain/counterparty/compose";
 
 interface MPMAData {
   sourceAddress: string;
@@ -42,10 +42,11 @@ function ComposeMPMA() {
   return (
     <div className="p-4">
       <Composer<MPMAData>
+        composeType="mpma"
+        composeApiMethod={composeTransaction}
         initialTitle="MPMA Send"
         FormComponent={MPMAForm}
         ReviewComponent={ReviewMPMA}
-        composeApiMethod={composeTransaction}
       />
     </div>
   );

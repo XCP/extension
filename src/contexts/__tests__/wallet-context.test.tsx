@@ -1,11 +1,11 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { WalletProvider, useWallet } from '../wallet-context';
 import { walletManager } from '@/utils/wallet/walletManager';
 import * as sessionManager from '@/utils/auth/sessionManager';
 import { settingsManager } from '@/utils/wallet/settingsManager';
 import { sendMessage } from 'webext-bridge/popup';
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 // Mock webext-bridge first with comprehensive mocking
 vi.mock('webext-bridge/popup', () => ({
@@ -35,8 +35,8 @@ vi.mock('@/utils/storage/settingsStorage', async () => {
 });
 
 // Mock withStateLock to execute functions immediately without locking
-vi.mock('@/utils/wallet', async () => {
-  const actual = await vi.importActual('@/utils/wallet');
+vi.mock('@/utils/wallet/stateLockManager', async () => {
+  const actual = await vi.importActual('@/utils/wallet/stateLockManager');
   return {
     ...actual,
     withStateLock: vi.fn(async (key: string, fn: () => Promise<any>) => {
@@ -166,6 +166,10 @@ describe('WalletContext', () => {
     vi.mocked(settingsManager.getSettings).mockReturnValue(mockSettings);
     // Default wallet is locked
     vi.mocked(sessionManager.getUnlockedSecret).mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
   });
 
   describe('Initial State', () => {

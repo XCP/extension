@@ -3,7 +3,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { Composer } from '../composer';
-import { ComposerProvider } from '@/contexts/composer-context';
 import type { ReactElement } from 'react';
 
 // Mock dependencies
@@ -45,14 +44,11 @@ vi.mock('@/contexts/wallet-context', () => ({
   })
 }));
 
-const mockShowLoading = vi.fn(() => 'loading-id');
-const mockHideLoading = vi.fn();
-vi.mock('@/contexts/loading-context', () => ({
-  useLoading: () => ({
-    isLoading: false,
-    showLoading: mockShowLoading,
-    hideLoading: mockHideLoading
-  })
+// LoadingProvider has been removed - loading is now handled locally
+// Mock LoadingOverlay component
+vi.mock('@/components/loading-overlay', () => ({
+  LoadingOverlay: ({ isLoading, message }: any) =>
+    isLoading ? <div data-testid="loading-overlay">{message}</div> : null
 }));
 
 const mockSetHeaderProps = vi.fn();
@@ -156,19 +152,18 @@ describe('Composer', () => {
   const mockComposeApi = vi.fn();
 
   const defaultProps = {
+    composeType: 'test',
+    composeApiMethod: mockComposeApi,
     initialTitle: 'Test Transaction',
     FormComponent: MockFormComponent,
-    ReviewComponent: MockReviewComponent,
-    composeApiMethod: mockComposeApi
+    ReviewComponent: MockReviewComponent
   };
 
-  // Helper function to render with provider
-  const renderWithProvider = (props = defaultProps) => {
+  // Helper function to render - Composer includes its own provider
+  const renderWithProvider = (props = {}) => {
     return render(
       <MemoryRouter>
-        <ComposerProvider composeApi={mockComposeApi} initialTitle={props.initialTitle}>
-          <Composer {...props} />
-        </ComposerProvider>
+        <Composer {...defaultProps} {...props} />
       </MemoryRouter>
     );
   };
@@ -209,14 +204,27 @@ describe('Composer', () => {
   });
 
   it('should show loading when composing', async () => {
+    // Make the API call take some time to see the loading state
+    mockComposeApi.mockImplementation(
+      () => new Promise(resolve => setTimeout(() => resolve(mockApiResponse), 100))
+    );
+
     renderWithProvider();
-    
+
     const form = screen.getByTestId('form-component');
     fireEvent.submit(form);
-    
+
+    // Check for the loading overlay to appear immediately
+    expect(screen.getByTestId('loading-overlay')).toBeInTheDocument();
+    expect(screen.getByText('Composing transaction...')).toBeInTheDocument();
+
+    // Wait for it to disappear after API completes
     await waitFor(() => {
-      expect(mockShowLoading).toHaveBeenCalledWith('Composing transaction...');
+      expect(screen.queryByTestId('loading-overlay')).not.toBeInTheDocument();
     });
+
+    // Should now show review component
+    expect(screen.getByTestId('review-component')).toBeInTheDocument();
   });
 
   it('should render review component when step is review', async () => {

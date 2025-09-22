@@ -7,7 +7,7 @@ import { HiDotsHorizontal } from 'react-icons/hi';
 import { MenuItem } from '@headlessui/react';
 import { BaseMenu } from './base-menu';
 import { Button } from '@/components/button';
-import type { Address } from '@/utils/wallet';
+import type { Address } from '@/utils/wallet/walletManager';
 
 /**
  * Props for the AddressMenu component

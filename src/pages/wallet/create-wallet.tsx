@@ -9,7 +9,7 @@ import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { PasswordInput } from "@/components/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { generateNewMnemonic } from "@/utils/blockchain/bitcoin";
+import { generateNewMnemonic } from "@/utils/blockchain/bitcoin/privateKey";
 
 function CreateWallet() {
   const navigate = useNavigate();

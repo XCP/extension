@@ -4,7 +4,7 @@
  * This is the inverse of normalize.ts - used when receiving data from the provider API
  */
 
-import type { AssetInfo } from "@/utils/blockchain/counterparty";
+import type { AssetInfo } from "@/utils/blockchain/counterparty/api";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
 import { fromSatoshis } from "@/utils/numeric";
 

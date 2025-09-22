@@ -8,7 +8,7 @@ import { ActionList } from "@/components/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatTxid } from "@/utils/format";
-import type { TokenBalance } from "@/utils/blockchain/counterparty";
+import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
 import type { ActionSection } from "@/components/lists/action-list";
 

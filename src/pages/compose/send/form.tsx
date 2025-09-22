@@ -9,8 +9,8 @@ import { DestinationsInput } from "@/components/inputs/destinations-input";
 import { MemoInput } from "@/components/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { validateQuantity } from "@/utils/validation";
-import type { SendOptions } from "@/utils/blockchain/counterparty";
+import { validateQuantity } from "@/utils/validation/amount";
+import type { SendOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 import { ErrorAlert } from "@/components/error-alert";
 

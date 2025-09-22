@@ -7,7 +7,7 @@ import { Button } from "@/components/button";
 import { ActionList } from "@/components/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import type { ReactElement } from "react";
 import type { ActionSection } from "@/components/lists/action-list";
 

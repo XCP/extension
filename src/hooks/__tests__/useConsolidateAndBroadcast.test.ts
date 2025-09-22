@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useConsolidateAndBroadcast } from '../useConsolidateAndBroadcast';
 import { useWallet } from '@/contexts/wallet-context';
-import { consolidateBareMultisig } from '@/utils/blockchain/bitcoin';
+import { consolidateBareMultisig } from '@/utils/blockchain/bitcoin/bareMultisig';
 
 // Mock webext-bridge
 vi.mock('webext-bridge/popup', () => ({
@@ -31,11 +31,8 @@ vi.mock('@/utils/storage/settingsStorage', () => ({
 
 // Mock dependencies
 vi.mock('@/contexts/wallet-context');
-vi.mock('@/utils/blockchain/bitcoin', () => ({
+vi.mock('@/utils/blockchain/bitcoin/bareMultisig', () => ({
   consolidateBareMultisig: vi.fn(),
-  broadcastTransaction: vi.fn(),
-  getFeeRates: vi.fn(),
-  fetchUTXOs: vi.fn(),
   fetchConsolidationFeeConfig: vi.fn(),
   estimateConsolidationFees: vi.fn(),
   SERVICE_FEE_EXEMPTION_THRESHOLD: 500000

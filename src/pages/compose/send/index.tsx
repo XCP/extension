@@ -2,8 +2,9 @@ import { useParams } from "react-router-dom";
 import { SendForm } from "./form";
 import { ReviewSend } from "./review";
 import { Composer } from "@/components/composer";
-import { composeSend, composeMPMA, isHexMemo, stripHexPrefix } from "@/utils/blockchain/counterparty";
-import type { SendOptions, MPMAOptions, ApiResponse } from "@/utils/blockchain/counterparty";
+import { composeSend, composeMPMA } from "@/utils/blockchain/counterparty/compose";
+import { isHexMemo, stripHexPrefix } from "@/utils/blockchain/counterparty/memo";
+import type { SendOptions, MPMAOptions, ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import { useProviderRequest } from "@/hooks/useProviderRequest";
 
 interface ExtendedSendOptions extends SendOptions {
@@ -73,12 +74,13 @@ function ComposeSend() {
   return (
     <div className="p-4">
       <Composer<ExtendedSendOptions>
+        composeType="send"
+        composeApiMethod={composeTransaction}
         initialTitle="Send"
+        initialFormData={providerFormData}
         FormComponent={(props) => <SendForm {...props} initialAsset={asset || "BTC"} />}
         ReviewComponent={ReviewSend}
-        composeApiMethod={composeTransaction}
         composeRequestId={composeRequestId}
-        initialFormData={providerFormData}
         onSuccess={handleSuccess}
       />
     </div>

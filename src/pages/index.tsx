@@ -23,6 +23,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import { useProviderRequestRecovery } from "@/hooks/useProviderRequestRecovery";
 import { formatAddress } from "@/utils/format";
 import type { ReactElement } from "react";
+import { getProviderService } from '@/services/providerService';
 
 const CONSTANTS = {
   COPY_FEEDBACK_DURATION: 2000,
@@ -60,7 +61,6 @@ export default function Index(): ReactElement {
   useEffect(() => {
     const checkPendingApprovals = async () => {
       try {
-        const { getProviderService } = await import('@/services/providerService');
         const providerService = getProviderService();
         const approvalQueue = await providerService.getApprovalQueue();
 

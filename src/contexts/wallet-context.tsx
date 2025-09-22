@@ -10,8 +10,9 @@ import {
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import { getWalletService } from "@/services/walletService";
 import { getKeychainSettings } from "@/utils/storage/settingsStorage";
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
-import { withStateLock, type Wallet, type Address } from "@/utils/wallet";
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { withStateLock } from "@/utils/wallet/stateLockManager";
+import type { Wallet, Address } from "@/utils/wallet/walletManager";
 
 /**
  * Authentication state enum.
@@ -149,7 +150,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       if (process.env.NODE_ENV === 'development') {
         console.log('[WalletContext] Starting state refresh');
       }
-      
+
       await walletService.loadWallets();
       const allWallets = await walletService.getWallets();
       

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { isValidBitcoinAddress, lookupAssetOwner, shouldTriggerAssetLookup } from '@/utils/validation';
+import { isValidBitcoinAddress } from '@/utils/validation/bitcoin';
+import { lookupAssetOwner, shouldTriggerAssetLookup } from '@/utils/validation/assetOwner';
 
 interface MultiLookupState {
   [destinationId: number]: {

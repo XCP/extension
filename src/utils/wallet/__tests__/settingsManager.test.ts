@@ -3,13 +3,14 @@ import { settingsManager } from '../settingsManager';
 import type { KeychainSettings } from '@/utils/storage/settingsStorage';
 
 // Mock the storage functions
-vi.mock('@/utils/storage', () => ({
+vi.mock('@/utils/storage/settingsStorage', () => ({
   getKeychainSettings: vi.fn(),
   updateKeychainSettings: vi.fn(),
+  DEFAULT_KEYCHAIN_SETTINGS: {},
 }));
 
 // Dynamic imports to avoid top-level await
-import * as storageModule from '@/utils/storage';
+import * as storageModule from '@/utils/storage/settingsStorage';
 import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 
 const mockGetKeychainSettings = vi.mocked(storageModule.getKeychainSettings);
@@ -263,6 +264,10 @@ describe('SettingsManager', () => {
     });
 
     it('should maintain state consistency after mixed operations', async () => {
+      // Ensure the mock returns settings with showHelpText
+      const initialSettings = { ...mockSettings, showHelpText: false };
+      mockGetKeychainSettings.mockResolvedValue(initialSettings);
+
       // Load settings
       await settingsManager.loadSettings();
       expect(settingsManager.getSettings()?.showHelpText).toBe(false); // Real default is false

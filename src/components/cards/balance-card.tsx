@@ -2,7 +2,7 @@ import { type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import { AssetIcon } from "@/components/asset-icon";
 import { BalanceMenu } from "@/components/menus/balance-menu";
-import type { TokenBalance } from "@/utils/blockchain/counterparty";
+import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
 import { formatAmount, formatAsset } from "@/utils/format";
 
 /**

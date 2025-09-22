@@ -8,14 +8,18 @@ import {
   createMultipleWallets,
   createWalletWithAddresses,
 } from './helpers/testHelpers';
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 // Mock all external dependencies
 vi.mock('@/utils/auth/sessionManager');
 vi.mock('@/utils/wallet/settingsManager');
 vi.mock('@/utils/storage/walletStorage');
-vi.mock('@/utils/encryption');
-vi.mock('@/utils/blockchain/bitcoin');
+vi.mock('@/utils/encryption/walletEncryption');
+vi.mock('@/utils/blockchain/bitcoin/address');
+vi.mock('@/utils/blockchain/bitcoin/privateKey');
+vi.mock('@/utils/blockchain/bitcoin/messageSigner');
+vi.mock('@/utils/blockchain/bitcoin/transactionSigner');
+vi.mock('@/utils/blockchain/bitcoin/transactionBroadcaster');
 vi.mock('@/utils/blockchain/counterwallet');
 vi.mock('@noble/hashes/sha2');
 vi.mock('@noble/hashes/utils');
@@ -26,7 +30,8 @@ vi.mock('@scure/bip39');
 import * as sessionManager from '@/utils/auth/sessionManager';
 import { settingsManager } from '@/utils/wallet/settingsManager';
 import { getAllEncryptedWallets } from '@/utils/storage/walletStorage';
-import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/utils/blockchain/bitcoin';
+import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { decryptMnemonic, decryptPrivateKey } from '@/utils/encryption/walletEncryption';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import { bytesToHex } from '@noble/hashes/utils';
@@ -66,7 +71,11 @@ describe('WalletManager', () => {
     vi.mocked(getAllEncryptedWallets).mockImplementation(mocks.walletStorage.getAllEncryptedWallets);
     vi.mocked(getAddressFromMnemonic).mockImplementation(mocks.bitcoin.getAddressFromMnemonic);
     vi.mocked(getDerivationPathForAddressFormat).mockImplementation(mocks.bitcoin.getDerivationPathForAddressFormat);
-    
+
+    // Mock encryption functions
+    vi.mocked(decryptMnemonic).mockImplementation(mocks.encryption.decryptMnemonic);
+    vi.mocked(decryptPrivateKey).mockImplementation(mocks.encryption.decryptPrivateKey);
+
     walletManager = new WalletManager();
   });
 

@@ -1,5 +1,5 @@
 import { createContext, useState, useEffect, use, type ReactNode } from "react";
-import { getBtcPrice } from "@/utils/blockchain/bitcoin";
+import { getBtcPrice } from "@/utils/blockchain/bitcoin/price";
 
 /**
  * Context value for BTC price data.

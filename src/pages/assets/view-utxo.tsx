@@ -9,7 +9,7 @@ import { ActionList } from "@/components/lists/action-list";
 import type { ActionSection } from "@/components/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchUtxoBalances, type UtxoBalance } from "@/utils/blockchain/counterparty";
+import { fetchUtxoBalances, type UtxoBalance } from "@/utils/blockchain/counterparty/api";
 import { fetchBitcoinTransaction } from "@/utils/blockchain/bitcoin/utxo";
 import { formatTxid, formatAmount, formatTimeAgo } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";

@@ -8,7 +8,7 @@ vi.mock('@/utils/blockchain/bitcoin', () => ({
   isValidBase58Address: vi.fn((addr) => addr && addr.startsWith('bc1'))
 }));
 
-vi.mock('@/utils/blockchain/counterparty', () => ({
+vi.mock('@/utils/blockchain/counterparty/compose', () => ({
   composeSend: vi.fn()
 }));
 
@@ -175,7 +175,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should show loading state aria-label', async () => {
-    const { composeSend } = await import('@/utils/blockchain/counterparty');
+    const { composeSend } = await import('@/utils/blockchain/counterparty/compose');
     (composeSend as any).mockImplementation(() => new Promise(() => {})); // Never resolves
     
     render(<AmountWithMaxInput {...defaultProps} asset="BTC" />);
@@ -189,7 +189,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should handle BTC max calculation with compose API', async () => {
-    const { composeSend } = await import('@/utils/blockchain/counterparty');
+    const { composeSend } = await import('@/utils/blockchain/counterparty/compose');
     (composeSend as any).mockResolvedValue({
       result: { btc_fee: '1000' }
     });
@@ -211,7 +211,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should handle error from compose API', async () => {
-    const { composeSend } = await import('@/utils/blockchain/counterparty');
+    const { composeSend } = await import('@/utils/blockchain/counterparty/compose');
     (composeSend as any).mockRejectedValue(new Error('API Error'));
     
     const setError = vi.fn();
@@ -236,7 +236,7 @@ describe('AmountWithMaxInput', () => {
     expect(input).toHaveClass('mt-1');
     expect(input).toHaveClass('block');
     expect(input).toHaveClass('w-full');
-    expect(input).toHaveClass('p-2');
+    expect(input).toHaveClass('p-2.5');
     expect(input).toHaveClass('rounded-md');
     expect(input).toHaveClass('border');
     expect(input).toHaveClass('bg-gray-50');

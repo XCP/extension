@@ -180,9 +180,7 @@ export function UnlockScreen({
           {/* Header Section - Simple title */}
           <h1 className="text-3xl mb-5 flex justify-between items-center">
             <span className="font-bold">{title}</span>
-            {subtitle && (
-              <span className="text-base font-normal text-gray-500">{subtitle}</span>
-            )}
+            {subtitle && <span>{subtitle}</span>}
           </h1>
           
           {/* Form Section */}

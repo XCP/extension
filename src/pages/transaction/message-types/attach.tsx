@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
-import type { Transaction } from "@/utils/blockchain/counterparty";
+import type { Transaction } from "@/utils/blockchain/counterparty/api";
 
 /**
  * Renders detailed information for attach (UTXO attach) transactions

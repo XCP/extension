@@ -2,8 +2,8 @@ import axios from "axios";
 import { useState, ChangeEvent } from "react";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
-import { isValidBase58Address } from "@/utils/blockchain/bitcoin";
-import { composeSend } from "@/utils/blockchain/counterparty";
+import { isValidBase58Address } from "@/utils/blockchain/bitcoin/address";
+import { composeSend } from "@/utils/blockchain/counterparty/compose";
 import { formatAmount } from "@/utils/format";
 import {
   toSatoshis,
@@ -12,7 +12,7 @@ import {
   divideSatoshis,
   isLessThanOrEqualToSatoshis
 } from "@/utils/numeric";
-import { isDustAmount } from "@/utils/validation";
+import { isDustAmount } from "@/utils/validation/amount";
 
 interface AmountWithMaxInputProps {
   asset: string;
@@ -195,7 +195,7 @@ export function AmountWithMaxInput({
           value={value}
           onChange={handleInputChange}
           autoComplete="off"
-          className={`mt-1 block w-full p-2 rounded-md border bg-gray-50 pr-16 focus:ring-2 disabled:bg-gray-100 disabled:cursor-not-allowed ${
+          className={`mt-1 block w-full p-2.5 rounded-md border bg-gray-50 pr-16 focus:ring-2 disabled:bg-gray-100 disabled:cursor-not-allowed ${
             hasError 
               ? "border-red-500 focus:border-red-500 focus:ring-red-500" 
               : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"

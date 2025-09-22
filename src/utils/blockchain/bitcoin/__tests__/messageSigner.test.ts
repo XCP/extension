@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { signMessage, getSigningCapabilities, verifyMessage } from '@/utils/blockchain/bitcoin';
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { signMessage, getSigningCapabilities } from '@/utils/blockchain/bitcoin/messageSigner';
+import { verifyMessage } from '@/utils/blockchain/bitcoin/messageVerifier/verifier';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { hashes } from '@noble/secp256k1';
 import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha2';

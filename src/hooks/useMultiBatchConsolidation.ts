@@ -6,7 +6,7 @@ import {
   type ConsolidationData,
   type ConsolidationReport
 } from '@/services/consolidationApiService';
-import { consolidateBareMultisigBatch } from '@/utils/blockchain/bitcoin';
+import { consolidateBareMultisigBatch } from '@/utils/blockchain/bitcoin/consolidateBatch';
 
 export interface ConsolidationResult {
   batchNumber: number;

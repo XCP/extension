@@ -23,12 +23,12 @@ vi.mock('@/contexts/wallet-context', () => ({
 }));
 
 // Mock the fetchAssetDetails function
-vi.mock('@/utils/blockchain/counterparty', () => ({
+vi.mock('@/utils/blockchain/counterparty/api', () => ({
   fetchAssetDetails: vi.fn()
 }));
 
 import { useWallet } from '@/contexts/wallet-context';
-import { fetchAssetDetails } from '@/utils/blockchain/counterparty';
+import { fetchAssetDetails } from '@/utils/blockchain/counterparty/api';
 
 describe('AssetNameInput', () => {
   const mockUseWallet = useWallet as any;

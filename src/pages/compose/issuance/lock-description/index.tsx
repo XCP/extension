@@ -2,8 +2,8 @@ import { useParams } from "react-router-dom";
 import { Composer } from "@/components/composer";
 import { LockDescriptionForm } from "./form";
 import { ReviewLockDescription } from "./review";
-import { composeIssuance } from "@/utils/blockchain/counterparty";
-import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
+import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
+import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
 /**
  * ComposeLockDescription handles the lock description flow for an asset.
@@ -24,12 +24,13 @@ function ComposeLockDescription() {
   return (
     <div className="p-4">
       <Composer<IssuanceOptions>
+        composeType="issuance"
+        composeApiMethod={composeIssuance}
         initialTitle="Lock Description"
         FormComponent={(props) => (
           <LockDescriptionForm {...props} asset={asset} />
         )}
         ReviewComponent={ReviewLockDescription}
-        composeApiMethod={composeIssuance}
       />
     </div>
   );

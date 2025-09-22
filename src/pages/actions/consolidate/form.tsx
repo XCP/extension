@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/button";
 import { AddressHeader } from "@/components/headers/address-header";
 import { FeeRateInput } from "@/components/inputs/fee-rate-input";
+import { DestinationInput } from "@/components/inputs/destination-input";
 import { useWallet } from "@/contexts/wallet-context";
 import { formatAmount } from "@/utils/format";
 import { useSettings } from "@/contexts/settings-context";
@@ -84,8 +85,8 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
     setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
   };
 
-  const handleDestinationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({ ...prev, destinationAddress: e.target.value.trim() }));
+  const handleDestinationChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, destinationAddress: value.trim() }));
   };
 
   const handleIncludeStampsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,22 +192,15 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
           </label>
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="destinationAddress" className="block text-sm font-medium text-gray-700">
-            Destination Address (Optional)
-          </label>
-          <input
-            id="destinationAddress"
-            type="text"
-            className="block w-full p-2 rounded-md border bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            value={formData.destinationAddress}
-            onChange={handleDestinationChange}
-            placeholder="Leave empty to consolidate to source address"
-          />
-          <p className={`text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-            If left empty, UTXOs will be consolidated to your source address.
-          </p>
-        </div>
+        <DestinationInput
+          value={formData.destinationAddress}
+          onChange={handleDestinationChange}
+          label="Destination Address (Optional)"
+          placeholder="Leave empty to consolidate to source address"
+          required={false}
+          showHelpText={shouldShowHelpText}
+          helpText="If left empty, UTXOs will be consolidated to your source address."
+        />
 
         <FeeRateInput
           onFeeRateChange={handleFeeRateChange}

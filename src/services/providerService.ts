@@ -1,10 +1,8 @@
 /**
- * ProviderService - Refactored Web3 Provider API
- * 
- * Main interface for dApp integration, delegating all operations to focused services:
+ * ProviderService - Web3 Provider API
+ *
+ * Main interface for dApp integration, working with:
  * - ConnectionService: Permission and connection management
- * - TransactionService: Transaction composition, signing, and broadcasting
- * - BlockchainService: Blockchain data queries
  * - ApprovalService: User approval workflows
  * - WalletService: Wallet state and cryptographic operations
  */
@@ -14,7 +12,6 @@ import { getWalletService } from '@/services/walletService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getConnectionService } from '@/services/connection';
 import { getApprovalService } from '@/services/approval';
-import { getBlockchainService } from '@/services/blockchain';
 import type { ApprovalRequest } from '@/utils/provider/approvalQueue';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
 import { analytics } from '@/utils/fathom';
@@ -27,6 +24,9 @@ import type {
   SweepOptions, BTCPayOptions, CancelOptions, BetOptions, BroadcastOptions, FairminterOptions,
   FairmintOptions, AttachOptions, DetachOptions, MoveOptions, DestroyOptions
 } from '@/utils/blockchain/counterparty/compose';
+import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
+import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
+import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from '@/utils/security/replayPrevention';
 
 export interface ProviderService {
   /**
@@ -276,7 +276,6 @@ export function createProviderService(): ProviderService {
       // Get services
       const walletService = getWalletService();
       const connectionService = getConnectionService();
-      const blockchainService = getBlockchainService();
       
       switch (method) {
         // ==================== Connection Methods ====================
@@ -558,15 +557,15 @@ export function createProviderService(): ProviderService {
           
           try {
             // Fetch BTC balance
-            const btcBalance = await blockchainService.getBTCBalance(activeAddress.address);
-            
+            const btcBalance = await fetchBTCBalance(activeAddress.address);
+
             // Fetch token balances
-            const tokenBalances = await blockchainService.getTokenBalances(activeAddress.address, {
+            const tokenBalances = await fetchTokenBalances(activeAddress.address, {
               verbose: true
             });
-            
+
             const xcpBalance = tokenBalances?.find((b: any) => b.asset === 'XCP');
-            
+
             return {
               address: activeAddress.address,
               btc: {
@@ -929,9 +928,6 @@ export function createProviderService(): ProviderService {
           if (!signedTx) {
             throw new Error('Signed transaction is required');
           }
-
-          // Import replay prevention functions
-          const { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } = await import('@/utils/security/replayPrevention');
 
           // Check for replay attempt before broadcasting
           const replayCheck = await checkReplayAttempt(

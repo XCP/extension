@@ -8,10 +8,8 @@ import { AddressHeader } from "@/components/headers/address-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { DispenserInput, type DispenserOption } from "@/components/inputs/dispenser-input";
 import { useComposer } from "@/contexts/composer-context";
-import { 
-  fetchAssetDetailsAndBalance, 
-  type DispenseOptions 
-} from "@/utils/blockchain/counterparty";
+import { fetchAssetDetailsAndBalance } from "@/utils/blockchain/counterparty/api";
+import type { DispenseOptions } from "@/utils/blockchain/counterparty/compose";
 import { formatAmount } from "@/utils/format";
 import { 
   multiply, 

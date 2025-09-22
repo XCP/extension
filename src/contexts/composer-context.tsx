@@ -13,11 +13,10 @@ import {
   type ReactNode,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { useLoading } from "@/contexts/loading-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { getComposeType, normalizeFormData } from "@/utils/blockchain/counterparty";
-import type { ApiResponse } from "@/utils/blockchain/counterparty";
+import { getComposeType, normalizeFormData } from "@/utils/blockchain/counterparty/normalize";
+import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from "@/utils/security/replayPrevention";
 
 /**
@@ -66,9 +65,12 @@ interface ComposerContextType<T> {
  */
 interface ComposerProviderProps<T> {
   children: ReactNode;
-  initialFormData?: T | null;
+  // Compose configuration
+  composeType: string;
   composeApi: (data: any) => Promise<ApiResponse>;
+  // UI configuration
   initialTitle: string;
+  initialFormData?: T | null;
 }
 
 /**
@@ -87,20 +89,20 @@ export function useComposer<T>(): ComposerContextType<T> {
 
 export function ComposerProvider<T>({
   children,
-  initialFormData = null,
+  composeType,
   composeApi,
   initialTitle,
+  initialFormData = null,
 }: ComposerProviderProps<T>): ReactElement {
   const navigate = useNavigate();
   const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, unlockWallet, isWalletLocked } = useWallet();
   const { settings } = useSettings();
-  const { showLoading, hideLoading } = useLoading();
-  
+
   const previousAddressRef = useRef<string | undefined>(activeAddress?.address);
   const previousWalletRef = useRef<string | undefined>(activeWallet?.id);
   const previousAuthStateRef = useRef<string>(authState);
-  const currentComposeTypeRef = useRef<string | undefined>(undefined);
-  
+  const currentComposeTypeRef = useRef<string>(composeType);
+
   // Initialize state
   const [state, setState] = useState<ComposerState<T>>({
     step: "form",
@@ -111,7 +113,8 @@ export function ComposerProvider<T>({
     isSigning: false,
     showAuthModal: false,
   });
-  
+
+
   // Help text state (can be toggled locally)
   const [localShowHelpText, setLocalShowHelpText] = useState<boolean | null>(null);
   const showHelpText = localShowHelpText ?? settings?.showHelpText ?? false;
@@ -172,41 +175,48 @@ export function ComposerProvider<T>({
       setState(prev => ({ ...prev, error: "No active address available" }));
       return;
     }
-    
+
+    // Set isComposing to show local loading state
     setState(prev => ({ ...prev, isComposing: true, error: null }));
-    const loadingId = showLoading("Composing transaction...");
+
+    // Execute async operation without awaiting to prevent unmount
+    await (async () => {
     
     try {
       // Convert FormData to object
       const rawData = Object.fromEntries(formData);
-      const detectedType = getComposeType(rawData);
-      
-      // Reset if compose type changed
-      if (currentComposeTypeRef.current && currentComposeTypeRef.current !== detectedType) {
-        setState(prev => ({
-          ...prev,
-          formData: null,
-          apiResponse: null,
-        }));
-      }
-      currentComposeTypeRef.current = detectedType;
-      
+
       // Store original user data for form persistence
       const userData = rawData as unknown as T;
-      
-      // Normalize data if compose type is detected
+
+      // Normalize data based on compose type (skip for broadcast which doesn't need normalization)
       let dataForApi: any = { ...userData, sourceAddress: activeAddress.address };
-      if (detectedType) {
-        const { normalizedData } = await normalizeFormData(formData, detectedType);
+      if (composeType !== 'broadcast') {
+        const { normalizedData } = await normalizeFormData(formData, composeType);
         dataForApi = { ...normalizedData, sourceAddress: activeAddress.address };
       }
-      
+
       // Call compose API
       const response = await composeApi(dataForApi);
-      
+
+      // Validate response structure
+      if (!response || typeof response !== 'object') {
+        throw new Error('Invalid API response: Response is not an object');
+      }
+
+      if (!response.result || typeof response.result !== 'object') {
+        throw new Error('Invalid API response: Missing or invalid result field');
+      }
+
+      // Ensure we have the minimum required fields
+      if (!response.result.rawtransaction) {
+        throw new Error('Invalid API response: Missing rawtransaction');
+      }
+
+      // Update state to review step with API response
       setState(prev => ({
         ...prev,
-        step: "review",
+        step: "review" as const,
         formData: userData,
         apiResponse: response,
         error: null,
@@ -226,10 +236,9 @@ export function ComposerProvider<T>({
         error: errorMessage,
         isComposing: false,
       }));
-    } finally {
-      hideLoading(loadingId);
     }
-  }, [activeAddress, composeApi, showLoading, hideLoading]);
+    })(); // Execute the async IIFE
+  }, [activeAddress, composeApi]);
   
   // Sign and broadcast transaction
   const signAndBroadcast = useCallback(async () => {
@@ -245,7 +254,6 @@ export function ComposerProvider<T>({
     }
     
     setState(prev => ({ ...prev, isSigning: true, error: null }));
-    const loadingId = showLoading("Signing and broadcasting transaction...");
     
     try {
       const rawTxHex = state.apiResponse.result.rawtransaction;
@@ -312,16 +320,14 @@ export function ComposerProvider<T>({
         error: errorMessage,
         isSigning: false,
       }));
-    } finally {
-      hideLoading(loadingId);
     }
-  }, [state.apiResponse, activeAddress, activeWallet, isWalletLocked, signTransaction, broadcastTransaction, showLoading, hideLoading]);
+  }, [state.apiResponse, activeAddress, activeWallet, isWalletLocked, signTransaction, broadcastTransaction]);
   
   // Handle unlock and sign (for auth modal)
   const handleUnlockAndSign = useCallback(async (password: string) => {
     if (!activeWallet || !state.apiResponse || !activeAddress) return;
-    
-    const loadingId = showLoading("Authorizing transaction...");
+
+    setState(prev => ({ ...prev, isSigning: true }));
     try {
       await unlockWallet(activeWallet.id, password);
       setState(prev => ({ ...prev, showAuthModal: false }));
@@ -375,11 +381,10 @@ export function ComposerProvider<T>({
       }));
     } catch (err) {
       console.error("Authorization error:", err);
+      setState(prev => ({ ...prev, isSigning: false }));
       throw err; // Let the modal handle the error display
-    } finally {
-      hideLoading(loadingId);
     }
-  }, [activeWallet, activeAddress, state.apiResponse, unlockWallet, signTransaction, broadcastTransaction, showLoading, hideLoading]);
+  }, [activeWallet, activeAddress, state.apiResponse, unlockWallet, signTransaction, broadcastTransaction]);
   
   // Navigation actions
   const goBack = useCallback(() => {
@@ -406,8 +411,8 @@ export function ComposerProvider<T>({
       isSigning: false,
       showAuthModal: false,
     });
-    currentComposeTypeRef.current = undefined;
-  }, []);
+    currentComposeTypeRef.current = composeType;
+  }, [composeType]);
   
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }));

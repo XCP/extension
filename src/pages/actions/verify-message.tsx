@@ -40,7 +40,7 @@ export default function VerifyMessage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: "Verify Message",
-      onBack: () => navigate("/actions"),
+      onBack: () => navigate(-1),
       rightButton: {
         ariaLabel: "Reset form",
         icon: <FaRedo className="w-3 h-3" />,

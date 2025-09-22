@@ -5,8 +5,7 @@ import { createBase58check } from '@scure/base';
 import { HDKey } from '@scure/bip32';
 import { generateMnemonic, mnemonicToSeedSync } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
-import { encodeAddress, isCounterwalletFormat } from '@/utils/blockchain/bitcoin/address';
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { encodeAddress, isCounterwalletFormat, AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
 
 // Create a base58check encoder instance for WIF usage.

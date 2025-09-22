@@ -7,7 +7,7 @@ import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { useComposer } from "@/contexts/composer-context";
 import { ErrorAlert } from "@/components/error-alert";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import type { AttachOptions } from "@/utils/blockchain/counterparty";
+import type { AttachOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
 /**

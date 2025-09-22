@@ -18,8 +18,8 @@ import { CheckboxInput } from "@/components/inputs/checkbox-input";
 import { PasswordInput } from "@/components/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
-import { validatePrivateKeyFormat } from "@/utils/validation";
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { validatePrivateKeyFormat } from "@/utils/validation/privateKey";
 
 const ImportPrivateKey = () => {
   const navigate = useNavigate();
@@ -149,7 +149,7 @@ const ImportPrivateKey = () => {
         <p className="mb-5" id="import-instructions">Enter your private key to use its address.</p>
         {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
         <form action={handleFormAction} className="space-y-4" aria-describedby="import-instructions">
-          <div className="bg-gray-100 rounded-lg p-4 space-y-4">
+          <div className="bg-gray-100 rounded-lg pt-2 pb-4 p-2 space-y-4">
             <Field>
               <Label className="block text-sm font-medium text-gray-700">
                 Address Type <span className="text-red-500">*</span>

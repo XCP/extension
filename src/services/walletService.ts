@@ -1,8 +1,9 @@
 import { defineProxyService } from '@/utils/proxy';
 import { MessageBus } from '@/services/core/MessageBus';
 import { eventEmitterService } from '@/services/eventEmitterService';
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
-import { walletManager, settingsManager, type Wallet, type Address } from '@/utils/wallet';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { walletManager, type Wallet, type Address } from '@/utils/wallet/walletManager';
+import { settingsManager } from '@/utils/wallet/settingsManager';
 
 interface WalletService {
   loadWallets: () => Promise<void>;

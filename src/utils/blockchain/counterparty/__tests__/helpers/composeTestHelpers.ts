@@ -7,7 +7,7 @@ import type { ComposeResult } from '../../compose';
 export const mockAddress = 'bc1qtest123address';
 export const mockDestAddress = 'bc1qdest456address';
 export const mockApiBase = 'https://api.counterparty.io:4000';
-import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage';
+import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 
 export const mockSettings = { 
   ...DEFAULT_KEYCHAIN_SETTINGS,

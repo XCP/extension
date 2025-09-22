@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
-import { fetchAddressDispensers, fetchDispenserDispenses } from "@/utils/blockchain/counterparty";
+import { fetchAddressDispensers, fetchDispenserDispenses } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
 
 /**

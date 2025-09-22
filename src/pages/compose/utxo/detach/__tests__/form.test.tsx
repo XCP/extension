@@ -50,7 +50,7 @@ vi.mock('@/contexts/loading-context', () => ({
 }));
 
 // Mock API call
-vi.mock('@/utils/blockchain/counterparty', () => ({
+vi.mock('@/utils/blockchain/counterparty/api', () => ({
   fetchUtxoBalances: vi.fn().mockResolvedValue({
     result: [
       { asset: 'TESTTOKEN', quantity_normalized: '100' }
@@ -130,7 +130,7 @@ const mockComposeApi = vi.fn();
 // Test wrapper component
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (
   <MemoryRouter>
-    <ComposerProvider composeApi={mockComposeApi} initialTitle="Test Form">
+    <ComposerProvider composeApi={mockComposeApi} initialTitle="Test Form" composeType="detach">
       {children}
     </ComposerProvider>
   </MemoryRouter>
@@ -259,7 +259,7 @@ describe('UtxoDetachForm', () => {
   });
 
   it('should handle multiple balances correctly', async () => {
-    const { fetchUtxoBalances } = await import('@/utils/blockchain/counterparty');
+    const { fetchUtxoBalances } = await import('@/utils/blockchain/counterparty/api');
     (fetchUtxoBalances as any).mockResolvedValueOnce({
       result: [
         { asset: 'TESTTOKEN', quantity_normalized: '100' },
@@ -362,7 +362,7 @@ describe('UtxoDetachForm', () => {
   });
 
   it('should handle API fetch error gracefully', async () => {
-    const { fetchUtxoBalances } = await import('@/utils/blockchain/counterparty');
+    const { fetchUtxoBalances } = await import('@/utils/blockchain/counterparty/api');
     (fetchUtxoBalances as any).mockRejectedValueOnce(new Error('API Error'));
 
     render(

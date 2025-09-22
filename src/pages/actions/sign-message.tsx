@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSignMessageRequest } from "@/hooks/useSignMessageRequest";
 import { FaCopy, FaCheck, FaLock, FaCheckCircle, FaInfoCircle, FaRedo } from "react-icons/fa";
@@ -12,7 +12,7 @@ import { ErrorAlert } from "@/components/error-alert";
 import { UnlockScreen } from "@/components/screens/unlock-screen";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { signMessage, getSigningCapabilities } from "@/utils/blockchain/bitcoin";
+import { signMessage, getSigningCapabilities } from "@/utils/blockchain/bitcoin/messageSigner";
 import type { ReactElement } from "react";
 
 /**
@@ -48,6 +48,13 @@ export default function SignMessage(): ReactElement {
     }
   }, [providerMessage, message]);
 
+  // Reset function with stable reference
+  const handleReset = useCallback(() => {
+    setMessage("");
+    setSignature("");
+    setError(null);
+  }, []);
+
   // Configure header with reset button (always icon-only)
   useEffect(() => {
     const headerTitle = isProviderRequest
@@ -56,19 +63,15 @@ export default function SignMessage(): ReactElement {
 
     setHeaderProps({
       title: headerTitle,
-      onBack: isProviderRequest ? handleCancel : () => navigate("/actions"),
+      onBack: isProviderRequest ? handleCancel : () => navigate(-1),
       rightButton: {
         ariaLabel: "Reset form",
         icon: <FaRedo className="w-3 h-3" />,
-        onClick: () => {
-          setMessage("");
-          setSignature("");
-          setError(null);
-        },
+        onClick: handleReset,
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, isProviderRequest, providerOrigin, handleCancel]);
+  }, [setHeaderProps, navigate, isProviderRequest, providerOrigin, handleCancel, handleReset]);
   
   // Get signing capabilities for current address
   const addressFormat = activeWallet?.addressFormat;
@@ -320,15 +323,13 @@ export default function SignMessage(): ReactElement {
         </div>
       )}
       
-      {/* YouTube Tutorial - Hidden until we have a video URL */}
-      {/* TODO: Add YouTube tutorial link when available
+      {/* YouTube Tutorial */}
       <Button
         variant="youtube"
         href="https://youtube.com/watch?v=XXXXX"
       >
         Learn how to sign and verify messages
       </Button>
-      */}
       
       {/* Authorization Modal */}
       {showAuthModal && (

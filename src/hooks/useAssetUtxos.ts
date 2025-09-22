@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchTokenUtxos } from "@/utils/blockchain/counterparty";
+import { fetchTokenUtxos } from "@/utils/blockchain/counterparty/api";
 
 export interface UtxoBalance {
   txid: string;

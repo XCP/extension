@@ -3,8 +3,8 @@ import { Composer } from "@/components/composer";
 import { ErrorAlert } from "@/components/error-alert";
 import { IssueSupplyForm } from "./form";
 import { ReviewIssuanceIssueSupply } from "./review";
-import { composeIssuance } from "@/utils/blockchain/counterparty";
-import type { IssuanceOptions } from "@/utils/blockchain/counterparty";
+import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
+import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeIssuanceIssueSupply() {
   const { asset } = useParams<{ asset?: string }>();
@@ -20,10 +20,11 @@ function ComposeIssuanceIssueSupply() {
   return (
     <div className="p-4">
       <Composer<IssuanceOptions>
+        composeType="issuance"
+        composeApiMethod={composeIssuance}
         initialTitle="Issue Supply"
         FormComponent={(props) => <IssueSupplyForm {...props} initialParentAsset={asset} />}
         ReviewComponent={ReviewIssuanceIssueSupply}
-        composeApiMethod={composeIssuance}
       />
     </div>
   );

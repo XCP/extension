@@ -6,11 +6,11 @@ import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { AssetNameInput } from "@/components/inputs/asset-name-input";
-import { TextInput } from "@/components/inputs/text-input";
+import { MemoInput } from "@/components/inputs/memo-input";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useComposer } from "@/contexts/composer-context";
-import { validateQuantity } from "@/utils/validation";
-import type { DestroyOptions } from "@/utils/blockchain/counterparty";
+import { validateQuantity } from "@/utils/validation/amount";
+import type { DestroyOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
 /**
@@ -161,16 +161,12 @@ export function DestroySupplyForm({
             disabled={pending}
           />
 
-          <TextInput
+          <MemoInput
             value={tag}
             onChange={setTag}
-            label="Message (Optional)"
             name="tag"
-            maxLength={34}
-            placeholder="Optional reference or note (max 34 characters)"
-            disabled={pending}
             showHelpText={showHelpText}
-            helpText="Optional tag to attach to this destroy action. This can be used for notes, references, or any metadata up to 34 characters."
+            disabled={pending}
           />
 
     </ComposerForm>

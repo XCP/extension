@@ -9,7 +9,7 @@ import { Spinner } from "@/components/spinner";
 import { TransactionCard } from "@/components/cards/transaction-card";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchTransactions, type TransactionResponse, type Transaction } from "@/utils/blockchain/counterparty";
+import { fetchTransactions, type TransactionResponse, type Transaction } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
 
 /**

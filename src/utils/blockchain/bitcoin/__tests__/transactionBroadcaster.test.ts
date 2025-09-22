@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { broadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
-import { getKeychainSettings, DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage';
+import { getKeychainSettings, DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 
 vi.mock('axios');
 vi.mock('@/utils/storage/settingsStorage');
