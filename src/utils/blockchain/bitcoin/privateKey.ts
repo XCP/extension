@@ -21,6 +21,27 @@ export function generateNewMnemonic(): string {
 }
 
 /**
+ * Encodes a private key to WIF (Wallet Import Format).
+ *
+ * @param privateKeyHex - The private key in hexadecimal.
+ * @param compressed - Whether the key should be marked as compressed (default true).
+ * @returns The WIF encoded private key string.
+ */
+export function encodeWIF(privateKeyHex: string, compressed = true): string {
+  const privBytes = hexToBytes(privateKeyHex);
+  if (privBytes.length !== 32) {
+    throw new Error('Private key must be 32 bytes');
+  }
+
+  // Build the WIF payload: version byte (0x80) + private key + optional compression flag (0x01)
+  const payload = compressed
+    ? new Uint8Array([0x80, ...privBytes, 0x01])
+    : new Uint8Array([0x80, ...privBytes]);
+
+  return base58check.encode(payload);
+}
+
+/**
  * Decodes a WIF (Wallet Import Format) private key.
  *
  * @param wif - The WIF string.

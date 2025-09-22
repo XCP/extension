@@ -34,7 +34,7 @@ interface WalletService {
   updateWalletAddressFormat: (walletId: string, newType: AddressFormat) => Promise<void>;
   updateWalletPinnedAssets: (pinnedAssets: string[]) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
-  getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ key: string; compressed: boolean }>;
+  getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ wif: string; hex: string; compressed: boolean }>;
   removeWallet: (walletId: string) => Promise<void>;
   getPreviewAddressForFormat: (walletId: string, addressFormat: AddressFormat) => Promise<string>;
   signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;

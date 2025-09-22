@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   generateNewMnemonic,
   decodeWIF,
+  encodeWIF,
   isWIF,
   getPublicKeyFromPrivateKey,
   getAddressFromPrivateKey,
@@ -70,6 +71,59 @@ describe('Private Key Utilities', () => {
       const wif = '5HpHagT65TZzG1PH3CSu63k8DbpvD8s5ip4nEB3kEsreAnchuDf';
       const result = decodeWIF(wif);
       expect(result.privateKey).toHaveLength(64); // 32 bytes = 64 hex chars
+    });
+  });
+
+  describe('encodeWIF', () => {
+    it('should encode a private key to compressed WIF format', () => {
+      const privateKeyHex = '0000000000000000000000000000000000000000000000000000000000000001';
+      const wif = encodeWIF(privateKeyHex, true);
+      expect(wif).toBe('KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn');
+    });
+
+    it('should encode a private key to uncompressed WIF format', () => {
+      const privateKeyHex = '0000000000000000000000000000000000000000000000000000000000000001';
+      const wif = encodeWIF(privateKeyHex, false);
+      expect(wif).toBe('5HpHagT65TZzG1PH3CSu63k8DbpvD8s5ip4nEB3kEsreAnchuDf');
+    });
+
+    it('should default to compressed format when not specified', () => {
+      const privateKeyHex = '0000000000000000000000000000000000000000000000000000000000000001';
+      const wif = encodeWIF(privateKeyHex);
+      expect(wif).toBe('KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn');
+    });
+
+    it('should handle a real private key', () => {
+      const privateKeyHex = '1e99423a4ed27608a15a2616a2b0e9e52ced330ac530edcc32c8ffc6a526aedd';
+      const wifCompressed = encodeWIF(privateKeyHex, true);
+      const wifUncompressed = encodeWIF(privateKeyHex, false);
+
+      expect(wifCompressed).toBe('KxFC1jmwwCoACiCAWZ3eXa96mBM6tb3TYzGmf6YwgdGWZgawvrtJ');
+      expect(wifUncompressed).toBe('5J3mBbAH58CpQ3Y5RNJpUKPE62SQ5tfcvU2JpbnkeyhfsYB1Jcn');
+    });
+
+    it('should throw error for invalid private key length', () => {
+      const invalidKeyShort = '00000001';
+      const invalidKeyLong = '00000000000000000000000000000000000000000000000000000000000000001111';
+
+      expect(() => encodeWIF(invalidKeyShort)).toThrow('Private key must be 32 bytes');
+      expect(() => encodeWIF(invalidKeyLong)).toThrow('Private key must be 32 bytes');
+    });
+
+    it('should round-trip correctly with decodeWIF', () => {
+      const privateKeyHex = '1e99423a4ed27608a15a2616a2b0e9e52ced330ac530edcc32c8ffc6a526aedd';
+
+      // Test compressed
+      const wifCompressed = encodeWIF(privateKeyHex, true);
+      const decodedCompressed = decodeWIF(wifCompressed);
+      expect(decodedCompressed.privateKey).toBe(privateKeyHex);
+      expect(decodedCompressed.compressed).toBe(true);
+
+      // Test uncompressed
+      const wifUncompressed = encodeWIF(privateKeyHex, false);
+      const decodedUncompressed = decodeWIF(wifUncompressed);
+      expect(decodedUncompressed.privateKey).toBe(privateKeyHex);
+      expect(decodedUncompressed.compressed).toBe(false);
     });
   });
 

@@ -95,7 +95,7 @@ interface WalletContextType {
   importTestAddress: (address: string, name?: string) => Promise<Wallet>;
   resetAllWallets: (password: string) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
-  getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ key: string; compressed: boolean }>;
+  getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ wif: string; hex: string; compressed: boolean }>;
   setLastActiveTime: () => Promise<void>;
   verifyPassword: (password: string) => Promise<boolean>;
   updateWalletAddressFormat: (walletId: string, newType: AddressFormat) => Promise<void>;

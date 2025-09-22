@@ -48,7 +48,7 @@ export function useMultiBatchConsolidation() {
         activeWallet.id,
         activeAddress.path
       );
-      const privateKey = privateKeyResult.key;
+      const privateKey = privateKeyResult.hex; // Use hex format for consolidation
 
       // Process each batch sequentially
       for (let i = 0; i < allBatches.length; i++) {

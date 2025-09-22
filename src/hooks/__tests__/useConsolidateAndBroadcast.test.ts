@@ -61,9 +61,10 @@ describe('useConsolidateAndBroadcast', () => {
     
     vi.mocked(useWallet).mockReturnValue(mockWalletContext as any);
     vi.mocked(consolidateBareMultisig).mockResolvedValue('0x123signed');
-    vi.mocked(mockWalletContext.getPrivateKey).mockResolvedValue({ 
-      key: 'L1234567890',
-      compressed: true 
+    vi.mocked(mockWalletContext.getPrivateKey).mockResolvedValue({
+      wif: 'L1234567890',
+      hex: '1234567890abcdef',
+      compressed: true
     });
   });
 
