@@ -15,7 +15,7 @@ import { hasAddressActivity } from './balance';
 export const AddressFormat = {
   /** Counterwallet style (P2PKH with custom derivation) */
   Counterwallet: 'counterwallet',
-  /** Counterwallet SegWit (Native SegWit with Counterwallet derivation) */
+  /** FreeWallet Style SegWit (Native SegWit with Counterwallet derivation) */
   CounterwalletSegwit: 'counterwallet-segwit',
   /** Taproot (Pay-to-Taproot) */
   P2TR: 'p2tr',
@@ -43,6 +43,14 @@ export function isSegwitFormat(format: AddressFormat): boolean {
          format === AddressFormat.P2TR;
 }
 
+/**
+ * Check if an address format is a Counterwallet/FreeWallet style format.
+ */
+export function isCounterwalletFormat(format: AddressFormat): boolean {
+  return format === AddressFormat.Counterwallet ||
+         format === AddressFormat.CounterwalletSegwit;
+}
+
 
 // Create a base58check encoder instance using SHA-256.
 const base58check = createBase58check(sha256);
@@ -67,7 +75,6 @@ export function getDerivationPathForAddressFormat(addressFormat: AddressFormat):
     case AddressFormat.Counterwallet:
       return "m/0'/0";
     case AddressFormat.CounterwalletSegwit:
-      // Use Counterwallet derivation path but with SegWit encoding
       return "m/0'/0";
     default:
       throw new Error(`Unsupported address type: ${ addressFormat }`);
@@ -151,10 +158,9 @@ export function getAddressFromMnemonic(
   addressFormat: AddressFormat
 ): string {
   // Use a specialized seed for Counterwallet and CounterwalletSegwit; otherwise use standard BIP39 seed.
-  const seed: Uint8Array =
-    (addressFormat === AddressFormat.Counterwallet || addressFormat === AddressFormat.CounterwalletSegwit)
-      ? getCounterwalletSeed(mnemonic)
-      : mnemonicToSeedSync(mnemonic);
+  const seed: Uint8Array = isCounterwalletFormat(addressFormat)
+    ? getCounterwalletSeed(mnemonic)
+    : mnemonicToSeedSync(mnemonic);
   const root = HDKey.fromMasterSeed(seed);
   const child = root.derive(path);
   if (!child.publicKey) {

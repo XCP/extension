@@ -9,7 +9,7 @@ import { ErrorAlert } from "@/components/error-alert";
 import { Spinner } from "@/components/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat } from '@/utils/blockchain/bitcoin';
+import { AddressFormat, isCounterwalletFormat } from '@/utils/blockchain/bitcoin';
 import { formatAddress } from "@/utils/format";
 import type { ReactElement } from "react";
 
@@ -166,7 +166,7 @@ export default function AddressTypeSettings(): ReactElement {
       case AddressFormat.Counterwallet:
           return "CounterWallet (P2PKH)";
       case AddressFormat.CounterwalletSegwit:
-          return "CounterWallet SegWit (bc1)";
+          return "CounterWallet SegWit (P2WPKH)";
       default:
         return type;
     }
@@ -204,25 +204,22 @@ export default function AddressTypeSettings(): ReactElement {
       >
         <SelectionCardGroup>
           {CONSTANTS.AVAILABLE_ADDRESS_TYPES.filter((type) => {
-            const isCounterwallet = activeWallet?.addressFormat === AddressFormat.Counterwallet ||
-                                    activeWallet?.addressFormat === AddressFormat.CounterwalletSegwit;
+            const isCounterwallet = activeWallet?.addressFormat &&
+                                   isCounterwalletFormat(activeWallet.addressFormat);
 
             // For Counterwallet users, only show Counterwallet and CounterwalletSegwit options
             if (isCounterwallet) {
-              return type === AddressFormat.Counterwallet || type === AddressFormat.CounterwalletSegwit;
+              return isCounterwalletFormat(type);
             }
 
             // For non-Counterwallet users, hide both Counterwallet formats
-            if (type === AddressFormat.Counterwallet || type === AddressFormat.CounterwalletSegwit) {
+            if (isCounterwalletFormat(type)) {
               return false;
             }
 
             return true;
           }).map((type) => {
             const typeLabel = getAddressFormatDescription(type);
-            // No addresses should be disabled since we're filtering them properly
-            const isDisabled = false;
-            const disabledReason = undefined;
             // Use loaded address preview
             const address = addresses[type] || "";
             const addressPreview = address ? formatAddress(address) : "";
@@ -233,8 +230,6 @@ export default function AddressTypeSettings(): ReactElement {
                 value={type}
                 title={typeLabel}
                 description={addressPreview}
-                disabled={isDisabled}
-                disabledReason={disabledReason}
               />
             );
           })}

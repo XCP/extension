@@ -6,7 +6,7 @@ import * as sessionManager from '@/utils/auth/sessionManager';
 import { settingsManager } from '@/utils/wallet/settingsManager';
 import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, removeEncryptedWallet, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
 import { encryptMnemonic, decryptMnemonic, encryptPrivateKey, decryptPrivateKey, DecryptionError } from '@/utils/encryption';
-import { getAddressFromMnemonic, getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, getDerivationPathForAddressFormat, signMessage } from '@/utils/blockchain/bitcoin';
+import { getAddressFromMnemonic, getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, getDerivationPathForAddressFormat, signMessage, isCounterwalletFormat } from '@/utils/blockchain/bitcoin';
 import { AddressFormat } from '@/utils/blockchain/bitcoin';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
 import { KeychainSettings } from '@/utils/storage/settingsStorage';
@@ -762,7 +762,7 @@ export class WalletManager {
   }
 
   private async generateWalletId(mnemonic: string, addressFormat: AddressFormat): Promise<string> {
-    const seed = (addressFormat === AddressFormat.Counterwallet || addressFormat === AddressFormat.CounterwalletSegwit)
+    const seed = isCounterwalletFormat(addressFormat)
       ? getCounterwalletSeed(mnemonic)
       : mnemonicToSeedSync(mnemonic);
     const derivationPath = getDerivationPathForAddressFormat(addressFormat);
@@ -790,7 +790,7 @@ export class WalletManager {
   private deriveMnemonicAddress(mnemonic: string, addressFormat: AddressFormat, index: number): Address {
     const path = `${getDerivationPathForAddressFormat(addressFormat)}/${index}`;
     const address = getAddressFromMnemonic(mnemonic, path, addressFormat);
-    const seed = (addressFormat === AddressFormat.Counterwallet || addressFormat === AddressFormat.CounterwalletSegwit)
+    const seed = isCounterwalletFormat(addressFormat)
       ? getCounterwalletSeed(mnemonic)
       : mnemonicToSeedSync(mnemonic);
     const root = HDKey.fromMasterSeed(seed);
