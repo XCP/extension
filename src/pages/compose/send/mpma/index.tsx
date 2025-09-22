@@ -42,10 +42,11 @@ function ComposeMPMA() {
   return (
     <div className="p-4">
       <Composer<MPMAData>
+        composeType="mpma"
+        composeApiMethod={composeTransaction}
         initialTitle="MPMA Send"
         FormComponent={MPMAForm}
         ReviewComponent={ReviewMPMA}
-        composeApiMethod={composeTransaction}
       />
     </div>
   );

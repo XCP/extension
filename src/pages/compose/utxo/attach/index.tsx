@@ -20,15 +20,16 @@ function ComposeUtxoAttach() {
   return (
     <div className="p-4">
       <Composer<AttachOptions>
+        composeType="attach"
+        composeApiMethod={composeAttach}
         initialTitle="Attach UTXO"
         FormComponent={(props) => (
-          <UtxoAttachForm 
-            {...props} 
+          <UtxoAttachForm
+            {...props}
             initialAsset={asset}
           />
         )}
         ReviewComponent={ReviewUtxoAttach}
-        composeApiMethod={composeAttach}
       />
     </div>
   );

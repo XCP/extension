@@ -11,10 +11,11 @@ function ComposeDispenserPage() {
   return (
     <div className="p-4">
       <Composer<DispenserOptions>
+        composeType="dispenser"
+        composeApiMethod={composeDispenser}
         initialTitle="Dispenser"
         FormComponent={(props) => <DispenserForm {...props} asset={asset || ""} />}
         ReviewComponent={(props) => <ReviewDispenser {...props} asset={asset || ""} />}
-        composeApiMethod={composeDispenser}
       />
     </div>
   );

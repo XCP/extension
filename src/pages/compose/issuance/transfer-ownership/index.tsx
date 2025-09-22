@@ -20,10 +20,11 @@ function ComposeIssuanceTransferOwnership() {
   return (
     <div className="p-4">
       <Composer<IssuanceOptions>
+        composeType="issuance"
+        composeApiMethod={composeIssuance}
         initialTitle="Transfer Asset"
         FormComponent={(props) => <TransferOwnershipForm {...props} asset={asset} />}
         ReviewComponent={ReviewIssuanceTransferOwnership}
-        composeApiMethod={composeIssuance}
       />
     </div>
   );

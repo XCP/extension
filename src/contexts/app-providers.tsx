@@ -1,7 +1,6 @@
 import { useCallback, type ReactNode, type ReactElement } from 'react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { HeaderProvider } from './header-context';
-import { LoadingProvider } from './loading-context';
 import { PriceProvider } from './price-context';
 import { SettingsProvider } from './settings-context';
 import { WalletProvider } from './wallet-context';
@@ -89,18 +88,17 @@ export function AppProviders({ children }: AppProvidersProps): ReactElement {
         </div>
       }
     >
-      <LoadingProvider disableScroll={true}>
-        <ErrorBoundary
-          fallback={
-            <div className="min-h-screen flex items-center justify-center p-4">
-              <div className="text-center">
-                <h2 className="text-lg font-semibold mb-2">Settings Error</h2>
-                <p className="text-sm text-gray-600">Unable to load settings. Please refresh.</p>
-              </div>
+      <ErrorBoundary
+        fallback={
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <div className="text-center">
+              <h2 className="text-lg font-semibold mb-2">Settings Error</h2>
+              <p className="text-sm text-gray-600">Unable to load settings. Please refresh.</p>
             </div>
-          }
-        >
-          <SettingsProvider>
+          </div>
+        }
+      >
+        <SettingsProvider>
             <ErrorBoundary
               fallback={
                 <div className="min-h-screen flex items-center justify-center p-4">
@@ -122,8 +120,7 @@ export function AppProviders({ children }: AppProvidersProps): ReactElement {
               </WalletProvider>
             </ErrorBoundary>
           </SettingsProvider>
-        </ErrorBoundary>
-      </LoadingProvider>
+      </ErrorBoundary>
     </ErrorBoundary>
   );
 }

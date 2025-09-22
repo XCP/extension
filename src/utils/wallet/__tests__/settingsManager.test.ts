@@ -264,6 +264,10 @@ describe('SettingsManager', () => {
     });
 
     it('should maintain state consistency after mixed operations', async () => {
+      // Ensure the mock returns settings with showHelpText
+      const initialSettings = { ...mockSettings, showHelpText: false };
+      mockGetKeychainSettings.mockResolvedValue(initialSettings);
+
       // Load settings
       await settingsManager.loadSettings();
       expect(settingsManager.getSettings()?.showHelpText).toBe(false); // Real default is false

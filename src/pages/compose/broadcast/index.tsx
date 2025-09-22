@@ -8,10 +8,11 @@ function ComposeBroadcast() {
   return (
     <div className="p-4">
       <Composer<BroadcastOptions>
+        composeType="broadcast"
+        composeApiMethod={composeBroadcast}
         initialTitle="Broadcast"
         FormComponent={BroadcastForm}
         ReviewComponent={ReviewBroadcast}
-        composeApiMethod={composeBroadcast}
       />
     </div>
   );

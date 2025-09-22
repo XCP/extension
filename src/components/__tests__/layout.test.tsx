@@ -42,26 +42,9 @@ vi.mock('@/contexts/header-context', () => ({
   })
 }));
 
-const mockIsLoading = vi.fn();
-const mockCurrentMessage = vi.fn();
-vi.mock('@/contexts/loading-context', () => ({
-  useLoading: () => ({
-    isLoading: mockIsLoading(),
-    currentMessage: mockCurrentMessage()
-  })
-}));
-
-// Mock the Spinner component
-vi.mock('@/components/spinner', () => ({
-  Spinner: ({ message }: { message?: string }) => (
-    <div data-testid="spinner">{message || 'Loading...'}</div>
-  )
-}));
-
 describe('Layout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockIsLoading.mockReturnValue(false);
   });
 
   it('should render header with props from context', () => {
@@ -73,22 +56,11 @@ describe('Layout', () => {
     expect(header).toHaveAttribute('showBack', 'true');
   });
 
-  it('should render outlet when not loading', () => {
-    mockIsLoading.mockReturnValue(false);
+  it('should always render outlet', () => {
     render(<Layout />);
-    
+
     expect(screen.getByTestId('outlet')).toBeInTheDocument();
     expect(screen.getByText('Page Content')).toBeInTheDocument();
-  });
-
-  it('should render spinner when loading', () => {
-    mockIsLoading.mockReturnValue(true);
-    mockCurrentMessage.mockReturnValue('Loading...');
-    render(<Layout />);
-    
-    expect(screen.getByTestId('spinner')).toBeInTheDocument();
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
-    expect(screen.queryByTestId('outlet')).not.toBeInTheDocument();
   });
 
   it('should not render footer by default', () => {
@@ -149,33 +121,6 @@ describe('Layout', () => {
     expect(children[1].tagName.toLowerCase()).toBe('main');
   });
 
-  it('should handle transition from loading to not loading', () => {
-    mockIsLoading.mockReturnValue(true);
-    const { rerender } = render(<Layout />);
-    
-    expect(screen.getByTestId('spinner')).toBeInTheDocument();
-    expect(screen.queryByTestId('outlet')).not.toBeInTheDocument();
-    
-    mockIsLoading.mockReturnValue(false);
-    rerender(<Layout />);
-    
-    expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
-    expect(screen.getByTestId('outlet')).toBeInTheDocument();
-  });
-
-  it('should handle transition from not loading to loading', () => {
-    mockIsLoading.mockReturnValue(false);
-    const { rerender } = render(<Layout />);
-    
-    expect(screen.getByTestId('outlet')).toBeInTheDocument();
-    expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
-    
-    mockIsLoading.mockReturnValue(true);
-    rerender(<Layout />);
-    
-    expect(screen.getByTestId('spinner')).toBeInTheDocument();
-    expect(screen.queryByTestId('outlet')).not.toBeInTheDocument();
-  });
 
   it('should handle footer prop changes', () => {
     const { rerender } = render(<Layout showFooter={false} />);
@@ -191,15 +136,9 @@ describe('Layout', () => {
     expect(screen.queryByTestId('footer')).not.toBeInTheDocument();
   });
 
-  it('should always render header regardless of loading state', () => {
-    mockIsLoading.mockReturnValue(true);
-    const { rerender } = render(<Layout />);
-    
-    expect(screen.getByTestId('header')).toBeInTheDocument();
-    
-    mockIsLoading.mockReturnValue(false);
-    rerender(<Layout />);
-    
+  it('should always render header', () => {
+    render(<Layout />);
+
     expect(screen.getByTestId('header')).toBeInTheDocument();
   });
 

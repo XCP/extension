@@ -289,10 +289,10 @@ export async function composeTransaction<T>(
 ): Promise<ApiResponse> {
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
-  
+
   // Get user's unconfirmed transaction preference
   const settings = await getKeychainSettings();
-  
+
   const params = new URLSearchParams({
     ...paramsObj as any,
     sat_per_vbyte: sat_per_vbyte.toString(),

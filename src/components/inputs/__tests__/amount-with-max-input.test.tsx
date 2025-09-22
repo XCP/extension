@@ -8,7 +8,7 @@ vi.mock('@/utils/blockchain/bitcoin', () => ({
   isValidBase58Address: vi.fn((addr) => addr && addr.startsWith('bc1'))
 }));
 
-vi.mock('@/utils/blockchain/counterparty', () => ({
+vi.mock('@/utils/blockchain/counterparty/compose', () => ({
   composeSend: vi.fn()
 }));
 

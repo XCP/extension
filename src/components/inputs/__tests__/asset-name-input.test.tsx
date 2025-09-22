@@ -23,7 +23,7 @@ vi.mock('@/contexts/wallet-context', () => ({
 }));
 
 // Mock the fetchAssetDetails function
-vi.mock('@/utils/blockchain/counterparty', () => ({
+vi.mock('@/utils/blockchain/counterparty/api', () => ({
   fetchAssetDetails: vi.fn()
 }));
 

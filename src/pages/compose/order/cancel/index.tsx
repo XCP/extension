@@ -11,10 +11,11 @@ function ComposeCancel() {
   return (
     <div className="p-4">
       <Composer<CancelOptions>
+        composeType="cancel"
+        composeApiMethod={composeCancel}
         initialTitle="Cancel"
         FormComponent={(props) => <CancelForm {...props} initialHash={hash} />}
         ReviewComponent={ReviewCancel}
-        composeApiMethod={composeCancel}
       />
     </div>
   );

@@ -11,10 +11,11 @@ function ComposeDispenserClose() {
   return (
     <div className="p-4">
       <Composer<DispenserOptions>
+        composeType="dispenser"
+        composeApiMethod={composeDispenser}
         initialTitle="Close"
         FormComponent={(props) => <DispenserCloseForm {...props} initialAsset={asset} />}
         ReviewComponent={ReviewDispenserClose}
-        composeApiMethod={composeDispenser}
       />
     </div>
   );

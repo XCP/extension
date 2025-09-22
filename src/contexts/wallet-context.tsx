@@ -150,7 +150,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       if (process.env.NODE_ENV === 'development') {
         console.log('[WalletContext] Starting state refresh');
       }
-      
+
       await walletService.loadWallets();
       const allWallets = await walletService.getWallets();
       

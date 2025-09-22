@@ -11,10 +11,11 @@ function ComposeFairminterPage() {
   return (
     <div className="p-4">
       <Composer<FairminterOptions>
+        composeType="fairminter"
+        composeApiMethod={composeFairminter}
         initialTitle="Fairminter"
         FormComponent={(props) => <FairminterForm {...props} asset={asset || ''} />}
         ReviewComponent={ReviewFairminter}
-        composeApiMethod={composeFairminter}
       />
     </div>
   );

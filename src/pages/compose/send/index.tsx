@@ -74,12 +74,13 @@ function ComposeSend() {
   return (
     <div className="p-4">
       <Composer<ExtendedSendOptions>
+        composeType="send"
+        composeApiMethod={composeTransaction}
         initialTitle="Send"
+        initialFormData={providerFormData}
         FormComponent={(props) => <SendForm {...props} initialAsset={asset || "BTC"} />}
         ReviewComponent={ReviewSend}
-        composeApiMethod={composeTransaction}
         composeRequestId={composeRequestId}
-        initialFormData={providerFormData}
         onSuccess={handleSuccess}
       />
     </div>

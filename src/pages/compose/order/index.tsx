@@ -11,10 +11,11 @@ function ComposeOrderPage() {
   return (
     <div className="p-4">
       <Composer<OrderOptions>
+        composeType="order"
+        composeApiMethod={composeOrder}
         initialTitle="Dex Order"
         FormComponent={(props) => <OrderForm {...props} giveAsset={asset || ''} />}
         ReviewComponent={ReviewOrder}
-        composeApiMethod={composeOrder}
       />
     </div>
   );

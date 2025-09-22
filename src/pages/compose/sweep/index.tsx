@@ -14,10 +14,11 @@ function ComposeSweep() {
   return (
     <div className="p-4">
       <Composer<SweepOptions>
+        composeType="sweep"
+        composeApiMethod={composeSweep}
         initialTitle="Sweep"
         FormComponent={SweepForm}
         ReviewComponent={ReviewSweep}
-        composeApiMethod={composeSweep}
       />
     </div>
   );

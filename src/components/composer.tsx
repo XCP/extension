@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, type ReactElement } from "react";
+import { useEffect, useMemo, useCallback, type ReactElement } from "react";
 import { FiHelpCircle, FiX, FiRefreshCw } from "react-icons/fi";
 import { onMessage } from 'webext-bridge/popup';
 import { useNavigate } from "react-router-dom";
 import { SuccessScreen } from "@/components/screens/success-screen";
 import { UnlockScreen } from "@/components/screens/unlock-screen";
+import { LoadingOverlay } from "@/components/loading-overlay";
 import { ComposerProvider, useComposer } from "@/contexts/composer-context";
 import { useHeader } from "@/contexts/header-context";
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
@@ -15,7 +16,15 @@ import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
  * @template T - Type of form data
  */
 interface ComposerProps<T> {
+  // Compose configuration
+  composeType: string;
+  composeApiMethod: (data: T) => Promise<ApiResponse>;
+
+  // UI configuration
   initialTitle: string;
+  initialFormData?: T | null;
+
+  // Components
   FormComponent: (props: {
     formAction: (formData: FormData) => void;
     initialFormData: T | null;
@@ -29,14 +38,15 @@ interface ComposerProps<T> {
     error: string | null;
     isSigning: boolean;
   }) => ReactElement;
-  composeApiMethod: (data: T) => Promise<ApiResponse>;
+
+  // Optional callbacks
   headerCallbacks?: {
     onBack?: () => void;
     onToggleHelp?: () => void;
   };
+
   // Provider request handling
   composeRequestId?: string | null;
-  initialFormData?: T | null;
   onSuccess?: (result: any) => void;
 }
 
@@ -50,7 +60,7 @@ function ComposerInner<T>({
   headerCallbacks,
   composeRequestId,
   onSuccess,
-}: Omit<ComposerProps<T>, "composeApiMethod" | "initialFormData">): ReactElement {
+}: Omit<ComposerProps<T>, "composeApiMethod" | "composeType" | "initialFormData">): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const {
@@ -64,6 +74,7 @@ function ComposerInner<T>({
     toggleHelpText,
     handleUnlockAndSign,
   } = useComposer<T>();
+
 
   // Handle success for provider requests
   useEffect(() => {
@@ -169,14 +180,21 @@ function ComposerInner<T>({
     };
   }, [setShowAuthModal]);
 
-  // Handle form submission
-  const handleFormAction = async (formData: FormData) => {
-    await composeTransaction(formData);
-  };
+  // Handle form submission - wrapped to prevent unmount
+  const handleFormAction = useCallback((formData: FormData) => {
+    // Call synchronously to prevent unmount
+    composeTransaction(formData);
+  }, [composeTransaction]);
 
   // Render based on current step
   return (
-    <div>
+    <div className="relative">
+      {/* Local loading overlay that won't cause unmounts */}
+      <LoadingOverlay
+        isLoading={state.isComposing || state.isSigning}
+        message={state.isComposing ? "Composing transaction..." : "Signing and broadcasting..."}
+      />
+
       {state.step === "form" && (
         <FormComponent
           formAction={handleFormAction}
@@ -185,7 +203,7 @@ function ComposerInner<T>({
           showHelpText={showHelpText}
         />
       )}
-      
+
       {state.step === "review" && state.apiResponse && (
         <ReviewComponent
           apiResponse={state.apiResponse}
@@ -195,11 +213,11 @@ function ComposerInner<T>({
           isSigning={state.isSigning}
         />
       )}
-      
+
       {state.step === "success" && state.apiResponse && (
-        <SuccessScreen 
-          apiResponse={state.apiResponse} 
-          onReset={reset} 
+        <SuccessScreen
+          apiResponse={state.apiResponse}
+          onReset={reset}
         />
       )}
 
@@ -232,17 +250,19 @@ function ComposerInner<T>({
  * Main composer component that provides the context
  */
 export function Composer<T>({
+  composeType,
+  composeApiMethod,
   initialTitle,
+  initialFormData,
   FormComponent,
   ReviewComponent,
-  composeApiMethod,
   headerCallbacks,
   composeRequestId,
-  initialFormData,
   onSuccess,
 }: ComposerProps<T>): ReactElement {
   return (
     <ComposerProvider<T>
+      composeType={composeType}
       composeApi={composeApiMethod}
       initialTitle={initialTitle}
       initialFormData={initialFormData}

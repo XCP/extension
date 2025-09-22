@@ -189,6 +189,41 @@ test.describe('Broadcast Form', () => {
     const { context, page } = await launchExtension('broadcast-submission');
     await setupWallet(page);
 
+    // Mock the compose API endpoint to avoid real API calls
+    await page.route('**/v2/addresses/**/compose/broadcast**', route => {
+      console.log('Mocking broadcast compose API');
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          result: {
+            rawtransaction: '01000000016b6f52ad20c866a095f332950f5df8b891022f426757c2a7b2dc85293fb96fb000000006b483045',
+            btc_in: 100000,
+            btc_out: 99500,
+            btc_change: 0,
+            btc_fee: 500,
+            data: '434e54525052545900000014000000000000000054657374206d657373616765',
+            lock_scripts: [],
+            inputs_values: [100000],
+            signed_tx_estimated_size: {
+              vsize: 250,
+              adjusted_vsize: 250,
+              sigops_count: 1
+            },
+            psbt: '',
+            params: {
+              source: '1BotpWeW4cWRZ26rLvBCRHTeWtaH5fUYPX',
+              text: 'Test broadcast message for e2e testing',
+              value: '0',
+              fee_fraction: '0',
+              timestamp: Math.floor(Date.now() / 1000).toString()
+            },
+            name: 'broadcast'
+          }
+        })
+      });
+    });
+
     // Enable dry run mode first
     try {
       await navigateViaFooter(page, 'settings');
@@ -235,6 +270,11 @@ test.describe('Broadcast Form', () => {
       ).first();
 
       if (await submitButton.isVisible({ timeout: 2000 })) {
+        // Capture console logs
+        page.on('console', msg => {
+          console.log('Browser console:', msg.type(), msg.text());
+        });
+
         console.log('Clicking submit button...');
         await submitButton.click();
 
@@ -260,7 +300,8 @@ test.describe('Broadcast Form', () => {
 
         // Check if we navigated to review page
         const onReviewPage = currentUrl.includes('review') ||
-                            await page.locator('text=/Sign.*Transaction/i, text=/Review/i').isVisible({ timeout: 2000 }).catch(() => false);
+                            await page.locator('text="Review Transaction"').isVisible({ timeout: 2000 }).catch(() => false) ||
+                            await page.locator('text="Sign & Broadcast"').isVisible({ timeout: 2000 }).catch(() => false);
 
         // Check if we're still on the form page
         const onFormPage = currentUrl.includes('compose/broadcast') &&

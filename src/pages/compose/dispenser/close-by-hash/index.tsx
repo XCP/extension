@@ -11,10 +11,11 @@ function ComposeDispenserCloseByHash() {
   return (
     <div className="p-4">
       <Composer<DispenserOptions>
+        composeType="dispenser"
+        composeApiMethod={composeDispenser}
         initialTitle="Close"
         FormComponent={(props) => <DispenserCloseByHashForm {...props} initialTxHash={tx_hash} />}
         ReviewComponent={ReviewDispenserCloseByHash}
-        composeApiMethod={composeDispenser}
       />
     </div>
   );

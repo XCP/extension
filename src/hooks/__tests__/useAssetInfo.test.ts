@@ -4,9 +4,7 @@ import { useAssetInfo } from '../useAssetInfo';
 import { fetchAssetDetailsAndBalance } from '@/utils/blockchain/counterparty/api';
 
 // Mock the blockchain utilities
-vi.mock('@/utils/blockchain/counterparty', () => ({
-  fetchAssetDetailsAndBalance: vi.fn()
-}));
+vi.mock('@/utils/blockchain/counterparty/api');
 
 // Mock the wallet context
 vi.mock('@/contexts/wallet-context', () => ({

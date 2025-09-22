@@ -11,10 +11,11 @@ function ComposeUtxoDetach() {
   return (
     <div className="p-4">
       <Composer<DetachOptions>
+        composeType="detach"
+        composeApiMethod={composeDetach}
         initialTitle="Detach UTXO"
         FormComponent={(props) => <UtxoDetachForm {...props} initialUtxo={txid || ""} />}
         ReviewComponent={ReviewUtxoDetach}
-        composeApiMethod={composeDetach}
       />
     </div>
   );

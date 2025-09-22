@@ -20,10 +20,11 @@ function ComposeIssuanceLockSupply() {
   return (
     <div className="p-4">
       <Composer<IssuanceOptions>
+        composeType="issuance"
+        composeApiMethod={composeIssuance}
         initialTitle="Lock Supply"
         FormComponent={(props) => <LockSupplyForm {...props} asset={asset} />}
         ReviewComponent={ReviewIssuanceLockSupply}
-        composeApiMethod={composeIssuance}
       />
     </div>
   );

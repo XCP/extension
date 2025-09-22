@@ -20,10 +20,11 @@ function ComposeIssuanceResetSupply() {
   return (
     <div className="p-4">
       <Composer<IssuanceOptions>
+        composeType="issuance"
+        composeApiMethod={composeIssuance}
         initialTitle="Reset Supply"
         FormComponent={(props) => <ResetSupplyForm {...props} asset={asset} />}
         ReviewComponent={ReviewIssuanceResetSupply}
-        composeApiMethod={composeIssuance}
       />
     </div>
   );

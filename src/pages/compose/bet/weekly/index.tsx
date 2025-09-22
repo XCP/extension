@@ -8,10 +8,11 @@ function ComposeWeeklyBet() {
   return (
     <div className="p-4">
       <Composer<BetOptions>
+        composeType="bet"
+        composeApiMethod={composeBet}
         initialTitle="Weekly Bet"
         FormComponent={WeeklyBetForm}
         ReviewComponent={WeeklyReviewBet}
-        composeApiMethod={composeBet}
       />
     </div>
   );

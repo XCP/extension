@@ -24,12 +24,13 @@ function ComposeLockDescription() {
   return (
     <div className="p-4">
       <Composer<IssuanceOptions>
+        composeType="issuance"
+        composeApiMethod={composeIssuance}
         initialTitle="Lock Description"
         FormComponent={(props) => (
           <LockDescriptionForm {...props} asset={asset} />
         )}
         ReviewComponent={ReviewLockDescription}
-        composeApiMethod={composeIssuance}
       />
     </div>
   );

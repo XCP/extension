@@ -50,7 +50,7 @@ vi.mock('@/contexts/loading-context', () => ({
 }));
 
 // Mock API call
-vi.mock('@/utils/blockchain/counterparty', () => ({
+vi.mock('@/utils/blockchain/counterparty/api', () => ({
   fetchUtxoBalances: vi.fn().mockResolvedValue({
     result: [
       { asset: 'TESTTOKEN', quantity_normalized: '100' }

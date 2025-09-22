@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Textarea, Input } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer-form";
 import { AddressHeader } from "@/components/headers/address-header";
@@ -32,10 +31,7 @@ export function BroadcastForm({
   // Get everything from composer context
   const { activeAddress, activeWallet, settings, showHelpText } = useComposer<BroadcastOptions>();
   const showAdvancedOptions = settings?.enableAdvancedBroadcasts ?? false;
-  
-  // Form status
-  const { pending } = useFormStatus();
-  
+
   // Form state
   const [textContent, setTextContent] = useState(initialFormData?.text || "");
   
@@ -87,7 +83,7 @@ export function BroadcastForm({
 
   return (
     <ComposerForm
-      formAction={async formData => {
+      formAction={async (formData: FormData) => {
           // Ensure defaults for optional fields
           if (!formData.get("value") || formData.get("value") === "") {
             formData.set("value", "0");
@@ -113,8 +109,9 @@ export function BroadcastForm({
             // Regular text broadcast
             formData.set("text", textContent);
           }
-          
-          formAction(formData);
+
+          // Call the form action and let it handle navigation
+          await formAction(formData);
         }}
         header={
           activeAddress && (
@@ -135,7 +132,7 @@ export function BroadcastForm({
               selectedFile={selectedFile}
               onFileChange={handleFileChange}
               error={fileError}
-              disabled={pending}
+              disabled={false}
               maxSizeKB={400}
               helpText="Upload a file to inscribe as the broadcast message. The file content will be stored permanently on-chain. To broadcast text, upload a .txt file."
               showHelpText={showHelpText}
@@ -153,7 +150,7 @@ export function BroadcastForm({
                 className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 hover:border-gray-400"
                 required
                 rows={4}
-                disabled={pending}
+                disabled={false}
               />
               {showHelpText && (
                 <Description className="mt-2 text-sm text-gray-500">
@@ -170,7 +167,7 @@ export function BroadcastForm({
               checked={inscribeEnabled}
               onChange={setInscribeEnabled}
               showHelpText={showHelpText}
-              disabled={pending}
+              disabled={false}
             />
           )}
 
@@ -189,7 +186,7 @@ export function BroadcastForm({
                   defaultValue={initialFormData?.value || ""}
                   className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 hover:border-gray-400"
                   placeholder="0"
-                  disabled={pending}
+                  disabled={false}
                 />
                 {showHelpText && (
                   <Description className="mt-2 text-sm text-gray-500">
@@ -211,7 +208,7 @@ export function BroadcastForm({
                   defaultValue={initialFormData?.fee_fraction || ""}
                   className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 hover:border-gray-400"
                   placeholder="0"
-                  disabled={pending}
+                  disabled={false}
                 />
                 {showHelpText && (
                   <Description className="mt-2 text-sm text-gray-500">

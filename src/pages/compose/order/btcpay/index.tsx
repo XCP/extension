@@ -8,10 +8,11 @@ function ComposeBTCPay() {
   return (
     <div className="p-4">
       <Composer<BTCPayOptions>
+        composeType="btcpay"
+        composeApiMethod={composeBTCPay}
         initialTitle="BTCPay"
         FormComponent={BTCPayForm}
         ReviewComponent={ReviewBTCPay}
-        composeApiMethod={composeBTCPay}
       />
     </div>
   );

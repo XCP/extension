@@ -27,13 +27,13 @@ vi.mock('@/contexts/settings-context', () => ({
 }));
 
 const mockFetchBTCBalance = vi.fn();
-vi.mock('@/utils/blockchain/bitcoin', () => ({
+vi.mock('@/utils/blockchain/bitcoin/balance', () => ({
   fetchBTCBalance: (...args: any[]) => mockFetchBTCBalance(...args)
 }));
 
 const mockFetchTokenBalance = vi.fn();
 const mockFetchTokenBalances = vi.fn();
-vi.mock('@/utils/blockchain/counterparty', () => ({
+vi.mock('@/utils/blockchain/counterparty/api', () => ({
   fetchTokenBalance: (...args: any[]) => mockFetchTokenBalance(...args),
   fetchTokenBalances: (...args: any[]) => mockFetchTokenBalances(...args)
 }));

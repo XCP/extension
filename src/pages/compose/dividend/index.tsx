@@ -11,10 +11,11 @@ function ComposeDividendPage() {
   return (
     <div className="p-4">
       <Composer<DividendOptions>
+        composeType="dividend"
+        composeApiMethod={composeDividend}
         initialTitle="Dividend"
         FormComponent={(props) => <DividendForm {...props} asset={asset || ""} />}
         ReviewComponent={ReviewDividend}
-        composeApiMethod={composeDividend}
       />
     </div>
   );

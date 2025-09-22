@@ -20,10 +20,11 @@ function ComposeIssuanceUpdateDescription() {
   return (
     <div className="p-4">
       <Composer<IssuanceOptions>
+        composeType="issuance"
+        composeApiMethod={composeIssuance}
         initialTitle="Update Asset"
         FormComponent={(props) => <UpdateDescriptionForm {...props} asset={asset} />}
         ReviewComponent={ReviewIssuanceUpdateDescription}
-        composeApiMethod={composeIssuance}
       />
     </div>
   );

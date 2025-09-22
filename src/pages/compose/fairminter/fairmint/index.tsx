@@ -11,10 +11,11 @@ function ComposeFairmint() {
   return (
     <div className="p-4">
       <Composer<FairmintOptions>
+        composeType="fairmint"
+        composeApiMethod={composeFairmint}
         initialTitle="Fairmint"
         FormComponent={(props) => <FairmintForm {...props} asset={asset || ""} />}
         ReviewComponent={ReviewFairmint}
-        composeApiMethod={composeFairmint}
       />
     </div>
   );

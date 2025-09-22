@@ -11,10 +11,11 @@ function ComposeIssuance() {
   return (
     <div className="p-4">
       <Composer<IssuanceOptions>
+        composeType="issuance"
+        composeApiMethod={composeIssuance}
         initialTitle="Issue Asset"
         FormComponent={(props) => <IssuanceForm {...props} initialParentAsset={asset} />}
         ReviewComponent={ReviewIssuance}
-        composeApiMethod={composeIssuance}
       />
     </div>
   );

@@ -168,6 +168,10 @@ describe('WalletContext', () => {
     vi.mocked(sessionManager.getUnlockedSecret).mockResolvedValue(null);
   });
 
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
   describe('Initial State', () => {
     it('should initialize with onboarding state when no wallets exist', async () => {
       // Override mocks for this specific test

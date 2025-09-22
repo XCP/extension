@@ -8,10 +8,11 @@ function ComposeDispense() {
   return (
     <div className="p-4">
       <Composer<DispenseOptions>
+        composeType="dispense"
+        composeApiMethod={composeDispense}
         initialTitle="Dispense"
         FormComponent={DispenseForm}
         ReviewComponent={ReviewDispense}
-        composeApiMethod={composeDispense}
       />
     </div>
   );
