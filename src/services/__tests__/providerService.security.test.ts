@@ -474,8 +474,8 @@ describe('ProviderService Security Tests', () => {
         'https://connected.com',
         'xcp_accounts',
         []
-      );
-      
+      ) as string[];
+
       // Should only return one address, not all wallet addresses
       expect(accounts).toHaveLength(1);
       expect(accounts[0]).toBe('bc1qtest123');

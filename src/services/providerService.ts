@@ -451,8 +451,8 @@ export function createProviderService(): ProviderService {
         // ==================== Signing Methods ====================
         
         case 'xcp_signMessage': {
-          const message = params?.[0];
-          const address = params?.[1];
+          const message = params?.[0] as string;
+          const address = params?.[1] as string;
 
           if (!message) {
             throw new Error('Message is required');
@@ -609,7 +609,7 @@ export function createProviderService(): ProviderService {
             throw new Error('Unauthorized - not connected to wallet');
           }
 
-          const sendParams = params?.[0];
+          const sendParams = params?.[0] as { asset?: string; [key: string]: unknown };
           if (!sendParams) {
             throw new Error('Send parameters required');
           }
@@ -929,7 +929,7 @@ export function createProviderService(): ProviderService {
             throw new Error('Unauthorized - not connected to wallet');
           }
 
-          const signedTx = params?.[0];
+          const signedTx = params?.[0] as string;
           if (!signedTx) {
             throw new Error('Signed transaction is required');
           }
