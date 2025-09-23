@@ -30,10 +30,10 @@ export function checkForLastError(): Error | undefined {
  * @param logErrors - Whether to log errors (default: false)
  * @returns Wrapped callback that checks for errors
  */
-export function wrapRuntimeCallback<T extends any[]>(
-  callback?: (...args: T) => any,
+export function wrapRuntimeCallback<T extends unknown[]>(
+  callback?: (...args: T) => unknown,
   logErrors = false
-): (...args: T) => any {
+): (...args: T) => unknown {
   return (...args: T) => {
     // Always check and consume lastError first
     const error = chrome.runtime?.lastError;
@@ -73,14 +73,14 @@ function getReadyTabs(): Set<number> {
  */
 export async function sendMessageToTab(
   tabId: number,
-  message: any,
+  message: unknown,
   options?: {
     maxRetries?: number;
     retryDelay?: number;
     skipReadinessCheck?: boolean;
     autoInject?: boolean;
   }
-): Promise<any> {
+): Promise<unknown> {
   const { 
     maxRetries = 3, 
     retryDelay = 100, 
@@ -92,11 +92,11 @@ export async function sendMessageToTab(
   const sendToTab = sendMessageToTabSafe;
   
   // Ping-inject-retry pattern
-  const ensureContentScriptAndSend = async (tabId: number, payload: any): Promise<any> => {
+  const ensureContentScriptAndSend = async (tabId: number, payload: unknown): Promise<unknown> => {
     try {
       return await sendToTab(tabId, payload);
-    } catch (error: any) {
-      const errorMsg = String(error?.message || error);
+    } catch (error: unknown) {
+      const errorMsg = String((error as Error)?.message || error);
       const receivingEndMissing = 
         errorMsg.includes('Receiving end does not exist') ||
         errorMsg.includes('Could not establish connection');
@@ -189,7 +189,7 @@ export function sendMessageToTabSafe<T = any>(
  * Optimized to skip pinging and handle errors gracefully
  */
 export async function broadcastToTabs(
-  message: any,
+  message: unknown,
   filter?: (tab: chrome.tabs.Tab) => boolean
 ): Promise<{ tabId: number; ok: boolean; error?: string }[]> {
   try {
@@ -208,9 +208,9 @@ export async function broadcastToTabs(
           // No response means no content script, but that's OK
           return { tabId, ok: false, error: 'no-receiver' };
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         // This shouldn't happen with our safe wrapper, but just in case
-        return { tabId, ok: false, error: String(error?.message || error) };
+        return { tabId, ok: false, error: String((error as Error)?.message || error) };
       }
     });
 
@@ -227,12 +227,12 @@ export async function broadcastToTabs(
  * Safe wrapper for browser.runtime.sendMessage with proper error handling
  * Use this instead of direct browser.runtime.sendMessage calls
  */
-export async function safeSendMessage(message: any, options?: {
+export async function safeSendMessage(message: unknown, options?: {
   timeout?: number;
   logErrors?: boolean;
   retries?: number;
   retryDelay?: number;
-}): Promise<any> {
+}): Promise<unknown> {
   const {
     timeout = 5000,
     logErrors = false,

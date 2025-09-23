@@ -3,17 +3,17 @@ import { defineUnlistedScript } from '#imports';
 // EIP-1193 style provider for XCP Wallet
 interface XcpWalletProvider {
   isConnected: () => boolean;
-  request: (args: { method: string; params?: any[] }) => Promise<any>;
-  on: (event: string, handler: (...args: any[]) => void) => void;
-  removeListener: (event: string, handler: (...args: any[]) => void) => void;
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+  on: (event: string, handler: (...args: unknown[]) => void) => void;
+  removeListener: (event: string, handler: (...args: unknown[]) => void) => void;
   // Legacy aliases for compatibility
   enable: () => Promise<string[]>;
-  send: (method: string, params?: any[]) => Promise<any>;
+  send: (method: string, params?: unknown[]) => Promise<unknown>;
 }
 
 export default defineUnlistedScript(() => {
   // Check if already injected
-  if ((window as any).xcpwallet) {
+  if ((window as { xcpwallet?: XcpWalletProvider }).xcpwallet) {
     console.warn('XCP Wallet provider is already defined');
     return;
   }
@@ -36,7 +36,7 @@ export default defineUnlistedScript(() => {
       }
     }
 
-    emit(event: string, ...args: any[]): void {
+    emit(event: string, ...args: unknown[]): void {
       const handlers = this.events.get(event);
       if (handlers) {
         handlers.forEach(handler => {
@@ -133,7 +133,7 @@ export default defineUnlistedScript(() => {
   });
 
   // Send request to content script
-  function sendRequest(method: string, params?: any[]): Promise<any> {
+  function sendRequest(method: string, params?: unknown[]): Promise<unknown> {
     return new Promise((resolve, reject) => {
       try {
         const id = ++requestId;
@@ -177,21 +177,21 @@ export default defineUnlistedScript(() => {
     },
 
     // Event handling
-    on: (event: string, handler: (...args: any[]) => void) => {
+    on: (event: string, handler: (...args: unknown[]) => void) => {
       eventEmitter.on(event, handler);
     },
 
-    removeListener: (event: string, handler: (...args: any[]) => void) => {
+    removeListener: (event: string, handler: (...args: unknown[]) => void) => {
       eventEmitter.off(event, handler);
     },
 
     // Legacy method for compatibility
     enable: async () => {
-      return sendRequest('xcp_requestAccounts', []);
+      return sendRequest('xcp_requestAccounts', []) as Promise<string[]>;
     },
 
     // Legacy send method for compatibility
-    send: async (method: string, params?: any[]) => {
+    send: async (method: string, params?: unknown[]) => {
       return sendRequest(method, params);
     }
   };

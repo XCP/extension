@@ -142,7 +142,8 @@ export class ConnectionService extends BaseService {
         }, 5 * 60 * 1000); // 5 minutes
 
         // Store resolvers (this would be handled by ApprovalService in the future)
-        eventEmitterService.on(`resolve-${requestId}`, (approved: boolean) => {
+        eventEmitterService.on(`resolve-${requestId}`, (...args: unknown[]) => {
+          const [approved] = args as [boolean];
           this.state.pendingPermissionRequests.delete(requestId);
           approvalQueue.remove(requestId);
           resolve(approved);

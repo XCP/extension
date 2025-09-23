@@ -28,11 +28,16 @@ import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
 import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
 import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from '@/utils/security/replayPrevention';
 
+// Define proper types for provider requests and responses
+export type ProviderRequestParams = unknown[];
+export type ProviderMetadata = Record<string, unknown>;
+export type ProviderResponse = unknown;
+
 export interface ProviderService {
   /**
    * Handle provider requests from dApps
    */
-  handleRequest: (origin: string, method: string, params?: any[], metadata?: any) => Promise<any>;
+  handleRequest: (origin: string, method: string, params?: ProviderRequestParams, metadata?: ProviderMetadata) => Promise<ProviderResponse>;
   
   /**
    * Check if origin is connected
@@ -99,14 +104,14 @@ export function createProviderService(): ProviderService {
    * Helper function for handling compose requests with UI routing
    * Uses proper typing from compose.ts for parameter validation
    */
-  async function handleComposeRequest<T = any>(
+  async function handleComposeRequest<T = unknown>(
     origin: string,
-    params: any[],
+    params: ProviderRequestParams,
     composeType: string,
     errorMessage: string,
     routePath: string,
-    validator?: (params: any) => params is T
-  ): Promise<any> {
+    validator?: (params: unknown) => params is T
+  ): Promise<ProviderResponse> {
     // Check if connected FIRST before parameter validation
     const connectionService = getConnectionService();
     if (!await connectionService.hasPermission(origin)) {
@@ -227,7 +232,7 @@ export function createProviderService(): ProviderService {
   /**
    * Handle provider requests from dApps
    */
-  async function handleRequest(origin: string, method: string, params: any[] = [], metadata?: any): Promise<any> {
+  async function handleRequest(origin: string, method: string, params: ProviderRequestParams = [], metadata?: ProviderMetadata): Promise<ProviderResponse> {
     
     // Log request signing information if available
     if (metadata?.signature) {
@@ -446,8 +451,8 @@ export function createProviderService(): ProviderService {
         // ==================== Signing Methods ====================
         
         case 'xcp_signMessage': {
-          const message = params?.[0];
-          const address = params?.[1];
+          const message = params?.[0] as string;
+          const address = params?.[1] as string;
 
           if (!message) {
             throw new Error('Message is required');
@@ -604,7 +609,7 @@ export function createProviderService(): ProviderService {
             throw new Error('Unauthorized - not connected to wallet');
           }
 
-          const sendParams = params?.[0];
+          const sendParams = params?.[0] as { asset?: string; [key: string]: unknown };
           if (!sendParams) {
             throw new Error('Send parameters required');
           }
@@ -924,7 +929,7 @@ export function createProviderService(): ProviderService {
             throw new Error('Unauthorized - not connected to wallet');
           }
 
-          const signedTx = params?.[0];
+          const signedTx = params?.[0] as string;
           if (!signedTx) {
             throw new Error('Signed transaction is required');
           }

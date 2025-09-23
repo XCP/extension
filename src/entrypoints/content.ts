@@ -31,29 +31,32 @@ export default defineContentScript({
      * IMPORTANT: Always returns true for async responses to prevent
      * "The message port closed before a response was received" errors
      */
-    const runtimeMessageHandler = (message: any, sender: any, sendResponse: any) => {
+    const runtimeMessageHandler = (message: unknown, sender: unknown, sendResponse: (response: unknown) => void) => {
       // ALWAYS check lastError first to consume any errors
       if (chrome.runtime?.lastError) {
         // Error consumed - prevents "Unchecked runtime.lastError" spam
       }
 
+      // Type guard for message object
+      const msg = message as { type?: string; action?: string; event?: string; data?: unknown } | undefined;
+
       // Handle startup health checks
-      if (message?.type === 'startup-health-check' || message?.action === 'ping') {
+      if (msg?.type === 'startup-health-check' || msg?.action === 'ping') {
         sendResponse({ status: 'ready', timestamp: Date.now(), context: 'content-script' });
         return true; // Keep channel open for async response
       }
 
       // Handle provider events (accountsChanged, disconnect, etc.)
-      if (message?.type === 'PROVIDER_EVENT') {
+      if (msg?.type === 'PROVIDER_EVENT') {
         try {
           // Relay event to injected script via window.postMessage
           window.postMessage({
             target: 'xcp-wallet-injected',
             type: 'XCP_WALLET_EVENT',
-            event: message.event,
-            data: message.data
+            event: msg.event,
+            data: msg.data
           }, window.location.origin);
-          sendResponse({ received: true, event: message.event });
+          sendResponse({ received: true, event: msg.event });
         } catch (error) {
           console.error('Failed to post provider event:', error);
           sendResponse({ received: false, error: 'Failed to relay event' });

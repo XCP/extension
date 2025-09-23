@@ -386,11 +386,12 @@ export default defineBackground(() => {
 
   // Register the emitProviderEvent function with the event emitter service
   // This makes it available to other services without using global variables
-  eventEmitterService.on('emit-provider-event', (args: { origin?: string; event: string; data: any }) => {
-    if (args.origin) {
-      emitProviderEvent(args.origin, args.event, args.data);
+  eventEmitterService.on('emit-provider-event', (...args: unknown[]) => {
+    const [eventArgs] = args as [{ origin?: string; event: string; data: unknown }];
+    if (eventArgs.origin) {
+      emitProviderEvent(eventArgs.origin, eventArgs.event, eventArgs.data);
     } else {
-      emitProviderEvent(args.event, args.data);
+      emitProviderEvent(eventArgs.event, eventArgs.data);
     }
   });
   
