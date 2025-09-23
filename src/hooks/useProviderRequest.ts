@@ -20,12 +20,14 @@ export function useProviderRequest<T = any>(
 ) {
   const [searchParams] = useSearchParams();
   const [providerFormData, setProviderFormData] = useState<T | null>(null);
-  const composeRequestId = searchParams.get('composeRequestId');
+  const [composeRequestId, setComposeRequestId] = useState<string | null>(
+    searchParams.get('composeRequestId')
+  );
 
   // Load compose request data if we have a request ID
   useEffect(() => {
-    if (composeRequestId) {
-      const loadComposeRequest = async () => {
+    const loadInitialData = async () => {
+      if (composeRequestId) {
         const request = await composeRequestStorage.get(composeRequestId);
         if (request && request.type === composeType) {
           // Denormalize the provider data to convert base units to display values
@@ -33,27 +35,25 @@ export function useProviderRequest<T = any>(
           const { denormalizedData } = await denormalizeProviderData(request.params, detectedType);
           setProviderFormData(denormalizedData as T);
         }
-      };
-      loadComposeRequest();
-    }
+      }
+    };
+
+    loadInitialData();
   }, [composeRequestId, composeType]);
 
   // Listen for navigation messages from background
   useEffect(() => {
-    const handleMessage = (message: any) => {
+    const handleMessage = async (message: any) => {
       if (message.type === 'NAVIGATE_TO_COMPOSE' && message.composeType === composeType) {
-        // Load the compose request
         if (message.composeRequestId) {
-          const loadComposeRequest = async () => {
-            const request = await composeRequestStorage.get(message.composeRequestId);
-            if (request && request.type === composeType) {
-              // Denormalize the provider data to convert base units to display values
-              const detectedType = getComposeTypeFromProvider(request.params) || composeType;
-              const { denormalizedData } = await denormalizeProviderData(request.params, detectedType);
-              setProviderFormData(denormalizedData as T);
-            }
-          };
-          loadComposeRequest();
+          const request = await composeRequestStorage.get(message.composeRequestId);
+          if (request && request.type === composeType) {
+            // Denormalize the provider data to convert base units to display values
+            const detectedType = getComposeTypeFromProvider(request.params) || composeType;
+            const { denormalizedData } = await denormalizeProviderData(request.params, detectedType);
+            setProviderFormData(denormalizedData as T);
+            setComposeRequestId(message.composeRequestId);
+          }
         }
       }
     };

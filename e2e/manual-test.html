@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XCP Wallet Manual Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .status-box {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .results {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .test-group {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .test-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 XCP Wallet Provider Manual Test</h1>
+
+        <div id="providerStatus" class="status-box info">
+            Checking for provider...
+        </div>
+
+        <div class="test-group">
+            <div class="test-title">Step 1: Check Provider</div>
+            <button onclick="checkProvider()">Check Provider</button>
+            <button onclick="testAllMethods()">Test All Basic Methods</button>
+        </div>
+
+        <div class="test-group">
+            <div class="test-title">Step 2: Test Connection</div>
+            <button onclick="testIsConnected()">Test xcp_isConnected</button>
+            <button onclick="testConnect()">Test xcp_connect</button>
+            <button onclick="testRequestAccounts()">Test xcp_requestAccounts</button>
+            <button onclick="testGetAccounts()">Test xcp_accounts</button>
+        </div>
+
+        <div class="test-group">
+            <div class="test-title">Step 3: Test Compose</div>
+            <button onclick="testComposeSend()">Test Compose Send</button>
+            <button onclick="testComposeOrder()">Test Compose Order</button>
+        </div>
+
+        <div class="test-group">
+            <div class="test-title">Step 4: Other Methods</div>
+            <button onclick="testSignMessage()">Test Sign Message</button>
+            <button onclick="testGetBalances()">Test Get Balances</button>
+            <button onclick="testDisconnect()">Test Disconnect</button>
+        </div>
+
+        <div class="results" id="results">
+            Results will appear here...
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = `[${timestamp}] ${message}`;
+            testResults.unshift(entry);
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = testResults.join('\n');
+
+            console.log(message);
+        }
+
+        function updateStatus(message, type) {
+            const status = document.getElementById('providerStatus');
+            status.className = `status-box ${type}`;
+            status.textContent = message;
+        }
+
+        // Check if provider exists
+        function checkProvider() {
+            if (typeof window.xcpwallet !== 'undefined') {
+                updateStatus('✅ Provider detected!', 'success');
+                log('Provider found: window.xcpwallet');
+                log('Available methods: ' + typeof window.xcpwallet.request);
+                return true;
+            } else {
+                updateStatus('❌ Provider not found', 'error');
+                log('Provider not detected - make sure extension is installed');
+                return false;
+            }
+        }
+
+        // Test xcp_isConnected
+        async function testIsConnected() {
+            if (!checkProvider()) return;
+
+            try {
+                log('Testing xcp_isConnected...');
+                const isConnected = await window.xcpwallet.request({
+                    method: 'xcp_isConnected'
+                });
+                log(`✅ xcp_isConnected returned: ${isConnected}`);
+                updateStatus(`Connected: ${isConnected}`, isConnected ? 'success' : 'info');
+            } catch (error) {
+                log(`❌ xcp_isConnected failed: ${error.message}`);
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test xcp_connect
+        async function testConnect() {
+            if (!checkProvider()) return;
+
+            try {
+                log('Testing xcp_connect...');
+                const result = await window.xcpwallet.request({
+                    method: 'xcp_connect'
+                });
+                log(`✅ xcp_connect returned: ${result}`);
+                updateStatus('Connected successfully!', 'success');
+            } catch (error) {
+                log(`❌ xcp_connect failed: ${error.message}`);
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test xcp_requestAccounts
+        async function testRequestAccounts() {
+            if (!checkProvider()) return;
+
+            try {
+                log('Testing xcp_requestAccounts...');
+                const accounts = await window.xcpwallet.request({
+                    method: 'xcp_requestAccounts'
+                });
+                log(`✅ xcp_requestAccounts returned: ${JSON.stringify(accounts)}`);
+                updateStatus(`Connected to: ${accounts[0]}`, 'success');
+            } catch (error) {
+                log(`❌ xcp_requestAccounts failed: ${error.message}`);
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test xcp_accounts
+        async function testGetAccounts() {
+            if (!checkProvider()) return;
+
+            try {
+                log('Testing xcp_accounts...');
+                const accounts = await window.xcpwallet.request({
+                    method: 'xcp_accounts'
+                });
+                log(`✅ xcp_accounts returned: ${JSON.stringify(accounts)}`);
+                if (accounts.length > 0) {
+                    updateStatus(`Account: ${accounts[0]}`, 'success');
+                } else {
+                    updateStatus('No accounts (not connected)', 'info');
+                }
+            } catch (error) {
+                log(`❌ xcp_accounts failed: ${error.message}`);
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test compose send
+        async function testComposeSend() {
+            if (!checkProvider()) return;
+
+            try {
+                log('Testing xcp_composeSend...');
+                const result = await window.xcpwallet.request({
+                    method: 'xcp_composeSend',
+                    params: [{
+                        destination: 'bc1qtest123456789',
+                        asset: 'XCP',
+                        quantity: 100000000,
+                        memo: 'Test send from manual test'
+                    }]
+                });
+                log(`✅ xcp_composeSend returned: ${JSON.stringify(result)}`);
+                updateStatus('Compose send successful!', 'success');
+            } catch (error) {
+                log(`❌ xcp_composeSend failed: ${error.message}`);
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test compose order
+        async function testComposeOrder() {
+            if (!checkProvider()) return;
+
+            try {
+                log('Testing xcp_composeOrder...');
+                const result = await window.xcpwallet.request({
+                    method: 'xcp_composeOrder',
+                    params: [{
+                        give_asset: 'XCP',
+                        give_quantity: 100000000,
+                        get_asset: 'PEPECASH',
+                        get_quantity: 1000,
+                        expiration: 1000
+                    }]
+                });
+                log(`✅ xcp_composeOrder returned: ${JSON.stringify(result)}`);
+                updateStatus('Compose order successful!', 'success');
+            } catch (error) {
+                log(`❌ xcp_composeOrder failed: ${error.message}`);
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test sign message
+        async function testSignMessage() {
+            if (!checkProvider()) return;
+
+            try {
+                log('Testing xcp_signMessage...');
+                const signature = await window.xcpwallet.request({
+                    method: 'xcp_signMessage',
+                    params: ['Hello from manual test!']
+                });
+                log(`✅ xcp_signMessage returned: ${signature}`);
+                updateStatus('Message signed!', 'success');
+            } catch (error) {
+                log(`❌ xcp_signMessage failed: ${error.message}`);
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test get balances
+        async function testGetBalances() {
+            if (!checkProvider()) return;
+
+            try {
+                log('Testing xcp_getBalances...');
+                const balances = await window.xcpwallet.request({
+                    method: 'xcp_getBalances'
+                });
+                log(`✅ xcp_getBalances returned: ${JSON.stringify(balances)}`);
+                updateStatus('Balances retrieved!', 'success');
+            } catch (error) {
+                log(`❌ xcp_getBalances failed: ${error.message}`);
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test disconnect
+        async function testDisconnect() {
+            if (!checkProvider()) return;
+
+            try {
+                log('Testing xcp_disconnect...');
+                await window.xcpwallet.request({
+                    method: 'xcp_disconnect'
+                });
+                log('✅ xcp_disconnect successful');
+                updateStatus('Disconnected', 'info');
+            } catch (error) {
+                log(`❌ xcp_disconnect failed: ${error.message}`);
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test all methods
+        async function testAllMethods() {
+            log('=== Starting comprehensive test ===');
+
+            // Check provider
+            if (!checkProvider()) return;
+
+            // Test connection status
+            await testIsConnected();
+            await new Promise(r => setTimeout(r, 1000));
+
+            // Test getting accounts
+            await testGetAccounts();
+            await new Promise(r => setTimeout(r, 1000));
+
+            log('=== Basic tests complete ===');
+            log('Now try the connection and compose buttons to test the popup flow');
+        }
+
+        // Initial check
+        window.addEventListener('load', () => {
+            setTimeout(checkProvider, 500);
+        });
+
+        // Listen for provider events
+        if (window.xcpwallet) {
+            window.xcpwallet.on('accountsChanged', (accounts) => {
+                log(`EVENT: accountsChanged - ${JSON.stringify(accounts)}`);
+            });
+
+            window.xcpwallet.on('disconnect', () => {
+                log('EVENT: disconnect');
+            });
+        }
+    </script>
+</body>
+</html>

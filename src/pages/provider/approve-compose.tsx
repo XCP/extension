@@ -8,7 +8,7 @@ import { fromSatoshis, toBigNumber } from '@/utils/numeric';
 import { useWallet } from '@/contexts/wallet-context';
 import { useSettings } from '@/contexts/settings-context';
 import { FeeRateInput } from '@/components/inputs/fee-rate-input';
-import { safeSendMessage } from '@/utils/browser';
+import { MessageBus } from '@/utils/messageBusPopup';
 
 export default function ApproveCompose() {
   const [searchParams] = useSearchParams();
@@ -167,16 +167,12 @@ export default function ApproveCompose() {
         updatedParams.expiration = orderExpiration;
       }
       
-      // Send message to background script to resolve the request with updated params
-      await safeSendMessage({
-        type: 'RESOLVE_PROVIDER_REQUEST',
+      // Send message to background script to resolve the request with updated params using MessageBus
+      await MessageBus.resolveApprovalRequest(
         requestId,
-        approved: true,
+        true,
         updatedParams
-      }).catch((error) => {
-        console.error('Failed to send approval to background:', error);
-        throw error;
-      });
+      );
       // Close the popup
       window.close();
     } catch (error) {
@@ -189,15 +185,11 @@ export default function ApproveCompose() {
   const handleReject = async () => {
     setIsProcessing(true);
     try {
-      // Send message to background script to resolve the request
-      await safeSendMessage({
-        type: 'RESOLVE_PROVIDER_REQUEST',
+      // Send message to background script to resolve the request using MessageBus
+      await MessageBus.resolveApprovalRequest(
         requestId,
-        approved: false
-      }).catch((error) => {
-        console.error('Failed to send rejection to background:', error);
-        throw error;
-      });
+        false
+      );
       // Close the popup
       window.close();
     } catch (error) {

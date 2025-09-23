@@ -6,7 +6,7 @@ import { FiGlobe, FiShield, FiX, FiCheck } from "react-icons/fi";
 import { Button } from "@/components/button";
 import { useWallet } from "@/contexts/wallet-context";
 import { useHeader } from "@/contexts/header-context";
-import { safeSendMessage } from "@/utils/browser";
+import { MessageBus } from "@/utils/messageBusPopup";
 // We'll communicate with background script to resolve the request
 import type { ReactElement } from "react";
 
@@ -39,7 +39,7 @@ export default function ApproveConnection(): ReactElement {
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "Connection Request",
+      title: "XCP Connect",
       rightButton: {
         icon: <FiX className="w-4 h-4" />,
         onClick: () => handleReject(),
@@ -58,15 +58,11 @@ export default function ApproveConnection(): ReactElement {
   const handleApprove = async () => {
     setIsProcessing(true);
     try {
-      // Send message to background script to resolve the request
-      await safeSendMessage({
-        type: 'RESOLVE_PROVIDER_REQUEST',
+      // Send message to background script to resolve the request using MessageBus
+      await MessageBus.resolveApprovalRequest(
         requestId,
-        approved: true
-      }).catch((error) => {
-        console.error('Failed to send approval to background:', error);
-        throw error;
-      });
+        true
+      );
       // Close the popup
       window.close();
     } catch (error) {
@@ -74,19 +70,15 @@ export default function ApproveConnection(): ReactElement {
       setIsProcessing(false);
     }
   };
-  
+
   const handleReject = async () => {
     setIsProcessing(true);
     try {
-      // Send message to background script to resolve the request
-      await safeSendMessage({
-        type: 'RESOLVE_PROVIDER_REQUEST',
+      // Send message to background script to resolve the request using MessageBus
+      await MessageBus.resolveApprovalRequest(
         requestId,
-        approved: false
-      }).catch((error) => {
-        console.error('Failed to send rejection to background:', error);
-        throw error;
-      });
+        false
+      );
       // Close the popup
       window.close();
     } catch (error) {

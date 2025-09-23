@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XCP Wallet Provider Test dApp - Unified</title>
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --success: #10B981;
+            --error: #EF4444;
+            --warning: #F59E0B;
+            --info: #3B82F6;
+            --bg: #FFFFFF;
+            --bg-secondary: #F9FAFB;
+            --text: #111827;
+            --text-secondary: #6B7280;
+            --border: #E5E7EB;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #111827;
+                --bg-secondary: #1F2937;
+                --text: #F9FAFB;
+                --text-secondary: #9CA3AF;
+                --border: #374151;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            padding: 1.5rem 0;
+            box-shadow: var(--shadow);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .connection-status.connected {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .connection-status.disconnected {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .sidebar {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            height: fit-content;
+            position: sticky;
+            top: 2rem;
+        }
+
+        .main {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            min-height: 600px;
+        }
+
+        .section {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+
+        .nav-button {
+            width: 100%;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-button:hover {
+            background: var(--bg-secondary);
+            color: var(--text);
+        }
+
+        .nav-button.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .button {
+            padding: 0.625rem 1.25rem;
+            border: none;
+            border-radius: 8px;
+            background: var(--primary);
+            color: white;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .button:hover:not(:disabled) {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .button.secondary {
+            background: var(--bg-secondary);
+            color: var(--text);
+        }
+
+        .button.small {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 1rem 0;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .input {
+            width: 100%;
+            padding: 0.625rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-size: 0.875rem;
+        }
+
+        .alert.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .alert.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .alert.info {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--info);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .code-block {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .account-display {
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.875rem;
+            word-break: break-all;
+            margin: 1rem 0;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .tab-container {
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .tab {
+            padding: 0.75rem 1rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab:hover {
+            color: var(--text);
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .results-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.75rem;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .log-entry {
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+        }
+
+        .log-message {
+            margin-top: 0.25rem;
+        }
+
+        .log-error {
+            color: var(--error);
+        }
+
+        .log-success {
+            color: var(--success);
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                🔗 XCP Wallet Provider Test
+            </div>
+            <div id="connectionStatus" class="connection-status disconnected">
+                <span class="status-dot"></span>
+                <span id="statusText">Not Connected</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="walletAlert" class="alert error hidden">
+            XCP Wallet extension not detected. Please install the extension to use this dApp.
+        </div>
+
+        <div class="grid">
+            <aside class="sidebar">
+                <div class="section">
+                    <h3 class="section-title">Navigation</h3>
+                    <button class="nav-button active" data-section="connection">Connection</button>
+                    <button class="nav-button" data-section="compose">Compose Transactions</button>
+                    <button class="nav-button" data-section="signing">Signing</button>
+                    <button class="nav-button" data-section="query">Query Data</button>
+                    <button class="nav-button" data-section="events">Event Logs</button>
+                    <button class="nav-button" data-section="examples">Examples</button>
+                </div>
+
+                <div class="section">
+                    <h3 class="section-title">Quick Actions</h3>
+                    <button id="quickConnect" class="button small" style="width: 100%;">
+                        Connect Wallet
+                    </button>
+                    <button id="quickBalance" class="button small secondary" style="width: 100%; margin-top: 0.5rem;" disabled>
+                        Check Balance
+                    </button>
+                </div>
+
+                <div class="section">
+                    <h3 class="section-title">Account</h3>
+                    <div id="accountInfo" class="account-display">
+                        No account connected
+                    </div>
+                </div>
+            </aside>
+
+            <main class="main">
+                <!-- Connection Section -->
+                <section id="connection-section" class="content-section">
+                    <h2 class="section-title">Connection Management</h2>
+
+                    <div class="button-group">
+                        <button id="btnConnect" class="button">
+                            🔌 Connect (xcp_connect)
+                        </button>
+                        <button id="btnRequestAccounts" class="button">
+                            👤 Request Accounts
+                        </button>
+                        <button id="btnIsConnected" class="button secondary">
+                            ❓ Check Connection
+                        </button>
+                        <button id="btnDisconnect" class="button secondary" disabled>
+                            ❌ Disconnect
+                        </button>
+                    </div>
+
+                    <div id="connectionResult" class="results-container" style="margin-top: 1rem;">
+                        Connection results will appear here...
+                    </div>
+                </section>
+
+                <!-- Compose Section -->
+                <section id="compose-section" class="content-section hidden">
+                    <h2 class="section-title">Compose Transactions</h2>
+
+                    <div class="tab-container">
+                        <div class="tabs">
+                            <button class="tab active" data-tab="send">Send</button>
+                            <button class="tab" data-tab="order">Order</button>
+                            <button class="tab" data-tab="dispenser">Dispenser</button>
+                            <button class="tab" data-tab="issuance">Issuance</button>
+                            <button class="tab" data-tab="other">Other</button>
+                        </div>
+                    </div>
+
+                    <!-- Send Tab -->
+                    <div id="send-tab" class="tab-content">
+                        <div class="input-group">
+                            <label class="label">Destination Address</label>
+                            <input type="text" id="sendDestination" class="input" placeholder="bc1q..." />
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Asset</label>
+                            <select id="sendAsset" class="input select">
+                                <option value="XCP">XCP</option>
+                                <option value="PEPECASH">PEPECASH</option>
+                                <option value="FLDC">FLDC</option>
+                                <option value="BITCORN">BITCORN</option>
+                                <option value="BTC">BTC</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Quantity (in base units)</label>
+                            <input type="number" id="sendQuantity" class="input" value="100000000" />
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Memo (optional)</label>
+                            <input type="text" id="sendMemo" class="input" placeholder="Optional memo" />
+                        </div>
+                        <button id="btnComposeSend" class="button">
+                            📤 Compose Send
+                        </button>
+                    </div>
+
+                    <!-- Order Tab -->
+                    <div id="order-tab" class="tab-content hidden">
+                        <div class="input-group">
+                            <label class="label">Give Asset</label>
+                            <input type="text" id="orderGiveAsset" class="input" value="XCP" />
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Give Quantity</label>
+                            <input type="number" id="orderGiveQuantity" class="input" value="100000000" />
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Get Asset</label>
+                            <input type="text" id="orderGetAsset" class="input" value="PEPECASH" />
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Get Quantity</label>
+                            <input type="number" id="orderGetQuantity" class="input" value="1000" />
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Expiration (blocks)</label>
+                            <input type="number" id="orderExpiration" class="input" value="1000" />
+                        </div>
+                        <button id="btnComposeOrder" class="button">
+                            📊 Compose Order
+                        </button>
+                    </div>
+
+                    <!-- Dispenser Tab -->
+                    <div id="dispenser-tab" class="tab-content hidden">
+                        <div class="input-group">
+                            <label class="label">Asset</label>
+                            <input type="text" id="dispenserAsset" class="input" placeholder="MYTOKEN" />
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Give Quantity (per dispense)</label>
+                            <input type="number" id="dispenserGiveQuantity" class="input" value="100" />
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Escrow Quantity (total)</label>
+                            <input type="number" id="dispenserEscrowQuantity" class="input" value="10000" />
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Mainchain Rate (satoshis per unit)</label>
+                            <input type="number" id="dispenserMainchainrate" class="input" value="100000" />
+                        </div>
+                        <button id="btnComposeDispenser" class="button">
+                            🎰 Compose Dispenser
+                        </button>
+                    </div>
+
+                    <!-- Issuance Tab -->
+                    <div id="issuance-tab" class="tab-content hidden">
+                        <div class="input-group">
+                            <label class="label">Asset Name</label>
+                            <input type="text" id="issuanceAsset" class="input" placeholder="MYTOKEN or A123..." />
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Quantity</label>
+                            <input type="number" id="issuanceQuantity" class="input" value="1000000" />
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Divisible</label>
+                            <select id="issuanceDivisible" class="input select">
+                                <option value="true">Yes (8 decimal places)</option>
+                                <option value="false">No (indivisible)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Description</label>
+                            <textarea id="issuanceDescription" class="input textarea" placeholder="Token description"></textarea>
+                        </div>
+                        <button id="btnComposeIssuance" class="button">
+                            🪙 Compose Issuance
+                        </button>
+                    </div>
+
+                    <!-- Other Tab -->
+                    <div id="other-tab" class="tab-content hidden">
+                        <div class="button-group">
+                            <button id="btnComposeSweep" class="button">🧹 Sweep</button>
+                            <button id="btnComposeDividend" class="button">💰 Dividend</button>
+                            <button id="btnComposeBroadcast" class="button">📢 Broadcast</button>
+                            <button id="btnComposeDestroy" class="button">🔥 Destroy</button>
+                        </div>
+                    </div>
+
+                    <div id="composeResult" class="results-container" style="margin-top: 1rem;">
+                        Compose results will appear here...
+                    </div>
+                </section>
+
+                <!-- Signing Section -->
+                <section id="signing-section" class="content-section hidden">
+                    <h2 class="section-title">Message Signing</h2>
+
+                    <div class="input-group">
+                        <label class="label">Message to Sign</label>
+                        <textarea id="messageToSign" class="input textarea" placeholder="Enter message to sign">Hello from XCP Wallet Test dApp!</textarea>
+                    </div>
+
+                    <button id="btnSignMessage" class="button" disabled>
+                        ✍️ Sign Message
+                    </button>
+
+                    <div id="signResult" class="results-container" style="margin-top: 1rem;">
+                        Signing results will appear here...
+                    </div>
+                </section>
+
+                <!-- Query Section -->
+                <section id="query-section" class="content-section hidden">
+                    <h2 class="section-title">Query Data</h2>
+
+                    <div class="button-group">
+                        <button id="btnGetBalances" class="button" disabled>
+                            💰 Get Balances
+                        </button>
+                        <button id="btnGetAssets" class="button secondary" disabled>
+                            🪙 Get Assets
+                        </button>
+                        <button id="btnGetHistory" class="button secondary" disabled>
+                            📜 Get History
+                        </button>
+                    </div>
+
+                    <div id="queryResult" class="results-container" style="margin-top: 1rem;">
+                        Query results will appear here...
+                    </div>
+                </section>
+
+                <!-- Events Section -->
+                <section id="events-section" class="content-section hidden">
+                    <h2 class="section-title">Event Logs</h2>
+
+                    <div class="button-group">
+                        <button id="btnClearLogs" class="button secondary small">
+                            Clear Logs
+                        </button>
+                    </div>
+
+                    <div id="eventLogs" class="results-container" style="margin-top: 1rem;">
+                        Event logs will appear here...
+                    </div>
+                </section>
+
+                <!-- Examples Section -->
+                <section id="examples-section" class="content-section hidden">
+                    <h2 class="section-title">Example Scenarios</h2>
+
+                    <div class="section">
+                        <h3 class="section-title">Quick Tests</h3>
+                        <div class="button-group">
+                            <button id="exampleSimpleSend" class="button">
+                                Simple Send Flow
+                            </button>
+                            <button id="exampleDexOrder" class="button">
+                                DEX Order Flow
+                            </button>
+                            <button id="exampleTokenCreation" class="button">
+                                Token Creation Flow
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h3 class="section-title">Code Examples</h3>
+                        <div class="code-block">
+// Connect to wallet
+const accounts = await window.xcpwallet.request({
+  method: 'xcp_requestAccounts'
+});
+
+// Send XCP
+const result = await window.xcpwallet.request({
+  method: 'xcp_composeSend',
+  params: [{
+    destination: 'bc1q...',
+    asset: 'XCP',
+    quantity: 100000000,
+    memo: 'Test send'
+  }]
+});
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let connectedAccount = null;
+        let provider = null;
+
+        // Utility functions
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logContainer = document.querySelector('.content-section:not(.hidden) .results-container') ||
+                               document.getElementById('connectionResult');
+
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="log-time">[${timestamp}]</span>
+                <div class="log-message ${type === 'error' ? 'log-error' : type === 'success' ? 'log-success' : ''}">${message}</div>
+            `;
+
+            logContainer.insertBefore(entry, logContainer.firstChild);
+
+            // Also log to events section
+            logEvent(message, type);
+        }
+
+        function logEvent(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const eventLogs = document.getElementById('eventLogs');
+
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="log-time">[${timestamp}]</span>
+                <div class="log-message ${type === 'error' ? 'log-error' : type === 'success' ? 'log-success' : ''}">${message}</div>
+            `;
+
+            eventLogs.insertBefore(entry, eventLogs.firstChild);
+        }
+
+        function updateConnectionStatus(connected, address = null) {
+            const status = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('statusText');
+            const accountInfo = document.getElementById('accountInfo');
+
+            if (connected && address) {
+                status.className = 'connection-status connected';
+                statusText.textContent = 'Connected';
+                accountInfo.textContent = address;
+                connectedAccount = address;
+
+                // Enable buttons
+                document.getElementById('btnDisconnect').disabled = false;
+                document.getElementById('btnSignMessage').disabled = false;
+                document.getElementById('btnGetBalances').disabled = false;
+                document.getElementById('btnGetAssets').disabled = false;
+                document.getElementById('btnGetHistory').disabled = false;
+                document.getElementById('quickBalance').disabled = false;
+            } else {
+                status.className = 'connection-status disconnected';
+                statusText.textContent = 'Not Connected';
+                accountInfo.textContent = 'No account connected';
+                connectedAccount = null;
+
+                // Disable buttons
+                document.getElementById('btnDisconnect').disabled = true;
+                document.getElementById('btnSignMessage').disabled = true;
+                document.getElementById('btnGetBalances').disabled = true;
+                document.getElementById('btnGetAssets').disabled = true;
+                document.getElementById('btnGetHistory').disabled = true;
+                document.getElementById('quickBalance').disabled = true;
+            }
+        }
+
+        // Navigation
+        document.querySelectorAll('.nav-button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Update active nav button
+                document.querySelectorAll('.nav-button').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+
+                // Show corresponding section
+                const section = e.target.dataset.section;
+                document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
+                document.getElementById(`${section}-section`).classList.remove('hidden');
+            });
+        });
+
+        // Tab navigation
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const tabName = e.target.dataset.tab;
+                const container = e.target.closest('.content-section');
+
+                // Update active tab
+                container.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                e.target.classList.add('active');
+
+                // Show corresponding content
+                container.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+                container.querySelector(`#${tabName}-tab`).classList.remove('hidden');
+            });
+        });
+
+        // Initialize provider
+        function initProvider() {
+            if (typeof window.xcpwallet !== 'undefined') {
+                provider = window.xcpwallet;
+                document.getElementById('walletAlert').classList.add('hidden');
+                log('XCP Wallet provider detected', 'success');
+
+                // Set up event listeners
+                provider.on('accountsChanged', (accounts) => {
+                    logEvent(`accountsChanged: ${JSON.stringify(accounts)}`);
+                    if (accounts.length > 0) {
+                        updateConnectionStatus(true, accounts[0]);
+                    } else {
+                        updateConnectionStatus(false);
+                    }
+                });
+
+                provider.on('disconnect', () => {
+                    logEvent('disconnect event received');
+                    updateConnectionStatus(false);
+                });
+
+                provider.on('connect', (info) => {
+                    logEvent(`connect event: ${JSON.stringify(info)}`);
+                });
+
+                // Check initial connection
+                checkConnection();
+            } else {
+                document.getElementById('walletAlert').classList.remove('hidden');
+                log('XCP Wallet not detected', 'error');
+            }
+        }
+
+        // Connection functions
+        async function checkConnection() {
+            if (!provider) return;
+
+            try {
+                const isConnected = await provider.request({
+                    method: 'xcp_isConnected'
+                });
+
+                const accounts = await provider.request({
+                    method: 'xcp_accounts'
+                });
+
+                if (isConnected && accounts.length > 0) {
+                    updateConnectionStatus(true, accounts[0]);
+                    log(`Already connected to ${accounts[0]}`, 'success');
+                }
+            } catch (error) {
+                console.error('Error checking connection:', error);
+            }
+        }
+
+        // Button handlers
+        document.getElementById('btnConnect').addEventListener('click', async () => {
+            try {
+                log('Requesting connection...');
+                const connected = await provider.request({
+                    method: 'xcp_connect'
+                });
+                log(`Connection result: ${connected}`, connected ? 'success' : 'error');
+
+                if (connected) {
+                    const accounts = await provider.request({
+                        method: 'xcp_accounts'
+                    });
+                    if (accounts.length > 0) {
+                        updateConnectionStatus(true, accounts[0]);
+                    }
+                }
+            } catch (error) {
+                log(`Connection failed: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('quickConnect').addEventListener('click', async () => {
+            document.getElementById('btnConnect').click();
+        });
+
+        document.getElementById('btnRequestAccounts').addEventListener('click', async () => {
+            try {
+                log('Requesting accounts...');
+                const accounts = await provider.request({
+                    method: 'xcp_requestAccounts'
+                });
+                log(`Accounts: ${JSON.stringify(accounts)}`, 'success');
+                if (accounts.length > 0) {
+                    updateConnectionStatus(true, accounts[0]);
+                }
+            } catch (error) {
+                log(`Failed to get accounts: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('btnIsConnected').addEventListener('click', async () => {
+            try {
+                const isConnected = await provider.request({
+                    method: 'xcp_isConnected'
+                });
+                log(`Is connected: ${isConnected}`, isConnected ? 'success' : 'info');
+            } catch (error) {
+                log(`Error checking connection: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('btnDisconnect').addEventListener('click', async () => {
+            try {
+                log('Requesting disconnect...');
+                await provider.request({
+                    method: 'xcp_disconnect'
+                });
+                updateConnectionStatus(false);
+                log('Disconnected', 'success');
+            } catch (error) {
+                log(`Disconnect failed: ${error.message}`, 'error');
+            }
+        });
+
+        // Compose handlers
+        document.getElementById('btnComposeSend').addEventListener('click', async () => {
+            try {
+                const params = {
+                    destination: document.getElementById('sendDestination').value || 'bc1qtest123456789',
+                    asset: document.getElementById('sendAsset').value,
+                    quantity: parseInt(document.getElementById('sendQuantity').value),
+                    memo: document.getElementById('sendMemo').value || undefined
+                };
+
+                log(`Composing send: ${JSON.stringify(params, null, 2)}`);
+                const result = await provider.request({
+                    method: 'xcp_composeSend',
+                    params: [params]
+                });
+                log(`Send composed: ${JSON.stringify(result, null, 2)}`, 'success');
+            } catch (error) {
+                log(`Compose send failed: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('btnComposeOrder').addEventListener('click', async () => {
+            try {
+                const params = {
+                    give_asset: document.getElementById('orderGiveAsset').value,
+                    give_quantity: parseInt(document.getElementById('orderGiveQuantity').value),
+                    get_asset: document.getElementById('orderGetAsset').value,
+                    get_quantity: parseInt(document.getElementById('orderGetQuantity').value),
+                    expiration: parseInt(document.getElementById('orderExpiration').value)
+                };
+
+                log(`Composing order: ${JSON.stringify(params, null, 2)}`);
+                const result = await provider.request({
+                    method: 'xcp_composeOrder',
+                    params: [params]
+                });
+                log(`Order composed: ${JSON.stringify(result, null, 2)}`, 'success');
+            } catch (error) {
+                log(`Compose order failed: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('btnComposeDispenser').addEventListener('click', async () => {
+            try {
+                const params = {
+                    asset: document.getElementById('dispenserAsset').value,
+                    give_quantity: parseInt(document.getElementById('dispenserGiveQuantity').value),
+                    escrow_quantity: parseInt(document.getElementById('dispenserEscrowQuantity').value),
+                    mainchainrate: parseInt(document.getElementById('dispenserMainchainrate').value)
+                };
+
+                log(`Composing dispenser: ${JSON.stringify(params, null, 2)}`);
+                const result = await provider.request({
+                    method: 'xcp_composeDispenser',
+                    params: [params]
+                });
+                log(`Dispenser composed: ${JSON.stringify(result, null, 2)}`, 'success');
+            } catch (error) {
+                log(`Compose dispenser failed: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('btnComposeIssuance').addEventListener('click', async () => {
+            try {
+                const params = {
+                    asset: document.getElementById('issuanceAsset').value,
+                    quantity: parseInt(document.getElementById('issuanceQuantity').value),
+                    divisible: document.getElementById('issuanceDivisible').value === 'true',
+                    description: document.getElementById('issuanceDescription').value
+                };
+
+                log(`Composing issuance: ${JSON.stringify(params, null, 2)}`);
+                const result = await provider.request({
+                    method: 'xcp_composeIssuance',
+                    params: [params]
+                });
+                log(`Issuance composed: ${JSON.stringify(result, null, 2)}`, 'success');
+            } catch (error) {
+                log(`Compose issuance failed: ${error.message}`, 'error');
+            }
+        });
+
+        // Other compose buttons
+        document.getElementById('btnComposeSweep').addEventListener('click', async () => {
+            try {
+                const params = {
+                    destination: prompt('Enter destination address:') || 'bc1qtest123456789',
+                    flags: 1
+                };
+
+                log(`Composing sweep: ${JSON.stringify(params, null, 2)}`);
+                const result = await provider.request({
+                    method: 'xcp_composeSweep',
+                    params: [params]
+                });
+                log(`Sweep composed: ${JSON.stringify(result, null, 2)}`, 'success');
+            } catch (error) {
+                log(`Compose sweep failed: ${error.message}`, 'error');
+            }
+        });
+
+        // Sign message handler
+        document.getElementById('btnSignMessage').addEventListener('click', async () => {
+            try {
+                const message = document.getElementById('messageToSign').value;
+                log(`Signing message: "${message}"`);
+                const signature = await provider.request({
+                    method: 'xcp_signMessage',
+                    params: [message]
+                });
+                log(`Signature: ${signature}`, 'success');
+            } catch (error) {
+                log(`Sign message failed: ${error.message}`, 'error');
+            }
+        });
+
+        // Query handlers
+        document.getElementById('btnGetBalances').addEventListener('click', async () => {
+            try {
+                log('Fetching balances...');
+                const balances = await provider.request({
+                    method: 'xcp_getBalances'
+                });
+                log(`Balances: ${JSON.stringify(balances, null, 2)}`, 'success');
+            } catch (error) {
+                log(`Get balances failed: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('quickBalance').addEventListener('click', () => {
+            document.getElementById('btnGetBalances').click();
+        });
+
+        // Clear logs
+        document.getElementById('btnClearLogs').addEventListener('click', () => {
+            document.getElementById('eventLogs').innerHTML = 'Event logs cleared';
+        });
+
+        // Example scenarios
+        document.getElementById('exampleSimpleSend').addEventListener('click', async () => {
+            log('Starting simple send flow example...');
+
+            // Step 1: Connect
+            if (!connectedAccount) {
+                await document.getElementById('btnConnect').click();
+            }
+
+            // Step 2: Compose send
+            setTimeout(async () => {
+                document.getElementById('sendDestination').value = 'bc1qexampleaddress123456789';
+                document.getElementById('sendAsset').value = 'XCP';
+                document.getElementById('sendQuantity').value = '100000000';
+                document.getElementById('sendMemo').value = 'Example send from test dApp';
+                await document.getElementById('btnComposeSend').click();
+            }, 1000);
+        });
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initProvider();
+        });
+
+        // Listen for extension initialization
+        window.addEventListener('xcp-wallet#initialized', () => {
+            log('Received xcp-wallet#initialized event');
+            initProvider();
+        });
+    </script>
+</body>
+</html>

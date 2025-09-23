@@ -23,6 +23,7 @@
     "test": "wxt build && vitest run src && playwright test",
     "test:unit": "wxt build && vitest run src",
     "test:e2e": "wxt build && playwright test",
+    "test:provider": "npx serve e2e -p 3000 -s",
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare"
   },

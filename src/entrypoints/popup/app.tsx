@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { FaSpinner } from "react-icons/fa";
 import { Layout } from '@/components/layout';
 import { useWallet } from '@/contexts/wallet-context';
@@ -112,7 +112,8 @@ import NotFound from '@/pages/not-found';
 export default function App() {
   const { wallets, walletLocked, loaded } = useWallet();
   const location = useLocation();
-  
+  const navigate = useNavigate();
+
   // Track page views when route changes
   useEffect(() => {
     // Sanitize the path to remove sensitive information
@@ -120,6 +121,32 @@ export default function App() {
     // WXT Analytics page() expects just a string URL, not an object
     analytics.page(sanitizedPath);
   }, [location.pathname]);
+
+  // Listen for navigation messages from the background script
+  useEffect(() => {
+    const handleMessage = (message: any) => {
+      if (message.type === 'NAVIGATE_TO_APPROVAL_QUEUE') {
+        // Navigate to the approval queue
+        navigate('/provider/approval-queue');
+      } else if (message.type === 'NAVIGATE_TO_COMPOSE') {
+        // Navigate to a specific compose form with request ID
+        const { routePath, composeRequestId } = message;
+
+        if (routePath && composeRequestId) {
+          // Navigate with the compose request ID as a query parameter
+          navigate(`${routePath}?composeRequestId=${composeRequestId}`);
+        }
+      }
+    };
+
+    // Listen for messages
+    chrome.runtime.onMessage.addListener(handleMessage);
+
+    // Cleanup
+    return () => {
+      chrome.runtime.onMessage.removeListener(handleMessage);
+    };
+  }, [navigate]);
   
 
   // Until the wallet metadata has been loaded from storage,

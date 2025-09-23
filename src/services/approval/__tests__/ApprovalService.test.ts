@@ -183,7 +183,7 @@ describe('ApprovalService', () => {
         type: 'connection',
         metadata: {
           domain: 'test.com',
-          title: 'Connection Request',
+          title: 'XCP Connect',
           description: 'Site wants to connect',
         },
       });

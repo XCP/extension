@@ -5,7 +5,7 @@ import { Button } from '@/components/button';
 import { type ApprovalRequest } from '@/utils/provider/approvalQueue';
 import { getProviderService } from '@/services/providerService';
 import { useHeader } from '@/contexts/header-context';
-import { safeSendMessage } from '@/utils/browser';
+import { MessageBus } from '@/utils/messageBusPopup';
 
 export default function ApprovalQueue() {
   const {} = useNavigate();
@@ -17,7 +17,7 @@ export default function ApprovalQueue() {
   const getRequestTitle = (request: ApprovalRequest) => {
     switch (request.type) {
       case 'connection':
-        return 'Connection Request';
+        return 'XCP Connect';
       case 'transaction':
         return 'Transaction Signature';
       case 'compose':
@@ -81,15 +81,11 @@ export default function ApprovalQueue() {
     if (!currentRequest) return;
 
     try {
-      // Send approval to background
-      await safeSendMessage({
-        type: 'RESOLVE_PROVIDER_REQUEST',
-        requestId: currentRequest.id,
-        approved: true
-      }).catch((error) => {
-        console.error('Failed to send approval to background:', error);
-        throw error;
-      });
+      // Send approval to background via MessageBus
+      await MessageBus.resolveApprovalRequest(
+        currentRequest.id,
+        true
+      );
 
       // Remove from queue via provider service
       const providerService = getProviderService();
@@ -112,15 +108,11 @@ export default function ApprovalQueue() {
     if (!currentRequest) return;
 
     try {
-      // Send rejection to background
-      await safeSendMessage({
-        type: 'RESOLVE_PROVIDER_REQUEST',
-        requestId: currentRequest.id,
-        approved: false
-      }).catch((error) => {
-        console.error('Failed to send rejection to background:', error);
-        throw error;
-      });
+      // Send rejection to background via MessageBus
+      await MessageBus.resolveApprovalRequest(
+        currentRequest.id,
+        false
+      );
 
       // Remove from queue via provider service
       const providerService = getProviderService();
@@ -144,11 +136,10 @@ export default function ApprovalQueue() {
       const providerService = getProviderService();
       for (const request of requests) {
         try {
-          await safeSendMessage({
-            type: 'RESOLVE_PROVIDER_REQUEST',
-            requestId: request.id,
-            approved: false
-          }).catch((error) => {
+          await MessageBus.resolveApprovalRequest(
+            request.id,
+            false
+          ).catch((error) => {
             console.error('Failed to send rejection to background:', error);
             // Don't throw here, continue with other rejections
           });

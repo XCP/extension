@@ -18,6 +18,7 @@ const SENSITIVE_PATH_MAPPINGS: Record<string, string> = {
   '/balance/': '/balance',
   '/asset/': '/asset',
   '/utxo/': '/utxo',
+  '/transaction/': '/transaction',
 };
 
 /**
@@ -80,10 +81,34 @@ async function isAnalyticsEnabled(): Promise<boolean> {
 }
 
 /**
+ * Get or create a persistent client ID for the extension user
+ * This helps Fathom identify unique visitors correctly
+ */
+async function getClientId(): Promise<number> {
+  try {
+    // Try to get existing client ID from storage
+    const result = await browser.storage.local.get('fathom_cid');
+
+    if (result.fathom_cid) {
+      return result.fathom_cid;
+    }
+
+    // Generate a new client ID if none exists
+    const newCid = Math.floor(Math.random() * 1e8) + 1;
+    await browser.storage.local.set({ fathom_cid: newCid });
+    return newCid;
+  } catch (error) {
+    // Fallback to random ID if storage fails
+    return Math.floor(Math.random() * 1e8) + 1;
+  }
+}
+
+/**
  * Encode parameters for tracking URLs
  */
-function encodeParameters(params: Record<string, any>): string {
-  params.cid = Math.floor(Math.random() * 1e8) + 1;
+async function encodeParameters(params: Record<string, any>): Promise<string> {
+  // Use persistent client ID for accurate unique visitor tracking
+  params.cid = await getClientId();
   return '?' + Object.keys(params)
     .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`)
     .join('&');
@@ -98,7 +123,7 @@ async function sendToFathom(params: Record<string, any>): Promise<void> {
     return;
   }
 
-  const url = TRACKER_URL + encodeParameters(params);
+  const url = TRACKER_URL + await encodeParameters(params);
 
   try {
     // Try using sendBeacon first (preferred for analytics)

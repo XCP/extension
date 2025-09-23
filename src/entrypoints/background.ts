@@ -1,7 +1,7 @@
 import { registerWalletService, getWalletService } from '@/services/walletService';
 import { registerProviderService, getProviderService } from '@/services/providerService';
 import { registerConnectionService } from '@/services/connection';
-import { registerApprovalService } from '@/services/approval';
+import { registerApprovalService, getApprovalService } from '@/services/approval';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { MessageBus, type ProviderMessage, type ApprovalMessage, type EventMessage } from '@/services/core/MessageBus';
@@ -246,27 +246,37 @@ export default defineBackground(() => {
   MessageBus.onMessage('resolve-provider-request', async (data) => {
     const message = data as ApprovalMessage;
     const { requestId, approved, updatedParams } = message;
-    
+
     try {
-      // Use the eventEmitterService pattern
-      eventEmitterService.emit(`resolve-${requestId}`, { 
-        approved, 
-        updatedParams 
+      // Resolve through ApprovalService
+      const approvalService = getApprovalService();
+      if (approved) {
+        approvalService.resolveApproval(requestId, {
+          approved: true,
+          updatedParams
+        });
+      } else {
+        approvalService.rejectApproval(requestId, 'User denied the request');
+      }
+
+      // Also emit events for backward compatibility
+      eventEmitterService.emit(`resolve-${requestId}`, {
+        approved,
+        updatedParams
       });
-      
-      // Also emit the old event for backward compatibility
+
       eventEmitterService.emit('resolve-pending-request', {
         requestId,
         approved,
         updatedParams
       });
-      
+
       return { success: true };
     } catch (error: any) {
       console.error('Failed to resolve provider request:', error);
-      return { 
-        success: false, 
-        error: error.message 
+      return {
+        success: false,
+        error: error.message
       };
     }
   });

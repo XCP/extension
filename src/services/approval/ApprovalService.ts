@@ -132,8 +132,8 @@ export class ApprovalService extends BaseService {
     // Remove from approval queue
     const removed = approvalQueue.remove(id);
 
-    // Resolve the managed promise
-    const resolved = this.requestManager.resolve(id, result.approved ? result : false);
+    // Resolve the managed promise with true/false (or updatedParams if provided)
+    const resolved = this.requestManager.resolve(id, result.approved ? (result.updatedParams || true) : false);
 
     // Update badge
     this.updateBadge();
@@ -201,62 +201,94 @@ export class ApprovalService extends BaseService {
    * Ensure approval window is open and focused
    */
   private async ensureApprovalWindow(): Promise<void> {
-    // Try to open the regular extension popup
     try {
-      // First, try using chrome.action.openPopup() - this opens the regular popup
+      // First, try to open the popup using chrome.action.openPopup()
+      // This will open the normal extension popup
       await chrome.action.openPopup();
-      // The popup will automatically navigate to approval-queue if there are pending approvals
+
+      // Send message to navigate to approval queue after a short delay
+      // to ensure popup is ready
+      setTimeout(() => {
+        chrome.runtime.sendMessage({
+          type: 'NAVIGATE_TO_APPROVAL_QUEUE'
+        }).catch(() => {
+          // Popup might not be ready yet, that's ok
+        });
+      }, 100);
+
+      return;
     } catch (error) {
-      // If openPopup fails (e.g., already open or not supported), try focusing the popup
-      try {
-        // Get all extension windows
-        const windows = await chrome.windows.getAll({ populate: true });
-
-        // Find our popup window (if it exists)
-        for (const window of windows) {
-          if (window.tabs) {
-            for (const tab of window.tabs) {
-              if (tab.url?.includes(chrome.runtime.id) && tab.url?.includes('popup.html')) {
-                // Focus the existing popup window
-                await chrome.windows.update(window.id!, { focused: true });
-
-                // Send a message to the popup to navigate to approval queue
-                chrome.runtime.sendMessage({
-                  type: 'NAVIGATE_TO_APPROVAL_QUEUE'
-                }).catch(() => {
-                  // Popup might not be ready yet, that's ok
-                });
-                return;
-              }
-            }
-          }
-        }
-
-        // If no popup window found, create one as fallback
-        await this.createPopupWindow();
-      } catch (fallbackError) {
-        console.error('Failed to open popup:', fallbackError);
-        // As last resort, create a new window
-        await this.createPopupWindow();
-      }
+      // openPopup() is not available in all contexts (e.g., content scripts)
+      // or the popup might already be open
+      console.debug('chrome.action.openPopup() failed:', error);
     }
+
+    // Fallback: Find and focus existing popup window
+    try {
+      const views = chrome.extension.getViews({ type: 'popup' });
+      if (views.length > 0) {
+        // Popup is already open, just send navigation message
+        chrome.runtime.sendMessage({
+          type: 'NAVIGATE_TO_APPROVAL_QUEUE'
+        }).catch(() => {});
+        return;
+      }
+    } catch (e) {
+      console.debug('Failed to get popup views:', e);
+    }
+
+    // Final fallback: Create a popup window
+    // This ensures the approval flow works even when chrome.action.openPopup() is not available
+    await this.createPopupWindow();
   }
 
   /**
    * Create popup window as fallback
+   * This creates the normal extension popup in a window
    */
   private async createPopupWindow(): Promise<void> {
     try {
+      // Check if we already have a popup window open
+      if (this.state.currentWindow) {
+        try {
+          const window = await browser.windows.get(this.state.currentWindow);
+          if (window) {
+            // Focus the existing window
+            await browser.windows.update(this.state.currentWindow, { focused: true });
+
+            // Send navigation message
+            chrome.runtime.sendMessage({
+              type: 'NAVIGATE_TO_APPROVAL_QUEUE'
+            }).catch(() => {});
+
+            return;
+          }
+        } catch (e) {
+          // Window no longer exists
+          this.state.currentWindow = null;
+        }
+      }
+
+      // Create a new popup window pointing directly to approval queue
       const window = await browser.windows.create({
         url: browser.runtime.getURL('/popup.html#/provider/approval-queue'),
         type: 'popup',
         width: 400,
         height: 600,
         focused: true,
+        left: Math.round((screen.width - 400) / 2),
+        top: Math.round((screen.height - 600) / 2),
       });
 
       if (window?.id) {
         this.state.currentWindow = window.id;
+
+        // Listen for window close to clear state
+        browser.windows.onRemoved.addListener((windowId) => {
+          if (windowId === this.state.currentWindow) {
+            this.state.currentWindow = null;
+          }
+        });
       }
     } catch (error) {
       console.error('Failed to create popup window:', error);

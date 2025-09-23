@@ -12,12 +12,14 @@ import { getWalletService } from '@/services/walletService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getConnectionService } from '@/services/connection';
 import { getApprovalService } from '@/services/approval';
+import { approvalQueue } from '@/utils/provider/approvalQueue';
 import type { ApprovalRequest } from '@/utils/provider/approvalQueue';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
 import { analytics } from '@/utils/fathom';
 import { analyzeCSP } from '@/utils/security/cspValidation';
 import { composeRequestStorage } from '@/utils/storage/composeRequestStorage';
 import { signMessageRequestStorage } from '@/utils/storage/signMessageRequestStorage';
+import { getKeychainSettings, updateKeychainSettings } from '@/utils/storage/settingsStorage';
 import { getUpdateService } from '@/services/updateService';
 import type {
   SendOptions, OrderOptions, DispenserOptions, DispenseOptions, DividendOptions, IssuanceOptions,
@@ -77,22 +79,26 @@ export function createProviderService(): ProviderService {
     
     // Check wallet state
     const isUnlocked = await walletService.isAnyWalletUnlocked();
+    console.debug('getAccounts: wallet unlocked =', isUnlocked);
     if (!isUnlocked) {
       console.debug('Wallet not unlocked, returning empty array');
       return [];
     }
-    
+
     const activeAddress = await walletService.getActiveAddress();
+    console.debug('getAccounts: activeAddress =', activeAddress);
     if (!activeAddress) {
       console.debug('No active address, returning empty array');
       return [];
     }
-    
+
     // Check if origin is connected
     const isConnected = await connectionService.hasPermission(origin);
-    console.debug('Connection check:', { origin, isConnected });
-    
-    return isConnected ? [activeAddress.address] : [];
+    console.debug('getAccounts: Connection check:', { origin, isConnected });
+
+    const result = isConnected ? [activeAddress.address] : [];
+    console.debug('getAccounts: returning', result);
+    return result;
   }
 
   /**
@@ -143,28 +149,32 @@ export function createProviderService(): ProviderService {
       timestamp: Date.now()
     });
 
-    // Send message to popup to navigate to compose form
-    chrome.runtime.sendMessage({
-      type: 'NAVIGATE_TO_COMPOSE',
-      composeType,
-      composeRequestId,
-      routePath
-    }).catch(() => {
-      // Popup might not be open yet
-    });
-
-    // Open popup at the compose form
+    // Open popup first
     try {
       await chrome.action.openPopup();
+
+      // Send navigation message after a short delay to ensure popup is ready
+      setTimeout(() => {
+        chrome.runtime.sendMessage({
+          type: 'NAVIGATE_TO_COMPOSE',
+          composeType,
+          composeRequestId,
+          routePath
+        }).catch(() => {
+          // Popup might not be ready yet
+        });
+      }, 100);
     } catch (e) {
       // Fallback: create a new window with the compose form
       const extensionUrl = chrome.runtime.getURL(`popup.html#${routePath}?composeRequestId=${composeRequestId}`);
-      await chrome.windows.create({
+      const window = await chrome.windows.create({
         url: extensionUrl,
         type: 'popup',
         width: 400,
         height: 600,
-        focused: true
+        focused: true,
+        left: Math.round((screen.width - 400) / 2),
+        top: Math.round((screen.height - 600) / 2),
       });
     }
 
@@ -301,6 +311,25 @@ export function createProviderService(): ProviderService {
             throw new Error('WALLET_NOT_SETUP: Please complete wallet setup first in the popup window.');
           }
 
+          // Check if already connected - if so, just return accounts
+          if (await connectionService.hasPermission(origin)) {
+            const accounts = await getAccounts(origin);
+
+            // If wallet is locked, getAccounts returns empty array
+            // We should inform the user to unlock the wallet
+            if (accounts.length === 0) {
+              const isUnlocked = await walletService.isAnyWalletUnlocked();
+              if (!isUnlocked) {
+                throw new Error('WALLET_LOCKED: Please unlock your wallet first');
+              }
+              // If unlocked but no accounts, there might be no active address set
+              throw new Error('No active address found. Please select an address in the wallet.');
+            }
+
+            await analytics.track('accounts_requested', { value: '1' });
+            return accounts;
+          }
+
           // Check if wallet is locked
           const isUnlocked = await walletService.isAnyWalletUnlocked();
           if (!isUnlocked) {
@@ -361,14 +390,45 @@ export function createProviderService(): ProviderService {
 
                   // Check if already connected
                   if (await connectionService.hasPermission(origin)) {
-                    resolve(getAccounts(origin));
+                    const accounts = await getAccounts(origin);
+                    resolve(accounts);
                     return;
                   }
 
-                  // Request connection
-                  const accounts = await connectionService.connect(origin, activeAddress.address, activeWallet.id);
-                  await analytics.track('connection_established');
-                  resolve(accounts);
+                  // Use approval service to request connection
+                  const approvalRequestId = `${origin}-connect-afterunlock-${Date.now()}`;
+                  const approvalService = getApprovalService();
+
+                  // Request approval (this will handle the UI)
+                  approvalService.requestApproval({
+                    id: approvalRequestId,
+                    origin,
+                    method: 'xcp_requestAccounts',
+                    params: [],
+                    type: 'connection',
+                    metadata: {
+                      domain: new URL(origin).hostname,
+                      title: 'XCP Connect',
+                      description: 'This site wants to connect to your wallet',
+                    },
+                  }).then(async (approved) => {
+                    if (approved) {
+                      // Save the connection
+                      const settings = await getKeychainSettings();
+                      if (!settings.connectedWebsites.includes(origin)) {
+                        await updateKeychainSettings({
+                          connectedWebsites: [...settings.connectedWebsites, origin],
+                        });
+                      }
+
+                      // Return the accounts
+                      const accounts = [activeAddress.address];
+                      await analytics.track('connection_established');
+                      resolve(accounts);
+                    } else {
+                      reject(new Error('User denied the request'));
+                    }
+                  }).catch(reject);
                 } catch (error) {
                   reject(error);
                 }
@@ -413,19 +473,200 @@ export function createProviderService(): ProviderService {
             });
           }
           
-          // Request connection through ConnectionService
-          const accounts = await connectionService.connect(origin, activeAddress.address, activeWallet.id);
-          
-          // Track successful connection
-          await analytics.track('connection_established');
-          
-          return accounts;
+          // Use approval service to request connection
+          const requestId = `${origin}-connect-${Date.now()}`;
+          const approvalService = getApprovalService();
+
+          // Request approval (this will open the popup and handle the UI)
+          const approved = await approvalService.requestApproval({
+            id: requestId,
+            origin,
+            method: 'xcp_requestAccounts',
+            params: [],
+            type: 'connection',
+            metadata: {
+              domain: new URL(origin).hostname,
+              title: 'XCP Connect',
+              description: 'This site wants to connect to your wallet',
+            },
+          });
+
+          if (approved) {
+            // Save the connection
+            const settings = await getKeychainSettings();
+            if (!settings.connectedWebsites.includes(origin)) {
+              await updateKeychainSettings({
+                connectedWebsites: [...settings.connectedWebsites, origin],
+              });
+            }
+
+            // Return the accounts
+            const accounts = [activeAddress.address];
+            await analytics.track('connection_established');
+            return accounts;
+          } else {
+            throw new Error('User denied the request');
+          }
         }
         
         case 'xcp_accounts': {
           return getAccounts(origin);
         }
-        
+
+        case 'xcp_isConnected': {
+          // Check if origin has permission to access wallet
+          console.debug('xcp_isConnected checking origin:', origin);
+          const hasPermission = await connectionService.hasPermission(origin);
+          console.debug('xcp_isConnected result:', hasPermission);
+          return hasPermission;
+        }
+
+        case 'xcp_connect': {
+          // Simple connection request that just checks/establishes permission
+          // Unlike xcp_requestAccounts, this doesn't return accounts
+
+          console.debug('xcp_connect called with origin:', origin);
+
+          // Check if already connected
+          if (await connectionService.hasPermission(origin)) {
+            console.debug('xcp_connect: already connected');
+            return true;
+          }
+
+          // Check wallet state
+          const wallets = await walletService.getWallets();
+          if (!wallets || wallets.length === 0) {
+            // Open popup for wallet setup
+            try {
+              await chrome.action.openPopup();
+            } catch (e) {
+              // Fallback: create a new window with the extension popup
+              const extensionUrl = chrome.runtime.getURL('popup.html');
+              await chrome.windows.create({
+                url: extensionUrl,
+                type: 'popup',
+                width: 400,
+                height: 600,
+                focused: true
+              });
+            }
+            throw new Error('WALLET_NOT_SETUP: Please complete wallet setup first in the popup window.');
+          }
+
+          const isUnlocked = await walletService.isAnyWalletUnlocked();
+          if (!isUnlocked) {
+            // For locked wallet, we should add the request to the approval queue first,
+            // then open the popup which will unlock and then show the approval
+            const activeWallet = wallets[0]; // Use first wallet as a placeholder
+            const requestId = `${origin}-connect-${Date.now()}`;
+
+            // Add to approval queue so it will be shown after unlock
+            const approvalService = getApprovalService();
+            // Add request to queue (but don't wait for it yet)
+            approvalQueue.add({
+              id: requestId,
+              origin,
+              method: 'xcp_connect',
+              params: [],
+              type: 'connection',
+              metadata: {
+                domain: new URL(origin).hostname,
+                title: 'XCP Connect',
+                description: 'This site wants to connect to your wallet',
+              },
+            });
+
+            // Open the popup which will show unlock and then approval
+            try {
+              await chrome.action.openPopup();
+            } catch (e) {
+              // Fallback: create a new window with the extension popup
+              const extensionUrl = chrome.runtime.getURL('popup.html');
+              await chrome.windows.create({
+                url: extensionUrl,
+                type: 'popup',
+                width: 400,
+                height: 600,
+                focused: true
+              });
+            }
+
+            // Wait for the approval resolution
+            return new Promise((resolve, reject) => {
+              const timeout = setTimeout(() => {
+                eventEmitterService.off(`resolve-${requestId}`);
+                approvalService.removeApprovalRequest(requestId);
+                reject(new Error('Connection request timeout'));
+              }, 5 * 60 * 1000); // 5 minutes timeout
+
+              eventEmitterService.once(`resolve-${requestId}`, async (data: boolean | { approved: boolean }) => {
+                clearTimeout(timeout);
+                const approved = typeof data === 'boolean' ? data : data.approved;
+
+                if (approved) {
+                  // After approval, save the connection
+                  const activeAddress = await walletService.getActiveAddress();
+                  const activeWallet = await walletService.getActiveWallet();
+
+                  if (activeAddress && activeWallet) {
+                    const settings = await getKeychainSettings();
+                    if (!settings.connectedWebsites.includes(origin)) {
+                      await updateKeychainSettings({
+                        connectedWebsites: [...settings.connectedWebsites, origin],
+                      });
+                    }
+                  }
+
+                  resolve(true);
+                } else {
+                  reject(new Error('User denied the request'));
+                }
+              });
+            });
+          }
+
+          const activeAddress = await walletService.getActiveAddress();
+          const activeWallet = await walletService.getActiveWallet();
+
+          if (!activeAddress || !activeWallet) {
+            throw new Error('No active wallet or address selected.');
+          }
+
+          // Use approval service to request connection
+          const requestId = `${origin}-xcp-connect-${Date.now()}`;
+          const approvalService = getApprovalService();
+
+          // Request approval (this will open the popup and handle the UI)
+          const approved = await approvalService.requestApproval({
+            id: requestId,
+            origin,
+            method: 'xcp_connect',
+            params: [],
+            type: 'connection',
+            metadata: {
+              domain: new URL(origin).hostname,
+              title: 'XCP Connect',
+              description: 'This site wants to connect to your wallet',
+            },
+          });
+
+          if (approved) {
+            // Save the connection
+            const settings = await getKeychainSettings();
+            if (!settings.connectedWebsites.includes(origin)) {
+              await updateKeychainSettings({
+                connectedWebsites: [...settings.connectedWebsites, origin],
+              });
+            }
+
+            // For xcp_connect, we return true instead of accounts
+            await analytics.track('connection_established');
+            return true;
+          } else {
+            throw new Error('User denied the request');
+          }
+        }
+
         case 'xcp_chainId': {
           return '0x0'; // Bitcoin mainnet
         }
@@ -632,12 +873,17 @@ export function createProviderService(): ProviderService {
           const updateService = getUpdateService();
           updateService.registerCriticalOperation(composeRequestId);
 
+          // Determine the route path
+          const asset = sendParams.asset || 'XCP';
+          const routePath = `/compose/send/${asset}`;
+
           // Send message to popup to navigate to compose form
           chrome.runtime.sendMessage({
             type: 'NAVIGATE_TO_COMPOSE',
             composeType: 'send',
             composeRequestId,
-            asset: sendParams.asset || 'BTC'
+            routePath,
+            asset
           }).catch(() => {
             // Popup might not be open yet
           });
@@ -647,7 +893,7 @@ export function createProviderService(): ProviderService {
             await chrome.action.openPopup();
           } catch (e) {
             // Fallback: create a new window with the compose form
-            const extensionUrl = chrome.runtime.getURL(`popup.html#/compose/send/${sendParams.asset || 'BTC'}?composeRequestId=${composeRequestId}`);
+            const extensionUrl = chrome.runtime.getURL(`popup.html#${routePath}?composeRequestId=${composeRequestId}`);
             await chrome.windows.create({
               url: extensionUrl,
               type: 'popup',

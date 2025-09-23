@@ -68,12 +68,19 @@ export class ConnectionService extends BaseService {
     // Check cache first
     const cached = this.state.connectionCache.get(origin);
     if (cached && Date.now() - (cached.lastActive || 0) < ConnectionService.CACHE_TTL) {
+      console.debug('ConnectionService.hasPermission (from cache):', { origin, isConnected: cached.isConnected });
       return cached.isConnected;
     }
 
     // Check persistent storage
     const settings = await getKeychainSettings();
     const isConnected = settings.connectedWebsites.includes(origin);
+
+    console.debug('ConnectionService.hasPermission (from storage):', {
+      origin,
+      isConnected,
+      connectedWebsites: settings.connectedWebsites
+    });
 
     // Update cache
     this.state.connectionCache.set(origin, {
@@ -124,7 +131,7 @@ export class ConnectionService extends BaseService {
           type: 'connection',
           metadata: {
             domain: new URL(origin).hostname,
-            title: 'Connection Request',
+            title: 'XCP Connect',
             description: 'This site wants to connect to your wallet',
           },
         });
@@ -142,9 +149,11 @@ export class ConnectionService extends BaseService {
         }, 5 * 60 * 1000); // 5 minutes
 
         // Store resolvers (this would be handled by ApprovalService in the future)
-        eventEmitterService.on(`resolve-${requestId}`, (approved: boolean) => {
+        eventEmitterService.once(`resolve-${requestId}`, (data: boolean | { approved: boolean }) => {
           this.state.pendingPermissionRequests.delete(requestId);
           approvalQueue.remove(requestId);
+          // Handle both boolean and object formats
+          const approved = typeof data === 'boolean' ? data : data.approved;
           resolve(approved);
         });
       });
@@ -361,43 +370,49 @@ export class ConnectionService extends BaseService {
    * Open approval window for permission request
    */
   private async openApprovalWindow(requestId: string, origin: string): Promise<void> {
-    // This would be handled by ApprovalService in the future
-    const currentWindow = approvalQueue.getCurrentWindow();
-
-    if (currentWindow) {
-      // Focus existing window
-      browser.windows.update(currentWindow, { focused: true }).catch(() => {
-        // Window might be closed, open new one
-        this.createApprovalWindow();
-      });
-    } else {
-      // Open new approval window
-      this.createApprovalWindow();
-    }
+    // Always use the normal popup for approval
+    await this.createApprovalWindow();
   }
 
   /**
    * Create approval window
    */
   private async createApprovalWindow(): Promise<void> {
-    const window = await browser.windows.create({
-      url: browser.runtime.getURL('/popup.html#/provider/approval-queue'),
-      type: 'popup',
-      width: 350,
-      height: 600,
-      focused: true,
-    });
+    // Try to use the normal popup first
+    try {
+      await chrome.action.openPopup();
 
-    if (window?.id) {
-      approvalQueue.setCurrentWindow(window.id);
+      // Send navigation message after a short delay to ensure popup is loaded
+      setTimeout(() => {
+        chrome.runtime.sendMessage({
+          type: 'NAVIGATE_TO_APPROVAL_QUEUE'
+        }).catch(() => {
+          // Popup might not be ready yet, ignore error
+        });
+      }, 100);
 
-      // Monitor window close
-      browser.windows.onRemoved.addListener(function windowCloseHandler(windowId) {
-        if (windowId === window?.id) {
-          approvalQueue.setCurrentWindow(null);
-          browser.windows.onRemoved.removeListener(windowCloseHandler);
-        }
+      return;
+    } catch (error) {
+      // If openPopup fails (e.g., in some contexts), fall back to creating a window
+      const window = await browser.windows.create({
+        url: browser.runtime.getURL('/popup.html#/provider/approval-queue'),
+        type: 'popup',
+        width: 350,
+        height: 600,
+        focused: true,
       });
+
+      if (window?.id) {
+        approvalQueue.setCurrentWindow(window.id);
+
+        // Monitor window close
+        browser.windows.onRemoved.addListener(function windowCloseHandler(windowId) {
+          if (windowId === window?.id) {
+            approvalQueue.setCurrentWindow(null);
+            browser.windows.onRemoved.removeListener(windowCloseHandler);
+          }
+        });
+      }
     }
   }
 

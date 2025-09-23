@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { safeSendMessage } from '@/utils/browser';
+import { MessageBus } from '@/utils/messageBusPopup';
 
 export default function ApproveTransaction() {
   const [searchParams] = useSearchParams();
@@ -31,15 +31,11 @@ export default function ApproveTransaction() {
   const handleApprove = async () => {
     setIsLoading(true);
     try {
-      // Send approval to background
-      await safeSendMessage({
-        type: 'RESOLVE_PROVIDER_REQUEST',
+      // Send approval to background using MessageBus
+      await MessageBus.resolveApprovalRequest(
         requestId,
-        approved: true,
-      }).catch((error) => {
-        console.error('Failed to send approval to background:', error);
-        throw error;
-      });
+        true
+      );
       
       // Close window
       window.close();
@@ -51,15 +47,11 @@ export default function ApproveTransaction() {
 
   const handleReject = async () => {
     try {
-      // Send rejection to background
-      await safeSendMessage({
-        type: 'RESOLVE_PROVIDER_REQUEST',
+      // Send rejection to background using MessageBus
+      await MessageBus.resolveApprovalRequest(
         requestId,
-        approved: false,
-      }).catch((error) => {
-        console.error('Failed to send rejection to background:', error);
-        throw error;
-      });
+        false
+      );
       
       // Close window
       window.close();

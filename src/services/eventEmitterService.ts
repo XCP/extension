@@ -81,16 +81,34 @@ class EventEmitterService extends BaseService {
   /**
    * Remove an event listener
    */
-  off(event: string, callback: EventCallback, origin?: string): void {
+  off(event: string, callback?: EventCallback, origin?: string): void {
     const key = origin ? `${origin}:${event}` : event;
+
+    if (!callback) {
+      // If no callback provided, remove all listeners for this event
+      this.state.listeners.delete(key);
+      return;
+    }
+
     const listeners = this.state.listeners.get(key);
-    
+
     if (listeners) {
       listeners.delete(callback);
       if (listeners.size === 0) {
         this.state.listeners.delete(key);
       }
     }
+  }
+
+  /**
+   * Register a one-time event listener
+   */
+  once(event: string, callback: EventCallback, origin?: string): void {
+    const wrappedCallback = (...args: any[]) => {
+      this.off(event, wrappedCallback, origin);
+      callback(...args);
+    };
+    this.on(event, wrappedCallback, origin);
   }
 
   /**

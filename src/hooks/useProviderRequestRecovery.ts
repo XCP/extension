@@ -44,12 +44,19 @@ export function useProviderRequestRecovery() {
 
   async function checkForPendingRequests() {
     try {
+      // Don't check if we're already on a compose page with a request ID
+      const searchParams = new URLSearchParams(location.search);
+      if (searchParams.has('composeRequestId') || searchParams.has('signMessageRequestId')) {
+        return; // Already handling a request
+      }
+
       // Check compose requests
       const composeRequests = await composeRequestStorage.getAll();
       const validComposeRequests = composeRequests.filter(req => {
         const age = Date.now() - req.timestamp;
-        // Still valid if less than 5 minutes old
-        return age < 5 * 60 * 1000;
+        // Only show recovery for requests older than 10 seconds (actually abandoned)
+        // Fresh requests will navigate directly to the form
+        return age > 10 * 1000 && age < 5 * 60 * 1000;
       });
 
       if (validComposeRequests.length > 0) {
@@ -58,7 +65,7 @@ export function useProviderRequestRecovery() {
           id: mostRecent.id,
           type: 'compose',
           origin: mostRecent.origin,
-          path: getComposeRoutePath(mostRecent.type),
+          path: getComposeRoutePath(mostRecent.type, mostRecent.params),
           timestamp: mostRecent.timestamp,
           data: mostRecent.params
         });
@@ -70,7 +77,8 @@ export function useProviderRequestRecovery() {
       const signRequests = await signMessageRequestStorage.getAll();
       const validSignRequests = signRequests.filter(req => {
         const age = Date.now() - req.timestamp;
-        return age < 5 * 60 * 1000;
+        // Only show recovery for requests older than 10 seconds (actually abandoned)
+        return age > 10 * 1000 && age < 5 * 60 * 1000;
       });
 
       if (validSignRequests.length > 0) {
@@ -90,9 +98,14 @@ export function useProviderRequestRecovery() {
     }
   }
 
-  function getComposeRoutePath(composeType: string): string {
+  function getComposeRoutePath(composeType: string, params?: any): string {
+    // For send, we need to include the asset in the path
+    if (composeType === 'send' && params?.asset) {
+      return `/compose/send/${params.asset}`;
+    }
+
     const routeMap: { [key: string]: string } = {
-      'send': '/compose/send',
+      'send': '/compose/send/XCP', // Default to XCP if no asset specified
       'order': '/compose/order',
       'dispenser': '/compose/dispenser',
       'dispense': '/compose/dispenser/dispense',
@@ -116,7 +129,7 @@ export function useProviderRequestRecovery() {
       'update-description': '/compose/issuance/update-description',
       'lock-description': '/compose/issuance/lock-description'
     };
-    return routeMap[composeType] || '/compose/send';
+    return routeMap[composeType] || '/compose/send/XCP';
   }
 
   async function resumeRequest() {
