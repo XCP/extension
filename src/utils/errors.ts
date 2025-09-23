@@ -146,11 +146,11 @@ export const PROVIDER_ERROR_CODES = {
 export function createJsonRpcError(
   code: number,
   message: string,
-  data?: any
+  data?: unknown
 ): {
   code: number;
   message: string;
-  data?: any;
+  data?: unknown;
 } {
   const error: any = {
     code,

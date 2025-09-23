@@ -8,8 +8,8 @@
 
 import { BaseService } from './core/BaseService';
 
-type EventCallback = (...args: any[]) => void;
-type PendingRequestResolver = (value: any) => void;
+type EventCallback = (...args: unknown[]) => void;
+type PendingRequestResolver = (value: unknown) => void;
 
 interface EventEmitterState {
   listeners: Map<string, Set<EventCallback>>;
@@ -36,7 +36,7 @@ class EventEmitterService extends BaseService {
   /**
    * Emit a provider event to a specific origin or all listeners
    */
-  emitProviderEvent(origin: string | null, event: string, data: any): void {
+  emitProviderEvent(origin: string | null, event: string, data: unknown): void {
     const key = origin ? `${origin}:${event}` : event;
     const listeners = this.state.listeners.get(key);
     

@@ -185,7 +185,7 @@ export const apiClient = {
   /**
    * POST request with automatic timeout selection
    */
-  async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<import('axios').AxiosResponse<T>> {
+  async post<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<import('axios').AxiosResponse<T>> {
     const timeout = config?.timeout || getTimeoutForUrl(url);
     const instance = createAxiosInstance({}, timeout);
 
@@ -195,7 +195,7 @@ export const apiClient = {
   /**
    * PUT request with automatic timeout selection
    */
-  async put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<import('axios').AxiosResponse<T>> {
+  async put<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<import('axios').AxiosResponse<T>> {
     const timeout = config?.timeout || getTimeoutForUrl(url);
     const instance = createAxiosInstance({}, timeout);
 
@@ -205,7 +205,7 @@ export const apiClient = {
   /**
    * DELETE request with automatic timeout selection
    */
-  async delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<import('axios').AxiosResponse<T>> {
+  async delete<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<import('axios').AxiosResponse<T>> {
     const timeout = config?.timeout || getTimeoutForUrl(url);
     const instance = createAxiosInstance({}, timeout);
 
@@ -215,7 +215,7 @@ export const apiClient = {
   /**
    * PATCH request with automatic timeout selection
    */
-  async patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<import('axios').AxiosResponse<T>> {
+  async patch<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<import('axios').AxiosResponse<T>> {
     const timeout = config?.timeout || getTimeoutForUrl(url);
     const instance = createAxiosInstance({}, timeout);
 

@@ -27,8 +27,8 @@ export interface MessageResponse<T = any> {
 
 export interface ProviderMessageData {
   method: string;
-  params?: any[];
-  metadata?: Record<string, any>;
+  params?: unknown[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface ProviderMessage {
@@ -42,7 +42,7 @@ export interface ProviderMessage {
 export interface EventMessage {
   type: 'PROVIDER_EVENT';
   event: string;
-  data: any;
+  data: unknown;
   origin?: string;
 }
 
@@ -50,7 +50,7 @@ export interface ApprovalMessage {
   type: 'RESOLVE_PROVIDER_REQUEST';
   requestId: string;
   approved: boolean;
-  updatedParams?: any;
+  updatedParams?: unknown;
 }
 
 interface WalletLockMessage {
@@ -69,7 +69,7 @@ export interface MessageProtocol {
   'resolve-provider-request': ProtocolWithReturn<ApprovalMessage, { success: boolean }>;
   
   // Service health
-  'service-health-check': ProtocolWithReturn<{ serviceNames?: string[] }, Record<string, any>>;
+  'service-health-check': ProtocolWithReturn<{ serviceNames?: string[] }, Record<string, unknown>>;
   
   // Generic message for unknown types
   [key: string]: any;
@@ -252,7 +252,7 @@ export class MessageBus {
    */
   static async broadcastEvent(
     event: string,
-    data: any,
+    data: unknown,
     targets: MessageTarget[] = ['popup', 'content-script']
   ): Promise<void> {
     const promises = targets.map(target =>
@@ -272,9 +272,9 @@ export class MessageBus {
   static async sendProviderRequest(
     origin: string,
     method: string,
-    params: any[] = [],
-    metadata?: Record<string, any>
-  ): Promise<any> {
+    params: unknown[] = [],
+    metadata?: Record<string, unknown>
+  ): Promise<unknown> {
     const message: ProviderMessage = {
       type: 'PROVIDER_REQUEST',
       origin,
@@ -309,7 +309,7 @@ export class MessageBus {
   static async resolveApprovalRequest(
     requestId: string,
     approved: boolean,
-    updatedParams?: any
+    updatedParams?: unknown
   ): Promise<void> {
     await MessageBus.send('resolve-provider-request', {
       type: 'RESOLVE_PROVIDER_REQUEST',
@@ -322,7 +322,7 @@ export class MessageBus {
   /**
    * Get health status of services
    */
-  static async getServiceHealth(serviceNames?: string[]): Promise<Record<string, any>> {
-    return MessageBus.send('service-health-check', { serviceNames }, 'background') as Promise<Record<string, any>>;
+  static async getServiceHealth(serviceNames?: string[]): Promise<Record<string, unknown>> {
+    return MessageBus.send('service-health-check', { serviceNames }, 'background') as Promise<Record<string, unknown>>;
   }
 }
