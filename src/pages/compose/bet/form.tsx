@@ -157,15 +157,15 @@ export function BetForm({
             <Label className="text-sm font-medium text-gray-700">
               Bet Type <span className="text-red-500">*</span>
             </Label>
-            <div className="mt-1">
+            <div className="mt-1 relative">
               <Listbox value={selectedBetType} onChange={setSelectedBetType} disabled={pending}>
                 <ListboxButton
-                  className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full p-2 text-left rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
                   disabled={pending}
                 >
                   <span>{selectedBetType.name}</span>
                 </ListboxButton>
-                <ListboxOptions className="w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto z-10">
+                <ListboxOptions className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
                   {betTypeOptions.map((option) => (
                     <ListboxOption 
                       key={option.id} 

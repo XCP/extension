@@ -154,10 +154,10 @@ const ImportPrivateKey = () => {
               <Label className="block text-sm font-medium text-gray-700">
                 Address Type <span className="text-red-500">*</span>
               </Label>
-              <div className="mt-1">
+              <div className="mt-1 relative">
                 <input type="hidden" name="address-type" value={addressFormat} />
                 <Listbox value={addressFormat} onChange={setAddressFormat} disabled={pending}>
-                  <ListboxButton className="w-full p-2 text-left rounded-md border border-gray-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500">
+                  <ListboxButton className="w-full p-2 text-left rounded-md border border-gray-200 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500">
                     {({ value }) => {
                       const selected = ADDRESS_TYPES.find(type => type.value === value);
                       return (
@@ -168,7 +168,7 @@ const ImportPrivateKey = () => {
                       );
                     }}
                   </ListboxButton>
-                  <ListboxOptions className="w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto z-10">
+                  <ListboxOptions className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
                     {ADDRESS_TYPES.map((type) => (
                       <ListboxOption 
                         key={type.value} 
