@@ -2,9 +2,11 @@
 
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaExchangeAlt, FaSync, FaCog, FaPlus } from "react-icons/fa";
+import { FaExchangeAlt, FaSync, FaCog, FaBitcoin, FaCoins } from "react-icons/fa";
 import { Button } from "@/components/button";
 import { useHeader } from "@/contexts/header-context";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { formatAmount } from "@/utils/format";
 import type { ReactElement } from "react";
 
 /**
@@ -28,6 +30,7 @@ const CONSTANTS = {
 export default function Market(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
+  const { btc, xcp, loading, error, refetch } = useMarketPrices();
 
   // Configure header
   useEffect(() => {
@@ -48,6 +51,62 @@ export default function Market(): ReactElement {
               XCP DEX
             </h1>
           </div>
+
+          {/* Price Display Section */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            {/* BTC Price Card */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FaBitcoin className="text-orange-500 text-lg" aria-hidden="true" />
+                  <span className="font-medium text-gray-900">BTC</span>
+                </div>
+                {loading ? (
+                  <div className="animate-pulse bg-gray-200 h-5 w-16 rounded"></div>
+                ) : error ? (
+                  <span className="text-red-500 text-sm">Error</span>
+                ) : btc ? (
+                  <span className="font-semibold text-gray-900">
+                    ${formatAmount({ value: btc, maximumFractionDigits: 0 })}
+                  </span>
+                ) : (
+                  <span className="text-gray-400">—</span>
+                )}
+              </div>
+            </div>
+
+            {/* XCP Price Card */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FaCoins className="text-blue-500 text-lg" aria-hidden="true" />
+                  <span className="font-medium text-gray-900">XCP</span>
+                </div>
+                {loading ? (
+                  <div className="animate-pulse bg-gray-200 h-5 w-16 rounded"></div>
+                ) : error ? (
+                  <span className="text-red-500 text-sm">Error</span>
+                ) : xcp ? (
+                  <span className="font-semibold text-gray-900">
+                    ${formatAmount({ value: xcp, maximumFractionDigits: 2 })}
+                  </span>
+                ) : (
+                  <span className="text-gray-400">—</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {error && (
+            <div className="text-center mb-4">
+              <button
+                onClick={refetch}
+                className="text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                Retry loading prices
+              </button>
+            </div>
+          )}
 
           {/* Market Actions */}
           <div className="space-y-4">
