@@ -203,7 +203,7 @@ export function FeeRateInput({
             aria-label="Custom Fee Rate"
             aria-invalid={!!internalError}
             aria-describedby={internalError ? "sat_per_vbyte-error" : undefined}
-            className="block w-full p-2.5 rounded-md border bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+            className="block w-full p-2.5 rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
         {showHelpText && (
@@ -241,7 +241,7 @@ export function FeeRateInput({
               aria-label="Custom Fee Rate"
               aria-invalid={!!internalError}
               aria-describedby={internalError ? "sat_per_vbyte-error" : undefined}
-              className="block w-full p-2.5 rounded-md border bg-gray-50 pr-16 focus:border-blue-500 focus:ring-blue-500"
+              className="block w-full p-2.5 rounded-md border border-gray-200 bg-gray-50 pr-16 focus:border-blue-500 focus:ring-blue-500"
             />
             {feeRates && (
               <Button variant="input" onClick={handleEscClick} aria-label="Reset to first preset" {...disabledProps}>
@@ -258,7 +258,7 @@ export function FeeRateInput({
               <div className="relative">
                 <Listbox value={feeOptions.find((opt) => opt.id === selectedOption) || feeOptions[0]} onChange={handleOptionSelect}>
                   <ListboxButton
-                    className="w-full p-2.5 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 cursor-pointer"
+                    className="w-full p-2.5 text-left rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 cursor-pointer"
                     {...disabledProps}
                   >
                     {({ value }) => (
@@ -270,7 +270,7 @@ export function FeeRateInput({
                       </div>
                     )}
                   </ListboxButton>
-                  <ListboxOptions className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                  <ListboxOptions className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
                     {feeOptions.map((option) => (
                       <ListboxOption
                         key={option.id}

@@ -315,14 +315,14 @@ export function WeeklyBetForm({ formAction }: BetFormProps): ReactElement {
             <Label className="text-sm font-medium text-gray-700">
               Your Prediction <span className="text-red-500">*</span>
             </Label>
-            <div className="mt-1">
+            <div className="mt-1 relative">
               <Listbox value={selectedChoice} onChange={setSelectedChoice} disabled={pending}>
                 <ListboxButton
-                  className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full p-2 text-left rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
                 >
                   <span>{selectedChoice.name}</span>
                 </ListboxButton>
-                <ListboxOptions className="w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto z-10">
+                <ListboxOptions className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
                   {betChoices.map((choice) => (
                     <ListboxOption
                       key={choice.id}

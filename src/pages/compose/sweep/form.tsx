@@ -80,15 +80,15 @@ export function SweepForm({
         <Label className="block text-sm font-medium text-gray-700">
           Sweep Type <span className="text-red-500">*</span>
         </Label>
-        <div className="mt-1">
+        <div className="mt-1 relative">
           {/* Hidden input for form submission */}
           <input type="hidden" name="flags" value={selectedSweepType.value} />
-          
+
           <Listbox value={selectedSweepType} onChange={setSelectedSweepType}>
-            <ListboxButton className="w-full p-2 text-left rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" {...(pending === true && { disabled: true })}>
+            <ListboxButton className="w-full p-2 text-left rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" {...(pending === true && { disabled: true })}>
               {selectedSweepType.name}
             </ListboxButton>
-            <ListboxOptions className="w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+            <ListboxOptions className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
               {sweepTypeOptions.map((option) => (
                 <ListboxOption 
                   key={option.id} 
