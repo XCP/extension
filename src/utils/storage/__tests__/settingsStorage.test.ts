@@ -88,7 +88,7 @@ describe('settingsStorage.ts', () => {
       expect(settings.autoLockTimeout).toBe(15 * 60 * 1000);
     });
 
-    it('should default invalid autoLockTimer to 1m', async () => {
+    it('should default invalid autoLockTimer to 5m', async () => {
       const invalidSettings = {
         id: 'keychain-settings',
         autoLockTimer: 'always' as any,
@@ -96,8 +96,8 @@ describe('settingsStorage.ts', () => {
       };
       await addRecord(invalidSettings);
       const settings = await getKeychainSettings();
-      expect(settings.autoLockTimer).toBe('1m');
-      expect(settings.autoLockTimeout).toBe(1 * 60 * 1000);
+      expect(settings.autoLockTimer).toBe('5m');
+      expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
     });
   });
 
@@ -161,15 +161,15 @@ describe('settingsStorage.ts', () => {
   });
 
   describe('migration and edge cases', () => {
-    it('should migrate autoLockTimeout of 0 to 1m', async () => {
+    it('should migrate autoLockTimeout of 0 to 5m', async () => {
       const legacySettings = {
         id: 'keychain-settings',
         autoLockTimeout: 0,
       };
       await addRecord(legacySettings);
       const settings = await getKeychainSettings();
-      expect(settings.autoLockTimer).toBe('1m');
-      expect(settings.autoLockTimeout).toBe(1 * 60 * 1000);
+      expect(settings.autoLockTimer).toBe('5m');
+      expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
     });
 
     it('should handle invalid autoLockTimeout values', async () => {
@@ -182,8 +182,8 @@ describe('settingsStorage.ts', () => {
       };
       await updateRecord(invalidSettings); // Use update instead of add to avoid duplicate
       const settings = await getKeychainSettings();
-      expect(settings.autoLockTimer).toBe('1m');
-      expect(settings.autoLockTimeout).toBe(1 * 60 * 1000);
+      expect(settings.autoLockTimer).toBe('5m');
+      expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
     });
 
     it('should not throw on duplicate ID during initial creation', async () => {

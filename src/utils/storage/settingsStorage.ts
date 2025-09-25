@@ -39,12 +39,12 @@ export interface KeychainSettings {
 export const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
   lastActiveWalletId: undefined,
   lastActiveAddress: undefined,
-  autoLockTimeout: 1 * 60 * 1000, // 1 minute default
+  autoLockTimeout: 5 * 60 * 1000, // 5 minutes default
   connectedWebsites: [],
   showHelpText: false,
   analyticsAllowed: true,
   allowUnconfirmedTxs: true,
-  autoLockTimer: '1m',
+  autoLockTimer: '5m',
   enableMPMA: false,
   enableAdvancedBroadcasts: false,
   enableAdvancedBetting: false,
@@ -91,9 +91,9 @@ export async function getKeychainSettings(): Promise<KeychainSettings> {
     if ([1, 5, 15, 30].includes(minutes)) {
       settings.autoLockTimer = `${minutes}m` as AutoLockTimer;
     } else {
-      // Invalid or 0 -> default to 1m
-      settings.autoLockTimer = '1m';
-      settings.autoLockTimeout = 1 * 60 * 1000;
+      // Invalid or 0 -> default to 5m
+      settings.autoLockTimer = '5m';
+      settings.autoLockTimeout = 5 * 60 * 1000;
     }
     // Persist migration
     await updateKeychainSettings({ autoLockTimer: settings.autoLockTimer, autoLockTimeout: settings.autoLockTimeout }, settings);
@@ -101,9 +101,9 @@ export async function getKeychainSettings(): Promise<KeychainSettings> {
 
   // Handle invalid autoLockTimer
   if (!['1m', '5m', '15m', '30m'].includes(settings.autoLockTimer)) {
-    settings.autoLockTimer = '1m';
-    settings.autoLockTimeout = 1 * 60 * 1000;
-    await updateKeychainSettings({ autoLockTimer: '1m', autoLockTimeout: 1 * 60 * 1000 }, settings);
+    settings.autoLockTimer = '5m';
+    settings.autoLockTimeout = 5 * 60 * 1000;
+    await updateKeychainSettings({ autoLockTimer: '5m', autoLockTimeout: 5 * 60 * 1000 }, settings);
   }
 
   // Ensure consistency between autoLockTimer and autoLockTimeout

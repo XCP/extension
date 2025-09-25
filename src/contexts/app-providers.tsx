@@ -1,7 +1,6 @@
 import { useCallback, type ReactNode, type ReactElement } from 'react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { HeaderProvider } from './header-context';
-import { PriceProvider } from './price-context';
 import { SettingsProvider } from './settings-context';
 import { WalletProvider } from './wallet-context';
 import { useWallet } from './wallet-context';
@@ -112,9 +111,7 @@ export function AppProviders({ children }: AppProvidersProps): ReactElement {
               <WalletProvider>
                 <IdleTimerWrapper>
                   <HeaderProvider>
-                    <PriceProvider>
-                      {children}
-                    </PriceProvider>
+                    {children}
                   </HeaderProvider>
                 </IdleTimerWrapper>
               </WalletProvider>
