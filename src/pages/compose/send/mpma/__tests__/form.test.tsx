@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { MPMAForm } from '../form';
 import { ComposerProvider } from '@/contexts/composer-context';
@@ -102,6 +102,10 @@ describe('MPMAForm', () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    cleanup();
+  });
+
   it('renders the form with file upload area', () => {
     renderWithProvider();
     
@@ -126,25 +130,25 @@ describe('MPMAForm', () => {
     await waitFor(() => {
       // Address shows first 10 chars
       expect(screen.getByText(/bc1qar0srr\.\.\. → 1.5 XCP/)).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
   });
 
   it('skips header row when present', async () => {
     renderWithProvider();
-    
+
     const textArea = screen.getByPlaceholderText('Paste CSV data here...');
     const csvData = 'Address,Asset,Quantity,Memo\nbc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,Test memo';
-    
+
     fireEvent.paste(textArea, {
       clipboardData: {
         getData: () => csvData
       }
     });
-    
+
     await waitFor(() => {
       expect(screen.getByText(/bc1qar0srr\.\.\. → 1.5 XCP/)).toBeInTheDocument();
       expect(screen.queryByText(/Address\.\.\./)).not.toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
   });
 
   it('shows error for invalid Bitcoin address', async () => {

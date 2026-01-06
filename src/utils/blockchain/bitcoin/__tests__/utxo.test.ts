@@ -128,7 +128,10 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle timeout errors', async () => {
-      mockApiClient.get.mockRejectedValue({ code: 'ECONNABORTED' });
+      const timeoutError = new Error('timeout');
+      (timeoutError as any).code = 'ECONNABORTED';
+      mockAxios.isCancel.mockReturnValue(false);
+      mockApiClient.get.mockRejectedValue(timeoutError);
 
       await expect(fetchUTXOs(mockAddress)).rejects.toThrow('Failed to fetch UTXOs.');
     });
@@ -443,10 +446,12 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle timeout errors', async () => {
-      mockApiClient.get.mockRejectedValue({ code: 'ECONNABORTED' });
+      const timeoutError = new Error('timeout');
+      (timeoutError as any).code = 'ECONNABORTED';
+      mockApiClient.get.mockRejectedValue(timeoutError);
 
       const result = await fetchPreviousRawTransaction(mockTxid);
-      
+
       expect(result).toBeNull();
     });
 

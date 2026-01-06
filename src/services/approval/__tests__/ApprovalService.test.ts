@@ -7,18 +7,32 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing';
 
-// Mock RequestManager before any imports
-vi.mock('../../core/RequestManager', () => ({
-  RequestManager: vi.fn().mockImplementation(() => ({
-    createManagedPromise: vi.fn(),
-    resolve: vi.fn(),
-    reject: vi.fn(),
-    remove: vi.fn(),
-    getStats: vi.fn(),
-    destroy: vi.fn(),
-    size: vi.fn().mockReturnValue(0),
-  })),
+// Mock RequestManager before any imports - use vi.hoisted for variables used in vi.mock factory
+const mockRequestManagerInstance = vi.hoisted(() => ({
+  createManagedPromise: vi.fn(),
+  resolve: vi.fn().mockReturnValue(true),
+  reject: vi.fn().mockReturnValue(true),
+  remove: vi.fn().mockReturnValue(true),
+  clear: vi.fn(),
+  getStats: vi.fn(),
+  destroy: vi.fn(),
+  size: vi.fn().mockReturnValue(0),
 }));
+
+vi.mock('../../core/RequestManager', () => {
+  return {
+    RequestManager: class {
+      createManagedPromise = mockRequestManagerInstance.createManagedPromise;
+      resolve = mockRequestManagerInstance.resolve;
+      reject = mockRequestManagerInstance.reject;
+      remove = mockRequestManagerInstance.remove;
+      clear = mockRequestManagerInstance.clear;
+      getStats = mockRequestManagerInstance.getStats;
+      destroy = mockRequestManagerInstance.destroy;
+      size = mockRequestManagerInstance.size;
+    },
+  };
+});
 
 // Mock approvalQueue
 vi.mock('@/utils/provider/approvalQueue', () => ({
@@ -56,11 +70,9 @@ vi.mock('@/utils/fathom', () => ({
 import { ApprovalService } from '../ApprovalService';
 
 // Import mocked modules to access them in tests
-import { RequestManager } from '../../core/RequestManager';
 import { approvalQueue, getApprovalBadgeText } from '@/utils/provider/approvalQueue';
 
 // Type the mocked functions
-const MockedRequestManager = RequestManager as unknown as ReturnType<typeof vi.mocked>;
 const mockedApprovalQueue = approvalQueue as any;
 const mockedGetApprovalBadgeText = getApprovalBadgeText as ReturnType<typeof vi.fn>;
 
@@ -128,30 +140,21 @@ afterEach(() => {
 
 describe('ApprovalService', () => {
   let approvalService: ApprovalService;
-  let mockRequestManagerInstance: any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    
+
+    // Reset mock functions
+    mockRequestManagerInstance.createManagedPromise.mockClear();
+    mockRequestManagerInstance.resolve.mockClear().mockReturnValue(true);
+    mockRequestManagerInstance.reject.mockClear().mockReturnValue(true);
+    mockRequestManagerInstance.remove.mockClear().mockReturnValue(true);
+    mockRequestManagerInstance.size.mockClear().mockReturnValue(0);
+
     // Reset approval queue mock to return empty array
     mockedApprovalQueue.getAll.mockReturnValue([]);
     mockedApprovalQueue.remove.mockReturnValue(true);
-    
-    // Create a mock instance that we can access in tests
-    mockRequestManagerInstance = {
-      createManagedPromise: vi.fn(),
-      resolve: vi.fn().mockReturnValue(true),
-      reject: vi.fn().mockReturnValue(true),
-      remove: vi.fn().mockReturnValue(true),
-      clear: vi.fn(), // Add the missing clear method
-      getStats: vi.fn(),
-      destroy: vi.fn(),
-      size: vi.fn().mockReturnValue(0),
-    };
-    
-    // Make the RequestManager constructor return our mock instance
-    (MockedRequestManager as any).mockReturnValue(mockRequestManagerInstance);
-    
+
     approvalService = new ApprovalService();
     
     // Mock initial storage state
@@ -508,27 +511,15 @@ describe('ApprovalService', () => {
           ]
         }
       };
-      
+
       mockStorage.get.mockResolvedValue({ 'ApprovalService': savedState });
-      
+
       await approvalService.destroy();
-      
-      // Create new service instance with fresh mocks
-      const newMockRequestManagerInstance = {
-        createManagedPromise: vi.fn(),
-        resolve: vi.fn().mockReturnValue(true),
-        reject: vi.fn().mockReturnValue(true),
-        remove: vi.fn().mockReturnValue(true),
-        clear: vi.fn(),
-        getStats: vi.fn(),
-        destroy: vi.fn(),
-        size: vi.fn().mockReturnValue(0),
-      };
-      (MockedRequestManager as any).mockReturnValue(newMockRequestManagerInstance);
-      
+
+      // Create new service instance - the mock is already set up from vi.mock
       approvalService = new ApprovalService();
       await approvalService.initialize();
-      
+
       // Check that service restored properly - just verify it initializes without error
       const stats = approvalService.getApprovalStats();
       expect(stats.requestsByOrigin).toBeDefined();
