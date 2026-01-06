@@ -140,7 +140,7 @@ export abstract class BaseService {
       const stateKey = `${this.serviceName}_state`;
       
       if (stored[stateKey]) {
-        const { data, version } = stored[stateKey];
+        const { data, version } = stored[stateKey] as { data: unknown; version: number };
         
         // Check version compatibility
         if (version === this.getStateVersion()) {

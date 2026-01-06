@@ -5,8 +5,8 @@
  * and simplified Taproot signing
  */
 
-import { sha256 } from '@noble/hashes/sha2';
-import { hmac } from '@noble/hashes/hmac';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { hmac } from '@noble/hashes/hmac.js';
 import { hex } from '@scure/base';
 import * as secp256k1 from '@noble/secp256k1';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';

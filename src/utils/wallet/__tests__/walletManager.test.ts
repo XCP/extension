@@ -34,7 +34,7 @@ import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/uti
 import { decryptMnemonic, decryptPrivateKey } from '@/utils/encryption/walletEncryption';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
-import { bytesToHex } from '@noble/hashes/utils';
+import { bytesToHex } from '@noble/hashes/utils.js';
 
 describe('WalletManager', () => {
   let walletManager: WalletManager;

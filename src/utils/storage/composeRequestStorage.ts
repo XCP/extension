@@ -58,7 +58,7 @@ class ComposeRequestStorage {
    */
   async getAll(): Promise<ComposeRequest[]> {
     const result = await chrome.storage.session.get(this.STORAGE_KEY);
-    const requests = result[this.STORAGE_KEY] || [];
+    const requests = (result[this.STORAGE_KEY] as ComposeRequest[] | undefined) || [];
 
     // Filter out expired requests
     return requests.filter(

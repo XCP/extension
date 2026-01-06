@@ -1,5 +1,5 @@
-import { sha256 } from '@noble/hashes/sha2';
-import { utf8ToBytes, bytesToHex } from '@noble/hashes/utils';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { utf8ToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import * as sessionManager from '@/utils/auth/sessionManager';

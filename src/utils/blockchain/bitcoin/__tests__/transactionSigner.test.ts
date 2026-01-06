@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { signTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
+import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import type { Wallet, Address } from '@/utils/wallet/walletManager';
 
 // Import the functions we're mocking

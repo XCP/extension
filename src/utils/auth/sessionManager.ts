@@ -44,7 +44,7 @@ async function getSessionMetadata(): Promise<SessionMetadata | null> {
     return null;
   }
   const result = await chrome.storage.session.get('sessionMetadata');
-  return result.sessionMetadata || null;
+  return (result.sessionMetadata as SessionMetadata | undefined) || null;
 }
 
 /**

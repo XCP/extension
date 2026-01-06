@@ -1,10 +1,10 @@
-import { secp256k1 } from '@noble/curves/secp256k1';
-import { sha256 } from '@noble/hashes/sha2';
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { createBase58check } from '@scure/base';
 import { HDKey } from '@scure/bip32';
 import { generateMnemonic, mnemonicToSeedSync } from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english';
+import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { encodeAddress, isCounterwalletFormat, AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
 

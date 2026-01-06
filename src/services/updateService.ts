@@ -198,7 +198,7 @@ class UpdateService {
     try {
       const result = await chrome.storage.local.get(this.STORAGE_KEY);
       if (result[this.STORAGE_KEY]) {
-        this.state = { ...this.state, ...result[this.STORAGE_KEY] };
+        this.state = { ...this.state, ...(result[this.STORAGE_KEY] as Partial<UpdateState>) };
       }
     } catch (error) {
       console.error('[UpdateService] Failed to load state:', error);

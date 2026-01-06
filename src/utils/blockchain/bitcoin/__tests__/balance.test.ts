@@ -187,19 +187,18 @@ describe('Bitcoin Balance Utilities', () => {
       signal: { aborted: false }
     };
     vi.spyOn(globalThis, 'AbortController').mockImplementation(() => mockController as any);
-    
-    (globalThis.fetch as any).mockImplementation(() => 
-      new Promise(resolve => setTimeout(() => resolve({
-        ok: true,
-        json: async () => ({ final_balance: 100000 })
-      }), 10000))
+
+    // Mock fetch to reject immediately when aborted
+    (globalThis.fetch as any).mockImplementation(() =>
+      new Promise((_, reject) => {
+        // Simulate network abort after a short delay
+        setTimeout(() => reject(new Error('The operation was aborted')), 50);
+      })
     );
 
-    fetchBTCBalance(mockAddress, 100);
-    
-    // Wait a bit to ensure timeout is triggered
-    await new Promise(resolve => setTimeout(resolve, 150));
-    
+    // Call with short timeout - the function will abort and throw
+    await expect(fetchBTCBalance(mockAddress, 10)).rejects.toThrow();
+
     expect(abortSpy).toHaveBeenCalled();
   });
 

@@ -1,5 +1,5 @@
 import { Transaction, p2pkh, p2wpkh, p2sh, p2tr, SigHash, Address as BtcAddress } from '@scure/btc-signer';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
+import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 import { fetchUTXOs, getUtxoByTxid, fetchPreviousRawTransaction } from '@/utils/blockchain/bitcoin/utxo';
 import { hybridSignTransaction } from '@/utils/blockchain/bitcoin/uncompressedSigner';

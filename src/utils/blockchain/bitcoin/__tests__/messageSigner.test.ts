@@ -3,8 +3,8 @@ import { signMessage, getSigningCapabilities } from '@/utils/blockchain/bitcoin/
 import { verifyMessage } from '@/utils/blockchain/bitcoin/messageVerifier/verifier';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { hashes } from '@noble/secp256k1';
-import { hmac } from '@noble/hashes/hmac';
-import { sha256 } from '@noble/hashes/sha2';
+import { hmac } from '@noble/hashes/hmac.js';
+import { sha256 } from '@noble/hashes/sha2.js';
 
 // Initialize secp256k1 for tests
 beforeAll(() => {

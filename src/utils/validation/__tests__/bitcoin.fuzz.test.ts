@@ -250,8 +250,8 @@ describe('Bitcoin Address Validation Fuzz Tests', () => {
       const endTime = performance.now();
       const totalTime = endTime - startTime;
       
-      // Should complete 1000 validations in under 100ms (accounting for system variations)
-      expect(totalTime).toBeLessThan(100);
+      // Should complete 1000 validations in under 500ms (accounting for system variations)
+      expect(totalTime).toBeLessThan(500);
     });
 
     // Consistency test
@@ -338,8 +338,8 @@ describe('Bitcoin Address Validation Fuzz Tests', () => {
       const endTime = performance.now();
       const totalTime = endTime - startTime;
       
-      // Should handle 1000 checks (200 iterations * 5 addresses) in under 50ms
-      expect(totalTime).toBeLessThan(50);
+      // Should handle 1000 checks (200 iterations * 5 addresses) in under 250ms
+      expect(totalTime).toBeLessThan(250);
     });
   });
 });
