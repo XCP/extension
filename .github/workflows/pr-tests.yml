@@ -56,18 +56,26 @@ jobs:
         run: npm run build
       
       - name: Run unit tests
+        env:
+          NODE_OPTIONS: --max_old_space_size=8192
         run: |
-          npx vitest run src --reporter=default --reporter=json --outputFile=test-results.json
-          exit_code=$?
-          if [ $exit_code -ne 0 ] && [ -f test-results.json ]; then
-            # Check if tests actually passed
-            failed_count=$(cat test-results.json | jq '.numFailedTests // 0')
+          # Run tests, capturing exit code even if process crashes (OOM)
+          npx vitest run src --reporter=default --reporter=json --outputFile=test-results.json || true
+
+          # Check actual test results from JSON (handles OOM crashes during teardown)
+          if [ -f test-results.json ]; then
+            failed_count=$(cat test-results.json | jq '.numFailedTests // -1')
             if [ "$failed_count" -eq 0 ]; then
-              echo "Tests passed but vitest exited with non-zero code. Treating as success."
+              echo "All tests passed!"
               exit 0
+            elif [ "$failed_count" -gt 0 ]; then
+              echo "Tests failed: $failed_count failures"
+              exit 1
             fi
           fi
-          exit $exit_code
+
+          echo "test-results.json not found or invalid, tests may have crashed"
+          exit 1
       
       - name: Upload unit test results
         if: always()

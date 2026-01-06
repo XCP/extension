@@ -242,34 +242,6 @@ export default defineBackground(() => {
     }
   });
 
-  // Handle approval resolution from popup
-  MessageBus.onMessage('resolve-provider-request', async (data) => {
-    const message = data as ApprovalMessage;
-    const { requestId, approved, updatedParams } = message;
-    
-    try {
-      // Use the eventEmitterService pattern
-      eventEmitterService.emit(`resolve-${requestId}`, { 
-        approved, 
-        updatedParams 
-      });
-      
-      // Also emit the old event for backward compatibility
-      eventEmitterService.emit('resolve-pending-request', {
-        requestId,
-        approved,
-        updatedParams
-      });
-      
-      return { success: true };
-    } catch (error: any) {
-      console.error('Failed to resolve provider request:', error);
-      return { 
-        success: false, 
-        error: error.message 
-      };
-    }
-  });
   
   // Handle provider event emission (for accountsChanged, disconnect, etc.)
   MessageBus.onMessage('provider-event', async (data) => {

@@ -3,7 +3,7 @@ import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { ReviewMPMA } from '../review';
 
 // Mock the fetchAssetDetails function
-vi.mock('@/utils/blockchain/counterparty', () => ({
+vi.mock('@/utils/blockchain/counterparty/api', () => ({
   fetchAssetDetails: vi.fn().mockImplementation((asset: string) => {
     if (asset === 'XCP') {
       return Promise.resolve({ divisible: true });

@@ -112,7 +112,7 @@ import NotFound from '@/pages/not-found';
 export default function App() {
   const { wallets, walletLocked, loaded } = useWallet();
   const location = useLocation();
-  
+
   // Track page views when route changes
   useEffect(() => {
     // Sanitize the path to remove sensitive information
@@ -120,7 +120,6 @@ export default function App() {
     // WXT Analytics page() expects just a string URL, not an object
     analytics.page(sanitizedPath);
   }, [location.pathname]);
-  
 
   // Until the wallet metadata has been loaded from storage,
   // render a loading state.

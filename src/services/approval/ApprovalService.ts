@@ -201,45 +201,46 @@ export class ApprovalService extends BaseService {
    * Ensure approval window is open and focused
    */
   private async ensureApprovalWindow(): Promise<void> {
-    // Try to open the regular extension popup
+    // Step 1: Try to open the regular extension popup (preferred method)
     try {
-      // First, try using chrome.action.openPopup() - this opens the regular popup
       await chrome.action.openPopup();
-      // The popup will automatically navigate to approval-queue if there are pending approvals
+      // Success - popup opened, we're done
+      return;
     } catch (error) {
-      // If openPopup fails (e.g., already open or not supported), try focusing the popup
-      try {
-        // Get all extension windows
-        const windows = await chrome.windows.getAll({ populate: true });
-
-        // Find our popup window (if it exists)
-        for (const window of windows) {
-          if (window.tabs) {
-            for (const tab of window.tabs) {
-              if (tab.url?.includes(chrome.runtime.id) && tab.url?.includes('popup.html')) {
-                // Focus the existing popup window
-                await chrome.windows.update(window.id!, { focused: true });
-
-                // Send a message to the popup to navigate to approval queue
-                chrome.runtime.sendMessage({
-                  type: 'NAVIGATE_TO_APPROVAL_QUEUE'
-                }).catch(() => {
-                  // Popup might not be ready yet, that's ok
-                });
-                return;
-              }
-            }
-          }
-        }
-
-        // If no popup window found, create one as fallback
-        await this.createPopupWindow();
-      } catch (fallbackError) {
-        console.error('Failed to open popup:', fallbackError);
-        // As last resort, create a new window
-        await this.createPopupWindow();
-      }
+      // openPopup failed - could be already open, not supported, or other error
+      // Don't try to parse error message, just move to fallback
     }
+
+    // Step 2: Search for existing popup window
+    try {
+      const windows = await chrome.windows.getAll({ populate: true });
+
+      // Find any window with our popup.html
+      for (const window of windows) {
+        if (window.tabs?.some(tab =>
+          tab.url?.includes(chrome.runtime.id) &&
+          tab.url?.includes('popup.html')
+        )) {
+          // Found existing popup window, focus it
+          await chrome.windows.update(window.id!, { focused: true });
+
+          // Try to navigate to approval queue
+          chrome.runtime.sendMessage({
+            type: 'NAVIGATE_TO_APPROVAL_QUEUE'
+          }).catch(() => {
+            // Popup might not be ready, that's ok
+          });
+
+          return;
+        }
+      }
+    } catch (searchError) {
+      console.error('[ApprovalService] Failed to search for popup:', searchError);
+    }
+
+    // Step 3: No popup found anywhere, create window as fallback
+    console.log('[ApprovalService] No popup found, creating new window');
+    await this.createPopupWindow();
   }
 
   /**
@@ -269,11 +270,11 @@ export class ApprovalService extends BaseService {
    */
   private updateBadge(): void {
     const text = getApprovalBadgeText();
-    
+
     if (browser.action) {
       browser.action.setBadgeText({ text });
-      browser.action.setBadgeBackgroundColor({ 
-        color: text ? '#EF4444' : '#000000' 
+      browser.action.setBadgeBackgroundColor({
+        color: text ? '#3B82F6' : '#000000'
       });
     }
   }

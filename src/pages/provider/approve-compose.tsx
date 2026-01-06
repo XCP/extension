@@ -166,16 +166,13 @@ export default function ApproveCompose() {
       if (params.type === 'order') {
         updatedParams.expiration = orderExpiration;
       }
-      
+
       // Send message to background script to resolve the request with updated params
       await safeSendMessage({
         type: 'RESOLVE_PROVIDER_REQUEST',
         requestId,
         approved: true,
         updatedParams
-      }).catch((error) => {
-        console.error('Failed to send approval to background:', error);
-        throw error;
       });
       // Close the popup
       window.close();
@@ -194,9 +191,6 @@ export default function ApproveCompose() {
         type: 'RESOLVE_PROVIDER_REQUEST',
         requestId,
         approved: false
-      }).catch((error) => {
-        console.error('Failed to send rejection to background:', error);
-        throw error;
       });
       // Close the popup
       window.close();

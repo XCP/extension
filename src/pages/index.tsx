@@ -57,6 +57,15 @@ export default function Index(): ReactElement {
     requestAge
   } = useProviderRequestRecovery();
 
+  // Auto-navigate to compose page when pending request is detected
+  useEffect(() => {
+    if (pendingRequest && pendingRequest.type === 'compose') {
+      // Navigate immediately without showing prompt
+      const queryParam = `composeRequestId=${pendingRequest.id}`;
+      navigate(`${pendingRequest.path}?${queryParam}`);
+    }
+  }, [pendingRequest, navigate]);
+
   // Check for pending approvals on mount and navigate if needed
   useEffect(() => {
     const checkPendingApprovals = async () => {
@@ -246,8 +255,9 @@ export default function Index(): ReactElement {
         </div>
       </div>
 
-      {/* Request Recovery Prompt */}
-      {showRecoveryPrompt && pendingRequest && (
+      {/* Request Recovery Prompt - Only show for non-compose requests (sign messages) */}
+      {/* Compose requests auto-navigate, so we don't show a prompt for those */}
+      {showRecoveryPrompt && pendingRequest && pendingRequest.type !== 'compose' && (
         <RequestRecoveryPrompt
           origin={pendingRequest.origin}
           requestType={pendingRequest.type}

@@ -28,6 +28,39 @@ import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
 import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
 import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from '@/utils/security/replayPrevention';
 
+// In-memory storage for active requests (primary storage, fast access)
+const activeComposeRequests = new Map<string, any>();
+const activeSignRequests = new Map<string, any>();
+
+// Auto-cleanup old requests every minute
+setInterval(() => {
+  const now = Date.now();
+  const maxAge = 10 * 60 * 1000; // 10 minutes
+
+  for (const [id, request] of activeComposeRequests.entries()) {
+    if (now - request.timestamp > maxAge) {
+      activeComposeRequests.delete(id);
+      console.log('Cleaned up stale compose request:', id);
+    }
+  }
+
+  for (const [id, request] of activeSignRequests.entries()) {
+    if (now - request.timestamp > maxAge) {
+      activeSignRequests.delete(id);
+      console.log('Cleaned up stale sign request:', id);
+    }
+  }
+}, 60000);
+
+// Export getters for other modules to access in-memory requests
+export function getActiveComposeRequest(id: string) {
+  return activeComposeRequests.get(id);
+}
+
+export function getActiveSignRequest(id: string) {
+  return activeSignRequests.get(id);
+}
+
 // Define proper types for provider requests and responses
 export type ProviderRequestParams = unknown[];
 export type ProviderMetadata = Record<string, unknown>;
@@ -135,18 +168,24 @@ export function createProviderService(): ProviderService {
       throw new Error('No active address');
     }
 
-    // Store the compose request for the popup to retrieve
+    // Store the compose request in-memory (primary storage, fast)
     const composeRequestId = `compose-${composeType}-${Date.now()}`;
-    await composeRequestStorage.store({
+    const request = {
       id: composeRequestId,
-      type: composeType as any, // Type assertion since we know it's valid
+      type: composeType as any,
       origin,
       params: {
         ...requestParams,
-        sourceAddress: activeAddress.address // Ensure we have source address
+        sourceAddress: activeAddress.address
       },
       timestamp: Date.now()
-    });
+    };
+
+    // Store in memory for fast access
+    activeComposeRequests.set(composeRequestId, request);
+
+    // Also store in chrome.storage as backup for crash recovery
+    await composeRequestStorage.store(request);
 
     // Send message to popup to navigate to compose form
     chrome.runtime.sendMessage({
@@ -180,6 +219,9 @@ export function createProviderService(): ProviderService {
     // Return a promise that will resolve when the user completes the compose flow
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
+        // Cleanup on timeout
+        activeComposeRequests.delete(composeRequestId);
+        composeRequestStorage.remove(composeRequestId);
         updateService.unregisterCriticalOperation(`compose-${composeRequestId}`);
         eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
         eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
@@ -188,6 +230,9 @@ export function createProviderService(): ProviderService {
 
       const handleComplete = (result: any) => {
         clearTimeout(timeout);
+        // Cleanup on completion
+        activeComposeRequests.delete(composeRequestId);
+        composeRequestStorage.remove(composeRequestId);
         updateService.unregisterCriticalOperation(`compose-${composeRequestId}`);
         eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
         resolve(result);
@@ -195,6 +240,9 @@ export function createProviderService(): ProviderService {
 
       const handleCancel = () => {
         clearTimeout(timeout);
+        // Cleanup on cancellation
+        activeComposeRequests.delete(composeRequestId);
+        composeRequestStorage.remove(composeRequestId);
         updateService.unregisterCriticalOperation(`compose-${composeRequestId}`);
         eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
         reject(new Error('User cancelled compose request'));
@@ -441,10 +489,6 @@ export function createProviderService(): ProviderService {
         
         case 'xcp_disconnect': {
           await connectionService.disconnect(origin);
-          
-          // Emit accountsChanged event with empty array
-          eventEmitterService.emitProviderEvent(origin, 'accountsChanged', []);
-          
           return true;
         }
         
@@ -604,237 +648,15 @@ export function createProviderService(): ProviderService {
         // ==================== Transaction Composition Methods ====================
         
         case 'xcp_composeSend': {
-          // Check if connected
-          if (!await connectionService.hasPermission(origin)) {
-            throw new Error('Unauthorized - not connected to wallet');
-          }
-
-          const sendParams = params?.[0] as { asset?: string; [key: string]: unknown };
-          if (!sendParams) {
-            throw new Error('Send parameters required');
-          }
-
-          // Get active address for the request
-          const activeAddress = await walletService.getActiveAddress();
-          if (!activeAddress) {
-            throw new Error('No active address');
-          }
-
-          // Store the compose request for the popup to retrieve
-          const composeRequestId = `compose-send-${Date.now()}`;
-          await composeRequestStorage.store({
-            id: composeRequestId,
-            type: 'send',
-            origin,
-            params: {
-              ...sendParams,
-              sourceAddress: activeAddress.address // Ensure we have source address
-            },
-            timestamp: Date.now()
-          });
-
-          // Register critical operation to prevent updates during compose
-          const updateService = getUpdateService();
-          updateService.registerCriticalOperation(composeRequestId);
-
-          // Send message to popup to navigate to compose form
-          chrome.runtime.sendMessage({
-            type: 'NAVIGATE_TO_COMPOSE',
-            composeType: 'send',
-            composeRequestId,
-            asset: sendParams.asset || 'BTC'
-          }).catch(() => {
-            // Popup might not be open yet
-          });
-
-          // Open popup at the compose send form
-          try {
-            await chrome.action.openPopup();
-          } catch (e) {
-            // Fallback: create a new window with the compose form
-            const extensionUrl = chrome.runtime.getURL(`popup.html#/compose/send/${sendParams.asset || 'BTC'}?composeRequestId=${composeRequestId}`);
-            await chrome.windows.create({
-              url: extensionUrl,
-              type: 'popup',
-              width: 400,
-              height: 600,
-              focused: true
-            });
-          }
-
-          // Return a promise that will resolve when the user completes the compose flow
-          return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-              updateService.unregisterCriticalOperation(composeRequestId);
-              eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
-              eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
-              reject(new Error('Compose request timeout'));
-            }, 10 * 60 * 1000); // 10 minute timeout
-
-            const handleComplete = (result: any) => {
-              clearTimeout(timeout);
-              updateService.unregisterCriticalOperation(composeRequestId);
-              eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
-              resolve(result);
-            };
-
-            const handleCancel = () => {
-              clearTimeout(timeout);
-              updateService.unregisterCriticalOperation(composeRequestId);
-              eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
-              reject(new Error('User cancelled compose request'));
-            };
-
-            eventEmitterService.on(`compose-complete-${composeRequestId}`, handleComplete);
-            eventEmitterService.on(`compose-cancel-${composeRequestId}`, handleCancel);
-          });
+          return await handleComposeRequest(origin, params, 'send', 'Send parameters required', '/compose/send');
         }
 
         case 'xcp_composeOrder': {
-          // Check if connected
-          if (!await connectionService.hasPermission(origin)) {
-            throw new Error('Unauthorized - not connected to wallet');
-          }
-
-          const orderParams = params?.[0];
-          if (!orderParams) {
-            throw new Error('Order parameters required');
-          }
-
-          // Get active address for the request
-          const activeAddress = await walletService.getActiveAddress();
-          if (!activeAddress) {
-            throw new Error('No active address');
-          }
-
-          // Store the compose request for the popup to retrieve
-          const composeRequestId = `compose-order-${Date.now()}`;
-          await composeRequestStorage.store({
-            id: composeRequestId,
-            type: 'order',
-            origin,
-            params: {
-              ...orderParams,
-              sourceAddress: activeAddress.address // Ensure we have source address
-            },
-            timestamp: Date.now()
-          });
-
-          // Register critical operation
-          const updateService = getUpdateService();
-          updateService.registerCriticalOperation(composeRequestId);
-
-          // Open popup at the compose order form
-          try {
-            await chrome.action.openPopup();
-          } catch (e) {
-            // Fallback: create a new window with the compose form
-            const extensionUrl = chrome.runtime.getURL(`popup.html#/compose/order?composeRequestId=${composeRequestId}`);
-            await chrome.windows.create({
-              url: extensionUrl,
-              type: 'popup',
-              width: 400,
-              height: 600,
-              focused: true
-            });
-          }
-
-          // Return a promise that will resolve when the user completes the compose flow
-          return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-              updateService.unregisterCriticalOperation(composeRequestId);
-              eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
-              eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
-              reject(new Error('Compose request timeout'));
-            }, 10 * 60 * 1000); // 10 minute timeout
-
-            const handleComplete = (result: any) => {
-              clearTimeout(timeout);
-              updateService.unregisterCriticalOperation(composeRequestId);
-              eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
-              resolve(result);
-            };
-
-            const handleCancel = () => {
-              clearTimeout(timeout);
-              updateService.unregisterCriticalOperation(composeRequestId);
-              eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
-              reject(new Error('User cancelled compose request'));
-            };
-
-            eventEmitterService.on(`compose-complete-${composeRequestId}`, handleComplete);
-            eventEmitterService.on(`compose-cancel-${composeRequestId}`, handleCancel);
-          });
+          return await handleComposeRequest(origin, params, 'order', 'Order parameters required', '/compose/order');
         }
 
         case 'xcp_composeDispenser': {
-          // Check if connected
-          if (!await connectionService.hasPermission(origin)) {
-            throw new Error('Unauthorized - not connected to wallet');
-          }
-
-          const dispenserParams = params?.[0];
-          if (!dispenserParams) {
-            throw new Error('Dispenser parameters required');
-          }
-
-          // Store the compose request for the popup to retrieve
-          const composeRequestId = `compose-dispenser-${Date.now()}`;
-          await composeRequestStorage.store({
-            id: composeRequestId,
-            type: 'dispenser',
-            origin,
-            params: dispenserParams,
-            timestamp: Date.now()
-          });
-
-          // Send message to popup to navigate to compose form
-          chrome.runtime.sendMessage({
-            type: 'NAVIGATE_TO_COMPOSE',
-            composeType: 'dispenser',
-            composeRequestId
-          }).catch(() => {
-            // Popup might not be open yet
-          });
-
-          // Open popup at the compose dispenser form
-          try {
-            await chrome.action.openPopup();
-          } catch (e) {
-            // Fallback: create a new window with the compose form
-            const extensionUrl = chrome.runtime.getURL(`popup.html#/compose/dispenser?composeRequestId=${composeRequestId}`);
-            await chrome.windows.create({
-              url: extensionUrl,
-              type: 'popup',
-              width: 400,
-              height: 600,
-              focused: true
-            });
-          }
-
-          // Return a promise that will resolve when the user completes the compose flow
-          return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-              eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
-              eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
-              reject(new Error('Compose request timeout'));
-            }, 10 * 60 * 1000); // 10 minute timeout
-
-            const handleComplete = (result: any) => {
-              clearTimeout(timeout);
-              eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
-              resolve(result);
-            };
-
-            const handleCancel = () => {
-              clearTimeout(timeout);
-              eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
-              reject(new Error('User cancelled compose request'));
-            };
-
-            eventEmitterService.on(`compose-complete-${composeRequestId}`, handleComplete);
-            eventEmitterService.on(`compose-cancel-${composeRequestId}`, handleCancel);
-          });
+          return await handleComposeRequest(origin, params, 'dispenser', 'Dispenser parameters required', '/compose/dispenser');
         }
         
         case 'xcp_composeDividend': {
@@ -1002,9 +824,6 @@ export function createProviderService(): ProviderService {
   async function disconnect(origin: string): Promise<void> {
     const connectionService = getConnectionService();
     await connectionService.disconnect(origin);
-    
-    // Emit disconnect event
-    eventEmitterService.emitProviderEvent(origin, 'disconnect', {});
   }
   
   /**

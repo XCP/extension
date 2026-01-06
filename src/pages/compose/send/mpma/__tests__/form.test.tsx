@@ -4,9 +4,13 @@ import { MemoryRouter } from 'react-router-dom';
 import { MPMAForm } from '../form';
 import { ComposerProvider } from '@/contexts/composer-context';
 
-// Mock the counterparty functions
-vi.mock('@/utils/blockchain/counterparty', () => ({
+// Mock the counterparty API functions
+vi.mock('@/utils/blockchain/counterparty/api', () => ({
   fetchAssetDetails: vi.fn().mockResolvedValue({ divisible: true }),
+}));
+
+// Mock the counterparty memo functions
+vi.mock('@/utils/blockchain/counterparty/memo', () => ({
   isHexMemo: vi.fn((memo: string) => {
     if (!memo) return false;
     const cleanMemo = memo.startsWith('0x') ? memo.slice(2) : memo;
