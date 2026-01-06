@@ -2,8 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { MemoryRouter } from 'react-router-dom';
-import { Composer } from '../composer';
 import type { ReactElement } from 'react';
+
+// Mock webext-bridge before any imports that might use it
+vi.mock('webext-bridge/background', () => ({
+  sendMessage: vi.fn(),
+  onMessage: vi.fn(),
+}));
+
+import { Composer } from '../composer';
 
 // Mock dependencies
 const mockNavigate = vi.fn();
