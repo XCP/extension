@@ -3,22 +3,16 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { AssetSelectInput } from '../asset-select-input';
 
-// Mock dependencies
-const mockActiveWallet = {
-  pinnedAssetBalances: ['BTC', 'XCP', 'PEPECASH']
-};
-
-vi.mock('@/contexts/wallet-context', () => ({
-  useWallet: () => ({
-    activeWallet: mockActiveWallet
-  })
+// Mock settings - use vi.hoisted for variables used in vi.mock factory
+const mockSettingsState = vi.hoisted(() => ({
+  settings: {
+    pinnedAssets: ['BTC', 'XCP', 'PEPECASH']
+  } as { pinnedAssets: string[] } | null
 }));
 
 vi.mock('@/contexts/settings-context', () => ({
   useSettings: () => ({
-    settings: {
-      pinnedAssets: ['BTC', 'XCP', 'PEPECASH']
-    }
+    settings: mockSettingsState.settings
   })
 }));
 
@@ -104,17 +98,13 @@ describe('AssetSelectInput', () => {
 
   it('should show pinned assets when dropdown clicked', async () => {
     render(<AssetSelectInput {...defaultProps} />);
-    
+
     // Click the button to trigger dropdown
     const button = screen.getByRole('button');
     fireEvent.click(button);
-    
-    // The component sets assets in state after click, but options are only shown
-    // when assets.length > 0. We need to verify the dropdown behavior differently
-    // since HeadlessUI manages its own internal state
-    
-    // Verify button was clicked and state should update
-    expect(button).toHaveAttribute('aria-expanded', 'false');
+
+    // Clicking the button should expand the dropdown
+    expect(button).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('should search for assets when typing', async () => {
@@ -267,45 +257,38 @@ describe('AssetSelectInput', () => {
   });
 
   it('should handle empty pinned assets', () => {
-    mockActiveWallet.pinnedAssetBalances = [];
-    
+    const originalSettings = mockSettingsState.settings;
+    mockSettingsState.settings = { pinnedAssets: [] };
+
     render(<AssetSelectInput {...defaultProps} />);
-    
+
     const button = screen.getByRole('button');
     fireEvent.click(button);
-    
+
     // Should not show any options
     const options = screen.queryAllByRole('option');
     expect(options).toHaveLength(0);
-    
+
     // Reset for other tests
-    mockActiveWallet.pinnedAssetBalances = ['BTC', 'XCP', 'PEPECASH'];
+    mockSettingsState.settings = originalSettings;
   });
 
-  it('should handle null activeWallet', () => {
-    vi.unmock('@/contexts/wallet-context');
-    vi.mock('@/contexts/wallet-context', () => ({
-      useWallet: () => ({
-        activeWallet: null
-      })
-    }));
-    
+  it('should handle null settings', () => {
+    // Set settings to null for this test
+    const originalSettings = mockSettingsState.settings;
+    mockSettingsState.settings = null;
+
     render(<AssetSelectInput {...defaultProps} />);
-    
+
     const button = screen.getByRole('button');
     fireEvent.click(button);
-    
+
     // Should not crash and not show options
     const options = screen.queryAllByRole('option');
     expect(options).toHaveLength(0);
-    
-    // Reset mock
-    vi.unmock('@/contexts/wallet-context');
-    vi.mock('@/contexts/wallet-context', () => ({
-      useWallet: () => ({
-        activeWallet: mockActiveWallet
-      })
-    }));
+
+    // Reset for other tests
+    mockSettingsState.settings = originalSettings;
   });
 
   it('should uppercase input value', () => {

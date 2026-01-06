@@ -130,6 +130,7 @@ describe('UTXO Utilities', () => {
     it('should handle timeout errors', async () => {
       const timeoutError = new Error('timeout');
       (timeoutError as any).code = 'ECONNABORTED';
+      mockAxios.isCancel.mockReturnValue(false);
       mockApiClient.get.mockRejectedValue(timeoutError);
 
       await expect(fetchUTXOs(mockAddress)).rejects.toThrow('Failed to fetch UTXOs.');

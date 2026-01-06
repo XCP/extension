@@ -1,5 +1,11 @@
 import { beforeAll, afterAll, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
+import { configure } from '@testing-library/react';
+
+// Configure testing-library with longer async timeouts for CI
+configure({
+  asyncUtilTimeout: 5000,
+});
 
 // Store original console methods
 const originalConsole = {

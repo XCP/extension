@@ -6,7 +6,7 @@ import {
 } from '../mnemonic';
 
 // Mock @noble/hashes/utils
-vi.mock('@noble/hashes/utils', () => ({
+vi.mock('@noble/hashes/utils.js', () => ({
   hexToBytes: vi.fn((hex: string) => {
     // Convert hex string to Uint8Array for testing
     const bytes = new Uint8Array(hex.length / 2);

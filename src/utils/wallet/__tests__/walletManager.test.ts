@@ -21,8 +21,8 @@ vi.mock('@/utils/blockchain/bitcoin/messageSigner');
 vi.mock('@/utils/blockchain/bitcoin/transactionSigner');
 vi.mock('@/utils/blockchain/bitcoin/transactionBroadcaster');
 vi.mock('@/utils/blockchain/counterwallet');
-vi.mock('@noble/hashes/sha2');
-vi.mock('@noble/hashes/utils');
+vi.mock('@noble/hashes/sha2.js');
+vi.mock('@noble/hashes/utils.js');
 vi.mock('@scure/bip32');
 vi.mock('@scure/bip39');
 

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { ReviewMPMA } from '../review';
 
 // Mock the fetchAssetDetails function
@@ -37,7 +37,11 @@ vi.mock('@/components/screens/review-screen', () => ({
 describe('ReviewMPMA', () => {
   const mockOnSign = vi.fn();
   const mockOnBack = vi.fn();
-  
+
+  afterEach(() => {
+    cleanup();
+  });
+
   const mockApiResponse = {
     result: {
       params: {
