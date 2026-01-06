@@ -56,7 +56,7 @@ class SignMessageRequestStorage {
    */
   async getAll(): Promise<SignMessageRequest[]> {
     const result = await chrome.storage.session.get(this.STORAGE_KEY);
-    const requests = result[this.STORAGE_KEY] || [];
+    const requests = (result[this.STORAGE_KEY] as SignMessageRequest[] | undefined) || [];
 
     // Filter out expired requests
     return requests.filter(

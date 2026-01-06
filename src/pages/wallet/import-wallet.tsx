@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { Input as HeadlessInput } from "@headlessui/react";
 import { validateMnemonic } from "@scure/bip39";
-import { wordlist } from "@scure/bip39/wordlists/english";
+import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";

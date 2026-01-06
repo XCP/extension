@@ -1,6 +1,6 @@
 import { Transaction } from '@scure/btc-signer';
 import { apiClient } from '@/utils/axios';
-import { hexToBytes } from '@noble/hashes/utils';
+import { hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 import { getKeychainSettings } from '@/utils/storage/settingsStorage';
 import { toSatoshis } from '@/utils/numeric';

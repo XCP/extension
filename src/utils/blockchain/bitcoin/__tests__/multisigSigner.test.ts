@@ -8,7 +8,7 @@ import {
 } from '@/utils/blockchain/bitcoin/multisigSigner';
 import { Transaction, OutScript, SigHash } from '@scure/btc-signer';
 import { signECDSA } from '@scure/btc-signer/utils.js';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
+import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 
 // Mock the ECDSA signing function

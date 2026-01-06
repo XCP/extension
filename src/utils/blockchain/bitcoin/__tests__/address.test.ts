@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { getDerivationPathForAddressFormat, encodeAddress, getAddressFromMnemonic, isValidBase58Address, isCounterwalletFormat, AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import { hexToBytes } from '@noble/hashes/utils';
+import { hexToBytes } from '@noble/hashes/utils.js';
 
 vi.mock('@/utils/blockchain/counterwallet', () => ({
   getCounterwalletSeed: vi.fn(() => new Uint8Array(64).fill(1))

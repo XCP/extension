@@ -7,9 +7,9 @@ import { describe, it, expect } from 'vitest';
 import { hex, base64 } from '@scure/base';
 import * as secp256k1 from '@noble/secp256k1';
 import * as btc from '@scure/btc-signer';
-import { sha256 } from '@noble/hashes/sha2';
-import { hmac } from '@noble/hashes/hmac';
-import { randomBytes } from '@noble/hashes/utils';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { hmac } from '@noble/hashes/hmac.js';
+import { randomBytes } from '@noble/hashes/utils.js';
 import {
   signBIP322P2PKH,
   signBIP322P2WPKH,

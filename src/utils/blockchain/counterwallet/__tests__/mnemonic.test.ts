@@ -253,7 +253,7 @@ describe('counterwallet/mnemonic.ts', () => {
 
     it('should call hexToBytes with correct hex string', async () => {
       // Import the mocked function
-      const { hexToBytes } = await import('@noble/hashes/utils');
+      const { hexToBytes } = await import('@noble/hashes/utils.js');
       
       // Clear any previous calls
       vi.mocked(hexToBytes).mockClear();

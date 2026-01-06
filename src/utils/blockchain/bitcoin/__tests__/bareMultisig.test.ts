@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { consolidateBareMultisig } from '@/utils/blockchain/bitcoin/bareMultisig';
 import { Transaction, OutScript } from '@scure/btc-signer';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
+import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 
 // Mock the apiClient

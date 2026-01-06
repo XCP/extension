@@ -2,8 +2,8 @@
  * Utility functions for message verification
  */
 
-import { sha256 } from '@noble/hashes/sha2';
-import { hmac } from '@noble/hashes/hmac';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { hmac } from '@noble/hashes/hmac.js';
 import type { AddressType } from './types';
 import { recoverPublicKeyFromSignature } from './secp-recovery';
 

@@ -13,7 +13,7 @@
 
 import { Transaction, SigHash, OutScript } from '@scure/btc-signer';
 import { signECDSA } from '@scure/btc-signer/utils.js';
-import { bytesToHex } from '@noble/hashes/utils';
+import { bytesToHex } from '@noble/hashes/utils.js';
 
 /**
  * Input classification for signing strategy.
