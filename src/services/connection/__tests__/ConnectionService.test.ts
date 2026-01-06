@@ -46,6 +46,8 @@ vi.mock('@/services/walletService', () => ({
 vi.mock('@/services/eventEmitterService', () => ({
   eventEmitterService: {
     on: vi.fn(),
+    off: vi.fn(),
+    emit: vi.fn(),
     emitProviderEvent: vi.fn(),
   },
 }));
@@ -88,9 +90,20 @@ vi.mock('@/utils/provider/approvalQueue', async () => {
     getCurrentWindow: vi.fn().mockReturnValue(null),
     setCurrentWindow: vi.fn(),
   };
-  
+
   return { approvalQueue: mockApprovalQueue };
 });
+
+// Mock approval service to avoid chrome.runtime.sendMessage usage
+const mockApprovalService = vi.hoisted(() => ({
+  requestApproval: vi.fn().mockResolvedValue({ approved: true }),
+  resolveApproval: vi.fn(),
+  rejectApproval: vi.fn(),
+}));
+
+vi.mock('@/services/approval', () => ({
+  getApprovalService: () => mockApprovalService,
+}));
 
 import { ConnectionService } from '../ConnectionService';
 import { getKeychainSettings, updateKeychainSettings } from '@/utils/storage/settingsStorage';
@@ -253,26 +266,21 @@ describe('ConnectionService', () => {
 
   describe('connect', () => {
     it('should successfully connect a new origin with user approval', async () => {
-      // Mock the approval process by resolving the permission request
-      vi.mocked(mockEventEmitterService.on).mockImplementation((event: string, callback: Function) => {
-        if (event.startsWith('resolve-')) {
-          setTimeout(() => callback(true), 10); // Approve after short delay
-        }
-      });
-      
+      // mockApprovalService.requestApproval already returns { approved: true } by default
+
       const result = await connectionService.connect(
         'https://newsite.com',
         '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
         'wallet-123'
       );
-      
+
       expect(result).toEqual(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa']);
-      
+
       // Should save to storage
       expect(mockUpdateKeychainSettings).toHaveBeenCalledWith({
         connectedWebsites: ['https://newsite.com'],
       });
-    }, 10000); // Increase timeout
+    });
 
     it('should return existing connection if already connected', async () => {
       // Setup existing connection
@@ -304,19 +312,15 @@ describe('ConnectionService', () => {
     });
 
     it('should reject connection when user denies approval', async () => {
-      // Mock the approval process by denying the permission request
-      vi.mocked(mockEventEmitterService.on).mockImplementation((event: string, callback: Function) => {
-        if (event.startsWith('resolve-')) {
-          setTimeout(() => callback(false), 10); // Deny after short delay
-        }
-      });
-      
+      // Mock the approval service to deny the request
+      mockApprovalService.requestApproval.mockResolvedValueOnce({ approved: false });
+
       await expect(connectionService.connect(
         'https://denied.com',
         '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
         'wallet-123'
       )).rejects.toThrow('User denied the request');
-    }, 10000); // Increase timeout
+    });
 
     it('should validate origin format', async () => {
       await expect(connectionService.connect(
@@ -327,13 +331,6 @@ describe('ConnectionService', () => {
     });
 
     it('should validate address format', async () => {
-      // Mock the approval process so the test passes approval step
-      vi.mocked(mockEventEmitterService.on).mockImplementation((event: string, callback: Function) => {
-        if (event.startsWith('resolve-')) {
-          setTimeout(() => callback(true), 10);
-        }
-      });
-      
       // The actual ConnectionService doesn't validate Bitcoin addresses in connect method
       // So this test should pass - the address parameter is just stored for metadata
       const result = await connectionService.connect(
@@ -434,13 +431,8 @@ describe('ConnectionService', () => {
 
   describe('state persistence', () => {
     it('should persist connections across service restarts', async () => {
-      // Mock the approval process
-      vi.mocked(mockEventEmitterService.on).mockImplementation((event: string, callback: Function) => {
-        if (event.startsWith('resolve-')) {
-          setTimeout(() => callback(true), 10);
-        }
-      });
-      
+      // mockApprovalService.requestApproval already returns { approved: true } by default
+
       // Connect a site
       await connectionService.connect(
         'https://persistent.com',
@@ -474,7 +466,7 @@ describe('ConnectionService', () => {
       // Should still have connection
       const hasPermission = await connectionService.hasPermission('https://persistent.com');
       expect(hasPermission).toBe(true);
-    }, 10000); // Increase timeout
+    });
   });
 
 

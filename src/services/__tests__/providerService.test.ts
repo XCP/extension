@@ -889,9 +889,9 @@ describe('ProviderService', () => {
         // Wait for async operations
         await new Promise(resolve => setTimeout(resolve, 10));
 
-        // Verify critical operation was registered (note: no 'compose-' prefix for the ID)
+        // Verify critical operation was registered (composeRequestId is already 'compose-send-xxx', and registerCriticalOperation adds 'compose-' prefix)
         expect(mockUpdateService.registerCriticalOperation).toHaveBeenCalledWith(
-          expect.stringMatching(/^compose-send-\d+$/)
+          expect.stringMatching(/^compose-compose-send-\d+$/)
         );
       });
     });

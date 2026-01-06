@@ -455,8 +455,8 @@ describe('ApprovalService', () => {
       (approvalService as any).updateBadge();
       
       expect((global as any).browser.action.setBadgeText).toHaveBeenCalledWith({ text: '2' });
-      expect((global as any).browser.action.setBadgeBackgroundColor).toHaveBeenCalledWith({ 
-        color: '#EF4444' 
+      expect((global as any).browser.action.setBadgeBackgroundColor).toHaveBeenCalledWith({
+        color: '#3B82F6'
       });
     });
 
