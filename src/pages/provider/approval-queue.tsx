@@ -4,8 +4,8 @@ import { FiX, FiAlertCircle, FiGlobe, FiEdit, FiLock, FiSend } from 'react-icons
 import { Button } from '@/components/button';
 import { type ApprovalRequest } from '@/utils/provider/approvalQueue';
 import { getProviderService } from '@/services/providerService';
+import { getApprovalService } from '@/services/approval';
 import { useHeader } from '@/contexts/header-context';
-import { safeSendMessage } from '@/utils/browser';
 
 export default function ApprovalQueue() {
   const {} = useNavigate();
@@ -81,19 +81,9 @@ export default function ApprovalQueue() {
     if (!currentRequest) return;
 
     try {
-      // Send approval to background
-      await safeSendMessage({
-        type: 'RESOLVE_PROVIDER_REQUEST',
-        requestId: currentRequest.id,
-        approved: true
-      }).catch((error) => {
-        console.error('Failed to send approval to background:', error);
-        throw error;
-      });
-
-      // Remove from queue via provider service
-      const providerService = getProviderService();
-      await providerService.removeApprovalRequest(currentRequest.id);
+      // Resolve approval via ApprovalService proxy
+      const approvalService = getApprovalService();
+      await approvalService.resolveApproval(currentRequest.id, { approved: true });
 
       // Move to next request or close if done
       if (currentIndex >= requests.length - 1) {
@@ -112,19 +102,9 @@ export default function ApprovalQueue() {
     if (!currentRequest) return;
 
     try {
-      // Send rejection to background
-      await safeSendMessage({
-        type: 'RESOLVE_PROVIDER_REQUEST',
-        requestId: currentRequest.id,
-        approved: false
-      }).catch((error) => {
-        console.error('Failed to send rejection to background:', error);
-        throw error;
-      });
-
-      // Remove from queue via provider service
-      const providerService = getProviderService();
-      await providerService.removeApprovalRequest(currentRequest.id);
+      // Reject approval via ApprovalService proxy
+      const approvalService = getApprovalService();
+      await approvalService.rejectApproval(currentRequest.id, 'User denied the request');
 
       // Move to next request or close if done
       if (currentIndex >= requests.length - 1) {
@@ -141,18 +121,10 @@ export default function ApprovalQueue() {
 
   const handleRejectAll = async () => {
     if (confirm(`Reject all ${requests.length} pending requests?`)) {
-      const providerService = getProviderService();
+      const approvalService = getApprovalService();
       for (const request of requests) {
         try {
-          await safeSendMessage({
-            type: 'RESOLVE_PROVIDER_REQUEST',
-            requestId: request.id,
-            approved: false
-          }).catch((error) => {
-            console.error('Failed to send rejection to background:', error);
-            // Don't throw here, continue with other rejections
-          });
-          await providerService.removeApprovalRequest(request.id);
+          await approvalService.rejectApproval(request.id, 'User denied the request');
         } catch (error) {
           console.error('Failed to reject request:', error);
         }

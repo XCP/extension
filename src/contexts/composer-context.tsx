@@ -168,7 +168,55 @@ export function ComposerProvider<T>({
     previousWalletRef.current = activeWallet?.id;
     previousAuthStateRef.current = authState;
   }, [activeWallet?.id, authState]);
-  
+
+  // Auto-compose for provider requests
+  useEffect(() => {
+    const autoCompose = async () => {
+      // Only auto-compose if we have initial form data and we're on the form step
+      if (!initialFormData || state.step !== 'form' || state.apiResponse) {
+        return;
+      }
+
+      if (!activeAddress) {
+        return;
+      }
+
+      // Set composing state
+      setState(prev => ({ ...prev, isComposing: true, error: null }));
+
+      try {
+        // Provider data is already in API format (satoshis), pass directly to API
+        const dataForApi = {
+          ...initialFormData,
+          sourceAddress: activeAddress.address
+        };
+
+        const result = await composeApi(dataForApi);
+
+        // Skip to review step with the composed transaction
+        setState({
+          step: 'review',
+          formData: initialFormData as T,
+          apiResponse: result,
+          error: null,
+          isComposing: false,
+          isSigning: false,
+          showAuthModal: false
+        });
+
+      } catch (error) {
+        console.error('Auto-compose failed:', error);
+        setState(prev => ({
+          ...prev,
+          error: error instanceof Error ? error.message : 'Failed to compose transaction',
+          isComposing: false
+        }));
+      }
+    };
+
+    autoCompose();
+  }, [initialFormData, activeAddress, composeApi, state.step, state.apiResponse]);
+
   // Compose transaction
   const composeTransaction = useCallback(async (formData: FormData) => {
     if (!activeAddress) {
@@ -385,22 +433,8 @@ export function ComposerProvider<T>({
       throw err; // Let the modal handle the error display
     }
   }, [activeWallet, activeAddress, state.apiResponse, unlockWallet, signTransaction, broadcastTransaction]);
-  
+
   // Navigation actions
-  const goBack = useCallback(() => {
-    if (state.step === "review") {
-      setState(prev => ({
-        ...prev,
-        step: "form",
-        apiResponse: null,
-        error: null,
-      }));
-    } else if (state.step === "success") {
-      reset();
-      navigate("/index");
-    }
-  }, [state.step, navigate]);
-  
   const reset = useCallback(() => {
     setState({
       step: "form",
@@ -413,6 +447,27 @@ export function ComposerProvider<T>({
     });
     currentComposeTypeRef.current = composeType;
   }, [composeType]);
+
+  const goBack = useCallback(() => {
+    if (state.step === "review") {
+      // For provider requests (auto-composed), go to home instead of form
+      if (initialFormData) {
+        reset();
+        navigate("/index");
+      } else {
+        // For manual composes, go back to form
+        setState(prev => ({
+          ...prev,
+          step: "form",
+          apiResponse: null,
+          error: null,
+        }));
+      }
+    } else if (state.step === "success") {
+      reset();
+      navigate("/index");
+    }
+  }, [state.step, initialFormData, navigate, reset]);
   
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }));

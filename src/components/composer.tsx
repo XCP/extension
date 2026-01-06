@@ -9,7 +9,9 @@ import { UnlockScreen } from "@/components/screens/unlock-screen";
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { ComposerProvider, useComposer } from "@/contexts/composer-context";
 import { useHeader } from "@/contexts/header-context";
+import { useProviderRequest } from "@/hooks/useProviderRequest";
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
+import type { ComposeRequest } from "@/utils/storage/composeRequestStorage";
 
 /**
  * Props for the Composer component.
@@ -17,7 +19,7 @@ import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
  */
 interface ComposerProps<T> {
   // Compose configuration
-  composeType: string;
+  composeType: ComposeRequest['type'];
   composeApiMethod: (data: T) => Promise<ApiResponse>;
 
   // UI configuration
@@ -37,6 +39,7 @@ interface ComposerProps<T> {
     onBack: () => void;
     error: string | null;
     isSigning: boolean;
+    hideBackButton?: boolean;
   }) => ReactElement;
 
   // Optional callbacks
@@ -44,10 +47,14 @@ interface ComposerProps<T> {
     onBack?: () => void;
     onToggleHelp?: () => void;
   };
+}
 
-  // Provider request handling
-  composeRequestId?: string | null;
-  onSuccess?: (result: any) => void;
+/**
+ * Internal props for ComposerInner (includes provider request handling)
+ */
+interface ComposerInnerProps<T> extends Omit<ComposerProps<T>, "composeApiMethod" | "composeType" | "initialFormData"> {
+  composeRequestId: string | null;
+  onSuccess: ((result: any) => void) | null;
 }
 
 /**
@@ -60,7 +67,7 @@ function ComposerInner<T>({
   headerCallbacks,
   composeRequestId,
   onSuccess,
-}: Omit<ComposerProps<T>, "composeApiMethod" | "composeType" | "initialFormData">): ReactElement {
+}: ComposerInnerProps<T>): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const {
@@ -211,6 +218,7 @@ function ComposerInner<T>({
           onBack={goBack}
           error={state.error}
           isSigning={state.isSigning}
+          hideBackButton={!!composeRequestId}
         />
       )}
 
@@ -257,15 +265,23 @@ export function Composer<T>({
   FormComponent,
   ReviewComponent,
   headerCallbacks,
-  composeRequestId,
-  onSuccess,
 }: ComposerProps<T>): ReactElement {
+  // Auto-detect provider requests based on composeType
+  const {
+    providerFormData,
+    composeRequestId,
+    handleSuccess,
+  } = useProviderRequest<T>(composeType);
+
+  // Merge: provider data takes precedence over explicit initialFormData
+  const mergedFormData = providerFormData ?? initialFormData;
+
   return (
     <ComposerProvider<T>
       composeType={composeType}
       composeApi={composeApiMethod}
       initialTitle={initialTitle}
-      initialFormData={initialFormData}
+      initialFormData={mergedFormData}
     >
       <ComposerInner<T>
         initialTitle={initialTitle}
@@ -273,7 +289,7 @@ export function Composer<T>({
         ReviewComponent={ReviewComponent}
         headerCallbacks={headerCallbacks}
         composeRequestId={composeRequestId}
-        onSuccess={onSuccess}
+        onSuccess={handleSuccess}
       />
     </ComposerProvider>
   );

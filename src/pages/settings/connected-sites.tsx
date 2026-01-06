@@ -67,19 +67,14 @@ export default function ConnectedSites(): ReactElement {
    */
   const handleDisconnectSite = async (origin: string) => {
     try {
-      // Update UI immediately for instant feedback
-      setConnectedSites(prev => prev.filter(site => site.origin !== origin));
-      
-      // Call provider service in background (for proper cleanup/events)
       const providerService = getProviderService();
-      providerService.disconnect(origin).catch(error => {
-        console.error('Provider disconnect error:', error);
-        // Reload if there was an error to ensure UI is in sync
-        loadConnections();
-      });
+      await providerService.disconnect(origin);
+
+      // Only update UI after successful disconnect
+      setConnectedSites(prev => prev.filter(site => site.origin !== origin));
     } catch (error) {
       console.error('Failed to disconnect site:', error);
-      loadConnections(); // Reload on error
+      // Don't reload - just log the error
     }
   };
 
@@ -88,27 +83,24 @@ export default function ConnectedSites(): ReactElement {
    */
   const handleDisconnectAll = useCallback(async () => {
     try {
-      // Update UI immediately for instant feedback
       const sitesToDisconnect = [...connectedSites];
-      setConnectedSites([]);
-      
-      // Call provider service for each site in background
       const providerService = getProviderService();
-      const disconnectPromises = sitesToDisconnect.map(site => 
+
+      // Disconnect all sites and wait for completion
+      const disconnectPromises = sitesToDisconnect.map(site =>
         providerService.disconnect(site.origin).catch(err => {
           console.error(`Failed to disconnect ${site.origin}:`, err);
         })
       );
-      
-      Promise.all(disconnectPromises).catch(() => {
-        // If something went wrong, reload to ensure UI is in sync
-        loadConnections();
-      });
+
+      await Promise.all(disconnectPromises);
+
+      // Only update UI after all disconnects complete
+      setConnectedSites([]);
     } catch (error) {
       console.error('Failed to disconnect all sites:', error);
-      loadConnections(); // Reload on error
     }
-  }, [connectedSites, loadConnections]);
+  }, [connectedSites]);
 
 
   // Configure header with reset button when sites exist, help button otherwise

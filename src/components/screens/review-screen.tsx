@@ -50,6 +50,8 @@ interface ReviewScreenProps {
   error: string | null;
   /** Whether the transaction is being signed */
   isSigning: boolean;
+  /** Hide the back button (e.g., for provider requests with no form to go back to) */
+  hideBackButton?: boolean;
 }
 
 /**
@@ -80,6 +82,7 @@ export function ReviewScreen({
   customFields,
   error,
   isSigning,
+  hideBackButton = false,
 }: ReviewScreenProps): ReactElement {
   const { result } = apiResponse;
 
@@ -161,18 +164,20 @@ export function ReviewScreen({
       
       {/* Action Buttons */}
       <div className="flex space-x-4">
-        <Button 
-          onClick={onBack} 
-          color="gray"
-          disabled={isSigning}
-          aria-label="Go back to edit transaction"
-        >
-          Back
-        </Button>
-        <Button 
-          onClick={onSign} 
-          color="blue" 
-          fullWidth 
+        {!hideBackButton && (
+          <Button
+            onClick={onBack}
+            color="gray"
+            disabled={isSigning}
+            aria-label="Go back to edit transaction"
+          >
+            Back
+          </Button>
+        )}
+        <Button
+          onClick={onSign}
+          color="blue"
+          fullWidth
           disabled={isSigning}
           aria-label={isSigning ? "Signing transaction..." : "Sign and broadcast transaction"}
         >

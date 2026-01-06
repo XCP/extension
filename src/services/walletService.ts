@@ -104,9 +104,15 @@ function createWalletService(): WalletService {
         console.debug('Could not notify popup of lock event:', error);
       }
       // Emit disconnect event to connected dApps
-      // Use event emitter service instead of global variable
-      eventEmitterService.emitProviderEvent(null, 'accountsChanged', []);
-      eventEmitterService.emitProviderEvent(null, 'disconnect', {});
+      // Broadcast to all tabs (no origin specified)
+      eventEmitterService.emit('emit-provider-event', {
+        event: 'accountsChanged',
+        data: []
+      });
+      eventEmitterService.emit('emit-provider-event', {
+        event: 'disconnect',
+        data: {}
+      });
     },
     createMnemonicWallet: async (mnemonic, password, name, addressFormat) => {
       return walletManager.createMnemonicWallet(mnemonic, password, name, addressFormat);
@@ -169,7 +175,11 @@ function createWalletService(): WalletService {
     isAnyWalletUnlocked: async () => walletManager.isAnyWalletUnlocked(),
     emitProviderEvent: async (origin, event, data) => {
       // Emit provider event through the event emitter service
-      eventEmitterService.emitProviderEvent(origin, event, data);
+      eventEmitterService.emit('emit-provider-event', {
+        origin,
+        event,
+        data
+      });
     },
     createAndUnlockMnemonicWallet: async (mnemonic, password, name, addressFormat) => {
       return walletManager.createAndUnlockMnemonicWallet(mnemonic, password, name, addressFormat);

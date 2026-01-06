@@ -152,7 +152,7 @@ describe('Composer', () => {
   const mockComposeApi = vi.fn();
 
   const defaultProps = {
-    composeType: 'test',
+    composeType: 'send' as const,
     composeApiMethod: mockComposeApi,
     initialTitle: 'Test Transaction',
     FormComponent: MockFormComponent,

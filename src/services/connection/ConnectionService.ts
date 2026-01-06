@@ -12,11 +12,12 @@
 import { BaseService } from '@/services/core/BaseService';
 import { getKeychainSettings, updateKeychainSettings } from '@/utils/storage/settingsStorage';
 import { getWalletService } from '@/services/walletService';
-import { eventEmitterService } from '@/services/eventEmitterService';
+import { getApprovalService } from '@/services/approval';
+import type { ApprovalResult } from '@/services/approval/ApprovalService';
 import { connectionRateLimiter } from '@/utils/provider/rateLimiter';
 import { analyzeCSP } from '@/utils/security/cspValidation';
 import { analytics } from '@/utils/fathom';
-import { approvalQueue } from '@/utils/provider/approvalQueue';
+import { eventEmitterService } from '@/services/eventEmitterService';
 
 export interface ConnectionStatus {
   origin: string;
@@ -93,6 +94,12 @@ export class ConnectionService extends BaseService {
     address: string,
     walletId: string
   ): Promise<boolean> {
+    // Prevent duplicate requests for the same origin
+    const dedupeKey = `${origin}-pending`;
+    if (this.state.pendingPermissionRequests.has(dedupeKey)) {
+      throw new Error('Connection request already pending for this origin');
+    }
+
     // Check rate limiting
     if (!connectionRateLimiter.isAllowed(origin)) {
       const resetTime = connectionRateLimiter.getResetTime(origin);
@@ -108,50 +115,33 @@ export class ConnectionService extends BaseService {
     await analytics.track('connection_request');
 
     const requestId = `${origin}-${Date.now()}`;
+
+    // Add both dedupe key and request ID to pending set
+    this.state.pendingPermissionRequests.add(dedupeKey);
     this.state.pendingPermissionRequests.add(requestId);
 
     try {
-      // This would integrate with ApprovalService when it's created
-      // For now, maintain existing approval queue integration
-      
-      const promise = new Promise<boolean>((resolve, reject) => {
-        // Add to approval queue
-        approvalQueue.add({
-          id: requestId,
-          origin,
-          method: 'xcp_requestAccounts',
-          params: [],
-          type: 'connection',
-          metadata: {
-            domain: new URL(origin).hostname,
-            title: 'Connection Request',
-            description: 'This site wants to connect to your wallet',
-          },
-        });
+      // Use ApprovalService for unified approval handling
+      const approvalService = getApprovalService();
 
-        // Open approval window
-        this.openApprovalWindow(requestId, origin);
-
-        // Handle timeout
-        setTimeout(() => {
-          if (this.state.pendingPermissionRequests.has(requestId)) {
-            this.state.pendingPermissionRequests.delete(requestId);
-            approvalQueue.remove(requestId);
-            reject(new Error('Permission request timeout'));
-          }
-        }, 5 * 60 * 1000); // 5 minutes
-
-        // Store resolvers (this would be handled by ApprovalService in the future)
-        eventEmitterService.on(`resolve-${requestId}`, (...args: unknown[]) => {
-          const [approved] = args as [boolean];
-          this.state.pendingPermissionRequests.delete(requestId);
-          approvalQueue.remove(requestId);
-          resolve(approved);
-        });
+      const result = await approvalService.requestApproval<ApprovalResult>({
+        id: requestId,
+        origin,
+        method: 'xcp_requestAccounts',
+        params: [],
+        type: 'connection',
+        metadata: {
+          domain: new URL(origin).hostname,
+          title: 'Connection Request',
+          description: 'This site wants to connect to your wallet',
+        },
       });
 
-      return await promise;
+      this.state.pendingPermissionRequests.delete(dedupeKey);
+      this.state.pendingPermissionRequests.delete(requestId);
+      return result.approved;
     } catch (error) {
+      this.state.pendingPermissionRequests.delete(dedupeKey);
       this.state.pendingPermissionRequests.delete(requestId);
       throw error;
     }
@@ -249,7 +239,7 @@ export class ConnectionService extends BaseService {
     // Remove from connected websites
     const settings = await getKeychainSettings();
     const updatedSites = settings.connectedWebsites.filter(site => site !== origin);
-    
+
     await updateKeychainSettings({
       connectedWebsites: updatedSites,
     });
@@ -260,9 +250,17 @@ export class ConnectionService extends BaseService {
     // Track disconnect event
     await analytics.track('connection_disconnected', { value: '1' });
 
-    // Emit disconnect events
-    eventEmitterService.emitProviderEvent(origin, 'accountsChanged', []);
-    eventEmitterService.emitProviderEvent(origin, 'disconnect', {});
+    // Emit disconnect events to the webpage
+    eventEmitterService.emit('emit-provider-event', {
+      origin,
+      event: 'accountsChanged',
+      data: []
+    });
+    eventEmitterService.emit('emit-provider-event', {
+      origin,
+      event: 'disconnect',
+      data: {}
+    });
 
     console.debug('dApp disconnected:', origin);
   }
@@ -311,8 +309,16 @@ export class ConnectionService extends BaseService {
 
     // Emit disconnect events to all sites
     for (const origin of connectedSites) {
-      eventEmitterService.emitProviderEvent(origin, 'accountsChanged', []);
-      eventEmitterService.emitProviderEvent(origin, 'disconnect', {});
+      eventEmitterService.emit('emit-provider-event', {
+        origin,
+        event: 'accountsChanged',
+        data: []
+      });
+      eventEmitterService.emit('emit-provider-event', {
+        origin,
+        event: 'disconnect',
+        data: {}
+      });
     }
 
     // Track bulk disconnect
@@ -356,50 +362,6 @@ export class ConnectionService extends BaseService {
 
     // Update last check time
     this.state.lastSecurityCheck.set(origin, now);
-  }
-
-  /**
-   * Open approval window for permission request
-   */
-  private async openApprovalWindow(requestId: string, origin: string): Promise<void> {
-    // This would be handled by ApprovalService in the future
-    const currentWindow = approvalQueue.getCurrentWindow();
-
-    if (currentWindow) {
-      // Focus existing window
-      browser.windows.update(currentWindow, { focused: true }).catch(() => {
-        // Window might be closed, open new one
-        this.createApprovalWindow();
-      });
-    } else {
-      // Open new approval window
-      this.createApprovalWindow();
-    }
-  }
-
-  /**
-   * Create approval window
-   */
-  private async createApprovalWindow(): Promise<void> {
-    const window = await browser.windows.create({
-      url: browser.runtime.getURL('/popup.html#/provider/approval-queue'),
-      type: 'popup',
-      width: 350,
-      height: 600,
-      focused: true,
-    });
-
-    if (window?.id) {
-      approvalQueue.setCurrentWindow(window.id);
-
-      // Monitor window close
-      browser.windows.onRemoved.addListener(function windowCloseHandler(windowId) {
-        if (windowId === window?.id) {
-          approvalQueue.setCurrentWindow(null);
-          browser.windows.onRemoved.removeListener(windowCloseHandler);
-        }
-      });
-    }
   }
 
   // BaseService implementation methods

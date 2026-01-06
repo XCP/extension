@@ -13,7 +13,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { composeRequestStorage, type ComposeRequest } from '@/utils/storage/composeRequestStorage';
 import { eventEmitterService } from '@/services/eventEmitterService';
-import { denormalizeProviderData, getComposeTypeFromProvider } from '@/utils/blockchain/counterparty/denormalize';
+import { getActiveComposeRequest } from '@/services/providerService';
 
 export function useProviderRequest<T = any>(
   composeType: ComposeRequest['type']
@@ -26,12 +26,18 @@ export function useProviderRequest<T = any>(
   useEffect(() => {
     if (composeRequestId) {
       const loadComposeRequest = async () => {
-        const request = await composeRequestStorage.get(composeRequestId);
+        // Try in-memory first (fast, for active requests)
+        let request = getActiveComposeRequest(composeRequestId);
+
+        // Fallback to storage (for recovery after crash/reload)
+        if (!request) {
+          request = await composeRequestStorage.get(composeRequestId);
+        }
+
         if (request && request.type === composeType) {
-          // Denormalize the provider data to convert base units to display values
-          const detectedType = getComposeTypeFromProvider(request.params) || composeType;
-          const { denormalizedData } = await denormalizeProviderData(request.params, detectedType);
-          setProviderFormData(denormalizedData as T);
+          // Provider data is already in API format (satoshis), no denormalization needed
+          // Auto-compose will pass it directly to the API
+          setProviderFormData(request.params as T);
         }
       };
       loadComposeRequest();
@@ -45,12 +51,18 @@ export function useProviderRequest<T = any>(
         // Load the compose request
         if (message.composeRequestId) {
           const loadComposeRequest = async () => {
-            const request = await composeRequestStorage.get(message.composeRequestId);
+            // Try in-memory first (fast, for active requests)
+            let request = getActiveComposeRequest(message.composeRequestId);
+
+            // Fallback to storage (for recovery after crash/reload)
+            if (!request) {
+              request = await composeRequestStorage.get(message.composeRequestId);
+            }
+
             if (request && request.type === composeType) {
-              // Denormalize the provider data to convert base units to display values
-              const detectedType = getComposeTypeFromProvider(request.params) || composeType;
-              const { denormalizedData } = await denormalizeProviderData(request.params, detectedType);
-              setProviderFormData(denormalizedData as T);
+              // Provider data is already in API format (satoshis), no denormalization needed
+              // Auto-compose will pass it directly to the API
+              setProviderFormData(request.params as T);
             }
           };
           loadComposeRequest();

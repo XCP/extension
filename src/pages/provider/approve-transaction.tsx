@@ -36,11 +36,8 @@ export default function ApproveTransaction() {
         type: 'RESOLVE_PROVIDER_REQUEST',
         requestId,
         approved: true,
-      }).catch((error) => {
-        console.error('Failed to send approval to background:', error);
-        throw error;
       });
-      
+
       // Close window
       window.close();
     } catch (err) {
@@ -56,11 +53,8 @@ export default function ApproveTransaction() {
         type: 'RESOLVE_PROVIDER_REQUEST',
         requestId,
         approved: false,
-      }).catch((error) => {
-        console.error('Failed to send rejection to background:', error);
-        throw error;
       });
-      
+
       // Close window
       window.close();
     } catch (err) {

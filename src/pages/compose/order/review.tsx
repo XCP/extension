@@ -29,12 +29,16 @@ export function ReviewOrder({
   const { result } = apiResponse;
   const [isPriceFlipped, setIsPriceFlipped] = useState(false);
 
+  // Use asset_longname if available, otherwise use asset name
+  const giveAssetDisplay = result.params.give_asset_info?.asset_longname || result.params.give_asset;
+  const getAssetDisplay = result.params.get_asset_info?.asset_longname || result.params.get_asset;
+
   const getPriceDisplay = () => {
     return formatPriceRatio(
       result.params.give_quantity,
       result.params.get_quantity,
-      result.params.give_asset,
-      result.params.get_asset,
+      giveAssetDisplay,
+      getAssetDisplay,
       isPriceFlipped
     );
   };
@@ -42,11 +46,11 @@ export function ReviewOrder({
   const customFields = [
     {
       label: "Give",
-      value: `${formatAssetQuantity(result.params.give_quantity, true)} ${result.params.give_asset}`,
+      value: `${formatAssetQuantity(result.params.give_quantity, true)} ${giveAssetDisplay}`,
     },
     {
       label: "Get",
-      value: `${formatAssetQuantity(result.params.get_quantity, true)} ${result.params.get_asset}`,
+      value: `${formatAssetQuantity(result.params.get_quantity, true)} ${getAssetDisplay}`,
     },
     {
       label: "Price",

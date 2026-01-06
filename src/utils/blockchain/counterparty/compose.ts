@@ -130,7 +130,7 @@ export interface DividendOptions extends BaseComposeOptions {
 export interface IssuanceOptions extends BaseComposeOptions {
   asset: string;
   quantity: number;
-  divisible: boolean;
+  divisible?: boolean;
   lock: boolean;
   reset: boolean;
   transfer_destination?: string;
@@ -547,7 +547,7 @@ export async function composeIssuance(options: IssuanceOptions): Promise<ApiResp
   const paramsObj = {
     asset,
     quantity: quantity.toString(),
-    divisible: divisible ? 'true' : 'false',
+    ...(divisible !== undefined && { divisible: divisible ? 'true' : 'false' }),
     lock: lock ? 'true' : 'false',
     reset: reset ? 'true' : 'false',
     ...(transfer_destination && { transfer_destination }),

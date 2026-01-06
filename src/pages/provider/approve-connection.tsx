@@ -6,8 +6,7 @@ import { FiGlobe, FiShield, FiX, FiCheck } from "react-icons/fi";
 import { Button } from "@/components/button";
 import { useWallet } from "@/contexts/wallet-context";
 import { useHeader } from "@/contexts/header-context";
-import { safeSendMessage } from "@/utils/browser";
-// We'll communicate with background script to resolve the request
+import { getApprovalService } from "@/services/approval";
 import type { ReactElement } from "react";
 
 /**
@@ -58,15 +57,9 @@ export default function ApproveConnection(): ReactElement {
   const handleApprove = async () => {
     setIsProcessing(true);
     try {
-      // Send message to background script to resolve the request
-      await safeSendMessage({
-        type: 'RESOLVE_PROVIDER_REQUEST',
-        requestId,
-        approved: true
-      }).catch((error) => {
-        console.error('Failed to send approval to background:', error);
-        throw error;
-      });
+      // Resolve approval via ApprovalService proxy
+      const approvalService = getApprovalService();
+      await approvalService.resolveApproval(requestId, { approved: true });
       // Close the popup
       window.close();
     } catch (error) {
@@ -78,15 +71,9 @@ export default function ApproveConnection(): ReactElement {
   const handleReject = async () => {
     setIsProcessing(true);
     try {
-      // Send message to background script to resolve the request
-      await safeSendMessage({
-        type: 'RESOLVE_PROVIDER_REQUEST',
-        requestId,
-        approved: false
-      }).catch((error) => {
-        console.error('Failed to send rejection to background:', error);
-        throw error;
-      });
+      // Reject approval via ApprovalService proxy
+      const approvalService = getApprovalService();
+      await approvalService.rejectApproval(requestId, 'User denied the request');
       // Close the popup
       window.close();
     } catch (error) {
