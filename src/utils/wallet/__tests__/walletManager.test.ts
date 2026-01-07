@@ -247,53 +247,26 @@ describe('WalletManager', () => {
       );
     });
 
-    it('should throw error for locked wallet without cached preview', async () => {
+    it('should throw error for locked wallet', async () => {
       const wallet = createTestWallet();
       walletManager['wallets'] = [wallet];
-      
-      // Mock no cached previews in storage
-      mocks.walletStorage.getAllEncryptedWallets.mockResolvedValue([]);
+
+      // Mock wallet is locked (no secret available)
       mocks.sessionManager.getUnlockedSecret.mockResolvedValue(null);
-      
+
       await expect(
         walletManager.getPreviewAddressForFormat(wallet.id, AddressFormat.P2WPKH)
-      ).rejects.toThrow('Wallet is locked and no cached preview available');
-    });
-    
-    it('should return cached preview for locked wallet', async () => {
-      const wallet = createTestWallet();
-      walletManager['wallets'] = [wallet];
-      
-      // Mock wallet with cached previews
-      mocks.walletStorage.getAllEncryptedWallets.mockResolvedValue([
-        {
-          id: wallet.id,
-          name: wallet.name,
-          type: wallet.type,
-          addressFormat: wallet.addressFormat,
-          encryptedSecret: 'encrypted',
-          previewAddress: 'bc1qtest',
-          addressPreviews: {
-            [AddressFormat.P2WPKH]: 'bc1qcached',
-          },
-          addressCount: 1,
-        }
-      ]);
-      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(null);
-      
-      const preview = await walletManager.getPreviewAddressForFormat(wallet.id, AddressFormat.P2WPKH);
-      
-      expect(preview).toBe('bc1qcached');
+      ).rejects.toThrow('Wallet must be unlocked to get preview address');
     });
 
     it('should throw error for non-existent wallet', async () => {
-      // Mock no wallets in storage
-      mocks.walletStorage.getAllEncryptedWallets.mockResolvedValue([]);
-      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(null);
-      
+      // Mock wallet is unlocked but doesn't exist in wallets array
+      mocks.sessionManager.getUnlockedSecret.mockResolvedValue('test mnemonic');
+      walletManager['wallets'] = []; // Empty wallets array
+
       await expect(
         walletManager.getPreviewAddressForFormat('non-existent', AddressFormat.P2WPKH)
-      ).rejects.toThrow('Wallet is locked and no cached preview available');
+      ).rejects.toThrow('Wallet not found');
     });
   });
 
