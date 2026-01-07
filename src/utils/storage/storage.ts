@@ -131,6 +131,29 @@ export async function updateRecord(record: StoredRecord): Promise<void> {
 }
 
 /**
+ * Updates multiple records in storage in a single operation.
+ * More efficient than calling updateRecord() multiple times.
+ *
+ * @param updates - Array of records to update.
+ * @throws Error if any record ID is not found.
+ */
+export async function updateRecords(updates: StoredRecord[]): Promise<void> {
+  if (updates.length === 0) return;
+
+  const records = await getRecords();
+
+  for (const update of updates) {
+    const index = records.findIndex((r) => r.id === update.id);
+    if (index === -1) {
+      throw new Error(`Record with ID "${update.id}" not found.`);
+    }
+    records[index] = update;
+  }
+
+  await persistRecords(records);
+}
+
+/**
  * Removes a record by its ID from storage.
  * Performs an in-place removal to optimize memory usage.
  *

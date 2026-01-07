@@ -20,6 +20,9 @@ Object.defineProperty(global, 'chrome', {
   writable: true,
 });
 
+// Counter for unique service names to avoid duplicate registration across tests
+let testServiceCounter = 0;
+
 describe('isBackgroundScript', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -83,10 +86,14 @@ describe('defineProxyService', () => {
   let testServiceInstance: TestService;
   let register: () => TestService;
   let getService: () => TestService;
+  let currentServiceName: string;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockChrome.runtime.lastError = null;
+
+    // Use unique service name for each test to avoid duplicate registration
+    currentServiceName = `TestService_${++testServiceCounter}`;
 
     // Create a test service
     testServiceInstance = {
@@ -98,9 +105,9 @@ describe('defineProxyService', () => {
       }),
     };
 
-    // Define the proxy service
+    // Define the proxy service with unique name
     [register, getService] = defineProxyService(
-      'TestService',
+      currentServiceName,
       () => testServiceInstance
     );
   });
@@ -146,7 +153,7 @@ describe('defineProxyService', () => {
 
     it('should throw error when getting service before registration', () => {
       expect(() => getService()).toThrow(
-        'Failed to get an instance of TestService: in background, but registerService has not been called'
+        `Failed to get an instance of ${currentServiceName}: in background, but registerService has not been called`
       );
     });
 
@@ -160,7 +167,7 @@ describe('defineProxyService', () => {
       // Test successful method call
       messageListener(
         {
-          serviceName: 'TestService',
+          serviceName: currentServiceName,
           methodName: 'getValue',
           args: [],
         },
@@ -186,7 +193,7 @@ describe('defineProxyService', () => {
 
       messageListener(
         {
-          serviceName: 'TestService',
+          serviceName: currentServiceName,
           methodName: 'throwError',
           args: [],
         },
@@ -211,7 +218,7 @@ describe('defineProxyService', () => {
 
       messageListener(
         {
-          serviceName: 'TestService',
+          serviceName: currentServiceName,
           methodName: 'nonExistentMethod',
           args: [],
         },
@@ -221,7 +228,7 @@ describe('defineProxyService', () => {
 
       expect(mockSendResponse).toHaveBeenCalledWith({
         success: false,
-        error: 'Method nonExistentMethod not found on TestService',
+        error: `Method nonExistentMethod not found on ${currentServiceName}`,
       });
     });
 
@@ -271,7 +278,7 @@ describe('defineProxyService', () => {
 
       expect(mockChrome.runtime.sendMessage).toHaveBeenCalledWith(
         {
-          serviceName: 'TestService',
+          serviceName: currentServiceName,
           methodName: 'getValue',
           args: [],
         },
@@ -308,7 +315,7 @@ describe('defineProxyService', () => {
       });
 
       const service = getService();
-      await expect(service.getValue()).rejects.toThrow('No response from TestService.getValue');
+      await expect(service.getValue()).rejects.toThrow(`No response from ${currentServiceName}.getValue`);
     });
 
     it('should pass arguments correctly', async () => {
@@ -324,7 +331,7 @@ describe('defineProxyService', () => {
 
       expect(mockChrome.runtime.sendMessage).toHaveBeenCalledWith(
         {
-          serviceName: 'TestService',
+          serviceName: currentServiceName,
           methodName: 'setValue',
           args: [123],
         },

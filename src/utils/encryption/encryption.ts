@@ -10,7 +10,7 @@ const CRYPTO_CONFIG = {
   SALT_BYTES: 16,
   IV_BYTES: 12,
   KEY_BITS: 256,
-  PBKDF2_ITERATIONS: 420_690,
+  PBKDF2_ITERATIONS: 600_000, // OWASP 2024 recommendation for SHA-256
   AUTH_MESSAGE: 'authentication message for wallet encryption',
   TAG_LENGTH: 128,
 };
@@ -166,9 +166,12 @@ export async function decryptString(
 
     return decoder.decode(decryptedBuffer);
   } catch (err) {
-    console.error('Decryption failed:', err);
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    throw new DecryptionError(`Failed to decrypt data: ${errorMessage}`);
+    // Don't log or expose internal crypto error details - could leak information
+    // All decryption failures surface as the same generic message
+    if (err instanceof DecryptionError) {
+      throw err; // Re-throw our own errors (already sanitized)
+    }
+    throw new DecryptionError('Invalid password or corrupted data');
   }
 }
 

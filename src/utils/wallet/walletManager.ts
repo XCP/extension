@@ -4,7 +4,7 @@ import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import * as sessionManager from '@/utils/auth/sessionManager';
 import { settingsManager } from '@/utils/wallet/settingsManager';
-import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, removeEncryptedWallet, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
+import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, updateEncryptedWallets, removeEncryptedWallet, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
 import { encryptMnemonic, decryptMnemonic, encryptPrivateKey, decryptPrivateKey, DecryptionError } from '@/utils/encryption/walletEncryption';
 import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressFormat, isCounterwalletFormat } from '@/utils/blockchain/bitcoin/address';
 import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';
@@ -534,27 +534,39 @@ export class WalletManager {
   }
 
   private async renumberWallets(): Promise<void> {
+    // Fetch all records once instead of inside the loop
+    const allRecords = await getAllEncryptedWallets();
+    const recordsToUpdate: EncryptedWalletRecord[] = [];
+
     for (let i = 0; i < this.wallets.length; i++) {
       const wallet = this.wallets[i];
       const newName = `Wallet ${i + 1}`;
-      
+
       if (wallet.name.match(/^Wallet \d+$/)) {
         wallet.name = newName;
-        
-        const allRecords = await getAllEncryptedWallets();
+
         const record = allRecords.find((r) => r.id === wallet.id);
         if (record) {
           record.name = newName;
-          await updateEncryptedWallet(record);
+          recordsToUpdate.push(record);
         }
       }
+    }
+
+    // Single batch write instead of N writes
+    if (recordsToUpdate.length > 0) {
+      await updateEncryptedWallets(recordsToUpdate);
     }
   }
 
   public async verifyPassword(password: string): Promise<boolean> {
     const all = await getAllEncryptedWallets();
-    for (const r of all) {
-      try {
+    if (all.length === 0) return false;
+
+    // Try to decrypt all wallets in parallel for better UX on wrong password
+    // Use Promise.allSettled to get all results regardless of failures
+    const results = await Promise.allSettled(
+      all.map(async (r) => {
         if (r.type === 'mnemonic' && r.encryptedSecret) {
           await decryptMnemonic(r.encryptedSecret, password);
           return true;
@@ -562,11 +574,14 @@ export class WalletManager {
           await decryptPrivateKey(r.encryptedSecret, password);
           return true;
         }
-      } catch {
-        continue;
-      }
-    }
-    return false;
+        return false;
+      })
+    );
+
+    // If any decryption succeeded, the password is valid
+    return results.some(
+      (result) => result.status === 'fulfilled' && result.value === true
+    );
   }
 
   public async resetAllWallets(password: string): Promise<void> {
@@ -585,20 +600,25 @@ export class WalletManager {
   public async updatePassword(currentPassword: string, newPassword: string): Promise<void> {
     const valid = await this.verifyPassword(currentPassword);
     if (!valid) throw new Error('Current password is incorrect');
+
     const all = await getAllEncryptedWallets();
-    for (const rec of all) {
-      if (rec.type === 'mnemonic' && rec.encryptedSecret) {
-        const mnemonic = await decryptMnemonic(rec.encryptedSecret, currentPassword);
-        const newEnc = await encryptMnemonic(mnemonic, newPassword, rec.addressFormat);
-        rec.encryptedSecret = newEnc;
-        await updateEncryptedWallet(rec);
-      } else if (rec.type === 'privateKey' && rec.encryptedSecret) {
-        const pkData = await decryptPrivateKey(rec.encryptedSecret, currentPassword);
-        const newEnc = await encryptPrivateKey(pkData, newPassword);
-        rec.encryptedSecret = newEnc;
-        await updateEncryptedWallet(rec);
-      }
-    }
+
+    // Re-encrypt all wallets in parallel for better performance
+    const updatedRecords = await Promise.all(
+      all.map(async (rec) => {
+        if (rec.type === 'mnemonic' && rec.encryptedSecret) {
+          const mnemonic = await decryptMnemonic(rec.encryptedSecret, currentPassword);
+          rec.encryptedSecret = await encryptMnemonic(mnemonic, newPassword, rec.addressFormat);
+        } else if (rec.type === 'privateKey' && rec.encryptedSecret) {
+          const pkData = await decryptPrivateKey(rec.encryptedSecret, currentPassword);
+          rec.encryptedSecret = await encryptPrivateKey(pkData, newPassword);
+        }
+        return rec;
+      })
+    );
+
+    // Single batch write instead of N writes
+    await updateEncryptedWallets(updatedRecords);
     await this.lockAllWallets();
   }
 

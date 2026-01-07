@@ -70,7 +70,7 @@ describe('encryption.ts', () => {
       expect(parsed).toHaveProperty('encryptedData');
       expect(parsed).toHaveProperty('authSignature');
       expect(parsed.version).toBe(1);
-      expect(parsed.iterations).toBe(420690);
+      expect(parsed.iterations).toBe(600000);
     });
 
     it('should call crypto operations with correct parameters', async () => {
@@ -217,11 +217,12 @@ describe('encryption.ts', () => {
 
       mockCrypto.subtle.importKey.mockRejectedValue(new Error('Crypto error'));
 
+      // Error message should be generic (not leak internal crypto details)
       await expect(decryptString(validPayload, testPassword)).rejects.toThrow(
         DecryptionError
       );
       await expect(decryptString(validPayload, testPassword)).rejects.toThrow(
-        'Failed to decrypt data'
+        'Invalid password or corrupted data'
       );
     });
   });
@@ -299,7 +300,7 @@ describe('encryption.ts', () => {
       expect(mockCrypto.subtle.deriveBits).toHaveBeenCalledWith(
         expect.objectContaining({
           name: 'PBKDF2',
-          iterations: 420690,
+          iterations: 600000,
           hash: 'SHA-256',
         }),
         expect.any(Object),

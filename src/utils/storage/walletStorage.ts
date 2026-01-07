@@ -1,4 +1,4 @@
-import { getAllRecords, addRecord, updateRecord, removeRecord, StoredRecord } from '@/utils/storage/storage';
+import { getAllRecords, addRecord, updateRecord, updateRecords, removeRecord, StoredRecord } from '@/utils/storage/storage';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 /**
@@ -48,6 +48,16 @@ export async function addEncryptedWallet(record: EncryptedWalletRecord): Promise
  */
 export async function updateEncryptedWallet(record: EncryptedWalletRecord): Promise<void> {
   await updateRecord(record);
+}
+
+/**
+ * Updates multiple encrypted wallet records in a single operation.
+ * More efficient than calling updateEncryptedWallet() multiple times.
+ *
+ * @param records - Array of wallet records to update.
+ */
+export async function updateEncryptedWallets(records: EncryptedWalletRecord[]): Promise<void> {
+  await updateRecords(records);
 }
 
 /**
