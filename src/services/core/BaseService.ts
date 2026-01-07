@@ -12,6 +12,7 @@ export abstract class BaseService {
   private keepAliveAlarmName: string;
   private persistAlarmName: string;
   private initialized = false;
+  private initializationPromise: Promise<void> | null = null;
   protected serviceStartTime: number = 0;
 
   constructor(serviceName: string) {
@@ -27,11 +28,22 @@ export abstract class BaseService {
    * - Registers alarms for state persistence
    */
   async initialize(): Promise<void> {
+    // Already initialized
     if (this.initialized) {
-      console.warn(`Service ${this.serviceName} already initialized`);
       return;
     }
 
+    // Initialization already in progress - await existing promise
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    // Start initialization and store promise to prevent concurrent calls
+    this.initializationPromise = this.doInitialize();
+    return this.initializationPromise;
+  }
+
+  private async doInitialize(): Promise<void> {
     try {
       // Track service start time
       this.serviceStartTime = Date.now();
@@ -60,6 +72,8 @@ export abstract class BaseService {
       this.initialized = true;
       console.log(`Service ${this.serviceName} initialized successfully`);
     } catch (error) {
+      // Clear promise so initialization can be retried
+      this.initializationPromise = null;
       console.error(`Failed to initialize service ${this.serviceName}:`, error);
       throw error;
     }

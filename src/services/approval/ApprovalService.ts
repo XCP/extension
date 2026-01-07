@@ -51,6 +51,7 @@ export class ApprovalService extends BaseService {
     currentWindow: null,
     requestStats: new Map(),
   };
+  private resolveRequestHandler: ((data: any) => void) | null = null;
 
   private static readonly STATE_VERSION = 1;
   private static readonly MAX_CONCURRENT_REQUESTS = 10;
@@ -335,19 +336,26 @@ export class ApprovalService extends BaseService {
   // BaseService implementation methods
 
   protected async onInitialize(): Promise<void> {
-    // Set up approval resolution handler
-    eventEmitterService.on('resolve-pending-request', ({ requestId, approved, updatedParams }: any) => {
+    // Set up approval resolution handler (store reference for cleanup)
+    this.resolveRequestHandler = ({ requestId, approved, updatedParams }: any) => {
       if (approved) {
         this.resolveApproval(requestId, { approved: true, updatedParams });
       } else {
         this.rejectApproval(requestId, 'User denied the request');
       }
-    });
+    };
+    eventEmitterService.on('resolve-pending-request', this.resolveRequestHandler);
 
     console.log('ApprovalService initialized');
   }
 
   protected async onDestroy(): Promise<void> {
+    // Unregister event listener to prevent memory leak
+    if (this.resolveRequestHandler) {
+      eventEmitterService.off('resolve-pending-request', this.resolveRequestHandler);
+      this.resolveRequestHandler = null;
+    }
+
     // Clear all pending requests
     await this.clearAllRequests('Service shutting down');
 

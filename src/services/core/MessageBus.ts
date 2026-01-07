@@ -88,18 +88,41 @@ export class MessageBus {
    * Check if background service worker is ready to receive messages
    */
   private static async ensureBackgroundReady(): Promise<boolean> {
+    // Already confirmed ready
     if (MessageBus.backgroundReady) {
       return true;
     }
-    
+
+    // Check in progress - await existing promise
     if (MessageBus.readinessPromise) {
       return MessageBus.readinessPromise;
     }
-    
-    MessageBus.readinessPromise = new Promise((resolve) => {
+
+    // Start new readiness check
+    MessageBus.readinessPromise = MessageBus.doBackgroundReadinessCheck();
+
+    try {
+      const result = await MessageBus.readinessPromise;
+      if (!result) {
+        // Failed - clear promise so we can retry on next call
+        MessageBus.readinessPromise = null;
+      }
+      return result;
+    } catch (error) {
+      // Error - clear promise so we can retry on next call
+      MessageBus.readinessPromise = null;
+      throw error;
+    }
+  }
+
+  /**
+   * Perform the actual background readiness check
+   */
+  private static doBackgroundReadinessCheck(): Promise<boolean> {
+    return new Promise((resolve) => {
       let attempts = 0;
       const maxAttempts = 10;
-      
+
       const checkReady = async () => {
         try {
           // Try to ping the background
@@ -112,7 +135,7 @@ export class MessageBus {
         } catch (error) {
           // Background not ready yet
         }
-        
+
         attempts++;
         if (attempts >= maxAttempts) {
           console.warn('Background service worker not ready after', maxAttempts, 'attempts');
@@ -123,11 +146,9 @@ export class MessageBus {
           setTimeout(checkReady, delay);
         }
       };
-      
+
       checkReady();
     });
-    
-    return MessageBus.readinessPromise;
   }
   
   /**

@@ -11,9 +11,17 @@ import { BaseService } from './core/BaseService';
 type EventCallback = (...args: unknown[]) => void;
 type PendingRequestResolver = (value: unknown) => void;
 
+interface TimedListener {
+  callback: EventCallback;
+  registeredAt: number;
+  timeoutMs: number;
+  timeoutId?: ReturnType<typeof setTimeout>;
+}
+
 interface EventEmitterState {
   listeners: Map<string, Set<EventCallback>>;
   pendingRequests: Map<string, PendingRequestResolver>;
+  timedListeners: Map<string, TimedListener[]>;
 }
 
 interface SerializedEventEmitterState {
@@ -25,9 +33,11 @@ class EventEmitterService extends BaseService {
   private state: EventEmitterState = {
     listeners: new Map(),
     pendingRequests: new Map(),
+    timedListeners: new Map(),
   };
-  
+
   private static readonly STATE_VERSION = 1;
+  private static readonly DEFAULT_LISTENER_TIMEOUT = 15 * 60 * 1000; // 15 minutes
 
   constructor() {
     super('EventEmitterService');
@@ -84,12 +94,68 @@ class EventEmitterService extends BaseService {
   off(event: string, callback: EventCallback, origin?: string): void {
     const key = origin ? `${origin}:${event}` : event;
     const listeners = this.state.listeners.get(key);
-    
+
     if (listeners) {
       listeners.delete(callback);
       if (listeners.size === 0) {
         this.state.listeners.delete(key);
       }
+    }
+
+    // Also clean up from timed listeners
+    this.removeTimedListener(key, callback);
+  }
+
+  /**
+   * Register an event listener with automatic timeout cleanup
+   * Use this for single-use dynamic event keys to prevent memory leaks
+   */
+  onWithTimeout(
+    event: string,
+    callback: EventCallback,
+    timeoutMs: number = EventEmitterService.DEFAULT_LISTENER_TIMEOUT
+  ): void {
+    // Register normally
+    this.on(event, callback);
+
+    // Track for timeout cleanup
+    const timedListener: TimedListener = {
+      callback,
+      registeredAt: Date.now(),
+      timeoutMs,
+    };
+
+    // Set up auto-cleanup timeout
+    timedListener.timeoutId = setTimeout(() => {
+      this.off(event, callback);
+      console.debug(`[EventEmitter] Auto-cleaned timed listener for: ${event}`);
+    }, timeoutMs);
+
+    // Store in timed listeners map
+    if (!this.state.timedListeners.has(event)) {
+      this.state.timedListeners.set(event, []);
+    }
+    this.state.timedListeners.get(event)!.push(timedListener);
+  }
+
+  /**
+   * Remove a timed listener and clear its timeout
+   */
+  private removeTimedListener(event: string, callback: EventCallback): void {
+    const timedListeners = this.state.timedListeners.get(event);
+    if (!timedListeners) return;
+
+    const index = timedListeners.findIndex(tl => tl.callback === callback);
+    if (index !== -1) {
+      const [removed] = timedListeners.splice(index, 1);
+      if (removed.timeoutId) {
+        clearTimeout(removed.timeoutId);
+      }
+    }
+
+    // Clean up empty array
+    if (timedListeners.length === 0) {
+      this.state.timedListeners.delete(event);
     }
   }
 
@@ -152,6 +218,16 @@ class EventEmitterService extends BaseService {
   clear(): void {
     this.state.listeners.clear();
     this.state.pendingRequests.clear();
+
+    // Clear all timed listener timeouts
+    for (const timedListeners of this.state.timedListeners.values()) {
+      for (const tl of timedListeners) {
+        if (tl.timeoutId) {
+          clearTimeout(tl.timeoutId);
+        }
+      }
+    }
+    this.state.timedListeners.clear();
   }
 
   // BaseService implementation methods
@@ -204,17 +280,25 @@ class EventEmitterService extends BaseService {
   getStats(): {
     listenerCount: number;
     pendingRequestCount: number;
+    timedListenerCount: number;
     listenersByEvent: Record<string, number>;
   } {
     const listenersByEvent: Record<string, number> = {};
-    
+
     for (const [key, listeners] of Array.from(this.state.listeners)) {
       listenersByEvent[key] = listeners.size;
     }
-    
+
+    // Count total timed listeners
+    let timedListenerCount = 0;
+    for (const timedListeners of this.state.timedListeners.values()) {
+      timedListenerCount += timedListeners.length;
+    }
+
     return {
       listenerCount: this.state.listeners.size,
       pendingRequestCount: this.state.pendingRequests.size,
+      timedListenerCount,
       listenersByEvent,
     };
   }

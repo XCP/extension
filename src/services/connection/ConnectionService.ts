@@ -39,6 +39,7 @@ interface ConnectionServiceState {
   connectionCache: Map<string, ConnectionStatus>;
   lastSecurityCheck: Map<string, number>;
   pendingPermissionRequests: Set<string>;
+  pendingLookups: Map<string, Promise<boolean>>;
 }
 
 interface SerializedConnectionState {
@@ -52,6 +53,7 @@ export class ConnectionService extends BaseService {
     connectionCache: new Map(),
     lastSecurityCheck: new Map(),
     pendingPermissionRequests: new Set(),
+    pendingLookups: new Map(),
   };
 
   private static readonly STATE_VERSION = 1;
@@ -66,13 +68,35 @@ export class ConnectionService extends BaseService {
    * Check if an origin has permission to access wallet
    */
   async hasPermission(origin: string): Promise<boolean> {
-    // Check cache first
+    // Check cache first (fast path)
     const cached = this.state.connectionCache.get(origin);
-    if (cached && Date.now() - (cached.lastActive || 0) < ConnectionService.CACHE_TTL) {
+    const now = Date.now();
+    if (cached && now - (cached.lastActive || 0) < ConnectionService.CACHE_TTL) {
       return cached.isConnected;
     }
 
-    // Check persistent storage
+    // Check if there's already a pending lookup for this origin
+    // This prevents redundant storage reads from concurrent callers
+    const pending = this.state.pendingLookups.get(origin);
+    if (pending) {
+      return pending;
+    }
+
+    // Start the lookup and track it
+    const lookupPromise = this.doPermissionLookup(origin);
+    this.state.pendingLookups.set(origin, lookupPromise);
+
+    try {
+      return await lookupPromise;
+    } finally {
+      this.state.pendingLookups.delete(origin);
+    }
+  }
+
+  /**
+   * Perform the actual permission lookup from storage
+   */
+  private async doPermissionLookup(origin: string): Promise<boolean> {
     const settings = await getKeychainSettings();
     const isConnected = settings.connectedWebsites.includes(origin);
 
@@ -374,6 +398,7 @@ export class ConnectionService extends BaseService {
     this.state.connectionCache.clear();
     this.state.lastSecurityCheck.clear();
     this.state.pendingPermissionRequests.clear();
+    this.state.pendingLookups.clear();
     console.log('ConnectionService destroyed');
   }
 

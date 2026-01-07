@@ -218,35 +218,39 @@ export function createProviderService(): ProviderService {
 
     // Return a promise that will resolve when the user completes the compose flow
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        // Cleanup on timeout
+      let settled = false;
+      let timeout: ReturnType<typeof setTimeout>;
+
+      // Centralized cleanup - called on any exit path
+      const cleanup = () => {
+        if (timeout) clearTimeout(timeout);
         activeComposeRequests.delete(composeRequestId);
         composeRequestStorage.remove(composeRequestId);
         updateService.unregisterCriticalOperation(`compose-${composeRequestId}`);
         eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
         eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
-        reject(new Error('Compose request timeout'));
-      }, 10 * 60 * 1000); // 10 minute timeout
+      };
 
       const handleComplete = (result: any) => {
-        clearTimeout(timeout);
-        // Cleanup on completion
-        activeComposeRequests.delete(composeRequestId);
-        composeRequestStorage.remove(composeRequestId);
-        updateService.unregisterCriticalOperation(`compose-${composeRequestId}`);
-        eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
+        if (settled) return;
+        settled = true;
+        cleanup();
         resolve(result);
       };
 
       const handleCancel = () => {
-        clearTimeout(timeout);
-        // Cleanup on cancellation
-        activeComposeRequests.delete(composeRequestId);
-        composeRequestStorage.remove(composeRequestId);
-        updateService.unregisterCriticalOperation(`compose-${composeRequestId}`);
-        eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
+        if (settled) return;
+        settled = true;
+        cleanup();
         reject(new Error('User cancelled compose request'));
       };
+
+      timeout = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(new Error('Compose request timeout'));
+      }, 10 * 60 * 1000); // 10 minute timeout
 
       // Listen for completion events
       eventEmitterService.on(`compose-complete-${composeRequestId}`, handleComplete);
@@ -386,14 +390,19 @@ export function createProviderService(): ProviderService {
 
             // Wait for unlock and then continue with connection
             return new Promise((resolve, reject) => {
-              const timeout = setTimeout(() => {
+              let settled = false;
+              let timeout: ReturnType<typeof setTimeout>;
+
+              // Centralized cleanup - called on any exit path
+              const cleanup = () => {
+                if (timeout) clearTimeout(timeout);
                 eventEmitterService.off('wallet-unlocked', handleUnlock);
-                reject(new Error('Unlock timeout - please try again'));
-              }, 5 * 60 * 1000); // 5 minute timeout
+              };
 
               const handleUnlock = async () => {
-                clearTimeout(timeout);
-                eventEmitterService.off('wallet-unlocked', handleUnlock);
+                if (settled) return;
+                settled = true;
+                cleanup();
 
                 // Re-check wallet state after unlock
                 const nowUnlocked = await walletService.isAnyWalletUnlocked();
@@ -426,6 +435,13 @@ export function createProviderService(): ProviderService {
                   reject(error);
                 }
               };
+
+              timeout = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                reject(new Error('Unlock timeout - please try again'));
+              }, 5 * 60 * 1000); // 5 minute timeout
 
               eventEmitterService.on('wallet-unlocked', handleUnlock);
             });
@@ -556,27 +572,38 @@ export function createProviderService(): ProviderService {
 
           // Return a promise that will resolve when the user completes the sign message flow
           return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
+            let settled = false;
+            let timeout: ReturnType<typeof setTimeout>;
+
+            // Centralized cleanup - called on any exit path
+            const cleanup = () => {
+              if (timeout) clearTimeout(timeout);
               updateService.unregisterCriticalOperation(`sign-message-${signMessageRequestId}`);
               eventEmitterService.off(`sign-message-complete-${signMessageRequestId}`, handleComplete);
               eventEmitterService.off(`sign-message-cancel-${signMessageRequestId}`, handleCancel);
-              reject(new Error('Sign message request timeout'));
-            }, 10 * 60 * 1000); // 10 minute timeout
+            };
 
             const handleComplete = (result: any) => {
-              clearTimeout(timeout);
-              updateService.unregisterCriticalOperation(`sign-message-${signMessageRequestId}`);
-              eventEmitterService.off(`sign-message-cancel-${signMessageRequestId}`, handleCancel);
+              if (settled) return;
+              settled = true;
+              cleanup();
               analytics.track('message_signed');
               resolve(result.signature); // Return just the signature for compatibility
             };
 
             const handleCancel = () => {
-              clearTimeout(timeout);
-              updateService.unregisterCriticalOperation(`sign-message-${signMessageRequestId}`);
-              eventEmitterService.off(`sign-message-complete-${signMessageRequestId}`, handleComplete);
+              if (settled) return;
+              settled = true;
+              cleanup();
               reject(new Error('User cancelled sign message request'));
             };
+
+            timeout = setTimeout(() => {
+              if (settled) return;
+              settled = true;
+              cleanup();
+              reject(new Error('Sign message request timeout'));
+            }, 10 * 60 * 1000); // 10 minute timeout
 
             // Listen for completion events
             eventEmitterService.on(`sign-message-complete-${signMessageRequestId}`, handleComplete);

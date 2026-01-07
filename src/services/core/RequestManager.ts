@@ -19,13 +19,16 @@ export class RequestManager {
   private cleanupInterval: NodeJS.Timeout | null = null;
   private readonly timeoutMs: number;
   private readonly cleanupIntervalMs: number;
+  private readonly maxRequests: number;
 
   constructor(
     timeoutMs: number = 300000, // 5 minutes default
-    cleanupIntervalMs: number = 60000 // 1 minute default
+    cleanupIntervalMs: number = 60000, // 1 minute default
+    maxRequests: number = 100 // Maximum pending requests
   ) {
     this.timeoutMs = timeoutMs;
     this.cleanupIntervalMs = cleanupIntervalMs;
+    this.maxRequests = maxRequests;
     this.startCleanupInterval();
   }
 
@@ -38,6 +41,11 @@ export class RequestManager {
     reject: (reason: any) => void,
     metadata?: Partial<PendingRequest>
   ): void {
+    // Check max size limit (unless replacing existing request)
+    if (!this.requests.has(id) && this.requests.size >= this.maxRequests) {
+      throw new Error(`Request limit exceeded (max ${this.maxRequests}). Please wait for pending requests to complete.`);
+    }
+
     if (this.requests.has(id)) {
       console.warn(`Request ${id} already exists, replacing with new request`);
     }
