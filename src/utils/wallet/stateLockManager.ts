@@ -3,12 +3,15 @@
  * Provides mutex-like locking for preventing race conditions in wallet state operations
  */
 
-type LockResolver = () => void;
+interface QueuedWaiter {
+  resolve: (release: () => void) => void;
+  reject: (error: Error) => void;
+}
 
 interface Lock {
   id: string;
   acquired: boolean;
-  queue: LockResolver[];
+  queue: QueuedWaiter[];
   timeout?: NodeJS.Timeout;
 }
 
@@ -58,18 +61,21 @@ class StateLockManager {
         
         resolve(() => this.release(resource));
       } else {
-        // Lock is acquired, add to queue
-        lock.queue.push(() => {
-          lock!.acquired = true;
-          
-          // Set timeout for this lock acquisition
-          if (lock!.timeout) clearTimeout(lock!.timeout);
-          lock!.timeout = setTimeout(() => {
-            console.warn(`Lock timeout for resource: ${resource}`);
-            this.forceRelease(resource);
-          }, timeout);
-          
-          resolve(() => this.release(resource));
+        // Lock is acquired, add to queue with both resolve and reject
+        lock.queue.push({
+          resolve: (releaseFn) => {
+            lock!.acquired = true;
+
+            // Set timeout for this lock acquisition
+            if (lock!.timeout) clearTimeout(lock!.timeout);
+            lock!.timeout = setTimeout(() => {
+              console.warn(`Lock timeout for resource: ${resource}`);
+              this.forceRelease(resource);
+            }, timeout);
+
+            resolve(releaseFn);
+          },
+          reject,
         });
       }
     });
@@ -97,7 +103,7 @@ class StateLockManager {
       // Pass lock to next in queue
       const next = lock.queue.shift();
       if (next) {
-        next();
+        next.resolve(() => this.release(resource));
       }
     } else {
       // No one waiting, remove lock
@@ -111,20 +117,25 @@ class StateLockManager {
    */
   private forceRelease(resource: string): void {
     const lock = this.locks.get(resource);
-    
+
     if (!lock) return;
-    
+
     // Clear timeout
     if (lock.timeout) {
       clearTimeout(lock.timeout);
       lock.timeout = undefined;
     }
-    
-    // Process entire queue with timeout errors
-    lock.queue.forEach(resolver => {
-      console.error(`Lock queue cleared due to timeout: ${resource}`);
+
+    // Reject all queued waiters with timeout error
+    const timeoutError = new Error(`Lock timeout for resource: ${resource}`);
+    lock.queue.forEach(waiter => {
+      waiter.reject(timeoutError);
     });
-    
+
+    if (lock.queue.length > 0) {
+      console.error(`Lock queue cleared due to timeout: ${resource} (${lock.queue.length} waiters rejected)`);
+    }
+
     // Remove the lock entirely
     this.locks.delete(resource);
   }

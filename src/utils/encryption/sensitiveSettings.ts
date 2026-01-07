@@ -79,7 +79,7 @@ export async function clearSensitiveSettingsKey(): Promise<void> {
  */
 async function getKeyFromSession(): Promise<CryptoKey | null> {
   const result = await chrome.storage.session.get(SENSITIVE_SETTINGS_KEY);
-  const keyBase64 = result[SENSITIVE_SETTINGS_KEY];
+  const keyBase64 = result[SENSITIVE_SETTINGS_KEY] as string | undefined;
 
   if (!keyBase64) return null;
 
@@ -252,11 +252,11 @@ function bufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
   return btoa(binary);
 }
 
-function base64ToBuffer(base64: string): Uint8Array {
+function base64ToBuffer(base64: string): Uint8Array<ArrayBuffer> {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
-  return bytes;
+  return bytes as Uint8Array<ArrayBuffer>;
 }

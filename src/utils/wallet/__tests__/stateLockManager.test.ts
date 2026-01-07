@@ -154,18 +154,16 @@ describe('StateLockManager', () => {
       expect(executionOrder).toEqual([1, 2, 3]);
     });
 
-    it('should handle queue timeout properly', async () => {
+    it('should handle queue timeout properly and reject queued promises', async () => {
       const resource = 'queue-timeout';
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       // First lock
       const firstRelease = await stateLockManager.acquire(resource, 500);
 
-      // Queue some locks with short timeout
-      const queuedPromises = [
-        stateLockManager.acquire(resource, 200),
-        stateLockManager.acquire(resource, 200)
-      ];
+      // Queue some locks - these should be rejected when timeout occurs
+      const queuedPromise1 = stateLockManager.acquire(resource, 200);
+      const queuedPromise2 = stateLockManager.acquire(resource, 200);
 
       // Wait for queue to build
       await vi.waitFor(() => {
@@ -179,6 +177,10 @@ describe('StateLockManager', () => {
       await vi.waitFor(() => {
         expect(stateLockManager.getQueueLength(resource)).toBe(0);
       });
+
+      // Queued promises should be rejected with timeout error
+      await expect(queuedPromise1).rejects.toThrow('Lock timeout for resource: queue-timeout');
+      await expect(queuedPromise2).rejects.toThrow('Lock timeout for resource: queue-timeout');
 
       expect(errorSpy).toHaveBeenCalledWith(
         expect.stringContaining('Lock queue cleared due to timeout')
@@ -453,16 +455,15 @@ describe('StateLockManager', () => {
     it('should handle mixed timeout scenarios', async () => {
       const resource = 'mixed-timeout-test';
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       // First lock with short timeout
       const firstRelease = await stateLockManager.acquire(resource, 100);
 
-      // Queue some with longer timeouts
-      const queuedPromises = [
-        stateLockManager.acquire(resource, 500),
-        stateLockManager.acquire(resource, 500),
-        stateLockManager.acquire(resource, 500)
-      ];
+      // Queue some with longer timeouts - these will be rejected when first lock times out
+      const queuedPromise1 = stateLockManager.acquire(resource, 500);
+      const queuedPromise2 = stateLockManager.acquire(resource, 500);
+      const queuedPromise3 = stateLockManager.acquire(resource, 500);
 
       // Wait for queue to build
       await vi.waitFor(() => {
@@ -479,7 +480,13 @@ describe('StateLockManager', () => {
         );
       });
 
+      // All queued promises should be rejected
+      await expect(queuedPromise1).rejects.toThrow('Lock timeout');
+      await expect(queuedPromise2).rejects.toThrow('Lock timeout');
+      await expect(queuedPromise3).rejects.toThrow('Lock timeout');
+
       warnSpy.mockRestore();
+      errorSpy.mockRestore();
     });
   });
 });

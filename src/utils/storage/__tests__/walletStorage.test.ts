@@ -229,7 +229,6 @@ describe('walletStorage.ts', () => {
         addressFormat: AddressFormat.P2WPKH,
         encryptedSecret: 'encrypted-secret',
         addressCount: 10,
-        previewAddress: 'bc1q...',
       };
 
       (addRecord as Mock).mockResolvedValue(undefined);
@@ -387,7 +386,6 @@ describe('walletStorage.ts', () => {
         ...wallet,
         name: 'Updated Lifecycle Test',
         addressCount: 5,
-        previewAddress: 'bc1q...',
       };
 
       (updateRecord as Mock).mockResolvedValue(undefined);

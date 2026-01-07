@@ -110,7 +110,6 @@ describe('WalletManager', () => {
           type: testWallet.type,
           addressFormat: testWallet.addressFormat,
           encryptedSecret: 'encrypted-data',
-          previewAddress: 'bc1qtest',
           addressCount: 1,
         },
       ]);
@@ -140,7 +139,6 @@ describe('WalletManager', () => {
           type: wallet.type,
           addressFormat: wallet.addressFormat,
           encryptedSecret: 'encrypted',
-          previewAddress: 'bc1qtest',
           addressCount: 1,
         },
       ]);
