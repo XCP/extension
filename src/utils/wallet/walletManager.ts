@@ -10,8 +10,8 @@ import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressForma
 import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';
 import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
-import { KeychainSettings, reencryptSensitiveSettings } from '@/utils/storage/settingsStorage';
-import { initializeSensitiveSettingsKey, clearSensitiveSettingsKey } from '@/utils/encryption/sensitiveSettings';
+import { reencryptSettings } from '@/utils/storage/settingsStorage';
+import { initializeSettingsKey, clearSettingsKey } from '@/utils/encryption/settingsEncryption';
 import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 
@@ -378,13 +378,16 @@ export class WalletManager {
         this.activeWalletId = walletId;
       }
 
-      // Initialize session with timeout from settings
+      // Initialize settings encryption key FIRST (before reading settings)
+      // This allows getSettings() to decrypt the encrypted settings blob
+      await initializeSettingsKey(password);
+
+      // Now we can read the real settings (will be decrypted)
       const settings = await settingsManager.getSettings();
       const timeout = settings?.autoLockTimeout || 5 * 60 * 1000; // Default 5 minutes
-      await sessionManager.initializeSession(timeout);
 
-      // Initialize sensitive settings encryption key
-      await initializeSensitiveSettingsKey(password);
+      // Initialize session with the actual timeout from settings
+      await sessionManager.initializeSession(timeout);
 
       // Set up session expiry alarm
       await this.scheduleSessionExpiry(timeout);
@@ -421,8 +424,8 @@ export class WalletManager {
     await sessionManager.clearAllUnlockedSecrets();
     this.wallets.forEach((wallet) => (wallet.addresses = []));
 
-    // Clear sensitive settings encryption key
-    await clearSensitiveSettingsKey();
+    // Clear settings encryption key
+    await clearSettingsKey();
 
     // Clear session expiry alarm
     if (chrome?.alarms) {
@@ -556,8 +559,8 @@ export class WalletManager {
     // Single batch write instead of N writes
     await updateEncryptedWallets(updatedRecords);
 
-    // Re-encrypt sensitive settings with new password
-    await reencryptSensitiveSettings(currentPassword, newPassword);
+    // Re-encrypt settings with new password
+    await reencryptSettings(currentPassword, newPassword);
 
     await this.lockAllWallets();
   }

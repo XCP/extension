@@ -4,6 +4,12 @@ import '@testing-library/jest-dom/vitest';
 import { Footer } from '../footer';
 import { SettingsProvider } from '@/contexts/settings-context';
 
+// Mock webext-bridge (required by settings-context)
+vi.mock('webext-bridge/popup', () => ({
+  sendMessage: vi.fn(),
+  onMessage: vi.fn().mockReturnValue(() => {}), // Return unsubscribe function
+}));
+
 // Mock React Router
 const mockNavigate = vi.fn();
 const mockLocation = { pathname: '/index' };

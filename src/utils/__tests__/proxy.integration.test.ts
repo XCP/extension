@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { defineProxyService } from '../proxy';
 
 // Mock Chrome API for integration test
 const mockChrome = {
@@ -28,8 +27,13 @@ describe('Proxy Service Integration', () => {
   let registerService: () => TestWalletService;
   let getService: () => TestWalletService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    // Reset module to clear registeredServices set between tests
+    vi.resetModules();
+
+    // Re-import the module fresh
+    const { defineProxyService } = await import('../proxy');
 
     // Create a mock service similar to what we have in the app
     mockWalletService = {

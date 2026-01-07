@@ -8,6 +8,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
+import { onMessage } from 'webext-bridge/popup';
 import {
   getKeychainSettings,
   updateKeychainSettings,
@@ -21,6 +22,7 @@ import {
 interface SettingsContextValue {
   settings: KeychainSettings;
   updateSettings: (newSettings: Partial<KeychainSettings>) => Promise<void>;
+  refreshSettings: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -48,6 +50,22 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
 
   useEffect(() => {
     loadSettings();
+
+    // Listen for wallet lock events from background
+    // When locked, settings encryption key is cleared, so reset to defaults
+    const handleLockMessage = ({ data }: { data: { locked: boolean } }) => {
+      if (data.locked) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[SettingsContext] Lock event - resetting to defaults');
+        }
+        setSettings({ ...DEFAULT_KEYCHAIN_SETTINGS });
+      }
+    };
+    const unsubscribe = onMessage('walletLocked', handleLockMessage);
+
+    return () => {
+      unsubscribe();
+    };
   }, [loadSettings]);
 
   const updateSettingsHandler = useCallback(async (newSettings: Partial<KeychainSettings>) => {
@@ -73,8 +91,9 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
   const contextValue = useMemo(() => ({
     settings,
     updateSettings: updateSettingsHandler,
+    refreshSettings: loadSettings,
     isLoading
-  }), [settings, updateSettingsHandler, isLoading]);
+  }), [settings, updateSettingsHandler, loadSettings, isLoading]);
 
   return (
     <SettingsContext value={contextValue}>

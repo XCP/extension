@@ -8,7 +8,9 @@ import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
 vi.mock('@/utils/storage/settingsStorage', () => ({
   getKeychainSettings: vi.fn(),
   updateKeychainSettings: vi.fn(),
+  SETTINGS_VERSION: 1,
   DEFAULT_KEYCHAIN_SETTINGS: {
+    version: 1,
     lastActiveWalletId: undefined,
     lastActiveAddress: undefined,
     autoLockTimeout: 5 * 60 * 1000, // 5 minutes
@@ -27,7 +29,8 @@ vi.mock('@/utils/storage/settingsStorage', () => ({
   }
 }));
 vi.mock('webext-bridge/popup', () => ({
-  sendMessage: vi.fn()
+  sendMessage: vi.fn(),
+  onMessage: vi.fn().mockReturnValue(() => {}), // Return unsubscribe function
 }));
 
 // Import the mocked functions

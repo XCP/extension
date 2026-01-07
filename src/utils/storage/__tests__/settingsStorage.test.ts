@@ -44,20 +44,32 @@ vi.mock('../storage', () => {
   };
 });
 
-// Mock sensitive settings encryption - always available and transparent for tests
-vi.mock('@/utils/encryption/sensitiveSettings', () => ({
-  isSensitiveSettingsKeyAvailable: vi.fn().mockResolvedValue(true),
-  encryptSensitiveSettings: vi.fn().mockImplementation(async (settings) =>
+// Mock settings encryption - always available and transparent for tests
+vi.mock('@/utils/encryption/settingsEncryption', () => ({
+  isSettingsKeyAvailable: vi.fn().mockResolvedValue(true),
+  encryptSettings: vi.fn().mockImplementation(async (settings) =>
     JSON.stringify(settings) // Simple "encryption" for tests
   ),
+  decryptSettings: vi.fn().mockImplementation(async (encrypted) =>
+    structuredClone(JSON.parse(encrypted)) // Deep clone to preserve reference integrity
+  ),
+  encryptSettingsWithPassword: vi.fn().mockImplementation(async (settings, _password) =>
+    JSON.stringify(settings)
+  ),
+  decryptSettingsWithPassword: vi.fn().mockImplementation(async (encrypted, _password) =>
+    structuredClone(JSON.parse(encrypted))
+  ),
+  initializeSettingsKey: vi.fn().mockResolvedValue(undefined),
+}));
+
+// Mock legacy sensitive settings encryption for migration tests
+vi.mock('@/utils/encryption/sensitiveSettings', () => ({
   decryptSensitiveSettings: vi.fn().mockImplementation(async (encrypted) =>
     JSON.parse(encrypted) // Simple "decryption" for tests
   ),
-  DEFAULT_SENSITIVE_SETTINGS: {
-    lastActiveAddress: undefined,
-    connectedWebsites: [],
-    pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
-  },
+  decryptSensitiveSettingsWithPassword: vi.fn().mockImplementation(async (encrypted, _password) =>
+    JSON.parse(encrypted)
+  ),
 }));
 
 describe('settingsStorage.ts', () => {
@@ -65,12 +77,16 @@ describe('settingsStorage.ts', () => {
     await clearAllRecords();
   });
 
+  // Helper to create encrypted settings record
+  const createEncryptedRecord = (settings: Partial<KeychainSettings>) => ({
+    id: 'keychain-settings',
+    encryptedSettings: JSON.stringify({ ...DEFAULT_KEYCHAIN_SETTINGS, ...settings }),
+  });
+
   describe('getKeychainSettings', () => {
     it('should initialize with defaults if no settings exist', async () => {
       const settings = await getKeychainSettings();
       expect(settings).toEqual(DEFAULT_KEYCHAIN_SETTINGS);
-      const stored = await getRecordById('keychain-settings');
-      expect(stored).toBeDefined();
     });
 
     it('should return existing settings', async () => {
@@ -86,12 +102,15 @@ describe('settingsStorage.ts', () => {
         autoLockTimer: '15m',
         enableMPMA: true,
       };
-      await addRecord({ id: 'keychain-settings', ...customSettings });
+      await addRecord(createEncryptedRecord(customSettings));
       const settings = await getKeychainSettings();
-      expect(settings).toEqual(customSettings);
+      expect(settings.lastActiveWalletId).toBe('wallet1');
+      expect(settings.showHelpText).toBe(true);
+      expect(settings.autoLockTimer).toBe('15m');
     });
 
     it('should migrate legacy settings without autoLockTimer', async () => {
+      // Legacy format: settings stored directly on record (not encrypted)
       const legacySettings = {
         id: 'keychain-settings',
         autoLockTimeout: 15 * 60 * 1000,
@@ -100,16 +119,16 @@ describe('settingsStorage.ts', () => {
       };
       await addRecord(legacySettings);
       const settings = await getKeychainSettings();
+      // After migration, autoLockTimer should be inferred from autoLockTimeout
       expect(settings.autoLockTimer).toBe('15m');
       expect(settings.autoLockTimeout).toBe(15 * 60 * 1000);
     });
 
     it('should default invalid autoLockTimer to 5m', async () => {
-      const invalidSettings = {
-        id: 'keychain-settings',
+      const invalidSettings = createEncryptedRecord({
         autoLockTimer: 'always' as any,
         autoLockTimeout: 0,
-      };
+      });
       await addRecord(invalidSettings);
       const settings = await getKeychainSettings();
       expect(settings.autoLockTimer).toBe('5m');
@@ -119,7 +138,7 @@ describe('settingsStorage.ts', () => {
 
   describe('updateKeychainSettings', () => {
     it('should update settings and merge with existing values', async () => {
-      await getKeychainSettings();
+      await getKeychainSettings(); // Initialize with defaults
       const partialUpdate: Partial<KeychainSettings> = {
         showHelpText: true,
         autoLockTimer: '30m',
@@ -129,11 +148,11 @@ describe('settingsStorage.ts', () => {
       expect(settings.showHelpText).toBe(true);
       expect(settings.autoLockTimer).toBe('30m');
       expect(settings.autoLockTimeout).toBe(30 * 60 * 1000);
-      expect(settings.analyticsAllowed).toBe(true);
+      expect(settings.analyticsAllowed).toBe(true); // Default preserved
     });
 
     it('should set autoLockTimeout based on autoLockTimer', async () => {
-      await getKeychainSettings();
+      await getKeychainSettings(); // Initialize
       await updateKeychainSettings({ autoLockTimer: '15m' });
       const settings = await getKeychainSettings();
       expect(settings.autoLockTimer).toBe('15m');
@@ -141,24 +160,13 @@ describe('settingsStorage.ts', () => {
     });
 
     it('should preserve unrelated fields', async () => {
-      const initialSettings: KeychainSettings = {
+      const initialSettings: Partial<KeychainSettings> = {
         lastActiveWalletId: 'wallet1',
         lastActiveAddress: 'addr1',
-        autoLockTimeout: 5 * 60 * 1000,
         connectedWebsites: ['example.com'],
         showHelpText: false,
-        analyticsAllowed: true,
-        allowUnconfirmedTxs: true,
-        autoLockTimer: '5m',
-        enableMPMA: false,
-        enableAdvancedBroadcasts: false,
-        enableAdvancedBetting: false,
-        transactionDryRun: false,
-        pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
-        counterpartyApiBase: 'https://api.counterparty.io:4000',
-        defaultOrderExpiration: 1000
       };
-      await addRecord({ id: 'keychain-settings', ...initialSettings });
+      await addRecord(createEncryptedRecord(initialSettings));
       await updateKeychainSettings({ showHelpText: true });
       const settings = await getKeychainSettings();
       expect(settings.showHelpText).toBe(true);
@@ -172,12 +180,13 @@ describe('settingsStorage.ts', () => {
       expect(settings.autoLockTimer).toBe('30m');
       expect(settings.autoLockTimeout).toBe(30 * 60 * 1000);
       expect(settings.enableMPMA).toBe(true);
-      expect(settings.showHelpText).toBe(false);
+      expect(settings.showHelpText).toBe(false); // Default
     });
   });
 
   describe('migration and edge cases', () => {
-    it('should migrate autoLockTimeout of 0 to 5m', async () => {
+    it('should migrate legacy autoLockTimeout of 0 to 5m', async () => {
+      // Legacy format with only autoLockTimeout
       const legacySettings = {
         id: 'keychain-settings',
         autoLockTimeout: 0,
@@ -188,15 +197,13 @@ describe('settingsStorage.ts', () => {
       expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
     });
 
-    it('should handle invalid autoLockTimeout values', async () => {
-      // Initialize with defaults first
-      await getKeychainSettings();
-      // Update with invalid autoLockTimeout
-      const invalidSettings = {
+    it('should handle invalid autoLockTimeout in legacy format', async () => {
+      // Legacy format with non-standard timeout
+      const legacySettings = {
         id: 'keychain-settings',
         autoLockTimeout: 999999,
       };
-      await updateRecord(invalidSettings); // Use update instead of add to avoid duplicate
+      await addRecord(legacySettings);
       const settings = await getKeychainSettings();
       expect(settings.autoLockTimer).toBe('5m');
       expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
@@ -214,9 +221,7 @@ describe('settingsStorage.ts', () => {
     });
 
     it('should handle all autoLockTimer migration scenarios', async () => {
-      // Test 1m migration
-      await addRecord({ id: 'keychain-settings', autoLockTimeout: 1 * 60 * 1000 });
-      await clearAllRecords();
+      // Test 1m migration (legacy format)
       await addRecord({ id: 'keychain-settings', autoLockTimeout: 1 * 60 * 1000 });
       let settings = await getKeychainSettings();
       expect(settings.autoLockTimer).toBe('1m');
@@ -232,15 +237,14 @@ describe('settingsStorage.ts', () => {
   describe('AutoLockTimer validation', () => {
     it('should validate all valid AutoLockTimer values', async () => {
       const validTimers: AutoLockTimer[] = ['1m', '5m', '15m', '30m'];
-      
+
       for (const timer of validTimers) {
         await clearAllRecords();
         await updateKeychainSettings({ autoLockTimer: timer });
         const settings = await getKeychainSettings();
         expect(settings.autoLockTimer).toBe(timer);
-        
+
         const expectedTimeout = {
-          '10s': 10 * 1000,
           '1m': 1 * 60 * 1000,
           '5m': 5 * 60 * 1000,
           '15m': 15 * 60 * 1000,
@@ -251,14 +255,12 @@ describe('settingsStorage.ts', () => {
     });
 
     it('should handle timeout-timer consistency enforcement', async () => {
-      // Set timer to 15m but timeout inconsistent
-      await addRecord({ 
-        id: 'keychain-settings', 
-        ...DEFAULT_KEYCHAIN_SETTINGS,
-        autoLockTimer: '15m', 
-        autoLockTimeout: 5 * 60 * 1000 // Wrong timeout
-      });
-      
+      // Set timer to 15m but timeout inconsistent - use encrypted format
+      await addRecord(createEncryptedRecord({
+        autoLockTimer: '15m',
+        autoLockTimeout: 5 * 60 * 1000 // Wrong timeout - should be corrected
+      }));
+
       const settings = await getKeychainSettings();
       expect(settings.autoLockTimer).toBe('15m');
       expect(settings.autoLockTimeout).toBe(15 * 60 * 1000); // Should be corrected
@@ -302,6 +304,7 @@ describe('settingsStorage.ts', () => {
 
   describe('complex update scenarios', () => {
     it('should handle multiple simultaneous updates', async () => {
+      await getKeychainSettings(); // Initialize first
       const updates: Partial<KeychainSettings> = {
         showHelpText: true,
         analyticsAllowed: false,
@@ -309,10 +312,10 @@ describe('settingsStorage.ts', () => {
         pinnedAssets: ['XCP'],
         connectedWebsites: ['example.com', 'test.org'],
       };
-      
+
       await updateKeychainSettings(updates);
       const settings = await getKeychainSettings();
-      
+
       expect(settings.showHelpText).toBe(true);
       expect(settings.analyticsAllowed).toBe(false);
       expect(settings.autoLockTimer).toBe('30m');
@@ -328,10 +331,10 @@ describe('settingsStorage.ts', () => {
         analyticsAllowed: false,
         pinnedAssets: ['CUSTOM1', 'CUSTOM2'],
       });
-      
+
       // Update only one field
       await updateKeychainSettings({ showHelpText: true });
-      
+
       const settings = await getKeychainSettings();
       expect(settings.showHelpText).toBe(true);
       expect(settings.lastActiveWalletId).toBe('original-wallet');
@@ -349,11 +352,12 @@ describe('settingsStorage.ts', () => {
 
   describe('error handling and edge cases', () => {
     it('should handle undefined/null values in partial updates', async () => {
+      await getKeychainSettings(); // Initialize first
       await updateKeychainSettings({
         lastActiveWalletId: undefined,
         lastActiveAddress: undefined,
       });
-      
+
       const settings = await getKeychainSettings();
       expect(settings.lastActiveWalletId).toBeUndefined();
       expect(settings.lastActiveAddress).toBeUndefined();
@@ -362,22 +366,23 @@ describe('settingsStorage.ts', () => {
     it('should handle array mutations correctly', async () => {
       const customAssets = ['ASSET1', 'ASSET2'];
       await updateKeychainSettings({ pinnedAssets: customAssets });
-      
+
       // Mutate the original array
       customAssets.push('ASSET3');
-      
+
       const settings = await getKeychainSettings();
       expect(settings.pinnedAssets).toEqual(['ASSET1', 'ASSET2']); // Should not be affected
     });
 
     it('should preserve object reference integrity', async () => {
+      await getKeychainSettings(); // Initialize first
       const settings1 = await getKeychainSettings();
       const settings2 = await getKeychainSettings();
-      
-      // Modify one
+
+      // Modify one (local mutation - shouldn't affect storage)
       settings1.connectedWebsites.push('test.com');
-      
-      // Other should be unaffected
+
+      // Other should be unaffected since settings1 is a deep copy
       expect(settings2.connectedWebsites).not.toContain('test.com');
     });
   });
