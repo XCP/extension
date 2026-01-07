@@ -12,8 +12,22 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { composeRequestStorage, type ComposeRequest } from '@/utils/storage/composeRequestStorage';
-import { eventEmitterService } from '@/services/eventEmitterService';
 import { getActiveComposeRequest } from '@/services/providerService';
+
+/**
+ * Send an event to the background script's EventEmitterService.
+ * This is necessary because the popup and background have separate instances.
+ */
+function emitToBackground(event: string, data: unknown): void {
+  chrome.runtime.sendMessage({
+    type: 'COMPOSE_EVENT',
+    event,
+    data
+  }).catch((error) => {
+    // Popup might be closing, which is fine
+    console.debug('Failed to emit compose event to background:', error);
+  });
+}
 
 export function useProviderRequest<T = any>(
   composeType: ComposeRequest['type']
@@ -79,8 +93,9 @@ export function useProviderRequest<T = any>(
   // Handle completion for provider requests
   const handleSuccess = async (result: any) => {
     if (composeRequestId) {
-      // Notify the provider that the compose is complete
-      eventEmitterService.emit(`compose-complete-${composeRequestId}`, result);
+      // Notify the background that the compose is complete
+      // Uses chrome.runtime.sendMessage to cross the context boundary
+      emitToBackground(`compose-complete-${composeRequestId}`, result);
 
       // Clean up the request
       await composeRequestStorage.remove(composeRequestId);
@@ -90,8 +105,9 @@ export function useProviderRequest<T = any>(
   // Handle cancellation for provider requests
   const handleCancel = async () => {
     if (composeRequestId) {
-      // Notify the provider that the compose was cancelled
-      eventEmitterService.emit(`compose-cancel-${composeRequestId}`, { reason: 'User cancelled' });
+      // Notify the background that the compose was cancelled
+      // Uses chrome.runtime.sendMessage to cross the context boundary
+      emitToBackground(`compose-cancel-${composeRequestId}`, { reason: 'User cancelled' });
 
       // Clean up the request
       await composeRequestStorage.remove(composeRequestId);

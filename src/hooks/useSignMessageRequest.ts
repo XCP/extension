@@ -11,7 +11,21 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { signMessageRequestStorage, type SignMessageRequest } from '@/utils/storage/signMessageRequestStorage';
-import { eventEmitterService } from '@/services/eventEmitterService';
+
+/**
+ * Send an event to the background script's EventEmitterService.
+ * This is necessary because the popup and background have separate instances.
+ */
+function emitToBackground(event: string, data: unknown): void {
+  chrome.runtime.sendMessage({
+    type: 'COMPOSE_EVENT',
+    event,
+    data
+  }).catch((error) => {
+    // Popup might be closing, which is fine
+    console.debug('Failed to emit sign message event to background:', error);
+  });
+}
 
 export function useSignMessageRequest() {
   const [searchParams] = useSearchParams();
@@ -60,8 +74,9 @@ export function useSignMessageRequest() {
   // Handle completion for provider requests
   const handleSuccess = async (result: { signature: string }) => {
     if (signMessageRequestId) {
-      // Notify the provider that the sign message is complete
-      eventEmitterService.emit(`sign-message-complete-${signMessageRequestId}`, result);
+      // Notify the background that the sign message is complete
+      // Uses chrome.runtime.sendMessage to cross the context boundary
+      emitToBackground(`sign-message-complete-${signMessageRequestId}`, result);
 
       // Clean up the request
       await signMessageRequestStorage.remove(signMessageRequestId);
@@ -71,8 +86,9 @@ export function useSignMessageRequest() {
   // Handle cancellation for provider requests
   const handleCancel = async () => {
     if (signMessageRequestId) {
-      // Notify the provider that the sign message was cancelled
-      eventEmitterService.emit(`sign-message-cancel-${signMessageRequestId}`, { reason: 'User cancelled' });
+      // Notify the background that the sign message was cancelled
+      // Uses chrome.runtime.sendMessage to cross the context boundary
+      emitToBackground(`sign-message-cancel-${signMessageRequestId}`, { reason: 'User cancelled' });
 
       // Clean up the request
       await signMessageRequestStorage.remove(signMessageRequestId);

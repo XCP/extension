@@ -51,23 +51,24 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
   }, [loadSettings]);
 
   const updateSettingsHandler = useCallback(async (newSettings: Partial<KeychainSettings>) => {
+    // Capture previous state for rollback
+    const previousSettings = settings;
+
     try {
       // Optimistically update state for instant UI response
       setSettings(prev => ({ ...prev, ...newSettings }));
-      
+
       // Persist to storage
       await updateKeychainSettings(newSettings);
     } catch (error) {
       console.error('Failed to persist settings:', error);
-      // Revert to previous state using functional update
-      setSettings(prev => {
-        // Remove the new settings by reloading from storage
-        loadSettings();
-        return prev; // Return current state while reload happens
-      });
+      // Immediately revert to previous state
+      setSettings(previousSettings);
+      // Also reload from storage to ensure consistency
+      loadSettings();
       throw error; // Re-throw to let component handle user feedback
     }
-  }, [loadSettings]);
+  }, [settings, loadSettings]);
 
   const contextValue = useMemo(() => ({
     settings,

@@ -36,6 +36,9 @@ interface ProxyResponse {
   error?: string;
 }
 
+// Track registered services to prevent duplicate listeners after service worker restarts
+const registeredServices = new Set<string>();
+
 /**
  * Creates a proxy service that can be registered in the background script
  * and accessed from other contexts.
@@ -62,6 +65,17 @@ export function defineProxyService<T extends Record<string, any>>(
       throw new Error(`[ProxyService] Chrome runtime not available for ${serviceName}`);
     }
 
+    // Prevent duplicate registration (can happen on service worker restart)
+    if (registeredServices.has(serviceName)) {
+      console.log(`[ProxyService] ${serviceName} already registered, skipping listener setup`);
+      // Still create new instance but don't add another listener
+      serviceInstance = factory();
+      return serviceInstance;
+    }
+
+    // Mark as registered before adding listener
+    registeredServices.add(serviceName);
+
     // Create service instance
     serviceInstance = factory();
 
@@ -82,21 +96,42 @@ export function defineProxyService<T extends Record<string, any>>(
         return true;
       }
 
-      // Execute the method
+      // Execute the method with timeout to prevent indefinite hangs
+      const PROXY_TIMEOUT = 30000; // 30 second timeout for proxy calls
+      let responded = false;
+
       const executeMethod = async () => {
         try {
           const result = await serviceInstance![methodName](...args);
-          sendResponse({
-            success: true,
-            result
-          } as ProxyResponse);
+          if (!responded) {
+            responded = true;
+            sendResponse({
+              success: true,
+              result
+            } as ProxyResponse);
+          }
         } catch (error) {
-          sendResponse({
-            success: false,
-            error: error instanceof Error ? error.message : String(error)
-          } as ProxyResponse);
+          if (!responded) {
+            responded = true;
+            sendResponse({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            } as ProxyResponse);
+          }
         }
       };
+
+      // Set up timeout to prevent indefinite waits
+      setTimeout(() => {
+        if (!responded) {
+          responded = true;
+          console.error(`[ProxyService] ${serviceName}.${methodName} timed out after ${PROXY_TIMEOUT}ms`);
+          sendResponse({
+            success: false,
+            error: `Request to ${serviceName}.${methodName} timed out after ${PROXY_TIMEOUT / 1000}s`
+          } as ProxyResponse);
+        }
+      }, PROXY_TIMEOUT);
 
       executeMethod();
       return true; // Keep message channel open for async response

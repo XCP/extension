@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useState,
+  useRef,
   type ReactElement,
   type ReactNode,
   use
@@ -141,10 +142,13 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     loaded: false,
   });
 
+  // Use ref to access current state without adding to dependency array
+  // This prevents stale closure issues and infinite re-renders
+  const walletStateRef = useRef(walletState);
+  walletStateRef.current = walletState;
+
   const refreshWalletState = useCallback(async () => {
     // Use proper locking instead of simple ref check
-    // Note: walletState in dependencies is intentional for reactive updates
-    // The change detection logic prevents infinite loops
     return withStateLock('wallet-refresh', async () => {
       try {
       if (process.env.NODE_ENV === 'development') {
@@ -153,8 +157,10 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
 
       await walletService.loadWallets();
       const allWallets = await walletService.getWallets();
-      
-      const newState: WalletState = { ...walletState };
+
+      // Use ref to get current state without triggering re-renders
+      const currentState = walletStateRef.current;
+      const newState: WalletState = { ...currentState };
 
       let walletsEqual = walletsEqualArray(newState.wallets, allWallets);
       let activeChanged = false;
@@ -177,9 +183,9 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         }
         newState.walletLocked = !anyUnlocked;
         newState.authState = newAuthState;
-        
+
         // Store for later use to avoid duplicate call
-        lockChanged = walletState.walletLocked !== !anyUnlocked;
+        lockChanged = currentState.walletLocked !== !anyUnlocked;
       }
 
       if (!walletsEqual) newState.wallets = allWallets;
@@ -216,14 +222,14 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       }
 
       newState.loaded = true;
-      if (!walletsEqual || activeChanged || addressChanged || lockChanged || !walletState.loaded) {
+      if (!walletsEqual || activeChanged || addressChanged || lockChanged || !currentState.loaded) {
         if (process.env.NODE_ENV === 'development') {
           console.log('[WalletContext] State update:', {
             walletsChanged: !walletsEqual,
             activeChanged,
             addressChanged,
             lockChanged,
-            firstLoad: !walletState.loaded,
+            firstLoad: !currentState.loaded,
             newAuthState: newState.authState
           });
         }
@@ -234,7 +240,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         setWalletState((prev) => ({ ...prev, loaded: true }));
       }
     });
-  }, [walletService, walletState]);
+  }, [walletService]); // Removed walletState - using ref instead to prevent stale closures
 
   useEffect(() => {
     // Simple delay to let background initialize, then rely on service-level error handling
@@ -302,14 +308,15 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
   const setActiveAddress = useCallback(
     async (address: Address | null) => {
       return withStateLock('wallet-set-address', async () => {
-        const oldAddress = walletState.activeAddress?.address;
+        // Use ref to get current address without stale closure
+        const oldAddress = walletStateRef.current.activeAddress?.address;
         const newAddress = address?.address;
-      
+
       // Handle address switch - emit accountsChanged to all connected sites
       if (oldAddress && newAddress && oldAddress !== newAddress) {
         // Get connected sites from settings
         const settings = await getKeychainSettings();
-        
+
         // Emit accountsChanged event to each connected site with new address
         // The wallet service proxy will handle the communication to background
         if (settings.connectedWebsites.length > 0) {
@@ -319,12 +326,12 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
           }
         }
       }
-        
+
         setWalletState((prev) => ({ ...prev, activeAddress: address }));
         if (address) await walletService.setLastActiveAddress(address.address);
       });
     },
-    [walletService, walletState.activeAddress]
+    [walletService]
   );
 
   const setLastActiveTime = useCallback(async () => {
@@ -332,10 +339,11 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
   }, [walletService]);
 
   const isWalletLocked = useCallback(async () => {
-    const activeWalletId = walletState.activeWallet?.id;
+    // Use ref to get current active wallet without stale closure
+    const activeWalletId = walletStateRef.current.activeWallet?.id;
     if (!activeWalletId) return true; // No active wallet means locked
     return !(await walletService.isAnyWalletUnlocked());
-  }, [walletService, walletState.activeWallet]);
+  }, [walletService]);
 
   const value: WalletContextType = {
     authState: walletState.authState,

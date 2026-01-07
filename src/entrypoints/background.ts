@@ -83,6 +83,18 @@ export default defineBackground(() => {
       return true;
     }
 
+    // Handle compose events from popup (cross-context event emission)
+    if (message?.type === 'COMPOSE_EVENT') {
+      const { event, data } = message;
+      if (event) {
+        eventEmitterService.emit(event, data);
+        sendResponse({ success: true });
+      } else {
+        sendResponse({ success: false, error: 'Event name required' });
+      }
+      return true;
+    }
+
     // Check for lastError to prevent console warnings
     if (chrome.runtime.lastError) {
       // Error already "checked" by accessing it
