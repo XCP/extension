@@ -5,6 +5,13 @@ import {
   getRecordById,
   StoredRecord,
 } from '@/utils/storage/storage';
+import {
+  SensitiveSettings,
+  DEFAULT_SENSITIVE_SETTINGS,
+  encryptSensitiveSettings,
+  decryptSensitiveSettings,
+  isSensitiveSettingsKeyAvailable,
+} from '@/utils/encryption/sensitiveSettings';
 
 /**
  * Defines the valid auto-lock timer options in minutes.
@@ -12,13 +19,11 @@ import {
 export type AutoLockTimer = '1m' | '5m' | '15m' | '30m';
 
 /**
- * Unified KeychainSettings interface for wallet configuration.
+ * Public settings that are safe to store unencrypted.
  */
-export interface KeychainSettings {
+export interface PublicSettings {
   lastActiveWalletId?: string;
-  lastActiveAddress?: string;
   autoLockTimeout: number; // in milliseconds
-  connectedWebsites: string[];
   showHelpText: boolean;
   analyticsAllowed: boolean;
   allowUnconfirmedTxs: boolean;
@@ -27,20 +32,34 @@ export interface KeychainSettings {
   enableAdvancedBroadcasts: boolean;
   enableAdvancedBetting: boolean;
   transactionDryRun: boolean;
-  pinnedAssets: string[];
   counterpartyApiBase: string;
   defaultOrderExpiration: number; // in blocks (default: 8064 = ~8 weeks)
-  hasVisitedRecoverBitcoin?: boolean; // Track if user has visited the recover bitcoin page
+  hasVisitedRecoverBitcoin?: boolean;
 }
 
 /**
- * Default settings for new installations.
+ * Unified KeychainSettings interface for wallet configuration.
+ * Combines public settings with sensitive settings.
  */
-export const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
+export interface KeychainSettings extends PublicSettings, SensitiveSettings {}
+
+/**
+ * Storage record structure with encrypted sensitive data.
+ */
+interface SettingsRecord extends StoredRecord, PublicSettings {
+  encryptedSensitiveData?: string;
+  // Legacy fields (for migration) - will be encrypted and removed
+  lastActiveAddress?: string;
+  connectedWebsites?: string[];
+  pinnedAssets?: string[];
+}
+
+/**
+ * Default public settings for new installations.
+ */
+const DEFAULT_PUBLIC_SETTINGS: PublicSettings = {
   lastActiveWalletId: undefined,
-  lastActiveAddress: undefined,
   autoLockTimeout: 5 * 60 * 1000, // 5 minutes default
-  connectedWebsites: [],
   showHelpText: false,
   analyticsAllowed: true,
   allowUnconfirmedTxs: true,
@@ -49,10 +68,17 @@ export const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
   enableAdvancedBroadcasts: false,
   enableAdvancedBetting: false,
   transactionDryRun: process.env.NODE_ENV === 'development',
-  pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
-  hasVisitedRecoverBitcoin: false,
   counterpartyApiBase: 'https://api.counterparty.io:4000',
   defaultOrderExpiration: 8064, // ~8 weeks (56 days) at 10min/block
+  hasVisitedRecoverBitcoin: false,
+};
+
+/**
+ * Combined default settings (for backward compatibility).
+ */
+export const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
+  ...DEFAULT_PUBLIC_SETTINGS,
+  ...DEFAULT_SENSITIVE_SETTINGS,
 };
 
 /**
@@ -61,28 +87,130 @@ export const DEFAULT_KEYCHAIN_SETTINGS: KeychainSettings = {
 const SETTINGS_RECORD_ID = 'keychain-settings';
 
 /**
+ * List of sensitive field names that should be encrypted.
+ */
+const SENSITIVE_FIELDS: (keyof SensitiveSettings)[] = [
+  'lastActiveAddress',
+  'connectedWebsites',
+  'pinnedAssets',
+];
+
+/**
  * Loads the keychain settings from storage.
- * Initializes with defaults if no settings exist.
+ * Sensitive settings are decrypted if the wallet is unlocked, otherwise defaults are used.
  *
  * @returns A Promise resolving to the KeychainSettings object.
  */
 export async function getKeychainSettings(): Promise<KeychainSettings> {
   const records = await getAllRecords();
-  let storedRecord = records.find((r) => r.id === SETTINGS_RECORD_ID) as
-    | StoredRecord & Partial<KeychainSettings>
-    | undefined;
+  let storedRecord = records.find((r) => r.id === SETTINGS_RECORD_ID) as SettingsRecord | undefined;
 
   if (!storedRecord) {
-    storedRecord = { id: SETTINGS_RECORD_ID, ...DEFAULT_KEYCHAIN_SETTINGS };
+    storedRecord = { id: SETTINGS_RECORD_ID, ...DEFAULT_PUBLIC_SETTINGS };
     await addRecord(storedRecord);
   }
 
-  const settings: KeychainSettings = {
-    ...DEFAULT_KEYCHAIN_SETTINGS,
-    ...storedRecord,
+  // Build public settings
+  const publicSettings: PublicSettings = {
+    lastActiveWalletId: storedRecord.lastActiveWalletId ?? DEFAULT_PUBLIC_SETTINGS.lastActiveWalletId,
+    autoLockTimeout: storedRecord.autoLockTimeout ?? DEFAULT_PUBLIC_SETTINGS.autoLockTimeout,
+    showHelpText: storedRecord.showHelpText ?? DEFAULT_PUBLIC_SETTINGS.showHelpText,
+    analyticsAllowed: storedRecord.analyticsAllowed ?? DEFAULT_PUBLIC_SETTINGS.analyticsAllowed,
+    allowUnconfirmedTxs: storedRecord.allowUnconfirmedTxs ?? DEFAULT_PUBLIC_SETTINGS.allowUnconfirmedTxs,
+    autoLockTimer: storedRecord.autoLockTimer ?? DEFAULT_PUBLIC_SETTINGS.autoLockTimer,
+    enableMPMA: storedRecord.enableMPMA ?? DEFAULT_PUBLIC_SETTINGS.enableMPMA,
+    enableAdvancedBroadcasts: storedRecord.enableAdvancedBroadcasts ?? DEFAULT_PUBLIC_SETTINGS.enableAdvancedBroadcasts,
+    enableAdvancedBetting: storedRecord.enableAdvancedBetting ?? DEFAULT_PUBLIC_SETTINGS.enableAdvancedBetting,
+    transactionDryRun: storedRecord.transactionDryRun ?? DEFAULT_PUBLIC_SETTINGS.transactionDryRun,
+    counterpartyApiBase: storedRecord.counterpartyApiBase ?? DEFAULT_PUBLIC_SETTINGS.counterpartyApiBase,
+    defaultOrderExpiration: storedRecord.defaultOrderExpiration ?? DEFAULT_PUBLIC_SETTINGS.defaultOrderExpiration,
+    hasVisitedRecoverBitcoin: storedRecord.hasVisitedRecoverBitcoin ?? DEFAULT_PUBLIC_SETTINGS.hasVisitedRecoverBitcoin,
   };
 
-  delete (settings as any).id;
+  // Get sensitive settings (decrypt if available, otherwise use defaults)
+  // Deep copy defaults to avoid shared array references
+  let sensitiveSettings: SensitiveSettings = {
+    lastActiveAddress: DEFAULT_SENSITIVE_SETTINGS.lastActiveAddress,
+    connectedWebsites: [...DEFAULT_SENSITIVE_SETTINGS.connectedWebsites],
+    pinnedAssets: [...DEFAULT_SENSITIVE_SETTINGS.pinnedAssets],
+  };
+
+  const keyAvailable = await isSensitiveSettingsKeyAvailable();
+
+  if (keyAvailable && storedRecord.encryptedSensitiveData) {
+    // Decrypt sensitive settings
+    try {
+      sensitiveSettings = await decryptSensitiveSettings(storedRecord.encryptedSensitiveData);
+    } catch (err) {
+      console.warn('Failed to decrypt sensitive settings, using defaults:', err);
+    }
+  } else if (!storedRecord.encryptedSensitiveData) {
+    // Migration: Check for legacy unencrypted sensitive fields
+    if (storedRecord.lastActiveAddress !== undefined ||
+        storedRecord.connectedWebsites !== undefined ||
+        storedRecord.pinnedAssets !== undefined) {
+      sensitiveSettings = {
+        lastActiveAddress: storedRecord.lastActiveAddress,
+        connectedWebsites: storedRecord.connectedWebsites ?? DEFAULT_SENSITIVE_SETTINGS.connectedWebsites,
+        pinnedAssets: storedRecord.pinnedAssets ?? DEFAULT_SENSITIVE_SETTINGS.pinnedAssets,
+      };
+
+      // If key is available, migrate by encrypting
+      if (keyAvailable) {
+        try {
+          await migrateLegacySensitiveSettings(storedRecord, sensitiveSettings);
+        } catch (err) {
+          console.warn('Failed to migrate sensitive settings:', err);
+        }
+      }
+    }
+  }
+
+  const settings: KeychainSettings = {
+    ...publicSettings,
+    ...sensitiveSettings,
+  };
+
+  // Handle migrations for autoLockTimer
+  await migrateAutoLockTimer(storedRecord, settings);
+
+  return settings;
+}
+
+/**
+ * Migrates legacy unencrypted sensitive fields to encrypted storage.
+ */
+async function migrateLegacySensitiveSettings(
+  record: SettingsRecord,
+  sensitiveSettings: SensitiveSettings
+): Promise<void> {
+  // Encrypt the sensitive settings
+  const encrypted = await encryptSensitiveSettings(sensitiveSettings);
+
+  // Update record: add encrypted data, remove legacy fields
+  const updatedRecord: SettingsRecord = {
+    ...record,
+    encryptedSensitiveData: encrypted,
+  };
+
+  // Remove legacy sensitive fields
+  delete updatedRecord.lastActiveAddress;
+  delete updatedRecord.connectedWebsites;
+  delete updatedRecord.pinnedAssets;
+
+  await updateRecord(updatedRecord);
+  console.log('Migrated sensitive settings to encrypted storage');
+}
+
+/**
+ * Handles autoLockTimer migration and validation.
+ */
+async function migrateAutoLockTimer(
+  storedRecord: SettingsRecord,
+  settings: KeychainSettings
+): Promise<void> {
+  let needsUpdate = false;
+  const updates: Partial<KeychainSettings> = {};
 
   // Migration: If no autoLockTimer in stored record, set based on autoLockTimeout
   if (!storedRecord.autoLockTimer) {
@@ -91,19 +219,21 @@ export async function getKeychainSettings(): Promise<KeychainSettings> {
     if ([1, 5, 15, 30].includes(minutes)) {
       settings.autoLockTimer = `${minutes}m` as AutoLockTimer;
     } else {
-      // Invalid or 0 -> default to 5m
       settings.autoLockTimer = '5m';
       settings.autoLockTimeout = 5 * 60 * 1000;
     }
-    // Persist migration
-    await updateKeychainSettings({ autoLockTimer: settings.autoLockTimer, autoLockTimeout: settings.autoLockTimeout }, settings);
+    updates.autoLockTimer = settings.autoLockTimer;
+    updates.autoLockTimeout = settings.autoLockTimeout;
+    needsUpdate = true;
   }
 
   // Handle invalid autoLockTimer
   if (!['1m', '5m', '15m', '30m'].includes(settings.autoLockTimer)) {
     settings.autoLockTimer = '5m';
     settings.autoLockTimeout = 5 * 60 * 1000;
-    await updateKeychainSettings({ autoLockTimer: '5m', autoLockTimeout: 5 * 60 * 1000 }, settings);
+    updates.autoLockTimer = '5m';
+    updates.autoLockTimeout = 5 * 60 * 1000;
+    needsUpdate = true;
   }
 
   // Ensure consistency between autoLockTimer and autoLockTimeout
@@ -113,53 +243,132 @@ export async function getKeychainSettings(): Promise<KeychainSettings> {
     '15m': 15 * 60 * 1000,
     '30m': 30 * 60 * 1000,
   }[settings.autoLockTimer];
+
   if (settings.autoLockTimeout !== expectedTimeout) {
     settings.autoLockTimeout = expectedTimeout;
-    await updateKeychainSettings({ autoLockTimeout: expectedTimeout }, settings);
+    updates.autoLockTimeout = expectedTimeout;
+    needsUpdate = true;
   }
 
-  return settings;
+  if (needsUpdate) {
+    await updateKeychainSettings(updates, settings);
+  }
 }
 
 /**
  * Updates the keychain settings by merging new settings with the current ones.
- * Adjusts autoLockTimeout based on autoLockTimer if provided.
+ * Sensitive settings are encrypted before storage.
  *
  * @param newSettings - Partial settings to update.
  * @param currentSettings - Optional current settings to avoid re-fetching (prevents recursion)
  * @returns A Promise that resolves when the update is complete.
  */
-export async function updateKeychainSettings(newSettings: Partial<KeychainSettings>, currentSettings?: KeychainSettings): Promise<void> {
+export async function updateKeychainSettings(
+  newSettings: Partial<KeychainSettings>,
+  currentSettings?: KeychainSettings
+): Promise<void> {
   const current = currentSettings || await getKeychainSettings();
   let updated: KeychainSettings = { ...current, ...newSettings };
 
+  // Handle autoLockTimer → autoLockTimeout sync
   if (newSettings.autoLockTimer) {
-    switch (newSettings.autoLockTimer) {
-      case '1m':
-        updated.autoLockTimeout = 1 * 60 * 1000;
-        break;
-      case '5m':
-        updated.autoLockTimeout = 5 * 60 * 1000;
-        break;
-      case '15m':
-        updated.autoLockTimeout = 15 * 60 * 1000;
-        break;
-      case '30m':
-        updated.autoLockTimeout = 30 * 60 * 1000;
-        break;
-    }
-    updated.autoLockTimer = newSettings.autoLockTimer;
+    const timeoutMap: Record<AutoLockTimer, number> = {
+      '1m': 1 * 60 * 1000,
+      '5m': 5 * 60 * 1000,
+      '15m': 15 * 60 * 1000,
+      '30m': 30 * 60 * 1000,
+    };
+    updated.autoLockTimeout = timeoutMap[newSettings.autoLockTimer];
   }
 
-  const updatedRecord: StoredRecord & KeychainSettings = {
+  // Check if we're updating sensitive fields
+  const hasSensitiveUpdates = SENSITIVE_FIELDS.some(
+    (field) => field in newSettings
+  );
+
+  // Build the storage record
+  const existingRecord = await getRecordById(SETTINGS_RECORD_ID) as SettingsRecord | undefined;
+
+  const updatedRecord: SettingsRecord = {
     id: SETTINGS_RECORD_ID,
-    ...updated,
+    // Public fields
+    lastActiveWalletId: updated.lastActiveWalletId,
+    autoLockTimeout: updated.autoLockTimeout,
+    showHelpText: updated.showHelpText,
+    analyticsAllowed: updated.analyticsAllowed,
+    allowUnconfirmedTxs: updated.allowUnconfirmedTxs,
+    autoLockTimer: updated.autoLockTimer,
+    enableMPMA: updated.enableMPMA,
+    enableAdvancedBroadcasts: updated.enableAdvancedBroadcasts,
+    enableAdvancedBetting: updated.enableAdvancedBetting,
+    transactionDryRun: updated.transactionDryRun,
+    counterpartyApiBase: updated.counterpartyApiBase,
+    defaultOrderExpiration: updated.defaultOrderExpiration,
+    hasVisitedRecoverBitcoin: updated.hasVisitedRecoverBitcoin,
+    // Preserve existing encrypted data unless we're updating sensitive fields
+    encryptedSensitiveData: existingRecord?.encryptedSensitiveData,
   };
 
-  const existingRecord = await getRecordById(SETTINGS_RECORD_ID);
+  // If updating sensitive fields, encrypt them
+  if (hasSensitiveUpdates) {
+    const keyAvailable = await isSensitiveSettingsKeyAvailable();
+    if (!keyAvailable) {
+      throw new Error('Cannot update sensitive settings when wallet is locked');
+    }
+
+    const sensitiveData: SensitiveSettings = {
+      lastActiveAddress: updated.lastActiveAddress,
+      connectedWebsites: updated.connectedWebsites,
+      pinnedAssets: updated.pinnedAssets,
+    };
+
+    updatedRecord.encryptedSensitiveData = await encryptSensitiveSettings(sensitiveData);
+  }
+
   if (existingRecord) {
     await updateRecord(updatedRecord);
   } else {
     await addRecord(updatedRecord);
   }
+}
+
+/**
+ * Re-encrypts sensitive settings with a new password.
+ * Called during password change.
+ */
+export async function reencryptSensitiveSettings(
+  oldPassword: string,
+  newPassword: string
+): Promise<void> {
+  const {
+    decryptSensitiveSettingsWithPassword,
+    encryptSensitiveSettingsWithPassword,
+    initializeSensitiveSettingsKey,
+  } = await import('@/utils/encryption/sensitiveSettings');
+
+  const record = await getRecordById(SETTINGS_RECORD_ID) as SettingsRecord | undefined;
+
+  if (!record?.encryptedSensitiveData) {
+    // No encrypted data to migrate
+    return;
+  }
+
+  // Decrypt with old password
+  const sensitiveData = await decryptSensitiveSettingsWithPassword(
+    record.encryptedSensitiveData,
+    oldPassword
+  );
+
+  // Re-encrypt with new password
+  const newEncrypted = await encryptSensitiveSettingsWithPassword(
+    sensitiveData,
+    newPassword
+  );
+
+  // Update storage
+  record.encryptedSensitiveData = newEncrypted;
+  await updateRecord(record);
+
+  // Update session key with new password
+  await initializeSensitiveSettingsKey(newPassword);
 }

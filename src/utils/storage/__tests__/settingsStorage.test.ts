@@ -44,6 +44,22 @@ vi.mock('../storage', () => {
   };
 });
 
+// Mock sensitive settings encryption - always available and transparent for tests
+vi.mock('@/utils/encryption/sensitiveSettings', () => ({
+  isSensitiveSettingsKeyAvailable: vi.fn().mockResolvedValue(true),
+  encryptSensitiveSettings: vi.fn().mockImplementation(async (settings) =>
+    JSON.stringify(settings) // Simple "encryption" for tests
+  ),
+  decryptSensitiveSettings: vi.fn().mockImplementation(async (encrypted) =>
+    JSON.parse(encrypted) // Simple "decryption" for tests
+  ),
+  DEFAULT_SENSITIVE_SETTINGS: {
+    lastActiveAddress: undefined,
+    connectedWebsites: [],
+    pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
+  },
+}));
+
 describe('settingsStorage.ts', () => {
   beforeEach(async () => {
     await clearAllRecords();

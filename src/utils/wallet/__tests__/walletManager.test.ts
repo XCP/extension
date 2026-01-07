@@ -15,6 +15,14 @@ vi.mock('@/utils/auth/sessionManager');
 vi.mock('@/utils/wallet/settingsManager');
 vi.mock('@/utils/storage/walletStorage');
 vi.mock('@/utils/encryption/walletEncryption');
+vi.mock('@/utils/encryption/sensitiveSettings');
+vi.mock('@/utils/storage/settingsStorage', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/storage/settingsStorage')>();
+  return {
+    ...actual,
+    reencryptSensitiveSettings: vi.fn().mockResolvedValue(undefined),
+  };
+});
 vi.mock('@/utils/blockchain/bitcoin/address');
 vi.mock('@/utils/blockchain/bitcoin/privateKey');
 vi.mock('@/utils/blockchain/bitcoin/messageSigner');
@@ -32,6 +40,7 @@ import { settingsManager } from '@/utils/wallet/settingsManager';
 import { getAllEncryptedWallets } from '@/utils/storage/walletStorage';
 import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { decryptMnemonic, decryptPrivateKey } from '@/utils/encryption/walletEncryption';
+import { initializeSensitiveSettingsKey, clearSensitiveSettingsKey } from '@/utils/encryption/sensitiveSettings';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import { bytesToHex } from '@noble/hashes/utils.js';

@@ -10,7 +10,8 @@ import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressForma
 import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';
 import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
-import { KeychainSettings } from '@/utils/storage/settingsStorage';
+import { KeychainSettings, reencryptSensitiveSettings } from '@/utils/storage/settingsStorage';
+import { initializeSensitiveSettingsKey, clearSensitiveSettingsKey } from '@/utils/encryption/sensitiveSettings';
 import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 
@@ -381,7 +382,10 @@ export class WalletManager {
       const settings = await settingsManager.getSettings();
       const timeout = settings?.autoLockTimeout || 5 * 60 * 1000; // Default 5 minutes
       await sessionManager.initializeSession(timeout);
-      
+
+      // Initialize sensitive settings encryption key
+      await initializeSensitiveSettingsKey(password);
+
       // Set up session expiry alarm
       await this.scheduleSessionExpiry(timeout);
     } catch (err) {
@@ -416,7 +420,10 @@ export class WalletManager {
   public async lockAllWallets(): Promise<void> {
     await sessionManager.clearAllUnlockedSecrets();
     this.wallets.forEach((wallet) => (wallet.addresses = []));
-    
+
+    // Clear sensitive settings encryption key
+    await clearSensitiveSettingsKey();
+
     // Clear session expiry alarm
     if (chrome?.alarms) {
       await chrome.alarms.clear('session-expiry');
@@ -548,6 +555,10 @@ export class WalletManager {
 
     // Single batch write instead of N writes
     await updateEncryptedWallets(updatedRecords);
+
+    // Re-encrypt sensitive settings with new password
+    await reencryptSensitiveSettings(currentPassword, newPassword);
+
     await this.lockAllWallets();
   }
 
