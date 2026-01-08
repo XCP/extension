@@ -4,8 +4,8 @@ import * as fc from 'fast-check';
 import '@testing-library/jest-dom/vitest';
 import { ErrorAlert } from '../error-alert';
 
-// Mock React Icons
-vi.mock('react-icons/io5', () => ({
+// Mock local icons
+vi.mock('@/components/icons', () => ({
   IoClose: ({ className, ...props }: any) => <div data-testid="close-icon" className={className} {...props} />
 }));
 

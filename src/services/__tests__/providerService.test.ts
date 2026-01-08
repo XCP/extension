@@ -35,8 +35,8 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 
 // Mock the imports
 vi.mock('../walletService');
-vi.mock('../connection');
-vi.mock('../approval');
+vi.mock('../connectionService');
+vi.mock('../approvalService');
 vi.mock('@/utils/storage/settingsStorage');
 vi.mock('@/utils/storage/composeRequestStorage');
 vi.mock('@/utils/storage/signMessageRequestStorage');

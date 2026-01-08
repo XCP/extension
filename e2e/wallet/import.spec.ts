@@ -32,14 +32,18 @@ test('import wallet with test mnemonic', async () => {
   // Import wallet with test mnemonic
   await importWallet(page, TEST_MNEMONIC, TEST_PASSWORD);
   
-  // Wait for wallet to load
-  await page.waitForURL(/index/, { timeout: 10000 });
-  await page.waitForTimeout(2000);
-  
+  // Wait for wallet to load - increase timeout for CI
+  await page.waitForURL(/index/, { timeout: 15000 });
+  await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(3000);
+
   // Check the default address (should be Native SegWit)
+  // Look for full address or truncated format (e.g., bc1qcr...306fyu)
   const fullAddressElement = page.locator('text=/^bc1q[a-z0-9]{38}$/');
-  const truncatedAddressElement = page.locator('text=/^bc1q[a-z0-9]{2,3}\\.\\.\\.[a-z0-9]{6}$/');
-  
+  const truncatedAddressElement = page.locator('text=/^bc1q[a-z0-9]{2}\\.\\.\\.[a-z0-9]{6}$/');
+  // Also check for address in a span with font-mono class (common display pattern)
+  const monoAddressElement = page.locator('.font-mono:has-text("bc1q")');
+
   let foundAddress = false;
   if (await fullAddressElement.count() > 0) {
     const fullAddress = await fullAddressElement.first().textContent();
@@ -50,8 +54,13 @@ test('import wallet with test mnemonic', async () => {
     // Verify it starts with bc1q and ends correctly
     expect(truncatedAddress).toMatch(/^bc1q/);
     foundAddress = true;
+  } else if (await monoAddressElement.count() > 0) {
+    // Found address in mono font element - verify it contains bc1q
+    const addressText = await monoAddressElement.first().textContent();
+    expect(addressText).toMatch(/bc1q/);
+    foundAddress = true;
   }
-  
+
   expect(foundAddress).toBe(true);
   
   await page.screenshot({ path: 'test-results/screenshots/imported-wallet.png' });

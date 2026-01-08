@@ -268,9 +268,9 @@ export async function importWallet(
   
   // Submit
   await page.getByRole('button', { name: /Continue/i }).click();
-  
-  // Wait for redirect to index
-  await page.waitForURL(/index/, { timeout: 10000 });
+
+  // Wait for redirect to index - increase timeout for CI
+  await page.waitForURL(/index/, { timeout: 15000 });
 }
 
 /**

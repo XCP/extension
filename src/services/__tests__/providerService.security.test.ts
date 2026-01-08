@@ -21,8 +21,8 @@ vi.mock('webext-bridge/background', () => ({
 vi.mock('../walletService');
 vi.mock('@/utils/storage/settingsStorage');
 vi.mock('@/utils/provider/rateLimiter');
-vi.mock('../connection');
-vi.mock('../approval');
+vi.mock('../connectionService');
+vi.mock('../approvalService');
 vi.mock('@/utils/storage/composeRequestStorage');
 
 // Mock CSP validation to avoid timeout issues

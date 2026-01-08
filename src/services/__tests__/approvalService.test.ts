@@ -19,7 +19,7 @@ const mockRequestManagerInstance = vi.hoisted(() => ({
   size: vi.fn().mockReturnValue(0),
 }));
 
-vi.mock('../../core/RequestManager', () => {
+vi.mock('../core/RequestManager', () => {
   return {
     RequestManager: class {
       createManagedPromise = mockRequestManagerInstance.createManagedPromise;

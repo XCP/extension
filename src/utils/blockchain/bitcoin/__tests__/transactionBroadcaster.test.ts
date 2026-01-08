@@ -10,7 +10,11 @@ vi.mock('@/utils/apiClient', () => ({
   withRetry: vi.fn((fn) => fn()),
   API_TIMEOUTS: {
     BROADCAST: 45000
-  }
+  },
+  isApiError: vi.fn((error: unknown): boolean => {
+    return error instanceof Error && 'response' in error;
+  }),
+  isCancel: vi.fn(() => false)
 }));
 
 

@@ -44,7 +44,9 @@ vi.mock('@/components/menus/asset-menu', () => ({
 
 vi.mock('@/components/icons', () => ({
   FaSearch: () => <div data-testid="search-icon" />,
-  FaTimes: () => <div data-testid="times-icon" />
+  FaTimes: () => <div data-testid="times-icon" />,
+  FiSearch: () => <div data-testid="search-icon" />,
+  FiX: () => <div data-testid="clear-icon" />
 }));
 
 vi.mock('@/components/asset-icon', () => ({
