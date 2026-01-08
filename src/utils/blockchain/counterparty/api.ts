@@ -1,4 +1,4 @@
-import { apiClient, API_TIMEOUTS } from '@/utils/axios';
+import { apiClient, API_TIMEOUTS } from '@/utils/apiClient';
 import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
 import { CounterpartyApiError } from '@/utils/blockchain/errors';
 import { formatAmount } from '@/utils/format';

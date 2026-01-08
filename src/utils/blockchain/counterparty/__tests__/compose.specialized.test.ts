@@ -12,7 +12,7 @@ import {
   composeTransaction
 } from '../compose';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
-import * as axiosUtils from '@/utils/axios';
+import * as apiClientUtils from '@/utils/apiClient';
 import {
   mockAddress,
   mockApiBase,
@@ -25,10 +25,10 @@ import {
 } from './helpers/composeTestHelpers';
 
 // Mock dependencies
-vi.mock('@/utils/axios');
+vi.mock('@/utils/apiClient');
 vi.mock('@/utils/storage/settingsStorage');
 
-const mockedApiClient = vi.mocked(axiosUtils.apiClient, true);
+const mockedApiClient = vi.mocked(apiClientUtils.apiClient, true);
 const mockedGetSettings = vi.mocked(settingsStorage.getSettings);
 
 describe('Compose Specialized Operations', () => {

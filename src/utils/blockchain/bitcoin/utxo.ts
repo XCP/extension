@@ -1,4 +1,4 @@
-import { apiClient, isCancel } from '@/utils/axios';
+import { apiClient, isCancel } from '@/utils/apiClient';
 import { getSettings } from '@/utils/storage/settingsStorage';
 
 /**

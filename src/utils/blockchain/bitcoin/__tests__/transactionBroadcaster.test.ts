@@ -2,9 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { broadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 import { getSettings, DEFAULT_SETTINGS } from '@/utils/storage/settingsStorage';
 
-vi.mock('axios');
 vi.mock('@/utils/storage/settingsStorage');
-vi.mock('@/utils/axios', () => ({
+vi.mock('@/utils/apiClient', () => ({
   apiClient: {
     post: vi.fn()
   },
@@ -16,7 +15,7 @@ vi.mock('@/utils/axios', () => ({
 
 
 // Import the mocked modules  
-import { apiClient } from '@/utils/axios';
+import { apiClient } from '@/utils/apiClient';
 const mockApiClient = apiClient as any;
 
 describe('Transaction Broadcaster Utilities', () => {

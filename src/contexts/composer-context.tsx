@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { isApiError } from "@/utils/axios";
+import { isApiError } from "@/utils/apiClient";
 import {
   createContext,
   use,

@@ -27,11 +27,11 @@ import {
 import * as formatUtils from '@/utils/format';
 import * as bitcoinBalance from '@/utils/blockchain/bitcoin/balance';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
-import { apiClient } from '@/utils/axios';
+import { apiClient } from '@/utils/apiClient';
 import { CounterpartyApiError } from '@/utils/blockchain/errors';
 
 // Mock dependencies
-vi.mock('@/utils/axios');
+vi.mock('@/utils/apiClient');
 vi.mock('@/utils/format');
 vi.mock('@/utils/blockchain/bitcoin/balance');
 vi.mock('@/utils/storage/settingsStorage');

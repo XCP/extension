@@ -1,4 +1,4 @@
-import { apiClient, withRetry, isApiError, type ApiResponse } from '@/utils/axios';
+import { apiClient, withRetry, isApiError, type ApiResponse } from '@/utils/apiClient';
 import { getSettings } from '@/utils/storage/settingsStorage';
 
 export interface TransactionResponse {

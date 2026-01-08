@@ -5,7 +5,7 @@ import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 
 // Mock the apiClient
-vi.mock('@/utils/axios', () => ({
+vi.mock('@/utils/apiClient', () => ({
   apiClient: {
     get: vi.fn()
   },
@@ -16,7 +16,7 @@ vi.mock('@/utils/axios', () => ({
 }));
 vi.mock('@/utils/storage/settingsStorage');
 
-import { apiClient } from '@/utils/axios';
+import { apiClient } from '@/utils/apiClient';
 const mockApiClient = apiClient as any;
 
 // Helper function to create a mock implementation that handles URLs

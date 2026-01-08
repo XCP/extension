@@ -1,5 +1,5 @@
 import { Transaction } from '@scure/btc-signer';
-import { apiClient } from '@/utils/axios';
+import { apiClient } from '@/utils/apiClient';
 import { hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 import { getSettings } from '@/utils/storage/settingsStorage';

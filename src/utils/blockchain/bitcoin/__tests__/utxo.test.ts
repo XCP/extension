@@ -6,9 +6,9 @@ import {
   getUtxoByTxid,
   fetchPreviousRawTransaction
 } from '@/utils/blockchain/bitcoin/utxo';
-import { apiClient, isCancel } from '@/utils/axios';
+import { apiClient, isCancel } from '@/utils/apiClient';
 
-vi.mock('@/utils/axios');
+vi.mock('@/utils/apiClient');
 vi.mock('@/utils/storage/settingsStorage');
 
 const mockApiClient = vi.mocked(apiClient, true);

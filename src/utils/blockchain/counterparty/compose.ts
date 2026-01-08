@@ -1,4 +1,4 @@
-import { apiClient } from '@/utils/axios';
+import { apiClient } from '@/utils/apiClient';
 import { getSettings } from '@/utils/storage/settingsStorage';
 
 export interface SignedTxEstimatedSize {
