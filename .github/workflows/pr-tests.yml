@@ -41,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4, 5]
 
     steps:
       - name: Checkout code
@@ -59,12 +59,12 @@ jobs:
       - name: Build extension
         run: npm run build
 
-      - name: Run unit tests (Shard ${{ matrix.shard }}/3)
+      - name: Run unit tests (Shard ${{ matrix.shard }}/5)
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           # Run tests, capturing exit code even if process crashes (OOM during teardown)
-          npx vitest run src --shard=${{ matrix.shard }}/3 --reporter=default --reporter=json --outputFile=test-results.json || true
+          npx vitest run src --shard=${{ matrix.shard }}/5 --reporter=default --reporter=json --outputFile=test-results.json || true
 
           # Check actual test results from JSON (handles OOM crashes during teardown)
           if [ -f test-results.json ]; then
