@@ -214,16 +214,22 @@ export class MessageBus {
     let lastError: Error | null = null;
     
     for (let attempt = 0; attempt <= retries; attempt++) {
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       try {
         const result = await Promise.race([
           bridgeSendMessage(message as string, data, target),
           new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error(`Message timeout after ${timeout}ms`)), timeout);
+            timeoutId = setTimeout(() => reject(new Error(`Message timeout after ${timeout}ms`)), timeout);
           })
         ]);
-        
+
+        // Clear timeout to prevent unhandled rejection when race settles
+        if (timeoutId) clearTimeout(timeoutId);
         return result;
       } catch (error) {
+        // Clear timeout to prevent unhandled rejection when race settles
+        if (timeoutId) clearTimeout(timeoutId);
+
         lastError = error as Error;
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (process.env.NODE_ENV === 'development') {
@@ -233,7 +239,7 @@ export class MessageBus {
             console.error('[MessageBus] Message failed:', message, 'to:', target, 'error:', errorMessage);
           }
         }
-        
+
         if (attempt < retries) {
           console.warn(`Message attempt ${attempt + 1} failed, retrying...`, error);
           await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1))); // Exponential backoff

@@ -62,12 +62,15 @@ describe('MessageBus', () => {
         mockSendMessage.mockRejectedValueOnce(new Error('Not ready'));
       }
 
-      const sendPromise = MessageBus.send('walletLocked', { locked: true }, 'background');
+      // Attach rejection handler BEFORE running timers to prevent unhandled rejection
+      const sendPromise = MessageBus.send('walletLocked', { locked: true }, 'background')
+        .catch((e: Error) => e);
 
       await vi.runAllTimersAsync();
 
-      // Await the rejection to handle it properly
-      await expect(sendPromise).rejects.toThrow('Background service worker not ready');
+      const error = await sendPromise;
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('Background service worker not ready');
     });
 
     it('should skip readiness check when skipReadinessCheck is true', async () => {
@@ -108,11 +111,14 @@ describe('MessageBus', () => {
         mockSendMessage.mockRejectedValueOnce(new Error('Not ready'));
       }
 
-      const promise1 = MessageBus.send('walletLocked', { locked: true }, 'background');
+      // Attach rejection handler BEFORE running timers to prevent unhandled rejection
+      const promise1 = MessageBus.send('walletLocked', { locked: true }, 'background')
+        .catch((e: Error) => e);
       await vi.runAllTimersAsync();
 
-      // Handle the rejection properly
-      await expect(promise1).rejects.toThrow('Background service worker not ready');
+      // Verify the rejection
+      const error = await promise1;
+      expect((error as Error).message).toBe('Background service worker not ready');
 
       // Reset and make it succeed
       mockSendMessage.mockReset();
@@ -193,14 +199,16 @@ describe('MessageBus', () => {
         .mockRejectedValueOnce(new Error('Persistent error'))
         .mockRejectedValueOnce(new Error('Persistent error'));
 
+      // Attach rejection handler BEFORE running timers to prevent unhandled rejection
       const sendPromise = MessageBus.send('walletLocked', { locked: true }, 'background', {
         retries: 2,
-      });
+      }).catch((e: Error) => e);
 
       await vi.runAllTimersAsync();
 
-      // Handle the rejection properly and verify the error
-      await expect(sendPromise).rejects.toThrow('Persistent error');
+      // Verify the rejection
+      const error = await sendPromise;
+      expect((error as Error).message).toBe('Persistent error');
       expect(mockSendMessage).toHaveBeenCalledTimes(3); // Initial + 2 retries
     });
 
