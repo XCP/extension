@@ -1,8 +1,16 @@
+import { TTLCache, CacheTTL } from '@/utils/cache';
+
 export interface FeeRates {
   fastestFee: number;
   halfHourFee: number;
   hourFee: number;
 }
+
+/**
+ * Cache for fee rates to reduce API calls.
+ * Fee rates change slowly (~10 min blocks) so 30 second cache is safe.
+ */
+const feeRateCache = new TTLCache<FeeRates>(CacheTTL.MEDIUM, (rates) => ({ ...rates }));
 
 /**
  * Fetch fee rates from mempool.space.
@@ -70,12 +78,19 @@ const feeRateFetchers: Array<() => Promise<FeeRates>> = [
 
 /**
  * Attempts to fetch fee rates from multiple APIs sequentially.
+ * Uses a 30-second cache to reduce API calls.
  * If no source returns valid data, an error is thrown.
  *
  * @returns {Promise<FeeRates>} The fee rates object.
  * @throws Error if all sources fail.
  */
 export const getFeeRates = async (): Promise<FeeRates> => {
+  // Check cache first (TTLCache.get() returns cloned data or null)
+  const cached = feeRateCache.get();
+  if (cached !== null) {
+    return cached;
+  }
+
   for (const fetcher of feeRateFetchers) {
     try {
       const rates = await fetcher();
@@ -85,7 +100,9 @@ export const getFeeRates = async (): Promise<FeeRates> => {
         typeof rates.halfHourFee === 'number' && !isNaN(rates.halfHourFee) &&
         typeof rates.hourFee === 'number' && !isNaN(rates.hourFee)
       ) {
-        return rates;
+        // Update cache
+        feeRateCache.set(rates);
+        return { ...rates };
       }
     } catch (error) {
       console.error(error);

@@ -1,6 +1,36 @@
 import axios from 'axios';
 import { apiClient } from '@/utils/axios';
-import { getKeychainSettings } from '@/utils/storage/settingsStorage';
+import { getSettings } from '@/utils/storage/settingsStorage';
+
+/**
+ * Bitcoin transaction details from the Counterparty API.
+ */
+export interface BitcoinTransaction {
+  hex: string;
+  txid: string;
+  version: number;
+  locktime: number;
+  size: number;
+  vsize: number;
+  weight: number;
+  vin: Array<{
+    txid: string;
+    vout: number;
+    scriptSig?: { asm: string; hex: string };
+    txinwitness?: string[];
+    sequence: number;
+  }>;
+  vout: Array<{
+    value: number;
+    n: number;
+    scriptPubKey: {
+      asm: string;
+      hex: string;
+      type: string;
+      address?: string;
+    };
+  }>;
+}
 
 /**
  * Interface representing an Unspent Transaction Output (UTXO).
@@ -71,12 +101,12 @@ export function getUtxoByTxid(utxos: UTXO[], txid: string, vout: number): UTXO |
  */
 export async function fetchPreviousRawTransaction(txid: string): Promise<string | null> {
   try {
-    const settings = await getKeychainSettings();
-    const response = await apiClient.get<{ result: any }>(
+    const settings = await getSettings();
+    const response = await apiClient.get<{ result: BitcoinTransaction }>(
       `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
     );
 
-    if (response.data && response.data.result && response.data.result.hasOwnProperty('hex') && response.data.result.hex !== undefined) {
+    if (typeof response.data?.result?.hex === 'string') {
       return response.data.result.hex;
     } else {
       console.error(`Raw transaction hex not found for txid: ${txid}`);
@@ -94,10 +124,10 @@ export async function fetchPreviousRawTransaction(txid: string): Promise<string 
  * @param txid - Transaction ID in hex.
  * @returns A promise that resolves to the Bitcoin transaction details or null if not found.
  */
-export async function fetchBitcoinTransaction(txid: string): Promise<any | null> {
+export async function fetchBitcoinTransaction(txid: string): Promise<BitcoinTransaction | null> {
   try {
-    const settings = await getKeychainSettings();
-    const response = await apiClient.get<{ result: any }>(
+    const settings = await getSettings();
+    const response = await apiClient.get<{ result: BitcoinTransaction }>(
       `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
     );
 

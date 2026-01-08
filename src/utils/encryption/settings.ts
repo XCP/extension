@@ -4,6 +4,32 @@
  * Uses AES-GCM with a key derived from the user's password.
  * The derived key is stored in session storage after unlock,
  * allowing settings to be encrypted/decrypted without re-entering password.
+ *
+ * ## Session Storage Threat Model
+ *
+ * **Storage Location**: `chrome.storage.session`
+ *
+ * **Security Properties**:
+ * - Cleared when browser closes (not persisted to disk in most cases)
+ * - Not accessible by web pages or other extensions
+ * - Isolated per extension
+ * - No sync to cloud (unlike chrome.storage.sync)
+ *
+ * **Threat Mitigations**:
+ * - Key is derived with 600K PBKDF2 iterations (brute force resistant)
+ * - Session clears on browser close (limits exposure window)
+ * - Only encryption key stored, never raw password
+ * - Auto-lock timer clears key after inactivity (1-30 min configurable)
+ *
+ * **Known Limitations** (see ADR-001 in sessionManager.ts):
+ * - Chrome may write session storage to disk for hibernation
+ * - Compromised browser/extension has full access
+ * - These are platform limitations, not fixable at application level
+ *
+ * **Why Session Storage (not Memory Only)**:
+ * - Service worker can restart, losing in-memory state
+ * - Session storage survives restarts within browser session
+ * - Better UX: user doesn't re-enter password after SW restart
  */
 
 import type { AppSettings } from '@/utils/storage/settingsStorage';
@@ -12,7 +38,7 @@ const SETTINGS_KEY = 'settingsEncryptionKey';
 const IV_BYTES = 12;
 const KEY_BITS = 256;
 const PBKDF2_ITERATIONS = 600_000;
-const SALT = 'xcp-wallet-settings-v2'; // Different salt from legacy sensitiveSettings
+const SALT = 'xcp-wallet-settings-v2';
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();

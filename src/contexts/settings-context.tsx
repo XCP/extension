@@ -10,18 +10,18 @@ import {
 } from "react";
 import { onMessage } from 'webext-bridge/popup';
 import {
-  getKeychainSettings,
-  updateKeychainSettings,
-  DEFAULT_KEYCHAIN_SETTINGS,
-  type KeychainSettings
+  getSettings,
+  updateSettings,
+  DEFAULT_SETTINGS,
+  type AppSettings
 } from "@/utils/storage/settingsStorage";
 
 /**
  * Context value for settings management.
  */
 interface SettingsContextValue {
-  settings: KeychainSettings;
-  updateSettings: (newSettings: Partial<KeychainSettings>) => Promise<void>;
+  settings: AppSettings;
+  updateSettings: (newSettings: Partial<AppSettings>) => Promise<void>;
   refreshSettings: () => Promise<void>;
   isLoading: boolean;
 }
@@ -35,13 +35,13 @@ const SettingsContext = createContext<SettingsContextValue | undefined>(undefine
  * @returns {ReactElement} Context provider
  */
 export function SettingsProvider({ children }: { children: ReactNode }): ReactElement {
-  const [settings, setSettings] = useState<KeychainSettings>(DEFAULT_KEYCHAIN_SETTINGS);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadSettings = useCallback(async () => {
     try {
       setIsLoading(true);
-      const storedSettings = await getKeychainSettings();
+      const storedSettings = await getSettings();
       setSettings(storedSettings);
     } finally {
       setIsLoading(false);
@@ -58,7 +58,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
         if (process.env.NODE_ENV === 'development') {
           console.log('[SettingsContext] Lock event - resetting to defaults');
         }
-        setSettings({ ...DEFAULT_KEYCHAIN_SETTINGS });
+        setSettings({ ...DEFAULT_SETTINGS });
       }
     };
     const unsubscribe = onMessage('walletLocked', handleLockMessage);
@@ -68,7 +68,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
     };
   }, [loadSettings]);
 
-  const updateSettingsHandler = useCallback(async (newSettings: Partial<KeychainSettings>) => {
+  const updateSettingsHandler = useCallback(async (newSettings: Partial<AppSettings>) => {
     // Capture previous state for rollback
     const previousSettings = settings;
 
@@ -77,7 +77,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
       setSettings(prev => ({ ...prev, ...newSettings }));
 
       // Persist to storage
-      await updateKeychainSettings(newSettings);
+      await updateSettings(newSettings);
     } catch (error) {
       console.error('Failed to persist settings:', error);
       // Immediately revert to previous state

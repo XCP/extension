@@ -16,7 +16,7 @@ import type { ApprovalRequest } from '@/utils/provider/approvalQueue';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
 import { analytics } from '@/utils/fathom';
 import { analyzeCSP } from '@/utils/security/cspValidation';
-import { composeRequestStorage } from '@/utils/storage/composeRequestStorage';
+import { composeRequestStorage, type ComposeRequest } from '@/utils/storage/composeRequestStorage';
 import { signMessageRequestStorage } from '@/utils/storage/signMessageRequestStorage';
 import { getUpdateService } from '@/services/updateService';
 import type {
@@ -32,25 +32,41 @@ import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } fro
 const activeComposeRequests = new Map<string, any>();
 const activeSignRequests = new Map<string, any>();
 
-// Auto-cleanup old requests every minute
-setInterval(() => {
-  const now = Date.now();
-  const maxAge = 10 * 60 * 1000; // 10 minutes
+// Auto-cleanup old requests every minute - store interval ID for cleanup
+let cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
 
-  for (const [id, request] of activeComposeRequests.entries()) {
-    if (now - request.timestamp > maxAge) {
-      activeComposeRequests.delete(id);
-      console.log('Cleaned up stale compose request:', id);
-    }
-  }
+function startCleanupInterval(): void {
+  if (cleanupIntervalId) return; // Already running
 
-  for (const [id, request] of activeSignRequests.entries()) {
-    if (now - request.timestamp > maxAge) {
-      activeSignRequests.delete(id);
-      console.log('Cleaned up stale sign request:', id);
+  cleanupIntervalId = setInterval(() => {
+    const now = Date.now();
+    const maxAge = 10 * 60 * 1000; // 10 minutes
+
+    for (const [id, request] of activeComposeRequests.entries()) {
+      if (now - request.timestamp > maxAge) {
+        activeComposeRequests.delete(id);
+        console.log('Cleaned up stale compose request:', id);
+      }
     }
+
+    for (const [id, request] of activeSignRequests.entries()) {
+      if (now - request.timestamp > maxAge) {
+        activeSignRequests.delete(id);
+        console.log('Cleaned up stale sign request:', id);
+      }
+    }
+  }, 60000);
+}
+
+function stopCleanupInterval(): void {
+  if (cleanupIntervalId) {
+    clearInterval(cleanupIntervalId);
+    cleanupIntervalId = null;
   }
-}, 60000);
+}
+
+// Start cleanup interval immediately
+startCleanupInterval();
 
 // Export getters for other modules to access in-memory requests
 export function getActiveComposeRequest(id: string) {
@@ -140,7 +156,7 @@ export function createProviderService(): ProviderService {
   async function handleComposeRequest<T = unknown>(
     origin: string,
     params: ProviderRequestParams,
-    composeType: string,
+    composeType: ComposeRequest['type'],
     errorMessage: string,
     routePath: string,
     validator?: (params: unknown) => params is T
@@ -170,9 +186,9 @@ export function createProviderService(): ProviderService {
 
     // Store the compose request in-memory (primary storage, fast)
     const composeRequestId = `compose-${composeType}-${Date.now()}`;
-    const request = {
+    const request: ComposeRequest = {
       id: composeRequestId,
-      type: composeType as any,
+      type: composeType,
       origin,
       params: {
         ...requestParams,
@@ -897,7 +913,9 @@ export function createProviderService(): ProviderService {
    */
   async function destroy(): Promise<void> {
     console.log('Destroying ProviderService...');
-    // Services are managed by ServiceRegistry and will be destroyed there
+    stopCleanupInterval();
+    activeComposeRequests.clear();
+    activeSignRequests.clear();
   }
   
   // Register the pending request resolver with event emitter service

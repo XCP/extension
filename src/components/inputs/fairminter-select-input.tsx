@@ -7,7 +7,7 @@ import {
   ComboboxOption,
 } from "@headlessui/react";
 import { FiChevronDown, FiCheck } from "react-icons/fi";
-import { getKeychainSettings } from '@/utils/storage/settingsStorage';
+import { getSettings } from '@/utils/storage/settingsStorage';
 import { formatAmount } from '@/utils/format';
 
 export interface Fairminter {
@@ -53,7 +53,7 @@ export function FairminterSelectInput({
       setError(null);
       
       try {
-        const settings = await getKeychainSettings();
+        const settings = await getSettings();
         // Fetch fairminters with status "open"
         const response = await fetch(`${settings.counterpartyApiBase}/v2/fairminters?status=open&verbose=true`);
         

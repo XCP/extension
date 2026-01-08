@@ -12,15 +12,20 @@ import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 // Mock all external dependencies
 vi.mock('@/utils/auth/sessionManager');
-vi.mock('@/utils/wallet/settingsManager');
 vi.mock('@/utils/storage/walletStorage');
 vi.mock('@/utils/encryption/walletEncryption');
-vi.mock('@/utils/encryption/sensitiveSettings');
+vi.mock('@/utils/encryption/settings');
 vi.mock('@/utils/storage/settingsStorage', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/utils/storage/settingsStorage')>();
   return {
     ...actual,
-    reencryptSensitiveSettings: vi.fn().mockResolvedValue(undefined),
+    getSettings: vi.fn().mockResolvedValue({
+      lastActiveWalletId: null,
+      autoLockTimeout: 5 * 60 * 1000,
+      autoLockTimer: '5m',
+    }),
+    updateSettings: vi.fn().mockResolvedValue(undefined),
+    reencryptSettings: vi.fn().mockResolvedValue(undefined),
   };
 });
 vi.mock('@/utils/blockchain/bitcoin/address');
@@ -36,11 +41,11 @@ vi.mock('@scure/bip39');
 
 // Import modules to get access to mocked functions
 import * as sessionManager from '@/utils/auth/sessionManager';
-import { settingsManager } from '@/utils/wallet/settingsManager';
+import { getSettings, updateSettings } from '@/utils/storage/settingsStorage';
 import { getAllEncryptedWallets } from '@/utils/storage/walletStorage';
 import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { decryptMnemonic, decryptPrivateKey } from '@/utils/encryption/walletEncryption';
-import { initializeSensitiveSettingsKey, clearSensitiveSettingsKey } from '@/utils/encryption/sensitiveSettings';
+import { initializeSettingsKey, clearSettingsKey } from '@/utils/encryption/settings';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import { bytesToHex } from '@noble/hashes/utils.js';
@@ -72,11 +77,10 @@ describe('WalletManager', () => {
     vi.mocked(sessionManager.clearUnlockedSecret).mockImplementation(mocks.sessionManager.clearUnlockedSecret);
     vi.mocked(sessionManager.clearAllUnlockedSecrets).mockImplementation(mocks.sessionManager.clearAllUnlockedSecrets);
     vi.mocked(sessionManager.initializeSession).mockImplementation(mocks.sessionManager.initializeSession || vi.fn().mockResolvedValue(undefined));
-    
-    vi.mocked(settingsManager.loadSettings).mockImplementation(mocks.settingsManager.loadSettings);
-    vi.mocked(settingsManager.updateSettings).mockImplementation(mocks.settingsManager.updateSettings);
-    vi.mocked(settingsManager.getSettings).mockImplementation(mocks.settingsManager.getSettings || vi.fn().mockReturnValue({ autoLockTimeout: 5 * 60 * 1000 }));
-    
+
+    vi.mocked(getSettings).mockImplementation(mocks.settingsStorage.getSettings);
+    vi.mocked(updateSettings).mockImplementation(mocks.settingsStorage.updateSettings);
+
     vi.mocked(getAllEncryptedWallets).mockImplementation(mocks.walletStorage.getAllEncryptedWallets);
     vi.mocked(getAddressFromMnemonic).mockImplementation(mocks.bitcoin.getAddressFromMnemonic);
     vi.mocked(getDerivationPathForAddressFormat).mockImplementation(mocks.bitcoin.getDerivationPathForAddressFormat);
@@ -142,8 +146,10 @@ describe('WalletManager', () => {
           addressCount: 1,
         },
       ]);
-      mocks.settingsManager.loadSettings.mockResolvedValue({
+      mocks.settingsStorage.getSettings.mockResolvedValue({
         lastActiveWalletId: wallet.id,
+        autoLockTimeout: 5 * 60 * 1000,
+        autoLockTimer: '5m',
       });
 
       await walletManager.loadWallets();
@@ -307,7 +313,7 @@ describe('WalletManager', () => {
       
       // Mock successful unlock
       mocks.encryption.decryptMnemonic.mockResolvedValue('test mnemonic');
-      mocks.settingsManager.getSettings.mockReturnValue({ autoLockTimeout: 5 * 60 * 1000 });
+      mocks.settingsStorage.getSettings.mockResolvedValue({ autoLockTimeout: 5 * 60 * 1000 });
       mocks.sessionManager.initializeSession.mockResolvedValue(undefined);
       mocks.sessionManager.storeUnlockedSecret.mockImplementation(() => {});
       mocks.bitcoin.getAddressFromMnemonic.mockReturnValue('test-address');
@@ -362,8 +368,8 @@ describe('WalletManager', () => {
       vi.mocked(mnemonicToSeedSync).mockReturnValue(Buffer.from('test-seed'));
       vi.mocked(bytesToHex).mockReturnValue('test-pubkey-hex');
       
-      // Mock settings returning null
-      mocks.settingsManager.getSettings.mockReturnValue(null);
+      // Mock settings returning null/empty
+      mocks.settingsStorage.getSettings.mockResolvedValue({});
       mocks.encryption.decryptMnemonic.mockResolvedValue('test mnemonic');
       mocks.sessionManager.initializeSession.mockResolvedValue(undefined);
       mocks.sessionManager.storeUnlockedSecret.mockImplementation(() => {});

@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import axios from 'axios';
-import { 
-  composeIssuance, 
-  composeDestroy, 
+import {
+  composeIssuance,
+  composeDestroy,
   composeDividend,
   getDividendEstimateXcpFee,
-  composeBurn 
+  composeBurn
 } from '../compose';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
+import * as axiosUtils from '@/utils/axios';
 import {
   mockAddress,
   mockApiBase,
@@ -21,17 +21,17 @@ import {
 } from './helpers/composeTestHelpers';
 
 // Mock dependencies
-vi.mock('axios');
+vi.mock('@/utils/axios');
 vi.mock('@/utils/storage/settingsStorage');
 
-const mockedAxios = vi.mocked(axios, true);
-const mockedGetKeychainSettings = vi.mocked(settingsStorage.getKeychainSettings);
+const mockedApiClient = vi.mocked(axiosUtils.apiClient, true);
+const mockedGetSettings = vi.mocked(settingsStorage.getSettings);
 
 describe('Compose Asset Management Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedGetKeychainSettings.mockResolvedValue(mockSettings as any);
-    mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+    mockedGetSettings.mockResolvedValue(mockSettings as any);
+    mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
   });
 
   describe('composeIssuance', () => {
@@ -52,7 +52,7 @@ describe('Compose Asset Management Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'issuance', defaultParams);
+      assertComposeUrlCalled(mockedApiClient, 'issuance', defaultParams);
     });
 
     it('should include optional parameters', async () => {
@@ -71,7 +71,7 @@ describe('Compose Asset Management Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0];
       const actualUrl = actualCall[0];
       expect(actualUrl).toContain('transfer_destination=bc1qtransferaddr');
       expect(actualUrl).toContain('divisible=true');
@@ -94,7 +94,7 @@ describe('Compose Asset Management Operations', () => {
         sat_per_vbyte: mockSatPerVbyte,
         ...subassetParams,
       });
-      assertComposeUrlCalled(mockedAxios, 'issuance', subassetParams);
+      assertComposeUrlCalled(mockedApiClient, 'issuance', subassetParams);
     });
 
     it('should handle numeric asset issuance', async () => {
@@ -112,7 +112,7 @@ describe('Compose Asset Management Operations', () => {
         sat_per_vbyte: mockSatPerVbyte,
         ...numericParams,
       });
-      assertComposeUrlCalled(mockedAxios, 'issuance', numericParams);
+      assertComposeUrlCalled(mockedApiClient, 'issuance', numericParams);
     });
 
     it('should handle locking an asset', async () => {
@@ -133,7 +133,7 @@ describe('Compose Asset Management Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0];
       const actualUrl = actualCall[0];
       expect(actualUrl).toContain('lock=true');
       expect(actualUrl).toContain('quantity=0');
@@ -148,7 +148,7 @@ describe('Compose Asset Management Operations', () => {
         reset: false,
         description: '',
       };
-      
+
       const optionalParams = {
         transfer_destination: 'bc1qnewowner',
       };
@@ -160,7 +160,7 @@ describe('Compose Asset Management Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0];
       const actualUrl = actualCall[0];
       expect(actualUrl).toContain('transfer_destination=bc1qnewowner');
       expect(actualUrl).toContain('quantity=0');
@@ -181,7 +181,7 @@ describe('Compose Asset Management Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'destroy', defaultParams);
+      assertComposeUrlCalled(mockedApiClient, 'destroy', defaultParams);
     });
 
     it('should include optional parameters', async () => {
@@ -197,26 +197,26 @@ describe('Compose Asset Management Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0];
       const actualUrl = actualCall[0];
       expect(actualUrl).toContain('tag=destruction-tag');
     });
 
     it('should handle destroying different assets', async () => {
       const assets = [testAssets.XCP, testAssets.DIVISIBLE, testAssets.INDIVISIBLE];
-      
+
       for (const asset of assets) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        
+        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+
         const params = { ...defaultParams, asset };
         await composeDestroy({
           sourceAddress: mockAddress,
           sat_per_vbyte: mockSatPerVbyte,
           ...params,
         });
-        
-        const actualCall = mockedAxios.get.mock.calls[0];
+
+        const actualCall = mockedApiClient.get.mock.calls[0];
         const actualUrl = actualCall[0];
         expect(actualUrl).toContain(`asset=${asset}`);
       }
@@ -224,19 +224,19 @@ describe('Compose Asset Management Operations', () => {
 
     it('should handle different quantities', async () => {
       const quantities = [100, 1000000, 1000000000];
-      
+
       for (const quantity of quantities) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        
+        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+
         const params = { ...defaultParams, quantity };
         await composeDestroy({
           sourceAddress: mockAddress,
           sat_per_vbyte: mockSatPerVbyte,
           ...params,
         });
-        
-        const actualCall = mockedAxios.get.mock.calls[0];
+
+        const actualCall = mockedApiClient.get.mock.calls[0];
         const actualUrl = actualCall[0];
         expect(actualUrl).toContain(`quantity=${quantity}`);
       }
@@ -258,7 +258,7 @@ describe('Compose Asset Management Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'dividend', defaultParams);
+      assertComposeUrlCalled(mockedApiClient, 'dividend', defaultParams);
     });
 
     it('should include optional parameters', async () => {
@@ -273,7 +273,7 @@ describe('Compose Asset Management Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0];
       const actualUrl = actualCall[0];
     });
 
@@ -289,24 +289,24 @@ describe('Compose Asset Management Operations', () => {
         sat_per_vbyte: mockSatPerVbyte,
         ...btcDividendParams,
       });
-      assertComposeUrlCalled(mockedAxios, 'dividend', btcDividendParams);
+      assertComposeUrlCalled(mockedApiClient, 'dividend', btcDividendParams);
     });
 
     it('should handle different dividend rates', async () => {
       const rates = [10, 100, 1000, 10000];
-      
+
       for (const quantity_per_unit of rates) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        
+        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+
         const params = { ...defaultParams, quantity_per_unit };
         await composeDividend({
           sourceAddress: mockAddress,
           sat_per_vbyte: mockSatPerVbyte,
           ...params,
         });
-        
-        const actualCall = mockedAxios.get.mock.calls[0];
+
+        const actualCall = mockedApiClient.get.mock.calls[0];
         const actualUrl = actualCall[0];
         expect(actualUrl).toContain(`quantity_per_unit=${quantity_per_unit}`);
       }
@@ -315,21 +315,20 @@ describe('Compose Asset Management Operations', () => {
 
   describe('getDividendEstimateXcpFee', () => {
     it('should get dividend fee estimate', async () => {
-      const mockFeeEstimate = { result: 50000000 };
-      mockedAxios.get.mockResolvedValueOnce({ data: mockFeeEstimate });
+      mockedApiClient.get.mockResolvedValueOnce(createMockApiResponse({ result: 50000000 }));
 
       const result = await getDividendEstimateXcpFee(mockAddress, 'SHARETOKEN');
 
       expect(result).toBe(50000000);
-      
+
       const expectedUrl = `${mockApiBase}/v2/addresses/${mockAddress}/compose/dividend/estimatexcpfees`;
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0];
       expect(actualCall[0]).toContain(expectedUrl);
       expect(actualCall[0]).toContain('asset=SHARETOKEN');
     });
 
     it('should handle fee estimation errors', async () => {
-      mockedAxios.get.mockRejectedValueOnce(new Error('Fee estimation failed'));
+      mockedApiClient.get.mockRejectedValueOnce(new Error('Fee estimation failed'));
 
       await expect(
         getDividendEstimateXcpFee(mockAddress, 'SHARETOKEN')
@@ -350,7 +349,7 @@ describe('Compose Asset Management Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'burn', defaultParams);
+      assertComposeUrlCalled(mockedApiClient, 'burn', defaultParams);
     });
 
     it('should include optional parameters', async () => {
@@ -365,24 +364,24 @@ describe('Compose Asset Management Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedAxios.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0];
       const actualUrl = actualCall[0];
     });
 
     it('should handle different burn amounts', async () => {
       const amounts = [100000, 1000000, 10000000, 100000000];
-      
+
       for (const quantity of amounts) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        
+        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+
         await composeBurn({
           sourceAddress: mockAddress,
           sat_per_vbyte: mockSatPerVbyte,
           quantity,
         });
-        
-        const actualCall = mockedAxios.get.mock.calls[0];
+
+        const actualCall = mockedApiClient.get.mock.calls[0];
         const actualUrl = actualCall[0];
         expect(actualUrl).toContain(`quantity=${quantity}`);
       }
@@ -390,8 +389,8 @@ describe('Compose Asset Management Operations', () => {
 
     it('should handle minimum burn amount error', async () => {
       const smallAmount = { quantity: 100 }; // Too small
-      
-      mockedAxios.get.mockRejectedValueOnce(new Error('Burn amount below minimum'));
+
+      mockedApiClient.get.mockRejectedValueOnce(new Error('Burn amount below minimum'));
 
       await expect(
         composeBurn({
@@ -403,7 +402,7 @@ describe('Compose Asset Management Operations', () => {
     });
 
     it('should handle insufficient BTC error', async () => {
-      mockedAxios.get.mockRejectedValueOnce(new Error('Insufficient BTC for burn'));
+      mockedApiClient.get.mockRejectedValueOnce(new Error('Insufficient BTC for burn'));
 
       await expect(
         composeBurn({

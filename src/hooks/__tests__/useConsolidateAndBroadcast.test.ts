@@ -26,7 +26,7 @@ vi.mock('@/services/walletService', () => ({
 
 // Mock storage API
 vi.mock('@/utils/storage/settingsStorage', () => ({
-  getKeychainSettings: vi.fn().mockResolvedValue({}),
+  getSettings: vi.fn().mockResolvedValue({}),
 }));
 
 // Mock dependencies

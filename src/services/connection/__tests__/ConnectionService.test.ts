@@ -15,9 +15,9 @@ vi.mock('webext-bridge/background', () => ({
 
 // Mock storage utilities
 vi.mock('@/utils/storage/settingsStorage', () => ({
-  getKeychainSettings: vi.fn(),
-  updateKeychainSettings: vi.fn(),
-  DEFAULT_KEYCHAIN_SETTINGS: {
+  getSettings: vi.fn(),
+  updateSettings: vi.fn(),
+  DEFAULT_SETTINGS: {
     connectedWebsites: [],
     autoLockTimeout: 5 * 60 * 1000,
     showHelpText: false,
@@ -106,12 +106,12 @@ vi.mock('@/services/approval', () => ({
 }));
 
 import { ConnectionService } from '../ConnectionService';
-import { getKeychainSettings, updateKeychainSettings } from '@/utils/storage/settingsStorage';
+import { getSettings, updateSettings } from '@/utils/storage/settingsStorage';
 import { eventEmitterService } from '@/services/eventEmitterService';
 
 // Type the mocked functions
-const mockGetKeychainSettings = getKeychainSettings as ReturnType<typeof vi.fn>;
-const mockUpdateKeychainSettings = updateKeychainSettings as ReturnType<typeof vi.fn>;
+const mockGetSettings = getSettings as ReturnType<typeof vi.fn>;
+const mockUpdateSettings = updateSettings as ReturnType<typeof vi.fn>;
 const mockEventEmitterService = eventEmitterService as any;
 
 // Get access to rate limiter mock
@@ -202,7 +202,7 @@ describe('ConnectionService', () => {
     vi.mocked(connectionRateLimiter.getResetTime).mockReturnValue(30000);
     
     // Mock initial storage state
-    mockGetKeychainSettings.mockResolvedValue({
+    mockGetSettings.mockResolvedValue({
       connectedWebsites: [],
       autoLockTimeout: 5 * 60 * 1000,
       showHelpText: false,
@@ -218,7 +218,7 @@ describe('ConnectionService', () => {
       defaultOrderExpiration: 8064,
     });
     
-    mockUpdateKeychainSettings.mockResolvedValue(undefined);
+    mockUpdateSettings.mockResolvedValue(undefined);
     
     connectionService = new ConnectionService();
     await connectionService.initialize();
@@ -236,7 +236,7 @@ describe('ConnectionService', () => {
 
     it('should return true for connected origin', async () => {
       // Setup connected website in storage mock
-      mockGetKeychainSettings.mockResolvedValue({
+      mockGetSettings.mockResolvedValue({
         connectedWebsites: ['https://connected.com'],
         autoLockTimeout: 5 * 60 * 1000,
         showHelpText: false,
@@ -257,7 +257,7 @@ describe('ConnectionService', () => {
     });
 
     it('should handle storage errors gracefully', async () => {
-      mockGetKeychainSettings.mockRejectedValue(new Error('Storage error'));
+      mockGetSettings.mockRejectedValue(new Error('Storage error'));
       
       // The service doesn't handle storage errors, so they bubble up
       await expect(connectionService.hasPermission('https://test.com')).rejects.toThrow('Storage error');
@@ -277,14 +277,14 @@ describe('ConnectionService', () => {
       expect(result).toEqual(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa']);
 
       // Should save to storage
-      expect(mockUpdateKeychainSettings).toHaveBeenCalledWith({
+      expect(mockUpdateSettings).toHaveBeenCalledWith({
         connectedWebsites: ['https://newsite.com'],
       });
     });
 
     it('should return existing connection if already connected', async () => {
       // Setup existing connection
-      mockGetKeychainSettings.mockResolvedValue({
+      mockGetSettings.mockResolvedValue({
         connectedWebsites: ['https://existing.com'],
         autoLockTimeout: 5 * 60 * 1000,
         showHelpText: false,
@@ -347,7 +347,7 @@ describe('ConnectionService', () => {
   describe('disconnect', () => {
     it('should successfully disconnect connected origin', async () => {
       // Setup connected website
-      mockGetKeychainSettings.mockResolvedValue({
+      mockGetSettings.mockResolvedValue({
         connectedWebsites: ['https://connected.com', 'https://other.com'],
         autoLockTimeout: 5 * 60 * 1000,
         showHelpText: false,
@@ -366,7 +366,7 @@ describe('ConnectionService', () => {
       await connectionService.disconnect('https://connected.com');
       
       // Should update storage with remaining sites
-      expect(mockUpdateKeychainSettings).toHaveBeenCalledWith({
+      expect(mockUpdateSettings).toHaveBeenCalledWith({
         connectedWebsites: ['https://other.com'],
       });
     });
@@ -375,7 +375,7 @@ describe('ConnectionService', () => {
       await connectionService.disconnect('https://notconnected.com');
       
       // Should update storage (removing non-existent site doesn't change empty array)
-      expect(mockUpdateKeychainSettings).toHaveBeenCalledWith({
+      expect(mockUpdateSettings).toHaveBeenCalledWith({
         connectedWebsites: [],
       });
     });
@@ -384,7 +384,7 @@ describe('ConnectionService', () => {
   describe('getConnectedWebsites', () => {
     it('should return list of connected sites', async () => {
       // Setup connected websites
-      mockGetKeychainSettings.mockResolvedValue({
+      mockGetSettings.mockResolvedValue({
         connectedWebsites: ['https://site1.com', 'https://site2.com'],
         autoLockTimeout: 5 * 60 * 1000,
         showHelpText: false,
@@ -444,7 +444,7 @@ describe('ConnectionService', () => {
       await connectionService.destroy();
       
       // Mock storage to return saved connections
-      mockGetKeychainSettings.mockResolvedValue({
+      mockGetSettings.mockResolvedValue({
         connectedWebsites: ['https://persistent.com'],
         autoLockTimeout: 5 * 60 * 1000,
         showHelpText: false,

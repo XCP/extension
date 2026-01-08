@@ -3,7 +3,7 @@
  * Provides privacy-focused analytics without relying on WXT modules
  */
 
-import { getKeychainSettings } from '@/utils/storage/settingsStorage';
+import { getSettings } from '@/utils/storage/settingsStorage';
 
 // Fathom configuration constants
 export const FATHOM_SITE_ID = 'PEMZGNDB';
@@ -68,7 +68,7 @@ async function isAnalyticsEnabled(): Promise<boolean> {
   }
 
   try {
-    const settings = await getKeychainSettings();
+    const settings = await getSettings();
     return settings.analyticsAllowed;
   } catch (error) {
     // If we can't get settings, don't track

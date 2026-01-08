@@ -40,18 +40,13 @@ export const defaultMocks = {
     clearAllUnlockedSecrets: vi.fn().mockResolvedValue(undefined),
     initializeSession: vi.fn().mockResolvedValue(undefined),
   },
-  settingsManager: {
-    loadSettings: vi.fn().mockResolvedValue({
+  settingsStorage: {
+    getSettings: vi.fn().mockResolvedValue({
       lastActiveWalletId: null,
-      autoLockTimer: 5,
-      network: 'mainnet',
+      autoLockTimeout: 5 * 60 * 1000,
+      autoLockTimer: '5m',
     }),
     updateSettings: vi.fn().mockResolvedValue(undefined),
-    getSettings: vi.fn().mockReturnValue({
-      activeWalletId: null,
-      autoLockTimer: 5,
-      network: 'mainnet',
-    }),
   },
   walletStorage: {
     getAllEncryptedWallets: vi.fn().mockResolvedValue([]),
@@ -106,7 +101,7 @@ export const defaultMocks = {
 export const setupMocks = () => {
   const mocks = {
     sessionManager: vi.mocked(defaultMocks.sessionManager),
-    settingsManager: vi.mocked(defaultMocks.settingsManager),
+    settingsStorage: vi.mocked(defaultMocks.settingsStorage),
     walletStorage: vi.mocked(defaultMocks.walletStorage),
     encryption: vi.mocked(defaultMocks.encryption),
     bitcoin: vi.mocked(defaultMocks.bitcoin),

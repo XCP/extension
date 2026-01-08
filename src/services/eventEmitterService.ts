@@ -1,9 +1,39 @@
 /**
  * Event Emitter Service
+ *
  * Provides a centralized, type-safe event system for cross-context communication
  * Replaces unsafe global variable usage
- * 
  * Now extends BaseService for state persistence across service worker restarts
+ *
+ * ## Non-Standard Pattern Documentation
+ *
+ * ### Event-Driven Approval Resolution
+ *
+ * **Pattern**: Approval requests are resolved via events rather than direct
+ * promise resolution. The flow is:
+ * 1. ProviderService creates a managed promise (RequestManager)
+ * 2. ApprovalService emits 'approval-resolved' event
+ * 3. EventEmitter forwards to registered listeners
+ * 4. RequestManager resolves the promise
+ *
+ * **Why Not Direct Promises?**:
+ * - Popup runs in different context than background service worker
+ * - Direct promise passing between contexts is not possible
+ * - Events provide loose coupling between popup UI and background services
+ * - Enables multiple listeners (logging, analytics, state updates)
+ *
+ * **Trade-offs**:
+ * - Harder to trace request flow (no stack trace)
+ * - Mitigated by: request IDs, debug logging, ADR-004 future tracing
+ *
+ * ### Singleton Export Pattern
+ *
+ * **Pattern**: Service is exported as singleton instance, not class.
+ *
+ * **Why**:
+ * - Single source of truth for event subscriptions
+ * - Prevents duplicate listeners from multiple imports
+ * - Aligns with Chrome extension single-background-worker model
  */
 
 import { BaseService } from './core/BaseService';

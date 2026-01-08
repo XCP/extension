@@ -172,7 +172,7 @@ describe('Transaction Signer Utilities', () => {
       mockFetchPreviousRawTransaction.mockResolvedValue(null);
 
       await expect(signTransaction(mockRawTransaction, mockWallet, mockTargetAddress, mockPrivateKey))
-        .rejects.toThrow(/Failed to fetch previous transaction for input/);
+        .rejects.toThrow(/Failed to fetch previous transaction/);
     });
 
     it('should throw error when output not found in previous transaction', async () => {

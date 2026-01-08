@@ -10,7 +10,7 @@
  */
 
 import { BaseService } from '@/services/core/BaseService';
-import { getKeychainSettings, updateKeychainSettings } from '@/utils/storage/settingsStorage';
+import { getSettings, updateSettings } from '@/utils/storage/settingsStorage';
 import { getWalletService } from '@/services/walletService';
 import { getApprovalService } from '@/services/approval';
 import type { ApprovalResult } from '@/services/approval/ApprovalService';
@@ -97,7 +97,7 @@ export class ConnectionService extends BaseService {
    * Perform the actual permission lookup from storage
    */
   private async doPermissionLookup(origin: string): Promise<boolean> {
-    const settings = await getKeychainSettings();
+    const settings = await getSettings();
     const isConnected = settings.connectedWebsites.includes(origin);
 
     // Update cache
@@ -227,9 +227,9 @@ export class ConnectionService extends BaseService {
       await analytics.track('connection_established');
 
       // Add to connected websites
-      const settings = await getKeychainSettings();
+      const settings = await getSettings();
       if (!settings.connectedWebsites.includes(origin)) {
-        await updateKeychainSettings({
+        await updateSettings({
           connectedWebsites: [...settings.connectedWebsites, origin],
         });
       }
@@ -261,10 +261,10 @@ export class ConnectionService extends BaseService {
     console.debug('Disconnecting dApp:', origin);
 
     // Remove from connected websites
-    const settings = await getKeychainSettings();
+    const settings = await getSettings();
     const updatedSites = settings.connectedWebsites.filter(site => site !== origin);
 
-    await updateKeychainSettings({
+    await updateSettings({
       connectedWebsites: updatedSites,
     });
 
@@ -300,7 +300,7 @@ export class ConnectionService extends BaseService {
    * Get all connected websites
    */
   async getConnectedWebsites(): Promise<ConnectionStatus[]> {
-    const settings = await getKeychainSettings();
+    const settings = await getSettings();
     const connections: ConnectionStatus[] = [];
 
     for (const origin of settings.connectedWebsites) {
@@ -322,11 +322,11 @@ export class ConnectionService extends BaseService {
    * Disconnect all websites
    */
   async disconnectAll(): Promise<void> {
-    const settings = await getKeychainSettings();
+    const settings = await getSettings();
     const connectedSites = [...settings.connectedWebsites];
 
     // Update settings
-    await updateKeychainSettings({ connectedWebsites: [] });
+    await updateSettings({ connectedWebsites: [] });
 
     // Clear cache
     this.state.connectionCache.clear();

@@ -62,7 +62,7 @@ describe('Bare Multisig Utilities', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.doMock('@/utils/storage/settingsStorage', () => ({
-      getKeychainSettings: vi.fn().mockResolvedValue({
+      getSettings: vi.fn().mockResolvedValue({
         counterpartyApiBase: 'https://api.counterparty.io'
       })
     }));

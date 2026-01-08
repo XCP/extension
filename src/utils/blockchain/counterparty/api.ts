@@ -1,8 +1,49 @@
 import { apiClient, API_TIMEOUTS } from '@/utils/axios';
 import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
+import { CounterpartyApiError } from '@/utils/blockchain/errors';
 import { formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
-import { getKeychainSettings } from '@/utils/storage/settingsStorage';
+import { getSettings } from '@/utils/storage/settingsStorage';
+
+// Status constants for type-safe filtering
+export const OrderStatus = {
+  OPEN: 'open',
+  COMPLETED: 'completed',
+  EXPIRED: 'expired',
+  CANCELLED: 'cancelled',
+} as const;
+export type OrderStatusType = typeof OrderStatus[keyof typeof OrderStatus];
+
+export const DispenserStatus = {
+  OPEN: 0,
+  CLOSED: 10,
+  CLOSING: 11,
+  OPEN_EMPTY_ADDRESS: 'open_empty_address',
+} as const;
+export type DispenserStatusType = typeof DispenserStatus[keyof typeof DispenserStatus];
+
+export const BetStatus = {
+  OPEN: 'open',
+  FILLED: 'filled',
+  CANCELLED: 'cancelled',
+  EXPIRED: 'expired',
+} as const;
+export type BetStatusType = typeof BetStatus[keyof typeof BetStatus];
+
+// Generic paginated response from API
+export interface PaginatedResponse<T> {
+  result: T[];
+  next_cursor: string | number | null;
+  result_count: number;
+}
+
+// Common pagination options
+export interface PaginationOptions {
+  limit?: number;
+  offset?: number;
+  cursor?: string | number; // Optional cursor for sequential pagination
+  verbose?: boolean;
+}
 
 export interface AssetInfo {
   asset: string;
@@ -161,28 +202,60 @@ export interface UtxoBalancesResponse {
 }
 
 async function getApiBase() {
-  const settings = await getKeychainSettings();
+  const settings = await getSettings();
   return settings.counterpartyApiBase;
 }
 
 /**
- * Helper function to make Counterparty API calls with proper timeout handling
+ * Helper function to make Counterparty API calls with proper error handling.
+ * Throws CounterpartyApiError on API errors, letting the error message flow through.
+ *
  * @param path - The API path (will be appended to base URL)
  * @param params - Optional query parameters
- * @param useQuickTimeout - Use quick timeout (10s) instead of default (30s)
  * @returns The response data
  */
 async function cpApiGet<T = any>(
   path: string,
-  params?: Record<string, any>,
-  useQuickTimeout: boolean = false
+  params?: Record<string, any>
 ): Promise<T> {
   const base = await getApiBase();
   const url = `${base}${path}`;
-  const client = apiClient;
-  
-  const response = await client.get<T>(url, { params });
-  return response.data;
+
+  try {
+    const response = await apiClient.get<T | { error: string }>(url, { params });
+
+    // Check if the API returned an error response
+    if (response.data && typeof response.data === 'object' && 'error' in response.data) {
+      throw new CounterpartyApiError(
+        (response.data as { error: string }).error,
+        path,
+        { statusCode: response.status }
+      );
+    }
+
+    return response.data as T;
+  } catch (error: any) {
+    // Re-throw CounterpartyApiError as-is
+    if (error instanceof CounterpartyApiError) {
+      throw error;
+    }
+
+    // Handle axios errors - extract API error message if available
+    if (error.response?.data?.error) {
+      throw new CounterpartyApiError(
+        error.response.data.error,
+        path,
+        { statusCode: error.response.status, cause: error }
+      );
+    }
+
+    // Network/timeout errors
+    throw new CounterpartyApiError(
+      error.message || 'API request failed',
+      path,
+      { cause: error }
+    );
+  }
 }
 
 /**
@@ -194,44 +267,30 @@ async function cpApiGet<T = any>(
  */
 export async function fetchTokenBalances(
   address: string,
-  options: {
-    limit?: number;
-    offset?: number;
-    verbose?: boolean;
-    sort?: string;
-  } = {}
+  options: PaginationOptions & { sort?: string } = {}
 ): Promise<TokenBalance[]> {
-  try {
-    const limit = options.limit ?? 100;
-    const offset = options.offset ?? 0;
-    const verbose = options.verbose ?? true;
-    const sort = options.sort ?? null;
-
-    // Use cpApiGet helper with proper timeout
-    const data = await cpApiGet<any>(
-      `/v2/addresses/${address}/balances`,
-      {
-        verbose: verbose,
-        limit: limit,
-        offset: offset,
-        sort: sort,
-      },
-      true // Use quick timeout for balance lookups
-    );
-
-    if (!data.result || !Array.isArray(data.result)) {
-      return [];
+  const data = await cpApiGet<PaginatedResponse<TokenBalance>>(
+    `/v2/addresses/${address}/balances`,
+    {
+      verbose: options.verbose ?? true,
+      limit: options.limit ?? 100,
+      offset: options.offset ?? 0,
+      cursor: options.cursor,
+      sort: options.sort,
     }
+  );
 
-    return data.result;
-  } catch (error) {
-    console.error('Error fetching token balances:', error);
+  // Ensure we always return an array
+  if (!data.result || !Array.isArray(data.result)) {
     return [];
   }
+
+  return data.result;
 }
 
 /**
  * Fetches the balance of a specific token for a given address.
+ * Aggregates across all balance entries (address + UTXOs) unless excludeUtxos is true.
  *
  * @param address - The Bitcoin address to fetch the token balance for.
  * @param asset - The asset (token) name to fetch the balance of.
@@ -246,88 +305,73 @@ export async function fetchTokenBalance(
     verbose?: boolean;
   } = {}
 ): Promise<TokenBalance | null> {
-  try {
-    const excludeUtxos = options.excludeUtxos ?? false;
-    const verbose = options.verbose ?? true;
+  const excludeUtxos = options.excludeUtxos ?? false;
+  const verbose = options.verbose ?? true;
 
-    const base = await getApiBase();
-    const response = await apiClient.get(
-      `${base}/v2/addresses/${address}/balances/${asset}`,
-      {
-        params: {
-          verbose: verbose,
-        },
-      }
-    );
-    const data = response.data;
+  const data = await cpApiGet<PaginatedResponse<TokenBalance>>(
+    `/v2/addresses/${address}/balances/${asset}`,
+    { verbose }
+  );
 
-    if (!data.result) {
-      return null;
-    }
-
-    if (Array.isArray(data.result) && data.result.length === 0) {
-      // Return a zero balance if the asset is not held by the address.
-      return {
-        asset: asset,
-        quantity: 0,
-        quantity_normalized: '0',
-        asset_info: {
-          asset_longname: null,
-          description: '',
-          issuer: '',
-          divisible: true,
-          locked: false,
-        },
-      };
-    }
-
-    let balances = data.result;
-
-    if (excludeUtxos) {
-      // Filter out balances that have utxo information
-      balances = balances.filter((balance: TokenBalance) => !balance.utxo);
-    }
-
-    if (balances.length === 0) {
-      // After filtering, if no balances are left, return zero balance
-      return {
-        asset: asset,
-        quantity: 0,
-        quantity_normalized: '0',
-        asset_info: {
-          asset_longname: null,
-          description: '',
-          issuer: '',
-          divisible: true,
-          locked: false,
-        },
-      };
-    }
-
-    // Aggregate the quantities
-    const totalQuantity = balances.reduce(
-      (sum: number, entry: TokenBalance) => sum + (entry.quantity || 0),
-      0
-    );
-    const totalQuantityNormalized = balances
-      .reduce(
-        (sum: number, entry: TokenBalance) =>
-          sum + parseFloat(entry.quantity_normalized),
-        0
-      )
-      .toString();
-
-    const firstEntry = balances[0];
+  if (!data.result || data.result.length === 0) {
+    // Return a zero balance if the asset is not held by the address
     return {
       asset: asset,
-      quantity: totalQuantity,
-      asset_info: firstEntry.asset_info,
-      quantity_normalized: totalQuantityNormalized,
+      quantity: 0,
+      quantity_normalized: '0',
+      asset_info: {
+        asset_longname: null,
+        description: '',
+        issuer: '',
+        divisible: true,
+        locked: false,
+      },
     };
-  } catch (error) {
-    console.error('Error fetching token balance:', error);
-    return null;
   }
+
+  let balances = data.result;
+
+  if (excludeUtxos) {
+    // Filter out balances that have utxo information
+    balances = balances.filter((balance: TokenBalance) => !balance.utxo);
+  }
+
+  if (balances.length === 0) {
+    // After filtering, if no balances are left, return zero balance
+    return {
+      asset: asset,
+      quantity: 0,
+      quantity_normalized: '0',
+      asset_info: {
+        asset_longname: null,
+        description: '',
+        issuer: '',
+        divisible: true,
+        locked: false,
+      },
+    };
+  }
+
+  // Aggregate the quantities
+  const totalQuantity = balances.reduce(
+    (sum: number, entry: TokenBalance) => sum + (entry.quantity || 0),
+    0
+  );
+  const totalQuantityNormalized = balances
+    .reduce(
+      (sum: number, entry: TokenBalance) =>
+        sum + parseFloat(entry.quantity_normalized),
+      0
+    )
+    .toString();
+
+  const firstEntry = balances[0];
+  return {
+    asset: asset,
+    quantity: totalQuantity,
+    asset_info: firstEntry.asset_info,
+    quantity_normalized: totalQuantityNormalized,
+  };
 }
 
 /**
@@ -341,34 +385,19 @@ export async function fetchTokenBalance(
 export async function fetchTokenUtxos(
   address: string,
   asset: string,
-  options: {
-    verbose?: boolean;
-  } = {}
+  options: { verbose?: boolean } = {}
 ): Promise<TokenBalance[]> {
-  try {
-    const verbose = options.verbose ?? true;
+  const data = await cpApiGet<PaginatedResponse<TokenBalance>>(
+    `/v2/addresses/${address}/balances/${asset}`,
+    { verbose: options.verbose ?? true }
+  );
 
-    const base = await getApiBase();
-    const response = await apiClient.get(
-      `${base}/v2/addresses/${address}/balances/${asset}`,
-      {
-        params: {
-          verbose: verbose,
-        },
-      }
-    );
-    const data = response.data;
-
-    if (!data.result || !Array.isArray(data.result)) {
-      return [];
-    }
-
-    // Filter to only include balances with UTXO information
-    return data.result.filter((balance: TokenBalance) => balance.utxo !== null);
-  } catch (error) {
-    console.error('Error fetching token UTXOs:', error);
+  if (!data.result) {
     return [];
   }
+
+  // Filter to only include balances with UTXO information
+  return data.result.filter((balance: TokenBalance) => balance.utxo !== null);
 }
 
 /**
@@ -380,36 +409,21 @@ export async function fetchTokenUtxos(
  */
 export async function fetchAssetDetails(
   asset: string,
-  options: {
-    verbose?: boolean;
-  } = {}
+  options: { verbose?: boolean } = {}
 ): Promise<AssetInfo | null> {
-  try {
-    const verbose = options.verbose ?? true;
+  const data = await cpApiGet<{ result: Omit<AssetInfo, 'asset'> | null }>(
+    `/v2/assets/${asset}`,
+    { verbose: options.verbose ?? true }
+  );
 
-    const base = await getApiBase();
-    const response = await apiClient.get(
-      `${base}/v2/assets/${asset}`,
-      {
-        params: {
-          verbose: verbose,
-        },
-      }
-    );
-    const data = response.data;
-
-    if (!data.result) {
-      return null;
-    }
-
-    return {
-      asset,
-      ...data.result,
-    };
-  } catch (error) {
-    console.error('Error fetching asset details:', error);
+  if (!data.result) {
     return null;
   }
+
+  return {
+    asset,
+    ...data.result,
+  };
 }
 
 /**
@@ -423,23 +437,17 @@ export async function fetchAssetDetails(
 export async function fetchAssetDetailsAndBalance(
   asset: string,
   address: string,
-  options: {
-    verbose?: boolean;
-  } = {}
+  options: { verbose?: boolean } = {}
 ): Promise<{
   isDivisible: boolean;
   assetInfo: AssetInfo;
   availableBalance: string;
 }> {
-  let isDivisible = false;
-  let assetInfo: AssetInfo | null = null;
-  let availableBalance = '0';
   const verbose = options.verbose ?? true;
 
   if (asset === 'BTC') {
-    // Handle BTC separately.
-    isDivisible = true;
-    assetInfo = {
+    // Handle BTC separately
+    const assetInfo: AssetInfo = {
       asset: 'BTC',
       asset_longname: null,
       description: 'Bitcoin',
@@ -447,52 +455,42 @@ export async function fetchAssetDetailsAndBalance(
       divisible: true,
       locked: true,
       supply: '2100000000000000',
-      supply_normalized: '21000000'
+      supply_normalized: '21000000',
     };
 
-    // Fetch BTC balance.
+    // Fetch BTC balance
     const balanceSats = await fetchBTCBalance(address);
     const balanceBTC = fromSatoshis(balanceSats, true);
-    availableBalance = formatAmount({
+    const availableBalance = formatAmount({
       value: balanceBTC,
       maximumFractionDigits: 8,
-      minimumFractionDigits: 8
+      minimumFractionDigits: 8,
     });
-  } else {
-    try {
-      const base = await getApiBase();
 
-      // Fetch asset details from Counterparty API.
-      const assetResponse = await apiClient.get(
-        `${base}/v2/assets/${asset}`,
-        {
-          params: {
-            verbose: verbose,
-          },
-        }
-      );
-      const assetData = assetResponse.data.result;
-      isDivisible = assetData.divisible;
-      assetInfo = assetData;
-
-      // Fetch token balance for the asset, excluding UTXO balances
-      const balance = await fetchTokenBalance(address, asset, {
-        excludeUtxos: true,
-        verbose: verbose,
-      }); // excludeUtxos = true
-      if (balance) {
-        availableBalance = balance.quantity_normalized;
-      }
-    } catch (error) {
-      console.error('Error fetching asset details or token balance:', error);
-      // Defaults are already set to zero and false
-    }
+    return {
+      isDivisible: true,
+      assetInfo,
+      availableBalance,
+    };
   }
 
+  // Fetch asset details from Counterparty API
+  const assetData = await cpApiGet<{ result: AssetInfo }>(
+    `/v2/assets/${asset}`,
+    { verbose }
+  );
+  const assetInfo = assetData.result;
+
+  // Fetch token balance for the asset, excluding UTXO balances
+  const balance = await fetchTokenBalance(address, asset, {
+    excludeUtxos: true,
+    verbose,
+  });
+
   return {
-    isDivisible,
-    assetInfo: assetInfo as AssetInfo,
-    availableBalance,
+    isDivisible: assetInfo.divisible,
+    assetInfo,
+    availableBalance: balance?.quantity_normalized ?? '0',
   };
 }
 
@@ -501,45 +499,19 @@ export async function fetchAssetDetailsAndBalance(
  *
  * @param utxo - The UTXO identifier (txid:vout).
  * @param options - Optional parameters.
- * @returns A promise that resolves to an array of UtxoBalance objects.
+ * @returns A promise that resolves to the UTXO balances response.
  */
 export async function fetchUtxoBalances(
   utxo: string,
-  options: {
-    cursor?: string;
-    limit?: number;
-    offset?: number;
-    verbose?: boolean;
-    show_unconfirmed?: boolean;
-  } = {}
+  options: PaginationOptions & { show_unconfirmed?: boolean } = {}
 ): Promise<UtxoBalancesResponse> {
-  try {
-    const verbose = options.verbose ?? true;
-    const show_unconfirmed = options.show_unconfirmed ?? false;
-
-    const base = await getApiBase();
-    const response = await apiClient.get(
-      `${base}/v2/utxos/${utxo}/balances`,
-      {
-        params: {
-          cursor: options.cursor,
-          limit: options.limit,
-          offset: options.offset,
-          verbose,
-          show_unconfirmed,
-        },
-      }
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching UTXO balances:', error);
-    return {
-      result: [],
-      next_cursor: null,
-      result_count: 0
-    };
-  }
+  return cpApiGet<UtxoBalancesResponse>(`/v2/utxos/${utxo}/balances`, {
+    cursor: options.cursor,
+    limit: options.limit,
+    offset: options.offset,
+    verbose: options.verbose ?? true,
+    show_unconfirmed: options.show_unconfirmed ?? false,
+  });
 }
 
 /**
@@ -551,37 +523,23 @@ export async function fetchUtxoBalances(
  */
 export async function fetchOrders(
   address: string,
-  options: {
-    status?: 'open' | 'completed' | 'expired' | 'cancelled';
-    limit?: number;
-    offset?: number;
-    verbose?: boolean;
-  } = {}
+  options: PaginationOptions & { status?: OrderStatusType } = {}
 ): Promise<{ orders: Order[]; total: number }> {
-  try {
-    const verbose = options.verbose ?? true;
+  const data = await cpApiGet<PaginatedResponse<Order>>(
+    `/v2/addresses/${address}/orders`,
+    {
+      verbose: options.verbose ?? true,
+      status: options.status,
+      limit: options.limit,
+      offset: options.offset,
+      cursor: options.cursor,
+    }
+  );
 
-    const base = await getApiBase();
-    const response = await apiClient.get(
-      `${base}/v2/addresses/${address}/orders`,
-      {
-        params: {
-          verbose: verbose,
-          status: options.status,
-          limit: options.limit,
-          offset: options.offset,
-        },
-      }
-    );
-
-    return {
-      orders: response.data.result,
-      total: response.data.result_count,
-    };
-  } catch (error) {
-    console.error('Failed to fetch orders:', error);
-    throw new Error('Failed to fetch orders');
-  }
+  return {
+    orders: data.result,
+    total: data.result_count,
+  };
 }
 
 /**
@@ -593,35 +551,17 @@ export async function fetchOrders(
  */
 export async function fetchOrder(
   orderHash: string,
-  options: {
-    verbose?: boolean;
-    showUnconfirmed?: boolean;
-  } = {}
+  options: { verbose?: boolean; showUnconfirmed?: boolean } = {}
 ): Promise<OrderDetails | null> {
-  try {
-    const verbose = options.verbose ?? true;
-    const showUnconfirmed = options.showUnconfirmed ?? false;
-
-    const base = await getApiBase();
-    const response = await apiClient.get(
-      `${base}/v2/orders/${orderHash}`,
-      {
-        params: {
-          verbose: verbose,
-          show_unconfirmed: showUnconfirmed,
-        },
-      }
-    );
-
-    if (!response.data.result) {
-      return null;
+  const data = await cpApiGet<{ result: OrderDetails | null }>(
+    `/v2/orders/${orderHash}`,
+    {
+      verbose: options.verbose ?? true,
+      show_unconfirmed: options.showUnconfirmed ?? false,
     }
+  );
 
-    return response.data.result;
-  } catch (error) {
-    console.error('Error fetching order details:', error);
-    return null;
-  }
+  return data.result;
 }
 
 /**
@@ -633,33 +573,17 @@ export async function fetchOrder(
  */
 export async function fetchTransaction(
   txHash: string,
-  options: {
-    verbose?: boolean;
-  } = {}
+  options: { verbose?: boolean; show_unconfirmed?: boolean } = {}
 ): Promise<Transaction | null> {
-  try {
-    const verbose = options.verbose ?? true;
-
-    const base = await getApiBase();
-    const response = await apiClient.get(
-      `${base}/v2/transactions/${txHash}`,
-      {
-        params: {
-          show_unconfirmed: true,
-          verbose: verbose,
-        },
-      }
-    );
-
-    if (!response.data.result) {
-      return null;
+  const data = await cpApiGet<{ result: Transaction | null }>(
+    `/v2/transactions/${txHash}`,
+    {
+      verbose: options.verbose ?? true,
+      show_unconfirmed: options.show_unconfirmed ?? true,
     }
+  );
 
-    return response.data.result;
-  } catch (error) {
-    console.error('Error fetching transaction:', error);
-    throw new Error('Failed to fetch transaction');
-  }
+  return data.result;
 }
 
 /**
@@ -671,36 +595,18 @@ export async function fetchTransaction(
  */
 export async function fetchTransactions(
   address: string,
-  options: {
-    limit?: number;
-    offset?: number;
-    verbose?: boolean;
-    show_unconfirmed?: boolean;
-  } = {}
+  options: PaginationOptions & { show_unconfirmed?: boolean } = {}
 ): Promise<TransactionResponse> {
-  try {
-    const limit = options.limit ?? 20;
-    const offset = options.offset ?? 0;
-    const verbose = options.verbose ?? true;
-    const show_unconfirmed = options.show_unconfirmed ?? true;
-
-    const base = await getApiBase();
-    const response = await apiClient.get(
-      `${base}/v2/addresses/${address}/transactions`,
-      {
-        params: {
-          verbose,
-          show_unconfirmed,
-          limit,
-          offset,
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching transactions:", error);
-    throw error;
-  }
+  return cpApiGet<TransactionResponse>(
+    `/v2/addresses/${address}/transactions`,
+    {
+      verbose: options.verbose ?? true,
+      show_unconfirmed: options.show_unconfirmed ?? true,
+      limit: options.limit ?? 20,
+      offset: options.offset ?? 0,
+      cursor: options.cursor,
+    }
+  );
 }
 
 /**
@@ -726,41 +632,27 @@ interface CreditDebitResponse {
 
 
 /**
- * Fetches dispensers for a given address with optional status filter
+ * Fetches dispensers for a given address with optional status filter.
  */
 export async function fetchAddressDispensers(
   address: string,
-  options: {
-    status?: 'open' | 'closed' | 'closing' | 'open_empty_address';
-    limit?: number;
-    offset?: number;
-    verbose?: boolean;
-  } = {}
+  options: PaginationOptions & { status?: 'open' | 'closed' | 'closing' | 'open_empty_address' } = {}
 ): Promise<{ dispensers: Dispenser[]; total: number }> {
-  try {
-    const verbose = options.verbose ?? true;
+  const data = await cpApiGet<PaginatedResponse<Dispenser>>(
+    `/v2/addresses/${address}/dispensers`,
+    {
+      verbose: options.verbose ?? true,
+      status: options.status,
+      limit: options.limit,
+      offset: options.offset,
+      cursor: options.cursor,
+    }
+  );
 
-    const base = await getApiBase();
-    const response = await apiClient.get(
-      `${base}/v2/addresses/${address}/dispensers`,
-      {
-        params: {
-          verbose: verbose,
-          status: options.status,
-          limit: options.limit,
-          offset: options.offset,
-        },
-      }
-    );
-
-    return {
-      dispensers: response.data.result,
-      total: response.data.result_count,
-    };
-  } catch (error) {
-    console.error('Failed to fetch dispensers:', error);
-    throw new Error('Failed to fetch dispensers');
-  }
+  return {
+    dispensers: data.result,
+    total: data.result_count,
+  };
 }
 
 /**
@@ -772,70 +664,58 @@ export async function fetchAddressDispensers(
  */
 export async function fetchDispenserByHash(
   txHash: string,
-  options: {
-    verbose?: boolean;
-  } = {}
+  options: { verbose?: boolean } = {}
 ): Promise<Dispenser | null> {
-  try {
-    const verbose = options.verbose ?? true;
+  const data = await cpApiGet<{ result: Dispenser | null }>(
+    `/v2/dispensers/${txHash}`,
+    { verbose: options.verbose ?? true }
+  );
 
-    const base = await getApiBase();
-    const response = await apiClient.get(
-      `${base}/v2/dispensers/${txHash}`,
-      {
-        params: {
-          verbose: verbose,
-        },
-      }
-    );
-
-    if (!response.data.result) {
-      return null;
-    }
-
-    return response.data.result;
-  } catch (error) {
-    console.error('Error fetching dispenser details:', error);
-    return null;
-  }
+  return data.result;
 }
 
 /**
- * Fetches dispenses for a specific dispenser transaction
+ * Dispense event representing a purchase from a dispenser.
+ */
+export interface Dispense {
+  tx_hash: string;
+  tx_index: number;
+  block_index: number;
+  block_time: number;
+  source: string;
+  destination: string;
+  asset: string;
+  dispense_quantity: number;
+  dispense_quantity_normalized: string;
+  dispenser_tx_hash: string;
+  btc_amount: number;
+  btc_amount_normalized: string;
+  confirmed?: boolean;
+}
+
+/**
+ * Fetches dispenses for a specific dispenser transaction.
+ *
  * @param dispenserHash The transaction hash of the dispenser
  * @param options Optional parameters including show_unconfirmed
  * @returns Promise with dispenses array
  */
 export async function fetchDispenserDispenses(
   dispenserHash: string,
-  options: {
-    show_unconfirmed?: boolean;
-    verbose?: boolean;
-    limit?: number;
-  } = {}
-): Promise<{ dispenses: any[] }> {
-  try {
-    const base = await getApiBase();
-    const response = await apiClient.get(
-      `${base}/v2/dispensers/${dispenserHash}/dispenses`,
-      {
-        params: {
-          show_unconfirmed: options.show_unconfirmed ?? false,
-          verbose: options.verbose ?? false,
-          limit: options.limit,
-        },
-      }
-    );
-
-    if (!response.data.result) {
-      return { dispenses: [] };
+  options: PaginationOptions & { show_unconfirmed?: boolean } = {}
+): Promise<{ dispenses: Dispense[] }> {
+  const data = await cpApiGet<PaginatedResponse<Dispense>>(
+    `/v2/dispensers/${dispenserHash}/dispenses`,
+    {
+      show_unconfirmed: options.show_unconfirmed ?? false,
+      verbose: options.verbose ?? false,
+      limit: options.limit,
+      offset: options.offset,
+      cursor: options.cursor,
     }
+  );
 
-    return { dispenses: response.data.result };
-  } catch (error) {
-    console.error('Error fetching dispenser dispenses:', error);
-    return { dispenses: [] };
-  }
+  return { dispenses: data.result ?? [] };
 }
 
 export interface OwnedAsset {
@@ -855,32 +735,19 @@ export interface OwnedAsset {
  */
 export async function fetchOwnedAssets(
   address: string,
-  options: {
-    verbose?: boolean;
-  } = {}
+  options: PaginationOptions = {}
 ): Promise<OwnedAsset[]> {
-  try {
-    const verbose = options.verbose ?? true;
-
-    const base = await getApiBase();
-    const response = await apiClient.get(
-      `${base}/v2/addresses/${address}/assets/owned`,
-      {
-        params: {
-          verbose: verbose,
-        },
-      }
-    );
-
-    if (!response.data.result) {
-      return [];
+  const data = await cpApiGet<PaginatedResponse<OwnedAsset>>(
+    `/v2/addresses/${address}/assets/owned`,
+    {
+      verbose: options.verbose ?? true,
+      limit: options.limit,
+      offset: options.offset,
+      cursor: options.cursor,
     }
+  );
 
-    return response.data.result;
-  } catch (error) {
-    console.error('Error fetching owned assets:', error);
-    return [];
-  }
+  return data.result ?? [];
 }
 
 /**
@@ -925,45 +792,23 @@ export interface OpenInterest {
 }
 
 /**
- * Fetches bets for a given feed address with optional status filter
- * 
+ * Fetches bets for a given feed address with optional status filter.
+ *
  * @param feedAddress - The feed address to fetch bets for
  * @param options - Optional parameters for filtering
  * @returns A promise that resolves to a BetsResponse object
  */
 export async function fetchBets(
   feedAddress: string,
-  options: {
-    status?: 'open' | 'filled' | 'cancelled' | 'expired';
-    limit?: number;
-    offset?: number;
-    verbose?: boolean;
-  } = {}
+  options: PaginationOptions & { status?: BetStatusType } = {}
 ): Promise<BetsResponse> {
-  try {
-    const verbose = options.verbose ?? true;
-
-    const base = await getApiBase();
-    const params = new URLSearchParams();
-    
-    if (options.status) params.append('status', options.status);
-    if (options.limit) params.append('limit', options.limit.toString());
-    if (options.offset) params.append('offset', options.offset.toString());
-    params.append('verbose', verbose.toString());
-
-    const response = await apiClient.get(
-      `${base}/v2/addresses/${feedAddress}/bets?${params.toString()}`
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching bets:', error);
-    return {
-      result: [],
-      next_cursor: null,
-      result_count: 0
-    };
-  }
+  return cpApiGet<BetsResponse>(`/v2/addresses/${feedAddress}/bets`, {
+    status: options.status,
+    limit: options.limit,
+    offset: options.offset,
+    cursor: options.cursor,
+    verbose: options.verbose ?? true,
+  });
 }
 
 /**
@@ -1063,33 +908,163 @@ export interface DividendResponse {
 }
 
 /**
- * Fetches dividend history for a given asset
+ * Fetches dividend history for a given asset.
  */
 export async function fetchDividendsByAsset(
   asset: string,
-  options: {
-    limit?: number;
-    offset?: number;
-  } = {}
+  options: PaginationOptions = {}
 ): Promise<DividendResponse> {
-  try {
-    const limit = options.limit ?? 10;
-    const offset = options.offset ?? 0;
-    
-    const base = await getApiBase();
-    const response = await apiClient.get(
-      `${base}/v2/assets/${asset}/dividends`,
-      {
-        params: {
-          limit,
-          offset,
-          verbose: true,
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching asset dividends:", error);
-    throw error;
-  }
+  return cpApiGet<DividendResponse>(`/v2/assets/${asset}/dividends`, {
+    limit: options.limit ?? 10,
+    offset: options.offset ?? 0,
+    cursor: options.cursor,
+    verbose: options.verbose ?? true,
+  });
+}
+
+// =============================================================================
+// DEX / Trading Endpoints
+// =============================================================================
+
+/**
+ * Interface representing an order match (trade fill).
+ */
+export interface OrderMatch {
+  id: string;
+  tx0_hash: string;
+  tx0_index: number;
+  tx0_address: string;
+  tx1_hash: string;
+  tx1_index: number;
+  tx1_address: string;
+  forward_asset: string;
+  forward_quantity: number;
+  forward_quantity_normalized: string;
+  backward_asset: string;
+  backward_quantity: number;
+  backward_quantity_normalized: string;
+  tx0_block_index: number;
+  tx1_block_index: number;
+  block_index: number;
+  block_time: number;
+  match_expire_index: number;
+  fee_paid: number;
+  fee_paid_normalized: string;
+  status: string;
+  confirmed?: boolean;
+}
+
+/**
+ * Fetches orders for a specific trading pair (order book).
+ *
+ * @param giveAsset - The asset being offered (e.g., "XCP")
+ * @param getAsset - The asset being requested (e.g., "PEPECASH")
+ * @param options - Optional parameters for filtering and pagination
+ * @returns A promise that resolves to an object containing orders and total count
+ */
+export async function fetchOrdersByPair(
+  giveAsset: string,
+  getAsset: string,
+  options: PaginationOptions & { status?: OrderStatusType } = {}
+): Promise<{ orders: Order[]; total: number }> {
+  const data = await cpApiGet<PaginatedResponse<Order>>(
+    `/v2/orders/${giveAsset}/${getAsset}`,
+    {
+      verbose: options.verbose ?? true,
+      status: options.status,
+      limit: options.limit,
+      offset: options.offset,
+      cursor: options.cursor,
+    }
+  );
+
+  return {
+    orders: data.result,
+    total: data.result_count,
+  };
+}
+
+/**
+ * Fetches order matches (trade fills) for a specific order.
+ *
+ * @param orderHash - The transaction hash of the order
+ * @param options - Optional parameters for pagination
+ * @returns A promise that resolves to an object containing matches and total count
+ */
+export async function fetchOrderMatches(
+  orderHash: string,
+  options: PaginationOptions = {}
+): Promise<{ matches: OrderMatch[]; total: number }> {
+  const data = await cpApiGet<PaginatedResponse<OrderMatch>>(
+    `/v2/orders/${orderHash}/matches`,
+    {
+      verbose: options.verbose ?? true,
+      limit: options.limit,
+      offset: options.offset,
+      cursor: options.cursor,
+    }
+  );
+
+  return {
+    matches: data.result,
+    total: data.result_count,
+  };
+}
+
+/**
+ * Fetches order matches (trade fills) for a specific trading pair.
+ *
+ * @param giveAsset - The asset being offered
+ * @param getAsset - The asset being requested
+ * @param options - Optional parameters for pagination
+ * @returns A promise that resolves to an object containing matches and total count
+ */
+export async function fetchOrderMatchesByPair(
+  giveAsset: string,
+  getAsset: string,
+  options: PaginationOptions = {}
+): Promise<{ matches: OrderMatch[]; total: number }> {
+  const data = await cpApiGet<PaginatedResponse<OrderMatch>>(
+    `/v2/orders/${giveAsset}/${getAsset}/matches`,
+    {
+      verbose: options.verbose ?? true,
+      limit: options.limit,
+      offset: options.offset,
+      cursor: options.cursor,
+    }
+  );
+
+  return {
+    matches: data.result,
+    total: data.result_count,
+  };
+}
+
+// =============================================================================
+// Server / Utility Endpoints
+// =============================================================================
+
+/**
+ * Server info returned from the API root endpoint.
+ */
+export interface ServerInfo {
+  server_ready: boolean;
+  network: 'mainnet' | 'testnet' | 'regtest';
+  version: string;
+  backend_height: number;
+  counterparty_height: number;
+  documentation: string;
+  routes: string;
+  blueprint: string;
+}
+
+/**
+ * Fetches server information including version, network, and sync status.
+ * Useful for health checks and determining which network the API is connected to.
+ *
+ * @returns A promise that resolves to the server info
+ */
+export async function fetchServerInfo(): Promise<ServerInfo> {
+  const data = await cpApiGet<{ result: ServerInfo }>('/v2/');
+  return data.result;
 }

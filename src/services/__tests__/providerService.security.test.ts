@@ -5,7 +5,7 @@ import { createProviderService } from '../providerService';
 import * as walletService from '../walletService';
 import * as connectionService from '../connection';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
-import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
+import { DEFAULT_SETTINGS } from '@/utils/storage/settingsStorage';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
 import { approvalQueue } from '@/utils/provider/approvalQueue';
 import { getConnectionService } from '../connection';
@@ -75,8 +75,8 @@ describe('ProviderService Security Tests', () => {
     vi.mocked(apiRateLimiter.resetAll).mockReturnValue(undefined);
     
     // Setup default mocks using the default settings constant
-    vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-      ...DEFAULT_KEYCHAIN_SETTINGS,
+    vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+      ...DEFAULT_SETTINGS,
       connectedWebsites: [] // Override specific properties as needed
     });
     
@@ -112,7 +112,7 @@ describe('ProviderService Security Tests', () => {
     // Setup connection service mocks - will be updated per test
     const mockConnectionService = {
       hasPermission: vi.fn().mockImplementation(async (origin: string) => {
-        const settings = await settingsStorage.getKeychainSettings();
+        const settings = await settingsStorage.getSettings();
         return settings.connectedWebsites?.includes(origin) || false;
       }),
       requestPermission: vi.fn().mockResolvedValue(true),
@@ -210,7 +210,7 @@ describe('ProviderService Security Tests', () => {
       ).rejects.toThrow('Unauthorized');
       
       // Verify the site was not added to connected websites
-      const settings = await settingsStorage.getKeychainSettings();
+      const settings = await settingsStorage.getSettings();
       expect(settings.connectedWebsites).not.toContain('https://malicious.com');
     });
   });
@@ -245,8 +245,8 @@ describe('ProviderService Security Tests', () => {
       const origin = 'https://connected.com';
       
       // Mock as connected site
-      vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-        ...DEFAULT_KEYCHAIN_SETTINGS,
+      vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+        ...DEFAULT_SETTINGS,
         connectedWebsites: [origin]
       });
       
@@ -319,8 +319,8 @@ describe('ProviderService Security Tests', () => {
   describe('Security: Input Validation', () => {
     it('should validate transaction parameters', async () => {
       // Mark as connected site
-      vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-        ...DEFAULT_KEYCHAIN_SETTINGS,
+      vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+        ...DEFAULT_SETTINGS,
         connectedWebsites: ['https://connected.com']
       });
       
@@ -353,8 +353,8 @@ describe('ProviderService Security Tests', () => {
   describe('Security: Approval Flow Integrity', () => {
     it('should require user approval for all compose operations', async () => {
       // Mock site as not connected
-      vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-        ...DEFAULT_KEYCHAIN_SETTINGS,
+      vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+        ...DEFAULT_SETTINGS,
         connectedWebsites: [] // Not connected
       });
       
@@ -465,8 +465,8 @@ describe('ProviderService Security Tests', () => {
     
     it('should only expose current active address when connected', async () => {
       // Mock as connected
-      vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-        ...DEFAULT_KEYCHAIN_SETTINGS,
+      vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+        ...DEFAULT_SETTINGS,
         connectedWebsites: ['https://connected.com']
       });
       
@@ -482,8 +482,8 @@ describe('ProviderService Security Tests', () => {
     });
     
     it('should hide accounts when wallet is locked', async () => {
-      vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-        ...DEFAULT_KEYCHAIN_SETTINGS,
+      vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+        ...DEFAULT_SETTINGS,
         connectedWebsites: ['https://connected.com']
       });
       

@@ -3,7 +3,7 @@ import { MessageBus } from '@/services/core/MessageBus';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { walletManager, type Wallet, type Address } from '@/utils/wallet/walletManager';
-import { settingsManager } from '@/utils/wallet/settingsManager';
+import { getSettings, updateSettings } from '@/utils/storage/settingsStorage';
 
 interface WalletService {
   loadWallets: () => Promise<void>;
@@ -61,7 +61,6 @@ interface WalletService {
 function createWalletService(): WalletService {
   return {
     loadWallets: async () => {
-      await settingsManager.loadSettings();
       await walletManager.loadWallets();
     },
     getWallets: async () => walletManager.getWallets(),
@@ -69,8 +68,8 @@ function createWalletService(): WalletService {
     getActiveAddress: async () => {
       const activeWallet = walletManager.getActiveWallet();
       if (!activeWallet) return undefined;
-      
-      const settings = await settingsManager.getSettings();
+
+      const settings = await getSettings();
       const lastActiveAddress = settings?.lastActiveAddress;
       
       if (!lastActiveAddress) {
@@ -83,8 +82,7 @@ function createWalletService(): WalletService {
       return address || activeWallet.addresses[0];
     },
     setActiveWallet: async (walletId) => {
-      walletManager.setActiveWallet(walletId);
-      await settingsManager.updateSettings({ lastActiveWalletId: walletId });
+      await walletManager.setActiveWallet(walletId);
       // Don't emit here - address switching is handled in wallet-context
     },
     unlockWallet: async (walletId, password) => {
@@ -163,11 +161,11 @@ function createWalletService(): WalletService {
       return walletManager.signMessage(message, address);
     },
     getLastActiveAddress: async () => {
-      const settings = await settingsManager.getSettings();
+      const settings = await getSettings();
       return settings?.lastActiveAddress;
     },
     setLastActiveAddress: async (address) => {
-      await settingsManager.updateSettings({ lastActiveAddress: address });
+      await updateSettings({ lastActiveAddress: address });
       // Don't emit accountsChanged here - it's handled in wallet-context
       // which emits to all connected sites
     },

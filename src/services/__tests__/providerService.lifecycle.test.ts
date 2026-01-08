@@ -5,7 +5,7 @@ import { createProviderService } from '../providerService';
 import { approvalQueue } from '@/utils/provider/approvalQueue';
 import { requestCleanup } from '@/utils/provider/requestCleanup';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
-import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
+import { DEFAULT_SETTINGS } from '@/utils/storage/settingsStorage';
 
 // Mock dependencies
 vi.mock('webext-bridge/background', () => ({
@@ -58,8 +58,8 @@ describe('Provider Service Lifecycle Tests', () => {
     fakeBrowser.action.setBadgeText = vi.fn().mockResolvedValue(undefined);
     fakeBrowser.action.setBadgeBackgroundColor = vi.fn().mockResolvedValue(undefined);
     
-    vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-      ...DEFAULT_KEYCHAIN_SETTINGS,
+    vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+      ...DEFAULT_SETTINGS,
       connectedWebsites: [], // Clear connections for testing
       pinnedAssets: [], // Clear pinned assets for testing
     } as any);
@@ -224,8 +224,8 @@ describe('Provider Service Lifecycle Tests', () => {
       const origin = 'https://dapp.com';
       
       // Mark as connected
-      vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-        ...DEFAULT_KEYCHAIN_SETTINGS,
+      vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+        ...DEFAULT_SETTINGS,
         connectedWebsites: [origin],
         pinnedAssets: [], // Clear for test
       } as any);

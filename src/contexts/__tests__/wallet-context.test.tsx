@@ -3,7 +3,6 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { WalletProvider, useWallet } from '../wallet-context';
 import { walletManager } from '@/utils/wallet/walletManager';
 import * as sessionManager from '@/utils/auth/sessionManager';
-import { settingsManager } from '@/utils/wallet/settingsManager';
 import { sendMessage } from 'webext-bridge/popup';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
@@ -23,8 +22,8 @@ vi.mock('@/utils/storage/settingsStorage', async () => {
   const actual = await vi.importActual<typeof import('@/utils/storage/settingsStorage')>('@/utils/storage/settingsStorage');
   return {
     ...actual,
-    getKeychainSettings: vi.fn().mockResolvedValue({
-      ...actual.DEFAULT_KEYCHAIN_SETTINGS,
+    getSettings: vi.fn().mockResolvedValue({
+      ...actual.DEFAULT_SETTINGS,
       lastActiveWalletId: 'wallet1',
       autoLockTimeout: 300000,
       analyticsAllowed: false,
@@ -63,13 +62,6 @@ vi.mock('@/utils/auth/sessionManager', () => ({
   updateLastActiveTime: vi.fn(),
   getLastActiveTime: vi.fn(),
   clearUnlockedSecret: vi.fn()
-}));
-vi.mock('@/utils/wallet/settingsManager', () => ({
-  settingsManager: {
-    loadSettings: vi.fn(),
-    updateSettings: vi.fn(),
-    getSettings: vi.fn()
-  }
 }));
 
 // Mock the wallet service that uses webext-bridge
@@ -162,8 +154,6 @@ describe('WalletContext', () => {
     
     // Setup default mocks for other dependencies
     vi.mocked(walletManager.loadWallets).mockResolvedValue(mockWallets as any);
-    vi.mocked(settingsManager.loadSettings).mockResolvedValue(mockSettings);
-    vi.mocked(settingsManager.getSettings).mockReturnValue(mockSettings);
     // Default wallet is locked
     vi.mocked(sessionManager.getUnlockedSecret).mockResolvedValue(null);
   });

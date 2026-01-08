@@ -137,8 +137,8 @@ describe('ProviderService', () => {
     fakeBrowser.action.setBadgeBackgroundColor = vi.fn().mockResolvedValue(undefined);
     
     // Setup default mocks using the default settings constant
-    vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-      ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
+    vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+      ...settingsStorage.DEFAULT_SETTINGS,
       connectedWebsites: [] // Override specific properties as needed
     });
     
@@ -245,8 +245,8 @@ describe('ProviderService', () => {
     } as any;
     
     // Setup settings mocks - default to no connected sites
-    // (Already set up above with settingsStorage.DEFAULT_KEYCHAIN_SETTINGS)
-    vi.mocked(settingsStorage.updateKeychainSettings).mockResolvedValue(undefined);
+    // (Already set up above with settingsStorage.DEFAULT_SETTINGS)
+    vi.mocked(settingsStorage.updateSettings).mockResolvedValue(undefined);
     
     // Setup other mocks
     vi.mocked(approvalQueue.approvalQueue.add).mockReturnValue(undefined as any);
@@ -440,8 +440,8 @@ describe('ProviderService', () => {
       
       it('should throw error for deprecated xcp_signTransaction', async () => {
         // Even when connected, xcp_signTransaction should be deprecated
-        vi.mocked(settingsStorage.getKeychainSettings).mockResolvedValue({
-          ...settingsStorage.DEFAULT_KEYCHAIN_SETTINGS,
+        vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+          ...settingsStorage.DEFAULT_SETTINGS,
           connectedWebsites: ['https://connected.com']
         });
 

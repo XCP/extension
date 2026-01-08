@@ -1,8 +1,40 @@
 /**
  * RequestManager - Memory-safe management of pending async requests
- * 
+ *
  * Solves the memory leak issue in ProviderService where pending
  * requests could accumulate indefinitely without cleanup.
+ *
+ * ## Architecture Decision Records
+ *
+ * ### ADR-007: Request Callbacks Lost on Service Worker Restart (Acceptable)
+ *
+ * **Context**: When Chrome's service worker restarts (due to inactivity, updates,
+ * or crashes), all in-memory JavaScript state is lost. This includes:
+ * - Promise resolve/reject callbacks in RequestManager
+ * - Event listeners
+ * - Any non-persisted state
+ *
+ * **Decision**: Accept this limitation with mitigations.
+ *
+ * **Rationale**:
+ * - JavaScript callbacks cannot be serialized/persisted
+ * - MetaMask's solution is also mitigation (45-min keep-alive), not true recovery
+ * - Our keep-alive alarms (every 24 seconds) prevent most restarts
+ * - Request timeouts (5 min) ensure eventual cleanup
+ * - Users can retry if a request is lost (rare with keep-alive)
+ * - True recovery would require complex dApp coordination (retry protocols)
+ *
+ * **Mitigations**:
+ * 1. Keep-alive alarms fire every 24s (Chrome timeout is 30s)
+ * 2. BaseService persists critical state to chrome.storage.session
+ * 3. Session recovery detects restarts and handles re-authentication
+ * 4. Request timeouts prevent orphaned requests
+ * 5. Clear error messages guide users to retry
+ *
+ * **When This Matters**:
+ * - Extension update while approval popup is open
+ * - Chrome force-terminates service worker (rare with keep-alive)
+ * - System memory pressure forces Chrome to reclaim resources
  */
 
 export interface PendingRequest {

@@ -1,5 +1,12 @@
+/**
+ * Settings Storage - Encrypted settings persistence layer
+ *
+ * All settings are encrypted in a single blob using AES-GCM.
+ * The encryption key is derived from the user's password and stored
+ * in session storage after unlock.
+ */
+
 import {
-  getAllRecords,
   addRecord,
   updateRecord,
   getRecordById,
@@ -12,7 +19,8 @@ import {
   decryptSettingsWithPassword,
   encryptSettingsWithPassword,
   initializeSettingsKey,
-} from '@/utils/encryption/settingsEncryption';
+} from '@/utils/encryption/settings';
+import { TTLCache, CacheTTL } from '@/utils/cache';
 
 /**
  * Defines the valid auto-lock timer options in minutes.
@@ -89,12 +97,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
  */
 interface SettingsRecord extends StoredRecord {
   encryptedSettings?: string;
-  // Legacy fields for migration detection
-  autoLockTimeout?: number;
-  encryptedSensitiveData?: string;
-  lastActiveAddress?: string;
-  connectedWebsites?: string[];
-  pinnedAssets?: string[];
 }
 
 /**
@@ -102,9 +104,30 @@ interface SettingsRecord extends StoredRecord {
  */
 const SETTINGS_RECORD_ID = 'keychain-settings';
 
-// Re-export for backward compatibility
-export type KeychainSettings = AppSettings;
-export const DEFAULT_KEYCHAIN_SETTINGS = DEFAULT_SETTINGS;
+/**
+ * Settings cache with TTL to avoid redundant storage reads.
+ * During a transaction flow (compose → sign → broadcast), multiple
+ * functions call getSettings(). This cache prevents repeated storage
+ * reads per transaction while keeping data fresh within 5 seconds.
+ */
+const settingsCache = new TTLCache<AppSettings>(CacheTTL.SHORT, cloneSettings);
+
+/** Deep clone settings to prevent mutation of cached data */
+function cloneSettings(settings: AppSettings): AppSettings {
+  return {
+    ...settings,
+    connectedWebsites: [...settings.connectedWebsites],
+    pinnedAssets: [...settings.pinnedAssets],
+  };
+}
+
+/**
+ * Invalidates the settings cache.
+ * Called when settings are saved to ensure fresh data.
+ */
+export function invalidateSettingsCache(): void {
+  settingsCache.invalidate();
+}
 
 /**
  * Returns a deep copy of default settings.
@@ -119,153 +142,57 @@ function getDefaultSettings(): AppSettings {
 }
 
 /**
- * Loads settings from storage.
+ * Loads settings from storage with caching.
  * Returns decrypted settings if wallet is unlocked, defaults if locked.
+ * Uses a 5-second TTL cache to avoid redundant storage reads during
+ * transaction flows (compose → sign → broadcast).
  */
-export async function getKeychainSettings(): Promise<AppSettings> {
+export async function getSettings(): Promise<AppSettings> {
+  // Check cache first (TTLCache.get() returns cloned data or null)
+  const cached = settingsCache.get();
+  if (cached !== null) {
+    return cached;
+  }
+
   const record = await getRecordById(SETTINGS_RECORD_ID) as SettingsRecord | undefined;
 
-  // No record exists - return defaults
-  if (!record) {
+  // No record exists - return defaults (don't cache defaults)
+  if (!record || !record.encryptedSettings) {
     return getDefaultSettings();
   }
 
   // Check if we have the decryption key
   const keyAvailable = await isSettingsKeyAvailable();
-
-  // New format: single encrypted blob
-  if (record.encryptedSettings) {
-    if (!keyAvailable) {
-      // Locked - return defaults
-      return getDefaultSettings();
-    }
-
-    try {
-      const settings = await decryptSettings(record.encryptedSettings);
-      return normalizeSettings(settings);
-    } catch (err) {
-      console.warn('Failed to decrypt settings, using defaults:', err);
-      return getDefaultSettings();
-    }
+  if (!keyAvailable) {
+    // Locked - return defaults (don't cache when locked)
+    return getDefaultSettings();
   }
 
-  // Legacy format: check if migration is needed
-  if (isLegacyFormat(record)) {
-    if (keyAvailable) {
-      // Migrate and return decrypted settings
-      const migrated = await migrateLegacySettings(record);
-      return normalizeSettings(migrated);
-    } else {
-      // Can't migrate yet - return defaults
-      return getDefaultSettings();
-    }
-  }
+  try {
+    const settings = await decryptSettings(record.encryptedSettings);
+    const normalized = normalizeSettings(settings);
 
-  // Empty record - return defaults
-  return getDefaultSettings();
+    // Update cache
+    settingsCache.set(normalized);
+
+    // Return a cloned copy
+    return cloneSettings(normalized);
+  } catch (err) {
+    console.warn('Failed to decrypt settings, using defaults:', err);
+    return getDefaultSettings();
+  }
 }
 
 /**
- * Checks if a record is in the legacy format (needs migration).
- */
-function isLegacyFormat(record: SettingsRecord): boolean {
-  // Legacy format has either:
-  // 1. Public fields stored directly (autoLockTimeout, etc.)
-  // 2. encryptedSensitiveData for sensitive fields
-  // 3. Unencrypted sensitive fields (very old format)
-  return (
-    record.autoLockTimeout !== undefined ||
-    record.encryptedSensitiveData !== undefined ||
-    record.lastActiveAddress !== undefined ||
-    record.connectedWebsites !== undefined ||
-    record.pinnedAssets !== undefined
-  );
-}
-
-/**
- * Migrates legacy settings format to new encrypted format.
- * Called when we have the encryption key available.
- */
-async function migrateLegacySettings(record: SettingsRecord): Promise<AppSettings> {
-  const {
-    decryptSensitiveSettings,
-  } = await import('@/utils/encryption/sensitiveSettings');
-
-  // Infer autoLockTimer from autoLockTimeout if timer not present
-  let inferredTimer: AutoLockTimer = (record as any).autoLockTimer ?? DEFAULT_SETTINGS.autoLockTimer;
-  if (!(record as any).autoLockTimer && record.autoLockTimeout !== undefined) {
-    const minutes = record.autoLockTimeout / (60 * 1000);
-    if (minutes === 1) inferredTimer = '1m';
-    else if (minutes === 5) inferredTimer = '5m';
-    else if (minutes === 15) inferredTimer = '15m';
-    else if (minutes === 30) inferredTimer = '30m';
-    // Otherwise keep default '5m'
-  }
-
-  // Build settings from legacy record
-  const settings: AppSettings = {
-    ...DEFAULT_SETTINGS,
-    version: SETTINGS_VERSION, // Mark as current version after migration
-    // Public fields from old format
-    lastActiveWalletId: (record as any).lastActiveWalletId ?? DEFAULT_SETTINGS.lastActiveWalletId,
-    autoLockTimeout: record.autoLockTimeout ?? DEFAULT_SETTINGS.autoLockTimeout,
-    showHelpText: (record as any).showHelpText ?? DEFAULT_SETTINGS.showHelpText,
-    analyticsAllowed: (record as any).analyticsAllowed ?? DEFAULT_SETTINGS.analyticsAllowed,
-    allowUnconfirmedTxs: (record as any).allowUnconfirmedTxs ?? DEFAULT_SETTINGS.allowUnconfirmedTxs,
-    autoLockTimer: inferredTimer,
-    enableMPMA: (record as any).enableMPMA ?? DEFAULT_SETTINGS.enableMPMA,
-    enableAdvancedBroadcasts: (record as any).enableAdvancedBroadcasts ?? DEFAULT_SETTINGS.enableAdvancedBroadcasts,
-    enableAdvancedBetting: (record as any).enableAdvancedBetting ?? DEFAULT_SETTINGS.enableAdvancedBetting,
-    transactionDryRun: (record as any).transactionDryRun ?? DEFAULT_SETTINGS.transactionDryRun,
-    counterpartyApiBase: (record as any).counterpartyApiBase ?? DEFAULT_SETTINGS.counterpartyApiBase,
-    defaultOrderExpiration: (record as any).defaultOrderExpiration ?? DEFAULT_SETTINGS.defaultOrderExpiration,
-    hasVisitedRecoverBitcoin: (record as any).hasVisitedRecoverBitcoin ?? DEFAULT_SETTINGS.hasVisitedRecoverBitcoin,
-  };
-
-  // Try to get sensitive fields from encrypted data
-  if (record.encryptedSensitiveData) {
-    try {
-      const sensitive = await decryptSensitiveSettings(record.encryptedSensitiveData);
-      settings.lastActiveAddress = sensitive.lastActiveAddress;
-      settings.connectedWebsites = sensitive.connectedWebsites;
-      settings.pinnedAssets = sensitive.pinnedAssets;
-    } catch (err) {
-      console.warn('Failed to decrypt legacy sensitive settings:', err);
-    }
-  } else {
-    // Very old format: unencrypted sensitive fields
-    if (record.lastActiveAddress !== undefined) {
-      settings.lastActiveAddress = record.lastActiveAddress;
-    }
-    if (record.connectedWebsites !== undefined) {
-      settings.connectedWebsites = record.connectedWebsites;
-    }
-    if (record.pinnedAssets !== undefined) {
-      settings.pinnedAssets = record.pinnedAssets;
-    }
-  }
-
-  // Save in new format
-  const encrypted = await encryptSettings(settings);
-  const newRecord: SettingsRecord = {
-    id: SETTINGS_RECORD_ID,
-    encryptedSettings: encrypted,
-  };
-  await updateRecord(newRecord);
-
-  console.log('Migrated settings to new encrypted format');
-  return settings;
-}
-
-/**
- * Normalizes settings by ensuring autoLockTimer and autoLockTimeout are consistent.
+ * Normalizes and validates settings, providing safe defaults for corrupted data.
+ * This is critical for preventing crashes from malformed storage data.
  */
 function normalizeSettings(settings: AppSettings): AppSettings {
   const normalized = { ...settings };
 
   // Validate autoLockTimer
   if (!['1m', '5m', '15m', '30m'].includes(normalized.autoLockTimer)) {
-    normalized.autoLockTimer = '5m';
+    normalized.autoLockTimer = DEFAULT_SETTINGS.autoLockTimer;
   }
 
   // Ensure autoLockTimeout matches autoLockTimer
@@ -275,17 +202,82 @@ function normalizeSettings(settings: AppSettings): AppSettings {
     '15m': 15 * 60 * 1000,
     '30m': 30 * 60 * 1000,
   }[normalized.autoLockTimer];
-
   normalized.autoLockTimeout = expectedTimeout;
 
+  // Validate arrays - must be arrays of strings
+  if (!Array.isArray(normalized.connectedWebsites)) {
+    normalized.connectedWebsites = [];
+  } else {
+    // Filter out non-string entries
+    normalized.connectedWebsites = normalized.connectedWebsites.filter(
+      (site): site is string => typeof site === 'string' && site.length > 0
+    );
+  }
+
+  if (!Array.isArray(normalized.pinnedAssets)) {
+    normalized.pinnedAssets = [...DEFAULT_SETTINGS.pinnedAssets];
+  } else {
+    // Filter out non-string entries
+    normalized.pinnedAssets = normalized.pinnedAssets.filter(
+      (asset): asset is string => typeof asset === 'string' && asset.length > 0
+    );
+  }
+
+  // Validate counterpartyApiBase - must be valid URL
+  if (typeof normalized.counterpartyApiBase !== 'string' || !isValidApiUrl(normalized.counterpartyApiBase)) {
+    normalized.counterpartyApiBase = DEFAULT_SETTINGS.counterpartyApiBase;
+  }
+
+  // Validate defaultOrderExpiration - must be positive number
+  if (typeof normalized.defaultOrderExpiration !== 'number' ||
+      !Number.isFinite(normalized.defaultOrderExpiration) ||
+      normalized.defaultOrderExpiration <= 0) {
+    normalized.defaultOrderExpiration = DEFAULT_SETTINGS.defaultOrderExpiration;
+  }
+
+  // Validate boolean flags - coerce to boolean with defaults
+  normalized.showHelpText = Boolean(normalized.showHelpText);
+  normalized.analyticsAllowed = normalized.analyticsAllowed !== false; // default true
+  normalized.allowUnconfirmedTxs = normalized.allowUnconfirmedTxs !== false; // default true
+  normalized.enableMPMA = Boolean(normalized.enableMPMA);
+  normalized.enableAdvancedBroadcasts = Boolean(normalized.enableAdvancedBroadcasts);
+  normalized.enableAdvancedBetting = Boolean(normalized.enableAdvancedBetting);
+  normalized.transactionDryRun = Boolean(normalized.transactionDryRun);
+  normalized.hasVisitedRecoverBitcoin = Boolean(normalized.hasVisitedRecoverBitcoin);
+
+  // Validate optional string fields
+  if (normalized.lastActiveWalletId !== undefined && typeof normalized.lastActiveWalletId !== 'string') {
+    normalized.lastActiveWalletId = undefined;
+  }
+  if (normalized.lastActiveAddress !== undefined && typeof normalized.lastActiveAddress !== 'string') {
+    normalized.lastActiveAddress = undefined;
+  }
+
+  // Validate version
+  if (normalized.version !== undefined && typeof normalized.version !== 'number') {
+    normalized.version = SETTINGS_VERSION;
+  }
+
   return normalized;
+}
+
+/**
+ * Validates that a string is a valid API URL (https only, valid format)
+ */
+function isValidApiUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Updates settings by merging new values with current.
  * Requires wallet to be unlocked.
  */
-export async function updateKeychainSettings(
+export async function updateSettings(
   newSettings: Partial<AppSettings>
 ): Promise<void> {
   const keyAvailable = await isSettingsKeyAvailable();
@@ -294,7 +286,7 @@ export async function updateKeychainSettings(
   }
 
   // Get current settings (will be decrypted since key is available)
-  const current = await getKeychainSettings();
+  const current = await getSettings();
   let updated: AppSettings = { ...current, ...newSettings };
 
   // Handle autoLockTimer → autoLockTimeout sync
@@ -321,6 +313,9 @@ export async function updateKeychainSettings(
   } else {
     await addRecord(record);
   }
+
+  // Invalidate cache to ensure fresh data on next read
+  invalidateSettingsCache();
 }
 
 /**
@@ -333,61 +328,18 @@ export async function reencryptSettings(
 ): Promise<void> {
   const record = await getRecordById(SETTINGS_RECORD_ID) as SettingsRecord | undefined;
 
-  if (!record) {
+  if (!record || !record.encryptedSettings) {
     // No settings to re-encrypt
     return;
   }
 
-  let settings: AppSettings;
-
-  if (record.encryptedSettings) {
-    // New format - decrypt with old password
-    settings = await decryptSettingsWithPassword(record.encryptedSettings, oldPassword);
-  } else if (isLegacyFormat(record)) {
-    // Legacy format - need to build settings and decrypt sensitive part
-    const {
-      decryptSensitiveSettingsWithPassword,
-    } = await import('@/utils/encryption/sensitiveSettings');
-
-    settings = {
-      ...DEFAULT_SETTINGS,
-      lastActiveWalletId: (record as any).lastActiveWalletId ?? DEFAULT_SETTINGS.lastActiveWalletId,
-      autoLockTimeout: record.autoLockTimeout ?? DEFAULT_SETTINGS.autoLockTimeout,
-      showHelpText: (record as any).showHelpText ?? DEFAULT_SETTINGS.showHelpText,
-      analyticsAllowed: (record as any).analyticsAllowed ?? DEFAULT_SETTINGS.analyticsAllowed,
-      allowUnconfirmedTxs: (record as any).allowUnconfirmedTxs ?? DEFAULT_SETTINGS.allowUnconfirmedTxs,
-      autoLockTimer: (record as any).autoLockTimer ?? DEFAULT_SETTINGS.autoLockTimer,
-      enableMPMA: (record as any).enableMPMA ?? DEFAULT_SETTINGS.enableMPMA,
-      enableAdvancedBroadcasts: (record as any).enableAdvancedBroadcasts ?? DEFAULT_SETTINGS.enableAdvancedBroadcasts,
-      enableAdvancedBetting: (record as any).enableAdvancedBetting ?? DEFAULT_SETTINGS.enableAdvancedBetting,
-      transactionDryRun: (record as any).transactionDryRun ?? DEFAULT_SETTINGS.transactionDryRun,
-      counterpartyApiBase: (record as any).counterpartyApiBase ?? DEFAULT_SETTINGS.counterpartyApiBase,
-      defaultOrderExpiration: (record as any).defaultOrderExpiration ?? DEFAULT_SETTINGS.defaultOrderExpiration,
-      hasVisitedRecoverBitcoin: (record as any).hasVisitedRecoverBitcoin ?? DEFAULT_SETTINGS.hasVisitedRecoverBitcoin,
-    };
-
-    if (record.encryptedSensitiveData) {
-      try {
-        const sensitive = await decryptSensitiveSettingsWithPassword(
-          record.encryptedSensitiveData,
-          oldPassword
-        );
-        settings.lastActiveAddress = sensitive.lastActiveAddress;
-        settings.connectedWebsites = sensitive.connectedWebsites;
-        settings.pinnedAssets = sensitive.pinnedAssets;
-      } catch {
-        // Keep defaults for sensitive fields
-      }
-    }
-  } else {
-    // No encrypted data
-    return;
-  }
+  // Decrypt with old password
+  const settings = await decryptSettingsWithPassword(record.encryptedSettings, oldPassword);
 
   // Re-encrypt with new password
   const newEncrypted = await encryptSettingsWithPassword(settings, newPassword);
 
-  // Save in new format
+  // Save
   const newRecord: SettingsRecord = {
     id: SETTINGS_RECORD_ID,
     encryptedSettings: newEncrypted,
@@ -396,7 +348,7 @@ export async function reencryptSettings(
 
   // Update session key with new password
   await initializeSettingsKey(newPassword);
-}
 
-// Legacy export alias for backward compatibility
-export const reencryptSensitiveSettings = reencryptSettings;
+  // Invalidate cache to ensure fresh data
+  invalidateSettingsCache();
+}

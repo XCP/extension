@@ -1,6 +1,5 @@
-import axios from 'axios';
 import { apiClient } from '@/utils/axios';
-import { getKeychainSettings } from '@/utils/storage/settingsStorage';
+import { getSettings } from '@/utils/storage/settingsStorage';
 
 export interface SignedTxEstimatedSize {
   vsize: number;
@@ -216,7 +215,7 @@ export interface MoveOptions extends BaseComposeOptions {
 }
 
 async function getApiBase() {
-  const settings = await getKeychainSettings();
+  const settings = await getSettings();
   return settings.counterpartyApiBase;
 }
 
@@ -233,7 +232,7 @@ async function composeTransactionWithArrays<T>(
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
   
   // Get user's unconfirmed transaction preference
-  const settings = await getKeychainSettings();
+  const settings = await getSettings();
   
   const params = new URLSearchParams({
     ...paramsObj as any,
@@ -291,7 +290,7 @@ export async function composeTransaction<T>(
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
 
   // Get user's unconfirmed transaction preference
-  const settings = await getKeychainSettings();
+  const settings = await getSettings();
 
   const params = new URLSearchParams({
     ...paramsObj as any,
@@ -303,8 +302,11 @@ export async function composeTransaction<T>(
     ...(encoding && { encoding }),
   });
 
+  const url = `${apiUrl}?${params.toString()}`;
+
   try {
-    const response = await axios.get<ApiResponse | { error: string }>(`${apiUrl}?${params.toString()}`, {
+    // Use apiClient for automatic timeout (60s for /compose) and retry logic
+    const response = await apiClient.get<ApiResponse | { error: string }>(url, {
       headers: { 'Content-Type': 'application/json' },
     });
 
@@ -315,12 +317,13 @@ export async function composeTransaction<T>(
 
     return response.data as ApiResponse;
   } catch (error: any) {
-    console.error('Compose transaction failed:', {
-      endpoint,
-      params: Object.fromEntries(params),
-      url: `${apiUrl}?${params.toString()}`,
-      error: error.response?.data || error.message
-    });
+    // Handle timeout errors specifically
+    if (error.code === 'TIMEOUT') {
+      throw new Error('Transaction composition timed out. Please try again.');
+    }
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error);
+    }
     throw error;
   }
 }
@@ -335,10 +338,10 @@ export async function composeUtxoTransaction<T>(
 ): Promise<ApiResponse> {
   const base = await getApiBase();
   const apiUrl = `${base}/v2/utxos/${sourceUtxo}/compose/${endpoint}`;
-  
+
   // Get user's unconfirmed transaction preference
-  const settings = await getKeychainSettings();
-  
+  const settings = await getSettings();
+
   const params = new URLSearchParams({
     ...paramsObj as any,
     sat_per_vbyte: sat_per_vbyte.toString(),
@@ -349,16 +352,30 @@ export async function composeUtxoTransaction<T>(
     ...(encoding && { encoding }),
   });
 
-  const response = await axios.get<ApiResponse | { error: string }>(`${apiUrl}?${params.toString()}`, {
-    headers: { 'Content-Type': 'application/json' },
-  });
+  const url = `${apiUrl}?${params.toString()}`;
 
-  // Check if the API returned an error response
-  if ('error' in response.data) {
-    throw new Error(response.data.error);
+  try {
+    // Use apiClient for automatic timeout (60s for /compose) and retry logic
+    const response = await apiClient.get<ApiResponse | { error: string }>(url, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    // Check if the API returned an error response
+    if ('error' in response.data) {
+      throw new Error(response.data.error);
+    }
+
+    return response.data as ApiResponse;
+  } catch (error: any) {
+    // Handle timeout errors specifically
+    if (error.code === 'TIMEOUT') {
+      throw new Error('Transaction composition timed out. Please try again.');
+    }
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error);
+    }
+    throw error;
   }
-
-  return response.data as ApiResponse;
 }
 
 export async function composeBet(options: BetOptions): Promise<ApiResponse> {
@@ -523,7 +540,7 @@ export async function getDividendEstimateXcpFee(sourceAddress: string, asset: st
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/dividend/estimatexcpfees`;
   const params = new URLSearchParams({ asset });
-  const response = await axios.get<{ result: number }>(`${apiUrl}?${params.toString()}`);
+  const response = await apiClient.get<{ result: number }>(`${apiUrl}?${params.toString()}`);
   return response.data.result;
 }
 
@@ -665,7 +682,7 @@ export async function composeSweep(options: SweepOptions): Promise<ApiResponse> 
 export async function getSweepEstimateXcpFee(sourceAddress: string): Promise<number> {
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/sweep/estimatexcpfees`;
-  const response = await axios.get<{ result: number }>(apiUrl);
+  const response = await apiClient.get<{ result: number }>(apiUrl);
   return response.data.result;
 }
 
@@ -757,7 +774,7 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
 export async function getAttachEstimateXcpFee(sourceAddress: string): Promise<number> {
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/attach/estimatexcpfees`;
-  const response = await axios.get<{ result: number }>(apiUrl);
+  const response = await apiClient.get<{ result: number }>(apiUrl);
   return response.data.result;
 }
 

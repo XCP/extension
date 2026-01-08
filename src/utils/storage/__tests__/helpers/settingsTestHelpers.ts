@@ -1,12 +1,12 @@
-import { DEFAULT_KEYCHAIN_SETTINGS, type KeychainSettings } from '@/utils/storage/settingsStorage';
+import { DEFAULT_SETTINGS, type AppSettings } from '@/utils/storage/settingsStorage';
 
 /**
  * Create test settings by merging with defaults
  * This ensures tests only override what they need and stay in sync with defaults
  */
-export function createTestSettings(overrides: Partial<KeychainSettings> = {}): KeychainSettings {
+export function createTestSettings(overrides: Partial<AppSettings> = {}): AppSettings {
   return {
-    ...DEFAULT_KEYCHAIN_SETTINGS,
+    ...DEFAULT_SETTINGS,
     ...overrides,
   };
 }
@@ -16,17 +16,17 @@ export function createTestSettings(overrides: Partial<KeychainSettings> = {}): K
  */
 export const TEST_SETTINGS = {
   DEFAULT: createTestSettings(),
-  
+
   // Extended timeout for timeout tests
   LONG_TIMEOUT: createTestSettings({
     autoLockTimeout: 15 * 60 * 1000, // 15 minutes
   }),
-  
+
   // Development mode
   DEV_MODE: createTestSettings({
     transactionDryRun: true,
   }),
-  
+
   // Minimal settings for testing edge cases
   MINIMAL: createTestSettings({
     pinnedAssets: [],

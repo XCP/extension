@@ -1,10 +1,36 @@
 /**
  * BaseService - Foundation for all extension services
- * 
+ *
  * Provides:
  * - Service lifecycle management (initialize, destroy)
  * - State persistence for service worker restarts
  * - Keep-alive mechanism to prevent service worker termination
+ * - Dependency declaration for explicit initialization ordering
+ *
+ * ## Architecture Decision Records
+ *
+ * ### ADR-006: Explicit Service Dependency Ordering
+ *
+ * **Context**: Services often depend on other services being initialized first.
+ * Without explicit ordering, initialization race conditions can occur.
+ *
+ * **Decision**: Services declare dependencies via `getDependencies()`.
+ * ServiceRegistry validates dependencies are registered before allowing registration.
+ *
+ * **Rationale**:
+ * - MetaMask uses ControllerMessenger with restricted actions/events (more complex)
+ * - Simple dependency array is sufficient for our use case
+ * - Runtime validation catches misconfiguration early
+ * - Explicit > implicit ordering
+ *
+ * **Usage**:
+ * ```typescript
+ * class MyService extends BaseService {
+ *   getDependencies(): string[] {
+ *     return ['EventEmitterService']; // Must be registered first
+ *   }
+ * }
+ * ```
  */
 
 export abstract class BaseService {
@@ -190,6 +216,17 @@ export abstract class BaseService {
    */
   getStartTime(): number {
     return this.serviceStartTime;
+  }
+
+  /**
+   * Get service dependencies - names of services that must be registered first.
+   * Override in derived classes to declare dependencies.
+   * ServiceRegistry validates these before allowing registration.
+   *
+   * @returns Array of service names this service depends on
+   */
+  getDependencies(): string[] {
+    return []; // Default: no dependencies
   }
 
   // Abstract methods that must be implemented by derived services

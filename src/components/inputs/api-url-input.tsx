@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { FiRotateCcw } from 'react-icons/fi';
 import { Input } from '@headlessui/react';
 import { validateCounterpartyApi } from '@/utils/validation/api';
-import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
+import { DEFAULT_SETTINGS } from '@/utils/storage/settingsStorage';
 
 interface ApiUrlInputProps {
   value: string;
@@ -59,12 +59,12 @@ export const ApiUrlInput = ({
   };
 
   const handleReset = async () => {
-    const defaultUrl = DEFAULT_KEYCHAIN_SETTINGS.counterpartyApiBase;
+    const defaultUrl = DEFAULT_SETTINGS.counterpartyApiBase;
     setLocalValue(defaultUrl);
     await handleValidation(defaultUrl);
   };
 
-  const isDefault = localValue === DEFAULT_KEYCHAIN_SETTINGS.counterpartyApiBase;
+  const isDefault = localValue === DEFAULT_SETTINGS.counterpartyApiBase;
 
   // Determine border color based on state
   const getBorderClass = () => {

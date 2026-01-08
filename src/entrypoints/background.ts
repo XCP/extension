@@ -142,51 +142,96 @@ export default defineBackground(() => {
   });
   
   console.log('Background service worker: Core listeners registered');
+
+  // ============================================================
+  // SERVICE INITIALIZATION
+  // ============================================================
+
+  // Initialize service registry
+  const serviceRegistry = ServiceRegistry.getInstance();
+
+  // Track initialization state for health checks
+  let servicesReady = false;
+  let initError: Error | null = null;
+
+  // Helper to check if services are ready
+  function getServicesStatus(): { ready: boolean; error?: string } {
+    return {
+      ready: servicesReady,
+      error: initError?.message
+    };
+  }
+
+  // Sequential initialization to ensure proper ordering
+  async function initializeServices(): Promise<void> {
+    try {
+      // 1. Register proxy services first (synchronous, sets up message listeners)
+      registerWalletService();
+      registerProviderService();
+      registerConnectionService();
+      registerApprovalService();
+      console.log('[Background] Proxy services registered');
+
+      // 2. Initialize event emitter via registry (for lifecycle management)
+      await serviceRegistry.register(eventEmitterService);
+      console.log('[Background] EventEmitterService initialized');
+
+      // 3. Initialize update service
+      await getUpdateService().initialize();
+      console.log('[Background] UpdateService initialized');
+
+      // 4. Initialize popup monitor service
+      getPopupMonitorService().initialize();
+      console.log('[Background] PopupMonitorService initialized');
+
+      // 5. Check session recovery state (may lock wallets if session expired)
+      const recoveryState = await checkSessionRecovery();
+      if (recoveryState === SessionRecoveryState.LOCKED) {
+        const walletService = getWalletService();
+        await walletService.lockAllWallets();
+        console.log('[Background] Wallets locked due to session recovery state');
+      } else if (recoveryState === SessionRecoveryState.NEEDS_REAUTH) {
+        console.log('[Background] Session needs re-authentication');
+      }
+
+      servicesReady = true;
+      console.log('[Background] All services initialized successfully');
+    } catch (error) {
+      initError = error instanceof Error ? error : new Error(String(error));
+      console.error('[Background] Service initialization failed:', error);
+      // Still mark as ready to prevent deadlock, but log the error
+      servicesReady = true;
+    }
+  }
+
+  // Start initialization (non-blocking to avoid Chrome timeout)
+  const initPromise = initializeServices();
+
+  // ============================================================
+  // WEBEXT-BRIDGE HANDLERS
+  // ============================================================
+
   // Initialize webext-bridge handlers at top level of defineBackground
   // This ensures they're registered when the service worker starts
   webextBridgeOnMessage('webext-bridge-keep-alive', () => {
     return { alive: true };
   });
-  
-  webextBridgeOnMessage('startup-health-check', () => {
-    return { 
-      status: 'ready', 
+
+  webextBridgeOnMessage('startup-health-check', async () => {
+    // Wait for services to be ready before reporting healthy
+    if (!servicesReady) {
+      await initPromise;
+    }
+    const status = getServicesStatus();
+    return {
+      status: status.ready ? 'ready' : 'initializing',
       timestamp: Date.now(),
-      services: 'ready'
+      services: status.ready ? 'ready' : 'initializing',
+      error: status.error
     };
   });
-  
+
   console.log('Background: webext-bridge handlers registered');
-  
-  // Using robust messaging utilities with ping-inject-retry pattern
-  
-  // Initialize service registry
-  const serviceRegistry = ServiceRegistry.getInstance();
-  
-  // Initialize core services (non-blocking)
-  serviceRegistry.register(eventEmitterService)
-    .then(() => {
-      console.log('Core services initialized');
-    })
-    .catch((error) => {
-      console.error('Failed to initialize core services:', error);
-    });
-
-  // Initialize update service for handling Chrome extension updates
-  // Critical for extensions with persistent connections or native messaging
-  getUpdateService().initialize().catch((error) => {
-    console.error('Failed to initialize update service:', error);
-  });
-
-  // Initialize popup monitor service for handling abandoned requests
-  // Handles cases where user closes popup or walks away
-  getPopupMonitorService().initialize();
-  
-  // Register proxy services (existing pattern)
-  registerWalletService();
-  registerProviderService();
-  registerConnectionService();
-  registerApprovalService();
   
   // Set up MessageBus handlers for provider requests
   MessageBus.onMessage('provider-request', async (data) => {
@@ -272,25 +317,7 @@ export default defineBackground(() => {
       return { success: false, error: error.message };
     }
   });
-  
-  // Check session recovery state on startup (non-blocking)
-  checkSessionRecovery().then(recoveryState => {
-    
-    if (recoveryState === SessionRecoveryState.LOCKED) {
-      // Session expired or doesn't exist - ensure everything is locked
-      const walletService = getWalletService();
-      walletService.lockAllWallets().catch(error => {
-        console.error('Failed to lock wallets during session recovery:', error);
-      });
-    } else if (recoveryState === SessionRecoveryState.NEEDS_REAUTH) {
-      // Valid session but secrets lost - notify popup to show auth modal
-      // The popup will handle this when it checks wallet state
-    }
-  }).catch(error => {
-    console.error('Session recovery check failed:', error);
-    // Continue execution even if session recovery fails
-  });
-  
+
   // Set up Chrome alarms for session management and keep-alive
   const KEEP_ALIVE_ALARM_NAME = 'keep-alive';
   const SESSION_EXPIRY_ALARM_NAME = 'session-expiry';
@@ -397,6 +424,10 @@ export default defineBackground(() => {
       // Cleanup update service
       const updateService = getUpdateService();
       updateService.destroy();
+
+      // Cleanup popup monitor service
+      const popupMonitor = getPopupMonitorService();
+      popupMonitor.destroy();
     });
   }
   

@@ -7,10 +7,10 @@ import type { ComposeResult } from '../../compose';
 export const mockAddress = 'bc1qtest123address';
 export const mockDestAddress = 'bc1qdest456address';
 export const mockApiBase = 'https://api.counterparty.io:4000';
-import { DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
+import { DEFAULT_SETTINGS } from '@/utils/storage/settingsStorage';
 
-export const mockSettings = { 
-  ...DEFAULT_KEYCHAIN_SETTINGS,
+export const mockSettings = {
+  ...DEFAULT_SETTINGS,
   counterpartyApiBase: mockApiBase,
 };
 export const mockSatPerVbyte = 10;
@@ -58,10 +58,14 @@ export const createMockComposeResult = (overrides?: Partial<ComposeResult>): Com
 });
 
 /**
- * Create a mock API response
+ * Create a mock API response with full AxiosResponse structure
  */
 export const createMockApiResponse = <T = ComposeResult>(data: T) => ({
   data: data,
+  status: 200,
+  statusText: 'OK',
+  headers: {},
+  config: { headers: {} as any },
 });
 
 /**
@@ -73,11 +77,11 @@ export const setupComposeMocks = () => {
     post: vi.fn().mockResolvedValue(createMockApiResponse(createMockComposeResult())),
   };
   
-  const mockedGetKeychainSettings = vi.fn().mockResolvedValue(mockSettings);
+  const mockedGetSettings = vi.fn().mockResolvedValue(mockSettings);
   
   return {
     mockedAxios,
-    mockedGetKeychainSettings,
+    mockedGetSettings,
   };
 };
 
@@ -236,7 +240,7 @@ export const createComposeTestSuite = (
 
     it('should get settings before making request', async () => {
       await composeFn(mockAddress, requiredParams);
-      expect(mocks.mockedGetKeychainSettings).toHaveBeenCalled();
+      expect(mocks.mockedGetSettings).toHaveBeenCalled();
     });
   };
 };

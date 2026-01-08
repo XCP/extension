@@ -1,10 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  FeeRates,
-  fetchFromMempoolSpace,
-  fetchFromBlockstream,
-  getFeeRates
-} from '@/utils/blockchain/bitcoin/feeRate';
+import type { FeeRates } from '@/utils/blockchain/bitcoin/feeRate';
 
 describe('Fee Rate Utilities', () => {
   const originalFetch = globalThis.fetch;
@@ -14,7 +9,19 @@ describe('Fee Rate Utilities', () => {
     hourFee: 10
   };
 
-  beforeEach(() => {
+  // Dynamic imports for fresh module state
+  let fetchFromMempoolSpace: () => Promise<FeeRates>;
+  let fetchFromBlockstream: () => Promise<FeeRates>;
+  let getFeeRates: () => Promise<FeeRates>;
+
+  beforeEach(async () => {
+    // Reset module to get fresh cache state
+    vi.resetModules();
+    const feeRateModule = await import('@/utils/blockchain/bitcoin/feeRate');
+    fetchFromMempoolSpace = feeRateModule.fetchFromMempoolSpace;
+    fetchFromBlockstream = feeRateModule.fetchFromBlockstream;
+    getFeeRates = feeRateModule.getFeeRates;
+
     globalThis.fetch = vi.fn();
     vi.clearAllMocks();
   });

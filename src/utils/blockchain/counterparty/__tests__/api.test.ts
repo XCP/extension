@@ -14,6 +14,9 @@ import {
   fetchAddressDispensers,
   fetchDispenserByHash,
   fetchOwnedAssets,
+  fetchOrdersByPair,
+  fetchOrderMatches,
+  fetchServerInfo,
   AssetInfo,
   TokenBalance,
   Order,
@@ -26,6 +29,7 @@ import * as formatUtils from '@/utils/format';
 import * as bitcoinBalance from '@/utils/blockchain/bitcoin/balance';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
 import { apiClient } from '@/utils/axios';
+import { CounterpartyApiError } from '@/utils/blockchain/errors';
 
 // Mock dependencies
 vi.mock('axios');
@@ -38,7 +42,7 @@ const mockedAxios = vi.mocked(axios, true);
 const mockedApiClient = vi.mocked(apiClient, true);
 const mockedFormatAmount = vi.mocked(formatUtils.formatAmount);
 const mockedFetchBTCBalance = vi.mocked(bitcoinBalance.fetchBTCBalance);
-const mockedGetKeychainSettings = vi.mocked(settingsStorage.getKeychainSettings);
+const mockedGetSettings = vi.mocked(settingsStorage.getSettings);
 
 // Test data
 const mockAddress = 'bc1qtest123address';
@@ -102,7 +106,7 @@ const mockTransaction: Transaction = {
 describe('counterparty/api.ts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedGetKeychainSettings.mockResolvedValue(mockSettings as any);
+    mockedGetSettings.mockResolvedValue(mockSettings as any);
   });
 
   describe('fetchTokenBalances', () => {
@@ -178,15 +182,10 @@ describe('counterparty/api.ts', () => {
       );
     });
 
-    it('should handle axios errors gracefully', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('should throw CounterpartyApiError on network error', async () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
-      const balances = await fetchTokenBalances(mockAddress);
-
-      expect(balances).toEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith('Error fetching token balances:', expect.any(Error));
-      consoleSpy.mockRestore();
+      await expect(fetchTokenBalances(mockAddress)).rejects.toThrow(CounterpartyApiError);
     });
 
     it('should return empty array for non-array result', async () => {
@@ -300,18 +299,13 @@ describe('counterparty/api.ts', () => {
       expect(balance?.quantity_normalized).toBe('0.75');
     });
 
-    it('should handle axios errors and return null', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('should throw CounterpartyApiError on network error', async () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
-      const balance = await fetchTokenBalance(mockAddress, 'XCP');
-
-      expect(balance).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith('Error fetching token balance:', expect.any(Error));
-      consoleSpy.mockRestore();
+      await expect(fetchTokenBalance(mockAddress, 'XCP')).rejects.toThrow(CounterpartyApiError);
     });
 
-    it('should return null for missing result', async () => {
+    it('should return zero balance for missing result', async () => {
       mockedApiClient.get.mockResolvedValue({
         data: { result: null },
         status: 200,
@@ -322,7 +316,19 @@ describe('counterparty/api.ts', () => {
 
       const balance = await fetchTokenBalance(mockAddress, 'XCP');
 
-      expect(balance).toBeNull();
+      // Now returns zero balance instead of null for missing result
+      expect(balance).toEqual({
+        asset: 'XCP',
+        quantity: 0,
+        quantity_normalized: '0',
+        asset_info: {
+          asset_longname: null,
+          description: '',
+          issuer: '',
+          divisible: true,
+          locked: false,
+        },
+      });
     });
   });
 
@@ -364,15 +370,10 @@ describe('counterparty/api.ts', () => {
       expect(utxos).toEqual([mockBalanceWithUtxo]);
     });
 
-    it('should return empty array on error', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('should throw CounterpartyApiError on network error', async () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
-      const utxos = await fetchTokenUtxos(mockAddress, 'XCP');
-
-      expect(utxos).toEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith('Error fetching token UTXOs:', expect.any(Error));
-      consoleSpy.mockRestore();
+      await expect(fetchTokenUtxos(mockAddress, 'XCP')).rejects.toThrow(CounterpartyApiError);
     });
   });
 
@@ -412,15 +413,10 @@ describe('counterparty/api.ts', () => {
       expect(assetDetails).toBeNull();
     });
 
-    it('should handle axios errors and return null', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('should throw CounterpartyApiError on network error', async () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
-      const assetDetails = await fetchAssetDetails('XCP');
-
-      expect(assetDetails).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith('Error fetching asset details:', expect.any(Error));
-      consoleSpy.mockRestore();
+      await expect(fetchAssetDetails('XCP')).rejects.toThrow(CounterpartyApiError);
     });
   });
 
@@ -469,19 +465,10 @@ describe('counterparty/api.ts', () => {
       );
     });
 
-    it('should handle errors gracefully with default values', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('should throw CounterpartyApiError on network error', async () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
-      const result = await fetchAssetDetailsAndBalance('BADTOKEN', mockAddress);
-
-      expect(result.isDivisible).toBe(false);
-      expect(result.availableBalance).toBe('0');
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Error fetching asset details or token balance:',
-        expect.any(Error)
-      );
-      consoleSpy.mockRestore();
+      await expect(fetchAssetDetailsAndBalance('BADTOKEN', mockAddress)).rejects.toThrow(CounterpartyApiError);
     });
   });
 
@@ -551,19 +538,10 @@ describe('counterparty/api.ts', () => {
       );
     });
 
-    it('should return empty response on error', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('should throw CounterpartyApiError on network error', async () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
-      const result = await fetchUtxoBalances('abc123:0');
-
-      expect(result).toEqual({
-        result: [],
-        next_cursor: null,
-        result_count: 0,
-      });
-      expect(consoleSpy).toHaveBeenCalledWith('Error fetching UTXO balances:', expect.any(Error));
-      consoleSpy.mockRestore();
+      await expect(fetchUtxoBalances('abc123:0')).rejects.toThrow(CounterpartyApiError);
     });
   });
 
@@ -625,13 +603,10 @@ describe('counterparty/api.ts', () => {
       );
     });
 
-    it('should throw error on axios failure', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('should throw CounterpartyApiError on network error', async () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
-      await expect(fetchOrders(mockAddress)).rejects.toThrow('Failed to fetch orders');
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch orders:', expect.any(Error));
-      consoleSpy.mockRestore();
+      await expect(fetchOrders(mockAddress)).rejects.toThrow(CounterpartyApiError);
     });
   });
 
@@ -711,15 +686,10 @@ describe('counterparty/api.ts', () => {
       );
     });
 
-    it('should return null on error', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('should throw CounterpartyApiError on network error', async () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
-      const result = await fetchOrder('abc123');
-
-      expect(result).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith('Error fetching order details:', expect.any(Error));
-      consoleSpy.mockRestore();
+      await expect(fetchOrder('abc123')).rejects.toThrow(CounterpartyApiError);
     });
   });
 
@@ -761,13 +731,10 @@ describe('counterparty/api.ts', () => {
       expect(result).toBeNull();
     });
 
-    it('should throw error on axios failure', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('should throw CounterpartyApiError on network error', async () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
-      await expect(fetchTransaction('abc123')).rejects.toThrow('Failed to fetch transaction');
-      expect(consoleSpy).toHaveBeenCalledWith('Error fetching transaction:', expect.any(Error));
-      consoleSpy.mockRestore();
+      await expect(fetchTransaction('abc123')).rejects.toThrow(CounterpartyApiError);
     });
   });
 
@@ -831,13 +798,10 @@ describe('counterparty/api.ts', () => {
       );
     });
 
-    it('should throw error on axios failure', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('should throw CounterpartyApiError on network error', async () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
-      await expect(fetchTransactions(mockAddress)).rejects.toThrow();
-      expect(consoleSpy).toHaveBeenCalledWith('Error fetching transactions:', expect.any(Error));
-      consoleSpy.mockRestore();
+      await expect(fetchTransactions(mockAddress)).rejects.toThrow(CounterpartyApiError);
     });
   });
 
@@ -910,13 +874,10 @@ describe('counterparty/api.ts', () => {
       );
     });
 
-    it('should throw error on axios failure', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('should throw CounterpartyApiError on network error', async () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
-      await expect(fetchAddressDispensers(mockAddress)).rejects.toThrow('Failed to fetch dispensers');
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch dispensers:', expect.any(Error));
-      consoleSpy.mockRestore();
+      await expect(fetchAddressDispensers(mockAddress)).rejects.toThrow(CounterpartyApiError);
     });
   });
 
@@ -963,15 +924,10 @@ describe('counterparty/api.ts', () => {
       expect(result).toBeNull();
     });
 
-    it('should return null on error', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('should throw CounterpartyApiError on network error', async () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
-      const result = await fetchDispenserByHash('abc123');
-
-      expect(result).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith('Error fetching dispenser details:', expect.any(Error));
-      consoleSpy.mockRestore();
+      await expect(fetchDispenserByHash('abc123')).rejects.toThrow(CounterpartyApiError);
     });
   });
 
@@ -1018,22 +974,17 @@ describe('counterparty/api.ts', () => {
       expect(result).toEqual([]);
     });
 
-    it('should return empty array on error', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('should throw CounterpartyApiError on network error', async () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
-      const result = await fetchOwnedAssets(mockAddress);
-
-      expect(result).toEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith('Error fetching owned assets:', expect.any(Error));
-      consoleSpy.mockRestore();
+      await expect(fetchOwnedAssets(mockAddress)).rejects.toThrow(CounterpartyApiError);
     });
   });
 
   describe('API base configuration', () => {
     it('should use counterpartyApiBase from settings', async () => {
       const customApiBase = 'https://custom-api.example.com:8080';
-      mockedGetKeychainSettings.mockResolvedValue({ counterpartyApiBase: customApiBase } as any);
+      mockedGetSettings.mockResolvedValue({ counterpartyApiBase: customApiBase } as any);
       
       const mockData = { result: [] };
       mockedApiClient.get.mockResolvedValue({
@@ -1052,11 +1003,10 @@ describe('counterparty/api.ts', () => {
       );
     });
 
-    it('should handle settings retrieval errors', async () => {
-      mockedGetKeychainSettings.mockRejectedValue(new Error('Settings error'));
-      
-      const result = await fetchTokenBalances(mockAddress);
-      expect(result).toEqual([]);
+    it('should throw on settings retrieval errors', async () => {
+      mockedGetSettings.mockRejectedValue(new Error('Settings error'));
+
+      await expect(fetchTokenBalances(mockAddress)).rejects.toThrow();
     });
   });
 
@@ -1135,6 +1085,165 @@ describe('counterparty/api.ts', () => {
       mockedApiClient.get.mock.calls.forEach(call => {
         expect(call[1]?.params?.verbose).toBe(false);
       });
+    });
+  });
+
+  describe('fetchOrdersByPair', () => {
+    it('should fetch order book for trading pair', async () => {
+      const mockData = {
+        result: [mockOrder],
+        result_count: 1,
+        next_cursor: null,
+      };
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
+
+      const result = await fetchOrdersByPair('XCP', 'PEPECASH');
+
+      expect(result.orders).toEqual([mockOrder]);
+      expect(result.total).toBe(1);
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
+        `${mockApiBase}/v2/orders/XCP/PEPECASH`,
+        expect.objectContaining({
+          params: expect.objectContaining({
+            verbose: true,
+          }),
+        })
+      );
+    });
+
+    it('should handle filter options', async () => {
+      const mockData = { result: [], result_count: 0, next_cursor: null };
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
+
+      await fetchOrdersByPair('XCP', 'BTC', {
+        status: 'open',
+        limit: 50,
+        offset: 10,
+      });
+
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          params: expect.objectContaining({
+            status: 'open',
+            limit: 50,
+            offset: 10,
+          }),
+        })
+      );
+    });
+
+    it('should throw CounterpartyApiError on network error', async () => {
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
+
+      await expect(fetchOrdersByPair('XCP', 'BTC')).rejects.toThrow(CounterpartyApiError);
+    });
+  });
+
+  describe('fetchOrderMatches', () => {
+    it('should fetch order matches for an order', async () => {
+      const mockMatch = {
+        id: 'match123',
+        tx0_hash: 'abc123',
+        tx0_index: 1,
+        tx0_address: mockAddress,
+        tx1_hash: 'def456',
+        tx1_index: 2,
+        tx1_address: 'bc1qother',
+        forward_asset: 'XCP',
+        forward_quantity: 100000000,
+        forward_quantity_normalized: '1.00000000',
+        backward_asset: 'BTC',
+        backward_quantity: 1000000,
+        backward_quantity_normalized: '0.01000000',
+        tx0_block_index: 680000,
+        tx1_block_index: 680001,
+        block_index: 680001,
+        block_time: 1640995200,
+        match_expire_index: 700000,
+        fee_paid: 1000,
+        fee_paid_normalized: '0.00001000',
+        status: 'completed',
+      };
+      const mockData = {
+        result: [mockMatch],
+        result_count: 1,
+        next_cursor: null,
+      };
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
+
+      const result = await fetchOrderMatches('abc123');
+
+      expect(result.matches).toEqual([mockMatch]);
+      expect(result.total).toBe(1);
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
+        `${mockApiBase}/v2/orders/abc123/matches`,
+        expect.objectContaining({
+          params: expect.objectContaining({
+            verbose: true,
+          }),
+        })
+      );
+    });
+
+    it('should throw CounterpartyApiError on network error', async () => {
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
+
+      await expect(fetchOrderMatches('abc123')).rejects.toThrow(CounterpartyApiError);
+    });
+  });
+
+  describe('fetchServerInfo', () => {
+    it('should fetch server information', async () => {
+      const mockServerInfo = {
+        server_ready: true,
+        network: 'mainnet',
+        version: '10.0.0',
+        backend_height: 800000,
+        counterparty_height: 800000,
+        documentation: 'https://docs.counterparty.io',
+        routes: '/v2/routes',
+        blueprint: '/apiary.apib',
+      };
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: mockServerInfo },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
+
+      const result = await fetchServerInfo();
+
+      expect(result).toEqual(mockServerInfo);
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
+        `${mockApiBase}/v2/`,
+        expect.any(Object)
+      );
+    });
+
+    it('should throw CounterpartyApiError on network error', async () => {
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
+
+      await expect(fetchServerInfo()).rejects.toThrow(CounterpartyApiError);
     });
   });
 });

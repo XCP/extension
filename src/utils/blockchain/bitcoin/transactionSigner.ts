@@ -1,10 +1,31 @@
-import { Transaction, p2pkh, p2wpkh, p2sh, p2tr, SigHash, Address as BtcAddress } from '@scure/btc-signer';
+import { Transaction, p2pkh, p2wpkh, p2sh, p2tr, SigHash } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 import { fetchUTXOs, getUtxoByTxid, fetchPreviousRawTransaction } from '@/utils/blockchain/bitcoin/utxo';
 import { hybridSignTransaction } from '@/utils/blockchain/bitcoin/uncompressedSigner';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { UtxoError, SigningError, ValidationError } from '@/utils/blockchain/errors';
 import type { Wallet, Address } from '@/utils/wallet/walletManager';
+
+/**
+ * Transaction input data for signing.
+ * Supports both legacy (nonWitnessUtxo) and SegWit (witnessUtxo) inputs.
+ */
+interface TransactionInputData {
+  txid: Uint8Array;
+  index: number;
+  sequence: number;
+  sighashType: number;
+  /** Full previous transaction for legacy P2PKH inputs */
+  nonWitnessUtxo?: Uint8Array;
+  /** Previous output for SegWit inputs (both script and amount required) */
+  witnessUtxo?: {
+    script: Uint8Array;
+    amount: bigint;
+  };
+  /** Redeem script for P2SH-P2WPKH (nested SegWit) */
+  redeemScript?: Uint8Array;
+}
 
 function paymentScript(pubkeyBytes: Uint8Array, addressFormat: AddressFormat) {
   switch (addressFormat) {
@@ -19,7 +40,7 @@ function paymentScript(pubkeyBytes: Uint8Array, addressFormat: AddressFormat) {
     case AddressFormat.P2TR:
       return p2tr(pubkeyBytes);
     default:
-      throw new Error(`Unsupported address type: ${ addressFormat }`);
+      throw new ValidationError('INVALID_ADDRESS', `Unsupported address type: ${addressFormat}`);
   }
 }
 
@@ -30,8 +51,12 @@ export async function signTransaction(
   privateKeyHex: string,
   compressed: boolean = true
 ): Promise<string> {
-  if (!wallet) throw new Error('Wallet not provided');
-  if (!targetAddress) throw new Error('Target address not provided');
+  if (!wallet) {
+    throw new ValidationError('INVALID_TRANSACTION', 'Wallet not provided');
+  }
+  if (!targetAddress) {
+    throw new ValidationError('INVALID_ADDRESS', 'Target address not provided');
+  }
 
   const privateKeyBytes = hexToBytes(privateKeyHex);
   const pubkeyBytes = getPublicKey(privateKeyBytes, compressed);
@@ -43,7 +68,10 @@ export async function signTransaction(
     await new Promise(resolve => setTimeout(resolve, 1000));
     utxos = await fetchUTXOs(targetAddress.address);
     if (!utxos || utxos.length === 0) {
-      throw new Error('No UTXOs found for the source address after retry');
+      throw new UtxoError('NO_UTXOS', 'No UTXOs found for the source address after retry', {
+        address: targetAddress.address,
+        userMessage: 'No spendable funds found for this address. Please ensure the address has confirmed transactions.',
+      });
     }
   }
 
@@ -67,7 +95,7 @@ export async function signTransaction(
   for (let i = 0; i < parsedTx.inputsLength; i++) {
     const input = parsedTx.getInput(i);
     if (!input?.txid || input.index === undefined) {
-      throw new Error(`Invalid input at index ${i}`);
+      throw new ValidationError('INVALID_TRANSACTION', `Invalid input at index ${i}: missing txid or index`);
     }
     const txidHex = bytesToHex(input.txid);
     let utxo = getUtxoByTxid(utxos, txidHex, input.index);
@@ -89,23 +117,32 @@ export async function signTransaction(
     }
     
     if (!utxo) {
-      throw new Error(`UTXO not found for input ${i}: ${txidHex}:${input.index}`);
+      throw new UtxoError('UTXO_NOT_FOUND', `UTXO not found for input ${i}: ${txidHex}:${input.index}`, {
+        txid: txidHex,
+        userMessage: 'Transaction input could not be found. The funds may have already been spent.',
+      });
     }
     const rawPrevTx = await fetchPreviousRawTransaction(txidHex);
     if (!rawPrevTx) {
-      throw new Error(`Failed to fetch previous transaction for input ${i}: ${txidHex}`);
+      throw new UtxoError('UTXO_NOT_FOUND', `Failed to fetch previous transaction: ${txidHex}`, {
+        txid: txidHex,
+        userMessage: 'Could not retrieve transaction data from the network. Please try again.',
+      });
     }
     const prevTx = Transaction.fromRaw(hexToBytes(rawPrevTx), { allowUnknownInputs: true, allowUnknownOutputs: true });
     const prevOutput = prevTx.getOutput(input.index);
     if (!prevOutput) {
-      throw new Error(`Output not found in previous transaction for input ${i}: ${txidHex}:${input.index}`);
+      throw new UtxoError('UTXO_NOT_FOUND', `Output not found in previous transaction: ${txidHex}:${input.index}`, {
+        txid: txidHex,
+        userMessage: 'Transaction output not found. The transaction data may be incomplete.',
+      });
     }
     
     if (prevOutput.script) {
       prevOutputScripts.push(prevOutput.script);
     }
     
-    const inputData: any = {
+    const inputData: TransactionInputData = {
       txid: input.txid,
       index: input.index,
       sequence: 0xfffffffd,
@@ -114,6 +151,10 @@ export async function signTransaction(
     if (wallet.addressFormat === AddressFormat.P2PKH || wallet.addressFormat === AddressFormat.Counterwallet) {
       inputData.nonWitnessUtxo = hexToBytes(rawPrevTx);
     } else {
+      // SegWit inputs require both script and amount
+      if (!prevOutput.script || prevOutput.amount === undefined) {
+        throw new ValidationError('INVALID_TRANSACTION', `Missing script or amount in previous output for input ${i}`);
+      }
       inputData.witnessUtxo = {
         script: prevOutput.script,
         amount: prevOutput.amount,
@@ -137,25 +178,34 @@ export async function signTransaction(
     });
   }
 
-  // Sign the transaction
-  if (!compressed && (wallet.addressFormat === AddressFormat.P2PKH || wallet.addressFormat === AddressFormat.Counterwallet)) {
-    // Uncompressed P2PKH - use hybrid signing approach
-    // This will try standard signing first, then fall back to uncompressed for each input
-    const compressedPubkey = getPublicKey(privateKeyBytes, true);
-    hybridSignTransaction(
-      tx,
-      privateKeyBytes,
-      compressedPubkey,
-      pubkeyBytes, // uncompressed pubkey
-      prevOutputScripts,
-      () => true // All inputs need uncompressed signing in this case
+  // Sign and finalize the transaction
+  try {
+    if (!compressed && (wallet.addressFormat === AddressFormat.P2PKH || wallet.addressFormat === AddressFormat.Counterwallet)) {
+      // Uncompressed P2PKH - use hybrid signing approach
+      const compressedPubkey = getPublicKey(privateKeyBytes, true);
+      hybridSignTransaction(
+        tx,
+        privateKeyBytes,
+        compressedPubkey,
+        pubkeyBytes, // uncompressed pubkey
+        prevOutputScripts,
+        () => true // All inputs need uncompressed signing in this case
+      );
+    } else {
+      // Standard signing for all compressed keys
+      tx.sign(privateKeyBytes);
+    }
+
+    tx.finalize();
+  } catch (err) {
+    throw new SigningError(
+      err instanceof Error ? err.message : 'Unknown signing error',
+      {
+        userMessage: 'Failed to sign the transaction. Please try again.',
+        cause: err instanceof Error ? err : undefined,
+      }
     );
-  } else {
-    // Standard signing for all compressed keys
-    tx.sign(privateKeyBytes);
   }
-  
-  tx.finalize();
-  
+
   return tx.hex;
 }

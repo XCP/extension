@@ -1,10 +1,41 @@
 /**
  * MessageBus - Centralized message passing for extension contexts
- * 
+ *
  * Standardizes all cross-context communication on webext-bridge
  * Provides type-safe messaging with consistent error handling
- * 
+ *
  * Note: This is primarily used in the background script context
+ *
+ * ## Architecture Decision Records
+ *
+ * ### ADR-004: No Distributed Tracing (Future Enhancement)
+ *
+ * **Context**: Complex request flows (dApp → content script → background → popup → back)
+ * can be difficult to debug without correlation IDs or distributed tracing.
+ *
+ * **Decision**: Defer distributed tracing implementation as a future enhancement.
+ *
+ * **Rationale**:
+ * - Only MetaMask implements tracing (via Sentry SDK + Segment analytics)
+ * - Current logging with timestamps is sufficient for debugging most issues
+ * - Tracing adds overhead and complexity without immediate security benefit
+ * - Not a security weakness, purely an observability/DX concern
+ * - Development-mode debug logging provides request flow visibility
+ *
+ * **When to Implement**:
+ * - When user-reported bugs become difficult to reproduce
+ * - When adding analytics/telemetry infrastructure
+ * - When request flows become more complex (e.g., multi-step approvals)
+ *
+ * **Implementation Sketch** (for future reference):
+ * ```typescript
+ * interface TracedMessage {
+ *   correlationId: string;  // UUID generated at request origin
+ *   parentSpanId?: string;  // For nested operations
+ *   timestamp: number;
+ *   // ... existing fields
+ * }
+ * ```
  */
 
 import { 
@@ -308,12 +339,12 @@ export class MessageBus {
       timestamp: Date.now()
     };
     
-    const response = await MessageBus.send('provider-request', message, 'background') as any;
-    
+    const response = await MessageBus.send('provider-request', message, 'background') as MessageResponse;
+
     if (!response.success) {
       throw new Error(response.error?.message || 'Provider request failed');
     }
-    
+
     return response.data;
   }
   

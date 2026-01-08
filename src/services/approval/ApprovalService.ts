@@ -1,12 +1,40 @@
 /**
  * ApprovalService - Manages user approval workflows
- * 
+ *
  * Extracted from ProviderService to handle:
  * - Approval queue management
- * - Approval window orchestration  
+ * - Approval window orchestration
  * - User consent workflows
  * - Badge notifications
  * - Request lifecycle management
+ *
+ * ## Architecture Decision Records
+ *
+ * ### ADR-008: Distributed Request State (Intentional Design)
+ *
+ * **Context**: Request state is distributed across services:
+ * - ApprovalService: Pending approval requests (via RequestManager)
+ * - ConnectionService: Active connection state
+ * - approvalQueue: UI queue for popup display
+ *
+ * **Decision**: Keep request state distributed by domain.
+ *
+ * **Rationale**:
+ * - Separation of concerns: each service owns its domain state
+ * - ApprovalService handles approval lifecycle
+ * - ConnectionService handles connection persistence
+ * - approvalQueue is a UI concern (badge count, popup display)
+ * - MetaMask has similar separation (ApprovalController, ConnectionController)
+ * - Consolidating would create a "god object" anti-pattern
+ *
+ * **Trade-offs**:
+ * - Multiple places to look when debugging request flow
+ * - Potential for state drift between services
+ * - Mitigated by: event-driven communication, clear service boundaries
+ *
+ * **Alternative Considered**:
+ * - Single centralized request store: Rejected due to tight coupling
+ * - Redux-style global state: Overkill for extension scope
  */
 
 import { BaseService } from '@/services/core/BaseService';

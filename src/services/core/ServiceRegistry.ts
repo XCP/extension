@@ -1,11 +1,26 @@
 /**
  * ServiceRegistry - Centralized service management
- * 
+ *
  * Provides:
  * - Service registration and retrieval
- * - Dependency injection
+ * - Dependency validation and ordering
  * - Lifecycle management for all services
  * - Health monitoring across services
+ *
+ * ## Dependency Management
+ *
+ * Services declare dependencies via `getDependencies()` in BaseService.
+ * The registry validates that all dependencies are registered before
+ * allowing a new service to register. This ensures explicit initialization
+ * ordering and catches misconfiguration early.
+ *
+ * Example registration order:
+ * ```typescript
+ * // Correct: EventEmitter has no deps, registers first
+ * await registry.register(eventEmitterService);
+ * // Correct: ApprovalService depends on EventEmitter, registers second
+ * await registry.register(approvalService);
+ * ```
  */
 
 import { BaseService } from './BaseService';
@@ -32,7 +47,8 @@ export class ServiceRegistry {
 
   /**
    * Register a service with the registry
-   * Services are initialized in the order they are registered
+   * Validates dependencies are registered before allowing registration.
+   * Services are initialized in the order they are registered.
    */
   async register(service: BaseService): Promise<void> {
     if (this.destroyed) {
@@ -40,20 +56,31 @@ export class ServiceRegistry {
     }
 
     const name = service.getServiceName();
-    
+
     if (this.services.has(name)) {
       throw new Error(`Service ${name} is already registered`);
+    }
+
+    // Validate dependencies are registered
+    const dependencies = service.getDependencies();
+    const missingDeps = dependencies.filter(dep => !this.services.has(dep));
+
+    if (missingDeps.length > 0) {
+      throw new Error(
+        `Cannot register ${name}: missing dependencies [${missingDeps.join(', ')}]. ` +
+        `Register these services first.`
+      );
     }
 
     try {
       // Initialize the service
       await service.initialize();
-      
+
       // Add to registry
       this.services.set(name, service);
       this.initializationOrder.push(name);
-      
-      console.log(`Service ${name} registered successfully`);
+
+      console.log(`Service ${name} registered successfully (deps: ${dependencies.length > 0 ? dependencies.join(', ') : 'none'})`);
     } catch (error) {
       console.error(`Failed to register service ${name}:`, error);
       throw error;
@@ -170,6 +197,32 @@ export class ServiceRegistry {
    */
   isDestroyed(): boolean {
     return this.destroyed;
+  }
+
+  /**
+   * Get the dependency graph for all registered services
+   * Useful for debugging and documentation
+   */
+  getDependencyGraph(): Record<string, string[]> {
+    const graph: Record<string, string[]> = {};
+    for (const [name, service] of this.services) {
+      graph[name] = service.getDependencies();
+    }
+    return graph;
+  }
+
+  /**
+   * Get initialization order with dependencies
+   * Returns a readable representation of service init order
+   */
+  getInitializationSummary(): string {
+    const lines = this.initializationOrder.map((name, index) => {
+      const service = this.services.get(name);
+      const deps = service?.getDependencies() || [];
+      const depStr = deps.length > 0 ? ` (depends on: ${deps.join(', ')})` : '';
+      return `${index + 1}. ${name}${depStr}`;
+    });
+    return lines.join('\n');
   }
 
   /**

@@ -1,3 +1,52 @@
+/**
+ * Session Manager - Handles in-memory secret storage and session lifecycle
+ *
+ * ## Architecture Decision Records
+ *
+ * ### ADR-001: JavaScript Memory Clearing Limitation (Acceptable)
+ *
+ * **Context**: When clearing secrets from memory, we overwrite with zeros before deletion.
+ * However, JavaScript/V8 does not guarantee that the original string data is immediately
+ * overwritten in memory. The JS engine may retain copies due to:
+ * - String interning and immutability
+ * - Garbage collector timing
+ * - JIT compiler optimizations
+ * - Memory page caching
+ *
+ * **Decision**: Accept this limitation with best-effort clearing.
+ *
+ * **Rationale**:
+ * - This is a universal browser limitation affecting ALL browser-based wallets
+ * - MetaMask, UniSat, Xverse, and other wallets face the same constraint
+ * - True secure memory handling requires native code (e.g., libsodium)
+ * - The threat model assumes a compromised browser is game-over regardless
+ * - Defense in depth: session timeouts, auto-lock, and encrypted storage mitigate risk
+ *
+ * **Alternatives Considered**:
+ * - WebAssembly with linear memory: Adds complexity, still subject to browser GC
+ * - Native messaging host: Requires separate install, poor UX
+ * - Accept and document: Chosen approach
+ *
+ * ### ADR-002: No Automatic Key Refresh During Session (Acceptable)
+ *
+ * **Context**: Some systems rotate encryption keys periodically during active sessions
+ * to limit the window of exposure if a key is compromised.
+ *
+ * **Decision**: Do not implement automatic key refresh.
+ *
+ * **Rationale**:
+ * - MetaMask and other major wallets do not implement this either
+ * - Session timeouts (1-30 min configurable) already limit exposure window
+ * - Key refresh requires re-prompting for password, degrading UX
+ * - The primary threat (memory extraction) isn't mitigated by rotation
+ * - Complexity cost outweighs marginal security benefit
+ *
+ * **Alternatives Considered**:
+ * - Periodic re-encryption with same password: Adds complexity, minimal benefit
+ * - Derived session keys with rotation: Over-engineered for use case
+ * - Accept current design: Chosen approach
+ */
+
 import {
   validateWalletId,
   validateSecret,
@@ -163,7 +212,7 @@ export function clearUnlockedSecret(walletId: string): void {
   }
   
   if (walletId in unlockedSecrets) {
-    // Overwrite with zeros for security (though JS may not guarantee this)
+    // Best-effort memory clearing - see ADR-001 for JS memory limitation details
     const secretLength = unlockedSecrets[walletId].length;
     if (secretLength > 0) {
       unlockedSecrets[walletId] = '0'.repeat(secretLength);

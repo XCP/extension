@@ -1,10 +1,19 @@
 /**
  * Browser Runtime Utilities
- * 
+ *
  * Comprehensive utility functions for handling Chrome runtime API errors
  * and safe messaging patterns to prevent runtime.lastError issues.
  * Based on patterns used by MetaMask and UniSat wallet extensions.
  */
+
+/**
+ * Message type for Chrome messaging APIs.
+ * Chrome requires messages to be JSON-serializable, but we use a
+ * permissive type here since strict typing would require all callers
+ * to explicitly cast their message objects.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ChromeMessage = Record<string, unknown> | unknown[] | string | number | boolean | null;
 
 /**
  * Check for chrome.runtime.lastError and return it if present.
@@ -73,7 +82,7 @@ function getReadyTabs(): Set<number> {
  */
 export async function sendMessageToTab(
   tabId: number,
-  message: unknown,
+  message: ChromeMessage,
   options?: {
     maxRetries?: number;
     retryDelay?: number;
@@ -92,7 +101,7 @@ export async function sendMessageToTab(
   const sendToTab = sendMessageToTabSafe;
   
   // Ping-inject-retry pattern
-  const ensureContentScriptAndSend = async (tabId: number, payload: unknown): Promise<unknown> => {
+  const ensureContentScriptAndSend = async (tabId: number, payload: ChromeMessage): Promise<unknown> => {
     try {
       return await sendToTab(tabId, payload);
     } catch (error: unknown) {
@@ -158,14 +167,14 @@ export async function listMessageableTabs(filter?: (tab: chrome.tabs.Tab) => boo
  * Send message to specific tab with proper lastError checking
  * Updated to skip tabs without content scripts when possible
  */
-export function sendMessageToTabSafe<T = any>(
+export function sendMessageToTabSafe<T = unknown>(
   tabId: number,
-  message: unknown,
+  message: ChromeMessage,
   options?: chrome.tabs.MessageSendOptions
 ): Promise<T | undefined> {
   return new Promise((resolve) => {
     try {
-      chrome.tabs.sendMessage(tabId, message as any, options, (response) => {
+      chrome.tabs.sendMessage(tabId, message, options, (response) => {
         // ALWAYS check lastError first to prevent console warnings
         const error = chrome.runtime.lastError;
         if (error) {
@@ -189,7 +198,7 @@ export function sendMessageToTabSafe<T = any>(
  * Optimized to skip pinging and handle errors gracefully
  */
 export async function broadcastToTabs(
-  message: unknown,
+  message: ChromeMessage,
   filter?: (tab: chrome.tabs.Tab) => boolean
 ): Promise<{ tabId: number; ok: boolean; error?: string }[]> {
   try {
@@ -227,7 +236,7 @@ export async function broadcastToTabs(
  * Safe wrapper for browser.runtime.sendMessage with proper error handling
  * Use this instead of direct browser.runtime.sendMessage calls
  */
-export async function safeSendMessage(message: unknown, options?: {
+export async function safeSendMessage(message: ChromeMessage, options?: {
   timeout?: number;
   logErrors?: boolean;
   retries?: number;

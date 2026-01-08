@@ -15,7 +15,7 @@ vi.mock('@/utils/storage/settingsStorage');
 
 const mockAxios = axios as any;
 const mockApiClient = vi.mocked(apiClient, true);
-const mockGetKeychainSettings = vi.fn();
+const mockGetSettings = vi.fn();
 
 describe('UTXO Utilities', () => {
   const mockAddress = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
@@ -36,13 +36,13 @@ describe('UTXO Utilities', () => {
     vi.clearAllMocks();
     
     // Setup the settings mock
-    mockGetKeychainSettings.mockResolvedValue({
+    mockGetSettings.mockResolvedValue({
       counterpartyApiBase: 'https://api.counterparty.io'
     });
     
     // Re-import the module to apply the mock
-    const { getKeychainSettings } = await import('@/utils/storage/settingsStorage');
-    vi.mocked(getKeychainSettings).mockImplementation(mockGetKeychainSettings);
+    const { getSettings } = await import('@/utils/storage/settingsStorage');
+    vi.mocked(getSettings).mockImplementation(mockGetSettings);
   });
 
   afterEach(() => {
@@ -457,7 +457,7 @@ describe('UTXO Utilities', () => {
 
     it('should use custom counterparty API base URL', async () => {
       // Override the mock for this specific test
-      mockGetKeychainSettings.mockResolvedValueOnce({
+      mockGetSettings.mockResolvedValueOnce({
         counterpartyApiBase: 'https://custom.api.com'
       });
 

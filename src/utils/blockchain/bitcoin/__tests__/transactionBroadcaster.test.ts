@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { broadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
-import { getKeychainSettings, DEFAULT_KEYCHAIN_SETTINGS } from '@/utils/storage/settingsStorage';
+import { getSettings, DEFAULT_SETTINGS } from '@/utils/storage/settingsStorage';
 
 vi.mock('axios');
 vi.mock('@/utils/storage/settingsStorage');
@@ -25,8 +25,8 @@ describe('Transaction Broadcaster Utilities', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default mock for all tests - use DEFAULT_KEYCHAIN_SETTINGS as base
-    vi.mocked(getKeychainSettings).mockResolvedValue(DEFAULT_KEYCHAIN_SETTINGS);
+    // Default mock for all tests - use DEFAULT_SETTINGS as base
+    vi.mocked(getSettings).mockResolvedValue(DEFAULT_SETTINGS);
   });
 
   afterEach(() => {
@@ -35,8 +35,8 @@ describe('Transaction Broadcaster Utilities', () => {
 
   describe('broadcastTransaction in dry run mode', () => {
     beforeEach(() => {
-      vi.mocked(getKeychainSettings).mockResolvedValue({
-        ...DEFAULT_KEYCHAIN_SETTINGS,
+      vi.mocked(getSettings).mockResolvedValue({
+        ...DEFAULT_SETTINGS,
         transactionDryRun: true, // Enable dry run for this test suite
       });
     });
@@ -289,9 +289,9 @@ describe('Transaction Broadcaster Utilities', () => {
 
     it('should handle custom counterparty API base URL', async () => {
       // Clear the default mock and set a new one before the test
-      vi.mocked(getKeychainSettings).mockClear();
-      vi.mocked(getKeychainSettings).mockResolvedValue({
-        ...DEFAULT_KEYCHAIN_SETTINGS,
+      vi.mocked(getSettings).mockClear();
+      vi.mocked(getSettings).mockResolvedValue({
+        ...DEFAULT_SETTINGS,
         counterpartyApiBase: 'https://custom.api.com', // Custom API for this test
       });
 
@@ -333,7 +333,7 @@ describe('Transaction Broadcaster Utilities', () => {
       // Test status 202 (Accepted)
       vi.clearAllMocks();
       // Re-setup the settings mock after clearing
-      vi.mocked(getKeychainSettings).mockResolvedValue(DEFAULT_KEYCHAIN_SETTINGS);
+      vi.mocked(getSettings).mockResolvedValue(DEFAULT_SETTINGS);
       // Test blockstream format for 202
       mockApiClient.post
         .mockRejectedValueOnce(new Error('First failed'))  // counterparty fails

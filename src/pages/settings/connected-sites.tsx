@@ -6,7 +6,7 @@ import { FiHelpCircle, FiGlobe } from "react-icons/fi";
 import { FaSync } from "react-icons/fa";
 import { ConnectedSiteCard } from "@/components/cards/connected-site-card";
 import { useHeader } from "@/contexts/header-context";
-import { getKeychainSettings } from "@/utils/storage/settingsStorage";
+import { getSettings } from "@/utils/storage/settingsStorage";
 import { getProviderService } from "@/services/providerService";
 import type { ReactElement } from "react";
 
@@ -45,7 +45,7 @@ export default function ConnectedSites(): ReactElement {
     try {
       setIsLoading(true);
       console.log('Loading connected sites from settings...');
-      const settings = await getKeychainSettings();
+      const settings = await getSettings();
       console.log('Connected websites:', settings.connectedWebsites);
       
       // Convert origins to ConnectedSite objects

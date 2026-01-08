@@ -3,15 +3,14 @@ import { utf8ToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import * as sessionManager from '@/utils/auth/sessionManager';
-import { settingsManager } from '@/utils/wallet/settingsManager';
 import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, updateEncryptedWallets, removeEncryptedWallet, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
 import { encryptMnemonic, decryptMnemonic, encryptPrivateKey, decryptPrivateKey, DecryptionError } from '@/utils/encryption/walletEncryption';
 import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressFormat, isCounterwalletFormat } from '@/utils/blockchain/bitcoin/address';
 import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';
 import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
-import { reencryptSettings } from '@/utils/storage/settingsStorage';
-import { initializeSettingsKey, clearSettingsKey } from '@/utils/encryption/settingsEncryption';
+import { reencryptSettings, getSettings, updateSettings, type AppSettings } from '@/utils/storage/settingsStorage';
+import { initializeSettingsKey, clearSettingsKey } from '@/utils/encryption/settings';
 import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 
@@ -95,7 +94,7 @@ export class WalletManager {
         isTestOnly: rec.isTestOnly,
       };
     }));
-    const settings: KeychainSettings = await settingsManager.loadSettings();
+    const settings: AppSettings = await getSettings();
     if (settings.lastActiveWalletId && this.getWalletById(settings.lastActiveWalletId)) {
       this.activeWalletId = settings.lastActiveWalletId;
     }
@@ -110,9 +109,9 @@ export class WalletManager {
     return this.getWalletById(this.activeWalletId);
   }
 
-  public setActiveWallet(walletId: string): void {
+  public async setActiveWallet(walletId: string): Promise<void> {
     this.activeWalletId = walletId;
-    settingsManager.updateSettings({ lastActiveWalletId: walletId });
+    await updateSettings({ lastActiveWalletId: walletId });
   }
 
   public getWalletById(id: string): Wallet | undefined {
@@ -271,22 +270,23 @@ export class WalletManager {
     
     // Create a fake encrypted private key structure for consistency
     // This allows the wallet to work with existing code but won't decrypt properly
-    const fakeEncrypted = {
+    // We stringify it so encryptedSecret remains a string as the type expects
+    const fakeEncrypted = JSON.stringify({
       v: 1,
       e: JSON.stringify(testMarker),
       t: 'test',
       s: 'test'
-    };
-    
+    });
+
     const record: EncryptedWalletRecord = {
       id,
       name: walletName,
-      encryptedSecret: fakeEncrypted as any,
+      encryptedSecret: fakeEncrypted,
       type: 'privateKey',
       addressFormat,
       createdAt: Date.now(),
       isTestOnly: true,
-    } as any;
+    };
     
     await addEncryptedWallet(record);
     
@@ -312,9 +312,9 @@ export class WalletManager {
     this.activeWalletId = id;
     
     // Set the test address as the last active address
-    await settingsManager.updateSettings({ 
+    await updateSettings({
       lastActiveWalletId: id,
-      lastActiveAddress: address 
+      lastActiveAddress: address
     });
     
     // Store a fake "unlocked" secret so the wallet appears unlocked
@@ -337,18 +337,31 @@ export class WalletManager {
     // Special handling for test wallets
     if (record.isTestOnly) {
       // Test wallets are always "unlocked" - just restore the address
-      const testData = JSON.parse((record.encryptedSecret as any).e);
-      wallet.addresses = [{
-        name: "Test Address",
-        path: "m/test",
-        address: testData.address,
-        pubKey: ''
-      }];
-      wallet.addressCount = 1;
-      this.activeWalletId = walletId;
-      
-      // Store fake secret for test wallet
-      sessionManager.storeUnlockedSecret(walletId, JSON.stringify(testData));
+      try {
+        const encryptedSecret = JSON.parse(record.encryptedSecret);
+        if (!encryptedSecret || typeof encryptedSecret.e !== 'string') {
+          throw new Error('Invalid test wallet structure');
+        }
+        const testData = JSON.parse(encryptedSecret.e);
+        // Validate test wallet marker to prevent using corrupted data
+        if (!testData || testData.isTestWallet !== true || typeof testData.address !== 'string') {
+          throw new Error('Invalid test wallet data');
+        }
+        wallet.addresses = [{
+          name: "Test Address",
+          path: "m/test",
+          address: testData.address,
+          pubKey: ''
+        }];
+        wallet.addressCount = 1;
+        this.activeWalletId = walletId;
+
+        // Store fake secret for test wallet
+        sessionManager.storeUnlockedSecret(walletId, JSON.stringify(testData));
+      } catch (e) {
+        console.error('Failed to unlock test wallet:', e);
+        throw new Error('Test wallet data is corrupted');
+      }
       return;
     }
     
@@ -383,7 +396,7 @@ export class WalletManager {
       await initializeSettingsKey(password);
 
       // Now we can read the real settings (will be decrypted)
-      const settings = await settingsManager.getSettings();
+      const settings = await getSettings();
       const timeout = settings?.autoLockTimeout || 5 * 60 * 1000; // Default 5 minutes
 
       // Initialize session with the actual timeout from settings
@@ -602,7 +615,7 @@ export class WalletManager {
    * @param pinnedAssets - Array of asset IDs to pin
    */
   public async updateWalletPinnedAssets(pinnedAssets: string[]): Promise<void> {
-    await settingsManager.updateSettings({ pinnedAssets });
+    await updateSettings({ pinnedAssets });
   }
 
   public async getPrivateKey(walletId: string, derivationPath?: string): Promise<{ wif: string; hex: string; compressed: boolean }> {

@@ -10,7 +10,7 @@ import {
 } from "react";
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import { getWalletService } from "@/services/walletService";
-import { getKeychainSettings } from "@/utils/storage/settingsStorage";
+import { getSettings } from "@/utils/storage/settingsStorage";
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { withStateLock } from "@/utils/wallet/stateLockManager";
 import type { Wallet, Address } from "@/utils/wallet/walletManager";
@@ -147,12 +147,18 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
   const walletStateRef = useRef(walletState);
   walletStateRef.current = walletState;
 
+  // Track lock state version to prevent stale updates from overriding lock events
+  const lockStateVersionRef = useRef(0);
+
   const refreshWalletState = useCallback(async () => {
     // Use proper locking instead of simple ref check
     return withStateLock('wallet-refresh', async () => {
+      // Capture lock version at start to detect if lock event happens during refresh
+      const startLockVersion = lockStateVersionRef.current;
+
       try {
       if (process.env.NODE_ENV === 'development') {
-        console.log('[WalletContext] Starting state refresh');
+        console.log('[WalletContext] Starting state refresh, version:', startLockVersion);
       }
 
       await walletService.loadWallets();
@@ -222,6 +228,22 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       }
 
       newState.loaded = true;
+
+      // Check if lock version changed during refresh (lock event happened)
+      // If so, don't apply potentially stale unlock state
+      if (lockStateVersionRef.current !== startLockVersion) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[WalletContext] Discarding stale refresh - lock event occurred');
+        }
+        // Only update non-lock-related state
+        setWalletState((prev) => ({
+          ...prev,
+          wallets: newState.wallets,
+          loaded: true,
+        }));
+        return;
+      }
+
       if (!walletsEqual || activeChanged || addressChanged || lockChanged || !currentState.loaded) {
         if (process.env.NODE_ENV === 'development') {
           console.log('[WalletContext] State update:', {
@@ -249,19 +271,25 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     }, 100);
 
     // Listen for wallet lock events from background
+    // This MUST use the same lock key to prevent race with refreshWalletState
     const handleLockMessage = ({ data }: { data: { locked: boolean } }) => {
       if (data.locked) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[WalletContext] Lock event received from background');
-        }
-        // Immediately update state to trigger navigation
-        setWalletState((prev) => ({
-          ...prev,
-          authState: AuthState.Locked,
-          walletLocked: true,
-          activeWallet: null,
-          activeAddress: null,
-        }));
+        // Use withStateLock to serialize with refreshWalletState
+        withStateLock('wallet-refresh', async () => {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[WalletContext] Lock event received from background');
+          }
+          // Increment version to invalidate any concurrent refresh
+          lockStateVersionRef.current++;
+          // Update state to trigger navigation
+          setWalletState((prev) => ({
+            ...prev,
+            authState: AuthState.Locked,
+            walletLocked: true,
+            activeWallet: null,
+            activeAddress: null,
+          }));
+        });
       }
     };
     const unsubscribe = onMessage('walletLocked', handleLockMessage);
@@ -315,7 +343,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       // Handle address switch - emit accountsChanged to all connected sites
       if (oldAddress && newAddress && oldAddress !== newAddress) {
         // Get connected sites from settings
-        const settings = await getKeychainSettings();
+        const settings = await getSettings();
 
         // Emit accountsChanged event to each connected site with new address
         // The wallet service proxy will handle the communication to background

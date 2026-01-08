@@ -1,3 +1,31 @@
+/**
+ * Storage Layer - IndexedDB persistence with mutex protection
+ *
+ * ## Architecture Decision Records
+ *
+ * ### ADR-005: Promise-Based Write Mutex
+ *
+ * **Context**: Concurrent storage operations can cause race conditions where
+ * one write overwrites another's changes (read-modify-write pattern).
+ *
+ * **Decision**: Implement a promise-based mutex to serialize write operations.
+ *
+ * **Rationale**:
+ * - MetaMask uses `await-semaphore` for similar protection
+ * - Promise-based mutex is zero-dependency and sufficient for single-context use
+ * - All storage operations happen in the background service worker (same JS context)
+ * - Web Locks API is an alternative but adds complexity for cross-tab scenarios we don't need
+ *
+ * **Implementation**:
+ * - `withWriteLock()` ensures only one write operation executes at a time
+ * - Read operations don't need locking (cache provides consistency within TTL)
+ * - Write operations chain on the previous lock promise
+ *
+ * **Trade-offs**:
+ * - Slight latency increase for rapid sequential writes (serialization overhead)
+ * - Acceptable because wallet operations are user-initiated and infrequent
+ */
+
 import { storage } from '#imports';
 
 /**
@@ -7,6 +35,40 @@ import { storage } from '#imports';
 export interface StoredRecord {
   id: string;
   [key: string]: any; // Allows arbitrary additional fields.
+}
+
+/**
+ * Promise-based mutex for serializing write operations.
+ * Prevents race conditions in read-modify-write patterns.
+ */
+let writeLock: Promise<void> = Promise.resolve();
+
+/**
+ * Executes a function while holding the write lock.
+ * Ensures only one write operation runs at a time.
+ *
+ * @param fn - The async function to execute under the lock
+ * @returns The result of the function
+ */
+async function withWriteLock<T>(fn: () => Promise<T>): Promise<T> {
+  // Capture the current lock to wait on
+  const previousLock = writeLock;
+
+  // Create a new lock that will be released when we're done
+  let releaseLock: () => void;
+  writeLock = new Promise<void>((resolve) => {
+    releaseLock = resolve;
+  });
+
+  try {
+    // Wait for any previous operation to complete
+    await previousLock;
+    // Execute our operation
+    return await fn();
+  } finally {
+    // Release the lock for the next operation
+    releaseLock!();
+  }
 }
 
 /**
@@ -100,39 +162,46 @@ export async function getRecordById(id: string): Promise<StoredRecord | undefine
 /**
  * Adds a new record to storage.
  * Checks for duplicate IDs before adding to maintain uniqueness.
+ * Protected by write mutex to prevent race conditions.
  *
  * @param record - The record to add.
  * @throws Error if a record with the same ID already exists.
  */
 export async function addRecord(record: StoredRecord): Promise<void> {
-  const records = await getRecords();
-  if (records.some((r) => r.id === record.id)) {
-    throw new Error(`Record with ID "${record.id}" already exists.`);
-  }
-  records.push(record);
-  await persistRecords(records);
+  return withWriteLock(async () => {
+    const records = await getRecords(true); // Force refresh under lock
+    if (records.some((r) => r.id === record.id)) {
+      throw new Error(`Record with ID "${record.id}" already exists.`);
+    }
+    records.push(record);
+    await persistRecords(records);
+  });
 }
 
 /**
  * Updates an existing record in storage.
  * Replaces the matching record by ID with the new data.
+ * Protected by write mutex to prevent race conditions.
  *
  * @param record - The record with updated data.
  * @throws Error if no record with the matching ID is found.
  */
 export async function updateRecord(record: StoredRecord): Promise<void> {
-  const records = await getRecords();
-  const index = records.findIndex((r) => r.id === record.id);
-  if (index === -1) {
-    throw new Error(`Record with ID "${record.id}" not found.`);
-  }
-  records[index] = record;
-  await persistRecords(records);
+  return withWriteLock(async () => {
+    const records = await getRecords(true); // Force refresh under lock
+    const index = records.findIndex((r) => r.id === record.id);
+    if (index === -1) {
+      throw new Error(`Record with ID "${record.id}" not found.`);
+    }
+    records[index] = record;
+    await persistRecords(records);
+  });
 }
 
 /**
  * Updates multiple records in storage in a single operation.
  * More efficient than calling updateRecord() multiple times.
+ * Protected by write mutex to prevent race conditions.
  *
  * @param updates - Array of records to update.
  * @throws Error if any record ID is not found.
@@ -140,42 +209,50 @@ export async function updateRecord(record: StoredRecord): Promise<void> {
 export async function updateRecords(updates: StoredRecord[]): Promise<void> {
   if (updates.length === 0) return;
 
-  const records = await getRecords();
+  return withWriteLock(async () => {
+    const records = await getRecords(true); // Force refresh under lock
 
-  for (const update of updates) {
-    const index = records.findIndex((r) => r.id === update.id);
-    if (index === -1) {
-      throw new Error(`Record with ID "${update.id}" not found.`);
+    for (const update of updates) {
+      const index = records.findIndex((r) => r.id === update.id);
+      if (index === -1) {
+        throw new Error(`Record with ID "${update.id}" not found.`);
+      }
+      records[index] = update;
     }
-    records[index] = update;
-  }
 
-  await persistRecords(records);
+    await persistRecords(records);
+  });
 }
 
 /**
  * Removes a record by its ID from storage.
  * Performs an in-place removal to optimize memory usage.
+ * Protected by write mutex to prevent race conditions.
  *
  * @param id - The ID of the record to remove.
  */
 export async function removeRecord(id: string): Promise<void> {
-  const records = await getRecords();
-  const index = records.findIndex((r) => r.id === id);
-  if (index === -1) return; // No-op if record isn't found
-  records.splice(index, 1);
-  await persistRecords(records);
+  return withWriteLock(async () => {
+    const records = await getRecords(true); // Force refresh under lock
+    const index = records.findIndex((r) => r.id === id);
+    if (index === -1) return; // No-op if record isn't found
+    records.splice(index, 1);
+    await persistRecords(records);
+  });
 }
 
 /**
  * Clears all records from storage.
  * Resets persistent storage to empty array.
+ * Protected by write mutex to prevent race conditions.
  */
 export async function clearAllRecords(): Promise<void> {
-  try {
-    await persistRecords([]); // Use persistRecords to clear and update cache
-  } catch (err) {
-    // Log failure but don't throw
-    console.error('Failed to clear records from storage:', err);
-  }
+  return withWriteLock(async () => {
+    try {
+      await persistRecords([]); // Use persistRecords to clear and update cache
+    } catch (err) {
+      // Log failure but don't throw
+      console.error('Failed to clear records from storage:', err);
+    }
+  });
 }

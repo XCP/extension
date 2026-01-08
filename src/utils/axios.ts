@@ -5,6 +5,28 @@
 
 import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
 
+/**
+ * Custom API error with additional context
+ */
+export interface ApiError extends Error {
+  code: 'TIMEOUT' | 'NETWORK_ERROR';
+  originalError?: AxiosError;
+}
+
+/**
+ * Create a typed API error
+ */
+function createApiError(
+  message: string,
+  code: ApiError['code'],
+  originalError?: AxiosError
+): ApiError {
+  const error = new Error(message) as ApiError;
+  error.code = code;
+  error.originalError = originalError;
+  return error;
+}
+
 // Default timeout values (in milliseconds)
 export const API_TIMEOUTS = {
   DEFAULT: 30000,     // 30 seconds for most requests
@@ -93,23 +115,21 @@ export function createAxiosInstance(
           console.error('[API] Request timeout:', error.config?.url);
           
           // Create a more user-friendly error
-          const timeoutError = new Error(
-            `Request timed out after ${error.config?.timeout}ms. Please check your connection and try again.`
+          throw createApiError(
+            `Request timed out after ${error.config?.timeout}ms. Please check your connection and try again.`,
+            'TIMEOUT',
+            error
           );
-          (timeoutError as any).code = 'TIMEOUT';
-          (timeoutError as any).originalError = error;
-          throw timeoutError;
         }
 
         // Handle network errors
         if (!error.response) {
           console.error('[API] Network error:', error.message);
-          const networkError = new Error(
-            'Network error. Please check your internet connection.'
+          throw createApiError(
+            'Network error. Please check your internet connection.',
+            'NETWORK_ERROR',
+            error
           );
-          (networkError as any).code = 'NETWORK_ERROR';
-          (networkError as any).originalError = error;
-          throw networkError;
         }
 
         // Log other errors

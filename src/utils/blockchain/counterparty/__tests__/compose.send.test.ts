@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import axios from 'axios';
 import { composeSend, composeSweep, getSweepEstimateXcpFee, composeMove } from '../compose';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
+import * as axiosUtils from '@/utils/axios';
 import {
   mockAddress,
   mockDestAddress,
@@ -17,17 +17,17 @@ import {
 } from './helpers/composeTestHelpers';
 
 // Mock dependencies
-vi.mock('axios');
+vi.mock('@/utils/axios');
 vi.mock('@/utils/storage/settingsStorage');
 
-const mockedAxios = vi.mocked(axios, true);
-const mockedGetKeychainSettings = vi.mocked(settingsStorage.getKeychainSettings);
+const mockedApiClient = vi.mocked(axiosUtils.apiClient, true);
+const mockedGetSettings = vi.mocked(settingsStorage.getSettings);
 
 describe('Compose Send Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedGetKeychainSettings.mockResolvedValue(mockSettings as any);
-    mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+    mockedGetSettings.mockResolvedValue(mockSettings as any);
+    mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
   });
 
   describe('composeSend', () => {
@@ -45,7 +45,7 @@ describe('Compose Send Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'send', defaultParams);
+      assertComposeUrlCalled(mockedApiClient, 'send', defaultParams);
     });
 
     it('should include optional parameters when provided', async () => {
@@ -61,9 +61,9 @@ describe('Compose Send Operations', () => {
         ...optionalParams,
       });
 
-      const actualUrl = mockedAxios.get.mock.calls[0][0] as string;
+      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
       const url = new URL(actualUrl);
-      
+
       expect(url.searchParams.get('memo')).toBe(testMemos.TEXT);
       expect(url.searchParams.get('memo_is_hex')).toBe('false');
     });
@@ -81,14 +81,14 @@ describe('Compose Send Operations', () => {
         ...optionalParams,
       });
 
-      const actualUrl = mockedAxios.get.mock.calls[0][0] as string;
+      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
       expect(actualUrl).toContain(`memo=${encodeURIComponent(testMemos.HEX)}`);
       expect(actualUrl).toContain('memo_is_hex=true');
     });
 
     it('should handle API errors', async () => {
       const errorMessage = 'API Error';
-      mockedAxios.get.mockRejectedValueOnce(new Error(errorMessage));
+      mockedApiClient.get.mockRejectedValueOnce(new Error(errorMessage));
 
       await expect(composeSend({
         sourceAddress: mockAddress,
@@ -109,7 +109,7 @@ describe('Compose Send Operations', () => {
         sat_per_vbyte: mockSatPerVbyte,
         ...btcParams,
       });
-      assertComposeUrlCalled(mockedAxios, 'send', btcParams);
+      assertComposeUrlCalled(mockedApiClient, 'send', btcParams);
     });
   });
 
@@ -128,7 +128,7 @@ describe('Compose Send Operations', () => {
       });
 
       expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedAxios, 'sweep', defaultParams);
+      assertComposeUrlCalled(mockedApiClient, 'sweep', defaultParams);
     });
 
     it('should include optional parameters', async () => {
@@ -143,7 +143,7 @@ describe('Compose Send Operations', () => {
         ...optionalParams,
       });
 
-      const actualUrl = mockedAxios.get.mock.calls[0][0] as string;
+      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
       expect(actualUrl).toContain('allow_unconfirmed_inputs=true');
     });
 
@@ -159,7 +159,7 @@ describe('Compose Send Operations', () => {
         ...noMemoParams,
       });
       
-      const actualUrl = mockedAxios.get.mock.calls[0][0] as string;
+      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
       const url = new URL(actualUrl);
       expect(url.searchParams.get('memo')).toBe(''); // Default empty string
     });
@@ -169,7 +169,7 @@ describe('Compose Send Operations', () => {
       
       for (const flags of flagValues) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
         
         const params = { ...defaultParams, flags };
         await composeSweep({
@@ -178,7 +178,7 @@ describe('Compose Send Operations', () => {
           ...params,
         });
         
-        const actualUrl = mockedAxios.get.mock.calls[0][0] as string;
+        const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
         expect(actualUrl).toContain(`flags=${flags}`);
       }
     });
@@ -187,18 +187,18 @@ describe('Compose Send Operations', () => {
   describe('getSweepEstimateXcpFee', () => {
     it('should get sweep fee estimate', async () => {
       const mockFeeEstimate = 10000000;
-      mockedAxios.get.mockResolvedValueOnce({ data: { result: mockFeeEstimate } });
+      mockedApiClient.get.mockResolvedValueOnce(createMockApiResponse({ result: mockFeeEstimate }));
 
       const result = await getSweepEstimateXcpFee(mockAddress);
 
       expect(result).toEqual(mockFeeEstimate);
-      
+
       const expectedUrl = `${mockApiBase}/v2/addresses/${mockAddress}/compose/sweep/estimatexcpfees`;
-      expect(mockedAxios.get).toHaveBeenCalledWith(expectedUrl);
+      expect(mockedApiClient.get).toHaveBeenCalledWith(expectedUrl);
     });
 
     it('should handle error in fee estimation', async () => {
-      mockedAxios.get.mockRejectedValueOnce(new Error('Fee estimation failed'));
+      mockedApiClient.get.mockRejectedValueOnce(new Error('Fee estimation failed'));
 
       await expect(
         getSweepEstimateXcpFee(mockAddress)
@@ -207,11 +207,11 @@ describe('Compose Send Operations', () => {
 
     it('should use correct API endpoint', async () => {
       const mockFeeEstimate = 10000000;
-      mockedAxios.get.mockResolvedValueOnce({ data: { result: mockFeeEstimate } });
+      mockedApiClient.get.mockResolvedValueOnce(createMockApiResponse({ result: mockFeeEstimate }));
 
       await getSweepEstimateXcpFee(mockAddress);
 
-      const actualUrl = mockedAxios.get.mock.calls[0][0];
+      const actualUrl = mockedApiClient.get.mock.calls[0][0];
       expect(actualUrl).toContain('/compose/sweep/estimatexcpfees');
     });
   });
@@ -232,7 +232,7 @@ describe('Compose Send Operations', () => {
       expect(result).toEqual(createMockComposeResult());
       
       // For UTXO-based transactions, check the URL format
-      const actualUrl = mockedAxios.get.mock.calls[0][0];
+      const actualUrl = mockedApiClient.get.mock.calls[0][0];
       expect(actualUrl).toContain(`/v2/utxos/${defaultParams.sourceUtxo}/compose/move`);
       expect(actualUrl).toContain(`destination=${defaultParams.destination}`);
     });
@@ -249,7 +249,7 @@ describe('Compose Send Operations', () => {
         sat_per_vbyte: mockSatPerVbyte,
         ...moveAllParams,
       });
-      const actualUrl = mockedAxios.get.mock.calls[0][0];
+      const actualUrl = mockedApiClient.get.mock.calls[0][0];
       expect(actualUrl).toContain(`/v2/utxos/${moveAllParams.sourceUtxo}/compose/move`);
       expect(actualUrl).toContain(`destination=${moveAllParams.destination}`);
     });
@@ -263,7 +263,7 @@ describe('Compose Send Operations', () => {
 
       for (const sourceUtxo of utxos) {
         vi.clearAllMocks();
-        mockedAxios.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
         
         const params = { ...defaultParams, sourceUtxo };
         await composeMove({
@@ -272,7 +272,7 @@ describe('Compose Send Operations', () => {
           ...params,
         });
         
-        const actualUrl = mockedAxios.get.mock.calls[0][0] as string;
+        const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
         expect(actualUrl).toContain(`/v2/utxos/${sourceUtxo}/compose/move`);
       }
     });
@@ -283,7 +283,7 @@ describe('Compose Send Operations', () => {
         destination: mockAddress, // Same as source
       };
 
-      mockedAxios.get.mockRejectedValueOnce(new Error('Cannot move to same address'));
+      mockedApiClient.get.mockRejectedValueOnce(new Error('Cannot move to same address'));
 
       await expect(
         composeMove({

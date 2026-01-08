@@ -21,7 +21,6 @@ interface ConsolidationInput {
   index: number;
   amount: bigint;
   script: Uint8Array;
-  scriptAnalysis: any;
   prevTxHex: string;
   pubkeyHex: string;
   position: number;
@@ -104,8 +103,7 @@ export async function consolidateBareMultisigBatch(
     const inputInfo: ConsolidationInput = {
       index: inputs.length,
       amount: BigInt(utxo.amount),
-      script: scriptBytes, // Store the byte form
-      scriptAnalysis: null as any, // Will be analyzed later with pubkeys
+      script: scriptBytes,
       prevTxHex: utxo.prev_tx_hex,
       pubkeyHex: pubkeyToUse,
       position: utxo.position,

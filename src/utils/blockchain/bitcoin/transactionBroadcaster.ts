@@ -1,16 +1,19 @@
 import axios, { AxiosResponse } from 'axios';
 import { apiClient, withRetry } from '@/utils/axios';
-import { getKeychainSettings } from '@/utils/storage/settingsStorage';
+import { getSettings } from '@/utils/storage/settingsStorage';
 
 export interface TransactionResponse {
   txid: string;
   fees?: number;
 }
 
+/** Data payload types for different broadcast endpoints */
+type BroadcastPayload = { tx: string } | string | null;
+
 interface BroadcastEndpoint {
   name: string;
   getUrl: (signedTxHex: string) => string | Promise<string>;
-  getData: (signedTxHex: string) => any;
+  getData: (signedTxHex: string) => BroadcastPayload;
   headers: Record<string, string>;
 }
 
@@ -18,7 +21,7 @@ const broadcastEndpoints: BroadcastEndpoint[] = [
   {
     name: 'counterparty',
     getUrl: async (signedTxHex: string) => {
-      const settings = await getKeychainSettings();
+      const settings = await getSettings();
       const encoded = encodeURIComponent(signedTxHex);
       return `${settings.counterpartyApiBase}/v2/bitcoin/transactions?signedhex=${encoded}`;
     },
@@ -75,7 +78,7 @@ const generateMockTxid = (signedTxHex: string): string => {
 };
 
 export async function broadcastTransaction(signedTxHex: string): Promise<TransactionResponse> {
-  const settings = await getKeychainSettings();
+  const settings = await getSettings();
   
   if (settings.transactionDryRun) {
     await new Promise(resolve => setTimeout(resolve, 500));
