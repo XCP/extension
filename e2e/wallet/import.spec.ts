@@ -17,54 +17,66 @@ const EXPECTED_ADDRESSES = {
   P2TR: 'bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr', // Taproot
 };
 
+// Truncated versions (first 6 + last 6 chars) as displayed on index page
+const EXPECTED_TRUNCATED = {
+  P2PKH: '1LqBGS...YWeabA',
+  P2WPKH: 'bc1qcr...306fyu',
+  P2SH_P2WPKH: '37Lx99...rDCZru',
+  P2TR: 'bc1p5c...kedrcr',
+};
+
 test('import wallet with test mnemonic', async () => {
   const { context, page } = await launchExtension('wallet-import-basic');
-  
+
   // Check if onboarding page
   const hasImportOption = await page.getByText('Import Wallet').isVisible().catch(() => false);
-  
+
   if (!hasImportOption) {
     // Wallet already exists, skip this test
     await cleanup(context);
     return;
   }
-  
+
   // Import wallet with test mnemonic
   await importWallet(page, TEST_MNEMONIC, TEST_PASSWORD);
-  
+
   // Wait for wallet to load - increase timeout for CI
-  await page.waitForURL(/index/, { timeout: 15000 });
-  await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
-  await page.waitForTimeout(3000);
+  await page.waitForURL(/index/, { timeout: 20000 });
+  await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(3000); // Give UI time to render addresses
 
-  // Check the default address (should be Native SegWit)
-  // Look for full address or truncated format (e.g., bc1qcr...306fyu)
-  const fullAddressElement = page.locator('text=/^bc1q[a-z0-9]{38}$/');
-  const truncatedAddressElement = page.locator('text=/^bc1q[a-z0-9]{2}\\.\\.\\.[a-z0-9]{6}$/');
-  // Also check for address in a span with font-mono class (common display pattern)
-  const monoAddressElement = page.locator('.font-mono:has-text("bc1q")');
+  // INTEGRATION TEST: Verify correct address derivation
+  // The test mnemonic should derive to one of these known addresses
+  // On index page, addresses are displayed truncated (first 6 + ... + last 6)
+  const truncatedAddresses = Object.values(EXPECTED_TRUNCATED);
 
-  let foundAddress = false;
-  if (await fullAddressElement.count() > 0) {
-    const fullAddress = await fullAddressElement.first().textContent();
-    expect(fullAddress).toBe(EXPECTED_ADDRESSES.P2WPKH);
-    foundAddress = true;
-  } else if (await truncatedAddressElement.count() > 0) {
-    const truncatedAddress = await truncatedAddressElement.first().textContent();
-    // Verify it starts with bc1q and ends correctly
-    expect(truncatedAddress).toMatch(/^bc1q/);
-    foundAddress = true;
-  } else if (await monoAddressElement.count() > 0) {
-    // Found address in mono font element - verify it contains bc1q
-    const addressText = await monoAddressElement.first().textContent();
-    expect(addressText).toMatch(/bc1q/);
-    foundAddress = true;
+  // Get all font-mono elements (where addresses are displayed)
+  const monoElements = await page.locator('.font-mono').allTextContents();
+  const pageContent = await page.content();
+
+  // Check if ANY of the expected truncated addresses appear
+  const foundExpectedAddress = truncatedAddresses.some(truncated =>
+    monoElements.some(text => text.includes(truncated)) || pageContent.includes(truncated)
+  );
+
+  if (!foundExpectedAddress) {
+    // Take screenshot for debugging
+    await page.screenshot({ path: 'test-results/screenshots/import-address-mismatch.png' });
+
+    // Log what we found for debugging
+    console.log('Font-mono elements found:', monoElements);
+    console.log('Expected one of:', truncatedAddresses);
   }
 
-  expect(foundAddress).toBe(true);
-  
+  // Key assertions:
+  // 1. We're on the index page (wallet loaded successfully)
+  expect(page.url()).toContain('index');
+
+  // 2. One of the known derived addresses (truncated) is visible
+  expect(foundExpectedAddress).toBe(true);
+
   await page.screenshot({ path: 'test-results/screenshots/imported-wallet.png' });
-  
+
   await cleanup(context);
 });
 

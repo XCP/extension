@@ -7,41 +7,31 @@ test.describe('Compose Dispense', () => {
     const extensionContext = await launchExtension('compose-dispense-transaction');
     const { page, extensionId, context } = extensionContext;
     await setupWallet(page);
-    
+
     // Navigate directly to compose dispense page
     await page.goto(`chrome-extension://${extensionId}/popup.html#/compose/dispenser/dispense`);
     await page.waitForLoadState('networkidle', { timeout: 15000 });
-    
-    // Should show dispenser address input or be on the dispense page
-    const labelVisible = await page.locator('label:has-text("Dispenser Address")').isVisible({ timeout: 5000 }).catch(() => false);
-    const inputVisible = await page.locator('input[name="dispenserAddress"]').isVisible({ timeout: 5000 }).catch(() => false);
-    
-    if (!labelVisible && !inputVisible) {
-      // Just verify we're on the dispense page
-      expect(page.url()).toContain('dispenser/dispense');
-    } else {
-      // Enter a test dispenser address
-      const addressInput = page.locator('input[name="dispenserAddress"]');
-      if (await addressInput.isVisible()) {
-        await addressInput.fill('1BigDeaLFejyJiK6rLaj4LYCikD5CfYyhp');
-        
-        // Wait for response - give more time for API calls
-        await page.waitForTimeout(5000);
 
-        // Check for various expected outcomes in test environment
-        const noDispenserError = await page.locator('text=/No open dispenser found/i').isVisible({ timeout: 3000 }).catch(() => false);
-        const fetchError = await page.locator('text=/Error fetching dispenser/i').isVisible({ timeout: 3000 }).catch(() => false);
-        const utxoError = await page.locator('text=/No UTXOs found/i').isVisible({ timeout: 3000 }).catch(() => false);
-        const dispenserRadios = await page.locator('input[type="radio"]').count();
-        const hasLoadingSpinner = await page.locator('[data-testid="spinner"], .animate-spin').isVisible({ timeout: 1000 }).catch(() => false);
+    // Verify we're on the dispense page
+    expect(page.url()).toContain('dispenser/dispense');
 
-        // Any of these outcomes is acceptable in a test environment
-        // Loading spinner means the request is still in progress which is also acceptable
-        const hasExpectedOutcome = noDispenserError || fetchError || utxoError || dispenserRadios > 0 || hasLoadingSpinner;
-        expect(hasExpectedOutcome).toBe(true);
-      }
-    }
-    
+    // INTEGRATION TEST: Verify the dispense form renders correctly
+    // Wait for the form to be visible
+    const addressInput = page.locator('input[name="dispenserAddress"]');
+    await addressInput.waitFor({ state: 'visible', timeout: 10000 });
+
+    // Verify form input is functional - user can enter dispenser address
+    await addressInput.fill('bc1qtest123');
+    const inputValue = await addressInput.inputValue();
+    expect(inputValue).toBe('bc1qtest123');
+
+    // Clear and test with a different address format
+    await addressInput.clear();
+    await addressInput.fill('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa');
+    expect(await addressInput.inputValue()).toBe('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa');
+
+    // Note: We don't test API responses here because they depend on external data
+    // The key assertions are: page loads, form renders, input accepts values
     await cleanup(context);
   });
 
