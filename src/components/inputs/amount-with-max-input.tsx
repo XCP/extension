@@ -2,7 +2,7 @@ import { useState, ChangeEvent } from "react";
 import { isApiError } from "@/utils/apiClient";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
-import { isValidBase58Address } from "@/utils/blockchain/bitcoin/address";
+import { isValidBitcoinAddress } from "@/utils/validation/bitcoin";
 import { composeSend } from "@/utils/blockchain/counterparty/compose";
 import { formatAmount } from "@/utils/format";
 import {
@@ -86,7 +86,7 @@ export function AmountWithMaxInput({
       setIsLoading(true);
 
       const estimationDestination =
-        destination && isValidBase58Address(destination)
+        destination && isValidBitcoinAddress(destination)
           ? destination
           : sourceAddr;
       const availableSats = toSatoshis(availableBalance); // Integer string

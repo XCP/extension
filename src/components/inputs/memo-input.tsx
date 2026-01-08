@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Field, Label, Input, Description } from "@headlessui/react";
 import type { ReactElement } from "react";
+import { validateMemo as validateMemoUtil } from "@/utils/validation/memo";
 
 interface MemoInputProps {
   value?: string;
@@ -13,13 +14,12 @@ interface MemoInputProps {
   required?: boolean;
   className?: string;
   name?: string;
+  maxBytes?: number;
 }
-
-const MAX_MEMO_LENGTH = 34; // Maximum bytes allowed for memo
 
 /**
  * MemoInput component for entering transaction memos with validation.
- * Validates memo length in bytes (max 34 bytes as per Counterparty protocol).
+ * Validates memo length in bytes (default 34 bytes as per Counterparty protocol).
  */
 export function MemoInput({
   value = "",
@@ -30,33 +30,28 @@ export function MemoInput({
   required = false,
   className = "",
   name = "memo",
+  maxBytes = 34,
 }: MemoInputProps): ReactElement {
   const [memo, setMemo] = useState(value);
   const [isValid, setIsValid] = useState(true);
 
-  // Calculate byte length of the memo
-  const getByteLength = (str: string): number => {
-    return new TextEncoder().encode(str).length;
-  };
-
-  // Validate memo
-  const validateMemo = (memoValue: string): boolean => {
+  // Validate memo using centralized validation
+  const checkMemoValidity = (memoValue: string): boolean => {
     if (required && !memoValue.trim()) {
       return false;
     }
-
-    const byteLength = getByteLength(memoValue);
-    return byteLength <= MAX_MEMO_LENGTH;
+    const result = validateMemoUtil(memoValue, { maxBytes });
+    return result.isValid;
   };
 
   // Handle memo change
   const handleMemoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newMemo = e.target.value;
     setMemo(newMemo);
-    
-    const valid = validateMemo(newMemo);
+
+    const valid = checkMemoValidity(newMemo);
     setIsValid(valid);
-    
+
     onChange?.(newMemo);
     onValidationChange?.(valid);
   };
@@ -65,7 +60,7 @@ export function MemoInput({
   useEffect(() => {
     if (value !== memo) {
       setMemo(value);
-      const valid = validateMemo(value);
+      const valid = checkMemoValidity(value);
       setIsValid(valid);
       onValidationChange?.(valid);
     }
@@ -73,7 +68,7 @@ export function MemoInput({
 
   // Initial validation
   useEffect(() => {
-    const valid = validateMemo(memo);
+    const valid = checkMemoValidity(memo);
     setIsValid(valid);
     onValidationChange?.(valid);
   }, []);

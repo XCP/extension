@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getDerivationPathForAddressFormat, encodeAddress, getAddressFromMnemonic, isValidBase58Address, isCounterwalletFormat, AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { getDerivationPathForAddressFormat, encodeAddress, getAddressFromMnemonic, isCounterwalletFormat, AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { isValidBitcoinAddress } from '@/utils/validation/bitcoin';
 import { hexToBytes } from '@noble/hashes/utils.js';
 
 vi.mock('@/utils/blockchain/counterwallet', () => ({
@@ -231,112 +232,25 @@ describe('Bitcoin Address Utilities', () => {
     });
   });
 
-  describe('isValidBase58Address', () => {
-    it('should validate correct P2PKH addresses', () => {
-      const validAddresses = [
-        '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', // Genesis block coinbase
-        '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
-        '12higDjoCCNXSA95xZMWUdPvXNmkAduhWv'
-      ];
-
-      validAddresses.forEach(address => {
-        expect(isValidBase58Address(address)).toBe(true);
-      });
-    });
-
-    it('should validate correct P2SH addresses', () => {
-      const validAddresses = [
-        '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy',
-        '33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k'
-      ];
-
-      validAddresses.forEach(address => {
-        expect(isValidBase58Address(address)).toBe(true);
-      });
-    });
-
-    it('should reject invalid Base58 characters', () => {
-      const invalidAddresses = [
-        '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfN0', // Contains '0'
-        '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNO', // Contains 'O'
-        '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNI', // Contains 'I'
-        '1A1zP1eP5QGefi2DMPTfTL5SLmv7Divfnl'  // Contains 'l'
-      ];
-
-      invalidAddresses.forEach(address => {
-        expect(isValidBase58Address(address)).toBe(false);
-      });
-    });
-
-    it('should reject addresses that are too short', () => {
-      const shortAddresses = [
-        '12345',
-        '1A1zP1eP5QGefi2DMPTfTL5S', // 25 chars
-        ''
-      ];
-
-      shortAddresses.forEach(address => {
-        expect(isValidBase58Address(address)).toBe(false);
-      });
-    });
-
-    it('should reject addresses that are too long', () => {
-      const longAddress = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNaExtremelyLongAddressThatExceedsMaxLength';
-      expect(isValidBase58Address(longAddress)).toBe(false);
-    });
-
-    it('should reject completely invalid strings', () => {
-      const invalidStrings = [
-        'not-an-address',
-        '12345 67890', // Contains space
-        'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', // bech32 address
-        'xyz123',
-        null as any,
-        undefined as any,
-        123 as any
-      ];
-
-      invalidStrings.forEach(str => {
-        expect(isValidBase58Address(str)).toBe(false);
-      });
-    });
-
-    it('should handle edge case lengths', () => {
-      // Test exactly 26 characters (minimum valid)
-      const minLength = '12345678901234567890123456';
-      // Test exactly 35 characters (maximum valid)
-      const maxLength = '12345678901234567890123456789012345';
-      
-      // These may or may not be valid depending on the actual base58 content,
-      // but they should not crash the function
-      expect(() => isValidBase58Address(minLength)).not.toThrow();
-      expect(() => isValidBase58Address(maxLength)).not.toThrow();
-    });
-
-    it('should reject malformed base58', () => {
-      const malformedAddresses = [
-        '1111111111111111111111111111111111111', // All 1s may cause issues
-        '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfN@', // Invalid character
-        '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfN#'  // Invalid character
-      ];
-
-      malformedAddresses.forEach(address => {
-        expect(isValidBase58Address(address)).toBe(false);
-      });
-    });
-  });
-
   describe('integration tests', () => {
     it('should create valid addresses that pass validation', () => {
       const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
-      
+
       // Generate P2PKH address and validate it
       const p2pkhAddress = getAddressFromMnemonic(testMnemonic, "m/44'/0'/0'/0/0", AddressFormat.P2PKH);
-      expect(isValidBase58Address(p2pkhAddress)).toBe(true);
-      
+      expect(isValidBitcoinAddress(p2pkhAddress)).toBe(true);
+
       // Generate P2SH address and validate it
       const p2shAddress = getAddressFromMnemonic(testMnemonic, "m/49'/0'/0'/0/0", AddressFormat.P2SH_P2WPKH);
-      expect(isValidBase58Address(p2shAddress)).toBe(true);
+      expect(isValidBitcoinAddress(p2shAddress)).toBe(true);
+
+      // Generate P2WPKH address and validate it
+      const p2wpkhAddress = getAddressFromMnemonic(testMnemonic, "m/84'/0'/0'/0/0", AddressFormat.P2WPKH);
+      expect(isValidBitcoinAddress(p2wpkhAddress)).toBe(true);
+
+      // Generate P2TR address and validate it
+      const p2trAddress = getAddressFromMnemonic(testMnemonic, "m/86'/0'/0'/0/0", AddressFormat.P2TR);
+      expect(isValidBitcoinAddress(p2trAddress)).toBe(true);
     });
 
     it('should maintain consistency across address types', () => {

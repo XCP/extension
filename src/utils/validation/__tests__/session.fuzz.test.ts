@@ -23,7 +23,8 @@ import {
 } from '../session';
 
 // Valid SHA-256 hash (64 hex chars)
-const validWalletIdArb = fc.hexaString({ minLength: 64, maxLength: 64 }).map(s => s.toLowerCase());
+const hexCharArb = fc.constantFrom(...'0123456789abcdef'.split(''));
+const validWalletIdArb: fc.Arbitrary<string> = fc.array(hexCharArb, { minLength: 64, maxLength: 64 }).map(arr => arr.join(''));
 
 describe('Session Validation Fuzz Tests', () => {
   beforeEach(() => {
@@ -53,10 +54,15 @@ describe('Session Validation Fuzz Tests', () => {
     });
 
     it('should reject wrong-length strings', () => {
+      // Create a hex string of variable length that's not 64 characters
+      const wrongLengthHexArb = fc.integer({ min: 1, max: MAX_WALLET_ID_LENGTH - 1 })
+        .filter(len => len !== 64)
+        .chain(len => fc.array(hexCharArb, { minLength: len, maxLength: len }).map(arr => arr.join('')));
+
       fc.assert(
         fc.property(
-          fc.hexaString().filter(s => s.length !== 64 && s.length <= MAX_WALLET_ID_LENGTH),
-          (wrongLength) => {
+          wrongLengthHexArb,
+          (wrongLength: string) => {
             if (wrongLength.length > 0) {
               expect(() => validateWalletId(wrongLength)).toThrow();
             }

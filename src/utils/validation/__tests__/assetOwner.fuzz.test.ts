@@ -11,10 +11,10 @@ import {
 } from '../assetOwner';
 
 // Valid parent asset names (4-12 uppercase letters starting with B-Z)
-const validParentAssetArb = fc.stringOf(
+const validParentAssetArb = fc.array(
   fc.constantFrom(...'BCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')),
   { minLength: 4, maxLength: 12 }
-).filter(s => /^[B-Z][A-Z]{3,11}$/.test(s));
+).map(arr => arr.join('')).filter((s: string) => /^[B-Z][A-Z]{3,11}$/.test(s));
 
 // Valid numeric asset names (A + digits)
 const validNumericAssetArb = fc.integer({ min: 0, max: 999999999 })

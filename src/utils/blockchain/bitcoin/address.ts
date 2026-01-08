@@ -169,22 +169,6 @@ export function getAddressFromMnemonic(
   return encodeAddress(child.publicKey, addressFormat);
 }
 
-/**
- * Checks whether a string is a valid Base58 Bitcoin address.
- *
- * @param address - The address to validate.
- * @returns True if valid; otherwise false.
- */
-export const isValidBase58Address = (address: string): boolean => {
-  try {
-    // Attempt to decode the address. If an error is thrown, the address is invalid.
-    base58.decode(address);
-    // Basic length check for Bitcoin addresses (usually 26-35 characters).
-    return address.length >= 26 && address.length <= 35;
-  } catch {
-    return false;
-  }
-};
 
 // Address Type Detection functions (previously in addressTypeDetector.ts)
 

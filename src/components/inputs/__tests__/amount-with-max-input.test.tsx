@@ -3,9 +3,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { AmountWithMaxInput } from '../amount-with-max-input';
 
-// Mock the blockchain utilities
-vi.mock('@/utils/blockchain/bitcoin', () => ({
-  isValidBase58Address: vi.fn((addr) => addr && addr.startsWith('bc1'))
+// Mock the validation utilities
+vi.mock('@/utils/validation/bitcoin', () => ({
+  isValidBitcoinAddress: vi.fn((addr) => addr && addr.startsWith('bc1'))
 }));
 
 vi.mock('@/utils/blockchain/counterparty/compose', () => ({
