@@ -256,8 +256,8 @@ describe('Destinations Validation Fuzz Tests', () => {
     it('should handle whitespace-only addresses correctly', () => {
       fc.assert(
         fc.property(
-          fc.stringOf(fc.constantFrom(' ', '\t', '\n', '\r')),
-          (whitespace) => {
+          fc.array(fc.constantFrom(' ', '\t', '\n', '\r'), { minLength: 0, maxLength: 10 }).map(arr => arr.join('')),
+          (whitespace: string) => {
             const destinations: Destination[] = [{ id: 1, address: whitespace }];
             expect(areDestinationsComplete(destinations)).toBe(false);
           }
