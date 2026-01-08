@@ -5,7 +5,7 @@ import '@testing-library/jest-dom/vitest';
 import { Button } from '../button';
 
 // Mock React Icons
-vi.mock('react-icons/fa', () => ({
+vi.mock('@/components/icons', () => ({
   FaYoutube: ({ className, ...props }: any) => <div data-testid="youtube-icon" className={className} {...props} />
 }));
 

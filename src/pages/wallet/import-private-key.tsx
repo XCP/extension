@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { FiX } from "react-icons/fi";
+import { FiX } from "@/components/icons";
 import { 
   Field, 
   Label, 

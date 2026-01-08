@@ -1,5 +1,5 @@
 import { type ReactElement, type ReactNode } from "react";
-import { FaChevronRight } from "react-icons/fa";
+import { FaChevronRight } from "@/components/icons";
 
 /**
  * Props interface for the ActionCard component

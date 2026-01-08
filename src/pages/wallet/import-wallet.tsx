@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useActionState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaEye, FaEyeSlash } from "@/components/icons";
 import { Input as HeadlessInput } from "@headlessui/react";
 import { validateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";

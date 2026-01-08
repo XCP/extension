@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaExclamationTriangle } from "react-icons/fa";
+import { FaExclamationTriangle } from "@/components/icons";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { PasswordInput } from "@/components/inputs/password-input";

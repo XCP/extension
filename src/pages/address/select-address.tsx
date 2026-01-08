@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaPlus } from "react-icons/fa";
+import { FaPlus } from "@/components/icons";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { AddressList } from "@/components/lists/address-list";

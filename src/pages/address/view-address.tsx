@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaCheck, FaClipboard, FaList } from "react-icons/fa";
+import { FaCheck, FaClipboard, FaList } from "@/components/icons";
 import { Button } from "@/components/button";
 import { QRCode } from "@/components/qr-code";
 import { useHeader } from "@/contexts/header-context";

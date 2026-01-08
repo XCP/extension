@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
-import { FaSearch } from "react-icons/fa";
-import { FiHelpCircle } from "react-icons/fi";
-import { TbPinned, TbPinnedFilled } from "react-icons/tb";
+import { FaSearch } from "@/components/icons";
+import { FiHelpCircle } from "@/components/icons";
+import { TbPinned, TbPinnedFilled } from "@/components/icons";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";

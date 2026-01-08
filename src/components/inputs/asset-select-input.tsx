@@ -6,8 +6,8 @@ import {
   ComboboxOptions,
   ComboboxOption,
 } from "@headlessui/react";
-import { FiChevronDown, FiCheck } from "react-icons/fi";
-import { FaSpinner } from "react-icons/fa";
+import { FiChevronDown, FiCheck } from "@/components/icons";
+import { FaSpinner } from "@/components/icons";
 import { useSettings } from "@/contexts/settings-context";
 
 interface Asset {

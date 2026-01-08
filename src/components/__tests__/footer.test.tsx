@@ -20,7 +20,7 @@ vi.mock('react-router-dom', () => ({
 }));
 
 // Mock React Icons
-vi.mock('react-icons/fa', () => ({
+vi.mock('@/components/icons', () => ({
   FaWallet: ({ className }: any) => <div data-testid="wallet-icon" className={className} />,
   FaUniversity: ({ className }: any) => <div data-testid="university-icon" className={className} />,
   FaTools: ({ className }: any) => <div data-testid="tools-icon" className={className} />,

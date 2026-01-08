@@ -5,7 +5,7 @@ import '@testing-library/jest-dom/vitest';
 import { PasswordInput } from '../password-input';
 
 // Mock React Icons
-vi.mock('react-icons/fa', () => ({
+vi.mock('@/components/icons', () => ({
   FaEye: ({ ...props }: any) => <div data-testid="eye-icon" {...props} />,
   FaEyeSlash: ({ ...props }: any) => <div data-testid="eye-slash-icon" {...props} />
 }));

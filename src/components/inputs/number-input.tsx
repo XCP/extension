@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Field, Label, Input, Description } from "@headlessui/react";
-import { FiPlus, FiMinus } from "react-icons/fi";
+import { FiPlus, FiMinus } from "@/components/icons";
 import { Button } from "@/components/button";
 
 interface NumberInputProps {

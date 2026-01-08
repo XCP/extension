@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FaExchangeAlt } from "react-icons/fa";
+import { FaExchangeAlt } from "@/components/icons";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatPriceRatio, formatAssetQuantity } from "@/utils/format";
 

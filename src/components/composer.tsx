@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useCallback, type ReactElement } from "react";
-import { FiHelpCircle, FiX, FiRefreshCw } from "react-icons/fi";
+import { FiHelpCircle, FiX, FiRefreshCw } from "@/components/icons";
 import { onMessage } from 'webext-bridge/popup';
 import { useNavigate } from "react-router-dom";
 import { SuccessScreen } from "@/components/screens/success-screen";

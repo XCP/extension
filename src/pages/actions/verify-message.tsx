@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaCheckCircle, FaUpload, FaRedo } from "react-icons/fa";
+import { FaCheckCircle, FaUpload, FaRedo } from "@/components/icons";
 import { Button } from "@/components/button";
 import { TextAreaInput } from "@/components/inputs/textarea-input";
 import { DestinationInput } from "@/components/inputs/destination-input";

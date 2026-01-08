@@ -1,5 +1,5 @@
 import { type ReactElement, useState, useCallback } from "react";
-import { FaCheckCircle, FaClipboard, FaCheck, FaExternalLinkAlt } from "react-icons/fa";
+import { FaCheckCircle, FaClipboard, FaCheck, FaExternalLinkAlt } from "@/components/icons";
 import { Button } from "@/components/button";
 
 /**

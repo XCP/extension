@@ -1,6 +1,6 @@
 import { type ReactElement, type ReactNode } from "react";
 import { RadioGroup } from "@headlessui/react";
-import { FaCheck } from "react-icons/fa";
+import { FaCheck } from "@/components/icons";
 
 /**
  * Props interface for the SelectionCard component

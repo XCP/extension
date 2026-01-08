@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaFilter, FaTimes, FaExternalLinkAlt } from "react-icons/fa";
+import { FaFilter, FaTimes, FaExternalLinkAlt } from "@/components/icons";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/button";
 import { useHeader } from "@/contexts/header-context";

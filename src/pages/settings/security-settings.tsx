@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiHelpCircle } from "react-icons/fi";
+import { FiHelpCircle } from "@/components/icons";
 import { Button } from "@/components/button";
 import { PasswordInput } from "@/components/inputs/password-input";
 import { ErrorAlert } from "@/components/error-alert";

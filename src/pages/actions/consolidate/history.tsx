@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FaChevronDown, FaChevronRight, FaHistory } from "react-icons/fa";
+import { FaChevronDown, FaChevronRight, FaHistory } from "@/components/icons";
 import { formatAmount } from "@/utils/format";
 import { consolidationApi, type ConsolidationStatusResponse } from "@/utils/blockchain/bitcoin/consolidationApi";
 

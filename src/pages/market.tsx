@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaExchangeAlt, FaSync, FaCog, FaBitcoin, FaCoins } from "react-icons/fa";
+import { FaExchangeAlt, FaSync, FaCog, FaBitcoin, FaCoins } from "@/components/icons";
 import { Button } from "@/components/button";
 import { useHeader } from "@/contexts/header-context";
 import { useMarketPrices } from "@/hooks/useMarketPrices";

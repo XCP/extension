@@ -42,7 +42,7 @@ vi.mock('@/components/menus/asset-menu', () => ({
   )
 }));
 
-vi.mock('react-icons/fa', () => ({
+vi.mock('@/components/icons', () => ({
   FaSearch: () => <div data-testid="search-icon" />,
   FaTimes: () => <div data-testid="times-icon" />
 }));

@@ -5,7 +5,7 @@ import '@testing-library/jest-dom/vitest';
 import { Spinner } from '../spinner';
 
 // Mock React Icons
-vi.mock('react-icons/fa', () => ({
+vi.mock('@/components/icons', () => ({
   FaSpinner: ({ className, ...props }: any) => <div data-testid="spinner-icon" className={className} {...props} />
 }));
 

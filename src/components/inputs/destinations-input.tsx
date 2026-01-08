@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { FiPlus, FiMinus } from "react-icons/fi";
+import { FiPlus, FiMinus } from "@/components/icons";
 import { lookupAssetOwner, shouldTriggerAssetLookup } from "@/utils/validation/assetOwner";
 import { validateDestinations, parseMultiLineDestinations, isMPMASupported } from "@/utils/validation/destinations";
 import { validateBitcoinAddress } from "@/utils/validation/bitcoin";

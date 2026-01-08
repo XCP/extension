@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSignMessageRequest } from "@/hooks/useSignMessageRequest";
-import { FaCopy, FaCheck, FaLock, FaCheckCircle, FaInfoCircle, FaRedo } from "react-icons/fa";
-import { FiDownload } from "react-icons/fi";
+import { FaCopy, FaCheck, FaLock, FaCheckCircle, FaInfoCircle, FaRedo } from "@/components/icons";
+import { FiDownload } from "@/components/icons";
 import { Button } from "@/components/button";
 import { TextAreaInput } from "@/components/inputs/textarea-input";
 import { Spinner } from "@/components/spinner";

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiHelpCircle } from "react-icons/fi";
+import { FiHelpCircle } from "@/components/icons";
 import { SearchInput } from "@/components/inputs/search-input";
 import { PinnableAssetCard } from "@/components/cards/pinnable-asset-card";
 import { ErrorAlert } from "@/components/error-alert";

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { FaSpinner } from "react-icons/fa";
+import { FaSpinner } from "@/components/icons";
 import { Layout } from '@/components/layout';
 import { useWallet } from '@/contexts/wallet-context';
 import { AuthRequired } from '@/components/router/auth-required';

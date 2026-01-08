@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from "react";
-import { FaExchangeAlt } from "react-icons/fa";
+import { FaExchangeAlt } from "@/components/icons";
 import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty/api";

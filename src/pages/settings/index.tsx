@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiHelpCircle } from "react-icons/fi";
+import { FiHelpCircle } from "@/components/icons";
 import { Button } from "@/components/button";
 import { ActionList } from "@/components/lists/action-list";
 import { useHeader } from "@/contexts/header-context";

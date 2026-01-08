@@ -4,7 +4,7 @@ import '@testing-library/jest-dom/vitest';
 import { SuccessScreen } from '../success-screen';
 
 // Mock React Icons
-vi.mock('react-icons/fa', () => ({
+vi.mock('@/components/icons', () => ({
   FaCheckCircle: ({ className }: any) => <div data-testid="check-circle-icon" className={className} />,
   FaClipboard: ({ className }: any) => <div data-testid="clipboard-icon" className={className} />,
   FaCheck: ({ className }: any) => <div data-testid="check-icon" className={className} />,

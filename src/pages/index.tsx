@@ -11,8 +11,8 @@ import {
   FaHistory,
   FaExternalLinkAlt,
   FaLock,
-} from "react-icons/fa";
-import { TbPinned } from "react-icons/tb";
+} from "@/components/icons";
+import { TbPinned } from "@/components/icons";
 import { RadioGroup } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { AssetList } from "@/components/lists/asset-list";

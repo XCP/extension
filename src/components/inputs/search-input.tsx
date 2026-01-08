@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, forwardRef } from "react";
 import { Field, Label, Input, Description } from "@headlessui/react";
-import { FiSearch, FiX } from "react-icons/fi";
+import { FiSearch, FiX } from "@/components/icons";
 import { Button } from "@/components/button";
 
 interface SearchInputProps {

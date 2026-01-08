@@ -1,4 +1,4 @@
-import { FaLock, FaLockOpen } from "react-icons/fa";
+import { FaLock, FaLockOpen } from "@/components/icons";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAssetQuantity } from "@/utils/format";
 

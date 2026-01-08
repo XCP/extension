@@ -491,7 +491,7 @@ async function isUTXOUnspent(txid: string, vout: number): Promise<boolean> {
     
     for (const endpoint of endpoints) {
       try {
-        const response = await apiClient.get(endpoint);
+        const response = await apiClient.get<{ spent?: boolean; txid?: string }>(endpoint);
         // If the UTXO is spent, the response will have a 'spent' field set to true
         // or will have 'txid' field indicating the spending transaction
         if (response.data) {
@@ -554,8 +554,11 @@ async function fetchPreviousRawTransaction(txid: string): Promise<string | null>
     try {
       const url = typeof endpoint.url === 'function' ? await endpoint.url() : endpoint.url;
       // Use quickApiClient with 10 second timeout for transaction lookups
-      const response = await apiClient.get(url);
-      return endpoint.transform(response.data);
+      const response = await apiClient.get<string | { result: { hex: string } }>(url);
+      const result = endpoint.transform(response.data as any);
+      if (typeof result === 'string') {
+        return result;
+      }
     } catch (_) {
       continue;
     }

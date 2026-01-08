@@ -16,7 +16,7 @@ vi.mock('@/contexts/settings-context', () => ({
   })
 }));
 
-vi.mock('react-icons/fi', () => ({
+vi.mock('@/components/icons', () => ({
   FiChevronDown: ({ className }: any) => <div data-testid="chevron-down" className={className} />,
   FiCheck: ({ className }: any) => <div data-testid="check-icon" className={className} />
 }));

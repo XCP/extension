@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { FaChevronDown } from "react-icons/fa";
+import { FaChevronDown } from "@/components/icons";
 import {
   Field,
   Label,

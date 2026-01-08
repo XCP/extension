@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FiCheckCircle, FiExternalLink, FiCopy, FiX } from "react-icons/fi";
+import { FiCheckCircle, FiExternalLink, FiCopy, FiX } from "@/components/icons";
 import { Button } from "@/components/button";
 import { useHeader } from "@/contexts/header-context";
 import { formatAddress } from "@/utils/format";

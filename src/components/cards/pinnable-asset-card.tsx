@@ -1,6 +1,6 @@
 import { type ReactElement } from "react";
-import { TbPinned, TbPinnedFilled } from "react-icons/tb";
-import { FiChevronUp, FiChevronDown } from "react-icons/fi";
+import { TbPinned, TbPinnedFilled } from "@/components/icons";
+import { FiChevronUp, FiChevronDown } from "@/components/icons";
 import { AssetIcon } from "@/components/asset-icon";
 
 /**

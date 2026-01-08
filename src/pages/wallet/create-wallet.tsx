@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useActionState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaSync, FaEyeSlash } from "react-icons/fa";
+import { FaSync, FaEyeSlash } from "@/components/icons";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";

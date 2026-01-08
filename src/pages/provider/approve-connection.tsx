@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FiGlobe, FiShield, FiX, FiCheck } from "react-icons/fi";
+import { FiGlobe, FiShield, FiX, FiCheck } from "@/components/icons";
 import { Button } from "@/components/button";
 import { useWallet } from "@/contexts/wallet-context";
 import { useHeader } from "@/contexts/header-context";

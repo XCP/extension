@@ -1,5 +1,5 @@
 import { type ReactElement } from "react";
-import { FiGlobe, FiX } from "react-icons/fi";
+import { FiGlobe, FiX } from "@/components/icons";
 
 /**
  * Props interface for the ConnectedSiteCard component

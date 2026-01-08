@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { FaExternalLinkAlt, FaChevronLeft } from "react-icons/fa";
+import { FaExternalLinkAlt, FaChevronLeft } from "@/components/icons";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { Spinner } from "@/components/spinner";

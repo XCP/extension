@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaChevronDown, FaChevronRight, FaHistory } from "react-icons/fa";
+import { FaChevronDown, FaChevronRight, FaHistory } from "@/components/icons";
 import { Spinner } from "@/components/spinner";
 import { ActionList } from "@/components/lists/action-list";
 import { useHeader } from "@/contexts/header-context";

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiHelpCircle } from "react-icons/fi";
+import { FiHelpCircle } from "@/components/icons";
 import { RadioGroup } from "@headlessui/react";
 import { SelectionCard, SelectionCardGroup } from "@/components/cards/selection-card";
 import { ErrorAlert } from "@/components/error-alert";
