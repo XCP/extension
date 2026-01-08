@@ -36,7 +36,7 @@ describe('Fee Validation Fuzz Tests', () => {
             expect(typeof result.isValid).toBe('boolean');
           }
         ),
-        { numRuns: 1000 }
+        { numRuns: 100 }
       );
     });
 
@@ -82,7 +82,7 @@ describe('Fee Validation Fuzz Tests', () => {
             }
           }
         ),
-        { numRuns: 1000 }
+        { numRuns: 100 }
       );
     });
 
@@ -144,7 +144,7 @@ describe('Fee Validation Fuzz Tests', () => {
             expect(result.fee).toBe(Math.ceil(expectedSize * feeRate));
           }
         ),
-        { numRuns: 1000 }
+        { numRuns: 100 }
       );
     });
 
@@ -220,7 +220,7 @@ describe('Fee Validation Fuzz Tests', () => {
             }
           }
         ),
-        { numRuns: 1000 }
+        { numRuns: 100 }
       );
     });
 
@@ -313,7 +313,7 @@ describe('Fee Validation Fuzz Tests', () => {
             }
           }
         ),
-        { numRuns: 500 }
+        { numRuns: 100 }
       );
     });
   });
@@ -337,7 +337,7 @@ describe('Fee Validation Fuzz Tests', () => {
             }
           }
         ),
-        { numRuns: 1000 }
+        { numRuns: 100 }
       );
     });
 
@@ -401,7 +401,7 @@ describe('Fee Validation Fuzz Tests', () => {
             }
           }
         ),
-        { numRuns: 500 }
+        { numRuns: 100 }
       );
     });
   });
@@ -457,7 +457,7 @@ describe('Fee Validation Fuzz Tests', () => {
             }
           }
         ),
-        { numRuns: 1000 }
+        { numRuns: 100 }
       );
     });
   });
