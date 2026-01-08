@@ -10,6 +10,13 @@ export default defineConfig({
     testTimeout: 15000,
     hookTimeout: 15000,
 
+    // Exclude fuzz tests from default runs (run separately in nightly)
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/*.fuzz.test.ts',
+    ],
+
     // Memory management for large test suites (Vitest 4 syntax)
     pool: 'forks', // Process isolation prevents memory buildup between tests
     // Vitest 4: maxForks/minForks replaced with maxWorkers

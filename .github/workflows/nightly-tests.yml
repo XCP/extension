@@ -39,6 +39,11 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx vitest run src
+
+      - name: Run fuzz tests
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: npx vitest run src --config vitest.fuzz.config.ts
       
       - name: Install Playwright browsers
         run: npx playwright install chromium
