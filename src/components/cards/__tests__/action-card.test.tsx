@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { FiSettings } from 'react-icons/fi';
+import { FiSettings } from '@/components/icons';
 import { ActionCard } from '../action-card';
 
 describe('ActionCard', () => {

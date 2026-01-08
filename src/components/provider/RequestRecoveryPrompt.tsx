@@ -7,7 +7,7 @@
  * - Walking away
  */
 
-import { FiClock, FiAlertCircle, FiArrowRight, FiX } from 'react-icons/fi';
+import { FiClock, FiAlertCircle, FiArrowRight, FiX } from '@/components/icons';
 import { Button } from '@/components/button';
 
 interface RequestRecoveryPromptProps {

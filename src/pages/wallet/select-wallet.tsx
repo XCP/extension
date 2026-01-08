@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaPlus } from 'react-icons/fa';
+import { FaPlus } from '@/components/icons';
 import { Button } from '@/components/button';
 import { WalletList } from '@/components/lists/wallet-list';
 import { useHeader } from '@/contexts/header-context';

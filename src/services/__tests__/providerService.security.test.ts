@@ -3,13 +3,13 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { fakeBrowser } from 'wxt/testing';
 import { createProviderService } from '../providerService';
 import * as walletService from '../walletService';
-import * as connectionService from '../connection';
+import * as connectionService from '../connectionService';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
 import { DEFAULT_SETTINGS } from '@/utils/storage/settingsStorage';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
 import { approvalQueue } from '@/utils/provider/approvalQueue';
-import { getConnectionService } from '../connection';
-import { getApprovalService } from '../approval';
+import { getConnectionService } from '../connectionService';
+import { getApprovalService } from '../approvalService';
 import * as composeRequestStorage from '@/utils/storage/composeRequestStorage';
 
 // Mock the dependencies

@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiHelpCircle, FiGlobe } from "react-icons/fi";
-import { FaSync } from "react-icons/fa";
+import { FiHelpCircle, FiGlobe, FiRefreshCw } from "@/components/icons";
 import { ConnectedSiteCard } from "@/components/cards/connected-site-card";
 import { useHeader } from "@/contexts/header-context";
 import { getSettings } from "@/utils/storage/settingsStorage";
@@ -109,7 +108,7 @@ export default function ConnectedSites(): ReactElement {
       title: "Connected Sites",
       onBack: () => navigate(CONSTANTS.PATHS.BACK),
       rightButton: connectedSites.length > 0 ? {
-        icon: <FaSync aria-hidden="true" />,
+        icon: <FiRefreshCw aria-hidden="true" />,
         onClick: handleDisconnectAll,
         ariaLabel: "Disconnect all sites",
       } : {

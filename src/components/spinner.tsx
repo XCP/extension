@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { FaSpinner } from 'react-icons/fa';
+import { FaSpinner } from '@/components/icons';
 
 interface SpinnerProps {
   /** Additional CSS classes */

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FaCheck } from 'react-icons/fa';
+import { FaCheck } from '@/components/icons';
 import { RadioGroup } from '@headlessui/react';
 import { formatAddress } from '@/utils/format';
 import { AddressMenu } from '@/components/menus/address-menu';

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiX, FiAlertCircle, FiGlobe, FiEdit, FiLock, FiSend } from 'react-icons/fi';
+import { FiX, FiAlertCircle, FiGlobe, FiEdit, FiLock, FiSend } from '@/components/icons';
 import { Button } from '@/components/button';
 import { type ApprovalRequest } from '@/utils/provider/approvalQueue';
 import { getProviderService } from '@/services/providerService';
-import { getApprovalService } from '@/services/approval';
+import { getApprovalService } from '@/services/approvalService';
 import { useHeader } from '@/contexts/header-context';
 
 export default function ApprovalQueue() {

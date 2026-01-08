@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IoCreateOutline } from 'react-icons/io5';
-import { FiUpload, FiHelpCircle } from 'react-icons/fi';
+import { IoCreateOutline, FiUpload, FiHelpCircle } from '@/components/icons';
 import { Button } from '@/components/button';
 import { useHeader } from '@/contexts/header-context';
 import { getDisplayVersion } from '@/utils/version';

@@ -12,8 +12,7 @@
 import { BaseService } from '@/services/core/BaseService';
 import { getSettings, updateSettings } from '@/utils/storage/settingsStorage';
 import { getWalletService } from '@/services/walletService';
-import { getApprovalService } from '@/services/approval';
-import type { ApprovalResult } from '@/services/approval/ApprovalService';
+import { getApprovalService, type ApprovalResult } from '@/services/approvalService';
 import { connectionRateLimiter } from '@/utils/provider/rateLimiter';
 import { analyzeCSP } from '@/utils/security/cspValidation';
 import { analytics } from '@/utils/fathom';
@@ -477,3 +476,11 @@ export class ConnectionService extends BaseService {
     };
   }
 }
+
+// Proxy for cross-context communication
+import { defineProxyService } from '@/utils/proxy';
+
+export const [registerConnectionService, getConnectionService] = defineProxyService(
+  'ConnectionService',
+  () => new ConnectionService()
+);

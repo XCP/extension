@@ -1,5 +1,3 @@
-import axios from 'axios';
-
 /**
  * Interface for Counterparty API validation result
  */
@@ -31,15 +29,26 @@ export async function validateCounterpartyApi(url: string): Promise<ApiValidatio
     return { isValid: false, error: "Invalid URL format" };
   }
 
+  // Create abort controller for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+
   try {
     // Test the API endpoint
-    const response = await axios.get(`${url}/v2`, {
-      timeout: 5000,
-      validateStatus: (status) => status === 200,
+    const response = await fetch(`${url}/v2`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
     });
 
-    const data = response.data;
-    
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return { isValid: false, error: `API returned error: ${response.status}` };
+    }
+
+    const data = await response.json();
+
     // Check for required fields
     if (!data?.result) {
       return { isValid: false, error: "Invalid API response format" };
@@ -64,16 +73,13 @@ export async function validateCounterpartyApi(url: string): Promise<ApiValidatio
       }
     };
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.code === 'ECONNABORTED') {
-        return { isValid: false, error: "Connection timeout - API not reachable" };
-      } else if (error.response) {
-        return { isValid: false, error: `API returned error: ${error.response.status}` };
-      } else if (error.request) {
-        return { isValid: false, error: "Cannot connect to API - check URL and CORS settings" };
-      } else {
-        return { isValid: false, error: "Invalid API response" };
-      }
+    clearTimeout(timeoutId);
+
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      return { isValid: false, error: "Connection timeout - API not reachable" };
+    }
+    if (error instanceof TypeError) {
+      return { isValid: false, error: "Cannot connect to API - check URL and CORS settings" };
     }
     return { isValid: false, error: "Failed to validate API" };
   }

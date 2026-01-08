@@ -6,7 +6,7 @@ import {
   ComboboxOptions,
   ComboboxOption,
 } from "@headlessui/react";
-import { FiChevronDown, FiCheck } from "react-icons/fi";
+import { FaCheck, FiChevronDown } from '@/components/icons';
 import { getSettings } from '@/utils/storage/settingsStorage';
 import { formatAmount } from '@/utils/format';
 
@@ -214,7 +214,7 @@ export function FairminterSelectInput({
                               active ? "text-white" : "text-blue-500"
                             }`}
                           >
-                            <FiCheck className="h-5 w-5" aria-hidden="true" />
+                            <FaCheck className="h-5 w-5" aria-hidden="true" />
                           </span>
                         )}
                       </>

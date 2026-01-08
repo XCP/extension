@@ -6,7 +6,7 @@ import { FiGlobe, FiShield, FiX, FiCheck } from "react-icons/fi";
 import { Button } from "@/components/button";
 import { useWallet } from "@/contexts/wallet-context";
 import { useHeader } from "@/contexts/header-context";
-import { getApprovalService } from "@/services/approval";
+import { getApprovalService } from "@/services/approvalService";
 import type { ReactElement } from "react";
 
 /**

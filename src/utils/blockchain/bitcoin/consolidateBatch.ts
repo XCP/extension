@@ -6,7 +6,7 @@
 import { Transaction, OutScript } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { type ConsolidationData } from '@/services/consolidationApiService';
+import { type ConsolidationData } from './consolidationApi';
 import {
   analyzeMultisigScript,
   signAndFinalizeBareMultisig,

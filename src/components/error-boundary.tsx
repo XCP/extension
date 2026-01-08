@@ -1,6 +1,5 @@
 import { Component, ComponentType, ReactNode, ErrorInfo } from 'react';
-import { BiError } from 'react-icons/bi';
-import { FiRefreshCw } from 'react-icons/fi';
+import { BiError, FiRefreshCw } from '@/components/icons';
 
 interface Props {
   children: ReactNode;

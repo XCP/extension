@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import axios from 'axios';
 import {
   fetchTokenBalances,
   fetchTokenBalance,
@@ -32,13 +31,11 @@ import { apiClient } from '@/utils/axios';
 import { CounterpartyApiError } from '@/utils/blockchain/errors';
 
 // Mock dependencies
-vi.mock('axios');
 vi.mock('@/utils/axios');
 vi.mock('@/utils/format');
 vi.mock('@/utils/blockchain/bitcoin/balance');
 vi.mock('@/utils/storage/settingsStorage');
 
-const mockedAxios = vi.mocked(axios, true);
 const mockedApiClient = vi.mocked(apiClient, true);
 const mockedFormatAmount = vi.mocked(formatUtils.formatAmount);
 const mockedFetchBTCBalance = vi.mocked(bitcoinBalance.fetchBTCBalance);

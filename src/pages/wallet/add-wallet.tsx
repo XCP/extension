@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiDownload, FiKey, FiX, FiEye } from 'react-icons/fi';
-import { IoCreateOutline } from 'react-icons/io5';
+import { FiDownload, FiKey, FiX, FiEye, IoCreateOutline } from '@/components/icons';
 import { Button } from '@/components/button';
 import { useHeader } from '@/contexts/header-context';
 import { ErrorAlert } from '@/components/error-alert';

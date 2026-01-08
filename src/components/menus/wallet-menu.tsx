@@ -1,8 +1,6 @@
 import { useCallback, type ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaTrash } from 'react-icons/fa';
-import { HiDotsHorizontal } from 'react-icons/hi';
-import { VscKey } from 'react-icons/vsc';
+import { FaTrash, HiDotsHorizontal, VscKey } from '@/components/icons';
 import { MenuItem } from '@headlessui/react';
 import { BaseMenu } from './base-menu';
 import { Button } from '@/components/button';

@@ -67,7 +67,7 @@ vi.mock('@/utils/fathom', () => ({
 }));
 
 // Now import the service
-import { ApprovalService } from '../ApprovalService';
+import { ApprovalService } from '../approvalService';
 
 // Import mocked modules to access them in tests
 import { approvalQueue, getApprovalBadgeText } from '@/utils/provider/approvalQueue';

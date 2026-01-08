@@ -5,8 +5,7 @@ import { Button } from "@/components/button";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { formatAddress, formatAmount } from "@/utils/format";
-import { consolidationApi } from "@/services/consolidationApiService";
-import type { ConsolidationStatusResponse } from "@/services/consolidationApiService";
+import { consolidationApi, type ConsolidationStatusResponse } from "@/utils/blockchain/bitcoin/consolidationApi";
 
 function ConsolidationStatus() {
   const navigate = useNavigate();

@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { apiClient } from '@/utils/axios';
+import { apiClient, isCancel } from '@/utils/axios';
 import { getSettings } from '@/utils/storage/settingsStorage';
 
 /**
@@ -63,7 +62,7 @@ export async function fetchUTXOs(address: string, signal?: AbortSignal): Promise
     );
     return response.data;
   } catch (error) {
-    if (axios.isCancel(error)) {
+    if (isCancel(error)) {
       throw error; // Re-throw cancellation errors
     }
     console.error(`Error fetching UTXOs for address ${address}:`, error);

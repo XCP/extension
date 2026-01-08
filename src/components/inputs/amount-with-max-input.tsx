@@ -1,5 +1,5 @@
-import axios from "axios";
 import { useState, ChangeEvent } from "react";
+import { isApiError } from "@/utils/axios";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { isValidBase58Address } from "@/utils/blockchain/bitcoin/address";
@@ -133,8 +133,8 @@ export function AmountWithMaxInput({
       onChange(finalAmount);
     } catch (err: any) {
       console.error("Failed to calculate max amount:", err);
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.error || err.message);
+      if (isApiError(err) && err.response?.data && typeof err.response.data === 'object' && 'error' in err.response.data) {
+        setError((err.response.data as { error: string }).error);
       } else if (err instanceof Error) {
         setError(err.message);
       } else {

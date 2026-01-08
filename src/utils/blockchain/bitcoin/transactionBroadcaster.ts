@@ -1,5 +1,4 @@
-import axios, { AxiosResponse } from 'axios';
-import { apiClient, withRetry } from '@/utils/axios';
+import { apiClient, withRetry, isApiError, type ApiResponse } from '@/utils/axios';
 import { getSettings } from '@/utils/storage/settingsStorage';
 
 export interface TransactionResponse {
@@ -48,15 +47,16 @@ const broadcastEndpoints: BroadcastEndpoint[] = [
   },
 ];
 
-const formatResponse = (endpoint: BroadcastEndpoint, response: AxiosResponse): TransactionResponse | null => {
+const formatResponse = (endpoint: BroadcastEndpoint, response: ApiResponse): TransactionResponse | null => {
   try {
+    const data = response.data as Record<string, unknown>;
     if (endpoint.name === 'counterparty') {
-      const txid = response.data?.result;
+      const txid = data?.result as string | undefined;
       return txid ? { txid } : null;
     }
     if (endpoint.name === 'blockcypher') {
-      const txid = response.data?.tx?.hash;
-      return txid ? { txid, fees: response.data?.tx?.fees } : null;
+      const tx = data?.tx as { hash?: string; fees?: number } | undefined;
+      return tx?.hash ? { txid: tx.hash, fees: tx.fees } : null;
     }
     if (endpoint.name === 'blockstream' || endpoint.name === 'mempool') {
       const txid = typeof response.data === 'string' ? response.data.trim() : null;
@@ -118,15 +118,15 @@ export async function broadcastTransaction(signedTxHex: string): Promise<Transac
       lastError = error as Error;
       
       // Extract the actual error message from the API response
-      if (axios.isAxiosError(error) && error.response?.data) {
-        const data = error.response.data;
+      if (isApiError(error) && error.response?.data) {
+        const data = error.response.data as Record<string, unknown>;
         if (typeof data === 'string') {
           errorMessage = data;
-        } else if (data.error) {
+        } else if (typeof data.error === 'string') {
           errorMessage = data.error;
-        } else if (data.message) {
+        } else if (typeof data.message === 'string') {
           errorMessage = data.message;
-        } else if (data.result) {
+        } else if (typeof data.result === 'string') {
           errorMessage = data.result;
         }
       }

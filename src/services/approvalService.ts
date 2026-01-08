@@ -437,5 +437,12 @@ export class ApprovalService extends BaseService {
   protected getStateVersion(): number {
     return ApprovalService.STATE_VERSION;
   }
-
 }
+
+// Proxy for cross-context communication
+import { defineProxyService } from '@/utils/proxy';
+
+export const [registerApprovalService, getApprovalService] = defineProxyService(
+  'ApprovalService',
+  () => new ApprovalService()
+);

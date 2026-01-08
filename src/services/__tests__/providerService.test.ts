@@ -21,8 +21,8 @@ vi.mock('webext-bridge/content-script', () => ({
 
 import { createProviderService } from '../providerService';
 import * as walletService from '../walletService';
-import * as connectionService from '../connection';
-import * as approvalService from '../approval';
+import * as connectionService from '../connectionService';
+import * as approvalService from '../approvalService';
 import * as settingsStorage from '@/utils/storage/settingsStorage';
 import * as approvalQueue from '@/utils/provider/approvalQueue';
 import * as rateLimiter from '@/utils/provider/rateLimiter';

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiRotateCcw } from 'react-icons/fi';
+import { FiRotateCcw } from '@/components/icons';
 import { Input } from '@headlessui/react';
 import { validateCounterpartyApi } from '@/utils/validation/api';
 import { DEFAULT_SETTINGS } from '@/utils/storage/settingsStorage';

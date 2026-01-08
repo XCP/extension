@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { FiShield } from 'react-icons/fi';
+import { FiShield } from '@/components/icons';
 import { ConnectedSiteCard } from '../connected-site-card';
 
 describe('ConnectedSiteCard', () => {

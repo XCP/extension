@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaWallet, FaUniversity, FaTools, FaCog } from 'react-icons/fa';
+import { FaWallet, FaUniversity, FaTools, FaCog } from '@/components/icons';
 import { Button } from '@/components/button';
 import { useSettings } from '@/contexts/settings-context';
 

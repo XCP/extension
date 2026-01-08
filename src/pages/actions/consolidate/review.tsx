@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { formatAddress, formatAmount } from "@/utils/format";
-import { type ConsolidationData } from "@/services/consolidationApiService";
+import { type ConsolidationData } from "@/utils/blockchain/bitcoin/consolidationApi";
 import { type ConsolidationResult } from "@/hooks/useMultiBatchConsolidation";
 
 interface ConsolidationReviewProps {

@@ -1,9 +1,6 @@
 import { useCallback, type ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaCopy } from 'react-icons/fa';
-import { GiBroom } from 'react-icons/gi';
-import { VscKey } from 'react-icons/vsc';
-import { HiDotsHorizontal } from 'react-icons/hi';
+import { FaCopy, GiBroom, VscKey, HiDotsHorizontal } from '@/components/icons';
 import { MenuItem } from '@headlessui/react';
 import { BaseMenu } from './base-menu';
 import { Button } from '@/components/button';

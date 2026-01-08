@@ -1,7 +1,6 @@
 import { useCallback, type ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BsThreeDots } from 'react-icons/bs';
-import { FaTools } from 'react-icons/fa';
+import { BsThreeDots, FaTools } from '@/components/icons';
 import { MenuItem } from '@headlessui/react';
 import { BaseMenu } from './base-menu';
 import { Button } from '@/components/button';

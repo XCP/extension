@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { IoClose } from 'react-icons/io5';
+import { IoClose } from '@/components/icons';
 import { Button } from '@/components/button';
 
 interface ErrorAlertProps {

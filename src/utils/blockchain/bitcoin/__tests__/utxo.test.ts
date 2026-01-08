@@ -6,15 +6,13 @@ import {
   getUtxoByTxid,
   fetchPreviousRawTransaction
 } from '@/utils/blockchain/bitcoin/utxo';
-import axios from 'axios';
-import { apiClient } from '@/utils/axios';
+import { apiClient, isCancel } from '@/utils/axios';
 
-vi.mock('axios');
 vi.mock('@/utils/axios');
 vi.mock('@/utils/storage/settingsStorage');
 
-const mockAxios = axios as any;
 const mockApiClient = vi.mocked(apiClient, true);
+const mockIsCancel = vi.mocked(isCancel);
 const mockGetSettings = vi.fn();
 
 describe('UTXO Utilities', () => {
@@ -118,19 +116,18 @@ describe('UTXO Utilities', () => {
     });
 
     it('should re-throw cancellation errors', async () => {
-      const cancelError = new Error('Request cancelled');
-      Object.defineProperty(cancelError, 'name', { value: 'AbortError' });
-      mockAxios.isCancel.mockReturnValue(true);
+      const cancelError = new DOMException('Request cancelled', 'AbortError');
+      mockIsCancel.mockReturnValue(true);
       mockApiClient.get.mockRejectedValue(cancelError);
 
       await expect(fetchUTXOs(mockAddress)).rejects.toThrow('Request cancelled');
-      expect(mockAxios.isCancel).toHaveBeenCalledWith(cancelError);
+      expect(mockIsCancel).toHaveBeenCalledWith(cancelError);
     });
 
     it('should handle timeout errors', async () => {
       const timeoutError = new Error('timeout');
-      (timeoutError as any).code = 'ECONNABORTED';
-      mockAxios.isCancel.mockReturnValue(false);
+      (timeoutError as any).code = 'TIMEOUT';
+      mockIsCancel.mockReturnValue(false);
       mockApiClient.get.mockRejectedValue(timeoutError);
 
       await expect(fetchUTXOs(mockAddress)).rejects.toThrow('Failed to fetch UTXOs.');

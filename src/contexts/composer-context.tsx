@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import axios from "axios";
+import { isApiError } from "@/utils/axios";
 import {
   createContext,
   use,
@@ -273,8 +273,8 @@ export function ComposerProvider<T>({
     } catch (err) {
       console.error("Compose error:", err);
       let errorMessage = "An error occurred while composing the transaction.";
-      if (axios.isAxiosError(err) && err.response?.data?.error) {
-        errorMessage = err.response.data.error;
+      if (isApiError(err) && err.response?.data && typeof err.response.data === 'object' && 'error' in err.response.data) {
+        errorMessage = (err.response.data as { error: string }).error;
       } else if (err instanceof Error) {
         errorMessage = err.message;
       }

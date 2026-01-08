@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { FiGlobe, FiAlertTriangle, FiX } from 'react-icons/fi';
+import { FiGlobe, FiAlertTriangle, FiX } from '@/components/icons';
 import { Button } from '@/components/button';
 import { ErrorAlert } from '@/components/error-alert';
 import { formatAmount, formatAddress } from '@/utils/format';

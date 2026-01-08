@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useWallet } from '@/contexts/wallet-context';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
   consolidationApi,
   type ConsolidationData,
   type ConsolidationReport
-} from '@/services/consolidationApiService';
+} from '@/utils/blockchain/bitcoin/consolidationApi';
 import { consolidateBareMultisigBatch } from '@/utils/blockchain/bitcoin/consolidateBatch';
 
 export interface ConsolidationResult {

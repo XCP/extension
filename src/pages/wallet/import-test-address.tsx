@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiAlertTriangle } from 'react-icons/fi';
+import { FiAlertTriangle } from '@/components/icons';
 import { Button } from '@/components/button';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';

@@ -10,8 +10,8 @@
 import { defineProxyService } from '@/utils/proxy';
 import { getWalletService } from '@/services/walletService';
 import { eventEmitterService } from '@/services/eventEmitterService';
-import { getConnectionService } from '@/services/connection';
-import { getApprovalService } from '@/services/approval';
+import { getConnectionService } from '@/services/connectionService';
+import { getApprovalService } from '@/services/approvalService';
 import type { ApprovalRequest } from '@/utils/provider/approvalQueue';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
 import { analytics } from '@/utils/fathom';

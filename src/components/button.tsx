@@ -1,6 +1,6 @@
 import { forwardRef, useMemo } from 'react';
 import { Button as HeadlessButton } from '@headlessui/react';
-import { FaYoutube } from 'react-icons/fa';
+import { FaYoutube } from '@/components/icons';
 
 export type ButtonColor = 'blue' | 'gray' | 'green' | 'red';
 export type ButtonVariant = 'solid' | 'transparent' | 'icon' | 'header' | 'menu' | 'menu-item' | 'input' | 'youtube';

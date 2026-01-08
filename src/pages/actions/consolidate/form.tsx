@@ -6,10 +6,10 @@ import { DestinationInput } from "@/components/inputs/destination-input";
 import { useWallet } from "@/contexts/wallet-context";
 import { formatAmount } from "@/utils/format";
 import { useSettings } from "@/contexts/settings-context";
-import { 
+import {
   consolidationApi,
   type ConsolidationData
-} from "@/services/consolidationApiService";
+} from "@/utils/blockchain/bitcoin/consolidationApi";
 
 export interface ConsolidationFormData {
   feeRateSatPerVByte: number;

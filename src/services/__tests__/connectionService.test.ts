@@ -101,11 +101,11 @@ const mockApprovalService = vi.hoisted(() => ({
   rejectApproval: vi.fn(),
 }));
 
-vi.mock('@/services/approval', () => ({
+vi.mock('@/services/approvalService', () => ({
   getApprovalService: () => mockApprovalService,
 }));
 
-import { ConnectionService } from '../ConnectionService';
+import { ConnectionService } from '../connectionService';
 import { getSettings, updateSettings } from '@/utils/storage/settingsStorage';
 import { eventEmitterService } from '@/services/eventEmitterService';
 
