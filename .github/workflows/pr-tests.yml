@@ -57,7 +57,7 @@ jobs:
       
       - name: Run unit tests
         env:
-          NODE_OPTIONS: --max_old_space_size=8192
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           # Run tests, capturing exit code even if process crashes (OOM)
           npx vitest run src --reporter=default --reporter=json --outputFile=test-results.json || true

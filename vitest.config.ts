@@ -13,7 +13,9 @@ export default defineConfig({
     // Memory management for large test suites (Vitest 4 syntax)
     pool: 'forks', // Process isolation prevents memory buildup between tests
     // Vitest 4: maxForks/minForks replaced with maxWorkers
-    maxWorkers: process.env.CI ? 2 : 4, // Fewer workers in CI (shared resources)
+    maxWorkers: process.env.CI ? 1 : 4, // Single worker in CI to reduce memory pressure
+    // Run test files sequentially in CI to prevent OOM
+    fileParallelism: !process.env.CI,
     // Isolate test files to prevent shared state memory buildup
     isolate: true,
     // Retry failed tests (often memory-related crashes are transient)

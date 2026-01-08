@@ -36,6 +36,8 @@ jobs:
         continue-on-error: true
       
       - name: Run unit tests
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: npx vitest run src
       
       - name: Install Playwright browsers
