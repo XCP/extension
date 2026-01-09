@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ComposerProvider, useComposer } from '../composer-context';
@@ -46,6 +46,10 @@ describe('ComposerContext', () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe('Provider', () => {
     it('should provide initial state', () => {
       const { result } = renderHook(() => useComposer(), {
@@ -66,31 +70,24 @@ describe('ComposerContext', () => {
       expect(result.current.state.isSigning).toBe(false);
     });
 
-    it('should handle initial form data in provider', () => {
-      // Test that the provider can be instantiated with initial form data
-      // without errors, even if the data gets cleared by subsequent effects
-      const initialData = { amount: 100, address: 'bc1qtest' };
-      
+    it('should start with null form data', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" initialFormData={initialData} composeType="test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
               {children}
             </ComposerProvider>
           </MemoryRouter>
         ),
       });
 
-      // The provider should initialize properly
+      // The provider should initialize with null form data
       expect(result.current.state.step).toBe('form');
+      expect(result.current.state.formData).toBeNull();
       expect(result.current.state.apiResponse).toBeNull();
       expect(result.current.state.error).toBeNull();
       expect(result.current.state.isComposing).toBe(false);
       expect(result.current.state.isSigning).toBe(false);
-      
-      // The initial form data is preserved in the form state 
-      // (The behavior has changed - initial data is now kept rather than cleared)
-      expect(result.current.state.formData).toEqual(initialData);
     });
   });
 
@@ -244,7 +241,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" initialFormData={{ test: 'data' }} composeType="test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
               {children}
             </ComposerProvider>
           </MemoryRouter>
