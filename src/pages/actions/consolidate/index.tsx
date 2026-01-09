@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHelpCircle } from "@/components/icons";
 import { ConsolidationForm, ConsolidationFormData } from "./form";
@@ -28,9 +28,9 @@ function Consolidate() {
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings } = useSettings();
 
-  const toggleHelp = () => {
+  const toggleHelp = useCallback(() => {
     updateSettings({ showHelpText: !settings?.showHelpText });
-  };
+  }, [settings?.showHelpText, updateSettings]);
 
   // Mark the recover bitcoin page as visited
   useEffect(() => {

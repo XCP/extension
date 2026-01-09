@@ -18,6 +18,9 @@ import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
+/** Maximum file size for inscriptions in KB */
+const INSCRIPTION_MAX_SIZE_KB = 400;
+
 /**
  * Props for the IssuanceForm component, aligned with Composer's formAction.
  */
@@ -97,8 +100,8 @@ export function IssuanceForm({
   // Handlers
   const handleFileChange = (file: File | null) => {
     setFileError(null);
-    if (file && file.size > 400 * 1024) {
-      setFileError("File size must be less than 400KB");
+    if (file && file.size > INSCRIPTION_MAX_SIZE_KB * 1024) {
+      setFileError(`File size must be less than ${INSCRIPTION_MAX_SIZE_KB}KB`);
       return;
     }
     setSelectedFile(file);
@@ -244,7 +247,7 @@ export function IssuanceForm({
               onFileChange={handleFileChange}
               error={fileError}
               disabled={pending}
-              maxSizeKB={400}
+              maxSizeKB={INSCRIPTION_MAX_SIZE_KB}
               helpText="Upload a file to inscribe as the asset's description. The file content will be stored permanently on-chain."
               showHelpText={showHelpText}
             />

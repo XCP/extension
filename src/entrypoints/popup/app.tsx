@@ -60,7 +60,7 @@ import ViewTransaction from '@/pages/transaction/view-transaction';
 // Provider/dApp integration
 import ApproveConnection from '@/pages/provider/approve-connection';
 import ApproveTransaction from '@/pages/provider/approve-transaction';
-import ApproveCompose from '@/pages/provider/approve-compose';
+import ApprovePsbt from '@/pages/provider/approve-psbt';
 import ApprovalQueue from '@/pages/provider/approval-queue';
 
 // Compose - Send & Transfer
@@ -95,8 +95,6 @@ import ComposeFairmint from '@/pages/compose/fairminter/fairmint';
 
 // Compose - Other
 import ComposeDividend from '@/pages/compose/dividend';
-import ComposeBet from '@/pages/compose/bet';
-import ComposeWeeklyBet from '@/pages/compose/bet/weekly';
 import ComposeBroadcast from '@/pages/compose/broadcast';
 import ComposeBroadcastAddressOptions from '@/pages/compose/broadcast/address-options';
 
@@ -242,8 +240,6 @@ export default function App() {
             
             {/* Compose - Other */}
             <Route path="/compose/dividend/:asset" element={<ComposeDividend />} />
-            <Route path="/compose/bet" element={<ComposeBet />} />
-            <Route path="/compose/weekly-bet" element={<ComposeWeeklyBet />} />
             <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
             <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptions />} />
             
@@ -255,7 +251,7 @@ export default function App() {
             {/* Provider approval routes */}
             <Route path="/provider/approve-connection" element={<ApproveConnection />} />
             <Route path="/provider/approve-transaction" element={<ApproveTransaction />} />
-            <Route path="/provider/approve-compose" element={<ApproveCompose />} />
+            <Route path="/provider/approve-psbt" element={<ApprovePsbt />} />
             <Route path="/provider/approval-queue" element={<ApprovalQueue />} />
             
           </Route>

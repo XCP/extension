@@ -27,8 +27,8 @@ export function ReviewFairminter({
 
   const customFields = [
     { label: "Asset", value: result.params.asset },
-    { label: "Price", value: result.params.price },
-    { label: "Quantity by Price", value: result.params.quantity_by_price },
+    { label: "Lot Price", value: result.params.lot_price },
+    { label: "Lot Size", value: result.params.lot_size },
     { label: "Hard Cap", value: result.params.hard_cap },
     ...(result.params.description ? [{ label: "Description", value: result.params.description }] : []),
   ];

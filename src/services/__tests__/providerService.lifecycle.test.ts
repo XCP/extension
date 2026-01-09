@@ -152,9 +152,9 @@ describe('Provider Service Lifecycle Tests', () => {
       approvalQueue.add({
         id: 'req2',
         origin,
-        method: 'xcp_composeSend',
+        method: 'xcp_signPsbt',
         params: [],
-        type: 'compose'
+        type: 'signature'
       });
       
       expect(approvalQueue.getCount()).toBe(2);
@@ -206,9 +206,9 @@ describe('Provider Service Lifecycle Tests', () => {
       approvalQueue.add({
         id: 'large-param',
         origin: 'https://test.com',
-        method: 'xcp_composeSend',
+        method: 'xcp_signPsbt',
         params: largeParam,
-        type: 'compose'
+        type: 'signature'
       });
       
       expect(approvalQueue.getCount()).toBe(1);
@@ -237,7 +237,7 @@ describe('Provider Service Lifecycle Tests', () => {
           origin,
           method: 'xcp_getBalances',
           params: [],
-          type: 'compose'
+          type: 'transaction'
         });
       }
       

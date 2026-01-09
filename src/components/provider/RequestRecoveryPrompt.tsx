@@ -12,7 +12,7 @@ import { Button } from '@/components/button';
 
 interface RequestRecoveryPromptProps {
   origin: string;
-  requestType: 'compose' | 'sign';
+  requestType: 'sign-message' | 'sign-psbt';
   requestAge: number; // seconds
   onResume: () => void;
   onCancel: () => void;
@@ -42,7 +42,7 @@ export function RequestRecoveryPrompt({
                 Pending Request Found
               </h3>
               <p className="text-sm text-gray-600 mt-1">
-                You have an incomplete {requestType === 'compose' ? 'transaction' : 'signature'} request
+                You have an incomplete {requestType === 'sign-psbt' ? 'transaction signing' : 'message signature'} request
               </p>
             </div>
           </div>
@@ -57,7 +57,7 @@ export function RequestRecoveryPrompt({
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Type:</span>
                 <span className="text-sm font-medium text-gray-900">
-                  {requestType === 'compose' ? 'Transaction Compose' : 'Message Signature'}
+                  {requestType === 'sign-psbt' ? 'Transaction Signing' : 'Message Signature'}
                 </span>
               </div>
               <div className="flex items-center justify-between">

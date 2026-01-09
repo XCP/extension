@@ -57,13 +57,6 @@ const NORMALIZATION_CONFIG: Record<string, {
     quantityFields: ['quantity'],
     assetFields: { quantity: 'asset' }
   },
-  bet: {
-    quantityFields: ['wager_quantity', 'counterwager_quantity'],
-    assetFields: { 
-      wager_quantity: 'asset',
-      counterwager_quantity: 'asset'
-    }
-  },
   fairmint: {
     quantityFields: ['quantity'],
     assetFields: { quantity: 'asset' }
@@ -105,7 +98,6 @@ export function getComposeType(formData: Record<string, any>): string | undefine
     'DispenseOptions': 'dispense',
     'DividendOptions': 'dividend',
     'BurnOptions': 'burn',
-    'BetOptions': 'bet',
     'BroadcastOptions': 'broadcast',
     'SweepOptions': 'sweep',
     'FairminterOptions': 'fairminter',
@@ -199,20 +191,20 @@ export async function normalizeFormData(
     if (assetInfo === undefined) {
       try {
         const details = await fetchAssetDetails(assetName);
-        assetInfo = details || null;
+        if (!details) {
+          throw new Error(`Asset "${assetName}" not found`);
+        }
+        assetInfo = details;
         assetInfoCache.set(assetName, assetInfo);
       } catch (error) {
-        console.error(`Failed to fetch asset info for ${assetName}:`, error);
-        assetInfo = null;
-        assetInfoCache.set(assetName, null);
+        // Fail fast - we need asset info to correctly normalize quantities
+        const message = error instanceof Error ? error.message : `Failed to fetch asset info for ${assetName}`;
+        throw new Error(message);
       }
     }
-    
+
     // Determine if asset is divisible
-    let isDivisible = false;
-    if (assetInfo) {
-      isDivisible = assetInfo?.divisible ?? false;
-    }
+    const isDivisible = assetInfo?.divisible ?? false;
     
     // Convert to satoshis if divisible
     if (isDivisible) {

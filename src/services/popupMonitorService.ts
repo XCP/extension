@@ -6,12 +6,12 @@
  */
 
 import { eventEmitterService } from '@/services/eventEmitterService';
-import { composeRequestStorage } from '@/utils/storage/composeRequestStorage';
 import { signMessageRequestStorage } from '@/utils/storage/signMessageRequestStorage';
+import { signPsbtRequestStorage } from '@/utils/storage/signPsbtRequestStorage';
 
 class PopupMonitorService {
   private popupPort: chrome.runtime.Port | null = null;
-  private activeRequests = new Map<string, { type: 'compose' | 'sign', timestamp: number }>();
+  private activeRequests = new Map<string, { type: 'sign-message' | 'sign-psbt', timestamp: number }>();
   private cleanupTimer: NodeJS.Timeout | null = null;
 
   /**
@@ -94,17 +94,16 @@ class PopupMonitorService {
       console.log(`[PopupMonitor] Cancelling abandoned request: ${requestId}`);
 
       // Emit cancellation event
-      if (info.type === 'compose') {
-        eventEmitterService.emit(`compose-cancel-${requestId}`, {
-          reason: 'Popup closed unexpectedly'
-        });
-        // Clean up storage
-        await composeRequestStorage.remove(requestId);
-      } else if (info.type === 'sign') {
+      if (info.type === 'sign-message') {
         eventEmitterService.emit(`sign-message-cancel-${requestId}`, {
           reason: 'Popup closed unexpectedly'
         });
         await signMessageRequestStorage.remove(requestId);
+      } else if (info.type === 'sign-psbt') {
+        eventEmitterService.emit(`sign-psbt-cancel-${requestId}`, {
+          reason: 'Popup closed unexpectedly'
+        });
+        await signPsbtRequestStorage.remove(requestId);
       }
     }
 
@@ -127,12 +126,12 @@ class PopupMonitorService {
           console.log(`[PopupMonitor] Cleaning up stale request: ${requestId}`);
 
           // Emit timeout event
-          if (info.type === 'compose') {
-            eventEmitterService.emit(`compose-cancel-${requestId}`, {
+          if (info.type === 'sign-message') {
+            eventEmitterService.emit(`sign-message-cancel-${requestId}`, {
               reason: 'Request timeout - popup inactive'
             });
-          } else if (info.type === 'sign') {
-            eventEmitterService.emit(`sign-message-cancel-${requestId}`, {
+          } else if (info.type === 'sign-psbt') {
+            eventEmitterService.emit(`sign-psbt-cancel-${requestId}`, {
               reason: 'Request timeout - popup inactive'
             });
           }
@@ -150,31 +149,30 @@ class PopupMonitorService {
    * Clean up orphaned requests in storage
    */
   private async cleanupOrphanedRequests(): Promise<void> {
-    // Clean up compose requests
-    const composeRequests = await composeRequestStorage.getAll();
     const now = Date.now();
     const MAX_AGE = 5 * 60 * 1000; // 5 minutes
 
-    for (const request of composeRequests) {
+    // Clean up sign message requests
+    const signMessageRequests = await signMessageRequestStorage.getAll();
+    for (const request of signMessageRequests) {
       if (now - request.timestamp > MAX_AGE) {
-        console.log(`[PopupMonitor] Removing orphaned compose request: ${request.id}`);
-        await composeRequestStorage.remove(request.id);
+        console.log(`[PopupMonitor] Removing orphaned sign message request: ${request.id}`);
+        await signMessageRequestStorage.remove(request.id);
 
-        // Emit cancellation in case anyone is still listening
-        eventEmitterService.emit(`compose-cancel-${request.id}`, {
+        eventEmitterService.emit(`sign-message-cancel-${request.id}`, {
           reason: 'Request expired'
         });
       }
     }
 
-    // Clean up sign message requests
-    const signRequests = await signMessageRequestStorage.getAll();
-    for (const request of signRequests) {
+    // Clean up sign PSBT requests
+    const signPsbtRequests = await signPsbtRequestStorage.getAll();
+    for (const request of signPsbtRequests) {
       if (now - request.timestamp > MAX_AGE) {
-        console.log(`[PopupMonitor] Removing orphaned sign request: ${request.id}`);
-        await signMessageRequestStorage.remove(request.id);
+        console.log(`[PopupMonitor] Removing orphaned sign PSBT request: ${request.id}`);
+        await signPsbtRequestStorage.remove(request.id);
 
-        eventEmitterService.emit(`sign-message-cancel-${request.id}`, {
+        eventEmitterService.emit(`sign-psbt-cancel-${request.id}`, {
           reason: 'Request expired'
         });
       }
@@ -184,7 +182,7 @@ class PopupMonitorService {
   /**
    * Register a request as active
    */
-  registerActiveRequest(requestId: string, type: 'compose' | 'sign'): void {
+  registerActiveRequest(requestId: string, type: 'sign-message' | 'sign-psbt'): void {
     this.activeRequests.set(requestId, {
       type,
       timestamp: Date.now()

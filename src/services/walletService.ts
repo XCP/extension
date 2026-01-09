@@ -40,6 +40,7 @@ interface WalletService {
   signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
   signMessage: (message: string, address: string) => Promise<{ signature: string; address: string }>;
+  signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[]) => Promise<string>;
   getLastActiveAddress: () => Promise<string | undefined>;
   setLastActiveAddress: (address: string) => Promise<void>;
   setLastActiveTime: () => Promise<void>;
@@ -159,6 +160,9 @@ function createWalletService(): WalletService {
     },
     signMessage: async (message, address) => {
       return walletManager.signMessage(message, address);
+    },
+    signPsbt: async (psbtHex, signInputs, sighashTypes) => {
+      return walletManager.signPsbt(psbtHex, signInputs, sighashTypes);
     },
     getLastActiveAddress: async () => {
       const settings = await getSettings();

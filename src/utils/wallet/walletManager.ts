@@ -13,6 +13,7 @@ import { reencryptSettings, getSettings, updateSettings, type AppSettings } from
 import { initializeSettingsKey, clearSettingsKey } from '@/utils/encryption/settings';
 import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
+import { signPSBT as btcSignPSBT } from '@/utils/blockchain/bitcoin/psbt';
 
 export interface Address {
   name: string;
@@ -721,14 +722,72 @@ export class WalletManager {
     if (!this.activeWalletId) throw new Error("No active wallet set");
     const wallet = this.getWalletById(this.activeWalletId);
     if (!wallet) throw new Error("Wallet not found");
-    
+
     const targetAddress = wallet.addresses.find(addr => addr.address === address);
     if (!targetAddress) throw new Error("Address not found in wallet");
-    
+
     const privateKeyResult = await this.getPrivateKey(wallet.id, targetAddress.path);
 
     // Use the signMessage function
     return signMessage(message, privateKeyResult.hex, wallet.addressFormat, privateKeyResult.compressed);
+  }
+
+  /**
+   * Sign a PSBT (Partially Signed Bitcoin Transaction)
+   *
+   * @param psbtHex - PSBT in hex format
+   * @param signInputs - Optional map of address → input indices to sign
+   * @param sighashTypes - Optional sighash types per input index
+   * @returns Signed PSBT hex (not finalized)
+   */
+  public async signPsbt(
+    psbtHex: string,
+    signInputs?: Record<string, number[]>,
+    sighashTypes?: number[]
+  ): Promise<string> {
+    if (!this.activeWalletId) throw new Error("No active wallet set");
+    const wallet = this.getWalletById(this.activeWalletId);
+    if (!wallet) throw new Error("Wallet not found");
+
+    // If signInputs is provided, sign only the specified inputs
+    // Otherwise, sign all inputs we can (using the active address)
+    if (signInputs && Object.keys(signInputs).length > 0) {
+      let signedPsbtHex = psbtHex;
+
+      for (const [address, inputIndices] of Object.entries(signInputs)) {
+        const targetAddress = wallet.addresses.find(addr => addr.address === address);
+        if (!targetAddress) {
+          throw new Error(`Address ${address} not found in wallet`);
+        }
+
+        const privateKeyResult = await this.getPrivateKey(wallet.id, targetAddress.path);
+        signedPsbtHex = btcSignPSBT(
+          signedPsbtHex,
+          privateKeyResult.hex,
+          inputIndices,
+          wallet.addressFormat,
+          sighashTypes
+        );
+      }
+
+      return signedPsbtHex;
+    } else {
+      // Sign all inputs using the first address in the wallet
+      // When no signInputs specified, try to sign all inputs with available keys
+      const firstAddress = wallet.addresses[0];
+      if (!firstAddress) {
+        throw new Error("No addresses in wallet");
+      }
+
+      const privateKeyResult = await this.getPrivateKey(wallet.id, firstAddress.path);
+      return btcSignPSBT(
+        psbtHex,
+        privateKeyResult.hex,
+        [], // Empty array means try all inputs
+        wallet.addressFormat,
+        sighashTypes
+      );
+    }
   }
 
   private async generateWalletId(mnemonic: string, addressFormat: AddressFormat): Promise<string> {

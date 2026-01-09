@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  composeBet,
   composeBroadcast,
   composeBTCPay,
   composeMPMA,
@@ -60,69 +59,6 @@ describe('Compose Specialized Operations', () => {
       await expect(
         composeTransaction('endpoint', {}, mockAddress, 10)
       ).rejects.toThrow('Composition failed');
-    });
-  });
-
-  describe('composeBet', () => {
-    const defaultParams = {
-      feed_address: 'bc1qfeedaddress',
-      bet_type: 0,
-      deadline: 1234567890,
-      wager_quantity: 10000000,
-      counterwager_quantity: 10000000,
-      expiration: 100,
-      target_value: 1000,
-      leverage: 5040,
-    };
-
-    it('should compose bet transaction', async () => {
-      const result = await composeBet({
-        sourceAddress: mockAddress,
-        sat_per_vbyte: mockSatPerVbyte,
-        ...defaultParams,
-      });
-
-      expect(result).toEqual(createMockComposeResult());
-      assertComposeUrlCalled(mockedApiClient, 'bet', defaultParams);
-    });
-
-    it('should include optional parameters', async () => {
-      const optionalParams = {
-        target_value: 2000,
-      };
-
-      await composeBet({
-        sourceAddress: mockAddress,
-        sat_per_vbyte: mockSatPerVbyte,
-        ...defaultParams,
-        ...optionalParams,
-      });
-
-      const actualCall = mockedApiClient.get.mock.calls[0];
-      const url = actualCall[0] as string;
-      expect(url).toContain('target_value=2000');
-    });
-
-    it('should handle different bet types', async () => {
-      const betTypes = [0, 1, 2, 3]; // Different bet types
-
-      for (const bet_type of betTypes) {
-        vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-
-        const params = { ...defaultParams, bet_type };
-        await composeBet({
-          sourceAddress: mockAddress,
-          sat_per_vbyte: mockSatPerVbyte,
-          ...params,
-        });
-
-        const actualCall = mockedApiClient.get.mock.calls[0];
-        const url = actualCall[0] as string;
-        const urlParams = new URLSearchParams(url.split('?')[1]);
-        const actualParams = Object.fromEntries(urlParams.entries());
-        expect(url).toContain(`bet_type=${bet_type}`);
-      }
     });
   });
 
@@ -313,8 +249,8 @@ describe('Compose Specialized Operations', () => {
   describe('composeFairminter', () => {
     const defaultParams = {
       asset: 'FAIRMINTASSET',
-      price: 100000,
-      quantity_by_price: 1000,
+      lot_price: 100000,
+      lot_size: 1000,
       max_mint_per_tx: 100,
       hard_cap: 1000000,
       start_block: 800000,

@@ -16,21 +16,18 @@ import type { ApprovalRequest } from '@/utils/provider/approvalQueue';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
 import { analytics } from '@/utils/fathom';
 import { analyzeCSP } from '@/utils/security/cspValidation';
-import { composeRequestStorage, type ComposeRequest } from '@/utils/storage/composeRequestStorage';
 import { signMessageRequestStorage } from '@/utils/storage/signMessageRequestStorage';
+import { signPsbtRequestStorage } from '@/utils/storage/signPsbtRequestStorage';
+import { signTransactionRequestStorage } from '@/utils/storage/signTransactionRequestStorage';
 import { getUpdateService } from '@/services/updateService';
-import type {
-  SendOptions, OrderOptions, DispenserOptions, DispenseOptions, DividendOptions, IssuanceOptions,
-  SweepOptions, BTCPayOptions, CancelOptions, BetOptions, BroadcastOptions, FairminterOptions,
-  FairmintOptions, AttachOptions, DetachOptions, MoveOptions, DestroyOptions
-} from '@/utils/blockchain/counterparty/compose';
 import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
 import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
 import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from '@/utils/security/replayPrevention';
 
 // In-memory storage for active requests (primary storage, fast access)
-const activeComposeRequests = new Map<string, any>();
 const activeSignRequests = new Map<string, any>();
+const activeSignPsbtRequests = new Map<string, any>();
+const activeSignTransactionRequests = new Map<string, any>();
 
 // Auto-cleanup old requests every minute - store interval ID for cleanup
 let cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -42,17 +39,24 @@ function startCleanupInterval(): void {
     const now = Date.now();
     const maxAge = 10 * 60 * 1000; // 10 minutes
 
-    for (const [id, request] of activeComposeRequests.entries()) {
-      if (now - request.timestamp > maxAge) {
-        activeComposeRequests.delete(id);
-        console.log('Cleaned up stale compose request:', id);
-      }
-    }
-
     for (const [id, request] of activeSignRequests.entries()) {
       if (now - request.timestamp > maxAge) {
         activeSignRequests.delete(id);
         console.log('Cleaned up stale sign request:', id);
+      }
+    }
+
+    for (const [id, request] of activeSignPsbtRequests.entries()) {
+      if (now - request.timestamp > maxAge) {
+        activeSignPsbtRequests.delete(id);
+        console.log('Cleaned up stale sign PSBT request:', id);
+      }
+    }
+
+    for (const [id, request] of activeSignTransactionRequests.entries()) {
+      if (now - request.timestamp > maxAge) {
+        activeSignTransactionRequests.delete(id);
+        console.log('Cleaned up stale sign transaction request:', id);
       }
     }
   }, 60000);
@@ -69,12 +73,16 @@ function stopCleanupInterval(): void {
 startCleanupInterval();
 
 // Export getters for other modules to access in-memory requests
-export function getActiveComposeRequest(id: string) {
-  return activeComposeRequests.get(id);
-}
-
 export function getActiveSignRequest(id: string) {
   return activeSignRequests.get(id);
+}
+
+export function getActiveSignPsbtRequest(id: string) {
+  return activeSignPsbtRequests.get(id);
+}
+
+export function getActiveSignTransactionRequest(id: string) {
+  return activeSignTransactionRequests.get(id);
 }
 
 // Define proper types for provider requests and responses
@@ -125,177 +133,29 @@ export function createProviderService(): ProviderService {
    */
   async function getAccounts(origin: string): Promise<string[]> {
     console.debug('getAccounts called for origin:', origin);
-    
+
     const walletService = getWalletService();
     const connectionService = getConnectionService();
-    
+
     // Check wallet state
     const isUnlocked = await walletService.isAnyWalletUnlocked();
     if (!isUnlocked) {
       console.debug('Wallet not unlocked, returning empty array');
       return [];
     }
-    
+
     const activeAddress = await walletService.getActiveAddress();
     if (!activeAddress) {
       console.debug('No active address, returning empty array');
       return [];
     }
-    
+
     // Check if origin is connected
     const isConnected = await connectionService.hasPermission(origin);
     console.debug('Connection check:', { origin, isConnected });
-    
+
     return isConnected ? [activeAddress.address] : [];
   }
-
-  /**
-   * Helper function for handling compose requests with UI routing
-   * Uses proper typing from compose.ts for parameter validation
-   */
-  async function handleComposeRequest<T = unknown>(
-    origin: string,
-    params: ProviderRequestParams,
-    composeType: ComposeRequest['type'],
-    errorMessage: string,
-    routePath: string,
-    validator?: (params: unknown) => params is T
-  ): Promise<ProviderResponse> {
-    // Check if connected FIRST before parameter validation
-    const connectionService = getConnectionService();
-    if (!await connectionService.hasPermission(origin)) {
-      throw new Error('Unauthorized - not connected to wallet');
-    }
-
-    const requestParams = params?.[0];
-    if (!requestParams) {
-      throw new Error(errorMessage);
-    }
-
-    // Optional type validation
-    if (validator && !validator(requestParams)) {
-      throw new Error(`Invalid parameters for ${composeType} operation`);
-    }
-
-    // Get active address for the request
-    const walletService = getWalletService();
-    const activeAddress = await walletService.getActiveAddress();
-    if (!activeAddress) {
-      throw new Error('No active address');
-    }
-
-    // Store the compose request in-memory (primary storage, fast)
-    const composeRequestId = `compose-${composeType}-${Date.now()}`;
-    const request: ComposeRequest = {
-      id: composeRequestId,
-      type: composeType,
-      origin,
-      params: {
-        ...requestParams,
-        sourceAddress: activeAddress.address
-      },
-      timestamp: Date.now()
-    };
-
-    // Store in memory for fast access
-    activeComposeRequests.set(composeRequestId, request);
-
-    // Also store in chrome.storage as backup for crash recovery
-    await composeRequestStorage.store(request);
-
-    // Send message to popup to navigate to compose form
-    chrome.runtime.sendMessage({
-      type: 'NAVIGATE_TO_COMPOSE',
-      composeType,
-      composeRequestId,
-      routePath
-    }).catch(() => {
-      // Popup might not be open yet
-    });
-
-    // Open popup at the compose form
-    try {
-      await chrome.action.openPopup();
-    } catch (e) {
-      // Fallback: create a new window with the compose form
-      const extensionUrl = chrome.runtime.getURL(`popup.html#${routePath}?composeRequestId=${composeRequestId}`);
-      await chrome.windows.create({
-        url: extensionUrl,
-        type: 'popup',
-        width: 400,
-        height: 600,
-        focused: true
-      });
-    }
-
-    // Track as critical operation to prevent extension updates during compose
-    const updateService = getUpdateService();
-    updateService.registerCriticalOperation(`compose-${composeRequestId}`);
-
-    // Return a promise that will resolve when the user completes the compose flow
-    return new Promise((resolve, reject) => {
-      let settled = false;
-      let timeout: ReturnType<typeof setTimeout>;
-
-      // Centralized cleanup - called on any exit path
-      const cleanup = () => {
-        if (timeout) clearTimeout(timeout);
-        activeComposeRequests.delete(composeRequestId);
-        composeRequestStorage.remove(composeRequestId);
-        updateService.unregisterCriticalOperation(`compose-${composeRequestId}`);
-        eventEmitterService.off(`compose-complete-${composeRequestId}`, handleComplete);
-        eventEmitterService.off(`compose-cancel-${composeRequestId}`, handleCancel);
-      };
-
-      const handleComplete = (result: any) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        resolve(result);
-      };
-
-      const handleCancel = () => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        reject(new Error('User cancelled compose request'));
-      };
-
-      timeout = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        reject(new Error('Compose request timeout'));
-      }, 10 * 60 * 1000); // 10 minute timeout
-
-      // Listen for completion events
-      eventEmitterService.on(`compose-complete-${composeRequestId}`, handleComplete);
-      eventEmitterService.on(`compose-cancel-${composeRequestId}`, handleCancel);
-    });
-  }
-
-  // Type validators for common compose operations
-  const isSendOptions = (params: any): params is Partial<SendOptions> => {
-    return typeof params === 'object' &&
-           typeof params.destination === 'string' &&
-           typeof params.asset === 'string' &&
-           (typeof params.quantity === 'number' || typeof params.quantity === 'string');
-  };
-
-  const isOrderOptions = (params: any): params is Partial<OrderOptions> => {
-    return typeof params === 'object' &&
-           typeof params.give_asset === 'string' &&
-           typeof params.get_asset === 'string' &&
-           (typeof params.give_quantity === 'number' || typeof params.give_quantity === 'string') &&
-           (typeof params.get_quantity === 'number' || typeof params.get_quantity === 'string');
-  };
-
-  const isDispenserOptions = (params: any): params is Partial<DispenserOptions> => {
-    return typeof params === 'object' &&
-           typeof params.asset === 'string' &&
-           (typeof params.give_quantity === 'number' || typeof params.give_quantity === 'string') &&
-           (typeof params.escrow_quantity === 'number' || typeof params.escrow_quantity === 'string');
-  };
 
   /**
    * Handle provider requests from dApps
@@ -328,7 +188,7 @@ export function createProviderService(): ProviderService {
       
       // Apply rate limiting based on method type
       const isConnectionMethod = method === 'xcp_requestAccounts';
-      const isTransactionMethod = method.startsWith('xcp_compose') || method.startsWith('xcp_sign') || method === 'xcp_broadcastTransaction';
+      const isTransactionMethod = method.startsWith('xcp_sign') || method === 'xcp_broadcastTransaction';
       
       if (isConnectionMethod && !connectionRateLimiter.isAllowed(origin)) {
         const resetTime = connectionRateLimiter.getResetTime(origin);
@@ -628,12 +488,216 @@ export function createProviderService(): ProviderService {
         }
         
         case 'xcp_signTransaction': {
-          // xcp_signTransaction is deprecated for security reasons.
-          // Use compose methods (xcp_composeSend, xcp_composeOrder, etc.) instead.
-          // These provide transparent UI flows where users can review transactions before signing.
-          throw new Error('xcp_signTransaction is deprecated. Use compose methods (xcp_composeSend, xcp_composeOrder, etc.) for secure, transparent transaction creation.');
+          const txParams = params?.[0] as { hex?: string } | string | undefined;
+
+          // Support both { hex: "..." } object and plain string
+          const rawTxHex = typeof txParams === 'string' ? txParams : txParams?.hex;
+
+          if (!rawTxHex) {
+            throw new Error('Transaction hex is required');
+          }
+
+          // Check if connected
+          if (!await connectionService.hasPermission(origin)) {
+            throw new Error('Unauthorized - not connected to wallet');
+          }
+
+          // Get active address for the request
+          const activeAddress = await walletService.getActiveAddress();
+          if (!activeAddress) {
+            throw new Error('No active address');
+          }
+
+          // Store the sign transaction request
+          const signTxRequestId = `sign-tx-${Date.now()}`;
+          const request = {
+            id: signTxRequestId,
+            origin,
+            rawTxHex,
+            timestamp: Date.now()
+          };
+
+          // Store in memory for fast access
+          activeSignTransactionRequests.set(signTxRequestId, request);
+
+          // Also store in chrome.storage as backup
+          await signTransactionRequestStorage.store(request);
+
+          // Send message to popup to navigate to approve transaction page
+          chrome.runtime.sendMessage({
+            type: 'NAVIGATE_TO_APPROVE_TRANSACTION',
+            signTxRequestId
+          }).catch(() => {
+            // Popup might not be open yet
+          });
+
+          // Open popup at the approve transaction page
+          try {
+            await chrome.action.openPopup();
+          } catch (e) {
+            // Fallback: create a new window with the approve transaction page
+            const extensionUrl = chrome.runtime.getURL(`popup.html#/provider/approve-transaction?requestId=${signTxRequestId}`);
+            await chrome.windows.create({
+              url: extensionUrl,
+              type: 'popup',
+              width: 400,
+              height: 600,
+              focused: true
+            });
+          }
+
+          // Track as critical operation to prevent extension updates during transaction signing
+          const updateService = getUpdateService();
+          updateService.registerCriticalOperation(`sign-tx-${signTxRequestId}`);
+
+          // Return a promise that will resolve when the user completes the sign transaction flow
+          return new Promise((resolve, reject) => {
+            let settled = false;
+            let timeout: ReturnType<typeof setTimeout>;
+
+            // Centralized cleanup - called on any exit path
+            const cleanup = () => {
+              if (timeout) clearTimeout(timeout);
+              activeSignTransactionRequests.delete(signTxRequestId);
+              signTransactionRequestStorage.remove(signTxRequestId);
+              updateService.unregisterCriticalOperation(`sign-tx-${signTxRequestId}`);
+              eventEmitterService.off(`sign-tx-complete-${signTxRequestId}`, handleComplete);
+              eventEmitterService.off(`sign-tx-cancel-${signTxRequestId}`, handleCancel);
+            };
+
+            const handleComplete = (result: any) => {
+              if (settled) return;
+              settled = true;
+              cleanup();
+              analytics.track('transaction_signed');
+              resolve({ hex: result.signedTxHex }); // Return signed transaction hex
+            };
+
+            const handleCancel = () => {
+              if (settled) return;
+              settled = true;
+              cleanup();
+              reject(new Error('User cancelled transaction signing request'));
+            };
+
+            timeout = setTimeout(() => {
+              if (settled) return;
+              settled = true;
+              cleanup();
+              reject(new Error('Transaction signing request timeout'));
+            }, 10 * 60 * 1000); // 10 minute timeout
+
+            // Listen for completion events
+            eventEmitterService.on(`sign-tx-complete-${signTxRequestId}`, handleComplete);
+            eventEmitterService.on(`sign-tx-cancel-${signTxRequestId}`, handleCancel);
+          });
         }
-        
+
+        case 'xcp_signPsbt': {
+          const psbtParams = params?.[0] as { hex?: string; signInputs?: Record<string, number[]>; sighashTypes?: number[] } | undefined;
+
+          if (!psbtParams?.hex) {
+            throw new Error('PSBT hex is required');
+          }
+
+          // Check if connected
+          if (!await connectionService.hasPermission(origin)) {
+            throw new Error('Unauthorized - not connected to wallet');
+          }
+
+          // Get active address for the request
+          const activeAddress = await walletService.getActiveAddress();
+          if (!activeAddress) {
+            throw new Error('No active address');
+          }
+
+          // Store the sign PSBT request
+          const signPsbtRequestId = `sign-psbt-${Date.now()}`;
+          const request = {
+            id: signPsbtRequestId,
+            origin,
+            psbtHex: psbtParams.hex,
+            signInputs: psbtParams.signInputs,
+            sighashTypes: psbtParams.sighashTypes,
+            timestamp: Date.now()
+          };
+
+          // Store in memory for fast access
+          activeSignPsbtRequests.set(signPsbtRequestId, request);
+
+          // Also store in chrome.storage as backup
+          await signPsbtRequestStorage.store(request);
+
+          // Send message to popup to navigate to approve PSBT page
+          chrome.runtime.sendMessage({
+            type: 'NAVIGATE_TO_APPROVE_PSBT',
+            signPsbtRequestId
+          }).catch(() => {
+            // Popup might not be open yet
+          });
+
+          // Open popup at the approve PSBT page
+          try {
+            await chrome.action.openPopup();
+          } catch (e) {
+            // Fallback: create a new window with the approve PSBT page
+            const extensionUrl = chrome.runtime.getURL(`popup.html#/provider/approve-psbt?requestId=${signPsbtRequestId}`);
+            await chrome.windows.create({
+              url: extensionUrl,
+              type: 'popup',
+              width: 400,
+              height: 600,
+              focused: true
+            });
+          }
+
+          // Track as critical operation to prevent extension updates during PSBT signing
+          const updateService = getUpdateService();
+          updateService.registerCriticalOperation(`sign-psbt-${signPsbtRequestId}`);
+
+          // Return a promise that will resolve when the user completes the sign PSBT flow
+          return new Promise((resolve, reject) => {
+            let settled = false;
+            let timeout: ReturnType<typeof setTimeout>;
+
+            // Centralized cleanup - called on any exit path
+            const cleanup = () => {
+              if (timeout) clearTimeout(timeout);
+              activeSignPsbtRequests.delete(signPsbtRequestId);
+              signPsbtRequestStorage.remove(signPsbtRequestId);
+              updateService.unregisterCriticalOperation(`sign-psbt-${signPsbtRequestId}`);
+              eventEmitterService.off(`sign-psbt-complete-${signPsbtRequestId}`, handleComplete);
+              eventEmitterService.off(`sign-psbt-cancel-${signPsbtRequestId}`, handleCancel);
+            };
+
+            const handleComplete = (result: any) => {
+              if (settled) return;
+              settled = true;
+              cleanup();
+              analytics.track('psbt_signed');
+              resolve({ hex: result.signedPsbtHex }); // Return signed PSBT hex
+            };
+
+            const handleCancel = () => {
+              if (settled) return;
+              settled = true;
+              cleanup();
+              reject(new Error('User cancelled PSBT signing request'));
+            };
+
+            timeout = setTimeout(() => {
+              if (settled) return;
+              settled = true;
+              cleanup();
+              reject(new Error('PSBT signing request timeout'));
+            }, 10 * 60 * 1000); // 10 minute timeout
+
+            // Listen for completion events
+            eventEmitterService.on(`sign-psbt-complete-${signPsbtRequestId}`, handleComplete);
+            eventEmitterService.on(`sign-psbt-cancel-${signPsbtRequestId}`, handleCancel);
+          });
+        }
+
         // ==================== Blockchain Query Methods ====================
         
         case 'xcp_getBalances': {
@@ -687,105 +751,7 @@ export function createProviderService(): ProviderService {
           // For privacy, we don't allow reading transaction history
           throw new Error('Permission denied - transaction history not available through provider');
         }
-        
-        // ==================== Transaction Composition Methods ====================
-        
-        case 'xcp_composeSend': {
-          return await handleComposeRequest(origin, params, 'send', 'Send parameters required', '/compose/send');
-        }
 
-        case 'xcp_composeOrder': {
-          return await handleComposeRequest(origin, params, 'order', 'Order parameters required', '/compose/order');
-        }
-
-        case 'xcp_composeDispenser': {
-          return await handleComposeRequest(origin, params, 'dispenser', 'Dispenser parameters required', '/compose/dispenser');
-        }
-        
-        case 'xcp_composeDividend': {
-          return await handleComposeRequest(origin, params, 'dividend', 'Dividend parameters required', '/compose/dividend');
-        }
-        
-        case 'xcp_composeIssuance': {
-          return await handleComposeRequest(origin, params, 'issuance', 'Issuance parameters required', '/compose/issuance');
-        }
-
-        case 'xcp_composeDispense': {
-          return await handleComposeRequest(origin, params, 'dispense', 'Dispense parameters required', '/compose/dispenser/dispense');
-        }
-
-        case 'xcp_composeFairminter': {
-          return await handleComposeRequest(origin, params, 'fairminter', 'Fairminter parameters required', '/compose/fairminter');
-        }
-
-        case 'xcp_composeFairmint': {
-          return await handleComposeRequest(origin, params, 'fairmint', 'Fairmint parameters required', '/compose/fairmint');
-        }
-
-        case 'xcp_composeSweep': {
-          return await handleComposeRequest(origin, params, 'sweep', 'Sweep parameters required', '/compose/sweep');
-        }
-
-        case 'xcp_composeBTCPay': {
-          return await handleComposeRequest(origin, params, 'btcpay', 'BTC pay parameters required', '/compose/btcpay');
-        }
-
-        case 'xcp_composeCancel': {
-          return await handleComposeRequest(origin, params, 'cancel', 'Cancel parameters required', '/compose/cancel');
-        }
-
-        case 'xcp_composeDispenserCloseByHash': {
-          return await handleComposeRequest(origin, params, 'dispenser-close-by-hash', 'Dispenser close by hash parameters required', '/compose/dispenser/close-by-hash');
-        }
-
-        case 'xcp_composeBet': {
-          return await handleComposeRequest(origin, params, 'bet', 'Bet parameters required', '/compose/bet');
-        }
-
-        case 'xcp_composeBroadcast': {
-          return await handleComposeRequest(origin, params, 'broadcast', 'Broadcast parameters required', '/compose/broadcast');
-        }
-
-        case 'xcp_composeAttach': {
-          return await handleComposeRequest(origin, params, 'attach', 'Attach parameters required', '/compose/utxo/attach');
-        }
-
-        case 'xcp_composeDetach': {
-          return await handleComposeRequest(origin, params, 'detach', 'Detach parameters required', '/compose/utxo/detach');
-        }
-
-        case 'xcp_composeMoveUTXO': {
-          return await handleComposeRequest(origin, params, 'move-utxo', 'Move UTXO parameters required', '/compose/utxo/move');
-        }
-
-        case 'xcp_composeDestroy': {
-          return await handleComposeRequest(origin, params, 'destroy', 'Destroy parameters required', '/compose/destroy');
-        }
-
-        case 'xcp_composeIssueSupply': {
-          return await handleComposeRequest(origin, params, 'issue-supply', 'Issue supply parameters required', '/compose/issuance/issue-supply');
-        }
-
-        case 'xcp_composeLockSupply': {
-          return await handleComposeRequest(origin, params, 'lock-supply', 'Lock supply parameters required', '/compose/issuance/lock-supply');
-        }
-
-        case 'xcp_composeResetSupply': {
-          return await handleComposeRequest(origin, params, 'reset-supply', 'Reset supply parameters required', '/compose/issuance/reset-supply');
-        }
-
-        case 'xcp_composeTransfer': {
-          return await handleComposeRequest(origin, params, 'transfer', 'Transfer parameters required', '/compose/issuance/transfer-ownership');
-        }
-
-        case 'xcp_composeUpdateDescription': {
-          return await handleComposeRequest(origin, params, 'update-description', 'Update description parameters required', '/compose/issuance/update-description');
-        }
-
-        case 'xcp_composeLockDescription': {
-          return await handleComposeRequest(origin, params, 'lock-description', 'Lock description parameters required', '/compose/issuance/lock-description');
-        }
-        
         // ==================== Transaction Broadcasting ====================
         
         case 'xcp_broadcastTransaction': {
@@ -914,8 +880,9 @@ export function createProviderService(): ProviderService {
   async function destroy(): Promise<void> {
     console.log('Destroying ProviderService...');
     stopCleanupInterval();
-    activeComposeRequests.clear();
     activeSignRequests.clear();
+    activeSignPsbtRequests.clear();
+    activeSignTransactionRequests.clear();
   }
   
   // Register the pending request resolver with event emitter service

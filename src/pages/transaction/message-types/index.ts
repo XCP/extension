@@ -9,7 +9,6 @@ import { send } from "./send";
 import { mpma } from "./mpma";
 import { issuance } from "./issuance";
 import { cancel } from "./cancel";
-import { bet } from "./bet";
 import { dividend } from "./dividend";
 import { broadcast } from "./broadcast";
 import { fairminter } from "./fairminter";
@@ -36,7 +35,6 @@ export const messageHandlers: Record<string, MessageHandler> = {
   mpma,
   issuance,
   cancel,
-  bet,
   dividend,
   broadcast,
   fairminter,

@@ -91,11 +91,11 @@ export function DispenserCloseByHashForm({
             label="Transaction Hash"
             name="open_address"
             hashType="transaction"
-            placeholder="Enter Tx Hash"
+            placeholder="Enter dispenser transaction hash"
             required={true}
             disabled={pending}
             showHelpText={showHelpText}
-            description="Enter the transaction hash of the dispenser you want to close."
+            description="Transaction hash of the dispenser to close. Found in your dispenser history."
             showCopyButton={true}
           />
           {selectedDispenser && (

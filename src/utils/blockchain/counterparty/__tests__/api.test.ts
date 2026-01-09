@@ -4,7 +4,6 @@ import {
   fetchTokenBalance,
   fetchTokenUtxos,
   fetchAssetDetails,
-  fetchAssetDetailsAndBalance,
   fetchUtxoBalances,
   fetchOrders,
   fetchOrder,
@@ -128,7 +127,7 @@ describe('counterparty/api.ts', () => {
         expect.objectContaining({
           params: expect.objectContaining({
             verbose: true,
-            limit: 100,
+            limit: 10,
             offset: 0,
           }),
         })
@@ -183,20 +182,6 @@ describe('counterparty/api.ts', () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       await expect(fetchTokenBalances(mockAddress)).rejects.toThrow(CounterpartyApiError);
-    });
-
-    it('should return empty array for non-array result', async () => {
-      mockedApiClient.get.mockResolvedValue({
-        data: { result: 'invalid' },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any);
-
-      const balances = await fetchTokenBalances(mockAddress);
-
-      expect(balances).toEqual([]);
     });
   });
 
@@ -417,58 +402,6 @@ describe('counterparty/api.ts', () => {
     });
   });
 
-  describe('fetchAssetDetailsAndBalance', () => {
-    it('should handle BTC specially', async () => {
-      mockedFetchBTCBalance.mockResolvedValue(100000000); // 1 BTC in satoshis
-      mockedFormatAmount.mockReturnValue('1.00000000');
-
-      const result = await fetchAssetDetailsAndBalance('BTC', mockAddress);
-
-      expect(result.isDivisible).toBe(true);
-      expect(result.assetInfo.asset).toBe('BTC');
-      expect(result.assetInfo.description).toBe('Bitcoin');
-      expect(result.availableBalance).toBe('1.00000000');
-      expect(mockedFetchBTCBalance).toHaveBeenCalledWith(mockAddress);
-    });
-
-    it('should fetch asset details and balance for non-BTC assets', async () => {
-      const mockAssetResponse = {
-        data: { result: mockAssetInfo },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any;
-      mockedApiClient.get.mockResolvedValueOnce(mockAssetResponse);
-      
-      // Mock fetchTokenBalance call within the function
-      const mockBalance = { quantity_normalized: '100.00000000' };
-      const mockBalanceResponse = {
-        data: { result: [mockBalance] },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any;
-      mockedApiClient.get.mockResolvedValueOnce(mockBalanceResponse);
-
-      const result = await fetchAssetDetailsAndBalance('XCP', mockAddress);
-
-      expect(result.isDivisible).toBe(mockAssetInfo.divisible);
-      expect(result.assetInfo).toEqual(mockAssetInfo);
-      expect(mockedApiClient.get).toHaveBeenCalledWith(
-        `${mockApiBase}/v2/assets/XCP`,
-        expect.any(Object)
-      );
-    });
-
-    it('should throw CounterpartyApiError on network error', async () => {
-      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
-
-      await expect(fetchAssetDetailsAndBalance('BADTOKEN', mockAddress)).rejects.toThrow(CounterpartyApiError);
-    });
-  });
-
   describe('fetchUtxoBalances', () => {
     it('should fetch UTXO balances successfully', async () => {
       const mockUtxoBalance = {
@@ -505,7 +438,7 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should handle custom options', async () => {
-      const mockData = { result: [], next_cursor: null, result_count: 0 };
+      const mockData = { result: [], result_count: 0 };
       mockedApiClient.get.mockResolvedValue({
         data: mockData,
         status: 200,
@@ -515,17 +448,15 @@ describe('counterparty/api.ts', () => {
       } as any);
 
       await fetchUtxoBalances('abc123:0', {
-        cursor: 'next123',
         limit: 50,
         offset: 10,
         show_unconfirmed: true,
-      } as any);
+      });
 
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           params: expect.objectContaining({
-            cursor: 'next123',
             limit: 50,
             offset: 10,
             verbose: true,
@@ -558,8 +489,8 @@ describe('counterparty/api.ts', () => {
 
       const result = await fetchOrders(mockAddress);
 
-      expect(result.orders).toEqual([mockOrder]);
-      expect(result.total).toBe(1);
+      expect(result.result).toEqual([mockOrder]);
+      expect(result.result_count).toBe(1);
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${mockApiBase}/v2/addresses/${mockAddress}/orders`,
         expect.objectContaining({
@@ -758,7 +689,7 @@ describe('counterparty/api.ts', () => {
           params: expect.objectContaining({
             verbose: true,
             show_unconfirmed: true,
-            limit: 20,
+            limit: 10,
             offset: 0,
           }),
         })
@@ -833,8 +764,8 @@ describe('counterparty/api.ts', () => {
 
       const result = await fetchAddressDispensers(mockAddress);
 
-      expect(result.dispensers).toEqual([mockDispenser]);
-      expect(result.total).toBe(1);
+      expect(result.result).toEqual([mockDispenser]);
+      expect(result.result_count).toBe(1);
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${mockApiBase}/v2/addresses/${mockAddress}/dispensers`,
         expect.any(Object)
@@ -952,7 +883,11 @@ describe('counterparty/api.ts', () => {
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${mockApiBase}/v2/addresses/${mockAddress}/assets/owned`,
         expect.objectContaining({
-          params: { verbose: true },
+          params: expect.objectContaining({
+            verbose: true,
+            limit: 10,
+            offset: 0,
+          }),
         })
       );
     });
@@ -1008,34 +943,6 @@ describe('counterparty/api.ts', () => {
   });
 
   describe('integration scenarios', () => {
-    it('should handle complete token information flow', async () => {
-      // Mock asset details
-      const assetResponse = {
-        data: { result: mockAssetInfo },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any;
-      mockedApiClient.get.mockResolvedValueOnce(assetResponse);
-      
-      // Mock token balance
-      const balanceResponse = {
-        data: { result: [mockTokenBalance] },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any;
-      mockedApiClient.get.mockResolvedValueOnce(balanceResponse);
-
-      const result = await fetchAssetDetailsAndBalance('XCP', mockAddress);
-
-      expect(result.assetInfo).toEqual(mockAssetInfo);
-      expect(result.isDivisible).toBe(true);
-      expect(mockedApiClient.get).toHaveBeenCalledTimes(2);
-    });
-
     it('should handle pagination correctly', async () => {
       const mockData = { result: [mockTransaction], result_count: 100 };
       mockedApiClient.get.mockResolvedValue({
@@ -1090,7 +997,6 @@ describe('counterparty/api.ts', () => {
       const mockData = {
         result: [mockOrder],
         result_count: 1,
-        next_cursor: null,
       };
       mockedApiClient.get.mockResolvedValue({
         data: mockData,
@@ -1102,8 +1008,8 @@ describe('counterparty/api.ts', () => {
 
       const result = await fetchOrdersByPair('XCP', 'PEPECASH');
 
-      expect(result.orders).toEqual([mockOrder]);
-      expect(result.total).toBe(1);
+      expect(result.result).toEqual([mockOrder]);
+      expect(result.result_count).toBe(1);
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${mockApiBase}/v2/orders/XCP/PEPECASH`,
         expect.objectContaining({
@@ -1177,7 +1083,6 @@ describe('counterparty/api.ts', () => {
       const mockData = {
         result: [mockMatch],
         result_count: 1,
-        next_cursor: null,
       };
       mockedApiClient.get.mockResolvedValue({
         data: mockData,
@@ -1189,8 +1094,8 @@ describe('counterparty/api.ts', () => {
 
       const result = await fetchOrderMatches('abc123');
 
-      expect(result.matches).toEqual([mockMatch]);
-      expect(result.total).toBe(1);
+      expect(result.result).toEqual([mockMatch]);
+      expect(result.result_count).toBe(1);
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         `${mockApiBase}/v2/orders/abc123/matches`,
         expect.objectContaining({

@@ -169,7 +169,6 @@ describe('settings encryption', () => {
         allowUnconfirmedTxs: false,
         enableMPMA: true,
         enableAdvancedBroadcasts: true,
-        enableAdvancedBetting: true,
         transactionDryRun: true,
         counterpartyApiBase: 'https://custom.api.com:4000',
         defaultOrderExpiration: 1000,

@@ -1,14 +1,16 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FiGlobe, FiAlertTriangle, FiX, FiChevronDown, FiChevronUp } from '@/components/icons';
 import { Button } from '@/components/button';
 import { ErrorAlert } from '@/components/error-alert';
 import { formatAddress, formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
 import { useWallet } from '@/contexts/wallet-context';
-import { useSignTransactionRequest } from '@/hooks/useSignTransactionRequest';
+import { useSignPsbtRequest } from '@/hooks/useSignPsbtRequest';
 import { getWalletService } from '@/services/walletService';
 
-export default function ApproveTransaction() {
+export default function ApprovePsbt() {
+  const navigate = useNavigate();
   const { activeAddress, activeWallet } = useWallet();
   const {
     request,
@@ -18,7 +20,7 @@ export default function ApproveTransaction() {
     handleSuccess,
     handleCancel,
     isProviderRequest
-  } = useSignTransactionRequest();
+  } = useSignPsbtRequest();
 
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string>('');
@@ -37,23 +39,24 @@ export default function ApproveTransaction() {
   const domain = request ? getDomain(request.origin) : '';
 
   const handleSign = async () => {
-    if (!request || !decodedInfo || !activeAddress) return;
+    if (!request || !decodedInfo) return;
 
     setIsSigning(true);
     setError('');
 
     try {
       const walletService = getWalletService();
-      const signedTxHex = await walletService.signTransaction(
-        request.rawTxHex,
-        activeAddress.address
+      const signedPsbtHex = await walletService.signPsbt(
+        request.psbtHex,
+        request.signInputs,
+        request.sighashTypes
       );
 
-      await handleSuccess(signedTxHex);
+      await handleSuccess(signedPsbtHex);
       window.close();
     } catch (err) {
-      console.error('Failed to sign transaction:', err);
-      setError(err instanceof Error ? err.message : 'Failed to sign transaction');
+      console.error('Failed to sign PSBT:', err);
+      setError(err instanceof Error ? err.message : 'Failed to sign PSBT');
       setIsSigning(false);
     }
   };
@@ -105,7 +108,9 @@ export default function ApproveTransaction() {
     );
   }
 
-  const hasWarnings = decodedInfo.fee > 10000000; // > 0.1 BTC fee
+  const { psbtDetails, counterpartyMessage, txid } = decodedInfo;
+  const hasWarnings = psbtDetails.fee > 10000000 || // > 0.1 BTC fee
+    (request.sighashTypes?.some(t => (t & 0x80) !== 0)); // ANYONECANPAY
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -148,17 +153,17 @@ export default function ApproveTransaction() {
               <div className="flex justify-between items-start">
                 <span className="text-sm text-gray-600">Inputs:</span>
                 <span className="text-sm text-gray-900 text-right">
-                  {decodedInfo.inputs.length} input{decodedInfo.inputs.length !== 1 ? 's' : ''}
+                  {psbtDetails.inputs.length} input{psbtDetails.inputs.length !== 1 ? 's' : ''}
                 </span>
               </div>
 
               {/* Total Input Value */}
-              {decodedInfo.totalInputValue > 0 && (
+              {psbtDetails.totalInputValue > 0 && (
                 <div className="flex justify-between items-start">
                   <span className="text-sm text-gray-600">Total Input:</span>
                   <span className="text-sm text-gray-900 text-right">
                     {formatAmount({
-                      value: fromSatoshis(decodedInfo.totalInputValue, true),
+                      value: fromSatoshis(psbtDetails.totalInputValue, true),
                       minimumFractionDigits: 8,
                       maximumFractionDigits: 8,
                     })} BTC
@@ -170,21 +175,21 @@ export default function ApproveTransaction() {
               <div className="flex justify-between items-start">
                 <span className="text-sm text-gray-600">Outputs:</span>
                 <span className="text-sm text-gray-900 text-right">
-                  {decodedInfo.outputs.length} output{decodedInfo.outputs.length !== 1 ? 's' : ''}
+                  {psbtDetails.outputs.length} output{psbtDetails.outputs.length !== 1 ? 's' : ''}
                 </span>
               </div>
 
               {/* Fee */}
-              {decodedInfo.fee > 0 && (
+              {psbtDetails.fee > 0 && (
                 <div className="flex justify-between items-start">
                   <span className="text-sm text-gray-600">Network Fee:</span>
-                  <span className={`text-sm text-right ${decodedInfo.fee > 10000000 ? 'text-orange-600 font-medium' : 'text-gray-900'}`}>
+                  <span className={`text-sm text-right ${psbtDetails.fee > 10000000 ? 'text-orange-600 font-medium' : 'text-gray-900'}`}>
                     {formatAmount({
-                      value: fromSatoshis(decodedInfo.fee, true),
+                      value: fromSatoshis(psbtDetails.fee, true),
                       minimumFractionDigits: 8,
                       maximumFractionDigits: 8,
                     })} BTC
-                    <span className="text-gray-500 ml-1">({decodedInfo.fee.toLocaleString()} sats)</span>
+                    <span className="text-gray-500 ml-1">({psbtDetails.fee.toLocaleString()} sats)</span>
                   </span>
                 </div>
               )}
@@ -192,15 +197,15 @@ export default function ApproveTransaction() {
           </div>
 
           {/* Counterparty Message (if detected) */}
-          {decodedInfo.counterpartyMessage && (
+          {counterpartyMessage && (
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
               <div className="flex items-start">
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 mr-2">
-                  {decodedInfo.counterpartyMessage.messageType}
+                  {counterpartyMessage.messageType}
                 </span>
               </div>
               <p className="text-sm text-purple-800 mt-2">
-                {decodedInfo.counterpartyMessage.description}
+                {counterpartyMessage.description}
               </p>
             </div>
           )}
@@ -223,9 +228,9 @@ export default function ApproveTransaction() {
               <div className="px-6 pb-4 space-y-4">
                 {/* Inputs List */}
                 <div>
-                  <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Inputs ({decodedInfo.inputs.length})</h4>
+                  <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Inputs ({psbtDetails.inputs.length})</h4>
                   <div className="space-y-2">
-                    {decodedInfo.inputs.map((input, idx) => (
+                    {psbtDetails.inputs.map((input, idx) => (
                       <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
                         <div className="flex justify-between">
                           <span className="text-gray-600">#{idx}</span>
@@ -233,12 +238,7 @@ export default function ApproveTransaction() {
                             <span className="text-gray-900">{fromSatoshis(input.value, true)} BTC</span>
                           )}
                         </div>
-                        {input.address && (
-                          <div className="text-gray-500 truncate" title={input.address}>
-                            {formatAddress(input.address, true)}
-                          </div>
-                        )}
-                        <div className="text-gray-400 truncate" title={input.txid}>
+                        <div className="text-gray-500 truncate" title={input.txid}>
                           {input.txid.slice(0, 8)}...:{input.vout}
                         </div>
                       </div>
@@ -248,9 +248,9 @@ export default function ApproveTransaction() {
 
                 {/* Outputs List */}
                 <div>
-                  <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Outputs ({decodedInfo.outputs.length})</h4>
+                  <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Outputs ({psbtDetails.outputs.length})</h4>
                   <div className="space-y-2">
-                    {decodedInfo.outputs.map((output, idx) => (
+                    {psbtDetails.outputs.map((output, idx) => (
                       <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
                         <div className="flex justify-between">
                           <span className={`${output.type === 'op_return' ? 'text-purple-600' : 'text-gray-600'}`}>
@@ -268,12 +268,12 @@ export default function ApproveTransaction() {
                   </div>
                 </div>
 
-                {/* TXID */}
-                {decodedInfo.txid && (
+                {/* TXID if available */}
+                {txid && (
                   <div>
                     <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Transaction ID</h4>
                     <div className="bg-gray-50 p-2 rounded text-xs text-gray-600 break-all">
-                      {decodedInfo.txid}
+                      {txid}
                     </div>
                   </div>
                 )}
@@ -298,8 +298,11 @@ export default function ApproveTransaction() {
                 <div className="text-sm text-orange-800">
                   <p className="font-medium mb-1">Review Carefully</p>
                   <ul className="list-disc list-inside space-y-1 text-xs">
-                    {decodedInfo.fee > 10000000 && (
+                    {psbtDetails.fee > 10000000 && (
                       <li>High network fee detected</li>
+                    )}
+                    {request.sighashTypes?.some(t => (t & 0x80) !== 0) && (
+                      <li>Using ANYONECANPAY sighash (atomic swap mode)</li>
                     )}
                   </ul>
                 </div>
@@ -312,7 +315,7 @@ export default function ApproveTransaction() {
             <h3 className="text-sm font-medium text-blue-900 mb-2">What happens next?</h3>
             <ul className="text-xs text-blue-700 space-y-1">
               <li>• The transaction will be signed with your private key</li>
-              <li>• The signed transaction will be returned to the requesting site</li>
+              <li>• The signed PSBT will be returned to the requesting site</li>
               <li>• The site may broadcast the transaction to the network</li>
             </ul>
           </div>

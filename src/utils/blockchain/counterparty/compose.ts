@@ -65,17 +65,6 @@ export interface BaseComposeOptions {
 }
 
 // Transaction-specific options
-export interface BetOptions extends BaseComposeOptions {
-  feed_address: string;
-  bet_type: number;
-  deadline: number;
-  wager_quantity: number;
-  counterwager_quantity: number;
-  expiration: number;
-  leverage?: number;
-  target_value?: number;
-}
-
 export interface BroadcastOptions extends BaseComposeOptions {
   text: string;
   value?: string;
@@ -172,8 +161,8 @@ export interface SweepOptions extends BaseComposeOptions {
 
 export interface FairminterOptions extends BaseComposeOptions {
   asset: string;
-  price?: number;
-  quantity_by_price?: number;
+  lot_price?: number;
+  lot_size?: number;
   max_mint_per_tx?: number;
   hard_cap?: number;
   premint_quantity?: number;
@@ -376,35 +365,6 @@ export async function composeUtxoTransaction<T>(
     }
     throw error;
   }
-}
-
-export async function composeBet(options: BetOptions): Promise<ApiResponse> {
-  const {
-    sourceAddress,
-    feed_address,
-    bet_type,
-    deadline,
-    wager_quantity,
-    counterwager_quantity,
-    expiration,
-    leverage = 5040,
-    target_value,
-    sat_per_vbyte,
-    max_fee,
-    encoding,
-  } = options;
-  const paramsObj = {
-    feed_address,
-    bet_type: bet_type.toString(),
-    deadline: deadline.toString(),
-    wager_quantity: wager_quantity.toString(),
-    counterwager_quantity: counterwager_quantity.toString(),
-    expiration: expiration.toString(),
-    leverage: leverage.toString(),
-    ...(target_value !== undefined && { target_value: target_value.toString() }),
-    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
-  };
-  return composeTransaction('bet', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
 
 export async function composeBroadcast(options: BroadcastOptions): Promise<ApiResponse> {
@@ -690,8 +650,8 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
   const {
     sourceAddress,
     asset,
-    price = 0,
-    quantity_by_price = 1,
+    lot_price = 0,
+    lot_size = 1,
     max_mint_per_tx = 0,
     hard_cap = 0,
     premint_quantity = 0,
@@ -714,8 +674,8 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
   } = options;
   const paramsObj = {
     asset,
-    price: price.toString(),
-    quantity_by_price: quantity_by_price.toString(),
+    lot_price: lot_price.toString(),
+    lot_size: lot_size.toString(),
     max_mint_per_tx: max_mint_per_tx.toString(),
     hard_cap: hard_cap.toString(),
     premint_quantity: premint_quantity.toString(),

@@ -394,28 +394,4 @@ test.describe('Advanced Features', () => {
     await cleanup(context);
   });
 
-  test('bet creation', async () => {
-    const { context, page } = await launchExtension('bet-creation');
-    await setupWallet(page);
-    
-    // Navigate to Actions
-    await navigateViaFooter(page, 'actions');
-    
-    // Look for Place Bet option specifically (not the section header)
-    const betOption = page.locator('div[role="button"][aria-label="Place Bet"]');
-    if (await betOption.isVisible()) {
-      await betOption.click();
-      await page.waitForURL('**/compose/bet', { timeout: 10000 });
-      
-      // Should show bet form
-      await page.waitForTimeout(1000);
-      
-      // Check if we're on the bet page
-      const pageUrl = page.url();
-      expect(pageUrl).toContain('/compose/bet');
-    }
-    
-    await cleanup(context);
-  });
-
 });

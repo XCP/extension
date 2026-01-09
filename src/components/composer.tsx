@@ -9,9 +9,18 @@ import { UnlockScreen } from "@/components/screens/unlock-screen";
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { ComposerProvider, useComposer } from "@/contexts/composer-context";
 import { useHeader } from "@/contexts/header-context";
-import { useProviderRequest } from "@/hooks/useProviderRequest";
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
-import type { ComposeRequest } from "@/utils/storage/composeRequestStorage";
+
+/**
+ * Compose operation types for internal wallet use
+ */
+export type ComposeType =
+  | 'send' | 'mpma' | 'order' | 'dispenser' | 'dispense'
+  | 'fairminter' | 'fairmint' | 'dividend' | 'sweep' | 'btcpay'
+  | 'cancel' | 'dispenser-close-by-hash' | 'broadcast'
+  | 'attach' | 'detach' | 'move-utxo' | 'move' | 'destroy' | 'issue-supply'
+  | 'lock-supply' | 'reset-supply' | 'transfer' | 'update-description'
+  | 'lock-description' | 'issuance';
 
 /**
  * Props for the Composer component.
@@ -19,12 +28,11 @@ import type { ComposeRequest } from "@/utils/storage/composeRequestStorage";
  */
 interface ComposerProps<T> {
   // Compose configuration
-  composeType: ComposeRequest['type'];
+  composeType: ComposeType;
   composeApiMethod: (data: T) => Promise<ApiResponse>;
 
   // UI configuration
   initialTitle: string;
-  initialFormData?: T | null;
 
   // Components
   FormComponent: (props: {
@@ -50,11 +58,9 @@ interface ComposerProps<T> {
 }
 
 /**
- * Internal props for ComposerInner (includes provider request handling)
+ * Internal props for ComposerInner
  */
 interface ComposerInnerProps<T> extends Omit<ComposerProps<T>, "composeApiMethod" | "composeType" | "initialFormData"> {
-  composeRequestId: string | null;
-  onSuccess: ((result: any) => void) | null;
 }
 
 /**
@@ -65,8 +71,6 @@ function ComposerInner<T>({
   FormComponent,
   ReviewComponent,
   headerCallbacks,
-  composeRequestId,
-  onSuccess,
 }: ComposerInnerProps<T>): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
@@ -81,15 +85,6 @@ function ComposerInner<T>({
     toggleHelpText,
     handleUnlockAndSign,
   } = useComposer<T>();
-
-
-  // Handle success for provider requests
-  useEffect(() => {
-    if (state.step === "success" && state.apiResponse && composeRequestId && onSuccess) {
-      // Call the success callback with the result
-      onSuccess(state.apiResponse);
-    }
-  }, [state.step, state.apiResponse, composeRequestId, onSuccess]);
 
   // Header configuration based on current step
   const headerConfig = useMemo(() => {
@@ -218,7 +213,6 @@ function ComposerInner<T>({
           onBack={goBack}
           error={state.error}
           isSigning={state.isSigning}
-          hideBackButton={!!composeRequestId}
         />
       )}
 
@@ -261,35 +255,21 @@ export function Composer<T>({
   composeType,
   composeApiMethod,
   initialTitle,
-  initialFormData,
   FormComponent,
   ReviewComponent,
   headerCallbacks,
 }: ComposerProps<T>): ReactElement {
-  // Auto-detect provider requests based on composeType
-  const {
-    providerFormData,
-    composeRequestId,
-    handleSuccess,
-  } = useProviderRequest<T>(composeType);
-
-  // Merge: provider data takes precedence over explicit initialFormData
-  const mergedFormData = providerFormData ?? initialFormData;
-
   return (
     <ComposerProvider<T>
       composeType={composeType}
       composeApi={composeApiMethod}
       initialTitle={initialTitle}
-      initialFormData={mergedFormData}
     >
       <ComposerInner<T>
         initialTitle={initialTitle}
         FormComponent={FormComponent}
         ReviewComponent={ReviewComponent}
         headerCallbacks={headerCallbacks}
-        composeRequestId={composeRequestId}
-        onSuccess={handleSuccess}
       />
     </ComposerProvider>
   );

@@ -10,16 +10,12 @@ import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-in
 import { BalanceHeader } from "@/components/headers/balance-header";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { useTradingPair } from "@/hooks/useTradingPair";
 import { toBigNumber } from "@/utils/numeric";
 import { formatAmount } from "@/utils/format";
 import { ErrorAlert } from "@/components/error-alert";
 import type { OrderOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
-
-interface TradingPairData {
-  last_trade_price: string | null;
-  name: string;
-}
 
 // Extended type for form data that includes user-facing fields
 interface OrderFormData extends OrderOptions {
@@ -77,14 +73,18 @@ export function OrderForm({
   
   // Trading state
   const [isPairFlipped, setIsPairFlipped] = useState(false);
-  const [tradingPairData, setTradingPairData] = useState<TradingPairData | null>(null);
-  
+
   // Computed values
+  const isBuy = activeTab === "buy";
   const isGiveAssetDivisible = giveAssetDetails?.isDivisible ?? true;
   const isGetAssetDivisible = getAssetDetails?.isDivisible ?? true;
   const availableBalance = giveAssetDetails?.availableBalance ?? "0";
   const orderAssetBalance = orderAssetDetails?.availableBalance ?? "0";
-  const isBuy = activeTab === "buy";
+
+  // Trading pair data - for orders, swap direction depends on buy/sell
+  const tradingPairGive = isBuy ? quoteAsset : giveAsset;
+  const tradingPairGet = isBuy ? giveAsset : quoteAsset;
+  const { data: tradingPairData } = useTradingPair(tradingPairGive, tradingPairGet);
   
   // Effects
 
@@ -95,29 +95,6 @@ export function OrderForm({
       input?.focus();
     }
   }, [tabLoading]);
-
-  // Fetch trading pair data
-  useEffect(() => {
-    const fetchTradingPairData = async () => {
-      if (!giveAsset || !quoteAsset) return;
-
-      try {
-        const give = isBuy ? quoteAsset : giveAsset;
-        const get = isBuy ? giveAsset : quoteAsset;
-        const response = await fetch(`https://app.xcp.io/api/v1/swap/${give}/${get}`);
-        if (!response.ok) throw new Error('Failed to fetch');
-        const data = await response.json();
-        const lastTradePrice = data?.data?.trading_pair?.last_trade_price || null;
-        const tradingPairName = data?.data?.trading_pair?.name || "";
-        setTradingPairData({ last_trade_price: lastTradePrice, name: tradingPairName });
-      } catch (err) {
-        console.error("Failed to fetch trading pair data:", err);
-        setTradingPairData(null);
-      }
-    };
-
-    fetchTradingPairData();
-  }, [giveAsset, quoteAsset, isBuy]);
 
   // Handlers
   const handleTabChange = (newTab: "buy" | "sell" | "settings") => {

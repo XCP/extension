@@ -55,22 +55,15 @@ const DENORMALIZATION_CONFIG: Record<string, {
     quantityFields: ['quantity'],
     assetFields: { quantity: 'XCP' }  // Burn is always XCP
   },
-  bet: {
-    quantityFields: ['wager_quantity', 'counterwager_quantity'],
-    assetFields: {
-      wager_quantity: 'XCP',  // Bets use XCP
-      counterwager_quantity: 'XCP'
-    }
-  },
   fairmint: {
     quantityFields: ['quantity'],
     assetFields: { quantity: 'asset' }
   },
   fairminter: {
-    quantityFields: ['premint_quantity', 'quantity_by_price'],
+    quantityFields: ['premint_quantity', 'lot_size'],
     assetFields: {
       premint_quantity: 'asset',
-      quantity_by_price: 'asset'
+      lot_size: 'asset'
     }
   },
   sweep: {
@@ -200,7 +193,6 @@ export function getComposeTypeFromProvider(params: Record<string, any>): string 
   if ('flags' in params && 'destination' in params && !('quantity' in params)) return 'sweep';
   if ('order_match_id' in params) return 'btcpay';
   if ('offer_hash' in params) return 'cancel';
-  if ('feed_address' in params && 'wager_quantity' in params) return 'bet';
   if ('text' in params && !('asset' in params)) return 'broadcast';
   if ('quantity' in params && 'asset' in params && 'destination' in params) return 'send';
   if ('quantity' in params && 'asset' in params && 'divisible' in params) return 'issuance';

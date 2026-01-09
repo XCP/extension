@@ -10,7 +10,6 @@ import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@
 import { approvalQueue } from '@/utils/provider/approvalQueue';
 import { getConnectionService } from '../connectionService';
 import { getApprovalService } from '../approvalService';
-import * as composeRequestStorage from '@/utils/storage/composeRequestStorage';
 
 // Mock the dependencies
 vi.mock('webext-bridge/background', () => ({
@@ -23,7 +22,6 @@ vi.mock('@/utils/storage/settingsStorage');
 vi.mock('@/utils/provider/rateLimiter');
 vi.mock('../connectionService');
 vi.mock('../approvalService');
-vi.mock('@/utils/storage/composeRequestStorage');
 
 // Mock CSP validation to avoid timeout issues
 vi.mock('@/utils/security/cspValidation', () => ({
@@ -142,23 +140,19 @@ describe('ProviderService Security Tests', () => {
     it('should reject sensitive methods when not connected', async () => {
       const unauthorizedMethods = [
         'xcp_signMessage',
-        'xcp_composeOrder',
-        'xcp_composeSend',
         'xcp_signTransaction',
         'xcp_broadcastTransaction',
         'xcp_getBalances',
         'xcp_getAssets',
         'xcp_getHistory',
-        'xcp_composeDispenser',
-        'xcp_composeDividend',
-        'xcp_composeIssuance'
+        'xcp_signPsbt'
       ];
-      
+
       // xcp_signMessage requires specific parameters
       await expect(
         providerService.handleRequest('https://evil.com', 'xcp_signMessage', [])
       ).rejects.toThrow('Message is required');
-      
+
       // Other methods should throw Unauthorized or not supported, or parameter validation errors
       const otherMethods = unauthorizedMethods.filter(m => m !== 'xcp_signMessage');
       for (const method of otherMethods) {
@@ -168,15 +162,20 @@ describe('ProviderService Security Tests', () => {
             providerService.handleRequest('https://evil.com', method, [])
           ).rejects.toThrow('Method xcp_getAssets is not supported');
         } else if (method === 'xcp_signTransaction') {
-          // xcp_signTransaction is now deprecated
+          // xcp_signTransaction requires hex parameter
           await expect(
             providerService.handleRequest('https://evil.com', method, [])
-          ).rejects.toThrow('xcp_signTransaction is deprecated');
+          ).rejects.toThrow('Transaction hex is required');
         } else if (method === 'xcp_getHistory') {
           // xcp_getHistory has a special privacy error message
           await expect(
             providerService.handleRequest('https://evil.com', method, [])
           ).rejects.toThrow('Permission denied - transaction history not available through provider');
+        } else if (method === 'xcp_signPsbt') {
+          // xcp_signPsbt requires hex parameter
+          await expect(
+            providerService.handleRequest('https://evil.com', method, [])
+          ).rejects.toThrow('PSBT hex is required');
         } else {
           // Other methods check authorization first
           await expect(
@@ -323,19 +322,20 @@ describe('ProviderService Security Tests', () => {
         ...DEFAULT_SETTINGS,
         connectedWebsites: ['https://connected.com']
       });
-      
-      // Missing parameters - service checks parameters first for xcp_composeSend
+
+      // Missing parameters - service checks parameters first for xcp_signPsbt
       await expect(
-        providerService.handleRequest('https://connected.com', 'xcp_composeSend', [])
-      ).rejects.toThrow('Send parameters required');
-      
-      await expect(
-        providerService.handleRequest('https://connected.com', 'xcp_composeOrder', [])
-      ).rejects.toThrow('Order parameters required');
-      
+        providerService.handleRequest('https://connected.com', 'xcp_signPsbt', [])
+      ).rejects.toThrow('PSBT hex is required');
+
       await expect(
         providerService.handleRequest('https://connected.com', 'xcp_signTransaction', [])
-      ).rejects.toThrow('xcp_signTransaction is deprecated');
+      ).rejects.toThrow('Transaction hex is required');
+
+      // xcp_broadcastTransaction requires a signed transaction
+      await expect(
+        providerService.handleRequest('https://connected.com', 'xcp_broadcastTransaction', [])
+      ).rejects.toThrow('Signed transaction is required');
     });
     
     it('should not expose sensitive wallet data in errors', async () => {
@@ -351,75 +351,38 @@ describe('ProviderService Security Tests', () => {
   });
 
   describe('Security: Approval Flow Integrity', () => {
-    it('should require user approval for all compose operations', async () => {
+    it('should require user approval for signing operations', async () => {
       // Mock site as not connected
       vi.mocked(settingsStorage.getSettings).mockResolvedValue({
         ...DEFAULT_SETTINGS,
         connectedWebsites: [] // Not connected
       });
-      
-      // Even compose operations should require connection first
+
+      // Signing operations should require connection first
       await expect(
         providerService.handleRequest(
           'https://connected.com',
-          'xcp_composeOrder',
-          [{
-            give_asset: 'XCP',
-            give_quantity: 100,
-            get_asset: 'BTC',
-            get_quantity: 1000
-          }]
+          'xcp_signPsbt',
+          [{ hex: '70736274ff0100' }]
         )
       ).rejects.toThrow('Unauthorized');
     });
-    
-    it('should not allow auto-approval of transactions', async () => {
-      // There should be no way to bypass the approval popup
-      // Even if a site is connected, compose operations require explicit approval
 
-      // Mock connection service to return true (site is connected)
-      const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
-      mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
-
-      // Mock wallet service to have an active address
-      const mockWalletService = vi.mocked(walletService.getWalletService)();
-      mockWalletService.getActiveAddress = vi.fn().mockResolvedValue({
-        id: 'addr1',
-        address: 'bc1qtest123',
-        label: 'Test Address',
-        walletId: 'wallet1',
-        walletName: 'Test Wallet',
-        index: 0
+    it('should require authorization for broadcast operations', async () => {
+      // Mock site as not connected
+      vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+        ...DEFAULT_SETTINGS,
+        connectedWebsites: [] // Not connected
       });
 
-      // Mock the compose request storage
-      const mockComposeStorage = vi.mocked(composeRequestStorage);
-      mockComposeStorage.composeRequestStorage = {
-        store: vi.fn().mockResolvedValue(undefined),
-        get: vi.fn().mockResolvedValue(null),
-        remove: vi.fn().mockResolvedValue(undefined)
-      } as any;
-
-      // Mock chrome runtime sendMessage to simulate popup handling
-      global.chrome.runtime.sendMessage = vi.fn().mockImplementation(() => {
-        throw new Error('User must approve transaction through popup');
-      });
-
-      // Even for a connected site, compose operations should require user approval
+      // Even broadcast should require connection
       await expect(
         providerService.handleRequest(
-          'https://trusted.com',
-          'xcp_composeSend',
-          [{
-            destination: 'bc1qevil',
-            asset: 'XCP',
-            quantity: 1000000000
-          }]
+          'https://untrusted.com',
+          'xcp_broadcastTransaction',
+          ['0100000001...']
         )
-      ).rejects.toThrow('User must approve transaction through popup');
-
-      // Verify that compose request was stored for popup approval
-      expect(mockComposeStorage.composeRequestStorage.store).toHaveBeenCalled();
+      ).rejects.toThrow('Unauthorized');
     });
   });
 

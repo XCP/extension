@@ -275,14 +275,14 @@ export function FairminterForm({
           {selectedMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
             <>
               <Field>
-                <Label htmlFor="quantity_by_price" className="block text-sm font-medium text-gray-700">
-                  Get Per Mint
+                <Label htmlFor="lot_size" className="block text-sm font-medium text-gray-700">
+                  Tokens per Mint
                 </Label>
                 <Input
-                  id="quantity_by_price"
-                  name="quantity_by_price"
+                  id="lot_size"
+                  name="lot_size"
                   type="text"
-                  defaultValue={initialFormData?.quantity_by_price?.toString() || ""}
+                  defaultValue={initialFormData?.lot_size?.toString() || ""}
                   step={getInputStep()}
                   placeholder={getInputPlaceholder()}
                   className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -290,27 +290,27 @@ export function FairminterForm({
                 />
                 {showHelpText && (
                   <Description className="mt-2 text-sm text-gray-500">
-                    The quantity of asset minted per price unit.
+                    Number of tokens received per mint transaction.
                   </Description>
                 )}
               </Field>
-              
+
               <Field>
-                <Label htmlFor="price" className="block text-sm font-medium text-gray-700">
-                  Pay Per Mint <span className="text-red-500">*</span>
+                <Label htmlFor="lot_price" className="block text-sm font-medium text-gray-700">
+                  XCP Cost per Mint <span className="text-red-500">*</span>
                 </Label>
                 <Input
-                  id="price"
-                  name="price"
+                  id="lot_price"
+                  name="lot_price"
                   type="text"
-                  defaultValue={initialFormData?.price?.toString() || ""}
+                  defaultValue={initialFormData?.lot_price?.toString() || ""}
                   className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                   disabled={pending}
                 />
                 {showHelpText && (
                   <Description className="mt-2 text-sm text-gray-500">
-                    The price in XCP per unit of the asset.
+                    XCP required for each mint transaction.
                   </Description>
                 )}
               </Field>

@@ -70,7 +70,6 @@ interface ComposerProviderProps<T> {
   composeApi: (data: any) => Promise<ApiResponse>;
   // UI configuration
   initialTitle: string;
-  initialFormData?: T | null;
 }
 
 /**
@@ -92,7 +91,6 @@ export function ComposerProvider<T>({
   composeType,
   composeApi,
   initialTitle,
-  initialFormData = null,
 }: ComposerProviderProps<T>): ReactElement {
   const navigate = useNavigate();
   const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, unlockWallet, isWalletLocked } = useWallet();
@@ -106,7 +104,7 @@ export function ComposerProvider<T>({
   // Initialize state
   const [state, setState] = useState<ComposerState<T>>({
     step: "form",
-    formData: initialFormData,
+    formData: null,
     apiResponse: null,
     error: null,
     isComposing: false,
@@ -168,54 +166,6 @@ export function ComposerProvider<T>({
     previousWalletRef.current = activeWallet?.id;
     previousAuthStateRef.current = authState;
   }, [activeWallet?.id, authState]);
-
-  // Auto-compose for provider requests
-  useEffect(() => {
-    const autoCompose = async () => {
-      // Only auto-compose if we have initial form data and we're on the form step
-      if (!initialFormData || state.step !== 'form' || state.apiResponse) {
-        return;
-      }
-
-      if (!activeAddress) {
-        return;
-      }
-
-      // Set composing state
-      setState(prev => ({ ...prev, isComposing: true, error: null }));
-
-      try {
-        // Provider data is already in API format (satoshis), pass directly to API
-        const dataForApi = {
-          ...initialFormData,
-          sourceAddress: activeAddress.address
-        };
-
-        const result = await composeApi(dataForApi);
-
-        // Skip to review step with the composed transaction
-        setState({
-          step: 'review',
-          formData: initialFormData as T,
-          apiResponse: result,
-          error: null,
-          isComposing: false,
-          isSigning: false,
-          showAuthModal: false
-        });
-
-      } catch (error) {
-        console.error('Auto-compose failed:', error);
-        setState(prev => ({
-          ...prev,
-          error: error instanceof Error ? error.message : 'Failed to compose transaction',
-          isComposing: false
-        }));
-      }
-    };
-
-    autoCompose();
-  }, [initialFormData, activeAddress, composeApi, state.step, state.apiResponse]);
 
   // Compose transaction
   const composeTransaction = useCallback(async (formData: FormData) => {
@@ -288,61 +238,69 @@ export function ComposerProvider<T>({
     })(); // Execute the async IIFE
   }, [activeAddress, composeApi]);
   
+  // Core sign and broadcast logic - extracted to avoid duplication
+  const performSignAndBroadcast = useCallback(async () => {
+    if (!state.apiResponse || !activeAddress) {
+      throw new Error("Invalid transaction data");
+    }
+
+    const rawTxHex = state.apiResponse.result.rawtransaction;
+
+    // Check for replay attempt before signing
+    const replayCheck = await checkReplayAttempt(
+      window.location.origin,
+      'broadcast_transaction',
+      [rawTxHex],
+      { address: activeAddress.address }
+    );
+
+    if (replayCheck.isReplay) {
+      throw new Error(`Transaction replay detected: ${replayCheck.reason}`);
+    }
+
+    const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
+
+    // Record transaction before broadcast to prevent double-broadcast
+    const placeholderTxid = `pending-${Date.now()}`;
+    recordTransaction(
+      placeholderTxid,
+      window.location.origin,
+      'broadcast_transaction',
+      [rawTxHex],
+      { status: 'pending' }
+    );
+
+    const broadcastResponse = await broadcastTransaction(signedTxHex);
+
+    // Mark as successfully broadcasted
+    if (broadcastResponse.txid) {
+      markTransactionBroadcasted(broadcastResponse.txid);
+    }
+
+    // Return the updated apiResponse with broadcast info
+    return {
+      ...state.apiResponse,
+      broadcast: broadcastResponse
+    };
+  }, [state.apiResponse, activeAddress, signTransaction, broadcastTransaction]);
+
   // Sign and broadcast transaction
   const signAndBroadcast = useCallback(async () => {
     if (!state.apiResponse || !activeAddress || !activeWallet) {
       setState(prev => ({ ...prev, error: "Invalid transaction data" }));
       return;
     }
-    
+
     // Check if wallet is locked
     if (await isWalletLocked()) {
       setState(prev => ({ ...prev, showAuthModal: true }));
       return;
     }
-    
+
     setState(prev => ({ ...prev, isSigning: true, error: null }));
-    
+
     try {
-      const rawTxHex = state.apiResponse.result.rawtransaction;
-
-      // Check for replay attempt before signing
-      const replayCheck = await checkReplayAttempt(
-        window.location.origin, // Use current origin for internal transactions
-        'broadcast_transaction',
-        [rawTxHex],
-        { address: activeAddress.address }
-      );
-
-      if (replayCheck.isReplay) {
-        throw new Error(`Transaction replay detected: ${replayCheck.reason}`);
-      }
-
-      const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
-
-      // Record transaction before broadcast to prevent double-broadcast
-      // The actual txid comes from broadcast response, so we use a placeholder
-      const placeholderTxid = `pending-${Date.now()}`;
-      recordTransaction(
-        placeholderTxid,
-        window.location.origin,
-        'broadcast_transaction',
-        [rawTxHex],
-        { status: 'pending' }
-      );
-
-      const broadcastResponse = await broadcastTransaction(signedTxHex);
-
-      // Mark as successfully broadcasted
-      if (broadcastResponse.txid) {
-        markTransactionBroadcasted(broadcastResponse.txid);
-      }
-
-      // Add broadcast response to apiResponse
-      const apiResponseWithBroadcast = {
-        ...state.apiResponse,
-        broadcast: broadcastResponse
-      };
+      const apiResponseWithBroadcast = await performSignAndBroadcast();
 
       setState(prev => ({
         ...prev,
@@ -356,21 +314,22 @@ export function ComposerProvider<T>({
       let errorMessage = "Failed to sign and broadcast transaction";
       if (err instanceof Error) {
         errorMessage = err.message;
-        
+
         // Special handling for wallet lock
         if (err.message.includes("Wallet is locked")) {
-          setState(prev => ({ ...prev, showAuthModal: true }));
+          setState(prev => ({ ...prev, showAuthModal: true, isSigning: false }));
+          return;
         }
       }
-      
+
       setState(prev => ({
         ...prev,
         error: errorMessage,
         isSigning: false,
       }));
     }
-  }, [state.apiResponse, activeAddress, activeWallet, isWalletLocked, signTransaction, broadcastTransaction]);
-  
+  }, [state.apiResponse, activeAddress, activeWallet, isWalletLocked, performSignAndBroadcast]);
+
   // Handle unlock and sign (for auth modal)
   const handleUnlockAndSign = useCallback(async (password: string) => {
     if (!activeWallet || !state.apiResponse || !activeAddress) return;
@@ -379,47 +338,9 @@ export function ComposerProvider<T>({
     try {
       await unlockWallet(activeWallet.id, password);
       setState(prev => ({ ...prev, showAuthModal: false }));
-      
-      // Now sign and broadcast with replay prevention
-      const rawTxHex = state.apiResponse.result.rawtransaction;
 
-      // Check for replay attempt
-      const replayCheck = await checkReplayAttempt(
-        window.location.origin,
-        'broadcast_transaction',
-        [rawTxHex],
-        { address: activeAddress.address }
-      );
+      const apiResponseWithBroadcast = await performSignAndBroadcast();
 
-      if (replayCheck.isReplay) {
-        throw new Error(`Transaction replay detected: ${replayCheck.reason}`);
-      }
-
-      const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
-
-      // Record transaction before broadcast
-      // The actual txid comes from broadcast response, so we use a placeholder
-      const placeholderTxid = `pending-${Date.now()}`;
-      recordTransaction(
-        placeholderTxid,
-        window.location.origin,
-        'broadcast_transaction',
-        [rawTxHex],
-        { status: 'pending' }
-      );
-
-      const broadcastResponse = await broadcastTransaction(signedTxHex);
-
-      // Mark as successfully broadcasted
-      if (broadcastResponse.txid) {
-        markTransactionBroadcasted(broadcastResponse.txid);
-      }
-
-      const apiResponseWithBroadcast = {
-        ...state.apiResponse,
-        broadcast: broadcastResponse
-      };
-      
       setState(prev => ({
         ...prev,
         step: "success",
@@ -432,7 +353,7 @@ export function ComposerProvider<T>({
       setState(prev => ({ ...prev, isSigning: false }));
       throw err; // Let the modal handle the error display
     }
-  }, [activeWallet, activeAddress, state.apiResponse, unlockWallet, signTransaction, broadcastTransaction]);
+  }, [activeWallet, activeAddress, state.apiResponse, unlockWallet, performSignAndBroadcast]);
 
   // Navigation actions
   const reset = useCallback(() => {
@@ -450,24 +371,18 @@ export function ComposerProvider<T>({
 
   const goBack = useCallback(() => {
     if (state.step === "review") {
-      // For provider requests (auto-composed), go to home instead of form
-      if (initialFormData) {
-        reset();
-        navigate("/index");
-      } else {
-        // For manual composes, go back to form
-        setState(prev => ({
-          ...prev,
-          step: "form",
-          apiResponse: null,
-          error: null,
-        }));
-      }
+      // Go back to form, preserving user's form data for quick edits
+      setState(prev => ({
+        ...prev,
+        step: "form",
+        apiResponse: null,
+        error: null,
+      }));
     } else if (state.step === "success") {
       reset();
       navigate("/index");
     }
-  }, [state.step, initialFormData, navigate, reset]);
+  }, [state.step, navigate, reset]);
   
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }));

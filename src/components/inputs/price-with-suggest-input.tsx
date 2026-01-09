@@ -96,7 +96,7 @@ export function PriceWithSuggestInput({
     <Field className={className}>
       <Label className="text-sm font-medium text-gray-700 flex justify-between items-center">
         <span className="flex items-center">
-          {label}<span className="text-red-500">*</span>
+          {label} <span className="text-red-500">*</span>
         </span>
         {showPairFlip && displayedPairName && (
           <span

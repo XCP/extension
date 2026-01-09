@@ -28,8 +28,8 @@ import * as approvalQueue from '@/utils/provider/approvalQueue';
 import * as rateLimiter from '@/utils/provider/rateLimiter';
 import * as replayPrevention from '@/utils/security/replayPrevention';
 import * as cspValidation from '@/utils/security/cspValidation';
-import * as composeRequestStorage from '@/utils/storage/composeRequestStorage';
 import * as signMessageRequestStorage from '@/utils/storage/signMessageRequestStorage';
+import * as signPsbtRequestStorage from '@/utils/storage/signPsbtRequestStorage';
 import * as updateService from '@/services/updateService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 
@@ -38,8 +38,8 @@ vi.mock('../walletService');
 vi.mock('../connectionService');
 vi.mock('../approvalService');
 vi.mock('@/utils/storage/settingsStorage');
-vi.mock('@/utils/storage/composeRequestStorage');
 vi.mock('@/utils/storage/signMessageRequestStorage');
+vi.mock('@/utils/storage/signPsbtRequestStorage');
 vi.mock('@/services/updateService');
 vi.mock('@/utils/provider/approvalQueue');
 vi.mock('@/utils/provider/rateLimiter');
@@ -231,14 +231,14 @@ describe('ProviderService', () => {
     };
     vi.mocked(updateService.getUpdateService).mockReturnValue(mockUpdateService as any);
 
-    // Mock compose and sign message request storage
-    vi.mocked(composeRequestStorage).composeRequestStorage = {
+    // Mock sign message and PSBT request storage
+    vi.mocked(signMessageRequestStorage).signMessageRequestStorage = {
       store: vi.fn().mockResolvedValue(undefined),
       get: vi.fn().mockResolvedValue(null),
       remove: vi.fn().mockResolvedValue(undefined)
     } as any;
 
-    vi.mocked(signMessageRequestStorage).signMessageRequestStorage = {
+    vi.mocked(signPsbtRequestStorage).signPsbtRequestStorage = {
       store: vi.fn().mockResolvedValue(undefined),
       get: vi.fn().mockResolvedValue(null),
       remove: vi.fn().mockResolvedValue(undefined)
@@ -410,7 +410,7 @@ describe('ProviderService', () => {
         ).rejects.toThrow('Unauthorized - not connected to wallet');
       });
       
-      it('should throw error for unauthorized xcp_composeOrder', async () => {
+      it('should throw error for unauthorized xcp_signPsbt', async () => {
         // Mock connection service to return false
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
         mockConnectionService.hasPermission = vi.fn().mockResolvedValue(false);
@@ -418,13 +418,13 @@ describe('ProviderService', () => {
         await expect(
           providerService.handleRequest(
             'https://notconnected.com',
-            'xcp_composeOrder',
-            [{}]
+            'xcp_signPsbt',
+            [{ hex: '70736274ff0100' }]
           )
         ).rejects.toThrow('Unauthorized - not connected to wallet');
       });
-      
-      it('should throw error for unauthorized xcp_composeSend', async () => {
+
+      it('should throw error for unauthorized xcp_signTransaction', async () => {
         // Mock connection service to return false
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
         mockConnectionService.hasPermission = vi.fn().mockResolvedValue(false);
@@ -432,26 +432,10 @@ describe('ProviderService', () => {
         await expect(
           providerService.handleRequest(
             'https://notconnected.com',
-            'xcp_composeSend',
-            [{}]
-          )
-        ).rejects.toThrow('Unauthorized - not connected to wallet');
-      });
-      
-      it('should throw error for deprecated xcp_signTransaction', async () => {
-        // Even when connected, xcp_signTransaction should be deprecated
-        vi.mocked(settingsStorage.getSettings).mockResolvedValue({
-          ...settingsStorage.DEFAULT_SETTINGS,
-          connectedWebsites: ['https://connected.com']
-        });
-
-        await expect(
-          providerService.handleRequest(
-            'https://connected.com',
             'xcp_signTransaction',
-            ['rawtx']
+            [{ hex: 'rawtx' }]
           )
-        ).rejects.toThrow('xcp_signTransaction is deprecated');
+        ).rejects.toThrow('Unauthorized - not connected to wallet');
       });
       
       it('should throw error for unauthorized xcp_broadcastTransaction', async () => {
@@ -470,8 +454,8 @@ describe('ProviderService', () => {
     });
   });
   
-  describe('Phase 2 - Transaction Methods', () => {
-    describe('xcp_composeOrder', () => {
+  describe('Phase 2 - Signing Methods', () => {
+    describe('xcp_signPsbt', () => {
       it('should require authorization', async () => {
         // Mock connection service to return false (not connected)
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
@@ -480,68 +464,13 @@ describe('ProviderService', () => {
         await expect(
           providerService.handleRequest(
             'https://notconnected.com',
-            'xcp_composeOrder',
-            [{
-              give_asset: 'XCP',
-              give_quantity: 100,
-              get_asset: 'BTC',
-              get_quantity: 1000,
-              expiration: 1000
-            }]
+            'xcp_signPsbt',
+            [{ hex: '70736274ff0100' }]
           )
         ).rejects.toThrow('Unauthorized - not connected to wallet');
       });
-      
-      it('should store compose request for popup approval', async () => {
-        // Mock connection service to return true (connected)
-        const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
-        mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
 
-        // Mock storage
-        const mockStorage = vi.mocked(composeRequestStorage).composeRequestStorage;
-
-        // The compose request will create a promise that waits for events
-        // Start the request but don't await it
-        providerService.handleRequest(
-          'https://connected.com',
-          'xcp_composeOrder',
-          [{
-            give_asset: 'XCP',
-            give_quantity: 100,
-            get_asset: 'BTC',
-            get_quantity: 1000
-          }]
-        ).catch(() => {}); // Catch as it will wait for popup approval
-
-        // Wait for async operations
-        await new Promise(resolve => setTimeout(resolve, 10));
-
-        // Verify the request was stored for popup
-        expect(mockStorage.store).toHaveBeenCalledWith(
-          expect.objectContaining({
-            type: 'order',
-            origin: 'https://connected.com'
-          })
-        );
-      });
-    });
-    
-    describe('xcp_composeSend', () => {
-      it('should require authorization', async () => {
-        await expect(
-          providerService.handleRequest(
-            'https://notconnected.com',
-            'xcp_composeSend',
-            [{
-              destination: 'bc1qtest',
-              asset: 'XCP',
-              quantity: 100
-            }]
-          )
-        ).rejects.toThrow('Unauthorized');
-      });
-      
-      it('should require parameters', async () => {
+      it('should require hex parameter', async () => {
         // Mock connection service to return true (authorized)
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
         mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
@@ -549,14 +478,40 @@ describe('ProviderService', () => {
         await expect(
           providerService.handleRequest(
             'https://connected.com',
-            'xcp_composeSend',
+            'xcp_signPsbt',
             []
           )
-        ).rejects.toThrow('Send parameters required');
+        ).rejects.toThrow('PSBT hex is required');
+      });
+    });
+
+    describe('xcp_broadcastTransaction', () => {
+      it('should require authorization', async () => {
+        await expect(
+          providerService.handleRequest(
+            'https://notconnected.com',
+            'xcp_broadcastTransaction',
+            ['0100000001...']
+          )
+        ).rejects.toThrow('Unauthorized');
+      });
+
+      it('should require signed transaction', async () => {
+        // Mock connection service to return true (authorized)
+        const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
+        mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+
+        await expect(
+          providerService.handleRequest(
+            'https://connected.com',
+            'xcp_broadcastTransaction',
+            []
+          )
+        ).rejects.toThrow('Signed transaction is required');
       });
     });
   });
-  
+
   describe('Phase 3 - Data Methods', () => {
     describe('xcp_getBalances', () => {
       it('should require authorization', async () => {
@@ -568,7 +523,7 @@ describe('ProviderService', () => {
           )
         ).rejects.toThrow('Unauthorized');
       });
-      
+
       it('should require active address', async () => {
         // Mock connection service to return true (authorized)
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
@@ -587,7 +542,7 @@ describe('ProviderService', () => {
         ).rejects.toThrow('No active address');
       });
     });
-    
+
     describe('xcp_getAssets', () => {
       it('should not be supported', async () => {
         await expect(
@@ -599,7 +554,7 @@ describe('ProviderService', () => {
         ).rejects.toThrow('Method xcp_getAssets is not supported');
       });
     });
-    
+
     describe('xcp_getHistory', () => {
       it('should require authorization', async () => {
         await expect(
@@ -609,56 +564,6 @@ describe('ProviderService', () => {
             []
           )
         ).rejects.toThrow('Permission denied - transaction history not available through provider');
-      });
-    });
-    
-    describe('xcp_composeDispenser', () => {
-      it('should require authorization', async () => {
-        await expect(
-          providerService.handleRequest(
-            'https://notconnected.com',
-            'xcp_composeDispenser',
-            [{
-              asset: 'TEST',
-              give_quantity: 100,
-              escrow_quantity: 1000,
-              mainchainrate: 100000000
-            }]
-          )
-        ).rejects.toThrow('Unauthorized');
-      });
-    });
-    
-    describe('xcp_composeDividend', () => {
-      it('should require authorization', async () => {
-        await expect(
-          providerService.handleRequest(
-            'https://notconnected.com',
-            'xcp_composeDividend',
-            [{
-              asset: 'TEST',
-              dividend_asset: 'XCP',
-              quantity_per_unit: 100000
-            }]
-          )
-        ).rejects.toThrow('Unauthorized');
-      });
-    });
-    
-    describe('xcp_composeIssuance', () => {
-      it('should require authorization', async () => {
-        await expect(
-          providerService.handleRequest(
-            'https://notconnected.com',
-            'xcp_composeIssuance',
-            [{
-              asset: 'TEST',
-              quantity: 1000000,
-              divisible: true,
-              description: 'Test'
-            }]
-          )
-        ).rejects.toThrow('Unauthorized');
       });
     });
   });
@@ -700,89 +605,6 @@ describe('ProviderService', () => {
   });
 
   describe('Advanced Provider Features', () => {
-    describe('Compose Request Storage', () => {
-      it('should store compose request when handling compose methods', async () => {
-        // Mock connection service to return true
-        const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
-        mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
-
-        // Mock storage
-        const mockStorage = vi.mocked(composeRequestStorage).composeRequestStorage;
-
-        // Call a compose method
-        const params = {
-          destination: 'bc1qtest456',
-          asset: 'XCP',
-          quantity: 100
-        };
-
-        // Start the request (it will wait for events)
-        const requestPromise = providerService.handleRequest(
-          'https://test.com',
-          'xcp_composeSend',
-          [params]
-        );
-
-        // Wait for async operations
-        await new Promise(resolve => setTimeout(resolve, 10));
-
-        // Verify storage was called
-        expect(mockStorage.store).toHaveBeenCalledWith(
-          expect.objectContaining({
-            type: 'send',
-            origin: 'https://test.com',
-            params: expect.objectContaining({
-              ...params,
-              sourceAddress: 'bc1qtest123'
-            })
-          })
-        );
-
-        // Emit cancel event to end the promise
-        const storeCall = (mockStorage.store as any).mock.calls[0];
-        if (storeCall && storeCall[0]) {
-          const composeRequestId = storeCall[0].id;
-          eventEmitterService.emit(`compose-cancel-${composeRequestId}`, {});
-        }
-
-        // Expect rejection with user cancelled
-        await expect(requestPromise).rejects.toThrow('User cancelled compose request');
-      });
-
-      it('should store requests with TTL for automatic cleanup', async () => {
-        const mockStorage = vi.mocked(composeRequestStorage).composeRequestStorage;
-
-        // Verify that stored requests have a timestamp for TTL
-        const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
-        mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
-
-        // Start the request but don't await it (it will wait for events)
-        const requestPromise = providerService.handleRequest(
-          'https://test.com',
-          'xcp_composeSend',
-          [{ destination: 'bc1q', asset: 'XCP', quantity: 100 }]
-        );
-
-        // Wait for async operations
-        await new Promise(resolve => setTimeout(resolve, 10));
-
-        expect(mockStorage.store).toHaveBeenCalledWith(
-          expect.objectContaining({
-            timestamp: expect.any(Number)
-          })
-        );
-
-        // Cancel the request to clean up
-        const storeCall = (mockStorage.store as any).mock.calls[0];
-        if (storeCall && storeCall[0]) {
-          const composeRequestId = storeCall[0].id;
-          eventEmitterService.emit(`compose-cancel-${composeRequestId}`, {});
-        }
-
-        await expect(requestPromise).rejects.toThrow('User cancelled compose request');
-      });
-    });
-
     describe('Sign Message Request', () => {
       it('should handle xcp_signMessage with proper storage', async () => {
         // Mock connection service to return true
@@ -816,65 +638,39 @@ describe('ProviderService', () => {
       });
     });
 
-    describe('All 23 Compose Methods', () => {
-      const composeTypes = [
-        { method: 'xcp_composeSend', type: 'send', params: { destination: 'bc1q', asset: 'XCP', quantity: 100 } },
-        { method: 'xcp_composeOrder', type: 'order', params: { give_asset: 'XCP', give_quantity: 100, get_asset: 'BTC', get_quantity: 1000 } },
-        { method: 'xcp_composeDispenser', type: 'dispenser', params: { asset: 'TEST', give_quantity: 100, escrow_quantity: 1000, mainchainrate: 100000000 } },
-        { method: 'xcp_composeDispense', type: 'dispense', params: { dispenser: 'bc1q', quantity: 100 } },
-        { method: 'xcp_composeFairminter', type: 'fairminter', params: { asset: 'TEST' } },
-        { method: 'xcp_composeFairmint', type: 'fairmint', params: { asset: 'TEST' } },
-        { method: 'xcp_composeDividend', type: 'dividend', params: { asset: 'TEST', dividend_asset: 'XCP', quantity_per_unit: 100000 } },
-        { method: 'xcp_composeSweep', type: 'sweep', params: { destination: 'bc1q', flags: 1 } },
-        { method: 'xcp_composeBTCPay', type: 'btcpay', params: { order_match_id: '123' } },
-        { method: 'xcp_composeCancel', type: 'cancel', params: { offer_hash: '0x123' } },
-        { method: 'xcp_composeDispenserCloseByHash', type: 'dispenser-close-by-hash', params: { dispenser_hash: '0x123' } },
-        { method: 'xcp_composeBet', type: 'bet', params: { feed_address: 'bc1q', bet_type: 0 } },
-        { method: 'xcp_composeBroadcast', type: 'broadcast', params: { text: 'Hello', value: 1, fee_fraction: 0 } },
-        { method: 'xcp_composeAttach', type: 'attach', params: { destination_vout: '0x123:0', asset: 'TEST' } },
-        { method: 'xcp_composeDetach', type: 'detach', params: { destination: 'bc1q' } },
-        { method: 'xcp_composeMoveUTXO', type: 'move-utxo', params: { destination: 'bc1q' } },
-        { method: 'xcp_composeDestroy', type: 'destroy', params: { asset: 'TEST', quantity: 100 } },
-        { method: 'xcp_composeIssueSupply', type: 'issue-supply', params: { asset: 'TEST', quantity: 100 } },
-        { method: 'xcp_composeLockSupply', type: 'lock-supply', params: { asset: 'TEST' } },
-        { method: 'xcp_composeResetSupply', type: 'reset-supply', params: { asset: 'TEST' } },
-        { method: 'xcp_composeTransfer', type: 'transfer', params: { asset: 'TEST', quantity: 100, destination: 'bc1q' } },
-        { method: 'xcp_composeUpdateDescription', type: 'update-description', params: { asset: 'TEST', description: 'New description' } },
-        { method: 'xcp_composeLockDescription', type: 'lock-description', params: { asset: 'TEST' } }
-      ];
+    describe('Sign PSBT Request', () => {
+      it('should handle xcp_signPsbt with proper storage', async () => {
+        // Mock connection service to return true
+        const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
+        mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
 
-      composeTypes.forEach(({ method, type, params }) => {
-        it(`should handle ${method} correctly`, async () => {
-          // Mock connection service to return true
-          const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
-          mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+        // Mock storage
+        const mockStorage = vi.mocked(signPsbtRequestStorage).signPsbtRequestStorage;
 
-          // Mock storage
-          const mockStorage = vi.mocked(composeRequestStorage).composeRequestStorage;
+        const psbtHex = '70736274ff0100';
 
-          // Start the request - it will return a promise that waits for events
-          providerService.handleRequest(
-            'https://test.com',
-            method,
-            [params]
-          ).catch(() => {}); // Catch as it will try to open popup
+        // Start the request - it will return a promise that waits for events
+        providerService.handleRequest(
+          'https://test.com',
+          'xcp_signPsbt',
+          [{ hex: psbtHex }]
+        ).catch(() => {}); // Catch as it will try to open popup
 
-          // Wait for async operations
-          await new Promise(resolve => setTimeout(resolve, 10));
+        // Wait for async operations
+        await new Promise(resolve => setTimeout(resolve, 10));
 
-          // Verify storage was called with correct type
-          expect(mockStorage.store).toHaveBeenCalledWith(
-            expect.objectContaining({
-              type,
-              origin: 'https://test.com'
-            })
-          );
-        });
+        // Verify storage was called
+        expect(mockStorage.store).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://test.com',
+            psbtHex
+          })
+        );
       });
     });
 
     describe('Critical Operations and Update Management', () => {
-      it('should register critical operations during compose', async () => {
+      it('should register critical operations during signing', async () => {
         const mockUpdateService = vi.mocked(updateService.getUpdateService)();
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
         mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
@@ -882,16 +678,16 @@ describe('ProviderService', () => {
         // Start the request - it will return a promise that waits for events
         providerService.handleRequest(
           'https://test.com',
-          'xcp_composeSend',
-          [{ destination: 'bc1q', asset: 'XCP', quantity: 100 }]
+          'xcp_signPsbt',
+          [{ hex: '70736274ff0100' }]
         ).catch(() => {});
 
         // Wait for async operations
         await new Promise(resolve => setTimeout(resolve, 10));
 
-        // Verify critical operation was registered (composeRequestId is already 'compose-send-xxx', and registerCriticalOperation adds 'compose-' prefix)
+        // Verify critical operation was registered for signing
         expect(mockUpdateService.registerCriticalOperation).toHaveBeenCalledWith(
-          expect.stringMatching(/^compose-compose-send-\d+$/)
+          expect.stringMatching(/^sign-psbt-sign-psbt-\d+$/)
         );
       });
     });
@@ -904,10 +700,10 @@ describe('ProviderService', () => {
         await expect(
           providerService.handleRequest(
             'https://test.com',
-            'xcp_composeSend',
+            'xcp_signPsbt',
             []
           )
-        ).rejects.toThrow('Send parameters required');
+        ).rejects.toThrow('PSBT hex is required');
       });
 
       it('should handle invalid parameters gracefully', async () => {
@@ -917,10 +713,10 @@ describe('ProviderService', () => {
         await expect(
           providerService.handleRequest(
             'https://test.com',
-            'xcp_composeSend',
+            'xcp_signPsbt',
             [null]
           )
-        ).rejects.toThrow('Send parameters required');
+        ).rejects.toThrow('PSBT hex is required');
       });
 
       it('should handle wallet lock during operation', async () => {
@@ -933,8 +729,8 @@ describe('ProviderService', () => {
         await expect(
           providerService.handleRequest(
             'https://test.com',
-            'xcp_composeSend',
-            [{ destination: 'bc1q', asset: 'XCP', quantity: 100 }]
+            'xcp_signPsbt',
+            [{ hex: '70736274ff0100' }]
           )
         ).rejects.toThrow('No active address');
       });
@@ -948,15 +744,15 @@ describe('ProviderService', () => {
     });
 
     describe('Rate Limiting', () => {
-      it('should respect rate limits for compose operations', async () => {
+      it('should respect rate limits for signing operations', async () => {
         // Mock rate limiter to return false
         vi.mocked(rateLimiter.transactionRateLimiter.isAllowed).mockReturnValue(false);
 
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
         mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
 
-        // Note: Current implementation doesn't check rate limits for compose operations
-        // This test documents expected behavior that could be added
+        // Note: Rate limiting for signing operations
+        // This test documents expected behavior
       });
     });
   });

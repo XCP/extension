@@ -52,22 +52,26 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
       value: params.burn_payment ? "XCP Fee (burned)" : "XCP Fee (to issuer)",
     });
     
-    if (params.price !== undefined) {
+    // Support both new naming (lot_price) and legacy naming (price)
+    const lotPrice = params.lot_price ?? params.price;
+    if (lotPrice !== undefined) {
       fields.push({
         label: "Price per Mint",
         value: `${formatAmount({
-          value: fromSatoshis(params.price, true),
+          value: fromSatoshis(lotPrice, true),
           minimumFractionDigits: 8,
           maximumFractionDigits: 8,
         })} XCP`,
       });
     }
-    
-    if (params.quantity_by_price !== undefined) {
+
+    // Support both new naming (lot_size) and legacy naming (quantity_by_price)
+    const lotSize = params.lot_size ?? params.quantity_by_price;
+    if (lotSize !== undefined) {
       fields.push({
         label: "Quantity per Price",
         value: formatAmount({
-          value: isDivisible ? fromSatoshis(params.quantity_by_price, true) : params.quantity_by_price,
+          value: isDivisible ? fromSatoshis(lotSize, true) : lotSize,
           minimumFractionDigits: isDivisible ? 8 : 0,
           maximumFractionDigits: isDivisible ? 8 : 0,
         }),

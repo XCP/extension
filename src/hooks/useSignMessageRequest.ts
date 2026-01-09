@@ -8,7 +8,7 @@
  * - Cleaning up storage
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { signMessageRequestStorage, type SignMessageRequest } from '@/utils/storage/signMessageRequestStorage';
 
@@ -72,7 +72,7 @@ export function useSignMessageRequest() {
   }, []);
 
   // Handle completion for provider requests
-  const handleSuccess = async (result: { signature: string }) => {
+  const handleSuccess = useCallback(async (result: { signature: string }) => {
     if (signMessageRequestId) {
       // Notify the background that the sign message is complete
       // Uses chrome.runtime.sendMessage to cross the context boundary
@@ -81,10 +81,10 @@ export function useSignMessageRequest() {
       // Clean up the request
       await signMessageRequestStorage.remove(signMessageRequestId);
     }
-  };
+  }, [signMessageRequestId]);
 
   // Handle cancellation for provider requests
-  const handleCancel = async () => {
+  const handleCancel = useCallback(async () => {
     if (signMessageRequestId) {
       // Notify the background that the sign message was cancelled
       // Uses chrome.runtime.sendMessage to cross the context boundary
@@ -93,7 +93,7 @@ export function useSignMessageRequest() {
       // Clean up the request
       await signMessageRequestStorage.remove(signMessageRequestId);
     }
-  };
+  }, [signMessageRequestId]);
 
   return {
     providerMessage,

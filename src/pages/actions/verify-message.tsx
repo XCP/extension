@@ -51,18 +51,18 @@ export default function VerifyMessage(): ReactElement {
   }, [setHeaderProps, navigate, handleClear]);
   
   const handleVerify = async () => {
-    if (!address.trim()) {
-      setError("Please enter a Bitcoin address");
-      return;
-    }
-    
     if (!message.trim()) {
       setError("Please enter the message that was signed");
       return;
     }
-    
+
     if (!signature.trim()) {
       setError("Please enter the signature");
+      return;
+    }
+
+    if (!address.trim()) {
+      setError("Please enter the signer's Bitcoin address");
       return;
     }
     
@@ -123,31 +123,19 @@ export default function VerifyMessage(): ReactElement {
       
       {/* Combined Input Box */}
       <div className="bg-white rounded-lg shadow-sm p-4">
-        {/* Address Input */}
-        <DestinationInput
-          value={address}
-          onChange={setAddress}
-          label="Address"
-          placeholder="Enter the Bitcoin address"
+        {/* Message Input - First, since this is what they're verifying */}
+        <TextAreaInput
+          value={message}
+          onChange={setMessage}
+          label="Message"
+          placeholder="Enter the exact message that was signed..."
+          rows={4}
           required={false}
-          showHelpText={false}
+          showCharCount={true}
+          description="Must match exactly"
         />
-        
-        {/* Message Input */}
-        <div className="mt-4">
-          <TextAreaInput
-            value={message}
-            onChange={setMessage}
-            label="Message"
-            placeholder="Enter the exact message that was signed..."
-            rows={4}
-            required={false}
-            showCharCount={true}
-            description="Must match exactly"
-          />
-        </div>
-        
-        {/* Signature Input */}
+
+        {/* Signature Input - Second, usually received with the message */}
         <div className="mt-4">
           <TextAreaInput
             value={signature}
@@ -156,12 +144,18 @@ export default function VerifyMessage(): ReactElement {
             placeholder="Enter the signature (base64 or hex format)..."
             rows={3}
             required={false}
-            className={verificationResult !== null && !error
-              ? verificationResult
-                ? "border-green-500"
-                : "border-red-500"
-              : ""
-            }
+          />
+        </div>
+
+        {/* Address Input - Last, to verify against */}
+        <div className="mt-4">
+          <DestinationInput
+            value={address}
+            onChange={setAddress}
+            label="Signer's Address"
+            placeholder="Enter the Bitcoin address that signed this"
+            required={false}
+            showHelpText={false}
           />
           {verificationResult !== null && !error && (
             <div className="mt-2">

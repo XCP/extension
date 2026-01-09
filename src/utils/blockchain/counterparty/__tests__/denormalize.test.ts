@@ -74,11 +74,6 @@ describe('denormalize.ts', () => {
       expect(getComposeTypeFromProvider(params)).toBe('cancel');
     });
 
-    it('should detect bet type from feed_address and wager_quantity fields', () => {
-      const params = { feed_address: 'feed123', wager_quantity: '1000' };
-      expect(getComposeTypeFromProvider(params)).toBe('bet');
-    });
-
     it('should detect broadcast type from text field without asset', () => {
       const params = { text: 'Hello World' };
       expect(getComposeTypeFromProvider(params)).toBe('broadcast');
@@ -203,24 +198,6 @@ describe('denormalize.ts', () => {
         expect(mockFromSatoshis).toHaveBeenCalledWith('150000000', { removeTrailingZeros: true });
         expect(result.denormalizedData.quantity).toBe('1.5');
         expect(result.assetInfoCache.size).toBe(0); // XCP doesn't need asset info fetch
-      });
-
-      it('should handle XCP in bet scenario', async () => {
-        const providerData = {
-          wager_quantity: '100000000',
-          counterwager_quantity: '200000000'
-        };
-
-        mockFromSatoshis
-          .mockReturnValueOnce('1' as any)
-          .mockReturnValueOnce('2' as any);
-
-        const result = await denormalizeProviderData(providerData, 'bet');
-
-        expect(mockFromSatoshis).toHaveBeenCalledWith('100000000', { removeTrailingZeros: true });
-        expect(mockFromSatoshis).toHaveBeenCalledWith('200000000', { removeTrailingZeros: true });
-        expect(result.denormalizedData.wager_quantity).toBe('1');
-        expect(result.denormalizedData.counterwager_quantity).toBe('2');
       });
 
       it('should handle XCP burn scenario', async () => {
@@ -710,7 +687,7 @@ describe('denormalize.ts', () => {
       it('should handle fairminter compose type', async () => {
         const providerData = {
           premint_quantity: '100000000',
-          quantity_by_price: '200000000',
+          lot_size: '200000000',
           asset: 'FAIRTOKEN'
         };
 
@@ -730,7 +707,7 @@ describe('denormalize.ts', () => {
         const result = await denormalizeProviderData(providerData, 'fairminter');
 
         expect(result.denormalizedData.premint_quantity).toBe('1');
-        expect(result.denormalizedData.quantity_by_price).toBe('2');
+        expect(result.denormalizedData.lot_size).toBe('2');
       });
 
       it('should handle unknown compose type without denormalization', async () => {
@@ -773,22 +750,6 @@ describe('denormalize.ts', () => {
 
         expect(mockFromSatoshis).toHaveBeenCalledWith('100000', { removeTrailingZeros: true });
         expect(result.denormalizedData.mainchainrate).toBe('0.001');
-      });
-
-      it('should handle hardcoded XCP asset fields in bet', async () => {
-        const providerData = {
-          wager_quantity: '100000000',
-          counterwager_quantity: '200000000'
-        };
-
-        mockFromSatoshis
-          .mockReturnValueOnce('1' as any)
-          .mockReturnValueOnce('2' as any);
-
-        const result = await denormalizeProviderData(providerData, 'bet');
-
-        expect(result.denormalizedData.wager_quantity).toBe('1');
-        expect(result.denormalizedData.counterwager_quantity).toBe('2');
       });
 
       it('should handle dynamic asset field references', async () => {

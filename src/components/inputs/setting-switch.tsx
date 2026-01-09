@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Field, Label, Description, Switch } from "@headlessui/react";
+import { FiInfo } from "@/components/icons";
 import type { ReactElement } from "react";
 
 /**
@@ -21,19 +23,45 @@ interface SettingSwitchProps {
  * @param {SettingSwitchProps} props - Component props
  * @returns {ReactElement} Setting switch UI
  */
-export function SettingSwitch({ 
+export function SettingSwitch({
   label,
   description,
-  checked, 
-  onChange, 
-  showHelpText = false, 
+  checked,
+  onChange,
+  showHelpText = false,
   disabled = false,
   className = ""
 }: SettingSwitchProps): ReactElement {
+  const [showTooltip, setShowTooltip] = useState(false);
+
   return (
     <Field className={className}>
       <div className="flex items-center justify-between">
-        <Label className="font-bold">{label}</Label>
+        <div className="flex items-center gap-1.5">
+          <Label className="font-bold">{label}</Label>
+          {/* Show info icon when help text is hidden but description exists */}
+          {description && !showHelpText && (
+            <div className="relative inline-block">
+              <button
+                type="button"
+                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                onMouseEnter={() => setShowTooltip(true)}
+                onMouseLeave={() => setShowTooltip(false)}
+                onFocus={() => setShowTooltip(true)}
+                onBlur={() => setShowTooltip(false)}
+                aria-label={`Info: ${description}`}
+              >
+                <FiInfo className="w-3.5 h-3.5" />
+              </button>
+              {showTooltip && (
+                <div className="absolute left-0 bottom-full mb-2 z-50 w-48 p-2 text-xs text-gray-600 bg-white rounded-lg shadow-lg border border-gray-200">
+                  {description}
+                  <div className="absolute left-3 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white" />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <Switch
           checked={checked}
           onChange={onChange}

@@ -70,7 +70,16 @@ export default function AddressHistory(): ReactElement {
       setTotalTransactions(data.result_count);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch transactions");
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch transactions";
+      // "Invalid integer: cursor" error occurs for new addresses with no history
+      // Treat this as an empty result rather than an error
+      if (errorMessage.includes("Invalid integer: cursor")) {
+        setTransactions([]);
+        setTotalTransactions(0);
+        setError(null);
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }

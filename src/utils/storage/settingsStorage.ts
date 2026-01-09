@@ -54,7 +54,6 @@ export interface AppSettings {
   allowUnconfirmedTxs: boolean;
   enableMPMA: boolean;
   enableAdvancedBroadcasts: boolean;
-  enableAdvancedBetting: boolean;
   transactionDryRun: boolean;
 
   // API settings
@@ -83,7 +82,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   allowUnconfirmedTxs: true,
   enableMPMA: false,
   enableAdvancedBroadcasts: false,
-  enableAdvancedBetting: false,
   transactionDryRun: process.env.NODE_ENV === 'development',
   counterpartyApiBase: 'https://api.counterparty.io:4000',
   defaultOrderExpiration: 8064, // ~8 weeks (56 days) at 10min/block
@@ -241,7 +239,6 @@ function normalizeSettings(settings: AppSettings): AppSettings {
   normalized.allowUnconfirmedTxs = normalized.allowUnconfirmedTxs !== false; // default true
   normalized.enableMPMA = Boolean(normalized.enableMPMA);
   normalized.enableAdvancedBroadcasts = Boolean(normalized.enableAdvancedBroadcasts);
-  normalized.enableAdvancedBetting = Boolean(normalized.enableAdvancedBetting);
   normalized.transactionDryRun = Boolean(normalized.transactionDryRun);
   normalized.hasVisitedRecoverBitcoin = Boolean(normalized.hasVisitedRecoverBitcoin);
 

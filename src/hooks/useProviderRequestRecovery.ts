@@ -11,12 +11,12 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useWallet } from '@/contexts/wallet-context';
-import { composeRequestStorage } from '@/utils/storage/composeRequestStorage';
 import { signMessageRequestStorage } from '@/utils/storage/signMessageRequestStorage';
+import { signPsbtRequestStorage } from '@/utils/storage/signPsbtRequestStorage';
 
 interface PendingRequest {
   id: string;
-  type: 'compose' | 'sign';
+  type: 'sign-message' | 'sign-psbt';
   origin: string;
   path: string;
   timestamp: number;
@@ -44,44 +44,43 @@ export function useProviderRequestRecovery() {
 
   async function checkForPendingRequests() {
     try {
-      // Check compose requests
-      const composeRequests = await composeRequestStorage.getAll();
-      const validComposeRequests = composeRequests.filter(req => {
+      // Check sign message requests
+      const signMessageRequests = await signMessageRequestStorage.getAll();
+      const validSignMessageRequests = signMessageRequests.filter(req => {
         const age = Date.now() - req.timestamp;
-        // Still valid if less than 5 minutes old
         return age < 5 * 60 * 1000;
       });
 
-      if (validComposeRequests.length > 0) {
-        const mostRecent = validComposeRequests[0];
+      if (validSignMessageRequests.length > 0) {
+        const mostRecent = validSignMessageRequests[0];
         setPendingRequest({
           id: mostRecent.id,
-          type: 'compose',
+          type: 'sign-message',
           origin: mostRecent.origin,
-          path: getComposeRoutePath(mostRecent.type),
+          path: '/provider/approve-sign-message',
           timestamp: mostRecent.timestamp,
-          data: mostRecent.params
+          data: { message: mostRecent.message }
         });
         setShowRecoveryPrompt(true);
         return;
       }
 
-      // Check sign message requests
-      const signRequests = await signMessageRequestStorage.getAll();
-      const validSignRequests = signRequests.filter(req => {
+      // Check sign PSBT requests
+      const signPsbtRequests = await signPsbtRequestStorage.getAll();
+      const validSignPsbtRequests = signPsbtRequests.filter(req => {
         const age = Date.now() - req.timestamp;
         return age < 5 * 60 * 1000;
       });
 
-      if (validSignRequests.length > 0) {
-        const mostRecent = validSignRequests[0];
+      if (validSignPsbtRequests.length > 0) {
+        const mostRecent = validSignPsbtRequests[0];
         setPendingRequest({
           id: mostRecent.id,
-          type: 'sign',
+          type: 'sign-psbt',
           origin: mostRecent.origin,
-          path: '/actions/sign-message',
+          path: '/provider/approve-psbt',
           timestamp: mostRecent.timestamp,
-          data: { message: mostRecent.message }
+          data: { psbtHex: mostRecent.psbtHex }
         });
         setShowRecoveryPrompt(true);
       }
@@ -90,43 +89,14 @@ export function useProviderRequestRecovery() {
     }
   }
 
-  function getComposeRoutePath(composeType: string): string {
-    const routeMap: { [key: string]: string } = {
-      'send': '/compose/send',
-      'order': '/compose/order',
-      'dispenser': '/compose/dispenser',
-      'dispense': '/compose/dispenser/dispense',
-      'fairminter': '/compose/fairminter',
-      'fairmint': '/compose/fairmint',
-      'dividend': '/compose/dividend',
-      'sweep': '/compose/sweep',
-      'btcpay': '/compose/btcpay',
-      'cancel': '/compose/cancel',
-      'dispenser-close-by-hash': '/compose/dispenser/close-by-hash',
-      'bet': '/compose/bet',
-      'broadcast': '/compose/broadcast',
-      'attach': '/compose/utxo/attach',
-      'detach': '/compose/utxo/detach',
-      'move-utxo': '/compose/utxo/move',
-      'destroy': '/compose/destroy',
-      'issue-supply': '/compose/issuance/issue-supply',
-      'lock-supply': '/compose/issuance/lock-supply',
-      'reset-supply': '/compose/issuance/reset-supply',
-      'transfer': '/compose/issuance/transfer-ownership',
-      'update-description': '/compose/issuance/update-description',
-      'lock-description': '/compose/issuance/lock-description'
-    };
-    return routeMap[composeType] || '/compose/send';
-  }
-
   async function resumeRequest() {
     if (!pendingRequest) return;
 
     try {
       // Navigate to the appropriate page with the request ID
-      const queryParam = pendingRequest.type === 'compose'
-        ? `composeRequestId=${pendingRequest.id}`
-        : `signMessageRequestId=${pendingRequest.id}`;
+      const queryParam = pendingRequest.type === 'sign-message'
+        ? `signMessageRequestId=${pendingRequest.id}`
+        : `signPsbtRequestId=${pendingRequest.id}`;
 
       navigate(`${pendingRequest.path}?${queryParam}`);
       setShowRecoveryPrompt(false);
@@ -139,18 +109,17 @@ export function useProviderRequestRecovery() {
     if (!pendingRequest) return;
 
     try {
-      if (pendingRequest.type === 'compose') {
-        await composeRequestStorage.remove(pendingRequest.id);
-        // Emit cancellation event for the dApp
+      if (pendingRequest.type === 'sign-message') {
+        await signMessageRequestStorage.remove(pendingRequest.id);
         chrome.runtime.sendMessage({
-          type: 'PROVIDER_REQUEST_CANCELLED',
+          type: 'SIGN_MESSAGE_REQUEST_CANCELLED',
           requestId: pendingRequest.id,
           reason: 'User cancelled after recovery prompt'
         });
-      } else {
-        await signMessageRequestStorage.remove(pendingRequest.id);
+      } else if (pendingRequest.type === 'sign-psbt') {
+        await signPsbtRequestStorage.remove(pendingRequest.id);
         chrome.runtime.sendMessage({
-          type: 'SIGN_REQUEST_CANCELLED',
+          type: 'SIGN_PSBT_REQUEST_CANCELLED',
           requestId: pendingRequest.id,
           reason: 'User cancelled after recovery prompt'
         });

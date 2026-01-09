@@ -5,9 +5,11 @@ import { MemoryRouter } from 'react-router-dom';
 import { DispenseForm } from '../form';
 import { ComposerProvider } from '@/contexts/composer-context';
 import * as counterpartyApi from '@/utils/blockchain/counterparty/api';
+import * as fetchAssetDataModule from '@/hooks/utils/fetchAssetData';
 
 // Mock the API module
 vi.mock('@/utils/blockchain/counterparty/api');
+vi.mock('@/hooks/utils/fetchAssetData');
 
 // Mock fee rates to prevent network calls
 vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
@@ -65,7 +67,7 @@ vi.mock('@/contexts/loading-context', () => ({
 describe('DispenseForm', () => {
   const mockFormAction = vi.fn();
   const mockFetchAddressDispensers = vi.mocked(counterpartyApi.fetchAddressDispensers);
-  const mockFetchAssetDetailsAndBalance = vi.mocked(counterpartyApi.fetchAssetDetailsAndBalance);
+  const mockFetchAssetDetailsAndBalance = vi.mocked(fetchAssetDataModule.fetchAssetDetailsAndBalance);
 
   // Helper function to render with provider
   const renderWithProvider = (initialFormData: any = null) => {

@@ -44,10 +44,10 @@ export function CancelForm({
             label="Order Hash"
             name="offer_hash"
             hashType="offer"
-            placeholder="Enter Tx Hash"
+            placeholder="Enter order transaction hash"
             required={true}
             showHelpText={showHelpText}
-            description="Enter the hash of the order you want to cancel."
+            description="Transaction hash of the order to cancel. Found in your order history."
             showCopyButton={true}
           />
           <input type="hidden" name="offer_hash" value={offerHash} />

@@ -9,13 +9,9 @@ import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { useTradingPair } from "@/hooks/useTradingPair";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
-
-interface TradingPairData {
-  last_trade_price: string | null;
-  name: string;
-}
 
 /**
  * Props for the DispenserForm component, aligned with Composer's formAction.
@@ -61,8 +57,10 @@ export const DispenserForm = memo(function DispenserForm({
   
   // Asset state
   const [availableBalance, setAvailableBalance] = useState<string>("0");
-  const [tradingPairData, setTradingPairData] = useState<TradingPairData | null>(null);
-  
+
+  // Trading pair data from hook
+  const { data: tradingPairData } = useTradingPair(asset, 'BTC');
+
   // Computed values
   const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
 
@@ -87,32 +85,12 @@ export const DispenserForm = memo(function DispenserForm({
     }
   }, [asset]);
 
-  // Fetch asset details and trading pair data
+  // Update available balance when asset details load
   useEffect(() => {
-    const fetchDetails = async () => {
-      if (!asset || !activeAddress?.address) return;
-      try {
-        if (assetDetails?.availableBalance) {
-          setAvailableBalance(assetDetails.availableBalance);
-        }
-
-        const response = await fetch(`https://app.xcp.io/api/v1/swap/${asset}/BTC`);
-        if (!response.ok) throw new Error('Failed to fetch');
-        const data = await response.json();
-        const lastTradePrice = data?.data?.trading_pair?.last_trade_price || null;
-        setTradingPairData((prev) => {
-          // Only update if the data has changed
-          if (prev?.last_trade_price === lastTradePrice && prev?.name === "BTC") {
-            return prev;
-          }
-          return { last_trade_price: lastTradePrice, name: "BTC" };
-        });
-      } catch (err) {
-        console.error("Error fetching asset details:", err);
-      }
-    };
-    fetchDetails();
-  }, [asset, activeAddress?.address, assetDetails]);
+    if (assetDetails?.availableBalance) {
+      setAvailableBalance(assetDetails.availableBalance);
+    }
+  }, [assetDetails?.availableBalance]);
 
   // Focus escrow_quantity input on mount
   useEffect(() => {
@@ -221,9 +199,9 @@ export const DispenserForm = memo(function DispenserForm({
             showHelpText={showHelpText}
             sourceAddress={activeAddress}
             maxAmount={availableBalance}
-            label="Dispenser Escrow"
+            label="Escrow Amount"
             name="escrow_quantity_display"
-            description={`The total quantity of the asset to reserve for this dispenser. ${
+            description={`Total amount to lock in the dispenser. ${
               isDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only."
             } Available: ${availableBalance}`}
             disabled={pending}
@@ -233,14 +211,14 @@ export const DispenserForm = memo(function DispenserForm({
             onChange={setMainchainRate}
             tradingPairData={tradingPairData}
             showHelpText={showHelpText}
-            label="BTC Per Dispense"
+            label="BTC Price"
             name="mainchainrate_display"
-            priceDescription="The amount of BTC required per dispensed portion."
+            priceDescription="BTC required to trigger one dispense."
             showPairFlip={false}
           />
           <Field>
             <Label htmlFor="give_quantity_display" className="text-sm font-medium text-gray-700">
-              Dispense Amount <span className="text-red-500">*</span>
+              Amount per Dispense <span className="text-red-500">*</span>
             </Label>
             <Input
               id="give_quantity_display"

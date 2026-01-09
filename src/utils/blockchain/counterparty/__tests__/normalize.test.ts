@@ -289,38 +289,25 @@ describe('normalize.ts', () => {
     });
 
     describe('API error handling', () => {
-      it('should handle API fetch errors gracefully', async () => {
+      it('should throw error when API fetch fails', async () => {
         const formData = new FormData();
         formData.set('quantity', '1.5');
         formData.set('asset', 'UNKNOWN');
 
         mockFetchAssetDetails.mockRejectedValue(new Error('Asset not found'));
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-        const result = await normalizeFormData(formData, 'send');
-
+        await expect(normalizeFormData(formData, 'send')).rejects.toThrow('Asset not found');
         expect(mockFetchAssetDetails).toHaveBeenCalledWith('UNKNOWN');
-        expect(consoleSpy).toHaveBeenCalledWith(
-          'Failed to fetch asset info for UNKNOWN:',
-          expect.any(Error)
-        );
-        expect(result.normalizedData.quantity).toBe('1.5'); // Not normalized due to error
-        expect(result.assetInfoCache.get('UNKNOWN')).toBeNull();
-
-        consoleSpy.mockRestore();
       });
 
-      it('should handle null asset info response', async () => {
+      it('should throw error for null asset info response', async () => {
         const formData = new FormData();
         formData.set('quantity', '1.5');
         formData.set('asset', 'NULLASSET');
 
         mockFetchAssetDetails.mockResolvedValue(null);
 
-        const result = await normalizeFormData(formData, 'send');
-
-        expect(result.normalizedData.quantity).toBe('1.5'); // Not normalized
-        expect(result.assetInfoCache.get('NULLASSET')).toBeNull();
+        await expect(normalizeFormData(formData, 'send')).rejects.toThrow('Asset "NULLASSET" not found');
       });
     });
 

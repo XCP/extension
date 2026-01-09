@@ -17,7 +17,7 @@ const PATHS = {
   BACK: "/index",
 } as const;
 
-const getActionSections = (isSegwitWallet: boolean, enableMPMA: boolean, enableAdvancedBetting: boolean, showRecoverBitcoinNotification: boolean, navigate: (path: string) => void): ActionSection[] => {
+const getActionSections = (isSegwitWallet: boolean, enableMPMA: boolean, showRecoverBitcoinNotification: boolean, navigate: (path: string) => void): ActionSection[] => {
   const sections: ActionSection[] = [
     {
       title: "Tools",
@@ -115,21 +115,6 @@ const getActionSections = (isSegwitWallet: boolean, enableMPMA: boolean, enableA
     },
   ];
 
-  // Conditionally add betting section if enabled
-  if (enableAdvancedBetting) {
-    sections.push({
-      title: "Betting", 
-      items: [
-        {
-          id: "place-bet",
-          title: "Place Bet",
-          description: "Create a new bet on the network",
-          onClick: () => navigate("/compose/bet"),
-        },
-      ],
-    });
-  }
-
   return sections;
 };
 
@@ -157,15 +142,12 @@ export default function ActionsScreen(): ReactElement {
   
   // Check if MPMA is enabled
   const enableMPMA = settings?.enableMPMA ?? false;
-  
-  // Check if Advanced Betting is enabled
-  const enableAdvancedBetting = settings?.enableAdvancedBetting ?? false;
 
   // Check if user has visited recover bitcoin page
   const showRecoverBitcoinNotification = !settings?.hasVisitedRecoverBitcoin;
   
   // Get dynamic action sections based on wallet type and settings
-  const actionSections = getActionSections(isSegwitWallet, enableMPMA, enableAdvancedBetting, showRecoverBitcoinNotification, navigate);
+  const actionSections = getActionSections(isSegwitWallet, enableMPMA, showRecoverBitcoinNotification, navigate);
 
   // Configure header
   useEffect(() => {

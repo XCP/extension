@@ -4,7 +4,7 @@ import { FiPlus, FiMinus } from "@/components/icons";
 import { lookupAssetOwner, shouldTriggerAssetLookup } from "@/utils/validation/assetOwner";
 import { validateDestinations, parseMultiLineDestinations, isMPMASupported } from "@/utils/validation/destinations";
 import { validateBitcoinAddress } from "@/utils/validation/bitcoin";
-import { useMultiAssetOwnerLookup } from "@/hooks/useMultiAssetOwnerLookup";
+import { useMultiAssetOwnerLookup } from "@/hooks/useAssetOwnerLookup";
 
 interface Destination {
   id: number;

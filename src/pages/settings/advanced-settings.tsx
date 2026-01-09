@@ -135,14 +135,6 @@ export default function AdvancedSettings(): ReactElement {
       />
 
       <SettingSwitch
-        label="Advanced Betting"
-        description="Show betting options in the actions menu."
-        checked={settings.enableAdvancedBetting}
-        onChange={(checked) => updateSettings({ enableAdvancedBetting: checked })}
-        showHelpText={shouldShowHelpText}
-      />
-
-      <SettingSwitch
         label="Show/Hide Help Text"
         description="Show or hide help text by default."
         checked={settings.showHelpText}
