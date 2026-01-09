@@ -41,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
     steps:
       - name: Checkout code
@@ -59,10 +59,10 @@ jobs:
       - name: Build extension
         run: npm run build
 
-      - name: Run unit tests (Shard ${{ matrix.shard }}/16)
+      - name: Run unit tests (Shard ${{ matrix.shard }}/10)
         env:
           NODE_OPTIONS: --max-old-space-size=4096
-        run: npx vitest run src --shard=${{ matrix.shard }}/16
+        run: npx vitest run src --shard=${{ matrix.shard }}/10
 
       - name: Upload unit test results
         if: always()
