@@ -171,6 +171,9 @@ describe('RateLimiter', () => {
   });
 
   afterEach(() => {
+    // Ensure any auto-cleanup intervals are stopped
+    rateLimiter.stopAutoCleanup();
+    vi.clearAllMocks();
     vi.useRealTimers();
   });
 

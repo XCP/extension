@@ -109,6 +109,12 @@ describe('ApprovalQueue', () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    // Ensure any auto-cleanup intervals are stopped
+    queue.stopAutoCleanup();
+    queue.clear();
+  });
+
   describe('Request Management', () => {
     it('should add request to queue', () => {
       const request = {

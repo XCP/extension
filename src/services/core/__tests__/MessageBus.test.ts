@@ -21,6 +21,10 @@ describe('MessageBus', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
+    // Reset the mock functions to clear accumulated call history
+    mockSendMessage.mockReset();
+    mockOnMessage.mockReset();
   });
 
   describe('ensureBackgroundReady', () => {

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useConsolidateAndBroadcast } from '../useConsolidateAndBroadcast';
 import { useWallet } from '@/contexts/wallet-context';
@@ -55,10 +55,10 @@ describe('useConsolidateAndBroadcast', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Make sure broadcastTransaction mock returns the expected result
     mockWalletContext.broadcastTransaction.mockResolvedValue({ txid: 'abc123' });
-    
+
     vi.mocked(useWallet).mockReturnValue(mockWalletContext as any);
     vi.mocked(consolidateBareMultisig).mockResolvedValue('0x123signed');
     vi.mocked(mockWalletContext.getPrivateKey).mockResolvedValue({
@@ -66,6 +66,10 @@ describe('useConsolidateAndBroadcast', () => {
       hex: '1234567890abcdef',
       compressed: true
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('Initial State', () => {

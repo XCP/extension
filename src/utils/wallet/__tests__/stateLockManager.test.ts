@@ -11,6 +11,7 @@ describe('StateLockManager', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
     stateLockManager.clearAll();
   });
 
