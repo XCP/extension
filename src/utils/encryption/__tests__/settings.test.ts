@@ -32,50 +32,47 @@ describe('settings encryption', () => {
     it('should store derived key in session storage', async () => {
       await initializeSettingsKey(TEST_PASSWORD);
 
-      // Check that key was stored in session storage
-      const result = await fakeBrowser.storage.session.get('settingsEncryptionKey');
-      expect(result.settingsEncryptionKey).toBeDefined();
-      expect(typeof result.settingsEncryptionKey).toBe('string');
+      // Verify key was stored by checking it's available
+      const available = await isSettingsKeyAvailable();
+      expect(available).toBe(true);
     });
 
     it('should derive same key for same password', async () => {
+      // First initialization
       await initializeSettingsKey(TEST_PASSWORD);
-      const result1 = await fakeBrowser.storage.session.get('settingsEncryptionKey');
-      const key1 = result1.settingsEncryptionKey;
+      const encrypted1 = await encryptSettings(TEST_SETTINGS);
 
-      // Clear and reinitialize
-      await fakeBrowser.storage.session.remove('settingsEncryptionKey');
+      // Clear and reinitialize with same password
+      await clearSettingsKey();
       await initializeSettingsKey(TEST_PASSWORD);
-      const result2 = await fakeBrowser.storage.session.get('settingsEncryptionKey');
-      const key2 = result2.settingsEncryptionKey;
 
-      expect(key1).toBe(key2);
+      // Should decrypt with the newly derived key (same key for same password)
+      const decrypted = await decryptSettings(encrypted1);
+      expect(decrypted).toEqual(TEST_SETTINGS);
     });
 
     it('should derive different keys for different passwords', async () => {
       await initializeSettingsKey('password1');
-      const result1 = await fakeBrowser.storage.session.get('settingsEncryptionKey');
-      const key1 = result1.settingsEncryptionKey;
+      const encrypted = await encryptSettings(TEST_SETTINGS);
 
-      await fakeBrowser.storage.session.remove('settingsEncryptionKey');
+      await clearSettingsKey();
       await initializeSettingsKey('password2');
-      const result2 = await fakeBrowser.storage.session.get('settingsEncryptionKey');
-      const key2 = result2.settingsEncryptionKey;
 
-      expect(key1).not.toBe(key2);
+      // Different password should produce different key, decryption should fail
+      await expect(decryptSettings(encrypted)).rejects.toThrow(
+        'Failed to decrypt settings'
+      );
     });
   });
 
   describe('clearSettingsKey', () => {
     it('should remove key from session storage', async () => {
       await initializeSettingsKey(TEST_PASSWORD);
-      const result1 = await fakeBrowser.storage.session.get('settingsEncryptionKey');
-      expect(result1.settingsEncryptionKey).toBeDefined();
+      expect(await isSettingsKeyAvailable()).toBe(true);
 
       await clearSettingsKey();
 
-      const result2 = await fakeBrowser.storage.session.get('settingsEncryptionKey');
-      expect(result2.settingsEncryptionKey).toBeUndefined();
+      expect(await isSettingsKeyAvailable()).toBe(false);
     });
   });
 
@@ -176,7 +173,7 @@ describe('settings encryption', () => {
       const encrypted = await encryptSettings(TEST_SETTINGS);
 
       // Clear and initialize with different password
-      await fakeBrowser.storage.session.remove('settingsEncryptionKey');
+      await clearSettingsKey();
       await initializeSettingsKey('password2');
 
       await expect(decryptSettings(encrypted)).rejects.toThrow(

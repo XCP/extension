@@ -26,9 +26,13 @@ vi.mock('@/contexts/settings-context', () => ({
   })
 }));
 
+// Extract stable mock references to prevent useCallback invalidation on re-renders
+const mockSetHeaderProps = vi.fn();
+const mockCacheBalances = vi.fn();
 vi.mock('@/contexts/header-context', () => ({
   useHeader: () => ({
-    setHeaderProps: vi.fn()
+    setHeaderProps: mockSetHeaderProps,
+    cacheBalances: mockCacheBalances
   })
 }));
 
