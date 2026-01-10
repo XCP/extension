@@ -3,9 +3,11 @@
  *
  * Tracks update availability and reload scheduling for the update service.
  * Stored in local storage (persists across browser restarts).
+ *
+ * Uses wxt storage for consistency with other storage modules.
  */
 
-const UPDATE_STATE_KEY = 'update_service_state';
+import { storage } from '#imports';
 
 export interface UpdateState {
   updateAvailable: boolean;
@@ -16,17 +18,19 @@ export interface UpdateState {
 }
 
 /**
+ * Update state item - persisted in local storage.
+ */
+const updateStateItem = storage.defineItem<UpdateState | null>('local:updateServiceState', {
+  fallback: null,
+});
+
+/**
  * Gets the update state from local storage.
  * Returns null if no state exists.
  */
 export async function getUpdateState(): Promise<UpdateState | null> {
-  if (!chrome?.storage?.local) {
-    return null;
-  }
-
   try {
-    const result = await chrome.storage.local.get(UPDATE_STATE_KEY);
-    return (result[UPDATE_STATE_KEY] as UpdateState) ?? null;
+    return await updateStateItem.getValue();
   } catch (err) {
     console.error('Failed to get update state:', err);
     return null;
@@ -37,12 +41,8 @@ export async function getUpdateState(): Promise<UpdateState | null> {
  * Saves the update state to local storage.
  */
 export async function setUpdateState(state: UpdateState): Promise<void> {
-  if (!chrome?.storage?.local) {
-    return;
-  }
-
   try {
-    await chrome.storage.local.set({ [UPDATE_STATE_KEY]: state });
+    await updateStateItem.setValue(state);
   } catch (err) {
     console.error('Failed to save update state:', err);
     throw new Error('Failed to save update state');
@@ -53,13 +53,10 @@ export async function setUpdateState(state: UpdateState): Promise<void> {
  * Clears the update state from local storage.
  */
 export async function clearUpdateState(): Promise<void> {
-  if (!chrome?.storage?.local) {
-    return;
-  }
-
   try {
-    await chrome.storage.local.remove(UPDATE_STATE_KEY);
+    await updateStateItem.removeValue();
   } catch (err) {
     console.error('Failed to clear update state:', err);
+    // Note: Clearing update state is non-critical, don't throw
   }
 }

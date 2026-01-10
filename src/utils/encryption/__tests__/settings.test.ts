@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { fakeBrowser } from 'wxt/testing';
 import {
   initializeSettingsKey,
   clearSettingsKey,
@@ -9,43 +10,6 @@ import {
   decryptSettingsWithPassword,
 } from '../settings';
 import { DEFAULT_SETTINGS, type AppSettings } from '@/utils/storage/settingsStorage';
-
-// Mock chrome.storage (both session and local)
-const mockSessionStorage: Record<string, string> = {};
-const mockLocalStorage: Record<string, string> = {};
-
-vi.stubGlobal('chrome', {
-  storage: {
-    session: {
-      get: vi.fn(async (key: string) => {
-        if (typeof key === 'string') {
-          return { [key]: mockSessionStorage[key] };
-        }
-        return mockSessionStorage;
-      }),
-      set: vi.fn(async (items: Record<string, string>) => {
-        Object.assign(mockSessionStorage, items);
-      }),
-      remove: vi.fn(async (key: string) => {
-        delete mockSessionStorage[key];
-      }),
-    },
-    local: {
-      get: vi.fn(async (key: string) => {
-        if (typeof key === 'string') {
-          return { [key]: mockLocalStorage[key] };
-        }
-        return mockLocalStorage;
-      }),
-      set: vi.fn(async (items: Record<string, string>) => {
-        Object.assign(mockLocalStorage, items);
-      }),
-      remove: vi.fn(async (key: string) => {
-        delete mockLocalStorage[key];
-      }),
-    },
-  },
-});
 
 describe('settings encryption', () => {
   const TEST_PASSWORD = 'test-password-123';
@@ -61,40 +25,42 @@ describe('settings encryption', () => {
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    // Clear both storage types
-    Object.keys(mockSessionStorage).forEach(key => delete mockSessionStorage[key]);
-    Object.keys(mockLocalStorage).forEach(key => delete mockLocalStorage[key]);
+    fakeBrowser.reset();
   });
 
   describe('initializeSettingsKey', () => {
     it('should store derived key in session storage', async () => {
       await initializeSettingsKey(TEST_PASSWORD);
 
-      expect(chrome.storage.session.set).toHaveBeenCalled();
-      expect(mockSessionStorage['settingsEncryptionKey']).toBeDefined();
-      expect(typeof mockSessionStorage['settingsEncryptionKey']).toBe('string');
+      // Check that key was stored in session storage
+      const result = await fakeBrowser.storage.session.get('settingsEncryptionKey');
+      expect(result.settingsEncryptionKey).toBeDefined();
+      expect(typeof result.settingsEncryptionKey).toBe('string');
     });
 
     it('should derive same key for same password', async () => {
       await initializeSettingsKey(TEST_PASSWORD);
-      const key1 = mockSessionStorage['settingsEncryptionKey'];
+      const result1 = await fakeBrowser.storage.session.get('settingsEncryptionKey');
+      const key1 = result1.settingsEncryptionKey;
 
       // Clear and reinitialize
-      delete mockSessionStorage['settingsEncryptionKey'];
+      await fakeBrowser.storage.session.remove('settingsEncryptionKey');
       await initializeSettingsKey(TEST_PASSWORD);
-      const key2 = mockSessionStorage['settingsEncryptionKey'];
+      const result2 = await fakeBrowser.storage.session.get('settingsEncryptionKey');
+      const key2 = result2.settingsEncryptionKey;
 
       expect(key1).toBe(key2);
     });
 
     it('should derive different keys for different passwords', async () => {
       await initializeSettingsKey('password1');
-      const key1 = mockSessionStorage['settingsEncryptionKey'];
+      const result1 = await fakeBrowser.storage.session.get('settingsEncryptionKey');
+      const key1 = result1.settingsEncryptionKey;
 
-      delete mockSessionStorage['settingsEncryptionKey'];
+      await fakeBrowser.storage.session.remove('settingsEncryptionKey');
       await initializeSettingsKey('password2');
-      const key2 = mockSessionStorage['settingsEncryptionKey'];
+      const result2 = await fakeBrowser.storage.session.get('settingsEncryptionKey');
+      const key2 = result2.settingsEncryptionKey;
 
       expect(key1).not.toBe(key2);
     });
@@ -103,11 +69,13 @@ describe('settings encryption', () => {
   describe('clearSettingsKey', () => {
     it('should remove key from session storage', async () => {
       await initializeSettingsKey(TEST_PASSWORD);
-      expect(mockSessionStorage['settingsEncryptionKey']).toBeDefined();
+      const result1 = await fakeBrowser.storage.session.get('settingsEncryptionKey');
+      expect(result1.settingsEncryptionKey).toBeDefined();
 
       await clearSettingsKey();
 
-      expect(chrome.storage.session.remove).toHaveBeenCalledWith('settingsEncryptionKey');
+      const result2 = await fakeBrowser.storage.session.get('settingsEncryptionKey');
+      expect(result2.settingsEncryptionKey).toBeUndefined();
     });
   });
 
@@ -208,7 +176,7 @@ describe('settings encryption', () => {
       const encrypted = await encryptSettings(TEST_SETTINGS);
 
       // Clear and initialize with different password
-      delete mockSessionStorage['settingsEncryptionKey'];
+      await fakeBrowser.storage.session.remove('settingsEncryptionKey');
       await initializeSettingsKey('password2');
 
       await expect(decryptSettings(encrypted)).rejects.toThrow(

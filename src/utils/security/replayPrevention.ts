@@ -151,31 +151,23 @@ export function validateNonce(origin: string, address: string, providedNonce: nu
 }
 
 /**
- * Generate an idempotency key from request parameters using crypto.subtle
- * Falls back to sync version if crypto.subtle is unavailable
+ * Generate an idempotency key from request parameters using crypto.subtle.
+ *
+ * Note: crypto.subtle is guaranteed to be available in Chrome extension context
+ * (Chrome requires secure context). We don't need availability checks.
  */
 async function generateIdempotencyKeyAsync(origin: string, method: string, params: any[]): Promise<string> {
   const paramsString = JSON.stringify(params);
   const timestamp = Math.floor(Date.now() / 1000); // Second precision
   const input = `${origin}:${method}:${paramsString}:${timestamp}`;
 
-  // Use Web Crypto API for secure hashing
-  if (typeof crypto !== 'undefined' && crypto.subtle) {
-    try {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(input);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      // Take first 16 bytes for a reasonable key length
-      const hashHex = hashArray.slice(0, 16).map(b => b.toString(16).padStart(2, '0')).join('');
-      return `idem_${hashHex}_${timestamp}`;
-    } catch {
-      // Fall through to sync version
-    }
-  }
-
-  // Fallback to sync version (reuse, don't duplicate)
-  return generateIdempotencyKeyInternal(origin, method, params);
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  // Take first 16 bytes for a reasonable key length
+  const hashHex = hashArray.slice(0, 16).map(b => b.toString(16).padStart(2, '0')).join('');
+  return `idem_${hashHex}_${timestamp}`;
 }
 
 /**

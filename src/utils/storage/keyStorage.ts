@@ -6,12 +6,28 @@
  *
  * - Salt: Stored in local storage (persistent across browser restarts)
  * - Cached key: Stored in session storage (cleared on browser close)
+ *
+ * Uses wxt storage for consistency with other storage modules.
  */
 
+import { storage } from '#imports';
 import { createWriteLock } from './mutex';
 
-const SETTINGS_SALT_KEY = 'settingsEncryptionSalt';
-const SETTINGS_KEY = 'settingsEncryptionKey';
+/**
+ * Settings encryption salt - persisted in local storage.
+ * Used for PBKDF2 key derivation.
+ */
+const settingsSaltItem = storage.defineItem<string | null>('local:settingsEncryptionSalt', {
+  fallback: null,
+});
+
+/**
+ * Settings encryption key - cached in session storage.
+ * Cleared when browser closes.
+ */
+const settingsKeyItem = storage.defineItem<string | null>('session:settingsEncryptionKey', {
+  fallback: null,
+});
 
 // Write lock for salt creation (prevents race conditions)
 const withSaltLock = createWriteLock();
@@ -22,8 +38,7 @@ const withSaltLock = createWriteLock();
  */
 export async function getSettingsSalt(): Promise<string | null> {
   try {
-    const result = await chrome.storage.local.get(SETTINGS_SALT_KEY);
-    return (result[SETTINGS_SALT_KEY] as string) ?? null;
+    return await settingsSaltItem.getValue();
   } catch (err) {
     console.error('Failed to get settings salt:', err);
     return null;
@@ -37,7 +52,7 @@ export async function getSettingsSalt(): Promise<string | null> {
 export async function setSettingsSalt(saltBase64: string): Promise<void> {
   return withSaltLock(async () => {
     try {
-      await chrome.storage.local.set({ [SETTINGS_SALT_KEY]: saltBase64 });
+      await settingsSaltItem.setValue(saltBase64);
     } catch (err) {
       console.error('Failed to set settings salt:', err);
       throw new Error('Failed to store settings salt');
@@ -51,8 +66,7 @@ export async function setSettingsSalt(saltBase64: string): Promise<void> {
  */
 export async function getCachedSettingsKey(): Promise<string | null> {
   try {
-    const result = await chrome.storage.session.get(SETTINGS_KEY);
-    return (result[SETTINGS_KEY] as string) ?? null;
+    return await settingsKeyItem.getValue();
   } catch (err) {
     console.error('Failed to get cached settings key:', err);
     return null;
@@ -65,7 +79,7 @@ export async function getCachedSettingsKey(): Promise<string | null> {
  */
 export async function setCachedSettingsKey(keyBase64: string): Promise<void> {
   try {
-    await chrome.storage.session.set({ [SETTINGS_KEY]: keyBase64 });
+    await settingsKeyItem.setValue(keyBase64);
   } catch (err) {
     console.error('Failed to cache settings key:', err);
     throw new Error('Failed to cache settings key');
@@ -78,7 +92,7 @@ export async function setCachedSettingsKey(keyBase64: string): Promise<void> {
  */
 export async function clearCachedSettingsKey(): Promise<void> {
   try {
-    await chrome.storage.session.remove(SETTINGS_KEY);
+    await settingsKeyItem.removeValue();
   } catch (err) {
     console.error('Failed to clear cached settings key:', err);
     throw new Error('Failed to clear cached settings key');

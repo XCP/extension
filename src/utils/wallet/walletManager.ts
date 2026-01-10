@@ -403,27 +403,12 @@ export class WalletManager {
       // Initialize session with the actual timeout from settings
       await sessionManager.initializeSession(timeout);
 
-      // Set up session expiry alarm
-      await this.scheduleSessionExpiry(timeout);
+      // Set up session expiry alarm (sessionManager owns the alarm)
+      await sessionManager.scheduleSessionExpiry(timeout);
     } catch (err) {
       if (err instanceof DecryptionError) throw err;
       throw new Error('Invalid password or corrupted data.');
     }
-  }
-  
-  private async scheduleSessionExpiry(timeout: number): Promise<void> {
-    // Check if chrome.alarms is available
-    if (!chrome?.alarms) {
-      return; // Silently skip if alarms not available (e.g., in tests)
-    }
-    
-    // Clear any existing alarm
-    await chrome.alarms.clear('session-expiry');
-    
-    // Schedule new alarm for when session should expire
-    await chrome.alarms.create('session-expiry', {
-      when: Date.now() + timeout
-    });
   }
 
   public async lockWallet(walletId: string): Promise<void> {
@@ -442,10 +427,8 @@ export class WalletManager {
     await clearSettingsKey();
     invalidateSettingsCache();
 
-    // Clear session expiry alarm
-    if (chrome?.alarms) {
-      await chrome.alarms.clear('session-expiry');
-    }
+    // Clear session expiry alarm (sessionManager owns the alarm)
+    await sessionManager.clearSessionExpiry();
   }
 
   public async addAddress(walletId: string): Promise<Address> {

@@ -77,6 +77,8 @@ describe('WalletManager', () => {
     vi.mocked(sessionManager.clearUnlockedSecret).mockImplementation(mocks.sessionManager.clearUnlockedSecret);
     vi.mocked(sessionManager.clearAllUnlockedSecrets).mockImplementation(mocks.sessionManager.clearAllUnlockedSecrets);
     vi.mocked(sessionManager.initializeSession).mockImplementation(mocks.sessionManager.initializeSession || vi.fn().mockResolvedValue(undefined));
+    vi.mocked(sessionManager.scheduleSessionExpiry).mockResolvedValue(undefined);
+    vi.mocked(sessionManager.clearSessionExpiry).mockResolvedValue(undefined);
 
     vi.mocked(getSettings).mockImplementation(mocks.settingsStorage.getSettings);
     vi.mocked(updateSettings).mockImplementation(mocks.settingsStorage.updateSettings);
@@ -320,25 +322,19 @@ describe('WalletManager', () => {
       mocks.bitcoin.getDerivationPathForAddressFormat.mockReturnValue("m/84'/0'/0'");
       
       await walletManager.unlockWallet(wallet.id, password);
-      
+
       // Should have initialized session
       expect(mocks.sessionManager.initializeSession).toHaveBeenCalledWith(5 * 60 * 1000);
-      
-      // Should have scheduled alarm
-      expect(global.chrome.alarms.clear).toHaveBeenCalledWith('session-expiry');
-      expect(global.chrome.alarms.create).toHaveBeenCalledWith(
-        'session-expiry',
-        expect.objectContaining({
-          when: expect.any(Number)
-        })
-      );
+
+      // Should have scheduled alarm via sessionManager
+      expect(sessionManager.scheduleSessionExpiry).toHaveBeenCalledWith(5 * 60 * 1000);
     });
 
     it('should clear session expiry alarm when locking all wallets', async () => {
       await walletManager.lockAllWallets();
-      
-      // Should have cleared the alarm
-      expect(global.chrome.alarms.clear).toHaveBeenCalledWith('session-expiry');
+
+      // Should have cleared the alarm via sessionManager
+      expect(sessionManager.clearSessionExpiry).toHaveBeenCalled();
     });
 
     it('should use default timeout if settings unavailable', async () => {

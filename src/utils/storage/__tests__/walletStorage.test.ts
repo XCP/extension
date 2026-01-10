@@ -34,7 +34,9 @@ describe('walletStorage.ts', () => {
       expect(wallets).toEqual([]);
     });
 
-    it('should return only mnemonic and privateKey wallets', async () => {
+    it('should return all wallet records from dedicated storage', async () => {
+      // Note: With ADR-012, wallets are now stored in dedicated 'local:walletRecords'
+      // so all records in this storage are wallet records (no filtering needed)
       const mnemonicWallet: EncryptedWalletRecord = {
         id: '1',
         name: 'Mnemonic Wallet',
@@ -49,12 +51,7 @@ describe('walletStorage.ts', () => {
         addressFormat: AddressFormat.P2PKH,
         encryptedSecret: 'encrypted-pk',
       };
-      const otherRecord = {
-        id: '3',
-        name: 'Other',
-        type: 'other',
-      };
-      (getAllRecords as Mock).mockResolvedValue([mnemonicWallet, pkWallet, otherRecord]);
+      (getAllRecords as Mock).mockResolvedValue([mnemonicWallet, pkWallet]);
       const wallets = await getAllEncryptedWallets();
       expect(wallets).toEqual([mnemonicWallet, pkWallet]);
       expect(wallets.length).toBe(2);
@@ -278,9 +275,13 @@ describe('walletStorage.ts', () => {
     });
   });
 
-  describe('filtering behavior', () => {
-    it('should filter out records with other types', async () => {
-      const records = [
+  describe('storage isolation (ADR-012)', () => {
+    // Note: With ADR-012, wallets are now stored in dedicated 'local:walletRecords'
+    // Settings are stored separately in 'local:settingsRecord'
+    // No filtering is needed - all records in walletRecords are wallets
+
+    it('should return all records from dedicated wallet storage', async () => {
+      const walletRecords = [
         {
           id: '1',
           name: 'Mnemonic Wallet',
@@ -290,52 +291,30 @@ describe('walletStorage.ts', () => {
         },
         {
           id: '2',
-          name: 'Settings Record',
-          type: 'settings',
-          someData: 'value',
-        },
-        {
-          id: '3',
-          name: 'Private Key Wallet',  
+          name: 'Private Key Wallet',
           type: 'privateKey',
           addressFormat: AddressFormat.P2PKH,
-          encryptedSecret: 'secret3',
-        },
-        {
-          id: '4',
-          name: 'Custom Record',
-          type: 'custom',
-          customField: 'data',
-        },
-        {
-          id: '5',
-          type: 'unknown', // No name field
+          encryptedSecret: 'secret2',
         },
       ];
 
-      (getAllRecords as Mock).mockResolvedValue(records);
+      (getAllRecords as Mock).mockResolvedValue(walletRecords);
       const wallets = await getAllEncryptedWallets();
 
       expect(wallets).toHaveLength(2);
       expect(wallets[0].id).toBe('1');
-      expect(wallets[1].id).toBe('3');
-      expect(wallets.every(w => w.type === 'mnemonic' || w.type === 'privateKey')).toBe(true);
+      expect(wallets[1].id).toBe('2');
     });
 
-    it('should return empty array when no wallet records exist', async () => {
-      const nonWalletRecords = [
-        { id: '1', type: 'settings', data: 'value' },
-        { id: '2', type: 'cache', cached: true },
-        { id: '3', type: 'preference', pref: 'dark' },
-      ];
-
-      (getAllRecords as Mock).mockResolvedValue(nonWalletRecords);
+    it('should return empty array when no wallets exist', async () => {
+      (getAllRecords as Mock).mockResolvedValue([]);
       const wallets = await getAllEncryptedWallets();
 
       expect(wallets).toEqual([]);
     });
 
-    it('should handle mixed valid and invalid wallet records', async () => {
+    it('should return all wallet records regardless of fields', async () => {
+      // With dedicated storage, all records are wallets - just return them all
       const records = [
         {
           id: '1',
@@ -346,8 +325,10 @@ describe('walletStorage.ts', () => {
         },
         {
           id: '2',
-          type: 'mnemonic', // Missing required fields but still has wallet type
-          someField: 'value',
+          name: 'Another Wallet',
+          type: 'mnemonic',
+          addressFormat: AddressFormat.P2WPKH,
+          encryptedSecret: 'secret2',
         },
         {
           id: '3',
@@ -361,7 +342,7 @@ describe('walletStorage.ts', () => {
       (getAllRecords as Mock).mockResolvedValue(records);
       const wallets = await getAllEncryptedWallets();
 
-      expect(wallets).toHaveLength(3); // All filtered by type, regardless of other fields
+      expect(wallets).toHaveLength(3);
       expect(wallets.map(w => w.id)).toEqual(['1', '2', '3']);
     });
   });

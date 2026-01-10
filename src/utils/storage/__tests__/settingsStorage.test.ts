@@ -1,4 +1,26 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { fakeBrowser } from 'wxt/testing';
+
+// Mock encryption functions BEFORE importing settingsStorage
+// These mocks make encryption transparent for testing
+vi.mock('@/utils/encryption/settings', () => ({
+  isSettingsKeyAvailable: vi.fn().mockResolvedValue(true),
+  encryptSettings: vi.fn().mockImplementation(async (settings) =>
+    JSON.stringify(settings)
+  ),
+  decryptSettings: vi.fn().mockImplementation(async (encrypted) =>
+    JSON.parse(encrypted)
+  ),
+  encryptSettingsWithPassword: vi.fn().mockImplementation(async (settings, _password) =>
+    JSON.stringify(settings)
+  ),
+  decryptSettingsWithPassword: vi.fn().mockImplementation(async (encrypted, _password) =>
+    JSON.parse(encrypted)
+  ),
+  initializeSettingsKey: vi.fn().mockResolvedValue(undefined),
+}));
+
+// Import AFTER mocks are set up
 import {
   getSettings,
   updateSettings,
@@ -8,73 +30,25 @@ import {
   PriceUnit,
   invalidateSettingsCache,
 } from '../settingsStorage';
-import {
-  addRecord,
-  updateRecord,
-  getRecordById,
-  clearAllRecords,
-} from '../storage';
 
-// Mock the storage.ts module
-vi.mock('../storage', () => {
-  let store: any[] = [];
-  return {
-    getAllRecords: async () => structuredClone(store),
-    getRecordById: async (id: string) => {
-      const record = store.find((r) => r.id === id);
-      return record ? structuredClone(record) : undefined;
-    },
-    addRecord: async (record: any) => {
-      if (store.some((r) => r.id === record.id)) {
-        throw new Error(`Record with ID "${record.id}" already exists.`);
-      }
-      store.push(structuredClone(record));
-    },
-    updateRecord: async (record: any) => {
-      const index = store.findIndex((r) => r.id === record.id);
-      if (index === -1) {
-        throw new Error(`Record with ID "${record.id}" not found.`);
-      }
-      store[index] = structuredClone(record);
-    },
-    removeRecord: async (id: string) => {
-      store = store.filter((r) => r.id !== id);
-    },
-    clearAllRecords: async () => {
-      store = [];
-    },
-  };
-});
-
-// Mock settings encryption - always available and transparent for tests
-vi.mock('@/utils/encryption/settings', () => ({
-  isSettingsKeyAvailable: vi.fn().mockResolvedValue(true),
-  encryptSettings: vi.fn().mockImplementation(async (settings) =>
-    JSON.stringify(settings) // Simple "encryption" for tests
-  ),
-  decryptSettings: vi.fn().mockImplementation(async (encrypted) =>
-    structuredClone(JSON.parse(encrypted)) // Deep clone to preserve reference integrity
-  ),
-  encryptSettingsWithPassword: vi.fn().mockImplementation(async (settings, _password) =>
-    JSON.stringify(settings)
-  ),
-  decryptSettingsWithPassword: vi.fn().mockImplementation(async (encrypted, _password) =>
-    structuredClone(JSON.parse(encrypted))
-  ),
-  initializeSettingsKey: vi.fn().mockResolvedValue(undefined),
-}));
+// Helper to set settings directly in storage (bypassing encryption)
+// Note: wxt storage.defineItem('local:key') stores under key 'key' in chrome.storage.local
+const setRawSettings = async (settings: Partial<AppSettings> | null) => {
+  const storageKey = 'settingsRecord_test'; // Without 'local:' prefix for direct chrome storage
+  if (settings === null) {
+    await fakeBrowser.storage.local.remove(storageKey);
+  } else {
+    const fullSettings = { ...DEFAULT_SETTINGS, ...settings };
+    await fakeBrowser.storage.local.set({
+      [storageKey]: { encryptedSettings: JSON.stringify(fullSettings) },
+    });
+  }
+};
 
 describe('settingsStorage.ts', () => {
   beforeEach(async () => {
-    await clearAllRecords();
-    // Clear cache between tests to ensure test isolation
+    fakeBrowser.reset();
     invalidateSettingsCache();
-  });
-
-  // Helper to create encrypted settings record
-  const createEncryptedRecord = (settings: Partial<AppSettings>) => ({
-    id: 'keychain-settings',
-    encryptedSettings: JSON.stringify({ ...DEFAULT_SETTINGS, ...settings }),
   });
 
   describe('getSettings', () => {
@@ -96,7 +70,7 @@ describe('settingsStorage.ts', () => {
         autoLockTimer: '15m',
         enableMPMA: true,
       };
-      await addRecord(createEncryptedRecord(customSettings));
+      await setRawSettings(customSettings);
       const settings = await getSettings();
       expect(settings.lastActiveWalletId).toBe('wallet1');
       expect(settings.showHelpText).toBe(true);
@@ -104,11 +78,10 @@ describe('settingsStorage.ts', () => {
     });
 
     it('should default invalid autoLockTimer to 5m', async () => {
-      const invalidSettings = createEncryptedRecord({
+      await setRawSettings({
         autoLockTimer: 'always' as any,
         autoLockTimeout: 0,
       });
-      await addRecord(invalidSettings);
       const settings = await getSettings();
       expect(settings.autoLockTimer).toBe('5m');
       expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
@@ -139,13 +112,12 @@ describe('settingsStorage.ts', () => {
     });
 
     it('should preserve unrelated fields', async () => {
-      const initialSettings: Partial<AppSettings> = {
+      await setRawSettings({
         lastActiveWalletId: 'wallet1',
         lastActiveAddress: 'addr1',
         connectedWebsites: ['example.com'],
         showHelpText: false,
-      };
-      await addRecord(createEncryptedRecord(initialSettings));
+      });
       await updateSettings({ showHelpText: true });
       const settings = await getSettings();
       expect(settings.showHelpText).toBe(true);
@@ -176,8 +148,11 @@ describe('settingsStorage.ts', () => {
     });
 
     it('should return defaults for records without encryptedSettings', async () => {
-      // Empty record (no encryptedSettings)
-      await addRecord({ id: 'keychain-settings' });
+      // Empty record (empty encryptedSettings simulates missing data)
+      const storageKey = 'settingsRecord_test'; // Without 'local:' prefix
+      await fakeBrowser.storage.local.set({
+        [storageKey]: { encryptedSettings: '' },
+      });
       const settings = await getSettings();
       expect(settings.autoLockTimer).toBe('5m');
       expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
@@ -189,7 +164,8 @@ describe('settingsStorage.ts', () => {
       const validTimers: AutoLockTimer[] = ['1m', '5m', '15m', '30m'];
 
       for (const timer of validTimers) {
-        await clearAllRecords();
+        fakeBrowser.reset();
+        invalidateSettingsCache();
         await updateSettings({ autoLockTimer: timer });
         const settings = await getSettings();
         expect(settings.autoLockTimer).toBe(timer);
@@ -205,11 +181,11 @@ describe('settingsStorage.ts', () => {
     });
 
     it('should handle timeout-timer consistency enforcement', async () => {
-      // Set timer to 15m but timeout inconsistent - use encrypted format
-      await addRecord(createEncryptedRecord({
+      // Set timer to 15m but timeout inconsistent - should be corrected
+      await setRawSettings({
         autoLockTimer: '15m',
-        autoLockTimeout: 5 * 60 * 1000 // Wrong timeout - should be corrected
-      }));
+        autoLockTimeout: 5 * 60 * 1000, // Wrong timeout - should be corrected
+      });
 
       const settings = await getSettings();
       expect(settings.autoLockTimer).toBe('15m');
@@ -245,7 +221,7 @@ describe('settingsStorage.ts', () => {
         '15m': 15 * 60 * 1000,
         '30m': 30 * 60 * 1000,
       }[DEFAULT_SETTINGS.autoLockTimer];
-      
+
       expect(DEFAULT_SETTINGS.autoLockTimeout).toBe(expectedTimeout);
     });
 
@@ -350,7 +326,7 @@ describe('settingsStorage.ts', () => {
       const validUnits: PriceUnit[] = ['btc', 'sats', 'fiat'];
 
       for (const unit of validUnits) {
-        await clearAllRecords();
+        fakeBrowser.reset();
         invalidateSettingsCache();
         await updateSettings({ preferences: { unit } });
         const settings = await getSettings();
@@ -359,18 +335,18 @@ describe('settingsStorage.ts', () => {
     });
 
     it('should default invalid preferences.unit to btc', async () => {
-      await addRecord(createEncryptedRecord({
+      await setRawSettings({
         preferences: { unit: 'invalid' as any, fiat: 'usd' },
-      }));
+      });
 
       const settings = await getSettings();
       expect(settings.preferences.unit).toBe('btc');
     });
 
     it('should default invalid preferences.fiat to usd', async () => {
-      await addRecord(createEncryptedRecord({
+      await setRawSettings({
         preferences: { unit: 'btc', fiat: 'invalid' as any },
-      }));
+      });
 
       const settings = await getSettings();
       expect(settings.preferences.fiat).toBe('usd');
@@ -423,7 +399,7 @@ describe('settingsStorage.ts', () => {
       const validCurrencies = ['usd', 'eur', 'gbp', 'jpy', 'cad', 'aud', 'cny'];
 
       for (const fiat of validCurrencies) {
-        await clearAllRecords();
+        fakeBrowser.reset();
         invalidateSettingsCache();
         await updateSettings({ preferences: { fiat: fiat as any } });
         const settings = await getSettings();
@@ -432,9 +408,9 @@ describe('settingsStorage.ts', () => {
     });
 
     it('should handle missing preferences object gracefully', async () => {
-      await addRecord(createEncryptedRecord({
+      await setRawSettings({
         preferences: undefined as any,
-      }));
+      });
 
       const settings = await getSettings();
       expect(settings.preferences).toBeDefined();

@@ -5,6 +5,26 @@
  * The derived key is stored in session storage after unlock,
  * allowing settings to be encrypted/decrypted without re-entering password.
  *
+ * ## Key Derivation Pattern (ADR-010)
+ *
+ * This file uses a SIMPLER key derivation than encryption.ts:
+ *
+ * **settings.ts (this file)**: Password → PBKDF2 → Single AES-GCM Key
+ * **encryption.ts**: Password → PBKDF2 → HKDF → (Encryption Key + Auth Key)
+ *
+ * **Why the difference?**
+ * 1. Settings uses a single-purpose key (only encrypts settings JSON)
+ * 2. No separate authentication key needed - AES-GCM provides integrity via its tag
+ * 3. The key is exported to session storage for service worker restarts
+ * 4. Simpler key management reduces complexity and potential bugs
+ *
+ * encryption.ts uses HKDF because wallet secrets need:
+ * - Key separation (encryption vs authentication)
+ * - HMAC for password verification before decryption attempt
+ * - Never exports keys (stays in CryptoKey form)
+ *
+ * Both use the same PBKDF2 iteration count (600K) for brute-force resistance.
+ *
  * ## Security Design
  *
  * **Salt Handling**:
@@ -23,7 +43,7 @@
  * - No sync to cloud (unlike chrome.storage.sync)
  *
  * **Threat Mitigations**:
- * - Key is derived with 600K PBKDF2 iterations (brute force resistant)
+ * - Key is derived with 900K PBKDF2 iterations (brute force resistant)
  * - Session clears on browser close (limits exposure window)
  * - Only encryption key stored, never raw password
  * - Auto-lock timer clears key after inactivity (1-30 min configurable)
@@ -54,7 +74,7 @@ import { bufferToBase64, base64ToBuffer, generateRandomBytes } from './buffer';
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const KEY_BITS = 256;
-const PBKDF2_ITERATIONS = 600_000;
+const PBKDF2_ITERATIONS = 900_000; // Matches MetaMask, exceeds OWASP 2025 recommendation (800k+)
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();

@@ -14,7 +14,7 @@ const CRYPTO_CONFIG = {
   SALT_BYTES: 16,
   IV_BYTES: 12,
   KEY_BITS: 256,
-  PBKDF2_ITERATIONS: 600_000, // OWASP 2024 recommendation for SHA-256
+  PBKDF2_ITERATIONS: 900_000, // Matches MetaMask, exceeds OWASP 2025 recommendation (800k+)
   AUTH_MESSAGE: 'authentication message for wallet encryption',
   TAG_LENGTH: 128,
 };

@@ -4,14 +4,13 @@
  * All settings are encrypted in a single blob using AES-GCM.
  * The encryption key is derived from the user's password and stored
  * in session storage after unlock.
+ *
+ * Note: Settings are stored in a dedicated 'local:settingsRecord' key,
+ * separate from wallet records ('local:walletRecords').
+ * See ADR-012 in storage.ts for details on this isolation decision.
  */
 
-import {
-  addRecord,
-  updateRecord,
-  getRecordById,
-  StoredRecord,
-} from '@/utils/storage/storage';
+import { storage } from '#imports';
 import {
   encryptSettings,
   decryptSettings,
@@ -140,15 +139,24 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
 /**
  * Storage record with single encrypted blob.
+ * Stored directly in 'local:settingsRecord' (not as part of an array).
  */
-interface SettingsRecord extends StoredRecord {
-  encryptedSettings?: string;
+interface SettingsRecord {
+  encryptedSettings: string;
 }
 
 /**
- * Unique ID for the settings record in storage.
+ * wxt storage item for settings.
+ * Uses a dedicated key separate from wallet records for isolation.
+ * In test environments, uses a unique key to avoid test interference.
  */
-const SETTINGS_RECORD_ID = 'keychain-settings';
+const settingsStorageKey = typeof process !== 'undefined' && process.env.NODE_ENV === 'test'
+  ? 'local:settingsRecord_test'
+  : 'local:settingsRecord';
+
+const settingsRecordItem = storage.defineItem<SettingsRecord | null>(settingsStorageKey, {
+  fallback: null,
+});
 
 /**
  * Settings cache with TTL to avoid redundant storage reads.
@@ -202,21 +210,21 @@ export async function getSettings(): Promise<AppSettings> {
     return cached;
   }
 
-  const record = await getRecordById(SETTINGS_RECORD_ID) as SettingsRecord | undefined;
-
-  // No record exists - return defaults (don't cache defaults)
-  if (!record || !record.encryptedSettings) {
-    return getDefaultSettings();
-  }
-
-  // Check if we have the decryption key
-  const keyAvailable = await isSettingsKeyAvailable();
-  if (!keyAvailable) {
-    // Locked - return defaults (don't cache when locked)
-    return getDefaultSettings();
-  }
-
   try {
+    const record = await settingsRecordItem.getValue();
+
+    // No record exists - return defaults (don't cache defaults)
+    if (!record || !record.encryptedSettings) {
+      return getDefaultSettings();
+    }
+
+    // Check if we have the decryption key
+    const keyAvailable = await isSettingsKeyAvailable();
+    if (!keyAvailable) {
+      // Locked - return defaults (don't cache when locked)
+      return getDefaultSettings();
+    }
+
     const settings = await decryptSettings(record.encryptedSettings);
     const normalized = normalizeSettings(settings);
 
@@ -226,7 +234,7 @@ export async function getSettings(): Promise<AppSettings> {
     // Return a cloned copy
     return cloneSettings(normalized);
   } catch (err) {
-    console.warn('Failed to decrypt settings, using defaults:', err);
+    console.warn('Failed to load/decrypt settings, using defaults:', err);
     return getDefaultSettings();
   }
 }
@@ -370,15 +378,14 @@ export async function updateSettings(
   // Encrypt and save
   const encrypted = await encryptSettings(updated);
   const record: SettingsRecord = {
-    id: SETTINGS_RECORD_ID,
     encryptedSettings: encrypted,
   };
 
-  const existing = await getRecordById(SETTINGS_RECORD_ID);
-  if (existing) {
-    await updateRecord(record);
-  } else {
-    await addRecord(record);
+  try {
+    await settingsRecordItem.setValue(record);
+  } catch (err) {
+    console.error('Failed to save settings:', err);
+    throw new Error('Failed to save settings');
   }
 
   // Invalidate cache to ensure fresh data on next read
@@ -393,7 +400,7 @@ export async function reencryptSettings(
   oldPassword: string,
   newPassword: string
 ): Promise<void> {
-  const record = await getRecordById(SETTINGS_RECORD_ID) as SettingsRecord | undefined;
+  const record = await settingsRecordItem.getValue();
 
   if (!record || !record.encryptedSettings) {
     // No settings to re-encrypt
@@ -408,10 +415,15 @@ export async function reencryptSettings(
 
   // Save
   const newRecord: SettingsRecord = {
-    id: SETTINGS_RECORD_ID,
     encryptedSettings: newEncrypted,
   };
-  await updateRecord(newRecord);
+
+  try {
+    await settingsRecordItem.setValue(newRecord);
+  } catch (err) {
+    console.error('Failed to re-encrypt settings:', err);
+    throw new Error('Failed to re-encrypt settings');
+  }
 
   // Update session key with new password
   await initializeSettingsKey(newPassword);

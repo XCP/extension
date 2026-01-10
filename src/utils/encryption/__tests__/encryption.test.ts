@@ -70,7 +70,7 @@ describe('encryption.ts', () => {
       expect(parsed).toHaveProperty('encryptedData');
       expect(parsed).toHaveProperty('authSignature');
       expect(parsed.version).toBe(2);
-      expect(parsed.iterations).toBe(600000);
+      expect(parsed.iterations).toBe(900000);
     });
 
     it('should call crypto operations with correct parameters', async () => {
@@ -300,7 +300,7 @@ describe('encryption.ts', () => {
       expect(mockCrypto.subtle.deriveBits).toHaveBeenCalledWith(
         expect.objectContaining({
           name: 'PBKDF2',
-          iterations: 600000,
+          iterations: 900000,
           hash: 'SHA-256',
         }),
         expect.any(Object),

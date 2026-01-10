@@ -30,29 +30,52 @@ export default defineBackground(() => {
    * often before our service worker is fully initialized. If these errors aren't
    * consumed, Chrome logs "Unchecked runtime.lastError" warnings to the console.
    *
-   * These listeners MUST be the first thing registered to consume errors immediately.
-   * They run synchronously before any async operations or other initialization.
+   * This listener MUST be the first thing registered to consume errors immediately.
+   * It runs synchronously before any async operations or other initialization.
    */
 
-  // Primary error consumer for message-based connections
+  // Single consolidated message handler for error consumption AND message handling
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    // Immediately check and consume lastError to prevent console warnings
+    // 1. IMMEDIATELY check and consume lastError to prevent console warnings
+    //    This must happen before any other logic
     if (chrome.runtime.lastError) {
       // Error consumed - prevents "Unchecked runtime.lastError" spam
       // Common during extension startup when Chrome tries to reconnect to tabs
     }
 
-    // Track content script readiness
+    // 2. Track content script readiness (internal signal, no response needed)
     if (message && message.__xcp_cs_ready && sender.tab?.id) {
       readyTabs.add(sender.tab.id);
       console.log(`[Background] Content script ready on tab ${sender.tab.id}:`, message.tabUrl);
-      // Don't respond - this is just a signal
-      return false;
+      return false; // Don't respond - this is just a signal
     }
 
-    // DON'T respond - let the actual handlers do their job
-    // Just consuming the error is enough
-    return false; // Let other handlers process the message
+    // 3. Debug logging in development only
+    if (process.env.NODE_ENV === 'development') {
+      const messageType = message?.type || message?.action || (message?.serviceName ? `${message.serviceName}.${message.methodName}` : 'unknown');
+      console.log('[Background] Received message:', messageType, 'from:', sender.tab?.url || sender.url || 'extension');
+    }
+
+    // 4. Handle ping requests immediately
+    if (message?.action === 'ping' || message?.type === 'startup-health-check') {
+      sendResponse({ status: 'ready', timestamp: Date.now(), context: 'background' });
+      return true;
+    }
+
+    // 5. Handle compose events from popup (cross-context event emission)
+    if (message?.type === 'COMPOSE_EVENT') {
+      const { event, data } = message;
+      if (event) {
+        eventEmitterService.emit(event, data);
+        sendResponse({ success: true });
+      } else {
+        sendResponse({ success: false, error: 'Event name required' });
+      }
+      return true;
+    }
+
+    // Let other handlers (like proxy.ts service handlers) process the message
+    return false;
   });
 
   // Single consolidated port handler for error consumption and message handling
@@ -79,41 +102,6 @@ export default defineBackground(() => {
     });
   });
 
-  // Now set up the actual message handlers with proper logic
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    // Debug logging in development only
-    if (process.env.NODE_ENV === 'development') {
-      const messageType = message?.type || message?.action || (message?.serviceName ? `${message.serviceName}.${message.methodName}` : 'unknown');
-      console.log('[Background] Received message:', messageType, 'from:', sender.tab?.url || sender.url || 'extension');
-    }
-
-    // Handle ping requests immediately
-    if (message?.action === 'ping' || message?.type === 'startup-health-check') {
-      sendResponse({ status: 'ready', timestamp: Date.now(), context: 'background' });
-      return true;
-    }
-
-    // Handle compose events from popup (cross-context event emission)
-    if (message?.type === 'COMPOSE_EVENT') {
-      const { event, data } = message;
-      if (event) {
-        eventEmitterService.emit(event, data);
-        sendResponse({ success: true });
-      } else {
-        sendResponse({ success: false, error: 'Event name required' });
-      }
-      return true;
-    }
-
-    // Check for lastError to prevent console warnings
-    if (chrome.runtime.lastError) {
-      // Error already "checked" by accessing it
-    }
-
-    // Let other handlers process the message
-    return false;
-  });
-  
   console.log('[Background] Core message listener registered');
 
   // Track tab lifecycle - remove from ready set when tabs navigate or close

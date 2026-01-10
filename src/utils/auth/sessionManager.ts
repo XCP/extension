@@ -221,26 +221,45 @@ export async function setLastActiveTime(): Promise<void> {
     await persistSessionMetadata(metadata);
     
     // Reschedule the session expiry alarm to reset the countdown
-    await rescheduleSessionExpiry(metadata.timeout);
+    await scheduleSessionExpiry(metadata.timeout);
   }
 }
 
 /**
- * Reschedules the session expiry alarm when user is active
+ * Session expiry alarm name - single source of truth
  */
-async function rescheduleSessionExpiry(timeout: number): Promise<void> {
+const SESSION_EXPIRY_ALARM = 'session-expiry';
+
+/**
+ * Schedules (or reschedules) the session expiry alarm.
+ * This is the ONLY place that should create/clear this alarm.
+ *
+ * @param timeout - Time in milliseconds until session expires
+ */
+export async function scheduleSessionExpiry(timeout: number): Promise<void> {
   // Check if chrome.alarms is available
   if (!chrome?.alarms) {
     return; // Silently skip if alarms not available (e.g., in tests)
   }
-  
+
   // Clear existing alarm
-  await chrome.alarms.clear('session-expiry');
-  
+  await chrome.alarms.clear(SESSION_EXPIRY_ALARM);
+
   // Create new alarm with fresh timeout from current moment
-  await chrome.alarms.create('session-expiry', {
+  await chrome.alarms.create(SESSION_EXPIRY_ALARM, {
     when: Date.now() + timeout
   });
+}
+
+/**
+ * Clears the session expiry alarm (e.g., when locking all wallets).
+ * This is the ONLY place that should clear this alarm.
+ */
+export async function clearSessionExpiry(): Promise<void> {
+  if (!chrome?.alarms) {
+    return;
+  }
+  await chrome.alarms.clear(SESSION_EXPIRY_ALARM);
 }
 
 /**

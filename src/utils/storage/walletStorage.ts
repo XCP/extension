@@ -3,6 +3,10 @@
  *
  * Stores encrypted wallet data (mnemonics, private keys) in local storage.
  * All secrets are encrypted before storage using password-derived keys.
+ *
+ * Note: This module uses the dedicated 'local:walletRecords' storage key.
+ * Settings are stored separately in 'local:settingsRecord' for isolation.
+ * See ADR-012 in storage.ts for details.
  */
 
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
@@ -29,15 +33,15 @@ export interface EncryptedWalletRecord extends StoredRecord {
 }
 
 /**
- * Retrieves all wallet records that are of type 'mnemonic' or 'privateKey'.
+ * Retrieves all encrypted wallet records.
+ *
+ * Since wallets are now stored in a dedicated 'local:walletRecords' key,
+ * all records are wallet records (no filtering needed).
  *
  * @returns A Promise that resolves to an array of encrypted wallet records.
  */
 export async function getAllEncryptedWallets(): Promise<EncryptedWalletRecord[]> {
-  const all = await getAllRecords();
-  return all.filter(
-    (r) => r.type === 'mnemonic' || r.type === 'privateKey'
-  ) as EncryptedWalletRecord[];
+  return getAllRecords() as Promise<EncryptedWalletRecord[]>;
 }
 
 /**

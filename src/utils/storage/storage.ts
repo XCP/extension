@@ -1,5 +1,8 @@
 /**
- * Storage Layer - IndexedDB persistence with mutex protection
+ * Wallet Storage Layer - Encrypted wallet record persistence with mutex protection
+ *
+ * This module handles ONLY wallet records (mnemonics, private keys).
+ * Settings are stored separately in settingsStorage.ts.
  *
  * ## Architecture Decision Records
  *
@@ -24,6 +27,55 @@
  * **Trade-offs**:
  * - Slight latency increase for rapid sequential writes (serialization overhead)
  * - Acceptable because wallet operations are user-initiated and infrequent
+ *
+ * ### ADR-009: Storage Error Handling Pattern
+ *
+ * **Context**: Storage operations can fail due to quota limits, corruption, or browser issues.
+ * The wallet needs consistent error handling across all storage modules.
+ *
+ * **Decision**: Asymmetric error handling - reads swallow errors, writes throw.
+ *
+ * **Pattern**:
+ * - **GET operations**: Swallow errors and return safe defaults (empty array, null)
+ * - **SET operations**: Throw errors so callers know the write failed
+ *
+ * **Rationale**:
+ * - Reads should be resilient - a failed read shouldn't crash the UI
+ * - Writes are critical - if wallet data fails to persist, user must be notified
+ * - This pattern is used consistently across all storage modules:
+ *   - storage.ts, keyStorage.ts, sessionMetadataStorage.ts, requestStorage.ts
+ *
+ * **Implementation**:
+ * ```typescript
+ * // Read pattern - swallow error, return default
+ * } catch (err) {
+ *   console.error('Failed to get X:', err);
+ *   return null; // or [] for arrays
+ * }
+ *
+ * // Write pattern - throw error
+ * } catch (err) {
+ *   console.error('Failed to set X:', err);
+ *   throw new Error('Storage operation failed');
+ * }
+ * ```
+ *
+ * ### ADR-012: Separate Wallet and Settings Storage
+ *
+ * **Context**: Wallets and settings were stored in the same `local:appRecords` array,
+ * differentiated only by record type/ID.
+ *
+ * **Decision**: Separate into distinct storage keys for stronger isolation.
+ *
+ * **Implementation**:
+ * - `local:walletRecords` - Array of encrypted wallet records (this module)
+ * - `local:settingsRecord` - Single encrypted settings blob (settingsStorage.ts)
+ *
+ * **Rationale**:
+ * - Stronger isolation between wallet secrets and settings
+ * - Clearer data model (wallets are array, settings is single object)
+ * - Prevents accidental mixing of wallet/settings logic
+ * - Different access patterns (CRUD for wallets, get/update for settings)
  */
 
 import { storage } from '#imports';
@@ -46,13 +98,15 @@ export interface StoredRecord {
 const withWriteLock = createWriteLock();
 
 /**
- * Defines a storage item for an array of records.
- * Uses the key 'local:appRecords' in local storage with a fallback of an empty array.
+ * Defines a storage item for wallet records only.
+ * Uses the key 'local:walletRecords' in local storage with a fallback of an empty array.
  * In test environments, uses a unique key to avoid test interference.
+ *
+ * Note: Settings are stored separately in 'local:settingsRecord' (see settingsStorage.ts)
  */
-const storageKey = typeof process !== 'undefined' && process.env.NODE_ENV === 'test' 
-  ? `local:appRecords_test`
-  : 'local:appRecords';
+const storageKey = typeof process !== 'undefined' && process.env.NODE_ENV === 'test'
+  ? `local:walletRecords_test`
+  : 'local:walletRecords';
 
 
 const localRecords = storage.defineItem<StoredRecord[]>(storageKey, {
