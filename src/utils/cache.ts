@@ -77,66 +77,119 @@ export class TTLCache<T> {
 }
 
 /**
- * Creates a cached async function wrapper.
- * Useful for wrapping API calls with automatic caching.
+ * A keyed cache where each key has its own TTL-based entry.
+ * Useful for caching multiple related values (e.g., prices per currency, connections per origin).
  *
- * Features:
- * - Deduplicates concurrent calls (only one request when cache is empty)
- * - Clones results if clone function provided
- * - Does not cache errors (allows retry on next call)
- *
- * @param fn The async function to wrap
- * @param ttlMs Cache TTL in milliseconds
- * @param clone Optional clone function for the result
- * @returns Wrapped function that caches results
- *
- * @example
- * const cachedFetch = createCachedFn(
- *   () => fetch('/api/data').then(r => r.json()),
- *   30000 // 30 second cache
- * );
+ * @template K The key type (typically string)
+ * @template V The value type
  */
-export function createCachedFn<T>(
-  fn: () => Promise<T>,
-  ttlMs: number,
-  clone?: (data: T) => T
-): () => Promise<T> {
-  const cache = new TTLCache<T>(ttlMs, clone);
-  let inflight: Promise<T> | null = null;
+export class KeyedTTLCache<K, V> {
+  private cache = new Map<K, { data: V; timestamp: number }>();
+  private readonly ttlMs: number;
+  private readonly clone: ((data: V) => V) | null;
 
-  return async () => {
-    // Return cached value if available
-    const cached = cache.get();
-    if (cached !== null) {
-      return cached;
-    }
+  /**
+   * Creates a new keyed TTL cache.
+   * @param ttlMs Time-to-live in milliseconds for each entry
+   * @param clone Optional function to deep clone data on get/set
+   */
+  constructor(ttlMs: number, clone?: (data: V) => V) {
+    this.ttlMs = ttlMs;
+    this.clone = clone ?? null;
+  }
 
-    // Deduplicate concurrent calls - share the same promise
-    if (inflight !== null) {
-      const result = await inflight;
-      return clone ? clone(result) : result;
+  /**
+   * Gets a cached value by key if valid, null otherwise.
+   */
+  get(key: K): V | null {
+    const entry = this.cache.get(key);
+    if (entry && (Date.now() - entry.timestamp) < this.ttlMs) {
+      return this.clone ? this.clone(entry.data) : entry.data;
     }
+    return null;
+  }
 
-    // Execute and cache
-    inflight = fn();
-    try {
-      const result = await inflight;
-      cache.set(result);
-      return clone ? clone(result) : result;
-    } finally {
-      inflight = null;
+  /**
+   * Gets a cached value even if expired (for stale-while-revalidate patterns).
+   * Returns null only if key was never set.
+   */
+  getStale(key: K): V | null {
+    const entry = this.cache.get(key);
+    if (entry) {
+      return this.clone ? this.clone(entry.data) : entry.data;
     }
-  };
+    return null;
+  }
+
+  /**
+   * Sets a cached value for a key.
+   */
+  set(key: K, value: V): void {
+    this.cache.set(key, {
+      data: this.clone ? this.clone(value) : value,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Checks if a key has a valid (non-expired) entry.
+   */
+  isValid(key: K): boolean {
+    const entry = this.cache.get(key);
+    return entry !== undefined && (Date.now() - entry.timestamp) < this.ttlMs;
+  }
+
+  /**
+   * Invalidates a specific key.
+   */
+  invalidate(key: K): void {
+    this.cache.delete(key);
+  }
+
+  /**
+   * Invalidates all entries.
+   */
+  invalidateAll(): void {
+    this.cache.clear();
+  }
+
+  /**
+   * Removes expired entries to free memory.
+   * Call periodically for long-lived caches.
+   */
+  cleanup(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.cache.entries()) {
+      if (now - entry.timestamp >= this.ttlMs) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  /**
+   * Gets the number of entries (including expired ones).
+   */
+  get size(): number {
+    return this.cache.size;
+  }
 }
 
 /**
- * Common TTL values for convenience
+ * Common TTL values for convenience.
+ *
+ * Guidelines:
+ * - SHORT (5s): Frequently changing data read multiple times per action (settings, records)
+ * - MEDIUM (30s): Moderately stable data (fee rates)
+ * - LONG (2m): Stable data with occasional updates
+ * - VERY_LONG (10m): Slowly changing data (block height, prices)
  */
 export const CacheTTL = {
   /** 5 seconds - for settings, storage records */
   SHORT: 5000,
   /** 30 seconds - for fee rates */
   MEDIUM: 30000,
-  /** 2 minutes - for block height */
+  /** 2 minutes - for moderately stable data */
   LONG: 120000,
+  /** 10 minutes - for block height, price data */
+  VERY_LONG: 600000,
 } as const;

@@ -28,6 +28,7 @@
 
 import { storage } from '#imports';
 import { createWriteLock } from './mutex';
+import { TTLCache, CacheTTL } from '@/utils/cache';
 
 /**
  * Generic interface for items stored in local storage.
@@ -58,10 +59,11 @@ const localRecords = storage.defineItem<StoredRecord[]>(storageKey, {
   fallback: [],
 });
 
-// Simple in-memory cache with invalidation
-let recordsCache: StoredRecord[] | null = null;
-let cacheTimestamp: number = 0;
-const CACHE_TTL = 5000; // 5 seconds TTL to balance performance vs freshness
+/**
+ * In-memory cache for records with 5s TTL.
+ * Uses structuredClone for deep copying to prevent mutation.
+ */
+const recordsCache = new TTLCache<StoredRecord[]>(CacheTTL.SHORT, structuredClone);
 
 /**
  * Internal helper to fetch records from storage with smart caching.
@@ -71,24 +73,27 @@ const CACHE_TTL = 5000; // 5 seconds TTL to balance performance vs freshness
  * @returns A Promise resolving to the array of stored records.
  */
 async function getRecords(forceRefresh = false): Promise<StoredRecord[]> {
-  const now = Date.now();
-  
-  // Return cached data if fresh and not forced refresh
-  if (!forceRefresh && recordsCache && (now - cacheTimestamp) < CACHE_TTL) {
-    return recordsCache;
+  // Invalidate cache if forced refresh
+  if (forceRefresh) {
+    recordsCache.invalidate();
+  }
+
+  // Return cached data if available (TTLCache handles expiry)
+  const cached = recordsCache.get();
+  if (cached !== null) {
+    return cached;
   }
 
   try {
     const records = await localRecords.getValue();
     // Update cache
-    recordsCache = records;
-    cacheTimestamp = now;
+    recordsCache.set(records);
     return records;
   } catch (err) {
     // Log error for debugging but don't fail the operation
     console.error('Failed to fetch records from storage:', err);
-    // Return cached data if available, otherwise empty array
-    return recordsCache || [];
+    // Return empty array on error (cache was already checked above)
+    return [];
   }
 }
 
@@ -102,8 +107,7 @@ async function persistRecords(records: StoredRecord[]): Promise<void> {
   try {
     await localRecords.setValue(records);
     // Update cache immediately after successful write
-    recordsCache = records;
-    cacheTimestamp = Date.now();
+    recordsCache.set(records);
   } catch (err) {
     console.error('Failed to persist records to storage:', err);
     throw new Error('Storage update failed'); // Propagate error for caller awareness
@@ -114,11 +118,12 @@ async function persistRecords(records: StoredRecord[]): Promise<void> {
 /**
  * Retrieves all records from storage.
  * Returns a deep copy to prevent external mutations of the internal state.
+ * (TTLCache already clones on get, so no additional clone needed)
  *
  * @returns A Promise resolving to an array of stored records.
  */
 export async function getAllRecords(): Promise<StoredRecord[]> {
-  return structuredClone(await getRecords());
+  return getRecords();
 }
 
 /**

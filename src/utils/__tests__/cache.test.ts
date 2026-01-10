@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { TTLCache, createCachedFn, CacheTTL } from '../cache';
+import { TTLCache, KeyedTTLCache, CacheTTL } from '../cache';
 
 describe('TTLCache', () => {
   beforeEach(() => {
@@ -153,7 +153,7 @@ describe('TTLCache', () => {
   });
 });
 
-describe('createCachedFn', () => {
+describe('KeyedTTLCache', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -162,115 +162,143 @@ describe('createCachedFn', () => {
     vi.useRealTimers();
   });
 
-  it('caches results', async () => {
-    let callCount = 0;
-    const fn = vi.fn(async () => {
-      callCount++;
-      return `result-${callCount}`;
+  describe('basic operations', () => {
+    it('returns null for unknown key', () => {
+      const cache = new KeyedTTLCache<string, string>(1000);
+      expect(cache.get('unknown')).toBeNull();
     });
 
-    const cached = createCachedFn(fn, 1000);
-
-    expect(await cached()).toBe('result-1');
-    expect(await cached()).toBe('result-1'); // Same result, cached
-    expect(fn).toHaveBeenCalledTimes(1);
-  });
-
-  it('refreshes after TTL expires', async () => {
-    let callCount = 0;
-    const fn = vi.fn(async () => {
-      callCount++;
-      return `result-${callCount}`;
+    it('stores and retrieves values by key', () => {
+      const cache = new KeyedTTLCache<string, string>(1000);
+      cache.set('key1', 'value1');
+      cache.set('key2', 'value2');
+      expect(cache.get('key1')).toBe('value1');
+      expect(cache.get('key2')).toBe('value2');
     });
 
-    const cached = createCachedFn(fn, 1000);
+    it('returns null after TTL expires for key', () => {
+      const cache = new KeyedTTLCache<string, string>(1000);
+      cache.set('key1', 'value1');
 
-    expect(await cached()).toBe('result-1');
-    vi.advanceTimersByTime(1001);
-    expect(await cached()).toBe('result-2');
-    expect(fn).toHaveBeenCalledTimes(2);
-  });
-
-  it('deduplicates concurrent calls', async () => {
-    vi.useRealTimers(); // Use real timers for this async test
-
-    let callCount = 0;
-    let resolvePromise: () => void;
-    const blocker = new Promise<void>(resolve => {
-      resolvePromise = resolve;
+      vi.advanceTimersByTime(1001);
+      expect(cache.get('key1')).toBeNull();
     });
 
-    const fn = vi.fn(async () => {
-      callCount++;
-      await blocker; // Wait for explicit resolution
-      return `result-${callCount}`;
+    it('each key has independent TTL', () => {
+      const cache = new KeyedTTLCache<string, string>(1000);
+      cache.set('key1', 'value1');
+
+      vi.advanceTimersByTime(500);
+      cache.set('key2', 'value2');
+
+      vi.advanceTimersByTime(501);
+      // key1 expired, key2 still valid
+      expect(cache.get('key1')).toBeNull();
+      expect(cache.get('key2')).toBe('value2');
+    });
+  });
+
+  describe('getStale', () => {
+    it('returns expired value', () => {
+      const cache = new KeyedTTLCache<string, string>(1000);
+      cache.set('key1', 'value1');
+
+      vi.advanceTimersByTime(2000);
+      expect(cache.get('key1')).toBeNull();
+      expect(cache.getStale('key1')).toBe('value1');
     });
 
-    const cached = createCachedFn(fn, 1000);
-
-    // Start multiple calls simultaneously (they'll all wait on blocker)
-    const p1 = cached();
-    const p2 = cached();
-    const p3 = cached();
-
-    // Only one call should have been made
-    expect(fn).toHaveBeenCalledTimes(1);
-
-    // Resolve the blocker
-    resolvePromise!();
-
-    const results = await Promise.all([p1, p2, p3]);
-
-    // All should get the same result
-    expect(results).toEqual(['result-1', 'result-1', 'result-1']);
-    // Still only one call
-    expect(fn).toHaveBeenCalledTimes(1);
-
-    vi.useFakeTimers(); // Restore for other tests
+    it('returns null for never-set key', () => {
+      const cache = new KeyedTTLCache<string, string>(1000);
+      expect(cache.getStale('unknown')).toBeNull();
+    });
   });
 
-  it('allows retry after error', async () => {
-    let callCount = 0;
-    const fn = vi.fn(async () => {
-      callCount++;
-      if (callCount === 1) {
-        throw new Error('First call fails');
-      }
-      return 'success';
+  describe('isValid', () => {
+    it('returns false for unknown key', () => {
+      const cache = new KeyedTTLCache<string, string>(1000);
+      expect(cache.isValid('unknown')).toBe(false);
     });
 
-    const cached = createCachedFn(fn, 1000);
+    it('returns true for valid entry', () => {
+      const cache = new KeyedTTLCache<string, string>(1000);
+      cache.set('key1', 'value1');
+      expect(cache.isValid('key1')).toBe(true);
+    });
 
-    // First call fails
-    await expect(cached()).rejects.toThrow('First call fails');
-
-    // Second call should retry (not return cached error)
-    expect(await cached()).toBe('success');
-    expect(fn).toHaveBeenCalledTimes(2);
+    it('returns false after TTL expires', () => {
+      const cache = new KeyedTTLCache<string, string>(1000);
+      cache.set('key1', 'value1');
+      vi.advanceTimersByTime(1001);
+      expect(cache.isValid('key1')).toBe(false);
+    });
   });
 
-  it('clones results when clone function provided', async () => {
-    const fn = vi.fn(async () => ({ value: 1 }));
-    const clone = (obj: { value: number }) => ({ ...obj });
-    const cached = createCachedFn(fn, 1000, clone);
+  describe('invalidate', () => {
+    it('removes a specific key', () => {
+      const cache = new KeyedTTLCache<string, string>(1000);
+      cache.set('key1', 'value1');
+      cache.set('key2', 'value2');
 
-    const first = await cached();
-    const second = await cached();
+      cache.invalidate('key1');
 
-    expect(first).not.toBe(second); // Different references
-    expect(first).toEqual({ value: 1 });
-    expect(second).toEqual({ value: 1 });
+      expect(cache.get('key1')).toBeNull();
+      expect(cache.get('key2')).toBe('value2');
+    });
   });
 
-  it('clones fresh result on first call', async () => {
-    const original = { value: 1 };
-    const fn = vi.fn(async () => original);
-    const clone = (obj: { value: number }) => ({ ...obj });
-    const cached = createCachedFn(fn, 1000, clone);
+  describe('invalidateAll', () => {
+    it('removes all entries', () => {
+      const cache = new KeyedTTLCache<string, string>(1000);
+      cache.set('key1', 'value1');
+      cache.set('key2', 'value2');
 
-    const result = await cached();
-    expect(result).not.toBe(original);
-    expect(result).toEqual({ value: 1 });
+      cache.invalidateAll();
+
+      expect(cache.get('key1')).toBeNull();
+      expect(cache.get('key2')).toBeNull();
+      expect(cache.size).toBe(0);
+    });
+  });
+
+  describe('cleanup', () => {
+    it('removes expired entries', () => {
+      const cache = new KeyedTTLCache<string, string>(1000);
+      cache.set('old', 'value1');
+
+      vi.advanceTimersByTime(1001);
+      cache.set('new', 'value2');
+
+      expect(cache.size).toBe(2);
+      cache.cleanup();
+      expect(cache.size).toBe(1);
+      expect(cache.get('new')).toBe('value2');
+    });
+  });
+
+  describe('clone function', () => {
+    it('clones on get', () => {
+      const clone = (obj: { value: number }) => ({ ...obj });
+      const cache = new KeyedTTLCache<string, { value: number }>(1000, clone);
+
+      cache.set('key1', { value: 1 });
+      const first = cache.get('key1');
+      const second = cache.get('key1');
+
+      expect(first).not.toBe(second);
+      expect(first).toEqual({ value: 1 });
+    });
+
+    it('protects cached data from mutation', () => {
+      const clone = (obj: { value: number }) => ({ ...obj });
+      const cache = new KeyedTTLCache<string, { value: number }>(1000, clone);
+
+      cache.set('key1', { value: 1 });
+      const retrieved = cache.get('key1');
+      retrieved!.value = 999;
+
+      expect(cache.get('key1')).toEqual({ value: 1 });
+    });
   });
 });
 
@@ -279,5 +307,6 @@ describe('CacheTTL constants', () => {
     expect(CacheTTL.SHORT).toBe(5000);
     expect(CacheTTL.MEDIUM).toBe(30000);
     expect(CacheTTL.LONG).toBe(120000);
+    expect(CacheTTL.VERY_LONG).toBe(600000);
   });
 });

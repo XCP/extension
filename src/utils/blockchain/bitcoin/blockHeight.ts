@@ -3,20 +3,22 @@
  * Implements caching and fallback mechanisms similar to fee rate fetching.
  */
 
-// Cache for block height data
-interface BlockHeightCache {
-  height: number;
-  timestamp: number;
-}
+import { TTLCache, CacheTTL } from '@/utils/cache';
 
-let blockHeightCache: BlockHeightCache | null = null;
-const CACHE_DURATION_MS = 10 * 60 * 1000; // 10 minutes
+/**
+ * Cache for block height with request deduplication.
+ * 10 minute TTL - block height changes slowly (~10 min per block).
+ * Prevents duplicate API calls when multiple components request block height simultaneously.
+ */
+const blockHeightCache = new TTLCache<number>(CacheTTL.VERY_LONG);
+let inflightRequest: Promise<number> | null = null;
 
 /**
  * Clears the block height cache. Useful for testing.
  */
 export const clearBlockHeightCache = (): void => {
-  blockHeightCache = null;
+  blockHeightCache.invalidate();
+  inflightRequest = null;
 };
 
 /**
@@ -123,47 +125,58 @@ export const fetchBlockHeightSequential = async (): Promise<number> => {
 };
 
 /**
- * Gets the current block height, using cache if available and not expired.
- * Falls back to sequential fetching if race approach fails.
- * 
- * @param {boolean} forceRefresh - If true, ignores cache and fetches fresh data
- * @returns {Promise<number>} The current block height
+ * Internal fetch function with fallbacks.
+ * Tries race approach first, then sequential if race fails.
  */
-export const getCurrentBlockHeight = async (forceRefresh = false): Promise<number> => {
-  // Check cache first if not forcing refresh
-  if (!forceRefresh && blockHeightCache && 
-      (Date.now() - blockHeightCache.timestamp) < CACHE_DURATION_MS) {
-    return blockHeightCache.height;
-  }
-
+async function fetchBlockHeightWithFallback(): Promise<number> {
   try {
     // Try race approach first (fastest response wins)
-    const height = await fetchBlockHeightRace();
-    
-    // Update cache
-    blockHeightCache = {
-      height,
-      timestamp: Date.now()
-    };
-    
-    return height;
+    return await fetchBlockHeightRace();
   } catch (error) {
     console.error('Race approach failed, trying sequential:', error);
-    
+
     // Fall back to sequential approach
     try {
-      const height = await fetchBlockHeightSequential();
-      
-      // Update cache
-      blockHeightCache = {
-        height,
-        timestamp: Date.now()
-      };
-      
-      return height;
+      return await fetchBlockHeightSequential();
     } catch (sequentialError) {
       console.error('All block height fetching methods failed:', sequentialError);
       throw new Error('Failed to fetch current block height');
     }
+  }
+}
+
+/**
+ * Gets the current block height, using cache if available and not expired.
+ * Deduplicates concurrent requests - only one API call when multiple callers request simultaneously.
+ * Falls back to sequential fetching if race approach fails.
+ *
+ * @param {boolean} forceRefresh - If true, ignores cache and fetches fresh data
+ * @returns {Promise<number>} The current block height
+ */
+export const getCurrentBlockHeight = async (forceRefresh = false): Promise<number> => {
+  // Invalidate cache if forced refresh
+  if (forceRefresh) {
+    blockHeightCache.invalidate();
+  }
+
+  // Check cache first (TTLCache handles expiry)
+  const cached = blockHeightCache.get();
+  if (cached !== null) {
+    return cached;
+  }
+
+  // Deduplicate concurrent requests - share the same promise
+  if (inflightRequest !== null) {
+    return inflightRequest;
+  }
+
+  // Execute fetch and cache result
+  inflightRequest = fetchBlockHeightWithFallback();
+  try {
+    const height = await inflightRequest;
+    blockHeightCache.set(height);
+    return height;
+  } finally {
+    inflightRequest = null;
   }
 }; 

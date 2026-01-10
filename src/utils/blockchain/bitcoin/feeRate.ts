@@ -12,6 +12,9 @@ export interface FeeRates {
  */
 const feeRateCache = new TTLCache<FeeRates>(CacheTTL.MEDIUM, (rates) => ({ ...rates }));
 
+/** Inflight request for deduplication - prevents duplicate API calls */
+let inflightRequest: Promise<FeeRates> | null = null;
+
 /**
  * Fetch fee rates from mempool.space.
  *
@@ -77,8 +80,33 @@ const feeRateFetchers: Array<() => Promise<FeeRates>> = [
 ];
 
 /**
+ * Internal fetch function with fallbacks.
+ * Tries each fetcher sequentially until one succeeds.
+ */
+async function fetchFeeRatesWithFallback(): Promise<FeeRates> {
+  for (const fetcher of feeRateFetchers) {
+    try {
+      const rates = await fetcher();
+      // Check that the returned rates are valid.
+      if (
+        typeof rates.fastestFee === 'number' && !isNaN(rates.fastestFee) &&
+        typeof rates.halfHourFee === 'number' && !isNaN(rates.halfHourFee) &&
+        typeof rates.hourFee === 'number' && !isNaN(rates.hourFee)
+      ) {
+        return rates;
+      }
+    } catch (error) {
+      console.error(error);
+      continue;
+    }
+  }
+  throw new Error('Unable to fetch fee rates from any source');
+}
+
+/**
  * Attempts to fetch fee rates from multiple APIs sequentially.
  * Uses a 30-second cache to reduce API calls.
+ * Deduplicates concurrent requests - only one API call when multiple callers request simultaneously.
  * If no source returns valid data, an error is thrown.
  *
  * @returns {Promise<FeeRates>} The fee rates object.
@@ -91,23 +119,19 @@ export const getFeeRates = async (): Promise<FeeRates> => {
     return cached;
   }
 
-  for (const fetcher of feeRateFetchers) {
-    try {
-      const rates = await fetcher();
-      // Check that the returned rates are valid.
-      if (
-        typeof rates.fastestFee === 'number' && !isNaN(rates.fastestFee) &&
-        typeof rates.halfHourFee === 'number' && !isNaN(rates.halfHourFee) &&
-        typeof rates.hourFee === 'number' && !isNaN(rates.hourFee)
-      ) {
-        // Update cache
-        feeRateCache.set(rates);
-        return { ...rates };
-      }
-    } catch (error) {
-      console.error(error);
-      continue;
-    }
+  // Deduplicate concurrent requests - share the same promise
+  if (inflightRequest !== null) {
+    const result = await inflightRequest;
+    return { ...result }; // Clone for caller
   }
-  throw new Error('Unable to fetch fee rates from any source');
+
+  // Execute fetch and cache result
+  inflightRequest = fetchFeeRatesWithFallback();
+  try {
+    const rates = await inflightRequest;
+    feeRateCache.set(rates);
+    return { ...rates }; // Clone for caller
+  } finally {
+    inflightRequest = null;
+  }
 };
