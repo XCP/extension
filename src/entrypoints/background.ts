@@ -6,6 +6,7 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { MessageBus, type ProviderMessage, type ApprovalMessage, type EventMessage } from '@/services/core/MessageBus';
 import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/sessionManager';
+import { serviceKeepAlive } from '@/utils/storage/serviceStateStorage';
 import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, createJsonRpcError } from '@/utils/errors';
 import { broadcastToTabs } from '@/utils/browser';
 import { getUpdateService } from '@/services/updateService';
@@ -54,13 +55,22 @@ export default defineBackground(() => {
     return false; // Let other handlers process the message
   });
 
-  // Secondary error consumer for port-based connections
+  // Single consolidated port handler for error consumption and message handling
+  // This prevents duplicate listeners being added per port
   chrome.runtime.onConnect.addListener((port) => {
     // Check for connection errors immediately
     if (chrome.runtime.lastError) {
       // Error consumed - handles port connection failures
     }
 
+    // Handle ping messages on this port
+    port.onMessage.addListener((msg) => {
+      if (msg?.action === 'ping') {
+        port.postMessage({ status: 'ready', timestamp: Date.now() });
+      }
+    });
+
+    // Single disconnect handler (instead of adding multiple)
     port.onDisconnect.addListener(() => {
       // Consume disconnect errors
       if (chrome.runtime.lastError) {
@@ -125,22 +135,9 @@ export default defineBackground(() => {
     console.log('[Background] Extension installed/updated - cleared ready tabs');
   });
 
-  // Set up connection listener
-  chrome.runtime.onConnect.addListener((port) => {
-    port.onMessage.addListener((msg) => {
-      if (msg?.action === 'ping') {
-        port.postMessage({ status: 'ready', timestamp: Date.now() });
-      }
-    });
-    
-    port.onDisconnect.addListener(() => {
-      // Check lastError to prevent warnings
-      if (chrome.runtime.lastError) {
-        // Error acknowledged
-      }
-    });
-  });
-  
+  // Note: Port connection handling is consolidated in the early onConnect handler above
+  // to prevent duplicate listeners being added per port
+
   console.log('Background service worker: Core listeners registered');
 
   // ============================================================
@@ -340,10 +337,7 @@ export default defineBackground(() => {
           
         case KEEP_ALIVE_ALARM_NAME:
           // Perform minimal activity to keep service worker alive
-          // This is automatically cleaned up when the service worker terminates
-          chrome.storage.local.get('keep-alive-ping', () => {
-            // Just accessing storage is enough to keep the worker alive
-          });
+          await serviceKeepAlive('background');
           break;
       }
     });

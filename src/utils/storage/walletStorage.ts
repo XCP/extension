@@ -1,5 +1,20 @@
-import { getAllRecords, addRecord, updateRecord, updateRecords, removeRecord, StoredRecord } from '@/utils/storage/storage';
+/**
+ * Wallet Storage - Encrypted wallet record persistence
+ *
+ * Stores encrypted wallet data (mnemonics, private keys) in local storage.
+ * All secrets are encrypted before storage using password-derived keys.
+ */
+
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+
+import {
+  getAllRecords,
+  addRecord,
+  updateRecord,
+  updateRecords,
+  removeRecord,
+  StoredRecord,
+} from './storage';
 
 /**
  * Interface for encrypted wallet records stored in local storage.
@@ -43,8 +58,12 @@ export async function addEncryptedWallet(record: EncryptedWalletRecord): Promise
  * Updates an existing encrypted wallet record.
  *
  * @param record - The wallet record with updated information.
+ * @throws Error if encryptedSecret is missing or invalid.
  */
 export async function updateEncryptedWallet(record: EncryptedWalletRecord): Promise<void> {
+  if (!record.encryptedSecret) {
+    throw new Error('Encrypted secret is required for wallet records');
+  }
   await updateRecord(record);
 }
 
@@ -53,8 +72,14 @@ export async function updateEncryptedWallet(record: EncryptedWalletRecord): Prom
  * More efficient than calling updateEncryptedWallet() multiple times.
  *
  * @param records - Array of wallet records to update.
+ * @throws Error if any record is missing encryptedSecret.
  */
 export async function updateEncryptedWallets(records: EncryptedWalletRecord[]): Promise<void> {
+  for (const record of records) {
+    if (!record.encryptedSecret) {
+      throw new Error(`Encrypted secret is required for wallet record: ${record.id}`);
+    }
+  }
   await updateRecords(records);
 }
 

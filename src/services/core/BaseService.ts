@@ -33,6 +33,12 @@
  * ```
  */
 
+import {
+  getServiceState,
+  setServiceState,
+  serviceKeepAlive,
+} from '@/utils/storage/serviceStateStorage';
+
 export abstract class BaseService {
   protected readonly serviceName: string;
   private keepAliveAlarmName: string;
@@ -40,6 +46,21 @@ export abstract class BaseService {
   private initialized = false;
   private initializationPromise: Promise<void> | null = null;
   protected serviceStartTime: number = 0;
+
+  // Static: single shared listener with O(1) dispatch via Map
+  private static alarmHandlers = new Map<string, () => Promise<void>>();
+  private static listenerRegistered = false;
+
+  private static ensureAlarmListener(): void {
+    if (this.listenerRegistered || !chrome?.alarms?.onAlarm) {
+      return;
+    }
+    chrome.alarms.onAlarm.addListener((alarm) => {
+      const handler = BaseService.alarmHandlers.get(alarm.name);
+      handler?.();
+    });
+    this.listenerRegistered = true;
+  }
 
   constructor(serviceName: string) {
     this.serviceName = serviceName;
@@ -88,8 +109,16 @@ export abstract class BaseService {
           periodInMinutes: 5,
         });
 
-        // Register alarm handlers
-        chrome.alarms.onAlarm.addListener(this.handleAlarm.bind(this));
+        // Register handlers in shared static map (O(1) dispatch)
+        BaseService.alarmHandlers.set(
+          this.keepAliveAlarmName,
+          () => this.handleKeepAlive()
+        );
+        BaseService.alarmHandlers.set(
+          this.persistAlarmName,
+          () => this.handlePersist()
+        );
+        BaseService.ensureAlarmListener();
       }
 
       // Call service-specific initialization
@@ -120,10 +149,14 @@ export abstract class BaseService {
       // Save current state before destruction
       await this.saveState();
 
-      // Clear alarms
+      // Clear alarms and remove from shared handler map
       if (chrome?.alarms) {
         await chrome.alarms.clear(this.keepAliveAlarmName);
         await chrome.alarms.clear(this.persistAlarmName);
+
+        // Remove handlers from shared map
+        BaseService.alarmHandlers.delete(this.keepAliveAlarmName);
+        BaseService.alarmHandlers.delete(this.persistAlarmName);
       }
 
       // Call service-specific cleanup
@@ -138,16 +171,17 @@ export abstract class BaseService {
   }
 
   /**
-   * Handle Chrome alarms for keep-alive and persistence
+   * Handle keep-alive alarm - access storage to prevent service worker termination
    */
-  private async handleAlarm(alarm: chrome.alarms.Alarm): Promise<void> {
-    if (alarm.name === this.keepAliveAlarmName) {
-      // Keep-alive ping - just access storage to prevent termination
-      await chrome.storage.local.get(`${this.serviceName}-keepalive`);
-    } else if (alarm.name === this.persistAlarmName) {
-      // Persist current state
-      await this.saveState();
-    }
+  private async handleKeepAlive(): Promise<void> {
+    await serviceKeepAlive(this.serviceName);
+  }
+
+  /**
+   * Handle persist alarm - save current state
+   */
+  private async handlePersist(): Promise<void> {
+    await this.saveState();
   }
 
   /**
@@ -156,18 +190,7 @@ export abstract class BaseService {
   protected async saveState(): Promise<void> {
     const state = this.getSerializableState();
     if (state !== null && state !== undefined) {
-      try {
-        // Use session storage for state that should survive popup close but not browser restart
-        await chrome.storage.session.set({
-          [`${this.serviceName}_state`]: {
-            data: state,
-            timestamp: Date.now(),
-            version: this.getStateVersion(),
-          },
-        });
-      } catch (error) {
-        console.error(`Failed to save state for ${this.serviceName}:`, error);
-      }
+      await setServiceState(this.serviceName, state, this.getStateVersion());
     }
   }
 
@@ -175,25 +198,10 @@ export abstract class BaseService {
    * Restore service state from persistent storage
    */
   protected async restoreState(): Promise<void> {
-    try {
-      const stored = await chrome.storage.session.get(`${this.serviceName}_state`);
-      const stateKey = `${this.serviceName}_state`;
-      
-      if (stored[stateKey]) {
-        const { data, version } = stored[stateKey] as { data: unknown; version: number };
-        
-        // Check version compatibility
-        if (version === this.getStateVersion()) {
-          this.hydrateState(data);
-          console.log(`State restored for service ${this.serviceName}`);
-        } else {
-          console.warn(
-            `State version mismatch for ${this.serviceName}. Expected ${this.getStateVersion()}, got ${version}`
-          );
-        }
-      }
-    } catch (error) {
-      console.error(`Failed to restore state for ${this.serviceName}:`, error);
+    const state = await getServiceState(this.serviceName, this.getStateVersion());
+    if (state !== null) {
+      this.hydrateState(state);
+      console.log(`State restored for service ${this.serviceName}`);
     }
   }
 

@@ -5,6 +5,13 @@
  * The derived key is stored in session storage after unlock,
  * allowing settings to be encrypted/decrypted without re-entering password.
  *
+ * ## Security Design
+ *
+ * **Salt Handling**:
+ * - Each wallet installation gets a unique random salt (16 bytes)
+ * - Salt is stored in local storage (persistent across browser restarts)
+ * - Ensures different users with same password get different derived keys
+ *
  * ## Session Storage Threat Model
  *
  * **Storage Location**: `chrome.storage.session`
@@ -33,23 +40,50 @@
  */
 
 import type { AppSettings } from '@/utils/storage/settingsStorage';
+import {
+  getSettingsSalt,
+  setSettingsSalt,
+  getCachedSettingsKey,
+  setCachedSettingsKey,
+  clearCachedSettingsKey,
+  hasSettingsKey,
+} from '@/utils/storage/keyStorage';
+import { bufferToBase64, base64ToBuffer, generateRandomBytes } from './buffer';
 
-const SETTINGS_KEY = 'settingsEncryptionKey';
+// Crypto constants
+const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const KEY_BITS = 256;
 const PBKDF2_ITERATIONS = 600_000;
-const SALT = 'xcp-wallet-settings-v2';
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 /**
- * Derives an encryption key from password and stores it in session.
- * Call this during wallet unlock.
+ * Gets or creates the per-installation random salt.
+ * Uses read-after-write pattern to handle race conditions.
  */
-export async function initializeSettingsKey(password: string): Promise<void> {
-  const salt = encoder.encode(SALT);
+async function getOrCreateSalt(): Promise<Uint8Array<ArrayBuffer>> {
+  const stored = await getSettingsSalt();
 
+  if (stored) {
+    return base64ToBuffer(stored);
+  }
+
+  // Generate new random salt
+  const salt = generateRandomBytes(SALT_BYTES);
+  await setSettingsSalt(bufferToBase64(salt));
+
+  // Read back to handle race condition - always use what's actually stored
+  // (another concurrent call may have stored a different salt)
+  const verified = await getSettingsSalt();
+  return base64ToBuffer(verified!);
+}
+
+/**
+ * Derives an encryption key from password and salt.
+ */
+async function deriveKey(password: string, salt: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
   const passwordKey = await crypto.subtle.importKey(
     'raw',
     encoder.encode(password),
@@ -58,19 +92,28 @@ export async function initializeSettingsKey(password: string): Promise<void> {
     ['deriveKey']
   );
 
-  const derivedKey = await crypto.subtle.deriveKey(
+  return crypto.subtle.deriveKey(
     { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
     passwordKey,
     { name: 'AES-GCM', length: KEY_BITS },
     true, // extractable so we can export it
     ['encrypt', 'decrypt']
   );
+}
+
+/**
+ * Derives an encryption key from password and stores it in session.
+ * Call this during wallet unlock.
+ */
+export async function initializeSettingsKey(password: string): Promise<void> {
+  const salt = await getOrCreateSalt();
+  const derivedKey = await deriveKey(password, salt);
 
   // Export and store the key in session storage
   const exportedKey = await crypto.subtle.exportKey('raw', derivedKey);
   const keyBase64 = bufferToBase64(exportedKey);
 
-  await chrome.storage.session.set({ [SETTINGS_KEY]: keyBase64 });
+  await setCachedSettingsKey(keyBase64);
 }
 
 /**
@@ -78,7 +121,7 @@ export async function initializeSettingsKey(password: string): Promise<void> {
  * Call this during wallet lock.
  */
 export async function clearSettingsKey(): Promise<void> {
-  await chrome.storage.session.remove(SETTINGS_KEY);
+  await clearCachedSettingsKey();
 }
 
 /**
@@ -86,8 +129,7 @@ export async function clearSettingsKey(): Promise<void> {
  * Returns null if not initialized (wallet locked).
  */
 async function getKeyFromSession(): Promise<CryptoKey | null> {
-  const result = await chrome.storage.session.get(SETTINGS_KEY);
-  const keyBase64 = result[SETTINGS_KEY] as string | undefined;
+  const keyBase64 = await getCachedSettingsKey();
 
   if (!keyBase64) return null;
 
@@ -105,8 +147,7 @@ async function getKeyFromSession(): Promise<CryptoKey | null> {
  * Checks if settings encryption is initialized.
  */
 export async function isSettingsKeyAvailable(): Promise<boolean> {
-  const result = await chrome.storage.session.get(SETTINGS_KEY);
-  return !!result[SETTINGS_KEY];
+  return hasSettingsKey();
 }
 
 /**
@@ -119,7 +160,7 @@ export async function encryptSettings(settings: AppSettings): Promise<string> {
     throw new Error('Settings key not initialized. Wallet must be unlocked.');
   }
 
-  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
+  const iv = generateRandomBytes(IV_BYTES);
   const plaintext = encoder.encode(JSON.stringify(settings));
 
   const ciphertext = await crypto.subtle.encrypt(
@@ -139,6 +180,7 @@ export async function encryptSettings(settings: AppSettings): Promise<string> {
 /**
  * Decrypts settings data.
  * Requires the key to be initialized (wallet unlocked).
+ * Uses timing attack mitigations for consistency with wallet encryption.
  */
 export async function decryptSettings(encrypted: string): Promise<AppSettings> {
   const key = await getKeyFromSession();
@@ -150,60 +192,70 @@ export async function decryptSettings(encrypted: string): Promise<AppSettings> {
   const iv = combined.slice(0, IV_BYTES);
   const ciphertext = combined.slice(IV_BYTES);
 
+  // Always attempt decryption and capture result
+  let decryptedBuffer: ArrayBuffer | null = null;
+  let decryptionError: Error | null = null;
+
   try {
-    const plaintext = await crypto.subtle.decrypt(
+    decryptedBuffer = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv },
       key,
       ciphertext
     );
+  } catch (err) {
+    decryptionError = err instanceof Error ? err : new Error(String(err));
+  }
 
-    return JSON.parse(decoder.decode(plaintext));
-  } catch {
+  // Add small random delay to mask timing differences
+  const randomDelay = crypto.getRandomValues(new Uint8Array(1))[0] / 255 * 10; // 0-10ms
+  await new Promise(resolve => setTimeout(resolve, randomDelay));
+
+  if (decryptionError || !decryptedBuffer) {
     throw new Error('Failed to decrypt settings');
   }
+
+  return JSON.parse(decoder.decode(decryptedBuffer));
 }
 
 /**
  * Decrypts settings using a password directly.
  * Used during password change to re-encrypt with new password.
+ * Uses timing attack mitigations for consistency with wallet encryption.
  */
 export async function decryptSettingsWithPassword(
   encrypted: string,
   password: string
 ): Promise<AppSettings> {
-  const salt = encoder.encode(SALT);
-
-  const passwordKey = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(password),
-    'PBKDF2',
-    false,
-    ['deriveKey']
-  );
-
-  const derivedKey = await crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
-    passwordKey,
-    { name: 'AES-GCM', length: KEY_BITS },
-    false,
-    ['decrypt']
-  );
+  const salt = await getOrCreateSalt();
+  const derivedKey = await deriveKey(password, salt);
 
   const combined = base64ToBuffer(encrypted);
   const iv = combined.slice(0, IV_BYTES);
   const ciphertext = combined.slice(IV_BYTES);
 
+  // Always attempt decryption and capture result
+  let decryptedBuffer: ArrayBuffer | null = null;
+  let decryptionError: Error | null = null;
+
   try {
-    const plaintext = await crypto.subtle.decrypt(
+    decryptedBuffer = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv },
       derivedKey,
       ciphertext
     );
+  } catch (err) {
+    decryptionError = err instanceof Error ? err : new Error(String(err));
+  }
 
-    return JSON.parse(decoder.decode(plaintext));
-  } catch {
+  // Add small random delay to mask timing differences
+  const randomDelay = crypto.getRandomValues(new Uint8Array(1))[0] / 255 * 10; // 0-10ms
+  await new Promise(resolve => setTimeout(resolve, randomDelay));
+
+  if (decryptionError || !decryptedBuffer) {
     throw new Error('Failed to decrypt settings');
   }
+
+  return JSON.parse(decoder.decode(decryptedBuffer));
 }
 
 /**
@@ -214,25 +266,10 @@ export async function encryptSettingsWithPassword(
   settings: AppSettings,
   password: string
 ): Promise<string> {
-  const salt = encoder.encode(SALT);
+  const salt = await getOrCreateSalt();
+  const derivedKey = await deriveKey(password, salt);
 
-  const passwordKey = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(password),
-    'PBKDF2',
-    false,
-    ['deriveKey']
-  );
-
-  const derivedKey = await crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
-    passwordKey,
-    { name: 'AES-GCM', length: KEY_BITS },
-    false,
-    ['encrypt']
-  );
-
-  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
+  const iv = generateRandomBytes(IV_BYTES);
   const plaintext = encoder.encode(JSON.stringify(settings));
 
   const ciphertext = await crypto.subtle.encrypt(
@@ -246,24 +283,4 @@ export async function encryptSettingsWithPassword(
   combined.set(new Uint8Array(ciphertext), iv.length);
 
   return bufferToBase64(combined);
-}
-
-// Helper functions
-function bufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
-  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-  let binary = '';
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
-}
-
-function base64ToBuffer(base64: string): Uint8Array<ArrayBuffer> {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes as Uint8Array<ArrayBuffer>;
 }

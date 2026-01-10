@@ -1,7 +1,11 @@
+import { bufferToBase64, base64ToBuffer, combineBuffers } from './buffer';
+
 /**
  * Encryption version. Increment if the scheme changes.
+ * v1: Original format with separate authSalt
+ * v2: Simplified format - single salt for PBKDF2, empty salt for HKDF
  */
-const ENCRYPTION_VERSION = 1;
+const ENCRYPTION_VERSION = 2;
 
 /**
  * Cryptographic configuration constants.
@@ -61,13 +65,12 @@ export async function encryptString(
   if (!plaintext) throw new Error('Plaintext cannot be empty');
 
   const data = encoder.encode(plaintext);
-  const encryptionSalt = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.SALT_BYTES));
-  const authSalt = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.SALT_BYTES));
+  const salt = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.SALT_BYTES));
   const iv = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.IV_BYTES));
 
-  const masterKey = await deriveMasterKey(password, encryptionSalt, CRYPTO_CONFIG.PBKDF2_ITERATIONS);
-  const encryptionKey = await deriveEncryptionKey(masterKey, encryptionSalt);
-  const authKey = await deriveAuthenticationKey(masterKey, authSalt);
+  const masterKey = await deriveMasterKey(password, salt, CRYPTO_CONFIG.PBKDF2_ITERATIONS);
+  const encryptionKey = await deriveEncryptionKey(masterKey);
+  const authKey = await deriveAuthenticationKey(masterKey);
 
   const encryptedBuffer = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv, tagLength: CRYPTO_CONFIG.TAG_LENGTH },
@@ -79,7 +82,8 @@ export async function encryptString(
   const signatureBuffer = await crypto.subtle.sign('HMAC', authKey, authMessageBytes);
   const authSignature = bufferToBase64(signatureBuffer);
 
-  const combined = combineBuffers(encryptionSalt, authSalt, iv, new Uint8Array(encryptedBuffer));
+  // Format: salt (16 bytes) + iv (12 bytes) + ciphertext
+  const combined = combineBuffers(salt, iv, new Uint8Array(encryptedBuffer));
   const payload: EncryptedPayload = {
     version: ENCRYPTION_VERSION,
     iterations: CRYPTO_CONFIG.PBKDF2_ITERATIONS,
@@ -118,20 +122,21 @@ export async function decryptString(
   }
 
   const combined = base64ToBuffer(parsed.encryptedData);
-  if (combined.byteLength < CRYPTO_CONFIG.SALT_BYTES * 2 + CRYPTO_CONFIG.IV_BYTES) {
+  // Minimum size: salt (16) + iv (12) + at least 1 byte ciphertext + GCM tag (16)
+  if (combined.byteLength < CRYPTO_CONFIG.SALT_BYTES + CRYPTO_CONFIG.IV_BYTES + 17) {
     throw new DecryptionError('Invalid encrypted payload (incomplete data)');
   }
 
-  const encryptionSalt = new Uint8Array(combined.slice(0, CRYPTO_CONFIG.SALT_BYTES));
-  const authSalt = new Uint8Array(combined.slice(CRYPTO_CONFIG.SALT_BYTES, 2 * CRYPTO_CONFIG.SALT_BYTES));
-  const iv = new Uint8Array(combined.slice(2 * CRYPTO_CONFIG.SALT_BYTES, 2 * CRYPTO_CONFIG.SALT_BYTES + CRYPTO_CONFIG.IV_BYTES));
-  const ciphertext = new Uint8Array(combined.slice(2 * CRYPTO_CONFIG.SALT_BYTES + CRYPTO_CONFIG.IV_BYTES));
+  // Format: salt (16 bytes) + iv (12 bytes) + ciphertext
+  const salt = new Uint8Array(combined.slice(0, CRYPTO_CONFIG.SALT_BYTES));
+  const iv = new Uint8Array(combined.slice(CRYPTO_CONFIG.SALT_BYTES, CRYPTO_CONFIG.SALT_BYTES + CRYPTO_CONFIG.IV_BYTES));
+  const ciphertext = new Uint8Array(combined.slice(CRYPTO_CONFIG.SALT_BYTES + CRYPTO_CONFIG.IV_BYTES));
 
   try {
     // Always perform all crypto operations to prevent timing attacks
-    const masterKey = await deriveMasterKey(password, encryptionSalt, parsed.iterations);
-    const encryptionKey = await deriveEncryptionKey(masterKey, encryptionSalt);
-    const authKey = await deriveAuthenticationKey(masterKey, authSalt);
+    const masterKey = await deriveMasterKey(password, salt, parsed.iterations);
+    const encryptionKey = await deriveEncryptionKey(masterKey);
+    const authKey = await deriveAuthenticationKey(masterKey);
 
     const authMessageBytes = encoder.encode(CRYPTO_CONFIG.AUTH_MESSAGE);
     const valid = await crypto.subtle.verify(
@@ -206,15 +211,22 @@ async function deriveMasterKey(
 }
 
 /**
+ * Empty salt for HKDF derivation.
+ * Since the masterKey from PBKDF2 is already uniformly random,
+ * HKDF salt isn't needed for entropy - the 'info' parameter provides domain separation.
+ * Using empty salt follows best practice for HKDF when input key material is already random.
+ */
+const HKDF_EMPTY_SALT = new Uint8Array(0);
+
+/**
  * Derives an AES-GCM key for encryption/decryption using HKDF.
  *
- * @param masterKey - The HKDF master key to derive from.
- * @param salt - The salt for HKDF derivation.
+ * @param masterKey - The HKDF master key to derive from (output of PBKDF2).
  * @returns A Promise that resolves to an AES-GCM CryptoKey for encryption and decryption.
  */
-async function deriveEncryptionKey(masterKey: CryptoKey, salt: Uint8Array): Promise<CryptoKey> {
+async function deriveEncryptionKey(masterKey: CryptoKey): Promise<CryptoKey> {
   return crypto.subtle.deriveKey(
-    { name: 'HKDF', hash: 'SHA-256', salt: salt.buffer as ArrayBuffer, info: encoder.encode('encryption') },
+    { name: 'HKDF', hash: 'SHA-256', salt: HKDF_EMPTY_SALT, info: encoder.encode('encryption') },
     masterKey,
     { name: 'AES-GCM', length: CRYPTO_CONFIG.KEY_BITS },
     false,
@@ -225,13 +237,12 @@ async function deriveEncryptionKey(masterKey: CryptoKey, salt: Uint8Array): Prom
 /**
  * Derives an HMAC key for authentication using HKDF.
  *
- * @param masterKey - The HKDF master key to derive from.
- * @param salt - The salt for HKDF derivation.
+ * @param masterKey - The HKDF master key to derive from (output of PBKDF2).
  * @returns A Promise that resolves to an HMAC CryptoKey for signing and verification.
  */
-async function deriveAuthenticationKey(masterKey: CryptoKey, salt: Uint8Array): Promise<CryptoKey> {
+async function deriveAuthenticationKey(masterKey: CryptoKey): Promise<CryptoKey> {
   return crypto.subtle.deriveKey(
-    { name: 'HKDF', hash: 'SHA-256', salt: salt.buffer as ArrayBuffer, info: encoder.encode('authentication') },
+    { name: 'HKDF', hash: 'SHA-256', salt: HKDF_EMPTY_SALT, info: encoder.encode('authentication') },
     masterKey,
     { name: 'HMAC', hash: 'SHA-256', length: CRYPTO_CONFIG.KEY_BITS },
     true,
@@ -239,50 +250,3 @@ async function deriveAuthenticationKey(masterKey: CryptoKey, salt: Uint8Array): 
   );
 }
 
-/**
- * Combines multiple Uint8Arrays into a single Uint8Array.
- *
- * @param buffers - Variable number of Uint8Array buffers to combine.
- * @returns A single Uint8Array containing all input buffers concatenated in order.
- */
-function combineBuffers(...buffers: Uint8Array[]): Uint8Array {
-  const totalLength = buffers.reduce((sum, buf) => sum + buf.length, 0);
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const buf of buffers) {
-    result.set(buf, offset);
-    offset += buf.length;
-  }
-  return result;
-}
-
-/**
- * Converts an ArrayBuffer (or TypedArray buffer) to a Base64-encoded string.
- *
- * @param buffer - The ArrayBuffer or TypedArray buffer to encode.
- * @returns A Base64-encoded string representation of the buffer.
- */
-function bufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
-  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-  let binary = '';
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
-}
-
-/**
- * Converts a Base64-encoded string to an ArrayBuffer.
- *
- * @param base64 - The Base64 string to decode.
- * @returns An ArrayBuffer containing the decoded bytes.
- */
-function base64ToBuffer(base64: string): ArrayBuffer {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes.buffer;
-}

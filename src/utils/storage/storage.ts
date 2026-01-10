@@ -27,6 +27,7 @@
  */
 
 import { storage } from '#imports';
+import { createWriteLock } from './mutex';
 
 /**
  * Generic interface for items stored in local storage.
@@ -34,42 +35,14 @@ import { storage } from '#imports';
  */
 export interface StoredRecord {
   id: string;
-  [key: string]: any; // Allows arbitrary additional fields.
+  [key: string]: unknown; // Allows arbitrary additional fields
 }
 
 /**
- * Promise-based mutex for serializing write operations.
- * Prevents race conditions in read-modify-write patterns.
+ * Write lock for serializing local storage operations.
+ * Uses shared mutex implementation from ./mutex.ts
  */
-let writeLock: Promise<void> = Promise.resolve();
-
-/**
- * Executes a function while holding the write lock.
- * Ensures only one write operation runs at a time.
- *
- * @param fn - The async function to execute under the lock
- * @returns The result of the function
- */
-async function withWriteLock<T>(fn: () => Promise<T>): Promise<T> {
-  // Capture the current lock to wait on
-  const previousLock = writeLock;
-
-  // Create a new lock that will be released when we're done
-  let releaseLock: () => void;
-  writeLock = new Promise<void>((resolve) => {
-    releaseLock = resolve;
-  });
-
-  try {
-    // Wait for any previous operation to complete
-    await previousLock;
-    // Execute our operation
-    return await fn();
-  } finally {
-    // Release the lock for the next operation
-    releaseLock!();
-  }
-}
+const withWriteLock = createWriteLock();
 
 /**
  * Defines a storage item for an array of records.

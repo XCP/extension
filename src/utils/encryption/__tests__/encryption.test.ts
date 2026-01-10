@@ -69,7 +69,7 @@ describe('encryption.ts', () => {
       expect(parsed).toHaveProperty('iterations');
       expect(parsed).toHaveProperty('encryptedData');
       expect(parsed).toHaveProperty('authSignature');
-      expect(parsed.version).toBe(1);
+      expect(parsed.version).toBe(2);
       expect(parsed.iterations).toBe(600000);
     });
 
@@ -93,7 +93,7 @@ describe('encryption.ts', () => {
   describe('decryptString', () => {
     it('should throw DecryptionError for empty password', async () => {
       const validPayload = JSON.stringify({
-        version: 1,
+        version: 2,
         iterations: 420690,
         encryptedData: 'dGVzdA==',
         authSignature: 'dGVzdA==',
@@ -145,7 +145,7 @@ describe('encryption.ts', () => {
 
     it('should throw DecryptionError for incomplete data', async () => {
       const incompleteData = JSON.stringify({
-        version: 1,
+        version: 2,
         iterations: 420690,
         encryptedData: 'dGVzdA==', // Too short
         authSignature: 'dGVzdA==',
@@ -163,7 +163,7 @@ describe('encryption.ts', () => {
       // Create a payload with enough data length
       const longEnoughData = 'A'.repeat(100); // Base64 that decodes to sufficient length
       const invalidAuth = JSON.stringify({
-        version: 1,
+        version: 2,
         iterations: 420690,
         encryptedData: btoa(longEnoughData),
         authSignature: 'dGVzdA==',
@@ -185,7 +185,7 @@ describe('encryption.ts', () => {
     it('should successfully decrypt with valid payload and password', async () => {
       const longEnoughData = 'A'.repeat(100);
       const validPayload = JSON.stringify({
-        version: 1,
+        version: 2,
         iterations: 420690,
         encryptedData: btoa(longEnoughData),
         authSignature: 'dGVzdA==',
@@ -209,7 +209,7 @@ describe('encryption.ts', () => {
     it('should handle crypto operation failures', async () => {
       const longEnoughData = 'A'.repeat(100);
       const validPayload = JSON.stringify({
-        version: 1,
+        version: 2,
         iterations: 420690,
         encryptedData: btoa(longEnoughData),
         authSignature: 'dGVzdA==',

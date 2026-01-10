@@ -10,8 +10,9 @@ import {
 } from '../settings';
 import { DEFAULT_SETTINGS, type AppSettings } from '@/utils/storage/settingsStorage';
 
-// Mock chrome.storage.session
+// Mock chrome.storage (both session and local)
 const mockSessionStorage: Record<string, string> = {};
+const mockLocalStorage: Record<string, string> = {};
 
 vi.stubGlobal('chrome', {
   storage: {
@@ -27,6 +28,20 @@ vi.stubGlobal('chrome', {
       }),
       remove: vi.fn(async (key: string) => {
         delete mockSessionStorage[key];
+      }),
+    },
+    local: {
+      get: vi.fn(async (key: string) => {
+        if (typeof key === 'string') {
+          return { [key]: mockLocalStorage[key] };
+        }
+        return mockLocalStorage;
+      }),
+      set: vi.fn(async (items: Record<string, string>) => {
+        Object.assign(mockLocalStorage, items);
+      }),
+      remove: vi.fn(async (key: string) => {
+        delete mockLocalStorage[key];
       }),
     },
   },
@@ -47,8 +62,9 @@ describe('settings encryption', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Clear session storage
+    // Clear both storage types
     Object.keys(mockSessionStorage).forEach(key => delete mockSessionStorage[key]);
+    Object.keys(mockLocalStorage).forEach(key => delete mockLocalStorage[key]);
   });
 
   describe('initializeSettingsKey', () => {
@@ -175,6 +191,10 @@ describe('settings encryption', () => {
         connectedWebsites: ['https://a.com', 'https://b.com'],
         pinnedAssets: ['ASSET1', 'ASSET2', 'ASSET3'],
         hasVisitedRecoverBitcoin: true,
+        preferences: {
+          unit: 'btc',
+          fiat: 'usd',
+        },
       };
 
       const encrypted = await encryptSettings(fullSettings);

@@ -1,8 +1,18 @@
+/**
+ * Wallet Encryption - Mnemonic and private key encryption/decryption
+ *
+ * Provides high-level encryption functions for wallet secrets.
+ * Uses the core encryption module with additional validation for
+ * mnemonic phrases (BIP39 and Counterwallet formats).
+ */
+
 import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
+
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
-import { encryptString, decryptString, DecryptionError } from '@/utils/encryption/encryption';
+
+import { encryptString, decryptString, DecryptionError } from './encryption';
 
 // Re-export DecryptionError for convenience
 export { DecryptionError };

@@ -9,16 +9,13 @@
  * Without this, Chrome won't auto-update and users get stuck on old versions.
  */
 
-interface UpdateState {
-  updateAvailable: boolean;
-  currentVersion: string;
-  pendingVersion?: string;
-  lastCheckTime: number;
-  reloadScheduled: boolean;
-}
+import {
+  getUpdateState,
+  setUpdateState,
+  type UpdateState,
+} from '@/utils/storage/updateStorage';
 
 class UpdateService {
-  private readonly STORAGE_KEY = 'update_service_state';
   private readonly CHECK_INTERVAL = 1000 * 60 * 15; // 15 minutes
   private readonly CRITICAL_OPERATION_DELAY = 1000 * 30; // 30 seconds
 
@@ -31,6 +28,9 @@ class UpdateService {
 
   private criticalOperations = new Set<string>();
   private reloadTimeout?: NodeJS.Timeout;
+  // Store bound handler reference for cleanup
+  private boundAlarmHandler: ((alarm: chrome.alarms.Alarm) => void) | null = null;
+  private readonly ALARM_NAME = 'update-service-periodic-check';
 
   async initialize(): Promise<void> {
     console.log('[UpdateService] Initializing...');
@@ -118,19 +118,18 @@ class UpdateService {
    * Set up periodic check to catch missed updates
    */
   private setupPeriodicCheck(): void {
-    const ALARM_NAME = 'update-service-periodic-check';
-
     // Create periodic alarm
-    chrome.alarms.create(ALARM_NAME, {
+    chrome.alarms.create(this.ALARM_NAME, {
       periodInMinutes: this.CHECK_INTERVAL / (1000 * 60)
     });
 
-    // Listen for alarm
-    chrome.alarms.onAlarm.addListener((alarm) => {
-      if (alarm.name === ALARM_NAME) {
+    // Store bound handler reference so we can remove it in destroy()
+    this.boundAlarmHandler = (alarm) => {
+      if (alarm.name === this.ALARM_NAME) {
         this.performPeriodicCheck();
       }
-    });
+    };
+    chrome.alarms.onAlarm.addListener(this.boundAlarmHandler);
   }
 
   /**
@@ -195,13 +194,9 @@ class UpdateService {
    * Load state from storage
    */
   private async loadState(): Promise<void> {
-    try {
-      const result = await chrome.storage.local.get(this.STORAGE_KEY);
-      if (result[this.STORAGE_KEY]) {
-        this.state = { ...this.state, ...(result[this.STORAGE_KEY] as Partial<UpdateState>) };
-      }
-    } catch (error) {
-      console.error('[UpdateService] Failed to load state:', error);
+    const stored = await getUpdateState();
+    if (stored) {
+      this.state = { ...this.state, ...stored };
     }
   }
 
@@ -209,13 +204,7 @@ class UpdateService {
    * Save state to storage
    */
   private async saveState(): Promise<void> {
-    try {
-      await chrome.storage.local.set({
-        [this.STORAGE_KEY]: this.state
-      });
-    } catch (error) {
-      console.error('[UpdateService] Failed to save state:', error);
-    }
+    await setUpdateState(this.state);
   }
 
   /**
@@ -225,6 +214,16 @@ class UpdateService {
     if (this.reloadTimeout) {
       clearTimeout(this.reloadTimeout);
     }
+
+    // Clear the alarm
+    chrome.alarms.clear(this.ALARM_NAME);
+
+    // Remove the alarm handler to prevent memory leaks
+    if (this.boundAlarmHandler) {
+      chrome.alarms.onAlarm.removeListener(this.boundAlarmHandler);
+      this.boundAlarmHandler = null;
+    }
+
     this.criticalOperations.clear();
     console.log('[UpdateService] Destroyed');
   }

@@ -5,6 +5,7 @@ import {
   AppSettings,
   DEFAULT_SETTINGS,
   AutoLockTimer,
+  PriceUnit,
   invalidateSettingsCache,
 } from '../settingsStorage';
 import {
@@ -219,7 +220,7 @@ describe('settingsStorage.ts', () => {
   describe('DEFAULT_SETTINGS validation', () => {
     it('should have all required properties with correct types', () => {
       expect(DEFAULT_SETTINGS).toHaveProperty('lastActiveWalletId');
-      expect(DEFAULT_SETTINGS).toHaveProperty('lastActiveAddress'); 
+      expect(DEFAULT_SETTINGS).toHaveProperty('lastActiveAddress');
       expect(typeof DEFAULT_SETTINGS.autoLockTimeout).toBe('number');
       expect(Array.isArray(DEFAULT_SETTINGS.connectedWebsites)).toBe(true);
       expect(typeof DEFAULT_SETTINGS.showHelpText).toBe('boolean');
@@ -231,6 +232,9 @@ describe('settingsStorage.ts', () => {
       expect(typeof DEFAULT_SETTINGS.transactionDryRun).toBe('boolean');
       expect(Array.isArray(DEFAULT_SETTINGS.pinnedAssets)).toBe(true);
       expect(typeof DEFAULT_SETTINGS.counterpartyApiBase).toBe('string');
+      expect(DEFAULT_SETTINGS.preferences).toBeDefined();
+      expect(['btc', 'sats', 'fiat']).toContain(DEFAULT_SETTINGS.preferences.unit);
+      expect(['usd', 'eur', 'gbp', 'jpy', 'cad', 'aud', 'cny']).toContain(DEFAULT_SETTINGS.preferences.fiat);
     });
 
     it('should have consistent autoLockTimer and autoLockTimeout', () => {
@@ -333,6 +337,109 @@ describe('settingsStorage.ts', () => {
 
       // Other should be unaffected since settings1 is a deep copy
       expect(settings2.connectedWebsites).not.toContain('test.com');
+    });
+  });
+
+  describe('preferences validation', () => {
+    it('should have btc as the default unit and usd as default fiat', () => {
+      expect(DEFAULT_SETTINGS.preferences.unit).toBe('btc');
+      expect(DEFAULT_SETTINGS.preferences.fiat).toBe('usd');
+    });
+
+    it('should validate all valid PriceUnit values', async () => {
+      const validUnits: PriceUnit[] = ['btc', 'sats', 'fiat'];
+
+      for (const unit of validUnits) {
+        await clearAllRecords();
+        invalidateSettingsCache();
+        await updateSettings({ preferences: { unit } });
+        const settings = await getSettings();
+        expect(settings.preferences.unit).toBe(unit);
+      }
+    });
+
+    it('should default invalid preferences.unit to btc', async () => {
+      await addRecord(createEncryptedRecord({
+        preferences: { unit: 'invalid' as any, fiat: 'usd' },
+      }));
+
+      const settings = await getSettings();
+      expect(settings.preferences.unit).toBe('btc');
+    });
+
+    it('should default invalid preferences.fiat to usd', async () => {
+      await addRecord(createEncryptedRecord({
+        preferences: { unit: 'btc', fiat: 'invalid' as any },
+      }));
+
+      const settings = await getSettings();
+      expect(settings.preferences.fiat).toBe('usd');
+    });
+
+    it('should preserve preferences when updating other settings', async () => {
+      await updateSettings({ preferences: { unit: 'sats', fiat: 'jpy' } });
+      await updateSettings({ showHelpText: true });
+
+      const settings = await getSettings();
+      expect(settings.preferences.unit).toBe('sats');
+      expect(settings.preferences.fiat).toBe('jpy');
+      expect(settings.showHelpText).toBe(true);
+    });
+
+    it('should handle unit cycle: btc -> sats -> fiat -> btc', async () => {
+      // Start with btc (default)
+      let settings = await getSettings();
+      expect(settings.preferences.unit).toBe('btc');
+
+      // Update to sats
+      await updateSettings({ preferences: { unit: 'sats' } });
+      settings = await getSettings();
+      expect(settings.preferences.unit).toBe('sats');
+
+      // Update to fiat
+      await updateSettings({ preferences: { unit: 'fiat' } });
+      settings = await getSettings();
+      expect(settings.preferences.unit).toBe('fiat');
+
+      // Update back to btc
+      await updateSettings({ preferences: { unit: 'btc' } });
+      settings = await getSettings();
+      expect(settings.preferences.unit).toBe('btc');
+    });
+
+    it('should deep merge preferences without overwriting other preference fields', async () => {
+      // Set both unit and fiat
+      await updateSettings({ preferences: { unit: 'sats', fiat: 'eur' } });
+
+      // Update only unit
+      await updateSettings({ preferences: { unit: 'btc' } });
+
+      const settings = await getSettings();
+      expect(settings.preferences.unit).toBe('btc');
+      expect(settings.preferences.fiat).toBe('eur'); // Should be preserved
+    });
+
+    it('should validate all supported fiat currencies', async () => {
+      const validCurrencies = ['usd', 'eur', 'gbp', 'jpy', 'cad', 'aud', 'cny'];
+
+      for (const fiat of validCurrencies) {
+        await clearAllRecords();
+        invalidateSettingsCache();
+        await updateSettings({ preferences: { fiat: fiat as any } });
+        const settings = await getSettings();
+        expect(settings.preferences.fiat).toBe(fiat);
+      }
+    });
+
+    it('should handle missing preferences object gracefully', async () => {
+      await addRecord(createEncryptedRecord({
+        preferences: undefined as any,
+      }));
+
+      const settings = await getSettings();
+      expect(settings.preferences).toBeDefined();
+      expect(settings.preferences.unit).toBe('btc');
+      expect(settings.preferences.fiat).toBe('usd');
     });
   });
 });

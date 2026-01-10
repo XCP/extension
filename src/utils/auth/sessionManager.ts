@@ -57,53 +57,24 @@ import {
   clearAllRateLimits,
   checkSecretLimit,
 } from '@/utils/validation/session';
+import {
+  getSessionMetadata,
+  setSessionMetadata,
+  clearSessionMetadata,
+  type SessionMetadata,
+} from '@/utils/storage/sessionMetadataStorage';
 
 // In-memory store for decrypted secrets (by wallet ID).
 let unlockedSecrets: Record<string, string> = {};
 let lastActiveTime: number = Date.now();
 
-// Session metadata interface
-interface SessionMetadata {
-  unlockedAt: number;
-  timeout: number;
-  lastActiveTime: number;
-}
-
 
 /**
- * Stores session metadata in chrome.storage.session
- * This survives popup close/open but not browser restart
+ * Persists session metadata after validation.
  */
 async function persistSessionMetadata(metadata: SessionMetadata): Promise<void> {
-  // Validate metadata before persisting
   validateSessionMetadata(metadata);
-  
-  // Check if chrome.storage.session is available
-  if (chrome?.storage?.session) {
-    await chrome.storage.session.set({ sessionMetadata: metadata });
-  }
-}
-
-/**
- * Retrieves session metadata from chrome.storage.session
- */
-async function getSessionMetadata(): Promise<SessionMetadata | null> {
-  // Check if chrome.storage.session is available
-  if (!chrome?.storage?.session) {
-    return null;
-  }
-  const result = await chrome.storage.session.get('sessionMetadata');
-  return (result.sessionMetadata as SessionMetadata | undefined) || null;
-}
-
-/**
- * Clears session metadata from storage
- */
-async function clearSessionMetadata(): Promise<void> {
-  // Check if chrome.storage.session is available
-  if (chrome?.storage?.session) {
-    await chrome.storage.session.remove('sessionMetadata');
-  }
+  await setSessionMetadata(metadata);
 }
 
 /**

@@ -151,26 +151,55 @@ export function validateNonce(origin: string, address: string, providedNonce: nu
 }
 
 /**
- * Generate an idempotency key from request parameters
+ * Generate an idempotency key from request parameters using crypto.subtle
+ * Falls back to sync version if crypto.subtle is unavailable
  */
-function generateIdempotencyKeyInternal(origin: string, method: string, params: any[]): string {
+async function generateIdempotencyKeyAsync(origin: string, method: string, params: any[]): Promise<string> {
   const paramsString = JSON.stringify(params);
   const timestamp = Math.floor(Date.now() / 1000); // Second precision
   const input = `${origin}:${method}:${paramsString}:${timestamp}`;
-  
-  // Simple hash function (in production, consider using crypto.subtle.digest)
+
+  // Use Web Crypto API for secure hashing
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    try {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(input);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      // Take first 16 bytes for a reasonable key length
+      const hashHex = hashArray.slice(0, 16).map(b => b.toString(16).padStart(2, '0')).join('');
+      return `idem_${hashHex}_${timestamp}`;
+    } catch {
+      // Fall through to sync version
+    }
+  }
+
+  // Fallback to sync version (reuse, don't duplicate)
+  return generateIdempotencyKeyInternal(origin, method, params);
+}
+
+/**
+ * Synchronous version for backward compatibility - uses simple hash
+ * @deprecated Use generateIdempotencyKeyAsync when possible
+ */
+function generateIdempotencyKeyInternal(origin: string, method: string, params: any[]): string {
+  const paramsString = JSON.stringify(params);
+  const timestamp = Math.floor(Date.now() / 1000);
+  const input = `${origin}:${method}:${paramsString}:${timestamp}`;
+
   let hash = 0;
   for (let i = 0; i < input.length; i++) {
     const char = input.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
+    hash = hash & hash;
   }
-  
+
   return `idem_${Math.abs(hash).toString(36)}_${timestamp}`;
 }
 
-// Export with original name for backward compatibility
+// Export both versions
 export const generateIdempotencyKey = generateIdempotencyKeyInternal;
+export { generateIdempotencyKeyAsync };
 
 /**
  * Check if a request is a replay based on various criteria
@@ -387,10 +416,10 @@ export async function withReplayPrevention<T>(
     nonceWasGenerated = true;
   }
   
-  // Generate idempotency key if requested
+  // Generate idempotency key if requested (using secure async version)
   let idempotencyKey: string | undefined;
   if (generateIdempotencyKey) {
-    idempotencyKey = generateIdempotencyKeyInternal(origin, method, params);
+    idempotencyKey = await generateIdempotencyKeyAsync(origin, method, params);
   }
   
   // Check for replay attempts
