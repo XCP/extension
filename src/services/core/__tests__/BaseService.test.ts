@@ -63,10 +63,20 @@ const mockSessionStorage = {
   set: vi.fn(),
 };
 
+// Helper to reset BaseService static state for test isolation
+function resetBaseServiceStatics(): void {
+  // Access private static members for test reset
+  (BaseService as any).alarmHandlers?.clear?.();
+  (BaseService as any).listenerRegistered = false;
+}
+
 // Setup global mocks
 beforeEach(() => {
   vi.clearAllMocks();
-  
+
+  // Reset static state between tests
+  resetBaseServiceStatics();
+
   global.chrome = {
     storage: {
       local: mockLocalStorage,
@@ -212,30 +222,37 @@ describe('BaseService', () => {
 
     it('should handle alarm events', async () => {
       await testService.initialize();
-      
-      // Get the alarm listener that was registered
-      const alarmListener = vi.mocked(chrome.alarms.onAlarm.addListener).mock.calls[0][0];
-      
+
+      // Verify addListener was called (static, happens once)
+      expect(chrome.alarms.onAlarm.addListener).toHaveBeenCalled();
+
+      // Get the alarm listener from the static registration
+      const addListenerCalls = vi.mocked(chrome.alarms.onAlarm.addListener).mock.calls;
+      expect(addListenerCalls.length).toBeGreaterThan(0);
+      const alarmListener = addListenerCalls[addListenerCalls.length - 1][0];
+
       // Simulate alarm event for this service
       const alarm = { name: 'TestService-keepalive', scheduledTime: Date.now(), periodInMinutes: 0.4 };
       alarmListener(alarm);
-      
+
       // Should trigger keep-alive activity (accessing storage)
       expect(mockLocalStorage.get).toHaveBeenCalled();
     });
 
     it('should ignore alarm events for other services', async () => {
       await testService.initialize();
-      
+
       const initialStorageCalls = vi.mocked(mockLocalStorage.get).mock.calls.length;
-      
-      // Get the alarm listener
-      const alarmListener = vi.mocked(chrome.alarms.onAlarm.addListener).mock.calls[0][0];
-      
+
+      // Get the alarm listener from the static registration
+      const addListenerCalls = vi.mocked(chrome.alarms.onAlarm.addListener).mock.calls;
+      expect(addListenerCalls.length).toBeGreaterThan(0);
+      const alarmListener = addListenerCalls[addListenerCalls.length - 1][0];
+
       // Simulate alarm event for different service
       const alarm = { name: 'OtherService-keepalive', scheduledTime: Date.now(), periodInMinutes: 0.4 };
       alarmListener(alarm);
-      
+
       // Should not trigger additional storage calls
       expect(mockLocalStorage.get).toHaveBeenCalledTimes(initialStorageCalls);
     });

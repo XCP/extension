@@ -26,6 +26,12 @@ vi.mock('@/contexts/settings-context', () => ({
   })
 }));
 
+vi.mock('@/contexts/header-context', () => ({
+  useHeader: () => ({
+    setHeaderProps: vi.fn()
+  })
+}));
+
 const mockFetchBTCBalance = vi.fn();
 vi.mock('@/utils/blockchain/bitcoin/balance', () => ({
   fetchBTCBalance: (...args: any[]) => mockFetchBTCBalance(...args)

@@ -17,6 +17,12 @@ vi.mock('@/contexts/wallet-context', () => ({
   })
 }));
 
+vi.mock('@/contexts/header-context', () => ({
+  useHeader: () => ({
+    setHeaderProps: vi.fn()
+  })
+}));
+
 const mockFetchOwnedAssets = vi.fn();
 vi.mock('@/utils/blockchain/counterparty/api', () => ({
   fetchOwnedAssets: (...args: any[]) => mockFetchOwnedAssets(...args)
