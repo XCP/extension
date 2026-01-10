@@ -3,12 +3,14 @@ import { SearchInput } from "@/components/inputs/search-input";
 import { AssetCard } from "@/components/cards/asset-card";
 import { SearchResultCard } from "@/components/cards/search-result-card";
 import { useWallet } from "@/contexts/wallet-context";
+import { useHeader } from "@/contexts/header-context";
 import { fetchOwnedAssets, type OwnedAsset } from "@/utils/blockchain/counterparty/api";
 import { Spinner } from "@/components/spinner";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 
 export const AssetList = (): React.ReactElement => {
   const { activeAddress } = useWallet();
+  const { cacheOwnedAssets } = useHeader();
   const [ownedAssets, setOwnedAssets] = useState<OwnedAsset[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { searchQuery, setSearchQuery, searchResults, isSearching } = useSearchQuery();
@@ -27,6 +29,8 @@ export const AssetList = (): React.ReactElement => {
         const assets = await fetchOwnedAssets(activeAddress.address);
         if (!isCancelled) {
           setOwnedAssets(assets);
+          // Cache assets for instant display on detail pages
+          cacheOwnedAssets(assets);
         }
       } catch (error) {
         console.error("Error fetching owned assets:", error);
@@ -42,7 +46,7 @@ export const AssetList = (): React.ReactElement => {
     return () => {
       isCancelled = true;
     };
-  }, [activeAddress]);
+  }, [activeAddress, cacheOwnedAssets]);
 
   const renderAssetItem = (asset: OwnedAsset) => (
     <AssetCard key={asset.asset} asset={asset} />

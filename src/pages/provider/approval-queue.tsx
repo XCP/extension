@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiX, FiAlertCircle, FiGlobe, FiEdit, FiLock, FiSend } from '@/components/icons';
+import { FiX, FiAlertCircle, FiGlobe, FiEdit, FaLock, FiSend } from '@/components/icons';
 import { Button } from '@/components/button';
 import { type ApprovalRequest } from '@/utils/provider/approvalQueue';
 import { getProviderService } from '@/services/providerService';
@@ -142,7 +142,7 @@ export default function ApprovalQueue() {
       case 'compose':
         return <FiEdit className="w-5 h-5" />;
       case 'signature':
-        return <FiLock className="w-5 h-5" />;
+        return <FaLock className="w-5 h-5" />;
       default:
         return <FiAlertCircle className="w-5 h-5" />;
     }

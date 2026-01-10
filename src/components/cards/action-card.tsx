@@ -44,7 +44,7 @@ interface ActionCardProps {
  *   title="Security Settings"
  *   description="Change your wallet password"
  *   onClick={() => navigate('/settings/security')}
- *   icon={<FiLock />}
+ *   icon={<FaLock />}
  * />
  * ```
  */

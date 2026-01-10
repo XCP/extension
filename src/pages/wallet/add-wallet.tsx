@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiDownload, FiKey, FiX, FiEye, IoCreateOutline } from '@/components/icons';
+import { FiDownload, VscKey, FiX, FaEye, IoCreateOutline } from '@/components/icons';
 import { Button } from '@/components/button';
 import { useHeader } from '@/contexts/header-context';
 import { ErrorAlert } from '@/components/error-alert';
@@ -112,7 +112,7 @@ function AddWallet() {
               onClick={handleImportPrivateKey}
               aria-label="Import Private Key"
             >
-              <FiKey className="w-4 h-4 mr-2" aria-hidden="true" />
+              <VscKey className="w-4 h-4 mr-2" aria-hidden="true" />
               Import Private Key
             </Button>
             
@@ -124,7 +124,7 @@ function AddWallet() {
                 onClick={handleImportTestAddress}
                 aria-label="Import Test Address (Dev Only)"
               >
-                <FiEye className="w-4 h-4 mr-2" aria-hidden="true" />
+                <FaEye className="w-4 h-4 mr-2" aria-hidden="true" />
                 Import Test Address (Dev)
               </Button>
             )}

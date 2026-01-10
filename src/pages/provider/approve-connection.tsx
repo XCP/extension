@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FiGlobe, FiShield, FiX, FiCheck } from "@/components/icons";
+import { FiGlobe, FiShield, FiX, FaCheck } from "@/components/icons";
 import { Button } from "@/components/button";
 import { useWallet } from "@/contexts/wallet-context";
 import { useHeader } from "@/contexts/header-context";
@@ -142,13 +142,13 @@ export default function ApproveConnection(): ReactElement {
             
             <ul className="space-y-2">
               <li className="flex items-start">
-                <FiCheck className="w-4 h-4 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+                <FaCheck className="w-4 h-4 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
                 <span className="text-sm text-gray-600">
                   View your wallet address
                 </span>
               </li>
               <li className="flex items-start">
-                <FiCheck className="w-4 h-4 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+                <FaCheck className="w-4 h-4 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
                 <span className="text-sm text-gray-600">
                   Request transaction signatures (requires approval)
                 </span>

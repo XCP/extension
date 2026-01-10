@@ -20,6 +20,9 @@ import Settings from '@/pages/settings';
 
 // Market
 import DispenserManagement from '@/pages/dispensers/manage';
+import AssetDispensers from '@/pages/market/asset-dispensers';
+import AssetOrders from '@/pages/market/asset-orders';
+import BtcPrice from '@/pages/market/btc-price';
 
 // Actions
 import Consolidate from '@/pages/actions/consolidate';
@@ -173,7 +176,10 @@ export default function App() {
           <Route element={<Layout />}>
             {/* Market */}
             <Route path="/dispensers/manage" element={<DispenserManagement />} />
-            
+            <Route path="/market/btc" element={<BtcPrice />} />
+            <Route path="/market/dispensers/:asset" element={<AssetDispensers />} />
+            <Route path="/market/orders/:baseAsset/:quoteAsset" element={<AssetOrders />} />
+
             {/* Actions */}
             <Route path="/consolidate" element={<Consolidate />} />
             <Route path="/consolidation-success" element={<ConsolidationSuccess />} />

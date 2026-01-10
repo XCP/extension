@@ -11,13 +11,9 @@ import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { validateQuantity } from "@/utils/validation/amount";
 import type { SendOptions } from "@/utils/blockchain/counterparty/compose";
+import type { Destination } from "@/utils/validation/destinations";
 import type { ReactElement } from "react";
 import { ErrorAlert } from "@/components/error-alert";
-
-interface Destination {
-  id: number;
-  address: string;
-}
 
 interface SendFormProps {
   formAction: (formData: FormData) => void;

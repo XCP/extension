@@ -6,7 +6,7 @@ import {
   ComboboxOptions,
   ComboboxOption,
 } from "@headlessui/react";
-import { FiChevronDown, FiCheck } from "@/components/icons";
+import { FiChevronDown, FaCheck } from "@/components/icons";
 import { FaSpinner } from "@/components/icons";
 import { useSettings } from "@/contexts/settings-context";
 
@@ -178,7 +178,7 @@ export function AssetSelectInput({
                               active ? "text-white" : "text-blue-500"
                             }`}
                           >
-                            <FiCheck className="h-5 w-5" aria-hidden="true" />
+                            <FaCheck className="h-5 w-5" aria-hidden="true" />
                           </span>
                         )}
                       </>

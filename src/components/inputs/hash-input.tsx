@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Field, Label, Textarea, Description } from "@headlessui/react";
-import { FiCopy, FiCheck } from "@/components/icons";
+import { FaCopy, FaCheck } from "@/components/icons";
 import { Button } from "@/components/button";
 
 interface HashInputProps {
@@ -180,9 +180,9 @@ export function HashInput({
             className="absolute right-1 top-1 px-2 py-1"
           >
             {copied ? (
-              <FiCheck className="h-4 w-4 text-green-600" />
+              <FaCheck className="h-4 w-4 text-green-600" />
             ) : (
-              <FiCopy className="h-4 w-4" />
+              <FaCopy className="h-4 w-4" />
             )}
           </Button>
         )}

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IoCreateOutline, FiUpload, FiHelpCircle } from '@/components/icons';
+import { IoCreateOutline, FaUpload, FiHelpCircle } from '@/components/icons';
 import { Button } from '@/components/button';
 import { useHeader } from '@/contexts/header-context';
 import { getDisplayVersion } from '@/utils/version';
@@ -72,7 +72,7 @@ function Onboarding() {
               onClick={handleImportWallet}
               aria-label="Import wallet"
             >
-              <FiUpload className="w-4 h-4 mr-2" aria-hidden="true" />
+              <FaUpload className="w-4 h-4 mr-2" aria-hidden="true" />
               Import Wallet
             </Button>
           </div>

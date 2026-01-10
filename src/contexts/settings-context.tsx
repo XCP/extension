@@ -13,15 +13,21 @@ import {
   getSettings,
   updateSettings,
   DEFAULT_SETTINGS,
-  type AppSettings
+  type AppSettings,
+  type DisplayPreferences
 } from "@/utils/storage/settingsStorage";
+
+/** Type for partial settings updates with partial preferences support */
+type SettingsUpdate = Omit<Partial<AppSettings>, 'preferences'> & {
+  preferences?: Partial<DisplayPreferences>;
+};
 
 /**
  * Context value for settings management.
  */
 interface SettingsContextValue {
   settings: AppSettings;
-  updateSettings: (newSettings: Partial<AppSettings>) => Promise<void>;
+  updateSettings: (newSettings: SettingsUpdate) => Promise<void>;
   refreshSettings: () => Promise<void>;
   isLoading: boolean;
 }
@@ -68,13 +74,20 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
     };
   }, [loadSettings]);
 
-  const updateSettingsHandler = useCallback(async (newSettings: Partial<AppSettings>) => {
+  const updateSettingsHandler = useCallback(async (newSettings: SettingsUpdate) => {
     // Capture previous state for rollback
     const previousSettings = settings;
 
     try {
       // Optimistically update state for instant UI response
-      setSettings(prev => ({ ...prev, ...newSettings }));
+      // Handle deep merge for preferences
+      setSettings(prev => {
+        const updated: AppSettings = { ...prev, ...newSettings, preferences: prev.preferences };
+        if (newSettings.preferences) {
+          updated.preferences = { ...prev.preferences, ...newSettings.preferences };
+        }
+        return updated;
+      });
 
       // Persist to storage
       await updateSettings(newSettings);

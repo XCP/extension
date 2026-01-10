@@ -1,7 +1,8 @@
 /**
- * Options for formatting numeric amounts.
+ * Formatting utilities for numbers, addresses, assets, and prices.
  */
 import { fromSatoshis } from './numeric';
+import { CURRENCY_INFO, type FiatCurrency } from '@/utils/blockchain/bitcoin/price';
 
 export interface AmountFormatterOptions {
   value: number | null | undefined;
@@ -133,15 +134,17 @@ export function formatDate(timestamp: number): string {
  * Formats a Unix timestamp as a relative "time ago" string.
  *
  * @param timestamp - Unix timestamp in seconds
+ * @param compact - If true, returns short format (e.g., "2m ago" instead of "2 minutes ago")
  * @returns Relative time string (e.g., "2 hours ago", "3 days ago")
  * @example
  * formatTimeAgo(1698777600) // "2 hours ago"
+ * formatTimeAgo(1698777600, true) // "2h ago"
  */
-export function formatTimeAgo(timestamp: number): string {
+export function formatTimeAgo(timestamp: number, compact: boolean = false): string {
   const now = Date.now();
   const then = timestamp * 1000; // Convert to milliseconds
   const diff = now - then;
-  
+
   const seconds = Math.floor(diff / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -149,7 +152,16 @@ export function formatTimeAgo(timestamp: number): string {
   const weeks = Math.floor(days / 7);
   const months = Math.floor(days / 30);
   const years = Math.floor(days / 365);
-  
+
+  if (compact) {
+    if (seconds < 60) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    if (weeks < 52) return `${weeks}w ago`;
+    return `${years}y ago`;
+  }
+
   if (seconds < 60) {
     return seconds === 1 ? '1 second ago' : `${seconds} seconds ago`;
   } else if (minutes < 60) {
@@ -254,12 +266,12 @@ export function formatPriceRatio(
 ): string {
   const give = Number(giveQuantity);
   const get = Number(getQuantity);
-  
+
   // Handle division by zero
   if (give === 0 || get === 0) {
     return "Invalid price";
   }
-  
+
   if (isFlipped) {
     const ratio = give / get;
     return `1 ${getAsset} = ${formatAmount({
@@ -275,4 +287,32 @@ export function formatPriceRatio(
       maximumFractionDigits: 8,
     })} ${getAsset}`;
   }
+}
+
+/**
+ * Formats a value in the user's preferred fiat currency.
+ * Uses the currency's symbol and appropriate decimal places.
+ *
+ * @param value - The fiat value to format
+ * @param currency - The fiat currency code
+ * @returns Formatted price string (e.g., "$1,234.56" or "¥1,235")
+ * @example
+ * formatFiatPrice(1234.56, 'usd') // "$1,234.56"
+ * formatFiatPrice(1234.56, 'jpy') // "¥1,235"
+ */
+export function formatFiatPrice(value: number, currency: FiatCurrency): string {
+  const { symbol, decimals } = CURRENCY_INFO[currency];
+  return `${symbol}${formatAmount({ value, maximumFractionDigits: decimals })}`;
+}
+
+/**
+ * Converts satoshis to a fiat value.
+ *
+ * @param sats - Amount in satoshis
+ * @param btcPrice - Current BTC price in fiat
+ * @returns Fiat value
+ */
+export function satsToFiat(sats: number, btcPrice: number): number {
+  const SATS_PER_BTC = 100_000_000;
+  return (sats / SATS_PER_BTC) * btcPrice;
 }

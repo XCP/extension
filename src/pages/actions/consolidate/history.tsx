@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FaChevronDown, FaChevronRight, FaHistory } from "@/components/icons";
+import { FiChevronDown, FaChevronRight, FaHistory } from "@/components/icons";
 import { formatAmount } from "@/utils/format";
 import { consolidationApi, type ConsolidationStatusResponse } from "@/utils/blockchain/bitcoin/consolidationApi";
 
@@ -86,7 +86,7 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
           <h3 className="text-sm font-medium text-gray-900">Recovery History</h3>
         </div>
         {showHistory ? (
-          <FaChevronDown className="text-gray-400 w-4 h-4" aria-hidden="true" />
+          <FiChevronDown className="text-gray-400 w-4 h-4" aria-hidden="true" />
         ) : (
           <FaChevronRight className="text-gray-400 w-4 h-4" aria-hidden="true" />
         )}

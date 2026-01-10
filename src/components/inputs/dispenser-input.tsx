@@ -75,12 +75,12 @@ export function DispenserInput({
       setDispenserOptions([]);
 
       try {
-        const { dispensers } = await fetchAddressDispensers(value, { 
-          status: "open", 
-          verbose: true 
+        const response = await fetchAddressDispensers(value, {
+          status: "open",
+          verbose: true
         });
 
-        if (!dispensers || dispensers.length === 0) {
+        if (!response.result || response.result.length === 0) {
           const errorMsg = "No open dispenser found at this address.";
           setError(errorMsg);
           if (onError) onError(errorMsg);
@@ -88,7 +88,7 @@ export function DispenserInput({
         }
 
         // Process and normalize dispensers
-        const processedDispensers = (dispensers as any[])
+        const processedDispensers = (response.result as any[])
           .map(dispenser => {
             const isDivisible = dispenser.asset_info?.divisible ?? false;
             const divisor = isDivisible ? SATOSHIS_PER_BTC : 1;

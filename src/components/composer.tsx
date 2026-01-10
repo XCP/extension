@@ -33,6 +33,7 @@ interface ComposerProps<T> {
 
   // UI configuration
   initialTitle: string;
+  initialFormData?: T;
 
   // Components
   FormComponent: (props: {
@@ -60,7 +61,7 @@ interface ComposerProps<T> {
 /**
  * Internal props for ComposerInner
  */
-interface ComposerInnerProps<T> extends Omit<ComposerProps<T>, "composeApiMethod" | "composeType" | "initialFormData"> {
+interface ComposerInnerProps<T> extends Omit<ComposerProps<T>, "composeApiMethod" | "composeType"> {
 }
 
 /**
@@ -68,6 +69,7 @@ interface ComposerInnerProps<T> extends Omit<ComposerProps<T>, "composeApiMethod
  */
 function ComposerInner<T>({
   initialTitle,
+  initialFormData,
   FormComponent,
   ReviewComponent,
   headerCallbacks,
@@ -200,7 +202,7 @@ function ComposerInner<T>({
       {state.step === "form" && (
         <FormComponent
           formAction={handleFormAction}
-          initialFormData={state.formData}
+          initialFormData={state.formData ?? initialFormData ?? null}
           error={state.error}
           showHelpText={showHelpText}
         />
@@ -255,6 +257,7 @@ export function Composer<T>({
   composeType,
   composeApiMethod,
   initialTitle,
+  initialFormData,
   FormComponent,
   ReviewComponent,
   headerCallbacks,
@@ -267,6 +270,7 @@ export function Composer<T>({
     >
       <ComposerInner<T>
         initialTitle={initialTitle}
+        initialFormData={initialFormData}
         FormComponent={FormComponent}
         ReviewComponent={ReviewComponent}
         headerCallbacks={headerCallbacks}

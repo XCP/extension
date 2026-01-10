@@ -1,0 +1,101 @@
+import { type ReactElement, type KeyboardEvent } from "react";
+import { FaBitcoin, FaCoins } from "@/components/icons";
+import { formatAmount } from "@/utils/format";
+import { CURRENCY_INFO, type FiatCurrency } from "@/utils/blockchain/bitcoin/price";
+
+interface PriceTickerProps {
+  btc: number | null;
+  xcp: number | null;
+  currency?: FiatCurrency;
+  loading?: boolean;
+  onBtcClick?: () => void;
+  onXcpClick?: () => void;
+  className?: string;
+}
+
+/**
+ * PriceTicker displays current BTC and XCP prices in the specified currency.
+ * Cards are clickable when onClick handlers are provided.
+ */
+export function PriceTicker({
+  btc,
+  xcp,
+  currency = 'usd',
+  loading = false,
+  onBtcClick,
+  onXcpClick,
+  className = "",
+}: PriceTickerProps): ReactElement {
+  const currencyInfo = CURRENCY_INFO[currency];
+  const currencySymbol = currencyInfo.symbol;
+  const decimals = currencyInfo.decimals;
+
+  const handleBtcKeyDown = (e: KeyboardEvent) => {
+    if (onBtcClick && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      onBtcClick();
+    }
+  };
+
+  const handleXcpKeyDown = (e: KeyboardEvent) => {
+    if (onXcpClick && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      onXcpClick();
+    }
+  };
+
+  return (
+    <div className={`grid grid-cols-2 gap-3 ${className}`}>
+      <div
+        className={`bg-white rounded-lg shadow-sm border border-gray-200 p-3 ${onBtcClick ? "cursor-pointer hover:border-orange-300 hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-orange-500" : ""}`}
+        onClick={onBtcClick}
+        onKeyDown={handleBtcKeyDown}
+        role={onBtcClick ? "button" : undefined}
+        tabIndex={onBtcClick ? 0 : undefined}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FaBitcoin className="text-orange-500" aria-hidden="true" />
+            <span className="font-medium text-gray-900 text-sm">BTC</span>
+          </div>
+          <div className="flex items-center">
+            {loading ? (
+              <div className="animate-pulse bg-gray-200 h-4 w-14 rounded" />
+            ) : btc ? (
+              <span className="font-semibold text-gray-900 text-sm">
+                {currencySymbol}{formatAmount({ value: btc, maximumFractionDigits: 0 })}
+              </span>
+            ) : (
+              <span className="text-gray-400">—</span>
+            )}
+          </div>
+        </div>
+      </div>
+      <div
+        className={`bg-white rounded-lg shadow-sm border border-gray-200 p-3 ${onXcpClick ? "cursor-pointer hover:border-blue-300 hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-blue-500" : ""}`}
+        onClick={onXcpClick}
+        onKeyDown={handleXcpKeyDown}
+        role={onXcpClick ? "button" : undefined}
+        tabIndex={onXcpClick ? 0 : undefined}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FaCoins className="text-blue-500" aria-hidden="true" />
+            <span className="font-medium text-gray-900 text-sm">XCP</span>
+          </div>
+          <div className="flex items-center">
+            {loading ? (
+              <div className="animate-pulse bg-gray-200 h-4 w-14 rounded" />
+            ) : xcp ? (
+              <span className="font-semibold text-gray-900 text-sm">
+                {currencySymbol}{formatAmount({ value: xcp, maximumFractionDigits: decimals })}
+              </span>
+            ) : (
+              <span className="text-gray-400">—</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

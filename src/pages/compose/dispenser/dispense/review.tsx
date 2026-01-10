@@ -74,14 +74,14 @@ export function ReviewDispense({
       
       try {
         // Fetch dispenser info
-        const { dispensers } = await fetchAddressDispensers(dispenserAddress, { 
-          status: "open", 
-          verbose: true 
+        const response = await fetchAddressDispensers(dispenserAddress, {
+          status: "open",
+          verbose: true
         });
-        
-        if (dispensers && dispensers.length > 0) {
+
+        if (response.result && response.result.length > 0) {
           // Cast to VerboseDispenser type for verbose response
-          const verboseDispensers = dispensers as VerboseDispenser[];
+          const verboseDispensers = response.result as VerboseDispenser[];
           
           // Find ALL dispensers that will trigger based on BTC amount
           const triggered = verboseDispensers.filter(d => (d.satoshirate || 0) <= btcQuantity);
@@ -97,13 +97,13 @@ export function ReviewDispense({
           if (triggeredDispenser) {
             // Check for mempool dispenses from the same dispenser
             try {
-              const { dispenses } = await fetchDispenserDispenses(
+              const dispensesResponse = await fetchDispenserDispenses(
                 triggeredDispenser.tx_hash,
                 { show_unconfirmed: true, verbose: true }
               );
-              
+
               // Filter for unconfirmed (mempool) transactions
-              const mempoolTxs = dispenses?.filter((d: any) => 
+              const mempoolTxs = dispensesResponse.result?.filter((d: any) => 
                 d.block_index === null || d.confirmed === false
               ) || [];
               

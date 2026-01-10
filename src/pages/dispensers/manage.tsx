@@ -65,8 +65,8 @@ export default function DispenserManagement(): ReactElement {
         status: statusParam,
         limit: 100,
       });
-      
-      setDispensers(response.dispensers);
+
+      setDispensers(response.result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load dispensers");
     } finally {

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FiCheckCircle, FiExternalLink, FiCopy, FiX } from "@/components/icons";
+import { FaCheckCircle, FiExternalLink, FaCopy, FiX } from "@/components/icons";
 import { Button } from "@/components/button";
 import { useHeader } from "@/contexts/header-context";
 import { formatAddress } from "@/utils/format";
@@ -55,7 +55,7 @@ function ConsolidationSuccess() {
       {/* Success Header */}
       <div className="bg-green-50 border border-green-200 rounded-lg p-4">
         <div className="flex items-start space-x-3">
-          <FiCheckCircle className="w-6 h-6 text-green-600 mt-1 flex-shrink-0" />
+          <FaCheckCircle className="w-6 h-6 text-green-600 mt-1 flex-shrink-0" />
           <div className="flex-1">
             <h2 className="text-lg font-semibold text-green-900">
               Consolidation Successful!
@@ -133,7 +133,7 @@ function ConsolidationSuccess() {
                     className="p-1 hover:bg-gray-200 rounded transition-colors"
                     title="Copy transaction ID"
                   >
-                    <FiCopy className="w-4 h-4 text-gray-600" />
+                    <FaCopy className="w-4 h-4 text-gray-600" />
                   </button>
                   <button
                     onClick={() => openInExplorer(result.txid)}

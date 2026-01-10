@@ -23,9 +23,10 @@ export const Footer = () => {
           fullWidth
           onClick={() => handleNavigation('/index', 'Footer - Main')}
           className={`hover:bg-gray-100 ${location.pathname === '/index' ? 'text-blue-600' : 'text-gray-600'}`}
+          aria-label="Wallet"
         >
           <div className="flex flex-col items-center">
-            <FaWallet className="text-lg mb-1" />
+            <FaWallet className="text-lg mb-1" aria-hidden="true" />
           </div>
         </Button>
         <Button
@@ -33,9 +34,10 @@ export const Footer = () => {
           fullWidth
           onClick={() => handleNavigation('/market', 'Footer - Market')}
           className={`hover:bg-gray-100 ${location.pathname === '/market' ? 'text-blue-600' : 'text-gray-600'}`}
+          aria-label="Market"
         >
           <div className="flex flex-col items-center">
-            <FaUniversity className="text-lg mb-1" />
+            <FaUniversity className="text-lg mb-1" aria-hidden="true" />
           </div>
         </Button>
         <Button
@@ -43,9 +45,10 @@ export const Footer = () => {
           fullWidth
           onClick={() => handleNavigation('/actions', 'Footer - Actions')}
           className={`hover:bg-gray-100 ${location.pathname === '/actions' ? 'text-blue-600' : 'text-gray-600'}`}
+          aria-label="Actions"
         >
           <div className="flex flex-col items-center relative">
-            <FaTools className="text-lg mb-1" />
+            <FaTools className="text-lg mb-1" aria-hidden="true" />
             {/* Bitcoin orange notification badge */}
             {showRecoverBitcoinNotification && (
               <span className="absolute -top-1 -right-3 h-2 w-2 bg-orange-500 rounded-full"></span>
@@ -57,9 +60,10 @@ export const Footer = () => {
           fullWidth
           onClick={() => handleNavigation('/settings', 'Footer - Settings')}
           className={`hover:bg-gray-100 ${location.pathname === '/settings' ? 'text-blue-600' : 'text-gray-600'}`}
+          aria-label="Settings"
         >
           <div className="flex flex-col items-center">
-            <FaCog className="text-lg mb-1" />
+            <FaCog className="text-lg mb-1" aria-hidden="true" />
           </div>
         </Button>
       </div>

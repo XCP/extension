@@ -11,21 +11,43 @@ export default defineConfig({
   webExt: {
     chromiumPort: 9222,
   },
-  manifest: {
-    name: `XCP Wallet v${pkg.version}`,
-    web_accessible_resources: [
-      {
-        resources: ['injected.js'],
-        matches: ['<all_urls>'],
-      },
-    ],
-    permissions: [
-      'sidePanel',
-      'storage',
-      'tabs',
-      'activeTab',
-      'alarms',
-    ],
+  manifest: (env) => {
+    const baseManifest = {
+      name: `XCP Wallet v${pkg.version}`,
+      web_accessible_resources: [
+        {
+          resources: ['injected.js'],
+          matches: ['<all_urls>'],
+        },
+      ],
+      permissions: [
+        'sidePanel',
+        'storage',
+        'tabs',
+        'alarms',
+      ],
+    };
+
+    // Firefox-specific: Add data collection consent (required for Firefox 140+)
+    // This enables Firefox's built-in consent UI for analytics
+    if (env.browser === 'firefox') {
+      return {
+        ...baseManifest,
+        browser_specific_settings: {
+          gecko: {
+            id: 'wallet@xcpwallet.com',
+            strict_min_version: '109.0',
+            data_collection_permissions: {
+              // technicalAndInteraction is opt-out by default in Firefox's UI
+              // Users can toggle it during install or in about:addons
+              optional: ['technicalAndInteraction'],
+            },
+          },
+        },
+      };
+    }
+
+    return baseManifest;
   },
   vite: (configEnv) => ({
     plugins: [

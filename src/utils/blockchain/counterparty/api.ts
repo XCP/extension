@@ -47,11 +47,17 @@ export interface AssetInfo {
   asset_longname: string | null;
   description?: string;
   issuer?: string;
+  owner?: string;
   divisible: boolean;
   locked: boolean;
+  description_locked?: boolean;
   supply?: string | number;
   supply_normalized: string;
   fair_minting?: boolean;
+  first_issuance_block_index?: number;
+  last_issuance_block_index?: number;
+  first_issuance_block_time?: number;
+  last_issuance_block_time?: number;
 }
 
 export interface TokenBalance {
@@ -484,6 +490,17 @@ export async function fetchOrderMatchesByPair(
   });
 }
 
+export async function fetchAllOrderMatches(
+  options: PaginationOptions & { status?: 'pending' | 'completed' | 'expired' } = {}
+): Promise<PaginatedResponse<OrderMatch>> {
+  return cpApiGet<PaginatedResponse<OrderMatch>>('/v2/order_matches', {
+    verbose: options.verbose ?? true,
+    limit: options.limit ?? DEFAULT_LIMIT,
+    offset: options.offset ?? 0,
+    ...(options.status && { status: options.status }),
+  });
+}
+
 export async function fetchAllOrders(
   options: PaginationOptions & { status?: OrderStatusType } = {}
 ): Promise<PaginatedResponse<OrderDetails>> {
@@ -542,6 +559,27 @@ export async function fetchDispenserDispenses(
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
     show_unconfirmed: options.show_unconfirmed ?? false,
+  });
+}
+
+export async function fetchAllDispenses(
+  options: PaginationOptions = {}
+): Promise<PaginatedResponse<Dispense>> {
+  return cpApiGet<PaginatedResponse<Dispense>>('/v2/dispenses', {
+    verbose: options.verbose ?? true,
+    limit: options.limit ?? DEFAULT_LIMIT,
+    offset: options.offset ?? 0,
+  });
+}
+
+export async function fetchAssetDispenses(
+  asset: string,
+  options: PaginationOptions = {}
+): Promise<PaginatedResponse<Dispense>> {
+  return cpApiGet<PaginatedResponse<Dispense>>(`/v2/assets/${asset}/dispenses`, {
+    verbose: options.verbose ?? true,
+    limit: options.limit ?? DEFAULT_LIMIT,
+    offset: options.offset ?? 0,
   });
 }
 

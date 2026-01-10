@@ -132,8 +132,8 @@ describe('DispenseForm', () => {
     ];
 
     mockFetchAddressDispensers.mockResolvedValue({
-      dispensers: mockDispensers,
-      total: 1,
+      result: mockDispensers,
+      result_count: 1,
     });
 
     renderWithProvider();
@@ -173,8 +173,8 @@ describe('DispenseForm', () => {
 
   it('should show error when no dispensers found', async () => {
     mockFetchAddressDispensers.mockResolvedValue({
-      dispensers: [],
-      total: 0,
+      result: [],
+      result_count: 0,
     });
 
     renderWithProvider();
@@ -231,8 +231,8 @@ describe('DispenseForm', () => {
     ];
 
     mockFetchAddressDispensers.mockResolvedValue({
-      dispensers: mockDispensers,
-      total: 2,
+      result: mockDispensers,
+      result_count: 2,
     });
 
     renderWithProvider();
@@ -283,8 +283,8 @@ describe('DispenseForm', () => {
     ];
 
     mockFetchAddressDispensers.mockResolvedValue({
-      dispensers: mockDispensers,
-      total: 1,
+      result: mockDispensers,
+      result_count: 1,
     });
 
     renderWithProvider();
@@ -340,8 +340,8 @@ describe('DispenseForm', () => {
     ];
 
     mockFetchAddressDispensers.mockResolvedValue({
-      dispensers: mockDispensers,
-      total: 1,
+      result: mockDispensers,
+      result_count: 1,
     });
 
     // Mock lower BTC balance
@@ -402,8 +402,8 @@ describe('DispenseForm', () => {
     ];
 
     mockFetchAddressDispensers.mockResolvedValue({
-      dispensers: mockDispensers,
-      total: 1,
+      result: mockDispensers,
+      result_count: 1,
     });
 
     mockFetchAssetDetailsAndBalance.mockResolvedValue({

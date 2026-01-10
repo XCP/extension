@@ -59,8 +59,31 @@ const isExtensionContext = (): boolean => {
 };
 
 /**
+ * Check if Firefox's built-in data collection consent system is available
+ * and whether the user has granted the technicalAndInteraction permission.
+ * Returns: true if granted, false if denied, null if not available (Chrome/older Firefox)
+ */
+async function checkFirefoxDataCollectionPermission(): Promise<boolean | null> {
+  try {
+    const perms = await browser.permissions.getAll();
+    // data_collection key only exists in Firefox 140+ with built-in consent
+    if (!('data_collection' in perms)) {
+      return null; // Not available, fall back to settings
+    }
+    // Check if technicalAndInteraction was granted
+    const dataCollection = (perms as { data_collection?: string[] }).data_collection;
+    return dataCollection?.includes('technicalAndInteraction') ?? false;
+  } catch {
+    return null; // API not available
+  }
+}
+
+/**
  * Get analytics settings from storage
  * Returns false if we can't access storage (e.g., in injected scripts)
+ *
+ * On Firefox 140+: Uses Firefox's built-in data collection consent
+ * On Chrome/older Firefox: Uses our analyticsAllowed setting
  */
 async function isAnalyticsEnabled(): Promise<boolean> {
   if (!isExtensionContext()) {
@@ -68,6 +91,14 @@ async function isAnalyticsEnabled(): Promise<boolean> {
   }
 
   try {
+    // First check Firefox's built-in consent system (Firefox 140+)
+    const firefoxPermission = await checkFirefoxDataCollectionPermission();
+    if (firefoxPermission !== null) {
+      // Firefox has built-in consent - use that permission
+      return firefoxPermission;
+    }
+
+    // Fall back to our settings (Chrome and older Firefox)
     const settings = await getSettings();
     return settings.analyticsAllowed;
   } catch (error) {

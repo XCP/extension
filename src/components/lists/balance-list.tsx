@@ -5,6 +5,7 @@ import { SearchInput } from "@/components/inputs/search-input";
 import { BalanceCard } from "@/components/cards/balance-card";
 import { SearchResultCard } from "@/components/cards/search-result-card";
 import { useWallet } from "@/contexts/wallet-context";
+import { useHeader } from "@/contexts/header-context";
 import { fetchBTCBalance } from "@/utils/blockchain/bitcoin/balance";
 import { fetchTokenBalance, fetchTokenBalances } from "@/utils/blockchain/counterparty/api";
 import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
@@ -18,6 +19,7 @@ import { useSettings } from "@/contexts/settings-context";
 export const BalanceList = (): ReactElement => {
   const { activeWallet, activeAddress } = useWallet();
   const { settings } = useSettings();
+  const { cacheBalances } = useHeader();
   const [allBalances, setAllBalances] = useState<TokenBalance[]>([]);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -28,44 +30,28 @@ export const BalanceList = (): ReactElement => {
 
   const { ref: loadMoreRef, inView } = useInView({ rootMargin: "300px", threshold: 0 });
 
-  // Debug logging
-  console.log('[BalanceList] State:', {
-    inView,
-    hasMore,
-    isFetchingMore,
-    offset,
-    balanceCount: allBalances.length,
-    initialLoaded
-  });
-
   useEffect(() => {
     setInitialLoaded(false);
   }, [settings?.pinnedAssets]);
 
   const upsertBalance = useCallback((balance: TokenBalance) => {
-    console.log('[upsertBalance] Called with:', {
-      asset: balance?.asset,
-      quantity_normalized: balance?.quantity_normalized,
-      hasAssetInfo: !!balance?.asset_info
-    });
-
     if (!balance?.asset || balance?.quantity_normalized === undefined) {
-      console.log('[upsertBalance] REJECTED - missing asset or quantity_normalized');
       return;
     }
+
+    // Cache balance for instant display on detail pages
+    cacheBalances([balance]);
 
     setAllBalances((prev) => {
       const idx = prev.findIndex((b) => b.asset.toUpperCase() === balance.asset.toUpperCase());
       if (idx > -1) {
         const newBalances = [...prev];
         newBalances[idx] = balance;
-        console.log('[upsertBalance] Updated existing:', balance.asset);
         return newBalances;
       }
-      console.log('[upsertBalance] Added new:', balance.asset);
       return [...prev, balance];
     });
-  }, []);
+  }, [cacheBalances]);
 
   useEffect(() => {
     if (!activeAddress || !activeWallet || initialLoaded) {

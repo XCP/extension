@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
-import { FiChevronDown, FiCheck } from "@/components/icons";
+import { FiChevronDown, FaCheck } from "@/components/icons";
 import { Field, Label, Description, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer-form";
 import { BalanceHeader } from "@/components/headers/balance-header";
@@ -65,11 +65,11 @@ export function DispenserCloseForm({
       setIsLoading(true);
       
       try {
-        const { dispensers: fetchedDispensers } = await fetchAddressDispensers(
+        const response = await fetchAddressDispensers(
           activeAddress.address,
           { status: "open", verbose: true }
         );
-        setDispensers(fetchedDispensers);
+        setDispensers(response.result);
       } catch (err) {
         console.error("Failed to load dispensers:", err);
       } finally {
@@ -177,7 +177,7 @@ export function DispenserCloseForm({
                               </div>
                               {selected && (
                                 <span className={`absolute inset-y-0 right-0 flex items-center pr-3 ${focus ? "text-white" : "text-blue-500"}`}>
-                                  <FiCheck className="h-5 w-5" aria-hidden="true" />
+                                  <FaCheck className="h-5 w-5" aria-hidden="true" />
                                 </span>
                               )}
                             </>

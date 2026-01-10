@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { FaChevronDown } from "@/components/icons";
+import { FiChevronDown } from "@/components/icons";
 import {
   Field,
   Label,
@@ -394,7 +394,7 @@ export function FairminterForm({
             {({ open }) => (
               <>
                 <DisclosureButton className="flex items-center text-md font-semibold text-gray-700 hover:text-gray-900">
-                  <FaChevronDown
+                  <FiChevronDown
                     className={`${open ? "transform rotate-180" : ""} w-4 h-4 mr-2 transition-transform`}
                   />
                   Advanced Options

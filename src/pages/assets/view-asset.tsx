@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaChevronDown, FaChevronRight, FaHistory } from "@/components/icons";
+import { FiChevronDown, FaChevronRight, FaHistory } from "@/components/icons";
 import { Spinner } from "@/components/spinner";
 import { ActionList } from "@/components/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { formatAmount, formatTimeAgo } from "@/utils/format";
+import { formatAmount, formatTimeAgo, formatAddress } from "@/utils/format";
 import { AssetHeader } from "@/components/headers/asset-header";
-import { fetchDividendsByAsset, type Dividend, type DividendResponse } from "@/utils/blockchain/counterparty/api";
+import { fetchDividendsByAsset, type Dividend, type PaginatedResponse } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
 import type { ActionSection } from "@/components/lists/action-list";
 
@@ -41,9 +41,12 @@ const CONSTANTS = {
 export default function ViewAsset(): ReactElement {
   const { asset } = useParams<{ asset: string }>();
   const navigate = useNavigate();
-  const { setHeaderProps } = useHeader();
+  const { setHeaderProps, getCachedOwnedAsset } = useHeader();
   const { activeAddress } = useWallet();
   const { data: assetDetails, isLoading, error } = useAssetDetails(asset || "");
+
+  // Get cached data for instant display
+  const cachedAsset = useMemo(() => getCachedOwnedAsset(asset || ""), [getCachedOwnedAsset, asset]);
   
   // Dividend history state
   const [dividends, setDividends] = useState<Dividend[]>([]);
@@ -63,7 +66,7 @@ export default function ViewAsset(): ReactElement {
     setDividendsError(null);
     
     try {
-      const response: DividendResponse = await fetchDividendsByAsset(asset, {
+      const response: PaginatedResponse<Dividend> = await fetchDividendsByAsset(asset, {
         limit: 10,
         offset: dividendsOffset,
       });
@@ -204,18 +207,49 @@ export default function ViewAsset(): ReactElement {
     return [{ items: actions }];
   };
 
-  // Show spinner only on initial load or when there's no cached data
-  if (isLoading && !assetDetails) {
+  // Build header data from fresh data or cache for instant display
+  const headerAssetInfo = useMemo(() => {
+    // Prefer fresh data if available
+    if (assetDetails?.assetInfo) {
+      return {
+        asset: asset || "",
+        asset_longname: assetDetails.assetInfo.asset_longname || null,
+        description: assetDetails.assetInfo.description,
+        issuer: assetDetails.assetInfo.issuer,
+        divisible: assetDetails.assetInfo.divisible ?? false,
+        locked: assetDetails.assetInfo.locked ?? false,
+        supply: assetDetails.assetInfo.supply,
+        supply_normalized: assetDetails.assetInfo.supply_normalized || '0'
+      };
+    }
+    // Fall back to cached data for instant display (partial info)
+    if (cachedAsset) {
+      return {
+        asset: cachedAsset.asset,
+        asset_longname: cachedAsset.asset_longname,
+        description: cachedAsset.description,
+        issuer: undefined, // Not available in cache
+        divisible: false, // Not available in cache, will update when loaded
+        locked: cachedAsset.locked,
+        supply: cachedAsset.supply_normalized, // Use normalized since divisibility unknown
+        supply_normalized: cachedAsset.supply_normalized
+      };
+    }
+    return null;
+  }, [asset, assetDetails, cachedAsset]);
+
+  // Show spinner only if no cached data and still loading
+  if (isLoading && !headerAssetInfo) {
     return <Spinner message="Loading asset details..." />;
   }
-  
-  // Only show error if there's an actual error and no cached data to display
-  if (error && !assetDetails) {
+
+  // Only show error if there's an actual error and no data to display
+  if (error && !headerAssetInfo) {
     return <div className="p-4 text-center text-gray-600">Failed to load asset information</div>;
   }
-  
-  // If we don't have data yet and not loading, return empty div to prevent flash
-  if (!assetDetails) {
+
+  // If we don't have any data yet, return empty div to prevent flash
+  if (!headerAssetInfo) {
     return <div />;
   }
 
@@ -224,18 +258,10 @@ export default function ViewAsset(): ReactElement {
       <div className="space-y-4">
         <AssetHeader
           className="mt-1 mb-5"
-          assetInfo={{
-            asset: asset || "",
-            asset_longname: assetDetails.assetInfo?.asset_longname || null,
-            description: assetDetails.assetInfo?.description,
-            issuer: assetDetails.assetInfo?.issuer,
-            divisible: assetDetails.assetInfo?.divisible ?? false,
-            locked: assetDetails.assetInfo?.locked ?? false,
-            supply: assetDetails.assetInfo?.supply,
-            supply_normalized: assetDetails.assetInfo?.supply_normalized || '0'
-          }}
+          assetInfo={headerAssetInfo}
         />
       </div>
+      {/* Actions require full data for ownership checks */}
       <ActionList sections={getActionSections()} />
       <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
         <h3 className="text-sm font-medium text-gray-900">Asset Details</h3>
@@ -243,28 +269,32 @@ export default function ViewAsset(): ReactElement {
           <div className="flex justify-between">
             <span className="text-sm text-gray-500">Supply</span>
             <span className="text-sm text-gray-900">
-              {assetDetails.assetInfo?.supply || "0"}
+              {assetDetails?.assetInfo?.supply_normalized || headerAssetInfo.supply_normalized || "0"}
             </span>
           </div>
           <div className="flex justify-between">
             <span className="text-sm text-gray-500">Divisible</span>
-            <span className="text-sm text-gray-900">{assetDetails.isDivisible ? "Yes" : "No"}</span>
+            <span className="text-sm text-gray-900">
+              {assetDetails ? (assetDetails.isDivisible ? "Yes" : "No") : "—"}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-sm text-gray-500">Locked</span>
             <span className="text-sm text-gray-900">
-              {assetDetails.assetInfo?.locked ? "Yes" : "No"}
+              {headerAssetInfo.locked ? "Yes" : "No"}
             </span>
           </div>
           <div className="flex justify-between">
             <span className="text-sm text-gray-500">Issuer</span>
             <span className="text-sm text-gray-900 font-mono">
-              {assetDetails.assetInfo?.issuer || "Unknown"}
+              {headerAssetInfo.issuer ? formatAddress(headerAssetInfo.issuer) : (isLoading ? "Loading..." : "Unknown")}
             </span>
           </div>
           <div className="flex justify-between">
             <span className="text-sm text-gray-500">Your Balance</span>
-            <span className="text-sm text-gray-900">{assetDetails.availableBalance || "0"}</span>
+            <span className="text-sm text-gray-900">
+              {assetDetails?.availableBalance || (isLoading ? "Loading..." : "0")}
+            </span>
           </div>
         </div>
       </div>
@@ -282,7 +312,7 @@ export default function ViewAsset(): ReactElement {
             <h3 className="text-sm font-medium text-gray-900">Dividend History</h3>
           </div>
           {showDividends ? (
-            <FaChevronDown className="text-gray-400 w-4 h-4" aria-hidden="true" />
+            <FiChevronDown className="text-gray-400 w-4 h-4" aria-hidden="true" />
           ) : (
             <FaChevronRight className="text-gray-400 w-4 h-4" aria-hidden="true" />
           )}

@@ -370,7 +370,8 @@ describe('HeaderContext', () => {
         divisible: true,
         locked: false,
         issuer: 'test',
-        supply: '1000000'
+        supply: '1000000',
+        supply_normalized: '1000000',
       };
 
       act(() => {

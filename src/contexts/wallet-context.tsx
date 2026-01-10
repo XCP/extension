@@ -265,10 +265,23 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
   }, [walletService]); // Removed walletState - using ref instead to prevent stale closures
 
   useEffect(() => {
-    // Simple delay to let background initialize, then rely on service-level error handling
-    setTimeout(() => {
-      refreshWalletState();
-    }, 100);
+    // Initial load with retry for cold-start race condition
+    const loadWithRetry = async () => {
+      await new Promise(r => setTimeout(r, 100));
+      await refreshWalletState();
+
+      // If no wallets found, retry once after longer delay
+      // Handles background service worker cold-start in development
+      const currentWallets = walletStateRef.current.wallets;
+      if (currentWallets.length === 0) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[WalletContext] No wallets on first load, retrying...');
+        }
+        await new Promise(r => setTimeout(r, 400));
+        await refreshWalletState();
+      }
+    };
+    loadWithRetry();
 
     // Listen for wallet lock events from background
     // This MUST use the same lock key to prevent race with refreshWalletState

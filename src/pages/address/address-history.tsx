@@ -9,7 +9,7 @@ import { Spinner } from "@/components/spinner";
 import { TransactionCard } from "@/components/cards/transaction-card";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchTransactions, type TransactionResponse, type Transaction } from "@/utils/blockchain/counterparty/api";
+import { fetchTransactions, type PaginatedResponse, type Transaction } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
 
 /**
@@ -60,7 +60,7 @@ export default function AddressHistory(): ReactElement {
     setIsLoading(true);
     try {
       const offset = (currentPage - 1) * CONSTANTS.TRANSACTIONS_PER_PAGE;
-      const data: TransactionResponse = await fetchTransactions(activeAddress.address, {
+      const data: PaginatedResponse<Transaction> = await fetchTransactions(activeAddress.address, {
         limit: CONSTANTS.TRANSACTIONS_PER_PAGE,
         offset,
         verbose: true,

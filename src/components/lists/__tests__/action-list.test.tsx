@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { FiUser, FiLock } from '@/components/icons';
+import { FiUser, FaLock } from '@/components/icons';
 import { ActionList, type ActionSection } from '../action-list';
 
 // Mock the ActionCard component
@@ -53,7 +53,7 @@ describe('ActionList', () => {
           title: 'Security Settings',
           description: 'Change your password and security preferences',
           onClick: mockOnClickSecurity,
-          icon: <FiLock data-testid="security-icon" />,
+          icon: <FaLock data-testid="security-icon" />,
           ariaLabel: 'Security settings page'
         }
       ],

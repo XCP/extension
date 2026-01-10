@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Spinner } from "@/components/spinner";
 import { BalanceHeader } from "@/components/headers/balance-header";
@@ -40,8 +40,11 @@ const CONSTANTS = {
 export default function ViewBalance(): ReactElement {
   const { asset } = useParams<{ asset: string }>();
   const navigate = useNavigate();
-  const { setHeaderProps } = useHeader();
+  const { setHeaderProps, getCachedBalance } = useHeader();
   const { data: assetDetails, isLoading, error } = useAssetDetails(asset || "");
+
+  // Get cached data for instant display
+  const cachedBalance = useMemo(() => getCachedBalance(asset || ""), [getCachedBalance, asset]);
 
   // Configure header
   useEffect(() => {
@@ -53,11 +56,12 @@ export default function ViewBalance(): ReactElement {
   }, [setHeaderProps, navigate]);
 
   /**
-   * Generates a list of available actions based on the asset type and details.
+   * Generates a list of available actions based on the asset type.
+   * Actions are determined by asset name (BTC, XCP, other) - no API data needed.
    * @returns {ActionSection[]} The list of actionable options for the balance.
    */
   const getActionSections = (): ActionSection[] => {
-    if (!asset || !assetDetails) return [];
+    if (!asset) return [];
     const isBTC = asset === "BTC";
     const isXCP = asset === "XCP";
 
@@ -172,23 +176,45 @@ export default function ViewBalance(): ReactElement {
     return [{ items }];
   };
 
-  if (isLoading) return <Spinner message="Loading balance details..." />;
-  if (error || !assetDetails) {
+  // Build balance data from fresh data or cache
+  const balanceData = useMemo((): TokenBalance | null => {
+    // Prefer fresh data if available
+    if (assetDetails) {
+      const info = assetDetails.assetInfo;
+      return {
+        asset: asset || "",
+        asset_info: {
+          asset_longname: info?.asset_longname ?? null,
+          description: info?.description ?? "",
+          issuer: info?.issuer ?? "",
+          divisible: info?.divisible ?? assetDetails.isDivisible,
+          locked: info?.locked ?? false,
+          supply: info?.supply,
+        },
+        quantity_normalized: assetDetails.availableBalance || "0",
+      };
+    }
+    // Fall back to cached data for instant display
+    if (cachedBalance) {
+      return cachedBalance;
+    }
+    return null;
+  }, [asset, assetDetails, cachedBalance]);
+
+  // Show spinner only if no cached data and still loading
+  if (isLoading && !balanceData) {
+    return <Spinner message="Loading balance details..." />;
+  }
+
+  // Show error only if no data available at all
+  if ((error || !assetDetails) && !balanceData) {
     return <div className="p-4 text-center text-gray-600">Failed to load balance information</div>;
   }
 
-  const balanceData: TokenBalance = {
-    asset: asset || "",
-    asset_info: {
-      asset_longname: assetDetails.assetInfo?.asset_longname || null,
-      description: assetDetails.assetInfo?.description || "",
-      issuer: assetDetails.assetInfo?.issuer || "",
-      divisible: assetDetails.isDivisible,
-      locked: assetDetails.assetInfo?.locked ?? false,
-      supply: assetDetails.assetInfo?.supply || "0"
-    },
-    quantity_normalized: assetDetails.availableBalance || "0",
-  };
+  // At this point we have either fresh data or cached data
+  if (!balanceData) {
+    return <div className="p-4 text-center text-gray-600">Failed to load balance information</div>;
+  }
 
   return (
     <div className="p-4 space-y-6" role="main" aria-labelledby="balance-title">
@@ -196,7 +222,7 @@ export default function ViewBalance(): ReactElement {
         <BalanceHeader balance={balanceData} className="mt-1 mb-5" />
       </div>
       <ActionList sections={getActionSections()} />
-      {assetDetails.utxoBalances && assetDetails.utxoBalances.length > 0 && (
+      {assetDetails?.utxoBalances && assetDetails.utxoBalances.length > 0 && (
         <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
           <h3 className="text-sm font-medium text-gray-900">UTXO Balances</h3>
           <div className="space-y-2">

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, forwardRef } from "react";
 import { Field, Label, Input, Description } from "@headlessui/react";
-import { FiSearch, FiX } from "@/components/icons";
+import { FaSearch, FiX } from "@/components/icons";
 import { Button } from "@/components/button";
 
 interface SearchInputProps {
@@ -89,7 +89,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>((
       )}
       <div className="relative">
         <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-          <FiSearch className="h-4 w-4 text-gray-400" aria-hidden="true" />
+          <FaSearch className="h-4 w-4 text-gray-400" aria-hidden="true" />
         </div>
         <Input
           ref={ref}

@@ -160,7 +160,14 @@ export function useAssetBalance(asset: string) {
         setBalanceHeaderRef.current(asset, {
           asset,
           quantity_normalized: balance,
-          asset_info: assetInfo || undefined,
+          asset_info: assetInfo ? {
+            asset_longname: assetInfo.asset_longname,
+            description: assetInfo.description ?? "",
+            issuer: assetInfo.issuer ?? "",
+            divisible: assetInfo.divisible,
+            locked: assetInfo.locked,
+            supply: assetInfo.supply,
+          } : undefined,
         });
 
         // Single state update for success

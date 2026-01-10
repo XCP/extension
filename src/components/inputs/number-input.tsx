@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Field, Label, Input, Description } from "@headlessui/react";
-import { FiPlus, FiMinus } from "@/components/icons";
+import { FaPlus, FiMinus } from "@/components/icons";
 import { Button } from "@/components/button";
 
 interface NumberInputProps {
@@ -208,7 +208,7 @@ export function NumberInput({
               aria-label="Increase value"
               className="px-2 py-1"
             >
-              <FiPlus className="h-3 w-3" />
+              <FaPlus className="h-3 w-3" />
             </Button>
           </div>
         )}

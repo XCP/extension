@@ -1,15 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { FiPlus, FiMinus } from "@/components/icons";
+import { FaPlus, FiMinus } from "@/components/icons";
 import { lookupAssetOwner, shouldTriggerAssetLookup } from "@/utils/validation/assetOwner";
-import { validateDestinations, parseMultiLineDestinations, isMPMASupported } from "@/utils/validation/destinations";
+import { validateDestinations, parseMultiLineDestinations, isMPMASupported, type Destination } from "@/utils/validation/destinations";
 import { validateBitcoinAddress } from "@/utils/validation/bitcoin";
 import { useMultiAssetOwnerLookup } from "@/hooks/useAssetOwnerLookup";
-
-interface Destination {
-  id: number;
-  address: string;
-}
 
 interface DestinationsInputProps {
   destinations: Destination[];
@@ -193,7 +188,7 @@ export function DestinationsInput({
                   className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50"
                   title="Add another destination"
                 >
-                  <FiPlus className="w-5 h-5" />
+                  <FaPlus className="w-5 h-5" />
                 </button>
               ) : (
                 <button
