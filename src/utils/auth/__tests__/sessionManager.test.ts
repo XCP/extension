@@ -6,6 +6,7 @@ import {
   clearAllUnlockedSecrets,
   setLastActiveTime,
   getLastActiveTime,
+  MAX_SESSION_DURATION_MS,
 } from '../sessionManager';
 
 describe('sessionManager', () => {
@@ -378,7 +379,7 @@ describe('sessionManager', () => {
 
     it('should reschedule alarm when activity is detected', async () => {
       await setLastActiveTime();
-      
+
       // Should clear and create new alarm
       expect(global.chrome.alarms.clear).toHaveBeenCalledWith('session-expiry');
       expect(global.chrome.alarms.create).toHaveBeenCalledWith(
@@ -387,6 +388,50 @@ describe('sessionManager', () => {
           when: expect.any(Number)
         })
       );
+    });
+
+    it('should expire session when absolute timeout is exceeded (even with recent activity)', async () => {
+      const walletId = VALID_WALLET_ID_1;
+      const secret = 'test-secret';
+
+      // Mock session that was created 9 hours ago but had recent activity
+      // This tests the ABSOLUTE timeout (session too old)
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({
+        sessionMetadata: {
+          unlockedAt: Date.now() - (9 * 60 * 60 * 1000), // 9 hours ago (exceeds 8 hour max)
+          timeout: 30 * 60 * 1000, // 30 minute idle timeout
+          lastActiveTime: Date.now() - (1 * 60 * 1000), // 1 minute ago (within idle timeout)
+        }
+      });
+
+      storeUnlockedSecret(walletId, secret);
+
+      // Should return null due to absolute timeout expiry
+      expect(await getUnlockedSecret(walletId)).toBeNull();
+    });
+
+    it('should not expire session within absolute timeout even if active for a while', async () => {
+      const walletId = VALID_WALLET_ID_1;
+      const secret = 'test-secret';
+
+      // Mock session that was created 7 hours ago with recent activity
+      // This is within the 8 hour absolute timeout
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({
+        sessionMetadata: {
+          unlockedAt: Date.now() - (7 * 60 * 60 * 1000), // 7 hours ago (within 8 hour max)
+          timeout: 30 * 60 * 1000, // 30 minute idle timeout
+          lastActiveTime: Date.now() - (1 * 60 * 1000), // 1 minute ago (within idle timeout)
+        }
+      });
+
+      storeUnlockedSecret(walletId, secret);
+
+      // Should return secret as session is still valid
+      expect(await getUnlockedSecret(walletId)).toBe(secret);
+    });
+
+    it('should have MAX_SESSION_DURATION_MS set to 8 hours', () => {
+      expect(MAX_SESSION_DURATION_MS).toBe(8 * 60 * 60 * 1000);
     });
   });
 
@@ -508,14 +553,31 @@ describe('sessionManager', () => {
           lastActiveTime: Date.now(),
         }
       });
-      
+
       // Store a secret
       storeUnlockedSecret(VALID_WALLET_ID_1, 'secret');
-      
+
       const { checkSessionRecovery, SessionRecoveryState } = await import('../sessionManager');
       const state = await checkSessionRecovery();
-      
+
       expect(state).toBe(SessionRecoveryState.VALID);
+    });
+
+    it('should detect LOCKED state when absolute timeout is exceeded', async () => {
+      // Mock session that is within idle timeout but exceeds absolute timeout
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({
+        sessionMetadata: {
+          unlockedAt: Date.now() - (9 * 60 * 60 * 1000), // 9 hours ago (exceeds 8 hour max)
+          timeout: 30 * 60 * 1000, // 30 minute idle timeout
+          lastActiveTime: Date.now() - (1 * 60 * 1000), // 1 minute ago (within idle timeout)
+        }
+      });
+
+      const { checkSessionRecovery, SessionRecoveryState } = await import('../sessionManager');
+      const state = await checkSessionRecovery();
+
+      expect(state).toBe(SessionRecoveryState.LOCKED);
+      expect(global.chrome.storage.session.remove).toHaveBeenCalledWith('sessionMetadata');
     });
   });
 });

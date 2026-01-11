@@ -43,27 +43,46 @@ export default defineBackground(() => {
       // Common during extension startup when Chrome tries to reconnect to tabs
     }
 
-    // 2. Track content script readiness (internal signal, no response needed)
+    // 2. SECURITY: Validate sender is from our own extension
+    //    This prevents malicious web pages from sending messages to our background
+    //    See: OWASP Browser Extension Vulnerabilities - Insecure Message Passing
+    if (sender.id !== chrome.runtime.id) {
+      console.warn('[Background] Rejected message from unknown sender:', sender.id);
+      return false;
+    }
+
+    // 3. Track content script readiness (internal signal, no response needed)
+    //    Content scripts have sender.tab set
     if (message && message.__xcp_cs_ready && sender.tab?.id) {
       readyTabs.add(sender.tab.id);
       console.log(`[Background] Content script ready on tab ${sender.tab.id}:`, message.tabUrl);
       return false; // Don't respond - this is just a signal
     }
 
-    // 3. Debug logging in development only
+    // 4. Debug logging in development only
     if (process.env.NODE_ENV === 'development') {
       const messageType = message?.type || message?.action || (message?.serviceName ? `${message.serviceName}.${message.methodName}` : 'unknown');
       console.log('[Background] Received message:', messageType, 'from:', sender.tab?.url || sender.url || 'extension');
     }
 
-    // 4. Handle ping requests immediately
+    // 5. Handle ping requests immediately (allowed from content scripts and extension pages)
     if (message?.action === 'ping' || message?.type === 'startup-health-check') {
       sendResponse({ status: 'ready', timestamp: Date.now(), context: 'background' });
       return true;
     }
 
-    // 5. Handle compose events from popup (cross-context event emission)
+    // 6. Handle compose events from popup/sidepanel (cross-context event emission)
+    //    SECURITY: Only allow from extension pages, not content scripts
     if (message?.type === 'COMPOSE_EVENT') {
+      // Verify sender is an extension page (popup, sidepanel, tab), not a content script
+      const isExtensionPage = sender.url?.startsWith(`chrome-extension://${chrome.runtime.id}/`) ||
+                              sender.url?.startsWith(`moz-extension://${chrome.runtime.id}/`);
+      if (!isExtensionPage) {
+        console.warn('[Background] Rejected COMPOSE_EVENT from non-extension page:', sender.url);
+        sendResponse({ success: false, error: 'Unauthorized sender' });
+        return true;
+      }
+
       const { event, data } = message;
       if (event) {
         eventEmitterService.emit(event, data);
@@ -84,6 +103,13 @@ export default defineBackground(() => {
     // Check for connection errors immediately
     if (chrome.runtime.lastError) {
       // Error consumed - handles port connection failures
+    }
+
+    // SECURITY: Validate port sender is from our own extension
+    if (port.sender?.id !== chrome.runtime.id) {
+      console.warn('[Background] Rejected port connection from unknown sender:', port.sender?.id);
+      port.disconnect();
+      return;
     }
 
     // Handle ping messages on this port

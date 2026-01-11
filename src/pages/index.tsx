@@ -9,7 +9,6 @@ import {
   FaPaperPlane,
   FaQrcode,
   FaHistory,
-  FaExternalLinkAlt,
   FaLock,
 } from "@/components/icons";
 import { TbPinned } from "@/components/icons";
@@ -34,7 +33,6 @@ const CONSTANTS = {
     SEND_BTC: "/compose/send/BTC",
     ADDRESS_HISTORY: "/address-history",
     SELECT_ADDRESS: "/select-address",
-    TAB_INDEX: "/tab.html#/index",
     PINNED_ASSETS: "/settings/pinned-assets",
   } as const,
   TABS: ["Assets", "Balances"] as const,
@@ -174,7 +172,6 @@ export default function Index(): ReactElement {
   );
 
   const renderBalancesHeader = (): ReactElement => {
-    const isTabView = window.location.pathname.includes("tab.html");
     return (
       <div className="flex justify-between items-center mb-2">
         <div className="flex space-x-4">
@@ -195,26 +192,13 @@ export default function Index(): ReactElement {
             Balances
           </button>
         </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => navigate(CONSTANTS.PATHS.PINNED_ASSETS)}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-            aria-label="Manage Pinned Assets"
-          >
-            <TbPinned className="w-5 h-5 text-gray-600" aria-hidden="true" />
-          </button>
-          {!isTabView && (
-            <button
-              onClick={async () => {
-                await browser.tabs.create({ url: browser.runtime.getURL(CONSTANTS.PATHS.TAB_INDEX), active: true });
-              }}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-              aria-label="Open Wallet in New Tab"
-            >
-              <FaExternalLinkAlt className="w-4 h-4 text-gray-600" aria-hidden="true" />
-            </button>
-          )}
-        </div>
+        <button
+          onClick={() => navigate(CONSTANTS.PATHS.PINNED_ASSETS)}
+          className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+          aria-label="Manage Pinned Assets"
+        >
+          <TbPinned className="w-5 h-5 text-gray-600" aria-hidden="true" />
+        </button>
       </div>
     );
   };

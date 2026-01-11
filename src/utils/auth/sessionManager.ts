@@ -68,6 +68,16 @@ import {
 let unlockedSecrets: Record<string, string> = {};
 let lastActiveTime: number = Date.now();
 
+/**
+ * Maximum session duration (absolute timeout) regardless of activity.
+ * Per OWASP Session Management Cheat Sheet: "All sessions should implement
+ * an absolute timeout... closing and invalidating the session upon the
+ * defined absolute period since the given session was initially created."
+ *
+ * 8 hours allows a full workday of use while ensuring daily re-authentication.
+ */
+export const MAX_SESSION_DURATION_MS = 8 * 60 * 60 * 1000; // 8 hours
+
 
 /**
  * Persists session metadata after validation.
@@ -78,17 +88,32 @@ async function persistSessionMetadata(metadata: SessionMetadata): Promise<void> 
 }
 
 /**
- * Checks if the current session has expired based on stored metadata
+ * Checks if the current session has expired based on stored metadata.
+ * Session expires if EITHER:
+ * - Idle timeout exceeded (no activity within timeout period)
+ * - Absolute timeout exceeded (session created too long ago)
  */
 export async function isSessionExpired(): Promise<boolean> {
   const metadata = await getSessionMetadata();
   if (!metadata) {
     return true; // No session = expired
   }
-  
+
   const now = Date.now();
-  const elapsed = now - metadata.lastActiveTime;
-  return elapsed > metadata.timeout;
+
+  // Check idle timeout (time since last activity)
+  const idleTime = now - metadata.lastActiveTime;
+  if (idleTime > metadata.timeout) {
+    return true;
+  }
+
+  // Check absolute timeout (time since session creation)
+  const sessionDuration = now - metadata.unlockedAt;
+  if (sessionDuration > MAX_SESSION_DURATION_MS) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -286,24 +311,31 @@ export enum SessionRecoveryState {
  */
 export async function checkSessionRecovery(): Promise<SessionRecoveryState> {
   const metadata = await getSessionMetadata();
-  
+
   // No session metadata = locked
   if (!metadata) {
     return SessionRecoveryState.LOCKED;
   }
-  
+
   const now = Date.now();
-  const elapsed = now - metadata.lastActiveTime;
-  
-  // Session expired = locked
-  if (elapsed > metadata.timeout) {
+
+  // Check idle timeout (time since last activity)
+  const idleTime = now - metadata.lastActiveTime;
+  if (idleTime > metadata.timeout) {
     await clearSessionMetadata();
     return SessionRecoveryState.LOCKED;
   }
-  
+
+  // Check absolute timeout (time since session creation)
+  const sessionDuration = now - metadata.unlockedAt;
+  if (sessionDuration > MAX_SESSION_DURATION_MS) {
+    await clearSessionMetadata();
+    return SessionRecoveryState.LOCKED;
+  }
+
   // Session valid, check if we have secrets
   const hasSecrets = Object.keys(unlockedSecrets).length > 0;
-  
+
   if (hasSecrets) {
     // Everything is fine
     return SessionRecoveryState.VALID;
