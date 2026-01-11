@@ -43,7 +43,7 @@
  * - No sync to cloud (unlike chrome.storage.sync)
  *
  * **Threat Mitigations**:
- * - Key is derived with 900K PBKDF2 iterations (brute force resistant)
+ * - Key is derived with 600K PBKDF2 iterations (brute force resistant)
  * - Session clears on browser close (limits exposure window)
  * - Only encryption key stored, never raw password
  * - Auto-lock timer clears key after inactivity (1-30 min configurable)
@@ -74,7 +74,7 @@ import { bufferToBase64, base64ToBuffer, generateRandomBytes } from './buffer';
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const KEY_BITS = 256;
-const PBKDF2_ITERATIONS = 900_000; // Matches MetaMask, exceeds OWASP 2025 recommendation (800k+)
+const PBKDF2_ITERATIONS = 600_000; // Reasonable security vs performance tradeoff
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();

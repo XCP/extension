@@ -25,10 +25,15 @@ export class TTLCache<T> {
    * Creates a new TTL cache.
    * @param ttlMs Time-to-live in milliseconds
    * @param clone Optional function to deep clone data on get/set (prevents mutation)
+   *
+   * Note: The clone function is wrapped internally to prevent "Illegal invocation"
+   * errors when native/host functions (like structuredClone) are passed directly.
    */
   constructor(ttlMs: number, clone?: (data: T) => T) {
     this.ttlMs = ttlMs;
-    this.clone = clone ?? null;
+    // Wrap the clone function to prevent "Illegal invocation" errors when
+    // native/host functions are passed directly and later invoked via property call
+    this.clone = clone ? ((v: T) => clone(v)) : null;
   }
 
   /**
@@ -92,10 +97,15 @@ export class KeyedTTLCache<K, V> {
    * Creates a new keyed TTL cache.
    * @param ttlMs Time-to-live in milliseconds for each entry
    * @param clone Optional function to deep clone data on get/set
+   *
+   * Note: The clone function is wrapped internally to prevent "Illegal invocation"
+   * errors when native/host functions (like structuredClone) are passed directly.
    */
   constructor(ttlMs: number, clone?: (data: V) => V) {
     this.ttlMs = ttlMs;
-    this.clone = clone ?? null;
+    // Wrap the clone function to prevent "Illegal invocation" errors when
+    // native/host functions are passed directly and later invoked via property call
+    this.clone = clone ? ((v: V) => clone(v)) : null;
   }
 
   /**

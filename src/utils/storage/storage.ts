@@ -98,18 +98,16 @@ export interface StoredRecord {
 const withWriteLock = createWriteLock();
 
 /**
- * Defines a storage item for wallet records only.
- * Uses the key 'local:walletRecords' in local storage with a fallback of an empty array.
+ * Storage key for wallet records.
  * In test environments, uses a unique key to avoid test interference.
  *
  * Note: Settings are stored separately in 'local:settingsRecord' (see settingsStorage.ts)
  */
-const storageKey = typeof process !== 'undefined' && process.env.NODE_ENV === 'test'
-  ? `local:walletRecords_test`
+const STORAGE_KEY = typeof process !== 'undefined' && process.env.NODE_ENV === 'test'
+  ? 'local:walletRecords_test'
   : 'local:walletRecords';
 
-
-const localRecords = storage.defineItem<StoredRecord[]>(storageKey, {
+const localRecords = storage.defineItem<StoredRecord[]>(STORAGE_KEY, {
   fallback: [],
 });
 
@@ -164,7 +162,7 @@ async function persistRecords(records: StoredRecord[]): Promise<void> {
     recordsCache.set(records);
   } catch (err) {
     console.error('Failed to persist records to storage:', err);
-    throw new Error('Storage update failed'); // Propagate error for caller awareness
+    throw new Error('Storage update failed');
   }
 }
 

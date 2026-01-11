@@ -150,6 +150,21 @@ describe('TTLCache', () => {
       const retrieved = cache.get();
       expect(retrieved).toBe(original); // Same reference
     });
+
+    it('works with structuredClone passed directly (regression test)', () => {
+      // This test ensures we don't regress on "Illegal invocation" errors
+      // when native functions like structuredClone are passed directly.
+      // The TTLCache constructor should wrap them to prevent this issue.
+      const cache = new TTLCache<{ value: number }>(1000, structuredClone);
+
+      const original = { value: 42 };
+      // This should not throw "Illegal invocation"
+      expect(() => cache.set(original)).not.toThrow();
+
+      const retrieved = cache.get();
+      expect(retrieved).not.toBe(original); // Different reference (cloned)
+      expect(retrieved).toEqual({ value: 42 }); // Same value
+    });
   });
 });
 
@@ -298,6 +313,20 @@ describe('KeyedTTLCache', () => {
       retrieved!.value = 999;
 
       expect(cache.get('key1')).toEqual({ value: 1 });
+    });
+
+    it('works with structuredClone passed directly (regression test)', () => {
+      // This test ensures we don't regress on "Illegal invocation" errors
+      // when native functions like structuredClone are passed directly.
+      const cache = new KeyedTTLCache<string, { value: number }>(1000, structuredClone);
+
+      const original = { value: 42 };
+      // This should not throw "Illegal invocation"
+      expect(() => cache.set('key1', original)).not.toThrow();
+
+      const retrieved = cache.get('key1');
+      expect(retrieved).not.toBe(original); // Different reference (cloned)
+      expect(retrieved).toEqual({ value: 42 }); // Same value
     });
   });
 });
