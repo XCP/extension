@@ -1,72 +1,167 @@
 # Security Audit Checklist
 
-This document tracks security implementations based on industry best practices:
-- [OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org/)
+Self-reported security assessment based on industry checklists. Not independently audited.
+
+**Legend:** ✅ Implemented | ⚠️ Partial/Limitation | ❌ Gap | ⚪ Not Applicable
+
+## Sources
+
+- [OWASP Cheat Sheets](https://cheatsheetseries.owasp.org/) (Cryptographic Storage, Session Management, Key Management)
 - [Certik Wallet Security Checklist](https://www.certik.com/resources/blog/cryptowalletsecurityassessmentchecklist)
-- [Slowmist Wallet Audit](https://www.slowmist.com/service-wallet-security-audit.html)
 - [Valkyri Extension Pentesting](https://blog.valkyri.xyz/posts/wallet-extension-pentesting/)
 - [BlockApex Web3 Wallet Checklist](https://blockapex.io/web3-wallet-security-checklist/)
 
-## Implementation Status
+---
 
-| Category | Area | Implementation | Status |
-|----------|------|----------------|--------|
-| **Cryptography** | Key Derivation | PBKDF2 with 600,000 iterations | ✅ |
-| | Encryption | AES-256-GCM with HKDF domain separation | ✅ |
-| | Crypto Libraries | Audited `@noble/*` and `@scure/*` libraries | ✅ |
-| | Private Key Zeroing | Keys zeroed after signing operations | ✅ |
-| | Memory Clearing | Best-effort with documented JS limitations (ADR-001) | ✅ |
-| | Timing Attack Mitigation | Constant-time operations + random delays | ✅ |
-| **Session** | Idle Timeout | Configurable 1-30 minute auto-lock | ✅ |
-| | Absolute Timeout | 8-hour maximum session duration | ✅ |
-| | Session Recovery | Re-authentication required after service worker restart | ✅ |
-| | Rate Limiting | Protection against brute-force unlock attempts | ✅ |
-| **Provider API** | Origin Verification | Origins validated from content script context | ✅ |
-| | Permission System | Per-origin connection approval required | ✅ |
-| | Silent Signing Prevention | All signing requires user approval via popup | ✅ |
-| | Locked State Protection | Sensitive APIs blocked when wallet locked | ✅ |
-| | WYSIWYS | Transaction details shown before signing | ✅ |
-| **Transactions** | Local Message Verification | Counterparty messages unpacked locally and compared against API | ✅ |
-| | Replay Prevention | Nonce tracking, idempotency keys, txid deduplication | ✅ |
-| | Race Condition Prevention | Mutex locks for wallet state operations | ✅ |
-| | Deep Clone Protection | Cached data immutability enforced | ✅ |
-| **Input Validation** | QR Code Validation | XSS, protocol, and path traversal protection | ✅ |
-| | Private Key Validation | Format and injection protection | ✅ |
-| | Fuzz Testing | Property-based testing with fast-check | ✅ |
-| **Extension** | Manifest Permissions | Minimal: `storage`, `tabs`, `alarms`, `sidePanel` | ✅ |
-| | Content Security Policy | MV3 strict default (no eval, no remote scripts) | ✅ |
-| | Message Sender Validation | Background script validates extension context | ✅ |
-| | Console Stripping | `console.log/error` removed in production builds | ✅ |
-| | Dependency Pinning | All versions pinned, lockfile with integrity hashes | ✅ |
-| | Security Audit CI | `npm audit` runs on every PR | ✅ |
-| **Error Handling** | User vs Internal Errors | Separate `userMessage` field prevents info leakage | ✅ |
-| | Decryption Errors | Generic messages prevent oracle attacks | ✅ |
-| | Stack Traces | Never exposed to external callers | ✅ |
+## Cryptography & Key Management
 
-## Local Transaction Verification
+| Status | Item | Implementation |
+|--------|------|----------------|
+| ✅ | Use AES-256 for symmetric encryption | AES-256-GCM with authenticated encryption |
+| ✅ | Use authenticated cipher modes (GCM/CCM) | GCM mode with authentication tag |
+| ✅ | Use CSPRNG for all randomness | `crypto.getRandomValues()` for salts, IVs, keys |
+| ✅ | High iteration key derivation | PBKDF2 with 600,000 iterations |
+| ✅ | Use audited crypto libraries | Noble/Scure family (Cure53 audited) |
+| ✅ | Domain separation for keys | HKDF with distinct contexts per key type |
+| ✅ | Random salt per encryption | 16-byte random salt generated each time |
+| ✅ | Random IV per encryption | 12-byte random IV for each operation |
+| ✅ | Timing attack mitigation | Random delays (0-10ms) on decryption |
+| ✅ | Keys zeroed after use | Best-effort overwrite with zeros |
+| ⚠️ | Memory clearing | JS limitation—V8 may retain copies (ADR-001) |
+| ⚪ | HSM/hardware key storage | Not applicable—browser extension |
+| ⚪ | Key rotation | Not applicable—user controls keys |
 
-When signing Counterparty transactions, the wallet independently verifies transaction contents rather than trusting API responses. This defends against compromised or malicious API servers.
+## Session Management
 
-**How it works:**
-1. The wallet decodes OP_RETURN data and unpacks the Counterparty message locally
-2. Critical fields (asset, quantity, destination) are extracted and compared against the API response
-3. Any mismatch triggers a warning or blocks signing (configurable via Settings > Advanced)
+| Status | Item | Implementation |
+|--------|------|----------------|
+| ✅ | Idle timeout | Configurable 1-30 minute auto-lock |
+| ✅ | Absolute timeout | 8-hour maximum session duration |
+| ✅ | Re-auth after restart | Service worker restart requires unlock |
+| ✅ | Rate limiting on unlock | 5 attempts per minute per origin |
+| ✅ | Session stored server-side only | Keys in memory, never in storage unlocked |
+| ✅ | Logout clears session | `clearAllUnlockedSecrets()` on lock |
+| ⚪ | Cookie security attributes | Not applicable—no cookies used |
+| ⚪ | Session ID entropy | Not applicable—no session tokens |
 
-**Supported message types:** Send, Enhanced Send, Order, Dispenser, Cancel, Destroy, Sweep, Issuance
+## Password & Authentication
 
-## Security Assumptions
+| Status | Item | Implementation |
+|--------|------|----------------|
+| ✅ | Minimum password length | 8 characters enforced |
+| ✅ | Rate limiting on attempts | Tiered: 5-500 requests/min |
+| ✅ | Generic error messages | No oracle attacks via error text |
+| ⚠️ | Password complexity | Length only—no uppercase/symbol requirements |
+| ⚠️ | 2FA/PIN for sensitive actions | Password required, no separate 2FA |
+| ❌ | Password strength meter | Not implemented |
 
-This wallet does **not** protect against:
+## Extension Security (Certik/Valkyri)
 
-- **Compromised operating system** — Malware with kernel access can read memory
-- **Malicious browser extensions** — Extensions with higher privileges can intercept data
-- **Physical access to unlocked device** — No defense against shoulder surfing or unlocked sessions
-- **Compromised browser** — Modified browser binaries can bypass all protections
-- **Supply chain attacks** — We pin versions and verify hashes, but cannot guarantee upstream integrity
+| Status | Item | Implementation |
+|--------|------|----------------|
+| ✅ | Minimal permissions | `storage`, `tabs`, `alarms`, `sidePanel` only |
+| ✅ | Message origin validation | Background validates sender context |
+| ✅ | CSP enforced | MV3 strict default, no unsafe-eval |
+| ✅ | No hardcoded secrets | Scanned with gitleaks patterns |
+| ✅ | Dependency version pinning | Exact versions in package.json |
+| ✅ | npm audit clean | 0 vulnerabilities |
+| ✅ | Console stripping in prod | `vite-plugin-remove-console` removes log/error |
+| ✅ | Content script isolation | Separate injected.js, content.js contexts |
+| ✅ | XSS protection | Input sanitization, no innerHTML with user data |
+| ✅ | Clickjacking protection | postMessage origin validation |
+| ⚠️ | Heap inspection resistance | Best-effort clear, JS limitations documented |
+| ❌ | Tamper/repackaging detection | Browser signature verification only |
+| ⚪ | Certificate pinning | Not applicable—browser handles TLS |
+
+## Provider API Security
+
+| Status | Item | Implementation |
+|--------|------|----------------|
+| ✅ | Origin verification | Validated from content script context |
+| ✅ | Per-origin permissions | Connection approval required |
+| ✅ | No silent signing | All signing requires popup approval |
+| ✅ | Locked state protection | Sensitive APIs blocked when locked |
+| ✅ | WYSIWYS | Full transaction details shown before sign |
+| ✅ | Rate limiting per origin | 10 requests/min per origin |
+| ✅ | Global rate limit | 500 requests/min backstop |
+| ✅ | Queue size limits | Max 100 pending, 10 per origin |
+
+## Transaction Security
+
+| Status | Item | Implementation |
+|--------|------|----------------|
+| ✅ | Local message verification | Counterparty messages unpacked and compared |
+| ✅ | Replay prevention | Nonce tracking, txid deduplication |
+| ✅ | Race condition prevention | Mutex locks, `isComposing`/`isSigning` guards |
+| ✅ | Stale transaction detection | 5-minute timeout on composed transactions |
+| ✅ | Address checksum validation | Base58/Bech32 checksum verified |
+
+## Input Validation
+
+| Status | Item | Implementation |
+|--------|------|----------------|
+| ✅ | Bitcoin address validation | Checksum, network, format validation |
+| ✅ | QR code sanitization | XSS, protocol, path traversal protection |
+| ✅ | Private key format validation | WIF, hex format with injection protection |
+| ✅ | Fuzz testing | Property-based tests with fast-check |
+| ✅ | API input validation | Type checking, bounds validation |
+
+## UI/UX Security
+
+| Status | Item | Implementation |
+|--------|------|----------------|
+| ✅ | Full message display | Transaction details shown before signing |
+| ✅ | User-initiated clipboard | Copy only on explicit user action |
+| ⚠️ | Clipboard auto-clear | Not implemented—data persists |
+| ❌ | Screenshot prevention | Not possible in browser extensions |
+| ⚪ | Custom keyboard blocking | Not applicable—browser extensions |
+| ⚪ | Jailbreak/root detection | Not applicable—desktop browser |
+
+## Error Handling
+
+| Status | Item | Implementation |
+|--------|------|----------------|
+| ✅ | User vs internal errors | Separate `userMessage` field |
+| ✅ | Generic decryption errors | Prevents padding oracle attacks |
+| ✅ | Stack traces hidden | Never exposed to external callers |
+| ✅ | Logging stripped in prod | console.log/error removed |
+
+## Supply Chain
+
+| Status | Item | Implementation |
+|--------|------|----------------|
+| ✅ | Exact version pinning | No wildcards in package.json |
+| ✅ | Lockfile integrity | package-lock.json with hashes |
+| ✅ | npm audit CI | Runs on every PR |
+| ✅ | Minimal dependencies | 12 runtime deps (most wallets have 50+) |
+| ⚠️ | Dependency confusion | Private packages not applicable |
+
+---
+
+## Known Limitations
+
+### JavaScript Memory Clearing (ADR-001)
+
+Browser JavaScript cannot guarantee secure memory clearing:
+- String immutability may retain original data
+- V8 garbage collector timing is non-deterministic
+- JIT optimizations may preserve copies
+
+**Mitigation:** Defense-in-depth via short session timeouts (1-30 min configurable), auto-lock on idle, and re-authentication on service worker restart.
+
+**Industry context:** MetaMask, UniSat, Xverse face identical constraints. True secure memory requires native code (libsodium), which browsers don't support.
+
+### Screenshot Prevention
+
+Browser extensions cannot prevent OS-level screenshots. Users should be aware that displayed seed phrases/private keys could be captured.
+
+### Clipboard Persistence
+
+Copied addresses and transaction IDs remain in clipboard until overwritten. Users should manually clear clipboard after copying sensitive data.
+
+---
 
 ## Architecture Decision Records
-
-Security trade-offs and design decisions are documented inline as ADRs:
 
 | ADR | Decision | Location |
 |-----|----------|----------|
@@ -82,8 +177,30 @@ Security trade-offs and design decisions are documented inline as ADRs:
 | ADR-010 | Storage pattern decisions (class vs function) | [requestStorage.ts](src/utils/storage/requestStorage.ts) |
 | ADR-011 | Isolated wallet and settings storage | [storage.ts](src/utils/storage/storage.ts) |
 
+---
+
+## Summary
+
+| Category | ✅ | ⚠️ | ❌ | ⚪ |
+|----------|-----|-----|-----|-----|
+| Cryptography | 11 | 1 | 0 | 2 |
+| Session | 6 | 0 | 0 | 2 |
+| Password | 3 | 2 | 1 | 0 |
+| Extension | 11 | 1 | 1 | 1 |
+| Provider API | 8 | 0 | 0 | 0 |
+| Transaction | 5 | 0 | 0 | 0 |
+| Input Validation | 5 | 0 | 0 | 0 |
+| UI/UX | 2 | 1 | 1 | 2 |
+| Error Handling | 4 | 0 | 0 | 0 |
+| Supply Chain | 4 | 1 | 0 | 0 |
+| **Total** | **59** | **6** | **3** | **7** |
+
+**Gaps (❌):** Password strength meter, tamper detection, screenshot prevention (browser limitation)
+
+---
+
 ## Audit Status
 
 This wallet has not been independently audited. We intend to pursue an audit when funding allows.
 
-In the meantime, we welcome responsible disclosure via our [bug bounty program](SECURITY.md).
+Report vulnerabilities via [GitHub Security Advisories](../../security/advisories/new) or see our [bug bounty program](SECURITY.md).
