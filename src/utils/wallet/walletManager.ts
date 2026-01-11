@@ -9,7 +9,7 @@ import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressForma
 import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';
 import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
-import { reencryptSettings, getSettings, updateSettings, invalidateSettingsCache, type AppSettings } from '@/utils/storage/settingsStorage';
+import { reencryptSettings, getSettings, updateSettings, invalidateSettingsCache, getAutoLockTimeoutMs, type AppSettings } from '@/utils/storage/settingsStorage';
 import { initializeSettingsKey, clearSettingsKey } from '@/utils/encryption/settings';
 import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
@@ -398,7 +398,7 @@ export class WalletManager {
 
       // Now we can read the real settings (will be decrypted)
       const settings = await getSettings();
-      const timeout = settings?.autoLockTimeout || 5 * 60 * 1000; // Default 5 minutes
+      const timeout = getAutoLockTimeoutMs(settings?.autoLockTimer ?? '5m');
 
       // Initialize session with the actual timeout from settings
       await sessionManager.initializeSession(timeout);

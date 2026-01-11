@@ -43,7 +43,6 @@ export const defaultMocks = {
   settingsStorage: {
     getSettings: vi.fn().mockResolvedValue({
       lastActiveWalletId: null,
-      autoLockTimeout: 5 * 60 * 1000,
       autoLockTimer: '5m',
     }),
     updateSettings: vi.fn().mockResolvedValue(undefined),

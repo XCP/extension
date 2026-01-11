@@ -126,7 +126,7 @@ export default function AssetOrders(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { settings } = useSettings();
-  const { btc: btcPrice, xcp: xcpPrice } = useMarketPrices(settings.preferences.fiat);
+  const { btc: btcPrice, xcp: xcpPrice } = useMarketPrices(settings.fiat);
   const { data: tradingPairData } = useTradingPair(baseAsset, quoteAsset);
 
   // Data state
@@ -433,21 +433,21 @@ export default function AssetOrders(): ReactElement {
                   <div>
                     <span className="text-gray-500">Floor</span>
                     <div
-                      onClick={() => copy(getRawOrderPrice(orderStats.floorPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.preferences.fiat))}
-                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawOrderPrice(orderStats.floorPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.preferences.fiat)) ? "bg-gray-200" : ""}`}
+                      onClick={() => copy(getRawOrderPrice(orderStats.floorPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat))}
+                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawOrderPrice(orderStats.floorPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
                     >
-                      <span>{formatOrderPrice(orderStats.floorPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.preferences.fiat)}</span>
-                      {isCopied(getRawOrderPrice(orderStats.floorPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.preferences.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                      <span>{formatOrderPrice(orderStats.floorPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)}</span>
+                      {isCopied(getRawOrderPrice(orderStats.floorPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
                     </div>
                   </div>
                   <div>
                     <span className="text-gray-500">Avg</span>
                     <div
-                      onClick={() => copy(getRawOrderPrice(orderStats.weightedAvg, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.preferences.fiat))}
-                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawOrderPrice(orderStats.weightedAvg, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.preferences.fiat)) ? "bg-gray-200" : ""}`}
+                      onClick={() => copy(getRawOrderPrice(orderStats.weightedAvg, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat))}
+                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawOrderPrice(orderStats.weightedAvg, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
                     >
-                      <span>{formatOrderPrice(orderStats.weightedAvg, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.preferences.fiat)}</span>
-                      {isCopied(getRawOrderPrice(orderStats.weightedAvg, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.preferences.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                      <span>{formatOrderPrice(orderStats.weightedAvg, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)}</span>
+                      {isCopied(getRawOrderPrice(orderStats.weightedAvg, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
                     </div>
                   </div>
                 </>
@@ -469,21 +469,21 @@ export default function AssetOrders(): ReactElement {
                   <div>
                     <span className="text-gray-500">Last</span>
                     <div
-                      onClick={() => copy(getRawOrderPrice(matchStats.lastPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.preferences.fiat))}
-                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawOrderPrice(matchStats.lastPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.preferences.fiat)) ? "bg-gray-200" : ""}`}
+                      onClick={() => copy(getRawOrderPrice(matchStats.lastPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat))}
+                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawOrderPrice(matchStats.lastPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
                     >
-                      <span>{formatOrderPrice(matchStats.lastPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.preferences.fiat)}</span>
-                      {isCopied(getRawOrderPrice(matchStats.lastPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.preferences.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                      <span>{formatOrderPrice(matchStats.lastPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)}</span>
+                      {isCopied(getRawOrderPrice(matchStats.lastPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
                     </div>
                   </div>
                   <div>
                     <span className="text-gray-500">Avg</span>
                     <div
-                      onClick={() => copy(getRawOrderPrice(matchStats.avgPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.preferences.fiat))}
-                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawOrderPrice(matchStats.avgPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.preferences.fiat)) ? "bg-gray-200" : ""}`}
+                      onClick={() => copy(getRawOrderPrice(matchStats.avgPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat))}
+                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawOrderPrice(matchStats.avgPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
                     >
-                      <span>{formatOrderPrice(matchStats.avgPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.preferences.fiat)}</span>
-                      {isCopied(getRawOrderPrice(matchStats.avgPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.preferences.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                      <span>{formatOrderPrice(matchStats.avgPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)}</span>
+                      {isCopied(getRawOrderPrice(matchStats.avgPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
                     </div>
                   </div>
                 </>
@@ -505,7 +505,7 @@ export default function AssetOrders(): ReactElement {
               <button
                 onClick={togglePriceUnit}
                 className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                title={`Switch to ${priceUnit === "raw" ? settings.preferences.fiat.toUpperCase() : quoteAsset}`}
+                title={`Switch to ${priceUnit === "raw" ? settings.fiat.toUpperCase() : quoteAsset}`}
               >
                 <TbRepeat className="w-4 h-4" />
               </button>

@@ -25,7 +25,6 @@ vi.mock('@/utils/storage/settingsStorage', async () => {
     getSettings: vi.fn().mockResolvedValue({
       ...actual.DEFAULT_SETTINGS,
       lastActiveWalletId: 'wallet1',
-      autoLockTimeout: 300000,
       analyticsAllowed: false,
       pinnedAssets: [],
       counterpartyApiBase: 'https://api.counterparty.io',
@@ -125,18 +124,19 @@ describe('WalletContext', () => {
   const mockSettings = {
     lastActiveWalletId: 'wallet1',
     lastActiveAddress: undefined,
-    autoLockTimeout: 300000,
     connectedWebsites: [],
     showHelpText: false,
     analyticsAllowed: false,
     allowUnconfirmedTxs: true,
-    autoLockTimer: '5m' as const,
+    autoLockTimer: '5m',
     enableMPMA: false,
     enableAdvancedBroadcasts: false,
     transactionDryRun: false,
-    pinnedAssets: [] as string[],
+    pinnedAssets: [],
     counterpartyApiBase: 'https://api.counterparty.io',
-    defaultOrderExpiration: 1000
+    defaultOrderExpiration: 1000,
+    priceUnit: 'btc',
+    fiat: 'usd',
   };
 
   beforeEach(() => {

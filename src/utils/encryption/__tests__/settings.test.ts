@@ -21,7 +21,6 @@ describe('settings encryption', () => {
     pinnedAssets: ['XCP', 'PEPE', 'RARE'],
     showHelpText: true,
     autoLockTimer: '15m',
-    autoLockTimeout: 15 * 60 * 1000,
   };
 
   beforeEach(() => {
@@ -143,7 +142,6 @@ describe('settings encryption', () => {
         version: 1,
         lastActiveWalletId: 'wallet-1',
         lastActiveAddress: 'bc1qfull',
-        autoLockTimeout: 30 * 60 * 1000,
         autoLockTimer: '30m',
         showHelpText: true,
         analyticsAllowed: false,
@@ -156,10 +154,8 @@ describe('settings encryption', () => {
         connectedWebsites: ['https://a.com', 'https://b.com'],
         pinnedAssets: ['ASSET1', 'ASSET2', 'ASSET3'],
         hasVisitedRecoverBitcoin: true,
-        preferences: {
-          unit: 'btc',
-          fiat: 'usd',
-        },
+        priceUnit: 'btc',
+        fiat: 'usd',
       };
 
       const encrypted = await encryptSettings(fullSettings);

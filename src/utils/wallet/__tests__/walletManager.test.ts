@@ -21,7 +21,6 @@ vi.mock('@/utils/storage/settingsStorage', async (importOriginal) => {
     ...actual,
     getSettings: vi.fn().mockResolvedValue({
       lastActiveWalletId: null,
-      autoLockTimeout: 5 * 60 * 1000,
       autoLockTimer: '5m',
     }),
     updateSettings: vi.fn().mockResolvedValue(undefined),
@@ -150,7 +149,6 @@ describe('WalletManager', () => {
       ]);
       mocks.settingsStorage.getSettings.mockResolvedValue({
         lastActiveWalletId: wallet.id,
-        autoLockTimeout: 5 * 60 * 1000,
         autoLockTimer: '5m',
       });
 
@@ -315,7 +313,7 @@ describe('WalletManager', () => {
       
       // Mock successful unlock
       mocks.encryption.decryptMnemonic.mockResolvedValue('test mnemonic');
-      mocks.settingsStorage.getSettings.mockResolvedValue({ autoLockTimeout: 5 * 60 * 1000 });
+      mocks.settingsStorage.getSettings.mockResolvedValue({ autoLockTimer: '5m' });
       mocks.sessionManager.initializeSession.mockResolvedValue(undefined);
       mocks.sessionManager.storeUnlockedSecret.mockImplementation(() => {});
       mocks.bitcoin.getAddressFromMnemonic.mockReturnValue('test-address');

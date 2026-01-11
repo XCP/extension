@@ -8,12 +8,11 @@ import { DEFAULT_SETTINGS } from '@/utils/storage/settingsStorage';
 vi.mock('@/utils/storage/settingsStorage', () => ({
   getSettings: vi.fn(),
   updateSettings: vi.fn(),
-  SETTINGS_VERSION: 1,
+  SETTINGS_VERSION: 2,
   DEFAULT_SETTINGS: {
-    version: 1,
+    version: 2,
     lastActiveWalletId: undefined,
     lastActiveAddress: undefined,
-    autoLockTimeout: 5 * 60 * 1000, // 5 minutes
     connectedWebsites: [],
     showHelpText: false,
     analyticsAllowed: true,
@@ -25,6 +24,8 @@ vi.mock('@/utils/storage/settingsStorage', () => ({
     pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
     counterpartyApiBase: 'https://api.counterparty.io:4000',
     defaultOrderExpiration: 8064,
+    priceUnit: 'btc',
+    fiat: 'usd',
   }
 }));
 vi.mock('webext-bridge/popup', () => ({

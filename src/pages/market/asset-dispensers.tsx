@@ -95,7 +95,7 @@ export default function AssetDispensers(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings } = useSettings();
-  const { btc: btcPrice } = useMarketPrices(settings.preferences.fiat);
+  const { btc: btcPrice } = useMarketPrices(settings.fiat);
 
   // Data state
   const [assetInfo, setAssetInfo] = useState<AssetInfo | null>(null);
@@ -116,7 +116,7 @@ export default function AssetDispensers(): ReactElement {
 
   // UI state - initialize from settings
   const [tab, setTab] = useState<"open" | "dispensed">("open");
-  const [priceUnit, setPriceUnit] = useState<PriceUnit>(settings.preferences.unit);
+  const [priceUnit, setPriceUnit] = useState<PriceUnit>(settings.priceUnit);
 
   // Clipboard
   const { copy, isCopied } = useCopyToClipboard();
@@ -404,21 +404,21 @@ export default function AssetDispensers(): ReactElement {
                   <div>
                     <span className="text-gray-500">Floor</span>
                     <div
-                      onClick={() => copy(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.preferences.fiat))}
-                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.preferences.fiat)) ? "bg-gray-200" : ""}`}
+                      onClick={() => copy(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat))}
+                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
                     >
-                      <span>{formatPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.preferences.fiat)}</span>
-                      {isCopied(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.preferences.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                      <span>{formatPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)}</span>
+                      {isCopied(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
                     </div>
                   </div>
                   <div>
                     <span className="text-gray-500">Avg</span>
                     <div
-                      onClick={() => copy(getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.preferences.fiat))}
-                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.preferences.fiat)) ? "bg-gray-200" : ""}`}
+                      onClick={() => copy(getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat))}
+                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
                     >
-                      <span>{formatPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.preferences.fiat)}</span>
-                      {isCopied(getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.preferences.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                      <span>{formatPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)}</span>
+                      {isCopied(getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
                     </div>
                   </div>
                 </>
@@ -440,21 +440,21 @@ export default function AssetDispensers(): ReactElement {
                   <div>
                     <span className="text-gray-500">Last</span>
                     <div
-                      onClick={() => copy(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.preferences.fiat))}
-                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.preferences.fiat)) ? "bg-gray-200" : ""}`}
+                      onClick={() => copy(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat))}
+                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
                     >
-                      <span>{formatPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.preferences.fiat)}</span>
-                      {isCopied(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.preferences.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                      <span>{formatPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)}</span>
+                      {isCopied(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
                     </div>
                   </div>
                   <div>
                     <span className="text-gray-500">Avg</span>
                     <div
-                      onClick={() => copy(getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.preferences.fiat))}
-                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.preferences.fiat)) ? "bg-gray-200" : ""}`}
+                      onClick={() => copy(getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat))}
+                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
                     >
-                      <span>{formatPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.preferences.fiat)}</span>
-                      {isCopied(getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.preferences.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                      <span>{formatPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)}</span>
+                      {isCopied(getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
                     </div>
                   </div>
                 </>
@@ -522,7 +522,7 @@ export default function AssetDispensers(): ReactElement {
                 <AssetDispenserCard
                   key={d.tx_hash}
                   dispenser={d}
-                  formattedPrice={formatPrice(getSatsPerUnit(d), priceUnit, btcPrice, settings.preferences.fiat)}
+                  formattedPrice={formatPrice(getSatsPerUnit(d), priceUnit, btcPrice, settings.fiat)}
                   onClick={() => handleDispenserClick(d)}
                   onCopyAddress={copy}
                   isCopied={isCopied(d.source)}
@@ -543,7 +543,7 @@ export default function AssetDispensers(): ReactElement {
                     key={d.tx_hash}
                     dispense={d}
                     asset={asset || ""}
-                    formattedPricePerUnit={formatPrice(pricePerUnit, priceUnit, btcPrice, settings.preferences.fiat)}
+                    formattedPricePerUnit={formatPrice(pricePerUnit, priceUnit, btcPrice, settings.fiat)}
                     onCopyTx={copy}
                     isCopied={isCopied(d.tx_hash)}
                   />
