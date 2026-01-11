@@ -48,7 +48,7 @@ export default function Market(): ReactElement {
   const { setHeaderProps } = useHeader();
   const { activeAddress } = useWallet();
   const { settings } = useSettings();
-  const { btc, xcp, loading: pricesLoading } = useMarketPrices(settings.preferences.fiat);
+  const { btc, xcp, loading: pricesLoading } = useMarketPrices(settings.fiat);
 
   // Orders section state
   const [recentOrders, setRecentOrders] = useState<OrderDetails[]>([]);
@@ -171,7 +171,7 @@ export default function Market(): ReactElement {
         <PriceTicker
           btc={btc}
           xcp={xcp}
-          currency={settings.preferences.fiat}
+          currency={settings.fiat}
           loading={pricesLoading}
           onBtcClick={() => navigate("/market/btc")}
           onXcpClick={() => navigate("/market/dispensers/XCP")}

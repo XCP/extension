@@ -52,7 +52,7 @@ export default function BtcPrice(): ReactElement {
 
   // UI state - initialize currency from settings
   const [range, setRange] = useState<TimeRange>("24h");
-  const [currency, setCurrency] = useState<FiatCurrency>(settings.preferences.fiat);
+  const [currency, setCurrency] = useState<FiatCurrency>(settings.fiat);
   const [showCurrencyMenu, setShowCurrencyMenu] = useState(false);
 
   // Track last currency change time to prevent spam

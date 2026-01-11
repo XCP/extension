@@ -6,6 +6,7 @@ import { WalletProvider } from './wallet-context';
 import { useWallet } from './wallet-context';
 import { useSettings } from './settings-context';
 import { useIdleTimer } from '@/hooks/useIdleTimer';
+import { getAutoLockTimeoutMs } from '@/utils/storage/settingsStorage';
 
 /**
  * Props for the AppProviders component.
@@ -48,12 +49,15 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
     }
   }, [authState, setLastActiveTime]);
 
+  // Compute timeout from timer setting
+  const autoLockTimeout = settings?.autoLockTimer ? getAutoLockTimeoutMs(settings.autoLockTimer) : 0;
+
   // Disable idle timer if timeout is 0 or undefined
-  const isIdleTimerEnabled = settings?.autoLockTimeout && settings.autoLockTimeout > 0;
+  const isIdleTimerEnabled = autoLockTimeout > 0;
 
   // Use native idle timer hook - MUST be called before any early returns
   useIdleTimer({
-    timeout: settings?.autoLockTimeout || 0,
+    timeout: autoLockTimeout,
     onIdle: handleIdle,
     onActive: handleActive,
     onAction: handleAction,

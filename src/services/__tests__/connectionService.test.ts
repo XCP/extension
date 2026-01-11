@@ -19,7 +19,6 @@ vi.mock('@/utils/storage/settingsStorage', () => ({
   updateSettings: vi.fn(),
   DEFAULT_SETTINGS: {
     connectedWebsites: [],
-    autoLockTimeout: 5 * 60 * 1000,
     showHelpText: false,
     analyticsAllowed: true,
     allowUnconfirmedTxs: true,
@@ -203,7 +202,6 @@ describe('ConnectionService', () => {
     // Mock initial storage state
     mockGetSettings.mockResolvedValue({
       connectedWebsites: [],
-      autoLockTimeout: 5 * 60 * 1000,
       showHelpText: false,
       analyticsAllowed: true,
       allowUnconfirmedTxs: true,
@@ -236,8 +234,7 @@ describe('ConnectionService', () => {
       // Setup connected website in storage mock
       mockGetSettings.mockResolvedValue({
         connectedWebsites: ['https://connected.com'],
-        autoLockTimeout: 5 * 60 * 1000,
-        showHelpText: false,
+          showHelpText: false,
         analyticsAllowed: true,
         allowUnconfirmedTxs: true,
         autoLockTimer: '5m',
@@ -283,8 +280,7 @@ describe('ConnectionService', () => {
       // Setup existing connection
       mockGetSettings.mockResolvedValue({
         connectedWebsites: ['https://existing.com'],
-        autoLockTimeout: 5 * 60 * 1000,
-        showHelpText: false,
+          showHelpText: false,
         analyticsAllowed: true,
         allowUnconfirmedTxs: true,
         autoLockTimer: '5m',
@@ -345,8 +341,7 @@ describe('ConnectionService', () => {
       // Setup connected website
       mockGetSettings.mockResolvedValue({
         connectedWebsites: ['https://connected.com', 'https://other.com'],
-        autoLockTimeout: 5 * 60 * 1000,
-        showHelpText: false,
+          showHelpText: false,
         analyticsAllowed: true,
         allowUnconfirmedTxs: true,
         autoLockTimer: '5m',
@@ -381,8 +376,7 @@ describe('ConnectionService', () => {
       // Setup connected websites
       mockGetSettings.mockResolvedValue({
         connectedWebsites: ['https://site1.com', 'https://site2.com'],
-        autoLockTimeout: 5 * 60 * 1000,
-        showHelpText: false,
+          showHelpText: false,
         analyticsAllowed: true,
         allowUnconfirmedTxs: true,
         autoLockTimer: '5m',
@@ -440,8 +434,7 @@ describe('ConnectionService', () => {
       // Mock storage to return saved connections
       mockGetSettings.mockResolvedValue({
         connectedWebsites: ['https://persistent.com'],
-        autoLockTimeout: 5 * 60 * 1000,
-        showHelpText: false,
+          showHelpText: false,
         analyticsAllowed: true,
         allowUnconfirmedTxs: true,
         autoLockTimer: '5m',

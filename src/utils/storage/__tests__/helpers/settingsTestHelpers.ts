@@ -19,7 +19,7 @@ export const TEST_SETTINGS = {
 
   // Extended timeout for timeout tests
   LONG_TIMEOUT: createTestSettings({
-    autoLockTimeout: 15 * 60 * 1000, // 15 minutes
+    autoLockTimer: '15m',
   }),
 
   // Development mode

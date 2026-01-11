@@ -24,6 +24,7 @@ vi.mock('@/utils/encryption/settings', () => ({
 import {
   getSettings,
   updateSettings,
+  getAutoLockTimeoutMs,
   AppSettings,
   DEFAULT_SETTINGS,
   AutoLockTimer,
@@ -62,7 +63,6 @@ describe('settingsStorage.ts', () => {
         ...DEFAULT_SETTINGS,
         lastActiveWalletId: 'wallet1',
         lastActiveAddress: 'addr1',
-        autoLockTimeout: 15 * 60 * 1000,
         connectedWebsites: ['example.com'],
         showHelpText: true,
         analyticsAllowed: false,
@@ -80,11 +80,9 @@ describe('settingsStorage.ts', () => {
     it('should default invalid autoLockTimer to 5m', async () => {
       await setRawSettings({
         autoLockTimer: 'always' as any,
-        autoLockTimeout: 0,
       });
       const settings = await getSettings();
       expect(settings.autoLockTimer).toBe('5m');
-      expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
     });
   });
 
@@ -99,16 +97,14 @@ describe('settingsStorage.ts', () => {
       const settings = await getSettings();
       expect(settings.showHelpText).toBe(true);
       expect(settings.autoLockTimer).toBe('30m');
-      expect(settings.autoLockTimeout).toBe(30 * 60 * 1000);
       expect(settings.analyticsAllowed).toBe(true); // Default preserved
     });
 
-    it('should set autoLockTimeout based on autoLockTimer', async () => {
+    it('should update autoLockTimer correctly', async () => {
       await getSettings(); // Initialize
       await updateSettings({ autoLockTimer: '15m' });
       const settings = await getSettings();
       expect(settings.autoLockTimer).toBe('15m');
-      expect(settings.autoLockTimeout).toBe(15 * 60 * 1000);
     });
 
     it('should preserve unrelated fields', async () => {
@@ -129,7 +125,6 @@ describe('settingsStorage.ts', () => {
       await updateSettings({ autoLockTimer: '30m', enableMPMA: true });
       const settings = await getSettings();
       expect(settings.autoLockTimer).toBe('30m');
-      expect(settings.autoLockTimeout).toBe(30 * 60 * 1000);
       expect(settings.enableMPMA).toBe(true);
       expect(settings.showHelpText).toBe(false); // Default
     });
@@ -155,7 +150,6 @@ describe('settingsStorage.ts', () => {
       });
       const settings = await getSettings();
       expect(settings.autoLockTimer).toBe('5m');
-      expect(settings.autoLockTimeout).toBe(5 * 60 * 1000);
     });
   });
 
@@ -169,27 +163,14 @@ describe('settingsStorage.ts', () => {
         await updateSettings({ autoLockTimer: timer });
         const settings = await getSettings();
         expect(settings.autoLockTimer).toBe(timer);
-
-        const expectedTimeout = {
-          '1m': 1 * 60 * 1000,
-          '5m': 5 * 60 * 1000,
-          '15m': 15 * 60 * 1000,
-          '30m': 30 * 60 * 1000,
-        }[timer];
-        expect(settings.autoLockTimeout).toBe(expectedTimeout);
       }
     });
 
-    it('should handle timeout-timer consistency enforcement', async () => {
-      // Set timer to 15m but timeout inconsistent - should be corrected
-      await setRawSettings({
-        autoLockTimer: '15m',
-        autoLockTimeout: 5 * 60 * 1000, // Wrong timeout - should be corrected
-      });
-
-      const settings = await getSettings();
-      expect(settings.autoLockTimer).toBe('15m');
-      expect(settings.autoLockTimeout).toBe(15 * 60 * 1000); // Should be corrected
+    it('should correctly map timers to milliseconds via helper', () => {
+      expect(getAutoLockTimeoutMs('1m')).toBe(1 * 60 * 1000);
+      expect(getAutoLockTimeoutMs('5m')).toBe(5 * 60 * 1000);
+      expect(getAutoLockTimeoutMs('15m')).toBe(15 * 60 * 1000);
+      expect(getAutoLockTimeoutMs('30m')).toBe(30 * 60 * 1000);
     });
   });
 
@@ -197,32 +178,18 @@ describe('settingsStorage.ts', () => {
     it('should have all required properties with correct types', () => {
       expect(DEFAULT_SETTINGS).toHaveProperty('lastActiveWalletId');
       expect(DEFAULT_SETTINGS).toHaveProperty('lastActiveAddress');
-      expect(typeof DEFAULT_SETTINGS.autoLockTimeout).toBe('number');
       expect(Array.isArray(DEFAULT_SETTINGS.connectedWebsites)).toBe(true);
       expect(typeof DEFAULT_SETTINGS.showHelpText).toBe('boolean');
       expect(typeof DEFAULT_SETTINGS.analyticsAllowed).toBe('boolean');
       expect(typeof DEFAULT_SETTINGS.allowUnconfirmedTxs).toBe('boolean');
-      expect(['10s', '1m', '5m', '15m', '30m']).toContain(DEFAULT_SETTINGS.autoLockTimer);
+      expect(['1m', '5m', '15m', '30m']).toContain(DEFAULT_SETTINGS.autoLockTimer);
       expect(typeof DEFAULT_SETTINGS.enableMPMA).toBe('boolean');
       expect(typeof DEFAULT_SETTINGS.enableAdvancedBroadcasts).toBe('boolean');
       expect(typeof DEFAULT_SETTINGS.transactionDryRun).toBe('boolean');
       expect(Array.isArray(DEFAULT_SETTINGS.pinnedAssets)).toBe(true);
       expect(typeof DEFAULT_SETTINGS.counterpartyApiBase).toBe('string');
-      expect(DEFAULT_SETTINGS.preferences).toBeDefined();
-      expect(['btc', 'sats', 'fiat']).toContain(DEFAULT_SETTINGS.preferences.unit);
-      expect(['usd', 'eur', 'gbp', 'jpy', 'cad', 'aud', 'cny']).toContain(DEFAULT_SETTINGS.preferences.fiat);
-    });
-
-    it('should have consistent autoLockTimer and autoLockTimeout', () => {
-      const expectedTimeout = {
-        '10s': 10 * 1000,
-        '1m': 1 * 60 * 1000,
-        '5m': 5 * 60 * 1000,
-        '15m': 15 * 60 * 1000,
-        '30m': 30 * 60 * 1000,
-      }[DEFAULT_SETTINGS.autoLockTimer];
-
-      expect(DEFAULT_SETTINGS.autoLockTimeout).toBe(expectedTimeout);
+      expect(['btc', 'sats', 'fiat']).toContain(DEFAULT_SETTINGS.priceUnit);
+      expect(['usd', 'eur', 'gbp', 'jpy', 'cad', 'aud', 'cny']).toContain(DEFAULT_SETTINGS.fiat);
     });
 
     it('should have valid counterpartyApiBase URL', () => {
@@ -248,7 +215,6 @@ describe('settingsStorage.ts', () => {
       expect(settings.showHelpText).toBe(true);
       expect(settings.analyticsAllowed).toBe(false);
       expect(settings.autoLockTimer).toBe('30m');
-      expect(settings.autoLockTimeout).toBe(30 * 60 * 1000);
       expect(settings.pinnedAssets).toEqual(['XCP']);
       expect(settings.connectedWebsites).toEqual(['example.com', 'test.org']);
     });
@@ -316,10 +282,10 @@ describe('settingsStorage.ts', () => {
     });
   });
 
-  describe('preferences validation', () => {
-    it('should have btc as the default unit and usd as default fiat', () => {
-      expect(DEFAULT_SETTINGS.preferences.unit).toBe('btc');
-      expect(DEFAULT_SETTINGS.preferences.fiat).toBe('usd');
+  describe('display settings validation', () => {
+    it('should have btc as the default priceUnit and usd as default fiat', () => {
+      expect(DEFAULT_SETTINGS.priceUnit).toBe('btc');
+      expect(DEFAULT_SETTINGS.fiat).toBe('usd');
     });
 
     it('should validate all valid PriceUnit values', async () => {
@@ -328,94 +294,94 @@ describe('settingsStorage.ts', () => {
       for (const unit of validUnits) {
         fakeBrowser.reset();
         invalidateSettingsCache();
-        await updateSettings({ preferences: { unit } });
+        await updateSettings({ priceUnit: unit });
         const settings = await getSettings();
-        expect(settings.preferences.unit).toBe(unit);
+        expect(settings.priceUnit).toBe(unit);
       }
     });
 
-    it('should default invalid preferences.unit to btc', async () => {
+    it('should default invalid priceUnit to btc', async () => {
       await setRawSettings({
-        preferences: { unit: 'invalid' as any, fiat: 'usd' },
+        priceUnit: 'invalid' as any,
       });
 
       const settings = await getSettings();
-      expect(settings.preferences.unit).toBe('btc');
+      expect(settings.priceUnit).toBe('btc');
     });
 
-    it('should default invalid preferences.fiat to usd', async () => {
+    it('should default invalid fiat to usd', async () => {
       await setRawSettings({
-        preferences: { unit: 'btc', fiat: 'invalid' as any },
+        fiat: 'invalid' as any,
       });
 
       const settings = await getSettings();
-      expect(settings.preferences.fiat).toBe('usd');
+      expect(settings.fiat).toBe('usd');
     });
 
-    it('should preserve preferences when updating other settings', async () => {
-      await updateSettings({ preferences: { unit: 'sats', fiat: 'jpy' } });
+    it('should preserve display settings when updating other settings', async () => {
+      await updateSettings({ priceUnit: 'sats', fiat: 'jpy' });
       await updateSettings({ showHelpText: true });
 
       const settings = await getSettings();
-      expect(settings.preferences.unit).toBe('sats');
-      expect(settings.preferences.fiat).toBe('jpy');
+      expect(settings.priceUnit).toBe('sats');
+      expect(settings.fiat).toBe('jpy');
       expect(settings.showHelpText).toBe(true);
     });
 
-    it('should handle unit cycle: btc -> sats -> fiat -> btc', async () => {
+    it('should handle priceUnit cycle: btc -> sats -> fiat -> btc', async () => {
       // Start with btc (default)
       let settings = await getSettings();
-      expect(settings.preferences.unit).toBe('btc');
+      expect(settings.priceUnit).toBe('btc');
 
       // Update to sats
-      await updateSettings({ preferences: { unit: 'sats' } });
+      await updateSettings({ priceUnit: 'sats' });
       settings = await getSettings();
-      expect(settings.preferences.unit).toBe('sats');
+      expect(settings.priceUnit).toBe('sats');
 
       // Update to fiat
-      await updateSettings({ preferences: { unit: 'fiat' } });
+      await updateSettings({ priceUnit: 'fiat' });
       settings = await getSettings();
-      expect(settings.preferences.unit).toBe('fiat');
+      expect(settings.priceUnit).toBe('fiat');
 
       // Update back to btc
-      await updateSettings({ preferences: { unit: 'btc' } });
+      await updateSettings({ priceUnit: 'btc' });
       settings = await getSettings();
-      expect(settings.preferences.unit).toBe('btc');
+      expect(settings.priceUnit).toBe('btc');
     });
 
-    it('should deep merge preferences without overwriting other preference fields', async () => {
-      // Set both unit and fiat
-      await updateSettings({ preferences: { unit: 'sats', fiat: 'eur' } });
+    it('should preserve fiat when updating priceUnit', async () => {
+      // Set both priceUnit and fiat
+      await updateSettings({ priceUnit: 'sats', fiat: 'eur' });
 
-      // Update only unit
-      await updateSettings({ preferences: { unit: 'btc' } });
+      // Update only priceUnit
+      await updateSettings({ priceUnit: 'btc' });
 
       const settings = await getSettings();
-      expect(settings.preferences.unit).toBe('btc');
-      expect(settings.preferences.fiat).toBe('eur'); // Should be preserved
+      expect(settings.priceUnit).toBe('btc');
+      expect(settings.fiat).toBe('eur'); // Should be preserved
     });
 
     it('should validate all supported fiat currencies', async () => {
       const validCurrencies = ['usd', 'eur', 'gbp', 'jpy', 'cad', 'aud', 'cny'];
 
-      for (const fiat of validCurrencies) {
+      for (const currency of validCurrencies) {
         fakeBrowser.reset();
         invalidateSettingsCache();
-        await updateSettings({ preferences: { fiat: fiat as any } });
+        await updateSettings({ fiat: currency as any });
         const settings = await getSettings();
-        expect(settings.preferences.fiat).toBe(fiat);
+        expect(settings.fiat).toBe(currency);
       }
     });
 
-    it('should handle missing preferences object gracefully', async () => {
+    it('should handle missing display settings gracefully', async () => {
       await setRawSettings({
-        preferences: undefined as any,
+        priceUnit: undefined as any,
+        fiat: undefined as any,
       });
 
       const settings = await getSettings();
-      expect(settings.preferences).toBeDefined();
-      expect(settings.preferences.unit).toBe('btc');
-      expect(settings.preferences.fiat).toBe('usd');
+      expect(settings.priceUnit).toBe('btc');
+      expect(settings.fiat).toBe('usd');
     });
   });
 });
