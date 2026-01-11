@@ -14,6 +14,7 @@ import { getSettings } from "@/utils/storage/settingsStorage";
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { withStateLock } from "@/utils/wallet/stateLockManager";
 import type { Wallet, Address } from "@/utils/wallet/walletManager";
+import type { HardwareWalletVendor } from "@/utils/hardware/types";
 
 /**
  * Authentication state enum.
@@ -94,6 +95,12 @@ interface WalletContextType {
     addressFormat?: AddressFormat
   ) => Promise<Wallet>;
   importTestAddress: (address: string, name?: string) => Promise<Wallet>;
+  createHardwareWallet: (
+    vendor: HardwareWalletVendor,
+    addressFormat?: AddressFormat,
+    account?: number,
+    name?: string
+  ) => Promise<Wallet>;
   resetAllWallets: (password: string) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ wif: string; hex: string; compressed: boolean }>;
@@ -425,6 +432,10 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }),
     importTestAddress: withRefresh(walletService.importTestAddress, async () => {
+      await refreshWalletState();
+      setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
+    }),
+    createHardwareWallet: withRefresh(walletService.createHardwareWallet, async () => {
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }),

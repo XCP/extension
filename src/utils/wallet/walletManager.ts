@@ -1,9 +1,9 @@
 import { sha256 } from '@noble/hashes/sha2.js';
-import { utf8ToBytes, bytesToHex } from '@noble/hashes/utils.js';
+import { utf8ToBytes, bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import * as sessionManager from '@/utils/auth/sessionManager';
-import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, updateEncryptedWallets, removeEncryptedWallet, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
+import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, updateEncryptedWallets, removeEncryptedWallet, EncryptedWalletRecord, type WalletType, type HardwareWalletData } from '@/utils/storage/walletStorage';
 import { encryptMnemonic, decryptMnemonic, encryptPrivateKey, decryptPrivateKey, DecryptionError } from '@/utils/encryption/walletEncryption';
 import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressFormat, isCounterwalletFormat } from '@/utils/blockchain/bitcoin/address';
 import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';
@@ -14,6 +14,8 @@ import { initializeSettingsKey, clearSettingsKey } from '@/utils/encryption/sett
 import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 import { signPSBT as btcSignPSBT } from '@/utils/blockchain/bitcoin/psbt';
+import { getTrezorAdapter, type TrezorAdapter } from '@/utils/hardware/trezorAdapter';
+import { DerivationPaths, type HardwareWalletVendor } from '@/utils/hardware/types';
 
 export interface Address {
   name: string;
@@ -25,11 +27,13 @@ export interface Address {
 export interface Wallet {
   id: string;
   name: string;
-  type: 'mnemonic' | 'privateKey';
+  type: WalletType;
   addressFormat: AddressFormat;
   addressCount: number;
   addresses: Address[];
   isTestOnly?: boolean;
+  /** Hardware wallet specific data (only for type: 'hardware') */
+  hardwareData?: HardwareWalletData;
 }
 
 export const MAX_WALLETS = 20;
@@ -57,7 +61,12 @@ export class WalletManager {
     this.wallets = await Promise.all(encryptedRecords.map(async (rec: EncryptedWalletRecord) => {
       const unlockedSecret = await sessionManager.getUnlockedSecret(rec.id);
       let addresses: Address[] = [];
-      if (unlockedSecret) {
+
+      // Hardware wallets derive addresses from xpub (no session unlock needed)
+      if (rec.type === 'hardware' && rec.hardwareData) {
+        const count = rec.addressCount || 1;
+        addresses = this.deriveHardwareAddresses(rec.hardwareData, rec.addressFormat, count);
+      } else if (unlockedSecret) {
         if (rec.type === 'mnemonic') {
           const count = rec.addressCount || 1;
           addresses = Array.from({ length: count }, (_, i) =>
@@ -93,6 +102,7 @@ export class WalletManager {
         addressCount: rec.addressCount || 1,
         addresses,
         isTestOnly: rec.isTestOnly,
+        hardwareData: rec.hardwareData,
       };
     }));
     const settings: AppSettings = await getSettings();
@@ -227,6 +237,90 @@ export class WalletManager {
     return wallet;
   }
 
+  /**
+   * Create a hardware wallet by connecting to a Trezor device
+   *
+   * @param vendor - Hardware wallet vendor (currently only 'trezor')
+   * @param addressFormat - The address format to use
+   * @param account - Account index (default 0)
+   * @param name - Optional wallet name
+   * @returns The created wallet
+   */
+  public async createHardwareWallet(
+    vendor: HardwareWalletVendor,
+    addressFormat: AddressFormat = AddressFormat.P2WPKH,
+    account: number = 0,
+    name?: string
+  ): Promise<Wallet> {
+    if (this.wallets.length >= MAX_WALLETS) {
+      throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+    }
+
+    if (vendor !== 'trezor') {
+      throw new Error(`Hardware wallet vendor '${vendor}' is not currently supported`);
+    }
+
+    // Initialize Trezor adapter
+    const trezor = getTrezorAdapter();
+    if (!trezor.isInitialized()) {
+      await trezor.init();
+    }
+
+    // Get the xpub from the device
+    const xpub = await trezor.getXpub(addressFormat, account);
+
+    // Get device info for label
+    const deviceInfo = await trezor.getDeviceInfo();
+
+    // Get the first address to verify and display
+    const firstAddress = await trezor.getAddress(addressFormat, account, 0, false);
+
+    // Generate wallet ID from xpub + address format
+    const id = await this.generateHardwareWalletId(xpub, addressFormat);
+    if (this.wallets.some((w) => w.id === id)) {
+      throw new Error('A wallet with this hardware device and address format already exists.');
+    }
+
+    const walletName = name || `Trezor ${deviceInfo?.label || 'Wallet'} ${this.wallets.length + 1}`;
+
+    const hardwareData: HardwareWalletData = {
+      vendor,
+      xpub,
+      accountIndex: account,
+      deviceLabel: deviceInfo?.label,
+    };
+
+    const record: EncryptedWalletRecord = {
+      id,
+      name: walletName,
+      type: 'hardware',
+      addressFormat,
+      addressCount: 1,
+      hardwareData,
+    };
+    await addEncryptedWallet(record);
+
+    // Derive addresses from xpub
+    const addresses = this.deriveHardwareAddresses(hardwareData, addressFormat, 1);
+
+    const wallet: Wallet = {
+      id,
+      name: walletName,
+      type: 'hardware',
+      addressFormat,
+      addressCount: 1,
+      addresses,
+      hardwareData,
+    };
+    this.wallets.push(wallet);
+
+    // Set as active wallet
+    this.activeWalletId = id;
+    await updateSettings({ lastActiveWalletId: id });
+
+    return wallet;
+  }
+
   public async importTestAddress(
     address: string,
     name?: string
@@ -334,11 +428,32 @@ export class WalletManager {
     const allRecords = await getAllEncryptedWallets();
     const record = allRecords.find((r) => r.id === walletId);
     if (!record) throw new Error('Wallet record not found in storage.');
-    
+
+    // Hardware wallets don't need password unlock - addresses derived from xpub
+    if (record.type === 'hardware' && record.hardwareData) {
+      wallet.addresses = this.deriveHardwareAddresses(record.hardwareData, record.addressFormat, record.addressCount || 1);
+      wallet.addressCount = record.addressCount || 1;
+
+      if (!this.activeWalletId) {
+        this.activeWalletId = walletId;
+      }
+
+      // Initialize settings encryption key for hardware wallets too
+      await initializeSettingsKey(password);
+      const settings = await getSettings();
+      const timeout = getAutoLockTimeoutMs(settings?.autoLockTimer ?? '5m');
+      await sessionManager.initializeSession(timeout);
+      await sessionManager.scheduleSessionExpiry(timeout);
+      return;
+    }
+
     // Special handling for test wallets
     if (record.isTestOnly) {
       // Test wallets are always "unlocked" - just restore the address
       try {
+        if (!record.encryptedSecret) {
+          throw new Error('Test wallet missing encrypted secret');
+        }
         const encryptedSecret = JSON.parse(record.encryptedSecret);
         if (!encryptedSecret || typeof encryptedSecret.e !== 'string') {
           throw new Error('Invalid test wallet structure');
@@ -434,16 +549,27 @@ export class WalletManager {
   public async addAddress(walletId: string): Promise<Address> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found.');
-    if (wallet.type !== 'mnemonic')
-      throw new Error('Can only add addresses to a mnemonic wallet.');
-    const mnemonic = await sessionManager.getUnlockedSecret(walletId);
-    if (!mnemonic)
-      throw new Error('Wallet is locked. Please unlock first.');
+    if (wallet.type !== 'mnemonic' && wallet.type !== 'hardware')
+      throw new Error('Can only add addresses to mnemonic or hardware wallets.');
     if (wallet.addressCount >= MAX_ADDRESSES_PER_WALLET) {
       throw new Error(`Cannot exceed ${MAX_ADDRESSES_PER_WALLET} addresses.`);
     }
+
     const index = wallet.addressCount;
-    const newAddr = this.deriveMnemonicAddress(mnemonic, wallet.addressFormat, index);
+    let newAddr: Address;
+
+    if (wallet.type === 'hardware' && wallet.hardwareData) {
+      // Hardware wallet - derive from xpub
+      const addresses = this.deriveHardwareAddresses(wallet.hardwareData, wallet.addressFormat, index + 1);
+      newAddr = addresses[index];
+    } else {
+      // Mnemonic wallet
+      const mnemonic = await sessionManager.getUnlockedSecret(walletId);
+      if (!mnemonic)
+        throw new Error('Wallet is locked. Please unlock first.');
+      newAddr = this.deriveMnemonicAddress(mnemonic, wallet.addressFormat, index);
+    }
+
     wallet.addresses.push(newAddr);
     wallet.addressCount++;
     const allRecords = await getAllEncryptedWallets();
@@ -500,10 +626,19 @@ export class WalletManager {
     const all = await getAllEncryptedWallets();
     if (all.length === 0) return false;
 
+    // Hardware wallets don't have encrypted secrets to verify
+    // Filter to only wallets with encrypted secrets
+    const walletsWithSecrets = all.filter(r => r.type !== 'hardware' && r.encryptedSecret);
+    if (walletsWithSecrets.length === 0) {
+      // If all wallets are hardware wallets, we can't verify the password this way
+      // Return true to allow password-based settings access
+      return true;
+    }
+
     // Try to decrypt all wallets in parallel for better UX on wrong password
     // Use Promise.allSettled to get all results regardless of failures
     const results = await Promise.allSettled(
-      all.map(async (r) => {
+      walletsWithSecrets.map(async (r) => {
         if (r.type === 'mnemonic' && r.encryptedSecret) {
           await decryptMnemonic(r.encryptedSecret, password);
           return true;
@@ -541,6 +676,7 @@ export class WalletManager {
     const all = await getAllEncryptedWallets();
 
     // Re-encrypt all wallets in parallel for better performance
+    // Hardware wallets don't have encrypted secrets, so they're unchanged
     const updatedRecords = await Promise.all(
       all.map(async (rec) => {
         if (rec.type === 'mnemonic' && rec.encryptedSecret) {
@@ -550,6 +686,7 @@ export class WalletManager {
           const pkData = await decryptPrivateKey(rec.encryptedSecret, currentPassword);
           rec.encryptedSecret = await encryptPrivateKey(pkData, newPassword);
         }
+        // Hardware wallets (rec.type === 'hardware') have no encryptedSecret to update
         return rec;
       })
     );
@@ -607,6 +744,11 @@ export class WalletManager {
     const wallet = this.getWalletById(walletId);
     if (!wallet) {
       throw new Error(`Wallet not found: ${walletId}`);
+    }
+
+    // Hardware wallets don't expose private keys
+    if (wallet.type === 'hardware') {
+      throw new Error('Hardware wallets do not expose private keys. Use hardware signing methods instead.');
     }
 
     const secret = await sessionManager.getUnlockedSecret(walletId);
@@ -690,10 +832,15 @@ export class WalletManager {
     if (!this.activeWalletId) throw new Error("No active wallet set");
     const wallet = this.getWalletById(this.activeWalletId);
     if (!wallet) throw new Error("Wallet not found");
-    
+
     const targetAddress = wallet.addresses.find(addr => addr.address === sourceAddress);
     if (!targetAddress) throw new Error("Source address not found in wallet");
-    
+
+    // Hardware wallet signing
+    if (wallet.type === 'hardware' && wallet.hardwareData) {
+      return this.signTransactionWithHardware(rawTxHex, wallet, targetAddress);
+    }
+
     const privateKeyResult = await this.getPrivateKey(wallet.id, targetAddress.path);
     return btcSignTransaction(rawTxHex, wallet, targetAddress, privateKeyResult.hex, privateKeyResult.compressed);
   }
@@ -709,6 +856,11 @@ export class WalletManager {
 
     const targetAddress = wallet.addresses.find(addr => addr.address === address);
     if (!targetAddress) throw new Error("Address not found in wallet");
+
+    // Hardware wallet message signing
+    if (wallet.type === 'hardware' && wallet.hardwareData) {
+      return this.signMessageWithHardware(message, wallet, targetAddress);
+    }
 
     const privateKeyResult = await this.getPrivateKey(wallet.id, targetAddress.path);
 
@@ -830,6 +982,198 @@ export class WalletManager {
       address,
       pubKey,
     };
+  }
+
+  /**
+   * Generate wallet ID for hardware wallets from xpub
+   */
+  private async generateHardwareWalletId(xpub: string, addressFormat: AddressFormat): Promise<string> {
+    const xpubHash = sha256(utf8ToBytes(xpub));
+    const typeHash = sha256(utf8ToBytes(addressFormat));
+    const combined = new Uint8Array([...xpubHash, ...typeHash]);
+    const finalHash = sha256(combined);
+    return bytesToHex(finalHash);
+  }
+
+  /**
+   * Derive addresses from hardware wallet xpub
+   */
+  private deriveHardwareAddresses(hardwareData: HardwareWalletData, addressFormat: AddressFormat, count: number): Address[] {
+    const addresses: Address[] = [];
+    const hdkey = HDKey.fromExtendedKey(hardwareData.xpub);
+
+    for (let i = 0; i < count; i++) {
+      // Derive child key for address index (external chain, index i)
+      const child = hdkey.deriveChild(0).deriveChild(i);
+      if (!child.publicKey) {
+        throw new Error(`Unable to derive public key for index ${i}`);
+      }
+
+      const pubKeyHex = bytesToHex(child.publicKey);
+      const pubKeyBytes = child.publicKey;
+
+      // Generate address based on format
+      let address: string;
+      const purpose = DerivationPaths.getPurpose(addressFormat);
+      const path = `m/${purpose}'/0'/${hardwareData.accountIndex}'/0/${i}`;
+
+      // Import address encoding
+      const { encodeAddress } = require('@/utils/blockchain/bitcoin/address');
+      address = encodeAddress(pubKeyBytes, addressFormat);
+
+      addresses.push({
+        name: `Address ${i + 1}`,
+        path,
+        address,
+        pubKey: pubKeyHex,
+      });
+    }
+
+    return addresses;
+  }
+
+  /**
+   * Sign a transaction using hardware wallet (Trezor)
+   */
+  private async signTransactionWithHardware(rawTxHex: string, wallet: Wallet, targetAddress: Address): Promise<string> {
+    if (!wallet.hardwareData) {
+      throw new Error('Hardware wallet data not available');
+    }
+
+    const trezor = getTrezorAdapter();
+    if (!trezor.isInitialized()) {
+      await trezor.init();
+    }
+
+    // Parse the raw transaction to extract inputs and outputs
+    const { Transaction } = await import('@scure/btc-signer');
+    const rawTxBytes = hexToBytes(rawTxHex);
+    const tx = Transaction.fromRaw(rawTxBytes, {
+      allowUnknownInputs: true,
+      allowUnknownOutputs: true,
+      allowLegacyWitnessUtxo: true,
+      disableScriptCheck: true,
+    });
+
+    // Get the address index from the path
+    const pathParts = targetAddress.path.split('/');
+    const addressIndex = parseInt(pathParts[pathParts.length - 1], 10);
+
+    // Build inputs for Trezor
+    const inputs: any[] = [];
+    for (let i = 0; i < tx.inputsLength; i++) {
+      const input = tx.getInput(i);
+      if (!input?.txid) continue;
+
+      const scriptType = this.getHardwareScriptType(wallet.addressFormat, true);
+      inputs.push({
+        addressPath: DerivationPaths.getBip44Path(wallet.addressFormat, wallet.hardwareData.accountIndex, 0, addressIndex),
+        prevTxHash: bytesToHex(input.txid),
+        prevIndex: input.index ?? 0,
+        amount: '0', // Will be filled from UTXO data
+        scriptType,
+      });
+    }
+
+    // Build outputs for Trezor
+    const outputs: any[] = [];
+    for (let i = 0; i < tx.outputsLength; i++) {
+      const output = tx.getOutput(i);
+      if (!output?.script) continue;
+
+      const scriptHex = bytesToHex(output.script);
+
+      // Check if it's an OP_RETURN output
+      if (scriptHex.startsWith('6a')) {
+        outputs.push({
+          scriptType: 'PAYTOOPRETURN',
+          amount: '0',
+          opReturnData: scriptHex.slice(2), // Remove OP_RETURN opcode
+        });
+      } else {
+        // Regular output
+        // Detect script type from the script hex to determine Trezor output type
+        let outputScriptType = 'PAYTOADDRESS';
+
+        // Detect script type and extract address
+        if (scriptHex.startsWith('76a914') && scriptHex.endsWith('88ac') && scriptHex.length === 50) {
+          // P2PKH: OP_DUP OP_HASH160 <20 bytes> OP_EQUALVERIFY OP_CHECKSIG
+          const hashHex = scriptHex.slice(6, 46);
+          // For now, we'll pass the address as undefined and let Trezor handle raw outputs
+          outputScriptType = 'PAYTOADDRESS';
+        } else if (scriptHex.startsWith('0014') && scriptHex.length === 44) {
+          // P2WPKH: OP_0 <20 bytes>
+          outputScriptType = 'PAYTOWITNESS';
+        } else if (scriptHex.startsWith('a914') && scriptHex.endsWith('87') && scriptHex.length === 46) {
+          // P2SH: OP_HASH160 <20 bytes> OP_EQUAL
+          outputScriptType = 'PAYTOP2SHWITNESS';
+        } else if (scriptHex.startsWith('5120') && scriptHex.length === 68) {
+          // P2TR: OP_1 <32 bytes>
+          outputScriptType = 'PAYTOTAPROOT';
+        }
+
+        outputs.push({
+          address: undefined, // Let the calling code provide the address if needed
+          amount: String(output.amount ?? 0),
+          scriptType: outputScriptType,
+        });
+      }
+    }
+
+    // Sign with Trezor
+    const result = await trezor.signTransaction({ inputs, outputs });
+    return result.signedTxHex;
+  }
+
+  /**
+   * Sign a message using hardware wallet (Trezor)
+   */
+  private async signMessageWithHardware(message: string, wallet: Wallet, targetAddress: Address): Promise<{ signature: string; address: string }> {
+    if (!wallet.hardwareData) {
+      throw new Error('Hardware wallet data not available');
+    }
+
+    const trezor = getTrezorAdapter();
+    if (!trezor.isInitialized()) {
+      await trezor.init();
+    }
+
+    // Get the address index from the path
+    const pathParts = targetAddress.path.split('/');
+    const addressIndex = parseInt(pathParts[pathParts.length - 1], 10);
+
+    const path = DerivationPaths.getBip44Path(wallet.addressFormat, wallet.hardwareData.accountIndex, 0, addressIndex);
+
+    const result = await trezor.signMessage({
+      message,
+      path,
+      coin: 'Bitcoin',
+    });
+
+    return {
+      signature: result.signature,
+      address: result.address,
+    };
+  }
+
+  /**
+   * Get Trezor script type for address format
+   */
+  private getHardwareScriptType(addressFormat: AddressFormat, isInput: boolean): string {
+    switch (addressFormat) {
+      case AddressFormat.P2PKH:
+      case AddressFormat.Counterwallet:
+        return isInput ? 'SPENDADDRESS' : 'PAYTOADDRESS';
+      case AddressFormat.P2WPKH:
+      case AddressFormat.CounterwalletSegwit:
+        return isInput ? 'SPENDWITNESS' : 'PAYTOWITNESS';
+      case AddressFormat.P2SH_P2WPKH:
+        return isInput ? 'SPENDP2SHWITNESS' : 'PAYTOP2SHWITNESS';
+      case AddressFormat.P2TR:
+        return isInput ? 'SPENDTAPROOT' : 'PAYTOTAPROOT';
+      default:
+        return isInput ? 'SPENDADDRESS' : 'PAYTOADDRESS';
+    }
   }
 }
 

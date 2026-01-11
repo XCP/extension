@@ -3,6 +3,7 @@
  *
  * Stores encrypted wallet data (mnemonics, private keys) in local storage.
  * All secrets are encrypted before storage using password-derived keys.
+ * Hardware wallets store xpub data instead of encrypted secrets.
  *
  * Note: This module uses the dedicated 'local:walletRecords' storage key.
  * Settings are stored separately in 'local:settingsRecord' for isolation.
@@ -10,6 +11,7 @@
  */
 
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import type { HardwareWalletVendor } from '@/utils/hardware/types';
 
 import {
   getAllRecords,
@@ -21,14 +23,36 @@ import {
 } from './storage';
 
 /**
+ * Wallet types supported by the application
+ */
+export type WalletType = 'mnemonic' | 'privateKey' | 'hardware';
+
+/**
+ * Hardware wallet specific data stored with the wallet record
+ */
+export interface HardwareWalletData {
+  /** Hardware wallet vendor (e.g., 'trezor', 'ledger') */
+  vendor: HardwareWalletVendor;
+  /** Extended public key for address derivation */
+  xpub: string;
+  /** Account index used for derivation */
+  accountIndex: number;
+  /** Device label (optional, from device) */
+  deviceLabel?: string;
+}
+
+/**
  * Interface for encrypted wallet records stored in local storage.
  */
 export interface EncryptedWalletRecord extends StoredRecord {
   name: string;
-  type: 'mnemonic' | 'privateKey';
+  type: WalletType;
   addressFormat: AddressFormat;
   addressCount?: number; // Number of derived addresses (defaults to 0 if omitted)
-  encryptedSecret: string;
+  /** Encrypted mnemonic or private key (required for mnemonic/privateKey types) */
+  encryptedSecret?: string;
+  /** Hardware wallet data (required for hardware type) */
+  hardwareData?: HardwareWalletData;
   isTestOnly?: boolean; // For development-only test addresses
 }
 
@@ -48,12 +72,18 @@ export async function getAllEncryptedWallets(): Promise<EncryptedWalletRecord[]>
  * Adds an encrypted wallet record to storage.
  *
  * @param record - The encrypted wallet record to add.
- * @throws Error if encryptedSecret is missing or invalid (optional validation).
+ * @throws Error if required fields are missing based on wallet type.
  */
 export async function addEncryptedWallet(record: EncryptedWalletRecord): Promise<void> {
-  // Optional validation
-  if (!record.encryptedSecret) {
-    throw new Error('Encrypted secret is required for wallet records');
+  // Validate based on wallet type
+  if (record.type === 'hardware') {
+    if (!record.hardwareData) {
+      throw new Error('Hardware data is required for hardware wallet records');
+    }
+  } else {
+    if (!record.encryptedSecret) {
+      throw new Error('Encrypted secret is required for mnemonic/privateKey wallet records');
+    }
   }
   await addRecord(record);
 }
@@ -62,11 +92,17 @@ export async function addEncryptedWallet(record: EncryptedWalletRecord): Promise
  * Updates an existing encrypted wallet record.
  *
  * @param record - The wallet record with updated information.
- * @throws Error if encryptedSecret is missing or invalid.
+ * @throws Error if required fields are missing based on wallet type.
  */
 export async function updateEncryptedWallet(record: EncryptedWalletRecord): Promise<void> {
-  if (!record.encryptedSecret) {
-    throw new Error('Encrypted secret is required for wallet records');
+  if (record.type === 'hardware') {
+    if (!record.hardwareData) {
+      throw new Error('Hardware data is required for hardware wallet records');
+    }
+  } else {
+    if (!record.encryptedSecret) {
+      throw new Error('Encrypted secret is required for mnemonic/privateKey wallet records');
+    }
   }
   await updateRecord(record);
 }
@@ -76,12 +112,18 @@ export async function updateEncryptedWallet(record: EncryptedWalletRecord): Prom
  * More efficient than calling updateEncryptedWallet() multiple times.
  *
  * @param records - Array of wallet records to update.
- * @throws Error if any record is missing encryptedSecret.
+ * @throws Error if any record is missing required fields.
  */
 export async function updateEncryptedWallets(records: EncryptedWalletRecord[]): Promise<void> {
   for (const record of records) {
-    if (!record.encryptedSecret) {
-      throw new Error(`Encrypted secret is required for wallet record: ${record.id}`);
+    if (record.type === 'hardware') {
+      if (!record.hardwareData) {
+        throw new Error(`Hardware data is required for hardware wallet record: ${record.id}`);
+      }
+    } else {
+      if (!record.encryptedSecret) {
+        throw new Error(`Encrypted secret is required for wallet record: ${record.id}`);
+      }
     }
   }
   await updateRecords(records);

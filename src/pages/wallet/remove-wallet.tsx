@@ -18,7 +18,7 @@ function RemoveWallet() {
   const { pending } = useFormStatus();
 
   const [walletName, setWalletName] = useState("");
-  const [walletType, setWalletType] = useState<"mnemonic" | "privateKey">("mnemonic");
+  const [walletType, setWalletType] = useState<"mnemonic" | "privateKey" | "hardware">("mnemonic");
   const [submissionError, setSubmissionError] = useState("");
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
