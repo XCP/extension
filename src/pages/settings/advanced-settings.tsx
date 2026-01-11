@@ -119,6 +119,14 @@ export default function AdvancedSettings(): ReactElement {
       />
 
       <SettingSwitch
+        label="Strict Transaction Verification"
+        description="Block signing if local transaction verification fails. When off, a warning is shown but signing is allowed."
+        checked={settings.strictTransactionVerification}
+        onChange={(checked) => updateSettings({ strictTransactionVerification: checked })}
+        showHelpText={shouldShowHelpText}
+      />
+
+      <SettingSwitch
         label="Enable MPMA Sends"
         description="Enable multi-destination sends (MPMA) for supported assets."
         checked={settings.enableMPMA}

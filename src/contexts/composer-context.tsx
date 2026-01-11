@@ -18,6 +18,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import { getComposeType, normalizeFormData } from "@/utils/blockchain/counterparty/normalize";
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from "@/utils/security/replayPrevention";
+import { verifyTransaction, extractOpReturnData } from "@/utils/blockchain/counterparty/unpack/verify";
 
 /**
  * Composer state shape
@@ -210,6 +211,28 @@ export function ComposerProvider<T>({
       if (!response.result.rawtransaction) {
         throw new Error('Invalid API response: Missing rawtransaction');
       }
+
+      // Verify the transaction locally before showing review screen
+      // This protects against a compromised API returning malicious transactions
+      const opReturnData = extractOpReturnData(response.result.rawtransaction);
+      if (opReturnData) {
+        // Verify the composed transaction matches what we requested
+        const verification = verifyTransaction(opReturnData, composeType, dataForApi);
+
+        if (!verification.valid) {
+          // In strict mode (default), block the transaction
+          // Verification errors are critical security issues
+          const errorDetails = verification.errors.join('; ');
+          throw new Error(`Transaction verification failed: ${errorDetails}`);
+        }
+
+        // Log any warnings (but don't block)
+        if (verification.warnings.length > 0) {
+          console.warn('Transaction verification warnings:', verification.warnings);
+        }
+      }
+      // Note: If no OP_RETURN data found, this might be a non-Counterparty transaction
+      // which is allowed through (e.g., BTC-only transactions)
 
       // Update state to review step with API response
       setState(prev => ({

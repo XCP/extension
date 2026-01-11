@@ -35,6 +35,7 @@ export type { FiatCurrency, PriceUnit } from '@/utils/blockchain/bitcoin/price';
  */
 export type AutoLockTimer = '1m' | '5m' | '15m' | '30m';
 
+
 /**
  * Maps auto-lock timer values to milliseconds.
  */
@@ -98,6 +99,8 @@ export interface AppSettings {
   transactionDryRun: boolean;
   counterpartyApiBase: string;
   defaultOrderExpiration: number; // in blocks (default: 8064 = ~8 weeks)
+  /** Block signing if local transaction verification fails (most secure) */
+  strictTransactionVerification: boolean;
 
   // Flags
   hasVisitedRecoverBitcoin?: boolean;
@@ -121,6 +124,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   transactionDryRun: process.env.NODE_ENV === 'development',
   counterpartyApiBase: 'https://api.counterparty.io:4000',
   defaultOrderExpiration: 8064, // ~8 weeks (56 days) at 10min/block
+  strictTransactionVerification: true, // Block signing on verification failure (most secure)
   connectedWebsites: [],
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
   hasVisitedRecoverBitcoin: false,
@@ -284,6 +288,7 @@ function normalizeSettings(settings: AppSettings): AppSettings {
   normalized.enableMPMA = Boolean(normalized.enableMPMA);
   normalized.enableAdvancedBroadcasts = Boolean(normalized.enableAdvancedBroadcasts);
   normalized.transactionDryRun = Boolean(normalized.transactionDryRun);
+  normalized.strictTransactionVerification = normalized.strictTransactionVerification !== false; // default true
   normalized.hasVisitedRecoverBitcoin = Boolean(normalized.hasVisitedRecoverBitcoin);
 
   // Validate optional string fields
