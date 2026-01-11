@@ -244,13 +244,15 @@ export class WalletManager {
    * @param addressFormat - The address format to use
    * @param account - Account index (default 0)
    * @param name - Optional wallet name
+   * @param usePassphrase - Whether to use passphrase (hidden wallet)
    * @returns The created wallet
    */
   public async createHardwareWallet(
     vendor: HardwareWalletVendor,
     addressFormat: AddressFormat = AddressFormat.P2WPKH,
     account: number = 0,
-    name?: string
+    name?: string,
+    usePassphrase: boolean = false
   ): Promise<Wallet> {
     if (this.wallets.length >= MAX_WALLETS) {
       throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
@@ -266,14 +268,14 @@ export class WalletManager {
       await trezor.init();
     }
 
-    // Get the xpub from the device
-    const xpub = await trezor.getXpub(addressFormat, account);
+    // Get the xpub from the device (passphrase prompt happens here if enabled)
+    const xpub = await trezor.getXpub(addressFormat, account, usePassphrase);
 
     // Get device info for label
     const deviceInfo = await trezor.getDeviceInfo();
 
     // Get the first address to verify and display
-    const firstAddress = await trezor.getAddress(addressFormat, account, 0, false);
+    const firstAddress = await trezor.getAddress(addressFormat, account, 0, false, usePassphrase);
 
     // Generate wallet ID from xpub + address format
     const id = await this.generateHardwareWalletId(xpub, addressFormat);
@@ -288,6 +290,7 @@ export class WalletManager {
       xpub,
       accountIndex: account,
       deviceLabel: deviceInfo?.label,
+      usePassphrase,
     };
 
     const record: EncryptedWalletRecord = {
@@ -884,6 +887,16 @@ export class WalletManager {
     if (!this.activeWalletId) throw new Error("No active wallet set");
     const wallet = this.getWalletById(this.activeWalletId);
     if (!wallet) throw new Error("Wallet not found");
+
+    // Hardware wallets don't support PSBT signing through this interface
+    // Trezor uses a different signing flow (signTransaction with inputs/outputs arrays)
+    // TODO: Implement PSBT-to-Trezor format conversion for hardware wallet PSBT signing
+    if (wallet.type === 'hardware') {
+      throw new Error(
+        'PSBT signing is not yet supported for hardware wallets. ' +
+        'Use standard transaction signing instead.'
+      );
+    }
 
     // If signInputs is provided, sign only the specified inputs
     // Otherwise, sign all inputs we can (using the active address)

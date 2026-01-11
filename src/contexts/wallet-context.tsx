@@ -99,7 +99,8 @@ interface WalletContextType {
     vendor: HardwareWalletVendor,
     addressFormat?: AddressFormat,
     account?: number,
-    name?: string
+    name?: string,
+    usePassphrase?: boolean
   ) => Promise<Wallet>;
   resetAllWallets: (password: string) => Promise<void>;
   getUnencryptedMnemonic: (walletId: string) => Promise<string>;

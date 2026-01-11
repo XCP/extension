@@ -39,6 +39,8 @@ export interface HardwareWalletData {
   accountIndex: number;
   /** Device label (optional, from device) */
   deviceLabel?: string;
+  /** Whether this wallet uses a passphrase (hidden wallet) */
+  usePassphrase?: boolean;
 }
 
 /**

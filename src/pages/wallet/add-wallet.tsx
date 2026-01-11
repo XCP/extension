@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiDownload, VscKey, FiX, FaEye, IoCreateOutline } from '@/components/icons';
+import { FiDownload, VscKey, FiX, FaEye, IoCreateOutline, FiShield } from '@/components/icons';
 import { Button } from '@/components/button';
 import { useHeader } from '@/contexts/header-context';
 import { ErrorAlert } from '@/components/error-alert';
@@ -28,6 +28,7 @@ function AddWallet() {
     IMPORT_WALLET: '/import-wallet',
     IMPORT_PRIVATE_KEY: '/import-private-key',
     IMPORT_TEST_ADDRESS: '/import-test-address',
+    CONNECT_HARDWARE: '/connect-hardware',
   } as const;
   
   // Check if we're in development mode
@@ -78,6 +79,14 @@ function AddWallet() {
     navigate(PATHS.IMPORT_TEST_ADDRESS);
   };
 
+  const handleConnectHardware = () => {
+    if (wallets.length >= MAX_WALLETS) {
+      setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+      return;
+    }
+    navigate(PATHS.CONNECT_HARDWARE);
+  };
+
 
   return (
     <div className="flex flex-col h-full" role="main" aria-labelledby="add-wallet-title">
@@ -115,7 +124,16 @@ function AddWallet() {
               <VscKey className="w-4 h-4 mr-2" aria-hidden="true" />
               Import Private Key
             </Button>
-            
+            <Button
+              color="gray"
+              fullWidth
+              onClick={handleConnectHardware}
+              aria-label="Connect Hardware Wallet"
+            >
+              <FiShield className="w-4 h-4 mr-2" aria-hidden="true" />
+              Connect Hardware Wallet
+            </Button>
+
             {/* Show Test Address option only in development mode */}
             {isDevelopment && (
               <Button

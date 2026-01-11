@@ -168,7 +168,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     addressFormat: AddressFormat,
     account: number = 0,
     index: number = 0,
-    showOnDevice: boolean = false
+    showOnDevice: boolean = false,
+    usePassphrase: boolean = false
   ): Promise<HardwareAddress> {
     this.ensureInitialized();
 
@@ -180,6 +181,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       coin: 'btc',
       showOnTrezor: showOnDevice,
       scriptType: scriptType as any,
+      useEmptyPassphrase: !usePassphrase,
     });
 
     if (!result.success) {
@@ -205,7 +207,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     addressFormat: AddressFormat,
     account: number,
     startIndex: number,
-    count: number
+    count: number,
+    usePassphrase: boolean = false
   ): Promise<HardwareAddress[]> {
     this.ensureInitialized();
 
@@ -220,7 +223,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       scriptType: scriptType as any,
     }));
 
-    const result = await TrezorConnect.getAddress({ bundle });
+    const result = await TrezorConnect.getAddress({ bundle, useEmptyPassphrase: !usePassphrase });
 
     if (!result.success) {
       throw new HardwareWalletError(
@@ -246,7 +249,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
   /**
    * Get extended public key (xpub) for an account
    */
-  async getXpub(addressFormat: AddressFormat, account: number = 0): Promise<string> {
+  async getXpub(addressFormat: AddressFormat, account: number = 0, usePassphrase: boolean = false): Promise<string> {
     this.ensureInitialized();
 
     const purpose = DerivationPaths.getPurpose(addressFormat);
@@ -259,6 +262,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     const result = await TrezorConnect.getPublicKey({
       path,
       coin: 'btc',
+      useEmptyPassphrase: !usePassphrase,
     });
 
     if (!result.success) {

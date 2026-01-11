@@ -25,12 +25,13 @@ const ADDRESS_FORMAT_OPTIONS = [
 export default function ConnectHardware(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { createHardwareWallet, loadWallets } = useWallet();
+  const { createHardwareWallet } = useWallet();
 
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState("");
   const [addressFormat, setAddressFormat] = useState<AddressFormat>(AddressFormat.P2WPKH);
   const [walletName, setWalletName] = useState("");
+  const [usePassphrase, setUsePassphrase] = useState(false);
 
   useEffect(() => {
     setHeaderProps({
@@ -44,8 +45,7 @@ export default function ConnectHardware(): ReactElement {
     setIsConnecting(true);
 
     try {
-      await createHardwareWallet("trezor", addressFormat, 0, walletName || undefined);
-      await loadWallets();
+      await createHardwareWallet("trezor", addressFormat, 0, walletName || undefined, usePassphrase);
       navigate(PATHS.SUCCESS);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to connect hardware wallet");
@@ -91,6 +91,22 @@ export default function ConnectHardware(): ReactElement {
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="usePassphrase"
+            checked={usePassphrase}
+            onChange={(e) => setUsePassphrase(e.target.checked)}
+            className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-blue-500 focus:ring-blue-500"
+          />
+          <label htmlFor="usePassphrase" className="text-sm">
+            <span className="font-medium">Use passphrase</span>
+            <span className="text-gray-400 block text-xs">
+              Enable for hidden wallet (you'll enter the passphrase on your device)
+            </span>
+          </label>
         </div>
       </div>
 

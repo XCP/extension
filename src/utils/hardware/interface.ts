@@ -47,12 +47,14 @@ export interface IHardwareWalletAdapter {
    * @param account - Account index (default 0)
    * @param index - Address index (default 0)
    * @param showOnDevice - Whether to display the address on device for verification
+   * @param usePassphrase - Whether to prompt for passphrase entry on device (hidden wallet)
    */
   getAddress(
     addressFormat: AddressFormat,
     account?: number,
     index?: number,
-    showOnDevice?: boolean
+    showOnDevice?: boolean,
+    usePassphrase?: boolean
   ): Promise<HardwareAddress>;
 
   /**
@@ -61,20 +63,23 @@ export interface IHardwareWalletAdapter {
    * @param account - Account index
    * @param startIndex - Starting address index
    * @param count - Number of addresses to retrieve
+   * @param usePassphrase - Whether to prompt for passphrase entry on device (hidden wallet)
    */
   getAddresses(
     addressFormat: AddressFormat,
     account: number,
     startIndex: number,
-    count: number
+    count: number,
+    usePassphrase?: boolean
   ): Promise<HardwareAddress[]>;
 
   /**
    * Get the extended public key (xpub) for an account
    * @param addressFormat - The address format to use
    * @param account - Account index
+   * @param usePassphrase - Whether to prompt for passphrase entry on device (hidden wallet)
    */
-  getXpub(addressFormat: AddressFormat, account?: number): Promise<string>;
+  getXpub(addressFormat: AddressFormat, account?: number, usePassphrase?: boolean): Promise<string>;
 
   /**
    * Sign a Bitcoin transaction

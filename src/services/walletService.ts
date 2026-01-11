@@ -62,7 +62,8 @@ interface WalletService {
     vendor: HardwareWalletVendor,
     addressFormat?: AddressFormat,
     account?: number,
-    name?: string
+    name?: string,
+    usePassphrase?: boolean
   ) => Promise<Wallet>;
 }
 
@@ -196,8 +197,8 @@ function createWalletService(): WalletService {
     createAndUnlockPrivateKeyWallet: async (privateKey, password, name, addressFormat) => {
       return walletManager.createAndUnlockPrivateKeyWallet(privateKey, password, name, addressFormat);
     },
-    createHardwareWallet: async (vendor, addressFormat, account, name) => {
-      return walletManager.createHardwareWallet(vendor, addressFormat, account, name);
+    createHardwareWallet: async (vendor, addressFormat, account, name, usePassphrase) => {
+      return walletManager.createHardwareWallet(vendor, addressFormat, account, name, usePassphrase);
     },
   };
 }
