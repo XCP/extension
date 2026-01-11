@@ -4,9 +4,9 @@ We offer rewards for responsibly disclosed security vulnerabilities. Rewards are
 
 | Severity | Reward | Examples |
 |----------|--------|----------|
-| Critical | 1,000 XCP | Private key extraction, seed phrase exposure, unauthorized fund transfers, remote code execution, bypassing transaction signing approval |
-| High | 100 XCP | Session hijacking, authentication bypass, signature forgery, transaction manipulation, permission escalation allowing unauthorized actions |
-| Medium | 10 XCP | Sensitive data leakage (non-key material), clickjacking with security impact, CSP bypass, origin spoofing in provider API |
+| Critical | Up to 2,500 XCP | Private key extraction, seed phrase exposure, unauthorized fund transfers, remote code execution, bypassing transaction signing approval |
+| High | Up to 500 XCP | Session hijacking, authentication bypass, signature forgery, transaction manipulation, permission escalation allowing unauthorized actions |
+| Medium | Up to 50 XCP | Sensitive data leakage (non-key material), clickjacking with security impact, CSP bypass, origin spoofing in provider API |
 
 ## Eligibility
 
