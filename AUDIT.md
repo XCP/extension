@@ -71,7 +71,7 @@ Self-reported security assessment based on industry checklists. Not independentl
 | ✅ | XSS protection | Input sanitization, no innerHTML with user data |
 | ✅ | Clickjacking protection | postMessage origin validation |
 | ⚠️ | Heap inspection resistance | Best-effort clear, JS limitations documented |
-| ❌ | Tamper/repackaging detection | Browser signature verification only |
+| ⚪ | Tamper/repackaging detection | Relies on browser store signatures (self-checks are bypassable) |
 | ⚪ | Certificate pinning | Not applicable—browser handles TLS |
 
 ## Provider API Security
@@ -187,16 +187,16 @@ Copied addresses and transaction IDs remain in clipboard until overwritten. User
 | Cryptography | 11 | 1 | 0 | 2 |
 | Session | 6 | 0 | 0 | 2 |
 | Password | 3 | 2 | 1 | 0 |
-| Extension | 11 | 1 | 1 | 1 |
+| Extension | 11 | 1 | 0 | 2 |
 | Provider API | 8 | 0 | 0 | 0 |
 | Transaction | 5 | 0 | 0 | 0 |
 | Input Validation | 5 | 0 | 0 | 0 |
 | UI/UX | 2 | 1 | 1 | 2 |
 | Error Handling | 4 | 0 | 0 | 0 |
 | Supply Chain | 4 | 1 | 0 | 0 |
-| **Total** | **59** | **6** | **3** | **7** |
+| **Total** | **59** | **6** | **2** | **8** |
 
-**Gaps (❌):** Password strength meter, tamper detection, screenshot prevention (browser limitation)
+**Gaps (❌):** Password strength meter, screenshot prevention (browser limitation)
 
 ---
 
