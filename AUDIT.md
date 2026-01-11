@@ -6,10 +6,11 @@ Self-reported security assessment based on industry checklists. Not independentl
 
 ## Sources
 
-- [OWASP Cheat Sheets](https://cheatsheetseries.owasp.org/) (Cryptographic Storage, Session Management, Key Management)
-- [Certik Wallet Security Checklist](https://www.certik.com/resources/blog/cryptowalletsecurityassessmentchecklist)
-- [Valkyri Extension Pentesting](https://blog.valkyri.xyz/posts/wallet-extension-pentesting/)
-- [BlockApex Web3 Wallet Checklist](https://blockapex.io/web3-wallet-security-checklist/)
+- [OWASP Cheat Sheets](https://cheatsheetseries.owasp.org/) — Industry standard for web security (Cryptographic Storage, Session Management, Key Management)
+- [Slowmist Wallet Security Audit](https://www.slowmist.com/service-wallet-security-audit.html) — Major Web3 auditor (2000+ audits including Binance, OKX, Crypto.com)
+- [Certik Wallet Security Checklist](https://www.certik.com/resources/blog/cryptowalletsecurityassessmentchecklist) — Leading Web3 security firm
+- [Valkyri Extension Pentesting](https://blog.valkyri.xyz/posts/wallet-extension-pentesting/) — Browser extension specific methodology
+- [BlockApex Web3 Wallet Checklist](https://blockapex.io/web3-wallet-security-checklist/) — Cross-platform wallet security
 
 ---
 
