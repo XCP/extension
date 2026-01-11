@@ -366,6 +366,272 @@ export const MESSAGE_SCHEMAS: Record<string, MessageSchema> = {
       },
     },
   },
+
+  mpma_send: {
+    messageType: 'mpma_send',
+    messageTypeIds: [3], // MPMA_SEND
+    params: {
+      // MPMA is multi-recipient, verification checks each send in the array
+      sends: {
+        criticality: 'critical',
+        presence: 'required',
+        riskDescription: 'Array of sends - each asset/quantity/destination must be verified',
+        localField: 'sends',
+        apiFields: ['sends', 'destinations'],
+        composeField: 'sends',
+      },
+    },
+  },
+
+  btcpay: {
+    messageType: 'btcpay',
+    messageTypeIds: [11], // BTC_PAY
+    params: {
+      order_match_id: {
+        criticality: 'critical',
+        presence: 'required',
+        riskDescription: 'Wrong order match = paying for wrong trade',
+        localField: 'orderMatchId',
+        apiFields: ['order_match_id', 'orderMatchId'],
+        composeField: 'order_match_id',
+      },
+    },
+  },
+
+  dispense: {
+    messageType: 'dispense',
+    messageTypeIds: [13], // DISPENSE
+    params: {
+      // Dispense is minimal - the destination and amount are in the transaction itself
+      // The message payload is just a marker
+    },
+  },
+
+  broadcast: {
+    messageType: 'broadcast',
+    messageTypeIds: [30], // BROADCAST
+    params: {
+      timestamp: {
+        criticality: 'informational',
+        presence: 'required',
+        riskDescription: 'Broadcast timestamp',
+        localField: 'timestamp',
+        apiFields: ['timestamp'],
+        composeField: 'timestamp',
+      },
+      value: {
+        criticality: 'dangerous',
+        presence: 'required',
+        riskDescription: 'Oracle value - may affect dependent contracts',
+        localField: 'value',
+        apiFields: ['value'],
+        composeField: 'value',
+      },
+      fee_fraction: {
+        criticality: 'dangerous',
+        presence: 'required',
+        riskDescription: 'Fee charged to users of this oracle',
+        localField: 'feeFractionInt',
+        apiFields: ['fee_fraction', 'fee_fraction_int', 'feeFractionInt'],
+        composeField: 'fee_fraction',
+      },
+      text: {
+        criticality: 'informational',
+        presence: 'optional',
+        riskDescription: 'Broadcast message text',
+        localField: 'text',
+        apiFields: ['text'],
+        composeField: 'text',
+      },
+    },
+  },
+
+  dividend: {
+    messageType: 'dividend',
+    messageTypeIds: [50], // DIVIDEND
+    params: {
+      asset: {
+        criticality: 'critical',
+        presence: 'required',
+        riskDescription: 'Wrong asset = paying dividend to wrong token holders',
+        localField: 'asset',
+        apiFields: ['asset'],
+        composeField: 'asset',
+      },
+      quantity_per_unit: {
+        criticality: 'critical',
+        presence: 'required',
+        riskDescription: 'Wrong amount = paying wrong dividend per unit',
+        localField: 'quantityPerUnit',
+        apiFields: ['quantity_per_unit', 'quantityPerUnit'],
+        composeField: 'quantity_per_unit',
+      },
+      dividend_asset: {
+        criticality: 'critical',
+        presence: 'conditional', // Required in modern format, defaults to XCP in legacy
+        riskDescription: 'Wrong asset = paying dividend in wrong currency',
+        localField: 'dividendAsset',
+        apiFields: ['dividend_asset', 'dividendAsset'],
+        composeField: 'dividend_asset',
+      },
+    },
+  },
+
+  fairminter: {
+    messageType: 'fairminter',
+    messageTypeIds: [90], // FAIRMINTER
+    params: {
+      asset: {
+        criticality: 'critical',
+        presence: 'required',
+        riskDescription: 'Asset name for the fairminter',
+        localField: 'asset',
+        apiFields: ['asset'],
+        composeField: 'asset',
+      },
+      price: {
+        criticality: 'critical',
+        presence: 'required',
+        riskDescription: 'Price in XCP per quantity_by_price - wrong = bad economics',
+        localField: 'price',
+        apiFields: ['price'],
+        composeField: 'price',
+      },
+      quantity_by_price: {
+        criticality: 'critical',
+        presence: 'required',
+        riskDescription: 'Units given per price - affects effective price',
+        localField: 'quantityByPrice',
+        apiFields: ['quantity_by_price', 'quantityByPrice'],
+        composeField: 'quantity_by_price',
+      },
+      hard_cap: {
+        criticality: 'dangerous',
+        presence: 'optional',
+        riskDescription: 'Maximum supply - affects scarcity',
+        localField: 'hardCap',
+        apiFields: ['hard_cap', 'hardCap'],
+        composeField: 'hard_cap',
+      },
+      max_mint_per_tx: {
+        criticality: 'dangerous',
+        presence: 'optional',
+        riskDescription: 'Max per transaction - rate limiting',
+        localField: 'maxMintPerTx',
+        apiFields: ['max_mint_per_tx', 'maxMintPerTx'],
+        composeField: 'max_mint_per_tx',
+      },
+      divisible: {
+        criticality: 'dangerous',
+        presence: 'optional',
+        riskDescription: 'PERMANENT: Cannot change after creation',
+        localField: 'divisible',
+        apiFields: ['divisible'],
+        composeField: 'divisible',
+      },
+      lock_quantity: {
+        criticality: 'dangerous',
+        presence: 'optional',
+        riskDescription: 'PERMANENT: Locks supply at hard cap',
+        localField: 'lockQuantity',
+        apiFields: ['lock_quantity', 'lockQuantity'],
+        composeField: 'lock_quantity',
+      },
+      lock_description: {
+        criticality: 'dangerous',
+        presence: 'optional',
+        riskDescription: 'PERMANENT: Locks description',
+        localField: 'lockDescription',
+        apiFields: ['lock_description', 'lockDescription'],
+        composeField: 'lock_description',
+      },
+      description: {
+        criticality: 'informational',
+        presence: 'optional',
+        riskDescription: 'Asset description',
+        localField: 'description',
+        apiFields: ['description'],
+        composeField: 'description',
+      },
+    },
+  },
+
+  fairmint: {
+    messageType: 'fairmint',
+    messageTypeIds: [91], // FAIRMINT
+    params: {
+      asset: {
+        criticality: 'critical',
+        presence: 'required',
+        riskDescription: 'Wrong asset = minting from wrong fairminter',
+        localField: 'asset',
+        apiFields: ['asset'],
+        composeField: 'asset',
+      },
+      quantity: {
+        criticality: 'critical',
+        presence: 'conditional', // Required if fairminter has price > 0
+        riskDescription: 'Wrong quantity = paying wrong amount',
+        localField: 'quantity',
+        apiFields: ['quantity'],
+        composeField: 'quantity',
+      },
+    },
+  },
+
+  attach: {
+    messageType: 'attach',
+    messageTypeIds: [101], // UTXO_ATTACH
+    params: {
+      asset: {
+        criticality: 'critical',
+        presence: 'required',
+        riskDescription: 'Wrong asset = attaching wrong tokens to UTXO',
+        localField: 'asset',
+        apiFields: ['asset'],
+        composeField: 'asset',
+      },
+      quantity: {
+        criticality: 'critical',
+        presence: 'required',
+        riskDescription: 'Wrong amount = attaching wrong quantity',
+        localField: 'quantity',
+        apiFields: ['quantity'],
+        composeField: 'quantity',
+      },
+      destination_vout: {
+        criticality: 'dangerous',
+        presence: 'optional',
+        riskDescription: 'Wrong vout = attaching to wrong output',
+        localField: 'destinationVout',
+        apiFields: ['destination_vout', 'destinationVout'],
+        composeField: 'destination_vout',
+      },
+    },
+  },
+
+  detach: {
+    messageType: 'detach',
+    messageTypeIds: [100], // UTXO (detach)
+    params: {
+      asset: {
+        criticality: 'critical',
+        presence: 'required',
+        riskDescription: 'Wrong asset = detaching wrong tokens from UTXO',
+        localField: 'asset',
+        apiFields: ['asset'],
+        composeField: 'asset',
+      },
+      quantity: {
+        criticality: 'critical',
+        presence: 'required',
+        riskDescription: 'Wrong amount = detaching wrong quantity',
+        localField: 'quantity',
+        apiFields: ['quantity'],
+        composeField: 'quantity',
+      },
+    },
+  },
 };
 
 /**

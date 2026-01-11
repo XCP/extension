@@ -13,6 +13,16 @@ import type { OrderData } from './messages/order';
 import type { DispenserData } from './messages/dispenser';
 import type { CancelData } from './messages/cancel';
 import type { SendData } from './messages/send';
+import type { DestroyData } from './messages/destroy';
+import type { SweepData } from './messages/sweep';
+import type { IssuanceData } from './messages/issuance';
+import type { MPMAData } from './messages/mpma';
+import type { BTCPayData } from './messages/btcpay';
+import type { BroadcastData } from './messages/broadcast';
+import type { DividendData } from './messages/dividend';
+import type { FairminterData } from './messages/fairminter';
+import type { FairmintData } from './messages/fairmint';
+import type { AttachData } from './messages/attach';
 
 /**
  * API-decoded Counterparty message (from decodeCounterpartyMessage)
@@ -74,6 +84,16 @@ function assetsEqual(a: string | undefined, b: string | undefined): boolean {
 }
 
 /**
+ * Get a value from an object with multiple possible keys
+ */
+function getApiValue(api: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const key of keys) {
+    if (api[key] !== undefined) return api[key];
+  }
+  return undefined;
+}
+
+/**
  * Verify an enhanced_send message
  */
 function verifyEnhancedSend(
@@ -82,18 +102,15 @@ function verifyEnhancedSend(
 ): string[] {
   const mismatches: string[] = [];
 
-  // Check asset
   if (!assetsEqual(local.asset, api.asset as string)) {
     mismatches.push(`Asset: local="${local.asset}", API="${api.asset}"`);
   }
 
-  // Check quantity
   if (!quantitiesEqual(local.quantity, api.quantity)) {
     mismatches.push(`Quantity: local=${local.quantity}, API=${api.quantity}`);
   }
 
-  // Check destination
-  const apiDest = (api.destination || api.address) as string | undefined;
+  const apiDest = getApiValue(api, 'destination', 'address') as string | undefined;
   if (apiDest && !addressesEqual(local.destination, apiDest)) {
     mismatches.push(`Destination: local="${local.destination}", API="${apiDest}"`);
   }
@@ -130,29 +147,26 @@ function verifyOrder(
 ): string[] {
   const mismatches: string[] = [];
 
-  // Give asset/quantity
-  const apiGiveAsset = (api.give_asset || api.giveAsset) as string | undefined;
+  const apiGiveAsset = getApiValue(api, 'give_asset', 'giveAsset') as string | undefined;
   if (!assetsEqual(local.giveAsset, apiGiveAsset)) {
     mismatches.push(`Give asset: local="${local.giveAsset}", API="${apiGiveAsset}"`);
   }
 
-  const apiGiveQty = api.give_quantity ?? api.giveQuantity;
+  const apiGiveQty = getApiValue(api, 'give_quantity', 'giveQuantity');
   if (!quantitiesEqual(local.giveQuantity, apiGiveQty)) {
     mismatches.push(`Give quantity: local=${local.giveQuantity}, API=${apiGiveQty}`);
   }
 
-  // Get asset/quantity
-  const apiGetAsset = (api.get_asset || api.getAsset) as string | undefined;
+  const apiGetAsset = getApiValue(api, 'get_asset', 'getAsset') as string | undefined;
   if (!assetsEqual(local.getAsset, apiGetAsset)) {
     mismatches.push(`Get asset: local="${local.getAsset}", API="${apiGetAsset}"`);
   }
 
-  const apiGetQty = api.get_quantity ?? api.getQuantity;
+  const apiGetQty = getApiValue(api, 'get_quantity', 'getQuantity');
   if (!quantitiesEqual(local.getQuantity, apiGetQty)) {
     mismatches.push(`Get quantity: local=${local.getQuantity}, API=${apiGetQty}`);
   }
 
-  // Expiration
   if (api.expiration !== undefined && local.expiration !== api.expiration) {
     mismatches.push(`Expiration: local=${local.expiration}, API=${api.expiration}`);
   }
@@ -173,17 +187,17 @@ function verifyDispenser(
     mismatches.push(`Asset: local="${local.asset}", API="${api.asset}"`);
   }
 
-  const apiGiveQty = api.give_quantity ?? api.giveQuantity;
+  const apiGiveQty = getApiValue(api, 'give_quantity', 'giveQuantity');
   if (!quantitiesEqual(local.giveQuantity, apiGiveQty)) {
     mismatches.push(`Give quantity: local=${local.giveQuantity}, API=${apiGiveQty}`);
   }
 
-  const apiEscrowQty = api.escrow_quantity ?? api.escrowQuantity;
+  const apiEscrowQty = getApiValue(api, 'escrow_quantity', 'escrowQuantity');
   if (!quantitiesEqual(local.escrowQuantity, apiEscrowQty)) {
     mismatches.push(`Escrow quantity: local=${local.escrowQuantity}, API=${apiEscrowQty}`);
   }
 
-  const apiRate = api.mainchainrate ?? api.satoshirate;
+  const apiRate = getApiValue(api, 'mainchainrate', 'satoshirate');
   if (!quantitiesEqual(local.mainchainrate, apiRate)) {
     mismatches.push(`Rate: local=${local.mainchainrate}, API=${apiRate}`);
   }
@@ -200,9 +214,278 @@ function verifyCancel(
 ): string[] {
   const mismatches: string[] = [];
 
-  const apiHash = (api.offer_hash || api.offerHash || api.tx_hash || api.txHash) as string | undefined;
+  const apiHash = getApiValue(api, 'offer_hash', 'offerHash', 'tx_hash', 'txHash') as string | undefined;
   if (apiHash && local.offerHash.toLowerCase() !== apiHash.toLowerCase()) {
     mismatches.push(`Offer hash: local="${local.offerHash}", API="${apiHash}"`);
+  }
+
+  return mismatches;
+}
+
+/**
+ * Verify a destroy message
+ */
+function verifyDestroy(
+  local: DestroyData,
+  api: Record<string, unknown>
+): string[] {
+  const mismatches: string[] = [];
+
+  if (!assetsEqual(local.asset, api.asset as string)) {
+    mismatches.push(`Asset: local="${local.asset}", API="${api.asset}"`);
+  }
+
+  if (!quantitiesEqual(local.quantity, api.quantity)) {
+    mismatches.push(`Quantity: local=${local.quantity}, API=${api.quantity}`);
+  }
+
+  return mismatches;
+}
+
+/**
+ * Verify a sweep message
+ */
+function verifySweep(
+  local: SweepData,
+  api: Record<string, unknown>
+): string[] {
+  const mismatches: string[] = [];
+
+  const apiDest = getApiValue(api, 'destination', 'address') as string | undefined;
+  if (apiDest && !addressesEqual(local.destination, apiDest)) {
+    mismatches.push(`Destination: local="${local.destination}", API="${apiDest}"`);
+  }
+
+  if (api.flags !== undefined && local.flags !== api.flags) {
+    mismatches.push(`Flags: local=${local.flags}, API=${api.flags}`);
+  }
+
+  return mismatches;
+}
+
+/**
+ * Verify an issuance message
+ */
+function verifyIssuance(
+  local: IssuanceData,
+  api: Record<string, unknown>
+): string[] {
+  const mismatches: string[] = [];
+
+  const apiAsset = getApiValue(api, 'asset', 'asset_name') as string | undefined;
+  if (!assetsEqual(local.asset, apiAsset)) {
+    mismatches.push(`Asset: local="${local.asset}", API="${apiAsset}"`);
+  }
+
+  if (!quantitiesEqual(local.quantity, api.quantity)) {
+    mismatches.push(`Quantity: local=${local.quantity}, API=${api.quantity}`);
+  }
+
+  if (api.divisible !== undefined && local.divisible !== api.divisible) {
+    mismatches.push(`Divisible: local=${local.divisible}, API=${api.divisible}`);
+  }
+
+  const apiLock = getApiValue(api, 'lock', 'locked');
+  if (apiLock !== undefined && local.lock !== apiLock) {
+    mismatches.push(`Lock: local=${local.lock}, API=${apiLock}`);
+  }
+
+  if (api.reset !== undefined && local.reset !== api.reset) {
+    mismatches.push(`Reset: local=${local.reset}, API=${api.reset}`);
+  }
+
+  return mismatches;
+}
+
+/**
+ * Verify an MPMA send message
+ */
+function verifyMPMA(
+  local: MPMAData,
+  api: Record<string, unknown>
+): string[] {
+  const mismatches: string[] = [];
+
+  // API may return sends as an array
+  const apiSends = getApiValue(api, 'sends', 'destinations') as Array<Record<string, unknown>> | undefined;
+
+  if (!apiSends || !Array.isArray(apiSends)) {
+    // Can't verify individual sends without API data
+    return mismatches;
+  }
+
+  if (local.sends.length !== apiSends.length) {
+    mismatches.push(`Send count: local=${local.sends.length}, API=${apiSends.length}`);
+    return mismatches;
+  }
+
+  // Verify each send
+  for (let i = 0; i < local.sends.length; i++) {
+    const localSend = local.sends[i];
+    const apiSend = apiSends[i];
+
+    if (!assetsEqual(localSend.asset, apiSend.asset as string)) {
+      mismatches.push(`Send[${i}] asset: local="${localSend.asset}", API="${apiSend.asset}"`);
+    }
+
+    if (!quantitiesEqual(localSend.quantity, apiSend.quantity)) {
+      mismatches.push(`Send[${i}] quantity: local=${localSend.quantity}, API=${apiSend.quantity}`);
+    }
+
+    const apiDest = getApiValue(apiSend, 'destination', 'address') as string | undefined;
+    if (apiDest && !addressesEqual(localSend.destination, apiDest)) {
+      mismatches.push(`Send[${i}] destination: local="${localSend.destination}", API="${apiDest}"`);
+    }
+  }
+
+  return mismatches;
+}
+
+/**
+ * Verify a BTCPay message
+ */
+function verifyBTCPay(
+  local: BTCPayData,
+  api: Record<string, unknown>
+): string[] {
+  const mismatches: string[] = [];
+
+  const apiOrderMatchId = getApiValue(api, 'order_match_id', 'orderMatchId') as string | undefined;
+  if (apiOrderMatchId && local.orderMatchId.toLowerCase() !== apiOrderMatchId.toLowerCase()) {
+    mismatches.push(`Order match ID: local="${local.orderMatchId}", API="${apiOrderMatchId}"`);
+  }
+
+  return mismatches;
+}
+
+/**
+ * Verify a broadcast message
+ */
+function verifyBroadcast(
+  local: BroadcastData,
+  api: Record<string, unknown>
+): string[] {
+  const mismatches: string[] = [];
+
+  if (api.timestamp !== undefined && local.timestamp !== api.timestamp) {
+    mismatches.push(`Timestamp: local=${local.timestamp}, API=${api.timestamp}`);
+  }
+
+  if (api.value !== undefined) {
+    const apiValue = typeof api.value === 'number' ? api.value : parseFloat(api.value as string);
+    if (Math.abs(local.value - apiValue) > 0.0001) {
+      mismatches.push(`Value: local=${local.value}, API=${apiValue}`);
+    }
+  }
+
+  const apiFee = getApiValue(api, 'fee_fraction', 'fee_fraction_int', 'feeFractionInt');
+  if (apiFee !== undefined && !quantitiesEqual(local.feeFractionInt, apiFee)) {
+    mismatches.push(`Fee fraction: local=${local.feeFractionInt}, API=${apiFee}`);
+  }
+
+  return mismatches;
+}
+
+/**
+ * Verify a dividend message
+ */
+function verifyDividend(
+  local: DividendData,
+  api: Record<string, unknown>
+): string[] {
+  const mismatches: string[] = [];
+
+  if (!assetsEqual(local.asset, api.asset as string)) {
+    mismatches.push(`Asset: local="${local.asset}", API="${api.asset}"`);
+  }
+
+  const apiQtyPerUnit = getApiValue(api, 'quantity_per_unit', 'quantityPerUnit');
+  if (!quantitiesEqual(local.quantityPerUnit, apiQtyPerUnit)) {
+    mismatches.push(`Quantity per unit: local=${local.quantityPerUnit}, API=${apiQtyPerUnit}`);
+  }
+
+  const apiDivAsset = getApiValue(api, 'dividend_asset', 'dividendAsset') as string | undefined;
+  if (apiDivAsset && !assetsEqual(local.dividendAsset, apiDivAsset)) {
+    mismatches.push(`Dividend asset: local="${local.dividendAsset}", API="${apiDivAsset}"`);
+  }
+
+  return mismatches;
+}
+
+/**
+ * Verify a fairminter message
+ */
+function verifyFairminter(
+  local: FairminterData,
+  api: Record<string, unknown>
+): string[] {
+  const mismatches: string[] = [];
+
+  if (!assetsEqual(local.asset, api.asset as string)) {
+    mismatches.push(`Asset: local="${local.asset}", API="${api.asset}"`);
+  }
+
+  if (!quantitiesEqual(local.price, api.price)) {
+    mismatches.push(`Price: local=${local.price}, API=${api.price}`);
+  }
+
+  const apiQtyByPrice = getApiValue(api, 'quantity_by_price', 'quantityByPrice');
+  if (!quantitiesEqual(local.quantityByPrice, apiQtyByPrice)) {
+    mismatches.push(`Quantity by price: local=${local.quantityByPrice}, API=${apiQtyByPrice}`);
+  }
+
+  const apiHardCap = getApiValue(api, 'hard_cap', 'hardCap');
+  if (apiHardCap !== undefined && !quantitiesEqual(local.hardCap, apiHardCap)) {
+    mismatches.push(`Hard cap: local=${local.hardCap}, API=${apiHardCap}`);
+  }
+
+  if (api.divisible !== undefined && local.divisible !== api.divisible) {
+    mismatches.push(`Divisible: local=${local.divisible}, API=${api.divisible}`);
+  }
+
+  return mismatches;
+}
+
+/**
+ * Verify a fairmint message
+ */
+function verifyFairmint(
+  local: FairmintData,
+  api: Record<string, unknown>
+): string[] {
+  const mismatches: string[] = [];
+
+  if (!assetsEqual(local.asset, api.asset as string)) {
+    mismatches.push(`Asset: local="${local.asset}", API="${api.asset}"`);
+  }
+
+  if (!quantitiesEqual(local.quantity, api.quantity)) {
+    mismatches.push(`Quantity: local=${local.quantity}, API=${api.quantity}`);
+  }
+
+  return mismatches;
+}
+
+/**
+ * Verify an attach/detach message
+ */
+function verifyAttach(
+  local: AttachData,
+  api: Record<string, unknown>
+): string[] {
+  const mismatches: string[] = [];
+
+  if (!assetsEqual(local.asset, api.asset as string)) {
+    mismatches.push(`Asset: local="${local.asset}", API="${api.asset}"`);
+  }
+
+  if (!quantitiesEqual(local.quantity, api.quantity)) {
+    mismatches.push(`Quantity: local=${local.quantity}, API=${api.quantity}`);
+  }
+
+  const apiVout = getApiValue(api, 'destination_vout', 'destinationVout') as number | undefined;
+  if (apiVout !== undefined && local.destinationVout !== apiVout) {
+    mismatches.push(`Destination vout: local=${local.destinationVout}, API=${apiVout}`);
   }
 
   return mismatches;
@@ -299,8 +582,57 @@ export function verifyProviderTransaction(
       mismatches.push(...verifyCancel(localUnpack.data as CancelData, apiData));
       break;
 
-    // For other message types, just check type match (already done above)
+    case 'destroy':
+      mismatches.push(...verifyDestroy(localUnpack.data as DestroyData, apiData));
+      break;
+
+    case 'sweep':
+      mismatches.push(...verifySweep(localUnpack.data as SweepData, apiData));
+      break;
+
+    case 'issuance':
+    case 'subasset_issuance':
+    case 'lr_issuance':
+    case 'lr_subasset':
+      mismatches.push(...verifyIssuance(localUnpack.data as IssuanceData, apiData));
+      break;
+
+    case 'mpma_send':
+      mismatches.push(...verifyMPMA(localUnpack.data as MPMAData, apiData));
+      break;
+
+    case 'btcpay':
+      mismatches.push(...verifyBTCPay(localUnpack.data as BTCPayData, apiData));
+      break;
+
+    case 'broadcast':
+      mismatches.push(...verifyBroadcast(localUnpack.data as BroadcastData, apiData));
+      break;
+
+    case 'dividend':
+      mismatches.push(...verifyDividend(localUnpack.data as DividendData, apiData));
+      break;
+
+    case 'fairminter':
+      mismatches.push(...verifyFairminter(localUnpack.data as FairminterData, apiData));
+      break;
+
+    case 'fairmint':
+      mismatches.push(...verifyFairmint(localUnpack.data as FairmintData, apiData));
+      break;
+
+    case 'attach':
+    case 'detach':
+      mismatches.push(...verifyAttach(localUnpack.data as AttachData, apiData));
+      break;
+
+    case 'dispense':
+      // Dispense has minimal payload - just a marker byte
+      // Verification is at the transaction level (destination/amount)
+      break;
+
     default:
+      // Unknown message type - type match check is done above
       break;
   }
 
