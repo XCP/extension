@@ -133,7 +133,8 @@ export async function consolidateBareMultisig(
   if (!privateKeyHex) throw new Error('Private key not found');
   const privateKeyBytes = hexToBytes(privateKeyHex);
 
-  // Generate both compressed and uncompressed public keys.
+  try {
+    // Generate both compressed and uncompressed public keys.
   const publicKeyCompressed: Uint8Array = getPublicKey(privateKeyBytes, true);
   const publicKeyUncompressed: Uint8Array = getPublicKey(privateKeyBytes, false);
 
@@ -359,6 +360,11 @@ export async function consolidateBareMultisig(
     });
     
     throw error;
+  }
+  } finally {
+    // Zero out private key bytes after use (defense in depth)
+    // See ADR-001 in sessionManager.ts for JS memory limitation context
+    privateKeyBytes.fill(0);
   }
 }
 
