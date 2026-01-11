@@ -47,6 +47,7 @@ import ImportPrivateKey from '@/pages/wallet/import-private-key';
 import ImportTestAddress from '@/pages/wallet/import-test-address';
 import ResetWallet from '@/pages/wallet/reset-wallet';
 import RemoveWallet from '@/pages/wallet/remove-wallet';
+import ConnectHardware from '@/pages/wallet/connect-hardware';
 import ShowPassphrase from '@/pages/secrets/show-passphrase';
 import ShowPrivateKey from '@/pages/secrets/show-private-key';
 
@@ -201,6 +202,7 @@ export default function App() {
             <Route path="/import-private-key" element={<ImportPrivateKey />} />
             <Route path="/import-test-address" element={<ImportTestAddress />} />
             <Route path="/remove-wallet/:walletId" element={<RemoveWallet />} />
+            <Route path="/connect-hardware" element={<ConnectHardware />} />
             <Route path="/show-passphrase/:walletId" element={<ShowPassphrase />} />
             <Route path="/show-private-key/:walletId/:addressPath?" element={<ShowPrivateKey />} />
             

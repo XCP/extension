@@ -4,6 +4,7 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { walletManager, type Wallet, type Address } from '@/utils/wallet/walletManager';
 import { getSettings, updateSettings } from '@/utils/storage/settingsStorage';
+import type { HardwareWalletVendor } from '@/utils/hardware/types';
 
 interface WalletService {
   loadWallets: () => Promise<void>;
@@ -56,6 +57,13 @@ interface WalletService {
     password: string,
     name?: string,
     addressFormat?: AddressFormat
+  ) => Promise<Wallet>;
+  createHardwareWallet: (
+    vendor: HardwareWalletVendor,
+    addressFormat?: AddressFormat,
+    account?: number,
+    name?: string,
+    usePassphrase?: boolean
   ) => Promise<Wallet>;
 }
 
@@ -188,6 +196,9 @@ function createWalletService(): WalletService {
     },
     createAndUnlockPrivateKeyWallet: async (privateKey, password, name, addressFormat) => {
       return walletManager.createAndUnlockPrivateKeyWallet(privateKey, password, name, addressFormat);
+    },
+    createHardwareWallet: async (vendor, addressFormat, account, name, usePassphrase) => {
+      return walletManager.createHardwareWallet(vendor, addressFormat, account, name, usePassphrase);
     },
   };
 }

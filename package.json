@@ -23,6 +23,7 @@
     "test": "wxt build && vitest run src && playwright test",
     "test:unit": "wxt build && vitest run src",
     "test:e2e": "wxt build && playwright test",
+    "test:emulator": "vitest run --config vitest.emulator.config.ts",
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare"
   },
@@ -35,6 +36,7 @@
     "@scure/bip32": "2.0.1",
     "@scure/bip39": "2.0.1",
     "@scure/btc-signer": "2.0.1",
+    "@trezor/connect-web": "9.7.1",
     "bignumber.js": "9.3.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
