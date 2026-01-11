@@ -169,12 +169,13 @@ export async function consolidateBareMultisigBatch(
   }
   
   // Convert private key to bytes if string
-  const privateKeyBytes = typeof privateKey === 'string' 
+  const privateKeyBytes = typeof privateKey === 'string'
     ? hexToBytes(privateKey)
     : privateKey;
-    
-  // Generate public keys from private key
-  const compressedPubkey = getPublicKey(privateKeyBytes, true);
+
+  try {
+    // Generate public keys from private key
+    const compressedPubkey = getPublicKey(privateKeyBytes, true);
   const uncompressedPubkey = getPublicKey(privateKeyBytes, false);
   
   // Sign all inputs - create signing info for each input
@@ -260,12 +261,17 @@ export async function consolidateBareMultisigBatch(
     - Destination: ${destination}
     - Tx Size: ${actualTxSize} bytes`);
   
-  return {
-    signedTxHex: signedTx,
-    totalInput: Number(totalInputSats),
-    networkFee: actualNetworkFee,
-    serviceFee: Number(serviceFeeSats),
-    outputAmount: Number(outputSats),
-    txSize: actualTxSize
-  };
+    return {
+      signedTxHex: signedTx,
+      totalInput: Number(totalInputSats),
+      networkFee: actualNetworkFee,
+      serviceFee: Number(serviceFeeSats),
+      outputAmount: Number(outputSats),
+      txSize: actualTxSize
+    };
+  } finally {
+    // Zero out private key bytes after use (defense in depth)
+    // See ADR-001 in sessionManager.ts for JS memory limitation context
+    privateKeyBytes.fill(0);
+  }
 }

@@ -107,46 +107,53 @@ export async function signMessage(
   compressed: boolean = true
 ): Promise<{ signature: string; address: string }> {
   const privateKey = hex.decode(privateKeyHex);
-  const publicKey = secp256k1.getPublicKey(privateKey, compressed);
 
-  // Use BIP-322 exclusively for all address types
-  let signature: string;
-  let address: string = '';
+  try {
+    const publicKey = secp256k1.getPublicKey(privateKey, compressed);
 
-  switch (addressFormat) {
-    case AddressFormat.P2PKH:
-    case AddressFormat.Counterwallet:
-      // Use BIP-322 for P2PKH
-      signature = await signBIP322P2PKH(message, privateKey, compressed);
-      // Generate address for test compatibility
-      address = encodeAddress(publicKey, AddressFormat.P2PKH);
-      break;
+    // Use BIP-322 exclusively for all address types
+    let signature: string;
+    let address: string = '';
 
-    case AddressFormat.P2WPKH:
-    case AddressFormat.CounterwalletSegwit:
-      // Use BIP-322 for P2WPKH (Native SegWit)
-      signature = await signBIP322P2WPKH(message, privateKey);
-      address = encodeAddress(publicKey, addressFormat as AddressFormat);
-      break;
+    switch (addressFormat) {
+      case AddressFormat.P2PKH:
+      case AddressFormat.Counterwallet:
+        // Use BIP-322 for P2PKH
+        signature = await signBIP322P2PKH(message, privateKey, compressed);
+        // Generate address for test compatibility
+        address = encodeAddress(publicKey, AddressFormat.P2PKH);
+        break;
 
-    case AddressFormat.P2SH_P2WPKH:
-      // Use BIP-322 for P2SH-P2WPKH
-      signature = await signBIP322P2SH_P2WPKH(message, privateKey);
-      address = encodeAddress(publicKey, AddressFormat.P2SH_P2WPKH);
-      break;
+      case AddressFormat.P2WPKH:
+      case AddressFormat.CounterwalletSegwit:
+        // Use BIP-322 for P2WPKH (Native SegWit)
+        signature = await signBIP322P2WPKH(message, privateKey);
+        address = encodeAddress(publicKey, addressFormat as AddressFormat);
+        break;
 
-    case AddressFormat.P2TR:
-      // Use BIP-322 for Taproot (Schnorr signatures)
-      signature = await signBIP322P2TR(message, privateKey);
-      // For Taproot, use the same raw encoding as the wallet
-      address = encodeAddress(publicKey, AddressFormat.P2TR);
-      break;
+      case AddressFormat.P2SH_P2WPKH:
+        // Use BIP-322 for P2SH-P2WPKH
+        signature = await signBIP322P2SH_P2WPKH(message, privateKey);
+        address = encodeAddress(publicKey, AddressFormat.P2SH_P2WPKH);
+        break;
 
-    default:
-      throw new Error(`Unsupported address type for message signing: ${addressFormat}`);
+      case AddressFormat.P2TR:
+        // Use BIP-322 for Taproot (Schnorr signatures)
+        signature = await signBIP322P2TR(message, privateKey);
+        // For Taproot, use the same raw encoding as the wallet
+        address = encodeAddress(publicKey, AddressFormat.P2TR);
+        break;
+
+      default:
+        throw new Error(`Unsupported address type for message signing: ${addressFormat}`);
+    }
+
+    return { signature, address };
+  } finally {
+    // Zero out private key bytes after use (defense in depth)
+    // See ADR-001 in sessionManager.ts for JS memory limitation context
+    privateKey.fill(0);
   }
-
-  return { signature, address };
 }
 
 /**
