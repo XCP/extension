@@ -139,7 +139,7 @@ export default function AssetDispensers(): ReactElement {
       clearTimeout(saveTimeoutRef.current);
     }
     saveTimeoutRef.current = setTimeout(() => {
-      updateSettings({ preferences: { unit: nextUnit } }).catch(console.error);
+      updateSettings({ priceUnit: nextUnit }).catch(console.error);
     }, DEBOUNCE_MS);
   }, [priceUnit, btcPrice, updateSettings]);
 

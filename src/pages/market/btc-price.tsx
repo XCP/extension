@@ -133,7 +133,7 @@ export default function BtcPrice(): ReactElement {
     setCurrency(newCurrency);
     setShowCurrencyMenu(false);
     // Persist to settings
-    updateSettings({ preferences: { fiat: newCurrency } });
+    updateSettings({ fiat: newCurrency });
     // Reload data with new currency
     loadStats(newCurrency);
     loadChartData(range, newCurrency);
