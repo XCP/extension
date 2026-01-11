@@ -67,8 +67,10 @@ export default defineUnlistedScript(() => {
   // Listen for responses from content script
   window.addEventListener('message', (event) => {
     try {
+      // Security: Validate message source AND origin
       if (event.source !== window) return;
-      
+      if (event.origin !== window.location.origin) return;
+
       // Defensive check for event.data structure
       if (!event.data || typeof event.data !== 'object') {
         return;

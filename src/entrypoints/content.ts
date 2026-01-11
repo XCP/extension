@@ -74,9 +74,12 @@ export default defineContentScript({
 
     // Set up message relay between page and background
     const messageHandler = async (event: MessageEvent) => {
-      // Only accept messages from the same window
+      // Security: Validate message source AND origin
+      // - event.source !== window: Reject messages from iframes/other windows
+      // - event.origin check: Reject messages from different origins (defense-in-depth)
       if (event.source !== window) return;
-      
+      if (event.origin !== window.location.origin) return;
+
       // Check for XCP wallet messages
       if (event.data?.target === 'xcp-wallet-content' && event.data?.type === 'XCP_WALLET_REQUEST') {
         try {
