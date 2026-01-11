@@ -21,6 +21,12 @@ import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } fro
 import { verifyTransaction, extractOpReturnData } from "@/utils/blockchain/counterparty/unpack/verify";
 
 /**
+ * Maximum age for a composed transaction before requiring recomposition (5 minutes).
+ * After this time, UTXOs may have been spent or fee rates may have changed significantly.
+ */
+const STALE_TRANSACTION_MS = 5 * 60 * 1000;
+
+/**
  * Composer state shape
  */
 interface ComposerState<T> {
@@ -31,6 +37,8 @@ interface ComposerState<T> {
   isComposing: boolean;
   isSigning: boolean;
   showAuthModal: boolean;
+  /** Timestamp when transaction was composed (for staleness detection) */
+  composedAt: number | null;
 }
 
 /**
@@ -111,6 +119,7 @@ export function ComposerProvider<T>({
     isComposing: false,
     isSigning: false,
     showAuthModal: false,
+    composedAt: null,
   });
 
 
@@ -126,8 +135,8 @@ export function ComposerProvider<T>({
   // Reset composer state when address changes
   useEffect(() => {
     if (
-      activeAddress?.address && 
-      previousAddressRef.current && 
+      activeAddress?.address &&
+      previousAddressRef.current &&
       activeAddress.address !== previousAddressRef.current
     ) {
       setState({
@@ -138,6 +147,7 @@ export function ComposerProvider<T>({
         isComposing: false,
         isSigning: false,
         showAuthModal: false,
+        composedAt: null,
       });
     }
     previousAddressRef.current = activeAddress?.address;
@@ -145,13 +155,13 @@ export function ComposerProvider<T>({
   
   // Reset composer state when wallet changes or lock/unlock occurs
   useEffect(() => {
-    const walletChanged = activeWallet?.id && 
-                         previousWalletRef.current && 
+    const walletChanged = activeWallet?.id &&
+                         previousWalletRef.current &&
                          activeWallet.id !== previousWalletRef.current;
-    
-    const lockStateChanged = authState !== previousAuthStateRef.current && 
+
+    const lockStateChanged = authState !== previousAuthStateRef.current &&
                             (authState === "LOCKED" || previousAuthStateRef.current === "LOCKED");
-    
+
     if (walletChanged || lockStateChanged) {
       setState({
         step: "form",
@@ -161,15 +171,21 @@ export function ComposerProvider<T>({
         isComposing: false,
         isSigning: false,
         showAuthModal: false,
+        composedAt: null,
       });
     }
-    
+
     previousWalletRef.current = activeWallet?.id;
     previousAuthStateRef.current = authState;
   }, [activeWallet?.id, authState]);
 
   // Compose transaction
   const composeTransaction = useCallback(async (formData: FormData) => {
+    // Guard: Prevent double-composition race condition
+    if (state.isComposing) {
+      return;
+    }
+
     if (!activeAddress) {
       setState(prev => ({ ...prev, error: "No active address available" }));
       return;
@@ -242,6 +258,7 @@ export function ComposerProvider<T>({
         apiResponse: response,
         error: null,
         isComposing: false,
+        composedAt: Date.now(),
       }));
     } catch (err) {
       console.error("Compose error:", err);
@@ -259,7 +276,7 @@ export function ComposerProvider<T>({
       }));
     }
     })(); // Execute the async IIFE
-  }, [activeAddress, composeApi]);
+  }, [activeAddress, composeApi, state.isComposing]);
   
   // Core sign and broadcast logic - extracted to avoid duplication
   const performSignAndBroadcast = useCallback(async () => {
@@ -309,8 +326,22 @@ export function ComposerProvider<T>({
 
   // Sign and broadcast transaction
   const signAndBroadcast = useCallback(async () => {
+    // Guard: Prevent double-signing race condition
+    if (state.isSigning) {
+      return;
+    }
+
     if (!state.apiResponse || !activeAddress || !activeWallet) {
       setState(prev => ({ ...prev, error: "Invalid transaction data" }));
+      return;
+    }
+
+    // Check for stale transaction (composed too long ago)
+    if (state.composedAt && Date.now() - state.composedAt > STALE_TRANSACTION_MS) {
+      setState(prev => ({
+        ...prev,
+        error: "Transaction data is stale. Please go back and recompose the transaction.",
+      }));
       return;
     }
 
@@ -351,7 +382,7 @@ export function ComposerProvider<T>({
         isSigning: false,
       }));
     }
-  }, [state.apiResponse, activeAddress, activeWallet, isWalletLocked, performSignAndBroadcast]);
+  }, [state.apiResponse, state.isSigning, state.composedAt, activeAddress, activeWallet, isWalletLocked, performSignAndBroadcast]);
 
   // Handle unlock and sign (for auth modal)
   const handleUnlockAndSign = useCallback(async (password: string) => {
@@ -388,6 +419,7 @@ export function ComposerProvider<T>({
       isComposing: false,
       isSigning: false,
       showAuthModal: false,
+      composedAt: null,
     });
     currentComposeTypeRef.current = composeType;
   }, [composeType]);
