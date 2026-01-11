@@ -1,6 +1,6 @@
 import { ripemd160 } from '@noble/hashes/legacy.js';
 import { sha256 } from '@noble/hashes/sha2.js';
-import { bech32, base58, createBase58check } from '@scure/base';
+import { bech32, bech32m, base58, createBase58check } from '@scure/base';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import * as btc from '@scure/btc-signer';
@@ -100,9 +100,9 @@ export function decodeAddressFromScript(scriptHex: string): string | null {
     if (scriptHex.startsWith('5120') && scriptHex.length === 68) {
       const xOnlyPubKeyHex = scriptHex.slice(4);
       const xOnlyPubKey = hexToUint8Array(xOnlyPubKeyHex);
-      const words = bech32.toWords(xOnlyPubKey);
+      const words = bech32m.toWords(xOnlyPubKey);
       // Taproot uses bech32m (witness version 1)
-      return bech32.encode('bc', [1, ...words], bech32.BECH32M);
+      return bech32m.encode('bc', [1, ...words]);
     }
 
     // Unsupported script type
