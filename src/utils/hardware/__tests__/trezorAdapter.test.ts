@@ -43,6 +43,12 @@ vi.mock('@trezor/connect-web', () => ({
   },
 }));
 
+// Mock extractPsbtDetails for signPsbt tests
+const mockExtractPsbtDetails = vi.fn();
+vi.mock('@/utils/blockchain/bitcoin/psbt', () => ({
+  extractPsbtDetails: (...args: unknown[]) => mockExtractPsbtDetails(...args),
+}));
+
 // Import after mocking
 import { TrezorAdapter, getTrezorAdapter, resetTrezorAdapter } from '../trezorAdapter';
 
@@ -437,6 +443,175 @@ describe('TrezorAdapter', () => {
         message: 'test',
         coin: 'Bitcoin',
       });
+    });
+  });
+
+  describe('signPsbt', () => {
+    const mockPsbtDetails = {
+      rawTxHex: '',
+      inputs: [
+        {
+          index: 0,
+          txid: 'def456789012345678901234567890123456789012345678901234567890abcd',
+          vout: 0,
+          value: 100000,
+        },
+      ],
+      outputs: [
+        {
+          index: 0,
+          value: 10000,
+          type: 'p2wpkh' as const,
+          // P2WPKH script: 0014 + 20-byte hash (40 hex chars) = 44 chars total
+          script: '0014751e76e8199196d454941c45d1b3a323f1433bd6',
+        },
+        {
+          index: 1,
+          value: 89000,
+          type: 'p2wpkh' as const,
+          script: '00142299626fa0236be4d0ba93cbbfccd0bc44ff5a63',
+        },
+      ],
+      totalInputValue: 100000,
+      totalOutputValue: 99000,
+      fee: 1000,
+      hasOpReturn: false,
+    };
+
+    beforeEach(async () => {
+      mockInit.mockResolvedValue(undefined);
+      mockExtractPsbtDetails.mockReturnValue(mockPsbtDetails);
+      await adapter.init();
+    });
+
+    it('should throw if not initialized', async () => {
+      const uninitAdapter = new TrezorAdapter();
+      await expect(
+        uninitAdapter.signPsbt({
+          psbtHex: 'any_psbt_hex',
+          inputPaths: new Map(),
+        })
+      ).rejects.toThrow(HardwareWalletError);
+    });
+
+    it('should throw if input path is missing', async () => {
+      // Empty inputPaths map but PSBT has inputs
+      await expect(
+        adapter.signPsbt({
+          psbtHex: 'any_psbt_hex',
+          inputPaths: new Map(), // No paths provided
+        })
+      ).rejects.toThrow(HardwareWalletError);
+    });
+
+    it('should sign PSBT successfully', async () => {
+      mockSignTransaction.mockResolvedValue({
+        success: true,
+        payload: {
+          serializedTx: '02000000...',
+          txid: 'psbt_tx_id...',
+        },
+      });
+
+      const inputPaths = new Map<number, number[]>();
+      inputPaths.set(0, [84 | 0x80000000, 0 | 0x80000000, 0 | 0x80000000, 0, 0]);
+
+      const result = await adapter.signPsbt({
+        psbtHex: 'any_psbt_hex',
+        inputPaths,
+      });
+
+      expect(result).toEqual({
+        signedPsbtHex: '02000000...',
+      });
+      expect(mockSignTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          coin: 'btc',
+          push: false,
+          inputs: expect.arrayContaining([
+            expect.objectContaining({
+              address_n: inputPaths.get(0),
+              script_type: 'SPENDWITNESS',
+            }),
+          ]),
+          outputs: expect.arrayContaining([
+            expect.objectContaining({
+              script_type: 'PAYTOWITNESS',
+            }),
+          ]),
+        })
+      );
+    });
+
+    it('should throw on signing failure', async () => {
+      mockSignTransaction.mockResolvedValue({
+        success: false,
+        payload: {
+          error: 'User rejected',
+          code: 'Failure_ActionCancelled',
+        },
+      });
+
+      const inputPaths = new Map<number, number[]>();
+      inputPaths.set(0, [84 | 0x80000000, 0 | 0x80000000, 0 | 0x80000000, 0, 0]);
+
+      await expect(
+        adapter.signPsbt({
+          psbtHex: 'any_psbt_hex',
+          inputPaths,
+        })
+      ).rejects.toThrow(HardwareWalletError);
+    });
+
+    it('should handle OP_RETURN outputs in PSBT', async () => {
+      const psbtWithOpReturn = {
+        ...mockPsbtDetails,
+        outputs: [
+          {
+            index: 0,
+            value: 0,
+            type: 'op_return' as const,
+            script: '6a0f68656c6c6f20776f726c64',
+            opReturnData: '0f68656c6c6f20776f726c64',
+          },
+          {
+            index: 1,
+            value: 99000,
+            type: 'p2wpkh' as const,
+            script: '00142299626fa0236be4d0ba93cbbfccd0bc44ff5a63',
+          },
+        ],
+        hasOpReturn: true,
+      };
+      mockExtractPsbtDetails.mockReturnValue(psbtWithOpReturn);
+
+      mockSignTransaction.mockResolvedValue({
+        success: true,
+        payload: {
+          serializedTx: '02000000...',
+          txid: 'op_return_tx_id...',
+        },
+      });
+
+      const inputPaths = new Map<number, number[]>();
+      inputPaths.set(0, [84 | 0x80000000, 0 | 0x80000000, 0 | 0x80000000, 0, 0]);
+
+      await adapter.signPsbt({
+        psbtHex: 'any_psbt_hex',
+        inputPaths,
+      });
+
+      expect(mockSignTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          outputs: expect.arrayContaining([
+            expect.objectContaining({
+              script_type: 'PAYTOOPRETURN',
+              amount: '0',
+              op_return_data: '0f68656c6c6f20776f726c64',
+            }),
+          ]),
+        })
+      );
     });
   });
 

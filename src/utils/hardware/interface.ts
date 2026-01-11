@@ -14,6 +14,7 @@ import {
   HardwareMessageSignRequest,
   HardwareMessageSignResult,
   HardwareConnectionStatus,
+  HardwarePsbtSignRequest,
 } from './types';
 
 /**
@@ -92,6 +93,13 @@ export interface IHardwareWalletAdapter {
    * @param request - Message signing request
    */
   signMessage(request: HardwareMessageSignRequest): Promise<HardwareMessageSignResult>;
+
+  /**
+   * Sign a PSBT (Partially Signed Bitcoin Transaction)
+   * Converts PSBT to hardware wallet format, signs, and returns updated PSBT
+   * @param request - PSBT signing request with input paths
+   */
+  signPsbt(request: HardwarePsbtSignRequest): Promise<{ signedPsbtHex: string }>;
 
   /**
    * Dispose of resources and clean up

@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
+import { FiAlertTriangle } from "@/components/icons";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressFormat } from "@/utils/blockchain/bitcoin/address";
@@ -117,6 +118,21 @@ export default function ConnectHardware(): ReactElement {
           <li>Unlock your device with your PIN</li>
           <li>Have the Bitcoin app open on your device</li>
         </ul>
+      </div>
+
+      <div className="bg-amber-900/30 border border-amber-600/50 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <FiAlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-medium text-amber-500 mb-1">Important: UTXO Safety</h3>
+            <p className="text-sm text-amber-200/80 mb-2">
+              If you use Counterparty features like UTXO attachments, you must only spend from this wallet using XCP Wallet.
+            </p>
+            <p className="text-xs text-amber-200/60">
+              Using other wallets (Trezor Suite, Sparrow, etc.) could accidentally spend UTXOs containing attached Counterparty assets, resulting in permanent loss.
+            </p>
+          </div>
+        </div>
       </div>
 
       <Button

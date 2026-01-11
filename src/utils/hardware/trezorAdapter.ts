@@ -6,7 +6,7 @@
  */
 
 import TrezorConnect, { DEVICE_EVENT, DEVICE } from '@trezor/connect-web';
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { AddressFormat, decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
 import { IHardwareWalletAdapter } from './interface';
 import {
   HardwareDeviceInfo,
@@ -18,7 +18,9 @@ import {
   HardwareConnectionStatus,
   HardwareWalletError,
   DerivationPaths,
+  HardwarePsbtSignRequest,
 } from './types';
+import { extractPsbtDetails } from '@/utils/blockchain/bitcoin/psbt';
 
 // Trezor script type mappings
 const INPUT_SCRIPT_TYPES = {
@@ -386,6 +388,144 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     return {
       signature: result.payload.signature,
       address: result.payload.address,
+    };
+  }
+
+  /**
+   * Sign a PSBT using Trezor
+   *
+   * This parses the PSBT, converts to Trezor format, signs, and returns
+   * the signed transaction. Note: Trezor returns a fully signed raw tx,
+   * not a PSBT, so this effectively finalizes the transaction.
+   */
+  async signPsbt(request: HardwarePsbtSignRequest): Promise<{ signedPsbtHex: string }> {
+    this.ensureInitialized();
+
+    const { psbtHex, inputPaths } = request;
+
+    // Parse the PSBT to extract transaction details
+    const psbtDetails = extractPsbtDetails(psbtHex);
+
+    // Convert inputs to Trezor format
+    const inputs: any[] = [];
+    for (let i = 0; i < psbtDetails.inputs.length; i++) {
+      const input = psbtDetails.inputs[i];
+      const path = inputPaths.get(i);
+
+      if (!path) {
+        throw new HardwareWalletError(
+          `No derivation path provided for input ${i}`,
+          'MISSING_PATH',
+          'trezor',
+          'Unable to sign transaction: missing key information.'
+        );
+      }
+
+      // Determine script type from the derivation path (purpose)
+      const purpose = path[0] & ~DerivationPaths.HARDENED;
+      let scriptType: string;
+      switch (purpose) {
+        case 44:
+          scriptType = 'SPENDADDRESS';
+          break;
+        case 49:
+          scriptType = 'SPENDP2SHWITNESS';
+          break;
+        case 84:
+          scriptType = 'SPENDWITNESS';
+          break;
+        case 86:
+          scriptType = 'SPENDTAPROOT';
+          break;
+        default:
+          scriptType = 'SPENDWITNESS';
+      }
+
+      inputs.push({
+        address_n: path,
+        prev_hash: input.txid,
+        prev_index: input.vout,
+        amount: String(input.value ?? 0),
+        script_type: scriptType,
+      });
+    }
+
+    // Convert outputs to Trezor format
+    const outputs: any[] = [];
+    for (let i = 0; i < psbtDetails.outputs.length; i++) {
+      const output = psbtDetails.outputs[i];
+
+      if (output.type === 'op_return') {
+        // OP_RETURN output
+        outputs.push({
+          script_type: 'PAYTOOPRETURN',
+          amount: '0',
+          op_return_data: output.opReturnData,
+        });
+      } else {
+        // Regular output - decode address from script
+        const address = decodeAddressFromScript(output.script);
+
+        if (!address) {
+          throw new HardwareWalletError(
+            `Cannot decode address from output ${i} script`,
+            'ADDRESS_DECODE_FAILED',
+            'trezor',
+            'Unable to decode output address from transaction.'
+          );
+        }
+
+        // Determine output script type
+        let outputScriptType: string;
+        switch (output.type) {
+          case 'p2pkh':
+            outputScriptType = 'PAYTOADDRESS';
+            break;
+          case 'p2wpkh':
+            outputScriptType = 'PAYTOWITNESS';
+            break;
+          case 'p2sh':
+            outputScriptType = 'PAYTOP2SHWITNESS';
+            break;
+          case 'p2tr':
+            outputScriptType = 'PAYTOTAPROOT';
+            break;
+          default:
+            outputScriptType = 'PAYTOADDRESS';
+        }
+
+        outputs.push({
+          address,
+          amount: String(output.value),
+          script_type: outputScriptType,
+        });
+      }
+    }
+
+    // Sign the transaction with Trezor
+    const signRequest: any = {
+      inputs,
+      outputs,
+      coin: 'btc',
+      push: false,
+    };
+
+    const result = await TrezorConnect.signTransaction(signRequest);
+
+    if (!result.success) {
+      throw new HardwareWalletError(
+        `Failed to sign PSBT: ${result.payload.error}`,
+        result.payload.code ?? 'SIGN_PSBT_FAILED',
+        'trezor',
+        'Failed to sign transaction. Please check your Trezor and try again.'
+      );
+    }
+
+    // Trezor returns a fully signed raw transaction
+    // For PSBT compatibility, we return this as the "signed PSBT"
+    // The caller should be aware this is actually a finalized raw tx
+    return {
+      signedPsbtHex: result.payload.serializedTx,
     };
   }
 

@@ -122,6 +122,26 @@ export interface HardwareMessageSignRequest {
 }
 
 /**
+ * PSBT signing request for hardware wallet
+ */
+export interface HardwarePsbtSignRequest {
+  /** PSBT in hex format */
+  psbtHex: string;
+  /** Map of input index to derivation path (for inputs to sign) */
+  inputPaths: Map<number, number[]>;
+  /** Optional sighash types per input */
+  sighashTypes?: number[];
+}
+
+/**
+ * PSBT signing result
+ */
+export interface HardwarePsbtSignResult {
+  /** Signed PSBT hex (with signatures added) */
+  signedPsbtHex: string;
+}
+
+/**
  * Message signing result
  */
 export interface HardwareMessageSignResult {
@@ -197,7 +217,7 @@ export const DerivationPaths = {
     const parts = pathStr.replace('m/', '').split('/');
     return parts.map(part => {
       const isHardened = part.endsWith("'") || part.endsWith('h');
-      const value = parseInt(part.replace(/['h]/, ''), 10);
+      const value = parseInt(part.replace(/['h]/g, ''), 10);
       return isHardened ? (value | this.HARDENED) : value;
     });
   },
