@@ -217,7 +217,7 @@ export default function AssetOrders(): ReactElement {
         setHasMoreMatches(false);
       }
     } catch (err) {
-      console.error(`Failed to load ${baseAsset}/${quoteAsset} orders:`, err);
+      console.error('Failed to load orders:', { baseAsset, quoteAsset }, err);
     } finally {
       setLoading(false);
       setIsRefreshing(false);

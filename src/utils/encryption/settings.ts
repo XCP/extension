@@ -5,7 +5,7 @@
  * The derived key is stored in session storage after unlock,
  * allowing settings to be encrypted/decrypted without re-entering password.
  *
- * ## Key Derivation Pattern (ADR-010)
+ * ## Key Derivation Pattern (ADR-009)
  *
  * This file uses a SIMPLER key derivation than encryption.ts:
  *

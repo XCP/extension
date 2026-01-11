@@ -322,7 +322,7 @@ private async generateWalletId(mnemonic, addressFormat): Promise<string> {
 | updateStorage.ts | Functions | `get*` | `set*` | - | - | `clear*` |
 | requestStorage.ts | **Class** | `get`, `getAll` | `store` | - | `remove` | `clear` |
 
-### Inconsistencies Identified and Decisions (ADR-011)
+### Inconsistencies Identified and Decisions (ADR-010)
 
 #### 1. Function vs Class Pattern - DECISION: Keep Both
 
@@ -370,7 +370,7 @@ requestStorage:  store()          - Complex storage with TTL/cleanup
 
 **Decision**: Write locks are only needed for array/collection storage where concurrent modifications could cause data loss. Single-value stores are atomic - the last write wins, which is acceptable for these use cases.
 
-#### 4. Error Handling Patterns - CONSISTENT (ADR-009)
+#### 4. Error Handling Patterns - CONSISTENT (ADR-008)
 
 | Module | On Get Error | On Set Error |
 |--------|-------------|--------------|
@@ -381,7 +381,7 @@ requestStorage:  store()          - Complex storage with TTL/cleanup
 | requestStorage.ts | Return [] | Throw |
 
 **Pattern**: Get operations swallow errors (return default), Set operations throw
-**Assessment**: ✅ CONSISTENT and INTENTIONAL (documented in ADR-009)
+**Assessment**: ✅ CONSISTENT and INTENTIONAL (documented in ADR-008)
 
 ---
 
@@ -427,12 +427,12 @@ local:settingsRecord = { encryptedSettings: '...' }
 
 | Issue | Status | Resolution |
 |-------|--------|------------|
-| Inconsistent API patterns | ✅ DOCUMENTED | ADR-011 documents naming conventions |
+| Inconsistent API patterns | ✅ DOCUMENTED | ADR-010 documents naming conventions |
 | RequestStorage is class-based | ✅ JUSTIFIED | Class pattern appropriate for complex storage with TTL/generics |
-| Some modules lack write locks | ✅ EVALUATED | Single-value stores don't need locks (ADR-011) |
+| Some modules lack write locks | ✅ EVALUATED | Single-value stores don't need locks (ADR-010) |
 | Storage abstraction consistency | ✅ EVALUATED | Different patterns justified by use case |
 
-**Storage Pattern Decision (ADR-011):**
+**Storage Pattern Decision (ADR-010):**
 - `keyStorage.ts`, `updateStorage.ts` - Migrated to wxt ✅
 - `sessionMetadataStorage.ts`, `serviceStateStorage.ts` - Raw chrome.storage (acceptable)
 - `requestStorage.ts` - Raw chrome.storage with TTL (wxt doesn't support TTL)
@@ -509,7 +509,7 @@ export const STORAGE_KEYS = {
 |------|--------|
 | 2026-01 | Initial comprehensive analysis |
 | 2026-01 | COMPLETED: Malicious provider security audit - no vulnerabilities found |
-| 2026-01 | DOCUMENTED: ADR-011 - Storage pattern decisions (class vs function, naming, write locks) |
+| 2026-01 | DOCUMENTED: ADR-010 - Storage pattern decisions (class vs function, naming, write locks) |
 | 2026-01 | MIGRATED: keyStorage.ts and updateStorage.ts to wxt storage |
 | 2026-01 | EVALUATED: Wallet+Settings separation - current isolation acceptable |
 | 2026-01 | EVALUATED: RequestStorage class pattern - justified for TTL/generics |

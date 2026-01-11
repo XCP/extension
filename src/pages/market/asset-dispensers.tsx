@@ -189,7 +189,7 @@ export default function AssetDispensers(): ReactElement {
         setHasMoreDispenses(false);
       }
     } catch (err) {
-      console.error(`Failed to load ${asset} dispensers:`, err);
+      console.error('Failed to load dispensers:', { asset }, err);
     } finally {
       setLoading(false);
       setIsRefreshing(false);

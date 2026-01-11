@@ -6,7 +6,7 @@
  *
  * ## Architecture Decision Records
  *
- * ### ADR-005: Promise-Based Write Mutex
+ * ### ADR-004: Promise-Based Write Mutex
  *
  * **Context**: Concurrent storage operations can cause race conditions where
  * one write overwrites another's changes (read-modify-write pattern).
@@ -28,7 +28,7 @@
  * - Slight latency increase for rapid sequential writes (serialization overhead)
  * - Acceptable because wallet operations are user-initiated and infrequent
  *
- * ### ADR-009: Storage Error Handling Pattern
+ * ### ADR-008: Storage Error Handling Pattern
  *
  * **Context**: Storage operations can fail due to quota limits, corruption, or browser issues.
  * The wallet needs consistent error handling across all storage modules.
@@ -60,7 +60,7 @@
  * }
  * ```
  *
- * ### ADR-012: Separate Wallet and Settings Storage
+ * ### ADR-011: Separate Wallet and Settings Storage
  *
  * **Context**: Wallets and settings were stored in the same `local:appRecords` array,
  * differentiated only by record type/ID.
