@@ -25,7 +25,8 @@ export const MessageTypeId = {
   CANCEL: 70,           // Cancel order or bet
   FAIRMINTER: 90,       // Create fairminter
   FAIRMINT: 91,         // Mint from fairminter
-  UTXO: 100,            // Attach/Detach assets to/from UTXO
+  UTXO: 100,            // Detach assets from UTXO (move to address)
+  UTXO_ATTACH: 101,     // Attach assets to UTXO (move to UTXO)
   DESTROY: 110,         // Destroy assets
 } as const;
 
@@ -51,7 +52,8 @@ export const MessageTypeName: Record<number, string> = {
   [MessageTypeId.CANCEL]: 'cancel',
   [MessageTypeId.FAIRMINTER]: 'fairminter',
   [MessageTypeId.FAIRMINT]: 'fairmint',
-  [MessageTypeId.UTXO]: 'utxo',
+  [MessageTypeId.UTXO]: 'detach',
+  [MessageTypeId.UTXO_ATTACH]: 'attach',
   [MessageTypeId.DESTROY]: 'destroy',
 };
 

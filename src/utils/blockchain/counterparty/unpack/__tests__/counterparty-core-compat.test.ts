@@ -425,3 +425,209 @@ describe('Asset ID to Name Conversion', () => {
     expect(result.giveAsset).toBe('XCP');
   });
 });
+
+// Import additional unpackers for testing
+import { unpackBTCPay } from '../messages/btcpay';
+import { unpackDispense } from '../messages/dispense';
+import { unpackBroadcast } from '../messages/broadcast';
+import { unpackDividend } from '../messages/dividend';
+import { unpackFairmint } from '../messages/fairmint';
+import { unpackFairminter } from '../messages/fairminter';
+import { unpackAttach } from '../messages/attach';
+
+describe('BTCPay', () => {
+  /**
+   * From btcpay.py:
+   * FORMAT = ">32s32s"
+   * - tx0_hash: 32 bytes
+   * - tx1_hash: 32 bytes
+   */
+
+  it('should unpack BTCPay with two hashes', () => {
+    // Two 32-byte transaction hashes
+    const tx0Hash = 'deadbeef'.repeat(8); // 32 bytes
+    const tx1Hash = 'cafebabe'.repeat(8); // 32 bytes
+
+    const payload = hexToBytes(tx0Hash + tx1Hash);
+
+    const result = unpackBTCPay(payload);
+
+    expect(result.tx0Hash).toBe(tx0Hash);
+    expect(result.tx1Hash).toBe(tx1Hash);
+    expect(result.orderMatchId).toBe(`${tx0Hash}_${tx1Hash}`);
+  });
+});
+
+describe('Dispense', () => {
+  /**
+   * From dispense.py:
+   * Minimal format - just a marker byte
+   */
+
+  it('should unpack dispense marker', () => {
+    const payload = hexToBytes('00'); // Just a null marker
+
+    const result = unpackDispense(payload);
+
+    expect(result.data).toEqual(new Uint8Array([0]));
+  });
+});
+
+describe('Broadcast', () => {
+  /**
+   * From broadcast.py:
+   * FORMAT = ">IdI" + text
+   * - timestamp (I): 4 bytes
+   * - value (d): 8 bytes double
+   * - fee_fraction_int (I): 4 bytes
+   * - text: variable
+   */
+
+  it('should unpack broadcast with text', () => {
+    // timestamp: 1234567890
+    const timestamp = '499602d2'; // big-endian
+    // value: 1.5 as IEEE 754 double
+    const value = '3ff8000000000000'; // 1.5 as double
+    // fee_fraction_int: 5000000 (0.05)
+    const feeFractionInt = '004c4b40';
+    // text: "test" with length prefix
+    const text = '04' + Buffer.from('test').toString('hex');
+
+    const payload = hexToBytes(timestamp + value + feeFractionInt + text);
+
+    const result = unpackBroadcast(payload);
+
+    expect(result.timestamp).toBe(1234567890);
+    expect(result.value).toBeCloseTo(1.5);
+    expect(result.feeFractionInt).toBe(5000000);
+    expect(result.text).toBe('test');
+  });
+});
+
+describe('Dividend', () => {
+  /**
+   * From dividend.py:
+   * FORMAT_1 = ">QQ" (16 bytes) - legacy
+   * FORMAT_2 = ">QQQ" (24 bytes) - modern
+   */
+
+  it('should unpack legacy dividend (XCP default)', () => {
+    const quantityPerUnit = '0000000005f5e100'; // 100000000
+    const assetId = bigintToHex8(26n ** 12n + 5000n); // numeric asset
+
+    const payload = hexToBytes(quantityPerUnit + assetId);
+
+    const result = unpackDividend(payload);
+
+    expect(result.quantityPerUnit).toBe(100000000n);
+    expect(result.dividendAsset).toBe('XCP');
+  });
+
+  it('should unpack modern dividend with explicit dividend asset', () => {
+    const quantityPerUnit = '00000000000003e8'; // 1000
+    const assetId = '0000000000000001'; // XCP
+    const dividendAssetId = bigintToHex8(26n ** 12n + 1000n); // numeric asset
+
+    const payload = hexToBytes(quantityPerUnit + assetId + dividendAssetId);
+
+    const result = unpackDividend(payload);
+
+    expect(result.quantityPerUnit).toBe(1000n);
+    expect(result.asset).toBe('XCP');
+    expect(result.dividendAsset).toBe(`A${(26n ** 12n + 1000n).toString()}`);
+  });
+});
+
+describe('Fairmint (Legacy Format)', () => {
+  /**
+   * From fairmint.py:
+   * Legacy format: "asset|quantity"
+   */
+
+  it('should unpack legacy fairmint', () => {
+    const text = 'TESTASSET|1000';
+    const payload = new TextEncoder().encode(text);
+
+    const result = unpackFairmint(new Uint8Array(payload));
+
+    expect(result.asset).toBe('TESTASSET');
+    expect(result.quantity).toBe(1000n);
+  });
+});
+
+describe('Fairminter (Legacy Format)', () => {
+  /**
+   * From fairminter.py:
+   * Legacy format: pipe-delimited string with 17+ fields
+   */
+
+  it('should unpack legacy fairminter', () => {
+    // Format: asset|asset_parent|price|quantity_by_price|max_mint_per_tx|hard_cap|
+    //         premint_quantity|start_block|end_block|soft_cap|soft_cap_deadline_block|
+    //         minted_asset_commission_int|burn_payment|lock_description|lock_quantity|
+    //         divisible|description
+    const fields = [
+      'MYTOKEN',    // asset
+      '',           // asset_parent
+      '100000000',  // price (1 XCP)
+      '1',          // quantity_by_price
+      '1000',       // max_mint_per_tx
+      '1000000',    // hard_cap
+      '0',          // premint_quantity
+      '800000',     // start_block
+      '900000',     // end_block
+      '0',          // soft_cap
+      '0',          // soft_cap_deadline_block
+      '5000000',    // minted_asset_commission_int (0.05)
+      '0',          // burn_payment
+      '1',          // lock_description
+      '0',          // lock_quantity
+      '1',          // divisible
+      'My awesome token',  // description
+    ];
+    const text = fields.join('|');
+    const payload = new TextEncoder().encode(text);
+
+    const result = unpackFairminter(new Uint8Array(payload));
+
+    expect(result.asset).toBe('MYTOKEN');
+    expect(result.price).toBe(100000000n);
+    expect(result.quantityByPrice).toBe(1n);
+    expect(result.maxMintPerTx).toBe(1000n);
+    expect(result.hardCap).toBe(1000000n);
+    expect(result.startBlock).toBe(800000);
+    expect(result.endBlock).toBe(900000);
+    expect(result.lockDescription).toBe(true);
+    expect(result.divisible).toBe(true);
+    expect(result.description).toBe('My awesome token');
+  });
+});
+
+describe('Attach', () => {
+  /**
+   * From attach.py:
+   * Format: "asset|quantity|destination_vout"
+   */
+
+  it('should unpack attach without destination vout', () => {
+    const text = 'XCP|100000000|';
+    const payload = new TextEncoder().encode(text);
+
+    const result = unpackAttach(new Uint8Array(payload));
+
+    expect(result.asset).toBe('XCP');
+    expect(result.quantity).toBe(100000000n);
+    expect(result.destinationVout).toBeUndefined();
+  });
+
+  it('should unpack attach with destination vout', () => {
+    const text = 'PEPECASH|50000000|2';
+    const payload = new TextEncoder().encode(text);
+
+    const result = unpackAttach(new Uint8Array(payload));
+
+    expect(result.asset).toBe('PEPECASH');
+    expect(result.quantity).toBe(50000000n);
+    expect(result.destinationVout).toBe(2);
+  });
+});

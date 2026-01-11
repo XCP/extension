@@ -24,6 +24,14 @@ import { unpackDestroy, type DestroyData } from './messages/destroy';
 import { unpackSweep, type SweepData } from './messages/sweep';
 import { unpackSend, type SendData } from './messages/send';
 import { unpackIssuance, type IssuanceData } from './messages/issuance';
+import { unpackMPMA, type MPMAData, type MPMASend } from './messages/mpma';
+import { unpackBTCPay, type BTCPayData } from './messages/btcpay';
+import { unpackDispense, type DispenseData } from './messages/dispense';
+import { unpackBroadcast, type BroadcastData } from './messages/broadcast';
+import { unpackDividend, type DividendData } from './messages/dividend';
+import { unpackFairminter, type FairminterData } from './messages/fairminter';
+import { unpackFairmint, type FairmintData } from './messages/fairmint';
+import { unpackAttach, unpackDetach, type AttachData } from './messages/attach';
 
 /**
  * Union type of all possible unpacked message data
@@ -37,6 +45,14 @@ export type UnpackedMessageData =
   | SweepData
   | SendData
   | IssuanceData
+  | MPMAData
+  | BTCPayData
+  | DispenseData
+  | BroadcastData
+  | DividendData
+  | FairminterData
+  | FairmintData
+  | AttachData
   | Record<string, unknown>; // Fallback for unsupported types
 
 /**
@@ -165,7 +181,44 @@ export function unpackCounterpartyMessage(data: string | Uint8Array): UnpackResu
           unpackedData = unpackIssuance(rawPayload, messageTypeId);
           break;
 
-        // Add more message types as needed
+        case MessageTypeId.MPMA_SEND:
+          unpackedData = unpackMPMA(rawPayload);
+          break;
+
+        case MessageTypeId.BTC_PAY:
+          unpackedData = unpackBTCPay(rawPayload);
+          break;
+
+        case MessageTypeId.DISPENSE:
+          unpackedData = unpackDispense(rawPayload);
+          break;
+
+        case MessageTypeId.BROADCAST:
+          unpackedData = unpackBroadcast(rawPayload);
+          break;
+
+        case MessageTypeId.DIVIDEND:
+          unpackedData = unpackDividend(rawPayload);
+          break;
+
+        case MessageTypeId.FAIRMINTER:
+          unpackedData = unpackFairminter(rawPayload);
+          break;
+
+        case MessageTypeId.FAIRMINT:
+          unpackedData = unpackFairmint(rawPayload);
+          break;
+
+        case MessageTypeId.UTXO:
+          // UTXO type 100 is detach (move to address)
+          unpackedData = unpackDetach(rawPayload);
+          break;
+
+        case MessageTypeId.UTXO_ATTACH:
+          // UTXO type 101 is attach (move to UTXO)
+          unpackedData = unpackAttach(rawPayload);
+          break;
+
         default:
           // Return raw payload for unsupported types
           unpackedData = { _raw: Array.from(rawPayload) };
@@ -219,6 +272,14 @@ export type { DestroyData } from './messages/destroy';
 export type { SweepData } from './messages/sweep';
 export type { SendData } from './messages/send';
 export type { IssuanceData } from './messages/issuance';
+export type { MPMAData, MPMASend } from './messages/mpma';
+export type { BTCPayData } from './messages/btcpay';
+export type { DispenseData } from './messages/dispense';
+export type { BroadcastData } from './messages/broadcast';
+export type { DividendData } from './messages/dividend';
+export type { FairminterData } from './messages/fairminter';
+export type { FairmintData } from './messages/fairmint';
+export type { AttachData } from './messages/attach';
 
 // Re-export verification utilities
 export {
