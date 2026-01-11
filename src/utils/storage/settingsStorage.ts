@@ -7,7 +7,7 @@
  *
  * Note: Settings are stored in a dedicated 'local:settingsRecord' key,
  * separate from wallet records ('local:walletRecords').
- * See ADR-012 in storage.ts for details on this isolation decision.
+ * See ADR-011 in storage.ts for details on this isolation decision.
  */
 
 import { storage } from '#imports';

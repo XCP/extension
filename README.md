@@ -38,6 +38,28 @@ npm run test:unit  # Unit only
 npm run test:e2e   # E2E only
 ```
 
+## Dependencies
+
+Runtime dependencies are minimal and carefully selected:
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| [@noble/curves](https://github.com/paulmillr/noble-curves) | 2.0.1 | Elliptic curve cryptography (audited) |
+| [@noble/hashes](https://github.com/paulmillr/noble-hashes) | 2.0.1 | Hash functions (audited) |
+| [@noble/secp256k1](https://github.com/paulmillr/noble-secp256k1) | 3.0.0 | secp256k1 operations (audited) |
+| [@scure/base](https://github.com/paulmillr/scure-base) | 2.0.0 | Base encoding (audited) |
+| [@scure/bip32](https://github.com/paulmillr/scure-bip32) | 2.0.1 | HD wallet derivation (audited) |
+| [@scure/bip39](https://github.com/paulmillr/scure-bip39) | 2.0.1 | Mnemonic phrases (audited) |
+| [@scure/btc-signer](https://github.com/paulmillr/scure-btc-signer) | 2.0.1 | Bitcoin transaction signing (audited) |
+| [bignumber.js](https://github.com/MikeMcl/bignumber.js) | 9.3.1 | Arbitrary precision arithmetic |
+| [@headlessui/react](https://headlessui.com/) | 2.2.9 | Accessible UI components |
+| [react](https://react.dev/) | 19.2.3 | UI framework |
+| [react-dom](https://react.dev/) | 19.2.3 | React DOM bindings |
+| [react-router-dom](https://reactrouter.com/) | 7.12.0 | Client-side routing |
+| [webext-bridge](https://github.com/nickytonline/webext-bridge) | 6.0.1 | Extension messaging |
+
+All cryptographic libraries are from the [paulmillr/noble](https://paulmillr.com/noble/) family, which have been independently audited by Cure53.
+
 ## Security
 
 This wallet has not been independently audited. However, we have implemented security best practices based on:
@@ -113,15 +135,38 @@ This wallet has not been independently audited. However, we have implemented sec
 ### Architecture Decision Records
 
 Security trade-offs and design decisions are documented inline as ADRs:
-- **ADR-001**: JavaScript memory clearing limitations
-- **ADR-002**: No automatic key refresh during session
-- **ADR-005**: Promise-based write mutex for storage
-- **ADR-010**: Key derivation pattern with HKDF domain separation
-- **ADR-012**: Isolated wallet and settings storage
+
+| ADR | Decision | Location |
+|-----|----------|----------|
+| ADR-001 | JavaScript memory clearing limitations | [sessionManager.ts](src/utils/auth/sessionManager.ts) |
+| ADR-002 | No automatic key refresh during session | [sessionManager.ts](src/utils/auth/sessionManager.ts) |
+| ADR-003 | No distributed tracing (future enhancement) | [MessageBus.ts](src/services/core/MessageBus.ts) |
+| ADR-004 | Promise-based write mutex for storage | [storage.ts](src/utils/storage/storage.ts) |
+| ADR-005 | Explicit service dependency ordering | [BaseService.ts](src/services/core/BaseService.ts) |
+| ADR-006 | Request callbacks lost on service worker restart | [RequestManager.ts](src/services/core/RequestManager.ts) |
+| ADR-007 | Distributed request state design | [approvalService.ts](src/services/approvalService.ts) |
+| ADR-008 | Storage error handling pattern | [storage.ts](src/utils/storage/storage.ts) |
+| ADR-009 | Key derivation with HKDF domain separation | [settings.ts](src/utils/encryption/settings.ts) |
+| ADR-010 | Storage pattern decisions (class vs function) | [requestStorage.ts](src/utils/storage/requestStorage.ts) |
+| ADR-011 | Isolated wallet and settings storage | [storage.ts](src/utils/storage/storage.ts) |
+
+### Security Assumptions
+
+This wallet does **not** protect against:
+
+- **Compromised operating system** — Malware with kernel access can read memory
+- **Malicious browser extensions** — Extensions with higher privileges can intercept data
+- **Physical access to unlocked device** — No defense against shoulder surfing or unlocked sessions
+- **Compromised browser** — Modified browser binaries can bypass all protections
+- **Supply chain attacks on dependencies** — We pin versions and verify hashes, but cannot guarantee upstream integrity
+
+### Future Audit
+
+We intend to pursue an independent security audit when funding allows. In the meantime, we welcome responsible disclosure via our [bug bounty program](SECURITY.md).
 
 ### Reporting Security Issues
 
-If you discover a security vulnerability, please report it privately via GitHub Security Advisories rather than opening a public issue.
+If you discover a security vulnerability, please report it privately via [GitHub Security Advisories](../../security/advisories/new) rather than opening a public issue.
 
 ## License
 

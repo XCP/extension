@@ -6,7 +6,7 @@
  *
  * ## Architecture Decision Records
  *
- * ### ADR-007: Request Callbacks Lost on Service Worker Restart (Acceptable)
+ * ### ADR-006: Request Callbacks Lost on Service Worker Restart (Acceptable)
  *
  * **Context**: When Chrome's service worker restarts (due to inactivity, updates,
  * or crashes), all in-memory JavaScript state is lost. This includes:

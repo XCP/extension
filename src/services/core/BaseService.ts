@@ -9,7 +9,7 @@
  *
  * ## Architecture Decision Records
  *
- * ### ADR-006: Explicit Service Dependency Ordering
+ * ### ADR-005: Explicit Service Dependency Ordering
  *
  * **Context**: Services often depend on other services being initialized first.
  * Without explicit ordering, initialization race conditions can occur.

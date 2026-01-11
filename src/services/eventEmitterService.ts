@@ -24,7 +24,7 @@
  *
  * **Trade-offs**:
  * - Harder to trace request flow (no stack trace)
- * - Mitigated by: request IDs, debug logging, ADR-004 future tracing
+ * - Mitigated by: request IDs, debug logging, ADR-003 future tracing
  *
  * ### Singleton Export Pattern
  *

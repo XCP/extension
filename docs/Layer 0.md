@@ -381,7 +381,7 @@ await setCachedSettingsKey(keyBase64);  // Stored in session storage
 
 | API | Why Avoided | Assessment |
 |-----|-------------|------------|
-| Web Locks API | Adds complexity for cross-tab locking we don't need | Correct (ADR-005) |
+| Web Locks API | Adds complexity for cross-tab locking we don't need | Correct (ADR-004) |
 | IndexedDB | chrome.storage.local sufficient for wallet data model | Correct |
 | `chrome.storage.sync` | Would sync secrets to cloud | Correct to avoid |
 | `chrome.permissions` | No optional permissions needed | Correct |
@@ -401,7 +401,7 @@ await setCachedSettingsKey(keyBase64);  // Stored in session storage
 | Issue | Location | Risk | Status |
 |-------|----------|------|--------|
 | Inconsistent storage abstraction | local vs session patterns | Maintenance burden | **FIXED** - Migrated to wxt |
-| Error swallowing vs throwing | keyStorage vs requestStorage | Silent failures | **FIXED** - Documented as ADR-009 |
+| Error swallowing vs throwing | keyStorage vs requestStorage | Silent failures | **FIXED** - Documented as ADR-008 |
 | Two key derivation patterns | encryption.ts vs settings.ts | Developer confusion | **Document** |
 
 ### Low / Acceptable
@@ -431,7 +431,7 @@ await setCachedSettingsKey(keyBase64);  // Stored in session storage
    - Type safety
 
 3. **~~Standardize error handling patterns~~** ✅ DONE
-   - Pattern documented in ADR-009 (storage.ts)
+   - Pattern documented in ADR-008 (storage.ts)
    - GET operations: return safe default
    - SET operations: throw error
 
@@ -452,7 +452,7 @@ await setCachedSettingsKey(keyBase64);  // Stored in session storage
 | ADR | Decision | Relevance |
 |-----|----------|-----------|
 | ADR-001 | JS memory clearing limitation - acceptable | Explains session storage key caching |
-| ADR-005 | Promise-based write mutex | Explains why Web Locks not used |
+| ADR-004 | Promise-based write mutex | Explains why Web Locks not used |
 
 ---
 
@@ -463,9 +463,9 @@ await setCachedSettingsKey(keyBase64);  // Stored in session storage
 | 2026-01 | Initial analysis complete |
 | 2026-01 | FIXED: Session-expiry alarm consolidated to sessionManager.ts |
 | 2026-01 | FIXED: Multiple onMessage listeners consolidated in background.ts |
-| 2026-01 | DOCUMENTED: Error handling pattern (ADR-009) |
+| 2026-01 | DOCUMENTED: Error handling pattern (ADR-008) |
 | 2026-01 | MIGRATED: keyStorage.ts and updateStorage.ts to wxt storage |
 | 2026-01 | FIXED: Inconsistent crypto.subtle availability check in replayPrevention.ts |
-| 2026-01 | DOCUMENTED: Key derivation pattern differences (ADR-010 in settings.ts) |
+| 2026-01 | DOCUMENTED: Key derivation pattern differences (ADR-009 in settings.ts) |
 | 2026-01 | EVALUATED: chrome.storage.onChanged - wxt provides .watch() method |
 | 2026-01 | EVALUATED: chrome.storage.getBytesInUse - not needed (0.3% max usage) |

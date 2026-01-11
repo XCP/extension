@@ -10,7 +10,7 @@
  *
  * ## Architecture Decision Records
  *
- * ### ADR-008: Distributed Request State (Intentional Design)
+ * ### ADR-007: Distributed Request State (Intentional Design)
  *
  * **Context**: Request state is distributed across services:
  * - ApprovalService: Pending approval requests (via RequestManager)

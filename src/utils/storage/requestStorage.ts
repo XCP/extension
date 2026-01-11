@@ -8,6 +8,23 @@
  * - TTL-based expiration (requests auto-expire after 10 minutes)
  * - Write lock protection for concurrent operations
  * - Session storage (cleared on browser close)
+ *
+ * ### ADR-010: Storage Pattern Decisions
+ *
+ * This module uses a class pattern rather than the function pattern used by
+ * other storage modules. The class is justified because:
+ * - Generic type support (`T extends BaseRequest`) allows type-safe request storage
+ * - Write lock is per-instance (each storage type has its own lock)
+ * - TTL management logic is encapsulated
+ * - Related functionality (store, get, remove, clear) grouped together
+ *
+ * Functions are appropriate for simple key-value storage where you just need get/set/clear.
+ *
+ * Naming conventions across storage modules:
+ * - `add*()`: Adding to a collection (array)
+ * - `set*()`: Replacing a single value
+ * - `store*()`: Persisting with additional logic (validation, TTL)
+ * - `save*()`: Alias for set (used in settings)
  */
 
 import { createWriteLock, isExpired } from './mutex';

@@ -6,7 +6,7 @@
  *
  * Note: This module uses the dedicated 'local:walletRecords' storage key.
  * Settings are stored separately in 'local:settingsRecord' for isolation.
- * See ADR-012 in storage.ts for details.
+ * See ADR-011 in storage.ts for details.
  */
 
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
