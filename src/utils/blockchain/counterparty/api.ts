@@ -324,8 +324,15 @@ async function cpApiGet<T = unknown>(
   const base = await getApiBase();
   const url = `${base}${path}`;
 
+  // Filter out undefined values from params
+  const filteredParams = params
+    ? Object.fromEntries(
+        Object.entries(params).filter(([, v]) => v !== undefined)
+      ) as Record<string, string | number | boolean>
+    : undefined;
+
   try {
-    const response = await apiClient.get<T | { error: string }>(url, { params });
+    const response = await apiClient.get<T | { error: string }>(url, { params: filteredParams });
 
     if (response.data && typeof response.data === 'object' && 'error' in response.data) {
       throw new CounterpartyApiError(

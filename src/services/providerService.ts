@@ -74,19 +74,6 @@ function stopCleanupInterval(): void {
 // Start cleanup interval immediately
 startCleanupInterval();
 
-// Export getters for other modules to access in-memory requests
-export function getActiveSignRequest(id: string) {
-  return activeSignRequests.get(id);
-}
-
-export function getActiveSignPsbtRequest(id: string) {
-  return activeSignPsbtRequests.get(id);
-}
-
-export function getActiveSignTransactionRequest(id: string) {
-  return activeSignTransactionRequests.get(id);
-}
-
 // Define proper types for provider requests and responses
 export type ProviderRequestParams = unknown[];
 export type ProviderMetadata = Record<string, unknown>;

@@ -228,7 +228,7 @@ async function deriveMasterKey(
   );
 
   const derivedBits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: 'SHA-256' },
     passwordKey,
     CRYPTO_CONFIG.KEY_BITS
   );

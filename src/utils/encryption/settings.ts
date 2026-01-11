@@ -173,7 +173,7 @@ async function getKeyFromSession(): Promise<CryptoKey | null> {
 
   if (!keyBase64) return null;
 
-  let keyBytes: Uint8Array;
+  let keyBytes: Uint8Array<ArrayBuffer>;
   try {
     keyBytes = base64ToBuffer(keyBase64);
   } catch {
