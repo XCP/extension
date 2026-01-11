@@ -40,7 +40,10 @@ npm run test:e2e   # E2E only
 
 ## Security
 
-This wallet has not been independently audited. However, we have implemented security best practices based on OWASP guidelines and wallet security checklists from Certik, Slowmist, and Valkyri.
+This wallet has not been independently audited. However, we have implemented security best practices based on:
+- [OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org/) (Cryptographic Storage, Session Management, Input Validation, Error Handling, Key Management)
+- Wallet security checklists from [Certik](https://www.certik.com/resources/blog/cryptowalletsecurityassessmentchecklist), [Slowmist](https://www.slowmist.com/service-wallet-security-audit.html), and [Valkyri](https://blog.valkyri.xyz/posts/wallet-extension-pentesting/)
+- [BlockApex Web3 Wallet Security Checklist](https://blockapex.io/web3-wallet-security-checklist/)
 
 ### Cryptography
 
@@ -51,6 +54,7 @@ This wallet has not been independently audited. However, we have implemented sec
 | Crypto Libraries | Audited `@noble/*` and `@scure/*` libraries | ✅ |
 | Private Key Zeroing | Keys zeroed after signing operations | ✅ |
 | Memory Clearing | Best-effort with documented JS limitations (ADR-001) | ✅ |
+| Timing Attack Mitigation | Constant-time operations + random delays | ✅ |
 
 ### Session Management
 
@@ -71,6 +75,14 @@ This wallet has not been independently audited. However, we have implemented sec
 | Locked State Protection | Sensitive APIs blocked when wallet locked | ✅ |
 | WYSIWYS | Transaction details shown before signing | ✅ |
 
+### Transaction Security
+
+| Area | Implementation | Status |
+|------|---------------|--------|
+| Replay Prevention | Nonce tracking, idempotency keys, txid deduplication | ✅ |
+| Race Condition Prevention | Mutex locks for wallet state operations | ✅ |
+| Deep Clone Protection | Cached data immutability enforced | ✅ |
+
 ### Input Validation
 
 | Area | Implementation | Status |
@@ -85,6 +97,7 @@ This wallet has not been independently audited. However, we have implemented sec
 |------|---------------|--------|
 | Manifest Permissions | Minimal: `storage`, `tabs`, `alarms`, `sidePanel` | ✅ |
 | Content Security Policy | MV3 strict default (no eval, no remote scripts) | ✅ |
+| Message Sender Validation | Background script validates extension context | ✅ |
 | Console Stripping | `console.log/error` removed in production builds | ✅ |
 | Dependency Pinning | All versions pinned, lockfile with integrity hashes | ✅ |
 | Security Audit CI | `npm audit` runs on every PR | ✅ |
@@ -96,6 +109,19 @@ This wallet has not been independently audited. However, we have implemented sec
 | User vs Internal Errors | Separate `userMessage` field prevents info leakage | ✅ |
 | Decryption Errors | Generic messages prevent oracle attacks | ✅ |
 | Stack Traces | Never exposed to external callers | ✅ |
+
+### Architecture Decision Records
+
+Security trade-offs and design decisions are documented inline as ADRs:
+- **ADR-001**: JavaScript memory clearing limitations
+- **ADR-002**: No automatic key refresh during session
+- **ADR-005**: Promise-based write mutex for storage
+- **ADR-010**: Key derivation pattern with HKDF domain separation
+- **ADR-012**: Isolated wallet and settings storage
+
+### Reporting Security Issues
+
+If you discover a security vulnerability, please report it privately via GitHub Security Advisories rather than opening a public issue.
 
 ## License
 
