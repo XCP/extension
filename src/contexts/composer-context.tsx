@@ -18,7 +18,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import { getComposeType, normalizeFormData } from "@/utils/blockchain/counterparty/normalize";
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from "@/utils/security/replayPrevention";
-import { verifyTransaction, extractOpReturnData, type ComposeRequest } from "@/utils/blockchain/counterparty/unpack/verify";
+import { verifyTransaction, extractOpReturnData } from "@/utils/blockchain/counterparty/unpack/verify";
 
 /**
  * Composer state shape
@@ -216,13 +216,8 @@ export function ComposerProvider<T>({
       // This protects against a compromised API returning malicious transactions
       const opReturnData = extractOpReturnData(response.result.rawtransaction);
       if (opReturnData) {
-        // Build compose request from normalized data for verification
-        const composeRequest: ComposeRequest = {
-          type: composeType as ComposeRequest['type'],
-          params: dataForApi,
-        };
-
-        const verification = verifyTransaction(opReturnData, composeRequest);
+        // Verify the composed transaction matches what we requested
+        const verification = verifyTransaction(opReturnData, composeType, dataForApi);
 
         if (!verification.valid) {
           // In strict mode (default), block the transaction

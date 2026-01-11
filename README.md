@@ -15,29 +15,6 @@ Browser extension wallet for Counterparty on Bitcoin.
 
 Coming soon to Chrome Web Store.
 
-## Development
-
-```bash
-npm install
-npm run dev        # Chrome
-npm run dev:firefox
-```
-
-## Build
-
-```bash
-npm run build      # Production build
-npm run zip        # Create extension ZIP
-```
-
-## Test
-
-```bash
-npm test           # All tests
-npm run test:unit  # Unit only
-npm run test:e2e   # E2E only
-```
-
 ## Security
 
 This wallet has not been independently audited. However, we have implemented security best practices based on:
@@ -79,9 +56,21 @@ This wallet has not been independently audited. However, we have implemented sec
 
 | Area | Implementation | Status |
 |------|---------------|--------|
+| Local Message Verification | Counterparty messages unpacked locally and compared against API | ✅ |
 | Replay Prevention | Nonce tracking, idempotency keys, txid deduplication | ✅ |
 | Race Condition Prevention | Mutex locks for wallet state operations | ✅ |
 | Deep Clone Protection | Cached data immutability enforced | ✅ |
+
+#### Local Transaction Verification
+
+When signing Counterparty transactions, the wallet independently verifies transaction contents rather than trusting API responses. This defends against compromised or malicious API servers that could return transactions different from what was requested.
+
+**How it works:**
+1. The wallet decodes OP_RETURN data and unpacks the Counterparty message locally
+2. Critical fields (asset, quantity, destination) are extracted and compared against the API response
+3. Any mismatch triggers a warning or blocks signing (configurable via Settings > Advanced)
+
+**Supported message types:** Send, Enhanced Send, Order, Dispenser, Cancel, Destroy, Sweep, Issuance
 
 ### Input Validation
 
@@ -122,6 +111,29 @@ Security trade-offs and design decisions are documented inline as ADRs:
 ### Reporting Security Issues
 
 If you discover a security vulnerability, please report it privately via GitHub Security Advisories rather than opening a public issue.
+
+## Development
+
+```bash
+npm install
+npm run dev        # Chrome
+npm run dev:firefox
+```
+
+## Build
+
+```bash
+npm run build      # Production build
+npm run zip        # Create extension ZIP
+```
+
+## Test
+
+```bash
+npm test           # All tests
+npm run test:unit  # Unit only
+npm run test:e2e   # E2E only
+```
 
 ## License
 

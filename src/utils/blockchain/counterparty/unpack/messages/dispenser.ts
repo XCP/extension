@@ -2,14 +2,14 @@
  * Dispenser Message Unpacker
  *
  * Message ID: 12
- * Format: ">QQQQB" (33 bytes) + optional addresses
+ * Format: ">QQQB" (25 bytes minimum) + optional fields
  *   - asset_id (Q): 8 bytes - Asset to dispense
  *   - give_quantity (Q): 8 bytes - Units given per dispense
  *   - escrow_quantity (Q): 8 bytes - Total quantity in escrow
- *   - mainchainrate (Q): 8 bytes - Satoshis required per give_quantity
  *   - status (B): 1 byte - Status code
  *
  * Optional fields (appended):
+ *   - mainchainrate (Q): 8 bytes - Satoshis required per give_quantity
  *   - action_address: 21 bytes (if status = 1 or closing with different source)
  *   - oracle_address: 21 bytes (if oracle dispenser)
  *
@@ -25,8 +25,8 @@ import { assetIdToName } from '../assetId';
 import { unpackAddress, PACKED_ADDRESS_LENGTH } from '../address';
 import { DispenserStatus } from '../messageTypes';
 
-/** Base length of dispenser message (without optional addresses) */
-const DISPENSER_BASE_LENGTH = 33;
+/** Base length of dispenser message (without optional fields) */
+const DISPENSER_BASE_LENGTH = 25; // 3 x Q (8 bytes) + 1 x B (1 byte)
 
 /**
  * Unpacked dispenser data
@@ -87,7 +87,6 @@ export function unpackDispenser(payload: Uint8Array): DispenserData {
   const assetId = reader.readUint64BE();
   const giveQuantity = reader.readUint64BE();
   const escrowQuantity = reader.readUint64BE();
-  const mainchainrate = reader.readUint64BE();
   const status = reader.readUint8();
 
   // Convert asset ID to name
@@ -98,10 +97,15 @@ export function unpackDispenser(payload: Uint8Array): DispenserData {
     assetId,
     giveQuantity,
     escrowQuantity,
-    mainchainrate,
+    mainchainrate: 0n, // Default, may be updated below
     status,
     statusName: getStatusName(status),
   };
+
+  // Read optional mainchainrate (8 bytes)
+  if (reader.remaining >= 8) {
+    result.mainchainrate = reader.readUint64BE();
+  }
 
   // Check for optional action address
   // Present if status = OPEN_EMPTY_ADDRESS or (CLOSING with remaining bytes)

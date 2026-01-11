@@ -223,17 +223,28 @@ export type { IssuanceData } from './messages/issuance';
 // Re-export verification utilities
 export {
   verifyTransaction,
+  verifyTransactionLegacy,
   extractOpReturnData,
   type ComposeRequest,
+  type ComposeParams,
   type VerificationResult,
-  type EnhancedSendRequest,
-  type OrderRequest,
-  type DispenserRequest,
-  type CancelRequest,
-  type DestroyRequest,
-  type SweepRequest,
-  type IssuanceRequest,
+  type VerificationMismatch,
+  type VerifiableComposeType,
 } from './verify';
+
+// Re-export param schema
+export {
+  getMessageSchema,
+  getSchemaByTypeId,
+  getCriticalParams,
+  getDangerousParams,
+  getRequiredParams,
+  MESSAGE_SCHEMAS,
+  type Criticality,
+  type Presence,
+  type ParamDefinition,
+  type MessageSchema,
+} from './paramSchema';
 
 // Re-export provider verification utilities
 export {
