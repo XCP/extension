@@ -166,6 +166,7 @@ describe('Content Script', () => {
       // Simulate XCP wallet request
       const event = {
         source: window,
+        origin: mockWindow.location.origin,
         data: {
           target: 'xcp-wallet-content',
           type: 'XCP_WALLET_REQUEST',
@@ -206,6 +207,7 @@ describe('Content Script', () => {
 
       const event = {
         source: window,
+        origin: mockWindow.location.origin,
         data: {
           target: 'xcp-wallet-content',
           type: 'XCP_WALLET_REQUEST',
@@ -242,6 +244,7 @@ describe('Content Script', () => {
 
       const event = {
         source: window,
+        origin: mockWindow.location.origin,
         data: {
           target: 'xcp-wallet-content',
           type: 'XCP_WALLET_REQUEST',
@@ -272,6 +275,7 @@ describe('Content Script', () => {
     it('should ignore non-XCP wallet messages', async () => {
       const event = {
         source: window,
+        origin: mockWindow.location.origin,
         data: {
           target: 'other-target',
           type: 'OTHER_MESSAGE',
@@ -289,6 +293,7 @@ describe('Content Script', () => {
       const differentWindow = {} as Window;
       const event = {
         source: differentWindow,
+        origin: mockWindow.location.origin,
         data: {
           target: 'xcp-wallet-content',
           type: 'XCP_WALLET_REQUEST',
@@ -432,6 +437,7 @@ describe('Content Script', () => {
       // Simulate window message
       await windowMessageListener({
         source: window,
+        origin: mockWindow.location.origin,
         data: {
           target: 'xcp-wallet-content',
           type: 'XCP_WALLET_REQUEST',
