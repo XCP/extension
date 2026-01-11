@@ -17,7 +17,7 @@ Coming soon to Chrome Web Store.
 
 ## Security
 
-Not yet independently audited. See [AUDIT.md](AUDIT.md) for our full security checklist.
+Not yet independently audited. See [AUDIT.md](AUDIT.md) for our self-reported security feature checklist.
 
 **Key protections:**
 - AES-256-GCM encryption with PBKDF2 (600k iterations)
