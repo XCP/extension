@@ -1,3 +1,24 @@
+/**
+ * @module settings-context
+ *
+ * Application settings management with persistence and cross-tab sync.
+ *
+ * Settings include:
+ * - Network configuration (mainnet/testnet)
+ * - UI preferences (order type defaults, pinned assets)
+ * - Security settings (auto-lock timer, connected websites)
+ * - Advanced options (custom API endpoints, fee preferences)
+ *
+ * ## Persistence
+ *
+ * Settings are encrypted and stored using `settingsStorage`.
+ * On wallet lock, settings reset to defaults (encryption key is cleared).
+ *
+ * ## Optimistic Updates
+ *
+ * State updates optimistically for instant UI response, with rollback
+ * on persistence failure.
+ */
 import {
   createContext,
   useCallback,
@@ -15,18 +36,23 @@ import {
   DEFAULT_SETTINGS,
   type AppSettings,
 } from "@/utils/storage/settingsStorage";
+import { withStateLock } from "@/utils/wallet/stateLockManager";
 
 /**
- * Context value for settings management.
+ * Public API for settings management.
  */
-interface SettingsContextValue {
+interface SettingsContextType {
+  /** Current application settings */
   settings: AppSettings;
+  /** Update one or more settings (persisted to storage) */
   updateSettings: (newSettings: Partial<AppSettings>) => Promise<void>;
+  /** Force reload settings from storage */
   refreshSettings: () => Promise<void>;
+  /** True while loading initial settings */
   isLoading: boolean;
 }
 
-const SettingsContext = createContext<SettingsContextValue | undefined>(undefined);
+const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 /**
  * Provides settings context to the application using React 19's <Context>.
@@ -53,12 +79,15 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
 
     // Listen for wallet lock events from background
     // When locked, settings encryption key is cleared, so reset to defaults
+    // Use withStateLock to serialize with any concurrent loadSettings operations
     const handleLockMessage = ({ data }: { data: { locked: boolean } }) => {
       if (data.locked) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[SettingsContext] Lock event - resetting to defaults');
-        }
-        setSettings({ ...DEFAULT_SETTINGS });
+        withStateLock('settings-lock', async () => {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[SettingsContext] Lock event - resetting to defaults');
+          }
+          setSettings({ ...DEFAULT_SETTINGS });
+        });
       }
     };
     const unsubscribe = onMessage('walletLocked', handleLockMessage);
@@ -69,9 +98,6 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
   }, [loadSettings]);
 
   const updateSettingsHandler = useCallback(async (newSettings: Partial<AppSettings>) => {
-    // Capture previous state for rollback
-    const previousSettings = settings;
-
     try {
       // Optimistically update state for instant UI response
       setSettings(prev => ({ ...prev, ...newSettings }));
@@ -80,13 +106,13 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
       await updateSettings(newSettings);
     } catch (error) {
       console.error('Failed to persist settings:', error);
-      // Immediately revert to previous state
-      setSettings(previousSettings);
-      // Also reload from storage to ensure consistency
-      loadSettings();
+      // On error, reload from storage to get the authoritative state.
+      // This avoids race conditions with stale rollback values when
+      // multiple rapid updates are attempted.
+      await loadSettings();
       throw error; // Re-throw to let component handle user feedback
     }
-  }, [settings, loadSettings]);
+  }, [loadSettings]);
 
   const contextValue = useMemo(() => ({
     settings,
@@ -104,10 +130,10 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
 
 /**
  * Hook to access settings context using React 19's `use`.
- * @returns {SettingsContextValue} Settings context value
+ * @returns {SettingsContextType} Settings context value
  * @throws {Error} If used outside SettingsProvider
  */
-export function useSettings(): SettingsContextValue {
+export function useSettings(): SettingsContextType {
   const context = use(SettingsContext);
   if (!context) {
     throw new Error("useSettings must be used within a SettingsProvider");

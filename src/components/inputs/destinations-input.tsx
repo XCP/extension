@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type ReactElement } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { FaPlus, FiMinus } from "@/components/icons";
 import { lookupAssetOwner, shouldTriggerAssetLookup } from "@/utils/validation/assetOwner";
@@ -17,6 +17,13 @@ interface DestinationsInputProps {
   showHelpText?: boolean;
 }
 
+/**
+ * DestinationsInput manages one or more destination addresses with validation.
+ * Supports MPMA (Multi-Party Multi-Asset) transactions with paste-to-add-multiple.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the destinations input field(s)
+ */
 export function DestinationsInput({
   destinations,
   onChange,
@@ -26,7 +33,7 @@ export function DestinationsInput({
   required = true,
   disabled = false,
   showHelpText = false,
-}: DestinationsInputProps) {
+}: DestinationsInputProps): ReactElement {
   const firstInputRef = useRef<HTMLInputElement>(null);
   const [validationErrors, setValidationErrors] = useState<{ [key: number]: boolean }>({});
   

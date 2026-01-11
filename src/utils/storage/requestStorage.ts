@@ -40,6 +40,21 @@ export interface BaseRequest {
 }
 
 /**
+ * Validates that a value has the minimum BaseRequest shape.
+ */
+function isValidBaseRequest(value: unknown): value is BaseRequest {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const obj = value as Record<string, unknown>;
+  return (
+    typeof obj.id === 'string' &&
+    typeof obj.origin === 'string' &&
+    typeof obj.timestamp === 'number'
+  );
+}
+
+/**
  * Configuration for a request storage instance.
  */
 interface RequestStorageConfig {
@@ -76,8 +91,13 @@ export class RequestStorage<T extends BaseRequest> {
   /**
    * Store a request.
    * Automatically cleans up expired requests.
+   * Throws if session storage API is unavailable (per ADR-008).
    */
   async store(request: T): Promise<void> {
+    if (!chrome?.storage?.session) {
+      throw new Error('Session storage API unavailable');
+    }
+
     return this.withWriteLock(async () => {
       try {
         const requests = await this.getAllRaw();
@@ -92,7 +112,7 @@ export class RequestStorage<T extends BaseRequest> {
           [this.storageKey]: validRequests
         });
       } catch (err) {
-        console.error(`Failed to store ${this.requestName}:`, err);
+        console.error(`Failed to save ${this.requestName}:`, err);
         throw new Error('Storage operation failed');
       }
     });
@@ -117,11 +137,21 @@ export class RequestStorage<T extends BaseRequest> {
 
   /**
    * Get all requests without filtering (internal use).
+   * Validates each item has the required BaseRequest shape.
    */
   private async getAllRaw(): Promise<T[]> {
+    if (!chrome?.storage?.session) {
+      return [];
+    }
+
     try {
       const result = await chrome.storage.session.get(this.storageKey);
-      return (result[this.storageKey] as T[] | undefined) ?? [];
+      const value = result[this.storageKey];
+      if (!Array.isArray(value)) {
+        return [];
+      }
+      // Filter to only valid requests (must have id, origin, timestamp)
+      return value.filter((item): item is T => isValidBaseRequest(item));
     } catch (err) {
       console.error(`Failed to read ${this.requestName}s:`, err);
       return [];
@@ -130,8 +160,13 @@ export class RequestStorage<T extends BaseRequest> {
 
   /**
    * Remove a request by ID.
+   * Throws if session storage API is unavailable (per ADR-008).
    */
   async remove(id: string): Promise<void> {
+    if (!chrome?.storage?.session) {
+      throw new Error('Session storage API unavailable');
+    }
+
     return this.withWriteLock(async () => {
       try {
         const requests = await this.getAllRaw();
@@ -149,8 +184,13 @@ export class RequestStorage<T extends BaseRequest> {
 
   /**
    * Clear all requests.
+   * Throws if session storage API is unavailable (per ADR-008).
    */
   async clear(): Promise<void> {
+    if (!chrome?.storage?.session) {
+      throw new Error('Session storage API unavailable');
+    }
+
     return this.withWriteLock(async () => {
       try {
         await chrome.storage.session.set({

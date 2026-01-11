@@ -53,7 +53,7 @@ describe('storage.ts - Core Functionality', () => {
     expect(found).toEqual(record);
 
     const notFound = await getRecordById('non-existent-get');
-    expect(notFound).toBeUndefined();
+    expect(notFound).toBeNull();
   });
 
   it('should update existing record', async () => {

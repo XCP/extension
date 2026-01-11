@@ -210,22 +210,44 @@ describe('AmountWithMaxInput', () => {
     });
   });
 
-  it('should handle error from compose API', async () => {
+  it('should handle error from compose API with generic message', async () => {
     const { composeSend } = await import('@/utils/blockchain/counterparty/compose');
     (composeSend as any).mockRejectedValue(new Error('API Error'));
-    
+
     const setError = vi.fn();
-    render(<AmountWithMaxInput 
-      {...defaultProps} 
-      asset="BTC" 
+    render(<AmountWithMaxInput
+      {...defaultProps}
+      asset="BTC"
       setError={setError}
     />);
-    
+
     const maxButton = screen.getByLabelText('Use maximum available amount');
     fireEvent.click(maxButton);
-    
+
+    // Unknown errors should show generic message to prevent leaking internal details
     await waitFor(() => {
-      expect(setError).toHaveBeenCalledWith('API Error');
+      expect(setError).toHaveBeenCalledWith('Failed to calculate maximum amount. Please try again.');
+    });
+  });
+
+  it('should show known safe error messages to users', async () => {
+    const { composeSend } = await import('@/utils/blockchain/counterparty/compose');
+    // Simulate the error thrown when balance is too low
+    (composeSend as any).mockRejectedValue(new Error('Insufficient balance to cover transaction fee.'));
+
+    const setError = vi.fn();
+    render(<AmountWithMaxInput
+      {...defaultProps}
+      asset="BTC"
+      setError={setError}
+    />);
+
+    const maxButton = screen.getByLabelText('Use maximum available amount');
+    fireEvent.click(maxButton);
+
+    // Known safe errors (user-friendly messages) should be shown directly
+    await waitFor(() => {
+      expect(setError).toHaveBeenCalledWith('Insufficient balance to cover transaction fee.');
     });
   });
 

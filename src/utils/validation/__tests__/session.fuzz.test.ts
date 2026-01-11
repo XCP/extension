@@ -10,10 +10,10 @@ import {
   validateSecret,
   validateTimeout,
   validateSessionMetadata,
-  checkRateLimit,
+  assertRateLimit,
   clearRateLimit,
   clearAllRateLimits,
-  checkSecretLimit,
+  assertSecretLimit,
   MAX_WALLET_ID_LENGTH,
   MAX_SECRET_LENGTH,
   MAX_STORED_SECRETS,
@@ -339,13 +339,13 @@ describe('Session Validation Fuzz Tests', () => {
     });
   });
 
-  describe('checkRateLimit', () => {
+  describe('assertRateLimit', () => {
     it('should allow operations within limit', () => {
       const walletId = 'a'.repeat(64);
 
       // Should allow up to MAX_OPERATIONS_PER_WINDOW
       for (let i = 0; i < 10; i++) {
-        expect(() => checkRateLimit(walletId)).not.toThrow();
+        expect(() => assertRateLimit(walletId)).not.toThrow();
       }
     });
 
@@ -354,11 +354,11 @@ describe('Session Validation Fuzz Tests', () => {
 
       // First 10 should succeed
       for (let i = 0; i < 10; i++) {
-        checkRateLimit(walletId);
+        assertRateLimit(walletId);
       }
 
       // 11th should fail
-      expect(() => checkRateLimit(walletId)).toThrow('Rate limit exceeded');
+      expect(() => assertRateLimit(walletId)).toThrow('Rate limit exceeded');
     });
 
     it('should track limits separately per wallet', () => {
@@ -370,7 +370,7 @@ describe('Session Validation Fuzz Tests', () => {
 
             // Each wallet should have its own limit
             walletIds.forEach((walletId) => {
-              expect(() => checkRateLimit(walletId)).not.toThrow();
+              expect(() => assertRateLimit(walletId)).not.toThrow();
             });
           }
         ),
@@ -383,7 +383,7 @@ describe('Session Validation Fuzz Tests', () => {
 
       const start = performance.now();
       for (let i = 0; i < 10; i++) {
-        checkRateLimit(walletId);
+        assertRateLimit(walletId);
       }
       const elapsed = performance.now() - start;
 
@@ -397,13 +397,13 @@ describe('Session Validation Fuzz Tests', () => {
 
       // Use up the limit
       for (let i = 0; i < 10; i++) {
-        checkRateLimit(walletId);
+        assertRateLimit(walletId);
       }
-      expect(() => checkRateLimit(walletId)).toThrow();
+      expect(() => assertRateLimit(walletId)).toThrow();
 
       // Clear and try again
       clearRateLimit(walletId);
-      expect(() => checkRateLimit(walletId)).not.toThrow();
+      expect(() => assertRateLimit(walletId)).not.toThrow();
     });
 
     it('should not affect other wallets', () => {
@@ -412,26 +412,26 @@ describe('Session Validation Fuzz Tests', () => {
 
       // Use up limit for both
       for (let i = 0; i < 10; i++) {
-        checkRateLimit(walletId1);
-        checkRateLimit(walletId2);
+        assertRateLimit(walletId1);
+        assertRateLimit(walletId2);
       }
 
       // Clear only first
       clearRateLimit(walletId1);
 
-      expect(() => checkRateLimit(walletId1)).not.toThrow();
-      expect(() => checkRateLimit(walletId2)).toThrow();
+      expect(() => assertRateLimit(walletId1)).not.toThrow();
+      expect(() => assertRateLimit(walletId2)).toThrow();
     });
   });
 
-  describe('checkSecretLimit', () => {
+  describe('assertSecretLimit', () => {
     it('should allow new secrets under limit', () => {
       fc.assert(
         fc.property(
           fc.integer({ min: 0, max: MAX_STORED_SECRETS - 1 }),
           validWalletIdArb,
           (currentCount, walletId) => {
-            expect(() => checkSecretLimit(currentCount, walletId, {})).not.toThrow();
+            expect(() => assertSecretLimit(currentCount, walletId, {})).not.toThrow();
           }
         ),
         { numRuns: 100 }
@@ -440,7 +440,7 @@ describe('Session Validation Fuzz Tests', () => {
 
     it('should reject when at limit', () => {
       const walletId = 'a'.repeat(64);
-      expect(() => checkSecretLimit(MAX_STORED_SECRETS, walletId, {})).toThrow(
+      expect(() => assertSecretLimit(MAX_STORED_SECRETS, walletId, {})).toThrow(
         `Cannot store more than ${MAX_STORED_SECRETS}`
       );
     });
@@ -450,15 +450,15 @@ describe('Session Validation Fuzz Tests', () => {
       const existingSecrets = { [walletId]: 'existing' };
 
       // Even at limit, updating existing should work
-      expect(() => checkSecretLimit(MAX_STORED_SECRETS, walletId, existingSecrets)).not.toThrow();
+      expect(() => assertSecretLimit(MAX_STORED_SECRETS, walletId, existingSecrets)).not.toThrow();
     });
 
     it('should handle edge cases', () => {
       const walletId = 'a'.repeat(64);
 
-      expect(() => checkSecretLimit(0, walletId, {})).not.toThrow();
-      expect(() => checkSecretLimit(MAX_STORED_SECRETS - 1, walletId, {})).not.toThrow();
-      expect(() => checkSecretLimit(MAX_STORED_SECRETS, walletId, {})).toThrow();
+      expect(() => assertSecretLimit(0, walletId, {})).not.toThrow();
+      expect(() => assertSecretLimit(MAX_STORED_SECRETS - 1, walletId, {})).not.toThrow();
+      expect(() => assertSecretLimit(MAX_STORED_SECRETS, walletId, {})).toThrow();
     });
   });
 

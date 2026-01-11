@@ -83,9 +83,9 @@ Self-reported security assessment based on industry checklists. Not independentl
 | ✅ | No silent signing | All signing requires popup approval |
 | ✅ | Locked state protection | Sensitive APIs blocked when locked |
 | ✅ | WYSIWYS | Full transaction details shown before sign |
-| ✅ | Rate limiting per origin | 10 requests/min per origin |
+| ✅ | Rate limiting per origin | Tiered: 5 connections, 10 transactions, 100 API calls/min |
 | ✅ | Global rate limit | 500 requests/min backstop |
-| ✅ | Queue size limits | Max 100 pending, 10 per origin |
+| ✅ | Queue size limits | Max 100 pending requests, 10 per origin |
 
 ## Transaction Security
 
@@ -113,7 +113,7 @@ Self-reported security assessment based on industry checklists. Not independentl
 |--------|------|----------------|
 | ✅ | Full message display | Transaction details shown before signing |
 | ✅ | User-initiated clipboard | Copy only on explicit user action |
-| ⚠️ | Clipboard auto-clear | Not implemented—data persists |
+| ✅ | Clipboard auto-clear | 30-second auto-clear after copy |
 | ❌ | Screenshot prevention | Not possible in browser extensions |
 | ⚪ | Custom keyboard blocking | Not applicable—browser extensions |
 | ⚪ | Jailbreak/root detection | Not applicable—desktop browser |
@@ -135,7 +135,7 @@ Self-reported security assessment based on industry checklists. Not independentl
 | ✅ | Lockfile integrity | package-lock.json with hashes |
 | ✅ | npm audit CI | Runs on every PR |
 | ✅ | Minimal dependencies | 12 runtime deps (most wallets have 50+) |
-| ⚠️ | Dependency confusion | Private packages not applicable |
+| ⚪ | Dependency confusion | Not applicable—no private packages |
 
 ---
 
@@ -156,9 +156,15 @@ Browser JavaScript cannot guarantee secure memory clearing:
 
 Browser extensions cannot prevent OS-level screenshots. Users should be aware that displayed seed phrases/private keys could be captured.
 
-### Clipboard Persistence
+### Clipboard Auto-Clear
 
-Copied addresses and transaction IDs remain in clipboard until overwritten. Users should manually clear clipboard after copying sensitive data.
+Clipboard is automatically cleared 30 seconds after copying. However, if the extension is closed before the timer fires, the data remains in clipboard until manually overwritten.
+
+### Password Policy
+
+We enforce minimum length (8 characters) but not complexity rules (uppercase, symbols, etc.). This follows [NIST 800-63B](https://pages.nist.gov/800-63-3/sp800-63b.html) guidance which found that complexity requirements often lead to predictable patterns (`Password1!`) without meaningfully improving security. Length and uniqueness matter more than character variety.
+
+A password strength meter would provide better user feedback and may be added in a future release.
 
 ---
 
@@ -184,17 +190,17 @@ Copied addresses and transaction IDs remain in clipboard until overwritten. User
 
 | Category | ✅ | ⚠️ | ❌ | ⚪ |
 |----------|-----|-----|-----|-----|
-| Cryptography | 11 | 1 | 0 | 2 |
+| Cryptography | 10 | 1 | 0 | 2 |
 | Session | 6 | 0 | 0 | 2 |
 | Password | 3 | 2 | 1 | 0 |
-| Extension | 11 | 1 | 0 | 2 |
+| Extension | 10 | 1 | 0 | 2 |
 | Provider API | 8 | 0 | 0 | 0 |
 | Transaction | 5 | 0 | 0 | 0 |
 | Input Validation | 5 | 0 | 0 | 0 |
-| UI/UX | 2 | 1 | 1 | 2 |
+| UI/UX | 3 | 0 | 1 | 2 |
 | Error Handling | 4 | 0 | 0 | 0 |
-| Supply Chain | 4 | 1 | 0 | 0 |
-| **Total** | **59** | **6** | **2** | **8** |
+| Supply Chain | 4 | 0 | 0 | 1 |
+| **Total** | **58** | **4** | **2** | **9** |
 
 **Gaps (❌):** Password strength meter, screenshot prevention (browser limitation)
 

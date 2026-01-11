@@ -1,3 +1,4 @@
+import { type ReactElement } from 'react';
 import { RadioGroup } from '@headlessui/react';
 import type { Address } from '@/utils/wallet/walletManager';
 import { formatAddress } from '@/utils/format';
@@ -8,7 +9,13 @@ interface AddressCardProps {
   onSelect: (address: Address) => void;
 }
 
-export function AddressCard({ address, selected, onSelect }: AddressCardProps) {
+/**
+ * AddressCard displays a selectable address with its name and formatted address.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the address card
+ */
+export function AddressCard({ address, selected, onSelect }: AddressCardProps): ReactElement {
   return (
     <RadioGroup.Option
       value={address}

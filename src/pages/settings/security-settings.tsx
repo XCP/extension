@@ -1,4 +1,3 @@
-"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -142,7 +141,7 @@ export default function SecuritySettings(): ReactElement {
           
           <div className="bg-white rounded-lg shadow-lg p-4 space-y-4">
             <PasswordInput
-              innerRef={currentPasswordRef}
+              ref={currentPasswordRef}
               label="Current Password"
               name="currentPassword"
               value={passwordForm.currentPassword}

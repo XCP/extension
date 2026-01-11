@@ -76,6 +76,46 @@ describe('replayPrevention', () => {
       expect(validateNonce(origin2, address1, 2)).toBe(true);
       expect(validateNonce(origin1, address2, 2)).toBe(true);
     });
+
+    it('should prevent key collision when origin or address contains colons', () => {
+      // This tests the v3-1 fix: Using JSON.stringify instead of colon delimiter
+      // Previously "a:b" + "c" would collide with "a" + "b:c"
+      const nonce1 = generateNonce('https://evil.com:8080', '1abc');
+      const nonce2 = generateNonce('https://evil.com', '8080:1abc');
+
+      // Both should be 1 since they're different combinations (not colliding)
+      expect(nonce1).toBe(1);
+      expect(nonce2).toBe(1);
+
+      // Generate more nonces for first pair
+      generateNonce('https://evil.com:8080', '1abc'); // nonce 2
+
+      // Second pair should still be at nonce 1
+      expect(validateNonce('https://evil.com', '8080:1abc', 2)).toBe(true);
+    });
+
+    it('should handle invalid nonce values gracefully', () => {
+      const origin = 'https://test.com';
+      const address = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+
+      // Generate a valid nonce first
+      generateNonce(origin, address);
+
+      // Invalid nonce types should return false (not throw)
+      expect(validateNonce(origin, address, NaN)).toBe(false);
+      expect(validateNonce(origin, address, Infinity)).toBe(false);
+      expect(validateNonce(origin, address, -1)).toBe(false);
+      expect(validateNonce(origin, address, 1.5)).toBe(false);
+    });
+
+    it('should handle non-string origin/address inputs gracefully', () => {
+      // Defense-in-depth: should not crash even with bad inputs
+      const nonce1 = generateNonce(undefined as any, 'address');
+      const nonce2 = generateNonce('origin', null as any);
+
+      expect(typeof nonce1).toBe('number');
+      expect(typeof nonce2).toBe('number');
+    });
   });
 
   describe('idempotency key generation', () => {

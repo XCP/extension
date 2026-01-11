@@ -1,4 +1,3 @@
-"use client";
 
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -64,7 +63,7 @@ export default function AddressHistory(): ReactElement {
         limit: CONSTANTS.TRANSACTIONS_PER_PAGE,
         offset,
         verbose: true,
-        show_unconfirmed: true,
+        showUnconfirmed: true,
       });
       setTransactions(data.result);
       setTotalTransactions(data.result_count);

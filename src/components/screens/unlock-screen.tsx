@@ -1,4 +1,3 @@
-"use client";
 
 import { useState, useEffect, useRef, type ReactElement } from "react";
 import { Button } from "@/components/button";
@@ -146,12 +145,10 @@ export function UnlockScreen({
       // Clear password on success (component might unmount)
       setPassword("");
     } catch (err) {
+      // Log actual error for debugging (stripped in production builds)
       console.error("Unlock error:", err);
-      setInternalError(
-        err instanceof Error 
-          ? err.message 
-          : "Invalid password. Please try again."
-      );
+      // Always use generic message to prevent leaking internal error details
+      setInternalError("Invalid password. Please try again.");
     }
   };
   
@@ -192,7 +189,7 @@ export function UnlockScreen({
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={isSubmitting}
-              innerRef={passwordInputRef}
+              ref={passwordInputRef}
               aria-label="Password"
               aria-invalid={!!error}
               aria-describedby={error ? "password-error" : undefined}

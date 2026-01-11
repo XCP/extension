@@ -238,9 +238,10 @@ describe('Content Script', () => {
 
 
 
-    it('should handle error from providerService', async () => {
-      // Mock providerService.handleRequest to throw an error
-      mockProviderService.handleRequest.mockRejectedValue(new Error('Provider error'));
+    it('should handle error from providerService with generic message', async () => {
+      // Mock providerService.handleRequest to throw an internal error
+      // Internal errors should NOT leak implementation details
+      mockProviderService.handleRequest.mockRejectedValue(new Error('Internal database error'));
 
       const event = {
         source: window,
@@ -258,13 +259,49 @@ describe('Content Script', () => {
 
       await messageListener(event);
 
+      // Should return generic error message, not internal details
       expect(mockWindow.postMessage).toHaveBeenCalledWith(
         {
           target: 'xcp-wallet-injected',
           type: 'XCP_WALLET_RESPONSE',
           id: '789',
           error: {
-            message: 'Provider error',
+            message: 'Request failed',
+            code: -32603
+          }
+        },
+        mockWindow.location.origin
+      );
+    });
+
+    it('should pass through user-facing error messages', async () => {
+      // User rejection errors should be passed through
+      mockProviderService.handleRequest.mockRejectedValue(new Error('User denied the request'));
+
+      const event = {
+        source: window,
+        origin: mockWindow.location.origin,
+        data: {
+          target: 'xcp-wallet-content',
+          type: 'XCP_WALLET_REQUEST',
+          id: '790',
+          data: {
+            method: 'xcp_requestAccounts',
+            params: []
+          }
+        }
+      };
+
+      await messageListener(event);
+
+      // User-facing errors should pass through
+      expect(mockWindow.postMessage).toHaveBeenCalledWith(
+        {
+          target: 'xcp-wallet-injected',
+          type: 'XCP_WALLET_RESPONSE',
+          id: '790',
+          error: {
+            message: 'User denied the request',
             code: -32603
           }
         },

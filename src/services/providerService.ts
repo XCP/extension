@@ -23,6 +23,8 @@ import { getUpdateService } from '@/services/updateService';
 import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
 import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
 import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from '@/utils/security/replayPrevention';
+import { openExtensionPopup } from '@/utils/popup';
+import { generateRequestId } from '@/utils/id';
 
 // In-memory storage for active requests (primary storage, fast access)
 const activeSignRequests = new Map<string, any>();
@@ -42,21 +44,21 @@ function startCleanupInterval(): void {
     for (const [id, request] of activeSignRequests.entries()) {
       if (now - request.timestamp > maxAge) {
         activeSignRequests.delete(id);
-        console.log('Cleaned up stale sign request:', id);
+        console.log('[ProviderService] Cleaned up stale sign request:', id);
       }
     }
 
     for (const [id, request] of activeSignPsbtRequests.entries()) {
       if (now - request.timestamp > maxAge) {
         activeSignPsbtRequests.delete(id);
-        console.log('Cleaned up stale sign PSBT request:', id);
+        console.log('[ProviderService] Cleaned up stale sign PSBT request:', id);
       }
     }
 
     for (const [id, request] of activeSignTransactionRequests.entries()) {
       if (now - request.timestamp > maxAge) {
         activeSignTransactionRequests.delete(id);
-        console.log('Cleaned up stale sign transaction request:', id);
+        console.log('[ProviderService] Cleaned up stale sign transaction request:', id);
       }
     }
   }, 60000);
@@ -132,7 +134,7 @@ export function createProviderService(): ProviderService {
    * Get accounts for connected origin
    */
   async function getAccounts(origin: string): Promise<string[]> {
-    console.debug('getAccounts called for origin:', origin);
+    console.debug('[ProviderService] getAccounts called for origin:', origin);
 
     const walletService = getWalletService();
     const connectionService = getConnectionService();
@@ -140,19 +142,19 @@ export function createProviderService(): ProviderService {
     // Check wallet state
     const isUnlocked = await walletService.isAnyWalletUnlocked();
     if (!isUnlocked) {
-      console.debug('Wallet not unlocked, returning empty array');
+      console.debug('[ProviderService] Wallet not unlocked, returning empty array');
       return [];
     }
 
     const activeAddress = await walletService.getActiveAddress();
     if (!activeAddress) {
-      console.debug('No active address, returning empty array');
+      console.debug('[ProviderService] No active address, returning empty array');
       return [];
     }
 
     // Check if origin is connected
     const isConnected = await connectionService.hasPermission(origin);
-    console.debug('Connection check:', { origin, isConnected });
+    console.debug('[ProviderService] Connection check:', { origin, isConnected });
 
     return isConnected ? [activeAddress.address] : [];
   }
@@ -164,7 +166,7 @@ export function createProviderService(): ProviderService {
     
     // Log request signing information if available
     if (metadata?.signature) {
-      console.debug('Request signed with metadata:', {
+      console.debug('[ProviderService] Request signed with metadata:', {
         hasSignature: !!metadata.signature,
         hasPublicKey: !!metadata.publicKey,
         timestamp: metadata.timestamp
@@ -174,14 +176,23 @@ export function createProviderService(): ProviderService {
     try {
       // Validate parameter size to prevent memory exhaustion
       const MAX_PARAM_SIZE = 1024 * 1024; // 1MB limit
-      const paramSize = JSON.stringify(params).length;
+      let paramSize: number;
+      try {
+        paramSize = JSON.stringify(params).length;
+      } catch {
+        // If params can't be serialized (circular refs), reject the request
+        await analytics.track('request_rejected', { value: '1' });
+        throw new Error('Request parameters cannot be serialized');
+      }
       if (paramSize > MAX_PARAM_SIZE) {
         await analytics.track('request_rejected', { value: '1' });
-        console.warn('Request parameters too large', { 
-          origin: new URL(origin).hostname, 
-          method, 
-          paramSize, 
-          maxSize: MAX_PARAM_SIZE 
+        let hostname = origin;
+        try { hostname = new URL(origin).hostname; } catch { /* use raw origin */ }
+        console.warn('[ProviderService] Request parameters too large', {
+          origin: hostname,
+          method,
+          paramSize,
+          maxSize: MAX_PARAM_SIZE
         });
         throw new Error('Request parameters too large (max 1MB)');
       }
@@ -218,20 +229,8 @@ export function createProviderService(): ProviderService {
           const wallets = await walletService.getWallets();
           if (!wallets || wallets.length === 0) {
             // Open popup for wallet setup
-            try {
-              await chrome.action.openPopup();
-            } catch (e) {
-              // Fallback: create a new window with the extension popup
-              const extensionUrl = chrome.runtime.getURL('popup.html');
-              await chrome.windows.create({
-                url: extensionUrl,
-                type: 'popup',
-                width: 400,
-                height: 600,
-                focused: true
-              });
-            }
-            throw new Error('WALLET_NOT_SETUP: Please complete wallet setup first in the popup window.');
+            await openExtensionPopup();
+            throw new Error('Please complete wallet setup first');
           }
 
           // Check if wallet is locked
@@ -239,7 +238,7 @@ export function createProviderService(): ProviderService {
           if (!isUnlocked) {
             // Open popup for unlock and store the pending request
             const approvalService = getApprovalService();
-            const requestId = `${origin}-unlock-${Date.now()}`;
+            const requestId = generateRequestId(`${origin}-unlock`);
 
             // Store the pending connection request
             eventEmitterService.emit('pending-unlock-connection', {
@@ -250,19 +249,7 @@ export function createProviderService(): ProviderService {
 
             // Open the regular popup - it will automatically show unlock screen
             // and then navigate to approvals after unlock
-            try {
-              await chrome.action.openPopup();
-            } catch (e) {
-              // Fallback: create a new window with the extension popup
-              const extensionUrl = chrome.runtime.getURL('popup.html');
-              await chrome.windows.create({
-                url: extensionUrl,
-                type: 'popup',
-                width: 400,
-                height: 600,
-                focused: true
-              });
-            }
+            await openExtensionPopup();
 
             // Wait for unlock and then continue with connection
             return new Promise((resolve, reject) => {
@@ -326,12 +313,12 @@ export function createProviderService(): ProviderService {
           // Get current wallet and address info
           const activeAddress = await walletService.getActiveAddress();
           if (!activeAddress) {
-            throw new Error('NO_ACTIVE_ADDRESS: No address selected. Please select an address in the wallet.');
+            throw new Error('No address selected');
           }
 
           const activeWallet = await walletService.getActiveWallet();
           if (!activeWallet) {
-            throw new Error('NO_ACTIVE_WALLET: No wallet selected. Please select a wallet.');
+            throw new Error('No wallet selected');
           }
 
           // Check if already connected
@@ -340,11 +327,15 @@ export function createProviderService(): ProviderService {
           }
           
           // CSP Security Analysis (warning mode only)
+          // Safely extract hostname for logging
+          let cspHostname = origin;
+          try { cspHostname = new URL(origin).hostname; } catch { /* use raw origin */ }
+
           try {
             const cspAnalysis = await analyzeCSP(origin);
             if (!cspAnalysis.hasCSP || cspAnalysis.warnings.length > 0) {
-              console.warn('Site has CSP security issues', {
-                origin: new URL(origin).hostname,
+              console.warn('[ProviderService] Site has CSP security issues', {
+                origin: cspHostname,
                 hasCSP: cspAnalysis.hasCSP,
                 isSecure: cspAnalysis.isSecure,
                 warningCount: cspAnalysis.warnings.length,
@@ -352,8 +343,8 @@ export function createProviderService(): ProviderService {
               });
             }
           } catch (error) {
-            console.warn('CSP analysis failed', {
-              origin: new URL(origin).hostname,
+            console.warn('[ProviderService] CSP analysis failed', {
+              origin: cspHostname,
               error: (error as Error).message
             });
           }
@@ -387,11 +378,20 @@ export function createProviderService(): ProviderService {
         // ==================== Signing Methods ====================
         
         case 'xcp_signMessage': {
-          const message = params?.[0] as string;
-          const address = params?.[1] as string;
+          const message = params?.[0];
+          const address = params?.[1];
 
+          // Validate message type and presence
           if (!message) {
             throw new Error('Message is required');
+          }
+          if (typeof message !== 'string') {
+            throw new Error('Message must be a string');
+          }
+
+          // Validate address type if provided
+          if (address !== undefined && typeof address !== 'string') {
+            throw new Error('Address must be a string');
           }
 
           // Check if connected
@@ -411,7 +411,7 @@ export function createProviderService(): ProviderService {
           }
 
           // Store the sign message request for the popup to retrieve
-          const signMessageRequestId = `sign-message-${Date.now()}`;
+          const signMessageRequestId = generateRequestId('sign-message');
           await signMessageRequestStorage.store({
             id: signMessageRequestId,
             origin,
@@ -428,19 +428,7 @@ export function createProviderService(): ProviderService {
           });
 
           // Open popup at the sign message form
-          try {
-            await chrome.action.openPopup();
-          } catch (e) {
-            // Fallback: create a new window with the sign message form
-            const extensionUrl = chrome.runtime.getURL(`popup.html#/actions/sign-message?signMessageRequestId=${signMessageRequestId}`);
-            await chrome.windows.create({
-              url: extensionUrl,
-              type: 'popup',
-              width: 400,
-              height: 600,
-              focused: true
-            });
-          }
+          await openExtensionPopup(`#/actions/sign-message?signMessageRequestId=${signMessageRequestId}`);
 
           // Track as critical operation to prevent extension updates during sign message
           const updateService = getUpdateService();
@@ -509,7 +497,7 @@ export function createProviderService(): ProviderService {
           }
 
           // Store the sign transaction request
-          const signTxRequestId = `sign-tx-${Date.now()}`;
+          const signTxRequestId = generateRequestId('sign-tx');
           const request = {
             id: signTxRequestId,
             origin,
@@ -532,19 +520,7 @@ export function createProviderService(): ProviderService {
           });
 
           // Open popup at the approve transaction page
-          try {
-            await chrome.action.openPopup();
-          } catch (e) {
-            // Fallback: create a new window with the approve transaction page
-            const extensionUrl = chrome.runtime.getURL(`popup.html#/provider/approve-transaction?requestId=${signTxRequestId}`);
-            await chrome.windows.create({
-              url: extensionUrl,
-              type: 'popup',
-              width: 400,
-              height: 600,
-              focused: true
-            });
-          }
+          await openExtensionPopup(`#/provider/approve-transaction?requestId=${signTxRequestId}`);
 
           // Track as critical operation to prevent extension updates during transaction signing
           const updateService = getUpdateService();
@@ -594,10 +570,20 @@ export function createProviderService(): ProviderService {
         }
 
         case 'xcp_signPsbt': {
-          const psbtParams = params?.[0] as { hex?: string; signInputs?: Record<string, number[]>; sighashTypes?: number[] } | undefined;
+          const psbtParams = params?.[0];
 
-          if (!psbtParams?.hex) {
+          // Validate params structure
+          if (!psbtParams || typeof psbtParams !== 'object') {
+            throw new Error('PSBT parameters must be an object with hex property');
+          }
+
+          const { hex: psbtHex, signInputs, sighashTypes } = psbtParams as { hex?: string; signInputs?: Record<string, number[]>; sighashTypes?: number[] };
+
+          if (!psbtHex) {
             throw new Error('PSBT hex is required');
+          }
+          if (typeof psbtHex !== 'string') {
+            throw new Error('PSBT hex must be a string');
           }
 
           // Check if connected
@@ -612,13 +598,13 @@ export function createProviderService(): ProviderService {
           }
 
           // Store the sign PSBT request
-          const signPsbtRequestId = `sign-psbt-${Date.now()}`;
+          const signPsbtRequestId = generateRequestId('sign-psbt');
           const request = {
             id: signPsbtRequestId,
             origin,
-            psbtHex: psbtParams.hex,
-            signInputs: psbtParams.signInputs,
-            sighashTypes: psbtParams.sighashTypes,
+            psbtHex,
+            signInputs,
+            sighashTypes,
             timestamp: Date.now()
           };
 
@@ -637,19 +623,7 @@ export function createProviderService(): ProviderService {
           });
 
           // Open popup at the approve PSBT page
-          try {
-            await chrome.action.openPopup();
-          } catch (e) {
-            // Fallback: create a new window with the approve PSBT page
-            const extensionUrl = chrome.runtime.getURL(`popup.html#/provider/approve-psbt?requestId=${signPsbtRequestId}`);
-            await chrome.windows.create({
-              url: extensionUrl,
-              type: 'popup',
-              width: 400,
-              height: 600,
-              focused: true
-            });
-          }
+          await openExtensionPopup(`#/provider/approve-psbt?requestId=${signPsbtRequestId}`);
 
           // Track as critical operation to prevent extension updates during PSBT signing
           const updateService = getUpdateService();
@@ -732,7 +706,7 @@ export function createProviderService(): ProviderService {
               xcp: xcpBalance?.quantity_normalized || 0
             };
           } catch (error) {
-            console.error('Error fetching balances:', error);
+            console.error('[ProviderService] Error fetching balances:', error);
             // Return zeros if API fails
             return {
               address: activeAddress.address,
@@ -760,9 +734,12 @@ export function createProviderService(): ProviderService {
             throw new Error('Unauthorized - not connected to wallet');
           }
 
-          const signedTx = params?.[0] as string;
+          const signedTx = params?.[0];
           if (!signedTx) {
             throw new Error('Signed transaction is required');
+          }
+          if (typeof signedTx !== 'string') {
+            throw new Error('Signed transaction must be a hex string');
           }
 
           // Check for replay attempt before broadcasting
@@ -777,7 +754,7 @@ export function createProviderService(): ProviderService {
           }
 
           // Record transaction before broadcast to prevent double-broadcast
-          const tempTxid = `pending-${Date.now()}`;
+          const tempTxid = generateRequestId('pending');
           recordTransaction(
             tempTxid,
             origin,
@@ -805,16 +782,18 @@ export function createProviderService(): ProviderService {
       }
       
     } catch (error) {
-      // Log error for debugging
-      console.error('Provider request failed:', {
-        origin: new URL(origin).hostname,
+      // Log error for debugging (safely extract hostname)
+      let hostname = origin;
+      try { hostname = new URL(origin).hostname; } catch { /* use raw origin */ }
+      console.error('[ProviderService] Provider request failed:', {
+        origin: hostname,
         method,
         error: (error as Error).message
       });
-      
+
       // Track error event (trackEvent doesn't support custom objects, just _value)
       await analytics.track('provider_error', { value: '1' });
-      
+
       throw error;
     }
   }
@@ -878,7 +857,7 @@ export function createProviderService(): ProviderService {
    * Cleanup resources and destroy the service
    */
   async function destroy(): Promise<void> {
-    console.log('Destroying ProviderService...');
+    console.log('[ProviderService] Destroying...');
     stopCleanupInterval();
     activeSignRequests.clear();
     activeSignPsbtRequests.clear();

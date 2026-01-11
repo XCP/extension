@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import { FaCheck } from '@/components/icons';
 import { RadioGroup } from '@headlessui/react';
 import { formatAddress } from '@/utils/format';
@@ -12,7 +12,13 @@ interface AddressListProps {
   walletId: string;
 }
 
-export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walletId }: AddressListProps) => {
+/**
+ * AddressList displays a selectable list of addresses with copy and menu options.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the address list
+ */
+export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walletId }: AddressListProps): ReactElement => {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   const handleCopyAddress = (address: string) => {

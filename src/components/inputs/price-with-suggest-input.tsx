@@ -1,3 +1,4 @@
+import { type ReactElement } from 'react';
 import { Field, Label, Description } from '@headlessui/react';
 import { formatAmount } from '@/utils/format';
 import { Button } from '@/components/button';
@@ -17,6 +18,12 @@ interface PriceWithSuggestInputProps {
   setIsPairFlipped?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
+/**
+ * PriceWithSuggestInput provides price entry with suggested price buttons.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the price input with suggestions
+ */
 export function PriceWithSuggestInput({
   value,
   onChange,
@@ -29,7 +36,7 @@ export function PriceWithSuggestInput({
   showPairFlip = false,
   isPairFlipped = false,
   setIsPairFlipped
-}: PriceWithSuggestInputProps) {
+}: PriceWithSuggestInputProps): ReactElement {
   const flipPairName = (pairName: string) => {
     const [baseAsset, quoteAsset] = pairName.split('/');
     return `${quoteAsset}/${baseAsset}`;

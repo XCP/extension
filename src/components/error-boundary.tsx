@@ -67,7 +67,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
 
             <p className="text-gray-600 dark:text-gray-300 mb-6">
-              {this.state.error?.message || 'An unexpected error occurred. Please try again.'}
+              An unexpected error occurred. Please try again.
             </p>
 
             <button

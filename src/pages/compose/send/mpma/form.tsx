@@ -1,4 +1,3 @@
-"use client";
 
 import { useState, useRef } from "react";
 import { ComposerForm } from "@/components/composer-form";

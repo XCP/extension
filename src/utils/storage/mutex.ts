@@ -5,8 +5,15 @@
 /**
  * Check if a timestamp has exceeded its TTL.
  * Uses >= for consistent boundary behavior.
+ *
+ * Fail-safe: Invalid inputs (NaN, negative TTL) are treated as expired
+ * to prevent items from persisting indefinitely due to corruption.
  */
 export function isExpired(timestamp: number, ttl: number): boolean {
+  // Fail safe: treat invalid inputs as expired
+  if (!Number.isFinite(timestamp) || !Number.isFinite(ttl) || ttl < 0) {
+    return true;
+  }
   return Date.now() - timestamp >= ttl;
 }
 

@@ -90,7 +90,7 @@ const INITIAL_STATE: HeaderState = {
   subheadings: { addresses: {}, assets: {}, balances: {}, ownedAssets: {} },
 };
 
-export const HeaderContext = createContext<HeaderContextType | undefined>(undefined);
+const HeaderContext = createContext<HeaderContextType | undefined>(undefined);
 
 type HeaderAction =
   | { type: "SET_MAIN_PROPS"; payload: Partial<HeaderProps> }
@@ -386,7 +386,7 @@ export function HeaderProvider({ children }: HeaderProviderProps): ReactElement 
 export function useHeader(): HeaderContextType {
   const context = use(HeaderContext);
   if (!context) {
-    throw new Error("useHeader must be used within a HeaderProvider component.");
+    throw new Error("useHeader must be used within a HeaderProvider");
   }
   return context;
 }

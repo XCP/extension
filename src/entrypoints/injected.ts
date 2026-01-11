@@ -1,4 +1,5 @@
 import { defineUnlistedScript } from '#imports';
+import { MESSAGE_TARGETS, MESSAGE_TYPES } from '@/constants/messaging';
 
 // EIP-1193 style provider for XCP Wallet
 interface XcpWalletProvider {
@@ -76,8 +77,8 @@ export default defineUnlistedScript(() => {
         return;
       }
       
-      if (event.data.target === 'xcp-wallet-injected') {
-        if (event.data.type === 'XCP_WALLET_RESPONSE') {
+      if (event.data.target === MESSAGE_TARGETS.INJECTED) {
+        if (event.data.type === MESSAGE_TYPES.RESPONSE) {
           const { id, data, error } = event.data;
           const pending = pendingRequests.get(id);
           
@@ -97,26 +98,33 @@ export default defineUnlistedScript(() => {
               if (data?.method === 'xcp_requestAccounts' || data?.method === 'xcp_accounts') {
                 if (Array.isArray(data.result) && data.result.length > 0) {
                   isConnected = true;
-                  accounts = data.result;
-                  eventEmitter.emit('accountsChanged', accounts);
+                  // ISSUE 6 FIX: Clone array to prevent mutation by external handlers
+                  accounts = [...data.result];
+                  eventEmitter.emit('accountsChanged', [...accounts]);
                 }
               }
               pending.resolve(data?.result);
             }
           }
-        } else if (event.data.type === 'XCP_WALLET_EVENT') {
+        } else if (event.data.type === MESSAGE_TYPES.EVENT) {
           // Handle provider events from wallet
           const { event: eventName, data } = event.data;
-          
+
           if (eventName === 'accountsChanged') {
-            accounts = data || [];
+            // ISSUE 6 FIX: Clone array to prevent mutation by external handlers
+            accounts = Array.isArray(data) ? [...data] : [];
             isConnected = accounts.length > 0;
+            // Emit cloned array to handlers
+            eventEmitter.emit(eventName, [...accounts]);
           } else if (eventName === 'disconnect') {
             isConnected = false;
             accounts = [];
+            eventEmitter.emit(eventName, data);
+          } else {
+            // For other events, pass data through (clone if array)
+            const emitData = Array.isArray(data) ? [...data] : data;
+            eventEmitter.emit(eventName, emitData);
           }
-          
-          eventEmitter.emit(eventName, data);
         }
       }
     } catch (error) {
@@ -142,8 +150,8 @@ export default defineUnlistedScript(() => {
         pendingRequests.set(id, { resolve, reject });
         
         window.postMessage({
-          target: 'xcp-wallet-content',
-          type: 'XCP_WALLET_REQUEST',
+          target: MESSAGE_TARGETS.CONTENT,
+          type: MESSAGE_TYPES.REQUEST,
           id,
           data: { method, params }
         }, window.location.origin);

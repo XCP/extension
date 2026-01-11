@@ -6,8 +6,8 @@ import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 // Mock WalletCard component
 vi.mock('@/components/cards/wallet-card', () => ({
-  default: ({ wallet, selected, onSelect, isOnlyWallet }: any) => (
-    <div 
+  WalletCard: ({ wallet, selected, onSelect, isOnlyWallet }: any) => (
+    <div
       data-testid={`wallet-card-${wallet.id}`}
       data-selected={selected}
       data-only={isOnlyWallet}

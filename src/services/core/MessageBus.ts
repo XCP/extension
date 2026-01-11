@@ -52,7 +52,7 @@ export interface MessageResponse<T = any> {
   error?: {
     message: string;
     code?: number;
-    stack?: string;
+    // Note: stack intentionally omitted to prevent leaking implementation details
   };
 }
 

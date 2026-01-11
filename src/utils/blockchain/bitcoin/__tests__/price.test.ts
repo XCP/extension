@@ -61,7 +61,7 @@ describe('Bitcoin Price Utilities', () => {
         json: async () => ({}),
       });
 
-      await expect(fetchFromCoinbase()).rejects.toThrow('Invalid data from Coinbase');
+      await expect(fetchFromCoinbase()).rejects.toThrow('Invalid response data');
     });
 
     it('should throw error when data field is missing', async () => {
@@ -70,7 +70,7 @@ describe('Bitcoin Price Utilities', () => {
         json: async () => ({ notData: 'value' }),
       });
 
-      await expect(fetchFromCoinbase()).rejects.toThrow('Invalid data from Coinbase');
+      await expect(fetchFromCoinbase()).rejects.toThrow('Invalid response data');
     });
 
     it('should throw error when amount field is missing', async () => {
@@ -79,7 +79,7 @@ describe('Bitcoin Price Utilities', () => {
         json: async () => ({ data: { notAmount: '30000' } }),
       });
 
-      await expect(fetchFromCoinbase()).rejects.toThrow('Invalid data from Coinbase');
+      await expect(fetchFromCoinbase()).rejects.toThrow('Invalid response data');
     });
 
     it('should throw error when amount is null', async () => {
@@ -88,7 +88,7 @@ describe('Bitcoin Price Utilities', () => {
         json: async () => ({ data: { amount: null } }),
       });
 
-      await expect(fetchFromCoinbase()).rejects.toThrow('Invalid data from Coinbase');
+      await expect(fetchFromCoinbase()).rejects.toThrow('Invalid response data');
     });
 
     it('should handle network errors', async () => {
@@ -155,7 +155,7 @@ describe('Bitcoin Price Utilities', () => {
         json: async () => ({}),
       });
 
-      await expect(fetchFromKraken()).rejects.toThrow('Invalid data from Kraken');
+      await expect(fetchFromKraken()).rejects.toThrow('Invalid response data');
     });
 
     it('should throw error when XXBTZUSD is missing', async () => {
@@ -165,7 +165,7 @@ describe('Bitcoin Price Utilities', () => {
         json: async () => mockResponse,
       });
 
-      await expect(fetchFromKraken()).rejects.toThrow('Invalid data from Kraken');
+      await expect(fetchFromKraken()).rejects.toThrow('Invalid response data');
     });
 
     it('should throw error when c field is missing', async () => {
@@ -179,7 +179,7 @@ describe('Bitcoin Price Utilities', () => {
         json: async () => mockResponse,
       });
 
-      await expect(fetchFromKraken()).rejects.toThrow('Invalid data from Kraken');
+      await expect(fetchFromKraken()).rejects.toThrow('Invalid response data');
     });
 
     it('should handle network errors', async () => {
@@ -243,7 +243,7 @@ describe('Bitcoin Price Utilities', () => {
         json: async () => ({}),
       });
 
-      await expect(fetchFromMempool()).rejects.toThrow('Invalid data from Mempool.space');
+      await expect(fetchFromMempool()).rejects.toThrow('Invalid response data');
     });
 
     it('should throw error when USD field is missing', async () => {
@@ -253,7 +253,7 @@ describe('Bitcoin Price Utilities', () => {
         json: async () => mockResponse,
       });
 
-      await expect(fetchFromMempool()).rejects.toThrow('Invalid data from Mempool.space');
+      await expect(fetchFromMempool()).rejects.toThrow('Invalid response data');
     });
 
     it('should throw error when USD is not a number', async () => {
@@ -263,7 +263,7 @@ describe('Bitcoin Price Utilities', () => {
         json: async () => mockResponse,
       });
 
-      await expect(fetchFromMempool()).rejects.toThrow('Invalid data from Mempool.space');
+      await expect(fetchFromMempool()).rejects.toThrow('Invalid response data');
     });
 
     it('should throw error when USD is null', async () => {
@@ -273,7 +273,7 @@ describe('Bitcoin Price Utilities', () => {
         json: async () => mockResponse,
       });
 
-      await expect(fetchFromMempool()).rejects.toThrow('Invalid data from Mempool.space');
+      await expect(fetchFromMempool()).rejects.toThrow('Invalid response data');
     });
 
     it('should handle network errors', async () => {

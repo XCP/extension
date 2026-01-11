@@ -10,6 +10,7 @@
  */
 
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { MAX_ADDRESSES_PER_WALLET } from '@/utils/wallet/walletManager';
 
 import {
   getAllRecords,
@@ -19,6 +20,57 @@ import {
   removeRecord,
   StoredRecord,
 } from './storage';
+
+/**
+ * Valid address format values for runtime validation.
+ * Derived from the AddressFormat const object.
+ */
+const VALID_ADDRESS_FORMATS = new Set(Object.values(AddressFormat));
+
+/**
+ * Type guard to validate wallet record shape on read.
+ * Filters out corrupted or schema-incompatible records.
+ */
+function isValidWalletRecord(value: unknown): value is EncryptedWalletRecord {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const obj = value as Record<string, unknown>;
+  return (
+    typeof obj.id === 'string' &&
+    typeof obj.name === 'string' &&
+    typeof obj.encryptedSecret === 'string' &&
+    (obj.type === 'mnemonic' || obj.type === 'privateKey') &&
+    typeof obj.addressFormat === 'string'
+  );
+}
+
+/**
+ * Validates a wallet record before storage.
+ * Throws if any field fails validation.
+ */
+function validateWalletRecord(record: EncryptedWalletRecord): void {
+  if (!record.encryptedSecret) {
+    throw new Error('Encrypted secret is required for wallet records');
+  }
+
+  if (!record.name || record.name.trim().length === 0) {
+    throw new Error('Wallet name is required and cannot be empty');
+  }
+
+  if (!VALID_ADDRESS_FORMATS.has(record.addressFormat)) {
+    throw new Error('Invalid address format');
+  }
+
+  if (record.addressCount !== undefined) {
+    if (!Number.isInteger(record.addressCount) || record.addressCount < 0) {
+      throw new Error('Address count must be a non-negative integer');
+    }
+    if (record.addressCount > MAX_ADDRESSES_PER_WALLET) {
+      throw new Error(`Address count cannot exceed ${MAX_ADDRESSES_PER_WALLET}`);
+    }
+  }
+}
 
 /**
  * Interface for encrypted wallet records stored in local storage.
@@ -35,26 +87,24 @@ export interface EncryptedWalletRecord extends StoredRecord {
 /**
  * Retrieves all encrypted wallet records.
  *
- * Since wallets are now stored in a dedicated 'local:walletRecords' key,
- * all records are wallet records (no filtering needed).
+ * Validates each record's shape to filter out corrupted or
+ * schema-incompatible data from storage.
  *
- * @returns A Promise that resolves to an array of encrypted wallet records.
+ * @returns A Promise that resolves to an array of valid encrypted wallet records.
  */
 export async function getAllEncryptedWallets(): Promise<EncryptedWalletRecord[]> {
-  return getAllRecords() as Promise<EncryptedWalletRecord[]>;
+  const records = await getAllRecords();
+  return records.filter(isValidWalletRecord);
 }
 
 /**
  * Adds an encrypted wallet record to storage.
  *
  * @param record - The encrypted wallet record to add.
- * @throws Error if encryptedSecret is missing or invalid (optional validation).
+ * @throws Error if validation fails (name, addressFormat, addressCount, encryptedSecret).
  */
 export async function addEncryptedWallet(record: EncryptedWalletRecord): Promise<void> {
-  // Optional validation
-  if (!record.encryptedSecret) {
-    throw new Error('Encrypted secret is required for wallet records');
-  }
+  validateWalletRecord(record);
   await addRecord(record);
 }
 
@@ -62,12 +112,10 @@ export async function addEncryptedWallet(record: EncryptedWalletRecord): Promise
  * Updates an existing encrypted wallet record.
  *
  * @param record - The wallet record with updated information.
- * @throws Error if encryptedSecret is missing or invalid.
+ * @throws Error if validation fails (name, addressFormat, addressCount, encryptedSecret).
  */
 export async function updateEncryptedWallet(record: EncryptedWalletRecord): Promise<void> {
-  if (!record.encryptedSecret) {
-    throw new Error('Encrypted secret is required for wallet records');
-  }
+  validateWalletRecord(record);
   await updateRecord(record);
 }
 
@@ -76,13 +124,11 @@ export async function updateEncryptedWallet(record: EncryptedWalletRecord): Prom
  * More efficient than calling updateEncryptedWallet() multiple times.
  *
  * @param records - Array of wallet records to update.
- * @throws Error if any record is missing encryptedSecret.
+ * @throws Error if any record fails validation.
  */
 export async function updateEncryptedWallets(records: EncryptedWalletRecord[]): Promise<void> {
   for (const record of records) {
-    if (!record.encryptedSecret) {
-      throw new Error(`Encrypted secret is required for wallet record: ${record.id}`);
-    }
+    validateWalletRecord(record);
   }
   await updateRecords(records);
 }

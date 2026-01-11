@@ -33,6 +33,26 @@ if (!hashes.hmacSha256) {
 const BIP322_TAG = 'BIP0322-signed-message';
 
 /**
+ * Safely extract script from payment object with explicit error
+ */
+function requireScript(payment: { script?: Uint8Array }, type: string): Uint8Array {
+  if (!payment.script) {
+    throw new Error(`Failed to derive ${type} script from public key`);
+  }
+  return payment.script;
+}
+
+/**
+ * Safely extract address from payment object with explicit error
+ */
+function requireAddress(payment: { address?: string }, type: string): string {
+  if (!payment.address) {
+    throw new Error(`Failed to derive ${type} address from public key`);
+  }
+  return payment.address;
+}
+
+/**
  * Helper functions for serialization
  */
 function writeUint32LE(n: number): Uint8Array {
@@ -335,10 +355,13 @@ export async function signBIP322P2PKH(
   privateKey: Uint8Array,
   compressed: boolean = true
 ): Promise<string> {
+  if (privateKey.length !== 32) {
+    throw new Error('Private key must be 32 bytes');
+  }
   const messageHash = bip322MessageHash(message);
   const publicKey = secp256k1.getPublicKey(privateKey, compressed);
   const p2pkh = btc.p2pkh(publicKey);
-  const scriptPubKey = p2pkh.script!;
+  const scriptPubKey = requireScript(p2pkh, 'P2PKH');
 
   // Manually create and serialize to_spend transaction
   const toSpendBytes = serializeToSpend(messageHash, scriptPubKey);
@@ -445,17 +468,20 @@ export async function signBIP322P2WPKH(
   message: string,
   privateKey: Uint8Array
 ): Promise<string> {
+  if (privateKey.length !== 32) {
+    throw new Error('Private key must be 32 bytes');
+  }
   const messageHash = bip322MessageHash(message);
   const publicKey = secp256k1.getPublicKey(privateKey, true);
   const p2wpkh = btc.p2wpkh(publicKey);
-  const scriptPubKey = p2wpkh.script!;
+  const scriptPubKey = requireScript(p2wpkh, 'P2WPKH');
 
   // Create to_spend transaction
   const toSpendBytes = serializeToSpend(messageHash, scriptPubKey);
   const toSpendTxId = hex.encode(sha256(sha256(toSpendBytes)));
 
   // Calculate witness v0 sighash - need to use P2PKH-style scriptCode for BIP-143
-  const pubkeyHash = btc.p2wpkh(publicKey).hash;
+  const pubkeyHash = p2wpkh.hash;
   const scriptCode = btc.Script.encode(['DUP', 'HASH160', pubkeyHash, 'EQUALVERIFY', 'CHECKSIG']);
 
   // Debug removed - verification working
@@ -486,11 +512,14 @@ export async function signBIP322P2SH_P2WPKH(
   message: string,
   privateKey: Uint8Array
 ): Promise<string> {
+  if (privateKey.length !== 32) {
+    throw new Error('Private key must be 32 bytes');
+  }
   const messageHash = bip322MessageHash(message);
   const publicKey = secp256k1.getPublicKey(privateKey, true);
   const p2wpkh = btc.p2wpkh(publicKey);
   const p2sh = btc.p2sh(p2wpkh);
-  const scriptPubKey = p2sh.script!;
+  const scriptPubKey = requireScript(p2sh, 'P2SH-P2WPKH');
 
   // Create to_spend transaction
   const toSpendBytes = serializeToSpend(messageHash, scriptPubKey);
@@ -534,6 +563,9 @@ export async function signBIP322P2TR(
 
   // Get the untweaked public key (x-only, 32 bytes)
   const publicKey = secp256k1.getPublicKey(privateKey, true);
+  if (publicKey.length < 33) {
+    throw new Error('Invalid public key: must be at least 33 bytes for P2TR');
+  }
   const xOnlyPubKey = publicKey.slice(1, 33);
 
   // Sign directly with Schnorr
@@ -653,18 +685,18 @@ export async function verifyBIP322Signature(
 
     if (addressType === 'P2PKH') {
       const p2pkh = btc.p2pkh(pubkey);
-      derivedAddress = p2pkh.address!;
-      scriptPubKey = p2pkh.script!;
+      derivedAddress = requireAddress(p2pkh, 'P2PKH');
+      scriptPubKey = requireScript(p2pkh, 'P2PKH');
     } else if (addressType === 'P2WPKH') {
       const p2wpkh = btc.p2wpkh(pubkey);
-      derivedAddress = p2wpkh.address!;
-      scriptPubKey = p2wpkh.script!;
+      derivedAddress = requireAddress(p2wpkh, 'P2WPKH');
+      scriptPubKey = requireScript(p2wpkh, 'P2WPKH');
     } else if (addressType === 'P2SH') {
       // Assume P2SH-P2WPKH
       const p2wpkh = btc.p2wpkh(pubkey);
       const p2sh = btc.p2sh(p2wpkh);
-      derivedAddress = p2sh.address!;
-      scriptPubKey = p2sh.script!;
+      derivedAddress = requireAddress(p2sh, 'P2SH-P2WPKH');
+      scriptPubKey = requireScript(p2sh, 'P2SH-P2WPKH');
     } else {
       return false;
     }

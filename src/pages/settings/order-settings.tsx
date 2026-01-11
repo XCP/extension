@@ -1,4 +1,3 @@
-"use client";
 
 import { useState, useEffect } from 'react';
 import { useSettings } from '@/contexts/settings-context';

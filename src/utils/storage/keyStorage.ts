@@ -54,8 +54,8 @@ export async function setSettingsSalt(saltBase64: string): Promise<void> {
     try {
       await settingsSaltItem.setValue(saltBase64);
     } catch (err) {
-      console.error('Failed to set settings salt:', err);
-      throw new Error('Failed to store settings salt');
+      console.error('Failed to save settings salt:', err);
+      throw new Error('Failed to save settings salt');
     }
   });
 }

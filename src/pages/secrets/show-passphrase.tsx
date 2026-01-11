@@ -1,4 +1,3 @@
-"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
@@ -90,7 +89,7 @@ export default function ShowPassphrase(): ReactElement {
               name="password"
               placeholder="Enter your password"
               disabled={pending}
-              innerRef={passwordInputRef}
+              ref={passwordInputRef}
             />
             <Button type="submit" disabled={pending} fullWidth color="red" aria-label="Show Recovery Phrase">
               {pending ? "Verifying..." : "Show Recovery Phrase"}

@@ -26,9 +26,25 @@ export function bufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
 /**
  * Converts a Base64-encoded string to a Uint8Array.
  * Returns Uint8Array<ArrayBuffer> for Web Crypto API compatibility.
+ *
+ * @param base64 - Base64-encoded string to decode
+ * @throws Error if input is not a valid non-empty base64 string
  */
 export function base64ToBuffer(base64: string): Uint8Array<ArrayBuffer> {
-  const binary = atob(base64);
+  if (typeof base64 !== 'string') {
+    throw new Error('Invalid base64 input: expected string');
+  }
+  if (base64.length === 0) {
+    throw new Error('Invalid base64 input: string cannot be empty');
+  }
+
+  let binary: string;
+  try {
+    binary = atob(base64);
+  } catch {
+    throw new Error('Invalid base64 input: malformed encoding');
+  }
+
   const buffer = new ArrayBuffer(binary.length);
   const bytes = new Uint8Array(buffer);
   for (let i = 0; i < binary.length; i++) {
@@ -37,11 +53,22 @@ export function base64ToBuffer(base64: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
+// Maximum bytes that can be generated (64KB is more than enough for any crypto use case)
+const MAX_RANDOM_BYTES = 65536;
+
 /**
  * Generates cryptographically random bytes.
  * Returns Uint8Array<ArrayBuffer> for Web Crypto API compatibility.
+ *
+ * @param length - Number of bytes to generate (must be 1 to 65536)
+ * @throws Error if length is invalid
  */
 export function generateRandomBytes(length: number): Uint8Array<ArrayBuffer> {
+  if (!Number.isInteger(length) || length < 1 || length > MAX_RANDOM_BYTES) {
+    throw new Error(
+      `Invalid length for random bytes: must be integer between 1 and ${MAX_RANDOM_BYTES}`
+    );
+  }
   const buffer = new ArrayBuffer(length);
   const bytes = new Uint8Array(buffer);
   crypto.getRandomValues(bytes);

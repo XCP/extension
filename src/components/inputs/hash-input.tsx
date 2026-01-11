@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactElement } from "react";
 import { Field, Label, Textarea, Description } from "@headlessui/react";
 import { FaCopy, FaCheck } from "@/components/icons";
 import { Button } from "@/components/button";
@@ -34,6 +34,12 @@ const HASH_DESCRIPTIONS = {
   generic: "Enter a 64-character hexadecimal hash",
 };
 
+/**
+ * HashInput provides input for transaction hashes with validation and copy functionality.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the hash input field
+ */
 export function HashInput({
   value,
   onChange,
@@ -49,7 +55,7 @@ export function HashInput({
   showCopyButton = true,
   className = "",
   rows = 2,
-}: HashInputProps) {
+}: HashInputProps): ReactElement {
   const [localValue, setLocalValue] = useState(value);
   const [isValid, setIsValid] = useState(true);
   const [error, setError] = useState<string | null>(null);

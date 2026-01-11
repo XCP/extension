@@ -1,4 +1,3 @@
-"use client";
 
 import { useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
@@ -105,7 +104,7 @@ function RemoveWallet() {
             name="password"
             placeholder="Confirm your password"
             disabled={pending}
-            innerRef={passwordInputRef}
+            ref={passwordInputRef}
           />
           <Button type="submit" disabled={pending} fullWidth color="red" aria-label={`Remove ${walletName || "wallet"}`}>
             {pending ? "Removing..." : `Remove ${walletName || "Wallet"}`}

@@ -1,5 +1,31 @@
 import { apiClient } from '@/utils/apiClient';
 import { getSettings } from '@/utils/storage/settingsStorage';
+import { CounterpartyApiError } from '@/utils/blockchain/errors';
+
+/**
+ * Type guard to check if an error has a response with data
+ */
+function isApiErrorWithResponse(error: unknown): error is {
+  response?: { data?: { error?: string } };
+  code?: string;
+  message?: string;
+} {
+  return typeof error === 'object' && error !== null;
+}
+
+/**
+ * Convert a params object to a string record for URLSearchParams.
+ * All values are explicitly converted to strings.
+ */
+function toStringParams(obj: Record<string, unknown>): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined && value !== null) {
+      result[key] = String(value);
+    }
+  }
+  return result;
+}
 
 export interface SignedTxEstimatedSize {
   vsize: number;
@@ -209,41 +235,41 @@ async function getApiBase() {
 }
 
 // Helper function for endpoints that need array parameters
-async function composeTransactionWithArrays<T>(
+async function composeTransactionWithArrays<T extends Record<string, unknown>>(
   endpoint: string,
   paramsObj: T,
-  arrayParams: { [key: string]: any[] | undefined },
+  arrayParams: { [key: string]: (string | boolean | undefined)[] | undefined },
   sourceAddress: string,
   sat_per_vbyte: number,
   encoding?: string
 ): Promise<ApiResponse> {
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
-  
+
   // Get user's unconfirmed transaction preference
   const settings = await getSettings();
-  
-  const params = new URLSearchParams({
-    ...paramsObj as any,
+
+  const params = new URLSearchParams(toStringParams({
+    ...paramsObj,
     sat_per_vbyte: sat_per_vbyte.toString(),
     exclude_utxos_with_balances: 'true',
     allow_unconfirmed_inputs: settings.allowUnconfirmedTxs.toString(),
     disable_utxo_locks: 'true',
     verbose: 'true',
     ...(encoding && { encoding }),
-  });
-  
+  }));
+
   // Build URL with array notation for array params
   let url = `${apiUrl}?${params.toString()}`;
-  
+
   for (const [key, values] of Object.entries(arrayParams)) {
     if (values && Array.isArray(values)) {
       for (const value of values) {
-        url += `&${key}[]=${encodeURIComponent(value || '')}`;
+        url += `&${key}[]=${encodeURIComponent(String(value ?? ''))}`;
       }
     }
   }
-  
+
   try {
     // Use longApiClient for transaction composition (60 second timeout)
     const response = await apiClient.get<ApiResponse | { error: string }>(url, {
@@ -252,23 +278,37 @@ async function composeTransactionWithArrays<T>(
 
     // Check if the API returned an error response
     if ('error' in response.data) {
-      throw new Error(response.data.error);
+      throw new CounterpartyApiError(response.data.error, endpoint, {});
     }
 
     return response.data as ApiResponse;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    if (error instanceof CounterpartyApiError) throw error;
+
     // Handle timeout errors specifically
-    if ((error as any).code === 'TIMEOUT') {
-      throw new Error('Transaction composition timed out. Please try again.');
+    if (isApiErrorWithResponse(error)) {
+      if (error.code === 'TIMEOUT') {
+        throw new CounterpartyApiError(
+          'Transaction composition timed out',
+          endpoint,
+          { cause: error instanceof Error ? error : undefined }
+        );
+      }
+      if (error.response?.data?.error) {
+        throw new CounterpartyApiError(error.response.data.error, endpoint, {
+          cause: error instanceof Error ? error : undefined,
+        });
+      }
     }
-    if (error.response?.data?.error) {
-      throw new Error(error.response.data.error);
-    }
-    throw error;
+
+    const message = error instanceof Error ? error.message : 'Transaction composition failed';
+    throw new CounterpartyApiError(message, endpoint, {
+      cause: error instanceof Error ? error : undefined,
+    });
   }
 }
 
-export async function composeTransaction<T>(
+export async function composeTransaction<T extends Record<string, unknown>>(
   endpoint: string,
   paramsObj: T,
   sourceAddress: string,
@@ -281,15 +321,15 @@ export async function composeTransaction<T>(
   // Get user's unconfirmed transaction preference
   const settings = await getSettings();
 
-  const params = new URLSearchParams({
-    ...paramsObj as any,
+  const params = new URLSearchParams(toStringParams({
+    ...paramsObj,
     sat_per_vbyte: sat_per_vbyte.toString(),
     exclude_utxos_with_balances: 'true',
     allow_unconfirmed_inputs: settings.allowUnconfirmedTxs.toString(),
     disable_utxo_locks: 'true',
     verbose: 'true',
     ...(encoding && { encoding }),
-  });
+  }));
 
   const url = `${apiUrl}?${params.toString()}`;
 
@@ -301,24 +341,38 @@ export async function composeTransaction<T>(
 
     // Check if the API returned an error response
     if ('error' in response.data) {
-      throw new Error(response.data.error);
+      throw new CounterpartyApiError(response.data.error, endpoint, {});
     }
 
     return response.data as ApiResponse;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    if (error instanceof CounterpartyApiError) throw error;
+
     // Handle timeout errors specifically
-    if (error.code === 'TIMEOUT') {
-      throw new Error('Transaction composition timed out. Please try again.');
+    if (isApiErrorWithResponse(error)) {
+      if (error.code === 'TIMEOUT') {
+        throw new CounterpartyApiError(
+          'Transaction composition timed out',
+          endpoint,
+          { cause: error instanceof Error ? error : undefined }
+        );
+      }
+      if (error.response?.data?.error) {
+        throw new CounterpartyApiError(error.response.data.error, endpoint, {
+          cause: error instanceof Error ? error : undefined,
+        });
+      }
     }
-    if (error.response?.data?.error) {
-      throw new Error(error.response.data.error);
-    }
-    throw error;
+
+    const message = error instanceof Error ? error.message : 'Transaction composition failed';
+    throw new CounterpartyApiError(message, endpoint, {
+      cause: error instanceof Error ? error : undefined,
+    });
   }
 }
 
 // New function for UTXO-based compose transactions (detach, move)
-export async function composeUtxoTransaction<T>(
+export async function composeUtxoTransaction<T extends Record<string, unknown>>(
   endpoint: string,
   paramsObj: T,
   sourceUtxo: string,
@@ -331,15 +385,15 @@ export async function composeUtxoTransaction<T>(
   // Get user's unconfirmed transaction preference
   const settings = await getSettings();
 
-  const params = new URLSearchParams({
-    ...paramsObj as any,
+  const params = new URLSearchParams(toStringParams({
+    ...paramsObj,
     sat_per_vbyte: sat_per_vbyte.toString(),
     exclude_utxos_with_balances: 'true',
     allow_unconfirmed_inputs: settings.allowUnconfirmedTxs.toString(),
     disable_utxo_locks: 'true',
     verbose: 'true',
     ...(encoding && { encoding }),
-  });
+  }));
 
   const url = `${apiUrl}?${params.toString()}`;
 
@@ -351,19 +405,33 @@ export async function composeUtxoTransaction<T>(
 
     // Check if the API returned an error response
     if ('error' in response.data) {
-      throw new Error(response.data.error);
+      throw new CounterpartyApiError(response.data.error, endpoint, {});
     }
 
     return response.data as ApiResponse;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    if (error instanceof CounterpartyApiError) throw error;
+
     // Handle timeout errors specifically
-    if (error.code === 'TIMEOUT') {
-      throw new Error('Transaction composition timed out. Please try again.');
+    if (isApiErrorWithResponse(error)) {
+      if (error.code === 'TIMEOUT') {
+        throw new CounterpartyApiError(
+          'Transaction composition timed out',
+          endpoint,
+          { cause: error instanceof Error ? error : undefined }
+        );
+      }
+      if (error.response?.data?.error) {
+        throw new CounterpartyApiError(error.response.data.error, endpoint, {
+          cause: error instanceof Error ? error : undefined,
+        });
+      }
     }
-    if (error.response?.data?.error) {
-      throw new Error(error.response.data.error);
-    }
-    throw error;
+
+    const message = error instanceof Error ? error.message : 'Transaction composition failed';
+    throw new CounterpartyApiError(message, endpoint, {
+      cause: error instanceof Error ? error : undefined,
+    });
   }
 }
 

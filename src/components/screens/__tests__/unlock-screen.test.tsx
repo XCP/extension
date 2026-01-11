@@ -151,20 +151,23 @@ describe('UnlockScreen', () => {
       });
     });
 
-    it('should display error when onUnlock throws', async () => {
+    it('should display generic error when onUnlock throws', async () => {
       const user = userEvent.setup();
-      mockOnUnlock.mockRejectedValue(new Error('Invalid credentials'));
-      
+      // Even when the error has a specific message, we show a generic one
+      // to prevent leaking internal error details
+      mockOnUnlock.mockRejectedValue(new Error('Internal: database connection failed'));
+
       render(<UnlockScreen onUnlock={mockOnUnlock} />);
-      
+
       const passwordInput = screen.getByPlaceholderText('Enter your password');
       await user.type(passwordInput, 'wrongpassword');
-      
+
       const submitButton = screen.getByRole('button', { name: 'Unlock' });
       await user.click(submitButton);
-      
+
+      // Should show generic message, not the internal error
       await waitFor(() => {
-        expect(screen.getByText('Invalid credentials')).toBeInTheDocument();
+        expect(screen.getByText('Invalid password. Please try again.')).toBeInTheDocument();
       });
     });
 

@@ -1,23 +1,58 @@
-"use client";
-
-import { useMemo } from "react";
-import { isApiError } from "@/utils/apiClient";
+/**
+ * @module composer-context
+ *
+ * Transaction composition and broadcast workflow management.
+ *
+ * The Composer provides a three-step transaction flow:
+ * 1. **Form** - User enters transaction parameters
+ * 2. **Review** - Shows composed transaction for confirmation
+ * 3. **Success** - Displays broadcast result with txid
+ *
+ * ## Security Features
+ *
+ * - **Local verification**: Composed transactions are verified locally before
+ *   showing the review screen to protect against compromised APIs
+ * - **Replay prevention**: Transactions are checked against recent broadcasts
+ *   to prevent double-spend attempts
+ * - **Staleness detection**: Transactions older than 5 minutes require
+ *   recomposition (UTXOs may have been spent)
+ *
+ * ## State Management
+ *
+ * State automatically resets when:
+ * - Active address changes
+ * - Active wallet changes
+ * - Wallet is locked/unlocked
+ *
+ * @example
+ * ```tsx
+ * <ComposerProvider
+ *   composeType="send"
+ *   composeApi={composeSend}
+ *   initialTitle="Send Assets"
+ * >
+ *   <SendForm />
+ * </ComposerProvider>
+ * ```
+ */
 import {
   createContext,
   use,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactElement,
   type ReactNode,
 } from "react";
 import { useNavigate } from "react-router-dom";
+import { isApiError } from "@/utils/apiClient";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { getComposeType, normalizeFormData } from "@/utils/blockchain/counterparty/normalize";
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
-import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from "@/utils/security/replayPrevention";
+import { checkReplayAttempt, recordTransaction } from "@/utils/security/replayPrevention";
 import { verifyTransaction, extractOpReturnData } from "@/utils/blockchain/counterparty/unpack/verify";
 
 /**
@@ -27,66 +62,93 @@ import { verifyTransaction, extractOpReturnData } from "@/utils/blockchain/count
 const STALE_TRANSACTION_MS = 5 * 60 * 1000;
 
 /**
- * Composer state shape
+ * Internal state for the composer workflow.
+ * @template T - Type of the form data (varies by transaction type)
  */
 interface ComposerState<T> {
+  /** Current step in the workflow */
   step: "form" | "review" | "success";
+  /** User's form input (preserved for back navigation) */
   formData: T | null;
+  /** API response from compose endpoint */
   apiResponse: ApiResponse | null;
+  /** Error message to display */
   error: string | null;
+  /** True while calling compose API */
   isComposing: boolean;
+  /** True while signing/broadcasting */
   isSigning: boolean;
+  /** Whether auth modal is visible */
   showAuthModal: boolean;
   /** Timestamp when transaction was composed (for staleness detection) */
   composedAt: number | null;
 }
 
 /**
- * Context type for composer functionality
+ * Public API for transaction composition workflow.
+ * @template T - Type of the form data
  */
 interface ComposerContextType<T> {
-  // State
+  // ─── State ─────────────────────────────────────────────────────────────────
+  /** Current composer state */
   state: ComposerState<T>;
-  
-  // Actions
+
+  // ─── Workflow Actions ──────────────────────────────────────────────────────
+  /** Submit form data to compose a transaction */
   composeTransaction: (formData: FormData) => Promise<void>;
+  /** Sign and broadcast the composed transaction */
   signAndBroadcast: () => Promise<void>;
+  /** Navigate back one step (review→form, success→home) */
   goBack: () => void;
+  /** Reset to initial form state */
   reset: () => void;
+  /** Clear current error message */
   clearError: () => void;
+  /** Show/hide the authentication modal */
   setShowAuthModal: (show: boolean) => void;
-  
-  // Help text management
+
+  // ─── UI State ──────────────────────────────────────────────────────────────
+  /** Whether help text is visible */
   showHelpText: boolean;
+  /** Toggle help text visibility */
   toggleHelpText: () => void;
-  
-  // Exposed wallet/settings
+
+  // ─── Wallet/Settings Access ────────────────────────────────────────────────
+  /** Currently active address */
   activeAddress: ReturnType<typeof useWallet>["activeAddress"];
+  /** Currently active wallet */
   activeWallet: ReturnType<typeof useWallet>["activeWallet"];
+  /** Current settings */
   settings: ReturnType<typeof useSettings>["settings"];
-  
-  // Special handler for auth modal
+
+  // ─── Auth Modal ────────────────────────────────────────────────────────────
+  /** Unlock wallet and complete signing (called from auth modal) */
   handleUnlockAndSign: (password: string) => Promise<void>;
 }
 
 /**
- * Props for ComposerProvider
+ * Props for ComposerProvider component.
+ * @template T - Type of the form data
  */
 interface ComposerProviderProps<T> {
+  /** Child components (form, review screen, etc.) */
   children: ReactNode;
-  // Compose configuration
+  /** Transaction type identifier (e.g., "send", "order", "issuance") */
   composeType: string;
+  /** API function to compose the transaction */
   composeApi: (data: any) => Promise<ApiResponse>;
-  // UI configuration
+  /** Title shown in header during form step */
   initialTitle: string;
 }
 
-/**
- * Normalizes form data by converting user-friendly values to API values
- */
-
 const ComposerContext = createContext<ComposerContextType<any> | undefined>(undefined);
 
+/**
+ * Hook to access composer context.
+ * @template T - Type of the form data
+ * @returns Composer context value
+ * @throws {Error} If used outside ComposerProvider
+ */
 export function useComposer<T>(): ComposerContextType<T> {
   const context = use(ComposerContext);
   if (!context) {
@@ -95,6 +157,11 @@ export function useComposer<T>(): ComposerContextType<T> {
   return context as ComposerContextType<T>;
 }
 
+/**
+ * Provides transaction composition workflow to child components.
+ * Handles the form → review → success flow with automatic state management.
+ * @template T - Type of the form data
+ */
 export function ComposerProvider<T>({
   children,
   composeType,
@@ -194,9 +261,6 @@ export function ComposerProvider<T>({
     // Set isComposing to show local loading state
     setState(prev => ({ ...prev, isComposing: true, error: null }));
 
-    // Execute async operation without awaiting to prevent unmount
-    await (async () => {
-    
     try {
       // Convert FormData to object
       const rawData = Object.fromEntries(formData);
@@ -260,23 +324,22 @@ export function ComposerProvider<T>({
         isComposing: false,
         composedAt: Date.now(),
       }));
-    } catch (err) {
-      console.error("Compose error:", err);
+    } catch (error) {
+      console.error("Compose error:", error);
       let errorMessage = "An error occurred while composing the transaction.";
-      if (isApiError(err) && err.response?.data && typeof err.response.data === 'object' && 'error' in err.response.data) {
-        errorMessage = (err.response.data as { error: string }).error;
-      } else if (err instanceof Error) {
-        errorMessage = err.message;
+      if (isApiError(error) && error.response?.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
+        errorMessage = (error.response.data as { error: string }).error;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
       }
-      
+
       setState(prev => ({
         ...prev,
         error: errorMessage,
         isComposing: false,
       }));
     }
-    })(); // Execute the async IIFE
-  }, [activeAddress, composeApi, state.isComposing]);
+  }, [activeAddress, composeApi, composeType, state.isComposing]);
   
   // Core sign and broadcast logic - extracted to avoid duplication
   const performSignAndBroadcast = useCallback(async () => {
@@ -301,7 +364,8 @@ export function ComposerProvider<T>({
     const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
 
     // Record transaction before broadcast to prevent double-broadcast
-    const placeholderTxid = `pending-${Date.now()}`;
+    // Use timestamp + random suffix to avoid any collision risk
+    const placeholderTxid = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     recordTransaction(
       placeholderTxid,
       window.location.origin,
@@ -312,9 +376,16 @@ export function ComposerProvider<T>({
 
     const broadcastResponse = await broadcastTransaction(signedTxHex);
 
-    // Mark as successfully broadcasted
+    // Record the real txid as broadcasted (the placeholder stays as 'pending'
+    // but will be cleaned up automatically; replay prevention matches on params)
     if (broadcastResponse.txid) {
-      markTransactionBroadcasted(broadcastResponse.txid);
+      recordTransaction(
+        broadcastResponse.txid,
+        window.location.origin,
+        'broadcast_transaction',
+        [rawTxHex],
+        { status: 'broadcasted' }
+      );
     }
 
     // Return the updated apiResponse with broadcast info
@@ -363,14 +434,14 @@ export function ComposerProvider<T>({
         error: null,
         isSigning: false,
       }));
-    } catch (err) {
-      console.error("Sign/broadcast error:", err);
+    } catch (error) {
+      console.error("Sign/broadcast error:", error);
       let errorMessage = "Failed to sign and broadcast transaction";
-      if (err instanceof Error) {
-        errorMessage = err.message;
+      if (error instanceof Error) {
+        errorMessage = error.message;
 
         // Special handling for wallet lock
-        if (err.message.includes("Wallet is locked")) {
+        if (error.message.includes("Wallet is locked")) {
           setState(prev => ({ ...prev, showAuthModal: true, isSigning: false }));
           return;
         }
@@ -402,10 +473,10 @@ export function ComposerProvider<T>({
         error: null,
         isSigning: false,
       }));
-    } catch (err) {
-      console.error("Authorization error:", err);
+    } catch (error) {
+      console.error("Authorization error:", error);
       setState(prev => ({ ...prev, isSigning: false }));
-      throw err; // Let the modal handle the error display
+      throw error; // Let the modal handle the error display
     }
   }, [activeWallet, activeAddress, state.apiResponse, unlockWallet, performSignAndBroadcast]);
 

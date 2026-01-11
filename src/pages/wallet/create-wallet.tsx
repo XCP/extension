@@ -1,4 +1,3 @@
-"use client";
 
 import { useEffect, useState, useActionState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -171,7 +170,7 @@ function CreateWallet() {
           {isConfirmed && (
             <>
               <PasswordInput
-                innerRef={passwordInputRef}
+                ref={passwordInputRef}
                 name="password"
                 placeholder={
                   walletExists ? "Confirm your password" : "Create a password"

@@ -1,18 +1,23 @@
-/**
- * Reusable loading overlay component
- * Can be used locally in any component without global state
- */
+import { type ReactElement } from 'react';
+
 interface LoadingOverlayProps {
   isLoading: boolean;
   message?: string;
   fullScreen?: boolean;
 }
 
+/**
+ * LoadingOverlay displays a semi-transparent overlay with a loading spinner.
+ * Can be used locally in any component without global state.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the loading overlay, or null if not loading
+ */
 export function LoadingOverlay({
   isLoading,
   message = "Loading...",
   fullScreen = true
-}: LoadingOverlayProps) {
+}: LoadingOverlayProps): ReactElement | null {
   if (!isLoading) return null;
 
   const positionClass = fullScreen

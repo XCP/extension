@@ -41,10 +41,11 @@ import {
 
 export abstract class BaseService {
   protected readonly serviceName: string;
-  private keepAliveAlarmName: string;
-  private persistAlarmName: string;
+  private readonly keepAliveAlarmName: string;
+  private readonly persistAlarmName: string;
   private initialized = false;
   private initializationPromise: Promise<void> | null = null;
+  private destroyPromise: Promise<void> | null = null;
   protected serviceStartTime: number = 0;
 
   // Static: single shared listener with O(1) dispatch via Map
@@ -62,7 +63,14 @@ export abstract class BaseService {
     this.listenerRegistered = true;
   }
 
+  /**
+   * @param serviceName Unique identifier for this service (must be non-empty)
+   * @throws Error if serviceName is empty or whitespace-only
+   */
   constructor(serviceName: string) {
+    if (!serviceName || !serviceName.trim()) {
+      throw new Error('Service name must be non-empty');
+    }
     this.serviceName = serviceName;
     this.keepAliveAlarmName = `${serviceName}-keepalive`;
     this.persistAlarmName = `${serviceName}-persist`;
@@ -78,6 +86,11 @@ export abstract class BaseService {
     // Already initialized
     if (this.initialized) {
       return;
+    }
+
+    // Wait for destroy to complete if in progress
+    if (this.destroyPromise) {
+      await this.destroyPromise;
     }
 
     // Initialization already in progress - await existing promise
@@ -125,11 +138,11 @@ export abstract class BaseService {
       await this.onInitialize();
 
       this.initialized = true;
-      console.log(`Service ${this.serviceName} initialized successfully`);
+      console.log(`[${this.serviceName}] Initialized successfully`);
     } catch (error) {
       // Clear promise so initialization can be retried
       this.initializationPromise = null;
-      console.error(`Failed to initialize service ${this.serviceName}:`, error);
+      console.error(`[${this.serviceName}] Failed to initialize:`, error);
       throw error;
     }
   }
@@ -141,10 +154,31 @@ export abstract class BaseService {
    * - Performs service-specific cleanup
    */
   async destroy(): Promise<void> {
+    // Wait for initialization to complete if in progress
+    if (this.initializationPromise) {
+      try {
+        await this.initializationPromise;
+      } catch {
+        // Initialization failed, nothing to destroy
+        return;
+      }
+    }
+
     if (!this.initialized) {
       return;
     }
 
+    // Destroy already in progress - await existing promise
+    if (this.destroyPromise) {
+      return this.destroyPromise;
+    }
+
+    // Start destruction and store promise to prevent concurrent calls
+    this.destroyPromise = this.doDestroy();
+    return this.destroyPromise;
+  }
+
+  private async doDestroy(): Promise<void> {
     try {
       // Save current state before destruction
       await this.saveState();
@@ -163,9 +197,14 @@ export abstract class BaseService {
       await this.onDestroy();
 
       this.initialized = false;
-      console.log(`Service ${this.serviceName} destroyed successfully`);
+      // Clear promises to allow re-initialization
+      this.initializationPromise = null;
+      this.destroyPromise = null;
+      console.log(`[${this.serviceName}] Destroyed successfully`);
     } catch (error) {
-      console.error(`Failed to destroy service ${this.serviceName}:`, error);
+      // Clear destroy promise so destruction can be retried
+      this.destroyPromise = null;
+      console.error(`[${this.serviceName}] Failed to destroy:`, error);
       throw error;
     }
   }
@@ -201,7 +240,7 @@ export abstract class BaseService {
     const state = await getServiceState(this.serviceName, this.getStateVersion());
     if (state !== null) {
       this.hydrateState(state);
-      console.log(`State restored for service ${this.serviceName}`);
+      console.log(`[${this.serviceName}] State restored`);
     }
   }
 

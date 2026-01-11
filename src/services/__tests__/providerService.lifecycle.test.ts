@@ -128,15 +128,6 @@ describe('Provider Service Lifecycle Tests', () => {
   });
 
   describe('Tab/Window Cleanup', () => {
-    it('should handle tab close events', () => {
-      const handleTabClosedSpy = vi.spyOn(requestCleanup, 'handleTabClosed');
-      
-      // Simulate tab close
-      requestCleanup.handleTabClosed(123);
-      
-      expect(handleTabClosedSpy).toHaveBeenCalledWith(123);
-    });
-
     it('should clean up requests when origin navigates away', () => {
       const origin = 'https://dapp.com';
       
@@ -163,15 +154,6 @@ describe('Provider Service Lifecycle Tests', () => {
       const removed = requestCleanup.cleanupByOrigin(origin);
       expect(removed).toBe(2);
       expect(approvalQueue.getCount()).toBe(0);
-    });
-
-    it('should handle navigation events', () => {
-      const handleNavigationSpy = vi.spyOn(requestCleanup, 'handleNavigation');
-      
-      // Simulate navigation
-      requestCleanup.handleNavigation(123, 'https://newsite.com');
-      
-      expect(handleNavigationSpy).toHaveBeenCalledWith(123, 'https://newsite.com');
     });
   });
 

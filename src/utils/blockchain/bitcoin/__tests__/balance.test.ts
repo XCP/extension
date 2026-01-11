@@ -131,15 +131,17 @@ describe('Bitcoin Balance Utilities', () => {
   it('should handle BigInt values correctly for blockstream/mempool responses', async () => {
     const mockResponse = {
       chain_stats: {
-        funded_txo_sum: '9223372036854775807', // Max safe integer as string
-        spent_txo_sum: '0'
+        funded_txo_sum: 9223372036854775807, // Max safe integer as number
+        spent_txo_sum: 0,
+        tx_count: 1
       },
       mempool_stats: {
-        funded_txo_sum: '0',
-        spent_txo_sum: '0'
+        funded_txo_sum: 0,
+        spent_txo_sum: 0,
+        tx_count: 0
       }
     };
-    
+
     (globalThis.fetch as any).mockResolvedValue({
       ok: true,
       json: async () => mockResponse,

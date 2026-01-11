@@ -1,4 +1,3 @@
-"use client";
 
 import { useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
@@ -87,7 +86,7 @@ function ResetWallet() {
             name="password"
             placeholder="Confirm your password"
             disabled={pending}
-            innerRef={passwordInputRef}
+            ref={passwordInputRef}
           />
           <Button type="submit" disabled={pending} fullWidth color="red" aria-label="Reset Wallet">
             {pending ? "Resetting..." : "Reset Wallet"}

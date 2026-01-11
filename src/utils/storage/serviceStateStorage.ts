@@ -13,8 +13,23 @@ interface ServiceStateRecord {
 }
 
 /**
+ * Validates that a value has the expected ServiceStateRecord shape.
+ */
+function isValidServiceStateRecord(value: unknown): value is ServiceStateRecord {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const obj = value as Record<string, unknown>;
+  return (
+    'data' in obj &&
+    typeof obj.timestamp === 'number' &&
+    typeof obj.version === 'number'
+  );
+}
+
+/**
  * Gets persisted state for a service.
- * Returns null if no state exists or version mismatch.
+ * Returns null if no state exists, data is invalid, or version mismatch.
  */
 export async function getServiceState(
   serviceName: string,
@@ -32,17 +47,23 @@ export async function getServiceState(
       return null;
     }
 
-    const record = result[stateKey] as ServiceStateRecord;
+    const value = result[stateKey];
+
+    // Validate shape before using
+    if (!isValidServiceStateRecord(value)) {
+      console.warn(`Invalid service state shape for ${serviceName}`);
+      return null;
+    }
 
     // Check version compatibility
-    if (record.version !== expectedVersion) {
+    if (value.version !== expectedVersion) {
       console.warn(
-        `State version mismatch for ${serviceName}. Expected ${expectedVersion}, got ${record.version}`
+        `State version mismatch for ${serviceName}. Expected ${expectedVersion}, got ${value.version}`
       );
       return null;
     }
 
-    return record.data;
+    return value.data;
   } catch (err) {
     console.error(`Failed to get state for ${serviceName}:`, err);
     return null;
@@ -58,7 +79,7 @@ export async function setServiceState(
   version: number
 ): Promise<void> {
   if (!chrome?.storage?.session) {
-    return;
+    throw new Error('Session storage API unavailable');
   }
 
   try {
@@ -72,6 +93,7 @@ export async function setServiceState(
     await chrome.storage.session.set({ [stateKey]: record });
   } catch (err) {
     console.error(`Failed to save state for ${serviceName}:`, err);
+    throw new Error('Failed to save service state');
   }
 }
 

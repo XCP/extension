@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, type ReactElement } from 'react';
 import { useHeader } from '@/contexts/header-context';
 import { AssetIcon } from '@/components/asset-icon';
 import { formatAmount } from '@/utils/format';
@@ -32,7 +32,7 @@ interface AssetHeaderProps {
  * />
  * ```
  */
-export const AssetHeader = ({ assetInfo, className = '' }: AssetHeaderProps) => {
+export const AssetHeader = ({ assetInfo, className = '' }: AssetHeaderProps): ReactElement => {
   const { subheadings, setAssetHeader } = useHeader();
   const cached = subheadings.assets[assetInfo.asset];
 

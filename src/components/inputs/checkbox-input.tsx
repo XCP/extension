@@ -1,5 +1,5 @@
 import { Checkbox, Field, Label } from '@headlessui/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 
 interface CheckboxInputProps {
   name: string;
@@ -11,6 +11,12 @@ interface CheckboxInputProps {
   id?: string;
 }
 
+/**
+ * CheckboxInput provides a styled checkbox with label and controlled/uncontrolled modes.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the checkbox input
+ */
 export function CheckboxInput({
   name,
   label,
@@ -19,7 +25,7 @@ export function CheckboxInput({
   checked,
   onChange,
   id,
-}: CheckboxInputProps) {
+}: CheckboxInputProps): ReactElement {
   const [isChecked, setIsChecked] = useState(defaultChecked);
   // Generate a unique ID if none is provided
   const checkboxId = id || `checkbox-${name}`;

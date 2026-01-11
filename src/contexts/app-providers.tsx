@@ -22,7 +22,7 @@ interface AppProvidersProps {
  * @returns {ReactElement | null} Idle timer wrapped content or null if not loaded
  */
 function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement | null {
-  const { setLastActiveTime, lockAll, loaded: walletLoaded, authState } = useWallet();
+  const { setLastActiveTime, lockAll, isLoading: walletLoading, authState } = useWallet();
   const { settings, isLoading: settingsLoading } = useSettings();
 
   // Handle edge cases for idle timer
@@ -61,11 +61,11 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
     onIdle: handleIdle,
     onActive: handleActive,
     onAction: handleAction,
-    disabled: !isIdleTimerEnabled || authState !== 'UNLOCKED' || !walletLoaded || settingsLoading,
+    disabled: !isIdleTimerEnabled || authState !== 'UNLOCKED' || walletLoading || settingsLoading,
     stopOnIdle: true,
   });
 
-  if (!walletLoaded || settingsLoading) {
+  if (walletLoading || settingsLoading) {
     // Wait for both wallet and settings to load before rendering
     return null;
   }

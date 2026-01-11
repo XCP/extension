@@ -1,5 +1,5 @@
 import logo from '@/assets/logo.png';
-import { useEffect } from 'react';
+import { useEffect, type ReactElement } from 'react';
 import { useHeader } from '@/contexts/header-context';
 import { formatAddress } from '@/utils/format';
 
@@ -33,7 +33,7 @@ interface AddressHeaderProps {
  * />
  * ```
  */
-export const AddressHeader = ({ address, walletName, className = '' }: AddressHeaderProps) => {
+export const AddressHeader = ({ address, walletName, className = '' }: AddressHeaderProps): ReactElement => {
   const { subheadings, setAddressHeader } = useHeader();
   const cached = subheadings.addresses[address];
 

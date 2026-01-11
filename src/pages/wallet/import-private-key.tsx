@@ -1,4 +1,3 @@
-"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
@@ -197,7 +196,7 @@ const ImportPrivateKey = () => {
                   name="private-key"
                   placeholder="Enter your private key"
                   disabled={pending}
-                  innerRef={privateKeyInputRef}
+                  ref={privateKeyInputRef}
                   onChange={handlePrivateKeyChange}
                 />
               </div>
@@ -220,7 +219,7 @@ const ImportPrivateKey = () => {
                 placeholder={walletExists ? "Confirm password" : "Create password"}
                 disabled={pending}
                 onChange={handlePasswordChange}
-                innerRef={passwordInputRef}
+                ref={passwordInputRef}
               />
               <Button type="submit" disabled={pending || !isPasswordValid} fullWidth>
                 {pending ? "Importing..." : "Continue"}

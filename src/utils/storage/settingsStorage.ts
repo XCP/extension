@@ -20,6 +20,7 @@ import {
   initializeSettingsKey,
 } from '@/utils/encryption/settings';
 import { TTLCache, CacheTTL } from '@/utils/cache';
+import { createWriteLock } from './mutex';
 import {
   type FiatCurrency,
   type PriceUnit,
@@ -158,6 +159,13 @@ const settingsRecordItem = storage.defineItem<SettingsRecord | null>(settingsSto
  * reads per transaction while keeping data fresh within 5 seconds.
  */
 const settingsCache = new TTLCache<AppSettings>(CacheTTL.SHORT, cloneSettings);
+
+/**
+ * Write lock for settings operations.
+ * Prevents race conditions during concurrent updateSettings() calls
+ * by serializing read-modify-write operations.
+ */
+const withWriteLock = createWriteLock();
 
 /** Deep clone settings to prevent mutation of cached data */
 function cloneSettings(settings: AppSettings): AppSettings {
@@ -322,6 +330,7 @@ function isValidApiUrl(url: string): boolean {
 /**
  * Updates settings by merging new values with current.
  * Requires wallet to be unlocked.
+ * Protected by write lock to prevent race conditions during concurrent updates.
  *
  * Example: updateSettings({ fiat: 'jpy', priceUnit: 'sats' })
  */
@@ -331,34 +340,37 @@ export async function updateSettings(newSettings: Partial<AppSettings>): Promise
     throw new Error('Cannot update settings when wallet is locked');
   }
 
-  // Invalidate cache FIRST to prevent stale reads during concurrent operations
-  // This ensures getSettings() below fetches fresh data from storage
-  invalidateSettingsCache();
+  // Use write lock to prevent concurrent read-modify-write races
+  return withWriteLock(async () => {
+    // Invalidate cache FIRST to prevent stale reads during concurrent operations
+    // This ensures getSettings() below fetches fresh data from storage
+    invalidateSettingsCache();
 
-  // Get current settings (will be decrypted since key is available)
-  const current = await getSettings();
+    // Get current settings (will be decrypted since key is available)
+    const current = await getSettings();
 
-  // Merge settings
-  const updated: AppSettings = {
-    ...current,
-    ...newSettings,
-  };
+    // Merge settings
+    const updated: AppSettings = {
+      ...current,
+      ...newSettings,
+    };
 
-  // Encrypt and save
-  const encrypted = await encryptSettings(updated);
-  const record: SettingsRecord = {
-    encryptedSettings: encrypted,
-  };
+    // Encrypt and save
+    const encrypted = await encryptSettings(updated);
+    const record: SettingsRecord = {
+      encryptedSettings: encrypted,
+    };
 
-  try {
-    await settingsRecordItem.setValue(record);
-  } catch (err) {
-    console.error('Failed to save settings:', err);
-    throw new Error('Failed to save settings');
-  }
+    try {
+      await settingsRecordItem.setValue(record);
+    } catch (err) {
+      console.error('Failed to save settings:', err);
+      throw new Error('Failed to save settings');
+    }
 
-  // Invalidate cache to ensure fresh data on next read
-  invalidateSettingsCache();
+    // Invalidate cache to ensure fresh data on next read
+    invalidateSettingsCache();
+  });
 }
 
 /**

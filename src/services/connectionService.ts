@@ -17,6 +17,7 @@ import { connectionRateLimiter } from '@/utils/provider/rateLimiter';
 import { analyzeCSP } from '@/utils/security/cspValidation';
 import { analytics } from '@/utils/fathom';
 import { eventEmitterService } from '@/services/eventEmitterService';
+import { generateRequestId } from '@/utils/id';
 
 export interface ConnectionStatus {
   origin: string;
@@ -137,7 +138,7 @@ export class ConnectionService extends BaseService {
     // Track the connection request
     await analytics.track('connection_request');
 
-    const requestId = `${origin}-${Date.now()}`;
+    const requestId = generateRequestId(origin);
 
     // Add both dedupe key and request ID to pending set
     this.state.pendingPermissionRequests.add(dedupeKey);
@@ -147,6 +148,8 @@ export class ConnectionService extends BaseService {
       // Use ApprovalService for unified approval handling
       const approvalService = getApprovalService();
 
+      let domain = origin;
+      try { domain = new URL(origin).hostname; } catch { /* use raw origin */ }
       const result = await approvalService.requestApproval<ApprovalResult>({
         id: requestId,
         origin,
@@ -154,7 +157,7 @@ export class ConnectionService extends BaseService {
         params: [],
         type: 'connection',
         metadata: {
-          domain: new URL(origin).hostname,
+          domain,
           title: 'Connection Request',
           description: 'This site wants to connect to your wallet',
         },
@@ -174,31 +177,31 @@ export class ConnectionService extends BaseService {
    * Get accounts for connected origin
    */
   async getAccounts(origin: string): Promise<string[]> {
-    console.debug('getAccounts called for origin:', origin);
+    console.debug('[ConnectionService] getAccounts called for origin:', origin);
     
     const walletService = getWalletService();
     const isUnlocked = await walletService.isAnyWalletUnlocked();
-    console.debug('Wallet unlocked:', isUnlocked);
+    console.debug('[ConnectionService] Wallet unlocked:', isUnlocked);
 
     if (!isUnlocked) {
-      console.debug('Wallet not unlocked, returning empty array');
+      console.debug('[ConnectionService] Wallet not unlocked, returning empty array');
       return [];
     }
 
     const activeAddress = await walletService.getActiveAddress();
-    console.debug('Active address:', activeAddress);
+    console.debug('[ConnectionService] Active address:', activeAddress);
     
     if (!activeAddress) {
-      console.debug('No active address, returning empty array');
+      console.debug('[ConnectionService] No active address, returning empty array');
       return [];
     }
 
     // Check if origin is connected
     const isConnected = await this.hasPermission(origin);
-    console.debug('Connection check:', { origin, isConnected });
+    console.debug('[ConnectionService] Connection check:', { origin, isConnected });
     
     const accounts = isConnected ? [activeAddress.address] : [];
-    console.debug('Returning accounts:', accounts);
+    console.debug('[ConnectionService] Returning accounts:', accounts);
     
     return accounts;
   }
@@ -211,7 +214,7 @@ export class ConnectionService extends BaseService {
     address: string,
     walletId: string
   ): Promise<string[]> {
-    console.debug('Connecting dApp:', { origin, address, walletId });
+    console.debug('[ConnectionService] Connecting dApp:', { origin, address, walletId });
 
     // Check if already connected
     if (await this.hasPermission(origin)) {
@@ -243,9 +246,9 @@ export class ConnectionService extends BaseService {
         lastActive: Date.now(),
       });
 
-      console.debug('Connection established, getting accounts');
+      console.debug('[ConnectionService] Connection established, getting accounts');
       const accounts = await this.getAccounts(origin);
-      console.debug('Accounts to return:', accounts);
+      console.debug('[ConnectionService] Accounts to return:', accounts);
       
       return accounts;
     } else {
@@ -257,7 +260,7 @@ export class ConnectionService extends BaseService {
    * Disconnect a dApp from the wallet
    */
   async disconnect(origin: string): Promise<void> {
-    console.debug('Disconnecting dApp:', origin);
+    console.debug('[ConnectionService] Disconnecting dApp:', origin);
 
     // Remove from connected websites
     const settings = await getSettings();
@@ -285,7 +288,7 @@ export class ConnectionService extends BaseService {
       data: {}
     });
 
-    console.debug('dApp disconnected:', origin);
+    console.debug('[ConnectionService] dApp disconnected:', origin);
   }
 
   /**
@@ -349,7 +352,7 @@ export class ConnectionService extends BaseService {
       value: connectedSites.length.toString(),
     });
 
-    console.debug('Disconnected all websites:', connectedSites.length);
+    console.debug('[ConnectionService] Disconnected all websites:', connectedSites.length);
   }
 
   /**
@@ -365,11 +368,15 @@ export class ConnectionService extends BaseService {
     }
 
     // CSP analysis (warning only)
+    // Safely extract hostname for logging
+    let hostname = origin;
+    try { hostname = new URL(origin).hostname; } catch { /* use raw origin */ }
+
     try {
       const cspAnalysis = await analyzeCSP(origin);
       if (!cspAnalysis.hasCSP || cspAnalysis.warnings.length > 0) {
-        console.warn('Site has CSP security issues', {
-          origin: new URL(origin).hostname,
+        console.warn('[ConnectionService] Site has CSP security issues', {
+          origin: hostname,
           hasCSP: cspAnalysis.hasCSP,
           isSecure: cspAnalysis.isSecure,
           warningCount: cspAnalysis.warnings.length,
@@ -377,8 +384,8 @@ export class ConnectionService extends BaseService {
         });
       }
     } catch (error) {
-      console.warn('CSP analysis failed', {
-        origin: new URL(origin).hostname,
+      console.warn('[ConnectionService] CSP analysis failed', {
+        origin: hostname,
         error: (error as Error).message,
       });
     }
@@ -390,7 +397,7 @@ export class ConnectionService extends BaseService {
   // BaseService implementation methods
 
   protected async onInitialize(): Promise<void> {
-    console.log('ConnectionService initialized');
+    console.log('[ConnectionService] Initialized');
   }
 
   protected async onDestroy(): Promise<void> {
@@ -398,7 +405,7 @@ export class ConnectionService extends BaseService {
     this.state.lastSecurityCheck.clear();
     this.state.pendingPermissionRequests.clear();
     this.state.pendingLookups.clear();
-    console.log('ConnectionService destroyed');
+    console.log('[ConnectionService] Destroyed');
   }
 
   protected getSerializableState(): SerializedConnectionState | null {
@@ -437,7 +444,7 @@ export class ConnectionService extends BaseService {
       this.state.pendingPermissionRequests.add(requestId);
     }
 
-    console.log('ConnectionService state restored', {
+    console.log('[ConnectionService] State restored', {
       connections: this.state.connectionCache.size,
       securityChecks: this.state.lastSecurityCheck.size,
       pendingRequests: this.state.pendingPermissionRequests.size,

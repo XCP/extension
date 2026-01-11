@@ -55,7 +55,7 @@
  *
  * // Write pattern - throw error
  * } catch (err) {
- *   console.error('Failed to set X:', err);
+ *   console.error('Failed to save X:', err);
  *   throw new Error('Storage operation failed');
  * }
  * ```
@@ -182,11 +182,11 @@ export async function getAllRecords(): Promise<StoredRecord[]> {
  * Retrieves a record by its ID.
  *
  * @param id - The record ID to find.
- * @returns A Promise resolving to the found record, or undefined if not found.
+ * @returns A Promise resolving to the found record, or null if not found.
  */
-export async function getRecordById(id: string): Promise<StoredRecord | undefined> {
+export async function getRecordById(id: string): Promise<StoredRecord | null> {
   const records = await getRecords();
-  return records.find((r) => r.id === id);
+  return records.find((r) => r.id === id) ?? null;
 }
 
 /**
@@ -201,7 +201,7 @@ export async function addRecord(record: StoredRecord): Promise<void> {
   return withWriteLock(async () => {
     const records = await getRecords(true); // Force refresh under lock
     if (records.some((r) => r.id === record.id)) {
-      throw new Error(`Record with ID "${record.id}" already exists.`);
+      throw new Error('Record with this ID already exists');
     }
     records.push(record);
     await persistRecords(records);
@@ -221,7 +221,7 @@ export async function updateRecord(record: StoredRecord): Promise<void> {
     const records = await getRecords(true); // Force refresh under lock
     const index = records.findIndex((r) => r.id === record.id);
     if (index === -1) {
-      throw new Error(`Record with ID "${record.id}" not found.`);
+      throw new Error('Record not found');
     }
     records[index] = record;
     await persistRecords(records);
@@ -239,13 +239,22 @@ export async function updateRecord(record: StoredRecord): Promise<void> {
 export async function updateRecords(updates: StoredRecord[]): Promise<void> {
   if (updates.length === 0) return;
 
+  // Check for duplicate IDs in the updates array
+  const updateIds = new Set<string>();
+  for (const update of updates) {
+    if (updateIds.has(update.id)) {
+      throw new Error('Duplicate IDs in updates array');
+    }
+    updateIds.add(update.id);
+  }
+
   return withWriteLock(async () => {
     const records = await getRecords(true); // Force refresh under lock
 
     for (const update of updates) {
       const index = records.findIndex((r) => r.id === update.id);
       if (index === -1) {
-        throw new Error(`Record with ID "${update.id}" not found.`);
+        throw new Error('Record not found');
       }
       records[index] = update;
     }
@@ -281,8 +290,8 @@ export async function clearAllRecords(): Promise<void> {
     try {
       await persistRecords([]); // Use persistRecords to clear and update cache
     } catch (err) {
-      // Log failure but don't throw
       console.error('Failed to clear records from storage:', err);
+      throw new Error('Failed to clear storage');
     }
   });
 }

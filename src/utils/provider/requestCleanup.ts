@@ -40,39 +40,17 @@ class RequestCleanupManager {
     const expiredCount = approvalQueue.removeExpired(this.REQUEST_TIMEOUT);
     if (expiredCount > 0) {
       console.log(`Cleaned up ${expiredCount} expired approval requests`);
-      
+
       // Update badge if needed
-      if (typeof browser !== 'undefined' && browser.action) {
+      if (chrome?.action) {
         const remaining = approvalQueue.getCount();
-        browser.action.setBadgeText({ 
-          text: remaining > 0 ? remaining.toString() : '' 
+        chrome.action.setBadgeText({
+          text: remaining > 0 ? remaining.toString() : ''
         });
       }
     }
   }
-  
-  /**
-   * Handle tab/window close events
-   */
-  handleTabClosed(tabId: number): void {
-    // Get all requests and check if any are associated with this tab
-    // This would require tracking tab IDs with requests
-    console.log(`Tab ${tabId} closed, checking for orphaned requests`);
-  }
-  
-  /**
-   * Handle navigation events (user navigates away from dApp)
-   */
-  handleNavigation(tabId: number, url: string): void {
-    try {
-      const origin = new URL(url).origin;
-      // Could implement logic to cancel pending requests from previous origin
-      console.log(`Tab ${tabId} navigated to ${origin}`);
-    } catch (e) {
-      // Invalid URL, ignore
-    }
-  }
-  
+
   /**
    * Clean up all requests from a specific origin
    */
@@ -85,30 +63,12 @@ class RequestCleanupManager {
    */
   emergencyCleanup(): void {
     approvalQueue.clearAll();
-    
+
     // Clear badge
-    if (typeof browser !== 'undefined' && browser.action) {
-      browser.action.setBadgeText({ text: '' });
+    if (chrome?.action) {
+      chrome.action.setBadgeText({ text: '' });
     }
   }
 }
 
 export const requestCleanup = new RequestCleanupManager();
-
-// Set up automatic cleanup in background context
-if (typeof browser !== 'undefined' && browser.tabs) {
-  // Listen for tab close events
-  browser.tabs.onRemoved.addListener((tabId) => {
-    requestCleanup.handleTabClosed(tabId);
-  });
-  
-  // Listen for navigation events
-  browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.url && tab.url) {
-      requestCleanup.handleNavigation(tabId, tab.url);
-    }
-  });
-  
-  // Start periodic cleanup
-  requestCleanup.startCleanup();
-}
