@@ -31,6 +31,8 @@ Report vulnerabilities via [GitHub Security Advisories](../../security/advisorie
 
 ## Dependencies
 
+We intentionally minimized runtime dependencies—most wallets ship dozens, we ship 12. What remains is carefully vetted.
+
 | Package | Purpose |
 |---------|---------|
 | [@noble/curves](https://github.com/paulmillr/noble-curves), [@noble/hashes](https://github.com/paulmillr/noble-hashes), [@scure/*](https://github.com/paulmillr/scure-bip32) | Audited cryptography |
