@@ -151,6 +151,7 @@ describe('settings encryption', () => {
         transactionDryRun: true,
         counterpartyApiBase: 'https://custom.api.com:4000',
         defaultOrderExpiration: 1000,
+        strictTransactionVerification: true,
         connectedWebsites: ['https://a.com', 'https://b.com'],
         pinnedAssets: ['ASSET1', 'ASSET2', 'ASSET3'],
         hasVisitedRecoverBitcoin: true,

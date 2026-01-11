@@ -3,15 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { FiGlobe, FiAlertTriangle, FiX, FiChevronDown, FiChevronUp } from '@/components/icons';
 import { Button } from '@/components/button';
 import { ErrorAlert } from '@/components/error-alert';
+import { VerificationStatus } from '@/components/verification-status';
 import { formatAddress, formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
 import { useWallet } from '@/contexts/wallet-context';
+import { useSettings } from '@/contexts/settings-context';
 import { useSignPsbtRequest } from '@/hooks/useSignPsbtRequest';
 import { getWalletService } from '@/services/walletService';
 
 export default function ApprovePsbt() {
   const navigate = useNavigate();
   const { activeAddress, activeWallet } = useWallet();
+  const { settings } = useSettings();
   const {
     request,
     decodedInfo,
@@ -108,9 +111,14 @@ export default function ApprovePsbt() {
     );
   }
 
-  const { psbtDetails, counterpartyMessage, txid } = decodedInfo;
-  const hasWarnings = psbtDetails.fee > 10000000 || // > 0.1 BTC fee
-    (request.sighashTypes?.some(t => (t & 0x80) !== 0)); // ANYONECANPAY
+  const { psbtDetails, counterpartyMessage, txid, verification } = decodedInfo;
+  const hasHighFee = psbtDetails.fee > 10000000; // > 0.1 BTC fee
+  const hasAnyoneCanPay = request.sighashTypes?.some(t => (t & 0x80) !== 0);
+  const verificationPassed = verification?.passed;
+  const verificationWarning = verification?.warning;
+  const verificationFailed = verificationPassed === false;
+  const isStrictMode = settings?.strictTransactionVerification !== false;
+  const shouldBlockSigning = isStrictMode && verificationFailed;
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -210,6 +218,13 @@ export default function ApprovePsbt() {
             </div>
           )}
 
+          {/* Verification Status */}
+          <VerificationStatus
+            passed={verificationPassed}
+            warning={verificationWarning}
+            isStrict={isStrictMode}
+          />
+
           {/* Expandable Details */}
           <div className="bg-white rounded-lg shadow-sm">
             <button
@@ -290,18 +305,18 @@ export default function ApprovePsbt() {
             </div>
           </div>
 
-          {/* Warnings */}
-          {hasWarnings && (
+          {/* Other Warnings (high fee, ANYONECANPAY) */}
+          {(hasHighFee || hasAnyoneCanPay) && (
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
               <div className="flex items-start">
                 <FiAlertTriangle className="w-5 h-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" />
                 <div className="text-sm text-orange-800">
                   <p className="font-medium mb-1">Review Carefully</p>
                   <ul className="list-disc list-inside space-y-1 text-xs">
-                    {psbtDetails.fee > 10000000 && (
+                    {hasHighFee && (
                       <li>High network fee detected</li>
                     )}
-                    {request.sighashTypes?.some(t => (t & 0x80) !== 0) && (
+                    {hasAnyoneCanPay && (
                       <li>Using ANYONECANPAY sighash (atomic swap mode)</li>
                     )}
                   </ul>
@@ -336,10 +351,10 @@ export default function ApprovePsbt() {
           <Button
             color="blue"
             onClick={handleSign}
-            disabled={isSigning}
+            disabled={isSigning || shouldBlockSigning}
             fullWidth
           >
-            {isSigning ? 'Signing...' : 'Sign'}
+            {isSigning ? 'Signing...' : shouldBlockSigning ? 'Blocked' : 'Sign'}
           </Button>
         </div>
       </div>

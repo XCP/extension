@@ -234,3 +234,10 @@ export {
   type SweepRequest,
   type IssuanceRequest,
 } from './verify';
+
+// Re-export provider verification utilities
+export {
+  verifyProviderTransaction,
+  type ApiCounterpartyMessage,
+  type ProviderVerificationResult,
+} from './providerVerify';

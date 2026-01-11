@@ -19,6 +19,10 @@ import {
   hasCounterpartyPrefix,
   type CounterpartyMessage
 } from '@/utils/blockchain/counterparty/transaction';
+import {
+  verifyProviderTransaction,
+  type ProviderVerificationResult
+} from '@/utils/blockchain/counterparty/unpack';
 
 /**
  * Extended PSBT details with address enrichment and Counterparty message
@@ -28,6 +32,8 @@ export interface DecodedPsbtInfo {
   counterpartyMessage?: CounterpartyMessage;
   /** Decoded transaction ID (if available from API) */
   txid?: string;
+  /** Local verification result */
+  verification: ProviderVerificationResult;
 }
 
 /**
@@ -61,6 +67,7 @@ export function useSignPsbtRequest() {
 
     let counterpartyMessage: CounterpartyMessage | undefined;
     let txid: string | undefined;
+    let opReturnData: string | undefined;
 
     // If we have raw tx hex and OP_RETURN, try to decode Counterparty message
     if (psbtDetails.rawTxHex && psbtDetails.hasOpReturn) {
@@ -70,6 +77,13 @@ export function useSignPsbtRequest() {
       );
 
       if (hasCounterparty) {
+        // Get the OP_RETURN data for verification
+        const opReturnOutput = psbtDetails.outputs.find(
+          o => o.opReturnData && hasCounterpartyPrefix(o.opReturnData)
+        );
+        opReturnData = opReturnOutput?.opReturnData;
+
+        // Try to decode via API
         try {
           const msg = await decodeCounterpartyMessage(psbtDetails.rawTxHex);
           if (msg) {
@@ -97,10 +111,14 @@ export function useSignPsbtRequest() {
       }
     }
 
+    // Verify locally and compare against API
+    const verification = verifyProviderTransaction(opReturnData, counterpartyMessage);
+
     return {
       psbtDetails,
       counterpartyMessage,
-      txid
+      txid,
+      verification
     };
   }, []);
 
