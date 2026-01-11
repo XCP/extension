@@ -286,12 +286,13 @@ function verifyIssuance(
   }
 
   const apiLock = getApiValue(api, 'lock', 'locked');
-  if (apiLock !== undefined && local.lock !== apiLock) {
-    mismatches.push(`Lock: local=${local.lock}, API=${apiLock}`);
+  if (apiLock !== undefined && local.isLock !== apiLock) {
+    mismatches.push(`Lock: local=${local.isLock}, API=${apiLock}`);
   }
 
-  if (api.reset !== undefined && local.reset !== api.reset) {
-    mismatches.push(`Reset: local=${local.reset}, API=${api.reset}`);
+  const apiReset = getApiValue(api, 'reset');
+  if (apiReset !== undefined && local.isReset !== apiReset) {
+    mismatches.push(`Reset: local=${local.isReset}, API=${apiReset}`);
   }
 
   return mismatches;

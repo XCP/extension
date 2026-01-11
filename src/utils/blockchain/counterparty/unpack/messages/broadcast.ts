@@ -34,25 +34,6 @@ export interface BroadcastData {
 }
 
 /**
- * Read a VarInt from the reader (Bitcoin-style variable-length integer)
- */
-function readVarInt(reader: BinaryReader): number {
-  const first = reader.readUint8();
-  if (first < 0xfd) {
-    return first;
-  } else if (first === 0xfd) {
-    return reader.readUint16LE();
-  } else if (first === 0xfe) {
-    return reader.readUint32LE();
-  } else {
-    // 0xff - 8 byte value, but for text length we'll treat it as 4 bytes
-    const low = reader.readUint32LE();
-    reader.readUint32LE(); // high bytes, likely 0
-    return low;
-  }
-}
-
-/**
  * Try to decode CBOR-encoded broadcast (modern format)
  * Returns null if not CBOR format
  */

@@ -299,10 +299,8 @@ export {
   getSchemaByTypeId,
   getCriticalParams,
   getDangerousParams,
-  getRequiredParams,
   MESSAGE_SCHEMAS,
   type Criticality,
-  type Presence,
   type ParamDefinition,
   type MessageSchema,
 } from './paramSchema';
