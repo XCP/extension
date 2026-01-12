@@ -40,7 +40,7 @@ function WalletCard({ wallet, selected, onSelect, isOnlyWallet }: WalletCardProp
           <div className="flex justify-between items-center mt-1">
             <span className="font-mono text-sm">{formatAddress(primaryAddress)}</span>
             <span className="text-xs capitalize">
-              {wallet.type === 'mnemonic' ? 'Mnemonic' : 'Private Key'}
+              {wallet.type === 'mnemonic' ? 'Mnemonic' : wallet.type === 'hardware' ? 'Hardware' : 'Private Key'}
             </span>
           </div>
         </div>
