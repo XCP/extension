@@ -12,7 +12,7 @@ import { ErrorAlert } from "@/components/error-alert";
 import { UnlockScreen } from "@/components/screens/unlock-screen";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { signMessage, getSigningCapabilities } from "@/utils/blockchain/bitcoin/messageSigner";
+import { getSigningCapabilities } from "@/utils/blockchain/bitcoin/messageSigner";
 import type { ReactElement } from "react";
 
 /**
@@ -21,7 +21,7 @@ import type { ReactElement } from "react";
 export default function SignMessage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { activeWallet, activeAddress, unlockWallet, isWalletLocked, getPrivateKey } = useWallet();
+  const { activeWallet, activeAddress, unlockWallet, isWalletLocked, signMessage: signMessageWithWallet } = useWallet();
 
   // Provider request hook for handling dApp integration
   const {
@@ -75,8 +75,15 @@ export default function SignMessage(): ReactElement {
   
   // Get signing capabilities for current address
   const addressFormat = activeWallet?.addressFormat;
-  const signingCapabilities = activeAddress && addressFormat ? 
-    getSigningCapabilities(addressFormat) : 
+  const isHardwareWallet = activeWallet?.type === 'hardware';
+
+  // Hardware wallets handle signing on device - they support all address formats
+  // Software wallets use our local signing which has format-specific capabilities
+  const signingCapabilities = activeAddress && addressFormat ?
+    (isHardwareWallet
+      ? { canSign: true, method: "Hardware device", notes: "Message will be signed on your Trezor device" }
+      : getSigningCapabilities(addressFormat)
+    ) :
     { canSign: false, method: "Not available", notes: "No address selected" };
   
   const handleSign = async (password?: string) => {
@@ -100,38 +107,27 @@ export default function SignMessage(): ReactElement {
     setSignature("");
     
     try {
-      // Check if wallet is locked
-      if (!password && await isWalletLocked()) {
-        setShowAuthModal(true);
-        setIsSigning(false);
-        return;
-      }
-      
-      // Unlock wallet if password provided
-      if (password) {
-        await unlockWallet(activeWallet.id, password);
-        setShowAuthModal(false);
-      }
-      
-      // Get private key using wallet context
-      // This handles both mnemonic and private key wallets correctly
-      const privateKeyResult = await getPrivateKey(
-        activeWallet.id,
-        activeAddress.path
-      );
+      // Hardware wallets don't need password unlock - the device handles authentication
+      // Software wallets need to be unlocked first
+      if (activeWallet.type !== 'hardware') {
+        if (!password && await isWalletLocked()) {
+          setShowAuthModal(true);
+          setIsSigning(false);
+          return;
+        }
 
-      // Use the hex format for signing
-      const privateKeyHex = privateKeyResult.hex;
-      const compressed = privateKeyResult.compressed;
+        // Unlock wallet if password provided
+        if (password) {
+          await unlockWallet(activeWallet.id, password);
+          setShowAuthModal(false);
+        }
+      }
 
-      // Sign the message
-      const result = await signMessage(
-        message,
-        privateKeyHex,
-        addressFormat!,  // We've already checked it exists
-        compressed
-      );
-      
+      // Use unified signMessage - handles both hardware and software wallets
+      // Hardware: calls Trezor.signMessage
+      // Software: gets private key and signs locally
+      const result = await signMessageWithWallet(message, activeAddress.address);
+
       setSignature(result.signature);
 
       // If this is a provider request, notify the provider of success

@@ -35,11 +35,17 @@ vi.mock('@trezor/connect-webextension', () => ({
     getPublicKey: mockGetPublicKey,
     signTransaction: mockSignTransaction,
     signMessage: mockSignMessage,
+    uiResponse: vi.fn(),
   },
   DEVICE_EVENT: 'DEVICE_EVENT',
   DEVICE: {
     CONNECT: 'device-connect',
     DISCONNECT: 'device-disconnect',
+  },
+  UI: {
+    REQUEST_BUTTON: 'ui-request_button',
+    REQUEST_CONFIRMATION: 'ui-request_confirmation',
+    RECEIVE_CONFIRMATION: 'ui-receive_confirmation',
   },
 }));
 
@@ -113,6 +119,52 @@ describe('TrezorAdapter', () => {
       expect(mockOn).toHaveBeenCalledWith(
         'DEVICE_EVENT',
         expect.any(Function)
+      );
+    });
+
+    it('should initialize in test mode with BridgeTransport', async () => {
+      mockInit.mockResolvedValue(undefined);
+
+      await adapter.init({ testMode: true });
+
+      expect(mockInit).toHaveBeenCalledWith({
+        manifest: {
+          appName: 'XCP Wallet',
+          email: 'support@xcpwallet.com',
+          appUrl: 'https://xcpwallet.com',
+        },
+        popup: false,
+        debug: expect.any(Boolean),
+        transports: ['BridgeTransport'],
+        pendingTransportEvent: true,
+        transportReconnect: false,
+      });
+    });
+
+    it('should register UI event listeners in test mode', async () => {
+      mockInit.mockResolvedValue(undefined);
+
+      await adapter.init({ testMode: true });
+
+      // Should register for REQUEST_CONFIRMATION events
+      expect(mockOn).toHaveBeenCalledWith(
+        'ui-request_confirmation',
+        expect.any(Function)
+      );
+    });
+
+    it('should use custom connectSrc in test mode', async () => {
+      mockInit.mockResolvedValue(undefined);
+
+      await adapter.init({
+        testMode: true,
+        connectSrc: 'http://localhost:8088/',
+      });
+
+      expect(mockInit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          connectSrc: 'http://localhost:8088/',
+        })
       );
     });
   });

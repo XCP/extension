@@ -185,12 +185,23 @@ export default function AddressTypeSettings(): ReactElement {
     return <div className="p-4 text-center text-gray-500">No wallet available</div>;
   }
 
+  // Hardware wallets cannot change address type - they need to be reconnected with a different format
+  const isHardwareWallet = activeWallet.type === 'hardware';
+
   return (
     <div className="space-y-2 p-4" role="main" aria-labelledby="address-type-settings-title">
       <h2 id="address-type-settings-title" className="sr-only">
         Address Type Settings
       </h2>
       {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
+      {isHardwareWallet && (
+        <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-4 mb-4">
+          <p className="text-sm text-blue-200">
+            <strong>Hardware Wallet</strong>: Address type is set when you connect your device.
+            To use a different address format, go to Add Wallet and connect your Trezor again with the desired format.
+          </p>
+        </div>
+      )}
       {isLoading && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
           <Spinner />
@@ -200,7 +211,7 @@ export default function AddressTypeSettings(): ReactElement {
         value={selectedFormat}
         onChange={handleAddressFormatChange}
         className="space-y-2"
-        disabled={isLoading}
+        disabled={isLoading || isHardwareWallet}
       >
         <SelectionCardGroup>
           {CONSTANTS.AVAILABLE_ADDRESS_TYPES.filter((type) => {

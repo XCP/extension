@@ -3,9 +3,13 @@
  *
  * Implementation of IHardwareWalletAdapter for Trezor devices.
  * Uses @trezor/connect-webextension for browser extension service worker communication.
+ *
+ * Supports two modes:
+ * - Production mode (popup: true): Opens Trezor Connect popup for user interaction
+ * - Test/Emulator mode (popup: false): Direct communication with Trezor Bridge for automated testing
  */
 
-import TrezorConnect, { DEVICE_EVENT, DEVICE } from '@trezor/connect-webextension';
+import TrezorConnect, { DEVICE_EVENT, DEVICE, UI } from '@trezor/connect-webextension';
 import { AddressFormat, decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
 import { IHardwareWalletAdapter } from './interface';
 import {
@@ -21,6 +25,20 @@ import {
   HardwarePsbtSignRequest,
 } from './types';
 import { extractPsbtDetails } from '@/utils/blockchain/bitcoin/psbt';
+
+/**
+ * Configuration options for TrezorAdapter initialization
+ */
+export interface TrezorAdapterOptions {
+  /** Use test/emulator mode (no popup, direct bridge communication) */
+  testMode?: boolean;
+  /** Custom connect source URL (for local development/testing) */
+  connectSrc?: string;
+  /** Enable debug logging */
+  debug?: boolean;
+  /** Callback for UI button requests (for auto-confirm in tests) */
+  onButtonRequest?: (code: string) => void;
+}
 
 // Trezor script type mappings
 const INPUT_SCRIPT_TYPES = {
@@ -65,31 +83,55 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
   private initialized = false;
   private connectionStatus: HardwareConnectionStatus = 'disconnected';
   private deviceInfo: HardwareDeviceInfo | null = null;
+  private options: TrezorAdapterOptions = {};
 
   /**
    * Initialize Trezor Connect
+   * @param options Configuration options for test mode or custom settings
    */
-  async init(): Promise<void> {
+  async init(options?: TrezorAdapterOptions): Promise<void> {
     if (this.initialized) {
       return;
     }
 
+    this.options = options ?? {};
+
     try {
       this.connectionStatus = 'connecting';
 
-      await TrezorConnect.init({
+      // Determine configuration based on mode
+      const isTestMode = this.options.testMode === true;
+      const debug = this.options.debug ?? process.env.NODE_ENV === 'development';
+
+      // Build init configuration
+      const initConfig: Parameters<typeof TrezorConnect.init>[0] = {
         manifest: {
           appName: 'XCP Wallet',
           email: 'support@xcpwallet.com',
           appUrl: 'https://xcpwallet.com',
         },
-        // Use popup mode for user interactions
-        popup: true,
-        // Enable debug in development
-        debug: process.env.NODE_ENV === 'development',
-        // Use webusb transport
-        transports: ['WebUsbTransport'],
-      });
+        debug,
+      };
+
+      if (isTestMode) {
+        // Test/Emulator mode: Direct bridge communication
+        // This allows automated testing against the Trezor emulator
+        initConfig.popup = false;
+        initConfig.transports = ['BridgeTransport'];
+        initConfig.pendingTransportEvent = true;
+        initConfig.transportReconnect = false;
+
+        // Allow custom connect source for local testing
+        if (this.options.connectSrc) {
+          initConfig.connectSrc = this.options.connectSrc;
+        }
+      } else {
+        // Production mode: Use popup for user interactions
+        initConfig.popup = true;
+        initConfig.transports = ['WebUsbTransport'];
+      }
+
+      await TrezorConnect.init(initConfig);
 
       // Listen for device events
       TrezorConnect.on(DEVICE_EVENT, (event) => {
@@ -111,6 +153,24 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
           }
         }
       });
+
+      // In test mode, listen for button requests for auto-confirm
+      if (isTestMode && this.options.onButtonRequest) {
+        TrezorConnect.on(UI.REQUEST_BUTTON, (event) => {
+          const code = (event as any).payload?.code ?? 'unknown';
+          this.options.onButtonRequest?.(code);
+        });
+      }
+
+      // Handle confirmation dialogs in test mode
+      if (isTestMode) {
+        TrezorConnect.on(UI.REQUEST_CONFIRMATION, () => {
+          TrezorConnect.uiResponse({
+            type: UI.RECEIVE_CONFIRMATION,
+            payload: true,
+          });
+        });
+      }
 
       this.initialized = true;
       this.connectionStatus = 'disconnected'; // Will change to connected when device connects

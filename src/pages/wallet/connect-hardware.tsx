@@ -17,10 +17,17 @@ const PATHS = {
 } as const;
 
 const ADDRESS_FORMAT_OPTIONS = [
-  { value: AddressFormat.P2WPKH, label: "Native SegWit (bc1q...)" },
-  { value: AddressFormat.P2TR, label: "Taproot (bc1p...)" },
-  { value: AddressFormat.P2SH_P2WPKH, label: "Nested SegWit (3...)" },
-  { value: AddressFormat.P2PKH, label: "Legacy (1...)" },
+  { value: AddressFormat.P2WPKH, label: "Native SegWit (bc1q...)", minFirmware: null },
+  { value: AddressFormat.P2TR, label: "Taproot (bc1p...)", minFirmware: "2.4.3" }, // Model T; Model One needs 1.10.4
+  { value: AddressFormat.P2SH_P2WPKH, label: "Nested SegWit (3...)", minFirmware: null },
+  { value: AddressFormat.P2PKH, label: "Legacy (1...)", minFirmware: null },
+] as const;
+
+// Account options for advanced users who may have funds on different accounts
+const ACCOUNT_OPTIONS = [
+  { value: 0, label: "Account 0 (Default)" },
+  { value: 1, label: "Account 1" },
+  { value: 2, label: "Account 2" },
 ] as const;
 
 export default function ConnectHardware(): ReactElement {
@@ -33,6 +40,8 @@ export default function ConnectHardware(): ReactElement {
   const [addressFormat, setAddressFormat] = useState<AddressFormat>(AddressFormat.P2WPKH);
   const [walletName, setWalletName] = useState("");
   const [usePassphrase, setUsePassphrase] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [accountIndex, setAccountIndex] = useState(0);
 
   useEffect(() => {
     setHeaderProps({
@@ -46,10 +55,16 @@ export default function ConnectHardware(): ReactElement {
     setIsConnecting(true);
 
     try {
-      await createHardwareWallet("trezor", addressFormat, 0, walletName || undefined, usePassphrase);
+      await createHardwareWallet("trezor", addressFormat, accountIndex, walletName || undefined, usePassphrase);
       navigate(PATHS.SUCCESS);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to connect hardware wallet");
+      const errorMsg = err instanceof Error ? err.message : "Failed to connect hardware wallet";
+      // Provide helpful message for common Trezor errors
+      if (errorMsg.includes("Taproot") || errorMsg.includes("P2TR")) {
+        setError("Taproot requires Trezor firmware 2.4.3+ (Model T) or 1.10.4+ (Model One). Please update your firmware or select a different address format.");
+      } else {
+        setError(errorMsg);
+      }
     } finally {
       setIsConnecting(false);
     }
@@ -92,7 +107,43 @@ export default function ConnectHardware(): ReactElement {
               </option>
             ))}
           </select>
+          {addressFormat === AddressFormat.P2TR && (
+            <p className="text-xs text-amber-400 mt-1">
+              Taproot requires Trezor firmware 2.4.3+ (Model T) or 1.10.4+ (Model One)
+            </p>
+          )}
         </div>
+
+        {/* Advanced Options Toggle */}
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="text-sm text-blue-400 hover:text-blue-300 text-left"
+        >
+          {showAdvanced ? "▼ Hide advanced options" : "▶ Show advanced options"}
+        </button>
+
+        {showAdvanced && (
+          <div className="bg-gray-800/50 rounded-lg p-3 space-y-3">
+            <div>
+              <label className="block text-sm font-medium mb-2">Account Index</label>
+              <select
+                value={accountIndex}
+                onChange={(e) => setAccountIndex(Number(e.target.value))}
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500"
+              >
+                {ACCOUNT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">
+                Most users only need Account 0. Select a different account if you have funds on multiple accounts in Trezor Suite.
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-3">
           <input

@@ -112,6 +112,7 @@ interface WalletContextType {
   removeWallet: (walletId: string) => Promise<void>;
   signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
+  signMessage: (message: string, address: string) => Promise<{ signature: string; address: string }>;
   isWalletLocked: () => Promise<boolean>;
 }
 
@@ -460,6 +461,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     removeWallet: withRefresh(walletService.removeWallet, refreshWalletState),
     signTransaction: walletService.signTransaction,
     broadcastTransaction: walletService.broadcastTransaction,
+    signMessage: walletService.signMessage,
     isWalletLocked,
   };
 
