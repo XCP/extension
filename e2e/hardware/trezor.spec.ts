@@ -82,9 +82,10 @@ test.describe('Trezor Hardware Wallet', () => {
       await expect(page.getByText('Select the address format')).toBeVisible({ timeout: 10000 });
 
       // Should see address format options as buttons (not dropdown)
-      await expect(page.getByText('Native SegWit')).toBeVisible();
-      await expect(page.getByText('Taproot')).toBeVisible();
-      await expect(page.getByText('Legacy')).toBeVisible();
+      // Use role-based selectors to avoid matching description text
+      await expect(page.getByRole('button', { name: /Native SegWit/ })).toBeVisible();
+      await expect(page.getByRole('button', { name: /Taproot/ })).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Legacy/ })).toBeVisible();
 
       // Connect button should be visible
       await expect(page.getByRole('button', { name: /Connect Trezor/i })).toBeVisible();
@@ -106,14 +107,14 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.waitForLoadState('networkidle');
 
       // Native SegWit should be selected by default (has border-blue-500)
-      const segwitButton = page.getByText('Native SegWit').locator('..');
+      const segwitButton = page.getByRole('button', { name: /Native SegWit/ });
       await expect(segwitButton).toBeVisible();
 
-      // Click on Legacy format
-      await page.getByText('Legacy').click();
+      // Click on Legacy format (use specific selector to avoid matching description text)
+      await page.getByRole('button', { name: /^Legacy/ }).click();
 
       // Click on Taproot format
-      await page.getByText('Taproot').click();
+      await page.getByRole('button', { name: /Taproot/ }).click();
 
       // Should show firmware warning for Taproot
       await expect(page.getByText(/firmware/i)).toBeVisible();
@@ -384,10 +385,11 @@ test.describe('Trezor Wallet Integration Proof', () => {
 
       // Step 2: Verify UI elements
       console.log('\nStep 2: Verifying UI elements...');
-      await expect(page.getByText('Native SegWit')).toBeVisible();
-      await expect(page.getByText('Taproot')).toBeVisible();
-      await expect(page.getByText('Legacy')).toBeVisible();
-      await expect(page.getByText('Nested SegWit')).toBeVisible();
+      // Use role-based selectors to avoid matching description text
+      await expect(page.getByRole('button', { name: /Native SegWit/ })).toBeVisible();
+      await expect(page.getByRole('button', { name: /Taproot/ })).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Legacy/ })).toBeVisible();
+      await expect(page.getByRole('button', { name: /Nested SegWit/ })).toBeVisible();
       await expect(page.getByRole('button', { name: /Connect Trezor/i })).toBeVisible();
       console.log('  ✓ All UI elements present');
 
