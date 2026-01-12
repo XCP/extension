@@ -227,12 +227,72 @@ The settings page shows an informational message for hardware wallets explaining
 - [ ] PIN entry failures
 - [ ] Firmware version incompatibilities
 
+## Account Discovery Research
+
+### How Trezor Suite Works
+
+Trezor Suite performs **automatic account discovery** when a device connects:
+
+1. Gets xpub for Account 0 from the device
+2. Queries blockchain backend (Blockbook) to check if account has transaction history
+3. If account has history → show it, then check Account 1
+4. Continues until finding an empty account (no history)
+5. All accounts with any transaction history are shown in the UI
+
+**Key Insight**: The Trezor device does NOT know which accounts have funds. Discovery requires:
+- Getting xpub from device (device operation)
+- Querying blockchain for account info/transactions (backend operation)
+
+### Current XCP Wallet Approach
+
+We use **manual account selection** instead of auto-discovery:
+- User selects account index (0, 1, 2) in Advanced Options
+- No blockchain queries during connection
+- Simpler implementation but less user-friendly for power users
+
+### Future Account Discovery Options
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| Manual (current) | User selects account | Simple, no backend | User must know their accounts |
+| Auto-discovery | Scan accounts 0-10 | Best UX | Requires blockchain queries |
+| Hybrid | Check Account 0, offer scan | Balanced | More complex |
+
+### Power User Expectations
+
+Based on Trezor Suite research, power users expect:
+
+1. **Auto-detect existing wallets** - Connect device, see all accounts with funds
+2. **Show account history** - Even accounts with 0 balance but transaction history
+3. **Add new account easily** - One-click to create next sequential account
+4. **Multiple address types** - Same Trezor can have SegWit Account 0 AND Legacy Account 0
+
+### Recommended Future Flow
+
+```
+User connects Trezor
+    ↓
+Get xpub for Account 0
+    ↓
+Query backend for balance/history
+    ↓
+┌─────────────────────────────────────────┐
+│ Found: Account 0 with 0.5 BTC           │
+│ ┌─────────────────────────────────────┐ │
+│ │ [Use This Account]                  │ │
+│ │ [Scan for More Accounts]            │ │
+│ │ [Create New Account for CP]         │ │
+│ └─────────────────────────────────────┘ │
+└─────────────────────────────────────────┘
+```
+
 ## Future Improvements
 
-1. **Better Popup Handling**: Investigate if we can detect popup closure vs. user cancellation
-2. **Watch-Only Mode**: Allow viewing balances without device connected
-3. **Multi-Device Support**: Handle multiple Trezor devices
-4. **Ledger Support**: Implement similar adapter for Ledger devices
+1. **Account Auto-Discovery**: Scan blockchain for all used accounts on connect
+2. **Better Popup Handling**: Investigate if we can detect popup closure vs. user cancellation
+3. **Watch-Only Mode**: Allow viewing balances without device connected
+4. **Multi-Device Support**: Handle multiple Trezor devices
+5. **Ledger Support**: Implement similar adapter for Ledger devices
 
 ## Files Reference
 
