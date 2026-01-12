@@ -57,7 +57,13 @@ function CreateWallet() {
         navigate(PATHS.SUCCESS);
         return { error: null };
       } catch (err) {
-        console.error("Error creating wallet:", err);
+        // Store detailed error for debugging
+        const errorDetails = {
+          message: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+          type: typeof err
+        };
+        sessionStorage.setItem('debug_wallet_error', JSON.stringify(errorDetails));
         return { error: "Failed to create wallet. Please try again." };
       }
     },
@@ -170,7 +176,7 @@ function CreateWallet() {
           {isConfirmed && (
             <>
               <PasswordInput
-                ref={passwordInputRef}
+                innerRef={passwordInputRef}
                 name="password"
                 placeholder={
                   walletExists ? "Confirm your password" : "Create a password"

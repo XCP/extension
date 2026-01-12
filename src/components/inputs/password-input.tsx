@@ -1,4 +1,4 @@
-import { useState, forwardRef } from 'react';
+import { useState } from 'react';
 import { FaEye, FaEyeSlash } from '@/components/icons';
 import { Field, Input, Label, Description } from '@headlessui/react';
 import { Button } from '@/components/button';
@@ -8,6 +8,7 @@ interface PasswordInputProps {
   name?: string;
   placeholder?: string;
   value?: string;
+  innerRef?: React.RefObject<HTMLInputElement | null>;
   label?: string;
   required?: boolean;
   showHelpText?: boolean;
@@ -16,18 +17,19 @@ interface PasswordInputProps {
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
-export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(function PasswordInput({
+export function PasswordInput({
   disabled = false,
   name = "password",
   placeholder = "Enter password",
   value,
+  innerRef,
   label,
   required = false,
   showHelpText = false,
   helpText,
   onChange,
   onKeyDown,
-}, ref) {
+}: PasswordInputProps) {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleTogglePassword = () => {
@@ -43,7 +45,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(fu
       )}
       <div className="relative">
         <Input
-          ref={ref}
+          ref={innerRef}
           name={name}
           type={showPassword ? "text" : "password"}
           placeholder={placeholder}
@@ -80,4 +82,4 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(fu
       )}
     </Field>
   );
-});
+}

@@ -5,7 +5,7 @@ import { Button } from '@/components/button';
 import { useHeader } from '@/contexts/header-context';
 import { ErrorAlert } from '@/components/error-alert';
 import { useWallet } from '@/contexts/wallet-context';
-import { MAX_WALLETS } from '@/utils/wallet/walletManager';
+import { MAX_WALLETS } from '@/utils/wallet/constants';
 
 /**
  * AddWallet component provides options for creating or importing a wallet.

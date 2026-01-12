@@ -10,7 +10,8 @@
  */
 
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import { MAX_ADDRESSES_PER_WALLET } from '@/utils/wallet/walletManager';
+// Import directly from constants to avoid circular dependency
+import { MAX_ADDRESSES_PER_WALLET } from '@/utils/wallet/constants';
 
 import {
   getAllRecords,

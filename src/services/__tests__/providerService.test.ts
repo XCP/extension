@@ -481,7 +481,7 @@ describe('ProviderService', () => {
             'xcp_signPsbt',
             []
           )
-        ).rejects.toThrow('PSBT hex is required');
+        ).rejects.toThrow('PSBT parameters must be an object with hex property');
       });
     });
 
@@ -687,7 +687,7 @@ describe('ProviderService', () => {
 
         // Verify critical operation was registered for signing
         expect(mockUpdateService.registerCriticalOperation).toHaveBeenCalledWith(
-          expect.stringMatching(/^sign-psbt-sign-psbt-\d+$/)
+          expect.stringMatching(/^sign-psbt-sign-psbt-\d+-[a-z0-9]+$/)
         );
       });
     });
@@ -703,7 +703,7 @@ describe('ProviderService', () => {
             'xcp_signPsbt',
             []
           )
-        ).rejects.toThrow('PSBT hex is required');
+        ).rejects.toThrow('PSBT parameters must be an object with hex property');
       });
 
       it('should handle invalid parameters gracefully', async () => {
@@ -716,7 +716,7 @@ describe('ProviderService', () => {
             'xcp_signPsbt',
             [null]
           )
-        ).rejects.toThrow('PSBT hex is required');
+        ).rejects.toThrow('PSBT parameters must be an object with hex property');
       });
 
       it('should handle wallet lock during operation', async () => {
