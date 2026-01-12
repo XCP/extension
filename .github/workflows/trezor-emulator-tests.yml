@@ -51,21 +51,28 @@ jobs:
       - name: Install xvfb for headless display
         run: sudo apt-get install -y xvfb
 
-      - name: Wait for Trezor emulator to be ready
-        timeout-minutes: 3
+      - name: Wait for WebSocket controller
+        timeout-minutes: 2
         run: |
-          echo "Waiting for Trezor emulator to be ready..."
-          for i in $(seq 1 60); do
-            if curl -sf http://localhost:9001/status > /dev/null 2>&1; then
-              echo "Emulator is ready!"
-              curl http://localhost:9001/status || true
+          echo "Waiting for WebSocket controller on port 9001..."
+          for i in $(seq 1 40); do
+            if nc -z localhost 9001 2>/dev/null; then
+              echo "Controller is ready!"
               exit 0
             fi
-            echo "Attempt $i/60: Waiting for emulator..."
+            echo "Attempt $i/40: Waiting..."
             sleep 3
           done
-          echo "Emulator failed to start"
+          echo "Controller failed to start"
           exit 1
+
+      - name: Initialize Trezor emulator
+        timeout-minutes: 2
+        run: |
+          echo "Installing ws for WebSocket communication..."
+          npm install ws
+          echo "Starting emulator and bridge via WebSocket API..."
+          node scripts/init-trezor-emulator.js
 
       - name: Run Trezor emulator tests
         timeout-minutes: 10
