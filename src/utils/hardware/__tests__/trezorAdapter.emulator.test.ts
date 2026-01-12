@@ -61,15 +61,22 @@ const EXPECTED_ADDRESSES = {
 const DISCOVER_MODE = process.env.DISCOVER_ADDRESSES === '1';
 
 /**
- * Check if the Trezor emulator is available
+ * Check if the Trezor emulator is available by checking the Bridge
+ *
+ * The controller on port 9001 is WebSocket-only, so we check the
+ * Trezor Bridge on port 21325 which has an HTTP status endpoint.
  */
 async function isEmulatorAvailable(): Promise<boolean> {
   try {
-    const response = await fetch(`${EMULATOR_CONTROL_URL}/status`, {
-      method: 'GET',
-      signal: AbortSignal.timeout(2000),
+    // Check if Trezor Bridge is responding
+    const response = await fetch(`${EMULATOR_BRIDGE_URL}/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version: '1.0.0' }),
+      signal: AbortSignal.timeout(5000),
     });
-    return response.ok;
+    // Bridge returns 200 even for invalid requests, so any response means it's up
+    return response.status === 200 || response.status === 400 || response.status === 404;
   } catch {
     return false;
   }

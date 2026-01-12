@@ -14,6 +14,7 @@ on:
     branches: [ main, feature/trezor-hardware-wallet ]
     paths:
       - 'src/utils/hardware/**'
+      - 'scripts/init-trezor-emulator.js'
       - '.github/workflows/trezor-emulator-tests.yml'
   # Allow manual trigger
   workflow_dispatch:
