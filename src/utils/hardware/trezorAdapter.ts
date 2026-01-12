@@ -175,11 +175,13 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
   ): Promise<HardwareAddress> {
     this.ensureInitialized();
 
-    const path = DerivationPaths.getBip44Path(addressFormat, account, 0, index);
+    const pathArray = DerivationPaths.getBip44Path(addressFormat, account, 0, index);
+    // Use string path format to avoid JavaScript signed integer issues with hardened values
+    const pathString = DerivationPaths.pathToString(pathArray);
     const scriptType = getScriptType(addressFormat, false);
 
     const result = await TrezorConnect.getAddress({
-      path,
+      path: pathString,
       coin: 'btc',
       showOnTrezor: showOnDevice,
       scriptType: scriptType as any,
@@ -198,7 +200,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     return {
       address: result.payload.address,
       publicKey: (result.payload as any).publicKey ?? '',
-      path: DerivationPaths.pathToString(path),
+      path: pathString,
     };
   }
 
@@ -217,13 +219,20 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     const addresses: HardwareAddress[] = [];
     const scriptType = getScriptType(addressFormat, false);
 
-    // Build bundle of address requests
-    const bundle = Array.from({ length: count }, (_, i) => ({
-      path: DerivationPaths.getBip44Path(addressFormat, account, 0, startIndex + i),
-      coin: 'btc' as const,
-      showOnTrezor: false,
-      scriptType: scriptType as any,
-    }));
+    // Build bundle of address requests using string paths
+    // to avoid JavaScript signed integer issues with hardened values
+    const pathStrings: string[] = [];
+    const bundle = Array.from({ length: count }, (_, i) => {
+      const pathArray = DerivationPaths.getBip44Path(addressFormat, account, 0, startIndex + i);
+      const pathString = DerivationPaths.pathToString(pathArray);
+      pathStrings.push(pathString);
+      return {
+        path: pathString,
+        coin: 'btc' as const,
+        showOnTrezor: false,
+        scriptType: scriptType as any,
+      };
+    });
 
     const result = await TrezorConnect.getAddress({ bundle, useEmptyPassphrase: !usePassphrase });
 
@@ -241,7 +250,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       addresses.push({
         address: addr.address,
         publicKey: addr.publicKey ?? '',
-        path: DerivationPaths.pathToString(bundle[i].path),
+        path: pathStrings[i],
       });
     }
 
@@ -255,11 +264,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     this.ensureInitialized();
 
     const purpose = DerivationPaths.getPurpose(addressFormat);
-    const path = [
-      purpose | DerivationPaths.HARDENED,
-      0 | DerivationPaths.HARDENED, // Bitcoin mainnet
-      account | DerivationPaths.HARDENED,
-    ];
+    // Use string path format to avoid JavaScript signed integer issues with hardened values
+    const path = `m/${purpose}'/${0}'/${account}'`;
 
     const result = await TrezorConnect.getPublicKey({
       path,

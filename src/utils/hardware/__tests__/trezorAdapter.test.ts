@@ -265,11 +265,7 @@ describe('TrezorAdapter', () => {
 
       expect(xpub).toBe('xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWZiD6...');
       expect(mockGetPublicKey).toHaveBeenCalledWith({
-        path: [
-          84 | 0x80000000,
-          0 | 0x80000000,
-          0 | 0x80000000,
-        ],
+        path: "m/84'/0'/0'", // String path format
         coin: 'btc',
         useEmptyPassphrase: true,
       });
@@ -284,14 +280,14 @@ describe('TrezorAdapter', () => {
       await adapter.getXpub(AddressFormat.P2PKH, 0);
       expect(mockGetPublicKey).toHaveBeenCalledWith(
         expect.objectContaining({
-          path: expect.arrayContaining([44 | 0x80000000]),
+          path: "m/44'/0'/0'", // String path format
         })
       );
 
       await adapter.getXpub(AddressFormat.P2TR, 0);
       expect(mockGetPublicKey).toHaveBeenCalledWith(
         expect.objectContaining({
-          path: expect.arrayContaining([86 | 0x80000000]),
+          path: "m/86'/0'/0'", // String path format
         })
       );
     });
