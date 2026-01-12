@@ -200,6 +200,18 @@ export const FiChevronUp = (props: IconProps): ReactElement => (
   </FeatherIcon>
 );
 
+export const FiChevronRight = (props: IconProps): ReactElement => (
+  <FeatherIcon {...props}>
+    <polyline points="9 18 15 12 9 6" />
+  </FeatherIcon>
+);
+
+export const FiCheck = (props: IconProps): ReactElement => (
+  <FeatherIcon {...props}>
+    <polyline points="20 6 9 17 4 12" />
+  </FeatherIcon>
+);
+
 export const FiExternalLink = (props: IconProps): ReactElement => (
   <FeatherIcon {...props}>
     <>
