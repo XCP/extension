@@ -28,7 +28,7 @@ interface WalletMenuProps {
  */
 export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElement {
   const navigate = useNavigate();
-  const { removeWallet } = useWallet();
+  const { wallets, activeWallet, setActiveWallet, removeWallet } = useWallet();
   const isHardware = wallet.type === 'hardware';
 
   const handleShowSecret = useCallback(() => {
@@ -43,9 +43,14 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
 
   const handleDisconnectHardware = useCallback(async () => {
     // Hardware wallets are session-only, just remove from memory
+    // Match the behavior of remove-wallet: switch active wallet if needed
+    const remainingWallets = wallets.filter((w) => w.id !== wallet.id);
+    if (activeWallet?.id === wallet.id) {
+      await setActiveWallet(remainingWallets.length > 0 ? remainingWallets[0] : null);
+    }
     await removeWallet(wallet.id);
-    navigate('/select-wallet');
-  }, [removeWallet, wallet.id, navigate]);
+    navigate('/select-wallet', { replace: true });
+  }, [wallets, activeWallet, setActiveWallet, removeWallet, wallet.id, navigate]);
 
   return (
     <BaseMenu
