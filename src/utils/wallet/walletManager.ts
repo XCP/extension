@@ -888,14 +888,9 @@ export class WalletManager {
     const wallet = this.getWalletById(this.activeWalletId);
     if (!wallet) throw new Error("Wallet not found");
 
-    // Hardware wallets don't support PSBT signing through this interface
-    // Trezor uses a different signing flow (signTransaction with inputs/outputs arrays)
-    // TODO: Implement PSBT-to-Trezor format conversion for hardware wallet PSBT signing
-    if (wallet.type === 'hardware') {
-      throw new Error(
-        'PSBT signing is not yet supported for hardware wallets. ' +
-        'Use standard transaction signing instead.'
-      );
+    // Hardware wallet PSBT signing
+    if (wallet.type === 'hardware' && wallet.hardwareData) {
+      return this.signPsbtWithHardware(psbtHex, wallet, signInputs);
     }
 
     // If signInputs is provided, sign only the specified inputs
@@ -1167,6 +1162,84 @@ export class WalletManager {
       signature: result.signature,
       address: result.address,
     };
+  }
+
+  /**
+   * Sign a PSBT using hardware wallet (Trezor)
+   * Note: Trezor returns a fully signed raw transaction, not a PSBT
+   */
+  private async signPsbtWithHardware(
+    psbtHex: string,
+    wallet: Wallet,
+    signInputs?: Record<string, number[]>
+  ): Promise<string> {
+    if (!wallet.hardwareData) {
+      throw new Error('Hardware wallet data not available');
+    }
+
+    const trezor = getTrezorAdapter();
+    if (!trezor.isInitialized()) {
+      await trezor.init();
+    }
+
+    // Build input paths map from signInputs or use all wallet addresses
+    const inputPaths = new Map<number, number[]>();
+
+    if (signInputs && Object.keys(signInputs).length > 0) {
+      // Map addresses to their derivation paths for specified inputs
+      for (const [address, inputIndices] of Object.entries(signInputs)) {
+        const targetAddress = wallet.addresses.find(addr => addr.address === address);
+        if (!targetAddress) {
+          throw new Error(`Address ${address} not found in wallet`);
+        }
+
+        // Parse the path string to get address index
+        const pathParts = targetAddress.path.split('/');
+        const addressIndex = parseInt(pathParts[pathParts.length - 1], 10);
+
+        // Get full derivation path as number array
+        const fullPath = DerivationPaths.getBip44Path(
+          wallet.addressFormat,
+          wallet.hardwareData.accountIndex,
+          0, // external chain
+          addressIndex
+        );
+
+        // Map each input index to this path
+        for (const inputIndex of inputIndices) {
+          inputPaths.set(inputIndex, fullPath);
+        }
+      }
+    } else {
+      // No specific inputs specified - use first address for all inputs
+      // The TrezorAdapter will figure out which inputs to sign based on the PSBT
+      const firstAddress = wallet.addresses[0];
+      if (!firstAddress) {
+        throw new Error('No addresses in wallet');
+      }
+
+      const pathParts = firstAddress.path.split('/');
+      const addressIndex = parseInt(pathParts[pathParts.length - 1], 10);
+
+      const fullPath = DerivationPaths.getBip44Path(
+        wallet.addressFormat,
+        wallet.hardwareData.accountIndex,
+        0,
+        addressIndex
+      );
+
+      // We'll set path for input 0, TrezorAdapter will handle the rest
+      inputPaths.set(0, fullPath);
+    }
+
+    const result = await trezor.signPsbt({
+      psbtHex,
+      inputPaths,
+    });
+
+    // Note: Trezor returns a fully signed raw transaction hex, not a PSBT
+    // The caller should be aware of this
+    return result.signedPsbtHex;
   }
 
   /**
