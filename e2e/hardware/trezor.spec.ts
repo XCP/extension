@@ -79,7 +79,7 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.waitForLoadState('networkidle');
 
       // Should see the connect hardware page
-      await expect(page.getByText('Connect Trezor')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('heading', { name: 'Connect Trezor' })).toBeVisible({ timeout: 10000 });
       await expect(page.getByText('Address Format')).toBeVisible();
       await expect(page.getByRole('button', { name: /Connect Trezor/i })).toBeVisible();
 
@@ -102,7 +102,7 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.waitForLoadState('networkidle');
 
       // Wait for the page to load
-      await expect(page.getByText('Connect Trezor')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('heading', { name: 'Connect Trezor' })).toBeVisible({ timeout: 10000 });
 
       // Set a wallet name
       const nameInput = page.locator('input[placeholder="My Trezor Wallet"]');
@@ -188,7 +188,7 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
-      await expect(page.getByText('Connect Trezor')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('heading', { name: 'Connect Trezor' })).toBeVisible({ timeout: 10000 });
 
       // Listen for new pages (Trezor Connect popup)
       const popupPromise = context.waitForEvent('page', { timeout: 15000 }).catch(() => null);
@@ -233,7 +233,7 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
-      await expect(page.getByText('Connect Trezor')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('heading', { name: 'Connect Trezor' })).toBeVisible({ timeout: 10000 });
 
       // Check if TrezorConnect is available in the page context
       const trezorStatus = await page.evaluate(async () => {
@@ -286,7 +286,7 @@ test.describe('Trezor Wallet Integration Proof', () => {
       await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
-      await expect(page.getByText('Connect Trezor')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('heading', { name: 'Connect Trezor' })).toBeVisible({ timeout: 10000 });
       console.log('  OK - Connect Hardware page loaded');
 
       // Step 2: Verify UI elements
