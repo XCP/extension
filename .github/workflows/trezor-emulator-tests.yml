@@ -31,14 +31,18 @@ jobs:
           - 21324:21324 # Emulator WebSocket
           - 21325:21325 # Trezor Bridge
         env:
+          # Headless mode - required for CI without display
+          SDL_VIDEODRIVER: dummy
+          # Temporary profile that resets on restart
           TREZOR_EMULATOR_TEMPORARY_PROFILE: 1
+          # Disable animations for faster tests
           TREZOR_EMULATOR_DISABLE_ANIMATIONS: 1
         options: >-
           --health-cmd "curl -f http://localhost:9001/status || exit 1"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-          --health-start-period 30s
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 60s
 
     steps:
       - name: Checkout code
