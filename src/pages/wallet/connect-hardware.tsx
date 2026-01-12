@@ -12,10 +12,27 @@ import { AddressFormat } from "@/utils/blockchain/bitcoin/address";
 import { fetchBTCBalance } from "@/utils/blockchain/bitcoin/balance";
 import { fetchTokenBalances } from "@/utils/blockchain/counterparty/api";
 import { fromSatoshis } from "@/utils/numeric";
+import type { HardwareWalletVendor } from "@/utils/hardware/types";
 import type { ReactElement } from "react";
 
 // Steps in the connection flow
-type Step = "select-format" | "connecting" | "discovery" | "confirm";
+type Step = "select-vendor" | "select-format" | "connecting" | "discovery" | "confirm";
+
+// Vendor options
+const VENDOR_OPTIONS: { value: HardwareWalletVendor; label: string; icon: string; description: string }[] = [
+  {
+    value: "trezor",
+    label: "Trezor",
+    icon: "🔐",
+    description: "Trezor Model T, Model One, Safe 3, Safe 5",
+  },
+  {
+    value: "ledger",
+    label: "Ledger",
+    icon: "🔑",
+    description: "Nano S, Nano S Plus, Nano X, Stax, Flex",
+  },
+];
 
 const ADDRESS_FORMAT_OPTIONS = [
   {
@@ -30,7 +47,7 @@ const ADDRESS_FORMAT_OPTIONS = [
     label: "Taproot",
     prefix: "bc1p...",
     description: "Newest format. Best privacy and lowest fees.",
-    firmware: "Requires firmware 2.4.3+ (Model T) or 1.10.4+ (Model One)",
+    firmware: "Requires recent firmware",
   },
   {
     value: AddressFormat.P2PKH,
@@ -62,10 +79,11 @@ export default function ConnectHardware(): ReactElement {
   const { createHardwareWallet } = useWallet();
 
   // Flow state
-  const [step, setStep] = useState<Step>("select-format");
+  const [step, setStep] = useState<Step>("select-vendor");
   const [error, setError] = useState("");
 
   // User selections
+  const [vendor, setVendor] = useState<HardwareWalletVendor | null>(null);
   const [addressFormat, setAddressFormat] = useState<AddressFormat>(AddressFormat.P2WPKH);
   const [accountIndex, setAccountIndex] = useState(0);
   const [usePassphrase, setUsePassphrase] = useState(false);
@@ -78,29 +96,53 @@ export default function ConnectHardware(): ReactElement {
   // Troubleshooting mode
   const [showTroubleshooting, setShowTroubleshooting] = useState(false);
 
+  // Get the vendor label for display
+  const vendorLabel = VENDOR_OPTIONS.find(v => v.value === vendor)?.label ?? "Hardware Wallet";
+
   useEffect(() => {
+    let title = "Connect Hardware Wallet";
+    if (step === "select-format" && vendor) {
+      title = `Connect ${vendorLabel}`;
+    } else if (step === "confirm") {
+      title = "Wallet Found";
+    }
+
     setHeaderProps({
-      title: step === "confirm" ? "Wallet Found" : "Connect Trezor",
+      title,
       onBack: () => {
         if (step === "confirm" || step === "discovery") {
           setStep("select-format");
           setDiscoveryResult(null);
           setError("");
+        } else if (step === "select-format") {
+          setStep("select-vendor");
+          setVendor(null);
         } else {
           navigate(-1);
         }
       },
     });
-  }, [setHeaderProps, navigate, step]);
+  }, [setHeaderProps, navigate, step, vendor, vendorLabel]);
+
+  function handleVendorSelect(selectedVendor: HardwareWalletVendor) {
+    setVendor(selectedVendor);
+    setStep("select-format");
+  }
 
   async function handleConnect() {
+    if (!vendor) {
+      setError("Please select a hardware wallet type");
+      setStep("select-vendor");
+      return;
+    }
+
     setError("");
     setStep("connecting");
 
     try {
       // Create the hardware wallet
       const wallet = await createHardwareWallet(
-        "trezor",
+        vendor,
         addressFormat,
         accountIndex,
         walletName || undefined,
@@ -149,11 +191,13 @@ export default function ConnectHardware(): ReactElement {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Failed to connect hardware wallet";
 
-      // Provide helpful message for common Trezor errors
+      // Provide helpful message for common errors
       if (errorMsg.includes("Taproot") || errorMsg.includes("P2TR")) {
-        setError("Taproot requires newer Trezor firmware. Please update your firmware or select a different address format.");
+        setError("Taproot requires newer firmware. Please update your firmware or select a different address format.");
       } else if (errorMsg.includes("cancelled") || errorMsg.includes("Cancelled")) {
         setError("Connection cancelled. Please try again when ready.");
+      } else if (errorMsg.includes("not found") || errorMsg.includes("discovery")) {
+        setError(`Could not find a ${vendorLabel} device. Make sure it is connected, unlocked, and the Bitcoin app is open${vendor === 'ledger' ? ' (for Ledger)' : ''}.`);
       } else {
         setError(errorMsg);
       }
@@ -172,21 +216,67 @@ export default function ConnectHardware(): ReactElement {
     setShowTroubleshooting(true);
   }
 
-  // Render based on current step
+  // Render: Vendor Selection
+  if (step === "select-vendor") {
+    return (
+      <div className="flex flex-col gap-5 p-4">
+        {/* Header */}
+        <div className="text-center">
+          <div className="text-5xl mb-3">🔐</div>
+          <p className="text-sm text-gray-400">
+            Select your hardware wallet
+          </p>
+        </div>
+
+        {error && <ErrorAlert message={error} onClose={() => setError("")} />}
+
+        {/* Vendor Selection */}
+        <div className="space-y-3">
+          {VENDOR_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => handleVendorSelect(option.value)}
+              className="w-full text-left p-5 rounded-lg border-2 border-gray-700 bg-gray-800/50 hover:border-blue-500 hover:bg-blue-500/10 transition-colors"
+            >
+              <div className="flex items-center gap-4">
+                <span className="text-4xl">{option.icon}</span>
+                <div>
+                  <span className="text-lg font-medium block">{option.label}</span>
+                  <span className="text-sm text-gray-400">{option.description}</span>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <p className="text-xs text-gray-500 text-center mt-4">
+          Your private keys never leave your hardware device.
+        </p>
+      </div>
+    );
+  }
+
+  // Render: Connecting
   if (step === "connecting") {
     return (
       <div className="flex flex-col items-center justify-center gap-6 p-8 min-h-[400px]">
         <Spinner />
         <div className="text-center">
-          <h2 className="text-lg font-semibold mb-2">Connecting to Trezor...</h2>
+          <h2 className="text-lg font-semibold mb-2">Connecting to {vendorLabel}...</h2>
           <p className="text-sm text-gray-400">
             Please confirm the connection on your device
           </p>
+          {vendor === 'ledger' && (
+            <p className="text-xs text-gray-500 mt-2">
+              Make sure the Bitcoin app is open on your Ledger
+            </p>
+          )}
         </div>
       </div>
     );
   }
 
+  // Render: Discovery
   if (step === "discovery") {
     return (
       <div className="flex flex-col items-center justify-center gap-6 p-8 min-h-[400px]">
@@ -201,6 +291,7 @@ export default function ConnectHardware(): ReactElement {
     );
   }
 
+  // Render: Confirm
   if (step === "confirm" && discoveryResult) {
     const btcAmount = fromSatoshis(discoveryResult.btcBalance, { asNumber: true });
     const hasAnything = discoveryResult.btcBalance > 0 || discoveryResult.hasCounterpartyAssets;
@@ -283,9 +374,9 @@ export default function ConnectHardware(): ReactElement {
     <div className="flex flex-col gap-5 p-4">
       {/* Header */}
       <div className="text-center">
-        <div className="text-5xl mb-3">🔐</div>
+        <div className="text-5xl mb-3">{VENDOR_OPTIONS.find(v => v.value === vendor)?.icon ?? "🔐"}</div>
         <p className="text-sm text-gray-400">
-          Select the address format that matches your existing Trezor wallet
+          Select the address format that matches your existing {vendorLabel} wallet
         </p>
       </div>
 
@@ -349,22 +440,24 @@ export default function ConnectHardware(): ReactElement {
             </div>
           </div>
 
-          {/* Passphrase Option */}
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="usePassphrase"
-              checked={usePassphrase}
-              onChange={(e) => setUsePassphrase(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-blue-500"
-            />
-            <label htmlFor="usePassphrase" className="text-sm">
-              <span className="font-medium">Use passphrase</span>
-              <span className="text-gray-400 block text-xs">
-                For hidden/passphrase-protected wallets
-              </span>
-            </label>
-          </div>
+          {/* Passphrase Option - only show for Trezor */}
+          {vendor === 'trezor' && (
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="usePassphrase"
+                checked={usePassphrase}
+                onChange={(e) => setUsePassphrase(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-700 bg-gray-800 text-blue-500"
+              />
+              <label htmlFor="usePassphrase" className="text-sm">
+                <span className="font-medium">Use passphrase</span>
+                <span className="text-gray-400 block text-xs">
+                  For hidden/passphrase-protected wallets
+                </span>
+              </label>
+            </div>
+          )}
 
           {/* Wallet Name */}
           <div>
@@ -375,7 +468,7 @@ export default function ConnectHardware(): ReactElement {
               type="text"
               value={walletName}
               onChange={(e) => setWalletName(e.target.value)}
-              placeholder="My Trezor"
+              placeholder={`My ${vendorLabel}`}
               className="w-full px-3 py-2 text-sm bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -387,7 +480,7 @@ export default function ConnectHardware(): ReactElement {
           onClick={() => setShowTroubleshooting(true)}
           className="text-xs text-gray-500 hover:text-gray-400"
         >
-          ▸ Advanced options (account selection, passphrase)
+          ▸ Advanced options (account selection{vendor === 'trezor' ? ', passphrase' : ''})
         </button>
       )}
 
@@ -395,17 +488,18 @@ export default function ConnectHardware(): ReactElement {
       <div className="bg-gray-800/50 rounded-lg p-3">
         <h3 className="text-xs font-medium text-gray-300 mb-2">Before connecting:</h3>
         <ul className="text-xs text-gray-400 space-y-1">
-          <li>• Trezor connected via USB</li>
+          <li>• {vendorLabel} connected via USB</li>
           <li>• Device unlocked with PIN</li>
+          {vendor === 'ledger' && <li>• Bitcoin app open on device</li>}
         </ul>
       </div>
 
       <Button onClick={handleConnect} className="w-full">
-        Connect Trezor
+        Connect {vendorLabel}
       </Button>
 
       <p className="text-xs text-gray-500 text-center">
-        Your private keys never leave your Trezor device.
+        Your private keys never leave your {vendorLabel} device.
       </p>
     </div>
   );

@@ -1,0 +1,156 @@
+name: Ledger Emulator Tests
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'src/utils/hardware/**'
+      - 'src/pages/wallet/connect-hardware.tsx'
+      - 'e2e/hardware/**'
+      - '.github/workflows/ledger-emulator-tests.yml'
+  push:
+    branches: [ main, feature/hardware-wallet-support ]
+    paths:
+      - 'src/utils/hardware/**'
+      - 'scripts/init-ledger-emulator.js'
+      - 'e2e/hardware/**'
+      - '.github/workflows/ledger-emulator-tests.yml'
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  ledger-emulator-tests:
+    name: Ledger Emulator Integration Tests
+    runs-on: ubuntu-latest
+
+    # Use Speculos Docker image for Ledger emulation
+    # Reference: https://github.com/LedgerHQ/speculos
+    services:
+      speculos:
+        image: ghcr.io/ledgerhq/speculos
+        ports:
+          - 5000:5000
+          - 9999:9999
+        env:
+          # Run in headless mode
+          SPECULOS_MODEL: nanosp
+          SPECULOS_SDK: 1.0
+          SPECULOS_ARGS: --display headless --seed "all all all all all all all all all all all all" --model nanosp
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install xvfb for headless display
+        run: sudo apt-get install -y xvfb
+
+      - name: Wait for Speculos to start
+        timeout-minutes: 2
+        run: |
+          echo "Waiting for Speculos on port 5000..."
+          for i in $(seq 1 40); do
+            if curl -s http://localhost:5000/ > /dev/null 2>&1; then
+              echo "Speculos is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/40: Waiting..."
+            sleep 3
+          done
+          echo "Speculos failed to start"
+          exit 1
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
+      - name: Run Ledger E2E tests
+        id: ledger-tests
+        timeout-minutes: 15
+        env:
+          LEDGER_SPECULOS_URL: http://localhost:5000
+          LEDGER_EMULATOR_AVAILABLE: '1'
+          NODE_OPTIONS: --max-old-space-size=4096
+          CI: 'true'
+        # Continue on error to get test artifacts
+        continue-on-error: true
+        run: xvfb-run npx playwright test e2e/hardware/ledger.spec.ts --reporter=list
+
+      - name: Check test results
+        if: always()
+        run: |
+          echo "=== Ledger E2E Test Results Summary ==="
+          echo ""
+          echo "Ledger Tests: ${{ steps.ledger-tests.outcome }}"
+          echo ""
+
+          if [ "${{ steps.ledger-tests.outcome }}" == "failure" ]; then
+            echo "❌ Ledger tests failed"
+            echo ""
+            echo "Note: Ledger emulator tests can be flaky in CI due to WebHID limitations."
+            echo "WebHID requires user interaction that cannot be fully automated."
+            echo "If tests pass locally but fail here, the emulator integration may not"
+            echo "be fully supported in headless browser environments."
+            echo "Review the test artifacts for details."
+            exit 1
+          else
+            echo "✅ All test suites passed!"
+          fi
+
+      - name: Upload Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ledger-playwright-test-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  hardware-unit-tests:
+    name: Ledger Adapter Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Run hardware wallet unit tests
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npx vitest run src/utils/hardware --reporter=verbose
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ledger-unit-test-results
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore

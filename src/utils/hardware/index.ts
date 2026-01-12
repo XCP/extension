@@ -2,22 +2,22 @@
  * Hardware Wallet Module
  *
  * Provides hardware wallet integration for XCP Wallet.
- * Currently supports Trezor devices.
- * Designed to be extensible for future Ledger support.
+ * Supports Trezor and Ledger devices.
  */
 
 import { IHardwareWalletAdapter } from './interface';
 import { HardwareWalletVendor, HardwareWalletError } from './types';
 import { getTrezorAdapter } from './trezorAdapter';
+import { getLedgerAdapter } from './ledgerAdapter';
 
 export * from './types';
 export * from './interface';
 export { TrezorAdapter, getTrezorAdapter, resetTrezorAdapter } from './trezorAdapter';
+export { LedgerAdapter, getLedgerAdapter, resetLedgerAdapter } from './ledgerAdapter';
 
 /**
  * Factory function to get the appropriate hardware wallet adapter
- * based on the vendor type. This abstraction allows easy addition
- * of new hardware wallet vendors in the future.
+ * based on the vendor type.
  *
  * @param vendor - The hardware wallet vendor (e.g., 'trezor', 'ledger')
  * @returns The hardware wallet adapter for the specified vendor
@@ -29,8 +29,9 @@ export { TrezorAdapter, getTrezorAdapter, resetTrezorAdapter } from './trezorAda
  * await adapter.init();
  *
  * @example
- * // Future Ledger support
+ * // Get Ledger adapter
  * const adapter = getHardwareAdapter('ledger');
+ * await adapter.init();
  */
 export function getHardwareAdapter(vendor: HardwareWalletVendor): IHardwareWalletAdapter {
   switch (vendor) {
@@ -38,14 +39,7 @@ export function getHardwareAdapter(vendor: HardwareWalletVendor): IHardwareWalle
       return getTrezorAdapter();
 
     case 'ledger':
-      // TODO: Implement LedgerAdapter when Ledger support is added
-      // return getLedgerAdapter();
-      throw new HardwareWalletError(
-        'Ledger support is not yet implemented',
-        'VENDOR_NOT_SUPPORTED',
-        'ledger',
-        'Ledger hardware wallets are not yet supported. Please use a Trezor device.'
-      );
+      return getLedgerAdapter();
 
     default:
       throw new HardwareWalletError(
@@ -64,7 +58,7 @@ export function getHardwareAdapter(vendor: HardwareWalletVendor): IHardwareWalle
  * @returns true if the vendor is supported
  */
 export function isVendorSupported(vendor: HardwareWalletVendor): boolean {
-  return vendor === 'trezor';
+  return vendor === 'trezor' || vendor === 'ledger';
 }
 
 /**
@@ -73,5 +67,5 @@ export function isVendorSupported(vendor: HardwareWalletVendor): boolean {
  * @returns Array of supported vendor names
  */
 export function getSupportedVendors(): HardwareWalletVendor[] {
-  return ['trezor'];
+  return ['trezor', 'ledger'];
 }
