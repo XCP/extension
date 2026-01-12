@@ -8,7 +8,7 @@
  * Usage: node scripts/init-trezor-emulator.js
  */
 
-const WebSocket = require('ws');
+import WebSocket from 'ws';
 
 const CONTROLLER_URL = 'ws://localhost:9001';
 const TEST_MNEMONIC = 'all all all all all all all all all all all all';
