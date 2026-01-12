@@ -238,7 +238,7 @@ function ImportWallet() {
           {isConfirmed && (
             <>
               <PasswordInput
-                ref={passwordInputRef}
+                innerRef={passwordInputRef}
                 name="password"
                 placeholder={walletExists ? "Confirm your password" : "Create a password"}
                 disabled={isPending}

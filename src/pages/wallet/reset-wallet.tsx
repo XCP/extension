@@ -86,7 +86,7 @@ function ResetWallet() {
             name="password"
             placeholder="Confirm your password"
             disabled={pending}
-            ref={passwordInputRef}
+            innerRef={passwordInputRef}
           />
           <Button type="submit" disabled={pending} fullWidth color="red" aria-label="Reset Wallet">
             {pending ? "Resetting..." : "Reset Wallet"}

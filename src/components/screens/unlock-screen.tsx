@@ -189,7 +189,7 @@ export function UnlockScreen({
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={isSubmitting}
-              ref={passwordInputRef}
+              innerRef={passwordInputRef}
               aria-label="Password"
               aria-invalid={!!error}
               aria-describedby={error ? "password-error" : undefined}

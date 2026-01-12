@@ -196,7 +196,7 @@ const ImportPrivateKey = () => {
                   name="private-key"
                   placeholder="Enter your private key"
                   disabled={pending}
-                  ref={privateKeyInputRef}
+                  innerRef={privateKeyInputRef}
                   onChange={handlePrivateKeyChange}
                 />
               </div>
@@ -219,7 +219,7 @@ const ImportPrivateKey = () => {
                 placeholder={walletExists ? "Confirm password" : "Create password"}
                 disabled={pending}
                 onChange={handlePasswordChange}
-                ref={passwordInputRef}
+                innerRef={passwordInputRef}
               />
               <Button type="submit" disabled={pending || !isPasswordValid} fullWidth>
                 {pending ? "Importing..." : "Continue"}
