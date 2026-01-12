@@ -293,15 +293,9 @@ export class WalletManager {
       usePassphrase,
     };
 
-    const record: EncryptedWalletRecord = {
-      id,
-      name: walletName,
-      type: 'hardware',
-      addressFormat,
-      addressCount: 1,
-      hardwareData,
-    };
-    await addEncryptedWallet(record);
+    // Hardware wallets are session-only - not persisted to storage
+    // This avoids storing xpub unencrypted and simplifies multi-device usage
+    // User reconnects their Trezor each session
 
     // Derive addresses from xpub
     const addresses = this.deriveHardwareAddresses(hardwareData, addressFormat, 1);
@@ -428,19 +422,13 @@ export class WalletManager {
   public async unlockWallet(walletId: string, password: string): Promise<void> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found in memory.');
-    const allRecords = await getAllEncryptedWallets();
-    const record = allRecords.find((r) => r.id === walletId);
-    if (!record) throw new Error('Wallet record not found in storage.');
 
-    // Hardware wallets don't need password unlock - addresses derived from xpub
-    if (record.type === 'hardware' && record.hardwareData) {
-      wallet.addresses = this.deriveHardwareAddresses(record.hardwareData, record.addressFormat, record.addressCount || 1);
-      wallet.addressCount = record.addressCount || 1;
-
+    // Hardware wallets are session-only - they don't need password unlock
+    // They're already in memory with addresses derived from xpub
+    if (wallet.type === 'hardware' && wallet.hardwareData) {
       if (!this.activeWalletId) {
         this.activeWalletId = walletId;
       }
-
       // Initialize settings encryption key for hardware wallets too
       await initializeSettingsKey(password);
       const settings = await getSettings();
@@ -449,6 +437,10 @@ export class WalletManager {
       await sessionManager.scheduleSessionExpiry(timeout);
       return;
     }
+
+    const allRecords = await getAllEncryptedWallets();
+    const record = allRecords.find((r) => r.id === walletId);
+    if (!record) throw new Error('Wallet record not found in storage.');
 
     // Special handling for test wallets
     if (record.isTestOnly) {
@@ -575,11 +567,16 @@ export class WalletManager {
 
     wallet.addresses.push(newAddr);
     wallet.addressCount++;
-    const allRecords = await getAllEncryptedWallets();
-    const record = allRecords.find((r) => r.id === walletId);
-    if (!record) throw new Error('Missing storage record.');
-    record.addressCount = wallet.addressCount;
-    await updateEncryptedWallet(record);
+
+    // Hardware wallets are session-only, no storage to update
+    if (wallet.type !== 'hardware') {
+      const allRecords = await getAllEncryptedWallets();
+      const record = allRecords.find((r) => r.id === walletId);
+      if (!record) throw new Error('Missing storage record.');
+      record.addressCount = wallet.addressCount;
+      await updateEncryptedWallet(record);
+    }
+
     return newAddr;
   }
 
