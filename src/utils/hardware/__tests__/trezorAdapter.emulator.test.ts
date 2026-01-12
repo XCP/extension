@@ -61,22 +61,41 @@ const EXPECTED_ADDRESSES = {
 const DISCOVER_MODE = process.env.DISCOVER_ADDRESSES === '1';
 
 /**
- * Check if the Trezor emulator is available by checking the Bridge
+ * Check if the Trezor emulator is available
  *
- * The controller on port 9001 is WebSocket-only, so we check the
- * Trezor Bridge on port 21325 which has an HTTP status endpoint.
+ * We check if the bridge port (21325) is accepting connections.
+ * In CI, we can also set TREZOR_EMULATOR_AVAILABLE=1 to force the tests to run.
  */
 async function isEmulatorAvailable(): Promise<boolean> {
+  // Allow forcing tests to run via environment variable
+  if (process.env.TREZOR_EMULATOR_AVAILABLE === '1') {
+    return true;
+  }
+
+  // Try TCP connection to the bridge port
   try {
-    // Check if Trezor Bridge is responding
-    const response = await fetch(`${EMULATOR_BRIDGE_URL}/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ version: '1.0.0' }),
-      signal: AbortSignal.timeout(5000),
+    const net = await import('net');
+    return new Promise((resolve) => {
+      const socket = new net.Socket();
+      socket.setTimeout(3000);
+
+      socket.on('connect', () => {
+        socket.destroy();
+        resolve(true);
+      });
+
+      socket.on('timeout', () => {
+        socket.destroy();
+        resolve(false);
+      });
+
+      socket.on('error', () => {
+        socket.destroy();
+        resolve(false);
+      });
+
+      socket.connect(21325, 'localhost');
     });
-    // Bridge returns 200 even for invalid requests, so any response means it's up
-    return response.status === 200 || response.status === 400 || response.status === 404;
   } catch {
     return false;
   }

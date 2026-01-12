@@ -80,6 +80,7 @@ jobs:
         env:
           TREZOR_EMULATOR_URL: ws://localhost:21326
           TREZOR_BRIDGE_URL: http://localhost:21325
+          TREZOR_EMULATOR_AVAILABLE: '1'
           NODE_OPTIONS: --max-old-space-size=4096
         run: xvfb-run npm run test:emulator
 
