@@ -9,12 +9,14 @@ on:
     paths:
       - 'src/utils/hardware/**'
       - 'src/pages/wallet/connect-hardware.tsx'
+      - 'e2e/hardware/**'
       - '.github/workflows/trezor-emulator-tests.yml'
   push:
     branches: [ main, feature/trezor-hardware-wallet ]
     paths:
       - 'src/utils/hardware/**'
       - 'scripts/init-trezor-emulator.js'
+      - 'e2e/hardware/**'
       - '.github/workflows/trezor-emulator-tests.yml'
   # Allow manual trigger
   workflow_dispatch:
@@ -75,21 +77,30 @@ jobs:
           echo "Starting emulator and bridge via WebSocket API..."
           node scripts/init-trezor-emulator.js
 
-      - name: Run Trezor emulator tests
-        timeout-minutes: 10
+      - name: Build extension
+        run: npm run build
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
+      - name: Run Trezor Playwright E2E tests
+        timeout-minutes: 15
         env:
           TREZOR_EMULATOR_URL: ws://localhost:21326
           TREZOR_BRIDGE_URL: http://localhost:21325
           TREZOR_EMULATOR_AVAILABLE: '1'
           NODE_OPTIONS: --max-old-space-size=4096
-        run: xvfb-run npm run test:emulator
+          CI: 'true'
+        run: xvfb-run npx playwright test e2e/hardware/trezor.spec.ts --reporter=list
 
-      - name: Upload test results
+      - name: Upload Playwright test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: trezor-emulator-test-results
-          path: test-results/
+          name: trezor-playwright-test-results
+          path: |
+            test-results/
+            playwright-report/
           retention-days: 7
           if-no-files-found: ignore
 
