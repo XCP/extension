@@ -137,7 +137,7 @@ export default function ShowPrivateKey(): ReactElement {
               name="password"
               placeholder="Enter your password"
               disabled={pending}
-              ref={passwordInputRef}
+              innerRef={passwordInputRef}
             />
             <Button type="submit" disabled={pending} fullWidth color="red" aria-label="Show Private Key">
               {pending ? "Verifying..." : "Show Private Key"}

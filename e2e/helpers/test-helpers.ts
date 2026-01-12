@@ -219,19 +219,19 @@ export async function createWallet(page: Page, password: string = TEST_PASSWORD)
   await page.waitForSelector('text=Create Wallet', { timeout: 5000 });
   await page.getByText('Create Wallet').click();
   await page.waitForTimeout(1000);
-  
+
   // Reveal phrase - click the area that contains "View 12-word Secret Phrase"
   await page.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
   await page.getByText('View 12-word Secret Phrase').click();
   await page.waitForTimeout(1000);
-  
+
   // Confirm and submit
   await page.getByLabel(/I have saved my secret recovery phrase/).check();
   await page.waitForTimeout(500);
-  
+
   await page.locator('input[name="password"]').fill(password);
   await page.getByRole('button', { name: /Continue/i }).click();
-  
+
   // Wait for redirect to index
   await page.waitForURL(/index/, { timeout: 10000 });
 }

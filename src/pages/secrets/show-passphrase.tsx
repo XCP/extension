@@ -89,7 +89,7 @@ export default function ShowPassphrase(): ReactElement {
               name="password"
               placeholder="Enter your password"
               disabled={pending}
-              ref={passwordInputRef}
+              innerRef={passwordInputRef}
             />
             <Button type="submit" disabled={pending} fullWidth color="red" aria-label="Show Recovery Phrase">
               {pending ? "Verifying..." : "Show Recovery Phrase"}

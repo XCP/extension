@@ -56,8 +56,7 @@ function CreateWallet() {
         await createAndUnlockMnemonicWallet(mnemonic, password);
         navigate(PATHS.SUCCESS);
         return { error: null };
-      } catch (err) {
-        console.error("Error creating wallet:", err);
+      } catch {
         return { error: "Failed to create wallet. Please try again." };
       }
     },
@@ -170,7 +169,7 @@ function CreateWallet() {
           {isConfirmed && (
             <>
               <PasswordInput
-                ref={passwordInputRef}
+                innerRef={passwordInputRef}
                 name="password"
                 placeholder={
                   walletExists ? "Confirm your password" : "Create a password"

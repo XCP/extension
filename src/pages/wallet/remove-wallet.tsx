@@ -104,7 +104,7 @@ function RemoveWallet() {
             name="password"
             placeholder="Confirm your password"
             disabled={pending}
-            ref={passwordInputRef}
+            innerRef={passwordInputRef}
           />
           <Button type="submit" disabled={pending} fullWidth color="red" aria-label={`Remove ${walletName || "wallet"}`}>
             {pending ? "Removing..." : `Remove ${walletName || "Wallet"}`}

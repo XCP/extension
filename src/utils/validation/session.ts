@@ -5,7 +5,8 @@
  * wallet IDs, secrets, timeouts, and rate limiting.
  */
 
-import { MAX_WALLETS } from '@/utils/wallet/walletManager';
+// Import from constants.ts to avoid circular dependency with walletManager
+import { MAX_WALLETS } from '@/utils/wallet/constants';
 
 // Constants for validation and security
 export const MAX_WALLET_ID_LENGTH = 128; // SHA-256 produces 64 chars, allow some buffer

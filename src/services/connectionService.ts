@@ -216,6 +216,13 @@ export class ConnectionService extends BaseService {
   ): Promise<string[]> {
     console.debug('[ConnectionService] Connecting dApp:', { origin, address, walletId });
 
+    // Validate origin is a valid URL
+    try {
+      new URL(origin);
+    } catch {
+      throw new Error('Invalid URL');
+    }
+
     // Check if already connected
     if (await this.hasPermission(origin)) {
       return this.getAccounts(origin);

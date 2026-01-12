@@ -141,7 +141,7 @@ export default function SecuritySettings(): ReactElement {
           
           <div className="bg-white rounded-lg shadow-lg p-4 space-y-4">
             <PasswordInput
-              ref={currentPasswordRef}
+              innerRef={currentPasswordRef}
               label="Current Password"
               name="currentPassword"
               value={passwordForm.currentPassword}
