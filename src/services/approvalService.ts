@@ -41,27 +41,11 @@ import { BaseService } from '@/services/core/BaseService';
 import { RequestManager } from '@/services/core/RequestManager';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { approvalQueue, getApprovalBadgeText } from '@/utils/provider/approvalQueue';
-import type { ApprovalRequest } from '@/utils/provider/approvalQueue';
+import type { ApprovalRequest, ApprovalRequestOptions, ApprovalResult } from '@/types/provider';
 import { analytics } from '@/utils/fathom';
 
-export interface ApprovalRequestOptions {
-  id: string;
-  origin: string;
-  method: string;
-  params: any[];
-  type: 'connection' | 'signature' | 'compose' | 'transaction';
-  metadata: {
-    domain: string;
-    title: string;
-    description: string;
-    warning?: boolean;
-  };
-}
-
-export interface ApprovalResult {
-  approved: boolean;
-  updatedParams?: any;
-}
+// Re-export types for backwards compatibility
+export type { ApprovalRequestOptions, ApprovalResult };
 
 interface ApprovalServiceState {
   currentWindow: number | null;

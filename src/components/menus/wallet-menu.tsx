@@ -4,7 +4,7 @@ import { FaTrash, HiDotsHorizontal, VscKey } from '@/components/icons';
 import { MenuItem } from '@headlessui/react';
 import { BaseMenu } from './base-menu';
 import { Button } from '@/components/button';
-import type { Wallet } from '@/utils/wallet/walletManager';
+import type { Wallet } from '@/types/wallet';
 
 /**
  * Props for the WalletMenu component

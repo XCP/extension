@@ -49,7 +49,7 @@ import { getWalletService } from "@/services/walletService";
 import { getSettings } from "@/utils/storage/settingsStorage";
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { withStateLock } from "@/utils/wallet/stateLockManager";
-import type { Wallet, Address } from "@/utils/wallet/walletManager";
+import type { Wallet, Address } from "@/types/wallet";
 
 /**
  * Authentication state enum.

@@ -7,7 +7,7 @@ import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { ErrorAlert } from '@/components/error-alert';
 import { MAX_WALLETS } from '@/utils/wallet/constants';
-import type { Wallet } from '@/utils/wallet/walletManager';
+import type { Wallet } from '@/types/wallet';
 
 /**
  * SelectWallet component allows users to choose an active wallet or add a new one.

@@ -3,7 +3,7 @@ import { FaCheck } from '@/components/icons';
 import { RadioGroup } from '@headlessui/react';
 import { formatAddress } from '@/utils/format';
 import { AddressMenu } from '@/components/menus/address-menu';
-import type { Address } from '@/utils/wallet/walletManager';
+import type { Address } from '@/types/wallet';
 
 interface AddressListProps {
   addresses: Address[];

@@ -4,7 +4,7 @@ import { FaCopy, GiBroom, VscKey, HiDotsHorizontal } from '@/components/icons';
 import { MenuItem } from '@headlessui/react';
 import { BaseMenu } from './base-menu';
 import { Button } from '@/components/button';
-import type { Address } from '@/utils/wallet/walletManager';
+import type { Address } from '@/types/wallet';
 
 /**
  * Props for the AddressMenu component

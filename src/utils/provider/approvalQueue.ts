@@ -13,26 +13,17 @@ const MAX_QUEUE_SIZE = 100;
  */
 const MAX_REQUESTS_PER_ORIGIN = 10;
 
+// Import types from centralized types module
+import type { ApprovalRequest } from '@/types/provider';
+
+// Re-export for backwards compatibility
+export type { ApprovalRequest };
+
 export class ApprovalQueueFullError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'ApprovalQueueFullError';
   }
-}
-
-export interface ApprovalRequest {
-  id: string;
-  origin: string;
-  method: string;
-  params: any;
-  timestamp: number;
-  type: 'connection' | 'transaction' | 'compose' | 'signature';
-  metadata?: {
-    domain?: string;
-    title?: string;
-    description?: string;
-    warning?: boolean;
-  };
 }
 
 class ApprovalQueueManager {

@@ -12,7 +12,8 @@ import { defineProxyService } from '@/utils/proxy';
 import { MessageBus } from '@/services/core/MessageBus';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import { walletManager, type Wallet, type Address } from '@/utils/wallet/walletManager';
+import { walletManager } from '@/utils/wallet/walletManager';
+import type { Wallet, Address } from '@/types/wallet';
 import { getSettings, updateSettings } from '@/utils/storage/settingsStorage';
 
 interface WalletService {

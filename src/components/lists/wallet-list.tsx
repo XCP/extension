@@ -1,6 +1,6 @@
 import { type ReactElement } from 'react';
 import { RadioGroup } from '@headlessui/react';
-import type { Wallet } from '@/utils/wallet/walletManager';
+import type { Wallet } from '@/types/wallet';
 import { WalletCard } from '@/components/cards/wallet-card';
 
 interface WalletListProps {

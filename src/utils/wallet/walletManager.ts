@@ -15,22 +15,11 @@ import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoi
 import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 import { signPSBT as btcSignPSBT } from '@/utils/blockchain/bitcoin/psbt';
 
-export interface Address {
-  name: string;
-  path: string;
-  address: string;
-  pubKey: string;
-}
+// Import types from centralized types module
+import type { Address, Wallet } from '@/types/wallet';
 
-export interface Wallet {
-  id: string;
-  name: string;
-  type: 'mnemonic' | 'privateKey';
-  addressFormat: AddressFormat;
-  addressCount: number;
-  addresses: Address[];
-  isTestOnly?: boolean;
-}
+// Re-export types for backwards compatibility
+export type { Address, Wallet };
 
 // Import from constants for internal use
 import { MAX_WALLETS, MAX_ADDRESSES_PER_WALLET } from './constants';
