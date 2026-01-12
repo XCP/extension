@@ -14,8 +14,9 @@ import { initializeSettingsKey, clearSettingsKey } from '@/utils/encryption/sett
 import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 import { signPSBT as btcSignPSBT } from '@/utils/blockchain/bitcoin/psbt';
-import { getTrezorAdapter, type TrezorAdapter } from '@/utils/hardware/trezorAdapter';
+import { getHardwareAdapter } from '@/utils/hardware';
 import { DerivationPaths, type HardwareWalletVendor } from '@/utils/hardware/types';
+import type { IHardwareWalletAdapter } from '@/utils/hardware/interface';
 
 export interface Address {
   name: string;
@@ -258,24 +259,21 @@ export class WalletManager {
       throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
     }
 
-    if (vendor !== 'trezor') {
-      throw new Error(`Hardware wallet vendor '${vendor}' is not currently supported`);
-    }
-
-    // Initialize Trezor adapter
-    const trezor = getTrezorAdapter();
-    if (!trezor.isInitialized()) {
-      await trezor.init();
+    // Get the hardware wallet adapter for the specified vendor
+    // This will throw if the vendor is not supported
+    const adapter = getHardwareAdapter(vendor);
+    if (!adapter.isInitialized()) {
+      await adapter.init();
     }
 
     // Get the xpub from the device (passphrase prompt happens here if enabled)
-    const xpub = await trezor.getXpub(addressFormat, account, usePassphrase);
+    const xpub = await adapter.getXpub(addressFormat, account, usePassphrase);
 
     // Get device info for label
-    const deviceInfo = await trezor.getDeviceInfo();
+    const deviceInfo = await adapter.getDeviceInfo();
 
     // Get the first address to verify and display
-    const firstAddress = await trezor.getAddress(addressFormat, account, 0, false, usePassphrase);
+    const firstAddress = await adapter.getAddress(addressFormat, account, 0, false, usePassphrase);
 
     // Generate wallet ID from xpub + address format
     const id = await this.generateHardwareWalletId(xpub, addressFormat);
@@ -283,7 +281,10 @@ export class WalletManager {
       throw new Error('A wallet with this hardware device and address format already exists.');
     }
 
-    const walletName = name || `Trezor ${deviceInfo?.label || 'Wallet'} ${this.wallets.length + 1}`;
+    // Generate wallet name - just use vendor name for compact display
+    // Hardware wallets are session-only, so simple naming is fine
+    const vendorName = vendor.charAt(0).toUpperCase() + vendor.slice(1);
+    const walletName = name || vendorName;
 
     const hardwareData: HardwareWalletData = {
       vendor,
@@ -1038,16 +1039,16 @@ export class WalletManager {
   }
 
   /**
-   * Sign a transaction using hardware wallet (Trezor)
+   * Sign a transaction using hardware wallet
    */
   private async signTransactionWithHardware(rawTxHex: string, wallet: Wallet, targetAddress: Address): Promise<string> {
     if (!wallet.hardwareData) {
       throw new Error('Hardware wallet data not available');
     }
 
-    const trezor = getTrezorAdapter();
-    if (!trezor.isInitialized()) {
-      await trezor.init();
+    const adapter = getHardwareAdapter(wallet.hardwareData.vendor);
+    if (!adapter.isInitialized()) {
+      await adapter.init();
     }
 
     // Parse the raw transaction to extract inputs and outputs
@@ -1126,21 +1127,21 @@ export class WalletManager {
     }
 
     // Sign with Trezor
-    const result = await trezor.signTransaction({ inputs, outputs });
+    const result = await adapter.signTransaction({ inputs, outputs });
     return result.signedTxHex;
   }
 
   /**
-   * Sign a message using hardware wallet (Trezor)
+   * Sign a message using hardware wallet
    */
   private async signMessageWithHardware(message: string, wallet: Wallet, targetAddress: Address): Promise<{ signature: string; address: string }> {
     if (!wallet.hardwareData) {
       throw new Error('Hardware wallet data not available');
     }
 
-    const trezor = getTrezorAdapter();
-    if (!trezor.isInitialized()) {
-      await trezor.init();
+    const adapter = getHardwareAdapter(wallet.hardwareData.vendor);
+    if (!adapter.isInitialized()) {
+      await adapter.init();
     }
 
     // Get the address index from the path
@@ -1149,7 +1150,7 @@ export class WalletManager {
 
     const path = DerivationPaths.getBip44Path(wallet.addressFormat, wallet.hardwareData.accountIndex, 0, addressIndex);
 
-    const result = await trezor.signMessage({
+    const result = await adapter.signMessage({
       message,
       path,
       coin: 'Bitcoin',
@@ -1162,8 +1163,8 @@ export class WalletManager {
   }
 
   /**
-   * Sign a PSBT using hardware wallet (Trezor)
-   * Note: Trezor returns a fully signed raw transaction, not a PSBT
+   * Sign a PSBT using hardware wallet
+   * Note: Hardware wallets typically return a fully signed raw transaction, not a PSBT
    */
   private async signPsbtWithHardware(
     psbtHex: string,
@@ -1174,9 +1175,9 @@ export class WalletManager {
       throw new Error('Hardware wallet data not available');
     }
 
-    const trezor = getTrezorAdapter();
-    if (!trezor.isInitialized()) {
-      await trezor.init();
+    const adapter = getHardwareAdapter(wallet.hardwareData.vendor);
+    if (!adapter.isInitialized()) {
+      await adapter.init();
     }
 
     // Build input paths map from signInputs or use all wallet addresses
@@ -1229,7 +1230,7 @@ export class WalletManager {
       inputPaths.set(0, fullPath);
     }
 
-    const result = await trezor.signPsbt({
+    const result = await adapter.signPsbt({
       psbtHex,
       inputPaths,
     });

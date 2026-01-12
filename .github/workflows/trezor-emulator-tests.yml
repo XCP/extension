@@ -84,6 +84,7 @@ jobs:
         run: npx playwright install chromium
 
       - name: Run Trezor Direct API tests (emulator verification)
+        id: direct-tests
         timeout-minutes: 5
         env:
           TREZOR_EMULATOR_URL: ws://localhost:21326
@@ -91,12 +92,12 @@ jobs:
           TREZOR_EMULATOR_AVAILABLE: '1'
           NODE_OPTIONS: --max-old-space-size=4096
           CI: 'true'
-        # Note: The trezor-user-env Docker container can be flaky in GitHub Actions
-        # The unit tests provide the main verification; these e2e tests are supplementary
+        # Continue on error to run all test suites, but we'll check results at the end
         continue-on-error: true
         run: xvfb-run npx playwright test e2e/hardware/trezor-direct.spec.ts --reporter=list
 
       - name: Run Trezor UI E2E tests
+        id: ui-tests
         timeout-minutes: 15
         env:
           TREZOR_EMULATOR_URL: ws://localhost:21326
@@ -104,12 +105,11 @@ jobs:
           TREZOR_EMULATOR_AVAILABLE: '1'
           NODE_OPTIONS: --max-old-space-size=4096
           CI: 'true'
-        # Note: UI tests may timeout because Trezor Connect popup can't reach localhost emulator
-        # The direct tests above prove the emulator is working
         continue-on-error: true
         run: xvfb-run npx playwright test e2e/hardware/trezor.spec.ts --reporter=list
 
       - name: Run Trezor Operations E2E tests
+        id: ops-tests
         timeout-minutes: 15
         env:
           TREZOR_EMULATOR_URL: ws://localhost:21326
@@ -117,9 +117,46 @@ jobs:
           TREZOR_EMULATOR_AVAILABLE: '1'
           NODE_OPTIONS: --max-old-space-size=4096
           CI: 'true'
-        # Tests sign message, transaction flow, wallet display with hardware wallet
         continue-on-error: true
         run: xvfb-run npx playwright test e2e/hardware/trezor-operations.spec.ts --reporter=list
+
+      - name: Check test results
+        if: always()
+        run: |
+          echo "=== Trezor E2E Test Results Summary ==="
+          echo ""
+          echo "Direct API Tests: ${{ steps.direct-tests.outcome }}"
+          echo "UI Tests: ${{ steps.ui-tests.outcome }}"
+          echo "Operations Tests: ${{ steps.ops-tests.outcome }}"
+          echo ""
+
+          # Count failures
+          FAILURES=0
+          if [ "${{ steps.direct-tests.outcome }}" == "failure" ]; then
+            echo "❌ Direct API tests failed"
+            FAILURES=$((FAILURES + 1))
+          fi
+          if [ "${{ steps.ui-tests.outcome }}" == "failure" ]; then
+            echo "❌ UI tests failed"
+            FAILURES=$((FAILURES + 1))
+          fi
+          if [ "${{ steps.ops-tests.outcome }}" == "failure" ]; then
+            echo "❌ Operations tests failed"
+            FAILURES=$((FAILURES + 1))
+          fi
+
+          echo ""
+          if [ $FAILURES -gt 0 ]; then
+            echo "⚠️  $FAILURES test suite(s) failed"
+            echo ""
+            echo "Note: Trezor emulator tests can be flaky in CI due to Docker networking."
+            echo "If tests pass locally but fail here, the emulator may not be fully initialized."
+            echo "Review the test artifacts for details."
+            # Fail the workflow so it shows as failed
+            exit 1
+          else
+            echo "✅ All test suites passed!"
+          fi
 
       - name: Upload Playwright test results
         if: always()

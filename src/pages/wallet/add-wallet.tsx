@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiDownload, VscKey, FiX, FaEye, IoCreateOutline, FiShield } from '@/components/icons';
 import { Button } from '@/components/button';
@@ -17,8 +17,11 @@ import { MAX_WALLETS } from '@/utils/wallet/walletManager';
 function AddWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets } = useWallet();
+  const { wallets, activeWallet, setActiveWallet, removeWallet } = useWallet();
   const [error, setError] = useState<string | null>(null);
+
+  // Find any connected hardware wallet
+  const hardwareWallet = wallets.find((w) => w.type === 'hardware');
 
   // Navigation paths for wallet actions
   const PATHS = {
@@ -87,6 +90,19 @@ function AddWallet() {
     navigate(PATHS.CONNECT_HARDWARE);
   };
 
+  const handleDisconnectHardware = useCallback(async () => {
+    if (!hardwareWallet) return;
+
+    // Hardware wallets are session-only, just remove from memory
+    // Match the behavior of remove-wallet: switch active wallet if needed
+    const remainingWallets = wallets.filter((w) => w.id !== hardwareWallet.id);
+    if (activeWallet?.id === hardwareWallet.id) {
+      await setActiveWallet(remainingWallets.length > 0 ? remainingWallets[0] : null);
+    }
+    await removeWallet(hardwareWallet.id);
+    navigate(PATHS.BACK, { replace: true });
+  }, [wallets, activeWallet, setActiveWallet, removeWallet, hardwareWallet, navigate, PATHS.BACK]);
+
 
   return (
     <div className="flex flex-col h-full" role="main" aria-labelledby="add-wallet-title">
@@ -124,15 +140,27 @@ function AddWallet() {
               <VscKey className="w-4 h-4 mr-2" aria-hidden="true" />
               Import Private Key
             </Button>
-            <Button
-              color="gray"
-              fullWidth
-              onClick={handleConnectHardware}
-              aria-label="Connect Hardware Wallet"
-            >
-              <FiShield className="w-4 h-4 mr-2" aria-hidden="true" />
-              Connect Hardware Wallet
-            </Button>
+            {hardwareWallet ? (
+              <Button
+                color="red"
+                fullWidth
+                onClick={handleDisconnectHardware}
+                aria-label="Disconnect Hardware Wallet"
+              >
+                <FiX className="w-4 h-4 mr-2" aria-hidden="true" />
+                Disconnect {hardwareWallet.name}
+              </Button>
+            ) : (
+              <Button
+                color="gray"
+                fullWidth
+                onClick={handleConnectHardware}
+                aria-label="Connect Hardware Wallet"
+              >
+                <FiShield className="w-4 h-4 mr-2" aria-hidden="true" />
+                Connect Hardware Wallet
+              </Button>
+            )}
 
             {/* Show Test Address option only in development mode */}
             {isDevelopment && (

@@ -2,6 +2,7 @@ import { RadioGroup } from '@headlessui/react';
 import type { Wallet } from '@/utils/wallet/walletManager';
 import { formatAddress } from '@/utils/format';
 import { WalletMenu } from '@/components/menus/wallet-menu';
+import { FiShield } from '@/components/icons';
 
 interface WalletCardProps {
   wallet: Wallet;
@@ -39,7 +40,10 @@ function WalletCard({ wallet, selected, onSelect, isOnlyWallet }: WalletCardProp
           </div>
           <div className="flex justify-between items-center mt-1">
             <span className="font-mono text-sm">{formatAddress(primaryAddress)}</span>
-            <span className="text-xs capitalize">
+            <span className="text-xs capitalize flex items-center gap-1">
+              {wallet.type === 'hardware' && (
+                <FiShield className="w-3 h-3" aria-hidden="true" />
+              )}
               {wallet.type === 'mnemonic' ? 'Mnemonic' : wallet.type === 'hardware' ? 'Hardware' : 'Private Key'}
             </span>
           </div>
