@@ -11,14 +11,28 @@
  *
  * Test seed: "all all all all all all all all all all all all"
  */
-import { test, expect } from '@playwright/test';
-import { launchExtension, cleanup, TEST_PASSWORD } from '../helpers/test-helpers';
+import { test, expect, Page } from '@playwright/test';
+import { launchExtension, cleanup, createWallet, TEST_PASSWORD } from '../helpers/test-helpers';
 
 // Check if emulator tests should run
 const SKIP_EMULATOR_TESTS = process.env.TREZOR_EMULATOR_AVAILABLE !== '1';
 
 // Expected addresses from the "all all all..." test seed
 const EXPECTED_P2WPKH_ADDRESS = 'bc1qannfxke2tfd4l7vhepehpvt05y83v3qsf6nfkk';
+
+/**
+ * Helper to set up the extension with a wallet before accessing protected pages
+ * The connect-hardware page requires authentication
+ */
+async function setupWalletForHardwareTest(page: Page): Promise<void> {
+  // Check if we need to create a wallet first
+  const hasCreateWallet = await page.getByText('Create Wallet').isVisible({ timeout: 5000 }).catch(() => false);
+
+  if (hasCreateWallet) {
+    // Create a wallet so we can access the protected routes
+    await createWallet(page, TEST_PASSWORD);
+  }
+}
 
 /**
  * Helper to auto-confirm on Trezor emulator via HTTP API
@@ -52,22 +66,16 @@ test.describe('Trezor Hardware Wallet', () => {
     const { context, page } = await launchExtension('trezor-nav');
 
     try {
-      // Wait for onboarding page
-      await page.waitForSelector('text=Create Wallet', { timeout: 10000 });
+      // First, create a wallet to get authenticated
+      await setupWalletForHardwareTest(page);
 
-      // Look for hardware wallet option - might be "Import Wallet" then hardware option
-      // or direct "Connect Hardware" button
-      const hasHardwareOption = await page.getByText(/Hardware|Trezor/i).first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      if (!hasHardwareOption) {
-        // Try clicking Import Wallet first
-        await page.getByText('Import Wallet').click().catch(() => {});
-        await page.waitForTimeout(1000);
-      }
-
-      // Navigate directly to connect-hardware page
+      // Navigate to add-wallet page, then to connect-hardware
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/connect-hardware`);
+      await page.goto(`${baseUrl}#/add-wallet`);
+      await page.waitForLoadState('networkidle');
+
+      // Click on Connect Hardware Wallet button
+      await page.getByRole('button', { name: /Connect Hardware Wallet/i }).click();
       await page.waitForLoadState('networkidle');
 
       // Should see the connect hardware page
@@ -85,7 +93,10 @@ test.describe('Trezor Hardware Wallet', () => {
     const { context, page } = await launchExtension('trezor-connect');
 
     try {
-      // Navigate directly to connect-hardware page
+      // First, create a wallet to get authenticated
+      await setupWalletForHardwareTest(page);
+
+      // Navigate to connect-hardware page
       const baseUrl = page.url().split('#')[0];
       await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
@@ -169,6 +180,9 @@ test.describe('Trezor Hardware Wallet', () => {
     const { context, page } = await launchExtension('trezor-popup');
 
     try {
+      // First, create a wallet to get authenticated
+      await setupWalletForHardwareTest(page);
+
       // Navigate to connect-hardware page
       const baseUrl = page.url().split('#')[0];
       await page.goto(`${baseUrl}#/connect-hardware`);
@@ -211,6 +225,9 @@ test.describe('Trezor Hardware Wallet', () => {
     const { context, page } = await launchExtension('trezor-sdk');
 
     try {
+      // First, create a wallet to get authenticated
+      await setupWalletForHardwareTest(page);
+
       // Navigate to connect-hardware page
       const baseUrl = page.url().split('#')[0];
       await page.goto(`${baseUrl}#/connect-hardware`);
@@ -258,8 +275,13 @@ test.describe('Trezor Wallet Integration Proof', () => {
       console.log('TREZOR WALLET E2E INTEGRATION TEST');
       console.log('========================================\n');
 
+      // Step 0: Create a wallet to get authenticated
+      console.log('Step 0: Setting up authentication...');
+      await setupWalletForHardwareTest(page);
+      console.log('  OK - Authenticated');
+
       // Step 1: Navigate to connect hardware
-      console.log('Step 1: Navigating to Connect Hardware page...');
+      console.log('\nStep 1: Navigating to Connect Hardware page...');
       const baseUrl = page.url().split('#')[0];
       await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
