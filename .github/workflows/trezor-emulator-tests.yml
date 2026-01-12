@@ -22,9 +22,18 @@ jobs:
   trezor-emulator-tests:
     name: Trezor Emulator Integration Tests
     runs-on: ubuntu-latest
-    # Allow emulator tests to fail while we work on the CI setup
-    # The unit tests below provide good coverage even without the emulator
-    continue-on-error: true
+
+    # Use the same Docker service configuration as Trezor's own tests
+    # Reference: https://github.com/trezor/connect/blob/develop/.github/workflows/test_with_trezor-user-env.yml
+    services:
+      trezor-user-env:
+        image: ghcr.io/trezor/trezor-user-env:1d12b626fdd4aab4b5c8e148e42a81c269e7e5b5
+        ports:
+          - 9001:9001
+          - 21326:21326
+          - 21325:21325
+        env:
+          SDL_VIDEODRIVER: dummy
 
     steps:
       - name: Checkout code
@@ -39,28 +48,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build extension
-        run: npm run build
-
-      - name: Start Trezor emulator
-        run: |
-          echo "Starting Trezor emulator..."
-          docker run -d \
-            --name trezor-emulator \
-            -p 9001:9001 \
-            -p 21324:21324 \
-            -p 21325:21325 \
-            -e SDL_VIDEODRIVER=dummy \
-            -e DISPLAY=:0 \
-            ghcr.io/trezor/trezor-user-env:latest \
-            /trezor-user-env/run.sh
-
-          # Give the container time to initialize
-          sleep 10
-
-          # Check container status
-          docker ps -a
-          docker logs trezor-emulator || true
+      - name: Install xvfb for headless display
+        run: sudo apt-get install -y xvfb
 
       - name: Wait for Trezor emulator to be ready
         timeout-minutes: 3
@@ -69,30 +58,22 @@ jobs:
           for i in $(seq 1 60); do
             if curl -sf http://localhost:9001/status > /dev/null 2>&1; then
               echo "Emulator is ready!"
-              curl http://localhost:9001/status
+              curl http://localhost:9001/status || true
               exit 0
             fi
             echo "Attempt $i/60: Waiting for emulator..."
             sleep 3
           done
-
-          echo "Emulator failed to start. Container logs:"
-          docker logs trezor-emulator
+          echo "Emulator failed to start"
           exit 1
 
       - name: Run Trezor emulator tests
         timeout-minutes: 10
         env:
-          TREZOR_EMULATOR_URL: ws://localhost:21324
+          TREZOR_EMULATOR_URL: ws://localhost:21326
           TREZOR_BRIDGE_URL: http://localhost:21325
           NODE_OPTIONS: --max-old-space-size=4096
-        run: npm run test:emulator
-
-      - name: Stop Trezor emulator
-        if: always()
-        run: |
-          docker stop trezor-emulator || true
-          docker rm trezor-emulator || true
+        run: xvfb-run npm run test:emulator
 
       - name: Upload test results
         if: always()
