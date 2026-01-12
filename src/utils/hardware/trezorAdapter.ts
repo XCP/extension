@@ -2,10 +2,10 @@
  * Trezor Hardware Wallet Adapter
  *
  * Implementation of IHardwareWalletAdapter for Trezor devices.
- * Uses @trezor/connect-web for browser extension communication.
+ * Uses @trezor/connect-webextension for browser extension service worker communication.
  */
 
-import TrezorConnect, { DEVICE_EVENT, DEVICE } from '@trezor/connect-web';
+import TrezorConnect, { DEVICE_EVENT, DEVICE } from '@trezor/connect-webextension';
 import { AddressFormat, decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
 import { IHardwareWalletAdapter } from './interface';
 import {

@@ -25,6 +25,10 @@ export default defineConfig({
         'storage',
         'tabs',
         'alarms',
+        'scripting', // Required for Trezor Connect to inject content scripts
+      ],
+      host_permissions: [
+        '*://connect.trezor.io/9/*', // Required for Trezor Connect popup communication
       ],
     };
 

@@ -23,8 +23,8 @@ const {
   mockSignMessage: vi.fn(),
 }));
 
-// Mock TrezorConnect
-vi.mock('@trezor/connect-web', () => ({
+// Mock TrezorConnect (using webextension package for browser extension compatibility)
+vi.mock('@trezor/connect-webextension', () => ({
   default: {
     init: mockInit,
     dispose: mockDispose,
