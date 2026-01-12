@@ -23,27 +23,6 @@ jobs:
     name: Trezor Emulator Integration Tests
     runs-on: ubuntu-latest
 
-    services:
-      trezor-emulator:
-        image: ghcr.io/trezor/trezor-user-env:latest
-        ports:
-          - 9001:9001   # Emulator control
-          - 21324:21324 # Emulator WebSocket
-          - 21325:21325 # Trezor Bridge
-        env:
-          # Headless mode - required for CI without display
-          SDL_VIDEODRIVER: dummy
-          # Temporary profile that resets on restart
-          TREZOR_EMULATOR_TEMPORARY_PROFILE: 1
-          # Disable animations for faster tests
-          TREZOR_EMULATOR_DISABLE_ANIMATIONS: 1
-        options: >-
-          --health-cmd "curl -f http://localhost:9001/status || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 12
-          --health-start-period 60s
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -60,23 +39,43 @@ jobs:
       - name: Build extension
         run: npm run build
 
+      - name: Start Trezor emulator
+        run: |
+          echo "Starting Trezor emulator..."
+          docker run -d \
+            --name trezor-emulator \
+            -p 9001:9001 \
+            -p 21324:21324 \
+            -p 21325:21325 \
+            -e SDL_VIDEODRIVER=dummy \
+            -e DISPLAY=:0 \
+            ghcr.io/trezor/trezor-user-env:latest \
+            /trezor-user-env/run.sh
+
+          # Give the container time to initialize
+          sleep 10
+
+          # Check container status
+          docker ps -a
+          docker logs trezor-emulator || true
+
       - name: Wait for Trezor emulator to be ready
+        timeout-minutes: 3
         run: |
           echo "Waiting for Trezor emulator to be ready..."
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:9001/status > /dev/null; then
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:9001/status > /dev/null 2>&1; then
               echo "Emulator is ready!"
-              break
+              curl http://localhost:9001/status
+              exit 0
             fi
-            echo "Attempt $i/30: Waiting for emulator..."
-            sleep 2
+            echo "Attempt $i/60: Waiting for emulator..."
+            sleep 3
           done
 
-          # Final check
-          if ! curl -sf http://localhost:9001/status > /dev/null; then
-            echo "Emulator failed to start"
-            exit 1
-          fi
+          echo "Emulator failed to start. Container logs:"
+          docker logs trezor-emulator
+          exit 1
 
       - name: Run Trezor emulator tests
         timeout-minutes: 10
@@ -85,6 +84,12 @@ jobs:
           TREZOR_BRIDGE_URL: http://localhost:21325
           NODE_OPTIONS: --max-old-space-size=4096
         run: npm run test:emulator
+
+      - name: Stop Trezor emulator
+        if: always()
+        run: |
+          docker stop trezor-emulator || true
+          docker rm trezor-emulator || true
 
       - name: Upload test results
         if: always()
