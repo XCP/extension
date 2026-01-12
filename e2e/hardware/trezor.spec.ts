@@ -67,11 +67,11 @@ test.describe('Trezor Hardware Wallet', () => {
 
       // Navigate directly to connect-hardware page
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/wallet/connect-hardware`);
+      await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
       // Should see the connect hardware page
-      await expect(page.getByText('Connect Trezor')).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText('Connect Trezor')).toBeVisible({ timeout: 10000 });
       await expect(page.getByText('Address Format')).toBeVisible();
       await expect(page.getByRole('button', { name: /Connect Trezor/i })).toBeVisible();
 
@@ -87,7 +87,7 @@ test.describe('Trezor Hardware Wallet', () => {
     try {
       // Navigate directly to connect-hardware page
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/wallet/connect-hardware`);
+      await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
       // Wait for the page to load
@@ -171,7 +171,7 @@ test.describe('Trezor Hardware Wallet', () => {
     try {
       // Navigate to connect-hardware page
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/wallet/connect-hardware`);
+      await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
       await expect(page.getByText('Connect Trezor')).toBeVisible({ timeout: 10000 });
@@ -213,7 +213,7 @@ test.describe('Trezor Hardware Wallet', () => {
     try {
       // Navigate to connect-hardware page
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/wallet/connect-hardware`);
+      await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
       await expect(page.getByText('Connect Trezor')).toBeVisible({ timeout: 10000 });
@@ -261,7 +261,7 @@ test.describe('Trezor Wallet Integration Proof', () => {
       // Step 1: Navigate to connect hardware
       console.log('Step 1: Navigating to Connect Hardware page...');
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/wallet/connect-hardware`);
+      await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
       await expect(page.getByText('Connect Trezor')).toBeVisible({ timeout: 10000 });
