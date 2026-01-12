@@ -183,6 +183,8 @@ A password strength meter would provide better user feedback and may be added in
 | ADR-009 | Key derivation with HKDF domain separation | [settings.ts](src/utils/encryption/settings.ts) |
 | ADR-010 | Storage pattern decisions (class vs function) | [requestStorage.ts](src/utils/storage/requestStorage.ts) |
 | ADR-011 | Isolated wallet and settings storage | [storage.ts](src/utils/storage/storage.ts) |
+| ADR-012 | Type organization and extraction strategy | [types/index.ts](src/types/index.ts) |
+| ADR-013 | Constants organization strategy | [wallet/constants.ts](src/utils/wallet/constants.ts) |
 
 ---
 
