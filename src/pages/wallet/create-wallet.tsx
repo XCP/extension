@@ -56,14 +56,7 @@ function CreateWallet() {
         await createAndUnlockMnemonicWallet(mnemonic, password);
         navigate(PATHS.SUCCESS);
         return { error: null };
-      } catch (err) {
-        // Store detailed error for debugging
-        const errorDetails = {
-          message: err instanceof Error ? err.message : String(err),
-          stack: err instanceof Error ? err.stack : undefined,
-          type: typeof err
-        };
-        sessionStorage.setItem('debug_wallet_error', JSON.stringify(errorDetails));
+      } catch {
         return { error: "Failed to create wallet. Please try again." };
       }
     },
