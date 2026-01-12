@@ -121,9 +121,12 @@ test.describe('Wallet Management Features', () => {
           await page.waitForTimeout(500);
           await page.locator('input[name="password"]').fill(TEST_PASSWORD);
           await page.getByRole('button', { name: /Continue/i }).click();
-          
-          // Should have created second wallet - wait for it to appear
-          await expect(page.getByText('Wallet 2')).toBeVisible({ timeout: 10000 });
+
+          // Wait for navigation to complete after wallet creation
+          await page.waitForURL(/index/, { timeout: 15000 });
+
+          // Should have created second wallet - check header button shows Wallet 2
+          await expect(page.locator('header button').first()).toContainText('Wallet 2', { timeout: 10000 });
         }
       }
     }
