@@ -293,7 +293,8 @@ test.describe('Trezor Wallet Integration Proof', () => {
       console.log('\nStep 2: Verifying UI elements...');
       await expect(page.locator('input[placeholder="My Trezor Wallet"]')).toBeVisible();
       await expect(page.locator('select')).toBeVisible();
-      await expect(page.getByText('Native SegWit')).toBeVisible();
+      // Check for address format select options (Native SegWit is inside select, not visible as text)
+      await expect(page.locator('select option[value="p2wpkh"]')).toBeAttached();
       await expect(page.getByText('Use passphrase')).toBeVisible();
       await expect(page.getByText('UTXO Safety')).toBeVisible();
       console.log('  OK - All UI elements present');
