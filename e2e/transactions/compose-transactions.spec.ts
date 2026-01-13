@@ -81,47 +81,27 @@ test.describe('Compose Transactions', () => {
   test('send BTC transaction form validation', async () => {
     const { context, page } = await launchExtension('send-btc-validation');
     await setupWallet(page);
-    
-    // Wait for page to be ready
-    await page.waitForTimeout(2000);
-    
-    // Click Send button - try multiple selectors
-    const sendSelectors = [
-      'button[aria-label="Send tokens"]',
-      'button:has-text("Send")',
-      '[data-testid="send-button"]'
-    ];
-    
-    let clicked = false;
-    for (const selector of sendSelectors) {
-      const button = page.locator(selector).first();
-      if (await button.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await button.click();
-        clicked = true;
-        break;
-      }
-    }
-    
-    if (clicked) {
-      await page.waitForTimeout(2000);
-      
-      // Verify we're on the send page - look for various input fields
-      const destinationInput = page.locator('input[placeholder*="destination"], input[placeholder*="address"], input[name*="destination"]').first();
-      if (await destinationInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-        // Fill in valid destination
-        await destinationInput.fill('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh');
-        
-        // Find amount input
-        const amountInput = page.locator('input[placeholder*="amount"], input[name*="amount"], input[type="number"]').first();
-        if (await amountInput.isVisible({ timeout: 1000 }).catch(() => false)) {
-          await amountInput.fill('0.001');
-        }
-      }
-    }
-    
-    // Verify we handled the form
-    expect(page.url()).toBeTruthy();
-    
+
+    // Click Send button
+    const sendButton = page.locator('button[aria-label="Send tokens"]');
+    await expect(sendButton).toBeVisible({ timeout: 5000 });
+    await sendButton.click();
+
+    // Should navigate to send page
+    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+
+    // Destination input should be visible
+    const destinationInput = page.locator('input[placeholder*="destination address"]');
+    await expect(destinationInput).toBeVisible({ timeout: 5000 });
+
+    // Fill in valid destination
+    await destinationInput.fill('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh');
+
+    // Quantity input should be visible
+    const quantityInput = page.locator('input[name="quantity"]');
+    await expect(quantityInput).toBeVisible({ timeout: 5000 });
+    await quantityInput.fill('0.001');
+
     await cleanup(context);
   });
 

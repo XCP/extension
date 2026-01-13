@@ -185,10 +185,11 @@ test.describe('Wallet Management Features', () => {
     // Navigate directly to import-private-key page (not available from onboarding UI)
     const baseUrl = page.url().split('#')[0];
     await page.goto(`${baseUrl}#/import-private-key`);
+    await page.waitForLoadState('networkidle');
 
-    // Fill private key input
-    const privateKeyInput = page.locator('input[name="private-key"]');
-    await privateKeyInput.waitFor({ state: 'visible', timeout: 5000 });
+    // Fill private key input (PasswordInput component - look for placeholder)
+    const privateKeyInput = page.locator('input[placeholder*="private key"]');
+    await privateKeyInput.waitFor({ state: 'visible', timeout: 10000 });
     await privateKeyInput.fill(TEST_PRIVATE_KEY);
 
     // Check the backup confirmation checkbox
@@ -228,7 +229,8 @@ test.describe('Wallet Management Features', () => {
     await expect(addWalletButton).toBeVisible({ timeout: 5000 });
     await addWalletButton.click();
 
-    const importMnemonicButton = page.getByRole('button', { name: /Import Mnemonic/i });
+    // Button has aria-label="Import Wallet" but text content is "Import Mnemonic"
+    const importMnemonicButton = page.getByText('Import Mnemonic');
     await expect(importMnemonicButton).toBeVisible({ timeout: 5000 });
     await importMnemonicButton.click();
 
@@ -316,8 +318,8 @@ test.describe('Wallet Management Features', () => {
     await expect(walletOptionsButton).toBeVisible({ timeout: 5000 });
     await walletOptionsButton.click();
 
-    // Should see "Remove" option in menu
-    const removeOption = page.getByRole('button', { name: /Remove/i });
+    // Should see "Remove" option in menu (shows as "Remove Wallet 1" etc)
+    const removeOption = page.getByText(/Remove Wallet/i);
     await expect(removeOption).toBeVisible({ timeout: 5000 });
 
     await cleanup(context);
@@ -338,8 +340,8 @@ test.describe('Wallet Management Features', () => {
     await expect(walletOptionsButton).toBeVisible({ timeout: 5000 });
     await walletOptionsButton.click();
 
-    // Should see "Show Passphrase" option in menu
-    const showPassphraseOption = page.getByRole('button', { name: /Show Passphrase/i });
+    // Should see "Show Passphrase" option in menu (text-based selector for HeadlessUI MenuItem)
+    const showPassphraseOption = page.getByText('Show Passphrase');
     await expect(showPassphraseOption).toBeVisible({ timeout: 5000 });
 
     await cleanup(context);
