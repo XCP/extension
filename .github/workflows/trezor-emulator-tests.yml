@@ -34,9 +34,11 @@ jobs:
         ports:
           - 9001:9001
           - 21326:21326
-          - 21325:21325
+          - 21325:21326
         env:
           SDL_VIDEODRIVER: dummy
+          USE_TX_CACHE: 'true'
+          USE_WS_CACHE: 'true'
 
     steps:
       - name: Checkout code
