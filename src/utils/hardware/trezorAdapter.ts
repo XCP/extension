@@ -9,7 +9,7 @@
  * - Test/Emulator mode (popup: false): Direct communication with Trezor Bridge for automated testing
  */
 
-import TrezorConnect, { DEVICE_EVENT, DEVICE, UI } from '@trezor/connect-webextension';
+import TrezorConnect, { DEVICE_EVENT, DEVICE } from '@trezor/connect-webextension';
 import { AddressFormat, decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
 import { IHardwareWalletAdapter } from './interface';
 import {
@@ -300,24 +300,33 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       TrezorConnect.on(DEVICE_EVENT, this.deviceEventHandler);
 
       // In test mode, listen for button requests for auto-confirm
+      // Use string literals to avoid bundling issues with UI constants
       if (isTestMode && this.options.onButtonRequest) {
         this.buttonRequestHandler = (rawEvent: unknown) => {
           const event = rawEvent as { payload?: { code?: string } };
           const code = event.payload?.code ?? 'unknown';
           this.options.onButtonRequest?.(code);
         };
-        TrezorConnect.on(UI.REQUEST_BUTTON, this.buttonRequestHandler);
+        try {
+          TrezorConnect.on('ui-button', this.buttonRequestHandler);
+        } catch {
+          // Event listener not supported in this context
+        }
       }
 
       // Handle confirmation dialogs in test mode
       if (isTestMode) {
         this.confirmationHandler = () => {
           TrezorConnect.uiResponse({
-            type: UI.RECEIVE_CONFIRMATION,
+            type: 'ui-receive_confirmation',
             payload: true,
           });
         };
-        TrezorConnect.on(UI.REQUEST_CONFIRMATION, this.confirmationHandler);
+        try {
+          TrezorConnect.on('ui-request_confirmation', this.confirmationHandler);
+        } catch {
+          // Event listener not supported in this context
+        }
       }
 
       this.initialized = true;
@@ -759,11 +768,19 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         this.deviceEventHandler = null;
       }
       if (this.buttonRequestHandler) {
-        TrezorConnect.off(UI.REQUEST_BUTTON, this.buttonRequestHandler);
+        try {
+          TrezorConnect.off('ui-button', this.buttonRequestHandler);
+        } catch {
+          // Event listener not supported
+        }
         this.buttonRequestHandler = null;
       }
       if (this.confirmationHandler) {
-        TrezorConnect.off(UI.REQUEST_CONFIRMATION, this.confirmationHandler);
+        try {
+          TrezorConnect.off('ui-request_confirmation', this.confirmationHandler);
+        } catch {
+          // Event listener not supported
+        }
         this.confirmationHandler = null;
       }
 
