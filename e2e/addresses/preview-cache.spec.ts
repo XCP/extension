@@ -97,9 +97,11 @@ test.describe('Address Preview Cache', () => {
     await addressTypeOption.click();
     await page.waitForURL(/address-type/, { timeout: 5000 });
 
-    // Wait for address cards to load (description contains address preview)
+    // Wait for address cards to load
     await expect(page.locator('[role="radio"]').first()).toBeVisible({ timeout: 10000 });
-    // Wait a bit for address previews to load
+    // Wait for page to stabilize (address previews may load asynchronously)
+    await page.waitForLoadState('networkidle');
+    // Wait specifically for address preview text to appear (contains bc1 or starts with 1 or 3)
     await expect(page.locator('[role="radio"] .text-xs').first()).toBeVisible({ timeout: 10000 });
 
     // Get initial addresses
@@ -134,6 +136,9 @@ test.describe('Address Preview Cache', () => {
 
     // Wait for address cards to load
     await expect(page.locator('[role="radio"]').first()).toBeVisible({ timeout: 10000 });
+    // Wait for page to stabilize
+    await page.waitForLoadState('networkidle');
+    // Wait specifically for address preview text to appear
     await expect(page.locator('[role="radio"] .text-xs').first()).toBeVisible({ timeout: 10000 });
 
     const cardsAfter = await page.locator('[role="radio"]').all();
