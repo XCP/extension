@@ -23,6 +23,8 @@ import {
   HardwareWalletError,
   DerivationPaths,
   HardwarePsbtSignRequest,
+  InputScriptType,
+  OutputScriptType,
 } from './types';
 import { extractPsbtDetails } from '@/utils/blockchain/bitcoin/psbt';
 
@@ -40,39 +42,61 @@ export interface TrezorAdapterOptions {
   onButtonRequest?: (code: string) => void;
 }
 
-// Trezor script type mappings
-const INPUT_SCRIPT_TYPES = {
-  'SPENDADDRESS': 'SPENDADDRESS',
-  'SPENDWITNESS': 'SPENDWITNESS',
-  'SPENDP2SHWITNESS': 'SPENDP2SHWITNESS',
-  'SPENDTAPROOT': 'SPENDTAPROOT',
-} as const;
-
-const OUTPUT_SCRIPT_TYPES = {
-  'PAYTOADDRESS': 'PAYTOADDRESS',
-  'PAYTOWITNESS': 'PAYTOWITNESS',
-  'PAYTOP2SHWITNESS': 'PAYTOP2SHWITNESS',
-  'PAYTOTAPROOT': 'PAYTOTAPROOT',
-  'PAYTOOPRETURN': 'PAYTOOPRETURN',
-} as const;
-
 /**
- * Get Trezor script type for address format
+ * Get input script type for address format
  */
-function getScriptType(addressFormat: AddressFormat, isInput: boolean): string {
+function getInputScriptType(addressFormat: AddressFormat): InputScriptType {
   switch (addressFormat) {
     case AddressFormat.P2PKH:
     case AddressFormat.Counterwallet:
-      return isInput ? 'SPENDADDRESS' : 'PAYTOADDRESS';
+      return 'SPENDADDRESS';
     case AddressFormat.P2WPKH:
     case AddressFormat.CounterwalletSegwit:
-      return isInput ? 'SPENDWITNESS' : 'PAYTOWITNESS';
+      return 'SPENDWITNESS';
     case AddressFormat.P2SH_P2WPKH:
-      return isInput ? 'SPENDP2SHWITNESS' : 'PAYTOP2SHWITNESS';
+      return 'SPENDP2SHWITNESS';
     case AddressFormat.P2TR:
-      return isInput ? 'SPENDTAPROOT' : 'PAYTOTAPROOT';
+      return 'SPENDTAPROOT';
     default:
-      return isInput ? 'SPENDADDRESS' : 'PAYTOADDRESS';
+      return 'SPENDADDRESS';
+  }
+}
+
+/**
+ * Get output script type for address format
+ */
+function getOutputScriptType(addressFormat: AddressFormat): OutputScriptType {
+  switch (addressFormat) {
+    case AddressFormat.P2PKH:
+    case AddressFormat.Counterwallet:
+      return 'PAYTOADDRESS';
+    case AddressFormat.P2WPKH:
+    case AddressFormat.CounterwalletSegwit:
+      return 'PAYTOWITNESS';
+    case AddressFormat.P2SH_P2WPKH:
+      return 'PAYTOP2SHWITNESS';
+    case AddressFormat.P2TR:
+      return 'PAYTOTAPROOT';
+    default:
+      return 'PAYTOADDRESS';
+  }
+}
+
+/**
+ * Get input script type from BIP44 purpose value
+ */
+function getScriptTypeFromPurpose(purpose: number): InputScriptType {
+  switch (purpose) {
+    case 44:
+      return 'SPENDADDRESS';
+    case 49:
+      return 'SPENDP2SHWITNESS';
+    case 84:
+      return 'SPENDWITNESS';
+    case 86:
+      return 'SPENDTAPROOT';
+    default:
+      return 'SPENDWITNESS';
   }
 }
 
@@ -240,12 +264,13 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     const pathArray = DerivationPaths.getBip44Path(addressFormat, account, 0, index);
     // Use string path format to avoid JavaScript signed integer issues with hardened values
     const pathString = DerivationPaths.pathToString(pathArray);
-    const scriptType = getScriptType(addressFormat, false);
+    const scriptType = getOutputScriptType(addressFormat);
 
     const result = await TrezorConnect.getAddress({
       path: pathString,
       coin: 'btc',
       showOnTrezor: showOnDevice,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Trezor SDK type mismatch
       scriptType: scriptType as any,
       useEmptyPassphrase: !usePassphrase,
     });
@@ -281,7 +306,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     this.ensureInitialized();
 
     const addresses: HardwareAddress[] = [];
-    const scriptType = getScriptType(addressFormat, false);
+    const scriptType = getOutputScriptType(addressFormat);
 
     // Build bundle of address requests using string paths
     // to avoid JavaScript signed integer issues with hardened values
@@ -294,6 +319,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         path: pathString,
         coin: 'btc' as const,
         showOnTrezor: false,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Trezor SDK type mismatch
         scriptType: scriptType as any,
       };
     });
@@ -358,20 +384,22 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     this.ensureInitialized();
 
     // Convert inputs to Trezor format
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Trezor SDK type mismatch
     const inputs = request.inputs.map((input) => ({
       address_n: input.addressPath,
       prev_hash: input.prevTxHash,
       prev_index: input.prevIndex,
       amount: input.amount,
-      script_type: INPUT_SCRIPT_TYPES[input.scriptType] as any,
+      script_type: input.scriptType as any,
     }));
 
     // Convert outputs to Trezor format
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Trezor SDK type mismatch
     const outputs = request.outputs.map((output) => {
       if (output.scriptType === 'PAYTOOPRETURN') {
         // OP_RETURN output - no address, amount must be 0
         return {
-          script_type: OUTPUT_SCRIPT_TYPES.PAYTOOPRETURN as any,
+          script_type: 'PAYTOOPRETURN' as any,
           amount: '0',
           op_return_data: output.opReturnData,
         };
@@ -380,14 +408,14 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         return {
           address_n: output.addressPath,
           amount: output.amount,
-          script_type: OUTPUT_SCRIPT_TYPES[output.scriptType] as any,
+          script_type: output.scriptType as any,
         };
       } else {
         // External output - use address
         return {
           address: output.address,
           amount: output.amount,
-          script_type: OUTPUT_SCRIPT_TYPES[output.scriptType] as any,
+          script_type: output.scriptType as any,
         };
       }
     });
@@ -495,23 +523,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
       // Determine script type from the derivation path (purpose)
       const purpose = path[0] & ~DerivationPaths.HARDENED;
-      let scriptType: string;
-      switch (purpose) {
-        case 44:
-          scriptType = 'SPENDADDRESS';
-          break;
-        case 49:
-          scriptType = 'SPENDP2SHWITNESS';
-          break;
-        case 84:
-          scriptType = 'SPENDWITNESS';
-          break;
-        case 86:
-          scriptType = 'SPENDTAPROOT';
-          break;
-        default:
-          scriptType = 'SPENDWITNESS';
-      }
+      const scriptType = getScriptTypeFromPurpose(purpose);
 
       inputs.push({
         address_n: path,

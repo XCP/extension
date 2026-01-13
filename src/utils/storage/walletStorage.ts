@@ -11,9 +11,10 @@
  */
 
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import type { HardwareWalletVendor } from '@/utils/hardware/types';
 // Import directly from constants to avoid circular dependency
 import { MAX_ADDRESSES_PER_WALLET } from '@/utils/wallet/constants';
+// Import wallet types from centralized types module (single source of truth)
+import type { WalletType, HardwareWalletData } from '@/types/wallet';
 
 import {
   getAllRecords,
@@ -24,26 +25,8 @@ import {
   StoredRecord,
 } from './storage';
 
-/**
- * Wallet types supported by the application
- */
-export type WalletType = 'mnemonic' | 'privateKey' | 'hardware';
-
-/**
- * Hardware wallet specific data stored with the wallet record
- */
-export interface HardwareWalletData {
-  /** Hardware wallet vendor (e.g., 'trezor', 'ledger') */
-  vendor: HardwareWalletVendor;
-  /** Extended public key for address derivation */
-  xpub: string;
-  /** Account index used for derivation */
-  accountIndex: number;
-  /** Device label (optional, from device) */
-  deviceLabel?: string;
-  /** Whether this wallet uses a passphrase (hidden wallet) */
-  usePassphrase?: boolean;
-}
+// Re-export types for backwards compatibility with existing imports
+export type { WalletType, HardwareWalletData };
 
 /**
  * Valid address format values for runtime validation.

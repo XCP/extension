@@ -3,7 +3,7 @@ import { utf8ToBytes, bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import * as sessionManager from '@/utils/auth/sessionManager';
-import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, updateEncryptedWallets, removeEncryptedWallet, EncryptedWalletRecord, type WalletType, type HardwareWalletData } from '@/utils/storage/walletStorage';
+import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, updateEncryptedWallets, removeEncryptedWallet, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
 import { encryptMnemonic, decryptMnemonic, encryptPrivateKey, decryptPrivateKey, DecryptionError } from '@/utils/encryption/walletEncryption';
 import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressFormat, isCounterwalletFormat } from '@/utils/blockchain/bitcoin/address';
 import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';
@@ -18,14 +18,11 @@ import { getHardwareAdapter } from '@/utils/hardware';
 import { DerivationPaths, type HardwareWalletVendor } from '@/utils/hardware/types';
 import type { IHardwareWalletAdapter } from '@/utils/hardware/interface';
 
-// Import types from centralized types module
-import type { Address, Wallet, HardwareWalletData as WalletHardwareData } from '@/types/wallet';
+// Import types from centralized types module (single source of truth)
+import type { Address, Wallet, HardwareWalletData, WalletType } from '@/types/wallet';
 
-// Re-export types for backwards compatibility
-export type { Address, Wallet };
-
-// Re-export HardwareWalletData for backwards compatibility with existing imports
-export type { WalletHardwareData as HardwareWalletData };
+// Re-export types for backwards compatibility with existing imports
+export type { Address, Wallet, HardwareWalletData, WalletType };
 
 // Import from constants for internal use
 import { MAX_WALLETS, MAX_ADDRESSES_PER_WALLET } from './constants';

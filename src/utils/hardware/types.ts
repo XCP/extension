@@ -12,6 +12,27 @@ import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 export type HardwareWalletVendor = 'trezor' | 'ledger';
 
 /**
+ * Input script types for hardware wallet transaction signing.
+ * These correspond to Bitcoin script types:
+ * - SPENDADDRESS: P2PKH (legacy)
+ * - SPENDWITNESS: P2WPKH (native SegWit)
+ * - SPENDP2SHWITNESS: P2SH-P2WPKH (wrapped SegWit)
+ * - SPENDTAPROOT: P2TR (Taproot)
+ */
+export type InputScriptType = 'SPENDADDRESS' | 'SPENDWITNESS' | 'SPENDP2SHWITNESS' | 'SPENDTAPROOT';
+
+/**
+ * Output script types for hardware wallet transaction signing.
+ * These correspond to Bitcoin script types:
+ * - PAYTOADDRESS: P2PKH (legacy)
+ * - PAYTOWITNESS: P2WPKH (native SegWit)
+ * - PAYTOP2SHWITNESS: P2SH-P2WPKH (wrapped SegWit)
+ * - PAYTOTAPROOT: P2TR (Taproot)
+ * - PAYTOOPRETURN: OP_RETURN data output
+ */
+export type OutputScriptType = 'PAYTOADDRESS' | 'PAYTOWITNESS' | 'PAYTOP2SHWITNESS' | 'PAYTOTAPROOT' | 'PAYTOOPRETURN';
+
+/**
  * Connection status for hardware wallets
  */
 export type HardwareConnectionStatus =
@@ -53,7 +74,7 @@ export interface HardwareSignInput {
   /** Amount in satoshis */
   amount: string;
   /** Script type for the input */
-  scriptType: 'SPENDADDRESS' | 'SPENDWITNESS' | 'SPENDP2SHWITNESS' | 'SPENDTAPROOT';
+  scriptType: InputScriptType;
 }
 
 /**
@@ -67,7 +88,7 @@ export interface HardwareSignOutput {
   /** Amount in satoshis */
   amount: string;
   /** Script type for the output */
-  scriptType: 'PAYTOADDRESS' | 'PAYTOWITNESS' | 'PAYTOP2SHWITNESS' | 'PAYTOTAPROOT' | 'PAYTOOPRETURN';
+  scriptType: OutputScriptType;
   /** OP_RETURN data (hex string, only for PAYTOOPRETURN outputs) */
   opReturnData?: string;
 }
