@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { launchExtension, setupWallet, cleanup, navigateViaFooter, lockWallet, unlockWallet, TEST_PASSWORD } from '../helpers/test-helpers';
 
-test.describe('Address Preview Cache', () => {
-  test('should cache and display address previews when wallet unlocked', async () => {
+test.describe('Address Preview Display', () => {
+  test('should display address previews for each format when wallet unlocked', async () => {
     const { context, page, extensionId } = await launchExtension('address-preview-cache');
     
     // Setup wallet - this unlocks it
@@ -84,7 +84,7 @@ test.describe('Address Preview Cache', () => {
     await cleanup(context);
   });
   
-  test('addresses persist in cache after wallet lock', async () => {
+  test('address previews regenerate correctly after lock/unlock cycle', async () => {
     const { context, page, extensionId } = await launchExtension('address-cache-lock');
 
     // Setup wallet - this unlocks it
