@@ -10,7 +10,7 @@
  * - Authentication via GCM mode
  */
 
-import { bufferToBase64, base64ToBuffer, combineBuffers, generateRandomBytes } from './buffer';
+import { bufferToBase64, base64ToBuffer, combineBuffers, generateRandomBytes, encodeString } from './buffer';
 
 /**
  * Encryption version. Increment if the scheme changes.
@@ -76,7 +76,7 @@ export async function encryptString(
   if (!password) throw new Error('Password cannot be empty');
   if (!plaintext) throw new Error('Plaintext cannot be empty');
 
-  const data = encoder.encode(plaintext);
+  const data = encodeString(plaintext);
   const salt = generateRandomBytes(CRYPTO_CONFIG.SALT_BYTES);
   const iv = generateRandomBytes(CRYPTO_CONFIG.IV_BYTES);
 
@@ -90,7 +90,7 @@ export async function encryptString(
     data
   );
 
-  const authMessageBytes = encoder.encode(CRYPTO_CONFIG.AUTH_MESSAGE);
+  const authMessageBytes = encodeString(CRYPTO_CONFIG.AUTH_MESSAGE);
   const signatureBuffer = await crypto.subtle.sign('HMAC', authKey, authMessageBytes);
   const authSignature = bufferToBase64(signatureBuffer);
 
@@ -164,7 +164,7 @@ export async function decryptString(
     const encryptionKey = await deriveEncryptionKey(masterKey);
     const authKey = await deriveAuthenticationKey(masterKey);
 
-    const authMessageBytes = encoder.encode(CRYPTO_CONFIG.AUTH_MESSAGE);
+    const authMessageBytes = encodeString(CRYPTO_CONFIG.AUTH_MESSAGE);
     const valid = await crypto.subtle.verify(
       'HMAC',
       authKey,
@@ -221,7 +221,7 @@ async function deriveMasterKey(
 ): Promise<CryptoKey> {
   const passwordKey = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(password),
+    encodeString(password),
     'PBKDF2',
     false,
     ['deriveBits']
@@ -252,7 +252,7 @@ const HKDF_EMPTY_SALT = new Uint8Array(0);
  */
 async function deriveEncryptionKey(masterKey: CryptoKey): Promise<CryptoKey> {
   return crypto.subtle.deriveKey(
-    { name: 'HKDF', hash: 'SHA-256', salt: HKDF_EMPTY_SALT, info: encoder.encode('encryption') },
+    { name: 'HKDF', hash: 'SHA-256', salt: HKDF_EMPTY_SALT, info: encodeString('encryption') },
     masterKey,
     { name: 'AES-GCM', length: CRYPTO_CONFIG.KEY_BITS },
     false,
@@ -268,7 +268,7 @@ async function deriveEncryptionKey(masterKey: CryptoKey): Promise<CryptoKey> {
  */
 async function deriveAuthenticationKey(masterKey: CryptoKey): Promise<CryptoKey> {
   return crypto.subtle.deriveKey(
-    { name: 'HKDF', hash: 'SHA-256', salt: HKDF_EMPTY_SALT, info: encoder.encode('authentication') },
+    { name: 'HKDF', hash: 'SHA-256', salt: HKDF_EMPTY_SALT, info: encodeString('authentication') },
     masterKey,
     { name: 'HMAC', hash: 'SHA-256', length: CRYPTO_CONFIG.KEY_BITS },
     false, // Non-extractable for security (key is only used for sign/verify)

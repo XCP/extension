@@ -68,7 +68,7 @@ import {
   clearCachedSettingsKey,
   hasSettingsKey,
 } from '@/utils/storage/keyStorage';
-import { bufferToBase64, base64ToBuffer, generateRandomBytes, combineBuffers } from './buffer';
+import { bufferToBase64, base64ToBuffer, generateRandomBytes, combineBuffers, encodeString } from './buffer';
 
 // Crypto constants
 const SALT_BYTES = 16;
@@ -123,7 +123,7 @@ async function getOrCreateSalt(): Promise<Uint8Array<ArrayBuffer>> {
 async function deriveKey(password: string, salt: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
   const passwordKey = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(password),
+    encodeString(password),
     'PBKDF2',
     false,
     ['deriveKey']
@@ -208,7 +208,7 @@ export async function encryptSettings(settings: AppSettings): Promise<string> {
   }
 
   const iv = generateRandomBytes(IV_BYTES);
-  const plaintext = encoder.encode(JSON.stringify(settings));
+  const plaintext = encodeString(JSON.stringify(settings));
 
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv, tagLength: GCM_TAG_LENGTH },
@@ -352,7 +352,7 @@ export async function encryptSettingsWithPassword(
   const derivedKey = await deriveKey(password, salt);
 
   const iv = generateRandomBytes(IV_BYTES);
-  const plaintext = encoder.encode(JSON.stringify(settings));
+  const plaintext = encodeString(JSON.stringify(settings));
 
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv, tagLength: GCM_TAG_LENGTH },
