@@ -61,12 +61,10 @@ test.describe('Trezor Direct API Tests', () => {
     }
   });
 
-  test('can get address using TrezorConnect in test mode (via page context)', async ({ page }) => {
-    // This test runs TrezorConnect code inside a browser page context
-    // which is closer to how the extension would use it
-
-    // Navigate to a blank page
-    await page.goto('about:blank');
+  test('verifies bridge communication works from Node.js context', async () => {
+    // Note: Direct fetch from browser page context is blocked by CORS.
+    // The browser extension uses TrezorConnect which handles this properly.
+    // Here we verify the bridge works from Node.js context.
 
     // Start auto-confirm in background
     const stopAutoConfirm = startAutoConfirm(200);
@@ -75,36 +73,20 @@ test.describe('Trezor Direct API Tests', () => {
       // Wait for device to be available
       const deviceReady = await waitForDevice(10000);
       console.log(`Device ready: ${deviceReady}`);
+      expect(deviceReady).toBe(true);
 
-      // Inject and run TrezorConnect in page context
-      const result = await page.evaluate(async () => {
-        // Dynamic import TrezorConnect
-        // Note: In a real test we'd load the extension's built code
-        // For now, we're testing the concept
-
-        // Try to call the bridge directly via fetch
-        try {
-          const response = await fetch('http://localhost:21325/enumerate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({}),
-          });
-          const devices = await response.json();
-          return {
-            success: true,
-            devices,
-            message: `Found ${devices.length} device(s)`,
-          };
-        } catch (err: any) {
-          return {
-            success: false,
-            error: err.message,
-          };
-        }
+      // Verify we can enumerate devices (Node.js context, not browser)
+      const response = await fetch('http://localhost:21325/enumerate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
       });
+      expect(response.ok).toBe(true);
 
-      console.log('Page context result:', result);
-      expect(result.success).toBe(true);
+      const devices = await response.json();
+      console.log(`Found ${devices.length} device(s) via Node.js fetch`);
+      expect(Array.isArray(devices)).toBe(true);
+      expect(devices.length).toBeGreaterThan(0);
     } finally {
       stopAutoConfirm();
     }
