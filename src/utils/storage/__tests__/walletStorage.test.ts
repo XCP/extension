@@ -243,7 +243,7 @@ describe('walletStorage.ts', () => {
       } as EncryptedWalletRecord;
 
       await expect(addEncryptedWallet(invalidWallet)).rejects.toThrow(
-        'Encrypted secret is required for wallet records'
+        'Encrypted secret is required for mnemonic/privateKey wallet records'
       );
     });
 
@@ -257,7 +257,7 @@ describe('walletStorage.ts', () => {
       } as any;
 
       await expect(addEncryptedWallet(invalidWallet)).rejects.toThrow(
-        'Encrypted secret is required for wallet records'
+        'Encrypted secret is required for mnemonic/privateKey wallet records'
       );
     });
 
@@ -270,7 +270,7 @@ describe('walletStorage.ts', () => {
       } as any;
 
       await expect(addEncryptedWallet(invalidWallet)).rejects.toThrow(
-        'Encrypted secret is required for wallet records'
+        'Encrypted secret is required for mnemonic/privateKey wallet records'
       );
     });
   });
