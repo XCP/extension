@@ -90,3 +90,16 @@ export function combineBuffers(...buffers: Uint8Array[]): Uint8Array<ArrayBuffer
   }
   return result;
 }
+
+/**
+ * Encodes a string to Uint8Array<ArrayBuffer> for Web Crypto API compatibility.
+ * This wraps TextEncoder.encode() to ensure the result is backed by ArrayBuffer,
+ * not ArrayBufferLike, which TypeScript requires for Web Crypto APIs.
+ */
+export function encodeString(str: string): Uint8Array<ArrayBuffer> {
+  const encoded = new TextEncoder().encode(str);
+  const buffer = new ArrayBuffer(encoded.length);
+  const bytes = new Uint8Array(buffer);
+  bytes.set(encoded);
+  return bytes;
+}

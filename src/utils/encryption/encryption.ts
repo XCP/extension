@@ -10,7 +10,7 @@
  * - Authentication via GCM mode
  */
 
-import { bufferToBase64, base64ToBuffer, combineBuffers, generateRandomBytes } from './buffer';
+import { bufferToBase64, base64ToBuffer, combineBuffers, generateRandomBytes, encodeString } from './buffer';
 
 /**
  * Encryption version. Increment if the scheme changes.
@@ -76,7 +76,7 @@ export async function encryptString(
   if (!password) throw new Error('Password cannot be empty');
   if (!plaintext) throw new Error('Plaintext cannot be empty');
 
-  const data = encoder.encode(plaintext);
+  const data = encodeString(plaintext);
   const salt = generateRandomBytes(CRYPTO_CONFIG.SALT_BYTES);
   const iv = generateRandomBytes(CRYPTO_CONFIG.IV_BYTES);
 
@@ -87,11 +87,11 @@ export async function encryptString(
   const encryptedBuffer = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv, tagLength: CRYPTO_CONFIG.TAG_LENGTH },
     encryptionKey,
-    data as BufferSource
+    data
   );
 
-  const authMessageBytes = encoder.encode(CRYPTO_CONFIG.AUTH_MESSAGE);
-  const signatureBuffer = await crypto.subtle.sign('HMAC', authKey, authMessageBytes as BufferSource);
+  const authMessageBytes = encodeString(CRYPTO_CONFIG.AUTH_MESSAGE);
+  const signatureBuffer = await crypto.subtle.sign('HMAC', authKey, authMessageBytes);
   const authSignature = bufferToBase64(signatureBuffer);
 
   // Format: salt (16 bytes) + iv (12 bytes) + ciphertext
@@ -164,12 +164,12 @@ export async function decryptString(
     const encryptionKey = await deriveEncryptionKey(masterKey);
     const authKey = await deriveAuthenticationKey(masterKey);
 
-    const authMessageBytes = encoder.encode(CRYPTO_CONFIG.AUTH_MESSAGE);
+    const authMessageBytes = encodeString(CRYPTO_CONFIG.AUTH_MESSAGE);
     const valid = await crypto.subtle.verify(
       'HMAC',
       authKey,
-      base64ToBuffer(parsed.authSignature) as BufferSource,
-      authMessageBytes as BufferSource
+      base64ToBuffer(parsed.authSignature),
+      authMessageBytes
     );
 
     // Always attempt decryption to maintain constant timing
@@ -180,7 +180,7 @@ export async function decryptString(
       decryptedBuffer = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv, tagLength: CRYPTO_CONFIG.TAG_LENGTH },
         encryptionKey,
-        ciphertext as BufferSource
+        ciphertext
       );
     } catch (err) {
       decryptionError = err instanceof Error ? err : new Error(String(err));
@@ -216,19 +216,19 @@ export async function decryptString(
  */
 async function deriveMasterKey(
   password: string,
-  salt: Uint8Array,
+  salt: Uint8Array<ArrayBuffer>,
   iterations: number
 ): Promise<CryptoKey> {
   const passwordKey = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(password) as BufferSource,
+    encodeString(password),
     'PBKDF2',
     false,
     ['deriveBits']
   );
 
   const derivedBits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
     passwordKey,
     CRYPTO_CONFIG.KEY_BITS
   );
@@ -252,7 +252,7 @@ const HKDF_EMPTY_SALT = new Uint8Array(0);
  */
 async function deriveEncryptionKey(masterKey: CryptoKey): Promise<CryptoKey> {
   return crypto.subtle.deriveKey(
-    { name: 'HKDF', hash: 'SHA-256', salt: HKDF_EMPTY_SALT as BufferSource, info: encoder.encode('encryption') as BufferSource },
+    { name: 'HKDF', hash: 'SHA-256', salt: HKDF_EMPTY_SALT, info: encodeString('encryption') },
     masterKey,
     { name: 'AES-GCM', length: CRYPTO_CONFIG.KEY_BITS },
     false,
@@ -268,7 +268,7 @@ async function deriveEncryptionKey(masterKey: CryptoKey): Promise<CryptoKey> {
  */
 async function deriveAuthenticationKey(masterKey: CryptoKey): Promise<CryptoKey> {
   return crypto.subtle.deriveKey(
-    { name: 'HKDF', hash: 'SHA-256', salt: HKDF_EMPTY_SALT as BufferSource, info: encoder.encode('authentication') as BufferSource },
+    { name: 'HKDF', hash: 'SHA-256', salt: HKDF_EMPTY_SALT, info: encodeString('authentication') },
     masterKey,
     { name: 'HMAC', hash: 'SHA-256', length: CRYPTO_CONFIG.KEY_BITS },
     false, // Non-extractable for security (key is only used for sign/verify)
