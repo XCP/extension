@@ -53,8 +53,8 @@ test.describe('Advanced Features', () => {
       // Test passes if we're on settings page
       expect(isOnSettings).toBe(true);
     } else {
-      // If not on settings, just pass the test
-      expect(true).toBe(true);
+      // If not on settings page, fail the test
+      expect(isOnSettings).toBe(true);
     }
     
     await cleanup(context);
@@ -108,8 +108,7 @@ test.describe('Advanced Features', () => {
     
     if (!onboardingVisible) {
       // Skip if already has wallet
-      await cleanup(context);
-      return;
+      test.skip(true, 'Wallet already exists, cannot test address type selection during onboarding');
     }
     
     await page.click('button:has-text("Create Wallet")');

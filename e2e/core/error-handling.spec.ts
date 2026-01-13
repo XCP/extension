@@ -16,11 +16,10 @@ test.describe('Error Handling', () => {
     const { context, page } = await launchExtension('invalid-mnemonic');
     
     const onboardingVisible = await page.locator('button:has-text("Import Wallet")').first().isVisible();
-    
+
     if (!onboardingVisible) {
       // Skip if already has wallet
-      await cleanup(context);
-      return;
+      test.skip(true, 'Wallet already exists, cannot test invalid mnemonic import');
     }
     
     await page.click('button:has-text("Import Wallet")');
@@ -258,11 +257,12 @@ test.describe('Error Handling', () => {
           await page.waitForTimeout(1000);
           
           // Should either succeed or show appropriate error
-          await page.waitForTimeout(2000);
-          const hasSignature = await page.locator('h3:has-text("Signature")').isVisible({ timeout: 1000 }).catch(() => false);
+          await page.waitForLoadState('networkidle');
+          const hasSignature = await page.locator('h3:has-text("Signature")').isVisible({ timeout: 3000 }).catch(() => false);
           const hasSignError = await hasError(page);
-          
-          expect(hasSignature || hasSignError || true).toBe(true); // Always pass - we're just testing it doesn't crash
+
+          // Should produce either a signature or an error (not crash)
+          expect(hasSignature || hasSignError).toBe(true);
         }
       }
     }
