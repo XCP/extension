@@ -251,7 +251,7 @@ export class WalletManager {
 
     // Get the hardware wallet adapter for the specified vendor
     // This will throw if the vendor is not supported
-    const adapter = getHardwareAdapter(vendor);
+    const adapter = await getHardwareAdapter(vendor);
     if (!adapter.isInitialized()) {
       await adapter.init();
     }
@@ -1046,7 +1046,7 @@ export class WalletManager {
       throw new Error('Hardware wallet data not available');
     }
 
-    const adapter = getHardwareAdapter(wallet.hardwareData.vendor);
+    const adapter = await getHardwareAdapter(wallet.hardwareData.vendor);
     if (!adapter.isInitialized()) {
       await adapter.init();
     }
@@ -1152,7 +1152,7 @@ export class WalletManager {
       throw new Error('Hardware wallet data not available');
     }
 
-    const adapter = getHardwareAdapter(wallet.hardwareData.vendor);
+    const adapter = await getHardwareAdapter(wallet.hardwareData.vendor);
     if (!adapter.isInitialized()) {
       await adapter.init();
     }
@@ -1188,7 +1188,7 @@ export class WalletManager {
       throw new Error('Hardware wallet data not available');
     }
 
-    const adapter = getHardwareAdapter(wallet.hardwareData.vendor);
+    const adapter = await getHardwareAdapter(wallet.hardwareData.vendor);
     if (!adapter.isInitialized()) {
       await adapter.init();
     }

@@ -3,20 +3,69 @@
  *
  * Provides hardware wallet integration for XCP Wallet.
  * Supports Trezor and Ledger devices.
+ *
+ * NOTE: Adapter imports are lazy-loaded to avoid triggering browser API
+ * side effects during module initialization (which breaks unit tests).
  */
 
 import { IHardwareWalletAdapter } from './interface';
 import { HardwareWalletVendor, HardwareWalletError } from './types';
-import { getTrezorAdapter } from './trezorAdapter';
-import { getLedgerAdapter } from './ledgerAdapter';
 
 export * from './types';
 export * from './interface';
 export * from './helpers';
-export { TrezorAdapter, getTrezorAdapter, resetTrezorAdapter } from './trezorAdapter';
-export { LedgerAdapter, getLedgerAdapter, resetLedgerAdapter } from './ledgerAdapter';
 export * from './deviceDetection';
 export * from './operationManager';
+
+// Lazy-loaded adapter getters to avoid triggering browser API side effects on import
+let _trezorModule: typeof import('./trezorAdapter') | null = null;
+let _ledgerModule: typeof import('./ledgerAdapter') | null = null;
+
+async function loadTrezorModule() {
+  if (!_trezorModule) {
+    _trezorModule = await import('./trezorAdapter');
+  }
+  return _trezorModule;
+}
+
+async function loadLedgerModule() {
+  if (!_ledgerModule) {
+    _ledgerModule = await import('./ledgerAdapter');
+  }
+  return _ledgerModule;
+}
+
+/**
+ * Get the Trezor adapter instance (lazy-loaded)
+ */
+export async function getTrezorAdapter() {
+  const mod = await loadTrezorModule();
+  return mod.getTrezorAdapter();
+}
+
+/**
+ * Reset the Trezor adapter instance
+ */
+export async function resetTrezorAdapter() {
+  const mod = await loadTrezorModule();
+  return mod.resetTrezorAdapter();
+}
+
+/**
+ * Get the Ledger adapter instance (lazy-loaded)
+ */
+export async function getLedgerAdapter() {
+  const mod = await loadLedgerModule();
+  return mod.getLedgerAdapter();
+}
+
+/**
+ * Reset the Ledger adapter instance
+ */
+export async function resetLedgerAdapter() {
+  const mod = await loadLedgerModule();
+  return mod.resetLedgerAdapter();
+}
 
 /**
  * Factory function to get the appropriate hardware wallet adapter
@@ -28,15 +77,15 @@ export * from './operationManager';
  *
  * @example
  * // Get Trezor adapter
- * const adapter = getHardwareAdapter('trezor');
+ * const adapter = await getHardwareAdapter('trezor');
  * await adapter.init();
  *
  * @example
  * // Get Ledger adapter
- * const adapter = getHardwareAdapter('ledger');
+ * const adapter = await getHardwareAdapter('ledger');
  * await adapter.init();
  */
-export function getHardwareAdapter(vendor: HardwareWalletVendor): IHardwareWalletAdapter {
+export async function getHardwareAdapter(vendor: HardwareWalletVendor): Promise<IHardwareWalletAdapter> {
   switch (vendor) {
     case 'trezor':
       return getTrezorAdapter();
