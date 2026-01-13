@@ -82,7 +82,7 @@ test.describe('Verify Message', () => {
     await grantClipboardPermissions(context);
 
     // Step 1: Get the full address from the index page (we're already there after setup)
-    await page.waitForTimeout(1000);
+    await expect(page.locator('.font-mono').first()).toBeVisible({ timeout: 5000 });
 
     // Click on the address area to copy the full address
     await page.click('.font-mono');

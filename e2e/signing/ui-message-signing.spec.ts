@@ -248,30 +248,20 @@ test.describe('Sign Message', () => {
     await page.click('text=Sign Message');
     await page.waitForURL('**/actions/sign-message', { timeout: 15000 });
     await page.waitForLoadState('networkidle');
-    
+
     const messageInput = page.locator('textarea[placeholder*="Enter your message"]');
-    
-    // Look for character count display - might be formatted differently
-    const charCountLocator = page.locator('text=/\\d+ character/');
-    const hasCharCount = await charCountLocator.isVisible().catch(() => false);
-    
-    if (hasCharCount) {
-      // Initially should show 0 characters
-      await expect(page.locator('text=/0 character/')).toBeVisible();
-    }
-    
+    await expect(messageInput).toBeVisible({ timeout: 5000 });
+
+    // Initially should show 0 characters
+    await expect(page.locator('text=/0 character/')).toBeVisible({ timeout: 5000 });
+
     // Type a message
     const testMessage = 'Hello';
     await messageInput.fill(testMessage);
-    
-    if (hasCharCount) {
-      // Should update character count
-      await expect(page.locator(`text=/${testMessage.length} character/`)).toBeVisible();
-    } else {
-      // If no character count, just verify message was entered
-      await expect(messageInput).toHaveValue(testMessage);
-    }
-    
+
+    // Should update character count
+    await expect(page.locator(`text=/${testMessage.length} character/`)).toBeVisible({ timeout: 5000 });
+
     await cleanup(context);
   });
 
@@ -326,16 +316,12 @@ test.describe('Sign Message', () => {
     // Click on Sign Message
     await page.click('text=Sign Message');
     await page.waitForURL('**/actions/sign-message', { timeout: 15000 });
-    await page.waitForTimeout(2000);
-    
-    // Check for verification related content - be more flexible
-    const hasVerifySection = await page.locator('text=/How to Verify|Verification|Verify/i').first().isVisible().catch(() => false);
-    const hasInstructions = await page.locator('text=/Share|signature|address/i').first().isVisible().catch(() => false);
-    const hasSignPage = await page.locator('text=/Sign.*Message/i, button:has-text("Sign")').first().isVisible().catch(() => false);
-    
-    // Should have some verification or signing related content
-    expect(hasVerifySection || hasInstructions || hasSignPage).toBe(true);
-    
+    await page.waitForLoadState('networkidle');
+
+    // Sign message page should have the key elements
+    await expect(page.locator('h1, h2').filter({ hasText: 'Sign Message' })).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('button:has-text("Sign Message")')).toBeVisible({ timeout: 5000 });
+
     await cleanup(context);
   });
 
@@ -351,24 +337,19 @@ test.describe('Sign Message', () => {
     await page.click('text=Sign Message');
     await page.waitForURL('**/actions/sign-message', { timeout: 15000 });
     await page.waitForLoadState('networkidle');
-    
-    // Wait for page to load
-    await page.waitForSelector('textarea[placeholder*="Enter your message"]', { timeout: 10000 });
-    
-    // Fill in a test message
+
+    // Wait for message input
     const messageInput = page.locator('textarea[placeholder*="Enter your message"]');
+    await expect(messageInput).toBeVisible({ timeout: 10000 });
+
+    // Fill in a test message
     await messageInput.fill('Test message for wallet type');
-    
-    // Check that sign button is present and can be clicked
+
+    // Sign button should be enabled after entering a message
     const signButton = page.locator('button:has-text("Sign Message")');
-    await expect(signButton).toBeVisible();
-    
-    // The button should be enabled (wallet supports signing)
-    // or disabled (wallet doesn't support signing)
-    // Both are valid states depending on wallet type
-    const isEnabled = await signButton.isEnabled();
-    expect(typeof isEnabled).toBe('boolean');
-    
+    await expect(signButton).toBeVisible({ timeout: 5000 });
+    await expect(signButton).toBeEnabled({ timeout: 5000 });
+
     await cleanup(context);
   });
 });
