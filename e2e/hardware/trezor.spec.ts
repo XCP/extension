@@ -146,9 +146,9 @@ test.describe('Trezor Hardware Wallet', () => {
       await expect(page.getByText('Use passphrase')).toBeVisible();
       await expect(page.getByPlaceholder('My Trezor')).toBeVisible();
 
-      // Should have account buttons 0-4
-      await expect(page.getByRole('button', { name: '0' })).toBeVisible();
-      await expect(page.getByRole('button', { name: '1' })).toBeVisible();
+      // Should have account buttons 0-4 (use exact matching to avoid matching address format buttons)
+      await expect(page.getByRole('button', { name: '0', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: '1', exact: true })).toBeVisible();
 
       await page.screenshot({ path: 'test-results/screenshots/trezor-advanced-options.png' });
     } finally {
