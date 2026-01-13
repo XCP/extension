@@ -10,6 +10,7 @@ import { ComposerProvider, useComposer } from "@/contexts/composer-context";
 import { useHeader } from "@/contexts/header-context";
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import { getVendorLabel } from "@/utils/hardware";
+import type { HardwareWalletVendor } from "@/utils/hardware/types";
 
 /**
  * Compose operation types for internal wallet use

@@ -330,7 +330,7 @@ export default function ConnectHardware(): ReactElement {
                 <li>Open the <span className="text-gray-300">Bitcoin app</span></li>
               )}
               <li>Verify the address shown matches</li>
-              <li>{getVendorConfirmInstructions(vendor)}</li>
+              <li>{getVendorConfirmInstructions(vendor ?? undefined)}</li>
             </ol>
           </div>
         </div>
@@ -459,7 +459,7 @@ export default function ConnectHardware(): ReactElement {
             <div className="flex items-center justify-between mb-1">
               <span className="font-medium">
                 {option.label}
-                {option.recommended && (
+                {"recommended" in option && option.recommended && (
                   <span className="ml-2 text-xs px-2 py-0.5 bg-blue-500/30 text-blue-300 rounded">
                     Recommended
                   </span>

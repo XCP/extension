@@ -199,8 +199,6 @@ interface WalletContextType {
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
   /** Sign a message with the active wallet */
   signMessage: (message: string, address: string) => Promise<{ signature: string; address: string }>;
-  /** Check if the wallet is currently locked */
-  isWalletLocked: () => Promise<boolean>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);

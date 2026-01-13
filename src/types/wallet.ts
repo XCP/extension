@@ -7,6 +7,7 @@
  */
 
 import type { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import type { HardwareWalletVendor } from '@/utils/hardware/types';
 
 /**
  * Represents a derived address within a wallet.
@@ -23,6 +24,22 @@ export interface Address {
 }
 
 /**
+ * Hardware wallet specific data stored with the wallet
+ */
+export interface HardwareWalletData {
+  /** Hardware wallet vendor (e.g., 'trezor', 'ledger') */
+  vendor: HardwareWalletVendor;
+  /** Extended public key for address derivation */
+  xpub: string;
+  /** Account index used for derivation */
+  accountIndex: number;
+  /** Device label (optional, from device) */
+  deviceLabel?: string;
+  /** Whether this wallet uses a passphrase (hidden wallet) */
+  usePassphrase?: boolean;
+}
+
+/**
  * Represents a wallet containing one or more addresses.
  */
 export interface Wallet {
@@ -30,8 +47,8 @@ export interface Wallet {
   id: string;
   /** User-facing wallet name */
   name: string;
-  /** Secret type: mnemonic phrase or single private key */
-  type: 'mnemonic' | 'privateKey';
+  /** Secret type: mnemonic phrase, single private key, or hardware wallet */
+  type: 'mnemonic' | 'privateKey' | 'hardware';
   /** Bitcoin address format for derivation */
   addressFormat: AddressFormat;
   /** Number of derived addresses */
@@ -40,4 +57,6 @@ export interface Wallet {
   addresses: Address[];
   /** Flag for development-only test wallets */
   isTestOnly?: boolean;
+  /** Hardware wallet specific data (only for type: 'hardware') */
+  hardwareData?: HardwareWalletData;
 }

@@ -66,7 +66,7 @@
  */
 
 // Wallet domain
-export type { Address, Wallet } from './wallet';
+export type { Address, Wallet, HardwareWalletData } from './wallet';
 
 // Provider domain
 export type {
