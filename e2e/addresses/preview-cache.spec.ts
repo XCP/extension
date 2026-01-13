@@ -128,6 +128,10 @@ test.describe('Address Preview Cache', () => {
     // Unlock with correct password
     await unlockWallet(page, TEST_PASSWORD);
 
+    // Wait for wallet to be fully loaded after unlock - an address should be visible on index page
+    // This ensures the wallet context has refreshed before we navigate
+    await expect(page.locator('.font-mono').first()).toBeVisible({ timeout: 10000 });
+
     // Navigate back to settings > Address Type
     await navigateViaFooter(page, 'settings');
     await expect(page.getByText('Address Type')).toBeVisible({ timeout: 5000 });
@@ -138,9 +142,18 @@ test.describe('Address Preview Cache', () => {
     await expect(page.locator('[role="radio"]').first()).toBeVisible({ timeout: 10000 });
     // Wait for page to stabilize
     await page.waitForLoadState('networkidle');
-    // Give address previews extra time to load after unlock (they may be slower due to cache retrieval)
-    // Using waitForTimeout here as a fallback since networkidle doesn't guarantee React rendering is complete
-    await page.waitForTimeout(2000);
+
+    // Wait for address preview text to actually appear with longer timeout
+    // Address previews are loaded asynchronously after unlock
+    const addressPreviewSelector = page.locator('[role="radio"] .text-xs').filter({ hasText: /^(bc1|1|3)/ }).first();
+    const previewAppeared = await addressPreviewSelector.isVisible({ timeout: 15000 }).catch(() => false);
+
+    if (!previewAppeared) {
+      console.log('WARNING: Address preview text did not appear within 15 seconds after unlock');
+      console.log('This may indicate the address cache is not being restored properly after unlock');
+      // Take a screenshot for debugging
+      await page.screenshot({ path: 'test-results/preview-cache-post-unlock-debug.png', fullPage: true });
+    }
 
     const cardsAfter = await page.locator('[role="radio"]').all();
     const addressesAfterUnlock = [];
@@ -158,10 +171,15 @@ test.describe('Address Preview Cache', () => {
     expect(initialAddresses.length).toBeGreaterThan(0);
     expect(addressesAfterUnlock.length).toBe(initialAddresses.length);
 
+    // Check if any address previews loaded after unlock
+    const loadedAfterUnlock = addressesAfterUnlock.filter(a => a.description && a.description.length > 0);
+    console.log(`Addresses with previews after unlock: ${loadedAfterUnlock.length}/${addressesAfterUnlock.length}`);
+
     for (const initial of initialAddresses) {
       const after = addressesAfterUnlock.find(a => a.title === initial.title);
       console.log(`Comparing ${initial.title}: "${initial.description}" vs "${after?.description}"`);
       expect(after).toBeDefined();
+      // If the description is empty after unlock, this indicates a cache persistence issue
       expect(after?.description).toBe(initial.description);
     }
 
