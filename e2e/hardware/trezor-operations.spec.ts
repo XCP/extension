@@ -102,9 +102,8 @@ test.describe('Trezor Hardware Wallet Operations', () => {
         console.log(`  ✓ Connected with address: ${walletInfo.address.slice(0, 20)}...`);
       } catch (err) {
         console.log('  ✗ Failed to connect Trezor:', err);
-        // Take screenshot and skip
         await page.screenshot({ path: 'test-results/screenshots/trezor-sign-message-connect-failed.png' });
-        return;
+        throw new Error(`Failed to connect Trezor: ${err}`);
       }
 
       // Step 2: Navigate to sign message
@@ -183,9 +182,8 @@ test.describe('Trezor Hardware Wallet Operations', () => {
       let walletInfo: { address: string };
       try {
         walletInfo = await setupHardwareWallet(page);
-      } catch {
-        console.log('Failed to connect Trezor - skipping test');
-        return;
+      } catch (err) {
+        throw new Error(`Failed to connect Trezor: ${err}`);
       }
 
       // Go to sign message
@@ -259,9 +257,8 @@ test.describe('Trezor Transaction Signing Flow', () => {
       try {
         walletInfo = await setupHardwareWallet(page);
         console.log(`  ✓ Connected: ${walletInfo.address.slice(0, 20)}...`);
-      } catch {
-        console.log('  Failed to connect Trezor');
-        return;
+      } catch (err) {
+        throw new Error(`Failed to connect Trezor: ${err}`);
       }
 
       // Navigate to send page
@@ -335,9 +332,8 @@ test.describe('Trezor Wallet Display', () => {
       let walletInfo: { address: string };
       try {
         walletInfo = await setupHardwareWallet(page);
-      } catch {
-        console.log('Failed to connect Trezor - skipping test');
-        return;
+      } catch (err) {
+        throw new Error(`Failed to connect Trezor: ${err}`);
       }
 
       // We should be on index page now
@@ -374,9 +370,8 @@ test.describe('Trezor Wallet Display', () => {
       // Connect Trezor
       try {
         await setupHardwareWallet(page);
-      } catch {
-        console.log('Failed to connect Trezor - skipping test');
-        return;
+      } catch (err) {
+        throw new Error(`Failed to connect Trezor: ${err}`);
       }
 
       // Try to navigate to show private key page
@@ -437,9 +432,8 @@ test.describe('Trezor Disconnect Flow', () => {
       try {
         walletInfo = await setupHardwareWallet(page);
         console.log(`  ✓ Connected: ${walletInfo.address.slice(0, 20)}...`);
-      } catch {
-        console.log('  Failed to connect Trezor - skipping test');
-        return;
+      } catch (err) {
+        throw new Error(`Failed to connect Trezor: ${err}`);
       }
 
       // Navigate to add-wallet page
@@ -502,9 +496,8 @@ test.describe('Trezor Disconnect Flow', () => {
       try {
         await setupHardwareWallet(page);
         console.log('  ✓ Connected');
-      } catch {
-        console.log('  Failed to connect Trezor - skipping test');
-        return;
+      } catch (err) {
+        throw new Error(`Failed to connect Trezor: ${err}`);
       }
 
       // Navigate to select-wallet page
@@ -575,9 +568,8 @@ test.describe('Trezor Session-Only Behavior', () => {
       try {
         walletInfo = await setupHardwareWallet(page);
         console.log(`  ✓ Connected: ${walletInfo.address.slice(0, 20)}...`);
-      } catch {
-        console.log('  Failed to connect Trezor - skipping test');
-        return;
+      } catch (err) {
+        throw new Error(`Failed to connect Trezor: ${err}`);
       }
 
       // Verify hardware wallet is in the list
@@ -670,9 +662,8 @@ test.describe('Trezor Multi-Wallet Switching', () => {
         const walletInfo = await setupHardwareWallet(page);
         hardwareAddress = walletInfo.address;
         console.log(`  ✓ Hardware wallet connected: ${hardwareAddress.slice(0, 15)}...`);
-      } catch {
-        console.log('  Failed to connect Trezor - skipping test');
-        return;
+      } catch (err) {
+        throw new Error(`Failed to connect Trezor: ${err}`);
       }
 
       // Navigate to select-wallet to see both wallets
