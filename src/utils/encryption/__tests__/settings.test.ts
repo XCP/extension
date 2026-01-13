@@ -151,6 +151,7 @@ describe('settings encryption', () => {
         transactionDryRun: true,
         counterpartyApiBase: 'https://custom.api.com:4000',
         defaultOrderExpiration: 1000,
+        strictTransactionVerification: true,
         connectedWebsites: ['https://a.com', 'https://b.com'],
         pinnedAssets: ['ASSET1', 'ASSET2', 'ASSET3'],
         hasVisitedRecoverBitcoin: true,
@@ -185,6 +186,17 @@ describe('settings encryption', () => {
       const corrupted = encrypted.slice(0, 20) + 'X' + encrypted.slice(21);
 
       await expect(decryptSettings(corrupted)).rejects.toThrow(
+        'Failed to decrypt settings'
+      );
+    });
+
+    it('should fail on invalid base64 input', async () => {
+      await initializeSettingsKey(TEST_PASSWORD);
+
+      // Invalid base64 string (contains invalid characters)
+      const invalidBase64 = '!!!not-valid-base64!!!';
+
+      await expect(decryptSettings(invalidBase64)).rejects.toThrow(
         'Failed to decrypt settings'
       );
     });
@@ -284,6 +296,24 @@ describe('settings encryption', () => {
 
       expect(decrypted.connectedWebsites).toHaveLength(100);
       expect(decrypted.pinnedAssets).toHaveLength(50);
+    });
+  });
+
+  describe('empty password validation', () => {
+    it('should throw error for empty password in initializeSettingsKey', async () => {
+      await expect(initializeSettingsKey('')).rejects.toThrow('Password cannot be empty');
+    });
+
+    it('should throw error for empty password in encryptSettingsWithPassword', async () => {
+      await expect(
+        encryptSettingsWithPassword(TEST_SETTINGS, '')
+      ).rejects.toThrow('Password cannot be empty');
+    });
+
+    it('should throw error for empty password in decryptSettingsWithPassword', async () => {
+      await expect(
+        decryptSettingsWithPassword('someEncryptedData', '')
+      ).rejects.toThrow('Password cannot be empty');
     });
   });
 });

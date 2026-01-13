@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactElement } from "react";
 import {
   Field,
   Label,
@@ -22,11 +22,17 @@ interface FeeRateInputProps {
 
 type LocalFeeRateOption = FeeRateOption | "custom";
 
+/**
+ * FeeRateInput provides fee rate selection with presets and custom input option.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the fee rate selector
+ */
 export function FeeRateInput({
   showHelpText = false,
   disabled = false,
   onFeeRateChange,
-}: FeeRateInputProps) {
+}: FeeRateInputProps): ReactElement {
   const { feeRates, isLoading, error: fetchError, uniquePresetOptions } = useFeeRates(true);
   const [selectedOption, setSelectedOption] = useState<LocalFeeRateOption>("fast");
   const [customInput, setCustomInput] = useState<string>("0.1");

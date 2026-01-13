@@ -1,4 +1,3 @@
-"use client";
 
 import { useEffect, useRef, useState, useActionState } from "react";
 import { useNavigate } from "react-router-dom";

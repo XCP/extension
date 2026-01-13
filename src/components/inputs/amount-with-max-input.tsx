@@ -1,5 +1,4 @@
-import { useState, ChangeEvent } from "react";
-import { isApiError } from "@/utils/apiClient";
+import { useState, type ChangeEvent, type ReactElement } from "react";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { isValidBitcoinAddress } from "@/utils/validation/bitcoin";
@@ -13,6 +12,14 @@ import {
   isLessThanOrEqualToSatoshis
 } from "@/utils/numeric";
 import { isDustAmount } from "@/utils/validation/amount";
+
+// Known safe error messages that can be shown to users
+// These are intentionally user-friendly and don't leak internal details
+const KNOWN_SAFE_ERRORS = [
+  "No available balance.",
+  "Insufficient balance to cover transaction fee.",
+  "Amount per destination after fee is below dust limit.",
+];
 
 interface AmountWithMaxInputProps {
   asset: string;
@@ -36,6 +43,13 @@ interface AmountWithMaxInputProps {
   hasError?: boolean;
 }
 
+/**
+ * AmountWithMaxInput provides amount entry with a Max button that calculates
+ * the maximum sendable amount accounting for fees.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the amount input with max button
+ */
 export function AmountWithMaxInput({
   asset,
   availableBalance,
@@ -56,7 +70,7 @@ export function AmountWithMaxInput({
   disableMaxButton = false,
   onMaxClick,
   hasError = false,
-}: AmountWithMaxInputProps) {
+}: AmountWithMaxInputProps): ReactElement {
   const [isLoading, setIsLoading] = useState(false);
   
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -131,14 +145,13 @@ export function AmountWithMaxInput({
       }
       const finalAmount = fromSatoshis(amountPerDestination); // Returns BTC string
       onChange(finalAmount);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to calculate max amount:", err);
-      if (isApiError(err) && err.response?.data && typeof err.response.data === 'object' && 'error' in err.response.data) {
-        setError((err.response.data as { error: string }).error);
-      } else if (err instanceof Error) {
+      // Only show known safe error messages to users to prevent leaking internal details
+      if (err instanceof Error && KNOWN_SAFE_ERRORS.includes(err.message)) {
         setError(err.message);
       } else {
-        setError("Failed to estimate max amount.");
+        setError("Failed to calculate maximum amount. Please try again.");
       }
     } finally {
       setIsLoading(false);

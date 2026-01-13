@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactElement } from "react";
 import {
   Combobox,
   ComboboxInput,
@@ -26,6 +26,12 @@ interface AssetSelectInputProps {
   required?: boolean;
 }
 
+/**
+ * AssetSelectInput provides a searchable dropdown for selecting Counterparty assets.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the asset selection input
+ */
 export function AssetSelectInput({
   selectedAsset,
   onChange,
@@ -33,7 +39,7 @@ export function AssetSelectInput({
   showHelpText,
   description,
   required = false,
-}: AssetSelectInputProps) {
+}: AssetSelectInputProps): ReactElement {
   const [query, setQuery] = useState("");
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);

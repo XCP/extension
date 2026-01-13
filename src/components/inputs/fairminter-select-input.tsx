@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactElement } from "react";
 import {
   Combobox,
   ComboboxInput,
@@ -33,6 +33,12 @@ interface FairminterSelectInputProps {
   currencyFilter?: string; // "BTC" or "XCP" to filter fairminters
 }
 
+/**
+ * FairminterSelectInput provides a searchable dropdown for selecting open fairminters.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the fairminter selection input
+ */
 export function FairminterSelectInput({
   selectedAsset,
   onChange,
@@ -41,7 +47,7 @@ export function FairminterSelectInput({
   description,
   required = false,
   currencyFilter,
-}: FairminterSelectInputProps) {
+}: FairminterSelectInputProps): ReactElement {
   const [query, setQuery] = useState("");
   const [fairminters, setFairminters] = useState<Fairminter[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,7 +64,8 @@ export function FairminterSelectInput({
         const response = await fetch(`${settings.counterpartyApiBase}/v2/fairminters?status=open&verbose=true`);
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch fairminters: ${response.statusText}`);
+          // Use generic error to prevent leaking HTTP status details
+          throw new Error("Failed to fetch fairminters");
         }
         
         const data = await response.json();
@@ -84,7 +91,8 @@ export function FairminterSelectInput({
         }
       } catch (error) {
         console.error("Error fetching fairminters:", error);
-        setError(error instanceof Error ? error.message : "Failed to fetch fairminters");
+        // Use generic error to prevent leaking internal details
+        setError("Failed to load available assets. Please try again.");
       } finally {
         setIsLoading(false);
       }

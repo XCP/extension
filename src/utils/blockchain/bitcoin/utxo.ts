@@ -47,6 +47,27 @@ export interface UTXO {
 }
 
 /**
+ * Type guard to validate UTXO array structure.
+ */
+function isValidUtxoArray(data: unknown): data is UTXO[] {
+  if (!Array.isArray(data)) {
+    return false;
+  }
+  // Validate first item if array is not empty (avoid checking all items for performance)
+  if (data.length > 0) {
+    const first = data[0];
+    return (
+      typeof first === 'object' &&
+      first !== null &&
+      typeof first.txid === 'string' &&
+      typeof first.vout === 'number' &&
+      typeof first.value === 'number'
+    );
+  }
+  return true;
+}
+
+/**
  * Fetches the UTXOs for a given Bitcoin address.
  *
  * @param address - The Bitcoin address to fetch UTXOs for.
@@ -56,10 +77,17 @@ export interface UTXO {
 export async function fetchUTXOs(address: string, signal?: AbortSignal): Promise<UTXO[]> {
   try {
     // Use quickApiClient with 10 second timeout for UTXO lookups
-    const response = await apiClient.get<UTXO[]>(
+    const response = await apiClient.get<unknown>(
       `https://mempool.space/api/address/${address}/utxo`,
       { signal }
     );
+
+    // Validate response structure
+    if (!isValidUtxoArray(response.data)) {
+      console.error(`Invalid UTXO response format for address ${address}`);
+      throw new Error('Invalid UTXO response: expected array of UTXOs');
+    }
+
     return response.data;
   } catch (error) {
     if (isCancel(error)) {

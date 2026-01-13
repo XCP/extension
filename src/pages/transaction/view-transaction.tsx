@@ -1,4 +1,3 @@
-"use client";
 
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -39,7 +38,7 @@ export default function ViewTransaction(): ReactElement {
       }
 
       try {
-        const tx = await fetchTransaction(txHash, { verbose: true });
+        const tx = await fetchTransaction(txHash, { verbose: true, showUnconfirmed: true });
         if (tx) {
           setTransaction(tx);
         } else {

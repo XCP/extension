@@ -5,7 +5,7 @@
  * The derived key is stored in session storage after unlock,
  * allowing settings to be encrypted/decrypted without re-entering password.
  *
- * ## Key Derivation Pattern (ADR-010)
+ * ## Key Derivation Pattern (ADR-009)
  *
  * This file uses a SIMPLER key derivation than encryption.ts:
  *
@@ -68,13 +68,18 @@ import {
   clearCachedSettingsKey,
   hasSettingsKey,
 } from '@/utils/storage/keyStorage';
-import { bufferToBase64, base64ToBuffer, generateRandomBytes } from './buffer';
+import { bufferToBase64, base64ToBuffer, generateRandomBytes, combineBuffers } from './buffer';
 
 // Crypto constants
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const KEY_BITS = 256;
+const GCM_TAG_BYTES = 16;
+const GCM_TAG_LENGTH = 128; // bits (= GCM_TAG_BYTES * 8)
 const PBKDF2_ITERATIONS = 600_000; // Reasonable security vs performance tradeoff
+
+// Minimum size: IV (12) + at least 1 byte ciphertext + GCM tag (16) = 29 bytes
+const MIN_ENCRYPTED_SIZE = IV_BYTES + 1 + GCM_TAG_BYTES;
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -87,7 +92,12 @@ async function getOrCreateSalt(): Promise<Uint8Array<ArrayBuffer>> {
   const stored = await getSettingsSalt();
 
   if (stored) {
-    return base64ToBuffer(stored);
+    try {
+      return base64ToBuffer(stored);
+    } catch {
+      // Corrupted salt in storage - generate new one
+      // This is recoverable by creating a fresh salt
+    }
   }
 
   // Generate new random salt
@@ -97,7 +107,14 @@ async function getOrCreateSalt(): Promise<Uint8Array<ArrayBuffer>> {
   // Read back to handle race condition - always use what's actually stored
   // (another concurrent call may have stored a different salt)
   const verified = await getSettingsSalt();
-  return base64ToBuffer(verified!);
+  if (!verified) {
+    throw new Error('Failed to initialize settings encryption');
+  }
+  try {
+    return base64ToBuffer(verified);
+  } catch {
+    throw new Error('Failed to initialize settings encryption');
+  }
 }
 
 /**
@@ -126,6 +143,9 @@ async function deriveKey(password: string, salt: Uint8Array<ArrayBuffer>): Promi
  * Call this during wallet unlock.
  */
 export async function initializeSettingsKey(password: string): Promise<void> {
+  if (!password) {
+    throw new Error('Password cannot be empty');
+  }
   const salt = await getOrCreateSalt();
   const derivedKey = await deriveKey(password, salt);
 
@@ -153,7 +173,14 @@ async function getKeyFromSession(): Promise<CryptoKey | null> {
 
   if (!keyBase64) return null;
 
-  const keyBytes = base64ToBuffer(keyBase64);
+  let keyBytes: Uint8Array<ArrayBuffer>;
+  try {
+    keyBytes = base64ToBuffer(keyBase64);
+  } catch {
+    // Corrupted key in session storage - treat as not initialized
+    return null;
+  }
+
   return crypto.subtle.importKey(
     'raw',
     keyBytes,
@@ -184,16 +211,13 @@ export async function encryptSettings(settings: AppSettings): Promise<string> {
   const plaintext = encoder.encode(JSON.stringify(settings));
 
   const ciphertext = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
+    { name: 'AES-GCM', iv, tagLength: GCM_TAG_LENGTH },
     key,
     plaintext
   );
 
   // Combine IV + ciphertext
-  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
-  combined.set(iv);
-  combined.set(new Uint8Array(ciphertext), iv.length);
-
+  const combined = combineBuffers(iv, new Uint8Array(ciphertext));
   return bufferToBase64(combined);
 }
 
@@ -208,7 +232,18 @@ export async function decryptSettings(encrypted: string): Promise<AppSettings> {
     throw new Error('Settings key not initialized. Wallet must be unlocked.');
   }
 
-  const combined = base64ToBuffer(encrypted);
+  let combined: Uint8Array;
+  try {
+    combined = base64ToBuffer(encrypted);
+  } catch {
+    throw new Error('Failed to decrypt settings');
+  }
+
+  // Validate minimum size before processing
+  if (combined.byteLength < MIN_ENCRYPTED_SIZE) {
+    throw new Error('Failed to decrypt settings');
+  }
+
   const iv = combined.slice(0, IV_BYTES);
   const ciphertext = combined.slice(IV_BYTES);
 
@@ -218,7 +253,7 @@ export async function decryptSettings(encrypted: string): Promise<AppSettings> {
 
   try {
     decryptedBuffer = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv },
+      { name: 'AES-GCM', iv, tagLength: GCM_TAG_LENGTH },
       key,
       ciphertext
     );
@@ -234,7 +269,12 @@ export async function decryptSettings(encrypted: string): Promise<AppSettings> {
     throw new Error('Failed to decrypt settings');
   }
 
-  return JSON.parse(decoder.decode(decryptedBuffer));
+  // Parse JSON with error handling to avoid leaking decrypted content in error messages
+  try {
+    return JSON.parse(decoder.decode(decryptedBuffer));
+  } catch {
+    throw new Error('Failed to decrypt settings');
+  }
 }
 
 /**
@@ -246,10 +286,24 @@ export async function decryptSettingsWithPassword(
   encrypted: string,
   password: string
 ): Promise<AppSettings> {
+  if (!password) {
+    throw new Error('Password cannot be empty');
+  }
   const salt = await getOrCreateSalt();
   const derivedKey = await deriveKey(password, salt);
 
-  const combined = base64ToBuffer(encrypted);
+  let combined: Uint8Array;
+  try {
+    combined = base64ToBuffer(encrypted);
+  } catch {
+    throw new Error('Failed to decrypt settings');
+  }
+
+  // Validate minimum size before processing
+  if (combined.byteLength < MIN_ENCRYPTED_SIZE) {
+    throw new Error('Failed to decrypt settings');
+  }
+
   const iv = combined.slice(0, IV_BYTES);
   const ciphertext = combined.slice(IV_BYTES);
 
@@ -259,7 +313,7 @@ export async function decryptSettingsWithPassword(
 
   try {
     decryptedBuffer = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv },
+      { name: 'AES-GCM', iv, tagLength: GCM_TAG_LENGTH },
       derivedKey,
       ciphertext
     );
@@ -275,7 +329,12 @@ export async function decryptSettingsWithPassword(
     throw new Error('Failed to decrypt settings');
   }
 
-  return JSON.parse(decoder.decode(decryptedBuffer));
+  // Parse JSON with error handling to avoid leaking decrypted content in error messages
+  try {
+    return JSON.parse(decoder.decode(decryptedBuffer));
+  } catch {
+    throw new Error('Failed to decrypt settings');
+  }
 }
 
 /**
@@ -286,6 +345,9 @@ export async function encryptSettingsWithPassword(
   settings: AppSettings,
   password: string
 ): Promise<string> {
+  if (!password) {
+    throw new Error('Password cannot be empty');
+  }
   const salt = await getOrCreateSalt();
   const derivedKey = await deriveKey(password, salt);
 
@@ -293,14 +355,11 @@ export async function encryptSettingsWithPassword(
   const plaintext = encoder.encode(JSON.stringify(settings));
 
   const ciphertext = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
+    { name: 'AES-GCM', iv, tagLength: GCM_TAG_LENGTH },
     derivedKey,
     plaintext
   );
 
-  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
-  combined.set(iv);
-  combined.set(new Uint8Array(ciphertext), iv.length);
-
+  const combined = combineBuffers(iv, new Uint8Array(ciphertext));
   return bufferToBase64(combined);
 }

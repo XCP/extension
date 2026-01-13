@@ -1,4 +1,3 @@
-"use client";
 
 import { DispenserCard, type DispenserOption } from "@/components/cards/dispenser-card";
 import type { ReactElement } from "react";
@@ -20,6 +19,12 @@ interface DispenserListProps {
 // Main Component
 // ============================================================================
 
+/**
+ * DispenserList displays a list of dispenser options with selection capability.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the dispenser list, or null if empty
+ */
 export function DispenserList({
   dispensers,
   selectedIndex,

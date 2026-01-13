@@ -66,14 +66,12 @@ describe('sessionManager', () => {
       expect(await getUnlockedSecret(walletId)).toBe(secondSecret);
     });
 
-    it('should handle empty string secrets correctly', async () => {
+    it('should reject empty string secrets', async () => {
       const walletId = VALID_WALLET_ID_1;
       const secret = '';
 
-      storeUnlockedSecret(walletId, secret);
-      
-      // Empty string should be stored and retrieved as-is
-      expect(await getUnlockedSecret(walletId)).toBe('');
+      // Empty strings are not valid secrets (mnemonics and private keys are never empty)
+      expect(() => storeUnlockedSecret(walletId, secret)).toThrow('Secret cannot be empty');
     });
 
     it('should throw error for null walletId', async () => {
@@ -180,16 +178,12 @@ describe('sessionManager', () => {
       expect(await getUnlockedSecret(walletId)).toBeNull();
     });
 
-    it('should handle empty string secrets when clearing', async () => {
+    it('should reject empty string secrets (cannot store to clear)', async () => {
       const walletId = VALID_WALLET_ID_1;
       const secret = '';
 
-      storeUnlockedSecret(walletId, secret);
-      // Empty string should be stored and retrieved correctly
-      expect(await getUnlockedSecret(walletId)).toBe('');
-      
-      clearUnlockedSecret(walletId);
-      expect(await getUnlockedSecret(walletId)).toBeNull();
+      // Empty strings are not valid secrets and cannot be stored
+      expect(() => storeUnlockedSecret(walletId, secret)).toThrow('Secret cannot be empty');
     });
 
     it('should handle clearing with null walletId gracefully', async () => {

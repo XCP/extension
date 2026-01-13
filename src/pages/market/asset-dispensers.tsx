@@ -1,4 +1,3 @@
-"use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -189,7 +188,7 @@ export default function AssetDispensers(): ReactElement {
         setHasMoreDispenses(false);
       }
     } catch (err) {
-      console.error(`Failed to load ${asset} dispensers:`, err);
+      console.error('Failed to load dispensers:', { asset }, err);
     } finally {
       setLoading(false);
       setIsRefreshing(false);

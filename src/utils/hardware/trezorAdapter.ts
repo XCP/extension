@@ -134,7 +134,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       await TrezorConnect.init(initConfig);
 
       // Listen for device events
-      TrezorConnect.on(DEVICE_EVENT, (event) => {
+      TrezorConnect.on(DEVICE_EVENT, (rawEvent: unknown) => {
+        const event = rawEvent as { type: string; payload: { features?: { model?: string; label?: string | null; major_version?: number; minor_version?: number; patch_version?: number } } };
         if (event.type === DEVICE.CONNECT) {
           this.connectionStatus = 'connected';
           this.deviceInfo = {
@@ -156,8 +157,9 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
       // In test mode, listen for button requests for auto-confirm
       if (isTestMode && this.options.onButtonRequest) {
-        TrezorConnect.on(UI.REQUEST_BUTTON, (event) => {
-          const code = (event as any).payload?.code ?? 'unknown';
+        TrezorConnect.on(UI.REQUEST_BUTTON, (rawEvent: unknown) => {
+          const event = rawEvent as { payload?: { code?: string } };
+          const code = event.payload?.code ?? 'unknown';
           this.options.onButtonRequest?.(code);
         });
       }
@@ -257,9 +259,11 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       );
     }
 
+    // Single address response
+    const addr = result.payload as { address: string; publicKey?: string; path: number[]; serializedPath: string };
     return {
-      address: result.payload.address,
-      publicKey: (result.payload as any).publicKey ?? '',
+      address: addr.address,
+      publicKey: addr.publicKey ?? '',
       path: pathString,
     };
   }
@@ -305,8 +309,10 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       );
     }
 
-    for (let i = 0; i < result.payload.length; i++) {
-      const addr = result.payload[i] as any;
+    // Bundle response is an array
+    const addressResults = result.payload as Array<{ address: string; publicKey?: string; path: number[]; serializedPath: string }>;
+    for (let i = 0; i < addressResults.length; i++) {
+      const addr = addressResults[i];
       addresses.push({
         address: addr.address,
         publicKey: addr.publicKey ?? '',

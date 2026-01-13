@@ -1,4 +1,3 @@
-"use client";
 
 import { useState, useRef, useEffect, useCallback, startTransition } from "react";
 import { useFormStatus } from "react-dom";

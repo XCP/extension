@@ -1,4 +1,4 @@
-import { type ReactNode, type MouseEvent, useCallback } from 'react';
+import { type ReactNode, type MouseEvent, type ReactElement, useCallback } from 'react';
 import { HeaderButtonProps, HeaderProps } from '@/contexts/header-context';
 import { Button } from '@/components/button';
 import logo from '@/assets/logo.png';
@@ -12,7 +12,7 @@ export function Header({
   leftButton,
   rightButton,
   onBack,
-}: HeaderProps) {
+}: HeaderProps): ReactElement {
 
   /**
    * Handles the click event for the left/back button.

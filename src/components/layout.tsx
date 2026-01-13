@@ -1,3 +1,4 @@
+import { type ReactElement } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
@@ -7,7 +8,13 @@ interface LayoutProps {
   showFooter?: boolean;
 }
 
-export function Layout({ showFooter = false }: LayoutProps) {
+/**
+ * Layout provides the main application shell with optional footer navigation.
+ *
+ * @param props - The component props
+ * @returns A ReactElement containing the app layout structure
+ */
+export function Layout({ showFooter = false }: LayoutProps): ReactElement {
   const { headerProps } = useHeader();
 
   return (

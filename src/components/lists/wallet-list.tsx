@@ -1,6 +1,7 @@
+import { type ReactElement } from 'react';
 import { RadioGroup } from '@headlessui/react';
-import type { Wallet } from '@/utils/wallet/walletManager';
-import WalletCard from '@/components/cards/wallet-card';
+import type { Wallet } from '@/types/wallet';
+import { WalletCard } from '@/components/cards/wallet-card';
 
 interface WalletListProps {
   wallets: Wallet[];
@@ -8,7 +9,13 @@ interface WalletListProps {
   onSelectWallet: (wallet: Wallet) => void;
 }
 
-export function WalletList({ wallets, selectedWallet, onSelectWallet }: WalletListProps) {
+/**
+ * WalletList displays a selectable list of wallets using radio group selection.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the wallet list
+ */
+export function WalletList({ wallets, selectedWallet, onSelectWallet }: WalletListProps): ReactElement {
   const handleWalletChange = (wallet: Wallet | null) => {
     if (wallet) {
       onSelectWallet(wallet);

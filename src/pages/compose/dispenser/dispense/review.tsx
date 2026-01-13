@@ -99,7 +99,7 @@ export function ReviewDispense({
             try {
               const dispensesResponse = await fetchDispenserDispenses(
                 triggeredDispenser.tx_hash,
-                { show_unconfirmed: true, verbose: true }
+                { showUnconfirmed: true, verbose: true }
               );
 
               // Filter for unconfirmed (mempool) transactions

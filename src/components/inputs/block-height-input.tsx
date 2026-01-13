@@ -1,4 +1,4 @@
-import React, { ChangeEvent } from "react";
+import React, { type ChangeEvent, type ReactElement } from "react";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { useBlockHeight } from "@/hooks/useBlockHeight";
@@ -29,7 +29,7 @@ export function BlockHeightInput({
   description,
   disabled = false,
   placeholder = "Enter block height",
-}: BlockHeightInputProps) {
+}: BlockHeightInputProps): ReactElement {
   // Use our custom hook with autoFetch set to false
   const { isLoading, error, refresh } = useBlockHeight({ autoFetch: false });
   
@@ -52,10 +52,11 @@ export function BlockHeightInput({
       if (currentHeight !== null && currentHeight !== undefined) {
         onChange(currentHeight.toString());
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // This should be handled by the hook, but just in case
       console.error("Failed to fetch current block height:", err);
-      setError?.(err.message || "Failed to fetch current block height");
+      // Use generic error to prevent leaking internal details
+      setError?.("Failed to fetch current block height. Please try again.");
     }
   };
 

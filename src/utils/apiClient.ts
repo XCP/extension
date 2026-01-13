@@ -58,11 +58,19 @@ export function isCancel(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError';
 }
 
+/** Valid API error codes for type guard validation */
+const API_ERROR_CODES = ['TIMEOUT', 'NETWORK_ERROR', 'HTTP_ERROR', 'CANCELLED'] as const;
+
 /**
  * Check if an error is an API error (similar to axios.isAxiosError)
+ * Uses strict validation to avoid false positives from other error types
  */
 export function isApiError(error: unknown): error is ApiError {
-  return error instanceof Error && 'code' in error;
+  if (!(error instanceof Error) || !('code' in error)) {
+    return false;
+  }
+  const code = (error as ApiError).code;
+  return typeof code === 'string' && API_ERROR_CODES.includes(code as ApiError['code']);
 }
 
 // Default timeout values (in milliseconds)
@@ -111,15 +119,20 @@ const RETRY_CONFIG = {
 };
 
 /**
- * Build URL with query params
+ * Build URL with query params.
+ * Throws ApiError with clear message if URL is invalid.
  */
 function buildUrl(url: string, params?: Record<string, string | number | boolean>): string {
   if (!params) return url;
-  const urlObj = new URL(url);
-  Object.entries(params).forEach(([key, value]) => {
-    urlObj.searchParams.append(key, String(value));
-  });
-  return urlObj.toString();
+  try {
+    const urlObj = new URL(url);
+    Object.entries(params).forEach(([key, value]) => {
+      urlObj.searchParams.append(key, String(value));
+    });
+    return urlObj.toString();
+  } catch {
+    throw createApiError(`Invalid URL: ${url}`, 'NETWORK_ERROR');
+  }
 }
 
 /**
@@ -149,14 +162,22 @@ async function fetchWithTimeout<T>(
 
     clearTimeout(timeoutId);
 
-    // Parse response body
+    // Parse response body based on content-type
     const contentType = response.headers.get('content-type');
     let data: T;
 
     if (contentType?.includes('application/json')) {
-      data = await response.json();
+      try {
+        data = await response.json();
+      } catch {
+        // Wrap JSON parse errors with generic message to avoid leaking response details
+        throw createApiError('Failed to parse API response as JSON', 'NETWORK_ERROR');
+      }
     } else {
-      data = await response.text() as unknown as T;
+      // For non-JSON responses, return text as-is
+      // Callers expecting JSON should check content-type or handle string responses
+      const textData = await response.text();
+      data = textData as T;
     }
 
     // Check for HTTP errors
@@ -211,32 +232,43 @@ async function fetchWithTimeout<T>(
 }
 
 /**
- * Retry logic wrapper for API requests
+ * Retry logic wrapper for API requests.
+ * Wraps non-ApiError exceptions to ensure consistent error shape.
  */
 export async function withRetry<T>(
   requestFn: () => Promise<T>,
   maxRetries: number = RETRY_CONFIG.maxRetries
 ): Promise<T> {
+  // Ensure maxRetries is non-negative
+  const effectiveMaxRetries = Math.max(0, maxRetries);
   let lastError: ApiError | null = null;
   let delay = RETRY_CONFIG.retryDelay;
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  for (let attempt = 0; attempt <= effectiveMaxRetries; attempt++) {
     try {
       return await requestFn();
     } catch (error) {
-      lastError = error as ApiError;
+      // Wrap non-ApiError exceptions to ensure consistent error shape
+      if (isApiError(error)) {
+        lastError = error;
+      } else {
+        lastError = createApiError(
+          error instanceof Error ? error.message : 'Unknown error occurred',
+          'NETWORK_ERROR'
+        );
+      }
 
       // Don't retry if it's not retryable
       if (!RETRY_CONFIG.shouldRetry(lastError, lastError.status)) {
-        throw error;
+        throw lastError;
       }
 
       // Don't retry after last attempt
-      if (attempt === maxRetries) {
+      if (attempt === effectiveMaxRetries) {
         break;
       }
 
-      console.warn(`[API] Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`);
+      console.warn(`[API] Retry attempt ${attempt + 1}/${effectiveMaxRetries} after ${delay}ms`);
       await new Promise(resolve => setTimeout(resolve, delay));
 
       // Exponential backoff with jitter
@@ -247,7 +279,8 @@ export async function withRetry<T>(
     }
   }
 
-  throw lastError;
+  // lastError is guaranteed non-null here since loop executed at least once
+  throw lastError!;
 }
 
 /**
@@ -309,13 +342,16 @@ export const apiClient = {
     const timeout = config?.timeout || getTimeoutForUrl(url);
     const fullUrl = buildUrl(url, config?.params);
 
+    // Use explicit null/undefined check to allow falsy values like 0, "", false
+    const body = data !== null && data !== undefined ? JSON.stringify(data) : undefined;
+
     return withRetry(() => fetchWithTimeout<T>(fullUrl, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         ...config?.headers,
       },
-      body: data ? JSON.stringify(data) : undefined,
+      body,
       timeout,
     }, config?.signal));
   },
@@ -344,13 +380,16 @@ export const apiClient = {
     const timeout = config?.timeout || getTimeoutForUrl(url);
     const fullUrl = buildUrl(url, config?.params);
 
+    // Use explicit null/undefined check to allow falsy values like 0, "", false
+    const body = data !== null && data !== undefined ? JSON.stringify(data) : undefined;
+
     return withRetry(() => fetchWithTimeout<T>(fullUrl, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
         ...config?.headers,
       },
-      body: data ? JSON.stringify(data) : undefined,
+      body,
       timeout,
     }, config?.signal));
   },

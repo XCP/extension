@@ -18,6 +18,10 @@ import {
   hasCounterpartyPrefix,
   type CounterpartyMessage
 } from '@/utils/blockchain/counterparty/transaction';
+import {
+  verifyProviderTransaction,
+  type ProviderVerificationResult
+} from '@/utils/blockchain/counterparty/unpack';
 
 /**
  * Decoded transaction details
@@ -42,6 +46,8 @@ export interface DecodedTransactionInfo {
   fee: number;
   hasOpReturn: boolean;
   counterpartyMessage?: CounterpartyMessage;
+  /** Local verification result */
+  verification: ProviderVerificationResult;
 }
 
 /**
@@ -98,6 +104,7 @@ export function useSignTransactionRequest() {
     const hasOpReturn = outputs.some(o => o.type === 'op_return');
 
     let counterpartyMessage: CounterpartyMessage | undefined;
+    let opReturnData: string | undefined;
 
     // Check if any OP_RETURN has Counterparty prefix
     if (hasOpReturn) {
@@ -106,6 +113,9 @@ export function useSignTransactionRequest() {
       );
 
       if (cpOutput) {
+        opReturnData = cpOutput.opReturnData;
+
+        // Try to decode via API
         try {
           const msg = await decodeCounterpartyMessage(rawTxHex);
           if (msg) {
@@ -117,6 +127,9 @@ export function useSignTransactionRequest() {
       }
     }
 
+    // Verify locally and compare against API
+    const verification = verifyProviderTransaction(opReturnData, counterpartyMessage);
+
     return {
       txid: decoded.txid,
       inputs,
@@ -125,7 +138,8 @@ export function useSignTransactionRequest() {
       totalOutputValue,
       fee,
       hasOpReturn,
-      counterpartyMessage
+      counterpartyMessage,
+      verification
     };
   }, []);
 

@@ -142,8 +142,7 @@ describe('UTXO Utilities', () => {
         config: {}
       } as any);
 
-      const result = await fetchUTXOs(mockAddress);
-      expect(result).toBe(null);
+      await expect(fetchUTXOs(mockAddress)).rejects.toThrow('Failed to fetch UTXOs.');
     });
 
     it('should handle multiple UTXOs', async () => {

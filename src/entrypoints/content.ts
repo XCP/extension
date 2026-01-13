@@ -1,4 +1,5 @@
 import { defineContentScript, injectScript } from '#imports';
+import { MESSAGE_TARGETS, MESSAGE_TYPES } from '@/constants/messaging';
 
 export default defineContentScript({
   matches: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'],
@@ -51,15 +52,15 @@ export default defineContentScript({
         try {
           // Relay event to injected script via window.postMessage
           window.postMessage({
-            target: 'xcp-wallet-injected',
-            type: 'XCP_WALLET_EVENT',
+            target: MESSAGE_TARGETS.INJECTED,
+            type: MESSAGE_TYPES.EVENT,
             event: msg.event,
             data: msg.data
           }, window.location.origin);
           sendResponse({ received: true, event: msg.event });
         } catch (error) {
           console.error('Failed to post provider event:', error);
-          sendResponse({ received: false, error: 'Failed to relay event' });
+          sendResponse({ received: false, error: { message: 'Failed to relay event', code: -32603 } });
         }
         return true; // Keep channel open for async response
       }
@@ -74,11 +75,14 @@ export default defineContentScript({
 
     // Set up message relay between page and background
     const messageHandler = async (event: MessageEvent) => {
-      // Only accept messages from the same window
+      // Security: Validate message source AND origin
+      // - event.source !== window: Reject messages from iframes/other windows
+      // - event.origin check: Reject messages from different origins (defense-in-depth)
       if (event.source !== window) return;
-      
+      if (event.origin !== window.location.origin) return;
+
       // Check for XCP wallet messages
-      if (event.data?.target === 'xcp-wallet-content' && event.data?.type === 'XCP_WALLET_REQUEST') {
+      if (event.data?.target === MESSAGE_TARGETS.CONTENT && event.data?.type === MESSAGE_TYPES.REQUEST) {
         try {
           let response: any;
           
@@ -89,6 +93,15 @@ export default defineContentScript({
 
             // The provider service expects method and params from the request
             const { method, params } = event.data.data;
+
+            // ISSUE 5 FIX: Validate input types at boundary (defense-in-depth)
+            if (typeof method !== 'string') {
+              throw new Error('Invalid request: method must be a string');
+            }
+            if (params !== undefined && !Array.isArray(params)) {
+              throw new Error('Invalid request: params must be an array');
+            }
+
             const result = await providerService.handleRequest(
               window.location.origin,
               method,
@@ -103,11 +116,16 @@ export default defineContentScript({
             };
           } catch (error: any) {
             console.debug('Provider service request failed:', error);
-            // Format error response
+            // ISSUE 1 FIX: Use generic error messages to prevent information leakage
+            // Only pass through user-facing error messages, not internal details
+            const isUserFacingError = error?.message?.includes('User denied') ||
+                                       error?.message?.includes('User rejected') ||
+                                       error?.message?.includes('not connected') ||
+                                       error?.message?.includes('Wallet is locked');
             response = {
               success: false,
               error: {
-                message: error?.message || 'Provider service request failed',
+                message: isUserFacingError ? error.message : 'Request failed',
                 code: error?.code || -32603
               }
             };
@@ -117,8 +135,8 @@ export default defineContentScript({
           if (!response) {
             // No response from background
             window.postMessage({
-              target: 'xcp-wallet-injected',
-              type: 'XCP_WALLET_RESPONSE',
+              target: MESSAGE_TARGETS.INJECTED,
+              type: MESSAGE_TYPES.RESPONSE,
               id: event.data.id,
               error: {
                 message: 'No response from extension background',
@@ -128,8 +146,8 @@ export default defineContentScript({
           } else if (response?.success) {
             // Successful response
             window.postMessage({
-              target: 'xcp-wallet-injected',
-              type: 'XCP_WALLET_RESPONSE',
+              target: MESSAGE_TARGETS.INJECTED,
+              type: MESSAGE_TYPES.RESPONSE,
               id: event.data.id,
               data: {
                 method: response?.method || event.data.data.method,
@@ -139,8 +157,8 @@ export default defineContentScript({
           } else {
             // Error response
             window.postMessage({
-              target: 'xcp-wallet-injected',
-              type: 'XCP_WALLET_RESPONSE',
+              target: MESSAGE_TARGETS.INJECTED,
+              type: MESSAGE_TYPES.RESPONSE,
               id: event.data.id,
               error: response?.error || {
                 message: 'Unknown error',
@@ -150,16 +168,17 @@ export default defineContentScript({
           }
         } catch (error) {
           console.error('Content script error handling provider request:', error);
-          // Send error back to page
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error in content script';
+          // ISSUE 1 FIX: Use generic error message to prevent information leakage
+          // Internal errors should not expose implementation details to dApps
+          const errorCode = error && typeof error === 'object' && 'code' in error ? (error as any).code : -32603;
 
           window.postMessage({
-            target: 'xcp-wallet-injected',
-            type: 'XCP_WALLET_RESPONSE',
+            target: MESSAGE_TARGETS.INJECTED,
+            type: MESSAGE_TYPES.RESPONSE,
             id: event.data.id,
             error: {
-              message: errorMessage,
-              code: error && typeof error === 'object' && 'code' in error ? (error as any).code : -32603
+              message: 'Request failed',
+              code: errorCode
             }
           }, window.location.origin);
         }

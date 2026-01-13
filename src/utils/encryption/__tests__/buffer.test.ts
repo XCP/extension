@@ -73,10 +73,8 @@ describe('buffer.ts', () => {
       expect(Array.from(result)).toEqual([72, 101, 108, 108, 111]);
     });
 
-    it('should handle empty string', () => {
-      const result = base64ToBuffer('');
-      expect(result).toBeInstanceOf(Uint8Array);
-      expect(result.length).toBe(0);
+    it('should throw on empty string', () => {
+      expect(() => base64ToBuffer('')).toThrow('Invalid base64 input: string cannot be empty');
     });
 
     it('should handle Base64 without padding', () => {
@@ -94,7 +92,16 @@ describe('buffer.ts', () => {
     });
 
     it('should throw on invalid Base64', () => {
-      expect(() => base64ToBuffer('not-valid-base64!')).toThrow();
+      expect(() => base64ToBuffer('not-valid-base64!')).toThrow('Invalid base64 input: malformed encoding');
+    });
+
+    it('should throw on non-string input', () => {
+      // @ts-expect-error - testing runtime validation
+      expect(() => base64ToBuffer(null)).toThrow('Invalid base64 input: expected string');
+      // @ts-expect-error - testing runtime validation
+      expect(() => base64ToBuffer(undefined)).toThrow('Invalid base64 input: expected string');
+      // @ts-expect-error - testing runtime validation
+      expect(() => base64ToBuffer(123)).toThrow('Invalid base64 input: expected string');
     });
   });
 
@@ -149,9 +156,20 @@ describe('buffer.ts', () => {
       expect(Array.from(result1)).not.toEqual(Array.from(result2));
     });
 
-    it('should handle zero length', () => {
-      const result = generateRandomBytes(0);
-      expect(result.length).toBe(0);
+    it('should reject zero length', () => {
+      expect(() => generateRandomBytes(0)).toThrow('Invalid length for random bytes');
+    });
+
+    it('should reject negative length', () => {
+      expect(() => generateRandomBytes(-1)).toThrow('Invalid length for random bytes');
+    });
+
+    it('should reject non-integer length', () => {
+      expect(() => generateRandomBytes(1.5)).toThrow('Invalid length for random bytes');
+    });
+
+    it('should reject length exceeding maximum', () => {
+      expect(() => generateRandomBytes(65537)).toThrow('Invalid length for random bytes');
     });
 
     it('should handle common crypto lengths', () => {

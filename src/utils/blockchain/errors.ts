@@ -181,7 +181,68 @@ export function wrapError(error: unknown, fallbackCode: BlockchainErrorCode = 'U
 }
 
 /**
- * Counterparty API errors - preserves original API error messages
+ * Sanitizes API error messages for user display.
+ * Truncates long messages and provides fallback for overly technical errors.
+ */
+function sanitizeApiMessage(message: string): string {
+  // Truncate very long messages
+  const maxLength = 200;
+  if (message.length > maxLength) {
+    return message.substring(0, maxLength) + '...';
+  }
+
+  // Check for overly technical patterns that shouldn't be shown to users
+  const technicalPatterns = [
+    /internal server error/i,
+    /stack trace/i,
+    /exception/i,
+    /traceback/i,
+    /^\s*at\s+/m, // Stack trace lines
+  ];
+
+  for (const pattern of technicalPatterns) {
+    if (pattern.test(message)) {
+      return 'The API encountered an error. Please try again later.';
+    }
+  }
+
+  return message;
+}
+
+/**
+ * Generic data fetch error for any external API or data source.
+ * Use this for errors from Bitcoin explorers, price feeds, and other external sources.
+ */
+export class DataFetchError extends BlockchainError {
+  readonly source: string;
+  readonly endpoint?: string;
+  readonly statusCode?: number;
+
+  constructor(
+    message: string,
+    source: string,
+    options?: { endpoint?: string; statusCode?: number; userMessage?: string; cause?: Error }
+  ) {
+    super('NETWORK_ERROR', message, {
+      userMessage: options?.userMessage ?? `Failed to fetch data from ${source}. Please try again.`,
+      cause: options?.cause,
+    });
+    this.name = 'DataFetchError';
+    this.source = source;
+    this.endpoint = options?.endpoint;
+    this.statusCode = options?.statusCode;
+  }
+}
+
+/**
+ * Type guard to check if an error is a DataFetchError
+ */
+export function isDataFetchError(error: unknown): error is DataFetchError {
+  return error instanceof DataFetchError;
+}
+
+/**
+ * Counterparty API errors - sanitizes API error messages for user display
  */
 export class CounterpartyApiError extends BlockchainError {
   readonly endpoint: string;
@@ -193,7 +254,7 @@ export class CounterpartyApiError extends BlockchainError {
     options?: { statusCode?: number; cause?: Error }
   ) {
     super('API_UNAVAILABLE', message, {
-      userMessage: message, // Pass through API message directly
+      userMessage: sanitizeApiMessage(message),
       cause: options?.cause,
     });
     this.name = 'CounterpartyApiError';

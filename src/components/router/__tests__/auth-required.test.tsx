@@ -39,7 +39,7 @@ import { useAuthGuard } from '@/hooks/useAuthGuard';
 interface MockWalletContext {
   authState: 'UNLOCKED' | 'LOCKED' | 'ONBOARDING_NEEDED';
   wallets: any[];
-  loaded: boolean;
+  isLoading: boolean;
 }
 
 describe('AuthRequired', () => {
@@ -85,11 +85,11 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'UNLOCKED',
         wallets: [{ id: '1' }],
-        loaded: false,
+        isLoading: true,
       });
 
       renderWithRouter();
-      
+
       // Should not render protected content while loading
       expect(screen.queryByText('Protected Dashboard')).not.toBeInTheDocument();
       // Should not navigate while loading
@@ -100,7 +100,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'LOCKED',
         wallets: [{ id: '1' }],
-        loaded: false,
+        isLoading: true,
       });
 
       renderWithRouter();
@@ -114,7 +114,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'UNLOCKED',
         wallets: [{ id: '1' }],
-        loaded: true,
+        isLoading: false,
       });
 
       renderWithRouter();
@@ -127,7 +127,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'UNLOCKED',
         wallets: [{ id: '1' }],
-        loaded: true,
+        isLoading: false,
       });
 
       renderWithRouter();
@@ -139,7 +139,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'UNLOCKED',
         wallets: [{ id: '1' }],
-        loaded: true,
+        isLoading: false,
       });
 
       renderWithRouter('/settings');
@@ -153,7 +153,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'LOCKED',
         wallets: [{ id: '1' }],
-        loaded: true,
+        isLoading: false,
       });
 
       renderWithRouter();
@@ -175,7 +175,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'LOCKED',
         wallets: [{ id: '1' }],
-        loaded: true,
+        isLoading: false,
       });
 
       renderWithRouter('/');
@@ -193,7 +193,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'LOCKED',
         wallets: [{ id: '1' }],
-        loaded: true,
+        isLoading: false,
       });
 
       renderWithRouter();
@@ -207,7 +207,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'ONBOARDING_NEEDED',
         wallets: [],
-        loaded: true,
+        isLoading: false,
       });
 
       renderWithRouter();
@@ -223,7 +223,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'LOCKED',
         wallets: [],
-        loaded: true,
+        isLoading: false,
       });
 
       renderWithRouter();
@@ -238,7 +238,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'ONBOARDING_NEEDED',
         wallets: [{ id: '1' }], // Even with wallets
-        loaded: true,
+        isLoading: false,
       });
 
       renderWithRouter();
@@ -256,7 +256,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'UNLOCKED',
         wallets: [{ id: '1' }],
-        loaded: false,
+        isLoading: true,
       });
       
       const { rerender } = renderWithRouter();
@@ -268,7 +268,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'UNLOCKED',
         wallets: [{ id: '1' }],
-        loaded: true,
+        isLoading: false,
       });
       
       rerender(
@@ -289,7 +289,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'UNLOCKED',
         wallets: [{ id: '1' }],
-        loaded: true,
+        isLoading: false,
       });
       
       const { rerender } = renderWithRouter();
@@ -303,7 +303,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'LOCKED',
         wallets: [{ id: '1' }],
-        loaded: true,
+        isLoading: false,
       });
       
       rerender(
@@ -328,7 +328,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'UNLOCKED',
         wallets: [{ id: '1' }],
-        loaded: true,
+        isLoading: false,
       });
       
       const { rerender } = renderWithRouter();
@@ -340,7 +340,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'ONBOARDING_NEEDED',
         wallets: [],
-        loaded: true,
+        isLoading: false,
       });
       
       rerender(
@@ -366,7 +366,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'UNLOCKED',
         wallets: [],
-        loaded: true,
+        isLoading: false,
       });
 
       renderWithRouter();
@@ -385,7 +385,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'LOCKED',
         wallets: [{ id: '1' }],
-        loaded: true,
+        isLoading: false,
       });
 
       renderWithRouter('/dashboard');
@@ -404,10 +404,10 @@ describe('AuthRequired', () => {
       
       // Simulate rapid state changes
       const states: MockWalletContext[] = [
-        { authState: 'LOCKED', wallets: [{ id: '1' }], loaded: true },
-        { authState: 'UNLOCKED', wallets: [{ id: '1' }], loaded: true },
-        { authState: 'LOCKED', wallets: [{ id: '1' }], loaded: true },
-        { authState: 'UNLOCKED', wallets: [{ id: '1' }], loaded: true },
+        { authState: 'LOCKED', wallets: [{ id: '1' }], isLoading: false },
+        { authState: 'UNLOCKED', wallets: [{ id: '1' }], isLoading: false },
+        { authState: 'LOCKED', wallets: [{ id: '1' }], isLoading: false },
+        { authState: 'UNLOCKED', wallets: [{ id: '1' }], isLoading: false },
       ];
       
       states.forEach(state => {
@@ -439,10 +439,10 @@ describe('AuthRequired', () => {
   describe('Integration with useAuthGuard', () => {
     it('should always call useAuthGuard hook regardless of state', () => {
       const scenarios: MockWalletContext[] = [
-        { authState: 'UNLOCKED', wallets: [{ id: '1' }], loaded: true },
-        { authState: 'LOCKED', wallets: [{ id: '1' }], loaded: true },
-        { authState: 'ONBOARDING_NEEDED', wallets: [], loaded: true },
-        { authState: 'UNLOCKED', wallets: [{ id: '1' }], loaded: false },
+        { authState: 'UNLOCKED', wallets: [{ id: '1' }], isLoading: false },
+        { authState: 'LOCKED', wallets: [{ id: '1' }], isLoading: false },
+        { authState: 'ONBOARDING_NEEDED', wallets: [], isLoading: false },
+        { authState: 'UNLOCKED', wallets: [{ id: '1' }], isLoading: true },
       ];
       
       scenarios.forEach((scenario, index) => {
@@ -472,7 +472,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'UNLOCKED',
         wallets: [{ id: '1' }],
-        loaded: true,
+        isLoading: false,
       });
       
       const { rerender } = render(
@@ -491,7 +491,7 @@ describe('AuthRequired', () => {
       setupWalletContext({
         authState: 'UNLOCKED',
         wallets: [{ id: '1' }],
-        loaded: true,
+        isLoading: false,
       });
       
       // Re-render with same props

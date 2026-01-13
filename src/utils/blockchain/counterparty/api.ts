@@ -1,3 +1,12 @@
+/**
+ * Counterparty API Client
+ *
+ * Provides typed functions for interacting with the Counterparty REST API.
+ * All functions handle pagination, error handling, and response normalization.
+ *
+ * @see https://counterpartycore.docs.apiary.io/ for API documentation
+ */
+
 import { apiClient } from '@/utils/apiClient';
 import { CounterpartyApiError } from '@/utils/blockchain/errors';
 import { getSettings } from '@/utils/storage/settingsStorage';
@@ -297,12 +306,33 @@ async function getApiBase(): Promise<string> {
   return settings.counterpartyApiBase;
 }
 
-async function cpApiGet<T = any>(path: string, params?: Record<string, any>): Promise<T> {
+/**
+ * URL-encodes a path segment for safe URL construction.
+ */
+function encodePath(segment: string): string {
+  return encodeURIComponent(segment);
+}
+
+/**
+ * Generic API GET helper with proper error handling.
+ * Uses unknown instead of any for type safety.
+ */
+async function cpApiGet<T = unknown>(
+  path: string,
+  params?: Record<string, string | number | boolean | undefined>
+): Promise<T> {
   const base = await getApiBase();
   const url = `${base}${path}`;
 
+  // Filter out undefined values from params
+  const filteredParams = params
+    ? Object.fromEntries(
+        Object.entries(params).filter(([, v]) => v !== undefined)
+      ) as Record<string, string | number | boolean>
+    : undefined;
+
   try {
-    const response = await apiClient.get<T | { error: string }>(url, { params });
+    const response = await apiClient.get<T | { error: string }>(url, { params: filteredParams });
 
     if (response.data && typeof response.data === 'object' && 'error' in response.data) {
       throw new CounterpartyApiError(
@@ -313,17 +343,22 @@ async function cpApiGet<T = any>(path: string, params?: Record<string, any>): Pr
     }
 
     return response.data as T;
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof CounterpartyApiError) throw error;
 
-    if (error.response?.data?.error) {
-      throw new CounterpartyApiError(error.response.data.error, path, {
-        statusCode: error.response.status,
-        cause: error,
+    // Handle errors with response data
+    const err = error as { response?: { data?: { error?: string }; status?: number }; message?: string };
+    if (err.response?.data?.error) {
+      throw new CounterpartyApiError(err.response.data.error, path, {
+        statusCode: err.response.status,
+        cause: error instanceof Error ? error : undefined,
       });
     }
 
-    throw new CounterpartyApiError(error.message || 'API request failed', path, { cause: error });
+    const message = error instanceof Error ? error.message : 'API request failed';
+    throw new CounterpartyApiError(message, path, {
+      cause: error instanceof Error ? error : undefined,
+    });
   }
 }
 
@@ -331,12 +366,18 @@ async function cpApiGet<T = any>(path: string, params?: Record<string, any>): Pr
 // API - Balances & Assets
 // =============================================================================
 
+/**
+ * Fetch all token balances for an address.
+ * @param address - Bitcoin address to query
+ * @param options - Pagination and sorting options
+ * @returns Array of token balances with asset info
+ */
 export async function fetchTokenBalances(
   address: string,
   options: PaginationOptions & { sort?: string } = {}
 ): Promise<TokenBalance[]> {
   const data = await cpApiGet<PaginatedResponse<TokenBalance>>(
-    `/v2/addresses/${address}/balances`,
+    `/v2/addresses/${encodePath(address)}/balances`,
     {
       verbose: options.verbose ?? true,
       limit: options.limit ?? DEFAULT_LIMIT,
@@ -347,13 +388,20 @@ export async function fetchTokenBalances(
   return data.result ?? [];
 }
 
+/**
+ * Fetch balance for a specific token at an address.
+ * @param address - Bitcoin address to query
+ * @param asset - Asset name (e.g., 'XCP', 'PEPECASH')
+ * @param options - Options for excluding UTXOs and verbosity
+ * @returns Token balance with aggregated quantity
+ */
 export async function fetchTokenBalance(
   address: string,
   asset: string,
   options: { excludeUtxos?: boolean; verbose?: boolean } = {}
 ): Promise<TokenBalance> {
   const data = await cpApiGet<PaginatedResponse<TokenBalance>>(
-    `/v2/addresses/${address}/balances/${asset}`,
+    `/v2/addresses/${encodePath(address)}/balances/${encodePath(asset)}`,
     { verbose: options.verbose ?? true }
   );
 
@@ -372,52 +420,80 @@ export async function fetchTokenBalance(
   return {
     asset,
     quantity: balances.reduce((sum, b) => sum + (b.quantity || 0), 0),
-    quantity_normalized: balances.reduce((sum, b) => sum + parseFloat(b.quantity_normalized), 0).toString(),
+    quantity_normalized: balances.reduce((sum, b) => {
+      const val = parseFloat(b.quantity_normalized);
+      return sum + (Number.isNaN(val) ? 0 : val);
+    }, 0).toString(),
     asset_info: balances[0].asset_info,
   };
 }
 
+/**
+ * Fetch UTXO-attached balances for a specific token.
+ * @param address - Bitcoin address to query
+ * @param asset - Asset name
+ * @param options - Verbosity options
+ * @returns Array of UTXO-attached token balances
+ */
 export async function fetchTokenUtxos(
   address: string,
   asset: string,
   options: { verbose?: boolean } = {}
 ): Promise<TokenBalance[]> {
   const data = await cpApiGet<PaginatedResponse<TokenBalance>>(
-    `/v2/addresses/${address}/balances/${asset}`,
+    `/v2/addresses/${encodePath(address)}/balances/${encodePath(asset)}`,
     { verbose: options.verbose ?? true }
   );
   return (data.result ?? []).filter((b) => b.utxo !== null);
 }
 
+/**
+ * Fetch detailed information about an asset.
+ * @param asset - Asset name to query
+ * @param options - Verbosity options
+ * @returns Asset details or null if not found
+ */
 export async function fetchAssetDetails(
   asset: string,
   options: { verbose?: boolean } = {}
 ): Promise<AssetInfo | null> {
   const data = await cpApiGet<{ result: Omit<AssetInfo, 'asset'> | null }>(
-    `/v2/assets/${asset}`,
+    `/v2/assets/${encodePath(asset)}`,
     { verbose: options.verbose ?? true }
   );
   return data.result ? { asset, ...data.result } : null;
 }
 
+/**
+ * Fetch all token balances attached to a specific UTXO.
+ * @param utxo - UTXO identifier (txid:vout)
+ * @param options - Pagination and unconfirmed options
+ * @returns Paginated UTXO balances
+ */
 export async function fetchUtxoBalances(
   utxo: string,
-  options: PaginationOptions & { show_unconfirmed?: boolean } = {}
+  options: PaginationOptions & { showUnconfirmed?: boolean } = {}
 ): Promise<PaginatedResponse<UtxoBalance>> {
-  return cpApiGet<PaginatedResponse<UtxoBalance>>(`/v2/utxos/${utxo}/balances`, {
+  return cpApiGet<PaginatedResponse<UtxoBalance>>(`/v2/utxos/${encodePath(utxo)}/balances`, {
     verbose: options.verbose ?? true,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
-    show_unconfirmed: options.show_unconfirmed ?? false,
+    show_unconfirmed: options.showUnconfirmed ?? false,
   });
 }
 
+/**
+ * Fetch assets owned (issued) by an address.
+ * @param address - Bitcoin address to query
+ * @param options - Pagination options
+ * @returns Array of owned assets
+ */
 export async function fetchOwnedAssets(
   address: string,
   options: PaginationOptions = {}
 ): Promise<OwnedAsset[]> {
   const data = await cpApiGet<PaginatedResponse<OwnedAsset>>(
-    `/v2/addresses/${address}/assets/owned`,
+    `/v2/addresses/${encodePath(address)}/assets/owned`,
     {
       verbose: options.verbose ?? true,
       limit: options.limit ?? DEFAULT_LIMIT,
@@ -431,11 +507,17 @@ export async function fetchOwnedAssets(
 // API - Orders
 // =============================================================================
 
+/**
+ * Fetch orders for an address.
+ * @param address - Bitcoin address to query
+ * @param options - Pagination and status filter options
+ * @returns Paginated order list
+ */
 export async function fetchOrders(
   address: string,
   options: PaginationOptions & { status?: OrderStatusType } = {}
 ): Promise<PaginatedResponse<Order>> {
-  return cpApiGet<PaginatedResponse<Order>>(`/v2/addresses/${address}/orders`, {
+  return cpApiGet<PaginatedResponse<Order>>(`/v2/addresses/${encodePath(address)}/orders`, {
     verbose: options.verbose ?? true,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
@@ -443,23 +525,36 @@ export async function fetchOrders(
   });
 }
 
+/**
+ * Fetch details for a specific order by hash.
+ * @param orderHash - Order transaction hash
+ * @param options - Verbosity and unconfirmed options
+ * @returns Order details or null if not found
+ */
 export async function fetchOrder(
   orderHash: string,
   options: { verbose?: boolean; showUnconfirmed?: boolean } = {}
 ): Promise<OrderDetails | null> {
-  const data = await cpApiGet<{ result: OrderDetails | null }>(`/v2/orders/${orderHash}`, {
+  const data = await cpApiGet<{ result: OrderDetails | null }>(`/v2/orders/${encodePath(orderHash)}`, {
     verbose: options.verbose ?? true,
     show_unconfirmed: options.showUnconfirmed ?? false,
   });
-  return data.result;
+  return data.result ?? null;
 }
 
+/**
+ * Fetch orders for a specific trading pair.
+ * @param giveAsset - Asset being offered (e.g., 'XCP', 'PEPECASH')
+ * @param getAsset - Asset being requested (e.g., 'BTC', 'XCP')
+ * @param options - Pagination and status filter options
+ * @returns Paginated list of orders for the trading pair
+ */
 export async function fetchOrdersByPair(
   giveAsset: string,
   getAsset: string,
   options: PaginationOptions & { status?: OrderStatusType } = {}
 ): Promise<PaginatedResponse<Order>> {
-  return cpApiGet<PaginatedResponse<Order>>(`/v2/orders/${giveAsset}/${getAsset}`, {
+  return cpApiGet<PaginatedResponse<Order>>(`/v2/orders/${encodePath(giveAsset)}/${encodePath(getAsset)}`, {
     verbose: options.verbose ?? true,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
@@ -467,29 +562,47 @@ export async function fetchOrdersByPair(
   });
 }
 
+/**
+ * Fetch matches for a specific order.
+ * @param orderHash - Transaction hash of the order
+ * @param options - Pagination options
+ * @returns Paginated list of order matches
+ */
 export async function fetchOrderMatches(
   orderHash: string,
   options: PaginationOptions = {}
 ): Promise<PaginatedResponse<OrderMatch>> {
-  return cpApiGet<PaginatedResponse<OrderMatch>>(`/v2/orders/${orderHash}/matches`, {
+  return cpApiGet<PaginatedResponse<OrderMatch>>(`/v2/orders/${encodePath(orderHash)}/matches`, {
     verbose: options.verbose ?? true,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
   });
 }
 
+/**
+ * Fetch order matches for a specific trading pair.
+ * @param giveAsset - Asset being offered in the pair
+ * @param getAsset - Asset being requested in the pair
+ * @param options - Pagination options
+ * @returns Paginated list of order matches for the pair
+ */
 export async function fetchOrderMatchesByPair(
   giveAsset: string,
   getAsset: string,
   options: PaginationOptions = {}
 ): Promise<PaginatedResponse<OrderMatch>> {
-  return cpApiGet<PaginatedResponse<OrderMatch>>(`/v2/orders/${giveAsset}/${getAsset}/matches`, {
+  return cpApiGet<PaginatedResponse<OrderMatch>>(`/v2/orders/${encodePath(giveAsset)}/${encodePath(getAsset)}/matches`, {
     verbose: options.verbose ?? true,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
   });
 }
 
+/**
+ * Fetch all order matches across all trading pairs.
+ * @param options - Pagination and status filter options
+ * @returns Paginated list of all order matches
+ */
 export async function fetchAllOrderMatches(
   options: PaginationOptions & { status?: 'pending' | 'completed' | 'expired' } = {}
 ): Promise<PaginatedResponse<OrderMatch>> {
@@ -501,6 +614,11 @@ export async function fetchAllOrderMatches(
   });
 }
 
+/**
+ * Fetch all orders across all addresses.
+ * @param options - Pagination and status filter options (defaults to 'open' status)
+ * @returns Paginated list of orders with full details
+ */
 export async function fetchAllOrders(
   options: PaginationOptions & { status?: OrderStatusType } = {}
 ): Promise<PaginatedResponse<OrderDetails>> {
@@ -512,11 +630,17 @@ export async function fetchAllOrders(
   });
 }
 
+/**
+ * Fetch orders for a specific asset.
+ * @param asset - Asset name to query orders for
+ * @param options - Pagination and status filter options (defaults to 'open' status)
+ * @returns Paginated list of orders involving the asset
+ */
 export async function fetchAssetOrders(
   asset: string,
   options: PaginationOptions & { status?: OrderStatusType } = {}
 ): Promise<PaginatedResponse<OrderDetails>> {
-  return cpApiGet<PaginatedResponse<OrderDetails>>(`/v2/assets/${asset}/orders`, {
+  return cpApiGet<PaginatedResponse<OrderDetails>>(`/v2/assets/${encodePath(asset)}/orders`, {
     verbose: options.verbose ?? true,
     status: options.status ?? 'open',
     limit: options.limit ?? DEFAULT_LIMIT,
@@ -528,11 +652,17 @@ export async function fetchAssetOrders(
 // API - Dispensers
 // =============================================================================
 
+/**
+ * Fetch dispensers owned by an address.
+ * @param address - Bitcoin address to query
+ * @param options - Pagination and status filter options
+ * @returns Paginated list of dispensers owned by the address
+ */
 export async function fetchAddressDispensers(
   address: string,
   options: PaginationOptions & { status?: 'open' | 'closed' | 'closing' | 'open_empty_address' } = {}
 ): Promise<PaginatedResponse<Dispenser>> {
-  return cpApiGet<PaginatedResponse<Dispenser>>(`/v2/addresses/${address}/dispensers`, {
+  return cpApiGet<PaginatedResponse<Dispenser>>(`/v2/addresses/${encodePath(address)}/dispensers`, {
     verbose: options.verbose ?? true,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
@@ -540,28 +670,45 @@ export async function fetchAddressDispensers(
   });
 }
 
+/**
+ * Fetch dispenser details by transaction hash.
+ * @param txHash - Transaction hash of the dispenser creation
+ * @param options - Verbosity options
+ * @returns Dispenser details or null if not found
+ */
 export async function fetchDispenserByHash(
   txHash: string,
   options: { verbose?: boolean } = {}
 ): Promise<Dispenser | null> {
-  const data = await cpApiGet<{ result: Dispenser | null }>(`/v2/dispensers/${txHash}`, {
+  const data = await cpApiGet<{ result: Dispenser | null }>(`/v2/dispensers/${encodePath(txHash)}`, {
     verbose: options.verbose ?? true,
   });
-  return data.result;
+  return data.result ?? null;
 }
 
+/**
+ * Fetch dispenses (purchases) for a specific dispenser.
+ * @param dispenserHash - Transaction hash of the dispenser
+ * @param options - Pagination and unconfirmed options
+ * @returns Paginated list of dispense records
+ */
 export async function fetchDispenserDispenses(
   dispenserHash: string,
-  options: PaginationOptions & { show_unconfirmed?: boolean } = {}
+  options: PaginationOptions & { showUnconfirmed?: boolean } = {}
 ): Promise<PaginatedResponse<Dispense>> {
-  return cpApiGet<PaginatedResponse<Dispense>>(`/v2/dispensers/${dispenserHash}/dispenses`, {
-    verbose: options.verbose ?? false,
+  return cpApiGet<PaginatedResponse<Dispense>>(`/v2/dispensers/${encodePath(dispenserHash)}/dispenses`, {
+    verbose: options.verbose ?? true,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
-    show_unconfirmed: options.show_unconfirmed ?? false,
+    show_unconfirmed: options.showUnconfirmed ?? false,
   });
 }
 
+/**
+ * Fetch all dispenses across all dispensers.
+ * @param options - Pagination options
+ * @returns Paginated list of all dispense records
+ */
 export async function fetchAllDispenses(
   options: PaginationOptions = {}
 ): Promise<PaginatedResponse<Dispense>> {
@@ -572,17 +719,28 @@ export async function fetchAllDispenses(
   });
 }
 
+/**
+ * Fetch dispenses for a specific asset.
+ * @param asset - Asset name to query dispenses for
+ * @param options - Pagination options
+ * @returns Paginated list of dispenses for the asset
+ */
 export async function fetchAssetDispenses(
   asset: string,
   options: PaginationOptions = {}
 ): Promise<PaginatedResponse<Dispense>> {
-  return cpApiGet<PaginatedResponse<Dispense>>(`/v2/assets/${asset}/dispenses`, {
+  return cpApiGet<PaginatedResponse<Dispense>>(`/v2/assets/${encodePath(asset)}/dispenses`, {
     verbose: options.verbose ?? true,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
   });
 }
 
+/**
+ * Fetch all dispensers across all addresses.
+ * @param options - Pagination, status filter, and sort options (defaults to 'open' status)
+ * @returns Paginated list of all dispensers with full details
+ */
 export async function fetchAllDispensers(
   options: PaginationOptions & { status?: 'open' | 'closed' | 'closing'; sort?: string } = {}
 ): Promise<PaginatedResponse<DispenserDetails>> {
@@ -595,11 +753,17 @@ export async function fetchAllDispensers(
   });
 }
 
+/**
+ * Fetch dispensers for a specific asset.
+ * @param asset - Asset name to query dispensers for
+ * @param options - Pagination and status filter options (defaults to 'open' status)
+ * @returns Paginated list of dispensers for the asset
+ */
 export async function fetchAssetDispensers(
   asset: string,
   options: PaginationOptions & { status?: 'open' | 'closed' | 'closing' } = {}
 ): Promise<PaginatedResponse<DispenserDetails>> {
-  return cpApiGet<PaginatedResponse<DispenserDetails>>(`/v2/assets/${asset}/dispensers`, {
+  return cpApiGet<PaginatedResponse<DispenserDetails>>(`/v2/assets/${encodePath(asset)}/dispensers`, {
     verbose: options.verbose ?? true,
     status: options.status ?? 'open',
     limit: options.limit ?? DEFAULT_LIMIT,
@@ -611,24 +775,36 @@ export async function fetchAssetDispensers(
 // API - Transactions
 // =============================================================================
 
+/**
+ * Fetch a Counterparty transaction by hash.
+ * @param txHash - Transaction hash
+ * @param options - Verbosity and unconfirmed options
+ * @returns Transaction details or null if not found
+ */
 export async function fetchTransaction(
   txHash: string,
-  options: { verbose?: boolean; show_unconfirmed?: boolean } = {}
+  options: { verbose?: boolean; showUnconfirmed?: boolean } = {}
 ): Promise<Transaction | null> {
-  const data = await cpApiGet<{ result: Transaction | null }>(`/v2/transactions/${txHash}`, {
+  const data = await cpApiGet<{ result: Transaction | null }>(`/v2/transactions/${encodePath(txHash)}`, {
     verbose: options.verbose ?? true,
-    show_unconfirmed: options.show_unconfirmed ?? true,
+    show_unconfirmed: options.showUnconfirmed ?? false,
   });
-  return data.result;
+  return data.result ?? null;
 }
 
+/**
+ * Fetch Counterparty transactions for an address.
+ * @param address - Bitcoin address to query
+ * @param options - Pagination and unconfirmed options
+ * @returns Paginated transaction list
+ */
 export async function fetchTransactions(
   address: string,
-  options: PaginationOptions & { show_unconfirmed?: boolean } = {}
+  options: PaginationOptions & { showUnconfirmed?: boolean } = {}
 ): Promise<PaginatedResponse<Transaction>> {
-  return cpApiGet<PaginatedResponse<Transaction>>(`/v2/addresses/${address}/transactions`, {
+  return cpApiGet<PaginatedResponse<Transaction>>(`/v2/addresses/${encodePath(address)}/transactions`, {
     verbose: options.verbose ?? true,
-    show_unconfirmed: options.show_unconfirmed ?? true,
+    show_unconfirmed: options.showUnconfirmed ?? false,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
   });
@@ -638,11 +814,17 @@ export async function fetchTransactions(
 // API - Dividends
 // =============================================================================
 
+/**
+ * Fetch dividends distributed for a specific asset.
+ * @param asset - Asset name that received dividends
+ * @param options - Pagination options
+ * @returns Paginated list of dividend distributions
+ */
 export async function fetchDividendsByAsset(
   asset: string,
   options: PaginationOptions = {}
 ): Promise<PaginatedResponse<Dividend>> {
-  return cpApiGet<PaginatedResponse<Dividend>>(`/v2/assets/${asset}/dividends`, {
+  return cpApiGet<PaginatedResponse<Dividend>>(`/v2/assets/${encodePath(asset)}/dividends`, {
     verbose: options.verbose ?? true,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
@@ -653,7 +835,15 @@ export async function fetchDividendsByAsset(
 // API - Server
 // =============================================================================
 
+/**
+ * Fetch Counterparty server information.
+ * @returns Server info including version and network status
+ * @throws CounterpartyApiError if server is unavailable
+ */
 export async function fetchServerInfo(): Promise<ServerInfo> {
   const data = await cpApiGet<{ result: ServerInfo }>('/v2/');
+  if (!data.result) {
+    throw new CounterpartyApiError('Invalid API response: missing result', '/v2/');
+  }
   return data.result;
 }

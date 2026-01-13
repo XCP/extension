@@ -96,14 +96,34 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('BaseService constructor validation', () => {
+  it('should throw on empty serviceName', () => {
+    expect(() => new TestService('')).toThrow('Service name must be non-empty');
+  });
+
+  it('should throw on whitespace-only serviceName', () => {
+    expect(() => new TestService('   ')).toThrow('Service name must be non-empty');
+  });
+
+  it('should throw on tab-only serviceName', () => {
+    expect(() => new TestService('\t\t')).toThrow('Service name must be non-empty');
+  });
+
+  it('should accept valid serviceName', () => {
+    const service = new TestService('ValidService');
+    expect(service.getServiceName()).toBe('ValidService');
+  });
+});
+
 describe('BaseService', () => {
   let testService: TestService;
 
   beforeEach(async () => {
     testService = new TestService();
-    
+
     // Mock initial storage state
     mockSessionStorage.get.mockResolvedValue({});
+    mockSessionStorage.set.mockResolvedValue(undefined); // Required for saveState() in destroy()
     mockLocalStorage.get.mockResolvedValue({});
   });
 
@@ -203,12 +223,15 @@ describe('BaseService', () => {
       });
     });
 
-    it('should handle persistence errors gracefully', async () => {
+    it('should throw on persistence errors (per ADR-008)', async () => {
       await testService.initialize();
       mockSessionStorage.set.mockRejectedValue(new Error('Storage full'));
-      
-      // Should not throw
-      await (testService as any).saveState();
+
+      // Should throw per ADR-008 - SET operations throw on error
+      await expect((testService as any).saveState()).rejects.toThrow('Failed to save service state');
+
+      // Reset mock so afterEach destroy() works
+      mockSessionStorage.set.mockResolvedValue(undefined);
     });
 
     it('should create keep-alive alarm', async () => {

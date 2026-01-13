@@ -7,6 +7,7 @@
  * - Walking away
  */
 
+import { type ReactElement } from 'react';
 import { FiClock, FiAlertCircle, FiArrowRight, FiX } from '@/components/icons';
 import { Button } from '@/components/button';
 
@@ -18,13 +19,20 @@ interface RequestRecoveryPromptProps {
   onCancel: () => void;
 }
 
+/**
+ * RequestRecoveryPrompt shows when user has a pending provider request.
+ * Displayed after popup close, wallet auto-lock, or inactivity.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the recovery prompt modal
+ */
 export function RequestRecoveryPrompt({
   origin,
   requestType,
   requestAge,
   onResume,
   onCancel
-}: RequestRecoveryPromptProps) {
+}: RequestRecoveryPromptProps): ReactElement {
   const hostname = new URL(origin).hostname;
   const ageDisplay = formatAge(requestAge);
 

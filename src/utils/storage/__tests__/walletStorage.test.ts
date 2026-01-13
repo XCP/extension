@@ -35,7 +35,7 @@ describe('walletStorage.ts', () => {
     });
 
     it('should return all wallet records from dedicated storage', async () => {
-      // Note: With ADR-012, wallets are now stored in dedicated 'local:walletRecords'
+      // Note: With ADR-011, wallets are now stored in dedicated 'local:walletRecords'
       // so all records in this storage are wallet records (no filtering needed)
       const mnemonicWallet: EncryptedWalletRecord = {
         id: '1',
@@ -275,8 +275,8 @@ describe('walletStorage.ts', () => {
     });
   });
 
-  describe('storage isolation (ADR-012)', () => {
-    // Note: With ADR-012, wallets are now stored in dedicated 'local:walletRecords'
+  describe('storage isolation (ADR-011)', () => {
+    // Note: With ADR-011, wallets are now stored in dedicated 'local:walletRecords'
     // Settings are stored separately in 'local:settingsRecord'
     // No filtering is needed - all records in walletRecords are wallets
 

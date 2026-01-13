@@ -7,7 +7,7 @@
  *
  * Note: Settings are stored in a dedicated 'local:settingsRecord' key,
  * separate from wallet records ('local:walletRecords').
- * See ADR-012 in storage.ts for details on this isolation decision.
+ * See ADR-011 in storage.ts for details on this isolation decision.
  */
 
 import { storage } from '#imports';
@@ -20,6 +20,7 @@ import {
   initializeSettingsKey,
 } from '@/utils/encryption/settings';
 import { TTLCache, CacheTTL } from '@/utils/cache';
+import { createWriteLock } from './mutex';
 import {
   type FiatCurrency,
   type PriceUnit,
@@ -34,6 +35,7 @@ export type { FiatCurrency, PriceUnit } from '@/utils/blockchain/bitcoin/price';
  * Defines the valid auto-lock timer options in minutes.
  */
 export type AutoLockTimer = '1m' | '5m' | '15m' | '30m';
+
 
 /**
  * Maps auto-lock timer values to milliseconds.
@@ -98,6 +100,8 @@ export interface AppSettings {
   transactionDryRun: boolean;
   counterpartyApiBase: string;
   defaultOrderExpiration: number; // in blocks (default: 8064 = ~8 weeks)
+  /** Block signing if local transaction verification fails (most secure) */
+  strictTransactionVerification: boolean;
 
   // Flags
   hasVisitedRecoverBitcoin?: boolean;
@@ -121,6 +125,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   transactionDryRun: process.env.NODE_ENV === 'development',
   counterpartyApiBase: 'https://api.counterparty.io:4000',
   defaultOrderExpiration: 8064, // ~8 weeks (56 days) at 10min/block
+  strictTransactionVerification: true, // Block signing on verification failure (most secure)
   connectedWebsites: [],
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
   hasVisitedRecoverBitcoin: false,
@@ -154,6 +159,13 @@ const settingsRecordItem = storage.defineItem<SettingsRecord | null>(settingsSto
  * reads per transaction while keeping data fresh within 5 seconds.
  */
 const settingsCache = new TTLCache<AppSettings>(CacheTTL.SHORT, cloneSettings);
+
+/**
+ * Write lock for settings operations.
+ * Prevents race conditions during concurrent updateSettings() calls
+ * by serializing read-modify-write operations.
+ */
+const withWriteLock = createWriteLock();
 
 /** Deep clone settings to prevent mutation of cached data */
 function cloneSettings(settings: AppSettings): AppSettings {
@@ -284,6 +296,7 @@ function normalizeSettings(settings: AppSettings): AppSettings {
   normalized.enableMPMA = Boolean(normalized.enableMPMA);
   normalized.enableAdvancedBroadcasts = Boolean(normalized.enableAdvancedBroadcasts);
   normalized.transactionDryRun = Boolean(normalized.transactionDryRun);
+  normalized.strictTransactionVerification = normalized.strictTransactionVerification !== false; // default true
   normalized.hasVisitedRecoverBitcoin = Boolean(normalized.hasVisitedRecoverBitcoin);
 
   // Validate optional string fields
@@ -317,6 +330,7 @@ function isValidApiUrl(url: string): boolean {
 /**
  * Updates settings by merging new values with current.
  * Requires wallet to be unlocked.
+ * Protected by write lock to prevent race conditions during concurrent updates.
  *
  * Example: updateSettings({ fiat: 'jpy', priceUnit: 'sats' })
  */
@@ -326,34 +340,37 @@ export async function updateSettings(newSettings: Partial<AppSettings>): Promise
     throw new Error('Cannot update settings when wallet is locked');
   }
 
-  // Invalidate cache FIRST to prevent stale reads during concurrent operations
-  // This ensures getSettings() below fetches fresh data from storage
-  invalidateSettingsCache();
+  // Use write lock to prevent concurrent read-modify-write races
+  return withWriteLock(async () => {
+    // Invalidate cache FIRST to prevent stale reads during concurrent operations
+    // This ensures getSettings() below fetches fresh data from storage
+    invalidateSettingsCache();
 
-  // Get current settings (will be decrypted since key is available)
-  const current = await getSettings();
+    // Get current settings (will be decrypted since key is available)
+    const current = await getSettings();
 
-  // Merge settings
-  const updated: AppSettings = {
-    ...current,
-    ...newSettings,
-  };
+    // Merge settings
+    const updated: AppSettings = {
+      ...current,
+      ...newSettings,
+    };
 
-  // Encrypt and save
-  const encrypted = await encryptSettings(updated);
-  const record: SettingsRecord = {
-    encryptedSettings: encrypted,
-  };
+    // Encrypt and save
+    const encrypted = await encryptSettings(updated);
+    const record: SettingsRecord = {
+      encryptedSettings: encrypted,
+    };
 
-  try {
-    await settingsRecordItem.setValue(record);
-  } catch (err) {
-    console.error('Failed to save settings:', err);
-    throw new Error('Failed to save settings');
-  }
+    try {
+      await settingsRecordItem.setValue(record);
+    } catch (err) {
+      console.error('Failed to save settings:', err);
+      throw new Error('Failed to save settings');
+    }
 
-  // Invalidate cache to ensure fresh data on next read
-  invalidateSettingsCache();
+    // Invalidate cache to ensure fresh data on next read
+    invalidateSettingsCache();
+  });
 }
 
 /**

@@ -558,7 +558,7 @@ describe('WalletContext', () => {
 
       // Wait for initial load with unlocked state
       await waitFor(() => {
-        expect(result.current.loaded).toBe(true);
+        expect(result.current.isLoading).toBe(false);
         expect(result.current.authState).toBe('UNLOCKED');
       });
 
@@ -678,7 +678,7 @@ describe('WalletContext', () => {
       });
 
       await waitFor(() => {
-        expect(result.current.loaded).toBe(true);
+        expect(result.current.isLoading).toBe(false);
       });
 
       // Verify initial state
@@ -750,7 +750,7 @@ describe('WalletContext', () => {
       });
 
       await waitFor(() => {
-        expect(result.current.loaded).toBe(true);
+        expect(result.current.isLoading).toBe(false);
       });
 
       // The context should recognize wallet2 as equal to wallet1 (no update needed)

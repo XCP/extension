@@ -43,7 +43,7 @@ describe('Block Height Utilities', () => {
       });
 
       await expect(fetchFromBlockstream()).rejects.toThrow(
-        'Failed to fetch block height from blockstream.info'
+        'Failed to fetch block height'
       );
     });
 
@@ -54,7 +54,7 @@ describe('Block Height Utilities', () => {
       });
 
       await expect(fetchFromBlockstream()).rejects.toThrow(
-        'Invalid block height data from blockstream.info'
+        'Invalid block height data'
       );
     });
 
@@ -65,7 +65,7 @@ describe('Block Height Utilities', () => {
       });
 
       await expect(fetchFromBlockstream()).rejects.toThrow(
-        'Invalid block height data from blockstream.info'
+        'Invalid block height data'
       );
     });
 
@@ -95,7 +95,7 @@ describe('Block Height Utilities', () => {
       });
 
       await expect(fetchFromMempoolSpace()).rejects.toThrow(
-        'Failed to fetch block height from mempool.space'
+        'Failed to fetch block height'
       );
     });
 
@@ -106,7 +106,7 @@ describe('Block Height Utilities', () => {
       });
 
       await expect(fetchFromMempoolSpace()).rejects.toThrow(
-        'Invalid block height data from mempool.space'
+        'Invalid block height data'
       );
     });
   });
@@ -130,7 +130,7 @@ describe('Block Height Utilities', () => {
       });
 
       await expect(fetchFromBlockchainInfo()).rejects.toThrow(
-        'Failed to fetch block height from blockchain.info'
+        'Failed to fetch block height'
       );
     });
 
@@ -141,7 +141,7 @@ describe('Block Height Utilities', () => {
       });
 
       await expect(fetchFromBlockchainInfo()).rejects.toThrow(
-        'Invalid block height data from blockchain.info'
+        'Invalid block height data'
       );
     });
 

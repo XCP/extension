@@ -1,12 +1,12 @@
 /**
  * Session validation utilities
- * 
+ *
  * Provides validation for session-related operations including
  * wallet IDs, secrets, timeouts, and rate limiting.
  */
 
-// Import wallet limits from walletManager to stay in sync
-const MAX_WALLETS = 20;
+// Import from constants.ts to avoid circular dependency with walletManager
+import { MAX_WALLETS } from '@/utils/wallet/constants';
 
 // Constants for validation and security
 export const MAX_WALLET_ID_LENGTH = 128; // SHA-256 produces 64 chars, allow some buffer
@@ -55,11 +55,12 @@ export function validateSecret(secret: string): void {
   if (typeof secret !== 'string') {
     throw new Error('Secret must be a string');
   }
+  if (secret.length === 0) {
+    throw new Error('Secret cannot be empty');
+  }
   if (secret.length > MAX_SECRET_LENGTH) {
     throw new Error(`Secret exceeds maximum length of ${MAX_SECRET_LENGTH}`);
   }
-  // Allow empty strings as they may be valid secrets
-  // Additional validation for specific secret types can be added here
 }
 
 /**
@@ -84,25 +85,27 @@ export function validateTimeout(timeout: number): void {
  * @param metadata - The session metadata to validate
  * @throws Error if metadata is invalid
  */
-export function validateSessionMetadata(metadata: any): void {
+export function validateSessionMetadata(metadata: unknown): void {
   if (!metadata || typeof metadata !== 'object') {
     throw new Error('Invalid session metadata');
   }
-  if (typeof metadata.unlockedAt !== 'number' || metadata.unlockedAt <= 0) {
+  // Type narrowing: after object check, assert shape for property access
+  const obj = metadata as Record<string, unknown>;
+  if (typeof obj.unlockedAt !== 'number' || obj.unlockedAt <= 0) {
     throw new Error('Invalid unlockedAt timestamp');
   }
-  if (typeof metadata.lastActiveTime !== 'number' || metadata.lastActiveTime <= 0) {
+  if (typeof obj.lastActiveTime !== 'number' || obj.lastActiveTime <= 0) {
     throw new Error('Invalid lastActiveTime timestamp');
   }
-  validateTimeout(metadata.timeout);
+  validateTimeout(obj.timeout as number);
 }
 
 /**
- * Checks if an operation is rate limited
+ * Asserts that an operation is not rate limited.
  * @param walletId - The wallet ID to check
  * @throws Error if rate limit is exceeded
  */
-export function checkRateLimit(walletId: string): void {
+export function assertRateLimit(walletId: string): void {
   const now = Date.now();
   const operations = rateLimitMap.get(walletId) || [];
   
@@ -157,16 +160,16 @@ function cleanupRateLimitMap(): void {
 }
 
 /**
- * Checks if the current number of stored secrets would exceed the limit
+ * Asserts that adding a secret would not exceed the limit.
  * @param currentCount - Current number of stored secrets
  * @param walletId - The wallet ID being added
  * @param existingSecrets - Object containing existing secrets
  * @throws Error if adding this secret would exceed the limit
  */
-export function checkSecretLimit(
+export function assertSecretLimit(
   currentCount: number,
   walletId: string,
-  existingSecrets: Record<string, any>
+  existingSecrets: Record<string, unknown>
 ): void {
   // If we're updating an existing secret, it doesn't increase the count
   if (walletId in existingSecrets) {

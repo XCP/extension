@@ -1,7 +1,43 @@
+/**
+ * @module wallet-context
+ *
+ * Core wallet state management for the extension.
+ *
+ * This context is the central hub for all wallet operations:
+ * - Authentication state (onboarding, locked, unlocked)
+ * - Wallet CRUD operations (create, import, remove, reset)
+ * - Address management (derivation, selection, switching)
+ * - Transaction signing and broadcasting
+ * - Cross-tab state synchronization via background messages
+ *
+ * ## Architecture
+ *
+ * The context wraps `walletService` which communicates with the background
+ * script via message passing. State is refreshed after each operation and
+ * synchronized across popup instances via `webext-bridge`.
+ *
+ * ## Concurrency
+ *
+ * Uses `withStateLock` to serialize operations and prevent race conditions
+ * between state refresh and lock events from the background.
+ *
+ * @example
+ * ```tsx
+ * function MyComponent() {
+ *   const { activeWallet, lockAll, isLoading } = useWallet();
+ *
+ *   if (isLoading) return <Spinner />;
+ *   if (!activeWallet) return <OnboardingFlow />;
+ *
+ *   return <Dashboard wallet={activeWallet} onLock={lockAll} />;
+ * }
+ * ```
+ */
 import {
   createContext,
   useCallback,
   useEffect,
+  useMemo,
   useState,
   useRef,
   type ReactElement,
@@ -13,7 +49,7 @@ import { getWalletService } from "@/services/walletService";
 import { getSettings } from "@/utils/storage/settingsStorage";
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { withStateLock } from "@/utils/wallet/stateLockManager";
-import type { Wallet, Address } from "@/utils/wallet/walletManager";
+import type { Wallet, Address } from "@/types/wallet";
 import type { HardwareWalletVendor } from "@/utils/hardware/types";
 
 /**
@@ -55,46 +91,81 @@ const walletsEqualArray = (a: Wallet[], b: Wallet[]): boolean => {
 };
 
 /**
- * Wallet context state.
+ * Internal wallet context state.
+ * Tracks authentication status, wallet list, and active selections.
  */
 interface WalletState {
+  /** Current authentication state (onboarding, locked, or unlocked) */
   authState: AuthState;
+  /** All wallets in the extension (both locked and unlocked) */
   wallets: Wallet[];
+  /** Currently selected wallet, or null if none selected */
   activeWallet: Wallet | null;
+  /** Currently selected address within the active wallet */
   activeAddress: Address | null;
+  /** Whether all wallets are currently locked */
   walletLocked: boolean;
-  loaded: boolean;
+  /** True while initial wallet data is loading from storage */
+  isLoading: boolean;
 }
 
 /**
- * Context type for wallet management.
+ * Public API for wallet management.
+ * All methods that modify state will trigger a re-render.
  */
 interface WalletContextType {
+  // ─── State ─────────────────────────────────────────────────────────────────
+  /** Current authentication state */
   authState: AuthState;
+  /** All wallets in the extension */
   wallets: Wallet[];
+  /** Currently active wallet */
   activeWallet: Wallet | null;
+  /** Currently active address */
   activeAddress: Address | null;
+  /** Whether wallet is locked */
   walletLocked: boolean;
-  loaded: boolean;
+  /** True while loading initial state */
+  isLoading: boolean;
+
+  // ─── Authentication ────────────────────────────────────────────────────────
+  /** Unlock a specific wallet with password */
   unlockWallet: (walletId: string, password: string) => Promise<void>;
+  /** Lock all wallets and clear sensitive data from memory */
   lockAll: () => Promise<void>;
-  setActiveWallet: (wallet: Wallet | null, useLastActive?: boolean) => Promise<void>;
-  setActiveAddress: (address: Address | null) => Promise<void>;
-  addAddress: (walletId: string) => Promise<Address>;
+  /** Verify password without unlocking */
+  verifyPassword: (password: string) => Promise<boolean>;
+  /** Update the master password for all wallets */
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+
+  // ─── Wallet Selection ──────────────────────────────────────────────────────
+  /** Set the active wallet. If useLastActive, restores last used address */
+  setActiveWallet: (wallet: Wallet | null, useLastActive?: boolean) => Promise<void>;
+  /** Set the active address within the current wallet */
+  setActiveAddress: (address: Address | null) => Promise<void>;
+  /** Update last activity timestamp (for auto-lock) */
+  setLastActiveTime: () => Promise<void>;
+  /** Check if wallet is currently locked */
+  isWalletLocked: () => Promise<boolean>;
+
+  // ─── Wallet Creation ───────────────────────────────────────────────────────
+  /** Create wallet from mnemonic and unlock it */
   createAndUnlockMnemonicWallet: (
     mnemonic: string,
     password: string,
     name?: string,
     addressFormat?: AddressFormat
   ) => Promise<Wallet>;
+  /** Create wallet from private key and unlock it */
   createAndUnlockPrivateKeyWallet: (
     privateKey: string,
     password: string,
     name?: string,
     addressFormat?: AddressFormat
   ) => Promise<Wallet>;
+  /** Import a test/watch-only address (dev mode only) */
   importTestAddress: (address: string, name?: string) => Promise<Wallet>;
+  /** Create a hardware wallet connection */
   createHardwareWallet: (
     vendor: HardwareWalletVendor,
     addressFormat?: AddressFormat,
@@ -102,18 +173,32 @@ interface WalletContextType {
     name?: string,
     usePassphrase?: boolean
   ) => Promise<Wallet>;
-  resetAllWallets: (password: string) => Promise<void>;
-  getUnencryptedMnemonic: (walletId: string) => Promise<string>;
-  getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ wif: string; hex: string; compressed: boolean }>;
-  setLastActiveTime: () => Promise<void>;
-  verifyPassword: (password: string) => Promise<boolean>;
+
+  // ─── Wallet Management ─────────────────────────────────────────────────────
+  /** Derive a new address in the wallet */
+  addAddress: (walletId: string) => Promise<Address>;
+  /** Change wallet's address format (P2PKH, P2WPKH, P2TR, etc.) */
   updateWalletAddressFormat: (walletId: string, newType: AddressFormat) => Promise<void>;
+  /** Preview what address would be generated for a format */
   getPreviewAddressForFormat: (walletId: string, addressFormat: AddressFormat) => Promise<string>;
+  /** Remove a wallet from the extension */
   removeWallet: (walletId: string) => Promise<void>;
+  /** Reset all wallets (factory reset) */
+  resetAllWallets: (password: string) => Promise<void>;
+
+  // ─── Secrets (require unlock) ──────────────────────────────────────────────
+  /** Get decrypted mnemonic for backup */
+  getUnencryptedMnemonic: (walletId: string) => Promise<string>;
+  /** Get private key in WIF and hex formats */
+  getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ wif: string; hex: string; compressed: boolean }>;
+
+  // ─── Transactions ──────────────────────────────────────────────────────────
+  /** Sign a raw transaction hex */
   signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
+  /** Broadcast a signed transaction to the network */
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
+  /** Sign a message with the wallet's private key */
   signMessage: (message: string, address: string) => Promise<{ signature: string; address: string }>;
-  isWalletLocked: () => Promise<boolean>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -148,7 +233,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     activeWallet: null,
     activeAddress: null,
     walletLocked: true,
-    loaded: false,
+    isLoading: true,
   });
 
   // Use ref to access current state without adding to dependency array
@@ -236,7 +321,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         newState.authState = AuthState.Onboarding;
       }
 
-      newState.loaded = true;
+      newState.isLoading = false;
 
       // Check if lock version changed during refresh (lock event happened)
       // If so, don't apply potentially stale unlock state
@@ -248,19 +333,19 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         setWalletState((prev) => ({
           ...prev,
           wallets: newState.wallets,
-          loaded: true,
+          isLoading: false,
         }));
         return;
       }
 
-      if (!walletsEqual || activeChanged || addressChanged || lockChanged || !currentState.loaded) {
+      if (!walletsEqual || activeChanged || addressChanged || lockChanged || currentState.isLoading) {
         if (process.env.NODE_ENV === 'development') {
           console.log('[WalletContext] State update:', {
             walletsChanged: !walletsEqual,
             activeChanged,
             addressChanged,
             lockChanged,
-            firstLoad: !currentState.loaded,
+            firstLoad: currentState.isLoading,
             newAuthState: newState.authState
           });
         }
@@ -268,7 +353,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       }
       } catch (error) {
         console.error("Error refreshing wallet state:", error);
-        setWalletState((prev) => ({ ...prev, loaded: true }));
+        setWalletState((prev) => ({ ...prev, isLoading: false }));
       }
     });
   }, [walletService]); // Removed walletState - using ref instead to prevent stale closures
@@ -395,13 +480,13 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     return !(await walletService.isAnyWalletUnlocked());
   }, [walletService]);
 
-  const value: WalletContextType = {
+  const value = useMemo<WalletContextType>(() => ({
     authState: walletState.authState,
     wallets: walletState.wallets,
     activeWallet: walletState.activeWallet,
     activeAddress: walletState.activeAddress,
     walletLocked: walletState.walletLocked,
-    loaded: walletState.loaded,
+    isLoading: walletState.isLoading,
     unlockWallet: withRefresh(walletService.unlockWallet, async () => {
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
@@ -416,7 +501,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
           activeWallet: null,
           activeAddress: null,
         }));
-        
+
         // Then actually lock in the background
         await walletService.lockAllWallets();
       });
@@ -449,7 +534,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         activeWallet: null,
         activeAddress: null,
         walletLocked: true,
-        loaded: true,
+        isLoading: false,
       });
     },
     getUnencryptedMnemonic: walletService.getUnencryptedMnemonic,
@@ -463,7 +548,15 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     broadcastTransaction: walletService.broadcastTransaction,
     signMessage: walletService.signMessage,
     isWalletLocked,
-  };
+  }), [
+    walletState,
+    walletService,
+    refreshWalletState,
+    setActiveWallet,
+    setActiveAddress,
+    setLastActiveTime,
+    isWalletLocked,
+  ]);
 
   return <WalletContext value={value}>{children}</WalletContext>;
 }

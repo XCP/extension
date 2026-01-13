@@ -11,6 +11,7 @@ import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, createJsonRpcError } from '
 import { broadcastToTabs } from '@/utils/browser';
 import { getUpdateService } from '@/services/updateService';
 import { getPopupMonitorService } from '@/services/popupMonitorService';
+import { requestCleanup } from '@/utils/provider/requestCleanup';
 // Import onMessage directly from webext-bridge/background to prevent runtime.lastError
 import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
 
@@ -79,7 +80,7 @@ export default defineBackground(() => {
                               sender.url?.startsWith(`moz-extension://${chrome.runtime.id}/`);
       if (!isExtensionPage) {
         console.warn('[Background] Rejected COMPOSE_EVENT from non-extension page:', sender.url);
-        sendResponse({ success: false, error: 'Unauthorized sender' });
+        sendResponse({ success: false, error: { message: 'Unauthorized sender', code: 4100 } });
         return true;
       }
 
@@ -88,7 +89,7 @@ export default defineBackground(() => {
         eventEmitterService.emit(event, data);
         sendResponse({ success: true });
       } else {
-        sendResponse({ success: false, error: 'Event name required' });
+        sendResponse({ success: false, error: { message: 'Event name required', code: -32602 } });
       }
       return true;
     }
@@ -152,7 +153,7 @@ export default defineBackground(() => {
   // Note: Port connection handling is consolidated in the early onConnect handler above
   // to prevent duplicate listeners being added per port
 
-  console.log('Background service worker: Core listeners registered');
+  console.log('[Background] Core listeners registered');
 
   // ============================================================
   // SERVICE INITIALIZATION
@@ -195,7 +196,11 @@ export default defineBackground(() => {
       getPopupMonitorService().initialize();
       console.log('[Background] PopupMonitorService initialized');
 
-      // 5. Check session recovery state (may lock wallets if session expired)
+      // 5. Start request cleanup (periodic cleanup of expired approval requests)
+      requestCleanup.startCleanup();
+      console.log('[Background] RequestCleanup started');
+
+      // 6. Check session recovery state (may lock wallets if session expired)
       const recoveryState = await checkSessionRecovery();
       if (recoveryState === SessionRecoveryState.LOCKED) {
         const walletService = getWalletService();
@@ -242,31 +247,56 @@ export default defineBackground(() => {
     };
   });
 
-  console.log('Background: webext-bridge handlers registered');
+  console.log('[Background] webext-bridge handlers registered');
   
   // Set up MessageBus handlers for provider requests
+  // ISSUE 4 FIX: Add runtime validation before type assertion
   MessageBus.onMessage('provider-request', async (data) => {
-    const message = data as ProviderMessage;
+    // Validate data structure before using
+    if (!data || typeof data !== 'object') {
+      console.error('[Background] Invalid provider-request data: expected object');
+      return {
+        success: false,
+        error: createJsonRpcError(JSON_RPC_ERROR_CODES.INVALID_REQUEST, 'Invalid message format')
+      };
+    }
+
+    const message = data as Record<string, unknown>;
+
+    // Validate origin is a string
+    if (typeof message.origin !== 'string') {
+      console.error('[Background] Invalid provider-request data: origin must be string');
+      return {
+        success: false,
+        error: createJsonRpcError(JSON_RPC_ERROR_CODES.INVALID_REQUEST, 'Invalid message format')
+      };
+    }
+
     console.debug('Provider request received:', {
       origin: message.origin,
-      method: message.data?.method,
-      hasParams: !!message.data?.params,
+      method: (message.data as Record<string, unknown>)?.method,
+      hasParams: !!(message.data as Record<string, unknown>)?.params,
       timestamp: message.timestamp
     });
 
     try {
       const providerService = getProviderService();
-      
-      // Extract request details
-      const { origin, data: requestData } = message;
-      const { method, params = [], metadata = {} } = requestData || {};
 
-      if (!method) {
+      // Extract request details with validation
+      const origin = message.origin as string;
+      const requestData = (message.data || {}) as Record<string, unknown>;
+      const method = requestData.method;
+      const params = Array.isArray(requestData.params) ? requestData.params : [];
+      const metadata = (typeof requestData.metadata === 'object' && requestData.metadata !== null)
+        ? requestData.metadata as Record<string, unknown>
+        : {};
+
+      if (!method || typeof method !== 'string') {
         return {
           success: false,
           error: createJsonRpcError(
             JSON_RPC_ERROR_CODES.INVALID_REQUEST,
-            'Method is required'
+            'Method is required and must be a string'
           )
         };
       }
@@ -285,26 +315,36 @@ export default defineBackground(() => {
         method // Include method for response handling
       };
     } catch (error: any) {
-      console.error('Provider request failed:', error);
-      
-      // Determine appropriate error code
+      console.error('[Background] Provider request failed:', error);
+
+      // Determine appropriate error code and message
+      // ISSUE 1 FIX: Use generic messages for internal errors, only pass through user-facing errors
       let errorCode: number = JSON_RPC_ERROR_CODES.INTERNAL_ERROR;
-      
+      let errorMessage: string = 'Request failed'; // Generic default
+
       if (error.message?.includes('User denied') || error.message?.includes('User rejected')) {
         errorCode = PROVIDER_ERROR_CODES.USER_REJECTED;
+        errorMessage = error.message; // User-facing, safe to pass through
       } else if (error.message?.includes('not connected') || error.message?.includes('Unauthorized')) {
         errorCode = PROVIDER_ERROR_CODES.UNAUTHORIZED;
+        errorMessage = error.message; // User-facing, safe to pass through
+      } else if (error.message?.includes('Wallet is locked')) {
+        errorCode = PROVIDER_ERROR_CODES.UNAUTHORIZED;
+        errorMessage = error.message; // User-facing, safe to pass through
       } else if (error.message?.includes('not supported') || error.message?.includes('not found')) {
         errorCode = JSON_RPC_ERROR_CODES.METHOD_NOT_FOUND;
+        errorMessage = 'Method not supported'; // Generic
       } else if (error.message?.includes('Invalid params')) {
         errorCode = JSON_RPC_ERROR_CODES.INVALID_PARAMS;
+        errorMessage = 'Invalid parameters'; // Generic
       }
-      
+      // All other errors get the generic "Request failed" message
+
       return {
         success: false,
         error: createJsonRpcError(
           error.code || errorCode,
-          error.message || 'Unknown error'
+          errorMessage
         )
       };
     }
@@ -312,20 +352,36 @@ export default defineBackground(() => {
 
   
   // Handle provider event emission (for accountsChanged, disconnect, etc.)
+  // ISSUE 4 FIX: Add runtime validation before type assertion
   MessageBus.onMessage('provider-event', async (data) => {
-    const message = data as EventMessage;
-    const { origin, event, data: eventData } = message;
-    
+    // Validate data structure before using
+    if (!data || typeof data !== 'object') {
+      console.error('[Background] Invalid provider-event data: expected object');
+      return { success: false, error: { message: 'Invalid message format', code: -32600 } };
+    }
+
+    const message = data as Record<string, unknown>;
+
+    // Validate required fields
+    if (typeof message.event !== 'string') {
+      console.error('[Background] Invalid provider-event data: event must be string');
+      return { success: false, error: { message: 'Invalid message format', code: -32600 } };
+    }
+
+    const origin = typeof message.origin === 'string' ? message.origin : undefined;
+    const event = message.event;
+    const eventData = message.data;
+
     try {
       if (origin) {
-        await emitProviderEvent(origin, event, eventData);
+        await emitProviderEventToOrigin(origin, event, eventData);
       } else {
-        await emitProviderEvent(event, eventData);
+        await broadcastProviderEvent(event, eventData);
       }
       return { success: true };
     } catch (error: any) {
-      console.error('Failed to emit provider event:', error);
-      return { success: false, error: error.message };
+      console.error('[Background] Failed to emit provider event:', error);
+      return { success: false, error: { message: 'Failed to emit event', code: -32603 } };
     }
   });
 
@@ -344,7 +400,7 @@ export default defineBackground(() => {
     chrome.alarms.onAlarm.addListener(async (alarm) => {
       switch (alarm.name) {
         case SESSION_EXPIRY_ALARM_NAME:
-          console.log('Session expired via alarm');
+          console.log('[Background] Session expired via alarm');
           const walletService = getWalletService();
           await walletService.lockAllWallets();
           break;
@@ -358,38 +414,32 @@ export default defineBackground(() => {
   }
 
 
-  // Emit events to content scripts
-  // This will be used for accountsChanged, disconnect, etc.
-  // Enhanced to support origin-specific events for address-level connections
-  async function emitProviderEvent(originOrEvent: string, eventOrData?: string | any, data?: any) {
-    // Handle both signatures:
-    // emitProviderEvent(event, data) - broadcast to all
-    // emitProviderEvent(origin, event, data) - send to specific origin
-    
-    let origin: string | undefined;
-    let event: string;
-    let eventData: any;
-    
-    if (data !== undefined) {
-      // Three parameters: origin-specific event
-      origin = originOrEvent;
-      event = eventOrData as string;
-      eventData = data;
-    } else {
-      // Two parameters: broadcast event
-      event = originOrEvent;
-      eventData = eventOrData;
-    }
-    
-    // Use our safe broadcasting utility
+  // ISSUE 3 FIX: Split into two separate functions to avoid overload ambiguity
+  // Previously, emitProviderEvent(origin, event, undefined) was misinterpreted as broadcast
+
+  /**
+   * Broadcast a provider event to all connected tabs
+   */
+  async function broadcastProviderEvent(event: string, eventData: unknown): Promise<void> {
     const message = {
       type: 'PROVIDER_EVENT',
       event,
       data: eventData
     };
-    
-    // If origin specified, filter tabs by origin
-    const filter = origin ? (tab: chrome.tabs.Tab) => {
+    await broadcastToTabs(message);
+  }
+
+  /**
+   * Emit a provider event to tabs matching a specific origin
+   */
+  async function emitProviderEventToOrigin(origin: string, event: string, eventData: unknown): Promise<void> {
+    const message = {
+      type: 'PROVIDER_EVENT',
+      event,
+      data: eventData
+    };
+
+    const filter = (tab: chrome.tabs.Tab) => {
       if (!tab.url) return false;
       try {
         const tabOrigin = new URL(tab.url).origin;
@@ -397,20 +447,38 @@ export default defineBackground(() => {
       } catch {
         return false;
       }
-    } : undefined;
-    
-    // Broadcast using our safe utility
+    };
+
     await broadcastToTabs(message, filter);
   }
 
-  // Register the emitProviderEvent function with the event emitter service
+  // Register the provider event emitter with the event emitter service
   // This makes it available to other services without using global variables
-  eventEmitterService.on('emit-provider-event', (...args: unknown[]) => {
-    const [eventArgs] = args as [{ origin?: string; event: string; data: unknown }];
-    if (eventArgs.origin) {
-      emitProviderEvent(eventArgs.origin, eventArgs.event, eventArgs.data);
-    } else {
-      emitProviderEvent(eventArgs.event, eventArgs.data);
+  // ISSUE 2 FIX: Use async handler and await the calls to prevent unhandled rejections
+  // ISSUE 4 FIX: Validate eventArgs structure before using
+  eventEmitterService.on('emit-provider-event', async (...args: unknown[]) => {
+    try {
+      const [eventArgs] = args;
+
+      // Runtime validation of event args structure
+      if (!eventArgs || typeof eventArgs !== 'object') {
+        console.error('[Background] Invalid emit-provider-event args: expected object');
+        return;
+      }
+
+      const typedArgs = eventArgs as Record<string, unknown>;
+      if (typeof typedArgs.event !== 'string') {
+        console.error('[Background] Invalid emit-provider-event args: event must be string');
+        return;
+      }
+
+      if (typedArgs.origin !== undefined && typeof typedArgs.origin === 'string') {
+        await emitProviderEventToOrigin(typedArgs.origin, typedArgs.event, typedArgs.data);
+      } else {
+        await broadcastProviderEvent(typedArgs.event, typedArgs.data);
+      }
+    } catch (error) {
+      console.error('[Background] Failed to emit provider event:', error);
     }
   });
   
@@ -418,7 +486,7 @@ export default defineBackground(() => {
   // Add cleanup handlers for service worker termination
   if ('onSuspend' in chrome.runtime) {
     chrome.runtime.onSuspend.addListener(() => {
-      console.log('Service worker suspending, cleaning up all services...');
+      console.log('[Background] Service worker suspending, cleaning up all services...');
       
       // Destroy all services via registry
       serviceRegistry.destroyAll().catch(console.error);
@@ -442,7 +510,7 @@ export default defineBackground(() => {
   // Alternative cleanup for when service worker is about to be terminated
   if ('onSuspendCanceled' in chrome.runtime) {
     chrome.runtime.onSuspendCanceled.addListener(() => {
-      console.log('Service worker suspension canceled');
+      console.log('[Background] Service worker suspension canceled');
     });
   }
   

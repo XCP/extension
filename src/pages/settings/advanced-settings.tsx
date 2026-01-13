@@ -1,4 +1,3 @@
-"use client";
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -115,6 +114,14 @@ export default function AdvancedSettings(): ReactElement {
         description="Enable this to chain transactions that haven't been confirmed yet."
         checked={settings.allowUnconfirmedTxs}
         onChange={(checked) => updateSettings({ allowUnconfirmedTxs: checked })}
+        showHelpText={shouldShowHelpText}
+      />
+
+      <SettingSwitch
+        label="Strict Transaction Verification"
+        description="Block signing if local transaction verification fails. When off, a warning is shown but signing is allowed."
+        checked={settings.strictTransactionVerification}
+        onChange={(checked) => updateSettings({ strictTransactionVerification: checked })}
         showHelpText={shouldShowHelpText}
       />
 

@@ -2,19 +2,28 @@
  * Manages queued approval requests from dApps
  */
 
-export interface ApprovalRequest {
-  id: string;
-  origin: string;
-  method: string;
-  params: any;
-  timestamp: number;
-  type: 'connection' | 'transaction' | 'compose' | 'signature';
-  metadata?: {
-    domain?: string;
-    title?: string;
-    description?: string;
-    warning?: boolean;
-  };
+/**
+ * Security: Maximum queue size to prevent memory exhaustion attacks.
+ * A malicious dApp could flood the queue with requests, causing DoS.
+ */
+const MAX_QUEUE_SIZE = 100;
+
+/**
+ * Security: Maximum requests per origin to prevent single-origin flooding.
+ */
+const MAX_REQUESTS_PER_ORIGIN = 10;
+
+// Import types from centralized types module
+import type { ApprovalRequest } from '@/types/provider';
+
+// Re-export for backwards compatibility
+export type { ApprovalRequest };
+
+export class ApprovalQueueFullError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ApprovalQueueFullError';
+  }
 }
 
 class ApprovalQueueManager {
@@ -24,13 +33,29 @@ class ApprovalQueueManager {
 
   /**
    * Add a request to the queue
+   * @throws {ApprovalQueueFullError} If queue is at capacity or origin limit reached
    */
   add(request: Omit<ApprovalRequest, 'timestamp'>): void {
+    // Security: Check global queue size limit
+    if (this.queue.length >= MAX_QUEUE_SIZE) {
+      throw new ApprovalQueueFullError(
+        `Approval queue is full (max ${MAX_QUEUE_SIZE} requests). Please process existing requests first.`
+      );
+    }
+
+    // Security: Check per-origin limit to prevent single-origin flooding
+    const originCount = this.queue.filter(req => req.origin === request.origin).length;
+    if (originCount >= MAX_REQUESTS_PER_ORIGIN) {
+      throw new ApprovalQueueFullError(
+        `Too many pending requests from this site (max ${MAX_REQUESTS_PER_ORIGIN}). Please process existing requests first.`
+      );
+    }
+
     const fullRequest: ApprovalRequest = {
       ...request,
       timestamp: Date.now()
     };
-    
+
     this.queue.push(fullRequest);
     this.notifyListeners();
   }

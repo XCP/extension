@@ -17,19 +17,24 @@
  */
 export class TTLCache<T> {
   private data: T | null = null;
+  private hasValue = false;
   private timestamp = 0;
   private readonly ttlMs: number;
   private readonly clone: ((data: T) => T) | null;
 
   /**
    * Creates a new TTL cache.
-   * @param ttlMs Time-to-live in milliseconds
+   * @param ttlMs Time-to-live in milliseconds (must be positive finite number)
    * @param clone Optional function to deep clone data on get/set (prevents mutation)
    *
    * Note: The clone function is wrapped internally to prevent "Illegal invocation"
    * errors when native/host functions (like structuredClone) are passed directly.
+   * @throws Error if ttlMs is not a positive finite number
    */
   constructor(ttlMs: number, clone?: (data: T) => T) {
+    if (!Number.isFinite(ttlMs) || ttlMs <= 0) {
+      throw new Error(`TTL must be a positive finite number, got: ${ttlMs}`);
+    }
     this.ttlMs = ttlMs;
     // Wrap the clone function to prevent "Illegal invocation" errors when
     // native/host functions are passed directly and later invoked via property call
@@ -39,11 +44,11 @@ export class TTLCache<T> {
   /**
    * Gets the cached value if valid, null otherwise.
    * Returns a cloned copy if a clone function was provided.
+   * Note: null can be a valid cached value if T includes null.
    */
   get(): T | null {
-    const now = Date.now();
-    if (this.data !== null && (now - this.timestamp) < this.ttlMs) {
-      return this.clone ? this.clone(this.data) : this.data;
+    if (this.hasValue && (Date.now() - this.timestamp) < this.ttlMs) {
+      return this.clone ? this.clone(this.data as T) : (this.data as T);
     }
     return null;
   }
@@ -51,9 +56,11 @@ export class TTLCache<T> {
   /**
    * Sets a new cached value.
    * Stores a cloned copy if a clone function was provided.
+   * Note: null is a valid value to cache if T includes null.
    */
   set(value: T): void {
     this.data = this.clone ? this.clone(value) : value;
+    this.hasValue = true;
     this.timestamp = Date.now();
   }
 
@@ -62,6 +69,7 @@ export class TTLCache<T> {
    */
   invalidate(): void {
     this.data = null;
+    this.hasValue = false;
     this.timestamp = 0;
   }
 
@@ -69,14 +77,14 @@ export class TTLCache<T> {
    * Checks if the cache has a valid (non-expired) value.
    */
   isValid(): boolean {
-    return this.data !== null && (Date.now() - this.timestamp) < this.ttlMs;
+    return this.hasValue && (Date.now() - this.timestamp) < this.ttlMs;
   }
 
   /**
    * Gets cache age in milliseconds, or -1 if empty.
    */
   getAge(): number {
-    if (this.data === null) return -1;
+    if (!this.hasValue) return -1;
     return Date.now() - this.timestamp;
   }
 }
@@ -95,13 +103,17 @@ export class KeyedTTLCache<K, V> {
 
   /**
    * Creates a new keyed TTL cache.
-   * @param ttlMs Time-to-live in milliseconds for each entry
+   * @param ttlMs Time-to-live in milliseconds for each entry (must be positive finite number)
    * @param clone Optional function to deep clone data on get/set
    *
    * Note: The clone function is wrapped internally to prevent "Illegal invocation"
    * errors when native/host functions (like structuredClone) are passed directly.
+   * @throws Error if ttlMs is not a positive finite number
    */
   constructor(ttlMs: number, clone?: (data: V) => V) {
+    if (!Number.isFinite(ttlMs) || ttlMs <= 0) {
+      throw new Error(`TTL must be a positive finite number, got: ${ttlMs}`);
+    }
     this.ttlMs = ttlMs;
     // Wrap the clone function to prevent "Illegal invocation" errors when
     // native/host functions are passed directly and later invoked via property call
@@ -110,25 +122,25 @@ export class KeyedTTLCache<K, V> {
 
   /**
    * Gets a cached value by key if valid, null otherwise.
+   * Note: null can be a valid cached value if V includes null.
+   * Use isValid(key) to distinguish cached null from cache miss.
    */
   get(key: K): V | null {
-    const entry = this.cache.get(key);
-    if (entry && (Date.now() - entry.timestamp) < this.ttlMs) {
-      return this.clone ? this.clone(entry.data) : entry.data;
-    }
-    return null;
+    if (!this.cache.has(key)) return null; // Key never set
+    const entry = this.cache.get(key)!;
+    if ((Date.now() - entry.timestamp) >= this.ttlMs) return null; // Expired
+    return this.clone ? this.clone(entry.data) : entry.data;
   }
 
   /**
    * Gets a cached value even if expired (for stale-while-revalidate patterns).
    * Returns null only if key was never set.
+   * Note: null can be a valid cached value if V includes null.
    */
   getStale(key: K): V | null {
-    const entry = this.cache.get(key);
-    if (entry) {
-      return this.clone ? this.clone(entry.data) : entry.data;
-    }
-    return null;
+    if (!this.cache.has(key)) return null; // Key never set
+    const entry = this.cache.get(key)!;
+    return this.clone ? this.clone(entry.data) : entry.data;
   }
 
   /**
