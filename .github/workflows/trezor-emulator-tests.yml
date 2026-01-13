@@ -147,14 +147,10 @@ jobs:
 
           echo ""
           if [ $FAILURES -gt 0 ]; then
-            echo "⚠️  $FAILURES test suite(s) failed"
+            echo "❌ $FAILURES test suite(s) failed"
             echo ""
-            echo "Note: Trezor emulator tests are informational only."
-            echo "The trezor-user-env Docker container can be flaky in CI due to networking."
-            echo "If tests pass locally but fail here, the emulator may not be fully initialized."
             echo "Review the test artifacts for details."
-            echo ""
-            echo "This workflow does NOT block PR merges - it's for debugging only."
+            exit 1
           else
             echo "✅ All test suites passed!"
           fi
