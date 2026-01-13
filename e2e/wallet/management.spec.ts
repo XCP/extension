@@ -26,9 +26,9 @@ test.describe('Wallet Management Features', () => {
     // Should navigate to wallet selection page
     await page.waitForURL(/select-wallet/, { timeout: 5000 });
 
-    // Should see current wallet and Add Wallet option
+    // Should see current wallet and Add Wallet option (use .first() - there are 2 Add Wallet buttons)
     await expect(page.getByText(/Wallet 1/i)).toBeVisible({ timeout: 5000 });
-    await expect(page.getByRole('button', { name: /Add.*Wallet/i })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('button', { name: /Add.*Wallet/i }).first()).toBeVisible({ timeout: 5000 });
 
     await cleanup(context);
   });
@@ -43,8 +43,8 @@ test.describe('Wallet Management Features', () => {
     await headerButton.click();
     await page.waitForURL(/select-wallet/, { timeout: 5000 });
 
-    // Click Add Wallet button
-    const addButton = page.getByRole('button', { name: /Add.*Wallet/i });
+    // Click Add Wallet button (use .first() - there are 2 Add Wallet buttons on page)
+    const addButton = page.getByRole('button', { name: /Add.*Wallet/i }).first();
     await expect(addButton).toBeVisible({ timeout: 5000 });
     await addButton.click();
 
@@ -90,8 +90,8 @@ test.describe('Wallet Management Features', () => {
     await headerButton.click();
     await page.waitForURL(/select-wallet/, { timeout: 5000 });
 
-    // Click Add Wallet
-    const addWalletButton = page.getByRole('button', { name: /Add.*Wallet/i });
+    // Click Add Wallet (use .first() - there are 2 Add Wallet buttons on page)
+    const addWalletButton = page.getByRole('button', { name: /Add.*Wallet/i }).first();
     await expect(addWalletButton).toBeVisible({ timeout: 5000 });
     await addWalletButton.click();
 
@@ -182,11 +182,30 @@ test.describe('Wallet Management Features', () => {
   test('import wallet from private key', async () => {
     const { context, page } = await launchExtension('import-privkey-mgmt');
 
-    // Import wallet using private key
-    await importPrivateKey(page, TEST_PRIVATE_KEY, TEST_PASSWORD);
+    // Navigate directly to import-private-key page (not available from onboarding UI)
+    const baseUrl = page.url().split('#')[0];
+    await page.goto(`${baseUrl}#/import-private-key`);
+
+    // Fill private key input
+    const privateKeyInput = page.locator('input[name="private-key"]');
+    await privateKeyInput.waitFor({ state: 'visible', timeout: 5000 });
+    await privateKeyInput.fill(TEST_PRIVATE_KEY);
+
+    // Check the backup confirmation checkbox
+    const backupCheckbox = page.getByLabel(/I have backed up this private key/i);
+    await backupCheckbox.waitFor({ state: 'visible', timeout: 5000 });
+    await backupCheckbox.check();
+
+    // Password field appears after checkbox is checked
+    const passwordInput = page.locator('input[name="password"]');
+    await passwordInput.waitFor({ state: 'visible', timeout: 5000 });
+    await passwordInput.fill(TEST_PASSWORD);
+
+    // Submit and wait for navigation
+    await page.getByRole('button', { name: /Continue/i }).click();
+    await page.waitForURL(/index/, { timeout: 10000 });
 
     // Verify wallet imported
-    await expect(page).toHaveURL(/index/);
     await expect(page.locator('text=/Assets|Balances/').first()).toBeVisible({ timeout: 5000 });
 
     await cleanup(context);
@@ -204,8 +223,8 @@ test.describe('Wallet Management Features', () => {
     await headerButton.click();
     await page.waitForURL(/select-wallet/, { timeout: 5000 });
 
-    // Add second wallet via import
-    const addWalletButton = page.getByRole('button', { name: /Add.*Wallet/i });
+    // Add second wallet via import (use .first() - there are 2 Add Wallet buttons)
+    const addWalletButton = page.getByRole('button', { name: /Add.*Wallet/i }).first();
     await expect(addWalletButton).toBeVisible({ timeout: 5000 });
     await addWalletButton.click();
 
@@ -267,10 +286,10 @@ test.describe('Wallet Management Features', () => {
     await headerButton.click();
     await page.waitForURL(/select-wallet/, { timeout: 5000 });
 
-    // Add a second wallet
-    const addWalletButton = page.getByRole('button', { name: /Add.*Wallet/i });
-    await expect(addWalletButton).toBeVisible({ timeout: 5000 });
-    await addWalletButton.click();
+    // Add a second wallet (use .first() - there are 2 Add Wallet buttons)
+    const addWalletButton2 = page.getByRole('button', { name: /Add.*Wallet/i }).first();
+    await expect(addWalletButton2).toBeVisible({ timeout: 5000 });
+    await addWalletButton2.click();
 
     const createOption = page.getByRole('button', { name: /Create.*Wallet/i });
     await expect(createOption).toBeVisible({ timeout: 5000 });

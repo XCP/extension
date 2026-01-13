@@ -277,8 +277,9 @@ export async function importWallet(
 
 /**
  * Import a wallet with a private key
+ * Note: This expects to be on the add-wallet page or onboarding page
  * @param page - The page object
- * @param privateKey - The private key
+ * @param privateKey - The private key (WIF format)
  * @param password - Password for the wallet
  */
 export async function importPrivateKey(
@@ -286,27 +287,28 @@ export async function importPrivateKey(
   privateKey: string = TEST_PRIVATE_KEY,
   password: string = TEST_PASSWORD
 ): Promise<void> {
-  // Click Import Wallet and wait for the form
-  await page.getByText('Import Wallet').click();
-  await page.waitForSelector('input[name="word-0"]', { timeout: 5000 });
+  // Click "Import Private Key" button (separate from "Import Mnemonic")
+  const importPrivateKeyButton = page.getByRole('button', { name: /Import Private Key/i });
+  await importPrivateKeyButton.waitFor({ state: 'visible', timeout: 5000 });
+  await importPrivateKeyButton.click();
 
-  // Switch to private key tab
-  const privateKeyTab = page.getByText('Private Key');
-  await privateKeyTab.waitFor({ state: 'visible', timeout: 5000 });
-  await privateKeyTab.click();
-
-  // Wait for and fill private key input
-  const privateKeyInput = page.locator('input[placeholder*="private key"]');
+  // Wait for private key input form
+  const privateKeyInput = page.locator('input[name="private-key"]');
   await privateKeyInput.waitFor({ state: 'visible', timeout: 5000 });
   await privateKeyInput.fill(privateKey);
 
-  // Fill password
+  // Check the backup confirmation checkbox
+  const backupCheckbox = page.getByLabel(/I have backed up this private key/i);
+  await backupCheckbox.waitFor({ state: 'visible', timeout: 5000 });
+  await backupCheckbox.check();
+
+  // Password field appears after checkbox is checked
   const passwordInput = page.locator('input[name="password"]');
   await passwordInput.waitFor({ state: 'visible', timeout: 5000 });
   await passwordInput.fill(password);
 
   // Submit and wait for navigation
-  await page.getByRole('button', { name: /Import/i }).click();
+  await page.getByRole('button', { name: /Continue/i }).click();
   await page.waitForURL(/index/, { timeout: 10000 });
 }
 
