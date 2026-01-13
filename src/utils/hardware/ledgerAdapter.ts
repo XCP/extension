@@ -39,6 +39,12 @@ import {
   DerivationPaths,
   HardwarePsbtSignRequest,
 } from './types';
+import {
+  abortAllOperations,
+  DEFAULT_OPERATION_TIMEOUT_MS,
+  LONG_OPERATION_TIMEOUT_MS,
+  validateFirmwareForFeature,
+} from './operationManager';
 
 /**
  * Configuration options for LedgerAdapter initialization
@@ -67,9 +73,9 @@ const ADDRESS_FORMAT_TO_LEDGER_TEMPLATE: Record<AddressFormat, DefaultDescriptor
 };
 
 /**
- * Default operation timeout (30 seconds)
+ * Default operation timeout (uses operation manager's default)
  */
-const DEFAULT_TIMEOUT_MS = 30000;
+const DEFAULT_TIMEOUT_MS = DEFAULT_OPERATION_TIMEOUT_MS;
 
 /**
  * Ledger Hardware Wallet Adapter
@@ -290,6 +296,23 @@ export class LedgerAdapter implements IHardwareWalletAdapter {
       );
     }
 
+    // Validate firmware for Taproot
+    if (addressFormat === AddressFormat.P2TR) {
+      const validation = validateFirmwareForFeature(
+        'ledger',
+        'taproot',
+        this.deviceInfo?.firmwareVersion
+      );
+      if (!validation.valid) {
+        throw new HardwareWalletError(
+          validation.message ?? 'Firmware update required for Taproot',
+          'FIRMWARE_UPDATE_REQUIRED',
+          'ledger',
+          validation.message
+        );
+      }
+    }
+
     // Note: Ledger doesn't support passphrase the same way Trezor does
     // The passphrase would need to be configured on the device itself
     if (usePassphrase) {
@@ -305,11 +328,15 @@ export class LedgerAdapter implements IHardwareWalletAdapter {
 
       // Get the address using the signer
       // The addressIndex is the index within the account (change=0, index=N)
+      // Use longer timeout if showing on device (requires user confirmation)
+      const timeoutMs = showOnDevice ? LONG_OPERATION_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
       const result = await this.executeSignerAction<{ address: string }>(
         this.signer.getWalletAddress(wallet, index, {
           checkOnDevice: showOnDevice,
           change: false, // We want receiving addresses (change = 0)
-        })
+        }),
+        'getAddress',
+        timeoutMs
       );
 
       return {
@@ -381,7 +408,8 @@ export class LedgerAdapter implements IHardwareWalletAdapter {
 
       // Get extended public key
       const result = await this.executeSignerAction<{ extendedPublicKey: string }>(
-        this.signer.getExtendedPublicKey(path)
+        this.signer.getExtendedPublicKey(path),
+        'getXpub'
       );
 
       return result.extendedPublicKey;
@@ -431,9 +459,11 @@ export class LedgerAdapter implements IHardwareWalletAdapter {
     try {
       const pathString = DerivationPaths.pathToString(request.path);
 
-      // Sign the message
+      // Sign the message (requires user confirmation on device)
       const result = await this.executeSignerAction<{ signature: string }>(
-        this.signer.signMessage(pathString, request.message)
+        this.signer.signMessage(pathString, request.message),
+        'signMessage',
+        LONG_OPERATION_TIMEOUT_MS
       );
 
       // Get the address for verification
@@ -533,9 +563,11 @@ export class LedgerAdapter implements IHardwareWalletAdapter {
       // Create wallet for signing
       const wallet = this.createDefaultWallet(addressFormat, account);
 
-      // Sign the PSBT
+      // Sign the PSBT (requires user confirmation on device)
       const result = await this.executeSignerAction<{ psbt: string }>(
-        this.signer.signPsbt(wallet, psbtBase64)
+        this.signer.signPsbt(wallet, psbtBase64),
+        'signPsbt',
+        LONG_OPERATION_TIMEOUT_MS
       );
 
       // Convert result back to hex
@@ -560,6 +592,12 @@ export class LedgerAdapter implements IHardwareWalletAdapter {
    * Clean up resources
    */
   async dispose(): Promise<void> {
+    // Abort any pending operations
+    const abortedCount = abortAllOperations('ledger', 'Adapter disposed');
+    if (abortedCount > 0 && this.options.debug) {
+      console.log(`[Ledger] Disposed, aborted ${abortedCount} pending operations`);
+    }
+
     if (this.dmk && this.sessionId) {
       try {
         await this.dmk.disconnect({ sessionId: this.sessionId });
@@ -592,28 +630,56 @@ export class LedgerAdapter implements IHardwareWalletAdapter {
 
   /**
    * Execute a signer action that returns an Observable and convert to Promise
+   * @param action - The signer action containing an Observable
+   * @param operationName - Human-readable name for error messages
+   * @param timeoutMs - Custom timeout in milliseconds (default: operation timeout or 60s)
    */
-  private async executeSignerAction<T>(action: { observable: import('rxjs').Observable<any> }): Promise<T> {
+  private async executeSignerAction<T>(
+    action: { observable: import('rxjs').Observable<any> },
+    operationName: string = 'operation',
+    timeoutMs?: number
+  ): Promise<T> {
+    const effectiveTimeout = timeoutMs ?? this.options.operationTimeout ?? DEFAULT_TIMEOUT_MS;
+
     const finalState = await firstValueFrom(
       action.observable.pipe(
         filter((state: any) =>
           state.status === 'completed' || state.status === 'error'
         ),
-        timeout(this.options.operationTimeout ?? DEFAULT_TIMEOUT_MS),
+        timeout(effectiveTimeout),
         catchError((err) => {
+          // Check if it's a timeout error
+          if (err.name === 'TimeoutError') {
+            throw new HardwareWalletError(
+              `Operation timed out after ${effectiveTimeout}ms: ${operationName}`,
+              'OPERATION_TIMEOUT',
+              'ledger',
+              `The ${operationName} took too long. Please check your Ledger device and try again.`
+            );
+          }
           throw new HardwareWalletError(
-            `Operation failed: ${err.message ?? 'Timeout'}`,
-            'OPERATION_TIMEOUT',
+            `Operation failed: ${err.message ?? 'Unknown error'}`,
+            'OPERATION_FAILED',
             'ledger',
-            'The operation timed out. Please try again.'
+            'The operation failed. Please try again.'
           );
         })
       )
     );
 
     if (finalState.status === 'error') {
+      const errorMsg = finalState.error?.message?.toLowerCase() ?? '';
+      // Check for user cancellation
+      if (errorMsg.includes('denied') || errorMsg.includes('rejected') || errorMsg.includes('cancel')) {
+        throw new HardwareWalletError(
+          `${operationName} was cancelled by user`,
+          'USER_CANCELLED',
+          'ledger',
+          'You cancelled the operation on your Ledger.'
+        );
+      }
       throw new HardwareWalletError(
-        `Ledger operation failed: ${finalState.error?.message ?? 'Unknown error'}`,
+        `Ledger ${operationName} failed: ${finalState.error?.message ?? 'Unknown error'}`,
         'DEVICE_ERROR',
         'ledger',
         finalState.error?.message ?? 'An error occurred on the device.'

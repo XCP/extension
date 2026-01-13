@@ -50,6 +50,7 @@ import RemoveWallet from '@/pages/wallet/remove-wallet';
 import ConnectHardware from '@/pages/wallet/connect-hardware';
 import ShowPassphrase from '@/pages/secrets/show-passphrase';
 import ShowPrivateKey from '@/pages/secrets/show-private-key';
+import ShowXpub from '@/pages/secrets/show-xpub';
 
 // Viewing
 import AddressHistory from '@/pages/address/address-history';
@@ -205,6 +206,7 @@ export default function App() {
             <Route path="/connect-hardware" element={<ConnectHardware />} />
             <Route path="/show-passphrase/:walletId" element={<ShowPassphrase />} />
             <Route path="/show-private-key/:walletId/:addressPath?" element={<ShowPrivateKey />} />
+            <Route path="/show-xpub/:walletId" element={<ShowXpub />} />
             
             {/* Viewing */}
             <Route path="/address-history" element={<AddressHistory />} />

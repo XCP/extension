@@ -35,6 +35,10 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
     navigate(`/show-${wallet.type === 'privateKey' ? 'private-key' : 'passphrase'}/${wallet.id}`);
   }, [navigate, wallet.type, wallet.id]);
 
+  const handleShowXpub = useCallback(() => {
+    navigate(`/show-xpub/${wallet.id}`);
+  }, [navigate, wallet.id]);
+
   const handleRemoveWallet = useCallback(() => {
     if (!isOnlyWallet) {
       navigate(`/remove-wallet/${wallet.id}`);
@@ -67,6 +71,20 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
           >
             <VscKey className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
             {wallet.type === 'privateKey' ? 'Show Private Key' : 'Show Passphrase'}
+          </Button>
+        </MenuItem>
+      )}
+
+      {/* Show xPub option - only for hardware wallets */}
+      {isHardware && (
+        <MenuItem>
+          <Button
+            variant="menu-item"
+            fullWidth
+            onClick={handleShowXpub}
+          >
+            <VscKey className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
+            Show xPub
           </Button>
         </MenuItem>
       )}

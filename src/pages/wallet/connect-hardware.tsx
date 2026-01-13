@@ -13,6 +13,12 @@ import { fetchBTCBalance } from "@/utils/blockchain/bitcoin/balance";
 import { fetchTokenBalances } from "@/utils/blockchain/counterparty/api";
 import { fromSatoshis } from "@/utils/numeric";
 import type { HardwareWalletVendor } from "@/utils/hardware/types";
+import {
+  detectAllDevices,
+  getConnectionInstructions,
+  getVendorConfirmInstructions,
+  type DeviceDetectionResult,
+} from "@/utils/hardware";
 import type { ReactElement } from "react";
 
 // Steps in the connection flow
@@ -96,8 +102,33 @@ export default function ConnectHardware(): ReactElement {
   // Troubleshooting mode
   const [showTroubleshooting, setShowTroubleshooting] = useState(false);
 
+  // Device detection
+  const [detectionState, setDetectionState] = useState<{
+    checked: boolean;
+    trezor: DeviceDetectionResult | null;
+    ledger: DeviceDetectionResult | null;
+  }>({ checked: false, trezor: null, ledger: null });
+
   // Get the vendor label for display
   const vendorLabel = VENDOR_OPTIONS.find(v => v.value === vendor)?.label ?? "Hardware Wallet";
+
+  // Check for connected devices on mount
+  useEffect(() => {
+    async function checkDevices() {
+      try {
+        const result = await detectAllDevices();
+        setDetectionState({
+          checked: true,
+          trezor: result.trezor,
+          ledger: result.ledger,
+        });
+      } catch (err) {
+        console.warn("Device detection failed:", err);
+        setDetectionState({ checked: true, trezor: null, ledger: null });
+      }
+    }
+    checkDevices();
+  }, []);
 
   useEffect(() => {
     let title = "Connect Hardware Wallet";
@@ -194,10 +225,19 @@ export default function ConnectHardware(): ReactElement {
       // Provide helpful message for common errors
       if (errorMsg.includes("Taproot") || errorMsg.includes("P2TR")) {
         setError("Taproot requires newer firmware. Please update your firmware or select a different address format.");
-      } else if (errorMsg.includes("cancelled") || errorMsg.includes("Cancelled")) {
+      } else if (errorMsg.includes("cancelled") || errorMsg.includes("Cancelled") || errorMsg.includes("USER_CANCELLED")) {
         setError("Connection cancelled. Please try again when ready.");
-      } else if (errorMsg.includes("not found") || errorMsg.includes("discovery")) {
-        setError(`Could not find a ${vendorLabel} device. Make sure it is connected, unlocked, and the Bitcoin app is open${vendor === 'ledger' ? ' (for Ledger)' : ''}.`);
+      } else if (errorMsg.includes("not found") || errorMsg.includes("discovery") || errorMsg.includes("DEVICE_NOT_FOUND")) {
+        // Provide detailed instructions based on vendor
+        const instructions = vendor ? getConnectionInstructions(vendor, false) : [];
+        const instructionText = instructions.length > 0
+          ? `\n\nPlease check:\n• ${instructions.join('\n• ')}`
+          : '';
+        setError(`Could not find a ${vendorLabel} device.${instructionText}`);
+      } else if (errorMsg.includes("timeout") || errorMsg.includes("OPERATION_TIMEOUT")) {
+        setError(`Connection timed out. Please check your ${vendorLabel} is unlocked and try again.`);
+      } else if (errorMsg.includes("busy") || errorMsg.includes("DEVICE_BUSY")) {
+        setError(`Your ${vendorLabel} appears busy. Close any other apps using it and try again.`);
       } else {
         setError(errorMsg);
       }
@@ -232,21 +272,38 @@ export default function ConnectHardware(): ReactElement {
 
         {/* Vendor Selection */}
         <div className="space-y-3">
-          {VENDOR_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => handleVendorSelect(option.value)}
-              className="w-full text-left p-5 rounded-lg border-2 border-gray-700 bg-gray-800/50 hover:border-blue-500 hover:bg-blue-500/10 transition-colors"
-            >
-              <div className="flex items-center gap-4">
-                <span className="text-4xl">{option.icon}</span>
-                <div>
-                  <span className="text-lg font-medium block">{option.label}</span>
-                  <span className="text-sm text-gray-400">{option.description}</span>
+          {VENDOR_OPTIONS.map((option) => {
+            const detection = option.value === 'trezor' ? detectionState.trezor : detectionState.ledger;
+            const isDetected = detection && detection.deviceCount > 0;
+
+            return (
+              <button
+                key={option.value}
+                onClick={() => handleVendorSelect(option.value)}
+                className={`w-full text-left p-5 rounded-lg border-2 transition-colors ${
+                  isDetected
+                    ? "border-green-500/50 bg-green-500/5 hover:border-green-400 hover:bg-green-500/10"
+                    : "border-gray-700 bg-gray-800/50 hover:border-blue-500 hover:bg-blue-500/10"
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <span className="text-4xl">{option.icon}</span>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-medium">{option.label}</span>
+                      {isDetected && (
+                        <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 bg-green-400 rounded-full" />
+                          Detected
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-sm text-gray-400">{option.description}</span>
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
 
         <p className="text-xs text-gray-500 text-center mt-4">
@@ -264,13 +321,18 @@ export default function ConnectHardware(): ReactElement {
         <div className="text-center">
           <h2 className="text-lg font-semibold mb-2">Connecting to {vendorLabel}...</h2>
           <p className="text-sm text-gray-400">
-            Please confirm the connection on your device
+            Check your {vendorLabel} screen
           </p>
-          {vendor === 'ledger' && (
-            <p className="text-xs text-gray-500 mt-2">
-              Make sure the Bitcoin app is open on your Ledger
-            </p>
-          )}
+          <div className="mt-4 bg-gray-800/50 rounded-lg p-4 text-left max-w-xs mx-auto">
+            <p className="text-xs text-gray-300 font-medium mb-2">On your device:</p>
+            <ol className="text-xs text-gray-400 space-y-1.5 list-decimal list-inside">
+              {vendor === 'ledger' && (
+                <li>Open the <span className="text-gray-300">Bitcoin app</span></li>
+              )}
+              <li>Verify the address shown matches</li>
+              <li>{getVendorConfirmInstructions(vendor)}</li>
+            </ol>
+          </div>
         </div>
       </div>
     );

@@ -1,8 +1,11 @@
 import { type ReactElement, type ReactNode } from "react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
+import { Spinner } from "@/components/spinner";
 import { formatAddress, formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
+import { getVendorLabel, getVendorConfirmInstructions } from "@/utils/hardware";
+import type { HardwareWalletVendor } from "@/utils/hardware/types";
 
 /**
  * Transaction result from API response
@@ -52,6 +55,10 @@ interface ReviewScreenProps {
   isSigning: boolean;
   /** Hide the back button (e.g., for provider requests with no form to go back to) */
   hideBackButton?: boolean;
+  /** Whether signing with a hardware wallet */
+  isHardwareWallet?: boolean;
+  /** Hardware wallet vendor (trezor/ledger) */
+  hardwareVendor?: HardwareWalletVendor;
 }
 
 /**
@@ -83,6 +90,8 @@ export function ReviewScreen({
   error,
   isSigning,
   hideBackButton = false,
+  isHardwareWallet = false,
+  hardwareVendor,
 }: ReviewScreenProps): ReactElement {
   const { result } = apiResponse;
 
@@ -162,6 +171,22 @@ export function ReviewScreen({
         </pre>
       </details>
       
+      {/* Hardware wallet guidance during signing */}
+      {isSigning && isHardwareWallet && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Spinner />
+            <span className="text-sm font-medium text-blue-800">Check your {getVendorLabel(hardwareVendor)}</span>
+          </div>
+          <p className="text-xs text-blue-600">
+            Review the transaction details on your device screen
+          </p>
+          <p className="text-xs text-blue-600 mt-1">
+            {getVendorConfirmInstructions(hardwareVendor)}
+          </p>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="flex space-x-4">
         {!hideBackButton && (
@@ -181,7 +206,18 @@ export function ReviewScreen({
           disabled={isSigning}
           aria-label={isSigning ? "Signing transaction..." : "Sign and broadcast transaction"}
         >
-          {isSigning ? "Signing..." : "Sign & Broadcast"}
+          {isSigning ? (
+            isHardwareWallet ? (
+              <span className="flex items-center justify-center gap-2">
+                <Spinner />
+                Check Device...
+              </span>
+            ) : (
+              "Signing..."
+            )
+          ) : (
+            "Sign & Broadcast"
+          )}
         </Button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAssetQuantity } from "@/utils/format";
 import type { ReactElement } from "react";
+import type { HardwareWalletVendor } from "@/utils/hardware/types";
 
 /**
  * Props for the ReviewSend component.
@@ -11,6 +12,8 @@ interface ReviewSendProps {
   onBack: () => void;
   error: string | null;
   isSigning: boolean; // Passed from useActionState in Composer
+  isHardwareWallet?: boolean;
+  hardwareVendor?: HardwareWalletVendor;
 }
 
 /**
@@ -24,6 +27,8 @@ export function ReviewSend({
   onBack,
   error,
   isSigning,
+  isHardwareWallet,
+  hardwareVendor,
 }: ReviewSendProps): ReactElement {
   const { result } = apiResponse;
   const isMPMA = result.name === 'mpma';
@@ -81,6 +86,8 @@ export function ReviewSend({
       customFields={customFields}
       error={error}
       isSigning={isSigning}
+      isHardwareWallet={isHardwareWallet}
+      hardwareVendor={hardwareVendor}
     />
   );
 }

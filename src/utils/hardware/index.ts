@@ -12,8 +12,11 @@ import { getLedgerAdapter } from './ledgerAdapter';
 
 export * from './types';
 export * from './interface';
+export * from './helpers';
 export { TrezorAdapter, getTrezorAdapter, resetTrezorAdapter } from './trezorAdapter';
 export { LedgerAdapter, getLedgerAdapter, resetLedgerAdapter } from './ledgerAdapter';
+export * from './deviceDetection';
+export * from './operationManager';
 
 /**
  * Factory function to get the appropriate hardware wallet adapter

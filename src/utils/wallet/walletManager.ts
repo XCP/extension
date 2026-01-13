@@ -1071,12 +1071,25 @@ export class WalletManager {
       const input = tx.getInput(i);
       if (!input?.txid) continue;
 
+      // Extract input amount from witnessUtxo or nonWitnessUtxo
+      // witnessUtxo contains { script, amount } for SegWit inputs
+      // nonWitnessUtxo contains the full previous transaction for legacy inputs
+      let inputAmount = '0';
+      if (input.witnessUtxo?.amount !== undefined) {
+        inputAmount = String(input.witnessUtxo.amount);
+      } else if (input.nonWitnessUtxo) {
+        // For legacy inputs, we need to look up the output from the previous tx
+        // This is more complex and may require fetching the previous transaction
+        // For now, log a warning if we can't determine the amount
+        console.warn(`[WalletManager] Input ${i} has no witnessUtxo, amount may be incorrect`);
+      }
+
       const scriptType = this.getHardwareScriptType(wallet.addressFormat, true);
       inputs.push({
         addressPath: DerivationPaths.getBip44Path(wallet.addressFormat, wallet.hardwareData.accountIndex, 0, addressIndex),
         prevTxHash: bytesToHex(input.txid),
         prevIndex: input.index ?? 0,
-        amount: '0', // Will be filled from UTXO data
+        amount: inputAmount,
         scriptType,
       });
     }

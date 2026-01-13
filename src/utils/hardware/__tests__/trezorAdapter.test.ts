@@ -231,6 +231,21 @@ describe('TrezorAdapter', () => {
     });
 
     it('should get address for P2TR (Taproot) format', async () => {
+      // Mock device features with sufficient firmware for Taproot
+      mockGetFeatures.mockResolvedValue({
+        success: true,
+        payload: {
+          model: 'T',
+          label: 'My Trezor',
+          major_version: 2,
+          minor_version: 5,
+          patch_version: 0,
+        },
+      });
+
+      // First get device info to set firmware version
+      await adapter.getDeviceInfo();
+
       mockGetAddress.mockResolvedValue({
         success: true,
         payload: {

@@ -10,6 +10,7 @@ import { LoadingOverlay } from "@/components/loading-overlay";
 import { ComposerProvider, useComposer } from "@/contexts/composer-context";
 import { useHeader } from "@/contexts/header-context";
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
+import { getVendorLabel } from "@/utils/hardware";
 
 /**
  * Compose operation types for internal wallet use
@@ -49,6 +50,8 @@ interface ComposerProps<T> {
     error: string | null;
     isSigning: boolean;
     hideBackButton?: boolean;
+    isHardwareWallet?: boolean;
+    hardwareVendor?: HardwareWalletVendor;
   }) => ReactElement;
 
   // Optional callbacks
@@ -86,7 +89,12 @@ function ComposerInner<T>({
     showHelpText,
     toggleHelpText,
     handleUnlockAndSign,
+    activeWallet,
   } = useComposer<T>();
+
+  // Hardware wallet detection
+  const isHardwareWallet = activeWallet?.type === 'hardware';
+  const hardwareVendor = activeWallet?.hardwareData?.vendor;
 
   // Header configuration based on current step
   const headerConfig = useMemo(() => {
@@ -196,7 +204,13 @@ function ComposerInner<T>({
       {/* Local loading overlay that won't cause unmounts */}
       <LoadingOverlay
         isLoading={state.isComposing || state.isSigning}
-        message={state.isComposing ? "Composing transaction..." : "Signing and broadcasting..."}
+        message={
+          state.isComposing
+            ? "Composing transaction..."
+            : isHardwareWallet
+              ? `Check your ${getVendorLabel(hardwareVendor)}...`
+              : "Signing and broadcasting..."
+        }
       />
 
       {state.step === "form" && (
@@ -215,6 +229,8 @@ function ComposerInner<T>({
           onBack={goBack}
           error={state.error}
           isSigning={state.isSigning}
+          isHardwareWallet={isHardwareWallet}
+          hardwareVendor={hardwareVendor}
         />
       )}
 

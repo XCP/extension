@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { FiGlobe, FiAlertTriangle, FiX, FiChevronDown, FiChevronUp } from '@/components/icons';
+import { useState, useMemo } from 'react';
+import { FiGlobe, FiAlertTriangle, FiX, FiChevronDown, FiChevronUp, FiInfo, FiShield } from '@/components/icons';
 import { Button } from '@/components/button';
 import { ErrorAlert } from '@/components/error-alert';
 import { formatAddress, formatAmount } from '@/utils/format';
@@ -7,6 +7,14 @@ import { fromSatoshis } from '@/utils/numeric';
 import { useWallet } from '@/contexts/wallet-context';
 import { useSignTransactionRequest } from '@/hooks/useSignTransactionRequest';
 import { getWalletService } from '@/services/walletService';
+import {
+  analyzeEncoding,
+  checkWalletCompatibility,
+  getEncodingDisplayInfo,
+  type WalletType,
+  type EncodingAnalysis,
+  type WalletCompatibility,
+} from '@/utils/blockchain/counterparty/encodingValidator';
 
 export default function ApproveTransaction() {
   const { activeAddress, activeWallet } = useWallet();
@@ -23,6 +31,33 @@ export default function ApproveTransaction() {
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string>('');
   const [showDetails, setShowDetails] = useState(false);
+
+  // Determine wallet type for compatibility checking
+  const walletType: WalletType = useMemo(() => {
+    if (!activeWallet) return 'software';
+    if (activeWallet.type === 'hardware' && activeWallet.hardwareData) {
+      return activeWallet.hardwareData.vendor as WalletType;
+    }
+    return 'software';
+  }, [activeWallet]);
+
+  // Analyze transaction encoding for Counterparty compatibility
+  const encodingAnalysis: EncodingAnalysis | null = useMemo(() => {
+    if (!decodedInfo?.outputs) return null;
+    return analyzeEncoding(decodedInfo.outputs);
+  }, [decodedInfo?.outputs]);
+
+  // Check wallet compatibility with the detected encoding
+  const walletCompatibility: WalletCompatibility | null = useMemo(() => {
+    if (!encodingAnalysis) return null;
+    return checkWalletCompatibility(encodingAnalysis.encoding, walletType, encodingAnalysis);
+  }, [encodingAnalysis, walletType]);
+
+  // Get display info for encoding
+  const encodingDisplayInfo = useMemo(() => {
+    if (!encodingAnalysis) return null;
+    return getEncodingDisplayInfo(encodingAnalysis);
+  }, [encodingAnalysis]);
 
   // Parse origin to get domain name
   const getDomain = (url: string) => {
@@ -105,7 +140,11 @@ export default function ApproveTransaction() {
     );
   }
 
-  const hasWarnings = decodedInfo.fee > 10000000; // > 0.1 BTC fee
+  const hasWarnings = decodedInfo.fee > 10000000 || // > 0.1 BTC fee
+    walletCompatibility?.warning != null;
+
+  // Check if signing is blocked
+  const cannotSign = walletCompatibility?.canSign === false;
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -202,6 +241,94 @@ export default function ApproveTransaction() {
               <p className="text-sm text-purple-800 mt-2">
                 {decodedInfo.counterpartyMessage.description}
               </p>
+            </div>
+          )}
+
+          {/* Encoding Information (for Counterparty transactions) */}
+          {encodingAnalysis && encodingAnalysis.encoding !== 'unknown' && encodingDisplayInfo && (
+            <div className={`rounded-lg p-4 border ${
+              encodingDisplayInfo.severity === 'error'
+                ? 'bg-red-50 border-red-200'
+                : encodingDisplayInfo.severity === 'warning'
+                ? 'bg-yellow-50 border-yellow-200'
+                : 'bg-blue-50 border-blue-200'
+            }`}>
+              <div className="flex items-start">
+                <FiInfo className={`w-5 h-5 mt-0.5 mr-2 flex-shrink-0 ${
+                  encodingDisplayInfo.severity === 'error'
+                    ? 'text-red-600'
+                    : encodingDisplayInfo.severity === 'warning'
+                    ? 'text-yellow-600'
+                    : 'text-blue-600'
+                }`} />
+                <div>
+                  <p className={`text-sm font-medium ${
+                    encodingDisplayInfo.severity === 'error'
+                      ? 'text-red-900'
+                      : encodingDisplayInfo.severity === 'warning'
+                      ? 'text-yellow-900'
+                      : 'text-blue-900'
+                  }`}>
+                    {encodingDisplayInfo.title}
+                  </p>
+                  <p className={`text-xs mt-1 ${
+                    encodingDisplayInfo.severity === 'error'
+                      ? 'text-red-700'
+                      : encodingDisplayInfo.severity === 'warning'
+                      ? 'text-yellow-700'
+                      : 'text-blue-700'
+                  }`}>
+                    {encodingDisplayInfo.description}
+                  </p>
+                  {encodingAnalysis.details.estimatedDataSize > 0 && (
+                    <p className={`text-xs mt-1 ${
+                      encodingDisplayInfo.severity === 'error'
+                        ? 'text-red-600'
+                        : encodingDisplayInfo.severity === 'warning'
+                        ? 'text-yellow-600'
+                        : 'text-blue-600'
+                    }`}>
+                      Data size: ~{encodingAnalysis.details.estimatedDataSize} bytes in {encodingAnalysis.details.dataOutputCount} output{encodingAnalysis.details.dataOutputCount !== 1 ? 's' : ''}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Wallet Compatibility Warning/Error */}
+          {walletCompatibility && (walletCompatibility.warning || walletCompatibility.error) && (
+            <div className={`rounded-lg p-4 border ${
+              walletCompatibility.error
+                ? 'bg-red-50 border-red-200'
+                : 'bg-yellow-50 border-yellow-200'
+            }`}>
+              <div className="flex items-start">
+                <FiShield className={`w-5 h-5 mt-0.5 mr-2 flex-shrink-0 ${
+                  walletCompatibility.error ? 'text-red-600' : 'text-yellow-600'
+                }`} />
+                <div>
+                  <p className={`text-sm font-medium ${
+                    walletCompatibility.error ? 'text-red-900' : 'text-yellow-900'
+                  }`}>
+                    {walletType === 'software' ? 'Software Wallet' : walletType.charAt(0).toUpperCase() + walletType.slice(1)} Compatibility
+                  </p>
+                  <p className={`text-xs mt-1 ${
+                    walletCompatibility.error ? 'text-red-700' : 'text-yellow-700'
+                  }`}>
+                    {walletCompatibility.error || walletCompatibility.warning}
+                  </p>
+                  {walletCompatibility.suggestions && walletCompatibility.suggestions.length > 0 && (
+                    <ul className={`text-xs mt-2 list-disc list-inside space-y-1 ${
+                      walletCompatibility.error ? 'text-red-600' : 'text-yellow-600'
+                    }`}>
+                      {walletCompatibility.suggestions.map((suggestion, idx) => (
+                        <li key={idx}>{suggestion}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -333,10 +460,10 @@ export default function ApproveTransaction() {
           <Button
             color="blue"
             onClick={handleSign}
-            disabled={isSigning}
+            disabled={isSigning || cannotSign}
             fullWidth
           >
-            {isSigning ? 'Signing...' : 'Sign'}
+            {isSigning ? 'Signing...' : cannotSign ? 'Cannot Sign' : 'Sign'}
           </Button>
         </div>
       </div>

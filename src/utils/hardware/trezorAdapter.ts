@@ -25,6 +25,14 @@ import {
   HardwarePsbtSignRequest,
 } from './types';
 import { extractPsbtDetails } from '@/utils/blockchain/bitcoin/psbt';
+import {
+  withTimeout,
+  abortAllOperations,
+  DEFAULT_OPERATION_TIMEOUT_MS,
+  SHORT_OPERATION_TIMEOUT_MS,
+  LONG_OPERATION_TIMEOUT_MS,
+  validateFirmwareForFeature,
+} from './operationManager';
 
 /**
  * Configuration options for TrezorAdapter initialization
@@ -151,6 +159,11 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
           if (this.deviceInfo) {
             this.deviceInfo.connected = false;
           }
+          // Abort any pending operations when device disconnects
+          const abortedCount = abortAllOperations('trezor', 'Device disconnected');
+          if (abortedCount > 0 && this.options.debug) {
+            console.log(`[Trezor] Device disconnected, aborted ${abortedCount} pending operations`);
+          }
         }
       });
 
@@ -235,18 +248,44 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
   ): Promise<HardwareAddress> {
     this.ensureInitialized();
 
+    // Validate firmware for Taproot
+    if (addressFormat === AddressFormat.P2TR) {
+      const validation = validateFirmwareForFeature(
+        'trezor',
+        'taproot',
+        this.deviceInfo?.firmwareVersion,
+        this.deviceInfo?.model
+      );
+      if (!validation.valid) {
+        throw new HardwareWalletError(
+          validation.message ?? 'Firmware update required for Taproot',
+          'FIRMWARE_UPDATE_REQUIRED',
+          'trezor',
+          validation.message
+        );
+      }
+    }
+
     const pathArray = DerivationPaths.getBip44Path(addressFormat, account, 0, index);
     // Use string path format to avoid JavaScript signed integer issues with hardened values
     const pathString = DerivationPaths.pathToString(pathArray);
     const scriptType = getScriptType(addressFormat, false);
 
-    const result = await TrezorConnect.getAddress({
-      path: pathString,
-      coin: 'btc',
-      showOnTrezor: showOnDevice,
-      scriptType: scriptType as any,
-      useEmptyPassphrase: !usePassphrase,
-    });
+    // Use longer timeout if showing on device (requires user confirmation)
+    const timeoutMs = showOnDevice ? LONG_OPERATION_TIMEOUT_MS : DEFAULT_OPERATION_TIMEOUT_MS;
+
+    const result = await withTimeout(
+      TrezorConnect.getAddress({
+        path: pathString,
+        coin: 'btc',
+        showOnTrezor: showOnDevice,
+        scriptType: scriptType as any,
+        useEmptyPassphrase: !usePassphrase,
+      }),
+      'trezor',
+      'getAddress',
+      timeoutMs
+    );
 
     if (!result.success) {
       throw new HardwareWalletError(
@@ -294,7 +333,12 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       };
     });
 
-    const result = await TrezorConnect.getAddress({ bundle, useEmptyPassphrase: !usePassphrase });
+    const result = await withTimeout(
+      TrezorConnect.getAddress({ bundle, useEmptyPassphrase: !usePassphrase }),
+      'trezor',
+      'getAddresses',
+      DEFAULT_OPERATION_TIMEOUT_MS
+    );
 
     if (!result.success) {
       throw new HardwareWalletError(
@@ -327,11 +371,16 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     // Use string path format to avoid JavaScript signed integer issues with hardened values
     const path = `m/${purpose}'/${0}'/${account}'`;
 
-    const result = await TrezorConnect.getPublicKey({
-      path,
-      coin: 'btc',
-      useEmptyPassphrase: !usePassphrase,
-    });
+    const result = await withTimeout(
+      TrezorConnect.getPublicKey({
+        path,
+        coin: 'btc',
+        useEmptyPassphrase: !usePassphrase,
+      }),
+      'trezor',
+      'getXpub',
+      DEFAULT_OPERATION_TIMEOUT_MS
+    );
 
     if (!result.success) {
       throw new HardwareWalletError(
@@ -413,9 +462,25 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       }));
     }
 
-    const result = await TrezorConnect.signTransaction(signRequest);
+    // Transaction signing requires user confirmation on device, use long timeout
+    const result = await withTimeout(
+      TrezorConnect.signTransaction(signRequest),
+      'trezor',
+      'signTransaction',
+      LONG_OPERATION_TIMEOUT_MS
+    );
 
     if (!result.success) {
+      // Check for user cancellation
+      const errorMsg = result.payload.error?.toLowerCase() ?? '';
+      if (errorMsg.includes('cancel') || errorMsg.includes('rejected')) {
+        throw new HardwareWalletError(
+          'Transaction signing was cancelled',
+          'USER_CANCELLED',
+          'trezor',
+          'You cancelled the transaction on your Trezor.'
+        );
+      }
       throw new HardwareWalletError(
         `Failed to sign transaction: ${result.payload.error}`,
         result.payload.code ?? 'SIGN_TX_FAILED',
@@ -436,13 +501,29 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
   async signMessage(request: HardwareMessageSignRequest): Promise<HardwareMessageSignResult> {
     this.ensureInitialized();
 
-    const result = await TrezorConnect.signMessage({
-      path: request.path,
-      message: request.message,
-      coin: request.coin ?? 'Bitcoin',
-    });
+    // Message signing requires user confirmation on device
+    const result = await withTimeout(
+      TrezorConnect.signMessage({
+        path: request.path,
+        message: request.message,
+        coin: request.coin ?? 'Bitcoin',
+      }),
+      'trezor',
+      'signMessage',
+      LONG_OPERATION_TIMEOUT_MS
+    );
 
     if (!result.success) {
+      // Check for user cancellation
+      const errorMsg = result.payload.error?.toLowerCase() ?? '';
+      if (errorMsg.includes('cancel') || errorMsg.includes('rejected')) {
+        throw new HardwareWalletError(
+          'Message signing was cancelled',
+          'USER_CANCELLED',
+          'trezor',
+          'You cancelled the message signing on your Trezor.'
+        );
+      }
       throw new HardwareWalletError(
         `Failed to sign message: ${result.payload.error}`,
         result.payload.code ?? 'SIGN_MESSAGE_FAILED',
@@ -576,9 +657,25 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       push: false,
     };
 
-    const result = await TrezorConnect.signTransaction(signRequest);
+    // PSBT signing requires user confirmation on device
+    const result = await withTimeout(
+      TrezorConnect.signTransaction(signRequest),
+      'trezor',
+      'signPsbt',
+      LONG_OPERATION_TIMEOUT_MS
+    );
 
     if (!result.success) {
+      // Check for user cancellation
+      const errorMsg = result.payload.error?.toLowerCase() ?? '';
+      if (errorMsg.includes('cancel') || errorMsg.includes('rejected')) {
+        throw new HardwareWalletError(
+          'Transaction signing was cancelled',
+          'USER_CANCELLED',
+          'trezor',
+          'You cancelled the transaction on your Trezor.'
+        );
+      }
       throw new HardwareWalletError(
         `Failed to sign PSBT: ${result.payload.error}`,
         result.payload.code ?? 'SIGN_PSBT_FAILED',

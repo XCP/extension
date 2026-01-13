@@ -13,6 +13,7 @@ import { UnlockScreen } from "@/components/screens/unlock-screen";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { getSigningCapabilities } from "@/utils/blockchain/bitcoin/messageSigner";
+import { getVendorLabel, getVendorConfirmInstructions } from "@/utils/hardware";
 import type { ReactElement } from "react";
 
 /**
@@ -273,24 +274,38 @@ export default function SignMessage(): ReactElement {
       
       {/* Sign Button - only show if not signed */}
       {!signature && (
-        <Button
-          onClick={() => handleSign()}
-          color="blue"
-          disabled={!signingCapabilities.canSign || !message.trim() || isSigning}
-          fullWidth
-        >
-          {isSigning ? (
-            <div className="flex items-center justify-center gap-2">
-              <Spinner />
-              Signing...
-            </div>
-          ) : (
-            <div className="flex items-center justify-center gap-2">
-              <FaLock className="w-4 h-4" />
-              Sign Message
+        <>
+          <Button
+            onClick={() => handleSign()}
+            color="blue"
+            disabled={!signingCapabilities.canSign || !message.trim() || isSigning}
+            fullWidth
+          >
+            {isSigning ? (
+              <div className="flex items-center justify-center gap-2">
+                <Spinner />
+                {isHardwareWallet ? 'Check Device...' : 'Signing...'}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center gap-2">
+                <FaLock className="w-4 h-4" />
+                Sign Message
+              </div>
+            )}
+          </Button>
+
+          {/* Hardware wallet guidance during signing */}
+          {isSigning && isHardwareWallet && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+              <p className="text-sm text-blue-800 font-medium">
+                Review the message on your {getVendorLabel(activeWallet?.hardwareData?.vendor)}
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                {getVendorConfirmInstructions(activeWallet?.hardwareData?.vendor)}
+              </p>
             </div>
           )}
-        </Button>
+        </>
       )}
       
       {/* Error Display */}
