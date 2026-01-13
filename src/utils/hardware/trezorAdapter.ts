@@ -527,7 +527,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
           sequence: input.sequence,
         })),
         bin_outputs: refTx.outputs.map((output) => ({
-          amount: output.amount,
+          amount: parseInt(output.amount, 10),
           script_pubkey: output.script,
         })),
       }));
