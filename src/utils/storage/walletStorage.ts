@@ -83,6 +83,7 @@ export interface EncryptedWalletRecord extends StoredRecord {
   addressCount?: number; // Number of derived addresses (defaults to 0 if omitted)
   encryptedSecret: string;
   isTestOnly?: boolean; // For development-only test addresses
+  previewAddress?: string; // First address for display in wallet list (public, not sensitive)
 }
 
 /**

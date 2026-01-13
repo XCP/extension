@@ -76,7 +76,7 @@ export class WalletManager {
         }
       }
       // When locked (no unlockedSecret), addresses remains empty array
-      // UI redirects to unlock screen, so locked-state address display is not needed
+      // previewAddress is always available for display in wallet list
       return {
         id: rec.id,
         name: rec.name,
@@ -85,6 +85,7 @@ export class WalletManager {
         addressCount: rec.addressCount || 1,
         addresses,
         isTestOnly: rec.isTestOnly,
+        previewAddress: rec.previewAddress,
       };
     }));
     const settings: AppSettings = await getSettings();
@@ -136,6 +137,9 @@ export class WalletManager {
       throw new Error('A wallet with this mnemonic+addressType combination already exists.');
     }
     const encryptedMnemonic = await encryptMnemonic(mnemonic, password, addressFormat);
+    // Derive first address for preview display in wallet list
+    const derivationPath = `${getDerivationPathForAddressFormat(addressFormat)}/0`;
+    const previewAddress = getAddressFromMnemonic(mnemonic, derivationPath, addressFormat);
     const record: EncryptedWalletRecord = {
       id,
       name: walletName,
@@ -143,8 +147,7 @@ export class WalletManager {
       addressFormat,
       addressCount: 1,
       encryptedSecret: encryptedMnemonic,
-      // Note: previewAddress/addressPreviews intentionally not stored
-      // Addresses are derived on-demand when wallet is unlocked
+      previewAddress,
     };
     await addEncryptedWallet(record);
     const wallet: Wallet = {
@@ -196,6 +199,8 @@ export class WalletManager {
       throw new Error('A wallet with this private key already exists.');
     }
     const encryptedPrivateKey = await encryptPrivateKey(secretJson, password);
+    // Derive address for preview display in wallet list
+    const previewAddress = getAddressFromPrivateKey(privateKeyHex, addressFormat, compressed);
     const record: EncryptedWalletRecord = {
       id,
       name: walletName,
@@ -203,8 +208,7 @@ export class WalletManager {
       addressFormat,
       addressCount: 1,
       encryptedSecret: encryptedPrivateKey,
-      // Note: previewAddress/addressPreviews intentionally not stored
-      // Addresses are derived on-demand when wallet is unlocked
+      previewAddress,
     };
     await addEncryptedWallet(record);
     const wallet: Wallet = {
@@ -569,19 +573,22 @@ export class WalletManager {
     wallet.addressFormat = newType;
     wallet.addressCount = 1;
     wallet.addresses = [this.deriveMnemonicAddress(mnemonic, newType, 0)];
+    // Update preview address to match new format
+    const derivationPath = `${getDerivationPathForAddressFormat(newType)}/0`;
+    wallet.previewAddress = getAddressFromMnemonic(mnemonic, derivationPath, newType);
 
     const allRecords = await getAllEncryptedWallets();
     const record = allRecords.find((r) => r.id === walletId);
     if (!record) throw new Error('Missing storage record.');
-    
+
     record.addressFormat = newType;
     record.addressCount = 1;
-    // Note: previewAddress/addressPreviews not updated - addresses derived on-demand
+    record.previewAddress = wallet.previewAddress;
 
     await updateEncryptedWallet(record);
 
     if (this.activeWalletId === walletId) {
-      this.setActiveWallet(walletId);
+      await this.setActiveWallet(walletId);
     }
   }
 
@@ -640,7 +647,7 @@ export class WalletManager {
       console.log('[WalletManager] Wallet created, unlocking...');
       await this.unlockWallet(newWallet.id, password);
       console.log('[WalletManager] Wallet unlocked, setting active...');
-      this.setActiveWallet(newWallet.id);
+      await this.setActiveWallet(newWallet.id);
       console.log('[WalletManager] Done');
       return newWallet;
     } catch (err) {
@@ -660,7 +667,7 @@ export class WalletManager {
     }
     const newWallet = await this.createPrivateKeyWallet(privateKey, password, name, addressFormat);
     await this.unlockWallet(newWallet.id, password);
-    this.setActiveWallet(newWallet.id);
+    await this.setActiveWallet(newWallet.id);
     return newWallet;
   }
 

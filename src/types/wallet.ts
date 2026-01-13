@@ -40,4 +40,6 @@ export interface Wallet {
   addresses: Address[];
   /** Flag for development-only test wallets */
   isTestOnly?: boolean;
+  /** First address for display when wallet is locked (public, not sensitive) */
+  previewAddress?: string;
 }
