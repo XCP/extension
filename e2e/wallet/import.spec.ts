@@ -28,42 +28,31 @@ const EXPECTED_TRUNCATED = {
 test('import wallet with test mnemonic', async () => {
   const { context, page } = await launchExtension('wallet-import-basic');
 
-  // Check if onboarding page
-  const hasImportOption = await page.getByText('Import Wallet').isVisible().catch(() => false);
-
-  if (!hasImportOption) {
-    // Wallet already exists, skip this test
-    await cleanup(context);
-    return;
-  }
+  // Must be on onboarding page with Import Wallet option
+  await expect(page.getByText('Import Wallet')).toBeVisible({ timeout: 5000 });
 
   // Import wallet with test mnemonic
   await importWallet(page, TEST_MNEMONIC, TEST_PASSWORD);
 
-  // Wait for wallet to load - increase timeout for CI
+  // Wait for wallet to load
   await page.waitForURL(/index/, { timeout: 20000 });
-  await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => {});
-  await page.waitForTimeout(3000); // Give UI time to render addresses
 
   // INTEGRATION TEST: Verify correct address derivation
   // The test mnemonic should derive to one of these known addresses
-  // On index page, addresses are displayed truncated (first 6 + ... + last 6)
   const truncatedAddresses = Object.values(EXPECTED_TRUNCATED);
+
+  // Wait for address display to load
+  await expect(page.locator('.font-mono').first()).toBeVisible({ timeout: 10000 });
 
   // Get all font-mono elements (where addresses are displayed)
   const monoElements = await page.locator('.font-mono').allTextContents();
-  const pageContent = await page.content();
 
   // Check if ANY of the expected truncated addresses appear
   const foundExpectedAddress = truncatedAddresses.some(truncated =>
-    monoElements.some(text => text.includes(truncated)) || pageContent.includes(truncated)
+    monoElements.some(text => text.includes(truncated))
   );
 
   if (!foundExpectedAddress) {
-    // Take screenshot for debugging
-    await page.screenshot({ path: 'test-results/screenshots/import-address-mismatch.png' });
-
-    // Log what we found for debugging
     console.log('Font-mono elements found:', monoElements);
     console.log('Expected one of:', truncatedAddresses);
   }
@@ -75,142 +64,125 @@ test('import wallet with test mnemonic', async () => {
   // 2. One of the known derived addresses (truncated) is visible
   expect(foundExpectedAddress).toBe(true);
 
-  await page.screenshot({ path: 'test-results/screenshots/imported-wallet.png' });
-
   await cleanup(context);
 });
 
 test('switch address types with imported wallet', async () => {
   const { context, page } = await launchExtension('wallet-import-switch');
-  
-  // Check if we need to import wallet first
-  const hasImportOption = await page.getByText('Import Wallet').isVisible().catch(() => false);
-  if (hasImportOption) {
-    await importWallet(page, TEST_MNEMONIC, TEST_PASSWORD);
-    await page.waitForURL(/index/, { timeout: 10000 });
-    await page.waitForTimeout(2000);
-  } else {
-    // Unlock wallet if needed
-    const needsUnlock = page.url().includes('unlock');
-    if (needsUnlock) {
-      await unlockWallet(page, TEST_PASSWORD);
-    }
-  }
-  
+
+  // Must be on onboarding page
+  await expect(page.getByText('Import Wallet')).toBeVisible({ timeout: 5000 });
+
+  // Import wallet with test mnemonic
+  await importWallet(page, TEST_MNEMONIC, TEST_PASSWORD);
+  await page.waitForURL(/index/, { timeout: 10000 });
+
   // Navigate to settings to change address type
   await navigateViaFooter(page, 'settings');
-  
-  // Look for address type settings
-  const addressTypeOption = page.locator('text=/Address Type|address type/i');
-  if (await addressTypeOption.isVisible()) {
-    await addressTypeOption.click();
-    await page.waitForTimeout(1000);
-    
-    // Try to select Legacy address type
-    const legacyOption = page.locator('text=/Legacy|P2PKH/i');
-    if (await legacyOption.isVisible()) {
-      await legacyOption.click();
-      await page.waitForTimeout(1000);
-    }
-  }
-  
+
+  // Click on address type settings
+  const addressTypeOption = page.getByText('Address Type');
+  await expect(addressTypeOption).toBeVisible({ timeout: 5000 });
+  await addressTypeOption.click();
+  await page.waitForURL(/address-type/, { timeout: 5000 });
+
+  // Select Legacy address type
+  const legacyOption = page.getByText('Legacy (P2PKH)');
+  await expect(legacyOption).toBeVisible({ timeout: 5000 });
+  await legacyOption.click();
+
   // Go back to main page
   await navigateViaFooter(page, 'wallet');
-  await page.waitForTimeout(1000);
-  
+  await page.waitForURL(/index/, { timeout: 5000 });
+
+  // Verify address changed to Legacy format (starts with 1)
+  await expect(page.locator('.font-mono').first()).toBeVisible({ timeout: 5000 });
+  const addressText = await page.locator('.font-mono').first().textContent();
+  expect(addressText).toMatch(/^1/); // Legacy addresses start with 1
+
   await cleanup(context);
 });
 
 test('import with invalid mnemonic shows error', async () => {
   const { context, page } = await launchExtension('wallet-import-invalid');
-  
-  // Check if onboarding page
-  const hasImportOption = await page.getByText('Import Wallet').isVisible().catch(() => false);
-  
-  if (!hasImportOption) {
-    // Wallet already exists, skip this test
-    await cleanup(context);
-    return;
-  }
-  
+
+  // Must be on onboarding page
+  await expect(page.getByText('Import Wallet')).toBeVisible({ timeout: 5000 });
+
   // Click import wallet
   await page.getByText('Import Wallet').click();
-  await page.waitForTimeout(1000);
-  
-  // Enter invalid mnemonic
+  await page.waitForURL(/import-wallet/, { timeout: 5000 });
+
+  // Enter invalid mnemonic words
   const mnemonicWords = 'invalid words that are not a valid mnemonic phrase test test test test test test'.split(' ');
-  
+
   // Fill in the word inputs
   for (let i = 0; i < Math.min(mnemonicWords.length, 12); i++) {
     const input = page.locator(`input[name="word-${i}"]`);
-    if (await input.isVisible()) {
-      await input.fill(mnemonicWords[i]);
-    }
+    await expect(input).toBeVisible({ timeout: 5000 });
+    await input.fill(mnemonicWords[i]);
   }
-  
-  // Try to check the confirmation (if exists)
+
+  // Check the confirmation checkbox
   const confirmCheckbox = page.getByLabel(/I have saved|backed up/i);
-  if (await confirmCheckbox.isVisible()) {
-    await confirmCheckbox.check();
-  }
-  
+  await expect(confirmCheckbox).toBeVisible({ timeout: 5000 });
+  await confirmCheckbox.check();
+
   // Set password
-  await page.locator('input[name="password"]').fill(TEST_PASSWORD);
-  
+  const passwordInput = page.locator('input[name="password"]');
+  await expect(passwordInput).toBeVisible({ timeout: 5000 });
+  await passwordInput.fill(TEST_PASSWORD);
+
   // Try to submit
   await page.getByRole('button', { name: /Continue|Import/i }).click();
-  
-  // Should show error or not navigate away
-  await page.waitForTimeout(2000);
-  
-  // Check if we're still on import page (not navigated to index)
+
+  // Should show error message or stay on import page
+  // Either error is shown OR we're still on import page (not navigated to index)
+  const errorShown = await page.locator('text=/Invalid|Error|invalid/i').isVisible({ timeout: 3000 }).catch(() => false);
   const stillOnImport = !page.url().includes('index');
-  expect(stillOnImport).toBe(true);
-  
+
+  expect(errorShown || stillOnImport).toBe(true);
+
   await cleanup(context);
 });
 
 test('import with private key', async () => {
   const { context, page } = await launchExtension('wallet-import-privkey');
-  
-  // Check if onboarding page
-  const hasImportOption = await page.getByText('Import Wallet').isVisible().catch(() => false);
-  
-  if (!hasImportOption) {
-    // Wallet already exists, skip this test
-    await cleanup(context);
-    return;
-  }
-  
-  // Click import wallet
-  await page.getByText('Import Wallet').click();
-  await page.waitForTimeout(1000);
-  
-  // Look for private key option
-  const privateKeyOption = page.locator('text=/Private Key|private key/i');
-  if (await privateKeyOption.isVisible()) {
-    await privateKeyOption.click();
-    await page.waitForTimeout(1000);
-    
-    // Test private key (from test mnemonic, first address)
-    const testPrivateKey = 'L1Knwj9W3qK3qMKdTvmg3VfzUs3ij2LETTFhxza9LfD5dngnoLG1';
-    
-    // Enter private key
-    const privateKeyInput = page.locator('input[placeholder*="private key"], textarea[placeholder*="private key"]');
-    await privateKeyInput.fill(testPrivateKey);
-    
-    // Set password
-    await page.locator('input[name="password"]').fill(TEST_PASSWORD);
-    
-    // Submit
-    await page.getByRole('button', { name: /Continue|Import/i }).click();
-    
-    // Should navigate to index
-    await page.waitForURL(/index/, { timeout: 10000 });
-    
-    // Verify wallet loaded
-    await expect(page.locator('text=/Assets|Balances|BTC/')).toBeVisible();
-  }
-  
+
+  // Must be on onboarding page
+  await expect(page.getByText('Import Wallet')).toBeVisible({ timeout: 5000 });
+
+  // Navigate directly to import-private-key page (separate from mnemonic import)
+  const baseUrl = page.url().split('#')[0];
+  await page.goto(`${baseUrl}#/import-private-key`);
+  await page.waitForURL(/import-private-key/, { timeout: 5000 });
+
+  // Test private key (from test mnemonic, first address)
+  const testPrivateKey = 'L1Knwj9W3qK3qMKdTvmg3VfzUs3ij2LETTFhxza9LfD5dngnoLG1';
+
+  // Enter private key
+  const privateKeyInput = page.locator('input[name="private-key"]');
+  await expect(privateKeyInput).toBeVisible({ timeout: 5000 });
+  await privateKeyInput.fill(testPrivateKey);
+
+  // Check the backup confirmation checkbox
+  const backupCheckbox = page.getByLabel(/I have backed up this private key/i);
+  await expect(backupCheckbox).toBeVisible({ timeout: 5000 });
+  await backupCheckbox.check();
+
+  // Set password
+  const passwordInput = page.locator('input[name="password"]');
+  await expect(passwordInput).toBeVisible({ timeout: 5000 });
+  await passwordInput.fill(TEST_PASSWORD);
+
+  // Submit
+  await page.getByRole('button', { name: /Continue/i }).click();
+
+  // Should navigate to index
+  await page.waitForURL(/index/, { timeout: 10000 });
+
+  // Verify wallet loaded
+  await expect(page.locator('text=/Assets|Balances/').first()).toBeVisible({ timeout: 5000 });
+
   await cleanup(context);
 });
