@@ -77,11 +77,31 @@ jobs:
           echo "Starting emulator and bridge via WebSocket API..."
           node scripts/init-trezor-emulator.js
 
+          # Wait for bridge to be ready and verify
+          echo ""
+          echo "Waiting for bridge to be ready..."
+          for i in $(seq 1 30); do
+            if curl -s -X POST http://localhost:21325 > /dev/null 2>&1; then
+              echo "Bridge is responding!"
+              curl -s -X POST http://localhost:21325/enumerate 2>&1 | head -50
+              break
+            fi
+            echo "Attempt $i/30: Bridge not ready yet..."
+            sleep 2
+          done
+
       - name: Build extension
         run: npm run build
 
       - name: Install Playwright browsers
         run: npx playwright install chromium
+
+      - name: Verify bridge before tests
+        run: |
+          echo "Checking bridge availability before tests..."
+          curl -v -X POST http://localhost:21325 2>&1 || echo "Bridge check failed"
+          curl -s -X POST http://localhost:21325/enumerate 2>&1 || echo "Enumerate failed"
+          echo ""
 
       - name: Run Trezor Direct API tests (emulator verification)
         id: direct-tests
