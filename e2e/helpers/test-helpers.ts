@@ -4,7 +4,8 @@ import path from 'path';
 // Constants
 export const TEST_PASSWORD = 'TestPassword123!';
 export const TEST_MNEMONIC = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
-export const TEST_PRIVATE_KEY = 'L1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcd';
+// WIF private key for m/44'/0'/0'/0/0 from TEST_MNEMONIC (abandon x11 + about)
+export const TEST_PRIVATE_KEY = 'L4p2b9VAf8k5aUahF1JCJUzZkgNEAqLfq8DDdQiyAprQAKSbu8hf';
 
 
 // Test data
@@ -215,24 +216,26 @@ export async function launchExtension(testName: string): Promise<ExtensionContex
  * @param password - Password for the wallet (defaults to TEST_PASSWORD)
  */
 export async function createWallet(page: Page, password: string = TEST_PASSWORD): Promise<void> {
-  // Click Create Wallet button - wait for it to be visible first
+  // Click Create Wallet button
   await page.waitForSelector('text=Create Wallet', { timeout: 5000 });
   await page.getByText('Create Wallet').click();
-  await page.waitForTimeout(1000);
 
-  // Reveal phrase - click the area that contains "View 12-word Secret Phrase"
+  // Wait for and click reveal phrase button
   await page.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
   await page.getByText('View 12-word Secret Phrase').click();
-  await page.waitForTimeout(1000);
 
-  // Confirm and submit
-  await page.getByLabel(/I have saved my secret recovery phrase/).check();
-  await page.waitForTimeout(500);
+  // Wait for checkbox to be available then check it
+  const checkbox = page.getByLabel(/I have saved my secret recovery phrase/);
+  await checkbox.waitFor({ state: 'visible', timeout: 5000 });
+  await checkbox.check();
 
-  await page.locator('input[name="password"]').fill(password);
+  // Wait for password field and fill it
+  const passwordInput = page.locator('input[name="password"]');
+  await passwordInput.waitFor({ state: 'visible', timeout: 5000 });
+  await passwordInput.fill(password);
+
+  // Click continue and wait for navigation
   await page.getByRole('button', { name: /Continue/i }).click();
-
-  // Wait for redirect to index
   await page.waitForURL(/index/, { timeout: 10000 });
 }
 
@@ -243,33 +246,32 @@ export async function createWallet(page: Page, password: string = TEST_PASSWORD)
  * @param password - Password for the wallet
  */
 export async function importWallet(
-  page: Page, 
-  mnemonic: string = TEST_MNEMONIC, 
+  page: Page,
+  mnemonic: string = TEST_MNEMONIC,
   password: string = TEST_PASSWORD
 ): Promise<void> {
-  // Click Import Wallet
+  // Click Import Wallet and wait for mnemonic input form
   await page.getByText('Import Wallet').click();
-  await page.waitForTimeout(1000);
-  
+  await page.waitForSelector('input[name="word-0"]', { timeout: 5000 });
+
   // Enter mnemonic words individually
   const words = mnemonic.split(' ');
   for (let i = 0; i < words.length && i < 12; i++) {
-    const input = page.locator(`input[name="word-${i}"]`);
-    await input.fill(words[i]);
+    await page.locator(`input[name="word-${i}"]`).fill(words[i]);
   }
-  
+
   // Check the confirmation checkbox
   const checkbox = page.getByLabel(/I have saved my secret recovery phrase/);
+  await checkbox.waitFor({ state: 'visible', timeout: 5000 });
   await checkbox.check();
-  await page.waitForTimeout(500);
-  
-  // Enter password
-  await page.locator('input[name="password"]').fill(password);
-  
-  // Submit
-  await page.getByRole('button', { name: /Continue/i }).click();
 
-  // Wait for redirect to index - increase timeout for CI
+  // Enter password
+  const passwordInput = page.locator('input[name="password"]');
+  await passwordInput.waitFor({ state: 'visible', timeout: 5000 });
+  await passwordInput.fill(password);
+
+  // Submit and wait for navigation
+  await page.getByRole('button', { name: /Continue/i }).click();
   await page.waitForURL(/index/, { timeout: 15000 });
 }
 
@@ -284,23 +286,27 @@ export async function importPrivateKey(
   privateKey: string = TEST_PRIVATE_KEY,
   password: string = TEST_PASSWORD
 ): Promise<void> {
-  // Click Import Wallet
+  // Click Import Wallet and wait for the form
   await page.getByText('Import Wallet').click();
-  await page.waitForTimeout(1000);
-  
+  await page.waitForSelector('input[name="word-0"]', { timeout: 5000 });
+
   // Switch to private key tab
-  await page.getByText('Private Key').click();
-  
-  // Enter private key
-  await page.locator('input[placeholder*="private key"]').fill(privateKey);
-  
-  // Enter password
-  await page.locator('input[name="password"]').fill(password);
-  
-  // Submit
+  const privateKeyTab = page.getByText('Private Key');
+  await privateKeyTab.waitFor({ state: 'visible', timeout: 5000 });
+  await privateKeyTab.click();
+
+  // Wait for and fill private key input
+  const privateKeyInput = page.locator('input[placeholder*="private key"]');
+  await privateKeyInput.waitFor({ state: 'visible', timeout: 5000 });
+  await privateKeyInput.fill(privateKey);
+
+  // Fill password
+  const passwordInput = page.locator('input[name="password"]');
+  await passwordInput.waitFor({ state: 'visible', timeout: 5000 });
+  await passwordInput.fill(password);
+
+  // Submit and wait for navigation
   await page.getByRole('button', { name: /Import/i }).click();
-  
-  // Wait for redirect to index
   await page.waitForURL(/index/, { timeout: 10000 });
 }
 
@@ -322,14 +328,15 @@ export async function unlockWallet(page: Page, password: string = TEST_PASSWORD)
 export async function lockWallet(page: Page): Promise<void> {
   // Find the lock button - it's typically the last button in the header
   const headerButtons = await page.locator('header button, nav button').all();
-  if (headerButtons.length > 0) {
-    // Click the last button (should be lock)
-    await headerButtons[headerButtons.length - 1].click();
-    await page.waitForTimeout(1000);
-    
-    // Verify we're on unlock page
-    await page.waitForURL(/unlock/, { timeout: 5000 });
+  if (headerButtons.length === 0) {
+    throw new Error('lockWallet: No header/nav buttons found - cannot lock wallet');
   }
+
+  // Click the last button (should be lock)
+  await headerButtons[headerButtons.length - 1].click();
+
+  // Wait for redirect to unlock page
+  await page.waitForURL(/unlock/, { timeout: 5000 });
 }
 
 /**
@@ -355,57 +362,41 @@ export async function setupWallet(page: Page, password: string = TEST_PASSWORD):
  * @param target - The target page ('wallet', 'market', 'actions', 'settings')
  */
 export async function navigateViaFooter(page: Page, target: 'wallet' | 'market' | 'actions' | 'settings'): Promise<void> {
-  // First check if we're on a valid page
   const currentUrl = page.url();
+  const baseUrl = currentUrl.split('#')[0];
+  const targetPath = target === 'wallet' ? 'index' : target;
+  const expectedUrlPattern = target === 'wallet' ? /index/ : new RegExp(target);
+
+  // First check if we're on a 404 page
   if (currentUrl.includes('404') || (await page.locator('text="Not Found"').isVisible({ timeout: 500 }).catch(() => false))) {
-    // Navigate to index first if on 404
-    const baseUrl = currentUrl.split('#')[0];
     await page.goto(`${baseUrl}#/index`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
   }
-  
-  // Try to find footer - multiple possible selectors
+
+  // Try to find and click footer button
   const footerSelectors = [
     'div.grid.grid-cols-4',
     'div.p-2.bg-white.border-t',
     'div:has(> div.grid.grid-cols-4)'
   ];
-  
-  let footerFound = false;
+
+  const buttonIndex = { 'wallet': 0, 'market': 1, 'actions': 2, 'settings': 3 };
+
   for (const selector of footerSelectors) {
     const footer = page.locator(selector).first();
     if (await footer.isVisible({ timeout: 1000 }).catch(() => false)) {
-      footerFound = true;
-      const buttonIndex = {
-        'wallet': 0,
-        'market': 1,
-        'actions': 2,
-        'settings': 3
-      };
-      
-      const index = buttonIndex[target];
-      const footerButton = footer.locator('button').nth(index);
-      
+      const footerButton = footer.locator('button').nth(buttonIndex[target]);
       if (await footerButton.isVisible({ timeout: 1000 }).catch(() => false)) {
         await footerButton.click();
-        await page.waitForTimeout(1000);
-        
-        // Wait for navigation
-        const urlPattern = target === 'wallet' ? /index/ : new RegExp(target);
-        await page.waitForURL(`**/${target === 'wallet' ? 'index' : target}`, { timeout: 5000 }).catch(() => {});
+        await page.waitForURL(expectedUrlPattern, { timeout: 5000 });
         return;
       }
     }
   }
-  
-  // If footer not found, navigate directly
-  if (!footerFound) {
-    const baseUrl = currentUrl.split('#')[0];
-    const targetPath = target === 'wallet' ? 'index' : target;
-    await page.goto(`${baseUrl}#/${targetPath}`);
-    await page.waitForLoadState('networkidle');
-  }
+
+  // Fallback: navigate directly if footer not found
+  await page.goto(`${baseUrl}#/${targetPath}`);
+  await page.waitForLoadState('networkidle');
 }
 
 /**
@@ -417,18 +408,27 @@ export async function addAddress(page: Page, label?: string): Promise<void> {
   // Navigate to addresses
   await page.click('text=Manage Addresses');
   await page.waitForURL(/addresses/, { timeout: 5000 });
-  
+
+  // Count existing addresses before adding
+  const addressesBefore = await page.locator('.font-mono').count();
+
   // Click add address
   await page.click('button:has-text("Add Address")');
-  
+
   // Fill label if provided
   if (label) {
     await page.locator('input[placeholder*="Label"]').fill(label);
   }
-  
-  // Confirm
+
+  // Confirm and wait for new address to appear
   await page.click('button:has-text("Add")');
-  await page.waitForTimeout(1000);
+
+  // Wait for address count to increase
+  await page.waitForFunction(
+    (prevCount) => document.querySelectorAll('.font-mono').length > prevCount,
+    addressesBefore,
+    { timeout: 5000 }
+  );
 }
 
 /**
@@ -637,8 +637,10 @@ export async function fillSendForm(page: Page, recipient: string, amount: string
  */
 export async function searchAssets(page: Page, searchTerm: string): Promise<void> {
   const searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="search"], input[type="search"]').first();
+  await searchInput.waitFor({ state: 'visible', timeout: 5000 });
   await searchInput.fill(searchTerm);
-  await page.waitForTimeout(500); // Wait for search results
+  // Wait for any pending network requests to settle
+  await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
 }
 
 /**
@@ -647,22 +649,24 @@ export async function searchAssets(page: Page, searchTerm: string): Promise<void
  * @param tabName - The tab name ('Assets' or 'Balances')
  */
 export async function switchTab(page: Page, tabName: 'Assets' | 'Balances'): Promise<void> {
-  // Try multiple selectors for tabs
   const tabSelectors = [
     `button[aria-label="View ${tabName}"]`,
     `button:has-text("${tabName}")`,
     `[role="tab"]:has-text("${tabName}")`,
     `text="${tabName}"`
   ];
-  
+
   for (const selector of tabSelectors) {
     const tab = page.locator(selector).first();
     if (await tab.isVisible({ timeout: 1000 }).catch(() => false)) {
       await tab.click();
-      await page.waitForTimeout(500);
+      // Wait for tab content to load
+      await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
       return;
     }
   }
+
+  throw new Error(`switchTab: Could not find tab "${tabName}"`);
 }
 
 /**
