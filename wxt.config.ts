@@ -29,6 +29,8 @@ export default defineConfig({
       ],
       host_permissions: [
         '*://connect.trezor.io/9/*', // Required for Trezor Connect popup communication
+        'http://localhost:21325/*', // Trezor Bridge for emulator testing
+        'http://127.0.0.1:21325/*', // Trezor Bridge alternative address
       ],
     };
 
