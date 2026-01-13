@@ -212,10 +212,15 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       this.connectionStatus = 'connecting';
 
       // Determine test mode from multiple sources:
-      // 1. Explicit option passed to init()
-      // 2. Settings transactionDryRun flag
-      // 3. Trezor Bridge availability (indicates emulator environment)
-      let isTestMode = this.options.testMode === true;
+      // 1. Build-time flag (set via TREZOR_TEST_MODE env var during build)
+      // 2. Explicit option passed to init()
+      // 3. Settings transactionDryRun flag
+      // @ts-expect-error - __TREZOR_TEST_MODE__ is defined by vite at build time
+      let isTestMode = typeof __TREZOR_TEST_MODE__ !== 'undefined' && __TREZOR_TEST_MODE__ === true;
+
+      if (!isTestMode && this.options.testMode === true) {
+        isTestMode = true;
+      }
 
       if (!isTestMode) {
         // Check settings for transactionDryRun
@@ -223,24 +228,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
           const settings = await getSettings();
           isTestMode = settings.transactionDryRun === true;
         } catch {
-          // Settings not available, continue with bridge detection
-        }
-      }
-
-      if (!isTestMode) {
-        // Probe for Trezor Bridge - if it's running, we're likely in emulator environment
-        // This allows automatic test mode detection in CI without configuration
-        try {
-          const bridgeResponse = await fetch('http://localhost:21325/', {
-            method: 'POST',
-            signal: AbortSignal.timeout(1000),
-          });
-          if (bridgeResponse.ok) {
-            console.log('[TrezorAdapter] Bridge detected on localhost - using test mode');
-            isTestMode = true;
-          }
-        } catch {
-          // Bridge not available, use production mode
+          // Settings not available, use production mode
         }
       }
 

@@ -93,6 +93,8 @@ jobs:
           done
 
       - name: Build extension
+        env:
+          TREZOR_TEST_MODE: 'true'
         run: npm run build
 
       - name: Install Playwright browsers

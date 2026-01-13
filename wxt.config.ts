@@ -60,5 +60,10 @@ export default defineConfig({
       ...(configEnv.mode === 'production' ? [removeConsole({ includes: ['log', 'error'] })] : []),
       tailwindcss(),
     ],
+    define: {
+      // Enable Trezor test mode when TREZOR_TEST_MODE env var is set
+      // This is used in CI to allow the extension to connect to the emulator via BridgeTransport
+      __TREZOR_TEST_MODE__: JSON.stringify(process.env.TREZOR_TEST_MODE === 'true'),
+    },
   }),
 });
