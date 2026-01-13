@@ -142,24 +142,21 @@ test.describe('Compose Transactions', () => {
       page.locator('button').filter({ hasText: /^Send$|^Submit$|^Continue$|^Next$/ })
     ).last();
     
-    if (await submitBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await submitBtn.click();
-      
-      // Wait for API error to appear
-      await page.waitForTimeout(2000);
-      
-      // Check for error message - API errors usually appear in ErrorAlert component
-      const hasError = await page.locator('.text-red-500, .text-red-600, [role="alert"], .bg-red-50').isVisible({ timeout: 3000 }).catch(() => false);
-      
-      // Also check if we're still on the same page (error prevented navigation)
-      const stillOnSendPage = page.url().includes('compose/send');
-      
-      // Test passes if there's an error shown or we didn't navigate away
-      expect(hasError || stillOnSendPage).toBeTruthy();
-    } else {
-      // If no submit button, just pass
-      expect(true).toBeTruthy();
-    }
+    await expect(submitBtn).toBeVisible({ timeout: 3000 });
+    await submitBtn.click();
+
+    // Wait for page to respond
+    await page.waitForLoadState('networkidle');
+
+    // Check for error message - API errors usually appear in ErrorAlert component
+    const errorElement = page.locator('.text-red-500, .text-red-600, [role="alert"], .bg-red-50');
+
+    // Also check if we're still on the same page (error prevented navigation)
+    const stillOnSendPage = page.url().includes('compose/send');
+
+    // Test passes if there's an error shown or we didn't navigate away
+    const hasError = await errorElement.isVisible({ timeout: 3000 }).catch(() => false);
+    expect(hasError || stillOnSendPage).toBeTruthy();
     
     await cleanup(context);
   });
@@ -363,27 +360,34 @@ test.describe('Compose Transactions', () => {
     const { context, page } = await launchExtension('fee-estimation');
     await setupWallet(page);
     await enableDryRunMode(page);
-    
+
     // Click Send button
     await page.locator('button[aria-label="Send tokens"]').click();
     await page.waitForURL('**/compose/send/BTC', { timeout: 10000 });
-    
+
+    // Fill destination
+    const destinationInput = page.locator('input[placeholder="Enter destination address"]');
+    await expect(destinationInput).toBeVisible({ timeout: 5000 });
+    await destinationInput.fill('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh');
+
     // Fill initial amount
-    await page.fill('input[placeholder="Enter destination address"]', 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh');
-    await page.fill('input[name="quantity"]', '0.001');
-    
-    // Wait for initial fee estimation
-    await page.waitForTimeout(1000);
-    
+    const quantityInput = page.locator('input[name="quantity"]');
+    await expect(quantityInput).toBeVisible({ timeout: 5000 });
+    await quantityInput.fill('0.001');
+
+    // Wait for page to process the input
+    await page.waitForLoadState('networkidle');
+
     // Change amount to trigger fee update
-    await page.fill('input[name="quantity"]', '0.01');
-    
+    await quantityInput.fill('0.01');
+
     // Wait for fee to potentially update
-    await page.waitForTimeout(1000);
-    
-    // Test passes - fee estimation logic works
-    expect(true).toBeTruthy();
-    
+    await page.waitForLoadState('networkidle');
+
+    // Verify we're still on the send form and it's functional
+    expect(page.url()).toContain('/compose/send/BTC');
+    await expect(quantityInput).toHaveValue('0.01');
+
     await cleanup(context);
   });
 

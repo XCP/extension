@@ -70,20 +70,18 @@ test.describe('Broadcast Form', () => {
   test('file upload workflow when available', async () => {
     const { context, page } = await launchExtension('broadcast-file-upload');
     await setupWallet(page);
-    
+
     // Navigate to broadcast
     await navigateViaFooter(page, 'actions');
     await page.locator('text="Broadcast"').first().click();
     await page.waitForURL('**/compose/broadcast', { timeout: 10000 });
-    
+
     // Check if inscription is available
     const toggleButton = page.locator('button[role="switch"]').first();
     const toggleExists = await toggleButton.count() > 0;
-    
+
     if (!toggleExists) {
-      console.log('Inscription not available for this wallet - skipping file upload test');
-      await cleanup(context);
-      return;
+      test.skip(true, 'Inscription not available for this wallet type');
     }
     
     // Enable inscription mode
@@ -128,60 +126,46 @@ test.describe('Broadcast Form', () => {
   test('validates file size limit when inscription available', async () => {
     const { context, page } = await launchExtension('broadcast-file-size');
     await setupWallet(page);
-    
+
     // Navigate to broadcast
     await navigateViaFooter(page, 'actions');
     const broadcastButton = page.locator('text=/Broadcast/i').first();
-    if (await broadcastButton.isVisible({ timeout: 5000 })) {
-      await broadcastButton.click();
-    } else {
-      await page.goto(page.url().replace(/\/[^\/]*$/, '/compose/broadcast'));
-    }
-    
-    await page.waitForURL('**/compose/broadcast', { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(2000);
-    
+    await expect(broadcastButton).toBeVisible({ timeout: 5000 });
+    await broadcastButton.click();
+
+    await page.waitForURL('**/compose/broadcast', { timeout: 10000 });
+    await page.waitForLoadState('networkidle');
+
     // Check if inscription is available
     const toggleButton = page.locator('button[role="switch"]').first();
     const toggleExists = await toggleButton.isVisible({ timeout: 5000 }).catch(() => false);
-    
+
     if (!toggleExists) {
-      console.log('Inscription not available for this wallet - skipping file size test');
-      // Just verify we're on the broadcast page
-      expect(page.url()).toContain('broadcast');
-      await cleanup(context);
-      return;
+      test.skip(true, 'Inscription not available for this wallet type');
     }
-    
+
     // Enable inscription mode
     await toggleButton.click();
-    await page.waitForTimeout(500);
-    
+    await page.waitForLoadState('networkidle');
+
     // Try to upload a file larger than 400KB
     const largeContent = 'x'.repeat(450 * 1024); // 450KB
-    
-    try {
-      const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 5000 });
-      const chooseFileButton = page.locator('text=/Choose File/i').first();
-      if (await chooseFileButton.isVisible({ timeout: 2000 })) {
-        await chooseFileButton.click();
-        const fileChooser = await fileChooserPromise;
-        
-        await fileChooser.setFiles({
-          name: 'large-file.txt',
-          mimeType: 'text/plain',
-          buffer: Buffer.from(largeContent)
-        });
-        
-        // Should show error for large file
-        const errorVisible = await page.locator('text=/File size must be less than 400KB/i').isVisible({ timeout: 5000 }).catch(() => false);
-        expect(errorVisible).toBe(true);
-      }
-    } catch (e) {
-      // File chooser might not be available, just pass the test
-      console.log('File chooser not available - skipping file size validation');
-    }
-    
+
+    const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 5000 });
+    const chooseFileButton = page.locator('text=/Choose File/i').first();
+    await expect(chooseFileButton).toBeVisible({ timeout: 5000 });
+    await chooseFileButton.click();
+    const fileChooser = await fileChooserPromise;
+
+    await fileChooser.setFiles({
+      name: 'large-file.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from(largeContent)
+    });
+
+    // Should show error for large file
+    await expect(page.locator('text=/File size must be less than 400KB/i')).toBeVisible({ timeout: 5000 });
+
     await cleanup(context);
   });
 
