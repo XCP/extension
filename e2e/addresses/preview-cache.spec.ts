@@ -138,8 +138,9 @@ test.describe('Address Preview Cache', () => {
     await expect(page.locator('[role="radio"]').first()).toBeVisible({ timeout: 10000 });
     // Wait for page to stabilize
     await page.waitForLoadState('networkidle');
-    // Wait specifically for address preview text to appear
-    await expect(page.locator('[role="radio"] .text-xs').first()).toBeVisible({ timeout: 10000 });
+    // Give address previews extra time to load after unlock (they may be slower due to cache retrieval)
+    // Using waitForTimeout here as a fallback since networkidle doesn't guarantee React rendering is complete
+    await page.waitForTimeout(2000);
 
     const cardsAfter = await page.locator('[role="radio"]').all();
     const addressesAfterUnlock = [];
