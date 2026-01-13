@@ -192,8 +192,9 @@ export function analyzeEncoding(outputs: DecodedOutput[]): EncodingAnalysis {
   }
 
   // Build description
+  // Cast to full type to prevent TypeScript narrowing (pubkeyhash detection may be added later)
   let description: string;
-  switch (encoding) {
+  switch (encoding as CounterpartyEncoding) {
     case 'opreturn':
       description = 'Standard OP_RETURN encoding - data embedded in transaction outputs';
       break;

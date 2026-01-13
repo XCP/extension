@@ -234,7 +234,7 @@ async function generateIdempotencyKeyAsync(origin: string, method: string, param
 
   const encoder = new TextEncoder();
   const data = encoder.encode(input);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data as BufferSource);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   // Take first 16 bytes for a reasonable key length
   const hashHex = hashArray.slice(0, 16).map(b => b.toString(16).padStart(2, '0')).join('');

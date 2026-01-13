@@ -17,10 +17,11 @@ import type { DecodedOutput } from '@/utils/blockchain/bitcoin/psbt';
 // Helper to create mock outputs
 function createOutput(type: string, value: number, options?: { address?: string; script?: string; opReturnData?: string }): DecodedOutput {
   return {
+    index: 0,
     type: type as DecodedOutput['type'],
     value,
     address: options?.address,
-    script: options?.script,
+    script: options?.script ?? '',
     opReturnData: options?.opReturnData,
   };
 }

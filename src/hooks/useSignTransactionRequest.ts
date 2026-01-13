@@ -38,7 +38,8 @@ export interface DecodedTransactionInfo {
     index: number;
     value: number;
     address?: string;
-    type: string;
+    type: 'p2pkh' | 'p2wpkh' | 'p2sh' | 'p2tr' | 'op_return' | 'unknown';
+    script: string;
     opReturnData?: string;
   }>;
   totalInputValue: number;
@@ -65,6 +66,26 @@ function emitToBackground(event: string, data: unknown): void {
   });
 }
 
+/**
+ * Map Bitcoin API script type to our output type
+ */
+function mapScriptType(apiType: string): DecodedTransactionInfo['outputs'][0]['type'] {
+  switch (apiType) {
+    case 'nulldata':
+      return 'op_return';
+    case 'pubkeyhash':
+      return 'p2pkh';
+    case 'scripthash':
+      return 'p2sh';
+    case 'witness_v0_keyhash':
+      return 'p2wpkh';
+    case 'witness_v1_taproot':
+      return 'p2tr';
+    default:
+      return 'unknown';
+  }
+}
+
 export function useSignTransactionRequest() {
   const [searchParams] = useSearchParams();
   const [request, setRequest] = useState<SignTransactionRequest | null>(null);
@@ -87,13 +108,14 @@ export function useSignTransactionRequest() {
     }));
 
     const outputs: DecodedTransactionInfo['outputs'] = decoded.vout.map((vout: any) => {
-      const isOpReturn = vout.scriptPubKey.type === 'nulldata';
+      const outputType = mapScriptType(vout.scriptPubKey.type);
       return {
         index: vout.n,
         value: Math.round(vout.value * 100000000), // Convert to satoshis
         address: vout.scriptPubKey.address,
-        type: isOpReturn ? 'op_return' : vout.scriptPubKey.type,
-        opReturnData: isOpReturn ? vout.scriptPubKey.hex : undefined
+        type: outputType,
+        script: vout.scriptPubKey.hex ?? '',
+        opReturnData: outputType === 'op_return' ? vout.scriptPubKey.hex : undefined
       };
     });
 

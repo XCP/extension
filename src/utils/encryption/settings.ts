@@ -123,7 +123,7 @@ async function getOrCreateSalt(): Promise<Uint8Array<ArrayBuffer>> {
 async function deriveKey(password: string, salt: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
   const passwordKey = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(password),
+    encoder.encode(password) as BufferSource,
     'PBKDF2',
     false,
     ['deriveKey']
@@ -213,7 +213,7 @@ export async function encryptSettings(settings: AppSettings): Promise<string> {
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv, tagLength: GCM_TAG_LENGTH },
     key,
-    plaintext
+    plaintext as BufferSource
   );
 
   // Combine IV + ciphertext
@@ -357,7 +357,7 @@ export async function encryptSettingsWithPassword(
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv, tagLength: GCM_TAG_LENGTH },
     derivedKey,
-    plaintext
+    plaintext as BufferSource
   );
 
   const combined = combineBuffers(iv, new Uint8Array(ciphertext));
