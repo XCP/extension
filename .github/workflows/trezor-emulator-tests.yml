@@ -151,6 +151,25 @@ jobs:
         continue-on-error: true
         run: xvfb-run npx playwright test e2e/hardware/trezor.spec.ts --reporter=list
 
+      - name: Release device sessions before Operations tests
+        run: |
+          echo "Releasing any stale device sessions..."
+          # Get devices and release any active sessions
+          DEVICES=$(curl -s -X POST http://localhost:21325/enumerate 2>&1) || DEVICES="[]"
+          echo "Current devices: $DEVICES"
+          # Parse sessions and release them (using jq if available, or just wait)
+          if command -v jq &> /dev/null; then
+            echo "$DEVICES" | jq -r '.[] | select(.session != null) | .session' | while read session; do
+              if [ -n "$session" ]; then
+                echo "Releasing session: $session"
+                curl -s -X POST "http://localhost:21325/release/$session" || true
+              fi
+            done
+          fi
+          # Wait a moment for sessions to clear
+          sleep 2
+          echo "Sessions released"
+
       - name: Run Trezor Operations E2E tests
         id: ops-tests
         timeout-minutes: 15

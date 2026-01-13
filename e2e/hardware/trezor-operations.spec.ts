@@ -14,6 +14,7 @@ import {
   emulatorPressYes,
   startAutoConfirm,
   getEmulatorStatus,
+  releaseAllDeviceSessions,
   EXPECTED_ADDRESSES,
 } from '../helpers/trezor-emulator';
 
@@ -83,6 +84,15 @@ test.describe('Trezor Hardware Wallet Operations', () => {
     if (!status.bridgeAvailable) {
       console.warn('Trezor bridge not available - tests may fail');
     }
+  });
+
+  test.beforeEach(async () => {
+    // Release any existing device sessions before each test
+    // This helps prevent "handshake failed" errors from stale sessions
+    console.log('Releasing device sessions...');
+    await releaseAllDeviceSessions();
+    // Small delay to ensure sessions are fully released
+    await new Promise((r) => setTimeout(r, 1000));
   });
 
   test('can sign a message with hardware wallet', async () => {

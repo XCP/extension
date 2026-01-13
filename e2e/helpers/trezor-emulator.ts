@@ -229,6 +229,64 @@ export interface EmulatorStatus {
 }
 
 /**
+ * Release all device sessions via the bridge
+ * This helps when previous tests left the device in a busy state
+ */
+export async function releaseAllDeviceSessions(): Promise<void> {
+  try {
+    // First enumerate to get current devices
+    const enumResponse = await fetch(`${BRIDGE_API}/enumerate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!enumResponse.ok) return;
+
+    const devices = await enumResponse.json();
+    if (!Array.isArray(devices)) return;
+
+    // Release any sessions that exist
+    for (const device of devices) {
+      if (device.session) {
+        try {
+          await fetch(`${BRIDGE_API}/release/${device.session}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+            signal: AbortSignal.timeout(2000),
+          });
+          console.log(`Released session ${device.session} for device ${device.path}`);
+        } catch {
+          // Ignore errors releasing sessions
+        }
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+}
+
+/**
+ * Reset the emulator via WebSocket controller
+ * This is more thorough than just releasing sessions
+ */
+export async function resetEmulatorViaWebSocket(): Promise<boolean> {
+  try {
+    // The WebSocket controller on port 9001 can reset the emulator
+    // We'll try to restart just the emulator part
+    const response = await fetch(`${EMULATOR_HTTP_API}/client/emulator-wipe`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(5000),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Get full emulator status
  */
 export async function getEmulatorStatus(): Promise<EmulatorStatus> {
