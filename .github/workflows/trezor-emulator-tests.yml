@@ -99,8 +99,29 @@ jobs:
       - name: Verify bridge before tests
         run: |
           echo "Checking bridge availability before tests..."
-          curl -v -X POST http://localhost:21325 2>&1 || echo "Bridge check failed"
-          curl -s -X POST http://localhost:21325/enumerate 2>&1 || echo "Enumerate failed"
+          echo ""
+          echo "1. Checking if bridge is responding..."
+          if curl -s -X POST http://localhost:21325 > /dev/null 2>&1; then
+            echo "   ✓ Bridge is responding"
+          else
+            echo "   ✗ Bridge NOT responding"
+            echo "   Checking what's listening on port 21325..."
+            netstat -tlnp 2>/dev/null || ss -tlnp 2>/dev/null || echo "   Cannot check ports"
+            echo ""
+            echo "   Checking container status..."
+            docker ps 2>/dev/null || echo "   Cannot check containers"
+          fi
+          echo ""
+          echo "2. Enumerating devices..."
+          DEVICES=$(curl -s -X POST http://localhost:21325/enumerate 2>&1) || DEVICES="Failed to enumerate"
+          echo "   $DEVICES"
+          echo ""
+          echo "3. Checking emulator HTTP API..."
+          if curl -s http://localhost:9001/status > /dev/null 2>&1; then
+            echo "   ✓ Emulator HTTP API is responding"
+          else
+            echo "   ✗ Emulator HTTP API NOT responding"
+          fi
           echo ""
 
       - name: Run Trezor Direct API tests (emulator verification)
