@@ -294,11 +294,13 @@ test.describe('Settings with Headless UI Components', () => {
     await advancedOption.click();
     await page.waitForURL(/advanced/, { timeout: 5000 });
 
-    // Wait for page to stabilize
+    // Wait for page to stabilize and switches to be visible
     await page.waitForLoadState('networkidle');
+    const switchLocator = page.locator('[role="switch"]');
+    await expect(switchLocator.first()).toBeVisible({ timeout: 10000 });
 
     // Check for proper ARIA attributes on switch components
-    const switches = await page.locator('[role="switch"]').all();
+    const switches = await switchLocator.all();
     expect(switches.length).toBeGreaterThan(0);
 
     for (const switchEl of switches) {
