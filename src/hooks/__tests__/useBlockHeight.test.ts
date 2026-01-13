@@ -36,7 +36,7 @@ describe('useBlockHeight', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('should handle fetch error', async () => {
+  it('should handle fetch error with generic message', async () => {
     const error = new Error('Network error');
     (getCurrentBlockHeight as any).mockRejectedValue(error);
 
@@ -47,7 +47,8 @@ describe('useBlockHeight', () => {
     });
 
     expect(result.current.blockHeight).toBeNull();
-    expect(result.current.error).toBe('Network error');
+    // Error should be generic to prevent leaking internal details
+    expect(result.current.error).toBe('Unable to fetch current block height.');
   });
 
   it('should auto-refresh block height when interval is set', async () => {

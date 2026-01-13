@@ -1,4 +1,3 @@
-"use client";
 
 import { useEffect, useState } from "react";
 import { Field, Label, Description, Textarea, Input } from "@headlessui/react";

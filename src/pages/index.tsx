@@ -1,4 +1,3 @@
-"use client";
 
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -39,7 +38,7 @@ const CONSTANTS = {
 } as const;
 
 export default function Index(): ReactElement {
-  const { activeWallet, activeAddress, lockAll, loaded } = useWallet();
+  const { activeWallet, activeAddress, lockAll, isLoading } = useWallet();
   const { setHeaderProps } = useHeader();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -71,11 +70,11 @@ export default function Index(): ReactElement {
       }
     };
 
-    // Only check if loaded and we have a wallet
-    if (loaded && activeWallet) {
+    // Only check if loading is complete and we have a wallet
+    if (!isLoading && activeWallet) {
       checkPendingApprovals();
     }
-  }, [loaded, activeWallet, navigate]);
+  }, [isLoading, activeWallet, navigate]);
 
   useEffect(() => {
     setHeaderProps({
@@ -203,7 +202,7 @@ export default function Index(): ReactElement {
     );
   };
 
-  const content = !loaded ? (
+  const content = isLoading ? (
     <div className="p-4">Loading wallet data…</div>
   ) : !activeWallet || !activeAddress ? (
     <div className="p-4">No wallet unlocked.</div>

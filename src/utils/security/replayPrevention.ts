@@ -29,15 +29,64 @@ interface IdempotencyRecord {
   key: string;
   origin: string;
   method: string;
-  response: any;
+  response: unknown;
   timestamp: number;
   expiresAt: number;
+}
+
+// Constants for input validation and limits
+const MAX_ORIGIN_LENGTH = 2048;  // URL max practical length
+const MAX_ADDRESS_LENGTH = 128;  // Bitcoin addresses are ~34-62 chars
+const MAX_METHOD_LENGTH = 128;   // API method names
+const MAX_TXID_LENGTH = 128;     // Transaction IDs
+const MAX_PARAMS_STRING_LENGTH = 10240;  // 10KB max for serialized params
+
+/**
+ * Creates a collision-resistant key for origin:address pairs.
+ * Uses JSON.stringify to avoid collision when either contains delimiters.
+ */
+function createNonceKey(origin: string, address: string): string {
+  return JSON.stringify([origin, address]);
+}
+
+/**
+ * Truncates a string to a maximum length, appending indicator if truncated.
+ */
+function truncateString(str: string, maxLength: number): string {
+  if (str.length <= maxLength) return str;
+  return str.slice(0, maxLength - 12) + '[truncated]';
+}
+
+/**
+ * Validates that a string parameter is present and within length limits.
+ * Returns the value or a safe default for defense-in-depth.
+ */
+function validateStringParam(value: unknown, maxLength: number, defaultValue: string): string {
+  if (typeof value !== 'string') {
+    return defaultValue;
+  }
+  if (value.length > maxLength) {
+    return truncateString(value, maxLength);
+  }
+  return value;
+}
+
+/**
+ * Validates that a nonce parameter is a finite positive integer.
+ * Returns undefined if invalid.
+ */
+function validateNonceParam(value: unknown): number | undefined {
+  if (typeof value !== 'number') return undefined;
+  if (!Number.isFinite(value)) return undefined;
+  if (value < 0) return undefined;
+  if (!Number.isInteger(value)) return undefined;
+  return value;
 }
 
 // In-memory storage (could be persisted to browser.storage if needed)
 class ReplayPreventionStore {
   private transactions = new Map<string, TransactionRecord>();
-  private nonces = new Map<string, NonceRecord>(); // key: `${origin}:${address}`
+  private nonces = new Map<string, NonceRecord>(); // key: JSON.stringify([origin, address])
   private idempotencyKeys = new Map<string, IdempotencyRecord>();
   private cleanupInterval: NodeJS.Timeout | null = null;
 
@@ -95,7 +144,7 @@ class ReplayPreventionStore {
   }
 
   setNonce(origin: string, address: string, nonce: number): void {
-    const key = `${origin}:${address}`;
+    const key = createNonceKey(origin, address);
     this.nonces.set(key, {
       origin,
       address,
@@ -105,7 +154,7 @@ class ReplayPreventionStore {
   }
 
   getNonce(origin: string, address: string): number {
-    const key = `${origin}:${address}`;
+    const key = createNonceKey(origin, address);
     const record = this.nonces.get(key);
     return record ? record.nonce : 0;
   }
@@ -114,7 +163,7 @@ class ReplayPreventionStore {
     this.idempotencyKeys.set(record.key, record);
   }
 
-  getIdempotencyResult(key: string): any | undefined {
+  getIdempotencyResult(key: string): unknown | undefined {
     const record = this.idempotencyKeys.get(key);
     if (record && Date.now() <= record.expiresAt) {
       return record.response;
@@ -133,21 +182,37 @@ class ReplayPreventionStore {
 const store = new ReplayPreventionStore();
 
 /**
- * Generate a secure nonce for the given origin and address
+ * Generate a secure nonce for the given origin and address.
+ * Input validation ensures defense-in-depth even if callers don't validate.
  */
 export function generateNonce(origin: string, address: string): number {
-  const currentNonce = store.getNonce(origin, address);
+  // Validate and sanitize inputs
+  const safeOrigin = validateStringParam(origin, MAX_ORIGIN_LENGTH, 'unknown');
+  const safeAddress = validateStringParam(address, MAX_ADDRESS_LENGTH, 'unknown');
+
+  const currentNonce = store.getNonce(safeOrigin, safeAddress);
   const newNonce = currentNonce + 1;
-  store.setNonce(origin, address, newNonce);
+  store.setNonce(safeOrigin, safeAddress, newNonce);
   return newNonce;
 }
 
 /**
- * Validate that a nonce is the expected next nonce
+ * Validate that a nonce is the expected next nonce.
+ * Input validation ensures defense-in-depth even if callers don't validate.
  */
 export function validateNonce(origin: string, address: string, providedNonce: number): boolean {
-  const expectedNonce = store.getNonce(origin, address) + 1;
-  return providedNonce === expectedNonce;
+  // Validate and sanitize inputs
+  const safeOrigin = validateStringParam(origin, MAX_ORIGIN_LENGTH, 'unknown');
+  const safeAddress = validateStringParam(address, MAX_ADDRESS_LENGTH, 'unknown');
+  const safeNonce = validateNonceParam(providedNonce);
+
+  // Invalid nonce format always fails validation
+  if (safeNonce === undefined) {
+    return false;
+  }
+
+  const expectedNonce = store.getNonce(safeOrigin, safeAddress) + 1;
+  return safeNonce === expectedNonce;
 }
 
 /**
@@ -156,8 +221,14 @@ export function validateNonce(origin: string, address: string, providedNonce: nu
  * Note: crypto.subtle is guaranteed to be available in Chrome extension context
  * (Chrome requires secure context). We don't need availability checks.
  */
-async function generateIdempotencyKeyAsync(origin: string, method: string, params: any[]): Promise<string> {
-  const paramsString = JSON.stringify(params);
+async function generateIdempotencyKeyAsync(origin: string, method: string, params: unknown[]): Promise<string> {
+  // Safely stringify params - use fallback if circular refs or other issues
+  let paramsString: string;
+  try {
+    paramsString = JSON.stringify(params);
+  } catch {
+    paramsString = '[unserializable]';
+  }
   const timestamp = Math.floor(Date.now() / 1000); // Second precision
   const input = `${origin}:${method}:${paramsString}:${timestamp}`;
 
@@ -174,8 +245,14 @@ async function generateIdempotencyKeyAsync(origin: string, method: string, param
  * Synchronous version for backward compatibility - uses simple hash
  * @deprecated Use generateIdempotencyKeyAsync when possible
  */
-function generateIdempotencyKeyInternal(origin: string, method: string, params: any[]): string {
-  const paramsString = JSON.stringify(params);
+function generateIdempotencyKeyInternal(origin: string, method: string, params: unknown[]): string {
+  // Safely stringify params - use fallback if circular refs or other issues
+  let paramsString: string;
+  try {
+    paramsString = JSON.stringify(params);
+  } catch {
+    paramsString = '[unserializable]';
+  }
   const timestamp = Math.floor(Date.now() / 1000);
   const input = `${origin}:${method}:${paramsString}:${timestamp}`;
 
@@ -199,7 +276,7 @@ export { generateIdempotencyKeyAsync };
 export async function checkReplayAttempt(
   origin: string,
   method: string,
-  params: any[],
+  params: unknown[],
   options: {
     requireNonce?: boolean;
     nonce?: number;
@@ -209,7 +286,7 @@ export async function checkReplayAttempt(
 ): Promise<{
   isReplay: boolean;
   reason?: string;
-  cachedResponse?: any;
+  cachedResponse?: unknown;
 }> {
   const { requireNonce = false, nonce, address, idempotencyKey } = options;
   
@@ -232,10 +309,10 @@ export async function checkReplayAttempt(
     if (requireNonce && nonce !== undefined && address) {
       if (!validateNonce(origin, address, nonce)) {
         // Analytics: replay_prevented
-        
+        // Note: Generic error message to avoid leaking expected nonce value
         return {
           isReplay: true,
-          reason: `Invalid nonce. Expected: ${store.getNonce(origin, address) + 1}, Provided: ${nonce}`
+          reason: 'Invalid nonce'
         };
       }
     }
@@ -265,8 +342,9 @@ export async function checkReplayAttempt(
     return { isReplay: false };
     
   } catch (error) {
+    // Fail closed: if we can't verify it's not a replay, reject for safety
     console.error('Error checking replay attempt:', error);
-    return { isReplay: false };
+    return { isReplay: true, reason: 'Internal error - request blocked for safety' };
   }
 }
 
@@ -277,7 +355,7 @@ export function recordTransaction(
   txid: string,
   origin: string,
   method: string,
-  params: any[],
+  params: unknown[],
   options: {
     idempotencyKey?: string;
     nonce?: string;
@@ -285,18 +363,27 @@ export function recordTransaction(
   } = {}
 ): void {
   const { idempotencyKey, nonce, status = 'pending' } = options;
-  
+
+  // Safely stringify params - use fallback if circular refs or other issues
+  let paramsString: string;
+  try {
+    paramsString = JSON.stringify(params);
+  } catch {
+    paramsString = '[unserializable]';
+  }
+
+  // Truncate fields to prevent memory exhaustion from large inputs
   const record: TransactionRecord = {
-    txid,
+    txid: truncateString(txid, MAX_TXID_LENGTH),
     timestamp: Date.now(),
-    origin,
-    method,
-    params: JSON.stringify(params),
+    origin: truncateString(origin, MAX_ORIGIN_LENGTH),
+    method: truncateString(method, MAX_METHOD_LENGTH),
+    params: truncateString(paramsString, MAX_PARAMS_STRING_LENGTH),
     idempotencyKey,
     nonce,
     status
   };
-  
+
   store.addTransaction(record);
 }
 
@@ -307,7 +394,7 @@ export function recordIdempotencyResponse(
   key: string,
   origin: string,
   method: string,
-  response: any,
+  response: unknown,
   ttlMinutes: number = 60
 ): void {
   const record: IdempotencyRecord = {
@@ -382,7 +469,7 @@ export function clearReplayPreventionData(): void {
 export async function withReplayPrevention<T>(
   origin: string,
   method: string,
-  params: any[],
+  params: unknown[],
   handler: () => Promise<T>,
   options: {
     requireNonce?: boolean;
@@ -425,7 +512,8 @@ export async function withReplayPrevention<T>(
   if (replayCheck.isReplay) {
     if (replayCheck.cachedResponse) {
       // Return cached response for idempotent requests
-      return replayCheck.cachedResponse;
+      // Type assertion: cachedResponse was stored as T, returning as T
+      return replayCheck.cachedResponse as T;
     } else {
       // Reject replay attempts
       throw new Error(`Request rejected: ${replayCheck.reason}`);

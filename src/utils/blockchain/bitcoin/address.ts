@@ -193,10 +193,17 @@ export function encodeAddress(publicKey: Uint8Array, addressFormat: AddressForma
     }
     case AddressFormat.P2TR: {
       // For Taproot, use BIP341 tweaking (best practice)
+      // Validate public key length before extracting x-only portion
+      if (publicKey.length < 33) {
+        throw new Error('Invalid public key: must be at least 33 bytes for P2TR');
+      }
       const xOnlyPubKey = publicKey.slice(1, 33);
       // Use btc.p2tr to apply BIP341 tweaking
       const p2tr = btc.p2tr(xOnlyPubKey, undefined, btc.NETWORK);
-      return p2tr.address!;
+      if (!p2tr.address) {
+        throw new Error('Failed to derive P2TR address');
+      }
+      return p2tr.address;
     }
     case AddressFormat.Counterwallet: {
       // For Counterwallet, we use a legacy P2PKH scheme.
@@ -330,8 +337,11 @@ export async function detectAddressFormat(
 /**
  * Get preview addresses for all address formats
  * Used in settings to show users what addresses would look like
+ *
+ * Note: Returns Partial because individual format derivations can fail.
+ * Callers should handle missing formats gracefully.
  */
-export function getPreviewAddresses(mnemonic: string): Record<AddressFormat, string> {
+export function getPreviewAddresses(mnemonic: string): Partial<Record<AddressFormat, string>> {
   const formats = [
     AddressFormat.P2PKH,
     AddressFormat.P2SH_P2WPKH,
@@ -352,7 +362,7 @@ export function getPreviewAddresses(mnemonic: string): Record<AddressFormat, str
     }
   }
 
-  return previews as Record<AddressFormat, string>;
+  return previews;
 }
 
 /**

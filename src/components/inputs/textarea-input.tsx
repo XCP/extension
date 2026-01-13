@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactElement } from "react";
 import { Field, Label, Textarea, Description } from "@headlessui/react";
 
 interface TextAreaInputProps {
@@ -23,6 +23,12 @@ interface TextAreaInputProps {
   onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
 }
 
+/**
+ * TextAreaInput provides a multi-line text input with label and validation.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the textarea input field
+ */
 export function TextAreaInput({
   value,
   onChange,
@@ -43,7 +49,7 @@ export function TextAreaInput({
   className = "",
   readOnly = false,
   onPaste,
-}: TextAreaInputProps) {
+}: TextAreaInputProps): ReactElement {
   const [localValue, setLocalValue] = useState(value);
   const [isValid, setIsValid] = useState(true);
   const [error, setError] = useState<string | null>(null);

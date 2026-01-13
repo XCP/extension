@@ -1,4 +1,3 @@
-"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
@@ -8,8 +7,8 @@ import { ErrorAlert } from "@/components/error-alert";
 import { AddressList } from "@/components/lists/address-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { MAX_ADDRESSES_PER_WALLET } from "@/utils/wallet/walletManager";
-import type { Address } from "@/utils/wallet/walletManager";
+import { MAX_ADDRESSES_PER_WALLET } from "@/utils/wallet/constants";
+import type { Address } from "@/types/wallet";
 import type { ReactElement } from "react";
 
 /**

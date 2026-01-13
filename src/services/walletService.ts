@@ -1,8 +1,19 @@
+/**
+ * WalletService - Core wallet state management
+ *
+ * Manages wallet lifecycle, authentication, and state:
+ * - Wallet creation, import, and deletion
+ * - Password-based unlock/lock
+ * - Active wallet and address selection
+ * - Provider event emission for dApp integration
+ */
+
 import { defineProxyService } from '@/utils/proxy';
 import { MessageBus } from '@/services/core/MessageBus';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import { walletManager, type Wallet, type Address } from '@/utils/wallet/walletManager';
+import { walletManager } from '@/utils/wallet/walletManager';
+import type { Wallet, Address } from '@/types/wallet';
 import { getSettings, updateSettings } from '@/utils/storage/settingsStorage';
 import type { HardwareWalletVendor } from '@/utils/hardware/types';
 
@@ -108,7 +119,7 @@ function createWalletService(): WalletService {
         await MessageBus.notifyWalletLocked(true);
       } catch (error) {
         // Popup might not be open, which is fine
-        console.debug('Could not notify popup of lock event:', error);
+        console.debug('[WalletService] Could not notify popup of lock event:', error);
       }
       // Emit disconnect event to connected dApps
       // Broadcast to all tabs (no origin specified)

@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { WalletMenu } from '../wallet-menu';
-import type { Wallet } from '@/utils/wallet/walletManager';
+import type { Wallet } from '@/types/wallet';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 const mockNavigate = vi.fn();

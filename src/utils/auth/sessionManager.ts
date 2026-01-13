@@ -52,10 +52,10 @@ import {
   validateSecret,
   validateTimeout,
   validateSessionMetadata,
-  checkRateLimit,
+  assertRateLimit,
   clearRateLimit,
   clearAllRateLimits,
-  checkSecretLimit,
+  assertSecretLimit,
 } from '@/utils/validation/session';
 import {
   getSessionMetadata,
@@ -144,11 +144,11 @@ export function storeUnlockedSecret(walletId: string, secret: string): void {
   validateSecret(secret);
   
   // Check rate limiting
-  checkRateLimit(walletId);
+  assertRateLimit(walletId);
   
   // Check total number of stored secrets to prevent memory exhaustion
   const currentSecretCount = Object.keys(unlockedSecrets).length;
-  checkSecretLimit(currentSecretCount, walletId, unlockedSecrets);
+  assertSecretLimit(currentSecretCount, walletId, unlockedSecrets);
   
   // Store the secret
   unlockedSecrets[walletId] = secret;
@@ -235,16 +235,23 @@ export async function clearAllUnlockedSecrets(): Promise<void> {
 /**
  * Updates the last active time to mark user activity.
  * Also updates the persisted session metadata and reschedules the expiry alarm.
+ *
+ * Note: There's a potential TOCTOU race between reading and writing metadata.
+ * We re-check session validity after the async read to avoid resurrecting
+ * a session that was cleared by clearAllUnlockedSecrets() during the await.
  */
 export async function setLastActiveTime(): Promise<void> {
   lastActiveTime = Date.now();
-  
+
   // Update persisted session metadata
   const metadata = await getSessionMetadata();
-  if (metadata) {
+
+  // Re-check: If session was cleared during await, metadata might be stale
+  // or the session might have been intentionally cleared. Don't resurrect it.
+  if (metadata && !await isSessionExpired()) {
     metadata.lastActiveTime = lastActiveTime;
     await persistSessionMetadata(metadata);
-    
+
     // Reschedule the session expiry alarm to reset the countdown
     await scheduleSessionExpiry(metadata.timeout);
   }

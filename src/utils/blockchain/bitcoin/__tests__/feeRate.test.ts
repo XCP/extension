@@ -49,7 +49,7 @@ describe('Fee Rate Utilities', () => {
       });
 
       await expect(fetchFromMempoolSpace()).rejects.toThrow(
-        'Failed to fetch fee rates from mempool.space'
+        'Failed to fetch fee rates'
       );
     });
 
@@ -64,7 +64,7 @@ describe('Fee Rate Utilities', () => {
       });
 
       await expect(fetchFromMempoolSpace()).rejects.toThrow(
-        'Invalid data format from mempool.space'
+        'Invalid response data format'
       );
     });
 
@@ -79,7 +79,7 @@ describe('Fee Rate Utilities', () => {
       });
 
       await expect(fetchFromMempoolSpace()).rejects.toThrow(
-        'Invalid data format from mempool.space'
+        'Invalid response data format'
       );
     });
 
@@ -94,7 +94,7 @@ describe('Fee Rate Utilities', () => {
       });
 
       await expect(fetchFromMempoolSpace()).rejects.toThrow(
-        'Invalid data format from mempool.space'
+        'Invalid response data format'
       );
     });
 
@@ -108,7 +108,7 @@ describe('Fee Rate Utilities', () => {
       });
 
       await expect(fetchFromMempoolSpace()).rejects.toThrow(
-        'Invalid data format from mempool.space'
+        'Invalid response data format'
       );
     });
 
@@ -188,7 +188,7 @@ describe('Fee Rate Utilities', () => {
       });
 
       await expect(fetchFromBlockstream()).rejects.toThrow(
-        'Failed to fetch fee rates from blockstream.info'
+        'Failed to fetch fee rates'
       );
     });
 
@@ -205,7 +205,7 @@ describe('Fee Rate Utilities', () => {
       });
 
       await expect(fetchFromBlockstream()).rejects.toThrow(
-        'Invalid data format from blockstream.info'
+        'Invalid response data format'
       );
     });
 
@@ -222,7 +222,7 @@ describe('Fee Rate Utilities', () => {
       });
 
       await expect(fetchFromBlockstream()).rejects.toThrow(
-        'Invalid data format from blockstream.info'
+        'Invalid response data format'
       );
     });
 
@@ -239,7 +239,7 @@ describe('Fee Rate Utilities', () => {
       });
 
       await expect(fetchFromBlockstream()).rejects.toThrow(
-        'Invalid data format from blockstream.info'
+        'Invalid response data format'
       );
     });
 
@@ -256,7 +256,7 @@ describe('Fee Rate Utilities', () => {
       });
 
       await expect(fetchFromBlockstream()).rejects.toThrow(
-        'Invalid data format from blockstream.info'
+        'Invalid response data format'
       );
     });
 
@@ -282,7 +282,7 @@ describe('Fee Rate Utilities', () => {
       });
 
       await expect(fetchFromBlockstream()).rejects.toThrow(
-        'Invalid data format from blockstream.info'
+        'Invalid response data format'
       );
     });
 

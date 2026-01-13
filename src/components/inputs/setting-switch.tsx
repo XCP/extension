@@ -1,4 +1,3 @@
-"use client";
 
 import { useState } from "react";
 import { Field, Label, Description, Switch } from "@headlessui/react";

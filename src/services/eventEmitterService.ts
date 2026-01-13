@@ -24,7 +24,7 @@
  *
  * **Trade-offs**:
  * - Harder to trace request flow (no stack trace)
- * - Mitigated by: request IDs, debug logging, ADR-004 future tracing
+ * - Mitigated by: request IDs, debug logging, ADR-003 future tracing
  *
  * ### Singleton Export Pattern
  *
@@ -85,7 +85,7 @@ class EventEmitterService extends BaseService {
         try {
           callback(data);
         } catch (error) {
-          console.error(`Error in event listener for ${key}:`, error);
+          console.error(`[EventEmitter] Error in event listener for ${key}:`, error);
         }
       });
     }
@@ -98,7 +98,7 @@ class EventEmitterService extends BaseService {
           try {
             callback(data, origin);
           } catch (error) {
-            console.error(`Error in wildcard listener for ${event}:`, error);
+            console.error(`[EventEmitter] Error in wildcard listener for ${event}:`, error);
           }
         });
       }
@@ -236,7 +236,7 @@ class EventEmitterService extends BaseService {
         try {
           callback(data);
         } catch (error) {
-          console.error(`Error in event listener for ${event}:`, error);
+          console.error(`[EventEmitter] Error in event listener for ${event}:`, error);
         }
       });
     }
@@ -264,13 +264,13 @@ class EventEmitterService extends BaseService {
 
   protected async onInitialize(): Promise<void> {
     // No specific initialization needed
-    console.log('EventEmitterService initialized');
+    console.log('[EventEmitter] Initialized');
   }
 
   protected async onDestroy(): Promise<void> {
     // Clear all state on destroy
     this.clear();
-    console.log('EventEmitterService destroyed');
+    console.log('[EventEmitter] Destroyed');
   }
 
   protected getSerializableState(): SerializedEventEmitterState | null {
@@ -290,12 +290,12 @@ class EventEmitterService extends BaseService {
     // We can't restore actual callbacks, but we can log what was previously registered
     // This helps with debugging service worker restarts
     if (state.listenerKeys.length > 0) {
-      console.log('EventEmitterService: Previous listener keys:', state.listenerKeys);
-      console.log('Note: Listeners must re-register after service worker restart');
+      console.log('[EventEmitter] Previous listener keys:', state.listenerKeys);
+      console.log('[EventEmitter] Note: Listeners must re-register after service worker restart');
     }
     
     if (state.pendingRequestIds.length > 0) {
-      console.warn('EventEmitterService: Pending requests lost during restart:', state.pendingRequestIds);
+      console.warn('[EventEmitter] Pending requests lost during restart:', state.pendingRequestIds);
       // These requests are now orphaned and will need to timeout on their own
     }
   }

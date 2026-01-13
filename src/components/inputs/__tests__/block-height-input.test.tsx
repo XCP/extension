@@ -143,24 +143,25 @@ describe('BlockHeightInput', () => {
     expect(setError).toHaveBeenCalledWith('Network error');
   });
 
-  it('should handle refresh errors', async () => {
+  it('should handle refresh errors with generic message', async () => {
     const setError = vi.fn();
     const refresh = vi.fn().mockRejectedValue(new Error('API Error'));
-    
+
     mockUseBlockHeight.mockReturnValue({
       blockHeight: null,
       isLoading: false,
       error: null,
       refresh
     });
-    
+
     render(<BlockHeightInput {...defaultProps} setError={setError} />);
-    
+
     const nowButton = screen.getByLabelText('Use current block height');
     fireEvent.click(nowButton);
-    
+
+    // Error should be generic to prevent leaking internal details
     await waitFor(() => {
-      expect(setError).toHaveBeenCalledWith('API Error');
+      expect(setError).toHaveBeenCalledWith('Failed to fetch current block height. Please try again.');
     });
   });
 

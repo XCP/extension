@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactElement } from "react";
 import { Field, Label, Input, Description } from "@headlessui/react";
 import { FaPlus, FiMinus } from "@/components/icons";
 import { Button } from "@/components/button";
@@ -24,6 +24,12 @@ interface NumberInputProps {
   className?: string;
 }
 
+/**
+ * NumberInput provides numeric input with validation, step buttons, and formatting.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the number input field
+ */
 export function NumberInput({
   value,
   onChange,
@@ -43,7 +49,7 @@ export function NumberInput({
   showStepButtons = false,
   format = "decimal",
   className = "",
-}: NumberInputProps) {
+}: NumberInputProps): ReactElement {
   const [localValue, setLocalValue] = useState(value.toString());
   const [isValid, setIsValid] = useState(true);
   const [error, setError] = useState<string | null>(null);

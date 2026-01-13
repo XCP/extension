@@ -1,4 +1,5 @@
 import { KeyedTTLCache, CacheTTL } from '@/utils/cache';
+import { DataFetchError } from '@/utils/blockchain/errors';
 
 /**
  * Supported fiat currencies for price display.
@@ -54,45 +55,51 @@ export interface PriceData {
 
 /**
  * Fetches Bitcoin price from Coinbase API.
- * @returns {Promise<PriceData>} Price data in USD.
- * @throws {Error} If the API response is invalid.
+ * @returns Price data in USD.
+ * @throws {DataFetchError} If the API response is invalid.
  */
-export const fetchFromCoinbase = async (): Promise<PriceData> => {
+export async function fetchFromCoinbase(): Promise<PriceData> {
   const response = await fetch("https://api.coinbase.com/v2/prices/spot?currency=USD");
   const data = await response.json();
   if (!data || !data.data || !data.data.amount) {
-    throw new Error("Invalid data from Coinbase");
+    throw new DataFetchError("Invalid response data", "coinbase.com", {
+      endpoint: "/v2/prices/spot",
+    });
   }
   return { bitcoin: { usd: parseFloat(data.data.amount) } };
-};
+}
 
 /**
  * Fetches Bitcoin price from Kraken API.
- * @returns {Promise<PriceData>} Price data in USD.
- * @throws {Error} If the API response is invalid.
+ * @returns Price data in USD.
+ * @throws {DataFetchError} If the API response is invalid.
  */
-export const fetchFromKraken = async (): Promise<PriceData> => {
+export async function fetchFromKraken(): Promise<PriceData> {
   const response = await fetch("https://api.kraken.com/0/public/Ticker?pair=XBTUSD");
   const data = await response.json();
   if (!data.result || !data.result.XXBTZUSD || !data.result.XXBTZUSD.c) {
-    throw new Error("Invalid data from Kraken");
+    throw new DataFetchError("Invalid response data", "kraken.com", {
+      endpoint: "/0/public/Ticker",
+    });
   }
   return { bitcoin: { usd: parseFloat(data.result.XXBTZUSD.c[0]) } };
-};
+}
 
 /**
  * Fetches Bitcoin price from Mempool.space API.
- * @returns {Promise<PriceData>} Price data in USD.
- * @throws {Error} If the API response is invalid.
+ * @returns Price data in USD.
+ * @throws {DataFetchError} If the API response is invalid.
  */
-export const fetchFromMempool = async (): Promise<PriceData> => {
+export async function fetchFromMempool(): Promise<PriceData> {
   const response = await fetch("https://mempool.space/api/v1/prices");
   const data = await response.json();
   if (!data || typeof data.USD !== "number") {
-    throw new Error("Invalid data from Mempool.space");
+    throw new DataFetchError("Invalid response data", "mempool.space", {
+      endpoint: "/api/v1/prices",
+    });
   }
   return { bitcoin: { usd: data.USD } };
-};
+}
 
 // Ordered list of price fetcher functions
 const priceFetchers = [
@@ -103,16 +110,18 @@ const priceFetchers = [
 
 /**
  * Fetches Bitcoin price concurrently from multiple APIs, returning the first successful result.
- * @param {Array<() => Promise<PriceData>>} fetchers - List of price fetcher functions.
- * @returns {Promise<number | null>} Bitcoin price in USD or null if all fail.
+ * @param fetchers - List of price fetcher functions.
+ * @returns Bitcoin price in USD or null if all fail.
  */
-export const getBtcPrice = async (
+export async function getBtcPrice(
   fetchers: Array<() => Promise<PriceData>> = priceFetchers
-): Promise<number | null> => {
+): Promise<number | null> {
   const promises = fetchers.map(async (fetcher) => {
     const data = await fetcher();
     const price = data.bitcoin?.usd;
-    if (typeof price !== "number" || isNaN(price)) throw new Error(`${fetcher.name} returned invalid price`);
+    if (typeof price !== "number" || isNaN(price)) {
+      throw new DataFetchError(`${fetcher.name} returned invalid price`, "price-fetcher");
+    }
     return price;
   });
 
@@ -120,7 +129,7 @@ export const getBtcPrice = async (
     console.error("All BTC price fetchers failed");
     return null;
   });
-};
+}
 
 /**
  * Price point for historical data
@@ -173,29 +182,45 @@ const timeRangeToMs: Record<TimeRange, number> = {
 /**
  * Keyed caches for price data to avoid rate limits.
  * 10 minute TTL to balance freshness vs API rate limits.
+ * Clone functions prevent callers from mutating cached data.
  */
-const priceHistoryCache = new KeyedTTLCache<string, PricePoint[]>(CacheTTL.VERY_LONG);
-const statsCache = new KeyedTTLCache<string, BtcStats>(CacheTTL.VERY_LONG);
+const priceHistoryCache = new KeyedTTLCache<string, PricePoint[]>(
+  CacheTTL.VERY_LONG,
+  (arr) => arr.map((p) => ({ ...p })) // Deep clone array of price points
+);
+const statsCache = new KeyedTTLCache<string, BtcStats>(
+  CacheTTL.VERY_LONG,
+  (stats) => ({ ...stats }) // Shallow clone (no nested objects)
+);
 
 function getCacheKey(range: TimeRange, currency: FiatCurrency): string {
   return `${range}-${currency}`;
 }
 
+/** Inflight requests for deduplication - prevents duplicate API calls */
+const inflightHistory = new Map<string, Promise<PricePoint[]>>();
+const inflightStats = new Map<string, Promise<BtcStats | null>>();
+
 /**
  * Fetches historical BTC price data from CoinGecko (supports multiple currencies)
  */
-const fetchHistoryFromCoinGecko = async (range: TimeRange, currency: FiatCurrency): Promise<PricePoint[]> => {
+async function fetchHistoryFromCoinGecko(range: TimeRange, currency: FiatCurrency): Promise<PricePoint[]> {
   const days = timeRangeToDays[range];
   const url = `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=${currency}&days=${days}`;
 
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`CoinGecko API error: ${response.status}`);
+    throw new DataFetchError(`API error: ${response.status}`, "coingecko.com", {
+      endpoint: "/api/v3/coins/bitcoin/market_chart",
+      statusCode: response.status,
+    });
   }
 
   const data = await response.json();
   if (!data.prices || !Array.isArray(data.prices)) {
-    throw new Error('Invalid data from CoinGecko');
+    throw new DataFetchError("Invalid response data", "coingecko.com", {
+      endpoint: "/api/v3/coins/bitcoin/market_chart",
+    });
   }
 
   let prices: PricePoint[] = data.prices.map(([timestamp, price]: [number, number]) => ({
@@ -210,12 +235,12 @@ const fetchHistoryFromCoinGecko = async (range: TimeRange, currency: FiatCurrenc
   }
 
   return prices;
-};
+}
 
 /**
  * Fetches historical BTC price data from CoinCap (USD only)
  */
-const fetchHistoryFromCoinCap = async (range: TimeRange): Promise<PricePoint[]> => {
+async function fetchHistoryFromCoinCap(range: TimeRange): Promise<PricePoint[]> {
   const interval = timeRangeToCoinCapInterval[range];
   const now = Date.now();
   const start = now - timeRangeToMs[range];
@@ -224,41 +249,51 @@ const fetchHistoryFromCoinCap = async (range: TimeRange): Promise<PricePoint[]> 
 
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`CoinCap API error: ${response.status}`);
+    throw new DataFetchError(`API error: ${response.status}`, "coincap.io", {
+      endpoint: "/v2/assets/bitcoin/history",
+      statusCode: response.status,
+    });
   }
 
   const data = await response.json();
   if (!data.data || !Array.isArray(data.data)) {
-    throw new Error('Invalid data from CoinCap');
+    throw new DataFetchError("Invalid response data", "coincap.io", {
+      endpoint: "/v2/assets/bitcoin/history",
+    });
   }
 
   return data.data.map((point: { time: number; priceUsd: string }) => ({
     timestamp: point.time,
     price: parseFloat(point.priceUsd),
   }));
-};
+}
 
 /**
  * Fetches current BTC price from CoinCap (USD only)
  */
-const fetchStatsFromCoinCap = async (): Promise<BtcStats> => {
+async function fetchStatsFromCoinCap(): Promise<BtcStats> {
   const url = 'https://api.coincap.io/v2/assets/bitcoin';
 
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`CoinCap API error: ${response.status}`);
+    throw new DataFetchError(`API error: ${response.status}`, "coincap.io", {
+      endpoint: "/v2/assets/bitcoin",
+      statusCode: response.status,
+    });
   }
 
   const data = await response.json();
   if (!data.data || !data.data.priceUsd) {
-    throw new Error('Invalid data from CoinCap');
+    throw new DataFetchError("Invalid response data", "coincap.io", {
+      endpoint: "/v2/assets/bitcoin",
+    });
   }
 
   return {
     price: parseFloat(data.data.priceUsd),
     change24h: parseFloat(data.data.changePercent24Hr) || 0,
   };
-};
+}
 
 /**
  * Fetches historical BTC price data with fallback sources
@@ -266,7 +301,7 @@ const fetchStatsFromCoinCap = async (): Promise<BtcStats> => {
  * @param currency - Fiat currency for prices (default: usd)
  * @returns Array of price points
  */
-export const getBtcPriceHistory = async (range: TimeRange, currency: FiatCurrency = 'usd'): Promise<PricePoint[]> => {
+export async function getBtcPriceHistory(range: TimeRange, currency: FiatCurrency = 'usd'): Promise<PricePoint[]> {
   const cacheKey = getCacheKey(range, currency);
 
   // Return cached data if still valid
@@ -276,47 +311,64 @@ export const getBtcPriceHistory = async (range: TimeRange, currency: FiatCurrenc
     return cached;
   }
 
+  // Deduplicate concurrent requests - share the same promise
+  const inflight = inflightHistory.get(cacheKey);
+  if (inflight) {
+    console.log(`[BTC Price] Joining inflight request for ${cacheKey}`);
+    return inflight;
+  }
+
   console.log(`[BTC Price] Fetching ${range} data for ${currency}`);
 
-  // Try CoinGecko first
-  try {
-    const prices = await fetchHistoryFromCoinGecko(range, currency);
-    console.log(`[BTC Price] CoinGecko returned ${prices.length} data points`);
-    priceHistoryCache.set(cacheKey, prices);
-    return prices;
-  } catch (geckoError) {
-    console.warn('[BTC Price] CoinGecko failed:', geckoError);
+  // Create and track the fetch promise
+  const fetchPromise = (async (): Promise<PricePoint[]> => {
+    // Try CoinGecko first
+    try {
+      const prices = await fetchHistoryFromCoinGecko(range, currency);
+      console.log(`[BTC Price] CoinGecko returned ${prices.length} data points`);
+      priceHistoryCache.set(cacheKey, prices);
+      return prices;
+    } catch (geckoError) {
+      console.warn('[BTC Price] CoinGecko failed:', geckoError);
 
-    // Try CoinCap as fallback (USD only)
-    if (currency === 'usd') {
-      try {
-        console.log('[BTC Price] Trying CoinCap fallback...');
-        const prices = await fetchHistoryFromCoinCap(range);
-        console.log(`[BTC Price] CoinCap returned ${prices.length} data points`);
-        priceHistoryCache.set(cacheKey, prices);
-        return prices;
-      } catch (capError) {
-        console.warn('[BTC Price] CoinCap fallback failed:', capError);
+      // Try CoinCap as fallback (USD only)
+      if (currency === 'usd') {
+        try {
+          console.log('[BTC Price] Trying CoinCap fallback...');
+          const prices = await fetchHistoryFromCoinCap(range);
+          console.log(`[BTC Price] CoinCap returned ${prices.length} data points`);
+          priceHistoryCache.set(cacheKey, prices);
+          return prices;
+        } catch (capError) {
+          console.warn('[BTC Price] CoinCap fallback failed:', capError);
+        }
       }
-    }
 
-    // Return stale cache if available (for stale-while-revalidate pattern)
-    const staleData = priceHistoryCache.getStale(cacheKey);
-    if (staleData !== null) {
-      console.log('[BTC Price] Using stale cache');
-      return staleData;
-    }
+      // Return stale cache if available (for stale-while-revalidate pattern)
+      const staleData = priceHistoryCache.getStale(cacheKey);
+      if (staleData !== null) {
+        console.log('[BTC Price] Using stale cache');
+        return staleData;
+      }
 
-    throw geckoError;
+      throw geckoError;
+    }
+  })();
+
+  inflightHistory.set(cacheKey, fetchPromise);
+  try {
+    return await fetchPromise;
+  } finally {
+    inflightHistory.delete(cacheKey);
   }
-};
+}
 
 /**
  * Fetches current BTC price with 24h statistics with fallback sources
  * @param currency - Fiat currency for prices (default: usd)
  * @returns BTC stats including price and change percentage
  */
-export const getBtc24hStats = async (currency: FiatCurrency = 'usd'): Promise<BtcStats | null> => {
+export async function getBtc24hStats(currency: FiatCurrency = 'usd'): Promise<BtcStats | null> {
   const cacheKey = `stats-${currency}`;
 
   // Return cached data if still valid
@@ -326,49 +378,71 @@ export const getBtc24hStats = async (currency: FiatCurrency = 'usd'): Promise<Bt
     return cached;
   }
 
-  // Try CoinGecko first
-  try {
-    const url = `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=${currency}&include_24hr_change=true`;
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(`CoinGecko API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (!data.bitcoin) {
-      throw new Error('Invalid data from CoinGecko');
-    }
-
-    const stats: BtcStats = {
-      price: data.bitcoin[currency],
-      change24h: data.bitcoin[`${currency}_24h_change`],
-    };
-
-    statsCache.set(cacheKey, stats);
-    return stats;
-  } catch (geckoError) {
-    console.warn('[BTC Price] CoinGecko stats failed:', geckoError);
-
-    // Try CoinCap as fallback (USD only)
-    if (currency === 'usd') {
-      try {
-        console.log('[BTC Price] Trying CoinCap stats fallback...');
-        const stats = await fetchStatsFromCoinCap();
-        statsCache.set(cacheKey, stats);
-        return stats;
-      } catch (capError) {
-        console.warn('[BTC Price] CoinCap stats fallback failed:', capError);
-      }
-    }
-
-    // Return stale cache if available (for stale-while-revalidate pattern)
-    const staleData = statsCache.getStale(cacheKey);
-    if (staleData !== null) {
-      console.log('[BTC Price] Using stale stats cache');
-      return staleData;
-    }
-
-    return null;
+  // Deduplicate concurrent requests - share the same promise
+  const inflight = inflightStats.get(cacheKey);
+  if (inflight) {
+    console.log(`[BTC Price] Joining inflight stats request for ${cacheKey}`);
+    return inflight;
   }
-};
+
+  // Create and track the fetch promise
+  const fetchPromise = (async (): Promise<BtcStats | null> => {
+    // Try CoinGecko first
+    try {
+      const url = `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=${currency}&include_24hr_change=true`;
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new DataFetchError(`API error: ${response.status}`, "coingecko.com", {
+          endpoint: "/api/v3/simple/price",
+          statusCode: response.status,
+        });
+      }
+
+      const data = await response.json();
+      if (!data.bitcoin) {
+        throw new DataFetchError("Invalid response data", "coingecko.com", {
+          endpoint: "/api/v3/simple/price",
+        });
+      }
+
+      const stats: BtcStats = {
+        price: data.bitcoin[currency],
+        change24h: data.bitcoin[`${currency}_24h_change`],
+      };
+
+      statsCache.set(cacheKey, stats);
+      return stats;
+    } catch (geckoError) {
+      console.warn('[BTC Price] CoinGecko stats failed:', geckoError);
+
+      // Try CoinCap as fallback (USD only)
+      if (currency === 'usd') {
+        try {
+          console.log('[BTC Price] Trying CoinCap stats fallback...');
+          const stats = await fetchStatsFromCoinCap();
+          statsCache.set(cacheKey, stats);
+          return stats;
+        } catch (capError) {
+          console.warn('[BTC Price] CoinCap stats fallback failed:', capError);
+        }
+      }
+
+      // Return stale cache if available (for stale-while-revalidate pattern)
+      const staleData = statsCache.getStale(cacheKey);
+      if (staleData !== null) {
+        console.log('[BTC Price] Using stale stats cache');
+        return staleData;
+      }
+
+      return null;
+    }
+  })();
+
+  inflightStats.set(cacheKey, fetchPromise);
+  try {
+    return await fetchPromise;
+  } finally {
+    inflightStats.delete(cacheKey);
+  }
+}

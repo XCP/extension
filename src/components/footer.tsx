@@ -1,9 +1,15 @@
+import { type ReactElement } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaWallet, FaUniversity, FaTools, FaCog } from '@/components/icons';
 import { Button } from '@/components/button';
 import { useSettings } from '@/contexts/settings-context';
 
-export const Footer = () => {
+/**
+ * Footer provides bottom navigation with icons for main app sections.
+ *
+ * @returns A ReactElement representing the footer navigation bar
+ */
+export const Footer = (): ReactElement => {
   const navigate = useNavigate();
   const location = useLocation();
   const { settings } = useSettings();

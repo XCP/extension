@@ -32,9 +32,9 @@ export function PasswordInput({
 }: PasswordInputProps) {
   const [showPassword, setShowPassword] = useState(false);
 
-  function handleTogglePassword() {
+  const handleTogglePassword = () => {
     setShowPassword((prev) => !prev);
-  }
+  };
 
   return (
     <Field>

@@ -91,14 +91,15 @@ export const BalanceList = (): ReactElement => {
 
         const pinnedAssets = settings?.pinnedAssets || [];
         const nonBTCAssets = pinnedAssets.filter((asset) => asset.toUpperCase() !== "BTC");
-        const balancePromises = nonBTCAssets.map((asset) =>
-          fetchTokenBalance(activeAddress.address, asset)
-            .then((balance) => ({ asset, balance }))
-            .catch((error) => {
-              console.error(`Error fetching ${asset} balance:`, error);
-              return null;
-            })
-        );
+        const balancePromises = nonBTCAssets.map(async (asset) => {
+          try {
+            const balance = await fetchTokenBalance(activeAddress.address, asset);
+            return { asset, balance };
+          } catch (error) {
+            console.error(`Error fetching ${asset} balance:`, error);
+            return null;
+          }
+        });
         const results = await Promise.all(balancePromises);
         results.forEach((result) => {
           if (result && result.balance && !isCancelled) {

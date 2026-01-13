@@ -27,7 +27,7 @@ describe('HeaderContext', () => {
       
       expect(() => {
         renderHook(() => useHeader());
-      }).toThrow('useHeader must be used within a HeaderProvider component.');
+      }).toThrow('useHeader must be used within a HeaderProvider');
       
       spy.mockRestore();
     });

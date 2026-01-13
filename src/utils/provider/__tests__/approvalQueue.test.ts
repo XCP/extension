@@ -2,7 +2,7 @@
  * Unit tests for ApprovalQueue - tests the actual exported module
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { approvalQueue, getApprovalBadgeText, type ApprovalRequest } from '../approvalQueue';
+import { approvalQueue, getApprovalBadgeText, ApprovalQueueFullError, type ApprovalRequest } from '../approvalQueue';
 
 describe('ApprovalQueue', () => {
   beforeEach(() => {
@@ -255,6 +255,146 @@ describe('ApprovalQueue', () => {
       expect(approvalQueue.get('new')).toBeDefined();
     });
   });
+
+  describe('Security Limits', () => {
+    it('should reject requests when per-origin limit is reached', () => {
+      const origin = 'https://example.com';
+
+      // Add 10 requests (the per-origin limit)
+      for (let i = 0; i < 10; i++) {
+        approvalQueue.add({
+          id: `test-${i}`,
+          origin,
+          method: 'xcp_requestAccounts',
+          params: {},
+          type: 'connection',
+        });
+      }
+
+      expect(approvalQueue.getCount()).toBe(10);
+
+      // 11th request should throw
+      expect(() => {
+        approvalQueue.add({
+          id: 'test-overflow',
+          origin,
+          method: 'xcp_requestAccounts',
+          params: {},
+          type: 'connection',
+        });
+      }).toThrow(ApprovalQueueFullError);
+
+      // Queue should still have 10 items
+      expect(approvalQueue.getCount()).toBe(10);
+    });
+
+    it('should allow requests from different origins up to global limit', () => {
+      // Add 10 requests each from 10 different origins (100 total)
+      for (let originIdx = 0; originIdx < 10; originIdx++) {
+        for (let reqIdx = 0; reqIdx < 10; reqIdx++) {
+          approvalQueue.add({
+            id: `test-${originIdx}-${reqIdx}`,
+            origin: `https://site${originIdx}.com`,
+            method: 'xcp_requestAccounts',
+            params: {},
+            type: 'connection',
+          });
+        }
+      }
+
+      expect(approvalQueue.getCount()).toBe(100);
+    });
+
+    it('should reject requests when global queue limit is reached', () => {
+      // Fill queue to max (100 requests from 10 origins)
+      for (let originIdx = 0; originIdx < 10; originIdx++) {
+        for (let reqIdx = 0; reqIdx < 10; reqIdx++) {
+          approvalQueue.add({
+            id: `test-${originIdx}-${reqIdx}`,
+            origin: `https://site${originIdx}.com`,
+            method: 'xcp_requestAccounts',
+            params: {},
+            type: 'connection',
+          });
+        }
+      }
+
+      expect(approvalQueue.getCount()).toBe(100);
+
+      // Any new request should throw (global limit)
+      expect(() => {
+        approvalQueue.add({
+          id: 'test-overflow',
+          origin: 'https://newsite.com',
+          method: 'xcp_requestAccounts',
+          params: {},
+          type: 'connection',
+        });
+      }).toThrow(ApprovalQueueFullError);
+    });
+
+    it('should allow adding after removing requests', () => {
+      const origin = 'https://example.com';
+
+      // Add 10 requests (the per-origin limit)
+      for (let i = 0; i < 10; i++) {
+        approvalQueue.add({
+          id: `test-${i}`,
+          origin,
+          method: 'xcp_requestAccounts',
+          params: {},
+          type: 'connection',
+        });
+      }
+
+      // Remove one
+      approvalQueue.remove('test-0');
+      expect(approvalQueue.getCount()).toBe(9);
+
+      // Now we should be able to add one more
+      expect(() => {
+        approvalQueue.add({
+          id: 'test-new',
+          origin,
+          method: 'xcp_requestAccounts',
+          params: {},
+          type: 'connection',
+        });
+      }).not.toThrow();
+
+      expect(approvalQueue.getCount()).toBe(10);
+    });
+
+    it('should throw ApprovalQueueFullError with descriptive message', () => {
+      const origin = 'https://example.com';
+
+      // Add 10 requests (the per-origin limit)
+      for (let i = 0; i < 10; i++) {
+        approvalQueue.add({
+          id: `test-${i}`,
+          origin,
+          method: 'xcp_requestAccounts',
+          params: {},
+          type: 'connection',
+        });
+      }
+
+      try {
+        approvalQueue.add({
+          id: 'test-overflow',
+          origin,
+          method: 'xcp_requestAccounts',
+          params: {},
+          type: 'connection',
+        });
+        expect.fail('Should have thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ApprovalQueueFullError);
+        expect((error as Error).message).toContain('Too many pending requests');
+        expect((error as Error).message).toContain('max 10');
+      }
+    });
+  });
 });
 
 describe('getApprovalBadgeText', () => {
@@ -275,8 +415,10 @@ describe('getApprovalBadgeText', () => {
   });
 
   it('should return 99+ for large counts', () => {
+    // Use multiple origins to avoid per-origin limit (10 per origin)
     for (let i = 0; i < 100; i++) {
-      approvalQueue.add({ id: `${i}`, origin: 'a', method: 'm', params: {}, type: 'connection' });
+      const origin = `https://site${Math.floor(i / 10)}.com`;
+      approvalQueue.add({ id: `${i}`, origin, method: 'm', params: {}, type: 'connection' });
     }
     expect(getApprovalBadgeText()).toBe('99+');
   });

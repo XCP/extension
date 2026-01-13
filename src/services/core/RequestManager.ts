@@ -6,7 +6,7 @@
  *
  * ## Architecture Decision Records
  *
- * ### ADR-007: Request Callbacks Lost on Service Worker Restart (Acceptable)
+ * ### ADR-006: Request Callbacks Lost on Service Worker Restart (Acceptable)
  *
  * **Context**: When Chrome's service worker restarts (due to inactivity, updates,
  * or crashes), all in-memory JavaScript state is lost. This includes:
@@ -53,11 +53,26 @@ export class RequestManager {
   private readonly cleanupIntervalMs: number;
   private readonly maxRequests: number;
 
+  /**
+   * @param timeoutMs Request timeout in milliseconds (must be positive)
+   * @param cleanupIntervalMs Cleanup interval in milliseconds (must be positive)
+   * @param maxRequests Maximum pending requests (must be positive integer)
+   * @throws Error if any parameter is invalid
+   */
   constructor(
     timeoutMs: number = 300000, // 5 minutes default
     cleanupIntervalMs: number = 60000, // 1 minute default
     maxRequests: number = 100 // Maximum pending requests
   ) {
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+      throw new Error(`timeoutMs must be a positive number, got: ${timeoutMs}`);
+    }
+    if (!Number.isFinite(cleanupIntervalMs) || cleanupIntervalMs <= 0) {
+      throw new Error(`cleanupIntervalMs must be a positive number, got: ${cleanupIntervalMs}`);
+    }
+    if (!Number.isInteger(maxRequests) || maxRequests < 1) {
+      throw new Error(`maxRequests must be a positive integer, got: ${maxRequests}`);
+    }
     this.timeoutMs = timeoutMs;
     this.cleanupIntervalMs = cleanupIntervalMs;
     this.maxRequests = maxRequests;
@@ -65,7 +80,13 @@ export class RequestManager {
   }
 
   /**
-   * Add a new pending request
+   * Add a new pending request.
+   * If a request with the same ID already exists, it will be rejected before being replaced.
+   * @param id Non-empty string identifier for the request
+   * @param resolve Function to call when request succeeds
+   * @param reject Function to call when request fails
+   * @param metadata Optional metadata for tracking
+   * @throws Error if id is empty or resolve/reject are not functions
    */
   add(
     id: string,
@@ -73,13 +94,27 @@ export class RequestManager {
     reject: (reason: any) => void,
     metadata?: Partial<PendingRequest>
   ): void {
+    // Validate id is non-empty string
+    if (!id || typeof id !== 'string') {
+      throw new Error('Request ID must be a non-empty string');
+    }
+
+    // Validate resolve and reject are functions
+    if (typeof resolve !== 'function' || typeof reject !== 'function') {
+      throw new Error('resolve and reject must be functions');
+    }
+
     // Check max size limit (unless replacing existing request)
     if (!this.requests.has(id) && this.requests.size >= this.maxRequests) {
       throw new Error(`Request limit exceeded (max ${this.maxRequests}). Please wait for pending requests to complete.`);
     }
 
+    // If request already exists, reject the old one before replacing
+    // This prevents orphaned promises that would never resolve/reject
     if (this.requests.has(id)) {
-      console.warn(`Request ${id} already exists, replacing with new request`);
+      const oldRequest = this.requests.get(id)!;
+      oldRequest.reject(new Error(`Request ${id} superseded by new request`));
+      console.warn(`[RequestManager] Request ${id} already exists, rejecting old and replacing`);
     }
 
     this.requests.set(id, {
@@ -179,7 +214,7 @@ export class RequestManager {
         request.reject(new Error(`Request timeout after ${this.timeoutMs}ms`));
         cleaned++;
         
-        console.debug(`Request ${id} timed out`, {
+        console.debug(`[RequestManager] Request ${id} timed out`, {
           origin: request.origin,
           method: request.method,
           age: now - request.timestamp,
@@ -188,7 +223,7 @@ export class RequestManager {
     }
 
     if (cleaned > 0) {
-      console.log(`Cleaned up ${cleaned} expired requests`);
+      console.log(`[RequestManager] Cleaned up ${cleaned} expired requests`);
     }
 
     return cleaned;

@@ -51,7 +51,7 @@ const AUTH_ROUTES = {
  * @returns {ReactElement | null} Outlet for child routes when authenticated, null otherwise
  */
 export function AuthRequired(): ReactElement | null {
-  const { authState, wallets, loaded } = useWallet();
+  const { authState, wallets, isLoading } = useWallet();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -92,7 +92,7 @@ export function AuthRequired(): ReactElement | null {
    */
   useEffect(() => {
     // Don't navigate while wallet context is loading
-    if (!loaded) {
+    if (isLoading) {
       return;
     }
     
@@ -106,14 +106,14 @@ export function AuthRequired(): ReactElement | null {
         
       navigate(redirectPath, options);
     }
-  }, [authState, wallets.length, navigate, loaded, getRedirectPath, navigationOptions]);
+  }, [authState, wallets.length, navigate, isLoading, getRedirectPath, navigationOptions]);
 
   /**
    * Only render child routes when:
-   * 1. Wallet context is loaded
+   * 1. Wallet context has finished loading
    * 2. User is fully authenticated
    */
-  if (!loaded) {
+  if (isLoading) {
     // Could return a loading spinner here if desired
     return null;
   }

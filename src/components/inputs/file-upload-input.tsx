@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, type ReactElement } from 'react';
 import { Field, Label, Description } from '@headlessui/react';
 
 interface FileUploadInputProps {
@@ -33,7 +33,7 @@ export function FileUploadInput({
   showHelpText = false,
   uploadButtonText = "Choose File",
   className = "",
-}: FileUploadInputProps) {
+}: FileUploadInputProps): ReactElement {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,7 +138,7 @@ export function FileUploadInput({
  */
 export function CSVUploadInput(props: Omit<FileUploadInputProps, 'accept' | 'uploadButtonText'> & {
   uploadButtonText?: string;
-}) {
+}): ReactElement {
   return (
     <FileUploadInput
       {...props}
@@ -154,7 +154,7 @@ export function CSVUploadInput(props: Omit<FileUploadInputProps, 'accept' | 'upl
 export function InscriptionUploadInput(props: Omit<FileUploadInputProps, 'label' | 'uploadButtonText'> & {
   label?: string;
   uploadButtonText?: string;
-}) {
+}): ReactElement {
   return (
     <FileUploadInput
       {...props}

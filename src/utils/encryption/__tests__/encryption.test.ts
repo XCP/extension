@@ -143,6 +143,29 @@ describe('encryption.ts', () => {
       );
     });
 
+    it('should throw DecryptionError for invalid iterations', async () => {
+      const invalidIterations = [
+        { iterations: 0, desc: 'zero' },
+        { iterations: -1, desc: 'negative' },
+        { iterations: 1.5, desc: 'non-integer' },
+        { iterations: 'string', desc: 'string' },
+        { iterations: null, desc: 'null' },
+      ];
+
+      for (const { iterations, desc } of invalidIterations) {
+        const payload = JSON.stringify({
+          version: 2,
+          iterations,
+          encryptedData: 'dGVzdA==',
+          authSignature: 'dGVzdA==',
+        });
+
+        await expect(decryptString(payload, testPassword)).rejects.toThrow(
+          'Invalid encrypted payload (invalid iterations)'
+        );
+      }
+    });
+
     it('should throw DecryptionError for incomplete data', async () => {
       const incompleteData = JSON.stringify({
         version: 2,
@@ -156,6 +179,37 @@ describe('encryption.ts', () => {
       );
       await expect(decryptString(incompleteData, testPassword)).rejects.toThrow(
         'Invalid encrypted payload (incomplete data)'
+      );
+    });
+
+    it('should throw DecryptionError for invalid base64 in encryptedData', async () => {
+      const invalidBase64 = JSON.stringify({
+        version: 2,
+        iterations: 420690,
+        encryptedData: '!!!not-valid-base64!!!',
+        authSignature: 'dGVzdA==',
+      });
+
+      await expect(decryptString(invalidBase64, testPassword)).rejects.toThrow(
+        DecryptionError
+      );
+      await expect(decryptString(invalidBase64, testPassword)).rejects.toThrow(
+        'Invalid encrypted payload (invalid format)'
+      );
+    });
+
+    it('should throw DecryptionError for missing encryptedData field', async () => {
+      const missingField = JSON.stringify({
+        version: 2,
+        iterations: 420690,
+        authSignature: 'dGVzdA==',
+      });
+
+      await expect(decryptString(missingField, testPassword)).rejects.toThrow(
+        DecryptionError
+      );
+      await expect(decryptString(missingField, testPassword)).rejects.toThrow(
+        'Invalid encrypted payload (invalid format)'
       );
     });
 

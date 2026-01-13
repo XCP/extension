@@ -80,9 +80,9 @@ export class ServiceRegistry {
       this.services.set(name, service);
       this.initializationOrder.push(name);
 
-      console.log(`Service ${name} registered successfully (deps: ${dependencies.length > 0 ? dependencies.join(', ') : 'none'})`);
+      console.log(`[ServiceRegistry] Registered ${name} (deps: ${dependencies.length > 0 ? dependencies.join(', ') : 'none'})`);
     } catch (error) {
-      console.error(`Failed to register service ${name}:`, error);
+      console.error(`[ServiceRegistry] Failed to register ${name}:`, error);
       throw error;
     }
   }
@@ -134,11 +134,11 @@ export class ServiceRegistry {
    */
   async destroyAll(): Promise<void> {
     if (this.destroyed) {
-      console.warn('ServiceRegistry already destroyed');
+      console.warn('[ServiceRegistry] Already destroyed');
       return;
     }
 
-    console.log('Destroying all services...');
+    console.log('[ServiceRegistry] Destroying all services...');
     
     // Destroy in reverse order of initialization
     const reverseOrder = [...this.initializationOrder].reverse();
@@ -148,9 +148,9 @@ export class ServiceRegistry {
       if (service) {
         try {
           await service.destroy();
-          console.log(`Service ${name} destroyed`);
+          console.log(`[ServiceRegistry] Destroyed ${name}`);
         } catch (error) {
-          console.error(`Failed to destroy service ${name}:`, error);
+          console.error(`[ServiceRegistry] Failed to destroy ${name}:`, error);
         }
       }
     }
@@ -163,7 +163,7 @@ export class ServiceRegistry {
     // Clear the singleton instance
     ServiceRegistry.instance = null;
     
-    console.log('All services destroyed');
+    console.log('[ServiceRegistry] All services destroyed');
   }
 
 
@@ -185,9 +185,9 @@ export class ServiceRegistry {
       // Re-initialize it
       await service.initialize();
       
-      console.log(`Service ${name} reinitialized successfully`);
+      console.log(`[ServiceRegistry] Reinitialized ${name}`);
     } catch (error) {
-      console.error(`Failed to reinitialize service ${name}:`, error);
+      console.error(`[ServiceRegistry] Failed to reinitialize ${name}:`, error);
       throw error;
     }
   }

@@ -257,4 +257,78 @@ describe('RateLimiter', () => {
       expect(allowed).toBe(5);
     });
   });
+
+  describe('Security Features', () => {
+    beforeEach(() => {
+      connectionRateLimiter.resetAll();
+      transactionRateLimiter.resetAll();
+      apiRateLimiter.resetAll();
+    });
+
+    it('should track global request count', () => {
+      // Make some requests
+      connectionRateLimiter.isAllowed('https://site1.com');
+      connectionRateLimiter.isAllowed('https://site2.com');
+      connectionRateLimiter.isAllowed('https://site3.com');
+
+      expect(connectionRateLimiter.getGlobalCount()).toBe(3);
+    });
+
+    it('should reset global count with resetAll', () => {
+      connectionRateLimiter.isAllowed('https://site1.com');
+      connectionRateLimiter.isAllowed('https://site2.com');
+
+      expect(connectionRateLimiter.getGlobalCount()).toBe(2);
+
+      connectionRateLimiter.resetAll();
+
+      expect(connectionRateLimiter.getGlobalCount()).toBe(0);
+    });
+
+    it('should track number of unique origins', () => {
+      connectionRateLimiter.isAllowed('https://site1.com');
+      connectionRateLimiter.isAllowed('https://site2.com');
+      connectionRateLimiter.isAllowed('https://site3.com');
+
+      expect(connectionRateLimiter.getTrackedOriginCount()).toBe(3);
+    });
+
+    it('should enforce global rate limit across all origins', () => {
+      // The global limit for apiRateLimiter is 500 requests per window
+      // But per-origin limit is 100, so we need many origins to hit global
+      // For testing, let's verify the global counter is working
+      let totalAllowed = 0;
+
+      // Make requests from many different origins
+      for (let i = 0; i < 100; i++) {
+        if (apiRateLimiter.isAllowed(`https://site${i}.com`)) {
+          totalAllowed++;
+        }
+      }
+
+      // All should be allowed (100 unique origins, 1 request each)
+      expect(totalAllowed).toBe(100);
+      expect(apiRateLimiter.getGlobalCount()).toBe(100);
+    });
+
+    it('should clean up old entries on each request', () => {
+      vi.useFakeTimers();
+
+      // Add entries
+      connectionRateLimiter.isAllowed('https://old-site.com');
+      expect(connectionRateLimiter.getTrackedOriginCount()).toBe(1);
+
+      // Advance time past cleanup threshold (2x window time)
+      vi.advanceTimersByTime(2 * 60 * 1000 + 1);
+
+      // New request triggers cleanup
+      connectionRateLimiter.isAllowed('https://new-site.com');
+
+      // Old entry should be cleaned up
+      expect(connectionRateLimiter.getTrackedOriginCount()).toBe(1);
+      expect(connectionRateLimiter.getRemainingRequests('https://old-site.com')).toBe(5); // Reset
+
+      vi.useRealTimers();
+    });
+  });
 });

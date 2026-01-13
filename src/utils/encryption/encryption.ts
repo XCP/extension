@@ -1,4 +1,16 @@
-import { bufferToBase64, base64ToBuffer, combineBuffers } from './buffer';
+/**
+ * Wallet Encryption
+ *
+ * Provides AES-256-GCM encryption for wallet data with PBKDF2 key derivation.
+ * Uses Web Crypto API for all cryptographic operations.
+ *
+ * Security properties:
+ * - 600,000 PBKDF2 iterations for key derivation
+ * - Random salt and IV per encryption
+ * - Authentication via GCM mode
+ */
+
+import { bufferToBase64, base64ToBuffer, combineBuffers, generateRandomBytes } from './buffer';
 
 /**
  * Encryption version. Increment if the scheme changes.
@@ -65,8 +77,8 @@ export async function encryptString(
   if (!plaintext) throw new Error('Plaintext cannot be empty');
 
   const data = encoder.encode(plaintext);
-  const salt = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.SALT_BYTES));
-  const iv = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.IV_BYTES));
+  const salt = generateRandomBytes(CRYPTO_CONFIG.SALT_BYTES);
+  const iv = generateRandomBytes(CRYPTO_CONFIG.IV_BYTES);
 
   const masterKey = await deriveMasterKey(password, salt, CRYPTO_CONFIG.PBKDF2_ITERATIONS);
   const encryptionKey = await deriveEncryptionKey(masterKey);
@@ -121,7 +133,21 @@ export async function decryptString(
     throw new DecryptionError(`Unsupported encryption version: ${parsed.version}`);
   }
 
-  const combined = base64ToBuffer(parsed.encryptedData);
+  // Validate iterations to prevent cryptic errors from invalid payload
+  if (
+    typeof parsed.iterations !== 'number' ||
+    !Number.isInteger(parsed.iterations) ||
+    parsed.iterations < 1
+  ) {
+    throw new DecryptionError('Invalid encrypted payload (invalid iterations)');
+  }
+
+  let combined: Uint8Array;
+  try {
+    combined = base64ToBuffer(parsed.encryptedData);
+  } catch {
+    throw new DecryptionError('Invalid encrypted payload (invalid format)');
+  }
   // Minimum size: salt (16) + iv (12) + at least 1 byte ciphertext + GCM tag (16)
   if (combined.byteLength < CRYPTO_CONFIG.SALT_BYTES + CRYPTO_CONFIG.IV_BYTES + 17) {
     throw new DecryptionError('Invalid encrypted payload (incomplete data)');
@@ -202,7 +228,7 @@ async function deriveMasterKey(
   );
 
   const derivedBits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt: salt.buffer as ArrayBuffer, iterations, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: 'SHA-256' },
     passwordKey,
     CRYPTO_CONFIG.KEY_BITS
   );
@@ -245,7 +271,7 @@ async function deriveAuthenticationKey(masterKey: CryptoKey): Promise<CryptoKey>
     { name: 'HKDF', hash: 'SHA-256', salt: HKDF_EMPTY_SALT, info: encoder.encode('authentication') },
     masterKey,
     { name: 'HMAC', hash: 'SHA-256', length: CRYPTO_CONFIG.KEY_BITS },
-    true,
+    false, // Non-extractable for security (key is only used for sign/verify)
     ['sign', 'verify']
   );
 }

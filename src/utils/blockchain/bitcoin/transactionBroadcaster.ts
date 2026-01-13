@@ -115,19 +115,22 @@ export async function broadcastTransaction(signedTxHex: string): Promise<Transac
         }
       }
     } catch (error) {
-      lastError = error as Error;
-      
+      lastError = error instanceof Error ? error : new Error(String(error));
+
       // Extract the actual error message from the API response
       if (isApiError(error) && error.response?.data) {
-        const data = error.response.data as Record<string, unknown>;
+        const data = error.response.data;
         if (typeof data === 'string') {
           errorMessage = data;
-        } else if (typeof data.error === 'string') {
-          errorMessage = data.error;
-        } else if (typeof data.message === 'string') {
-          errorMessage = data.message;
-        } else if (typeof data.result === 'string') {
-          errorMessage = data.result;
+        } else if (typeof data === 'object' && data !== null) {
+          const dataObj = data as Record<string, unknown>;
+          if (typeof dataObj.error === 'string') {
+            errorMessage = dataObj.error;
+          } else if (typeof dataObj.message === 'string') {
+            errorMessage = dataObj.message;
+          } else if (typeof dataObj.result === 'string') {
+            errorMessage = dataObj.result;
+          }
         }
       }
     }

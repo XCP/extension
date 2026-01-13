@@ -44,6 +44,23 @@ describe('mutex.ts', () => {
 
       expect(isExpired(now, 5000)).toBe(false);
     });
+
+    // Fail-safe validation tests
+    it('should treat NaN timestamp as expired (fail-safe)', () => {
+      expect(isExpired(NaN, 5000)).toBe(true);
+    });
+
+    it('should treat NaN ttl as expired (fail-safe)', () => {
+      expect(isExpired(Date.now(), NaN)).toBe(true);
+    });
+
+    it('should treat negative ttl as expired (fail-safe)', () => {
+      expect(isExpired(Date.now(), -1)).toBe(true);
+    });
+
+    it('should treat Infinity timestamp as expired (fail-safe)', () => {
+      expect(isExpired(Infinity, 5000)).toBe(true);
+    });
   });
 
   describe('createWriteLock', () => {

@@ -312,6 +312,28 @@ describe('counterparty/api.ts', () => {
         },
       });
     });
+
+    it('should handle invalid quantity_normalized values without producing NaN', async () => {
+      // Test with various invalid quantity_normalized values
+      const invalidBalances = [
+        { ...mockTokenBalance, quantity: 100, quantity_normalized: '' },
+        { ...mockTokenBalance, quantity: 200, quantity_normalized: 'invalid' },
+      ];
+      const mockData = { result: invalidBalances };
+      mockedApiClient.get.mockResolvedValue({
+        data: mockData,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
+
+      const balance = await fetchTokenBalance(mockAddress, 'XCP');
+
+      // Should return '0' instead of 'NaN' for invalid values
+      expect(balance?.quantity_normalized).toBe('0');
+      expect(balance?.quantity_normalized).not.toBe('NaN');
+    });
   });
 
   describe('fetchTokenUtxos', () => {
@@ -427,7 +449,7 @@ describe('counterparty/api.ts', () => {
 
       expect(result).toEqual(mockData);
       expect(mockedApiClient.get).toHaveBeenCalledWith(
-        `${mockApiBase}/v2/utxos/abc123:0/balances`,
+        `${mockApiBase}/v2/utxos/${encodeURIComponent('abc123:0')}/balances`,
         expect.objectContaining({
           params: expect.objectContaining({
             verbose: true,
@@ -450,7 +472,7 @@ describe('counterparty/api.ts', () => {
       await fetchUtxoBalances('abc123:0', {
         limit: 50,
         offset: 10,
-        show_unconfirmed: true,
+        showUnconfirmed: true,
       });
 
       expect(mockedApiClient.get).toHaveBeenCalledWith(
@@ -638,7 +660,7 @@ describe('counterparty/api.ts', () => {
         `${mockApiBase}/v2/transactions/abc123`,
         expect.objectContaining({
           params: expect.objectContaining({
-            show_unconfirmed: true,
+            show_unconfirmed: false,
             verbose: true,
           }),
         })
@@ -688,7 +710,7 @@ describe('counterparty/api.ts', () => {
         expect.objectContaining({
           params: expect.objectContaining({
             verbose: true,
-            show_unconfirmed: true,
+            show_unconfirmed: false,
             limit: 10,
             offset: 0,
           }),
@@ -710,15 +732,15 @@ describe('counterparty/api.ts', () => {
         limit: 50,
         offset: 10,
         verbose: false,
-        show_unconfirmed: false,
-      } as any);
+        showUnconfirmed: true,
+      });
 
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           params: expect.objectContaining({
             verbose: false,
-            show_unconfirmed: false,
+            show_unconfirmed: true,
             limit: 50,
             offset: 10,
           }),

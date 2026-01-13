@@ -95,10 +95,10 @@ describe('PasswordInput', () => {
     expect(input).toHaveAttribute('name', 'password');
   });
 
-  it('should forward ref correctly', () => {
+  it('should forward innerRef correctly', () => {
     const ref = React.createRef<HTMLInputElement>();
     render(<PasswordInput placeholder="Enter password" innerRef={ref} />);
-    
+
     expect(ref.current).toBeInstanceOf(HTMLInputElement);
     expect(ref.current?.placeholder).toBe('Enter password');
   });

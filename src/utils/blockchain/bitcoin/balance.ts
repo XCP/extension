@@ -1,6 +1,75 @@
 import { toSatoshis } from '@/utils/numeric';
 
 /**
+ * Response format from Blockstream.info and Mempool.space APIs.
+ */
+interface BlockstreamAddressResponse {
+  chain_stats: {
+    funded_txo_sum: number;
+    spent_txo_sum: number;
+    tx_count: number;
+  };
+  mempool_stats: {
+    funded_txo_sum: number;
+    spent_txo_sum: number;
+    tx_count: number;
+  };
+}
+
+/**
+ * Response format from BlockCypher and Blockchain.info APIs.
+ */
+interface BlockcypherAddressResponse {
+  final_balance: number;
+}
+
+/**
+ * Response format from SoChain API.
+ */
+interface SochainAddressResponse {
+  data: {
+    confirmed_balance: string;
+  };
+}
+
+/**
+ * Type guard for Blockstream/Mempool response format.
+ */
+function isBlockstreamResponse(data: unknown): data is BlockstreamAddressResponse {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'chain_stats' in data &&
+    'mempool_stats' in data &&
+    typeof (data as BlockstreamAddressResponse).chain_stats?.funded_txo_sum === 'number'
+  );
+}
+
+/**
+ * Type guard for BlockCypher/Blockchain.info response format.
+ */
+function isBlockcypherResponse(data: unknown): data is BlockcypherAddressResponse {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'final_balance' in data &&
+    typeof (data as BlockcypherAddressResponse).final_balance === 'number'
+  );
+}
+
+/**
+ * Type guard for SoChain response format.
+ */
+function isSochainResponse(data: unknown): data is SochainAddressResponse {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'data' in data &&
+    typeof (data as SochainAddressResponse).data?.confirmed_balance === 'string'
+  );
+}
+
+/**
  * Checks if a Bitcoin address has any transaction history (received or sent)
  * @param address - The Bitcoin address to check
  * @param timeoutMs - Timeout in milliseconds for the API request (default: 5000ms)
@@ -108,26 +177,31 @@ async function fetchWithTimeout(
  * @param data - The parsed JSON response.
  * @returns The balance in satoshis if successfully parsed; otherwise null.
  */
-function parseBTCBalance(endpoint: string, data: any): number | null {
+function parseBTCBalance(endpoint: string, data: unknown): number | null {
   try {
     // Format from blockstream.info or mempool.space.
     if (endpoint.includes('blockstream.info') || endpoint.includes('mempool.space')) {
+      if (!isBlockstreamResponse(data)) {
+        return null;
+      }
       const funded = BigInt(data.chain_stats.funded_txo_sum);
       const spent = BigInt(data.chain_stats.spent_txo_sum);
       const memFunded = BigInt(data.mempool_stats.funded_txo_sum);
       const memSpent = BigInt(data.mempool_stats.spent_txo_sum);
       return Number(funded - spent + memFunded - memSpent);
     }
-    // Format from blockcypher.com.
-    if (endpoint.includes('blockcypher.com')) {
-      return data.final_balance;
-    }
-    // Format from blockchain.info.
-    if (endpoint.includes('blockchain.info')) {
+    // Format from blockcypher.com or blockchain.info.
+    if (endpoint.includes('blockcypher.com') || endpoint.includes('blockchain.info')) {
+      if (!isBlockcypherResponse(data)) {
+        return null;
+      }
       return data.final_balance;
     }
     // Format from sochain.com.
     if (endpoint.includes('sochain.com')) {
+      if (!isSochainResponse(data)) {
+        return null;
+      }
       return Number(toSatoshis(Number(data.data.confirmed_balance)));
     }
   } catch (err) {

@@ -10,6 +10,71 @@ describe('TTLCache', () => {
     vi.useRealTimers();
   });
 
+  describe('constructor validation', () => {
+    it('throws on zero TTL', () => {
+      expect(() => new TTLCache<string>(0)).toThrow('TTL must be a positive finite number');
+    });
+
+    it('throws on negative TTL', () => {
+      expect(() => new TTLCache<string>(-1)).toThrow('TTL must be a positive finite number');
+    });
+
+    it('throws on NaN TTL', () => {
+      expect(() => new TTLCache<string>(NaN)).toThrow('TTL must be a positive finite number');
+    });
+
+    it('throws on Infinity TTL', () => {
+      expect(() => new TTLCache<string>(Infinity)).toThrow('TTL must be a positive finite number');
+    });
+
+    it('accepts valid positive TTL', () => {
+      expect(() => new TTLCache<string>(1)).not.toThrow();
+      expect(() => new TTLCache<string>(1000)).not.toThrow();
+    });
+  });
+
+  describe('null value caching', () => {
+    it('can cache null as a valid value', () => {
+      const cache = new TTLCache<string | null>(1000);
+      cache.set(null);
+      // Should return null as the cached value, not as "cache miss"
+      expect(cache.get()).toBeNull();
+      expect(cache.isValid()).toBe(true);
+    });
+
+    it('distinguishes cached null from cache miss via isValid', () => {
+      const cache = new TTLCache<string | null>(1000);
+
+      // Empty cache - isValid should be false
+      expect(cache.isValid()).toBe(false);
+      expect(cache.get()).toBeNull();
+
+      // Set null - isValid should be true
+      cache.set(null);
+      expect(cache.isValid()).toBe(true);
+      expect(cache.get()).toBeNull();
+
+      // After invalidation - isValid should be false again
+      cache.invalidate();
+      expect(cache.isValid()).toBe(false);
+      expect(cache.get()).toBeNull();
+    });
+
+    it('getAge works correctly with null values', () => {
+      const cache = new TTLCache<string | null>(1000);
+
+      // Empty cache
+      expect(cache.getAge()).toBe(-1);
+
+      // After setting null
+      cache.set(null);
+      expect(cache.getAge()).toBe(0);
+
+      vi.advanceTimersByTime(500);
+      expect(cache.getAge()).toBe(500);
+    });
+  });
+
   describe('basic operations', () => {
     it('returns null when empty', () => {
       const cache = new TTLCache<string>(1000);
@@ -175,6 +240,74 @@ describe('KeyedTTLCache', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  describe('constructor validation', () => {
+    it('throws on zero TTL', () => {
+      expect(() => new KeyedTTLCache<string, string>(0)).toThrow('TTL must be a positive finite number');
+    });
+
+    it('throws on negative TTL', () => {
+      expect(() => new KeyedTTLCache<string, string>(-1)).toThrow('TTL must be a positive finite number');
+    });
+
+    it('throws on NaN TTL', () => {
+      expect(() => new KeyedTTLCache<string, string>(NaN)).toThrow('TTL must be a positive finite number');
+    });
+
+    it('throws on Infinity TTL', () => {
+      expect(() => new KeyedTTLCache<string, string>(Infinity)).toThrow('TTL must be a positive finite number');
+    });
+
+    it('accepts valid positive TTL', () => {
+      expect(() => new KeyedTTLCache<string, string>(1)).not.toThrow();
+      expect(() => new KeyedTTLCache<string, string>(1000)).not.toThrow();
+    });
+  });
+
+  describe('null value caching', () => {
+    it('can cache null as a valid value', () => {
+      const cache = new KeyedTTLCache<string, string | null>(1000);
+      cache.set('key1', null);
+      // Should return null as the cached value, not as "cache miss"
+      expect(cache.get('key1')).toBeNull();
+      expect(cache.isValid('key1')).toBe(true);
+    });
+
+    it('distinguishes cached null from cache miss via isValid', () => {
+      const cache = new KeyedTTLCache<string, string | null>(1000);
+
+      // Unknown key - isValid should be false
+      expect(cache.isValid('key1')).toBe(false);
+      expect(cache.get('key1')).toBeNull();
+
+      // Set null - isValid should be true
+      cache.set('key1', null);
+      expect(cache.isValid('key1')).toBe(true);
+      expect(cache.get('key1')).toBeNull();
+
+      // After invalidation - isValid should be false again
+      cache.invalidate('key1');
+      expect(cache.isValid('key1')).toBe(false);
+      expect(cache.get('key1')).toBeNull();
+    });
+
+    it('getStale returns cached null correctly', () => {
+      const cache = new KeyedTTLCache<string, string | null>(1000);
+
+      // Never set key
+      expect(cache.getStale('key1')).toBeNull();
+
+      // After setting null
+      cache.set('key1', null);
+      expect(cache.getStale('key1')).toBeNull();
+      expect(cache.isValid('key1')).toBe(true);
+
+      // After expiration, getStale still returns null (the cached value)
+      vi.advanceTimersByTime(2000);
+      expect(cache.isValid('key1')).toBe(false);
+      expect(cache.getStale('key1')).toBeNull();
+    });
   });
 
   describe('basic operations', () => {

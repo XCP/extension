@@ -46,10 +46,11 @@ export function useBlockHeight(options: UseBlockHeightOptions = {}) {
       }
       
       return height;
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (isMountedRef.current) {
         console.error('Error fetching block height:', err);
-        setError(err.message || 'Unable to fetch current block height.');
+        // Use generic error to prevent leaking internal details
+        setError('Unable to fetch current block height.');
         setIsLoading(false);
       }
       return null;

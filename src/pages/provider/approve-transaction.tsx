@@ -2,9 +2,11 @@ import { useState, useMemo } from 'react';
 import { FiGlobe, FiAlertTriangle, FiX, FiChevronDown, FiChevronUp, FiInfo, FiShield } from '@/components/icons';
 import { Button } from '@/components/button';
 import { ErrorAlert } from '@/components/error-alert';
+import { VerificationStatus } from '@/components/verification-status';
 import { formatAddress, formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
 import { useWallet } from '@/contexts/wallet-context';
+import { useSettings } from '@/contexts/settings-context';
 import { useSignTransactionRequest } from '@/hooks/useSignTransactionRequest';
 import { getWalletService } from '@/services/walletService';
 import {
@@ -18,6 +20,7 @@ import {
 
 export default function ApproveTransaction() {
   const { activeAddress, activeWallet } = useWallet();
+  const { settings } = useSettings();
   const {
     request,
     decodedInfo,
@@ -140,11 +143,15 @@ export default function ApproveTransaction() {
     );
   }
 
-  const hasWarnings = decodedInfo.fee > 10000000 || // > 0.1 BTC fee
-    walletCompatibility?.warning != null;
+  const hasHighFee = decodedInfo.fee > 10000000; // > 0.1 BTC fee
+  const verificationPassed = decodedInfo.verification?.passed;
+  const verificationWarning = decodedInfo.verification?.warning;
+  const verificationFailed = verificationPassed === false;
+  const isStrictMode = settings?.strictTransactionVerification !== false;
 
-  // Check if signing is blocked
+  // Check if signing is blocked - either by verification failure or wallet compatibility
   const cannotSign = walletCompatibility?.canSign === false;
+  const shouldBlockSigning = (isStrictMode && verificationFailed) || cannotSign;
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -243,6 +250,13 @@ export default function ApproveTransaction() {
               </p>
             </div>
           )}
+
+          {/* Verification Status */}
+          <VerificationStatus
+            passed={verificationPassed}
+            warning={verificationWarning}
+            isStrict={isStrictMode}
+          />
 
           {/* Encoding Information (for Counterparty transactions) */}
           {encodingAnalysis && encodingAnalysis.encoding !== 'unknown' && encodingDisplayInfo && (
@@ -417,17 +431,15 @@ export default function ApproveTransaction() {
             </div>
           </div>
 
-          {/* Warnings */}
-          {hasWarnings && (
+          {/* High Fee Warning */}
+          {hasHighFee && (
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
               <div className="flex items-start">
                 <FiAlertTriangle className="w-5 h-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" />
                 <div className="text-sm text-orange-800">
                   <p className="font-medium mb-1">Review Carefully</p>
                   <ul className="list-disc list-inside space-y-1 text-xs">
-                    {decodedInfo.fee > 10000000 && (
-                      <li>High network fee detected</li>
-                    )}
+                    <li>High network fee detected</li>
                   </ul>
                 </div>
               </div>
@@ -460,10 +472,10 @@ export default function ApproveTransaction() {
           <Button
             color="blue"
             onClick={handleSign}
-            disabled={isSigning || cannotSign}
+            disabled={isSigning || shouldBlockSigning}
             fullWidth
           >
-            {isSigning ? 'Signing...' : cannotSign ? 'Cannot Sign' : 'Sign'}
+            {isSigning ? 'Signing...' : shouldBlockSigning ? (cannotSign ? 'Cannot Sign' : 'Blocked') : 'Sign'}
           </Button>
         </div>
       </div>

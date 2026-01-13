@@ -1,4 +1,3 @@
-"use client";
 
 import { type ReactElement, type ReactNode, useState, useRef } from "react";
 import { Button } from "@/components/button";
@@ -53,7 +52,9 @@ export function ComposerForm({
   containerClassName = "bg-white rounded-lg shadow-lg p-3 sm:p-4",
 }: ComposerFormProps): ReactElement {
   // Get state from composer context
-  const { state, showHelpText, clearError } = useComposer<any>();
+  // Using unknown instead of any for better type safety - ComposerForm only uses
+  // state.error and state.isComposing which are not dependent on the formData type
+  const { state, showHelpText, clearError } = useComposer<unknown>();
   const formRef = useRef<HTMLFormElement>(null);
   const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
 

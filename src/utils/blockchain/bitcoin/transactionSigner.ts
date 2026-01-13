@@ -5,7 +5,7 @@ import { fetchUTXOs, getUtxoByTxid, fetchPreviousRawTransaction } from '@/utils/
 import { hybridSignTransaction } from '@/utils/blockchain/bitcoin/uncompressedSigner';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { UtxoError, SigningError, ValidationError } from '@/utils/blockchain/errors';
-import type { Wallet, Address } from '@/utils/wallet/walletManager';
+import type { Wallet, Address } from '@/types/wallet';
 
 /**
  * Transaction input data for signing.

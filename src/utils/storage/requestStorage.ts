@@ -8,6 +8,23 @@
  * - TTL-based expiration (requests auto-expire after 10 minutes)
  * - Write lock protection for concurrent operations
  * - Session storage (cleared on browser close)
+ *
+ * ### ADR-010: Storage Pattern Decisions
+ *
+ * This module uses a class pattern rather than the function pattern used by
+ * other storage modules. The class is justified because:
+ * - Generic type support (`T extends BaseRequest`) allows type-safe request storage
+ * - Write lock is per-instance (each storage type has its own lock)
+ * - TTL management logic is encapsulated
+ * - Related functionality (store, get, remove, clear) grouped together
+ *
+ * Functions are appropriate for simple key-value storage where you just need get/set/clear.
+ *
+ * Naming conventions across storage modules:
+ * - `add*()`: Adding to a collection (array)
+ * - `set*()`: Replacing a single value
+ * - `store*()`: Persisting with additional logic (validation, TTL)
+ * - `save*()`: Alias for set (used in settings)
  */
 
 import { createWriteLock, isExpired } from './mutex';
@@ -20,6 +37,21 @@ export interface BaseRequest {
   id: string;
   origin: string;
   timestamp: number;
+}
+
+/**
+ * Validates that a value has the minimum BaseRequest shape.
+ */
+function isValidBaseRequest(value: unknown): value is BaseRequest {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const obj = value as Record<string, unknown>;
+  return (
+    typeof obj.id === 'string' &&
+    typeof obj.origin === 'string' &&
+    typeof obj.timestamp === 'number'
+  );
 }
 
 /**
@@ -59,8 +91,13 @@ export class RequestStorage<T extends BaseRequest> {
   /**
    * Store a request.
    * Automatically cleans up expired requests.
+   * Throws if session storage API is unavailable (per ADR-008).
    */
   async store(request: T): Promise<void> {
+    if (!chrome?.storage?.session) {
+      throw new Error('Session storage API unavailable');
+    }
+
     return this.withWriteLock(async () => {
       try {
         const requests = await this.getAllRaw();
@@ -75,7 +112,7 @@ export class RequestStorage<T extends BaseRequest> {
           [this.storageKey]: validRequests
         });
       } catch (err) {
-        console.error(`Failed to store ${this.requestName}:`, err);
+        console.error(`Failed to save ${this.requestName}:`, err);
         throw new Error('Storage operation failed');
       }
     });
@@ -100,11 +137,21 @@ export class RequestStorage<T extends BaseRequest> {
 
   /**
    * Get all requests without filtering (internal use).
+   * Validates each item has the required BaseRequest shape.
    */
   private async getAllRaw(): Promise<T[]> {
+    if (!chrome?.storage?.session) {
+      return [];
+    }
+
     try {
       const result = await chrome.storage.session.get(this.storageKey);
-      return (result[this.storageKey] as T[] | undefined) ?? [];
+      const value = result[this.storageKey];
+      if (!Array.isArray(value)) {
+        return [];
+      }
+      // Filter to only valid requests (must have id, origin, timestamp)
+      return value.filter((item): item is T => isValidBaseRequest(item));
     } catch (err) {
       console.error(`Failed to read ${this.requestName}s:`, err);
       return [];
@@ -113,8 +160,13 @@ export class RequestStorage<T extends BaseRequest> {
 
   /**
    * Remove a request by ID.
+   * Throws if session storage API is unavailable (per ADR-008).
    */
   async remove(id: string): Promise<void> {
+    if (!chrome?.storage?.session) {
+      throw new Error('Session storage API unavailable');
+    }
+
     return this.withWriteLock(async () => {
       try {
         const requests = await this.getAllRaw();
@@ -132,8 +184,13 @@ export class RequestStorage<T extends BaseRequest> {
 
   /**
    * Clear all requests.
+   * Throws if session storage API is unavailable (per ADR-008).
    */
   async clear(): Promise<void> {
+    if (!chrome?.storage?.session) {
+      throw new Error('Session storage API unavailable');
+    }
+
     return this.withWriteLock(async () => {
       try {
         await chrome.storage.session.set({

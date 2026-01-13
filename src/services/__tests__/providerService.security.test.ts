@@ -172,10 +172,10 @@ describe('ProviderService Security Tests', () => {
             providerService.handleRequest('https://evil.com', method, [])
           ).rejects.toThrow('Permission denied - transaction history not available through provider');
         } else if (method === 'xcp_signPsbt') {
-          // xcp_signPsbt requires hex parameter
+          // xcp_signPsbt requires object with hex parameter
           await expect(
             providerService.handleRequest('https://evil.com', method, [])
-          ).rejects.toThrow('PSBT hex is required');
+          ).rejects.toThrow('PSBT parameters must be an object with hex property');
         } else {
           // Other methods check authorization first
           await expect(
@@ -326,7 +326,7 @@ describe('ProviderService Security Tests', () => {
       // Missing parameters - service checks parameters first for xcp_signPsbt
       await expect(
         providerService.handleRequest('https://connected.com', 'xcp_signPsbt', [])
-      ).rejects.toThrow('PSBT hex is required');
+      ).rejects.toThrow('PSBT parameters must be an object with hex property');
 
       await expect(
         providerService.handleRequest('https://connected.com', 'xcp_signTransaction', [])
@@ -338,6 +338,47 @@ describe('ProviderService Security Tests', () => {
       ).rejects.toThrow('Signed transaction is required');
     });
     
+    it('should validate parameter types for signing methods', async () => {
+      // Mark as connected site
+      vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+        ...DEFAULT_SETTINGS,
+        connectedWebsites: ['https://connected.com']
+      });
+
+      // xcp_signMessage: message must be a string
+      await expect(
+        providerService.handleRequest('https://connected.com', 'xcp_signMessage', [{ notAString: true }])
+      ).rejects.toThrow('Message must be a string');
+
+      await expect(
+        providerService.handleRequest('https://connected.com', 'xcp_signMessage', [123])
+      ).rejects.toThrow('Message must be a string');
+
+      // xcp_signMessage: address must be a string if provided
+      await expect(
+        providerService.handleRequest('https://connected.com', 'xcp_signMessage', ['valid message', { notAString: true }])
+      ).rejects.toThrow('Address must be a string');
+
+      // xcp_signPsbt: params must be an object
+      await expect(
+        providerService.handleRequest('https://connected.com', 'xcp_signPsbt', ['not an object'])
+      ).rejects.toThrow('PSBT parameters must be an object with hex property');
+
+      // xcp_signPsbt: hex must be a string
+      await expect(
+        providerService.handleRequest('https://connected.com', 'xcp_signPsbt', [{ hex: 12345 }])
+      ).rejects.toThrow('PSBT hex must be a string');
+
+      // xcp_broadcastTransaction: signedTx must be a string
+      await expect(
+        providerService.handleRequest('https://connected.com', 'xcp_broadcastTransaction', [{ hex: '123' }])
+      ).rejects.toThrow('Signed transaction must be a hex string');
+
+      await expect(
+        providerService.handleRequest('https://connected.com', 'xcp_broadcastTransaction', [12345])
+      ).rejects.toThrow('Signed transaction must be a hex string');
+    });
+
     it('should not expose sensitive wallet data in errors', async () => {
       try {
         await providerService.handleRequest('https://notconnected.com', 'xcp_signMessage', ['test', 'bc1qsecret']);

@@ -1,4 +1,3 @@
-"use client";
 
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer-form";

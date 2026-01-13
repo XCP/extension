@@ -1,4 +1,3 @@
-"use client";
 
 import { useEffect, useMemo, useCallback, type ReactElement } from "react";
 import { FiHelpCircle, FiX, FiRefreshCw } from "@/components/icons";

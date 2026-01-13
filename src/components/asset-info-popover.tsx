@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { FiInfo, FiX } from "@/components/icons";
 import { formatAddress, formatTimeAgo } from "@/utils/format";
+import { isNumericAsset } from "@/utils/validation/asset";
 import type { AssetInfo } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
 
@@ -61,6 +62,19 @@ export function AssetInfoPopover({
               <FiX className="w-3 h-3" />
             </button>
           </div>
+          {assetInfo.asset && (
+            <div className="mb-3">
+              <img
+                src={`https://app.xcp.io/img/full/${assetInfo.asset}`}
+                alt={assetInfo.asset}
+                className="w-full max-h-[300px] rounded object-contain"
+                style={isNumericAsset(assetInfo.asset) ? { imageRendering: 'pixelated' } : undefined}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            </div>
+          )}
           <div className="space-y-1.5 text-xs">
             {(assetInfo.owner || assetInfo.issuer) && (
               <div className="flex justify-between">

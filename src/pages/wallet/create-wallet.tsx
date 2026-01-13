@@ -1,4 +1,3 @@
-"use client";
 
 import { useEffect, useState, useActionState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -57,8 +56,7 @@ function CreateWallet() {
         await createAndUnlockMnemonicWallet(mnemonic, password);
         navigate(PATHS.SUCCESS);
         return { error: null };
-      } catch (err) {
-        console.error("Error creating wallet:", err);
+      } catch {
         return { error: "Failed to create wallet. Please try again." };
       }
     },

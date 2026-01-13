@@ -8,7 +8,7 @@
  *
  * ## Architecture Decision Records
  *
- * ### ADR-004: No Distributed Tracing (Future Enhancement)
+ * ### ADR-003: No Distributed Tracing (Future Enhancement)
  *
  * **Context**: Complex request flows (dApp → content script → background → popup → back)
  * can be difficult to debug without correlation IDs or distributed tracing.
@@ -52,7 +52,7 @@ export interface MessageResponse<T = any> {
   error?: {
     message: string;
     code?: number;
-    stack?: string;
+    // Note: stack intentionally omitted to prevent leaking implementation details
   };
 }
 

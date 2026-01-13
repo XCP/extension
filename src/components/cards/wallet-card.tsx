@@ -1,5 +1,6 @@
+import { type ReactElement } from 'react';
 import { RadioGroup } from '@headlessui/react';
-import type { Wallet } from '@/utils/wallet/walletManager';
+import type { Wallet } from '@/types/wallet';
 import { formatAddress } from '@/utils/format';
 import { WalletMenu } from '@/components/menus/wallet-menu';
 import { FiShield } from '@/components/icons';
@@ -11,7 +12,13 @@ interface WalletCardProps {
   isOnlyWallet: boolean;
 }
 
-function WalletCard({ wallet, selected, onSelect, isOnlyWallet }: WalletCardProps) {
+/**
+ * WalletCard displays a selectable wallet with its name, primary address, and type.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the wallet card
+ */
+export function WalletCard({ wallet, selected, onSelect, isOnlyWallet }: WalletCardProps): ReactElement {
   const primaryAddress =
     wallet.addresses.length > 0 ? wallet.addresses[0].address : 'No address';
 
@@ -52,5 +59,3 @@ function WalletCard({ wallet, selected, onSelect, isOnlyWallet }: WalletCardProp
     </RadioGroup.Option>
   );
 }
-
-export default WalletCard;

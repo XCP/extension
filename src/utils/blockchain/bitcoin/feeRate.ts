@@ -1,4 +1,5 @@
 import { TTLCache, CacheTTL } from '@/utils/cache';
+import { DataFetchError } from '@/utils/blockchain/errors';
 
 export interface FeeRates {
   fastestFee: number;
@@ -25,10 +26,13 @@ let inflightRequest: Promise<FeeRates> | null = null;
  *   hourFee: number
  * }
  */
-export const fetchFromMempoolSpace = async (): Promise<FeeRates> => {
+export async function fetchFromMempoolSpace(): Promise<FeeRates> {
   const response = await fetch('https://mempool.space/api/v1/fees/recommended');
   if (!response.ok) {
-    throw new Error('Failed to fetch fee rates from mempool.space');
+    throw new DataFetchError('Failed to fetch fee rates', 'mempool.space', {
+      endpoint: '/api/v1/fees/recommended',
+      statusCode: response.status,
+    });
   }
   const data = await response.json();
   if (
@@ -36,14 +40,16 @@ export const fetchFromMempoolSpace = async (): Promise<FeeRates> => {
     typeof data.halfHourFee !== 'number' || isNaN(data.halfHourFee) ||
     typeof data.hourFee !== 'number' || isNaN(data.hourFee)
   ) {
-    throw new Error('Invalid data format from mempool.space');
+    throw new DataFetchError('Invalid response data format', 'mempool.space', {
+      endpoint: '/api/v1/fees/recommended',
+    });
   }
   return {
     fastestFee: data.fastestFee,
     halfHourFee: data.halfHourFee,
     hourFee: data.hourFee,
   };
-};
+}
 
 /**
  * Fetch fee rates from blockstream.info.
@@ -54,10 +60,13 @@ export const fetchFromMempoolSpace = async (): Promise<FeeRates> => {
  *   - halfHourFee: confirmation within 3 blocks (data["3"])
  *   - hourFee: confirmation within 6 blocks (data["6"])
  */
-export const fetchFromBlockstream = async (): Promise<FeeRates> => {
+export async function fetchFromBlockstream(): Promise<FeeRates> {
   const response = await fetch('https://blockstream.info/api/fee-estimates');
   if (!response.ok) {
-    throw new Error('Failed to fetch fee rates from blockstream.info');
+    throw new DataFetchError('Failed to fetch fee rates', 'blockstream.info', {
+      endpoint: '/api/fee-estimates',
+      statusCode: response.status,
+    });
   }
   const data = await response.json();
   const fastestFee = data["2"];
@@ -68,10 +77,12 @@ export const fetchFromBlockstream = async (): Promise<FeeRates> => {
     typeof halfHourFee !== 'number' || isNaN(halfHourFee) ||
     typeof hourFee !== 'number' || isNaN(hourFee)
   ) {
-    throw new Error('Invalid data format from blockstream.info');
+    throw new DataFetchError('Invalid response data format', 'blockstream.info', {
+      endpoint: '/api/fee-estimates',
+    });
   }
   return { fastestFee, halfHourFee, hourFee };
-};
+}
 
 // Ordered list of fee rate fetchers.
 const feeRateFetchers: Array<() => Promise<FeeRates>> = [
@@ -100,7 +111,7 @@ async function fetchFeeRatesWithFallback(): Promise<FeeRates> {
       continue;
     }
   }
-  throw new Error('Unable to fetch fee rates from any source');
+  throw new DataFetchError('Unable to fetch fee rates from any source', 'fee-rates');
 }
 
 /**
@@ -109,10 +120,10 @@ async function fetchFeeRatesWithFallback(): Promise<FeeRates> {
  * Deduplicates concurrent requests - only one API call when multiple callers request simultaneously.
  * If no source returns valid data, an error is thrown.
  *
- * @returns {Promise<FeeRates>} The fee rates object.
- * @throws Error if all sources fail.
+ * @returns The fee rates object.
+ * @throws {DataFetchError} If all sources fail.
  */
-export const getFeeRates = async (): Promise<FeeRates> => {
+export async function getFeeRates(): Promise<FeeRates> {
   // Check cache first (TTLCache.get() returns cloned data or null)
   const cached = feeRateCache.get();
   if (cached !== null) {
@@ -134,4 +145,4 @@ export const getFeeRates = async (): Promise<FeeRates> => {
   } finally {
     inflightRequest = null;
   }
-};
+}

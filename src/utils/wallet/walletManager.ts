@@ -18,27 +18,17 @@ import { getHardwareAdapter } from '@/utils/hardware';
 import { DerivationPaths, type HardwareWalletVendor } from '@/utils/hardware/types';
 import type { IHardwareWalletAdapter } from '@/utils/hardware/interface';
 
-export interface Address {
-  name: string;
-  path: string;
-  address: string;
-  pubKey: string;
-}
+// Import types from centralized types module
+import type { Address, Wallet } from '@/types/wallet';
 
-export interface Wallet {
-  id: string;
-  name: string;
-  type: WalletType;
-  addressFormat: AddressFormat;
-  addressCount: number;
-  addresses: Address[];
-  isTestOnly?: boolean;
-  /** Hardware wallet specific data (only for type: 'hardware') */
-  hardwareData?: HardwareWalletData;
-}
+// Re-export types for backwards compatibility
+export type { Address, Wallet };
 
-export const MAX_WALLETS = 20;
-export const MAX_ADDRESSES_PER_WALLET = 100;
+// Import from constants for internal use
+import { MAX_WALLETS, MAX_ADDRESSES_PER_WALLET } from './constants';
+
+// Re-export from constants to maintain backwards compatibility
+export { MAX_WALLETS, MAX_ADDRESSES_PER_WALLET };
 
 export class WalletManager {
   private wallets: Wallet[] = [];
@@ -781,13 +771,23 @@ export class WalletManager {
     name?: string,
     addressFormat: AddressFormat = AddressFormat.P2TR
   ): Promise<Wallet> {
-    if (!name) {
-      name = `Wallet ${this.wallets.length + 1}`;
+    console.log('[WalletManager] createAndUnlockMnemonicWallet called');
+    try {
+      if (!name) {
+        name = `Wallet ${this.wallets.length + 1}`;
+      }
+      console.log('[WalletManager] Creating wallet with name:', name);
+      const newWallet = await this.createMnemonicWallet(mnemonic, password, name, addressFormat);
+      console.log('[WalletManager] Wallet created, unlocking...');
+      await this.unlockWallet(newWallet.id, password);
+      console.log('[WalletManager] Wallet unlocked, setting active...');
+      this.setActiveWallet(newWallet.id);
+      console.log('[WalletManager] Done');
+      return newWallet;
+    } catch (err) {
+      console.error('[WalletManager] createAndUnlockMnemonicWallet FAILED:', err);
+      throw err;
     }
-    const newWallet = await this.createMnemonicWallet(mnemonic, password, name, addressFormat);
-    await this.unlockWallet(newWallet.id, password);
-    this.setActiveWallet(newWallet.id);
-    return newWallet;
   }
 
   public async createAndUnlockPrivateKeyWallet(

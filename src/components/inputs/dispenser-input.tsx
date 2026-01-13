@@ -1,6 +1,5 @@
-"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { DispenserList, type DispenserOption } from "@/components/lists/dispenser-list";
 import { fetchAddressDispensers } from "@/utils/blockchain/counterparty/api";
@@ -34,6 +33,12 @@ const SATOSHIS_PER_BTC = 1e8;
 // Main Component
 // ============================================================================
 
+/**
+ * DispenserInput provides an address input with automatic dispenser discovery.
+ *
+ * @param props - The component props
+ * @returns A ReactElement representing the dispenser input with selection list
+ */
 export function DispenserInput({
   value,
   onChange,
@@ -45,7 +50,7 @@ export function DispenserInput({
   required = true,
   onError,
   onLoadingChange,
-}: DispenserInputProps) {
+}: DispenserInputProps): ReactElement {
   const [dispenserOptions, setDispenserOptions] = useState<DispenserOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -113,7 +113,7 @@ import ComposeUtxoMove from '@/pages/compose/utxo/move';
 import NotFound from '@/pages/not-found';
 
 export default function App() {
-  const { wallets, walletLocked, loaded } = useWallet();
+  const { wallets, walletLocked, isLoading } = useWallet();
   const location = useLocation();
 
   // Track page views when route changes
@@ -126,7 +126,7 @@ export default function App() {
 
   // Until the wallet metadata has been loaded from storage,
   // render a loading state.
-  if (!loaded) {
+  if (isLoading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-white dark:bg-gray-900">
         <FaSpinner 
