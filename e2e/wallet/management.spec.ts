@@ -197,13 +197,27 @@ test.describe('Wallet Management Features', () => {
   test('import wallet from private key', async () => {
     const { context, page } = await launchExtension('import-privkey-mgmt');
 
-    // Navigate directly to import-private-key page (not available from onboarding UI)
-    const baseUrl = page.url().split('#')[0];
-    await page.goto(`${baseUrl}#/import-private-key`);
-    await page.waitForLoadState('networkidle');
+    // First create a wallet (import-private-key route requires auth)
+    await createWallet(page, TEST_PASSWORD);
+
+    // Navigate to wallet management
+    const headerButton = page.locator('header button').first();
+    await expect(headerButton).toBeVisible({ timeout: 5000 });
+    await headerButton.click();
+    await page.waitForURL(/select-wallet/, { timeout: 5000 });
+
+    // Click Add Wallet
+    const addWalletButton = page.getByRole('button', { name: /Add.*Wallet/i }).first();
+    await expect(addWalletButton).toBeVisible({ timeout: 5000 });
+    await addWalletButton.click();
+
+    // Click Import Private Key option
+    const importPrivKeyOption = page.getByText('Import Private Key');
+    await expect(importPrivKeyOption).toBeVisible({ timeout: 5000 });
+    await importPrivKeyOption.click();
 
     // Wait for page to render - look for the Import Private Key heading
-    await expect(page.getByText('Import Private Key')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Import Private Key').first()).toBeVisible({ timeout: 10000 });
 
     // Fill private key input using name attribute (PasswordInput has name="private-key")
     const privateKeyInput = page.locator('input[name="private-key"]');
@@ -215,7 +229,7 @@ test.describe('Wallet Management Features', () => {
     await backupCheckbox.waitFor({ state: 'visible', timeout: 5000 });
     await backupCheckbox.check();
 
-    // Password field appears after checkbox is checked
+    // Password field appears after checkbox is checked (verify existing password)
     const passwordInput = page.locator('input[name="password"]');
     await passwordInput.waitFor({ state: 'visible', timeout: 5000 });
     await passwordInput.fill(TEST_PASSWORD);
@@ -224,8 +238,12 @@ test.describe('Wallet Management Features', () => {
     await page.getByRole('button', { name: /Continue/i }).click();
     await page.waitForURL(/index/, { timeout: 10000 });
 
-    // Verify wallet imported
-    await expect(page.locator('text=/Assets|Balances/').first()).toBeVisible({ timeout: 5000 });
+    // Verify wallet imported - should now have 2 wallets
+    await headerButton.click();
+    await page.waitForURL(/select-wallet/, { timeout: 5000 });
+
+    const walletEntries = page.locator('[role="radio"]');
+    await expect(walletEntries).toHaveCount(2, { timeout: 5000 });
 
     await cleanup(context);
   });
