@@ -213,12 +213,14 @@ jobs:
       
       - name: Check for known vulnerabilities
         run: |
-          audit_output=$(npm audit --json)
+          # npm audit returns non-zero for ANY vulnerabilities, so suppress exit code
+          audit_output=$(npm audit --json 2>/dev/null || true)
           high_vulns=$(echo "$audit_output" | jq '.metadata.vulnerabilities.high // 0')
           critical_vulns=$(echo "$audit_output" | jq '.metadata.vulnerabilities.critical // 0')
-          
+
           if [ "$high_vulns" -gt 0 ] || [ "$critical_vulns" -gt 0 ]; then
             echo "Found $critical_vulns critical and $high_vulns high vulnerabilities"
+            echo "$audit_output" | jq '.vulnerabilities | to_entries[] | select(.value.severity == "high" or .value.severity == "critical") | "\(.key): \(.value.severity)"'
             exit 1
           fi
           echo "No high or critical vulnerabilities found"
