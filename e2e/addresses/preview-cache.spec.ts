@@ -86,74 +86,79 @@ test.describe('Address Preview Cache', () => {
   
   test('addresses persist in cache after wallet lock', async () => {
     const { context, page, extensionId } = await launchExtension('address-cache-lock');
-    
+
     // Setup wallet - this unlocks it
     await setupWallet(page);
-    
-    // Navigate to settings
+
+    // Navigate to settings > Address Type
     await navigateViaFooter(page, 'settings');
-    await page.waitForTimeout(1000);
-    
-    // Navigate to Address Type settings
-    await page.click('text=Address Type');
-    await page.waitForTimeout(2000);
-    
+    const addressTypeOption = page.getByText('Address Type');
+    await expect(addressTypeOption).toBeVisible({ timeout: 5000 });
+    await addressTypeOption.click();
+    await page.waitForURL(/address-type/, { timeout: 5000 });
+
+    // Wait for address cards to load (description contains address preview)
+    await expect(page.locator('[role="radio"]').first()).toBeVisible({ timeout: 10000 });
+    // Wait a bit for address previews to load
+    await expect(page.locator('[role="radio"] .text-xs').first()).toBeVisible({ timeout: 10000 });
+
     // Get initial addresses
     const cards = await page.locator('[role="radio"]').all();
     const initialAddresses = [];
     for (const card of cards) {
       const titleText = await card.locator('.text-sm.font-medium').textContent();
-      const descText = await card.locator('.text-xs').textContent();
+      // Description might not exist if address preview not loaded
+      const descElement = card.locator('.text-xs');
+      const descText = await descElement.count() > 0 ? await descElement.textContent() : '';
       initialAddresses.push({ title: titleText, description: descText });
     }
-    
+
     // Navigate back to main index page before locking
     await navigateViaFooter(page, 'wallet');
-    await page.waitForTimeout(1000);
-    
+
     // Lock the wallet
     await lockWallet(page);
-    
+
     // Should be redirected to unlock page
     await expect(page).toHaveURL(/unlock/);
     await expect(page.locator('input[name="password"]')).toBeVisible();
-    
+
     // Unlock with correct password
     await unlockWallet(page, TEST_PASSWORD);
-    
-    // Navigate back to settings
+
+    // Navigate back to settings > Address Type
     await navigateViaFooter(page, 'settings');
-    await page.waitForTimeout(1000);
-    
-    // Navigate to Address Type settings
-    await expect(page.locator('text=Address Type')).toBeVisible({ timeout: 5000 });
-    await page.click('text=Address Type');
-    await page.waitForURL('**/address-type*', { timeout: 5000 });
-    
-    // Wait for address cards to load and get addresses after unlock
+    await expect(page.getByText('Address Type')).toBeVisible({ timeout: 5000 });
+    await page.getByText('Address Type').click();
+    await page.waitForURL(/address-type/, { timeout: 5000 });
+
+    // Wait for address cards to load
     await expect(page.locator('[role="radio"]').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[role="radio"] .text-xs').first()).toBeVisible({ timeout: 10000 });
+
     const cardsAfter = await page.locator('[role="radio"]').all();
     const addressesAfterUnlock = [];
-    
+
     for (const card of cardsAfter) {
       const titleText = await card.locator('.text-sm.font-medium').textContent();
-      const descText = await card.locator('.text-xs').textContent();
+      const descElement = card.locator('.text-xs');
+      const descText = await descElement.count() > 0 ? await descElement.textContent() : '';
       addressesAfterUnlock.push({ title: titleText, description: descText });
     }
-    
+
     console.log(`Found ${initialAddresses.length} initial addresses and ${addressesAfterUnlock.length} addresses after unlock`);
-    
+
     // Verify addresses are the same (cached)
     expect(initialAddresses.length).toBeGreaterThan(0);
     expect(addressesAfterUnlock.length).toBe(initialAddresses.length);
-    
+
     for (const initial of initialAddresses) {
       const after = addressesAfterUnlock.find(a => a.title === initial.title);
       console.log(`Comparing ${initial.title}: "${initial.description}" vs "${after?.description}"`);
       expect(after).toBeDefined();
       expect(after?.description).toBe(initial.description);
     }
-    
+
     await cleanup(context);
   });
 });

@@ -80,13 +80,10 @@ test.describe('Settings with Headless UI Components', () => {
       await advancedOption.click();
     }
     
-    await page.waitForTimeout(1000);
-    
-    // Look for auto-lock settings
-    const autoLockOption = page.locator('text=/Auto.*Lock|auto.*lock/i');
-    if (await autoLockOption.isVisible()) {
-      await autoLockOption.click();
-      await page.waitForTimeout(1000);
+    // Look for auto-lock settings (use .first() - matches both label and description)
+    const autoLockLabel = page.locator('text=/Auto.*Lock.*Timer/i').first();
+    if (await autoLockLabel.isVisible({ timeout: 5000 }).catch(() => false)) {
+      // Already on advanced page, auto-lock is visible
       
       // Should show timeout options as radio buttons
       const timeoutOptions = await page.locator('[role="radio"]').all();
@@ -305,32 +302,34 @@ test.describe('Settings with Headless UI Components', () => {
   test('headless UI accessibility attributes', async () => {
     const { context, page } = await launchExtension('a11y-headless');
     await setupWallet(page);
-    
-    // Navigate to settings
+
+    // Navigate to settings > Advanced (where radio buttons are)
     await navigateViaFooter(page, 'settings');
-    
-    // Check for proper ARIA attributes on components
+    const advancedOption = page.getByText('Advanced');
+    await expect(advancedOption).toBeVisible({ timeout: 5000 });
+    await advancedOption.click();
+    await page.waitForURL(/advanced/, { timeout: 5000 });
+
+    // Check for proper ARIA attributes on radio components
     const radioButtons = await page.locator('[role="radio"]').all();
-    if (radioButtons.length > 0) {
-      for (const radio of radioButtons) {
-        // Should have aria-checked attribute
-        const hasAriaChecked = await radio.getAttribute('aria-checked');
-        expect(hasAriaChecked).not.toBeNull();
-        expect(['true', 'false']).toContain(hasAriaChecked);
-      }
+    expect(radioButtons.length).toBeGreaterThan(0);
+
+    for (const radio of radioButtons) {
+      // Should have aria-checked attribute
+      const hasAriaChecked = await radio.getAttribute('aria-checked');
+      expect(hasAriaChecked).not.toBeNull();
+      expect(['true', 'false']).toContain(hasAriaChecked);
     }
-    
+
     // Check buttons have proper labels
-    const buttons = await page.locator('[role="button"]').all();
-    if (buttons.length > 0) {
-      for (const button of buttons) {
-        const hasLabel = await button.getAttribute('aria-label') || 
-                         await button.textContent() ||
-                         await button.getAttribute('aria-labelledby');
-        expect(hasLabel).toBeTruthy();
-      }
+    const buttons = await page.locator('button').all();
+    for (const button of buttons) {
+      const hasLabel = await button.getAttribute('aria-label') ||
+                       await button.textContent() ||
+                       await button.getAttribute('aria-labelledby');
+      expect(hasLabel).toBeTruthy();
     }
-    
+
     await cleanup(context);
   });
 });

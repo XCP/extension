@@ -112,31 +112,27 @@ test.describe('Wallet Lock and Unlock', () => {
   test('wallet auto-lock settings', async () => {
     const { context, page } = await launchExtension('auto-lock-settings');
     await setupWallet(page);
-    
+
     // Navigate to settings using footer
     await navigateViaFooter(page, 'settings');
-    
-    // Click on Advanced settings option if available
-    const advancedOption = page.locator('text=Advanced');
-    if (await advancedOption.isVisible()) {
-      await advancedOption.click();
-      await page.waitForURL('**/settings/advanced', { timeout: 10000 });
-    }
-    
-    // Should see auto-lock timer setting
-    await expect(page.locator('text=/Auto-Lock|Auto Lock/i')).toBeVisible();
-    
-    // Check for timeout options
-    const timeoutOptions = ['1 Minute', '5 Minutes', '15 Minutes', '30 Minutes'];
-    for (const option of timeoutOptions) {
-      const optionLocator = page.locator(`text=/${option}/i`);
-      const isVisible = await optionLocator.isVisible().catch(() => false);
-      if (isVisible) {
-        // At least some options are visible
-        break;
-      }
-    }
-    
+
+    // Click on Advanced settings (required to see auto-lock options)
+    const advancedOption = page.getByText('Advanced');
+    await expect(advancedOption).toBeVisible({ timeout: 5000 });
+    await advancedOption.click();
+    await page.waitForURL(/advanced/, { timeout: 10000 });
+
+    // Should see auto-lock timer setting (use .first() - label and description both match)
+    await expect(page.locator('text=/Auto-Lock.*Timer/i').first()).toBeVisible({ timeout: 5000 });
+
+    // Check for timeout options as radio buttons
+    const radioOptions = page.locator('[role="radio"]');
+    await expect(radioOptions.first()).toBeVisible({ timeout: 5000 });
+
+    // Verify we have the expected timeout options
+    await expect(page.getByText('1 Minute')).toBeVisible();
+    await expect(page.getByText('5 Minutes')).toBeVisible();
+
     await cleanup(context);
   });
 
