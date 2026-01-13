@@ -90,6 +90,9 @@ test.describe('Wallet Management Features', () => {
     await headerButton.click();
     await page.waitForURL(/select-wallet/, { timeout: 5000 });
 
+    // Wait for initial wallet list to load
+    await expect(page.locator('[role="radio"]').first()).toBeVisible({ timeout: 5000 });
+
     // Click Add Wallet (use .first() - there are 2 Add Wallet buttons on page)
     const addWalletButton = page.getByRole('button', { name: /Add.*Wallet/i }).first();
     await expect(addWalletButton).toBeVisible({ timeout: 5000 });
@@ -101,7 +104,7 @@ test.describe('Wallet Management Features', () => {
     await createOption.click();
 
     // Complete second wallet creation
-    await page.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
+    await page.waitForSelector('text=View 12-word Secret Phrase', { timeout: 10000 });
     await page.getByText('View 12-word Secret Phrase').click();
 
     const checkbox = page.getByLabel(/I have saved my secret recovery phrase/);
@@ -115,11 +118,23 @@ test.describe('Wallet Management Features', () => {
     await page.getByRole('button', { name: /Continue/i }).click();
     await page.waitForURL(/index/, { timeout: 15000 });
 
+    // Wait for index page to fully load before navigating away
+    await page.waitForLoadState('networkidle');
+
     // Verify wallet list shows 2+ wallets
     await headerButton.click();
     await page.waitForURL(/select-wallet/, { timeout: 5000 });
 
+    // Wait for wallet entries to be visible
     const walletEntries = page.locator('[role="radio"]');
+    await expect(walletEntries.first()).toBeVisible({ timeout: 10000 });
+
+    // Wait for list to stabilize - second wallet may take a moment to appear
+    await page.waitForLoadState('networkidle');
+
+    // Wait explicitly for at least 2 wallet entries
+    await expect(walletEntries).toHaveCount(2, { timeout: 10000 });
+
     const walletCount = await walletEntries.count();
     expect(walletCount).toBeGreaterThanOrEqual(2);
 
@@ -187,8 +202,11 @@ test.describe('Wallet Management Features', () => {
     await page.goto(`${baseUrl}#/import-private-key`);
     await page.waitForLoadState('networkidle');
 
-    // Fill private key input (PasswordInput component - look for placeholder)
-    const privateKeyInput = page.locator('input[placeholder*="private key"]');
+    // Wait for page to render - look for the Import Private Key heading
+    await expect(page.getByText('Import Private Key')).toBeVisible({ timeout: 10000 });
+
+    // Fill private key input using name attribute (PasswordInput has name="private-key")
+    const privateKeyInput = page.locator('input[name="private-key"]');
     await privateKeyInput.waitFor({ state: 'visible', timeout: 10000 });
     await privateKeyInput.fill(TEST_PRIVATE_KEY);
 
