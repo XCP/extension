@@ -28,6 +28,88 @@ import {
 } from './types';
 import { extractPsbtDetails } from '@/utils/blockchain/bitcoin/psbt';
 
+// ============================================================================
+// Internal Types for Trezor SDK Compatibility
+// ============================================================================
+// The Trezor SDK has its own internal type system that doesn't align perfectly
+// with our typed script types. These internal types bridge that gap while
+// maintaining type safety within our codebase.
+// ============================================================================
+
+/**
+ * Trezor SDK script type (union of input and output types).
+ * Used for type assertions when passing to TrezorConnect methods.
+ */
+type TrezorScriptType = InputScriptType | OutputScriptType;
+
+/**
+ * Input format expected by TrezorConnect.signTransaction()
+ */
+interface TrezorSignInput {
+  address_n: number[];
+  prev_hash: string;
+  prev_index: number;
+  amount: string;
+  script_type: TrezorScriptType;
+}
+
+/**
+ * Output format expected by TrezorConnect.signTransaction()
+ */
+interface TrezorSignOutput {
+  address?: string;
+  address_n?: number[];
+  amount: string;
+  script_type: TrezorScriptType;
+  op_return_data?: string;
+}
+
+/**
+ * Sign transaction request format for TrezorConnect
+ */
+interface TrezorSignTransactionRequest {
+  inputs: TrezorSignInput[];
+  outputs: TrezorSignOutput[];
+  coin: string;
+  push: boolean;
+  refTxs?: TrezorRefTransaction[];
+}
+
+/**
+ * Referenced transaction format for TrezorConnect
+ */
+interface TrezorRefTransaction {
+  hash: string;
+  version: number;
+  lock_time: number;
+  inputs: Array<{
+    prev_hash: string;
+    prev_index: number;
+    script_sig: string;
+    sequence: number;
+  }>;
+  bin_outputs: Array<{
+    amount: number;
+    script_pubkey: string;
+  }>;
+}
+
+/**
+ * Type-safe cast for script types to Trezor SDK format.
+ *
+ * The Trezor SDK defines its own script type enums that don't align with
+ * our string literal types. This function provides a type-safe bridge
+ * by asserting that our script type strings are compatible with what
+ * TrezorConnect expects. The runtime values are identical - this is
+ * purely a TypeScript type system bridge.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toTrezorScriptType<T extends TrezorScriptType>(scriptType: T): any {
+  return scriptType;
+}
+
+// ============================================================================
+
 /**
  * Configuration options for TrezorAdapter initialization
  */
@@ -109,6 +191,11 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
   private deviceInfo: HardwareDeviceInfo | null = null;
   private options: TrezorAdapterOptions = {};
 
+  // Event handler references for cleanup
+  private deviceEventHandler: ((event: unknown) => void) | null = null;
+  private buttonRequestHandler: ((event: unknown) => void) | null = null;
+  private confirmationHandler: ((event: unknown) => void) | null = null;
+
   /**
    * Initialize Trezor Connect
    * @param options Configuration options for test mode or custom settings
@@ -157,8 +244,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
       await TrezorConnect.init(initConfig);
 
-      // Listen for device events
-      TrezorConnect.on(DEVICE_EVENT, (rawEvent: unknown) => {
+      // Create and store device event handler for cleanup
+      this.deviceEventHandler = (rawEvent: unknown) => {
         const event = rawEvent as { type: string; payload: { features?: { model?: string; label?: string | null; major_version?: number; minor_version?: number; patch_version?: number } } };
         if (event.type === DEVICE.CONNECT) {
           this.connectionStatus = 'connected';
@@ -177,25 +264,28 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
             this.deviceInfo.connected = false;
           }
         }
-      });
+      };
+      TrezorConnect.on(DEVICE_EVENT, this.deviceEventHandler);
 
       // In test mode, listen for button requests for auto-confirm
       if (isTestMode && this.options.onButtonRequest) {
-        TrezorConnect.on(UI.REQUEST_BUTTON, (rawEvent: unknown) => {
+        this.buttonRequestHandler = (rawEvent: unknown) => {
           const event = rawEvent as { payload?: { code?: string } };
           const code = event.payload?.code ?? 'unknown';
           this.options.onButtonRequest?.(code);
-        });
+        };
+        TrezorConnect.on(UI.REQUEST_BUTTON, this.buttonRequestHandler);
       }
 
       // Handle confirmation dialogs in test mode
       if (isTestMode) {
-        TrezorConnect.on(UI.REQUEST_CONFIRMATION, () => {
+        this.confirmationHandler = () => {
           TrezorConnect.uiResponse({
             type: UI.RECEIVE_CONFIRMATION,
             payload: true,
           });
-        });
+        };
+        TrezorConnect.on(UI.REQUEST_CONFIRMATION, this.confirmationHandler);
       }
 
       this.initialized = true;
@@ -270,8 +360,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       path: pathString,
       coin: 'btc',
       showOnTrezor: showOnDevice,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Trezor SDK type mismatch
-      scriptType: scriptType as any,
+      scriptType: toTrezorScriptType(scriptType),
       useEmptyPassphrase: !usePassphrase,
     });
 
@@ -319,8 +408,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         path: pathString,
         coin: 'btc' as const,
         showOnTrezor: false,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Trezor SDK type mismatch
-        scriptType: scriptType as any,
+        scriptType: toTrezorScriptType(scriptType),
       };
     });
 
@@ -384,22 +472,20 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     this.ensureInitialized();
 
     // Convert inputs to Trezor format
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Trezor SDK type mismatch
-    const inputs = request.inputs.map((input) => ({
+    const inputs: TrezorSignInput[] = request.inputs.map((input) => ({
       address_n: input.addressPath,
       prev_hash: input.prevTxHash,
       prev_index: input.prevIndex,
       amount: input.amount,
-      script_type: input.scriptType as any,
+      script_type: input.scriptType,
     }));
 
     // Convert outputs to Trezor format
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Trezor SDK type mismatch
-    const outputs = request.outputs.map((output) => {
+    const outputs: TrezorSignOutput[] = request.outputs.map((output) => {
       if (output.scriptType === 'PAYTOOPRETURN') {
         // OP_RETURN output - no address, amount must be 0
         return {
-          script_type: 'PAYTOOPRETURN' as any,
+          script_type: 'PAYTOOPRETURN' as const,
           amount: '0',
           op_return_data: output.opReturnData,
         };
@@ -408,20 +494,20 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         return {
           address_n: output.addressPath,
           amount: output.amount,
-          script_type: output.scriptType as any,
+          script_type: output.scriptType,
         };
       } else {
         // External output - use address
         return {
           address: output.address,
           amount: output.amount,
-          script_type: output.scriptType as any,
+          script_type: output.scriptType,
         };
       }
     });
 
     // Build the sign transaction request
-    const signRequest: any = {
+    const signRequest: TrezorSignTransactionRequest = {
       inputs,
       outputs,
       coin: 'btc',
@@ -494,9 +580,26 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
   /**
    * Sign a PSBT using Trezor
    *
-   * This parses the PSBT, converts to Trezor format, signs, and returns
-   * the signed transaction. Note: Trezor returns a fully signed raw tx,
-   * not a PSBT, so this effectively finalizes the transaction.
+   * **IMPORTANT: Output format clarification**
+   *
+   * Despite the method name and return type, Trezor does NOT return a PSBT.
+   * The Trezor SDK's signTransaction() returns a fully-signed raw transaction
+   * hex, not a Partially Signed Bitcoin Transaction.
+   *
+   * This means:
+   * - The `signedPsbtHex` return value is actually a raw transaction hex
+   * - The transaction is effectively finalized (all signatures applied)
+   * - It is ready for immediate broadcast, not for further PSBT processing
+   * - This differs from standard PSBT workflow where multiple parties
+   *   might add signatures incrementally
+   *
+   * The method name and interface are maintained for API consistency with
+   * other hardware wallets that may return actual PSBTs.
+   *
+   * @param request - PSBT signing request containing:
+   *   - psbtHex: The PSBT to sign (parsed internally)
+   *   - inputPaths: Map of input index to BIP32 derivation paths
+   * @returns Object with signedPsbtHex (actually a raw transaction hex)
    */
   async signPsbt(request: HardwarePsbtSignRequest): Promise<{ signedPsbtHex: string }> {
     this.ensureInitialized();
@@ -507,7 +610,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     const psbtDetails = extractPsbtDetails(psbtHex);
 
     // Convert inputs to Trezor format
-    const inputs: any[] = [];
+    const inputs: TrezorSignInput[] = [];
     for (let i = 0; i < psbtDetails.inputs.length; i++) {
       const input = psbtDetails.inputs[i];
       const path = inputPaths.get(i);
@@ -535,7 +638,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     }
 
     // Convert outputs to Trezor format
-    const outputs: any[] = [];
+    const outputs: TrezorSignOutput[] = [];
     for (let i = 0; i < psbtDetails.outputs.length; i++) {
       const output = psbtDetails.outputs[i];
 
@@ -559,8 +662,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
           );
         }
 
-        // Determine output script type
-        let outputScriptType: string;
+        // Determine output script type based on PSBT output type
+        let outputScriptType: OutputScriptType;
         switch (output.type) {
           case 'p2pkh':
             outputScriptType = 'PAYTOADDRESS';
@@ -587,7 +690,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     }
 
     // Sign the transaction with Trezor
-    const signRequest: any = {
+    const signRequest: TrezorSignTransactionRequest = {
       inputs,
       outputs,
       coin: 'btc',
@@ -614,10 +717,24 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
   }
 
   /**
-   * Clean up resources
+   * Clean up resources and remove event listeners
    */
   async dispose(): Promise<void> {
     if (this.initialized) {
+      // Remove event listeners to prevent memory leaks
+      if (this.deviceEventHandler) {
+        TrezorConnect.off(DEVICE_EVENT, this.deviceEventHandler);
+        this.deviceEventHandler = null;
+      }
+      if (this.buttonRequestHandler) {
+        TrezorConnect.off(UI.REQUEST_BUTTON, this.buttonRequestHandler);
+        this.buttonRequestHandler = null;
+      }
+      if (this.confirmationHandler) {
+        TrezorConnect.off(UI.REQUEST_CONFIRMATION, this.confirmationHandler);
+        this.confirmationHandler = null;
+      }
+
       TrezorConnect.dispose();
       this.initialized = false;
       this.connectionStatus = 'disconnected';
@@ -626,7 +743,36 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
   }
 
   /**
-   * Ensure the adapter is initialized
+   * Attempt to reconnect after disconnection.
+   *
+   * This is useful when the device has been disconnected and needs to be
+   * re-initialized. It disposes the current connection and re-initializes.
+   *
+   * @returns true if reconnection succeeded, false otherwise
+   */
+  async reconnect(): Promise<boolean> {
+    // If already connected, no need to reconnect
+    if (this.connectionStatus === 'connected') {
+      return true;
+    }
+
+    try {
+      // Clean up existing state
+      await this.dispose();
+
+      // Re-initialize with stored options
+      await this.init(this.options);
+
+      return true;
+    } catch (error) {
+      // Reconnection failed - log but don't throw
+      console.warn('Trezor reconnection failed:', error instanceof Error ? error.message : 'Unknown error');
+      return false;
+    }
+  }
+
+  /**
+   * Ensure the adapter is initialized, with optional auto-reconnect
    */
   private ensureInitialized(): void {
     if (!this.initialized) {

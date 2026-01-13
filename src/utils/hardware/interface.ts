@@ -102,6 +102,13 @@ export interface IHardwareWalletAdapter {
   signPsbt(request: HardwarePsbtSignRequest): Promise<{ signedPsbtHex: string }>;
 
   /**
+   * Attempt to reconnect after disconnection.
+   * Useful for recovering from device disconnect during operation.
+   * @returns true if reconnection succeeded, false otherwise
+   */
+  reconnect(): Promise<boolean>;
+
+  /**
    * Dispose of resources and clean up
    */
   dispose(): Promise<void>;
