@@ -27,6 +27,7 @@ import {
   OutputScriptType,
 } from './types';
 import { extractPsbtDetails } from '@/utils/blockchain/bitcoin/psbt';
+import { getSettings } from '@/utils/storage/settingsStorage';
 
 // ============================================================================
 // Internal Types for Trezor SDK Compatibility
@@ -210,8 +211,39 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     try {
       this.connectionStatus = 'connecting';
 
-      // Determine configuration based on mode
-      const isTestMode = this.options.testMode === true;
+      // Determine test mode from multiple sources:
+      // 1. Explicit option passed to init()
+      // 2. Settings transactionDryRun flag
+      // 3. Trezor Bridge availability (indicates emulator environment)
+      let isTestMode = this.options.testMode === true;
+
+      if (!isTestMode) {
+        // Check settings for transactionDryRun
+        try {
+          const settings = await getSettings();
+          isTestMode = settings.transactionDryRun === true;
+        } catch {
+          // Settings not available, continue with bridge detection
+        }
+      }
+
+      if (!isTestMode) {
+        // Probe for Trezor Bridge - if it's running, we're likely in emulator environment
+        // This allows automatic test mode detection in CI without configuration
+        try {
+          const bridgeResponse = await fetch('http://localhost:21325/', {
+            method: 'POST',
+            signal: AbortSignal.timeout(1000),
+          });
+          if (bridgeResponse.ok) {
+            console.log('[TrezorAdapter] Bridge detected on localhost - using test mode');
+            isTestMode = true;
+          }
+        } catch {
+          // Bridge not available, use production mode
+        }
+      }
+
       const debug = this.options.debug ?? process.env.NODE_ENV === 'development';
 
       // Build init configuration
