@@ -92,7 +92,7 @@ export const index = {
 export const viewAddress = {
   // QR code can be canvas, svg, or img depending on implementation
   qrCode: (page: Page) => page.locator('canvas, svg, img[alt*="QR"], [class*="qr"]').first(),
-  addressDisplay: (page: Page) => page.locator('.font-mono').first(),
+  addressDisplay: (page: Page) => page.locator('[aria-label="Current address"] .font-mono, .font-mono').first(),
 };
 
 // ============================================================================

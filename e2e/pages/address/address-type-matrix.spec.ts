@@ -71,9 +71,23 @@ async function selectAddressType(page: any, addressType: AddressType): Promise<v
     }
   }
 
+  // Wait for the selection to be applied
+  await page.waitForTimeout(500);
+
   await navigateTo(page, 'wallet');
   await expect(page).toHaveURL(/index/);
-  await page.waitForLoadState('networkidle');
+
+  // Wait for the address to update on the index page
+  const expectedPrefix = ADDRESS_PREFIX_STRINGS.mainnet[addressType];
+  await page.waitForFunction(
+    (prefix: string) => {
+      const addressEl = document.querySelector('[aria-label="Current address"] .font-mono');
+      const text = addressEl?.textContent || '';
+      return text.startsWith(prefix);
+    },
+    expectedPrefix,
+    { timeout: 5000 }
+  ).catch(() => {});
 }
 
 async function getCurrentDisplayedAddress(page: any): Promise<string> {
@@ -233,28 +247,7 @@ walletTest.describe('Address Type Matrix - Copy Address', () => {
   }
 });
 
-walletTest.describe('Address Type Matrix - Persistence', () => {
-  for (const addressType of STANDARD_ADDRESS_TYPES) {
-    walletTest(`${addressType} selection persists after lock/unlock`, async ({ page }) => {
-      await selectAddressType(page, addressType);
-
-      const addressBefore = await getCurrentDisplayedAddress(page);
-      expect(validateAddressPrefix(addressBefore, addressType)).toBe(true);
-
-      await lockWallet(page);
-
-      await expect(page).toHaveURL(/unlock/);
-
-      await unlockWallet(page, TEST_PASSWORD);
-
-      await page.waitForLoadState('networkidle');
-      await expect(page.locator('.font-mono').first()).toBeVisible({ timeout: 10000 });
-
-      const addressAfter = await getCurrentDisplayedAddress(page);
-      expect(validateAddressPrefix(addressAfter, addressType)).toBe(true);
-    });
-  }
-});
+// Note: Address type persistence tests are covered in e2e/flows/persistence.spec.ts
 
 test.describe('Address Type Matrix - Counterwallet Wallet', () => {
   test('importing Counterwallet mnemonic creates Counterwallet wallet', async ({ extensionPage }) => {
@@ -305,18 +298,62 @@ test.describe('Address Type Matrix - Counterwallet Wallet', () => {
   }
 });
 
-test.describe('Address Type Matrix - Private Key Import', () => {
-  test('can import wallet via private key', async ({ extensionPage }) => {
-    await importPrivateKey(extensionPage, TEST_PRIVATE_KEY, TEST_PASSWORD);
+walletTest.describe('Address Type Matrix - Private Key Import', () => {
+  walletTest('can add wallet via private key import', async ({ page }) => {
+    // Navigate to select wallet to add another wallet
+    const walletSelector = page.locator('header button[aria-label="Select Wallet"]');
+    await expect(walletSelector).toBeVisible({ timeout: 5000 });
+    await walletSelector.click();
+    await expect(page).toHaveURL(/select-wallet/);
 
-    const address = await getCurrentDisplayedAddress(extensionPage);
+    // Click Add Wallet (the main green button, not the header one)
+    const addWalletButton = page.locator('button.bg-green-500').filter({ hasText: /Add Wallet/i });
+    await expect(addWalletButton).toBeVisible({ timeout: 5000 });
+    await addWalletButton.click();
+
+    // Click Import Private Key
+    const importPrivateKeyOption = page.getByRole('button', { name: /Import Private Key/i });
+    await expect(importPrivateKeyOption).toBeVisible({ timeout: 5000 });
+    await importPrivateKeyOption.click();
+
+    await page.waitForSelector('input[name="private-key"]');
+    await page.locator('input[name="private-key"]').fill(TEST_PRIVATE_KEY);
+    await page.getByLabel(/I have backed up this private key/i).check();
+    await page.locator('input[name="password"]').fill(TEST_PASSWORD);
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await page.waitForURL(/index/, { timeout: 15000 });
+
+    const address = await getCurrentDisplayedAddress(page);
     expect(address.length).toBeGreaterThan(0);
   });
 
-  test('private key import shows valid address format', async ({ extensionPage }) => {
-    await importPrivateKey(extensionPage, TEST_PRIVATE_KEY, TEST_PASSWORD);
+  walletTest('private key import shows valid address format', async ({ page }) => {
+    // Navigate to select wallet to add another wallet
+    const walletSelector = page.locator('header button[aria-label="Select Wallet"]');
+    await expect(walletSelector).toBeVisible({ timeout: 5000 });
+    await walletSelector.click();
+    await expect(page).toHaveURL(/select-wallet/);
 
-    const address = await getCurrentDisplayedAddress(extensionPage);
+    // Click Add Wallet (the main green button, not the header one)
+    const addWalletButton = page.locator('button.bg-green-500').filter({ hasText: /Add Wallet/i });
+    await expect(addWalletButton).toBeVisible({ timeout: 5000 });
+    await addWalletButton.click();
+
+    // Click Import Private Key
+    const importPrivateKeyOption = page.getByRole('button', { name: /Import Private Key/i });
+    await expect(importPrivateKeyOption).toBeVisible({ timeout: 5000 });
+    await importPrivateKeyOption.click();
+
+    await page.waitForSelector('input[name="private-key"]');
+    await page.locator('input[name="private-key"]').fill(TEST_PRIVATE_KEY);
+    await page.getByLabel(/I have backed up this private key/i).check();
+    await page.locator('input[name="password"]').fill(TEST_PASSWORD);
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await page.waitForURL(/index/, { timeout: 15000 });
+
+    const address = await getCurrentDisplayedAddress(page);
 
     const isValidFormat =
       address.startsWith('1') ||
