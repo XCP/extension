@@ -659,8 +659,8 @@ test.describe('Form Edge Cases - Private Key Import', () => {
 
       const privKeyInput = page.locator('input[name="privateKey"], input[placeholder*="private"], textarea').first();
       if (await privKeyInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-        // Enter WIF format key
-        await privKeyInput.fill(TEST_PRIVATE_KEYS.wif);
+        // Enter WIF format key (mainnet is in WIF format)
+        await privKeyInput.fill(TEST_PRIVATE_KEYS.mainnet);
         await privKeyInput.blur();
         await page.waitForTimeout(500);
 

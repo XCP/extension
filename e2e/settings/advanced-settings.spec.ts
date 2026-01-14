@@ -191,7 +191,7 @@ test.describe('Advanced Settings', () => {
         for (let i = 0; i < switchCount; i++) {
           const sw = switches.nth(i);
           const text = await sw.locator('..').locator('..').textContent().catch(() => '');
-          if (text.toLowerCase().includes('mpma')) {
+          if ((text || '').toLowerCase().includes('mpma')) {
             const initialState = await sw.getAttribute('aria-checked');
             await sw.click();
             await page.waitForTimeout(500);
