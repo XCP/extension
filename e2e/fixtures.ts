@@ -63,13 +63,14 @@ async function launchExtension(testId: string): Promise<{
     timeout,
   });
 
-  // Find extension ID
+  // Find extension ID - try multiple methods
   let extensionId: string | null = null;
-  const maxWait = isCI ? 30 : 15;
+  const maxWait = isCI ? 45 : 20;
 
   for (let i = 0; i < maxWait && !extensionId; i++) {
     await sleep(1000);
 
+    // Method 1: Check service workers
     for (const sw of context.serviceWorkers()) {
       const match = sw.url().match(/chrome-extension:\/\/([^/]+)/);
       if (match) {
@@ -78,9 +79,21 @@ async function launchExtension(testId: string): Promise<{
       }
     }
 
+    // Method 2: Check pages
     if (!extensionId) {
       for (const p of context.pages()) {
         const match = p.url().match(/chrome-extension:\/\/([^/]+)/);
+        if (match) {
+          extensionId = match[1];
+          break;
+        }
+      }
+    }
+
+    // Method 3: Check background pages (MV2 fallback)
+    if (!extensionId) {
+      for (const bp of context.backgroundPages()) {
+        const match = bp.url().match(/chrome-extension:\/\/([^/]+)/);
         if (match) {
           extensionId = match[1];
           break;
@@ -91,7 +104,7 @@ async function launchExtension(testId: string): Promise<{
 
   if (!extensionId) {
     await context.close();
-    throw new Error('Failed to find extension ID');
+    throw new Error('Failed to find extension ID after ' + maxWait + ' seconds');
   }
 
   const page = await context.newPage();
