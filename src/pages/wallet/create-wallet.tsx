@@ -13,7 +13,7 @@ import { generateNewMnemonic } from "@/utils/blockchain/bitcoin/privateKey";
 function CreateWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
+  const { wallets, createMnemonicWallet, verifyPassword } = useWallet();
   const walletExists = wallets.length > 0;
 
   const initialMnemonic = generateNewMnemonic();
@@ -53,7 +53,7 @@ function CreateWallet() {
       }
 
       try {
-        await createAndUnlockMnemonicWallet(mnemonic, password);
+        await createMnemonicWallet(mnemonic, password);
         navigate(PATHS.SUCCESS);
         return { error: null };
       } catch {

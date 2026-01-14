@@ -169,7 +169,7 @@ export function ComposerProvider<T>({
   initialTitle,
 }: ComposerProviderProps<T>): ReactElement {
   const navigate = useNavigate();
-  const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, unlockWallet, isWalletLocked } = useWallet();
+  const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, selectWallet, isKeychainLocked } = useWallet();
   const { settings } = useSettings();
 
   const previousAddressRef = useRef<string | undefined>(activeAddress?.address);
@@ -417,7 +417,7 @@ export function ComposerProvider<T>({
     }
 
     // Check if wallet is locked
-    if (await isWalletLocked()) {
+    if (await isKeychainLocked()) {
       setState(prev => ({ ...prev, showAuthModal: true }));
       return;
     }
@@ -453,7 +453,7 @@ export function ComposerProvider<T>({
         isSigning: false,
       }));
     }
-  }, [state.apiResponse, state.isSigning, state.composedAt, activeAddress, activeWallet, isWalletLocked, performSignAndBroadcast]);
+  }, [state.apiResponse, state.isSigning, state.composedAt, activeAddress, activeWallet, isKeychainLocked, performSignAndBroadcast]);
 
   // Handle unlock and sign (for auth modal)
   const handleUnlockAndSign = useCallback(async (password: string) => {
@@ -461,7 +461,8 @@ export function ComposerProvider<T>({
 
     setState(prev => ({ ...prev, isSigning: true }));
     try {
-      await unlockWallet(activeWallet.id, password);
+      // Load the wallet to decrypt its secret
+      await selectWallet(activeWallet.id);
       setState(prev => ({ ...prev, showAuthModal: false }));
 
       const apiResponseWithBroadcast = await performSignAndBroadcast();
@@ -478,7 +479,7 @@ export function ComposerProvider<T>({
       setState(prev => ({ ...prev, isSigning: false }));
       throw error; // Let the modal handle the error display
     }
-  }, [activeWallet, activeAddress, state.apiResponse, unlockWallet, performSignAndBroadcast]);
+  }, [activeWallet, activeAddress, state.apiResponse, selectWallet, performSignAndBroadcast]);
 
   // Navigation actions
   const reset = useCallback(() => {

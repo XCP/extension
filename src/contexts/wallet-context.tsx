@@ -24,12 +24,12 @@
  * @example
  * ```tsx
  * function MyComponent() {
- *   const { activeWallet, lockAll, isLoading } = useWallet();
+ *   const { activeWallet, lockKeychain, isLoading } = useWallet();
  *
  *   if (isLoading) return <Spinner />;
  *   if (!activeWallet) return <OnboardingFlow />;
  *
- *   return <Dashboard wallet={activeWallet} onLock={lockAll} />;
+ *   return <Dashboard wallet={activeWallet} onLock={lockKeychain} />;
  * }
  * ```
  */
@@ -102,8 +102,8 @@ interface WalletState {
   activeWallet: Wallet | null;
   /** Currently selected address within the active wallet */
   activeAddress: Address | null;
-  /** Whether all wallets are currently locked */
-  walletLocked: boolean;
+  /** Whether the keychain is currently locked */
+  keychainLocked: boolean;
   /** True while initial wallet data is loading from storage */
   isLoading: boolean;
 }
@@ -122,16 +122,18 @@ interface WalletContextType {
   activeWallet: Wallet | null;
   /** Currently active address */
   activeAddress: Address | null;
-  /** Whether wallet is locked */
-  walletLocked: boolean;
+  /** Whether the keychain is locked */
+  keychainLocked: boolean;
   /** True while loading initial state */
   isLoading: boolean;
 
   // ─── Authentication ────────────────────────────────────────────────────────
-  /** Unlock a specific wallet with password */
-  unlockWallet: (walletId: string, password: string) => Promise<void>;
-  /** Lock all wallets and clear sensitive data from memory */
-  lockAll: () => Promise<void>;
+  /** Unlock the keychain with password */
+  unlockKeychain: (password: string) => Promise<void>;
+  /** Load a specific wallet after keychain is unlocked */
+  selectWallet: (walletId: string) => Promise<void>;
+  /** Lock the keychain and clear sensitive data from memory */
+  lockKeychain: () => Promise<void>;
   /** Verify password without unlocking */
   verifyPassword: (password: string) => Promise<boolean>;
   /** Update the master password for all wallets */
@@ -144,19 +146,19 @@ interface WalletContextType {
   setActiveAddress: (address: Address | null) => Promise<void>;
   /** Update last activity timestamp (for auto-lock) */
   setLastActiveTime: () => Promise<void>;
-  /** Check if wallet is currently locked */
-  isWalletLocked: () => Promise<boolean>;
+  /** Check if keychain is currently locked */
+  isKeychainLocked: () => Promise<boolean>;
 
   // ─── Wallet Creation ───────────────────────────────────────────────────────
   /** Create wallet from mnemonic and unlock it */
-  createAndUnlockMnemonicWallet: (
+  createMnemonicWallet: (
     mnemonic: string,
     password: string,
     name?: string,
     addressFormat?: AddressFormat
   ) => Promise<Wallet>;
   /** Create wallet from private key and unlock it */
-  createAndUnlockPrivateKeyWallet: (
+  createPrivateKeyWallet: (
     privateKey: string,
     password: string,
     name?: string,
@@ -175,7 +177,7 @@ interface WalletContextType {
   /** Remove a wallet from the extension */
   removeWallet: (walletId: string) => Promise<void>;
   /** Reset all wallets (factory reset) */
-  resetAllWallets: (password: string) => Promise<void>;
+  resetKeychain: (password: string) => Promise<void>;
 
   // ─── Secrets (require unlock) ──────────────────────────────────────────────
   /** Get decrypted mnemonic for backup */
@@ -221,7 +223,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     wallets: [],
     activeWallet: null,
     activeAddress: null,
-    walletLocked: true,
+    keychainLocked: true,
     isLoading: true,
   });
 
@@ -244,7 +246,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         console.log('[WalletContext] Starting state refresh, version:', startLockVersion);
       }
 
-      await walletService.loadWallets();
+      await walletService.refreshWallets();
       const allWallets = await walletService.getWallets();
 
       // Use ref to get current state without triggering re-renders
@@ -263,18 +265,18 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         newState.authState = AuthState.Onboarding;
         newState.activeWallet = null;
         newState.activeAddress = null;
-        newState.walletLocked = true;
+        newState.keychainLocked = true;
       } else {
         const anyUnlocked = await walletService.isAnyWalletUnlocked();
         const newAuthState = anyUnlocked ? AuthState.Unlocked : AuthState.Locked;
         if (process.env.NODE_ENV === 'development' && newState.authState !== newAuthState) {
           console.log('[WalletContext] Transition: ', newState.authState, ' -> ', newAuthState);
         }
-        newState.walletLocked = !anyUnlocked;
+        newState.keychainLocked = !anyUnlocked;
         newState.authState = newAuthState;
 
         // Store for later use to avoid duplicate call
-        lockChanged = currentState.walletLocked !== !anyUnlocked;
+        lockChanged = currentState.keychainLocked !== !anyUnlocked;
       }
 
       if (!walletsEqual) newState.wallets = allWallets;
@@ -306,7 +308,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       } else {
         newState.activeWallet = null;
         newState.activeAddress = null;
-        newState.walletLocked = true;
+        newState.keychainLocked = true;
         newState.authState = AuthState.Onboarding;
       }
 
@@ -381,14 +383,14 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
           setWalletState((prev) => ({
             ...prev,
             authState: AuthState.Locked,
-            walletLocked: true,
+            keychainLocked: true,
             activeWallet: null,
             activeAddress: null,
           }));
         });
       }
     };
-    const unsubscribe = onMessage('walletLocked', handleLockMessage);
+    const unsubscribe = onMessage('keychainLocked', handleLockMessage);
 
     return () => {
       // Properly cleanup the message listener
@@ -417,7 +419,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
           activeAddress: newActiveAddress ?? null,
           // Keep unlocked state if any wallet is unlocked
           authState: anyUnlocked ? AuthState.Unlocked : prev.authState,
-          walletLocked: !anyUnlocked,
+          keychainLocked: !anyUnlocked,
         }));
         if (newActiveAddress) await walletService.setLastActiveAddress(newActiveAddress.address);
         } else {
@@ -462,10 +464,8 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     await walletService.setLastActiveTime();
   }, [walletService]);
 
-  const isWalletLocked = useCallback(async () => {
-    // Use ref to get current active wallet without stale closure
-    const activeWalletId = walletStateRef.current.activeWallet?.id;
-    if (!activeWalletId) return true; // No active wallet means locked
+  const isKeychainLocked = useCallback(async () => {
+    // Check if keychain is unlocked (master key available in session)
     return !(await walletService.isAnyWalletUnlocked());
   }, [walletService]);
 
@@ -474,36 +474,37 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     wallets: walletState.wallets,
     activeWallet: walletState.activeWallet,
     activeAddress: walletState.activeAddress,
-    walletLocked: walletState.walletLocked,
+    keychainLocked: walletState.keychainLocked,
     isLoading: walletState.isLoading,
-    unlockWallet: withRefresh(walletService.unlockWallet, async () => {
+    unlockKeychain: withRefresh(walletService.unlockKeychain, async () => {
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
-    }, 'wallet-unlock'),
-    lockAll: async () => {
+    }, 'wallet-unlock-keychain'),
+    selectWallet: withRefresh(walletService.selectWallet, refreshWalletState, 'wallet-load'),
+    lockKeychain: async () => {
       return withStateLock('wallet-lock', async () => {
         // Immediately set state to locked to trigger navigation
         setWalletState((prev) => ({
           ...prev,
           authState: AuthState.Locked,
-          walletLocked: true,
+          keychainLocked: true,
           activeWallet: null,
           activeAddress: null,
         }));
 
         // Then actually lock in the background
-        await walletService.lockAllWallets();
+        await walletService.lockKeychain();
       });
     },
     setActiveWallet,
     setActiveAddress,
     addAddress: withRefresh(walletService.addAddress, refreshWalletState),
     updatePassword: withRefresh(walletService.updatePassword, refreshWalletState),
-    createAndUnlockMnemonicWallet: withRefresh(walletService.createAndUnlockMnemonicWallet, async () => {
+    createMnemonicWallet: withRefresh(walletService.createMnemonicWallet, async () => {
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }),
-    createAndUnlockPrivateKeyWallet: withRefresh(walletService.createAndUnlockPrivateKeyWallet, async () => {
+    createPrivateKeyWallet: withRefresh(walletService.createPrivateKeyWallet, async () => {
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }),
@@ -511,14 +512,14 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }),
-    resetAllWallets: async (password) => {
-      await walletService.resetAllWallets(password);
+    resetKeychain: async (password) => {
+      await walletService.resetKeychain(password);
       setWalletState({
         authState: AuthState.Onboarding,
         wallets: [],
         activeWallet: null,
         activeAddress: null,
-        walletLocked: true,
+        keychainLocked: true,
         isLoading: false,
       });
     },
@@ -531,7 +532,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     removeWallet: withRefresh(walletService.removeWallet, refreshWalletState),
     signTransaction: walletService.signTransaction,
     broadcastTransaction: walletService.broadcastTransaction,
-    isWalletLocked,
+    isKeychainLocked,
   }), [
     walletState,
     walletService,
@@ -539,7 +540,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     setActiveWallet,
     setActiveAddress,
     setLastActiveTime,
-    isWalletLocked,
+    isKeychainLocked,
   ]);
 
   return <WalletContext value={value}>{children}</WalletContext>;

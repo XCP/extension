@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { fakeBrowser } from 'wxt/testing';
 import {
-  initializeSettingsKey,
-  clearSettingsKey,
-  isSettingsKeyAvailable,
+  deriveSettingsMasterKey,
+  generateSettingsSalt,
+  storeSettingsMasterKey,
+  clearSettingsMasterKey,
+  isSettingsMasterKeyAvailable,
   encryptSettings,
   decryptSettings,
   encryptSettingsWithPassword,
@@ -23,83 +25,111 @@ describe('settings encryption', () => {
     autoLockTimer: '15m',
   };
 
+  // Fixed test salt for reproducibility
+  let testSalt: Uint8Array<ArrayBuffer>;
+
   beforeEach(() => {
     fakeBrowser.reset();
+    testSalt = generateSettingsSalt();
   });
 
-  describe('initializeSettingsKey', () => {
-    it('should store derived key in session storage', async () => {
-      await initializeSettingsKey(TEST_PASSWORD);
+  /**
+   * Helper to initialize the settings key for tests.
+   * Derives key from password + salt and stores in session.
+   */
+  async function initializeKey(password: string, salt = testSalt): Promise<void> {
+    const key = await deriveSettingsMasterKey(password, salt);
+    await storeSettingsMasterKey(key);
+  }
 
-      // Verify key was stored by checking it's available
-      const available = await isSettingsKeyAvailable();
+  describe('key management', () => {
+    it('should store derived key in session storage', async () => {
+      await initializeKey(TEST_PASSWORD);
+
+      const available = await isSettingsMasterKeyAvailable();
       expect(available).toBe(true);
     });
 
-    it('should derive same key for same password', async () => {
+    it('should derive same key for same password and salt', async () => {
       // First initialization
-      await initializeSettingsKey(TEST_PASSWORD);
+      await initializeKey(TEST_PASSWORD, testSalt);
       const encrypted1 = await encryptSettings(TEST_SETTINGS);
 
-      // Clear and reinitialize with same password
-      await clearSettingsKey();
-      await initializeSettingsKey(TEST_PASSWORD);
+      // Clear and reinitialize with same password AND salt
+      await clearSettingsMasterKey();
+      await initializeKey(TEST_PASSWORD, testSalt);
 
-      // Should decrypt with the newly derived key (same key for same password)
+      // Should decrypt with the newly derived key (same key for same password+salt)
       const decrypted = await decryptSettings(encrypted1);
       expect(decrypted).toEqual(TEST_SETTINGS);
     });
 
     it('should derive different keys for different passwords', async () => {
-      await initializeSettingsKey('password1');
+      await initializeKey('password1', testSalt);
       const encrypted = await encryptSettings(TEST_SETTINGS);
 
-      await clearSettingsKey();
-      await initializeSettingsKey('password2');
+      await clearSettingsMasterKey();
+      await initializeKey('password2', testSalt);
 
       // Different password should produce different key, decryption should fail
       await expect(decryptSettings(encrypted)).rejects.toThrow(
         'Failed to decrypt settings'
       );
     });
-  });
 
-  describe('clearSettingsKey', () => {
-    it('should remove key from session storage', async () => {
-      await initializeSettingsKey(TEST_PASSWORD);
-      expect(await isSettingsKeyAvailable()).toBe(true);
+    it('should derive different keys for different salts', async () => {
+      const salt1 = generateSettingsSalt();
+      const salt2 = generateSettingsSalt();
 
-      await clearSettingsKey();
+      await initializeKey(TEST_PASSWORD, salt1);
+      const encrypted = await encryptSettings(TEST_SETTINGS);
 
-      expect(await isSettingsKeyAvailable()).toBe(false);
+      await clearSettingsMasterKey();
+      await initializeKey(TEST_PASSWORD, salt2);
+
+      // Different salt should produce different key, decryption should fail
+      await expect(decryptSettings(encrypted)).rejects.toThrow(
+        'Failed to decrypt settings'
+      );
     });
   });
 
-  describe('isSettingsKeyAvailable', () => {
+  describe('clearSettingsMasterKey', () => {
+    it('should remove key from session storage', async () => {
+      await initializeKey(TEST_PASSWORD);
+      expect(await isSettingsMasterKeyAvailable()).toBe(true);
+
+      await clearSettingsMasterKey();
+
+      expect(await isSettingsMasterKeyAvailable()).toBe(false);
+    });
+  });
+
+  describe('isSettingsMasterKeyAvailable', () => {
     it('should return false when key not initialized', async () => {
-      const result = await isSettingsKeyAvailable();
+      const result = await isSettingsMasterKeyAvailable();
       expect(result).toBe(false);
     });
 
     it('should return true when key is initialized', async () => {
-      await initializeSettingsKey(TEST_PASSWORD);
+      await initializeKey(TEST_PASSWORD);
 
-      const result = await isSettingsKeyAvailable();
+      const result = await isSettingsMasterKeyAvailable();
       expect(result).toBe(true);
     });
 
     it('should return false after key is cleared', async () => {
-      await initializeSettingsKey(TEST_PASSWORD);
-      await clearSettingsKey();
+      await initializeKey(TEST_PASSWORD);
+      await clearSettingsMasterKey();
 
-      const result = await isSettingsKeyAvailable();
+      const result = await isSettingsMasterKeyAvailable();
       expect(result).toBe(false);
     });
   });
 
   describe('encryptSettings / decryptSettings', () => {
     it('should encrypt and decrypt settings correctly', async () => {
-      await initializeSettingsKey(TEST_PASSWORD);
+      await initializeKey(TEST_PASSWORD);
 
       const encrypted = await encryptSettings(TEST_SETTINGS);
       expect(typeof encrypted).toBe('string');
@@ -111,18 +141,18 @@ describe('settings encryption', () => {
 
     it('should throw error when key not initialized (encrypt)', async () => {
       await expect(encryptSettings(TEST_SETTINGS)).rejects.toThrow(
-        'Settings key not initialized'
+        'Settings master key not initialized'
       );
     });
 
     it('should throw error when key not initialized (decrypt)', async () => {
       await expect(decryptSettings('some-encrypted-data')).rejects.toThrow(
-        'Settings key not initialized'
+        'Settings master key not initialized'
       );
     });
 
     it('should produce different ciphertext each time (random IV)', async () => {
-      await initializeSettingsKey(TEST_PASSWORD);
+      await initializeKey(TEST_PASSWORD);
 
       const encrypted1 = await encryptSettings(TEST_SETTINGS);
       const encrypted2 = await encryptSettings(TEST_SETTINGS);
@@ -136,7 +166,7 @@ describe('settings encryption', () => {
     });
 
     it('should handle all settings fields', async () => {
-      await initializeSettingsKey(TEST_PASSWORD);
+      await initializeKey(TEST_PASSWORD);
 
       const fullSettings: AppSettings = {
         version: 1,
@@ -166,12 +196,12 @@ describe('settings encryption', () => {
     });
 
     it('should fail decryption with wrong key', async () => {
-      await initializeSettingsKey('password1');
+      await initializeKey('password1', testSalt);
       const encrypted = await encryptSettings(TEST_SETTINGS);
 
       // Clear and initialize with different password
-      await clearSettingsKey();
-      await initializeSettingsKey('password2');
+      await clearSettingsMasterKey();
+      await initializeKey('password2', testSalt);
 
       await expect(decryptSettings(encrypted)).rejects.toThrow(
         'Failed to decrypt settings'
@@ -179,7 +209,7 @@ describe('settings encryption', () => {
     });
 
     it('should fail on corrupted data', async () => {
-      await initializeSettingsKey(TEST_PASSWORD);
+      await initializeKey(TEST_PASSWORD);
 
       const encrypted = await encryptSettings(TEST_SETTINGS);
       // Corrupt the ciphertext
@@ -191,7 +221,7 @@ describe('settings encryption', () => {
     });
 
     it('should fail on invalid base64 input', async () => {
-      await initializeSettingsKey(TEST_PASSWORD);
+      await initializeKey(TEST_PASSWORD);
 
       // Invalid base64 string (contains invalid characters)
       const invalidBase64 = '!!!not-valid-base64!!!';
@@ -204,46 +234,34 @@ describe('settings encryption', () => {
 
   describe('encryptSettingsWithPassword / decryptSettingsWithPassword', () => {
     it('should encrypt and decrypt with password directly', async () => {
-      const encrypted = await encryptSettingsWithPassword(TEST_SETTINGS, TEST_PASSWORD);
+      const encrypted = await encryptSettingsWithPassword(TEST_SETTINGS, TEST_PASSWORD, testSalt);
       expect(typeof encrypted).toBe('string');
 
-      const decrypted = await decryptSettingsWithPassword(encrypted, TEST_PASSWORD);
+      const decrypted = await decryptSettingsWithPassword(encrypted, TEST_PASSWORD, testSalt);
       expect(decrypted).toEqual(TEST_SETTINGS);
     });
 
     it('should work without session key initialized', async () => {
       // Verify no session key
-      expect(await isSettingsKeyAvailable()).toBe(false);
+      expect(await isSettingsMasterKeyAvailable()).toBe(false);
 
-      const encrypted = await encryptSettingsWithPassword(TEST_SETTINGS, TEST_PASSWORD);
-      const decrypted = await decryptSettingsWithPassword(encrypted, TEST_PASSWORD);
+      const encrypted = await encryptSettingsWithPassword(TEST_SETTINGS, TEST_PASSWORD, testSalt);
+      const decrypted = await decryptSettingsWithPassword(encrypted, TEST_PASSWORD, testSalt);
 
       expect(decrypted).toEqual(TEST_SETTINGS);
     });
 
     it('should fail with wrong password', async () => {
-      const encrypted = await encryptSettingsWithPassword(TEST_SETTINGS, 'correct-password');
+      const encrypted = await encryptSettingsWithPassword(TEST_SETTINGS, 'correct-password', testSalt);
 
       await expect(
-        decryptSettingsWithPassword(encrypted, 'wrong-password')
+        decryptSettingsWithPassword(encrypted, 'wrong-password', testSalt)
       ).rejects.toThrow('Failed to decrypt settings');
     });
 
-    it('should be compatible with session-based encryption', async () => {
-      // Encrypt with password
-      const encrypted = await encryptSettingsWithPassword(TEST_SETTINGS, TEST_PASSWORD);
-
-      // Initialize session key with same password
-      await initializeSettingsKey(TEST_PASSWORD);
-
-      // Decrypt with session key
-      const decrypted = await decryptSettings(encrypted);
-      expect(decrypted).toEqual(TEST_SETTINGS);
-    });
-
     it('should produce different ciphertext each time (random IV)', async () => {
-      const encrypted1 = await encryptSettingsWithPassword(TEST_SETTINGS, TEST_PASSWORD);
-      const encrypted2 = await encryptSettingsWithPassword(TEST_SETTINGS, TEST_PASSWORD);
+      const encrypted1 = await encryptSettingsWithPassword(TEST_SETTINGS, TEST_PASSWORD, testSalt);
+      const encrypted2 = await encryptSettingsWithPassword(TEST_SETTINGS, TEST_PASSWORD, testSalt);
 
       expect(encrypted1).not.toBe(encrypted2);
     });
@@ -251,7 +269,7 @@ describe('settings encryption', () => {
 
   describe('edge cases', () => {
     it('should handle unicode in settings', async () => {
-      await initializeSettingsKey(TEST_PASSWORD);
+      await initializeKey(TEST_PASSWORD);
 
       const unicodeSettings: AppSettings = {
         ...DEFAULT_SETTINGS,
@@ -267,7 +285,7 @@ describe('settings encryption', () => {
     });
 
     it('should handle empty arrays', async () => {
-      await initializeSettingsKey(TEST_PASSWORD);
+      await initializeKey(TEST_PASSWORD);
 
       const emptySettings: AppSettings = {
         ...DEFAULT_SETTINGS,
@@ -283,7 +301,7 @@ describe('settings encryption', () => {
     });
 
     it('should handle very long arrays', async () => {
-      await initializeSettingsKey(TEST_PASSWORD);
+      await initializeKey(TEST_PASSWORD);
 
       const longSettings: AppSettings = {
         ...DEFAULT_SETTINGS,
@@ -300,19 +318,19 @@ describe('settings encryption', () => {
   });
 
   describe('empty password validation', () => {
-    it('should throw error for empty password in initializeSettingsKey', async () => {
-      await expect(initializeSettingsKey('')).rejects.toThrow('Password cannot be empty');
+    it('should throw error for empty password in deriveSettingsMasterKey', async () => {
+      await expect(deriveSettingsMasterKey('', testSalt)).rejects.toThrow('Password cannot be empty');
     });
 
     it('should throw error for empty password in encryptSettingsWithPassword', async () => {
       await expect(
-        encryptSettingsWithPassword(TEST_SETTINGS, '')
+        encryptSettingsWithPassword(TEST_SETTINGS, '', testSalt)
       ).rejects.toThrow('Password cannot be empty');
     });
 
     it('should throw error for empty password in decryptSettingsWithPassword', async () => {
       await expect(
-        decryptSettingsWithPassword('someEncryptedData', '')
+        decryptSettingsWithPassword('someEncryptedData', '', testSalt)
       ).rejects.toThrow('Password cannot be empty');
     });
   });

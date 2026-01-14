@@ -90,7 +90,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
         });
       }
     };
-    const unsubscribe = onMessage('walletLocked', handleLockMessage);
+    const unsubscribe = onMessage('keychainLocked', handleLockMessage);
 
     return () => {
       unsubscribe();

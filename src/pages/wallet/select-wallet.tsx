@@ -20,7 +20,7 @@ import type { Wallet } from '@/types/wallet';
 function SelectWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets, activeWallet, setActiveWallet } = useWallet();
+  const { wallets, activeWallet, selectWallet } = useWallet();
   const [error, setError] = useState<string | null>(null);
 
   // Constants for paths
@@ -53,7 +53,8 @@ function SelectWallet() {
 
   const handleSelectWalletInternal = async (wallet: Wallet) => {
     try {
-      await setActiveWallet(wallet, false);
+      // Load wallet (decrypts secret and derives addresses)
+      await selectWallet(wallet.id);
       navigate(PATHS.INDEX);
     } catch (err) {
       console.error('Error selecting wallet:', err);

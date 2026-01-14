@@ -22,18 +22,18 @@ interface AppProvidersProps {
  * @returns {ReactElement | null} Idle timer wrapped content or null if not loaded
  */
 function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement | null {
-  const { setLastActiveTime, lockAll, isLoading: walletLoading, authState } = useWallet();
+  const { setLastActiveTime, lockKeychain, isLoading: walletLoading, authState } = useWallet();
   const { settings, isLoading: settingsLoading } = useSettings();
 
   // Handle edge cases for idle timer
   const handleIdle = useCallback(() => {
     // Only lock if we're currently unlocked
     if (authState === 'UNLOCKED') {
-      lockAll().catch(error => {
-        console.error('[IdleTimer] Failed to lock wallet on idle:', error);
+      lockKeychain().catch(error => {
+        console.error('[IdleTimer] Failed to lock keychain on idle:', error);
       });
     }
-  }, [authState, lockAll]);
+  }, [authState, lockKeychain]);
 
   const handleAction = useCallback(() => {
     // Only update last active time if we're unlocked

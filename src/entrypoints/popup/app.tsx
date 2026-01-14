@@ -111,7 +111,7 @@ import ComposeUtxoMove from '@/pages/compose/utxo/move';
 import NotFound from '@/pages/not-found';
 
 export default function App() {
-  const { wallets, walletLocked, isLoading } = useWallet();
+  const { wallets, keychainLocked, isLoading } = useWallet();
   const location = useLocation();
 
   // Track page views when route changes
@@ -149,7 +149,7 @@ export default function App() {
           element={
             !walletExists ? (
               <Navigate to="/onboarding" replace />
-            ) : walletLocked ? (
+            ) : keychainLocked ? (
               <Navigate to="/unlock-wallet" replace />
             ) : (
               <Navigate to="/index" replace />

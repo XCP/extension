@@ -84,15 +84,15 @@ export interface ApprovalMessage {
   updatedParams?: unknown;
 }
 
-interface WalletLockMessage {
-  type: 'WALLET_LOCKED';
+interface KeychainLockMessage {
+  type: 'KEYCHAIN_LOCKED';
   locked: boolean;
 }
 
 // Define the protocol map for type safety
 export interface MessageProtocol {
-  // Wallet messages
-  'walletLocked': ProtocolWithReturn<{ locked: boolean }, void>;
+  // Keychain messages
+  'keychainLocked': ProtocolWithReturn<{ locked: boolean }, void>;
   
   // Provider messages  
   'provider-request': ProtocolWithReturn<ProviderMessage, MessageResponse>;
@@ -278,7 +278,7 @@ export class MessageBus {
 
       // Suppress all timeout errors and handler registration errors for one-way messages
       // These are expected when the popup isn't ready yet, especially for
-      // non-critical messages like walletLocked
+      // non-critical messages like keychainLocked
       if (!errorMessage.includes('Message timeout') &&
           !errorMessage.includes('No handler registered')) {
         console.debug(`One-way message '${String(message)}' to ${target} failed:`, errorMessage);
@@ -355,10 +355,10 @@ export class MessageBus {
   }
   
   /**
-   * Send wallet lock notification
+   * Send keychain lock notification
    */
-  static async notifyWalletLocked(locked: boolean): Promise<void> {
-    await MessageBus.sendOneWay('walletLocked', { locked }, 'popup');
+  static async notifyKeychainLocked(locked: boolean): Promise<void> {
+    await MessageBus.sendOneWay('keychainLocked', { locked }, 'popup');
   }
   
   /**

@@ -4,7 +4,7 @@ import { fakeBrowser } from 'wxt/testing';
 // Mock encryption functions BEFORE importing settingsStorage
 // These mocks make encryption transparent for testing
 vi.mock('@/utils/encryption/settings', () => ({
-  isSettingsKeyAvailable: vi.fn().mockResolvedValue(true),
+  isSettingsMasterKeyAvailable: vi.fn().mockResolvedValue(true),
   encryptSettings: vi.fn().mockImplementation(async (settings) =>
     JSON.stringify(settings)
   ),
@@ -17,7 +17,6 @@ vi.mock('@/utils/encryption/settings', () => ({
   decryptSettingsWithPassword: vi.fn().mockImplementation(async (encrypted, _password) =>
     JSON.parse(encrypted)
   ),
-  initializeSettingsKey: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Import AFTER mocks are set up

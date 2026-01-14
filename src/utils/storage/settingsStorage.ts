@@ -14,10 +14,15 @@ import { storage } from '#imports';
 import {
   encryptSettings,
   decryptSettings,
-  isSettingsKeyAvailable,
+  isSettingsMasterKeyAvailable,
   decryptSettingsWithPassword,
   encryptSettingsWithPassword,
-  initializeSettingsKey,
+  deriveSettingsMasterKey,
+  storeSettingsMasterKey,
+  generateSettingsSalt,
+  bufferToBase64,
+  base64ToBuffer,
+  DEFAULT_PBKDF2_ITERATIONS,
 } from '@/utils/encryption/settings';
 import { TTLCache, CacheTTL } from '@/utils/cache';
 import { createWriteLock } from './mutex';
@@ -132,10 +137,17 @@ export const DEFAULT_SETTINGS: AppSettings = {
 };
 
 /**
- * Storage record with single encrypted blob.
- * Stored directly in 'local:settingsRecord' (not as part of an array).
+ * Storage record with encrypted settings blob and KDF parameters.
+ * Matches WalletVaultRecord pattern for consistency.
  */
 interface SettingsRecord {
+  /** Schema version for future migrations */
+  version: number;
+  /** Key derivation parameters */
+  kdf: { iterations: number };
+  /** Salt for PBKDF2 key derivation (base64) */
+  salt: string;
+  /** Encrypted settings blob (base64, IV + ciphertext) */
   encryptedSettings: string;
 }
 
@@ -198,7 +210,7 @@ function getDefaultSettings(): AppSettings {
 
 /**
  * Loads settings from storage with caching.
- * Returns decrypted settings if wallet is unlocked, defaults if locked.
+ * Returns decrypted settings if keychain is unlocked, defaults if locked.
  * Uses a 5-second TTL cache to avoid redundant storage reads during
  * transaction flows (compose → sign → broadcast).
  */
@@ -218,7 +230,7 @@ export async function getSettings(): Promise<AppSettings> {
     }
 
     // Check if we have the decryption key
-    const keyAvailable = await isSettingsKeyAvailable();
+    const keyAvailable = await isSettingsMasterKeyAvailable();
     if (!keyAvailable) {
       // Locked - return defaults (don't cache when locked)
       return getDefaultSettings();
@@ -329,15 +341,15 @@ function isValidApiUrl(url: string): boolean {
 
 /**
  * Updates settings by merging new values with current.
- * Requires wallet to be unlocked.
+ * Requires keychain to be unlocked.
  * Protected by write lock to prevent race conditions during concurrent updates.
  *
  * Example: updateSettings({ fiat: 'jpy', priceUnit: 'sats' })
  */
 export async function updateSettings(newSettings: Partial<AppSettings>): Promise<void> {
-  const keyAvailable = await isSettingsKeyAvailable();
+  const keyAvailable = await isSettingsMasterKeyAvailable();
   if (!keyAvailable) {
-    throw new Error('Cannot update settings when wallet is locked');
+    throw new Error('Cannot update settings when keychain is locked');
   }
 
   // Use write lock to prevent concurrent read-modify-write races
@@ -345,6 +357,12 @@ export async function updateSettings(newSettings: Partial<AppSettings>): Promise
     // Invalidate cache FIRST to prevent stale reads during concurrent operations
     // This ensures getSettings() below fetches fresh data from storage
     invalidateSettingsCache();
+
+    // Get existing record for salt/kdf params
+    const existingRecord = await settingsRecordItem.getValue();
+    if (!existingRecord) {
+      throw new Error('No settings record exists');
+    }
 
     // Get current settings (will be decrypted since key is available)
     const current = await getSettings();
@@ -355,9 +373,12 @@ export async function updateSettings(newSettings: Partial<AppSettings>): Promise
       ...newSettings,
     };
 
-    // Encrypt and save
+    // Encrypt and save (preserving salt and kdf)
     const encrypted = await encryptSettings(updated);
     const record: SettingsRecord = {
+      version: SETTINGS_VERSION,
+      kdf: existingRecord.kdf,
+      salt: existingRecord.salt,
       encryptedSettings: encrypted,
     };
 
@@ -375,7 +396,7 @@ export async function updateSettings(newSettings: Partial<AppSettings>): Promise
 
 /**
  * Re-encrypts settings with a new password.
- * Called during password change.
+ * Called during password change. Generates new salt for added security.
  */
 export async function reencryptSettings(
   oldPassword: string,
@@ -388,14 +409,31 @@ export async function reencryptSettings(
     return;
   }
 
-  // Decrypt with old password
-  const settings = await decryptSettingsWithPassword(record.encryptedSettings, oldPassword);
+  // Decrypt with old password using old salt
+  const oldSalt = base64ToBuffer(record.salt);
+  const settings = await decryptSettingsWithPassword(
+    record.encryptedSettings,
+    oldPassword,
+    oldSalt,
+    record.kdf.iterations
+  );
 
-  // Re-encrypt with new password
-  const newEncrypted = await encryptSettingsWithPassword(settings, newPassword);
+  // Generate new salt for new password
+  const newSalt = generateSettingsSalt();
 
-  // Save
+  // Re-encrypt with new password and new salt
+  const newEncrypted = await encryptSettingsWithPassword(
+    settings,
+    newPassword,
+    newSalt,
+    DEFAULT_PBKDF2_ITERATIONS
+  );
+
+  // Save with new salt
   const newRecord: SettingsRecord = {
+    version: SETTINGS_VERSION,
+    kdf: { iterations: DEFAULT_PBKDF2_ITERATIONS },
+    salt: bufferToBase64(newSalt),
     encryptedSettings: newEncrypted,
   };
 
@@ -406,9 +444,61 @@ export async function reencryptSettings(
     throw new Error('Failed to re-encrypt settings');
   }
 
-  // Update session key with new password
-  await initializeSettingsKey(newPassword);
+  // Update session key with new password and salt
+  const newMasterKey = await deriveSettingsMasterKey(newPassword, newSalt);
+  await storeSettingsMasterKey(newMasterKey);
 
   // Invalidate cache to ensure fresh data
   invalidateSettingsCache();
+}
+
+/**
+ * Initializes settings master key from existing record.
+ * Called during keychain unlock to restore settings access.
+ */
+export async function initializeSettingsMasterKey(password: string): Promise<void> {
+  const record = await settingsRecordItem.getValue();
+
+  if (!record || !record.salt) {
+    // No settings record yet - will be created on first settings save
+    // For now, create a record with default settings
+    await createSettingsRecord(password);
+    return;
+  }
+
+  // Derive key from password and stored salt
+  const salt = base64ToBuffer(record.salt);
+  const masterKey = await deriveSettingsMasterKey(password, salt, record.kdf.iterations);
+  await storeSettingsMasterKey(masterKey);
+}
+
+/**
+ * Creates initial settings record with default settings.
+ * Called during first wallet creation.
+ */
+export async function createSettingsRecord(password: string): Promise<void> {
+  // Generate new salt
+  const salt = generateSettingsSalt();
+
+  // Derive master key
+  const masterKey = await deriveSettingsMasterKey(password, salt);
+  await storeSettingsMasterKey(masterKey);
+
+  // Encrypt default settings
+  const encrypted = await encryptSettings(getDefaultSettings());
+
+  // Create record
+  const record: SettingsRecord = {
+    version: SETTINGS_VERSION,
+    kdf: { iterations: DEFAULT_PBKDF2_ITERATIONS },
+    salt: bufferToBase64(salt),
+    encryptedSettings: encrypted,
+  };
+
+  try {
+    await settingsRecordItem.setValue(record);
+  } catch (err) {
+    console.error('Failed to create settings record:', err);
+    throw new Error('Failed to create settings record');
+  }
 }

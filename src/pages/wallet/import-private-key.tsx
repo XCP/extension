@@ -23,7 +23,7 @@ import { validatePrivateKeyFormat } from "@/utils/validation/privateKey";
 const ImportPrivateKey = () => {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets, createAndUnlockPrivateKeyWallet, verifyPassword } = useWallet();
+  const { wallets, createPrivateKeyWallet, verifyPassword } = useWallet();
   const { pending } = useFormStatus();
 
   const [addressFormat, setAddressFormat] = useState<AddressFormat>(AddressFormat.P2PKH);
@@ -123,7 +123,7 @@ const ImportPrivateKey = () => {
 
     try {
       // Always use the user-selected address type from the dropdown
-      await createAndUnlockPrivateKeyWallet(privateKey.trim(), password, undefined, addressFormat);
+      await createPrivateKeyWallet(privateKey.trim(), password, undefined, addressFormat);
       navigate(PATHS.SUCCESS);
     } catch (error) {
       let errorMessage = "Failed to import private key. ";

@@ -1,454 +1,186 @@
-import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { fakeBrowser } from 'wxt/testing';
 import {
-  getAllRecords,
-  addRecord,
-  updateRecord,
-  removeRecord,
-} from '@/utils/storage/storage';
-import {
-  getAllEncryptedWallets,
-  addEncryptedWallet,
-  updateEncryptedWallet,
-  removeEncryptedWallet,
-  EncryptedWalletRecord,
+  getKeychainRecord,
+  saveKeychainRecord,
+  hasKeychain,
+  deleteKeychain,
 } from '../walletStorage';
-
-vi.mock('@/utils/storage/storage', () => ({
-  getAllRecords: vi.fn(),
-  addRecord: vi.fn(),
-  updateRecord: vi.fn(),
-  removeRecord: vi.fn(),
-  clearAllRecords: vi.fn(),
-}));
+import type { KeychainRecord } from '@/types/wallet';
 
 describe('walletStorage.ts', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    fakeBrowser.reset();
   });
 
-  describe('getAllEncryptedWallets', () => {
-    it('should return an empty array when no wallets exist', async () => {
-      (getAllRecords as Mock).mockResolvedValue([]);
-      const wallets = await getAllEncryptedWallets();
-      expect(wallets).toEqual([]);
-    });
-
-    it('should return all wallet records from dedicated storage', async () => {
-      // Note: With ADR-011, wallets are now stored in dedicated 'local:walletRecords'
-      // so all records in this storage are wallet records (no filtering needed)
-      const mnemonicWallet: EncryptedWalletRecord = {
-        id: '1',
-        name: 'Mnemonic Wallet',
-        type: 'mnemonic',
-        addressFormat: AddressFormat.P2WPKH,
-        encryptedSecret: 'encrypted-mnemonic',
-      };
-      const pkWallet: EncryptedWalletRecord = {
-        id: '2',
-        name: 'PK Wallet',
-        type: 'privateKey',
-        addressFormat: AddressFormat.P2PKH,
-        encryptedSecret: 'encrypted-pk',
-      };
-      (getAllRecords as Mock).mockResolvedValue([mnemonicWallet, pkWallet]);
-      const wallets = await getAllEncryptedWallets();
-      expect(wallets).toEqual([mnemonicWallet, pkWallet]);
-      expect(wallets.length).toBe(2);
-    });
+  const createTestKeychainRecord = (): KeychainRecord => ({
+    version: 1,
+    kdf: { iterations: 600000 },
+    salt: 'dGVzdC1zYWx0', // base64 "test-salt"
+    encryptedKeychain: 'encrypted-keychain-data',
   });
 
-  describe('addEncryptedWallet', () => {
-    it('should add a new encrypted wallet record', async () => {
-      const wallet: EncryptedWalletRecord = {
-        id: '1',
-        name: 'Test Wallet',
-        type: 'mnemonic',
-        addressFormat: AddressFormat.P2WPKH,
-        encryptedSecret: 'encrypted-secret',
-      };
-      (addRecord as Mock).mockResolvedValue(undefined);
-      await addEncryptedWallet(wallet);
-      expect(addRecord).toHaveBeenCalledWith(wallet);
+  describe('getKeychainRecord', () => {
+    it('should return null when no keychain exists', async () => {
+      const result = await getKeychainRecord();
+      expect(result).toBeNull();
     });
 
-    it('should throw an error for duplicate wallet ID', async () => {
-      const wallet: EncryptedWalletRecord = {
-        id: '1',
-        name: 'Test Wallet',
-        type: 'mnemonic',
-        addressFormat: AddressFormat.P2WPKH,
-        encryptedSecret: 'encrypted-secret',
-      };
-      (addRecord as Mock).mockResolvedValue(undefined);
-      await addEncryptedWallet(wallet);
-      (addRecord as Mock).mockRejectedValue(new Error('Record with ID "1" already exists.'));
-      await expect(addEncryptedWallet(wallet)).rejects.toThrow(
-        'Record with ID "1" already exists.'
-      );
+    it('should return keychain record when it exists', async () => {
+      const record = createTestKeychainRecord();
+      await saveKeychainRecord(record);
+
+      const result = await getKeychainRecord();
+      expect(result).toEqual(record);
+    });
+
+    it('should return null for invalid/corrupted data', async () => {
+      // Manually set invalid data in storage
+      await fakeBrowser.storage.local.set({
+        keychainRecord: { invalid: 'data' },
+      });
+
+      const result = await getKeychainRecord();
+      expect(result).toBeNull();
     });
   });
 
-  describe('updateEncryptedWallet', () => {
-    it('should update an existing wallet record', async () => {
-      const wallet: EncryptedWalletRecord = {
-        id: '1',
-        name: 'Original Wallet',
-        type: 'privateKey',
-        addressFormat: AddressFormat.P2PKH,
-        encryptedSecret: 'encrypted-secret',
-      };
-      (addRecord as Mock).mockResolvedValue(undefined);
-      await addEncryptedWallet(wallet);
-      const updatedWallet: EncryptedWalletRecord = {
-        ...wallet,
-        name: 'Updated Wallet',
-        addressCount: 5,
-      };
-      (updateRecord as Mock).mockResolvedValue(undefined);
-      await updateEncryptedWallet(updatedWallet);
-      expect(updateRecord).toHaveBeenCalledWith(updatedWallet);
+  describe('saveKeychainRecord', () => {
+    it('should save keychain record to storage', async () => {
+      const record = createTestKeychainRecord();
+
+      await saveKeychainRecord(record);
+
+      const result = await getKeychainRecord();
+      expect(result).toEqual(record);
     });
 
-    it('should throw an error for non-existent wallet ID', async () => {
-      const wallet: EncryptedWalletRecord = {
-        id: 'nonexistent',
-        name: 'Test Wallet',
-        type: 'mnemonic',
-        addressFormat: AddressFormat.P2WPKH,
-        encryptedSecret: 'encrypted-secret',
+    it('should overwrite existing keychain record', async () => {
+      const record1 = createTestKeychainRecord();
+      const record2: KeychainRecord = {
+        version: 1,
+        kdf: { iterations: 700000 },
+        salt: 'bmV3LXNhbHQ=', // "new-salt"
+        encryptedKeychain: 'new-encrypted-data',
       };
-      (updateRecord as Mock).mockRejectedValue(new Error('Record with ID "nonexistent" not found.'));
-      await expect(updateEncryptedWallet(wallet)).rejects.toThrow(
-        'Record with ID "nonexistent" not found.'
-      );
+
+      await saveKeychainRecord(record1);
+      await saveKeychainRecord(record2);
+
+      const result = await getKeychainRecord();
+      expect(result).toEqual(record2);
     });
   });
 
-  describe('removeEncryptedWallet', () => {
-    it('should remove an existing wallet record', async () => {
-      const wallet1: EncryptedWalletRecord = {
-        id: '1',
-        name: 'Wallet 1',
-        type: 'mnemonic',
-        addressFormat: AddressFormat.P2WPKH,
-        encryptedSecret: 'encrypted-secret-1',
-      };
-      const wallet2: EncryptedWalletRecord = {
-        id: '2',
-        name: 'Wallet 2',
-        type: 'privateKey',
-        addressFormat: AddressFormat.P2PKH,
-        encryptedSecret: 'encrypted-secret-2',
-      };
-      (addRecord as Mock).mockResolvedValue(undefined);
-      await addEncryptedWallet(wallet1);
-      (addRecord as Mock).mockResolvedValue(undefined);
-      await addEncryptedWallet(wallet2);
-      (removeRecord as Mock).mockResolvedValue(undefined);
-      await removeEncryptedWallet('1');
-      expect(removeRecord).toHaveBeenCalledWith('1');
-      (getAllRecords as Mock).mockResolvedValue([wallet2]);
-      const wallets = await getAllEncryptedWallets();
-      expect(wallets).toEqual([wallet2]);
-      expect(wallets.length).toBe(1);
+  describe('hasKeychain', () => {
+    it('should return false when no keychain exists', async () => {
+      const result = await hasKeychain();
+      expect(result).toBe(false);
     });
 
-    it('should do nothing for a non-existent wallet ID', async () => {
-      const wallet: EncryptedWalletRecord = {
-        id: '1',
-        name: 'Test Wallet',
-        type: 'mnemonic',
-        addressFormat: AddressFormat.P2WPKH,
-        encryptedSecret: 'encrypted-secret',
-      };
-      (addRecord as Mock).mockResolvedValue(undefined);
-      await addEncryptedWallet(wallet);
-      (removeRecord as Mock).mockResolvedValue(undefined);
-      await removeEncryptedWallet('nonexistent');
-      expect(removeRecord).toHaveBeenCalledWith('nonexistent');
-      (getAllRecords as Mock).mockResolvedValue([wallet]);
-      const wallets = await getAllEncryptedWallets();
-      expect(wallets).toEqual([wallet]);
-      expect(wallets.length).toBe(1);
+    it('should return true when keychain exists', async () => {
+      const record = createTestKeychainRecord();
+      await saveKeychainRecord(record);
+
+      const result = await hasKeychain();
+      expect(result).toBe(true);
+    });
+
+    it('should return false after keychain is deleted', async () => {
+      const record = createTestKeychainRecord();
+      await saveKeychainRecord(record);
+      expect(await hasKeychain()).toBe(true);
+
+      await deleteKeychain();
+
+      expect(await hasKeychain()).toBe(false);
     });
   });
 
-  describe('EncryptedWalletRecord validation', () => {
-    it('should handle all valid wallet types', async () => {
-      const mnemonicWallet: EncryptedWalletRecord = {
-        id: 'mnemonic-1',
-        name: 'Mnemonic Wallet',
-        type: 'mnemonic',
-        addressFormat: AddressFormat.P2WPKH,
-        encryptedSecret: 'encrypted-mnemonic-secret',
-      };
+  describe('deleteKeychain', () => {
+    it('should delete existing keychain', async () => {
+      const record = createTestKeychainRecord();
+      await saveKeychainRecord(record);
+      expect(await getKeychainRecord()).not.toBeNull();
 
-      const privateKeyWallet: EncryptedWalletRecord = {
-        id: 'pk-1',
-        name: 'Private Key Wallet',
-        type: 'privateKey',
-        addressFormat: AddressFormat.P2PKH,
-        encryptedSecret: 'encrypted-pk-secret',
-      };
+      await deleteKeychain();
 
-      (addRecord as Mock).mockResolvedValue(undefined);
-      await addEncryptedWallet(mnemonicWallet);
-      await addEncryptedWallet(privateKeyWallet);
-
-      expect(addRecord).toHaveBeenCalledWith(mnemonicWallet);
-      expect(addRecord).toHaveBeenCalledWith(privateKeyWallet);
+      expect(await getKeychainRecord()).toBeNull();
     });
 
-    it('should handle all valid address types', async () => {
-      const addressTypes = [AddressFormat.P2PKH, AddressFormat.P2SH_P2WPKH, AddressFormat.P2WPKH, AddressFormat.P2TR];
-
-      for (let i = 0; i < addressTypes.length; i++) {
-        const wallet: EncryptedWalletRecord = {
-          id: `wallet-${i}`,
-          name: `Wallet ${i}`,
-          type: 'mnemonic',
-          addressFormat: addressTypes[i],
-          encryptedSecret: `encrypted-secret-${i}`,
-        };
-
-        (addRecord as Mock).mockResolvedValue(undefined);
-        await addEncryptedWallet(wallet);
-        expect(addRecord).toHaveBeenCalledWith(wallet);
-      }
-    });
-
-    it('should handle optional fields', async () => {
-      const walletWithOptionals: EncryptedWalletRecord = {
-        id: 'full-wallet',
-        name: 'Full Wallet',
-        type: 'mnemonic',
-        addressFormat: AddressFormat.P2WPKH,
-        encryptedSecret: 'encrypted-secret',
-        addressCount: 10,
-      };
-
-      (addRecord as Mock).mockResolvedValue(undefined);
-      await addEncryptedWallet(walletWithOptionals);
-      expect(addRecord).toHaveBeenCalledWith(walletWithOptionals);
-    });
-
-    it('should reject wallet without encryptedSecret', async () => {
-      const invalidWallet = {
-        id: 'invalid',
-        name: 'Invalid Wallet',
-        type: 'mnemonic',
-        addressFormat: AddressFormat.P2WPKH,
-        encryptedSecret: '',
-      } as EncryptedWalletRecord;
-
-      await expect(addEncryptedWallet(invalidWallet)).rejects.toThrow(
-        'Encrypted secret is required for wallet records'
-      );
-    });
-
-    it('should reject wallet with null encryptedSecret', async () => {
-      const invalidWallet = {
-        id: 'invalid',
-        name: 'Invalid Wallet',
-        type: 'mnemonic',
-        addressFormat: AddressFormat.P2WPKH,
-        encryptedSecret: null,
-      } as any;
-
-      await expect(addEncryptedWallet(invalidWallet)).rejects.toThrow(
-        'Encrypted secret is required for wallet records'
-      );
-    });
-
-    it('should reject wallet with undefined encryptedSecret', async () => {
-      const invalidWallet = {
-        id: 'invalid',
-        name: 'Invalid Wallet',
-        type: 'mnemonic',
-        addressFormat: AddressFormat.P2WPKH,
-      } as any;
-
-      await expect(addEncryptedWallet(invalidWallet)).rejects.toThrow(
-        'Encrypted secret is required for wallet records'
-      );
+    it('should not throw when deleting non-existent keychain', async () => {
+      await expect(deleteKeychain()).resolves.not.toThrow();
     });
   });
 
-  describe('storage isolation (ADR-011)', () => {
-    // Note: With ADR-011, wallets are now stored in dedicated 'local:walletRecords'
-    // Settings are stored separately in 'local:settingsRecord'
-    // No filtering is needed - all records in walletRecords are wallets
-
-    it('should return all records from dedicated wallet storage', async () => {
-      const walletRecords = [
-        {
-          id: '1',
-          name: 'Mnemonic Wallet',
-          type: 'mnemonic',
-          addressFormat: AddressFormat.P2WPKH,
-          encryptedSecret: 'secret1',
+  describe('KeychainRecord validation', () => {
+    it('should validate version field', async () => {
+      // Missing version
+      await fakeBrowser.storage.local.set({
+        keychainRecord: {
+          kdf: { iterations: 600000 },
+          salt: 'test',
+          encryptedKeychain: 'data',
         },
-        {
-          id: '2',
-          name: 'Private Key Wallet',
-          type: 'privateKey',
-          addressFormat: AddressFormat.P2PKH,
-          encryptedSecret: 'secret2',
-        },
-      ];
+      });
 
-      (getAllRecords as Mock).mockResolvedValue(walletRecords);
-      const wallets = await getAllEncryptedWallets();
-
-      expect(wallets).toHaveLength(2);
-      expect(wallets[0].id).toBe('1');
-      expect(wallets[1].id).toBe('2');
+      const result = await getKeychainRecord();
+      expect(result).toBeNull();
     });
 
-    it('should return empty array when no wallets exist', async () => {
-      (getAllRecords as Mock).mockResolvedValue([]);
-      const wallets = await getAllEncryptedWallets();
+    it('should validate salt field', async () => {
+      // Missing salt
+      await fakeBrowser.storage.local.set({
+        keychainRecord: {
+          version: 1,
+          kdf: { iterations: 600000 },
+          encryptedKeychain: 'data',
+        },
+      });
 
-      expect(wallets).toEqual([]);
+      const result = await getKeychainRecord();
+      expect(result).toBeNull();
     });
 
-    it('should return all wallet records regardless of fields', async () => {
-      // With dedicated storage, all records are wallets - just return them all
-      const records = [
-        {
-          id: '1',
-          name: 'Valid Mnemonic',
-          type: 'mnemonic',
-          addressFormat: AddressFormat.P2WPKH,
-          encryptedSecret: 'secret1',
+    it('should validate encryptedKeychain field', async () => {
+      // Missing encryptedKeychain
+      await fakeBrowser.storage.local.set({
+        keychainRecord: {
+          version: 1,
+          kdf: { iterations: 600000 },
+          salt: 'test',
         },
-        {
-          id: '2',
-          name: 'Another Wallet',
-          type: 'mnemonic',
-          addressFormat: AddressFormat.P2WPKH,
-          encryptedSecret: 'secret2',
-        },
-        {
-          id: '3',
-          name: 'Valid Private Key',
-          type: 'privateKey',
-          addressFormat: AddressFormat.P2PKH,
-          encryptedSecret: 'secret3',
-        },
-      ];
+      });
 
-      (getAllRecords as Mock).mockResolvedValue(records);
-      const wallets = await getAllEncryptedWallets();
-
-      expect(wallets).toHaveLength(3);
-      expect(wallets.map(w => w.id)).toEqual(['1', '2', '3']);
-    });
-  });
-
-  describe('comprehensive wallet management scenarios', () => {
-    it('should handle complete wallet lifecycle', async () => {
-      // Add wallet
-      const wallet: EncryptedWalletRecord = {
-        id: 'lifecycle-wallet',
-        name: 'Lifecycle Test',
-        type: 'mnemonic',
-        addressFormat: AddressFormat.P2WPKH,
-        encryptedSecret: 'original-secret',
-        addressCount: 1,
-      };
-
-      (addRecord as Mock).mockResolvedValue(undefined);
-      await addEncryptedWallet(wallet);
-
-      // Update wallet
-      const updatedWallet: EncryptedWalletRecord = {
-        ...wallet,
-        name: 'Updated Lifecycle Test',
-        addressCount: 5,
-      };
-
-      (updateRecord as Mock).mockResolvedValue(undefined);
-      await updateEncryptedWallet(updatedWallet);
-
-      // Remove wallet
-      (removeRecord as Mock).mockResolvedValue(undefined);
-      await removeEncryptedWallet('lifecycle-wallet');
-
-      expect(addRecord).toHaveBeenCalledWith(wallet);
-      expect(updateRecord).toHaveBeenCalledWith(updatedWallet);
-      expect(removeRecord).toHaveBeenCalledWith('lifecycle-wallet');
+      const result = await getKeychainRecord();
+      expect(result).toBeNull();
     });
 
-    it('should handle multiple wallet operations', async () => {
-      const wallets: EncryptedWalletRecord[] = [
-        {
-          id: 'multi-1',
-          name: 'Wallet 1',
-          type: 'mnemonic',
-          addressFormat: AddressFormat.P2WPKH,
-          encryptedSecret: 'secret1',
+    it('should validate kdf.iterations field', async () => {
+      // Missing kdf.iterations
+      await fakeBrowser.storage.local.set({
+        keychainRecord: {
+          version: 1,
+          kdf: {},
+          salt: 'test',
+          encryptedKeychain: 'data',
         },
-        {
-          id: 'multi-2',
-          name: 'Wallet 2',
-          type: 'privateKey',
-          addressFormat: AddressFormat.P2PKH,
-          encryptedSecret: 'secret2',
-        },
-        {
-          id: 'multi-3',
-          name: 'Wallet 3',
-          type: 'mnemonic',
-          addressFormat: AddressFormat.P2TR,
-          encryptedSecret: 'secret3',
-        },
-      ];
+      });
 
-      (addRecord as Mock).mockResolvedValue(undefined);
-      for (const wallet of wallets) {
-        await addEncryptedWallet(wallet);
-      }
-
-      (getAllRecords as Mock).mockResolvedValue(wallets);
-      const retrievedWallets = await getAllEncryptedWallets();
-
-      expect(retrievedWallets).toEqual(wallets);
-      expect(addRecord).toHaveBeenCalledTimes(wallets.length);
-    });
-  });
-
-  describe('error propagation', () => {
-    it('should propagate storage errors from addRecord', async () => {
-      const wallet: EncryptedWalletRecord = {
-        id: 'error-wallet',
-        name: 'Error Test',
-        type: 'mnemonic',
-        addressFormat: AddressFormat.P2WPKH,
-        encryptedSecret: 'secret',
-      };
-
-      (addRecord as Mock).mockRejectedValue(new Error('Storage write failed'));
-      await expect(addEncryptedWallet(wallet)).rejects.toThrow('Storage write failed');
+      const result = await getKeychainRecord();
+      expect(result).toBeNull();
     });
 
-    it('should propagate storage errors from updateRecord', async () => {
-      const wallet: EncryptedWalletRecord = {
-        id: 'error-wallet',
-        name: 'Error Test',
-        type: 'mnemonic',
-        addressFormat: AddressFormat.P2WPKH,
-        encryptedSecret: 'secret',
-      };
+    it('should accept valid keychain record', async () => {
+      const record = createTestKeychainRecord();
+      await saveKeychainRecord(record);
 
-      (updateRecord as Mock).mockRejectedValue(new Error('Update failed'));
-      await expect(updateEncryptedWallet(wallet)).rejects.toThrow('Update failed');
-    });
-
-    it('should propagate storage errors from getAllRecords', async () => {
-      (getAllRecords as Mock).mockRejectedValue(new Error('Storage read failed'));
-      await expect(getAllEncryptedWallets()).rejects.toThrow('Storage read failed');
+      const result = await getKeychainRecord();
+      expect(result).toEqual(record);
+      expect(result?.version).toBe(1);
+      expect(result?.kdf.iterations).toBe(600000);
+      expect(result?.salt).toBe('dGVzdC1zYWx0');
+      expect(result?.encryptedKeychain).toBe('encrypted-keychain-data');
     });
   });
 });

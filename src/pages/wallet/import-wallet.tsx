@@ -17,7 +17,7 @@ import { isValidCounterwalletMnemonic } from "@/utils/blockchain/counterwallet";
 function ImportWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { unlockWallet, wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
+  const { wallets, createMnemonicWallet, verifyPassword } = useWallet();
   const walletExists = wallets.length > 0;
 
   const [showMnemonic, setShowMnemonic] = useState(false);
@@ -76,8 +76,7 @@ function ImportWallet() {
           }
         }
 
-        const newWallet = await createAndUnlockMnemonicWallet(mnemonic, password, undefined, addressFormat);
-        await unlockWallet(newWallet.id, password);
+        await createMnemonicWallet(mnemonic, password, undefined, addressFormat);
         navigate(PATHS.SUCCESS);
         return { error: null };
       } catch (error: unknown) {

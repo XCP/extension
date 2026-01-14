@@ -144,7 +144,7 @@ describe('ProviderService', () => {
     
     // Create a comprehensive mock for wallet service
     const mockWalletService = {
-      loadWallets: vi.fn().mockResolvedValue(undefined),
+      refreshWallets: vi.fn().mockResolvedValue(undefined),
       getWallets: vi.fn().mockResolvedValue([{
         id: 'wallet1',
         name: 'Test Wallet',
@@ -160,8 +160,8 @@ describe('ProviderService', () => {
         addresses: []
       }),
       setActiveWallet: vi.fn().mockResolvedValue(undefined),
-      unlockWallet: vi.fn().mockResolvedValue(undefined),
-      lockAllWallets: vi.fn().mockResolvedValue(undefined),
+      unlockKeychain: vi.fn().mockResolvedValue(undefined),
+      lockKeychain: vi.fn().mockResolvedValue(undefined),
       createMnemonicWallet: vi.fn(),
       createPrivateKeyWallet: vi.fn(),
       addAddress: vi.fn(),
@@ -180,8 +180,6 @@ describe('ProviderService', () => {
       setLastActiveAddress: vi.fn().mockResolvedValue(undefined),
       setLastActiveTime: vi.fn(),
       isAnyWalletUnlocked: vi.fn().mockResolvedValue(true),
-      createAndUnlockMnemonicWallet: vi.fn(),
-      createAndUnlockPrivateKeyWallet: vi.fn(),
       // Additional methods used by provider service
       getAuthState: vi.fn().mockResolvedValue('unlocked'),
       getActiveAddress: vi.fn().mockResolvedValue({

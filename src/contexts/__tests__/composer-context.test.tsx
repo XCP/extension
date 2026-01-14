@@ -10,7 +10,7 @@ vi.mock('@/contexts/wallet-context', () => ({
     activeAddress: { address: 'test-address' },
     activeWallet: { id: 'test-wallet' },
     authState: 'UNLOCKED',
-    walletLocked: false,
+    keychainLocked: false,
   }),
 }));
 

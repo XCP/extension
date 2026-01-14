@@ -24,6 +24,7 @@ export interface Address {
 
 /**
  * Represents a wallet containing one or more addresses.
+ * This is the runtime representation with derived addresses.
  */
 export interface Wallet {
   /** Unique identifier (SHA-256 hash of mnemonic + addressFormat) */
@@ -40,4 +41,65 @@ export interface Wallet {
   addresses: Address[];
   /** Flag for development-only test wallets */
   isTestOnly?: boolean;
+}
+
+// ============================================================================
+// Keychain Types - Encrypted Storage
+// ============================================================================
+
+/**
+ * Individual wallet record stored in the keychain.
+ * The secret remains encrypted even after keychain decryption.
+ */
+export interface WalletRecord {
+  /** Unique identifier */
+  id: string;
+  /** User-facing wallet name */
+  name: string;
+  /** Secret type: mnemonic phrase or single private key */
+  type: 'mnemonic' | 'privateKey';
+  /** Bitcoin address format for derivation */
+  addressFormat: AddressFormat;
+  /** Number of derived addresses */
+  addressCount: number;
+  /** First address for display (m/.../0/0) */
+  previewAddress: string;
+  /** Encrypted secret (key-based AES-GCM, still encrypted after keychain decrypt) */
+  encryptedSecret: string;
+  /** Creation timestamp */
+  createdAt?: number;
+  /** Flag for development-only test wallets */
+  isTestOnly?: boolean;
+}
+
+/**
+ * Decrypted keychain contents (in memory when unlocked).
+ * Individual wallet secrets remain encrypted until selectWallet() is called.
+ */
+export interface Keychain {
+  /** Schema version for future migrations */
+  version: number;
+  /** Last active wallet ID (auto-load on unlock) */
+  lastActiveWalletId?: string;
+  /** Last active address by wallet ID */
+  lastActiveAddressByWalletId?: Record<string, string>;
+  /** Array of wallet records */
+  wallets: WalletRecord[];
+}
+
+/**
+ * Keychain record stored in local storage.
+ * Contains encrypted keychain blob and KDF parameters.
+ */
+export interface KeychainRecord {
+  /** Schema version */
+  version: number;
+  /** Key derivation parameters (stored for future rotation flexibility) */
+  kdf: {
+    iterations: number;
+  };
+  /** Salt for PBKDF2 key derivation (base64) */
+  salt: string;
+  /** Encrypted keychain blob (base64, IV + ciphertext) */
+  encryptedKeychain: string;
 }

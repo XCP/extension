@@ -47,7 +47,7 @@ export default function SecuritySettings(): ReactElement {
 
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { lockAll, updatePassword } = useWallet();
+  const { lockKeychain, updatePassword } = useWallet();
   const { settings } = useSettings();
 
   // Configure header
@@ -102,7 +102,7 @@ export default function SecuritySettings(): ReactElement {
         throw new Error("New passwords do not match");
       }
       await updatePassword(passwordForm.currentPassword, passwordForm.newPassword);
-      await lockAll();
+      await lockKeychain();
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       setSuccess("Password successfully changed");
     } catch (err) {

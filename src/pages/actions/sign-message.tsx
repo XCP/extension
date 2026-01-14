@@ -20,7 +20,7 @@ import type { ReactElement } from "react";
 export default function SignMessage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { activeWallet, activeAddress, unlockWallet, isWalletLocked, getPrivateKey } = useWallet();
+  const { activeWallet, activeAddress, selectWallet, isKeychainLocked, getPrivateKey } = useWallet();
 
   // Provider request hook for handling dApp integration
   const {
@@ -99,16 +99,16 @@ export default function SignMessage(): ReactElement {
     setSignature("");
     
     try {
-      // Check if wallet is locked
-      if (!password && await isWalletLocked()) {
+      // Check if keychain is locked
+      if (!password && await isKeychainLocked()) {
         setShowAuthModal(true);
         setIsSigning(false);
         return;
       }
       
-      // Unlock wallet if password provided
+      // Load wallet if password provided (re-enter password scenario)
       if (password) {
-        await unlockWallet(activeWallet.id, password);
+        await selectWallet(activeWallet.id);
         setShowAuthModal(false);
       }
       

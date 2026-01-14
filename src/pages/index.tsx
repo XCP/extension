@@ -38,7 +38,7 @@ const CONSTANTS = {
 } as const;
 
 export default function Index(): ReactElement {
-  const { activeWallet, activeAddress, lockAll, isLoading } = useWallet();
+  const { activeWallet, activeAddress, lockKeychain, isLoading } = useWallet();
   const { setHeaderProps } = useHeader();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -87,14 +87,14 @@ export default function Index(): ReactElement {
       rightButton: {
         icon: <FaLock aria-hidden="true" />,
         onClick: async () => {
-          await lockAll();
+          await lockKeychain();
           navigate(CONSTANTS.PATHS.UNLOCK_WALLET);
         },
-        ariaLabel: "Lock Wallet",
+        ariaLabel: "Lock Keychain",
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, activeWallet, lockAll]);
+  }, [setHeaderProps, navigate, activeWallet, lockKeychain]);
 
   useEffect(() => {
     if (copiedToClipboard) {
