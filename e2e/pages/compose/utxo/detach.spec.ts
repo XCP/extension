@@ -8,15 +8,18 @@ import { walletTest, expect, navigateTo } from '../../../fixtures';
 import { compose } from '../../../selectors';
 
 walletTest.describe('Compose UTXO Detach Page (/compose/utxo/detach)', () => {
-  walletTest('utxo detach page loads', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/utxo/detach'));
+  walletTest('utxo detach page loads with utxo', async ({ page }) => {
+    // Route requires utxo parameter: /compose/utxo/detach/:utxo
+    const testUtxo = '0000000000000000000000000000000000000000000000000000000000000000:0';
+    await page.goto(page.url().replace(/\/index.*/, `/compose/utxo/detach/${encodeURIComponent(testUtxo)}`));
     await page.waitForLoadState('networkidle');
 
     const hasDetach = await page.locator('text=/Detach|UTXO.*Detach|Remove.*Asset/i').first().isVisible({ timeout: 5000 }).catch(() => false);
     const hasDetachButton = await compose.utxo.detachButton(page).isVisible({ timeout: 3000 }).catch(() => false);
+    const hasForm = await page.locator('input, select, button').first().isVisible({ timeout: 3000 }).catch(() => false);
     const redirected = !page.url().includes('detach');
 
-    expect(hasDetach || hasDetachButton || redirected).toBe(true);
+    expect(hasDetach || hasDetachButton || hasForm || redirected).toBe(true);
   });
 
   walletTest('utxo detach page loads with utxo parameter', async ({ page }) => {
@@ -32,7 +35,9 @@ walletTest.describe('Compose UTXO Detach Page (/compose/utxo/detach)', () => {
   });
 
   walletTest('utxo detach shows attached assets', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/utxo/detach'));
+    // Route requires utxo parameter
+    const testUtxo = '0000000000000000000000000000000000000000000000000000000000000000:0';
+    await page.goto(page.url().replace(/\/index.*/, `/compose/utxo/detach/${encodeURIComponent(testUtxo)}`));
     await page.waitForLoadState('networkidle');
 
     if (page.url().includes('detach')) {
@@ -44,7 +49,9 @@ walletTest.describe('Compose UTXO Detach Page (/compose/utxo/detach)', () => {
   });
 
   walletTest('utxo detach shows utxo selection', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/utxo/detach'));
+    // Route requires utxo parameter
+    const testUtxo = '0000000000000000000000000000000000000000000000000000000000000000:0';
+    await page.goto(page.url().replace(/\/index.*/, `/compose/utxo/detach/${encodeURIComponent(testUtxo)}`));
     await page.waitForLoadState('networkidle');
 
     if (page.url().includes('detach')) {

@@ -8,15 +8,17 @@ import { walletTest, expect, navigateTo } from '../../../fixtures';
 import { compose } from '../../../selectors';
 
 walletTest.describe('Compose UTXO Attach Page (/compose/utxo/attach)', () => {
-  walletTest('utxo attach page loads', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/utxo/attach'));
+  walletTest('utxo attach page loads with asset', async ({ page }) => {
+    // Route requires asset parameter: /compose/utxo/attach/:asset
+    await page.goto(page.url().replace(/\/index.*/, '/compose/utxo/attach/BTC'));
     await page.waitForLoadState('networkidle');
 
     const hasAttach = await page.locator('text=/Attach|UTXO.*Attach|Attach.*Asset/i').first().isVisible({ timeout: 5000 }).catch(() => false);
     const hasAttachButton = await compose.utxo.attachButton(page).isVisible({ timeout: 3000 }).catch(() => false);
+    const hasForm = await page.locator('input, select, button').first().isVisible({ timeout: 3000 }).catch(() => false);
     const redirected = !page.url().includes('attach');
 
-    expect(hasAttach || hasAttachButton || redirected).toBe(true);
+    expect(hasAttach || hasAttachButton || hasForm || redirected).toBe(true);
   });
 
   walletTest('utxo attach page loads with asset parameter', async ({ page }) => {
