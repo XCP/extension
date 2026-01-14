@@ -1,27 +1,23 @@
-import { test, expect } from '@playwright/test';
-import { launchExtension, cleanup } from '../helpers/test-helpers';
+/**
+ * Basic Extension Tests
+ *
+ * Tests for basic extension loading and functionality.
+ */
 
-test('extension loads', async () => {
-  const { context, page } = await launchExtension('basic');
-  
-  // Wait for page to load with a more generous timeout
-  await page.waitForLoadState('networkidle', { timeout: 30000 });
-  
-  // Take a screenshot to see what we have
-  await page.screenshot({ path: 'test-results/screenshots/extension-loaded.png' });
-  
-  // Check that we can access the page
-  const title = await page.title();
+import { test, expect } from '../fixtures';
+
+test('extension loads', async ({ extensionPage }) => {
+  await extensionPage.waitForLoadState('networkidle', { timeout: 30000 });
+
+  await extensionPage.screenshot({ path: 'test-results/screenshots/extension-loaded.png' });
+
+  const title = await extensionPage.title();
   expect(title).toBeTruthy();
-  
-  // Check if there's any content - either onboarding or wallet page
-  const hasContent = await page.locator('text=/Create Wallet|Import Wallet|Unlock|Address/i').first().isVisible({ timeout: 10000 }).catch(() => false);
+
+  const hasContent = await extensionPage.locator('text=/Create Wallet|Import Wallet|Unlock|Address/i').first().isVisible({ timeout: 10000 }).catch(() => false);
   expect(hasContent).toBe(true);
-  
-  // Verify the body has content
-  const bodyText = await page.evaluate(() => document.body.innerText);
+
+  const bodyText = await extensionPage.evaluate(() => document.body.innerText);
   expect(bodyText).toBeTruthy();
   expect(bodyText.length).toBeGreaterThan(10);
-  
-  await cleanup(context);
 });

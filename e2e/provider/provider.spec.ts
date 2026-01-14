@@ -1,157 +1,138 @@
-import { test, expect, Page, BrowserContext } from '@playwright/test';
-import { launchExtension, setupWallet, cleanup } from '../helpers/test-helpers';
-import * as http from 'http';
-
 /**
- * Consolidated Provider Tests
- * 
- * This file combines all provider test functionality from:
- * - provider-connection.spec.ts
- * - provider-connection-fixed.spec.ts
- * - provider-connection-simplified.spec.ts
- * - provider-tests.spec.ts
- * - provider-flow.spec.ts
+ * XCP Provider Tests
+ *
+ * Tests for the wallet provider injection, connection management,
+ * network information, security, and event handling.
  */
 
+import { test, expect, Page } from '@playwright/test';
+import * as http from 'http';
+
+// Helper to create test HTML server
+function createTestServer(): Promise<{ server: http.Server; url: string }> {
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>XCP Provider Test</title>
+        </head>
+        <body>
+          <h1>XCP Wallet Provider Test Page</h1>
+          <div id="status">Checking provider...</div>
+          <div id="results"></div>
+
+          <script>
+            setTimeout(() => {
+              window.providerFound = typeof window.xcpwallet !== 'undefined';
+              document.getElementById('status').textContent =
+                window.providerFound ? 'Provider found!' : 'Provider not found';
+            }, 1000);
+
+            window.checkProvider = () => {
+              const provider = window.xcpwallet;
+              if (!provider) return null;
+              return {
+                hasRequest: typeof provider.request === 'function',
+                hasOn: typeof provider.on === 'function',
+                hasRemoveListener: typeof provider.removeListener === 'function',
+                hasIsConnected: typeof provider.isConnected === 'function'
+              };
+            };
+
+            window.testProvider = async (method, params) => {
+              if (!window.xcpwallet) {
+                throw new Error('Provider not available');
+              }
+              return await window.xcpwallet.request({ method, params });
+            };
+          </script>
+        </body>
+        </html>
+      `);
+    });
+
+    server.listen(0, 'localhost', () => {
+      const address = server.address();
+      if (address && typeof address !== 'string') {
+        resolve({ server, url: `http://localhost:${address.port}` });
+      }
+    });
+  });
+}
+
+// Helper to close server with timeout protection
+async function closeServer(server: http.Server): Promise<void> {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      resolve();
+    }, 5000);
+
+    server.close(() => {
+      clearTimeout(timeout);
+      resolve();
+    });
+  });
+}
+
 test.describe('XCP Provider', () => {
-  let context: BrowserContext;
-  let extensionPage: Page;
-  let testPage: Page;
   let server: http.Server;
   let serverUrl: string;
-  
+  let testPage: Page;
+
   test.beforeAll(async () => {
-    // Create HTTP server for testing
-    await new Promise<void>((resolve) => {
-      server = http.createServer((req, res) => {
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>XCP Provider Test</title>
-          </head>
-          <body>
-            <h1>XCP Wallet Provider Test Page</h1>
-            <div id="status">Checking provider...</div>
-            <div id="results"></div>
-            
-            <script>
-              // Check for provider after a delay
-              setTimeout(() => {
-                window.providerFound = typeof window.xcpwallet !== 'undefined';
-                document.getElementById('status').textContent = 
-                  window.providerFound ? 'Provider found!' : 'Provider not found';
-              }, 1000);
-              
-              // Helper for checking provider methods
-              window.checkProvider = () => {
-                const provider = window.xcpwallet;
-                if (!provider) return null;
-                return {
-                  hasRequest: typeof provider.request === 'function',
-                  hasOn: typeof provider.on === 'function',
-                  hasRemoveListener: typeof provider.removeListener === 'function',
-                  hasIsConnected: typeof provider.isConnected === 'function'
-                };
-              };
-              
-              // Test provider helper
-              window.testProvider = async (method, params) => {
-                if (!window.xcpwallet) {
-                  throw new Error('Provider not available');
-                }
-                return await window.xcpwallet.request({ method, params });
-              };
-            </script>
-          </body>
-          </html>
-        `);
-      });
-      
-      server.listen(0, 'localhost', () => {
-        const address = server.address();
-        if (address && typeof address !== 'string') {
-          serverUrl = `http://localhost:${address.port}`;
-        }
-        resolve();
-      });
-    });
-    
-    // Launch extension WITHOUT setting up wallet
-    // Individual tests will set up wallet if needed
-    const ext = await launchExtension('provider');
-    context = ext.context;
-    extensionPage = ext.page;
-    
-    // Just wait for extension to initialize
-    await extensionPage.waitForTimeout(2000);
+    const serverSetup = await createTestServer();
+    server = serverSetup.server;
+    serverUrl = serverSetup.url;
   });
-  
+
   test.afterAll(async () => {
-    // Close server with timeout protection
     if (server) {
-      await new Promise<void>((resolve) => {
-        const timeout = setTimeout(() => {
-          console.log('Server close timeout, forcing resolution');
-          resolve();
-        }, 5000);
-        
-        server.close(() => {
-          clearTimeout(timeout);
-          resolve();
-        });
-      });
-    }
-    
-    // Cleanup context with error handling
-    if (context) {
-      await cleanup(context).catch(err => {
-        console.log('Context cleanup error (ignored):', (err as any).message);
-      });
+      await closeServer(server);
     }
   });
-  
-  test.beforeEach(async () => {
-    testPage = await context.newPage();
-    await testPage.goto(serverUrl);
-    
-    // Wait for provider to be injected with longer timeout and retries
-    let providerFound = false;
-    for (let i = 0; i < 10; i++) {
-      providerFound = await testPage.evaluate(() => {
-        return typeof (window as any).xcpwallet !== 'undefined';
-      });
-      if (providerFound) break;
-      await testPage.waitForTimeout(1000);
-    }
-    
-    // If still no provider after 10 seconds, wait another 2 seconds
-    if (!providerFound) {
-      await testPage.waitForTimeout(2000);
-    }
-  });
-  
-  test.afterEach(async () => {
-    if (testPage && !testPage.isClosed()) {
-      await testPage.close().catch(() => {});
-    }
-  });
-  
+
   test.describe('Provider Injection', () => {
-    test('should inject provider on localhost', async () => {
+    test('should inject provider on localhost', async ({ context }) => {
+      testPage = await context.newPage();
+      await testPage.goto(serverUrl);
+
+      // Wait for provider to be injected
+      for (let i = 0; i < 10; i++) {
+        const providerFound = await testPage.evaluate(() => {
+          return typeof (window as any).xcpwallet !== 'undefined';
+        });
+        if (providerFound) break;
+        await testPage.waitForTimeout(1000);
+      }
+
       const hasProvider = await testPage.evaluate(() => {
         return typeof (window as any).xcpwallet !== 'undefined';
       });
-      
+
       expect(hasProvider).toBe(true);
+      await testPage.close();
     });
-    
-    test('should have all required provider methods', async () => {
+
+    test('should have all required provider methods', async ({ context }) => {
+      testPage = await context.newPage();
+      await testPage.goto(serverUrl);
+
+      // Wait for provider
+      for (let i = 0; i < 10; i++) {
+        const providerFound = await testPage.evaluate(() => {
+          return typeof (window as any).xcpwallet !== 'undefined';
+        });
+        if (providerFound) break;
+        await testPage.waitForTimeout(1000);
+      }
+
       const providerInfo = await testPage.evaluate(() => {
         const provider = (window as any).xcpwallet;
         if (!provider) return null;
-        
+
         return {
           hasRequest: typeof provider.request === 'function',
           hasOn: typeof provider.on === 'function',
@@ -160,40 +141,74 @@ test.describe('XCP Provider', () => {
           isConnected: provider.isConnected()
         };
       });
-      
+
       expect(providerInfo).not.toBeNull();
       expect(providerInfo?.hasRequest).toBe(true);
       expect(providerInfo?.hasOn).toBe(true);
       expect(providerInfo?.hasRemoveListener).toBe(true);
       expect(providerInfo?.hasIsConnected).toBe(true);
-      expect(providerInfo?.isConnected).toBe(false); // Should start disconnected
+      expect(providerInfo?.isConnected).toBe(false);
+      await testPage.close();
     });
   });
-  
+
   test.describe('Connection Management', () => {
-    test.skip('should return empty accounts when not connected', async () => {
-      // Skipped: webext-bridge initialization issue in test environment
+    test.skip('should return empty accounts when not connected', async ({ context }) => {
+      testPage = await context.newPage();
+      await testPage.goto(serverUrl);
+
+      for (let i = 0; i < 10; i++) {
+        const providerFound = await testPage.evaluate(() => {
+          return typeof (window as any).xcpwallet !== 'undefined';
+        });
+        if (providerFound) break;
+        await testPage.waitForTimeout(1000);
+      }
+
       const accounts = await testPage.evaluate(async () => {
         const provider = (window as any).xcpwallet;
         if (!provider) throw new Error('Provider not found');
         return await provider.request({ method: 'xcp_accounts' });
       });
-      
+
       expect(accounts).toEqual([]);
+      await testPage.close();
     });
-    
-    test('should check isConnected status correctly', async () => {
+
+    test('should check isConnected status correctly', async ({ context }) => {
+      testPage = await context.newPage();
+      await testPage.goto(serverUrl);
+
+      for (let i = 0; i < 10; i++) {
+        const providerFound = await testPage.evaluate(() => {
+          return typeof (window as any).xcpwallet !== 'undefined';
+        });
+        if (providerFound) break;
+        await testPage.waitForTimeout(1000);
+      }
+
       const isConnected = await testPage.evaluate(() => {
         const provider = (window as any).xcpwallet;
         if (!provider) throw new Error('Provider not found');
         return provider.isConnected();
       });
-      
+
       expect(isConnected).toBe(false);
+      await testPage.close();
     });
-    
-    test('should show approval popup for connection', async () => {
-      // Set up popup listener before triggering the request
+
+    test('should show approval popup for connection', async ({ context }) => {
+      testPage = await context.newPage();
+      await testPage.goto(serverUrl);
+
+      for (let i = 0; i < 10; i++) {
+        const providerFound = await testPage.evaluate(() => {
+          return typeof (window as any).xcpwallet !== 'undefined';
+        });
+        if (providerFound) break;
+        await testPage.waitForTimeout(1000);
+      }
+
       let popup: any = null;
       const popupPromise = new Promise<any>((resolve) => {
         context.on('page', (page) => {
@@ -203,76 +218,104 @@ test.describe('XCP Provider', () => {
           }
         });
       });
-      
-      // Request accounts (should trigger popup)
+
       const accountsPromise = testPage.evaluate(async () => {
         const provider = (window as any).xcpwallet;
         if (!provider) throw new Error('Provider not found');
-        
+
         try {
           return await provider.request({ method: 'xcp_requestAccounts' });
         } catch (error: any) {
           return { error: error.message };
         }
       });
-      
-      // Wait for popup with timeout
+
       const raceResult = await Promise.race([
         popupPromise,
         new Promise((_, reject) => setTimeout(() => reject(new Error('Popup timeout')), 15000))
       ]).catch(() => null);
-      
+
       if (!raceResult) {
-        // If no popup appeared, check if the request was already approved
         const result = await accountsPromise;
-        console.log('No popup appeared, request result:', result);
-        return; // Skip this test if already connected
+        await testPage.close();
+        return;
       }
-      
-      // Verify it's the approval queue
+
       expect(popup.url()).toContain('/provider/approval-queue');
-      
-      // Close popup to simulate rejection
+
       await popup.close();
-      
-      // Check result
+
       const result = await accountsPromise;
       expect(result).toHaveProperty('error');
+      await testPage.close();
     });
   });
-  
+
   test.describe('Network Information', () => {
-    test.skip('should return correct chain ID', async () => {
-      // Skipped: webext-bridge initialization issue in test environment
+    test.skip('should return correct chain ID', async ({ context }) => {
+      testPage = await context.newPage();
+      await testPage.goto(serverUrl);
+
+      for (let i = 0; i < 10; i++) {
+        const providerFound = await testPage.evaluate(() => {
+          return typeof (window as any).xcpwallet !== 'undefined';
+        });
+        if (providerFound) break;
+        await testPage.waitForTimeout(1000);
+      }
+
       const chainId = await testPage.evaluate(async () => {
         const provider = (window as any).xcpwallet;
         if (!provider) throw new Error('Provider not found');
         return await provider.request({ method: 'xcp_chainId' });
       });
-      
-      expect(chainId).toBe('0x0'); // Bitcoin mainnet
+
+      expect(chainId).toBe('0x0');
+      await testPage.close();
     });
-    
-    test.skip('should return correct network', async () => {
-      // Skipped: webext-bridge initialization issue in test environment
+
+    test.skip('should return correct network', async ({ context }) => {
+      testPage = await context.newPage();
+      await testPage.goto(serverUrl);
+
+      for (let i = 0; i < 10; i++) {
+        const providerFound = await testPage.evaluate(() => {
+          return typeof (window as any).xcpwallet !== 'undefined';
+        });
+        if (providerFound) break;
+        await testPage.waitForTimeout(1000);
+      }
+
       const network = await testPage.evaluate(async () => {
         const provider = (window as any).xcpwallet;
         if (!provider) throw new Error('Provider not found');
         return await provider.request({ method: 'xcp_getNetwork' });
       });
-      
+
       expect(network).toBe('mainnet');
+      await testPage.close();
     });
   });
-  
+
   test.describe('Security', () => {
-    test('should reject unauthorized signing requests', async () => {
+    test('should reject unauthorized signing requests', async ({ context }) => {
+      testPage = await context.newPage();
+      await testPage.goto(serverUrl);
+
+      for (let i = 0; i < 10; i++) {
+        const providerFound = await testPage.evaluate(() => {
+          return typeof (window as any).xcpwallet !== 'undefined';
+        });
+        if (providerFound) break;
+        await testPage.waitForTimeout(1000);
+      }
+
       const result = await testPage.evaluate(async () => {
         const provider = (window as any).xcpwallet;
         if (!provider) throw new Error('Provider not found');
-        
+
         try {
-          return await provider.request({ 
+          return await provider.request({
             method: 'xcp_signMessage',
             params: ['Test message', 'bc1qtest123']
           });
@@ -280,96 +323,139 @@ test.describe('XCP Provider', () => {
           return { error: error.message };
         }
       });
-      
+
       expect(result).toHaveProperty('error');
-      // Accept either "Unauthorized" or service initialization errors
       expect(
-        result.error.includes('Unauthorized') || 
+        result.error.includes('Unauthorized') ||
         result.error.includes('Extension services not available')
       ).toBeTruthy();
+      await testPage.close();
     });
-    
-    test('should handle invalid methods', async () => {
+
+    test('should handle invalid methods', async ({ context }) => {
+      testPage = await context.newPage();
+      await testPage.goto(serverUrl);
+
+      for (let i = 0; i < 10; i++) {
+        const providerFound = await testPage.evaluate(() => {
+          return typeof (window as any).xcpwallet !== 'undefined';
+        });
+        if (providerFound) break;
+        await testPage.waitForTimeout(1000);
+      }
+
       const result = await testPage.evaluate(async () => {
         const provider = (window as any).xcpwallet;
         if (!provider) return { error: 'Provider not available' };
-        
+
         try {
           await provider.request({
             method: 'invalid_method'
           });
-          
+
           return { success: true };
         } catch (error: any) {
           return { error: error.message };
         }
       });
-      
-      // Should reject invalid methods
+
       expect(
-        result.error.includes('not supported') || 
+        result.error.includes('not supported') ||
         result.error.includes('Extension services not available')
       ).toBeTruthy();
+      await testPage.close();
     });
-    
-    test('should validate parameter size limits', async () => {
-      // Create large parameter (2MB)
+
+    test('should validate parameter size limits', async ({ context }) => {
+      testPage = await context.newPage();
+      await testPage.goto(serverUrl);
+
+      for (let i = 0; i < 10; i++) {
+        const providerFound = await testPage.evaluate(() => {
+          return typeof (window as any).xcpwallet !== 'undefined';
+        });
+        if (providerFound) break;
+        await testPage.waitForTimeout(1000);
+      }
+
       const largeParam = 'x'.repeat(2 * 1024 * 1024);
-      
+
       const result = await testPage.evaluate(async (param) => {
         try {
           const provider = (window as any).xcpwallet;
           if (!provider) {
             return { error: 'Provider not available' };
           }
-          
+
           const response = await provider.request({
             method: 'xcp_getBalances',
             params: [{ largeData: param }]
           });
-          
+
           return { success: true, response };
         } catch (error: any) {
           return { error: error.message };
         }
       }, largeParam);
-      
-      // Should reject large parameters
+
       expect(
-        result.error.includes('Request parameters too large') || 
+        result.error.includes('Request parameters too large') ||
         result.error.includes('Extension services not available')
       ).toBeTruthy();
+      await testPage.close();
     });
-    
-    test('should not expose sensitive data', async () => {
+
+    test('should not expose sensitive data', async ({ context }) => {
+      testPage = await context.newPage();
+      await testPage.goto(serverUrl);
+
+      for (let i = 0; i < 10; i++) {
+        const providerFound = await testPage.evaluate(() => {
+          return typeof (window as any).xcpwallet !== 'undefined';
+        });
+        if (providerFound) break;
+        await testPage.waitForTimeout(1000);
+      }
+
       const securityCheck = await testPage.evaluate(() => {
         const provider = (window as any).xcpwallet;
         if (!provider) {
           return { error: 'Provider not available' };
         }
-        
-        // Provider should not expose internal methods or data
+
         const exposedKeys = Object.keys(provider);
         const sensitiveKeys = ['_internal', 'privateKey', 'mnemonic', '_storage'];
-        
-        const hasSensitiveData = sensitiveKeys.some(key => 
-          exposedKeys.includes(key) || 
+
+        const hasSensitiveData = sensitiveKeys.some(key =>
+          exposedKeys.includes(key) ||
           exposedKeys.some(exposedKey => exposedKey.includes(key))
         );
-        
+
         return {
           success: true,
           exposedKeys,
           hasSensitiveData
         };
       });
-      
+
       expect(securityCheck.hasSensitiveData).toBe(false);
+      await testPage.close();
     });
   });
-  
+
   test.describe('Event Handling', () => {
-    test('should support event listeners', async () => {
+    test('should support event listeners', async ({ context }) => {
+      testPage = await context.newPage();
+      await testPage.goto(serverUrl);
+
+      for (let i = 0; i < 10; i++) {
+        const providerFound = await testPage.evaluate(() => {
+          return typeof (window as any).xcpwallet !== 'undefined';
+        });
+        if (providerFound) break;
+        await testPage.waitForTimeout(1000);
+      }
+
       const eventTest = await testPage.evaluate(() => {
         return new Promise((resolve) => {
           const provider = (window as any).xcpwallet;
@@ -377,56 +463,58 @@ test.describe('XCP Provider', () => {
             resolve({ error: 'Provider not found' });
             return;
           }
-          
-          let eventReceived = false;
-          
-          // Set up event listener
-          const handler = () => {
-            eventReceived = true;
-          };
-          
+
+          const handler = () => {};
+
           provider.on('test', handler);
-          
-          // Check that handler was added
+
           const hasHandler = typeof provider.removeListener === 'function';
-          
-          // Remove handler
+
           provider.removeListener('test', handler);
-          
+
           resolve({
             hasEventMethods: true,
             canAddListener: hasHandler
           });
         });
       });
-      
+
       expect(eventTest).toHaveProperty('hasEventMethods', true);
       expect(eventTest).toHaveProperty('canAddListener', true);
+      await testPage.close();
     });
   });
-  
+
   test.describe('Rate Limiting', () => {
-    test('should handle rapid requests gracefully', async () => {
+    test('should handle rapid requests gracefully', async ({ context }) => {
+      testPage = await context.newPage();
+      await testPage.goto(serverUrl);
+
+      for (let i = 0; i < 10; i++) {
+        const providerFound = await testPage.evaluate(() => {
+          return typeof (window as any).xcpwallet !== 'undefined';
+        });
+        if (providerFound) break;
+        await testPage.waitForTimeout(1000);
+      }
+
       const rateLimitTest = await testPage.evaluate(async () => {
         const provider = (window as any).xcpwallet;
         if (!provider) {
           return [{ error: 'Provider not available - rate limit test skipped' }];
         }
-        
+
         const results = [];
-        
-        // Make many rapid requests to trigger rate limiting
+
         for (let i = 0; i < 50; i++) {
           try {
-            // Use a simple method that should work quickly
             const response = await provider.request({
               method: 'xcp_chainId'
             });
             results.push({ success: true, index: i });
           } catch (error: any) {
             results.push({ error: error.message, index: i });
-            
-            // Check for rate limit errors
+
             if (error.message.toLowerCase().includes('rate') ||
                 error.message.toLowerCase().includes('limit') ||
                 error.message.toLowerCase().includes('too many') ||
@@ -436,22 +524,20 @@ test.describe('XCP Provider', () => {
             }
           }
         }
-        
+
         return results;
       });
-      
-      // Check if rate limiting is handled properly
-      const hasRateLimit = rateLimitTest.some(result => 
+
+      const hasRateLimit = rateLimitTest.some(result =>
         ('error' in result && result.error?.toLowerCase().includes('rate')) ||
         ('error' in result && result.error?.toLowerCase().includes('limit')) ||
         ('rateLimited' in result && result.rateLimited) ||
         ('error' in result && result.error?.includes('not available'))
       );
-      
-      // Either rate limiting works or provider handles rapid requests
+
       const isHandled = hasRateLimit || rateLimitTest.length > 0;
       expect(isHandled).toBe(true);
+      await testPage.close();
     });
   });
 });
-

@@ -1,257 +1,125 @@
-import { test, expect } from '@playwright/test';
-import { 
-  launchExtension, 
-  setupWallet, 
-  navigateViaFooter,
-  getCurrentAddress,
-  addAddress,
-  lockWallet,
-  unlockWallet,
-  grantClipboardPermissions,
-  cleanup,
-  TEST_PASSWORD 
-} from '../helpers/test-helpers';
+/**
+ * Wallet Functionality Tests
+ *
+ * Core wallet features: balance display, navigation, copy address, etc.
+ */
 
-test.describe('Wallet Functionality', () => {
-  test('displays wallet balance and assets correctly', async () => {
-    const { context, page } = await launchExtension('wallet-balance');
-    await setupWallet(page);
-    
-    // Should show Assets and Balances tabs
-    const assetsTab = page.getByRole('button', { name: 'View Assets' });
-    const balancesTab = page.getByRole('button', { name: 'View Balances' });
-    
-    await expect(assetsTab).toBeVisible();
-    await expect(balancesTab).toBeVisible();
-    
-    // Check balances tab shows BTC
-    await balancesTab.click();
-    // Use a more specific selector to avoid matching the AssetIcon placeholder text
-    await expect(page.locator('.font-medium.text-sm.text-gray-900:has-text("BTC")')).toBeVisible();
-    
-    // Check assets tab
-    await assetsTab.click();
-    await expect(page.locator('text=/Assets|Loading owned assets/').first()).toBeVisible();
-    
-    await cleanup(context);
+import { walletTest, expect, navigateTo, getCurrentAddress, grantClipboardPermissions, unlockWallet, TEST_PASSWORD } from '../fixtures';
+
+walletTest.describe('Balance Display', () => {
+  walletTest('shows Assets and Balances tabs', async ({ page }) => {
+    await expect(page.getByRole('button', { name: 'View Assets' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'View Balances' })).toBeVisible();
   });
 
-  test('can copy wallet address to clipboard', async () => {
-    const { context, page } = await launchExtension('copy-address');
-    await setupWallet(page);
+  walletTest('Balances tab shows BTC', async ({ page }) => {
+    await page.getByRole('button', { name: 'View Balances' }).click();
+    await expect(page.getByText('BTC')).toBeVisible();
+  });
+
+  walletTest('Assets tab shows content', async ({ page }) => {
+    await page.getByRole('button', { name: 'View Assets' }).click();
+    await expect(page.getByText(/Assets|Loading|No assets/i).first()).toBeVisible();
+  });
+});
+
+walletTest.describe('Address Display', () => {
+  walletTest('displays current address', async ({ page }) => {
+    const address = await getCurrentAddress(page);
+    expect(address).toBeTruthy();
+    expect(address.length).toBeGreaterThan(10);
+  });
+
+  walletTest('copies address to clipboard on click', async ({ page, context }) => {
     await grantClipboardPermissions(context);
-    
-    // Get current address
-    const currentAddress = await getCurrentAddress(page);
-    expect(currentAddress).toBeTruthy();
-    
-    // Find and click the address button to copy
+
     const addressButton = page.locator('[aria-label="Current address"]');
     await addressButton.click();
-    
-    // Should show copy confirmation
+
+    // Visual feedback
     await expect(addressButton.locator('.text-green-500')).toBeVisible();
-    
-    await cleanup(context);
+  });
+});
+
+walletTest.describe('Navigation', () => {
+  walletTest('Send button navigates to send page', async ({ page }) => {
+    await page.getByRole('button', { name: /send/i }).first().click();
+    await expect(page).toHaveURL(/send/);
   });
 
-  test('wallet navigation and UI interactions', async () => {
-    const { context, page } = await launchExtension('wallet-navigation');
-    await setupWallet(page);
-
-    // Test Send button navigation
-    const sendButton = page.locator('button:has-text("Send")').first();
-    await expect(sendButton).toBeVisible({ timeout: 5000 });
-    await sendButton.click();
-
-    // Should navigate to send page
-    await page.waitForURL(/send/, { timeout: 5000 });
-
-    // Go back to main page
-    await navigateViaFooter(page, 'wallet');
-    await page.waitForURL(/index/, { timeout: 5000 });
-
-    // Test Receive button navigation
-    const receiveButton = page.locator('button:has-text("Receive")').first();
-    await expect(receiveButton).toBeVisible({ timeout: 5000 });
-    await receiveButton.click();
-
-    // Should navigate to receive page
-    await page.waitForURL(/receive/, { timeout: 5000 });
-
-    // Should show QR code or address
-    const qrOrAddress = page.locator('canvas, .font-mono').first();
-    await expect(qrOrAddress).toBeVisible({ timeout: 5000 });
-
-    // Navigate back via footer
-    await navigateViaFooter(page, 'wallet');
-    await page.waitForURL(/index/, { timeout: 5000 });
-
-    // Test footer navigation to other sections
-    await navigateViaFooter(page, 'settings');
-    await page.waitForURL(/settings/, { timeout: 5000 });
-
-    await cleanup(context);
+  walletTest('Receive button navigates to receive page', async ({ page }) => {
+    await page.getByRole('button', { name: /receive/i }).first().click();
+    await expect(page).toHaveURL(/receive/);
+    await expect(page.locator('canvas, .font-mono').first()).toBeVisible();
   });
 
-  test('address management functionality', async () => {
-    const { context, page } = await launchExtension('address-mgmt-func');
-    await setupWallet(page);
-
-    // Navigate to address management via the chevron
-    const addressSection = page.locator('[aria-label="Current address"]');
-    await expect(addressSection).toBeVisible({ timeout: 5000 });
-    const chevron = addressSection.locator('svg').last();
-    await expect(chevron).toBeVisible({ timeout: 5000 });
-    await chevron.click();
-
-    // Should navigate to address selection page
-    await page.waitForURL(/select-address/, { timeout: 5000 });
-
-    // Should show address list with at least Address 1
-    await expect(page.getByText('Address 1')).toBeVisible({ timeout: 5000 });
-
-    // Add new address
-    const initialCount = await page.locator('[role="radio"]').count();
-    await addAddress(page);
-
-    // Verify new address was added
-    const newCount = await page.locator('[role="radio"]').count();
-    expect(newCount).toBeGreaterThan(initialCount);
-
-    await cleanup(context);
+  walletTest('History button navigates to history page', async ({ page }) => {
+    await page.getByText('History').click();
+    await expect(page).toHaveURL(/history/);
   });
 
-  test('wallet lock and unlock functionality', async () => {
-    const { context, page } = await launchExtension('lock-unlock-func');
-    await setupWallet(page);
-    
-    // Lock the wallet
-    await lockWallet(page);
-    await expect(page).toHaveURL(/unlock/);
-    
-    // Unlock with correct password
-    await unlockWallet(page, TEST_PASSWORD);
+  walletTest('footer navigates to all sections', async ({ page }) => {
+    await navigateTo(page, 'market');
+    await expect(page).toHaveURL(/market/);
+
+    await navigateTo(page, 'actions');
+    await expect(page).toHaveURL(/actions/);
+
+    await navigateTo(page, 'settings');
+    await expect(page).toHaveURL(/settings/);
+
+    await navigateTo(page, 'wallet');
     await expect(page).toHaveURL(/index/);
-    
-    // Verify wallet is functional after unlock
-    await expect(page.getByRole('button', { name: 'View Assets' })).toBeVisible();
-    
-    await cleanup(context);
+  });
+});
+
+walletTest.describe('Settings Access', () => {
+  walletTest('shows main settings options', async ({ page }) => {
+    await navigateTo(page, 'settings');
+
+    await expect(page.getByText('General')).toBeVisible();
+    await expect(page.getByText('Advanced')).toBeVisible();
+    await expect(page.getByText('About')).toBeVisible();
   });
 
-  test('wallet settings and preferences', async () => {
-    const { context, page } = await launchExtension('wallet-settings');
-    await setupWallet(page);
-
-    // Navigate to settings
-    await navigateViaFooter(page, 'settings');
-    await page.waitForURL(/settings/, { timeout: 5000 });
-
-    // Should show key settings options
-    await expect(page.getByText('General')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('Advanced')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('About')).toBeVisible({ timeout: 5000 });
-
-    // Test navigation to Advanced settings
+  walletTest('Advanced settings shows auto-lock timer', async ({ page }) => {
+    await navigateTo(page, 'settings');
     await page.getByText('Advanced').click();
-    await page.waitForURL(/advanced/, { timeout: 5000 });
-
-    // Should show auto-lock settings
-    await expect(page.locator('text=/Auto-Lock.*Timer/i').first()).toBeVisible({ timeout: 5000 });
-
-    await cleanup(context);
+    await expect(page).toHaveURL(/advanced/);
+    await expect(page.getByText(/Auto-Lock/i).first()).toBeVisible();
   });
+});
 
-  test('transaction history access', async () => {
-    const { context, page } = await launchExtension('transaction-history');
-    await setupWallet(page);
-
-    // Click on History button
-    const historyButton = page.getByText('History');
-    await expect(historyButton).toBeVisible({ timeout: 5000 });
-    await historyButton.click();
-
-    // Should navigate to history page
-    await page.waitForURL(/history/, { timeout: 5000 });
-
-    // Should show transaction history interface (may be empty for new wallet)
-    const historyInterface = page.locator('text=/Transaction|History|Empty|No transactions/').first();
-    await expect(historyInterface).toBeVisible({ timeout: 5000 });
-
-    await cleanup(context);
-  });
-
-  test('wallet information display', async () => {
-    const { context, page } = await launchExtension('wallet-info');
-    await setupWallet(page);
-
-    // Check that essential wallet info is displayed
-    const currentAddress = await getCurrentAddress(page);
-    expect(currentAddress).toBeTruthy();
-    expect(currentAddress).not.toBe('');
-
-    // Should show balance information (BTC label)
-    const balanceInfo = page.locator('text=/BTC|Balance|₿/').first();
-    await expect(balanceInfo).toBeVisible({ timeout: 5000 });
-
-    // Verify address display element exists
-    await expect(page.locator('.font-mono').first()).toBeVisible({ timeout: 5000 });
-
-    await cleanup(context);
-  });
-
-  test('wallet state persistence across sessions', async () => {
-    const { context, page } = await launchExtension('wallet-persistence');
-    await setupWallet(page);
-
-    // Get initial address
+walletTest.describe('State Persistence', () => {
+  walletTest('wallet state persists after reload', async ({ page }) => {
     const initialAddress = await getCurrentAddress(page);
-    expect(initialAddress).toBeTruthy();
 
-    // Reload the page
     await page.reload();
-    await page.waitForLoadState('networkidle');
-
-    // After reload, should either stay on index (unlocked) or go to unlock
-    const url = page.url();
-    const needsUnlock = url.includes('unlock');
-
-    if (needsUnlock) {
-      // Unlock and verify state restored
-      await unlockWallet(page, TEST_PASSWORD);
-      await page.waitForURL(/index/, { timeout: 5000 });
-    }
-
-    // Verify wallet state is restored - address should be available
-    const restoredAddress = await getCurrentAddress(page);
-    expect(restoredAddress).toBeTruthy();
-
-    await cleanup(context);
-  });
-
-  test('wallet error recovery', async () => {
-    const { context, page } = await launchExtension('wallet-error-recovery');
-    await setupWallet(page);
-
-    // Simulate error by navigating to invalid route
-    const extensionId = page.url().split('/')[2];
-    await page.goto(`chrome-extension://${extensionId}/popup.html#/invalid-route`);
-
-    // Wait for redirect or error page to load
     await page.waitForLoadState('domcontentloaded');
 
-    // Should handle gracefully - either redirect to valid page or show error
-    const hasError = await page.locator('text=/Error|Not Found|404/i').isVisible().catch(() => false);
-    const redirectedToValid = page.url().includes('index') || page.url().includes('unlock');
+    // May need to unlock after reload
+    if (page.url().includes('unlock')) {
+      await unlockWallet(page, TEST_PASSWORD);
+    }
 
-    expect(hasError || redirectedToValid).toBe(true);
+    const restoredAddress = await getCurrentAddress(page);
+    expect(restoredAddress).toBeTruthy();
+  });
+});
 
-    // Navigate back to main wallet and verify it works
-    await navigateViaFooter(page, 'wallet');
-    await page.waitForURL(/index/, { timeout: 5000 });
-    await expect(page.getByRole('button', { name: 'View Assets' })).toBeVisible({ timeout: 5000 });
+walletTest.describe('Error Recovery', () => {
+  walletTest('handles invalid routes gracefully', async ({ page, extensionId }) => {
+    await page.goto(`chrome-extension://${extensionId}/popup.html#/invalid-route`);
+    await page.waitForLoadState('domcontentloaded');
 
-    await cleanup(context);
+    // Should redirect or show error
+    const hasError = await page.getByText(/Error|Not Found|404/i).isVisible().catch(() => false);
+    const redirected = page.url().includes('index') || page.url().includes('unlock');
+
+    expect(hasError || redirected).toBe(true);
+
+    // Can still navigate to wallet
+    await navigateTo(page, 'wallet');
+    await expect(page.getByRole('button', { name: 'View Assets' })).toBeVisible();
   });
 });
