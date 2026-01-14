@@ -143,6 +143,14 @@ export const actions = {
   verifyMessageOption: (page: Page) => page.getByText('Verify Message'),
   issueAssetOption: (page: Page) => page.getByText('Issue Asset'),
   sweepAddressOption: (page: Page) => page.getByText('Sweep Address'),
+  broadcastOption: (page: Page) => page.locator('text=Broadcast').first(),
+  cancelOrderOption: (page: Page) => page.getByText('Cancel Order'),
+  closeDispenserOption: (page: Page) => page.getByText('Close Dispenser'),
+  recoverBitcoinOption: (page: Page) => page.getByText('Recover Bitcoin'),
+  toolsSection: (page: Page) => page.getByText('Tools'),
+  assetsSection: (page: Page) => page.locator('text=Assets').first(),
+  addressSection: (page: Page) => page.locator('text=Address').first(),
+  dexSection: (page: Page) => page.getByText('DEX'),
 };
 
 // ============================================================================
@@ -175,7 +183,7 @@ export const verifyMessage = {
 };
 
 // ============================================================================
-// Send Transaction
+// Send Transaction (legacy - use compose.send for new tests)
 // ============================================================================
 
 export const send = {
@@ -188,6 +196,161 @@ export const send = {
 };
 
 // ============================================================================
+// Compose Flows - Common Elements
+// ============================================================================
+
+export const compose = {
+  // Common elements across all compose forms
+  common: {
+    // Form inputs
+    destinationInput: (page: Page) => page.locator('input[placeholder*="destination address"], input[name="destination"]').first(),
+    quantityInput: (page: Page) => page.locator('input[name="quantity"], input[placeholder*="amount"]').first(),
+    assetSelect: (page: Page) => page.locator('select, [role="combobox"], button:has-text("Select")').first(),
+
+    // Header buttons
+    headerBackButton: (page: Page) => page.locator('header button').first(),
+    headerCloseButton: (page: Page) => page.locator('header button[aria-label*="close"], header button:has-text("×")').first(),
+
+    // Form navigation buttons
+    continueButton: (page: Page) => page.getByRole('button', { name: /continue/i }),
+    reviewButton: (page: Page) => page.getByRole('button', { name: /review/i }),
+    submitButton: (page: Page) => page.locator('button[type="submit"], button:has-text("Continue"), button:has-text("Review")').last(),
+    confirmButton: (page: Page) => page.getByRole('button', { name: /confirm/i }),
+    cancelButton: (page: Page) => page.getByRole('button', { name: /cancel/i }),
+    backButton: (page: Page) => page.locator('button:has-text("Back"), [aria-label*="back"]').first(),
+
+    // Review page elements
+    reviewTotal: (page: Page) => page.locator('text=/Total|Amount/i'),
+    reviewFee: (page: Page) => page.locator('text=/Fee|sat/i'),
+    reviewRecipient: (page: Page) => page.locator('text=/Recipient|To|Destination/i'),
+
+    // Success page elements
+    successIcon: (page: Page) => page.locator('[data-testid="success-icon"], svg.text-green-500, .text-green-500'),
+    successMessage: (page: Page) => page.locator('text=/Success|Complete|Sent|Broadcast/i'),
+    transactionHash: (page: Page) => page.locator('.font-mono').filter({ hasText: /^[a-f0-9]{64}$/i }),
+    viewOnExplorerButton: (page: Page) => page.locator('a:has-text("View"), button:has-text("Explorer")').first(),
+    doneButton: (page: Page) => page.getByRole('button', { name: /done|close|finish/i }),
+
+    // Error states
+    errorMessage: (page: Page) => page.locator('.text-red-500, .text-red-600, [role="alert"], .bg-red-50'),
+    errorRetryButton: (page: Page) => page.getByRole('button', { name: /retry|try again/i }),
+
+    // Fee selection
+    feeDisplay: (page: Page) => page.locator('text=/Fee|sat/i'),
+    feeSlider: (page: Page) => page.locator('input[type="range"]'),
+    feeLow: (page: Page) => page.locator('button:has-text("Low"), text=/Low/i'),
+    feeMedium: (page: Page) => page.locator('button:has-text("Medium"), text=/Medium/i'),
+    feeHigh: (page: Page) => page.locator('button:has-text("High"), text=/High/i'),
+    feeCustom: (page: Page) => page.locator('button:has-text("Custom"), input[placeholder*="sat"]'),
+  },
+
+  // Send transaction (/compose/send)
+  send: {
+    recipientInput: (page: Page) => page.locator('input[placeholder*="destination address"], input[name="destination"]').first(),
+    quantityInput: (page: Page) => page.locator('input[name="quantity"]'),
+    sendButton: (page: Page) => page.locator('button[aria-label="Send tokens"]'),
+    mpmaOption: (page: Page) => page.locator('text=/MPMA|Multiple|recipients/i'),
+    addRecipientButton: (page: Page) => page.locator('text=/Add recipient|Multiple addresses/i'),
+  },
+
+  // Dispenser operations (/compose/dispenser/*)
+  dispenser: {
+    // Create dispenser
+    mainchainRateInput: (page: Page) => page.locator('input[name*="rate"], input[name*="price"], input[placeholder*="satoshi"]').first(),
+    escrowQuantityInput: (page: Page) => page.locator('input[name*="escrow"], input[name*="quantity"]').first(),
+    giveQuantityInput: (page: Page) => page.locator('input[name*="give"], input[name*="dispense"]').first(),
+    createButton: (page: Page) => page.locator('button:has-text("Create"), button:has-text("Open")').first(),
+    // Close dispenser
+    hashInput: (page: Page) => page.locator('input[name*="hash"], input[placeholder*="hash"]').first(),
+    dispenserSelect: (page: Page) => page.locator('select, [role="combobox"]').first(),
+    closeButton: (page: Page) => page.locator('button:has-text("Close")').first(),
+    // Dispense (buy from dispenser)
+    dispenseAmountInput: (page: Page) => page.locator('input[name*="amount"], input[name*="quantity"], input[type="number"]').first(),
+    dispenseButton: (page: Page) => page.locator('button:has-text("Dispense"), button:has-text("Buy")').first(),
+  },
+
+  // DEX order operations (/compose/order/*)
+  order: {
+    giveAssetInput: (page: Page) => page.locator('input[placeholder*="give asset"], input[placeholder*="sell"]').first(),
+    giveQuantityInput: (page: Page) => page.locator('input[placeholder*="give quantity"], input[placeholder*="sell amount"]').first(),
+    getAssetInput: (page: Page) => page.locator('input[placeholder*="get asset"], input[placeholder*="buy"]').first(),
+    getQuantityInput: (page: Page) => page.locator('input[placeholder*="get quantity"], input[placeholder*="buy amount"]').first(),
+    expirationInput: (page: Page) => page.locator('input[name*="expir"], select[name*="expir"]').first(),
+    createOrderButton: (page: Page) => page.locator('button:has-text("Create Order"), button:has-text("Trade")').first(),
+    cancelOrderButton: (page: Page) => page.locator('button:has-text("Cancel")').first(),
+  },
+
+  // Asset issuance (/compose/issuance/*)
+  issuance: {
+    assetNameInput: (page: Page) => page.locator('input[name*="name"], input[name*="asset"], input[placeholder*="Asset"]').first(),
+    quantityInput: (page: Page) => page.locator('input[name*="quantity"], input[name*="amount"]').first(),
+    divisibleToggle: (page: Page) => page.locator('input[type="checkbox"], [role="switch"]').first(),
+    descriptionInput: (page: Page) => page.locator('textarea, input[name*="description"]').first(),
+    issueButton: (page: Page) => page.locator('button:has-text("Create"), button:has-text("Issue")').first(),
+    lockSupplyButton: (page: Page) => page.locator('button:has-text("Lock")').first(),
+    transferOwnershipInput: (page: Page) => page.locator('input[name*="address"], input[name*="destination"]').first(),
+  },
+
+  // Broadcast (/compose/broadcast)
+  broadcast: {
+    messageInput: (page: Page) => page.locator('textarea[name="text"]'),
+    broadcastButton: (page: Page) => page.locator('button:has-text("Broadcast"), button[type="submit"]').first(),
+    addressOptionsLink: (page: Page) => page.locator('text=/Address.*Option|Options|Configure/i, a[href*="address-options"]').first(),
+  },
+
+  // Sweep address (/compose/sweep)
+  sweep: {
+    destinationInput: (page: Page) => page.locator('input[placeholder*="destination address"]').or(
+      page.locator('input[type="text"]').filter({ has: page.locator('..').filter({ hasText: 'Destination' }) })
+    ).first(),
+    flagsSelect: (page: Page) => page.locator('select[name="flags"]'),
+    sweepButton: (page: Page) => page.locator('button:has-text("Sweep"), button[type="submit"]').first(),
+  },
+
+  // Dividend distribution (/compose/dividend)
+  dividend: {
+    assetInput: (page: Page) => page.locator('input[placeholder*="asset"], input[placeholder*="holders"]').first(),
+    dividendAssetInput: (page: Page) => page.locator('input[placeholder*="dividend"], input[placeholder*="distribute"]').first(),
+    quantityPerUnitInput: (page: Page) => page.locator('input[placeholder*="per unit"], input[placeholder*="amount"]').first(),
+    distributeButton: (page: Page) => page.locator('button:has-text("Distribute"), button:has-text("Pay")').first(),
+  },
+
+  // Fairminter (/compose/fairminter) and Fairmint (/compose/fairmint)
+  fairminter: {
+    assetNameInput: (page: Page) => page.locator('input[name*="name"], input[name*="asset"]').first(),
+    priceInput: (page: Page) => page.locator('input[name*="price"]').first(),
+    maxMintInput: (page: Page) => page.locator('input[name*="max"]').first(),
+    createButton: (page: Page) => page.locator('button:has-text("Create"), button:has-text("Start")').first(),
+  },
+  fairmint: {
+    mintButton: (page: Page) => page.locator('button:has-text("Mint"), button:has-text("Participate")').first(),
+    quantityInput: (page: Page) => page.locator('input[name*="quantity"], input[type="number"]').first(),
+  },
+
+  // UTXO operations (/compose/utxo/*)
+  utxo: {
+    attachQuantityInput: (page: Page) => page.locator('input[name*="quantity"], input[name*="amount"]').first(),
+    attachButton: (page: Page) => page.locator('button:has-text("Attach")').first(),
+    detachButton: (page: Page) => page.locator('button:has-text("Detach")').first(),
+    moveDestinationInput: (page: Page) => page.locator('input[name*="destination"], input[name*="address"]').first(),
+    moveButton: (page: Page) => page.locator('button:has-text("Move")').first(),
+  },
+
+  // BTC Pay (/compose/btcpay)
+  btcpay: {
+    orderSelect: (page: Page) => page.locator('select, [role="combobox"], input[name*="order"]').first(),
+    payButton: (page: Page) => page.locator('button:has-text("Pay")').first(),
+  },
+
+  // Destroy supply (/compose/destroy)
+  destroy: {
+    quantityInput: (page: Page) => page.locator('input[name*="quantity"], input[name*="amount"]').first(),
+    confirmCheckbox: (page: Page) => page.locator('input[type="checkbox"]').first(),
+    destroyButton: (page: Page) => page.locator('button:has-text("Destroy"), button:has-text("Burn")').first(),
+  },
+};
+
+// ============================================================================
 // Select Address
 // ============================================================================
 
@@ -195,6 +358,9 @@ export const selectAddress = {
   addressList: (page: Page) => page.locator('[role="radiogroup"]'),
   addressOption: (page: Page, index: number) => page.locator('[role="radio"]').nth(index),
   addAddressButton: (page: Page) => page.getByRole('button', { name: /Add Address/i }),
+  chevronButton: (page: Page) => page.locator('[aria-label="Select another address"]'),
+  addressLabel: (page: Page, num: number) => page.locator(`text=Address ${num}`),
+  copyButton: (page: Page) => page.locator('[title*="Copy"], [aria-label*="Copy"]').first(),
 };
 
 // ============================================================================
