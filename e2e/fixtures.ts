@@ -209,10 +209,23 @@ type NavTarget = 'wallet' | 'market' | 'actions' | 'settings';
 
 async function navigateTo(page: Page, target: NavTarget): Promise<void> {
   const ariaLabel = { wallet: 'Wallet', market: 'Market', actions: 'Actions', settings: 'Settings' };
+  const paths = { wallet: '/index', market: '/market', actions: '/actions', settings: '/settings' };
   const pattern = { wallet: /index/, market: /market/, actions: /actions/, settings: /settings/ };
 
   const button = page.locator(`button[aria-label="${ariaLabel[target]}"]`);
-  await button.click();
+
+  // Footer buttons only visible on main pages (index, market, actions, settings)
+  // If button not visible, navigate directly via URL
+  if (await button.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await button.click();
+  } else {
+    // Navigate directly - handle hash-based routing (e.g., popup/index.html#/settings/address-type)
+    const currentUrl = page.url();
+    // Find the base URL before the hash
+    const hashIndex = currentUrl.indexOf('#');
+    const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
+    await page.goto(`${baseUrl}${paths[target]}`);
+  }
   await page.waitForURL(pattern[target], { timeout: 5000 });
 }
 

@@ -27,30 +27,21 @@ walletTest.describe('Clipboard - Copy Address', () => {
     // Grant clipboard permissions
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
-    // Find and click the copy address button
-    const copyButton = page.locator('button[aria-label*="Copy"], button:has-text("Copy")').first();
-    const copyIconButton = page.locator('button svg, button .lucide-copy').first().locator('..');
+    // The address card itself is clickable and copies the address
+    // It has aria-label="Current address" and shows FaClipboard icon
+    const addressCard = page.locator('[aria-label="Current address"]');
+    await expect(addressCard).toBeVisible({ timeout: 5000 });
+    await addressCard.click();
 
-    let clicked = false;
-    if (await copyButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await copyButton.click();
-      clicked = true;
-    } else if (await copyIconButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await copyIconButton.click();
-      clicked = true;
-    }
+    // Check for success feedback (green checkmark appears after copy)
+    const successIndicator = page.locator('.text-green-500');
+    const hasSuccess = await successIndicator.isVisible({ timeout: 2000 }).catch(() => false);
 
-    if (clicked) {
-      // Check for success feedback (toast, checkmark, etc.)
-      const successIndicator = page.locator('text=/Copied|copied/i, .text-green-500, svg.lucide-check').first();
-      const hasSuccess = await successIndicator.isVisible({ timeout: 2000 }).catch(() => false);
+    // Verify clipboard contains an address-like string
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+    const isValidAddress = /^(bc1|1|3|tb1|m|n|2)[a-zA-Z0-9]{25,}$/.test(clipboardText);
 
-      // Verify clipboard contains an address-like string
-      const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
-      const isValidAddress = /^(bc1|1|3|tb1|m|n|2)[a-zA-Z0-9]{25,}$/.test(clipboardText);
-
-      expect(hasSuccess || isValidAddress).toBe(true);
-    }
+    expect(hasSuccess || isValidAddress).toBe(true);
   });
 
   walletTest('copy address from receive page', async ({ page, context }) => {

@@ -69,7 +69,7 @@ export const unlock = {
 export const index = {
   // Address display
   currentAddress: (page: Page) => page.locator('[aria-label="Current address"]'),
-  addressText: (page: Page) => page.locator('[data-testid="current-address"]'),
+  addressText: (page: Page) => page.locator('[aria-label="Current address"] .font-mono'),
 
   // Tab buttons
   assetsTab: (page: Page) => page.getByRole('button', { name: 'View Assets' }),
@@ -112,8 +112,8 @@ export const footer = {
 // ============================================================================
 
 export const header = {
-  walletSelector: (page: Page) => page.locator('header button').first(),
-  lockButton: (page: Page) => page.locator('header button').last(),
+  walletSelector: (page: Page) => page.locator('header button[aria-label="Select Wallet"]'),
+  lockButton: (page: Page) => page.locator('header button[aria-label="Lock Wallet"]'),
 };
 
 // ============================================================================

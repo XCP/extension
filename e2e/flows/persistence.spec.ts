@@ -5,7 +5,7 @@
  */
 
 import { test, walletTest, expect, createWallet, lockWallet, unlockWallet, navigateTo, TEST_PASSWORD } from '../fixtures';
-import { header, viewAddress, settings, index } from '../selectors';
+import { header, settings, index } from '../selectors';
 
 test.describe('State Persistence - Lock/Unlock Cycle', () => {
   test('selected wallet persists after lock/unlock', async ({ extensionPage }) => {
@@ -29,15 +29,15 @@ test.describe('State Persistence - Lock/Unlock Cycle', () => {
   test('current address persists after lock/unlock', async ({ extensionPage }) => {
     await createWallet(extensionPage, TEST_PASSWORD);
 
-    const addressBefore = await viewAddress.addressDisplay(extensionPage).textContent();
+    const addressBefore = await index.addressText(extensionPage).textContent();
     expect(addressBefore).toBeTruthy();
 
     await lockWallet(extensionPage);
     await unlockWallet(extensionPage, TEST_PASSWORD);
 
-    await expect(viewAddress.addressDisplay(extensionPage)).toBeVisible({ timeout: 10000 });
+    await expect(index.addressText(extensionPage)).toBeVisible({ timeout: 10000 });
 
-    const addressAfter = await viewAddress.addressDisplay(extensionPage).textContent();
+    const addressAfter = await index.addressText(extensionPage).textContent();
     expect(addressAfter).toBe(addressBefore);
   });
 
@@ -86,14 +86,15 @@ test.describe('State Persistence - Lock/Unlock Cycle', () => {
     }
 
     await navigateTo(extensionPage, 'wallet');
-    const addressBefore = await viewAddress.addressDisplay(extensionPage).textContent();
+    await expect(index.addressText(extensionPage)).toBeVisible({ timeout: 10000 });
+    const addressBefore = await index.addressText(extensionPage).textContent();
 
     await lockWallet(extensionPage);
     await unlockWallet(extensionPage, TEST_PASSWORD);
 
-    await expect(viewAddress.addressDisplay(extensionPage)).toBeVisible({ timeout: 10000 });
+    await expect(index.addressText(extensionPage)).toBeVisible({ timeout: 10000 });
 
-    const addressAfter = await viewAddress.addressDisplay(extensionPage).textContent();
+    const addressAfter = await index.addressText(extensionPage).textContent();
     if (addressBefore && addressAfter) {
       const prefixBefore = addressBefore.split('...')[0];
       const prefixAfter = addressAfter.split('...')[0];
@@ -104,7 +105,7 @@ test.describe('State Persistence - Lock/Unlock Cycle', () => {
 
 walletTest.describe('State Persistence - Navigation', () => {
   walletTest('state persists when navigating between pages', async ({ page }) => {
-    const initialAddress = await viewAddress.addressDisplay(page).textContent();
+    const initialAddress = await index.addressText(page).textContent();
 
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
@@ -115,7 +116,7 @@ walletTest.describe('State Persistence - Navigation', () => {
     await navigateTo(page, 'wallet');
     await expect(page).toHaveURL(/index/);
 
-    const finalAddress = await viewAddress.addressDisplay(page).textContent();
+    const finalAddress = await index.addressText(page).textContent();
     expect(finalAddress).toBe(initialAddress);
   });
 
@@ -169,7 +170,7 @@ test.describe('State Persistence - Multi-Wallet', () => {
 walletTest.describe('State Persistence - Session', () => {
   walletTest('unlock state persists during session', async ({ page }) => {
     await expect(page).toHaveURL(/index/);
-    await expect(viewAddress.addressDisplay(page)).toBeVisible();
+    await expect(index.addressText(page)).toBeVisible();
 
     await navigateTo(page, 'market');
     await navigateTo(page, 'actions');
@@ -177,7 +178,7 @@ walletTest.describe('State Persistence - Session', () => {
     await navigateTo(page, 'wallet');
 
     await expect(page).toHaveURL(/index/);
-    await expect(viewAddress.addressDisplay(page)).toBeVisible();
+    await expect(index.addressText(page)).toBeVisible();
   });
 
   walletTest('page refresh maintains auth state', async ({ page }) => {
@@ -201,7 +202,7 @@ walletTest.describe('State Persistence - Error Recovery', () => {
     await navigateTo(page, 'wallet');
 
     await expect(page).toHaveURL(/index/);
-    const addressVisible = await viewAddress.addressDisplay(page).isVisible({ timeout: 5000 }).catch(() => false);
+    const addressVisible = await index.addressText(page).isVisible({ timeout: 5000 }).catch(() => false);
     expect(addressVisible).toBe(true);
   });
 });

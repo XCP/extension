@@ -24,21 +24,17 @@ test.describe('Form Edge Cases - Mnemonic Input', () => {
     const firstInput = extensionPage.locator('input[name="word-0"]');
     await firstInput.focus();
 
-    await extensionPage.evaluate((mnemonic) => {
-      const input = document.querySelector('input[name="word-0"]') as HTMLInputElement;
-      if (input) {
-        const pasteEvent = new ClipboardEvent('paste', {
-          clipboardData: new DataTransfer(),
-        });
-        (pasteEvent.clipboardData as DataTransfer).setData('text/plain', mnemonic);
-        input.dispatchEvent(pasteEvent);
-      }
-    }, TEST_MNEMONIC);
+    // The import-wallet page handles multi-word paste via onChange, not a paste event
+    // When you fill with multiple space-separated words, handleWordChange splits them
+    await firstInput.fill(TEST_MNEMONIC);
 
     await extensionPage.waitForTimeout(500);
 
+    // After pasting full mnemonic, words get distributed across all 12 inputs
+    // Check that the first word has the first mnemonic word
     const firstWordValue = await firstInput.inputValue();
-    expect(firstWordValue.length).toBeGreaterThan(0);
+    const expectedFirstWord = TEST_MNEMONIC.split(' ')[0];
+    expect(firstWordValue).toBe(expectedFirstWord);
   });
 
   test('handles mnemonic with extra whitespace', async ({ extensionPage }) => {
@@ -50,6 +46,11 @@ test.describe('Form Edge Cases - Mnemonic Input', () => {
       const input = extensionPage.locator(`input[name="word-${i}"]`);
       await input.fill(`  ${mnemonicWords[i]}  `);
     }
+
+    // Check the confirmation checkbox (required before Continue button appears)
+    const checkbox = extensionPage.locator('#confirmed-checkbox');
+    await expect(checkbox).toBeEnabled({ timeout: 5000 });
+    await checkbox.check();
 
     const continueButton = extensionPage.getByRole('button', { name: /Continue/i });
     await expect(continueButton).toBeVisible({ timeout: 5000 });
@@ -64,6 +65,11 @@ test.describe('Form Edge Cases - Mnemonic Input', () => {
       const input = extensionPage.locator(`input[name="word-${i}"]`);
       await input.fill(mnemonicWords[i].toUpperCase());
     }
+
+    // Check the confirmation checkbox (required before Continue button appears)
+    const checkbox = extensionPage.locator('#confirmed-checkbox');
+    await expect(checkbox).toBeEnabled({ timeout: 5000 });
+    await checkbox.check();
 
     const continueButton = extensionPage.getByRole('button', { name: /Continue/i });
     await expect(continueButton).toBeVisible({ timeout: 5000 });
