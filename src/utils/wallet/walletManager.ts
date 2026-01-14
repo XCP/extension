@@ -11,6 +11,7 @@ import {
 } from '@/utils/storage/walletStorage';
 import {
   deriveKey,
+  deriveKeyAsync,
   encryptWithKey,
   decryptWithKey,
   encryptJsonWithKey,
@@ -22,8 +23,7 @@ import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressForma
 import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';
 import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
 import { isValidCounterwalletMnemonic, getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
-import { reencryptSettings, getSettings, updateSettings, invalidateSettingsCache, getAutoLockTimeoutMs, initializeSettingsMasterKey, type AppSettings } from '@/utils/storage/settingsStorage';
-import { clearSettingsMasterKey } from '@/utils/encryption/settings';
+import { DEFAULT_SETTINGS, getAutoLockTimeoutMs, type AppSettings } from '@/types/settings';
 import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 import { signPSBT as btcSignPSBT } from '@/utils/blockchain/bitcoin/psbt';
@@ -97,7 +97,7 @@ export class WalletManager {
       this.wallets = decryptedKeychain.wallets.map((r) => this.walletFromRecord(r));
       await this.refreshWalletAddresses();
 
-      const settings = await getSettings();
+      const settings = this.getSettings();
       if (settings.lastActiveWalletId && this.getWalletById(settings.lastActiveWalletId)) {
         this.activeWalletId = settings.lastActiveWalletId;
       }
@@ -173,7 +173,7 @@ export class WalletManager {
 
   public async setActiveWallet(walletId: string): Promise<void> {
     this.activeWalletId = walletId;
-    await updateSettings({ lastActiveWalletId: walletId });
+    await this.updateSettings({ lastActiveWalletId: walletId });
   }
 
   public getWalletById(id: string): Wallet | undefined {
@@ -432,7 +432,7 @@ export class WalletManager {
     this.activeWalletId = id;
 
     // Set the test address as the last active address
-    await updateSettings({
+    await this.updateSettings({
       lastActiveWalletId: id,
       lastActiveAddress: address
     });
@@ -460,9 +460,9 @@ export class WalletManager {
       throw new Error('No keychain found. Create a wallet first.');
     }
 
-    // Derive master key from password + salt
+    // Derive master key from password + salt (uses Web Worker for non-blocking UI)
     const salt = base64ToBuffer(keychainRecord.salt);
-    const masterKey = await deriveKey(password, salt, keychainRecord.kdf.iterations);
+    const masterKey = await deriveKeyAsync(password, salt, keychainRecord.kdf.iterations);
 
     // Decrypt keychain
     let decryptedKeychain: Keychain;
@@ -495,17 +495,14 @@ export class WalletManager {
       previewAddress: record.previewAddress,
     }));
 
-    // Initialize settings key (existing pattern)
-    await initializeSettingsMasterKey(password);
-
-    // Setup session with timeout from settings
-    const settings = await getSettings();
-    const timeout = getAutoLockTimeoutMs(settings?.autoLockTimer ?? '5m');
+    // Setup session with timeout from keychain settings
+    const settings = this.getSettings();
+    const timeout = getAutoLockTimeoutMs(settings.autoLockTimer);
     await sessionManager.initializeSession(timeout);
     await sessionManager.scheduleSessionExpiry(timeout);
 
-    // Auto-load last active wallet
-    const walletId = decryptedKeychain.lastActiveWalletId || decryptedKeychain.wallets[0]?.id;
+    // Auto-load last active wallet (from settings inside keychain)
+    const walletId = settings.lastActiveWalletId || decryptedKeychain.wallets[0]?.id;
     if (walletId) {
       await this.selectWallet(walletId);
     }
@@ -554,10 +551,9 @@ export class WalletManager {
     wallet.addressCount = wallet.addresses.length;
     this.activeWalletId = walletId;
 
-    // Persist lastActiveWalletId (only on explicit selection)
-    if (this.keychain.lastActiveWalletId !== walletId) {
-      this.keychain.lastActiveWalletId = walletId;
-      await this.persistKeychain();
+    // Persist lastActiveWalletId in settings (only on explicit selection)
+    if (this.getSettings().lastActiveWalletId !== walletId) {
+      await this.updateSettings({ lastActiveWalletId: walletId });
     }
   }
 
@@ -567,6 +563,44 @@ export class WalletManager {
   public async isKeychainUnlocked(): Promise<boolean> {
     const masterKey = await sessionManager.getKeychainMasterKey();
     return masterKey !== null && this.keychain !== null;
+  }
+
+  // ============================================================================
+  // Settings API (stored inside keychain)
+  // ============================================================================
+
+  /**
+   * Gets a copy of the current settings.
+   * Returns default settings if keychain is not unlocked.
+   */
+  public getSettings(): AppSettings {
+    if (!this.keychain) {
+      return { ...DEFAULT_SETTINGS };
+    }
+    // Return a copy to prevent direct mutation
+    return {
+      ...this.keychain.settings,
+      connectedWebsites: [...(this.keychain.settings.connectedWebsites || [])],
+      pinnedAssets: [...(this.keychain.settings.pinnedAssets || [])],
+    };
+  }
+
+  /**
+   * Updates settings and persists the keychain.
+   * Requires keychain to be unlocked.
+   */
+  public async updateSettings(updates: Partial<AppSettings>): Promise<void> {
+    if (!this.keychain) {
+      throw new Error('Cannot update settings: keychain not unlocked');
+    }
+
+    // Merge updates into settings
+    this.keychain.settings = {
+      ...this.keychain.settings,
+      ...updates,
+    };
+
+    await this.persistKeychain();
   }
 
   /**
@@ -613,6 +647,7 @@ export class WalletManager {
     const newKeychain: Keychain = {
       version: KEYCHAIN_VERSION,
       wallets: [],
+      settings: { ...DEFAULT_SETTINGS },
     };
 
     const encryptedKeychain = await encryptJsonWithKey(newKeychain, masterKey);
@@ -642,10 +677,9 @@ export class WalletManager {
 
     // First wallet - create keychain and initialize session
     const masterKey = await this.createKeychain(password);
-    await initializeSettingsMasterKey(password);
 
-    const settings = await getSettings();
-    const timeout = getAutoLockTimeoutMs(settings?.autoLockTimer ?? '5m');
+    // Settings are inside keychain, use default timeout for new keychain
+    const timeout = getAutoLockTimeoutMs(this.keychain?.settings?.autoLockTimer ?? '5m');
     await sessionManager.initializeSession(timeout);
     await sessionManager.scheduleSessionExpiry(timeout);
 
@@ -668,12 +702,8 @@ export class WalletManager {
     await sessionManager.clearAllUnlockedSecrets();
     this.wallets.forEach((wallet) => (wallet.addresses = []));
 
-    // Clear keychain from memory
+    // Clear keychain from memory (settings are inside keychain)
     this.keychain = null;
-
-    // Clear settings encryption key and cached decrypted settings
-    await clearSettingsMasterKey();
-    invalidateSettingsCache();
 
     // Clear session expiry alarm (sessionManager owns the alarm)
     await sessionManager.clearSessionExpiry();
@@ -796,7 +826,7 @@ export class WalletManager {
     // Re-encrypt keychain with new key
     const encryptedKeychain = await encryptJsonWithKey(decryptedKeychain, newKey);
 
-    // Save updated keychain
+    // Save updated keychain (settings are inside, so they're re-encrypted automatically)
     const newKeychainRecord: KeychainRecord = {
       version: KEYCHAIN_VERSION,
       kdf: { iterations: DEFAULT_PBKDF2_ITERATIONS },
@@ -804,9 +834,6 @@ export class WalletManager {
       encryptedKeychain,
     };
     await saveKeychainRecord(newKeychainRecord);
-
-    // Re-encrypt settings with new password
-    await reencryptSettings(currentPassword, newPassword);
 
     await this.lockKeychain();
   }
@@ -848,11 +875,11 @@ export class WalletManager {
   /**
    * Updates the pinned assets in the global settings.
    * This method is kept for backward compatibility.
-   * 
+   *
    * @param pinnedAssets - Array of asset IDs to pin
    */
   public async updateWalletPinnedAssets(pinnedAssets: string[]): Promise<void> {
-    await updateSettings({ pinnedAssets });
+    await this.updateSettings({ pinnedAssets });
   }
 
   public async getPrivateKey(walletId: string, derivationPath?: string): Promise<{ wif: string; hex: string; compressed: boolean }> {

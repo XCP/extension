@@ -149,7 +149,6 @@ export const createTestKeychainRecord = (wallets: Wallet[] = []): KeychainRecord
  */
 export const createTestKeychain = (wallets: Wallet[] = []): Keychain => ({
   version: 1,
-  lastActiveWalletId: wallets[0]?.id,
   wallets: wallets.map(w => ({
     id: w.id,
     name: w.name,
@@ -159,6 +158,24 @@ export const createTestKeychain = (wallets: Wallet[] = []): Keychain => ({
     previewAddress: 'bc1qpreview',
     encryptedSecret: 'encrypted-secret',
   })),
+  settings: {
+    version: 2,
+    lastActiveWalletId: wallets[0]?.id,
+    autoLockTimer: '5m' as const,
+    fiat: 'usd' as const,
+    priceUnit: 'btc' as const,
+    pinnedAssets: [],
+    showHelpText: false,
+    analyticsAllowed: true,
+    connectedWebsites: [],
+    allowUnconfirmedTxs: true,
+    enableMPMA: false,
+    enableAdvancedBroadcasts: false,
+    transactionDryRun: false,
+    counterpartyApiBase: 'https://api.counterparty.io:4000',
+    defaultOrderExpiration: 8064,
+    strictTransactionVerification: true,
+  },
 });
 
 /**

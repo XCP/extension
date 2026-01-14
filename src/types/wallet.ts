@@ -7,6 +7,7 @@
  */
 
 import type { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import type { AppSettings } from './settings';
 
 /**
  * Represents a derived address within a wallet.
@@ -41,6 +42,8 @@ export interface Wallet {
   addresses: Address[];
   /** Flag for development-only test wallets */
   isTestOnly?: boolean;
+  /** First address for display when wallet is locked (public, not sensitive) */
+  previewAddress?: string;
 }
 
 // ============================================================================
@@ -75,16 +78,15 @@ export interface WalletRecord {
 /**
  * Decrypted keychain contents (in memory when unlocked).
  * Individual wallet secrets remain encrypted until selectWallet() is called.
+ * Settings are stored inside the keychain for single-key encryption.
  */
 export interface Keychain {
   /** Schema version for future migrations */
   version: number;
-  /** Last active wallet ID (auto-load on unlock) */
-  lastActiveWalletId?: string;
-  /** Last active address by wallet ID */
-  lastActiveAddressByWalletId?: Record<string, string>;
   /** Array of wallet records */
   wallets: WalletRecord[];
+  /** Application settings (encrypted with keychain) */
+  settings: AppSettings;
 }
 
 /**

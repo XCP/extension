@@ -194,3 +194,100 @@ export async function decryptJsonWithKey<T>(encrypted: string, key: CryptoKey): 
  * Exported for use by callers who need to store KDF params.
  */
 export const DEFAULT_PBKDF2_ITERATIONS = PBKDF2_ITERATIONS;
+
+// ============================================================================
+// Web Worker Key Derivation (Non-blocking)
+// ============================================================================
+
+/** Singleton worker instance */
+let kdfWorker: Worker | null = null;
+
+/**
+ * Gets or creates the KDF worker instance.
+ * Returns null if workers are not available (e.g., in tests).
+ */
+function getKdfWorker(): Worker | null {
+  if (kdfWorker) return kdfWorker;
+
+  try {
+    // Vite handles the worker bundling with this syntax
+    kdfWorker = new Worker(new URL('./kdf-worker.ts', import.meta.url), {
+      type: 'module',
+    });
+    return kdfWorker;
+  } catch {
+    // Workers not available (tests, unsupported environment)
+    return null;
+  }
+}
+
+interface WorkerResponse {
+  success: boolean;
+  keyBase64?: string;
+  error?: string;
+}
+
+/**
+ * Derives an encryption key using a Web Worker (non-blocking).
+ * Falls back to main thread if workers are unavailable.
+ *
+ * This is cryptographically identical to deriveKey() - just runs off main thread
+ * to keep UI responsive during the ~1-2 second key derivation.
+ *
+ * @param password - User password
+ * @param salt - Random salt (16 bytes recommended)
+ * @param iterations - PBKDF2 iterations (defaults to 600K)
+ * @returns Extractable CryptoKey for AES-GCM
+ */
+export async function deriveKeyAsync(
+  password: string,
+  salt: Uint8Array<ArrayBuffer>,
+  iterations: number = PBKDF2_ITERATIONS
+): Promise<CryptoKey> {
+  const worker = getKdfWorker();
+
+  // Fallback to main thread if no worker
+  if (!worker) {
+    return deriveKey(password, salt, iterations);
+  }
+
+  const saltBase64 = bufferToBase64(salt);
+
+  return new Promise((resolve, reject) => {
+    const handleMessage = async (e: MessageEvent<WorkerResponse>) => {
+      worker.removeEventListener('message', handleMessage);
+      worker.removeEventListener('error', handleError);
+
+      if (e.data.success && e.data.keyBase64) {
+        try {
+          const key = await importKey(e.data.keyBase64);
+          // Re-import as extractable for session storage
+          const exported = await crypto.subtle.exportKey('raw', key);
+          const extractableKey = await crypto.subtle.importKey(
+            'raw',
+            exported,
+            { name: 'AES-GCM', length: KEY_BITS },
+            true, // extractable
+            ['encrypt', 'decrypt']
+          );
+          resolve(extractableKey);
+        } catch (err) {
+          reject(new Error('Failed to import derived key'));
+        }
+      } else {
+        reject(new Error(e.data.error || 'Key derivation failed'));
+      }
+    };
+
+    const handleError = (e: ErrorEvent) => {
+      worker.removeEventListener('message', handleMessage);
+      worker.removeEventListener('error', handleError);
+      reject(new Error(`Worker error: ${e.message}`));
+    };
+
+    worker.addEventListener('message', handleMessage);
+    worker.addEventListener('error', handleError);
+
+    worker.postMessage({ password, salt: saltBase64, iterations });
+  });
+}
