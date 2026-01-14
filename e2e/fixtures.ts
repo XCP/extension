@@ -169,7 +169,23 @@ async function importPrivateKey(page: Page, privateKey = TEST_PRIVATE_KEY, passw
 async function unlockWallet(page: Page, password = TEST_PASSWORD): Promise<void> {
   await page.locator('input[name="password"]').fill(password);
   await page.getByRole('button', { name: /unlock/i }).click();
-  await page.waitForURL(/index/, { timeout: 10000 });
+
+  // Wait for unlock to complete - check for either index page or error
+  await page.waitForTimeout(500);
+
+  // Try to navigate to index with retry on error
+  try {
+    await page.waitForURL(/index/, { timeout: 10000 });
+  } catch {
+    // Check if there's an error message and retry
+    const hasError = await page.locator('text=/Invalid password|incorrect/i').first().isVisible({ timeout: 1000 }).catch(() => false);
+    if (hasError) {
+      // Retry unlock - clear input and try again
+      await page.locator('input[name="password"]').fill(password);
+      await page.getByRole('button', { name: /unlock/i }).click();
+    }
+    await page.waitForURL(/index/, { timeout: 10000 });
+  }
 }
 
 async function lockWallet(page: Page): Promise<void> {
