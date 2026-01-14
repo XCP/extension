@@ -12,14 +12,16 @@ test.describe('Wallet Creation', () => {
   test('navigates to create wallet page', async ({ extensionPage }) => {
     await extensionPage.getByRole('button', { name: 'Create Wallet' }).click();
     await expect(extensionPage).toHaveURL(/create-wallet/);
-    await expect(extensionPage.getByRole('button', { name: 'View 12-word Secret Phrase' })).toBeVisible();
+    await expect(extensionPage.locator('text=View 12-word Secret Phrase')).toBeVisible();
   });
 
   test('reveals recovery phrase and shows password field', async ({ extensionPage }) => {
     await extensionPage.getByRole('button', { name: 'Create Wallet' }).click();
     await extensionPage.waitForURL(/create-wallet/);
 
-    await extensionPage.getByRole('button', { name: 'View 12-word Secret Phrase' }).click();
+    // Click the reveal phrase card (not a button)
+    await extensionPage.locator('text=View 12-word Secret Phrase').click();
+    await extensionPage.waitForTimeout(500);
 
     // Checkbox should be visible
     const checkbox = extensionPage.getByLabel(/I have saved my secret recovery phrase/);
@@ -41,7 +43,9 @@ test.describe('Wallet Creation', () => {
     await extensionPage.getByRole('button', { name: 'Create Wallet' }).click();
     await extensionPage.waitForURL(/create-wallet/);
 
-    await extensionPage.getByRole('button', { name: 'View 12-word Secret Phrase' }).click();
+    // Click the reveal phrase card (not a button)
+    await extensionPage.locator('text=View 12-word Secret Phrase').click();
+    await extensionPage.waitForTimeout(500);
     await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
 
     // Enter short password

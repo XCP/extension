@@ -14,7 +14,8 @@ walletTest.describe('Balance Display', () => {
 
   walletTest('Balances tab shows BTC', async ({ page }) => {
     await page.getByRole('button', { name: 'View Balances' }).click();
-    await expect(page.getByText('BTC')).toBeVisible();
+    // Use more specific selector - the BTC balance row
+    await expect(page.locator('.font-medium.text-sm.text-gray-900:has-text("BTC")')).toBeVisible();
   });
 
   walletTest('Assets tab shows content', async ({ page }) => {
@@ -49,7 +50,8 @@ walletTest.describe('Navigation', () => {
 
   walletTest('Receive button navigates to receive page', async ({ page }) => {
     await page.getByRole('button', { name: /receive/i }).first().click();
-    await expect(page).toHaveURL(/receive/);
+    // The receive page URL is /view-address
+    await expect(page).toHaveURL(/view-address/);
     await expect(page.locator('canvas, .font-mono').first()).toBeVisible();
   });
 
@@ -77,9 +79,9 @@ walletTest.describe('Settings Access', () => {
   walletTest('shows main settings options', async ({ page }) => {
     await navigateTo(page, 'settings');
 
-    await expect(page.getByText('General')).toBeVisible();
+    await expect(page.getByText('Address Type')).toBeVisible();
     await expect(page.getByText('Advanced')).toBeVisible();
-    await expect(page.getByText('About')).toBeVisible();
+    await expect(page.getByText('Security')).toBeVisible();
   });
 
   walletTest('Advanced settings shows auto-lock timer', async ({ page }) => {
@@ -118,8 +120,9 @@ walletTest.describe('Error Recovery', () => {
 
     expect(hasError || redirected).toBe(true);
 
-    // Can still navigate to wallet
-    await navigateTo(page, 'wallet');
+    // Can still navigate to wallet (use direct URL since Not Found page has no footer)
+    await page.goto(`chrome-extension://${extensionId}/popup.html#/index`);
+    await page.waitForLoadState('domcontentloaded');
     await expect(page.getByRole('button', { name: 'View Assets' })).toBeVisible();
   });
 });

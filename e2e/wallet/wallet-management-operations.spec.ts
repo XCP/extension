@@ -72,7 +72,8 @@ test.describe('Remove Wallet', () => {
     await extensionPage.getByRole('button', { name: /Add.*Wallet/i }).first().click();
     await extensionPage.getByRole('button', { name: /Create.*Wallet/i }).click();
 
-    await extensionPage.getByRole('button', { name: 'View 12-word Secret Phrase' }).click();
+    await extensionPage.locator('text=View 12-word Secret Phrase').click();
+    await extensionPage.waitForTimeout(500);
     await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
     await extensionPage.locator('input[name="password"]').fill(TEST_PASSWORD);
     await extensionPage.getByRole('button', { name: 'Continue' }).click();
@@ -110,7 +111,8 @@ test.describe('Remove Wallet', () => {
     await extensionPage.getByRole('button', { name: /Add.*Wallet/i }).first().click();
     await extensionPage.getByRole('button', { name: /Create.*Wallet/i }).click();
 
-    await extensionPage.getByRole('button', { name: 'View 12-word Secret Phrase' }).click();
+    await extensionPage.locator('text=View 12-word Secret Phrase').click();
+    await extensionPage.waitForTimeout(500);
     await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
     await extensionPage.locator('input[name="password"]').fill(TEST_PASSWORD);
     await extensionPage.getByRole('button', { name: 'Continue' }).click();
@@ -149,7 +151,8 @@ test.describe('Remove Wallet', () => {
     await extensionPage.getByRole('button', { name: /Add.*Wallet/i }).first().click();
     await extensionPage.getByRole('button', { name: /Create.*Wallet/i }).click();
 
-    await extensionPage.getByRole('button', { name: 'View 12-word Secret Phrase' }).click();
+    await extensionPage.locator('text=View 12-word Secret Phrase').click();
+    await extensionPage.waitForTimeout(500);
     await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
     await extensionPage.locator('input[name="password"]').fill(TEST_PASSWORD);
     await extensionPage.getByRole('button', { name: 'Continue' }).click();

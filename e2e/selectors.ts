@@ -31,7 +31,8 @@ export const onboarding = {
 // ============================================================================
 
 export const createWallet = {
-  revealPhraseButton: (page: Page) => page.getByRole('button', { name: 'View 12-word Secret Phrase' }),
+  // Note: This is a clickable card/div, not a button
+  revealPhraseCard: (page: Page) => page.locator('text=View 12-word Secret Phrase'),
   savedPhraseCheckbox: (page: Page) => page.getByLabel(/I have saved my secret recovery phrase/),
   passwordInput: (page: Page) => page.locator('input[name="password"]'),
   continueButton: (page: Page) => page.getByRole('button', { name: 'Continue' }),

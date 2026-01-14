@@ -109,7 +109,11 @@ async function createWallet(page: Page, password = TEST_PASSWORD): Promise<void>
   await page.getByRole('button', { name: 'Create Wallet' }).click();
   await page.waitForURL(/create-wallet/);
 
-  await page.getByRole('button', { name: 'View 12-word Secret Phrase' }).click();
+  // Click the reveal phrase card (not a button)
+  await page.locator('text=View 12-word Secret Phrase').click();
+
+  // Wait for phrase to be revealed and checkbox to appear
+  await page.waitForTimeout(500);
 
   await page.getByLabel(/I have saved my secret recovery phrase/).check();
   await page.locator('input[name="password"]').fill(password);
@@ -159,12 +163,25 @@ async function lockWallet(page: Page): Promise<void> {
 }
 
 async function setupWallet(page: Page, password = TEST_PASSWORD): Promise<void> {
+  // Wait for the app to finish routing to either unlock or onboarding
+  await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+
+  // Wait for either unlock page or create wallet button to appear
+  const unlockInput = page.locator('input[name="password"]');
+  const createButton = page.getByRole('button', { name: 'Create Wallet' });
+
+  // Wait for one of the two states to be visible
+  await Promise.race([
+    unlockInput.waitFor({ state: 'visible', timeout: 10000 }),
+    createButton.waitFor({ state: 'visible', timeout: 10000 }),
+  ]).catch(() => {});
+
   const url = page.url();
 
-  if (url.includes('unlock')) {
+  if (url.includes('unlock') || await unlockInput.isVisible().catch(() => false)) {
     await unlockWallet(page, password);
   } else {
-    const hasCreate = await page.getByRole('button', { name: 'Create Wallet' }).isVisible({ timeout: 3000 }).catch(() => false);
+    const hasCreate = await createButton.isVisible({ timeout: 3000 }).catch(() => false);
     if (hasCreate) {
       await createWallet(page, password);
     }
@@ -178,11 +195,11 @@ async function setupWallet(page: Page, password = TEST_PASSWORD): Promise<void> 
 type NavTarget = 'wallet' | 'market' | 'actions' | 'settings';
 
 async function navigateTo(page: Page, target: NavTarget): Promise<void> {
-  const index = { wallet: 0, market: 1, actions: 2, settings: 3 };
+  const ariaLabel = { wallet: 'Wallet', market: 'Market', actions: 'Actions', settings: 'Settings' };
   const pattern = { wallet: /index/, market: /market/, actions: /actions/, settings: /settings/ };
 
-  const footer = page.locator('div.grid.grid-cols-4').first();
-  await footer.locator('button').nth(index[target]).click();
+  const button = page.locator(`button[aria-label="${ariaLabel[target]}"]`);
+  await button.click();
   await page.waitForURL(pattern[target], { timeout: 5000 });
 }
 
