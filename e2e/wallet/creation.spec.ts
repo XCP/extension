@@ -2,58 +2,57 @@
  * Wallet Creation Tests
  */
 
-import { test, expect, createWallet, TEST_PASSWORD } from '../fixtures';
+import { test, expect, createWallet as createWalletFlow, TEST_PASSWORD } from '../fixtures';
+import { onboarding, createWallet, index } from '../selectors';
 
 test.describe('Wallet Creation', () => {
   test('shows create wallet button on first run', async ({ extensionPage }) => {
-    await expect(extensionPage.getByRole('button', { name: 'Create Wallet' })).toBeVisible();
+    await expect(onboarding.createWalletButton(extensionPage)).toBeVisible();
   });
 
   test('navigates to create wallet page', async ({ extensionPage }) => {
-    await extensionPage.getByRole('button', { name: 'Create Wallet' }).click();
+    await onboarding.createWalletButton(extensionPage).click();
     await expect(extensionPage).toHaveURL(/create-wallet/);
-    await expect(extensionPage.locator('text=View 12-word Secret Phrase')).toBeVisible();
+    await expect(createWallet.revealPhraseCard(extensionPage)).toBeVisible();
   });
 
   test('reveals recovery phrase and shows password field', async ({ extensionPage }) => {
-    await extensionPage.getByRole('button', { name: 'Create Wallet' }).click();
+    await onboarding.createWalletButton(extensionPage).click();
     await extensionPage.waitForURL(/create-wallet/);
 
-    // Click the reveal phrase card (not a button)
-    await extensionPage.locator('text=View 12-word Secret Phrase').click();
+    // Click the reveal phrase card
+    await createWallet.revealPhraseCard(extensionPage).click();
     await extensionPage.waitForTimeout(500);
 
     // Checkbox should be visible
-    const checkbox = extensionPage.getByLabel(/I have saved my secret recovery phrase/);
-    await expect(checkbox).toBeVisible();
-    await checkbox.check();
+    await expect(createWallet.savedPhraseCheckbox(extensionPage)).toBeVisible();
+    await createWallet.savedPhraseCheckbox(extensionPage).check();
 
     // Password field appears after checkbox
-    await expect(extensionPage.locator('input[name="password"]')).toBeVisible();
+    await expect(createWallet.passwordInput(extensionPage)).toBeVisible();
   });
 
   test('completes wallet creation successfully', async ({ extensionPage }) => {
-    await createWallet(extensionPage, TEST_PASSWORD);
+    await createWalletFlow(extensionPage, TEST_PASSWORD);
 
     await expect(extensionPage).toHaveURL(/index/);
-    await expect(extensionPage.getByRole('button', { name: 'View Assets' })).toBeVisible();
+    await expect(index.assetsTab(extensionPage)).toBeVisible();
   });
 
   test('validates password minimum length', async ({ extensionPage }) => {
-    await extensionPage.getByRole('button', { name: 'Create Wallet' }).click();
+    await onboarding.createWalletButton(extensionPage).click();
     await extensionPage.waitForURL(/create-wallet/);
 
-    // Click the reveal phrase card (not a button)
-    await extensionPage.locator('text=View 12-word Secret Phrase').click();
+    // Click the reveal phrase card
+    await createWallet.revealPhraseCard(extensionPage).click();
     await extensionPage.waitForTimeout(500);
-    await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
+    await createWallet.savedPhraseCheckbox(extensionPage).check();
 
     // Enter short password
-    await extensionPage.locator('input[name="password"]').fill('short');
+    await createWallet.passwordInput(extensionPage).fill('short');
 
     // Continue button should be disabled or show error
-    const continueBtn = extensionPage.getByRole('button', { name: 'Continue' });
-    const isDisabled = await continueBtn.isDisabled().catch(() => false);
+    const isDisabled = await createWallet.continueButton(extensionPage).isDisabled().catch(() => false);
     const hasError = await extensionPage.getByText(/password|characters|minimum/i).isVisible().catch(() => false);
 
     expect(isDisabled || hasError).toBe(true);

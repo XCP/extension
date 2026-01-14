@@ -3,6 +3,7 @@
  */
 
 import { test, walletTest, expect, importMnemonic, navigateTo, TEST_MNEMONIC, TEST_PRIVATE_KEY, TEST_PASSWORD } from '../fixtures';
+import { onboarding, importWallet, index, settings } from '../selectors';
 
 // Known addresses for the standard test mnemonic
 const EXPECTED_ADDRESSES = {
@@ -14,10 +15,10 @@ const EXPECTED_ADDRESSES = {
 
 test.describe('Import Wallet - Mnemonic', () => {
   test('shows mnemonic input fields', async ({ extensionPage }) => {
-    await extensionPage.getByRole('button', { name: 'Import Wallet' }).click();
+    await onboarding.importWalletButton(extensionPage).click();
 
-    await expect(extensionPage.locator('input[name="word-0"]')).toBeVisible();
-    await expect(extensionPage.locator('input[name="word-11"]')).toBeVisible();
+    await expect(importWallet.wordInput(extensionPage, 0)).toBeVisible();
+    await expect(importWallet.wordInput(extensionPage, 11)).toBeVisible();
   });
 
   test('imports wallet and shows correct derived address', async ({ extensionPage }) => {
@@ -34,17 +35,17 @@ test.describe('Import Wallet - Mnemonic', () => {
   });
 
   test('rejects invalid mnemonic', async ({ extensionPage }) => {
-    await extensionPage.getByRole('button', { name: 'Import Wallet' }).click();
-    await extensionPage.waitForSelector('input[name="word-0"]');
+    await onboarding.importWalletButton(extensionPage).click();
+    await importWallet.wordInput(extensionPage, 0).waitFor();
 
     const invalidWords = 'invalid words that are not a real mnemonic phrase test test test'.split(' ');
     for (let i = 0; i < 12; i++) {
-      await extensionPage.locator(`input[name="word-${i}"]`).fill(invalidWords[i] || 'test');
+      await importWallet.wordInput(extensionPage, i).fill(invalidWords[i] || 'test');
     }
 
-    await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
-    await extensionPage.locator('input[name="password"]').fill(TEST_PASSWORD);
-    await extensionPage.getByRole('button', { name: 'Continue' }).click();
+    await importWallet.savedPhraseCheckbox(extensionPage).check();
+    await importWallet.passwordInput(extensionPage).fill(TEST_PASSWORD);
+    await importWallet.continueButton(extensionPage).click();
 
     // Should show error or stay on page
     const hasError = await extensionPage.getByText(/invalid|error/i).isVisible({ timeout: 3000 }).catch(() => false);
@@ -55,15 +56,15 @@ test.describe('Import Wallet - Mnemonic', () => {
   test('supports pasting full mnemonic', async ({ extensionPage, extensionContext }) => {
     await extensionContext.grantPermissions(['clipboard-read', 'clipboard-write']);
 
-    await extensionPage.getByRole('button', { name: 'Import Wallet' }).click();
-    await extensionPage.waitForSelector('input[name="word-0"]');
+    await onboarding.importWalletButton(extensionPage).click();
+    await importWallet.wordInput(extensionPage, 0).waitFor();
 
     await extensionPage.evaluate((m) => navigator.clipboard.writeText(m), TEST_MNEMONIC);
-    await extensionPage.locator('input[name="word-0"]').focus();
+    await importWallet.wordInput(extensionPage, 0).focus();
     await extensionPage.keyboard.press('Control+v');
     await extensionPage.waitForTimeout(500);
 
-    const firstWord = await extensionPage.locator('input[name="word-0"]').inputValue();
+    const firstWord = await importWallet.wordInput(extensionPage, 0).inputValue();
     expect(firstWord).toBeTruthy();
   });
 });
@@ -92,10 +93,10 @@ walletTest.describe('Import Wallet - Private Key', () => {
     await page.getByText(/Import Private Key/i).click();
 
     // Fill in private key
-    await page.locator('input[name="private-key"]').fill(TEST_PRIVATE_KEY);
-    await page.getByLabel(/I have backed up this private key/i).check();
-    await page.locator('input[name="password"]').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await importWallet.privateKeyInput(page).fill(TEST_PRIVATE_KEY);
+    await importWallet.backedUpCheckbox(page).check();
+    await importWallet.passwordInput(page).fill(TEST_PASSWORD);
+    await importWallet.continueButton(page).click();
 
     await expect(page).toHaveURL(/index/, { timeout: 15000 });
   });
@@ -110,13 +111,12 @@ walletTest.describe('Import Wallet - Private Key', () => {
     await page.getByText(/Import Private Key/i).click();
 
     // Fill in invalid key and try to submit
-    await page.locator('input[name="private-key"]').fill('not-a-valid-key');
-    await page.getByLabel(/I have backed up this private key/i).check();
-    await page.locator('input[name="password"]').fill(TEST_PASSWORD);
+    await importWallet.privateKeyInput(page).fill('not-a-valid-key');
+    await importWallet.backedUpCheckbox(page).check();
+    await importWallet.passwordInput(page).fill(TEST_PASSWORD);
 
     // Try to click Continue
-    const continueBtn = page.getByRole('button', { name: 'Continue' });
-    await continueBtn.click().catch(() => {});
+    await importWallet.continueButton(page).click().catch(() => {});
     await page.waitForTimeout(1000);
 
     // Should show error or still be on import page (not redirected to index)
@@ -130,7 +130,7 @@ walletTest.describe('Import Wallet - Address Type Switching', () => {
   walletTest('can switch to Legacy after import', async ({ page }) => {
     await navigateTo(page, 'settings');
 
-    await page.getByText('Address Type').click();
+    await settings.addressTypeOption(page).click();
     await page.waitForURL(/address-type/);
 
     await page.getByText('Legacy (P2PKH)').click();

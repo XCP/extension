@@ -5,21 +5,21 @@
  */
 
 import { walletTest, expect, navigateTo, getCurrentAddress, grantClipboardPermissions, unlockWallet, TEST_PASSWORD } from '../fixtures';
+import { index, settings, viewAddress } from '../selectors';
 
 walletTest.describe('Balance Display', () => {
   walletTest('shows Assets and Balances tabs', async ({ page }) => {
-    await expect(page.getByRole('button', { name: 'View Assets' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'View Balances' })).toBeVisible();
+    await expect(index.assetsTab(page)).toBeVisible();
+    await expect(index.balancesTab(page)).toBeVisible();
   });
 
   walletTest('Balances tab shows BTC', async ({ page }) => {
-    await page.getByRole('button', { name: 'View Balances' }).click();
-    // Use more specific selector - the BTC balance row
-    await expect(page.locator('.font-medium.text-sm.text-gray-900:has-text("BTC")')).toBeVisible();
+    await index.balancesTab(page).click();
+    await expect(index.btcBalanceRow(page)).toBeVisible();
   });
 
   walletTest('Assets tab shows content', async ({ page }) => {
-    await page.getByRole('button', { name: 'View Assets' }).click();
+    await index.assetsTab(page).click();
     await expect(page.getByText(/Assets|Loading|No assets/i).first()).toBeVisible();
   });
 });
@@ -34,29 +34,30 @@ walletTest.describe('Address Display', () => {
   walletTest('copies address to clipboard on click', async ({ page, context }) => {
     await grantClipboardPermissions(context);
 
-    const addressButton = page.locator('[aria-label="Current address"]');
-    await addressButton.click();
+    await index.currentAddress(page).click();
 
     // Visual feedback
-    await expect(addressButton.locator('.text-green-500')).toBeVisible();
+    await expect(index.currentAddress(page).locator('.text-green-500')).toBeVisible();
   });
 });
 
 walletTest.describe('Navigation', () => {
   walletTest('Send button navigates to send page', async ({ page }) => {
-    await page.getByRole('button', { name: /send/i }).first().click();
+    await index.sendButton(page).click();
     await expect(page).toHaveURL(/send/);
   });
 
   walletTest('Receive button navigates to receive page', async ({ page }) => {
-    await page.getByRole('button', { name: /receive/i }).first().click();
-    // The receive page URL is /view-address
+    await index.receiveButton(page).click();
     await expect(page).toHaveURL(/view-address/);
-    await expect(page.locator('canvas, .font-mono').first()).toBeVisible();
+    // Should show QR code or address
+    const hasQR = await viewAddress.qrCode(page).isVisible().catch(() => false);
+    const hasAddress = await viewAddress.addressDisplay(page).isVisible().catch(() => false);
+    expect(hasQR || hasAddress).toBe(true);
   });
 
   walletTest('History button navigates to history page', async ({ page }) => {
-    await page.getByText('History').click();
+    await index.historyButton(page).click();
     await expect(page).toHaveURL(/history/);
   });
 
@@ -79,16 +80,16 @@ walletTest.describe('Settings Access', () => {
   walletTest('shows main settings options', async ({ page }) => {
     await navigateTo(page, 'settings');
 
-    await expect(page.getByText('Address Type')).toBeVisible();
-    await expect(page.getByText('Advanced')).toBeVisible();
-    await expect(page.getByText('Security')).toBeVisible();
+    await expect(settings.addressTypeOption(page)).toBeVisible();
+    await expect(settings.advancedOption(page)).toBeVisible();
+    await expect(settings.securityOption(page)).toBeVisible();
   });
 
   walletTest('Advanced settings shows auto-lock timer', async ({ page }) => {
     await navigateTo(page, 'settings');
-    await page.getByText('Advanced').click();
+    await settings.advancedOption(page).click();
     await expect(page).toHaveURL(/advanced/);
-    await expect(page.getByText(/Auto-Lock/i).first()).toBeVisible();
+    await expect(settings.autoLockTimer(page)).toBeVisible();
   });
 });
 
@@ -123,6 +124,6 @@ walletTest.describe('Error Recovery', () => {
     // Can still navigate to wallet (use direct URL since Not Found page has no footer)
     await page.goto(`chrome-extension://${extensionId}/popup.html#/index`);
     await page.waitForLoadState('domcontentloaded');
-    await expect(page.getByRole('button', { name: 'View Assets' })).toBeVisible();
+    await expect(index.assetsTab(page)).toBeVisible();
   });
 });

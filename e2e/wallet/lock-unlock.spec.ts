@@ -3,12 +3,13 @@
  */
 
 import { walletTest, expect, lockWallet, unlockWallet, TEST_PASSWORD } from '../fixtures';
+import { unlock, index } from '../selectors';
 
 walletTest.describe('Lock Wallet', () => {
   walletTest('locks wallet via header button', async ({ page }) => {
     await lockWallet(page);
     await expect(page).toHaveURL(/unlock/);
-    await expect(page.locator('input[name="password"]')).toBeVisible();
+    await expect(unlock.passwordInput(page)).toBeVisible();
   });
 
   walletTest('lock state persists after page reload', async ({ page }) => {
@@ -17,8 +18,8 @@ walletTest.describe('Lock Wallet', () => {
 
     await page.reload();
 
-    await expect(page.locator('input[name="password"]')).toBeVisible();
-    await expect(page.getByRole('button', { name: /unlock/i })).toBeVisible();
+    await expect(unlock.passwordInput(page)).toBeVisible();
+    await expect(unlock.unlockButton(page)).toBeVisible();
   });
 });
 
@@ -28,15 +29,16 @@ walletTest.describe('Unlock Wallet', () => {
     await unlockWallet(page, TEST_PASSWORD);
 
     await expect(page).toHaveURL(/index/);
-    await expect(page.getByRole('button', { name: 'View Assets' })).toBeVisible();
+    await expect(index.assetsTab(page)).toBeVisible();
   });
 
   walletTest('shows error with incorrect password', async ({ page }) => {
     await lockWallet(page);
 
-    await page.locator('input[name="password"]').fill('WrongPassword123!');
-    await page.getByRole('button', { name: /unlock/i }).click();
+    await unlock.passwordInput(page).fill('WrongPassword123!');
+    await unlock.unlockButton(page).click();
 
+    // Error message pattern - kept inline as it's test-specific assertion
     await expect(page.getByText(/incorrect|invalid|wrong|failed|error/i)).toBeVisible();
     await expect(page).toHaveURL(/unlock/);
   });
@@ -45,13 +47,13 @@ walletTest.describe('Unlock Wallet', () => {
     await lockWallet(page);
 
     // Enter wrong password (must be at least 8 chars to pass validation)
-    await page.locator('input[name="password"]').fill('wrongpass');
-    await page.getByRole('button', { name: /unlock/i }).click();
+    await unlock.passwordInput(page).fill('wrongpass');
+    await unlock.unlockButton(page).click();
     await expect(page.getByText(/incorrect|invalid|wrong|failed|error/i)).toBeVisible();
 
     // Start typing again - error should clear or be replaceable
-    await page.locator('input[name="password"]').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: /unlock/i }).click();
+    await unlock.passwordInput(page).fill(TEST_PASSWORD);
+    await unlock.unlockButton(page).click();
 
     await expect(page).toHaveURL(/index/);
   });
@@ -60,10 +62,10 @@ walletTest.describe('Unlock Wallet', () => {
     await lockWallet(page);
 
     for (let i = 0; i < 3; i++) {
-      await page.locator('input[name="password"]').fill(`wrongpass${i}`);
-      await page.getByRole('button', { name: /unlock/i }).click();
+      await unlock.passwordInput(page).fill(`wrongpass${i}`);
+      await unlock.unlockButton(page).click();
       await expect(page.getByText(/incorrect|invalid|wrong|failed|error/i)).toBeVisible();
-      await page.locator('input[name="password"]').clear();
+      await unlock.passwordInput(page).clear();
     }
 
     // Should still be able to unlock with correct password
@@ -84,6 +86,6 @@ walletTest.describe('Unlock Wallet', () => {
       await unlockWallet(page, TEST_PASSWORD);
     }
 
-    await expect(page.getByRole('button', { name: 'View Assets' })).toBeVisible();
+    await expect(index.assetsTab(page)).toBeVisible();
   });
 });

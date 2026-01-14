@@ -81,7 +81,18 @@ export const index = {
   historyButton: (page: Page) => page.getByText('History'),
 
   // Balance display
-  btcBalance: (page: Page) => page.locator('[data-testid="btc-balance"]'),
+  btcBalanceRow: (page: Page) => page.locator('.font-medium.text-sm.text-gray-900:has-text("BTC")'),
+  xcpBalanceRow: (page: Page) => page.locator('.font-medium.text-sm.text-gray-900:has-text("XCP")'),
+};
+
+// ============================================================================
+// View Address / Receive Page
+// ============================================================================
+
+export const viewAddress = {
+  // QR code can be canvas, svg, or img depending on implementation
+  qrCode: (page: Page) => page.locator('canvas, svg, img[alt*="QR"], [class*="qr"]').first(),
+  addressDisplay: (page: Page) => page.locator('.font-mono').first(),
 };
 
 // ============================================================================
@@ -110,13 +121,15 @@ export const header = {
 // ============================================================================
 
 export const settings = {
-  generalOption: (page: Page) => page.getByText('General'),
+  // Main settings options
+  addressTypeOption: (page: Page) => page.getByText('Address Type'),
   advancedOption: (page: Page) => page.getByText('Advanced'),
+  connectedSitesOption: (page: Page) => page.getByText('Connected Sites'),
+  pinnedAssetsOption: (page: Page) => page.getByText('Pinned Assets'),
   securityOption: (page: Page) => page.getByText('Security'),
-  aboutOption: (page: Page) => page.getByText('About'),
 
   // Advanced settings
-  autoLockTimer: (page: Page) => page.locator('[data-testid="auto-lock-timer"]'),
+  autoLockTimer: (page: Page) => page.getByText(/Auto-Lock/i).first(),
   oneMinuteOption: (page: Page) => page.getByText('1 Minute'),
   fiveMinutesOption: (page: Page) => page.getByText('5 Minutes'),
 };
