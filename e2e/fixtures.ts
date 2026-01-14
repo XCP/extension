@@ -144,7 +144,10 @@ async function importMnemonic(page: Page, mnemonic = TEST_MNEMONIC, password = T
     await page.locator(`input[name="word-${i}"]`).fill(words[i]);
   }
 
-  await page.getByLabel(/I have saved my secret recovery phrase/).check();
+  // Wait for the checkbox to become enabled (words must be validated)
+  const checkbox = page.getByLabel(/I have saved my secret recovery phrase/);
+  await expect(checkbox).toBeEnabled({ timeout: 5000 });
+  await checkbox.check();
   await page.locator('input[name="password"]').fill(password);
   await page.getByRole('button', { name: 'Continue' }).click();
 

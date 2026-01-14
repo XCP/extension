@@ -512,21 +512,15 @@ walletTest.describe('Form Edge Cases - Clipboard Interactions', () => {
     await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
 
-    await expect(send.recipientInput(page)).toBeVisible({ timeout: 5000 });
+    const recipientInput = send.recipientInput(page);
+    await expect(recipientInput).toBeVisible({ timeout: 5000 });
 
-    await send.recipientInput(page).focus();
-    await page.evaluate((address) => {
-      const input = document.activeElement as HTMLInputElement;
-      if (input) {
-        input.value = address;
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    }, TEST_ADDRESSES.mainnet.p2wpkh);
+    // Use Playwright's fill() which properly handles React controlled inputs
+    await recipientInput.fill(TEST_ADDRESSES.mainnet.p2wpkh);
 
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(300);
 
-    const inputValue = await send.recipientInput(page).inputValue();
+    const inputValue = await recipientInput.inputValue();
     expect(inputValue).toBe(TEST_ADDRESSES.mainnet.p2wpkh);
   });
 });

@@ -15,69 +15,55 @@ import {
 
 test.describe('Wallet UI Interactions', () => {
   test('refresh mnemonic button on create wallet', async ({ extensionPage }) => {
-    const needsOnboarding = await onboarding.createWalletButton(extensionPage).isVisible().catch(() => false);
-    if (needsOnboarding) {
-      await onboarding.createWalletButton(extensionPage).click();
-    } else {
-      const walletButton = extensionPage.locator('button').filter({ hasText: /Wallet/i }).first();
-      await walletButton.click();
-      await extensionPage.waitForTimeout(1000);
-      await selectWallet.addWalletButton(extensionPage).click();
-      await extensionPage.waitForTimeout(1000);
-      await onboarding.createWalletButton(extensionPage).click();
-    }
+    // The test fixture starts fresh without a wallet, so wait for Create Wallet to appear
+    await expect(onboarding.createWalletButton(extensionPage)).toBeVisible({ timeout: 10000 });
+    await onboarding.createWalletButton(extensionPage).click();
 
-    await extensionPage.waitForTimeout(1000);
+    await extensionPage.waitForURL(/create-wallet/, { timeout: 5000 });
 
+    // Reveal the mnemonic phrase
+    await expect(createWallet.revealPhraseCard(extensionPage)).toBeVisible({ timeout: 5000 });
+    await createWallet.revealPhraseCard(extensionPage).click();
+    await extensionPage.waitForTimeout(500);
+
+    // Check if refresh button exists
     const refreshButton = extensionPage.locator('button[aria-label="Generate new recovery phrase"]');
-    const hasRefreshButton = await refreshButton.isVisible().catch(() => false);
+    const hasRefreshButton = await refreshButton.isVisible({ timeout: 2000 }).catch(() => false);
 
     if (hasRefreshButton) {
-      await createWallet.revealPhraseCard(extensionPage).click();
-      await extensionPage.waitForTimeout(1000);
-
-      const initialWords: string[] = [];
-      for (let i = 1; i <= 12; i++) {
-        const wordElement = extensionPage.locator(`text=/^${i}\\./`).locator('..').locator('text=/\\w+/').last();
-        const word = await wordElement.textContent();
-        initialWords.push(word || '');
-      }
+      // Get the first word before refresh - target the font-mono span inside the ol list
+      const wordSpans = extensionPage.locator('ol span.font-mono');
+      await expect(wordSpans.first()).toBeVisible({ timeout: 3000 });
+      const firstWordBefore = await wordSpans.first().textContent();
 
       await refreshButton.click();
-      await extensionPage.waitForTimeout(1000);
+      await extensionPage.waitForTimeout(500);
 
-      const newWords: string[] = [];
-      for (let i = 1; i <= 12; i++) {
-        const wordElement = extensionPage.locator(`text=/^${i}\\./`).locator('..').locator('text=/\\w+/').last();
-        const word = await wordElement.textContent();
-        newWords.push(word || '');
-      }
+      // Get the first word after refresh
+      const firstWordAfter = await wordSpans.first().textContent();
 
-      expect(initialWords[0]).not.toBe(newWords[0]);
+      // Words should be different after refresh
+      expect(firstWordBefore).not.toBe(firstWordAfter);
     }
   });
 
   test('password show/hide on create wallet', async ({ extensionPage }) => {
-    const needsOnboarding = await onboarding.createWalletButton(extensionPage).isVisible().catch(() => false);
-    if (needsOnboarding) {
-      await onboarding.createWalletButton(extensionPage).click();
-    } else {
-      const walletButton = extensionPage.locator('button').filter({ hasText: /Wallet/i }).first();
-      await walletButton.click();
-      await extensionPage.waitForTimeout(1000);
-      await selectWallet.addWalletButton(extensionPage).click();
-      await extensionPage.waitForTimeout(1000);
-      await onboarding.createWalletButton(extensionPage).click();
-    }
+    // The test fixture starts fresh without a wallet
+    await expect(onboarding.createWalletButton(extensionPage)).toBeVisible({ timeout: 10000 });
+    await onboarding.createWalletButton(extensionPage).click();
 
-    await extensionPage.waitForTimeout(1000);
+    await extensionPage.waitForURL(/create-wallet/, { timeout: 5000 });
 
+    await expect(createWallet.revealPhraseCard(extensionPage)).toBeVisible({ timeout: 5000 });
     await createWallet.revealPhraseCard(extensionPage).click();
-    await extensionPage.waitForTimeout(1000);
-    await createWallet.savedPhraseCheckbox(extensionPage).check();
     await extensionPage.waitForTimeout(500);
 
+    await expect(createWallet.savedPhraseCheckbox(extensionPage)).toBeVisible({ timeout: 5000 });
+    await createWallet.savedPhraseCheckbox(extensionPage).check();
+
     const passwordInput = createWallet.passwordInput(extensionPage);
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
+
     const showHideButton = extensionPage.locator('button[aria-label*="password"]').filter({ has: extensionPage.locator('svg') });
 
     const initialType = await passwordInput.getAttribute('type');
@@ -86,7 +72,7 @@ test.describe('Wallet UI Interactions', () => {
     await passwordInput.fill(TEST_PASSWORD);
 
     await showHideButton.click();
-    await extensionPage.waitForTimeout(500);
+    await extensionPage.waitForTimeout(300);
 
     const typeAfterShow = await passwordInput.getAttribute('type');
     expect(typeAfterShow).toBe('text');
@@ -95,45 +81,40 @@ test.describe('Wallet UI Interactions', () => {
     expect(visiblePassword).toBe(TEST_PASSWORD);
 
     await showHideButton.click();
-    await extensionPage.waitForTimeout(500);
+    await extensionPage.waitForTimeout(300);
 
     const typeAfterHide = await passwordInput.getAttribute('type');
     expect(typeAfterHide).toBe('password');
   });
 
   test('mnemonic show/hide on import wallet', async ({ extensionPage }) => {
-    const hasImportWallet = await onboarding.importWalletButton(extensionPage).isVisible().catch(() => false);
+    // The test fixture starts fresh without a wallet
+    await expect(onboarding.importWalletButton(extensionPage)).toBeVisible({ timeout: 10000 });
+    await onboarding.importWalletButton(extensionPage).click();
 
-    if (hasImportWallet) {
-      await onboarding.importWalletButton(extensionPage).click();
-    } else {
-      await extensionPage.reload();
-      await extensionPage.waitForTimeout(1000);
-      const importButton = await onboarding.importWalletButton(extensionPage).isVisible().catch(() => false);
-      if (importButton) {
-        await onboarding.importWalletButton(extensionPage).click();
-      }
-    }
+    await extensionPage.waitForURL(/import-wallet/, { timeout: 5000 });
 
-    await extensionPage.waitForTimeout(1000);
+    // Wait for the first word input to appear
+    const firstInput = importWallet.wordInput(extensionPage, 0);
+    await expect(firstInput).toBeVisible({ timeout: 5000 });
 
+    // Check if there's an eye button to toggle visibility
     const eyeButton = extensionPage.locator('button[aria-label*="recovery phrase"]').filter({ has: extensionPage.locator('svg') });
-    const hasEyeButton = await eyeButton.isVisible().catch(() => false);
+    const hasEyeButton = await eyeButton.isVisible({ timeout: 2000 }).catch(() => false);
 
     if (hasEyeButton) {
+      // Fill in the mnemonic words
       const mnemonicWords = TEST_MNEMONIC.split(' ');
       for (let i = 0; i < mnemonicWords.length; i++) {
         const input = importWallet.wordInput(extensionPage, i);
         await input.fill(mnemonicWords[i]);
-        await extensionPage.waitForTimeout(50);
       }
 
-      const firstInput = importWallet.wordInput(extensionPage, 0);
       const initialType = await firstInput.getAttribute('type');
       expect(initialType).toBe('password');
 
       await eyeButton.click();
-      await extensionPage.waitForTimeout(500);
+      await extensionPage.waitForTimeout(300);
 
       const typeAfterShow = await firstInput.getAttribute('type');
       expect(typeAfterShow).toBe('text');
@@ -142,7 +123,7 @@ test.describe('Wallet UI Interactions', () => {
       expect(visibleWord).toBe('abandon');
 
       await eyeButton.click();
-      await extensionPage.waitForTimeout(500);
+      await extensionPage.waitForTimeout(300);
 
       const typeAfterHide = await firstInput.getAttribute('type');
       expect(typeAfterHide).toBe('password');
@@ -150,32 +131,30 @@ test.describe('Wallet UI Interactions', () => {
   });
 
   test('password show/hide on import wallet', async ({ extensionPage }) => {
-    const hasImportWallet = await onboarding.importWalletButton(extensionPage).isVisible().catch(() => false);
+    // The test fixture starts fresh without a wallet
+    await expect(onboarding.importWalletButton(extensionPage)).toBeVisible({ timeout: 10000 });
+    await onboarding.importWalletButton(extensionPage).click();
 
-    if (hasImportWallet) {
-      await onboarding.importWalletButton(extensionPage).click();
-    } else {
-      await extensionPage.reload();
-      await extensionPage.waitForTimeout(1000);
-      const importButton = await onboarding.importWalletButton(extensionPage).isVisible().catch(() => false);
-      if (importButton) {
-        await onboarding.importWalletButton(extensionPage).click();
-      }
-    }
+    await extensionPage.waitForURL(/import-wallet/, { timeout: 5000 });
 
-    await extensionPage.waitForTimeout(1000);
+    // Wait for and fill in mnemonic words
+    const firstInput = importWallet.wordInput(extensionPage, 0);
+    await expect(firstInput).toBeVisible({ timeout: 5000 });
 
     const mnemonicWords = TEST_MNEMONIC.split(' ');
     for (let i = 0; i < mnemonicWords.length; i++) {
       const input = importWallet.wordInput(extensionPage, i);
       await input.fill(mnemonicWords[i]);
-      await extensionPage.waitForTimeout(50);
     }
 
+    // Check the confirmation checkbox
+    await expect(importWallet.savedPhraseCheckbox(extensionPage)).toBeVisible({ timeout: 5000 });
     await importWallet.savedPhraseCheckbox(extensionPage).check();
-    await extensionPage.waitForTimeout(500);
 
+    // Wait for password input to appear
     const passwordInput = importWallet.passwordInput(extensionPage);
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
+
     const showHideButton = passwordInput.locator('..').locator('button[aria-label*="password"]');
 
     const initialType = await passwordInput.getAttribute('type');
@@ -184,13 +163,13 @@ test.describe('Wallet UI Interactions', () => {
     await passwordInput.fill(TEST_PASSWORD);
 
     await showHideButton.click();
-    await extensionPage.waitForTimeout(500);
+    await extensionPage.waitForTimeout(300);
 
     const typeAfterShow = await passwordInput.getAttribute('type');
     expect(typeAfterShow).toBe('text');
 
     await showHideButton.click();
-    await extensionPage.waitForTimeout(500);
+    await extensionPage.waitForTimeout(300);
 
     const typeAfterHide = await passwordInput.getAttribute('type');
     expect(typeAfterHide).toBe('password');

@@ -79,14 +79,22 @@ test.describe('State Persistence - Lock/Unlock Cycle', () => {
     await settings.addressTypeOption(extensionPage).click();
     await expect(extensionPage).toHaveURL(/address-type/);
 
+    // Select Legacy (P2PKH) address type
     await expect(extensionPage.locator('[role="radio"]').first()).toBeVisible();
     const legacyOption = extensionPage.locator('[role="radio"]').filter({ hasText: 'Legacy' }).first();
     if (await legacyOption.isVisible({ timeout: 2000 }).catch(() => false)) {
       await legacyOption.click();
     }
 
+    // Wait a bit for the address type change to take effect
+    await extensionPage.waitForTimeout(1000);
+
     await navigateTo(extensionPage, 'wallet');
     await expect(index.addressText(extensionPage)).toBeVisible({ timeout: 10000 });
+
+    // Wait for address to potentially update
+    await extensionPage.waitForTimeout(1000);
+
     const addressBefore = await index.addressText(extensionPage).textContent();
 
     await lockWallet(extensionPage);

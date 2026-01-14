@@ -145,7 +145,7 @@ export const actions = {
   sweepAddressOption: (page: Page) => page.getByText('Sweep Address'),
   broadcastOption: (page: Page) => page.locator('text=Broadcast').first(),
   cancelOrderOption: (page: Page) => page.getByText('Cancel Order'),
-  closeDispenserOption: (page: Page) => page.getByText('Close Dispenser'),
+  closeDispenserOption: (page: Page) => page.getByText('Close Dispenser', { exact: true }),
   recoverBitcoinOption: (page: Page) => page.getByText('Recover Bitcoin'),
   toolsSection: (page: Page) => page.getByText('Tools'),
   assetsSection: (page: Page) => page.locator('text=Assets').first(),
@@ -187,8 +187,8 @@ export const verifyMessage = {
 // ============================================================================
 
 export const send = {
-  recipientInput: (page: Page) => page.locator('input[name="destination"], input[placeholder*="address"]').first(),
-  amountInput: (page: Page) => page.locator('input[name="amount"], input[placeholder*="amount"]').first(),
+  recipientInput: (page: Page) => page.locator('input[placeholder*="destination" i]').first(),
+  amountInput: (page: Page) => page.locator('input[name="amount"], input[placeholder*="amount" i]').first(),
   assetSearch: (page: Page) => page.locator('input[placeholder*="Search"]'),
   sendButton: (page: Page) => page.getByRole('button', { name: /send/i }).last(),
   confirmButton: (page: Page) => page.getByRole('button', { name: 'Confirm' }),
@@ -203,7 +203,7 @@ export const compose = {
   // Common elements across all compose forms
   common: {
     // Form inputs
-    destinationInput: (page: Page) => page.locator('input[placeholder*="destination address"], input[name="destination"]').first(),
+    destinationInput: (page: Page) => page.locator('input[placeholder*="destination" i]').first(),
     quantityInput: (page: Page) => page.locator('input[name="quantity"], input[placeholder*="amount"]').first(),
     assetSelect: (page: Page) => page.locator('select, [role="combobox"], button:has-text("Select")').first(),
 
@@ -246,7 +246,7 @@ export const compose = {
 
   // Send transaction (/compose/send)
   send: {
-    recipientInput: (page: Page) => page.locator('input[placeholder*="destination address"], input[name="destination"]').first(),
+    recipientInput: (page: Page) => page.locator('input[placeholder*="destination" i]').first(),
     quantityInput: (page: Page) => page.locator('input[name="quantity"]'),
     sendButton: (page: Page) => page.locator('button[aria-label="Send tokens"]'),
     mpmaOption: (page: Page) => page.locator('text=/MPMA|Multiple|recipients/i'),

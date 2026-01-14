@@ -43,7 +43,7 @@ test.describe('User Journey: New User Onboarding to First Transaction', () => {
     await expect(extensionPage).toHaveURL(/compose\/send/, { timeout: 5000 });
 
     // Step 5: Verify send form loaded
-    const destinationInput = extensionPage.locator('input[name="destination"]').first();
+    const destinationInput = send.recipientInput(extensionPage);
     await expect(destinationInput).toBeVisible({ timeout: 5000 });
 
     // Step 6: Navigate back to dashboard
@@ -100,7 +100,7 @@ test.describe('User Journey: Wallet Management Lifecycle', () => {
 
   test('import wallet -> change address type -> verify address updates', async ({ extensionPage }) => {
     // Step 1: Import wallet with mnemonic
-    await importMnemonic(extensionPage, TEST_PASSWORD, TEST_MNEMONIC);
+    await importMnemonic(extensionPage, TEST_MNEMONIC, TEST_PASSWORD);
     await expect(extensionPage).toHaveURL(/index/, { timeout: 10000 });
 
     // Step 2: Get initial address
@@ -202,7 +202,7 @@ walletTest.describe('User Journey: Transaction Flow with Interruptions', () => {
     await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
 
     // Step 2: Fill in some data
-    const destinationInput = page.locator('input[name="destination"]').first();
+    const destinationInput = send.recipientInput(page);
     await expect(destinationInput).toBeVisible({ timeout: 5000 });
     await destinationInput.fill('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
 
@@ -219,7 +219,7 @@ walletTest.describe('User Journey: Transaction Flow with Interruptions', () => {
     await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
 
     // Step 6: Verify form is fresh (field should be empty or reset)
-    const destinationInputAgain = page.locator('input[name="destination"]').first();
+    const destinationInputAgain = send.recipientInput(page);
     await expect(destinationInputAgain).toBeVisible({ timeout: 5000 });
     const value = await destinationInputAgain.inputValue();
     // Form should be empty after navigating away
@@ -248,7 +248,7 @@ walletTest.describe('User Journey: Transaction Flow with Interruptions', () => {
     await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
 
     // Step 4: Verify send form works
-    const destinationInput = page.locator('input[name="destination"]').first();
+    const destinationInput = send.recipientInput(page);
     await expect(destinationInput).toBeVisible({ timeout: 5000 });
   });
 });
@@ -319,16 +319,14 @@ test.describe('User Journey: Error Recovery', () => {
     await extensionPage.getByText('Import Wallet').click();
     await extensionPage.waitForSelector('input[name="word-0"]', { timeout: 5000 });
 
-    // Step 2: Cancel import
-    const backButton = extensionPage.locator('button[aria-label*="back"], button[aria-label*="Back"], header button').first();
+    // Step 2: Cancel import by clicking back
+    const backButton = extensionPage.locator('header button').first();
     await backButton.click();
-    await extensionPage.waitForTimeout(500);
 
-    // Step 3: Start create wallet instead
-    await extensionPage.getByText('Create Wallet').click();
-    await extensionPage.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
+    // Step 3: Wait for onboarding page to appear again
+    await expect(extensionPage.getByText('Create Wallet')).toBeVisible({ timeout: 5000 });
 
-    // Step 4: Complete creation
+    // Step 4: Now create wallet from scratch
     await createWallet(extensionPage, TEST_PASSWORD);
     await expect(extensionPage).toHaveURL(/index/, { timeout: 10000 });
   });
