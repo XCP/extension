@@ -34,7 +34,7 @@ walletTest.describe('Compose Cancel Order Page (/compose/order/cancel)', () => {
     }
 
     // Form should have Order Hash label or input field
-    const formContent = page.locator('text=/Order.*Hash|Transaction.*Hash|Cancel/i, input[placeholder*="order"]').first();
+    const formContent = page.locator('text=/Order.*Hash|Transaction.*Hash|Cancel/i').or(page.locator('input[placeholder*="order"]')).first();
     await expect(formContent).toBeVisible({ timeout: 5000 });
   });
 

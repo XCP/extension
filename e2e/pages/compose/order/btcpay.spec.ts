@@ -20,7 +20,7 @@ walletTest.describe('Compose BTC Pay Page (/compose/order/btcpay)', () => {
     }
 
     // Form should have Order Match ID label or input field
-    const formContent = page.locator('text=/Order Match ID|Match/i, input[placeholder*="order match"]').first();
+    const formContent = page.locator('text=/Order Match ID|Match/i').or(page.locator('input[placeholder*="order match"]')).first();
     await expect(formContent).toBeVisible({ timeout: 5000 });
   });
 

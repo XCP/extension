@@ -20,7 +20,7 @@ walletTest.describe('Compose Update Description Page (/compose/issuance/update-d
     }
 
     // Form should have description label or textarea
-    const formContent = page.locator('text=/Description|Update/i, textarea').first();
+    const formContent = page.locator('text=/Description|Update/i').or(page.locator('textarea')).first();
     await expect(formContent).toBeVisible({ timeout: 5000 });
   });
 
