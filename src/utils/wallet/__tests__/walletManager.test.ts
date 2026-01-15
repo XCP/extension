@@ -33,7 +33,7 @@ vi.mock('@scure/bip39');
 import * as sessionManager from '@/utils/auth/sessionManager';
 import { getKeychainRecord, saveKeychainRecord } from '@/utils/storage/walletStorage';
 import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/utils/blockchain/bitcoin/address';
-import { deriveKey, decryptJsonWithKey, decryptWithKey } from '@/utils/encryption/encryption';
+import { deriveKey, deriveKeyAsync, decryptJsonWithKey, decryptWithKey } from '@/utils/encryption/encryption';
 import { base64ToBuffer } from '@/utils/encryption/buffer';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
@@ -78,9 +78,20 @@ describe('WalletManager', () => {
     vi.mocked(getDerivationPathForAddressFormat).mockImplementation(mocks.bitcoin.getDerivationPathForAddressFormat);
 
     vi.mocked(deriveKey).mockImplementation(mocks.keyBased.deriveKey);
+    vi.mocked(deriveKeyAsync).mockImplementation(mocks.keyBased.deriveKey);
     vi.mocked(decryptJsonWithKey).mockImplementation(mocks.keyBased.decryptJsonWithKey);
     vi.mocked(decryptWithKey).mockImplementation(mocks.keyBased.decryptWithKey);
     vi.mocked(base64ToBuffer).mockReturnValue(new Uint8Array([1, 2, 3]));
+
+    // Mock HD key derivation
+    vi.mocked(mnemonicToSeedSync).mockReturnValue(new Uint8Array(64));
+    vi.mocked(HDKey.fromMasterSeed).mockReturnValue({
+      derive: vi.fn().mockReturnValue({
+        publicKey: new Uint8Array([2, 3, 4]),
+        privateKey: new Uint8Array([1, 2, 3]),
+      }),
+    } as any);
+    vi.mocked(bytesToHex).mockReturnValue('0203040506');
 
     walletManager = new WalletManager();
   });
@@ -148,7 +159,12 @@ describe('WalletManager', () => {
 
     it('should set active wallet', async () => {
       const wallet = createTestWallet();
+      const keychain = createTestKeychain([wallet]);
       walletManager['wallets'] = [wallet];
+      walletManager['keychain'] = keychain;
+
+      // Mock storage record for persistKeychain
+      mocks.walletStorage.getKeychainRecord.mockResolvedValue(createTestKeychainRecord());
 
       await walletManager.setActiveWallet(wallet.id);
 
@@ -265,12 +281,10 @@ describe('WalletManager', () => {
 
       await walletManager.unlockKeychain('test-password');
 
-      // Should have derived key from password
-      expect(mocks.keyBased.deriveKey).toHaveBeenCalled();
+      // Should have derived key from password (via web worker)
+      expect(deriveKeyAsync).toHaveBeenCalled();
       // Should have stored master key in session
       expect(mocks.sessionManager.storeKeychainMasterKey).toHaveBeenCalled();
-      // Should have initialized settings
-      expect(mocks.settingsStorage.initializeSettingsMasterKey).toHaveBeenCalled();
     });
 
     it('should throw error when no keychain exists', async () => {
@@ -375,6 +389,8 @@ describe('WalletManager', () => {
 
   describe('Keychain Status', () => {
     it('should return true when keychain is unlocked', async () => {
+      const keychain = createTestKeychain([]);
+      walletManager['keychain'] = keychain;
       mocks.sessionManager.getKeychainMasterKey.mockResolvedValue({} as CryptoKey);
 
       const result = await walletManager.isKeychainUnlocked();

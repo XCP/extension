@@ -134,12 +134,12 @@ describe('WalletService Proxy', () => {
   });
 
   describe('Session Management', () => {
-    it('should unlock wallet', async () => {
-      walletService.unlockWallet.mockResolvedValue(undefined);
-      
-      await walletService.unlockWallet('wallet1', 'password123');
-      
-      expect(walletService.unlockWallet).toHaveBeenCalledWith('wallet1', 'password123');
+    it('should unlock keychain', async () => {
+      walletService.unlockKeychain.mockResolvedValue(undefined);
+
+      await walletService.unlockKeychain('password123');
+
+      expect(walletService.unlockKeychain).toHaveBeenCalledWith('password123');
     });
 
     it('should lock all wallets', async () => {

@@ -312,26 +312,16 @@ describe('SettingsContext', () => {
   });
 
   describe('Loading State', () => {
-    it('should show loading state during initial load', async () => {
-      let resolveSettings: (value: any) => void;
-      const settingsPromise = new Promise((resolve) => {
-        resolveSettings = resolve;
-      });
-      mockGetSettings.mockReturnValue(settingsPromise as any);
-
+    it('should complete loading after mount', async () => {
       const { result } = renderHook(() => useSettings(), {
         wrapper: SettingsProvider
-      });
-
-      expect(result.current.isLoading).toBe(true);
-
-      act(() => {
-        resolveSettings!(defaultSettings);
       });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
+
+      expect(result.current.settings).toEqual(defaultSettings);
     });
 
     it('should not show loading state during updates', async () => {
@@ -373,8 +363,8 @@ describe('SettingsContext', () => {
       // Unmount and remount
       unmount();
 
-      // Mock the stored settings
-      mockGetSettings.mockResolvedValue({
+      // Mock the stored settings (synchronous return)
+      mockGetSettings.mockReturnValue({
         ...defaultSettings,
         autoLockTimer: '15m'
       });
