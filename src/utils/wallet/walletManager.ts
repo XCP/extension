@@ -601,6 +601,12 @@ export class WalletManager {
     };
 
     await this.persistKeychain();
+
+    // If autoLockTimer changed, reschedule the session expiry alarm
+    if (updates.autoLockTimer) {
+      const timeoutMs = getAutoLockTimeoutMs(updates.autoLockTimer);
+      await sessionManager.scheduleSessionExpiry(timeoutMs);
+    }
   }
 
   /**
