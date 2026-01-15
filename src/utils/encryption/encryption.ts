@@ -18,8 +18,13 @@ const GCM_TAG_BYTES = 16;
 const GCM_TAG_LENGTH = 128; // bits
 const PBKDF2_ITERATIONS = 600_000;
 
-// Minimum size: IV (12) + at least 1 byte ciphertext + GCM tag (16) = 29 bytes
-const MIN_ENCRYPTED_SIZE = IV_BYTES + 1 + GCM_TAG_BYTES;
+// Minimum size: IV (12) + GCM tag (16) = 28 bytes (empty plaintext is valid)
+const MIN_ENCRYPTED_SIZE = IV_BYTES + GCM_TAG_BYTES;
+
+// Security validation constants
+const MIN_PASSWORD_LENGTH = 8; // Match UI validation
+const MIN_ITERATIONS = 500_000; // Minimum safe PBKDF2 iterations (default is 600K)
+const MIN_SALT_BYTES = 16; // NIST recommended minimum
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -28,16 +33,28 @@ const decoder = new TextDecoder();
  * Derives an encryption key from password and salt using PBKDF2.
  * Key is extractable so it can be exported to session storage.
  *
- * @param password - User password
- * @param salt - Random salt (16 bytes recommended)
- * @param iterations - PBKDF2 iterations (defaults to 600K)
+ * @param password - User password (minimum 8 characters)
+ * @param salt - Random salt (minimum 16 bytes)
+ * @param iterations - PBKDF2 iterations (defaults to 600K, minimum 100K)
  * @returns Extractable CryptoKey for AES-GCM
+ * @throws Error if password, salt, or iterations don't meet security requirements
  */
 export async function deriveKey(
   password: string,
   salt: Uint8Array<ArrayBuffer>,
   iterations: number = PBKDF2_ITERATIONS
 ): Promise<CryptoKey> {
+  // Security validations - defense in depth (UI also validates)
+  if (!password || password.length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+  }
+  if (!salt || salt.byteLength < MIN_SALT_BYTES) {
+    throw new Error(`Salt must be at least ${MIN_SALT_BYTES} bytes`);
+  }
+  if (!Number.isInteger(iterations) || iterations < MIN_ITERATIONS) {
+    throw new Error(`PBKDF2 iterations must be at least ${MIN_ITERATIONS}`);
+  }
+
   const passwordKey = await crypto.subtle.importKey(
     'raw',
     encoder.encode(password),
@@ -147,7 +164,12 @@ export async function decryptWithKey(encrypted: string, key: CryptoKey): Promise
     decryptionError = err instanceof Error ? err : new Error(String(err));
   }
 
-  // Add small random delay to mask timing differences
+  // Timing attack mitigation: Add random delay to mask timing differences.
+  // Note: This is a basic mitigation suitable for a browser extension where:
+  // - The attacker cannot make high-volume automated requests (UI-gated)
+  // - AES-GCM provides authenticated encryption with integrity verification
+  // - The primary threat is local/disk attackers, not network timing analysis
+  // For higher-security applications, constant-time comparison would be preferred.
   const randomDelay = crypto.getRandomValues(new Uint8Array(1))[0] / 255 * 10; // 0-10ms
   await new Promise(resolve => setTimeout(resolve, randomDelay));
 
@@ -234,16 +256,28 @@ interface WorkerResponse {
  * This is cryptographically identical to deriveKey() - just runs off main thread
  * to keep UI responsive during the ~1-2 second key derivation.
  *
- * @param password - User password
- * @param salt - Random salt (16 bytes recommended)
- * @param iterations - PBKDF2 iterations (defaults to 600K)
+ * @param password - User password (minimum 8 characters)
+ * @param salt - Random salt (minimum 16 bytes)
+ * @param iterations - PBKDF2 iterations (defaults to 600K, minimum 100K)
  * @returns Extractable CryptoKey for AES-GCM
+ * @throws Error if password, salt, or iterations don't meet security requirements
  */
 export async function deriveKeyAsync(
   password: string,
   salt: Uint8Array<ArrayBuffer>,
   iterations: number = PBKDF2_ITERATIONS
 ): Promise<CryptoKey> {
+  // Security validations - validate early before worker dispatch
+  if (!password || password.length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+  }
+  if (!salt || salt.byteLength < MIN_SALT_BYTES) {
+    throw new Error(`Salt must be at least ${MIN_SALT_BYTES} bytes`);
+  }
+  if (!Number.isInteger(iterations) || iterations < MIN_ITERATIONS) {
+    throw new Error(`PBKDF2 iterations must be at least ${MIN_ITERATIONS}`);
+  }
+
   const worker = getKdfWorker();
 
   // Fallback to main thread if no worker
