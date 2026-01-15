@@ -15,7 +15,7 @@ import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 // Mock all external dependencies
 vi.mock('@/utils/auth/sessionManager');
 vi.mock('@/utils/storage/walletStorage');
-vi.mock('@/utils/encryption/keyBased');
+vi.mock('@/utils/encryption/encryption');
 vi.mock('@/utils/encryption/settings');
 vi.mock('@/utils/encryption/buffer');
 vi.mock('@/utils/blockchain/bitcoin/address');
@@ -33,7 +33,7 @@ vi.mock('@scure/bip39');
 import * as sessionManager from '@/utils/auth/sessionManager';
 import { getKeychainRecord, saveKeychainRecord } from '@/utils/storage/walletStorage';
 import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/utils/blockchain/bitcoin/address';
-import { deriveKey, decryptJsonWithKey, decryptWithKey } from '@/utils/encryption/keyBased';
+import { deriveKey, decryptJsonWithKey, decryptWithKey } from '@/utils/encryption/encryption';
 import { base64ToBuffer } from '@/utils/encryption/buffer';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';

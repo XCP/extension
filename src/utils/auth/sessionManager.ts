@@ -68,7 +68,7 @@ import {
   setCachedKeychainMasterKey,
   clearCachedKeychainMasterKey,
 } from '@/utils/storage/keyStorage';
-import { importKey, exportKey } from '@/utils/encryption/keyBased';
+import { importKey, exportKey } from '@/utils/encryption/encryption';
 
 // In-memory store for decrypted secrets (by wallet ID).
 let unlockedSecrets: Record<string, string> = {};

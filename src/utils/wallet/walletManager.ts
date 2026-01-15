@@ -17,7 +17,7 @@ import {
   encryptJsonWithKey,
   decryptJsonWithKey,
   DEFAULT_PBKDF2_ITERATIONS,
-} from '@/utils/encryption/keyBased';
+} from '@/utils/encryption/encryption';
 import { base64ToBuffer, generateRandomBytes, bufferToBase64 } from '@/utils/encryption/buffer';
 import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressFormat, isCounterwalletFormat } from '@/utils/blockchain/bitcoin/address';
 import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';

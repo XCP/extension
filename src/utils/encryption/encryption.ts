@@ -1,278 +1,293 @@
 /**
- * Wallet Encryption
+ * Key-Based Encryption - Shared AES-GCM encryption utilities
  *
- * Provides AES-256-GCM encryption for wallet data with PBKDF2 key derivation.
- * Uses Web Crypto API for all cryptographic operations.
+ * Provides key-based encryption/decryption for both settings and wallet vault.
+ * Keys are derived once from password via PBKDF2, then stored in session.
  *
- * Security properties:
- * - 600,000 PBKDF2 iterations for key derivation
- * - Random salt and IV per encryption
- * - Authentication via GCM mode
+ * Used by:
+ * - settings.ts: encrypts/decrypts application settings
+ * - walletManager.ts: encrypts/decrypts wallet vault and secrets
  */
 
-import { bufferToBase64, base64ToBuffer, combineBuffers, generateRandomBytes } from './buffer';
+import { bufferToBase64, base64ToBuffer, generateRandomBytes, combineBuffers } from './buffer';
 
-/**
- * Encryption version. Increment if the scheme changes.
- * v1: Original format with separate authSalt
- * v2: Simplified format - single salt for PBKDF2, empty salt for HKDF
- */
-const ENCRYPTION_VERSION = 2;
+// Crypto constants (shared with settings.ts)
+const IV_BYTES = 12;
+const KEY_BITS = 256;
+const GCM_TAG_BYTES = 16;
+const GCM_TAG_LENGTH = 128; // bits
+const PBKDF2_ITERATIONS = 600_000;
 
-/**
- * Cryptographic configuration constants.
- */
-const CRYPTO_CONFIG = {
-  SALT_BYTES: 16,
-  IV_BYTES: 12,
-  KEY_BITS: 256,
-  PBKDF2_ITERATIONS: 600_000, // Reasonable security vs performance tradeoff
-  AUTH_MESSAGE: 'authentication message for wallet encryption',
-  TAG_LENGTH: 128,
-};
+// Minimum size: IV (12) + at least 1 byte ciphertext + GCM tag (16) = 29 bytes
+const MIN_ENCRYPTED_SIZE = IV_BYTES + 1 + GCM_TAG_BYTES;
 
-/**
- * Reusable encoder and decoder for UTF-8.
- */
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 /**
- * Custom error class for decryption errors.
- */
-export class DecryptionError extends Error {
-  /**
-   * Creates a new DecryptionError instance.
-   * @param message - The error message describing the decryption failure.
-   */
-  constructor(message: string) {
-    super(message);
-    this.name = 'DecryptionError';
-  }
-}
-
-/**
- * Interface for the JSON payload returned by encryptString().
- */
-interface EncryptedPayload {
-  version: number;
-  iterations: number;
-  encryptedData: string; // Base64-encoded combined blob.
-  authSignature: string; // Base64-encoded HMAC signature.
-}
-
-/**
- * Encrypts an arbitrary plaintext string with a password.
+ * Derives an encryption key from password and salt using PBKDF2.
+ * Key is extractable so it can be exported to session storage.
  *
- * @param plaintext - The text to encrypt.
- * @param password - The password to use for encryption.
- * @returns A Promise that resolves to a JSON string containing the encrypted payload.
- * @throws {Error} If the password or plaintext is empty.
+ * @param password - User password
+ * @param salt - Random salt (16 bytes recommended)
+ * @param iterations - PBKDF2 iterations (defaults to 600K)
+ * @returns Extractable CryptoKey for AES-GCM
  */
-export async function encryptString(
-  plaintext: string,
-  password: string
-): Promise<string> {
-  if (!password) throw new Error('Password cannot be empty');
-  if (!plaintext) throw new Error('Plaintext cannot be empty');
-
-  const data = encoder.encode(plaintext);
-  const salt = generateRandomBytes(CRYPTO_CONFIG.SALT_BYTES);
-  const iv = generateRandomBytes(CRYPTO_CONFIG.IV_BYTES);
-
-  const masterKey = await deriveMasterKey(password, salt, CRYPTO_CONFIG.PBKDF2_ITERATIONS);
-  const encryptionKey = await deriveEncryptionKey(masterKey);
-  const authKey = await deriveAuthenticationKey(masterKey);
-
-  const encryptedBuffer = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv, tagLength: CRYPTO_CONFIG.TAG_LENGTH },
-    encryptionKey,
-    data
-  );
-
-  const authMessageBytes = encoder.encode(CRYPTO_CONFIG.AUTH_MESSAGE);
-  const signatureBuffer = await crypto.subtle.sign('HMAC', authKey, authMessageBytes);
-  const authSignature = bufferToBase64(signatureBuffer);
-
-  // Format: salt (16 bytes) + iv (12 bytes) + ciphertext
-  const combined = combineBuffers(salt, iv, new Uint8Array(encryptedBuffer));
-  const payload: EncryptedPayload = {
-    version: ENCRYPTION_VERSION,
-    iterations: CRYPTO_CONFIG.PBKDF2_ITERATIONS,
-    encryptedData: bufferToBase64(combined),
-    authSignature,
-  };
-
-  return JSON.stringify(payload);
-}
-
-/**
- * Decrypts a JSON-encoded encrypted payload produced by encryptString().
- *
- * @param encryptedJson - The JSON payload as a string, containing encrypted data and metadata.
- * @param password - The password used for decryption.
- * @returns A Promise that resolves to the decrypted plaintext string.
- * @throws {DecryptionError} If the payload is invalid, the version is unsupported, or decryption fails.
- */
-export async function decryptString(
-  encryptedJson: string,
-  password: string
-): Promise<string> {
-  if (!password) throw new DecryptionError('Password cannot be empty');
-  if (!encryptedJson) throw new DecryptionError('Encrypted payload cannot be empty');
-
-  let parsed: EncryptedPayload;
-  try {
-    parsed = JSON.parse(encryptedJson);
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    throw new DecryptionError(`Invalid encrypted payload (not valid JSON): ${errorMessage}`);
-  }
-
-  if (parsed.version !== ENCRYPTION_VERSION) {
-    throw new DecryptionError(`Unsupported encryption version: ${parsed.version}`);
-  }
-
-  // Validate iterations to prevent cryptic errors from invalid payload
-  if (
-    typeof parsed.iterations !== 'number' ||
-    !Number.isInteger(parsed.iterations) ||
-    parsed.iterations < 1
-  ) {
-    throw new DecryptionError('Invalid encrypted payload (invalid iterations)');
-  }
-
-  let combined: Uint8Array;
-  try {
-    combined = base64ToBuffer(parsed.encryptedData);
-  } catch {
-    throw new DecryptionError('Invalid encrypted payload (invalid format)');
-  }
-  // Minimum size: salt (16) + iv (12) + at least 1 byte ciphertext + GCM tag (16)
-  if (combined.byteLength < CRYPTO_CONFIG.SALT_BYTES + CRYPTO_CONFIG.IV_BYTES + 17) {
-    throw new DecryptionError('Invalid encrypted payload (incomplete data)');
-  }
-
-  // Format: salt (16 bytes) + iv (12 bytes) + ciphertext
-  const salt = new Uint8Array(combined.slice(0, CRYPTO_CONFIG.SALT_BYTES));
-  const iv = new Uint8Array(combined.slice(CRYPTO_CONFIG.SALT_BYTES, CRYPTO_CONFIG.SALT_BYTES + CRYPTO_CONFIG.IV_BYTES));
-  const ciphertext = new Uint8Array(combined.slice(CRYPTO_CONFIG.SALT_BYTES + CRYPTO_CONFIG.IV_BYTES));
-
-  try {
-    // Always perform all crypto operations to prevent timing attacks
-    const masterKey = await deriveMasterKey(password, salt, parsed.iterations);
-    const encryptionKey = await deriveEncryptionKey(masterKey);
-    const authKey = await deriveAuthenticationKey(masterKey);
-
-    const authMessageBytes = encoder.encode(CRYPTO_CONFIG.AUTH_MESSAGE);
-    const valid = await crypto.subtle.verify(
-      'HMAC',
-      authKey,
-      base64ToBuffer(parsed.authSignature),
-      authMessageBytes
-    );
-    
-    // Always attempt decryption to maintain constant timing
-    let decryptedBuffer: ArrayBuffer | null = null;
-    let decryptionError: Error | null = null;
-    
-    try {
-      decryptedBuffer = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv, tagLength: CRYPTO_CONFIG.TAG_LENGTH },
-        encryptionKey,
-        ciphertext
-      );
-    } catch (err) {
-      decryptionError = err instanceof Error ? err : new Error(String(err));
-    }
-    
-    // Add small random delay to mask any remaining timing differences
-    const randomDelay = crypto.getRandomValues(new Uint8Array(1))[0] / 255 * 10; // 0-10ms
-    await new Promise(resolve => setTimeout(resolve, randomDelay));
-    
-    // Check validation after all operations complete
-    if (!valid || decryptionError || !decryptedBuffer) {
-      throw new DecryptionError('Invalid password or corrupted data');
-    }
-
-    return decoder.decode(decryptedBuffer);
-  } catch (err) {
-    // Don't log or expose internal crypto error details - could leak information
-    // All decryption failures surface as the same generic message
-    if (err instanceof DecryptionError) {
-      throw err; // Re-throw our own errors (already sanitized)
-    }
-    throw new DecryptionError('Invalid password or corrupted data');
-  }
-}
-
-/**
- * Derives a master key from a password and salt using PBKDF2, then imports it as an HKDF key.
- *
- * @param password - The user's password to derive the key from.
- * @param salt - The salt as a Uint8Array for PBKDF2.
- * @param iterations - The number of PBKDF2 iterations to perform.
- * @returns A Promise that resolves to a CryptoKey usable for HKDF derivation.
- */
-async function deriveMasterKey(
+export async function deriveKey(
   password: string,
-  salt: Uint8Array,
-  iterations: number
+  salt: Uint8Array<ArrayBuffer>,
+  iterations: number = PBKDF2_ITERATIONS
 ): Promise<CryptoKey> {
   const passwordKey = await crypto.subtle.importKey(
     'raw',
     encoder.encode(password),
     'PBKDF2',
     false,
-    ['deriveBits']
+    ['deriveKey']
   );
 
-  const derivedBits = await crypto.subtle.deriveBits(
+  return crypto.subtle.deriveKey(
     { name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: 'SHA-256' },
     passwordKey,
-    CRYPTO_CONFIG.KEY_BITS
-  );
-
-  return crypto.subtle.importKey('raw', derivedBits, 'HKDF', false, ['deriveKey']);
-}
-
-/**
- * Empty salt for HKDF derivation.
- * Since the masterKey from PBKDF2 is already uniformly random,
- * HKDF salt isn't needed for entropy - the 'info' parameter provides domain separation.
- * Using empty salt follows best practice for HKDF when input key material is already random.
- */
-const HKDF_EMPTY_SALT = new Uint8Array(0);
-
-/**
- * Derives an AES-GCM key for encryption/decryption using HKDF.
- *
- * @param masterKey - The HKDF master key to derive from (output of PBKDF2).
- * @returns A Promise that resolves to an AES-GCM CryptoKey for encryption and decryption.
- */
-async function deriveEncryptionKey(masterKey: CryptoKey): Promise<CryptoKey> {
-  return crypto.subtle.deriveKey(
-    { name: 'HKDF', hash: 'SHA-256', salt: HKDF_EMPTY_SALT, info: encoder.encode('encryption') },
-    masterKey,
-    { name: 'AES-GCM', length: CRYPTO_CONFIG.KEY_BITS },
-    false,
+    { name: 'AES-GCM', length: KEY_BITS },
+    true, // extractable - needed for session storage
     ['encrypt', 'decrypt']
   );
 }
 
 /**
- * Derives an HMAC key for authentication using HKDF.
+ * Exports a CryptoKey to base64 string for session storage.
  *
- * @param masterKey - The HKDF master key to derive from (output of PBKDF2).
- * @returns A Promise that resolves to an HMAC CryptoKey for signing and verification.
+ * @param key - The CryptoKey to export
+ * @returns Base64-encoded raw key bytes
  */
-async function deriveAuthenticationKey(masterKey: CryptoKey): Promise<CryptoKey> {
-  return crypto.subtle.deriveKey(
-    { name: 'HKDF', hash: 'SHA-256', salt: HKDF_EMPTY_SALT, info: encoder.encode('authentication') },
-    masterKey,
-    { name: 'HMAC', hash: 'SHA-256', length: CRYPTO_CONFIG.KEY_BITS },
-    false, // Non-extractable for security (key is only used for sign/verify)
-    ['sign', 'verify']
+export async function exportKey(key: CryptoKey): Promise<string> {
+  const exported = await crypto.subtle.exportKey('raw', key);
+  return bufferToBase64(exported);
+}
+
+/**
+ * Imports a CryptoKey from base64 string (from session storage).
+ *
+ * @param keyBase64 - Base64-encoded raw key bytes
+ * @returns CryptoKey for AES-GCM encryption/decryption
+ */
+export async function importKey(keyBase64: string): Promise<CryptoKey> {
+  const keyBytes = base64ToBuffer(keyBase64);
+  return crypto.subtle.importKey(
+    'raw',
+    keyBytes,
+    { name: 'AES-GCM', length: KEY_BITS },
+    false, // not extractable after import (security)
+    ['encrypt', 'decrypt']
   );
 }
 
+/**
+ * Encrypts a string using AES-GCM with the provided key.
+ * Output format: base64(IV + ciphertext)
+ *
+ * @param data - The plaintext string to encrypt
+ * @param key - The AES-GCM CryptoKey
+ * @returns Base64-encoded IV + ciphertext
+ */
+export async function encryptWithKey(data: string, key: CryptoKey): Promise<string> {
+  const iv = generateRandomBytes(IV_BYTES);
+  const plaintext = encoder.encode(data);
+
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: iv as BufferSource, tagLength: GCM_TAG_LENGTH },
+    key,
+    plaintext
+  );
+
+  // Combine IV + ciphertext
+  const combined = combineBuffers(iv, new Uint8Array(ciphertext));
+  return bufferToBase64(combined);
+}
+
+/**
+ * Decrypts a string using AES-GCM with the provided key.
+ * Input format: base64(IV + ciphertext)
+ *
+ * Uses timing attack mitigations for consistency with wallet encryption.
+ *
+ * @param encrypted - Base64-encoded IV + ciphertext
+ * @param key - The AES-GCM CryptoKey
+ * @returns Decrypted plaintext string
+ * @throws Error if decryption fails
+ */
+export async function decryptWithKey(encrypted: string, key: CryptoKey): Promise<string> {
+  let combined: Uint8Array;
+  try {
+    combined = base64ToBuffer(encrypted);
+  } catch {
+    throw new Error('Failed to decrypt: invalid format');
+  }
+
+  // Validate minimum size before processing
+  if (combined.byteLength < MIN_ENCRYPTED_SIZE) {
+    throw new Error('Failed to decrypt: invalid format');
+  }
+
+  const iv = combined.slice(0, IV_BYTES);
+  const ciphertext = combined.slice(IV_BYTES);
+
+  // Always attempt decryption and capture result
+  let decryptedBuffer: ArrayBuffer | null = null;
+  let decryptionError: Error | null = null;
+
+  try {
+    decryptedBuffer = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: iv as BufferSource, tagLength: GCM_TAG_LENGTH },
+      key,
+      ciphertext
+    );
+  } catch (err) {
+    decryptionError = err instanceof Error ? err : new Error(String(err));
+  }
+
+  // Add small random delay to mask timing differences
+  const randomDelay = crypto.getRandomValues(new Uint8Array(1))[0] / 255 * 10; // 0-10ms
+  await new Promise(resolve => setTimeout(resolve, randomDelay));
+
+  if (decryptionError || !decryptedBuffer) {
+    throw new Error('Failed to decrypt: invalid password or corrupted data');
+  }
+
+  return decoder.decode(decryptedBuffer);
+}
+
+/**
+ * Encrypts a JSON-serializable object using AES-GCM.
+ *
+ * @param obj - The object to encrypt
+ * @param key - The AES-GCM CryptoKey
+ * @returns Base64-encoded encrypted data
+ */
+export async function encryptJsonWithKey<T>(obj: T, key: CryptoKey): Promise<string> {
+  const json = JSON.stringify(obj);
+  return encryptWithKey(json, key);
+}
+
+/**
+ * Decrypts and parses a JSON object using AES-GCM.
+ *
+ * @param encrypted - Base64-encoded encrypted data
+ * @param key - The AES-GCM CryptoKey
+ * @returns The decrypted and parsed object
+ * @throws Error if decryption or JSON parsing fails
+ */
+export async function decryptJsonWithKey<T>(encrypted: string, key: CryptoKey): Promise<T> {
+  const json = await decryptWithKey(encrypted, key);
+
+  // Parse JSON with error handling to avoid leaking decrypted content in error messages
+  try {
+    return JSON.parse(json);
+  } catch {
+    throw new Error('Failed to decrypt: invalid data format');
+  }
+}
+
+/**
+ * Default PBKDF2 iterations for key derivation.
+ * Exported for use by callers who need to store KDF params.
+ */
+export const DEFAULT_PBKDF2_ITERATIONS = PBKDF2_ITERATIONS;
+
+// ============================================================================
+// Web Worker Key Derivation (Non-blocking)
+// ============================================================================
+
+/** Singleton worker instance */
+let kdfWorker: Worker | null = null;
+
+/**
+ * Gets or creates the KDF worker instance.
+ * Returns null if workers are not available (e.g., in tests).
+ */
+function getKdfWorker(): Worker | null {
+  if (kdfWorker) return kdfWorker;
+
+  try {
+    // Vite handles the worker bundling with this syntax
+    kdfWorker = new Worker(new URL('./kdf-worker.ts', import.meta.url), {
+      type: 'module',
+    });
+    return kdfWorker;
+  } catch {
+    // Workers not available (tests, unsupported environment)
+    return null;
+  }
+}
+
+interface WorkerResponse {
+  success: boolean;
+  keyBase64?: string;
+  error?: string;
+}
+
+/**
+ * Derives an encryption key using a Web Worker (non-blocking).
+ * Falls back to main thread if workers are unavailable.
+ *
+ * This is cryptographically identical to deriveKey() - just runs off main thread
+ * to keep UI responsive during the ~1-2 second key derivation.
+ *
+ * @param password - User password
+ * @param salt - Random salt (16 bytes recommended)
+ * @param iterations - PBKDF2 iterations (defaults to 600K)
+ * @returns Extractable CryptoKey for AES-GCM
+ */
+export async function deriveKeyAsync(
+  password: string,
+  salt: Uint8Array<ArrayBuffer>,
+  iterations: number = PBKDF2_ITERATIONS
+): Promise<CryptoKey> {
+  const worker = getKdfWorker();
+
+  // Fallback to main thread if no worker
+  if (!worker) {
+    return deriveKey(password, salt, iterations);
+  }
+
+  const saltBase64 = bufferToBase64(salt);
+
+  return new Promise((resolve, reject) => {
+    const handleMessage = async (e: MessageEvent<WorkerResponse>) => {
+      worker.removeEventListener('message', handleMessage);
+      worker.removeEventListener('error', handleError);
+
+      if (e.data.success && e.data.keyBase64) {
+        try {
+          const key = await importKey(e.data.keyBase64);
+          // Re-import as extractable for session storage
+          const exported = await crypto.subtle.exportKey('raw', key);
+          const extractableKey = await crypto.subtle.importKey(
+            'raw',
+            exported,
+            { name: 'AES-GCM', length: KEY_BITS },
+            true, // extractable
+            ['encrypt', 'decrypt']
+          );
+          resolve(extractableKey);
+        } catch (err) {
+          reject(new Error('Failed to import derived key'));
+        }
+      } else {
+        reject(new Error(e.data.error || 'Key derivation failed'));
+      }
+    };
+
+    const handleError = (e: ErrorEvent) => {
+      worker.removeEventListener('message', handleMessage);
+      worker.removeEventListener('error', handleError);
+      reject(new Error(`Worker error: ${e.message}`));
+    };
+
+    worker.addEventListener('message', handleMessage);
+    worker.addEventListener('error', handleError);
+
+    worker.postMessage({ password, salt: saltBase64, iterations });
+  });
+}
