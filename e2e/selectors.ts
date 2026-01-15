@@ -178,8 +178,9 @@ export const verifyMessage = {
   verifyButton: (page: Page) => page.getByRole('button', { name: 'Verify Signature' }),
   resetButton: (page: Page) => page.locator('button[aria-label="Reset form"]'),
   uploadJsonButton: (page: Page) => page.getByRole('button', { name: 'Upload JSON' }),
-  validResult: (page: Page) => page.getByText('Signature Valid'),
-  invalidResult: (page: Page) => page.getByText('Signature Invalid'),
+  // Use specific CSS selectors to avoid matching input values
+  validResult: (page: Page) => page.locator('span.text-green-600:has-text("Signature Valid")'),
+  invalidResult: (page: Page) => page.locator('span.text-red-600:has-text("Signature Invalid")'),
 };
 
 // ============================================================================

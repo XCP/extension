@@ -97,8 +97,8 @@ walletTest.describe('Verify Message', () => {
 
     await verifyMessage.verifyButton(page).click();
 
-    const errorAlert = page.locator('text=/Invalid signature|Failed to verify/');
-    await expect(verifyMessage.invalidResult(page).or(errorAlert)).toBeVisible({ timeout: 5000 });
+    // Wait for verification result - should show invalid signature message
+    await expect(verifyMessage.invalidResult(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('clears all fields', async ({ page }) => {
