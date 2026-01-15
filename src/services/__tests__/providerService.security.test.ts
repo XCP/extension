@@ -253,7 +253,7 @@ describe('ProviderService Security Tests', () => {
       const origin = 'https://connected.com';
       
       // Mock as connected site
-      vi.mocked(walletManager.getSettings).mockResolvedValue({
+      vi.mocked(walletManager.getSettings).mockReturnValue({
         ...DEFAULT_SETTINGS,
         connectedWebsites: [origin]
       });
@@ -327,7 +327,7 @@ describe('ProviderService Security Tests', () => {
   describe('Security: Input Validation', () => {
     it('should validate transaction parameters', async () => {
       // Mark as connected site
-      vi.mocked(walletManager.getSettings).mockResolvedValue({
+      vi.mocked(walletManager.getSettings).mockReturnValue({
         ...DEFAULT_SETTINGS,
         connectedWebsites: ['https://connected.com']
       });
@@ -349,7 +349,7 @@ describe('ProviderService Security Tests', () => {
     
     it('should validate parameter types for signing methods', async () => {
       // Mark as connected site
-      vi.mocked(walletManager.getSettings).mockResolvedValue({
+      vi.mocked(walletManager.getSettings).mockReturnValue({
         ...DEFAULT_SETTINGS,
         connectedWebsites: ['https://connected.com']
       });
@@ -403,7 +403,7 @@ describe('ProviderService Security Tests', () => {
   describe('Security: Approval Flow Integrity', () => {
     it('should require user approval for signing operations', async () => {
       // Mock site as not connected
-      vi.mocked(walletManager.getSettings).mockResolvedValue({
+      vi.mocked(walletManager.getSettings).mockReturnValue({
         ...DEFAULT_SETTINGS,
         connectedWebsites: [] // Not connected
       });
@@ -420,7 +420,7 @@ describe('ProviderService Security Tests', () => {
 
     it('should require authorization for broadcast operations', async () => {
       // Mock site as not connected
-      vi.mocked(walletManager.getSettings).mockResolvedValue({
+      vi.mocked(walletManager.getSettings).mockReturnValue({
         ...DEFAULT_SETTINGS,
         connectedWebsites: [] // Not connected
       });
@@ -478,7 +478,7 @@ describe('ProviderService Security Tests', () => {
     
     it('should only expose current active address when connected', async () => {
       // Mock as connected
-      vi.mocked(walletManager.getSettings).mockResolvedValue({
+      vi.mocked(walletManager.getSettings).mockReturnValue({
         ...DEFAULT_SETTINGS,
         connectedWebsites: ['https://connected.com']
       });
@@ -495,7 +495,7 @@ describe('ProviderService Security Tests', () => {
     });
     
     it('should hide accounts when wallet is locked', async () => {
-      vi.mocked(walletManager.getSettings).mockResolvedValue({
+      vi.mocked(walletManager.getSettings).mockReturnValue({
         ...DEFAULT_SETTINGS,
         connectedWebsites: ['https://connected.com']
       });
