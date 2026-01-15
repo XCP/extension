@@ -67,8 +67,8 @@ walletTest.describe('Actions Page', () => {
     await actions.verifyMessageOption(page).click();
     await expect(page).toHaveURL(/verify-message/);
 
-    const hasVerifyForm = await page.locator('textarea, input').first().isVisible({ timeout: 5000 }).catch(() => false);
-    expect(hasVerifyForm).toBe(true);
+    // Use expect().toBeVisible() which properly waits, unlike isVisible()
+    await expect(page.locator('textarea, input').first()).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('can navigate to Issue Asset from actions', async ({ page }) => {

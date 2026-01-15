@@ -12,11 +12,16 @@ walletTest.describe('Compose BTC Pay Page (/compose/order/btcpay)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/compose/order/btcpay'));
     await page.waitForLoadState('networkidle');
 
-    const hasBtcPay = await page.locator('text=/BTC.*Pay|Pay.*Order|Fill.*Order|Match/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasPayButton = await compose.btcpay.payButton(page).isVisible({ timeout: 3000 }).catch(() => false);
+    // Wait for page to fully load - check for form content or redirect
     const redirected = !page.url().includes('/btcpay');
+    if (redirected) {
+      expect(true).toBe(true); // Page redirected, test passes
+      return;
+    }
 
-    expect(hasBtcPay || hasPayButton || redirected).toBe(true);
+    // Form should have Order Match ID label or input field
+    const formContent = page.locator('text=/Order Match ID|Match/i, input[placeholder*="order match"]').first();
+    await expect(formContent).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('btcpay form has order selection', async ({ page }) => {

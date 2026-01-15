@@ -157,27 +157,36 @@ walletTest.describe('User Journey: Settings Exploration', () => {
     await navigateTo(page, 'settings');
     await expect(page).toHaveURL(/settings/);
 
-    // Step 2: Visit Address Type settings
+    // Step 2: Visit Address Type settings (only for mnemonic wallets)
     const addressTypeOption = settings.addressTypeOption(page);
-    if (await addressTypeOption.isVisible({ timeout: 5000 }).catch(() => false)) {
+    try {
+      await expect(addressTypeOption).toBeVisible({ timeout: 3000 });
       await addressTypeOption.click();
-      await page.waitForURL(/address-type/, { timeout: 5000 }).catch(() => {});
+      await page.waitForURL(/address-type/, { timeout: 5000 });
+      await navigateTo(page, 'settings');
+    } catch {
+      // Address Type not available (e.g., private key wallet) - skip
     }
 
-    // Step 3: Go back and visit Security
-    await navigateTo(page, 'settings');
+    // Step 3: Visit Security (always available)
     const securityOption = settings.securityOption(page);
-    if (await securityOption.isVisible({ timeout: 5000 }).catch(() => false)) {
+    try {
+      await expect(securityOption).toBeVisible({ timeout: 3000 });
       await securityOption.click();
-      await page.waitForURL(/security/, { timeout: 5000 }).catch(() => {});
+      await page.waitForURL(/security/, { timeout: 5000 });
+      await navigateTo(page, 'settings');
+    } catch {
+      // Security option not found - skip
     }
 
-    // Step 4: Go back and visit Advanced
-    await navigateTo(page, 'settings');
+    // Step 4: Visit Advanced (always available)
     const advancedOption = settings.advancedOption(page);
-    if (await advancedOption.isVisible({ timeout: 5000 }).catch(() => false)) {
+    try {
+      await expect(advancedOption).toBeVisible({ timeout: 3000 });
       await advancedOption.click();
-      await page.waitForURL(/advanced/, { timeout: 5000 }).catch(() => {});
+      await page.waitForURL(/advanced/, { timeout: 5000 });
+    } catch {
+      // Advanced option not found - skip
     }
 
     // Step 5: Return to dashboard
@@ -185,9 +194,7 @@ walletTest.describe('User Journey: Settings Exploration', () => {
     await expect(page).toHaveURL(/index/, { timeout: 5000 });
 
     // Step 6: Verify dashboard still works
-    const addressElement = page.locator('.font-mono').first();
-    const hasAddress = await addressElement.isVisible({ timeout: 5000 }).catch(() => false);
-    expect(hasAddress || page.url().includes('index')).toBe(true);
+    expect(page.url()).toContain('index');
   });
 
   walletTest('navigate through all footer tabs', async ({ page }) => {
@@ -280,25 +287,34 @@ walletTest.describe('User Journey: Actions Exploration', () => {
 
     // Step 2: Try Sign Message
     const signMessageOption = actions.signMessageOption(page);
-    if (await signMessageOption.isVisible({ timeout: 5000 }).catch(() => false)) {
+    try {
+      await expect(signMessageOption).toBeVisible({ timeout: 3000 });
       await signMessageOption.click();
-      await page.waitForURL(/sign-message/, { timeout: 5000 }).catch(() => {});
+      await page.waitForURL(/sign-message/, { timeout: 5000 });
+      await navigateTo(page, 'actions');
+    } catch {
+      // Sign Message not available - skip
     }
 
-    // Step 3: Go back and try Verify Message
-    await navigateTo(page, 'actions');
+    // Step 3: Try Verify Message
     const verifyMessageOption = actions.verifyMessageOption(page);
-    if (await verifyMessageOption.isVisible({ timeout: 5000 }).catch(() => false)) {
+    try {
+      await expect(verifyMessageOption).toBeVisible({ timeout: 3000 });
       await verifyMessageOption.click();
-      await page.waitForURL(/verify-message/, { timeout: 5000 }).catch(() => {});
+      await page.waitForURL(/verify-message/, { timeout: 5000 });
+      await navigateTo(page, 'actions');
+    } catch {
+      // Verify Message not available - skip
     }
 
-    // Step 4: Go back and try Issue Asset
-    await navigateTo(page, 'actions');
+    // Step 4: Try Issue Asset
     const issueAssetOption = actions.issueAssetOption(page);
-    if (await issueAssetOption.isVisible({ timeout: 5000 }).catch(() => false)) {
+    try {
+      await expect(issueAssetOption).toBeVisible({ timeout: 3000 });
       await issueAssetOption.click();
-      await page.waitForURL(/issuance/, { timeout: 5000 }).catch(() => {});
+      await page.waitForURL(/issuance/, { timeout: 5000 });
+    } catch {
+      // Issue Asset not available - skip
     }
 
     // Step 5: Return to wallet

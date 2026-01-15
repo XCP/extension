@@ -24,9 +24,8 @@ walletTest.describe('Compose Sweep Page (/compose/sweep)', () => {
     await page.waitForURL(/sweep/, { timeout: 5000 });
 
     const destInput = compose.sweep.destinationInput(page);
-    const hasDestInput = await destInput.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(hasDestInput).toBe(true);
+    // Use expect().toBeVisible() which properly waits, unlike isVisible()
+    await expect(destInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('sweep form validates destination address', async ({ page }) => {

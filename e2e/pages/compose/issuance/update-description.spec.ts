@@ -12,11 +12,16 @@ walletTest.describe('Compose Update Description Page (/compose/issuance/update-d
     await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/update-description/TESTASSET'));
     await page.waitForLoadState('networkidle');
 
-    const hasUpdate = await page.locator('text=/Update.*Description|Description|Edit/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasTextarea = await compose.issuance.descriptionInput(page).isVisible({ timeout: 3000 }).catch(() => false);
+    // Wait for page to fully load - check for form content or redirect
     const redirected = !page.url().includes('update-description');
+    if (redirected) {
+      expect(true).toBe(true); // Page redirected, test passes
+      return;
+    }
 
-    expect(hasUpdate || hasTextarea || redirected).toBe(true);
+    // Form should have description label or textarea
+    const formContent = page.locator('text=/Description|Update/i, textarea').first();
+    await expect(formContent).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('update description shows current description', async ({ page }) => {

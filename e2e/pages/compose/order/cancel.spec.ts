@@ -26,11 +26,16 @@ walletTest.describe('Compose Cancel Order Page (/compose/order/cancel)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/compose/order/cancel'));
     await page.waitForLoadState('networkidle');
 
-    const hasCancel = await page.locator('text=/Cancel.*Order|Select.*Order|Your.*Orders/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasCancelButton = await compose.order.cancelOrderButton(page).isVisible({ timeout: 3000 }).catch(() => false);
+    // Wait for page to fully load - check for form content or redirect
     const redirected = !page.url().includes('/cancel');
+    if (redirected) {
+      expect(true).toBe(true); // Page redirected, test passes
+      return;
+    }
 
-    expect(hasCancel || hasCancelButton || redirected).toBe(true);
+    // Form should have Order Hash label or input field
+    const formContent = page.locator('text=/Order.*Hash|Transaction.*Hash|Cancel/i, input[placeholder*="order"]').first();
+    await expect(formContent).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('cancel order shows user orders', async ({ page }) => {
