@@ -17,6 +17,8 @@ import type { Wallet, Address } from '@/types/wallet';
 
 interface WalletService {
   refreshWallets: () => Promise<void>;
+  getSettings: () => Promise<import('@/utils/settings').AppSettings>;
+  updateSettings: (updates: Partial<import('@/utils/settings').AppSettings>) => Promise<void>;
   getWallets: () => Promise<Wallet[]>;
   getActiveWallet: () => Promise<Wallet | undefined>;
   getActiveAddress: () => Promise<Address | undefined>;
@@ -63,6 +65,10 @@ function createWalletService(): WalletService {
   return {
     refreshWallets: async () => {
       await walletManager.refreshWallets();
+    },
+    getSettings: async () => walletManager.getSettings(),
+    updateSettings: async (updates) => {
+      await walletManager.updateSettings(updates);
     },
     getWallets: async () => walletManager.getWallets(),
     getActiveWallet: async () => walletManager.getActiveWallet(),

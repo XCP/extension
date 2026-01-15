@@ -26,9 +26,10 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
   const { settings, isLoading: settingsLoading, refreshSettings } = useSettings();
   const prevAuthStateRef = useRef(authState);
 
-  // Re-fetch settings when wallet becomes unlocked
-  // This handles the case where settings were read before the encryption key
-  // was available (e.g., after page reload during service worker initialization)
+  // Re-fetch settings when wallet becomes unlocked.
+  // On page reload, both popup and background need to restore from session storage.
+  // Settings may be fetched before the background's keychain is restored, returning defaults.
+  // This refresh ensures we get the correct settings after the keychain is confirmed loaded.
   useEffect(() => {
     if (prevAuthStateRef.current !== 'UNLOCKED' && authState === 'UNLOCKED' && !walletLoading) {
       refreshSettings();

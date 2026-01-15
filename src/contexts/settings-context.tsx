@@ -31,7 +31,7 @@ import {
 } from "react";
 import { onMessage } from 'webext-bridge/popup';
 import { DEFAULT_SETTINGS, type AppSettings } from "@/utils/settings";
-import { walletManager } from "@/utils/wallet/walletManager";
+import { getWalletService } from "@/services/walletService";
 import { withStateLock } from "@/utils/wallet/stateLockManager";
 
 /**
@@ -63,7 +63,8 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
   const loadSettings = useCallback(async () => {
     try {
       setIsLoading(true);
-      const storedSettings = walletManager.getSettings();
+      const walletService = getWalletService();
+      const storedSettings = await walletService.getSettings();
       setSettings(storedSettings);
     } finally {
       setIsLoading(false);
@@ -98,8 +99,9 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
       // Optimistically update state for instant UI response
       setSettings(prev => ({ ...prev, ...newSettings }));
 
-      // Persist to storage
-      await walletManager.updateSettings(newSettings);
+      // Persist to storage via background service
+      const walletService = getWalletService();
+      await walletService.updateSettings(newSettings);
     } catch (error) {
       console.error('Failed to persist settings:', error);
       // On error, reload from storage to get the authoritative state.
