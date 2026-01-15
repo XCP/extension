@@ -4,8 +4,8 @@
  * Tests for proper HeadlessUI component behavior in settings.
  */
 
-import { walletTest, expect, navigateTo, getCurrentAddress } from '../../fixtures';
-import { settings, selectAddress } from '../../selectors';
+import { walletTest, expect, navigateTo, getCurrentAddress } from '../fixtures';
+import { settings, selectAddress } from '../selectors';
 
 walletTest.describe('Settings with Headless UI Components', () => {
   walletTest('change address type using Headless UI RadioGroup', async ({ page }) => {

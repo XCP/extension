@@ -4,8 +4,8 @@
  * Core wallet features: balance display, navigation, copy address, etc.
  */
 
-import { walletTest, expect, navigateTo, getCurrentAddress, grantClipboardPermissions, unlockWallet, TEST_PASSWORD } from '../../fixtures';
-import { index, settings, viewAddress } from '../../selectors';
+import { walletTest, expect, navigateTo, getCurrentAddress, grantClipboardPermissions, unlockWallet, TEST_PASSWORD } from '../fixtures';
+import { index, settings, viewAddress } from '../selectors';
 
 walletTest.describe('Balance Display', () => {
   walletTest('shows Assets and Balances tabs', async ({ page }) => {

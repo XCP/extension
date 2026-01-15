@@ -28,20 +28,20 @@ import {
   TEST_MNEMONIC,
   TEST_PRIVATE_KEY,
   TEST_COUNTERWALLET_MNEMONIC
-} from '../../fixtures';
+} from '../fixtures';
 import {
   STANDARD_ADDRESS_TYPES,
   COUNTERWALLET_ADDRESS_TYPES,
   ADDRESS_TYPE_DISPLAY_NAMES,
   ADDRESS_PREFIX_STRINGS,
   type AddressType,
-} from '../../helpers/test-data';
+} from '../helpers/test-data';
 import {
   settings,
   index,
   viewAddress,
   selectAddress
-} from '../../selectors';
+} from '../selectors';
 
 async function selectAddressType(page: any, addressType: AddressType): Promise<void> {
   await navigateTo(page, 'settings');

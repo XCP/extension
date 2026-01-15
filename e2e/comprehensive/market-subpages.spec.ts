@@ -8,8 +8,8 @@
  * - /market/orders/:baseAsset/:quoteAsset
  */
 
-import { walletTest, expect, navigateTo } from '../../fixtures';
-import { compose, common } from '../../selectors';
+import { walletTest, expect, navigateTo } from '../fixtures';
+import { compose, common } from '../selectors';
 
 walletTest.describe('Dispenser Management Page (/dispensers/manage)', () => {
   walletTest('can navigate to dispenser management from market', async ({ page }) => {

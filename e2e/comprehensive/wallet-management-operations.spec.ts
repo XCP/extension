@@ -14,7 +14,7 @@ import {
   createWallet,
   navigateTo,
   TEST_PASSWORD
-} from '../../fixtures';
+} from '../fixtures';
 import {
   header,
   selectWallet,
@@ -22,7 +22,7 @@ import {
   onboarding,
   createWallet as createWalletSelectors,
   unlock
-} from '../../selectors';
+} from '../selectors';
 
 test.describe('Remove Wallet', () => {
   test('remove button is disabled when only one wallet exists', async ({ extensionPage }) => {

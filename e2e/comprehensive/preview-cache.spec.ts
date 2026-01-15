@@ -4,8 +4,8 @@
  * Tests verifying address preview display and cache behavior.
  */
 
-import { walletTest, expect, navigateTo, lockWallet, unlockWallet, TEST_PASSWORD } from '../../fixtures';
-import { settings, selectAddress, unlock, viewAddress } from '../../selectors';
+import { walletTest, expect, navigateTo, lockWallet, unlockWallet, TEST_PASSWORD } from '../fixtures';
+import { settings, selectAddress, unlock, viewAddress } from '../selectors';
 
 walletTest.describe('Address Preview Display', () => {
   walletTest('displays address previews for each format when wallet unlocked', async ({ page }) => {
