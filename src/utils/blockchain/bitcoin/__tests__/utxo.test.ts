@@ -7,13 +7,20 @@ import {
   fetchPreviousRawTransaction
 } from '@/utils/blockchain/bitcoin/utxo';
 import { apiClient, isCancel } from '@/utils/apiClient';
+import { walletManager } from '@/utils/wallet/walletManager';
 
 vi.mock('@/utils/apiClient');
-vi.mock('@/utils/storage/settingsStorage');
+vi.mock('@/utils/wallet/walletManager', () => ({
+  walletManager: {
+    getSettings: vi.fn().mockReturnValue({
+      counterpartyApiBase: 'https://api.counterparty.io',
+    }),
+  },
+}));
 
 const mockApiClient = vi.mocked(apiClient, true);
 const mockIsCancel = vi.mocked(isCancel);
-const mockGetSettings = vi.fn();
+const mockGetSettings = vi.mocked(walletManager.getSettings);
 
 describe('UTXO Utilities', () => {
   const mockAddress = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
@@ -32,15 +39,11 @@ describe('UTXO Utilities', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    
+
     // Setup the settings mock
-    mockGetSettings.mockResolvedValue({
-      counterpartyApiBase: 'https://api.counterparty.io'
-    });
-    
-    // Re-import the module to apply the mock
-    const { getSettings } = await import('@/utils/storage/settingsStorage');
-    vi.mocked(getSettings).mockImplementation(mockGetSettings);
+    mockGetSettings.mockReturnValue({
+      counterpartyApiBase: 'https://api.counterparty.io',
+    } as any);
   });
 
   afterEach(() => {
@@ -453,9 +456,9 @@ describe('UTXO Utilities', () => {
 
     it('should use custom counterparty API base URL', async () => {
       // Override the mock for this specific test
-      mockGetSettings.mockResolvedValueOnce({
+      mockGetSettings.mockReturnValueOnce({
         counterpartyApiBase: 'https://custom.api.com'
-      });
+      } as any);
 
       mockApiClient.get.mockResolvedValue({
         data: { result: { hex: mockRawHex } },

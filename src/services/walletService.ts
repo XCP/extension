@@ -14,7 +14,6 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { walletManager } from '@/utils/wallet/walletManager';
 import type { Wallet, Address } from '@/types/wallet';
-import { getSettings, updateSettings } from '@/utils/storage/settingsStorage';
 
 interface WalletService {
   refreshWallets: () => Promise<void>;
@@ -71,7 +70,7 @@ function createWalletService(): WalletService {
       const activeWallet = walletManager.getActiveWallet();
       if (!activeWallet) return undefined;
 
-      const settings = await getSettings();
+      const settings = walletManager.getSettings();
       const lastActiveAddress = settings?.lastActiveAddress;
       
       if (!lastActiveAddress) {
@@ -170,11 +169,11 @@ function createWalletService(): WalletService {
       return walletManager.signPsbt(psbtHex, signInputs, sighashTypes);
     },
     getLastActiveAddress: async () => {
-      const settings = await getSettings();
+      const settings = walletManager.getSettings();
       return settings?.lastActiveAddress;
     },
     setLastActiveAddress: async (address) => {
-      await updateSettings({ lastActiveAddress: address });
+      await walletManager.updateSettings({ lastActiveAddress: address });
       // Don't emit accountsChanged here - it's handled in wallet-context
       // which emits to all connected sites
     },

@@ -23,7 +23,8 @@ import { createProviderService } from '../providerService';
 import * as walletService from '../walletService';
 import * as connectionService from '../connectionService';
 import * as approvalService from '../approvalService';
-import * as settingsStorage from '@/utils/storage/settingsStorage';
+import { walletManager } from '@/utils/wallet/walletManager';
+import { DEFAULT_SETTINGS } from '@/utils/settings';
 import * as approvalQueue from '@/utils/provider/approvalQueue';
 import * as rateLimiter from '@/utils/provider/rateLimiter';
 import * as replayPrevention from '@/utils/security/replayPrevention';
@@ -37,7 +38,16 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 vi.mock('../walletService');
 vi.mock('../connectionService');
 vi.mock('../approvalService');
-vi.mock('@/utils/storage/settingsStorage');
+vi.mock('@/utils/wallet/walletManager', () => ({
+  walletManager: {
+    getSettings: vi.fn().mockReturnValue({
+      connectedWebsites: [],
+      analyticsAllowed: true,
+      counterpartyApiBase: 'https://api.counterparty.io',
+    }),
+    updateSettings: vi.fn(),
+  },
+}));
 vi.mock('@/utils/storage/signMessageRequestStorage');
 vi.mock('@/utils/storage/signPsbtRequestStorage');
 vi.mock('@/services/updateService');
@@ -137,8 +147,8 @@ describe('ProviderService', () => {
     fakeBrowser.action.setBadgeBackgroundColor = vi.fn().mockResolvedValue(undefined);
     
     // Setup default mocks using the default settings constant
-    vi.mocked(settingsStorage.getSettings).mockResolvedValue({
-      ...settingsStorage.DEFAULT_SETTINGS,
+    vi.mocked(walletManager.getSettings).mockReturnValue({
+      ...DEFAULT_SETTINGS,
       connectedWebsites: [] // Override specific properties as needed
     });
     
@@ -243,8 +253,8 @@ describe('ProviderService', () => {
     } as any;
     
     // Setup settings mocks - default to no connected sites
-    // (Already set up above with settingsStorage.DEFAULT_SETTINGS)
-    vi.mocked(settingsStorage.updateSettings).mockResolvedValue(undefined);
+    // (Already set up above with DEFAULT_SETTINGS)
+    vi.mocked(walletManager.updateSettings).mockResolvedValue(undefined);
     
     // Setup other mocks
     vi.mocked(approvalQueue.approvalQueue.add).mockReturnValue(undefined as any);

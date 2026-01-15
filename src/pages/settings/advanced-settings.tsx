@@ -8,7 +8,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { ApiUrlInput } from "@/components/inputs/api-url-input";
 import { SettingSwitch } from "@/components/inputs/setting-switch";
-import type { AutoLockTimer } from "@/utils/storage/settingsStorage";
+import type { AutoLockTimer } from "@/utils/settings";
 import type { ReactElement } from "react";
 
 /**

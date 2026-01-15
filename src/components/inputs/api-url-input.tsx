@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { FiRotateCcw } from '@/components/icons';
 import { Input } from '@headlessui/react';
 import { validateCounterpartyApi } from '@/utils/validation/api';
-import { DEFAULT_SETTINGS } from '@/utils/storage/settingsStorage';
+import { DEFAULT_SETTINGS } from '@/utils/settings';
 
 interface ApiUrlInputProps {
   value: string;

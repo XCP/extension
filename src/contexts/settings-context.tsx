@@ -11,7 +11,7 @@
  *
  * ## Persistence
  *
- * Settings are encrypted and stored using `settingsStorage`.
+ * Settings are encrypted and stored inside the keychain.
  * On wallet lock, settings reset to defaults (encryption key is cleared).
  *
  * ## Optimistic Updates
@@ -30,12 +30,8 @@ import {
   type ReactNode,
 } from "react";
 import { onMessage } from 'webext-bridge/popup';
-import {
-  getSettings,
-  updateSettings,
-  DEFAULT_SETTINGS,
-  type AppSettings,
-} from "@/utils/storage/settingsStorage";
+import { DEFAULT_SETTINGS, type AppSettings } from "@/utils/settings";
+import { walletManager } from "@/utils/wallet/walletManager";
 import { withStateLock } from "@/utils/wallet/stateLockManager";
 
 /**
@@ -67,7 +63,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
   const loadSettings = useCallback(async () => {
     try {
       setIsLoading(true);
-      const storedSettings = await getSettings();
+      const storedSettings = walletManager.getSettings();
       setSettings(storedSettings);
     } finally {
       setIsLoading(false);
@@ -103,7 +99,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
       setSettings(prev => ({ ...prev, ...newSettings }));
 
       // Persist to storage
-      await updateSettings(newSettings);
+      await walletManager.updateSettings(newSettings);
     } catch (error) {
       console.error('Failed to persist settings:', error);
       // On error, reload from storage to get the authoritative state.

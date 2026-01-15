@@ -17,20 +17,6 @@ vi.mock('webext-bridge/background', () => ({
   onMessage: vi.fn().mockReturnValue(() => {}), // Return cleanup function
 }));
 
-// Mock storage first to prevent infinite loops
-vi.mock('@/utils/storage/settingsStorage', async () => {
-  const actual = await vi.importActual<typeof import('@/utils/storage/settingsStorage')>('@/utils/storage/settingsStorage');
-  return {
-    ...actual,
-    getSettings: vi.fn().mockResolvedValue({
-      ...actual.DEFAULT_SETTINGS,
-      lastActiveWalletId: 'wallet1',
-      analyticsAllowed: false,
-      pinnedAssets: [],
-      counterpartyApiBase: 'https://api.counterparty.io',
-    }),
-  };
-});
 
 // Mock withStateLock to execute functions immediately without locking
 vi.mock('@/utils/wallet/stateLockManager', async () => {
@@ -51,7 +37,25 @@ vi.mock('@/utils/wallet/walletManager', () => ({
     createWallet: vi.fn(),
     importWallet: vi.fn(),
     removeWallet: vi.fn(),
-    renameWallet: vi.fn()
+    renameWallet: vi.fn(),
+    getSettings: vi.fn().mockReturnValue({
+      lastActiveWalletId: 'wallet1',
+      lastActiveAddress: undefined,
+      connectedWebsites: [],
+      showHelpText: false,
+      analyticsAllowed: false,
+      allowUnconfirmedTxs: true,
+      autoLockTimer: '5m',
+      enableMPMA: false,
+      enableAdvancedBroadcasts: false,
+      transactionDryRun: false,
+      pinnedAssets: [],
+      counterpartyApiBase: 'https://api.counterparty.io',
+      defaultOrderExpiration: 1000,
+      priceUnit: 'btc',
+      fiat: 'usd',
+    }),
+    updateSettings: vi.fn(),
   }
 }));
 vi.mock('@/utils/auth/sessionManager', () => ({

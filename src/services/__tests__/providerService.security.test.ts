@@ -4,8 +4,8 @@ import { fakeBrowser } from 'wxt/testing';
 import { createProviderService } from '../providerService';
 import * as walletService from '../walletService';
 import * as connectionService from '../connectionService';
-import * as settingsStorage from '@/utils/storage/settingsStorage';
-import { DEFAULT_SETTINGS } from '@/utils/storage/settingsStorage';
+import { walletManager } from '@/utils/wallet/walletManager';
+import { DEFAULT_SETTINGS } from '@/utils/settings';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
 import { approvalQueue } from '@/utils/provider/approvalQueue';
 import { getConnectionService } from '../connectionService';
@@ -18,7 +18,16 @@ vi.mock('webext-bridge/background', () => ({
 }));
 
 vi.mock('../walletService');
-vi.mock('@/utils/storage/settingsStorage');
+vi.mock('@/utils/wallet/walletManager', () => ({
+  walletManager: {
+    getSettings: vi.fn().mockReturnValue({
+      connectedWebsites: [],
+      analyticsAllowed: true,
+      counterpartyApiBase: 'https://api.counterparty.io',
+    }),
+    updateSettings: vi.fn(),
+  },
+}));
 vi.mock('@/utils/provider/rateLimiter');
 vi.mock('../connectionService');
 vi.mock('../approvalService');
@@ -73,7 +82,7 @@ describe('ProviderService Security Tests', () => {
     vi.mocked(apiRateLimiter.resetAll).mockReturnValue(undefined);
     
     // Setup default mocks using the default settings constant
-    vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+    vi.mocked(walletManager.getSettings).mockReturnValue({
       ...DEFAULT_SETTINGS,
       connectedWebsites: [] // Override specific properties as needed
     });
@@ -110,7 +119,7 @@ describe('ProviderService Security Tests', () => {
     // Setup connection service mocks - will be updated per test
     const mockConnectionService = {
       hasPermission: vi.fn().mockImplementation(async (origin: string) => {
-        const settings = await settingsStorage.getSettings();
+        const settings = walletManager.getSettings();
         return settings.connectedWebsites?.includes(origin) || false;
       }),
       requestPermission: vi.fn().mockResolvedValue(true),
@@ -209,7 +218,7 @@ describe('ProviderService Security Tests', () => {
       ).rejects.toThrow('Unauthorized');
       
       // Verify the site was not added to connected websites
-      const settings = await settingsStorage.getSettings();
+      const settings = walletManager.getSettings();
       expect(settings.connectedWebsites).not.toContain('https://malicious.com');
     });
   });
@@ -244,7 +253,7 @@ describe('ProviderService Security Tests', () => {
       const origin = 'https://connected.com';
       
       // Mock as connected site
-      vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+      vi.mocked(walletManager.getSettings).mockResolvedValue({
         ...DEFAULT_SETTINGS,
         connectedWebsites: [origin]
       });
@@ -318,7 +327,7 @@ describe('ProviderService Security Tests', () => {
   describe('Security: Input Validation', () => {
     it('should validate transaction parameters', async () => {
       // Mark as connected site
-      vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+      vi.mocked(walletManager.getSettings).mockResolvedValue({
         ...DEFAULT_SETTINGS,
         connectedWebsites: ['https://connected.com']
       });
@@ -340,7 +349,7 @@ describe('ProviderService Security Tests', () => {
     
     it('should validate parameter types for signing methods', async () => {
       // Mark as connected site
-      vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+      vi.mocked(walletManager.getSettings).mockResolvedValue({
         ...DEFAULT_SETTINGS,
         connectedWebsites: ['https://connected.com']
       });
@@ -394,7 +403,7 @@ describe('ProviderService Security Tests', () => {
   describe('Security: Approval Flow Integrity', () => {
     it('should require user approval for signing operations', async () => {
       // Mock site as not connected
-      vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+      vi.mocked(walletManager.getSettings).mockResolvedValue({
         ...DEFAULT_SETTINGS,
         connectedWebsites: [] // Not connected
       });
@@ -411,7 +420,7 @@ describe('ProviderService Security Tests', () => {
 
     it('should require authorization for broadcast operations', async () => {
       // Mock site as not connected
-      vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+      vi.mocked(walletManager.getSettings).mockResolvedValue({
         ...DEFAULT_SETTINGS,
         connectedWebsites: [] // Not connected
       });
@@ -469,7 +478,7 @@ describe('ProviderService Security Tests', () => {
     
     it('should only expose current active address when connected', async () => {
       // Mock as connected
-      vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+      vi.mocked(walletManager.getSettings).mockResolvedValue({
         ...DEFAULT_SETTINGS,
         connectedWebsites: ['https://connected.com']
       });
@@ -486,7 +495,7 @@ describe('ProviderService Security Tests', () => {
     });
     
     it('should hide accounts when wallet is locked', async () => {
-      vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+      vi.mocked(walletManager.getSettings).mockResolvedValue({
         ...DEFAULT_SETTINGS,
         connectedWebsites: ['https://connected.com']
       });

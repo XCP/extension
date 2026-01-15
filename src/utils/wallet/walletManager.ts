@@ -23,7 +23,7 @@ import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressForma
 import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';
 import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
 import { isValidCounterwalletMnemonic, getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
-import { DEFAULT_SETTINGS, getAutoLockTimeoutMs, type AppSettings } from '@/types/settings';
+import { DEFAULT_SETTINGS, getAutoLockTimeoutMs, type AppSettings } from '@/utils/settings';
 import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 import { signPSBT as btcSignPSBT } from '@/utils/blockchain/bitcoin/psbt';

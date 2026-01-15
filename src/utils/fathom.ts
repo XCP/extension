@@ -3,7 +3,7 @@
  * Provides privacy-focused analytics without relying on WXT modules
  */
 
-import { getSettings } from '@/utils/storage/settingsStorage';
+import { walletManager } from '@/utils/wallet/walletManager';
 
 // Fathom configuration constants
 export const FATHOM_SITE_ID = 'PEMZGNDB';
@@ -99,7 +99,7 @@ async function isAnalyticsEnabled(): Promise<boolean> {
     }
 
     // Fall back to our settings (Chrome and older Firefox)
-    const settings = await getSettings();
+    const settings = walletManager.getSettings();
     return settings.analyticsAllowed;
   } catch (error) {
     // If we can't get settings, don't track

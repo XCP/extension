@@ -2,58 +2,43 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { SettingsProvider, useSettings } from '../settings-context';
 import { sendMessage } from 'webext-bridge/popup';
-import { DEFAULT_SETTINGS } from '@/utils/storage/settingsStorage';
+import { DEFAULT_SETTINGS } from '@/utils/settings';
+import type { AppSettings } from '@/utils/settings';
 
-// Mock dependencies
-vi.mock('@/utils/storage/settingsStorage', () => ({
-  getSettings: vi.fn(),
-  updateSettings: vi.fn(),
-  SETTINGS_VERSION: 2,
-  DEFAULT_SETTINGS: {
-    version: 2,
-    lastActiveWalletId: undefined,
-    lastActiveAddress: undefined,
-    connectedWebsites: [],
-    showHelpText: false,
-    analyticsAllowed: true,
-    allowUnconfirmedTxs: true,
-    autoLockTimer: '5m',
-    enableMPMA: false,
-    enableAdvancedBroadcasts: false,
-    transactionDryRun: false,
-    pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
-    counterpartyApiBase: 'https://api.counterparty.io:4000',
-    defaultOrderExpiration: 8064,
-    priceUnit: 'btc',
-    fiat: 'usd',
-  }
+// Mock walletManager
+const mockGetSettings = vi.fn();
+const mockUpdateSettings = vi.fn();
+
+vi.mock('@/utils/wallet/walletManager', () => ({
+  walletManager: {
+    getSettings: () => mockGetSettings(),
+    updateSettings: (updates: Partial<AppSettings>) => mockUpdateSettings(updates),
+  },
 }));
+
 vi.mock('webext-bridge/popup', () => ({
   sendMessage: vi.fn(),
   onMessage: vi.fn().mockReturnValue(() => {}), // Return unsubscribe function
 }));
-
-// Import the mocked functions
-import { getSettings, updateSettings } from '@/utils/storage/settingsStorage';
 
 describe('SettingsContext', () => {
   const defaultSettings = DEFAULT_SETTINGS;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Create a shared state that can be mutated
     let currentSettings = { ...defaultSettings };
-    
-    vi.mocked(getSettings).mockImplementation(async () => {
+
+    mockGetSettings.mockImplementation(() => {
       return { ...currentSettings };
     });
-    
-    vi.mocked(updateSettings).mockImplementation(async (newSettings) => {
+
+    mockUpdateSettings.mockImplementation(async (newSettings: Partial<AppSettings>) => {
       // Update the shared state with proper type handling
       currentSettings = { ...currentSettings, ...newSettings } as typeof defaultSettings;
     });
-    
+
     vi.mocked(sendMessage).mockResolvedValue({ success: true });
   });
 
@@ -85,7 +70,7 @@ describe('SettingsContext', () => {
       });
 
       await waitFor(() => {
-        expect(getSettings).toHaveBeenCalled();
+        expect(mockGetSettings).toHaveBeenCalled();
       });
     });
   });
@@ -104,7 +89,7 @@ describe('SettingsContext', () => {
         await result.current.updateSettings({ autoLockTimer: '15m' });
       });
 
-      expect(updateSettings).toHaveBeenCalledWith({ autoLockTimer: '15m' });
+      expect(mockUpdateSettings).toHaveBeenCalledWith({ autoLockTimer: '15m' });
       expect(result.current.settings.autoLockTimer).toBe('15m');
     });
 
@@ -127,7 +112,7 @@ describe('SettingsContext', () => {
         await result.current.updateSettings(updates);
       });
 
-      expect(updateSettings).toHaveBeenCalledWith(updates);
+      expect(mockUpdateSettings).toHaveBeenCalledWith(updates);
       expect(result.current.settings.analyticsAllowed).toBe(true);
       expect(result.current.settings.showHelpText).toBe(true);
       expect(result.current.settings.allowUnconfirmedTxs).toBe(true);
@@ -145,7 +130,7 @@ describe('SettingsContext', () => {
       const originalTimer = result.current.settings.autoLockTimer;
 
       // Mock the error after initial setup
-      vi.mocked(updateSettings).mockRejectedValueOnce(new Error('Update failed'));
+      mockUpdateSettings.mockRejectedValueOnce(new Error('Update failed'));
 
       await act(async () => {
         try {
@@ -171,7 +156,7 @@ describe('SettingsContext', () => {
       const originalTimer = result.current.settings.autoLockTimer;
 
       // Mock the error after initial setup
-      vi.mocked(updateSettings).mockRejectedValueOnce(new Error('Network error'));
+      mockUpdateSettings.mockRejectedValueOnce(new Error('Network error'));
 
       await act(async () => {
         try {
@@ -332,7 +317,7 @@ describe('SettingsContext', () => {
       const settingsPromise = new Promise((resolve) => {
         resolveSettings = resolve;
       });
-      vi.mocked(getSettings).mockReturnValue(settingsPromise as any);
+      mockGetSettings.mockReturnValue(settingsPromise as any);
 
       const { result } = renderHook(() => useSettings(), {
         wrapper: SettingsProvider
@@ -389,7 +374,7 @@ describe('SettingsContext', () => {
       unmount();
 
       // Mock the stored settings
-      vi.mocked(getSettings).mockResolvedValue({
+      mockGetSettings.mockResolvedValue({
         ...defaultSettings,
         autoLockTimer: '15m'
       });

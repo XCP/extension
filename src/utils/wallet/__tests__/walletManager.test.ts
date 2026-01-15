@@ -18,20 +18,6 @@ vi.mock('@/utils/storage/walletStorage');
 vi.mock('@/utils/encryption/keyBased');
 vi.mock('@/utils/encryption/settings');
 vi.mock('@/utils/encryption/buffer');
-vi.mock('@/utils/storage/settingsStorage', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/utils/storage/settingsStorage')>();
-  return {
-    ...actual,
-    getSettings: vi.fn().mockResolvedValue({
-      lastActiveWalletId: null,
-      autoLockTimer: '5m',
-    }),
-    updateSettings: vi.fn().mockResolvedValue(undefined),
-    reencryptSettings: vi.fn().mockResolvedValue(undefined),
-    initializeSettingsMasterKey: vi.fn().mockResolvedValue(undefined),
-    invalidateSettingsCache: vi.fn(),
-  };
-});
 vi.mock('@/utils/blockchain/bitcoin/address');
 vi.mock('@/utils/blockchain/bitcoin/privateKey');
 vi.mock('@/utils/blockchain/bitcoin/messageSigner');
@@ -45,7 +31,6 @@ vi.mock('@scure/bip39');
 
 // Import modules to get access to mocked functions
 import * as sessionManager from '@/utils/auth/sessionManager';
-import { getSettings, updateSettings, initializeSettingsMasterKey } from '@/utils/storage/settingsStorage';
 import { getKeychainRecord, saveKeychainRecord } from '@/utils/storage/walletStorage';
 import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { deriveKey, decryptJsonWithKey, decryptWithKey } from '@/utils/encryption/keyBased';
@@ -85,10 +70,6 @@ describe('WalletManager', () => {
     vi.mocked(sessionManager.clearSessionExpiry).mockResolvedValue(undefined);
     vi.mocked(sessionManager.getKeychainMasterKey).mockImplementation(mocks.sessionManager.getKeychainMasterKey);
     vi.mocked(sessionManager.storeKeychainMasterKey).mockImplementation(mocks.sessionManager.storeKeychainMasterKey);
-
-    vi.mocked(getSettings).mockImplementation(mocks.settingsStorage.getSettings);
-    vi.mocked(updateSettings).mockImplementation(mocks.settingsStorage.updateSettings);
-    vi.mocked(initializeSettingsMasterKey).mockImplementation(mocks.settingsStorage.initializeSettingsMasterKey);
 
     vi.mocked(getKeychainRecord).mockImplementation(mocks.walletStorage.getKeychainRecord);
     vi.mocked(saveKeychainRecord).mockImplementation(mocks.walletStorage.saveKeychainRecord);

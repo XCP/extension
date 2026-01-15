@@ -6,7 +6,7 @@ import { WalletProvider } from './wallet-context';
 import { useWallet } from './wallet-context';
 import { useSettings } from './settings-context';
 import { useIdleTimer } from '@/hooks/useIdleTimer';
-import { getAutoLockTimeoutMs } from '@/utils/storage/settingsStorage';
+import { getAutoLockTimeoutMs } from '@/utils/settings';
 
 /**
  * Props for the AppProviders component.

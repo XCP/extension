@@ -7,7 +7,7 @@
  */
 
 import type { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import type { AppSettings } from './settings';
+import type { AppSettings } from '@/utils/settings';
 
 /**
  * Represents a derived address within a wallet.
