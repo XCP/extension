@@ -375,6 +375,114 @@ export const selectWallet = {
 };
 
 // ============================================================================
+// Market Page
+// ============================================================================
+
+export const market = {
+  // Main tabs
+  dispensersTab: (page: Page) => page.getByRole('tab', { name: 'Dispensers' }),
+  ordersTab: (page: Page) => page.getByRole('tab', { name: 'Orders' }),
+  manageTab: (page: Page) => page.getByRole('tab', { name: 'Manage' }),
+
+  // BTC Price page
+  btcPriceCard: (page: Page) => page.locator('.bg-white.rounded-lg').first(),
+  timeRange1h: (page: Page) => page.locator('text="1H"'),
+  timeRange24h: (page: Page) => page.locator('text="24H"'),
+  priceChart: (page: Page) => page.locator('canvas').first(),
+  refreshButton: (page: Page) => page.locator('button[aria-label*="Refresh"]'),
+
+  // Asset dispensers/orders pages
+  pageTitle: (page: Page) => page.locator('text=/Orders|Dispensers/i').first(),
+  assetName: (page: Page) => page.locator('text=/XCP|BTC/').first(),
+  floorPrice: (page: Page) => page.locator('text=/Floor/i').first(),
+  avgPrice: (page: Page) => page.locator('text=/Avg/i').first(),
+  lastPrice: (page: Page) => page.locator('text=/Last/i').first(),
+  openTab: (page: Page) => page.locator('text="Open"').first(),
+  matchedTab: (page: Page) => page.locator('text="Matched"').first(),
+  dispensedTab: (page: Page) => page.locator('text="Dispensed"').first(),
+  emptyState: (page: Page) => page.locator('text=/No open|No dispensers|No orders/i').first(),
+  myOrdersLink: (page: Page) => page.locator('text=/My Orders/i').first(),
+  myDispensersLink: (page: Page) => page.locator('text=/My Dispensers/i').first(),
+  priceUnitToggle: (page: Page) => page.locator('button[title*="Switch"], [class*="repeat"]').first(),
+  loadingState: (page: Page) => page.locator('text=/Loading/i').first(),
+  retryButton: (page: Page) => page.locator('text=/Retry|Try Again/i').first(),
+  orderCards: (page: Page) => page.locator('[class*="card"]').first(),
+};
+
+// ============================================================================
+// Security Settings
+// ============================================================================
+
+export const securitySettings = {
+  currentPasswordInput: (page: Page) => page.locator('input[name="currentPassword"]'),
+  newPasswordInput: (page: Page) => page.locator('input[name="newPassword"]'),
+  confirmPasswordInput: (page: Page) => page.locator('input[name="confirmPassword"]'),
+  changePasswordButton: (page: Page) => page.locator('button:has-text("Change Password")'),
+  securityTip: (page: Page) => page.locator('text=/Security Tip/i'),
+};
+
+// ============================================================================
+// Connected Sites
+// ============================================================================
+
+export const connectedSites = {
+  emptyState: (page: Page) => page.locator('text=/No connected sites/i'),
+  siteList: (page: Page) => page.locator('[role="list"], .space-y-2'),
+  disconnectButton: (page: Page) => page.locator('button:has-text("Disconnect")'),
+  disconnectAllButton: (page: Page) => page.locator('button[aria-label*="Disconnect all"]'),
+};
+
+// ============================================================================
+// Pinned Assets
+// ============================================================================
+
+export const pinnedAssets = {
+  searchInput: (page: Page) => page.locator('input[placeholder*="Search"], input[type="search"]'),
+  pinnedSection: (page: Page) => page.locator('text=/Pinned/i').first(),
+  searchResultsSection: (page: Page) => page.locator('text=/Search Results/i'),
+  emptyState: (page: Page) => page.locator('text=/No pinned assets/i'),
+  pinButton: (page: Page) => page.locator('button[aria-label*="Pin"]'),
+  unpinButton: (page: Page) => page.locator('button[aria-label*="Unpin"]'),
+};
+
+// ============================================================================
+// Address History
+// ============================================================================
+
+export const addressHistory = {
+  transactionList: (page: Page) => page.locator('.space-y-2, [role="list"]').first(),
+  emptyState: (page: Page) => page.locator('text=/No Transactions/i'),
+  loadingSpinner: (page: Page) => page.locator('text=/Loading transactions/i'),
+  pagination: (page: Page) => page.locator('text=/Page [0-9]+ of [0-9]+/i'),
+  previousButton: (page: Page) => page.locator('button:has-text("Previous")'),
+  nextButton: (page: Page) => page.locator('button:has-text("Next")'),
+  viewOnXchainButton: (page: Page) => page.locator('button[aria-label*="XChain"]'),
+};
+
+// ============================================================================
+// Provider Approval
+// ============================================================================
+
+export const providerApproval = {
+  // Common approval elements
+  approveButton: (page: Page) => page.locator('button:has-text("Approve"), button:has-text("Connect"), button:has-text("Allow")'),
+  rejectButton: (page: Page) => page.locator('button:has-text("Reject"), button:has-text("Cancel"), button:has-text("Deny")'),
+  siteOrigin: (page: Page) => page.locator('text=/localhost|http|Origin/i'),
+
+  // Transaction approval
+  transactionDetails: (page: Page) => page.locator('text=/Amount|Fee|Destination/i'),
+  feeDisplay: (page: Page) => page.locator('text=/Fee/i'),
+
+  // PSBT approval
+  inputsSection: (page: Page) => page.locator('text=/Input/i'),
+  outputsSection: (page: Page) => page.locator('text=/Output/i'),
+
+  // Approval queue
+  queueCount: (page: Page) => page.locator('text=/[0-9]+.*request/i'),
+  dismissButton: (page: Page) => page.locator('button:has-text("Dismiss"), button:has-text("Clear")'),
+};
+
+// ============================================================================
 // Common / Shared
 // ============================================================================
 
@@ -386,6 +494,10 @@ export const common = {
   loadingSpinner: (page: Page) => page.locator('[data-testid="loading"]'),
   errorAlert: (page: Page) => page.locator('[role="alert"]'),
   toast: (page: Page) => page.locator('[data-testid="toast"]'),
+  // Additional common elements
+  headerBackButton: (page: Page) => page.locator('header button').first(),
+  helpButton: (page: Page) => page.locator('button[aria-label*="Help"]'),
+  refreshButton: (page: Page) => page.locator('button[aria-label*="Refresh"]'),
 };
 
 // ============================================================================

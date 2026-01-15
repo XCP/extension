@@ -38,6 +38,7 @@ userData/onboarding/
 
 # Claude Code settings
 .claude/
+CLAUDE.md
 
 # Local reference folders (not part of repo)
 counterparty-core/
