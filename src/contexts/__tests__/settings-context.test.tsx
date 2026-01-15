@@ -1,19 +1,18 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { SettingsProvider, useSettings } from '../settings-context';
-import { sendMessage } from 'webext-bridge/popup';
 import { DEFAULT_SETTINGS } from '@/utils/settings';
 import type { AppSettings } from '@/utils/settings';
 
-// Mock walletManager
+// Mock walletService
 const mockGetSettings = vi.fn();
 const mockUpdateSettings = vi.fn();
 
-vi.mock('@/utils/wallet/walletManager', () => ({
-  walletManager: {
+vi.mock('@/services/walletService', () => ({
+  getWalletService: () => ({
     getSettings: () => mockGetSettings(),
     updateSettings: (updates: Partial<AppSettings>) => mockUpdateSettings(updates),
-  },
+  }),
 }));
 
 vi.mock('webext-bridge/popup', () => ({
@@ -30,7 +29,7 @@ describe('SettingsContext', () => {
     // Create a shared state that can be mutated
     let currentSettings = { ...defaultSettings };
 
-    mockGetSettings.mockImplementation(() => {
+    mockGetSettings.mockImplementation(async () => {
       return { ...currentSettings };
     });
 
@@ -38,8 +37,6 @@ describe('SettingsContext', () => {
       // Update the shared state with proper type handling
       currentSettings = { ...currentSettings, ...newSettings } as typeof defaultSettings;
     });
-
-    vi.mocked(sendMessage).mockResolvedValue({ success: true });
   });
 
   describe('SettingsProvider', () => {
@@ -56,11 +53,11 @@ describe('SettingsContext', () => {
 
     it('should throw error when useSettings is used outside provider', () => {
       const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
+
       expect(() => {
         renderHook(() => useSettings());
       }).toThrow('useSettings must be used within a SettingsProvider');
-      
+
       spy.mockRestore();
     });
 
@@ -363,8 +360,8 @@ describe('SettingsContext', () => {
       // Unmount and remount
       unmount();
 
-      // Mock the stored settings (synchronous return)
-      mockGetSettings.mockReturnValue({
+      // Mock the stored settings
+      mockGetSettings.mockResolvedValue({
         ...defaultSettings,
         autoLockTimer: '15m'
       });
