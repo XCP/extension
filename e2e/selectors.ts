@@ -21,8 +21,8 @@ import { Page, Locator } from '@playwright/test';
 // ============================================================================
 
 export const onboarding = {
-  createWalletButton: (page: Page) => page.getByRole('button', { name: 'Create Wallet' }),
-  importWalletButton: (page: Page) => page.getByRole('button', { name: 'Import Wallet' }),
+  createWalletButton: (page: Page) => page.getByRole('button', { name: /Create.*Wallet/i }),
+  importWalletButton: (page: Page) => page.getByRole('button', { name: /Import.*Wallet|Import.*Mnemonic/i }),
   importPrivateKeyButton: (page: Page) => page.getByRole('button', { name: /Import Private Key/i }),
 };
 
@@ -370,7 +370,8 @@ export const selectAddress = {
 export const selectWallet = {
   walletList: (page: Page) => page.locator('[role="radiogroup"]'),
   walletOption: (page: Page, name: string) => page.getByText(name),
-  addWalletButton: (page: Page) => page.getByRole('button', { name: /Add Wallet/i }),
+  // Use the green Add Wallet button in the main content area (not the header one)
+  addWalletButton: (page: Page) => page.locator('button.bg-green-500').filter({ hasText: /Add Wallet/i }),
 };
 
 // ============================================================================
