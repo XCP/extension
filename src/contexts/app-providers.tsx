@@ -1,4 +1,4 @@
-import { useCallback, type ReactNode, type ReactElement } from 'react';
+import { useCallback, useEffect, useRef, type ReactNode, type ReactElement } from 'react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { HeaderProvider } from './header-context';
 import { SettingsProvider } from './settings-context';
@@ -23,7 +23,18 @@ interface AppProvidersProps {
  */
 function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement | null {
   const { setLastActiveTime, lockKeychain, isLoading: walletLoading, authState } = useWallet();
-  const { settings, isLoading: settingsLoading } = useSettings();
+  const { settings, isLoading: settingsLoading, refreshSettings } = useSettings();
+  const prevAuthStateRef = useRef(authState);
+
+  // Re-fetch settings when wallet becomes unlocked
+  // This handles the case where settings were read before the encryption key
+  // was available (e.g., after page reload during service worker initialization)
+  useEffect(() => {
+    if (prevAuthStateRef.current !== 'UNLOCKED' && authState === 'UNLOCKED' && !walletLoading) {
+      refreshSettings();
+    }
+    prevAuthStateRef.current = authState;
+  }, [authState, walletLoading, refreshSettings]);
 
   // Handle edge cases for idle timer
   const handleIdle = useCallback(() => {
