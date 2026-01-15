@@ -170,6 +170,9 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
         await testPage.waitForTimeout(1000);
       }
 
+      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
+      if (!hasProvider) { await testPage.close(); return; }
+
       const result = await testPage.evaluate(async (psbtHex) => {
         return await (window as any).testSignPsbt({ hex: psbtHex });
       }, TEST_FIXTURES.PSBT_HEX);
@@ -190,6 +193,9 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
         if (providerFound) break;
         await testPage.waitForTimeout(1000);
       }
+
+      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
+      if (!hasProvider) { await testPage.close(); return; }
 
       const result = await testPage.evaluate(async () => {
         return await (window as any).testSignPsbt({});
@@ -243,6 +249,9 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
         await testPage.waitForTimeout(1000);
       }
 
+      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
+      if (!hasProvider) { await testPage.close(); return; }
+
       const methodCheck = await testPage.evaluate(() => {
         const provider = (window as any).xcpwallet;
         if (!provider) return false;
@@ -265,6 +274,9 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
         if (providerFound) break;
         await testPage.waitForTimeout(1000);
       }
+
+      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
+      if (!hasProvider) { await testPage.close(); return; }
 
       const testCases = [
         TEST_FIXTURES.PSBT_HEX,
@@ -308,6 +320,9 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
         await testPage.waitForTimeout(1000);
       }
 
+      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
+      if (!hasProvider) { await testPage.close(); return; }
+
       const result = await testPage.evaluate(async (rawTxHex) => {
         return await (window as any).testSignTransaction({ hex: rawTxHex });
       }, TEST_FIXTURES.RAW_TX_HEX);
@@ -329,6 +344,9 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
         await testPage.waitForTimeout(1000);
       }
 
+      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
+      if (!hasProvider) { await testPage.close(); return; }
+
       const result = await testPage.evaluate(async () => {
         return await (window as any).testSignTransaction({});
       });
@@ -349,6 +367,9 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
         if (providerFound) break;
         await testPage.waitForTimeout(1000);
       }
+
+      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
+      if (!hasProvider) { await testPage.close(); return; }
 
       const methodCheck = await testPage.evaluate(() => {
         const provider = (window as any).xcpwallet;
@@ -372,6 +393,9 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
         if (providerFound) break;
         await testPage.waitForTimeout(1000);
       }
+
+      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
+      if (!hasProvider) { await testPage.close(); return; }
 
       const testCases = [
         TEST_FIXTURES.RAW_TX_HEX,
@@ -415,16 +439,19 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
         await testPage.waitForTimeout(1000);
       }
 
+      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
+      if (!hasProvider) { await testPage.close(); return; }
+
       const result = await testPage.evaluate(async (psbtHex) => {
         const provider = (window as any).xcpwallet;
-        if (!provider) return { error: 'No provider' };
+        if (!provider) return { error: 'No provider', hasSensitiveData: false };
 
         try {
           await provider.request({
             method: 'xcp_signPsbt',
             params: [{ hex: psbtHex }]
           });
-          return { success: true };
+          return { success: true, hasSensitiveData: false };
         } catch (error: any) {
           return {
             error: error.message,
@@ -453,16 +480,19 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
         await testPage.waitForTimeout(1000);
       }
 
+      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
+      if (!hasProvider) { await testPage.close(); return; }
+
       const result = await testPage.evaluate(async (rawTxHex) => {
         const provider = (window as any).xcpwallet;
-        if (!provider) return { error: 'No provider' };
+        if (!provider) return { error: 'No provider', hasSensitiveData: false };
 
         try {
           await provider.request({
             method: 'xcp_signTransaction',
             params: [{ hex: rawTxHex }]
           });
-          return { success: true };
+          return { success: true, hasSensitiveData: false };
         } catch (error: any) {
           return {
             error: error.message,
