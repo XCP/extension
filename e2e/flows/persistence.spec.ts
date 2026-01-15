@@ -230,7 +230,7 @@ walletTest.describe('State Persistence - Error Recovery', () => {
     await navigateTo(page, 'wallet');
 
     await expect(page).toHaveURL(/index/);
-    const addressVisible = await index.addressText(page).isVisible({ timeout: 5000 }).catch(() => false);
-    expect(addressVisible).toBe(true);
+    // Use expect().toBeVisible() which properly waits, unlike isVisible()
+    await expect(index.addressText(page)).toBeVisible({ timeout: 5000 });
   });
 });
