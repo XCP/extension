@@ -44,14 +44,38 @@ export { MAX_WALLETS, MAX_ADDRESSES_PER_WALLET };
 const KEYCHAIN_VERSION = 1;
 
 /**
- * WalletManager - Core wallet state management
+ * WalletManager - Core wallet state management (ADR-015)
  *
- * State invariants:
+ * ## Architecture: Unified Keychain
+ *
+ * Previous design had separate encryption for settings and each wallet, requiring
+ * password entry for each wallet switch. The unified keychain design:
+ *
+ * 1. Single password unlocks entire keychain (better UX)
+ * 2. Master key derived once, stored in session (survives SW restart)
+ * 3. Wallet secrets still individually encrypted with master key (defense in depth)
+ * 4. Settings encryption shares the same unlock flow
+ *
+ * ## Three-Level Hierarchy
+ *
+ * - **Keychain**: Password-protected vault containing all wallets
+ * - **Wallet**: Mnemonic or private key with derived addresses
+ * - **Address**: Single Bitcoin address (just a pointer, no crypto)
+ *
+ * ## Security Trade-off
+ *
+ * Master key in session = password-equivalent capability while unlocked.
+ * This is unavoidable if you want wallet switching without re-entering password.
+ * Mitigated by: auto-lock timeout, session cleared on browser close.
+ *
+ * ## State Invariants
+ *
  * - When locked: keychain=null, wallets=[], masterKey not in session
  * - When unlocked: keychain!=null, wallets synced with keychain.wallets, masterKey in session
  * - Only one wallet's secret is decrypted at a time (the active wallet)
  *
- * Storage layers:
+ * ## Storage Layers
+ *
  * - chrome.storage.local: encrypted keychain (persisted)
  * - chrome.storage.session: master key bytes (survives SW restart, cleared on browser close)
  * - In-memory: keychain metadata, wallet list, active wallet's decrypted secret

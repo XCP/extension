@@ -267,6 +267,7 @@ This is not true constant-time code. For higher-security applications, constant-
 | ADR-012 | Type organization and extraction strategy | [types/index.ts](src/types/index.ts) |
 | ADR-013 | Constants organization strategy | [wallet/constants.ts](src/utils/wallet/constants.ts) |
 | ADR-014 | Input validation thresholds for encryption | [encryption.ts](src/utils/encryption/encryption.ts) |
+| ADR-015 | Unified keychain architecture | [walletManager.ts](src/utils/wallet/walletManager.ts) |
 
 ---
 
