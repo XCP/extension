@@ -70,7 +70,7 @@ export async function deriveKey(
 
   const passwordKey = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(password),
+    encoder.encode(password) as BufferSource,
     'PBKDF2',
     false,
     ['deriveKey']
@@ -128,7 +128,7 @@ export async function encryptWithKey(data: string, key: CryptoKey): Promise<stri
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv: iv as BufferSource, tagLength: GCM_TAG_LENGTH },
     key,
-    plaintext
+    plaintext as BufferSource
   );
 
   // Combine IV + ciphertext
