@@ -21,10 +21,23 @@ const PBKDF2_ITERATIONS = 600_000;
 // Minimum size: IV (12) + GCM tag (16) = 28 bytes (empty plaintext is valid)
 const MIN_ENCRYPTED_SIZE = IV_BYTES + GCM_TAG_BYTES;
 
-// Security validation constants
-const MIN_PASSWORD_LENGTH = 8; // Match UI validation
-const MIN_ITERATIONS = 500_000; // Minimum safe PBKDF2 iterations (default is 600K)
-const MIN_SALT_BYTES = 16; // NIST recommended minimum
+/**
+ * Security validation constants (ADR-014)
+ *
+ * These thresholds enforce minimum security requirements at the API boundary.
+ * Invalid inputs are rejected with exceptions (fail-closed), not silently accepted.
+ *
+ * Rationale:
+ * - MIN_PASSWORD_LENGTH: 8 chars per NIST 800-63B (length > complexity)
+ * - MIN_ITERATIONS: 500K is 2024+ guidance; we default to 600K
+ * - MIN_SALT_BYTES: 16 bytes = 128 bits, standard for PBKDF2
+ *
+ * This "pit of success" design ensures developers cannot accidentally weaken
+ * security by passing empty passwords, low iteration counts, or small salts.
+ */
+const MIN_PASSWORD_LENGTH = 8;
+const MIN_ITERATIONS = 500_000;
+const MIN_SALT_BYTES = 16;
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
