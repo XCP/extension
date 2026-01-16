@@ -248,6 +248,7 @@ describe('AuthRequired', () => {
     it('should redirect to onboarding when authState is ONBOARDING_NEEDED', () => {
       setupWalletContext({
         authState: 'ONBOARDING_NEEDED',
+        keychainExists: false,
         wallets: [{ id: '1' }], // Even with wallets
         isLoading: false,
       });
