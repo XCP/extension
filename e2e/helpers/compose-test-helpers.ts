@@ -2,7 +2,7 @@
  * Compose Flow Test Helpers
  *
  * Helper functions for testing compose form → review flows.
- * E2E tests stop at the review page - signing/broadcast are tested via unit tests.
+ * E2E tests stop at the review page - signing and broadcast are covered by unit tests.
  */
 
 import { Page, expect } from '@playwright/test';
