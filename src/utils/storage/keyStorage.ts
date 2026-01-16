@@ -1,108 +1,124 @@
 /**
- * Storage for encryption keys and salts.
+ * Storage for master keys (session storage).
  *
- * Provides Layer 1 abstraction for key material storage,
- * keeping Layer 2 (Encryption) decoupled from chrome.storage APIs.
+ * Master keys are derived from password via PBKDF2 and cached in session
+ * storage to survive service worker restarts. Both settings and wallet
+ * use the same pattern: derive once on unlock, cache until lock/browser close.
  *
- * - Salt: Stored in local storage (persistent across browser restarts)
- * - Cached key: Stored in session storage (cleared on browser close)
- *
- * Uses wxt storage for consistency with other storage modules.
+ * Salt is stored inside each encrypted record (SettingsRecord, WalletVaultRecord),
+ * not separately, for atomic storage operations.
  */
 
 import { storage } from '#imports';
-import { createWriteLock } from './mutex';
 
 /**
- * Settings encryption salt - persisted in local storage.
- * Used for PBKDF2 key derivation.
+ * Settings master key - cached in session storage.
+ * Cleared when browser closes or keychain locks.
  */
-const settingsSaltItem = storage.defineItem<string | null>('local:settingsEncryptionSalt', {
+const settingsMasterKeyItem = storage.defineItem<string | null>('session:settingsMasterKey', {
   fallback: null,
 });
 
 /**
- * Settings encryption key - cached in session storage.
- * Cleared when browser closes.
+ * Keychain master key - cached in session storage.
+ * Used to decrypt keychain and individual wallet secrets.
+ * Cleared when browser closes or keychain locks.
  */
-const settingsKeyItem = storage.defineItem<string | null>('session:settingsEncryptionKey', {
+const keychainMasterKeyItem = storage.defineItem<string | null>('session:keychainMasterKey', {
   fallback: null,
 });
 
-// Write lock for salt creation (prevents race conditions)
-const withSaltLock = createWriteLock();
+// ============================================================================
+// Settings Master Key
+// ============================================================================
 
 /**
- * Gets the settings encryption salt from local storage.
- * Returns null if no salt exists.
+ * Gets the cached settings master key from session storage.
+ * Returns null if no key is cached (keychain locked).
  */
-export async function getSettingsSalt(): Promise<string | null> {
+export async function getCachedSettingsMasterKey(): Promise<string | null> {
   try {
-    return await settingsSaltItem.getValue();
+    return await settingsMasterKeyItem.getValue();
   } catch (err) {
-    console.error('Failed to get settings salt:', err);
+    console.error('Failed to get cached settings master key:', err);
     return null;
   }
 }
 
 /**
- * Stores the settings encryption salt in local storage.
- * Uses write lock to prevent race conditions during initial creation.
- */
-export async function setSettingsSalt(saltBase64: string): Promise<void> {
-  return withSaltLock(async () => {
-    try {
-      await settingsSaltItem.setValue(saltBase64);
-    } catch (err) {
-      console.error('Failed to save settings salt:', err);
-      throw new Error('Failed to save settings salt');
-    }
-  });
-}
-
-/**
- * Gets the cached settings encryption key from session storage.
- * Returns null if no key is cached (wallet locked).
- */
-export async function getCachedSettingsKey(): Promise<string | null> {
-  try {
-    return await settingsKeyItem.getValue();
-  } catch (err) {
-    console.error('Failed to get cached settings key:', err);
-    return null;
-  }
-}
-
-/**
- * Stores the settings encryption key in session storage.
+ * Stores the settings master key in session storage.
  * Key is automatically cleared when browser closes.
  */
-export async function setCachedSettingsKey(keyBase64: string): Promise<void> {
+export async function setCachedSettingsMasterKey(keyBase64: string): Promise<void> {
   try {
-    await settingsKeyItem.setValue(keyBase64);
+    await settingsMasterKeyItem.setValue(keyBase64);
   } catch (err) {
-    console.error('Failed to cache settings key:', err);
-    throw new Error('Failed to cache settings key');
+    console.error('Failed to cache settings master key:', err);
+    throw new Error('Failed to cache settings master key');
   }
 }
 
 /**
- * Clears the cached settings encryption key from session storage.
- * Call this during wallet lock.
+ * Clears the cached settings master key from session storage.
+ * Call this during keychain lock.
  */
-export async function clearCachedSettingsKey(): Promise<void> {
+export async function clearCachedSettingsMasterKey(): Promise<void> {
   try {
-    await settingsKeyItem.removeValue();
+    await settingsMasterKeyItem.removeValue();
   } catch (err) {
-    console.error('Failed to clear cached settings key:', err);
-    throw new Error('Failed to clear cached settings key');
+    console.error('Failed to clear cached settings master key:', err);
+    throw new Error('Failed to clear cached settings master key');
   }
 }
 
 /**
- * Checks if a settings encryption key is currently cached.
+ * Checks if a settings master key is currently cached.
  */
-export async function hasSettingsKey(): Promise<boolean> {
-  const key = await getCachedSettingsKey();
+export async function hasSettingsMasterKey(): Promise<boolean> {
+  const key = await getCachedSettingsMasterKey();
   return key !== null;
 }
+
+// ============================================================================
+// Keychain Master Key Storage
+// ============================================================================
+
+/**
+ * Gets the cached keychain master key from session storage.
+ * Returns null if no key is cached (keychain locked).
+ */
+export async function getCachedKeychainMasterKey(): Promise<string | null> {
+  try {
+    return await keychainMasterKeyItem.getValue();
+  } catch (err) {
+    console.error('Failed to get cached keychain master key:', err);
+    return null;
+  }
+}
+
+/**
+ * Stores the keychain master key in session storage.
+ * Key is automatically cleared when browser closes.
+ */
+export async function setCachedKeychainMasterKey(keyBase64: string): Promise<void> {
+  try {
+    await keychainMasterKeyItem.setValue(keyBase64);
+  } catch (err) {
+    console.error('Failed to cache keychain master key:', err);
+    throw new Error('Failed to cache keychain master key');
+  }
+}
+
+/**
+ * Clears the cached keychain master key from session storage.
+ * Call this during keychain lock.
+ */
+export async function clearCachedKeychainMasterKey(): Promise<void> {
+  try {
+    await keychainMasterKeyItem.removeValue();
+  } catch (err) {
+    console.error('Failed to clear cached keychain master key:', err);
+    throw new Error('Failed to clear cached keychain master key');
+  }
+}
+

@@ -1,144 +1,93 @@
 /**
- * Wallet Storage - Encrypted wallet record persistence
+ * Keychain Storage
  *
- * Stores encrypted wallet data (mnemonics, private keys) in local storage.
- * All secrets are encrypted before storage using password-derived keys.
- *
- * Note: This module uses the dedicated 'local:walletRecords' storage key.
- * Settings are stored separately in 'local:settingsRecord' for isolation.
- * See ADR-011 in storage.ts for details.
+ * Stores the encrypted keychain in local storage.
+ * The keychain contains all wallet metadata and encrypted secrets.
  */
 
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-// Import directly from constants to avoid circular dependency
-import { MAX_ADDRESSES_PER_WALLET } from '@/utils/wallet/constants';
-
-import {
-  getAllRecords,
-  addRecord,
-  updateRecord,
-  updateRecords,
-  removeRecord,
-  StoredRecord,
-} from './storage';
+import { storage } from '#imports';
+import type { KeychainRecord } from '@/types/wallet';
 
 /**
- * Valid address format values for runtime validation.
- * Derived from the AddressFormat const object.
+ * Storage key for keychain.
+ * In test environments, uses a unique key to avoid test interference.
  */
-const VALID_ADDRESS_FORMATS = new Set(Object.values(AddressFormat));
+const KEYCHAIN_STORAGE_KEY = typeof process !== 'undefined' && process.env.NODE_ENV === 'test'
+  ? 'local:keychainRecord_test'
+  : 'local:keychainRecord';
+
+const keychainRecordItem = storage.defineItem<KeychainRecord | null>(KEYCHAIN_STORAGE_KEY, {
+  fallback: null,
+});
 
 /**
- * Type guard to validate wallet record shape on read.
- * Filters out corrupted or schema-incompatible records.
+ * Validates that a value is a valid KeychainRecord.
+ * Returns false for corrupted or schema-incompatible data.
  */
-function isValidWalletRecord(value: unknown): value is EncryptedWalletRecord {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
+function isValidKeychainRecord(value: unknown): value is KeychainRecord {
+  if (!value || typeof value !== 'object') return false;
+
   const obj = value as Record<string, unknown>;
+
   return (
-    typeof obj.id === 'string' &&
-    typeof obj.name === 'string' &&
-    typeof obj.encryptedSecret === 'string' &&
-    (obj.type === 'mnemonic' || obj.type === 'privateKey') &&
-    typeof obj.addressFormat === 'string'
+    typeof obj.version === 'number' &&
+    typeof obj.salt === 'string' &&
+    typeof obj.encryptedKeychain === 'string' &&
+    obj.kdf !== null &&
+    typeof obj.kdf === 'object' &&
+    typeof (obj.kdf as Record<string, unknown>).iterations === 'number'
   );
 }
 
 /**
- * Validates a wallet record before storage.
- * Throws if any field fails validation.
+ * Retrieves the keychain record from storage.
+ * Returns null if no keychain exists or if data is corrupted.
  */
-function validateWalletRecord(record: EncryptedWalletRecord): void {
-  if (!record.encryptedSecret) {
-    throw new Error('Encrypted secret is required for wallet records');
-  }
-
-  if (!record.name || record.name.trim().length === 0) {
-    throw new Error('Wallet name is required and cannot be empty');
-  }
-
-  if (!VALID_ADDRESS_FORMATS.has(record.addressFormat)) {
-    throw new Error('Invalid address format');
-  }
-
-  if (record.addressCount !== undefined) {
-    if (!Number.isInteger(record.addressCount) || record.addressCount < 0) {
-      throw new Error('Address count must be a non-negative integer');
+export async function getKeychainRecord(): Promise<KeychainRecord | null> {
+  try {
+    const record = await keychainRecordItem.getValue();
+    if (record && !isValidKeychainRecord(record)) {
+      console.error('Keychain record failed validation - corrupted data');
+      return null;
     }
-    if (record.addressCount > MAX_ADDRESSES_PER_WALLET) {
-      throw new Error(`Address count cannot exceed ${MAX_ADDRESSES_PER_WALLET}`);
-    }
+    return record;
+  } catch (err) {
+    console.error('Failed to get keychain record:', err);
+    return null;
   }
 }
 
 /**
- * Interface for encrypted wallet records stored in local storage.
+ * Saves the keychain record to storage.
+ * Overwrites any existing keychain.
  */
-export interface EncryptedWalletRecord extends StoredRecord {
-  name: string;
-  type: 'mnemonic' | 'privateKey';
-  addressFormat: AddressFormat;
-  addressCount?: number; // Number of derived addresses (defaults to 0 if omitted)
-  encryptedSecret: string;
-  isTestOnly?: boolean; // For development-only test addresses
-}
-
-/**
- * Retrieves all encrypted wallet records.
- *
- * Validates each record's shape to filter out corrupted or
- * schema-incompatible data from storage.
- *
- * @returns A Promise that resolves to an array of valid encrypted wallet records.
- */
-export async function getAllEncryptedWallets(): Promise<EncryptedWalletRecord[]> {
-  const records = await getAllRecords();
-  return records.filter(isValidWalletRecord);
-}
-
-/**
- * Adds an encrypted wallet record to storage.
- *
- * @param record - The encrypted wallet record to add.
- * @throws Error if validation fails (name, addressFormat, addressCount, encryptedSecret).
- */
-export async function addEncryptedWallet(record: EncryptedWalletRecord): Promise<void> {
-  validateWalletRecord(record);
-  await addRecord(record);
-}
-
-/**
- * Updates an existing encrypted wallet record.
- *
- * @param record - The wallet record with updated information.
- * @throws Error if validation fails (name, addressFormat, addressCount, encryptedSecret).
- */
-export async function updateEncryptedWallet(record: EncryptedWalletRecord): Promise<void> {
-  validateWalletRecord(record);
-  await updateRecord(record);
-}
-
-/**
- * Updates multiple encrypted wallet records in a single operation.
- * More efficient than calling updateEncryptedWallet() multiple times.
- *
- * @param records - Array of wallet records to update.
- * @throws Error if any record fails validation.
- */
-export async function updateEncryptedWallets(records: EncryptedWalletRecord[]): Promise<void> {
-  for (const record of records) {
-    validateWalletRecord(record);
+export async function saveKeychainRecord(record: KeychainRecord): Promise<void> {
+  try {
+    await keychainRecordItem.setValue(record);
+  } catch (err) {
+    console.error('Failed to save keychain record:', err);
+    throw new Error('Failed to save keychain');
   }
-  await updateRecords(records);
 }
 
 /**
- * Removes an encrypted wallet record by its ID.
- *
- * @param id - The ID of the wallet record to remove.
+ * Checks if a keychain exists in storage.
+ * Used to determine onboarding vs unlock routing.
  */
-export async function removeEncryptedWallet(id: string): Promise<void> {
-  await removeRecord(id);
+export async function keychainExists(): Promise<boolean> {
+  const keychain = await getKeychainRecord();
+  return keychain !== null;
+}
+
+/**
+ * Deletes the keychain from storage.
+ * Used during keychain reset.
+ */
+export async function deleteKeychain(): Promise<void> {
+  try {
+    await keychainRecordItem.setValue(null);
+  } catch (err) {
+    console.error('Failed to delete keychain:', err);
+    throw new Error('Failed to delete keychain');
+  }
 }

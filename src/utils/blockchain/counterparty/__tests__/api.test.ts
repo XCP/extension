@@ -25,20 +25,26 @@ import {
 } from '../api';
 import * as formatUtils from '@/utils/format';
 import * as bitcoinBalance from '@/utils/blockchain/bitcoin/balance';
-import * as settingsStorage from '@/utils/storage/settingsStorage';
 import { apiClient } from '@/utils/apiClient';
 import { CounterpartyApiError } from '@/utils/blockchain/errors';
+import { walletManager } from '@/utils/wallet/walletManager';
 
 // Mock dependencies
 vi.mock('@/utils/apiClient');
 vi.mock('@/utils/format');
 vi.mock('@/utils/blockchain/bitcoin/balance');
-vi.mock('@/utils/storage/settingsStorage');
+vi.mock('@/utils/wallet/walletManager', () => ({
+  walletManager: {
+    getSettings: vi.fn().mockReturnValue({
+      counterpartyApiBase: 'https://api.counterparty.io',
+    }),
+  },
+}));
 
 const mockedApiClient = vi.mocked(apiClient, true);
 const mockedFormatAmount = vi.mocked(formatUtils.formatAmount);
 const mockedFetchBTCBalance = vi.mocked(bitcoinBalance.fetchBTCBalance);
-const mockedGetSettings = vi.mocked(settingsStorage.getSettings);
+const mockedGetSettings = vi.mocked(walletManager.getSettings);
 
 // Test data
 const mockAddress = 'bc1qtest123address';
@@ -102,7 +108,7 @@ const mockTransaction: Transaction = {
 describe('counterparty/api.ts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedGetSettings.mockResolvedValue(mockSettings as any);
+    mockedGetSettings.mockReturnValue(mockSettings as any);
   });
 
   describe('fetchTokenBalances', () => {
@@ -938,7 +944,7 @@ describe('counterparty/api.ts', () => {
   describe('API base configuration', () => {
     it('should use counterpartyApiBase from settings', async () => {
       const customApiBase = 'https://custom-api.example.com:8080';
-      mockedGetSettings.mockResolvedValue({ counterpartyApiBase: customApiBase } as any);
+      mockedGetSettings.mockReturnValue({ counterpartyApiBase: customApiBase } as any);
       
       const mockData = { result: [] };
       mockedApiClient.get.mockResolvedValue({
@@ -957,11 +963,6 @@ describe('counterparty/api.ts', () => {
       );
     });
 
-    it('should throw on settings retrieval errors', async () => {
-      mockedGetSettings.mockRejectedValue(new Error('Settings error'));
-
-      await expect(fetchTokenBalances(mockAddress)).rejects.toThrow();
-    });
   });
 
   describe('integration scenarios', () => {

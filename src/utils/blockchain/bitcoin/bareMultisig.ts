@@ -2,7 +2,7 @@ import { Transaction } from '@scure/btc-signer';
 import { apiClient } from '@/utils/apiClient';
 import { hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { getSettings } from '@/utils/storage/settingsStorage';
+import { walletManager } from '@/utils/wallet/walletManager';
 import { toSatoshis } from '@/utils/numeric';
 import { 
   analyzeMultisigScript, 
@@ -552,7 +552,7 @@ async function fetchPreviousRawTransaction(txid: string): Promise<string | null>
     { url: `https://blockstream.info/api/tx/${txid}/hex`, transform: (d: string) => d.trim() },
     { url: `https://mempool.space/api/tx/${txid}/hex`, transform: (d: string) => d.trim() },
     { url: async () => {
-      const settings = await getSettings();
+      const settings = walletManager.getSettings();
       return `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`;
     }, transform: (d: any) => d.result.hex },
   ];

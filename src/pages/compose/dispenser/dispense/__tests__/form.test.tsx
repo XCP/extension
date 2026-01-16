@@ -31,7 +31,7 @@ vi.mock('@/contexts/wallet-context', () => ({
     signTransaction: vi.fn(),
     broadcastTransaction: vi.fn(),
     unlockWallet: vi.fn(),
-    isWalletLocked: vi.fn().mockResolvedValue(false)
+    isKeychainLocked: vi.fn().mockResolvedValue(false)
   })
 }));
 

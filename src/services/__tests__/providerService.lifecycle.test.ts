@@ -4,8 +4,8 @@ import { fakeBrowser } from 'wxt/testing';
 import { createProviderService } from '../providerService';
 import { approvalQueue } from '@/utils/provider/approvalQueue';
 import { requestCleanup } from '@/utils/provider/requestCleanup';
-import * as settingsStorage from '@/utils/storage/settingsStorage';
-import { DEFAULT_SETTINGS } from '@/utils/storage/settingsStorage';
+import { walletManager } from '@/utils/wallet/walletManager';
+import { DEFAULT_SETTINGS } from '@/utils/settings';
 
 // Mock dependencies
 vi.mock('webext-bridge/background', () => ({
@@ -13,7 +13,16 @@ vi.mock('webext-bridge/background', () => ({
   onMessage: vi.fn(),
 }));
 vi.mock('../walletService');
-vi.mock('@/utils/storage/settingsStorage');
+vi.mock('@/utils/wallet/walletManager', () => ({
+  walletManager: {
+    getSettings: vi.fn().mockReturnValue({
+      connectedWebsites: [],
+      analyticsAllowed: true,
+      counterpartyApiBase: 'https://api.counterparty.io',
+    }),
+    updateSettings: vi.fn(),
+  },
+}));
 // Mock CSP validation to avoid network calls
 vi.mock('@/utils/security/cspValidation', () => ({
   analyzeCSP: vi.fn(() => Promise.resolve({
@@ -58,7 +67,7 @@ describe('Provider Service Lifecycle Tests', () => {
     fakeBrowser.action.setBadgeText = vi.fn().mockResolvedValue(undefined);
     fakeBrowser.action.setBadgeBackgroundColor = vi.fn().mockResolvedValue(undefined);
     
-    vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+    vi.mocked(walletManager.getSettings).mockReturnValue({
       ...DEFAULT_SETTINGS,
       connectedWebsites: [], // Clear connections for testing
       pinnedAssets: [], // Clear pinned assets for testing
@@ -206,7 +215,7 @@ describe('Provider Service Lifecycle Tests', () => {
       const origin = 'https://dapp.com';
       
       // Mark as connected
-      vi.mocked(settingsStorage.getSettings).mockResolvedValue({
+      vi.mocked(walletManager.getSettings).mockReturnValue({
         ...DEFAULT_SETTINGS,
         connectedWebsites: [origin],
         pinnedAssets: [], // Clear for test

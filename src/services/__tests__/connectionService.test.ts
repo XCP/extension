@@ -13,22 +13,23 @@ vi.mock('webext-bridge/background', () => ({
   onMessage: vi.fn(),
 }));
 
-// Mock storage utilities
-vi.mock('@/utils/storage/settingsStorage', () => ({
-  getSettings: vi.fn(),
-  updateSettings: vi.fn(),
-  DEFAULT_SETTINGS: {
-    connectedWebsites: [],
-    showHelpText: false,
-    analyticsAllowed: true,
-    allowUnconfirmedTxs: true,
-    autoLockTimer: '5m',
-    enableMPMA: false,
-    enableAdvancedBroadcasts: false,
-    transactionDryRun: false,
-    pinnedAssets: [],
-    counterpartyApiBase: 'https://api.counterparty.io',
-    defaultOrderExpiration: 8064,
+// Mock wallet manager
+vi.mock('@/utils/wallet/walletManager', () => ({
+  walletManager: {
+    getSettings: vi.fn().mockReturnValue({
+      connectedWebsites: [],
+      showHelpText: false,
+      analyticsAllowed: true,
+      allowUnconfirmedTxs: true,
+      autoLockTimer: '5m',
+      enableMPMA: false,
+      enableAdvancedBroadcasts: false,
+      transactionDryRun: false,
+      pinnedAssets: [],
+      counterpartyApiBase: 'https://api.counterparty.io',
+      defaultOrderExpiration: 8064,
+    }),
+    updateSettings: vi.fn(),
   },
 }));
 
@@ -104,12 +105,12 @@ vi.mock('@/services/approvalService', () => ({
 }));
 
 import { ConnectionService } from '../connectionService';
-import { getSettings, updateSettings } from '@/utils/storage/settingsStorage';
+import { walletManager } from '@/utils/wallet/walletManager';
 import { eventEmitterService } from '@/services/eventEmitterService';
 
 // Type the mocked functions
-const mockGetSettings = getSettings as ReturnType<typeof vi.fn>;
-const mockUpdateSettings = updateSettings as ReturnType<typeof vi.fn>;
+const mockGetSettings = walletManager.getSettings as ReturnType<typeof vi.fn>;
+const mockUpdateSettings = walletManager.updateSettings as ReturnType<typeof vi.fn>;
 const mockEventEmitterService = eventEmitterService as any;
 
 // Get access to rate limiter mock
@@ -200,7 +201,7 @@ describe('ConnectionService', () => {
     vi.mocked(connectionRateLimiter.getResetTime).mockReturnValue(30000);
     
     // Mock initial storage state
-    mockGetSettings.mockResolvedValue({
+    mockGetSettings.mockReturnValue({
       connectedWebsites: [],
       showHelpText: false,
       analyticsAllowed: true,
@@ -232,7 +233,7 @@ describe('ConnectionService', () => {
 
     it('should return true for connected origin', async () => {
       // Setup connected website in storage mock
-      mockGetSettings.mockResolvedValue({
+      mockGetSettings.mockReturnValue({
         connectedWebsites: ['https://connected.com'],
           showHelpText: false,
         analyticsAllowed: true,
@@ -250,12 +251,6 @@ describe('ConnectionService', () => {
       expect(hasPermission).toBe(true);
     });
 
-    it('should handle storage errors gracefully', async () => {
-      mockGetSettings.mockRejectedValue(new Error('Storage error'));
-      
-      // The service doesn't handle storage errors, so they bubble up
-      await expect(connectionService.hasPermission('https://test.com')).rejects.toThrow('Storage error');
-    });
   });
 
   describe('connect', () => {
@@ -278,7 +273,7 @@ describe('ConnectionService', () => {
 
     it('should return existing connection if already connected', async () => {
       // Setup existing connection
-      mockGetSettings.mockResolvedValue({
+      mockGetSettings.mockReturnValue({
         connectedWebsites: ['https://existing.com'],
           showHelpText: false,
         analyticsAllowed: true,
@@ -339,7 +334,7 @@ describe('ConnectionService', () => {
   describe('disconnect', () => {
     it('should successfully disconnect connected origin', async () => {
       // Setup connected website
-      mockGetSettings.mockResolvedValue({
+      mockGetSettings.mockReturnValue({
         connectedWebsites: ['https://connected.com', 'https://other.com'],
           showHelpText: false,
         analyticsAllowed: true,
@@ -374,7 +369,7 @@ describe('ConnectionService', () => {
   describe('getConnectedWebsites', () => {
     it('should return list of connected sites', async () => {
       // Setup connected websites
-      mockGetSettings.mockResolvedValue({
+      mockGetSettings.mockReturnValue({
         connectedWebsites: ['https://site1.com', 'https://site2.com'],
           showHelpText: false,
         analyticsAllowed: true,
@@ -432,7 +427,7 @@ describe('ConnectionService', () => {
       await connectionService.destroy();
       
       // Mock storage to return saved connections
-      mockGetSettings.mockResolvedValue({
+      mockGetSettings.mockReturnValue({
         connectedWebsites: ['https://persistent.com'],
           showHelpText: false,
         analyticsAllowed: true,

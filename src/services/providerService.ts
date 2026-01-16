@@ -25,6 +25,7 @@ import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
 import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from '@/utils/security/replayPrevention';
 import { openExtensionPopup } from '@/utils/popup';
 import { generateRequestId } from '@/utils/id';
+import { keychainExists } from '@/utils/storage/walletStorage';
 
 // In-memory storage for active requests (primary storage, fast access)
 const activeSignRequests = new Map<string, any>();
@@ -212,9 +213,8 @@ export function createProviderService(): ProviderService {
         // ==================== Connection Methods ====================
         
         case 'xcp_requestAccounts': {
-          // Check if any wallets exist first
-          const wallets = await walletService.getWallets();
-          if (!wallets || wallets.length === 0) {
+          // Check if keychain exists in storage (works even when locked)
+          if (!await keychainExists()) {
             // Open popup for wallet setup
             await openExtensionPopup();
             throw new Error('Please complete wallet setup first');

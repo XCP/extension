@@ -14,16 +14,19 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { walletManager } from '@/utils/wallet/walletManager';
 import type { Wallet, Address } from '@/types/wallet';
-import { getSettings, updateSettings } from '@/utils/storage/settingsStorage';
 
 interface WalletService {
-  loadWallets: () => Promise<void>;
+  refreshWallets: () => Promise<void>;
+  getSettings: () => Promise<import('@/utils/settings').AppSettings>;
+  updateSettings: (updates: Partial<import('@/utils/settings').AppSettings>) => Promise<void>;
   getWallets: () => Promise<Wallet[]>;
   getActiveWallet: () => Promise<Wallet | undefined>;
   getActiveAddress: () => Promise<Address | undefined>;
   setActiveWallet: (walletId: string) => Promise<void>;
-  unlockWallet: (walletId: string, password: string) => Promise<void>;
-  lockAllWallets: () => Promise<void>;
+  unlockKeychain: (password: string) => Promise<void>;
+  selectWallet: (walletId: string) => Promise<void>;
+  isKeychainUnlocked: () => Promise<boolean>;
+  lockKeychain: () => Promise<void>;
   emitProviderEvent: (origin: string, event: string, data: any) => Promise<void>;
   createMnemonicWallet: (
     mnemonic: string,
@@ -40,7 +43,7 @@ interface WalletService {
   importTestAddress: (address: string, name?: string) => Promise<Wallet>;
   addAddress: (walletId: string) => Promise<Address>;
   verifyPassword: (password: string) => Promise<boolean>;
-  resetAllWallets: (password: string) => Promise<void>;
+  resetKeychain: (password: string) => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   updateWalletAddressFormat: (walletId: string, newType: AddressFormat) => Promise<void>;
   updateWalletPinnedAssets: (pinnedAssets: string[]) => Promise<void>;
@@ -56,24 +59,16 @@ interface WalletService {
   setLastActiveAddress: (address: string) => Promise<void>;
   setLastActiveTime: () => Promise<void>;
   isAnyWalletUnlocked: () => Promise<boolean>;
-  createAndUnlockMnemonicWallet: (
-    mnemonic: string,
-    password: string,
-    name?: string,
-    addressFormat?: AddressFormat
-  ) => Promise<Wallet>;
-  createAndUnlockPrivateKeyWallet: (
-    privateKey: string,
-    password: string,
-    name?: string,
-    addressFormat?: AddressFormat
-  ) => Promise<Wallet>;
 }
 
 function createWalletService(): WalletService {
   return {
-    loadWallets: async () => {
-      await walletManager.loadWallets();
+    refreshWallets: async () => {
+      await walletManager.refreshWallets();
+    },
+    getSettings: async () => walletManager.getSettings(),
+    updateSettings: async (updates) => {
+      await walletManager.updateSettings(updates);
     },
     getWallets: async () => walletManager.getWallets(),
     getActiveWallet: async () => walletManager.getActiveWallet(),
@@ -81,7 +76,7 @@ function createWalletService(): WalletService {
       const activeWallet = walletManager.getActiveWallet();
       if (!activeWallet) return undefined;
 
-      const settings = await getSettings();
+      const settings = walletManager.getSettings();
       const lastActiveAddress = settings?.lastActiveAddress;
       
       if (!lastActiveAddress) {
@@ -97,21 +92,25 @@ function createWalletService(): WalletService {
       await walletManager.setActiveWallet(walletId);
       // Don't emit here - address switching is handled in wallet-context
     },
-    unlockWallet: async (walletId, password) => {
-      await walletManager.unlockWallet(walletId, password);
+    unlockKeychain: async (password) => {
+      await walletManager.unlockKeychain(password);
       // Emit wallet-unlocked event for any pending connection requests
-      eventEmitterService.emit('wallet-unlocked', { walletId });
-      // Don't emit provider events here - connections are per-address and per-site
-      // The provider service will handle this when sites check connection status
+      eventEmitterService.emit('wallet-unlocked', {});
     },
-    lockAllWallets: async () => {
-      await walletManager.lockAllWallets();
-      // Notify popup of lock event (if it's open)
+    selectWallet: async (walletId) => {
+      await walletManager.selectWallet(walletId);
+    },
+    isKeychainUnlocked: async () => {
+      return walletManager.isKeychainUnlocked();
+    },
+    lockKeychain: async () => {
+      await walletManager.lockKeychain();
+      // Notify popup of keychain lock event (if it's open)
       try {
-        await MessageBus.notifyWalletLocked(true);
+        await MessageBus.notifyKeychainLocked(true);
       } catch (error) {
         // Popup might not be open, which is fine
-        console.debug('[WalletService] Could not notify popup of lock event:', error);
+        console.debug('[WalletService] Could not notify popup of keychain lock event:', error);
       }
       // Emit disconnect event to connected dApps
       // Broadcast to all tabs (no origin specified)
@@ -139,8 +138,8 @@ function createWalletService(): WalletService {
     },
     addAddress: async (walletId) => walletManager.addAddress(walletId),
     verifyPassword: async (password) => walletManager.verifyPassword(password),
-    resetAllWallets: async (password) => {
-      await walletManager.resetAllWallets(password);
+    resetKeychain: async (password) => {
+      await walletManager.resetKeychain(password);
     },
     updatePassword: async (currentPassword, newPassword) => {
       await walletManager.updatePassword(currentPassword, newPassword);
@@ -176,11 +175,11 @@ function createWalletService(): WalletService {
       return walletManager.signPsbt(psbtHex, signInputs, sighashTypes);
     },
     getLastActiveAddress: async () => {
-      const settings = await getSettings();
+      const settings = walletManager.getSettings();
       return settings?.lastActiveAddress;
     },
     setLastActiveAddress: async (address) => {
-      await updateSettings({ lastActiveAddress: address });
+      await walletManager.updateSettings({ lastActiveAddress: address });
       // Don't emit accountsChanged here - it's handled in wallet-context
       // which emits to all connected sites
     },
@@ -193,12 +192,6 @@ function createWalletService(): WalletService {
         event,
         data
       });
-    },
-    createAndUnlockMnemonicWallet: async (mnemonic, password, name, addressFormat) => {
-      return walletManager.createAndUnlockMnemonicWallet(mnemonic, password, name, addressFormat);
-    },
-    createAndUnlockPrivateKeyWallet: async (privateKey, password, name, addressFormat) => {
-      return walletManager.createAndUnlockPrivateKeyWallet(privateKey, password, name, addressFormat);
     },
   };
 }

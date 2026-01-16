@@ -1,5 +1,5 @@
 import { apiClient } from '@/utils/apiClient';
-import { getSettings } from '@/utils/storage/settingsStorage';
+import { walletManager } from '@/utils/wallet/walletManager';
 import { CounterpartyApiError } from '@/utils/blockchain/errors';
 
 /**
@@ -230,7 +230,7 @@ export interface MoveOptions extends BaseComposeOptions {
 }
 
 async function getApiBase() {
-  const settings = await getSettings();
+  const settings = walletManager.getSettings();
   return settings.counterpartyApiBase;
 }
 
@@ -247,7 +247,7 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
 
   // Get user's unconfirmed transaction preference
-  const settings = await getSettings();
+  const settings = walletManager.getSettings();
 
   const params = new URLSearchParams(toStringParams({
     ...paramsObj,
@@ -319,7 +319,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
 
   // Get user's unconfirmed transaction preference
-  const settings = await getSettings();
+  const settings = walletManager.getSettings();
 
   const params = new URLSearchParams(toStringParams({
     ...paramsObj,
@@ -383,7 +383,7 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
   const apiUrl = `${base}/v2/utxos/${sourceUtxo}/compose/${endpoint}`;
 
   // Get user's unconfirmed transaction preference
-  const settings = await getSettings();
+  const settings = walletManager.getSettings();
 
   const params = new URLSearchParams(toStringParams({
     ...paramsObj,

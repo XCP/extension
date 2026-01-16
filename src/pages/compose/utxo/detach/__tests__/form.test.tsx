@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { useSettings } from '@/contexts/settings-context';
-import { DEFAULT_SETTINGS } from '@/utils/storage/settingsStorage';
+import { DEFAULT_SETTINGS } from '@/utils/settings';
 import { UtxoDetachForm } from '../form';
 import { MemoryRouter } from 'react-router-dom';
 import { ComposerProvider } from '@/contexts/composer-context';

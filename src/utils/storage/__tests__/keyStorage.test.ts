@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { fakeBrowser } from 'wxt/testing';
 import {
-  getSettingsSalt,
-  setSettingsSalt,
-  getCachedSettingsKey,
-  setCachedSettingsKey,
-  clearCachedSettingsKey,
-  hasSettingsKey,
+  getCachedSettingsMasterKey,
+  setCachedSettingsMasterKey,
+  clearCachedSettingsMasterKey,
+  hasSettingsMasterKey,
+  getCachedKeychainMasterKey,
+  setCachedKeychainMasterKey,
+  clearCachedKeychainMasterKey,
 } from '../keyStorage';
 
 describe('keyStorage.ts', () => {
@@ -14,123 +15,111 @@ describe('keyStorage.ts', () => {
     fakeBrowser.reset();
   });
 
-  describe('Settings Salt (local storage)', () => {
-    it('should return null when no salt exists', async () => {
-      const result = await getSettingsSalt();
-      expect(result).toBeNull();
-    });
-
-    it('should store and retrieve salt', async () => {
-      const salt = 'dGVzdFNhbHQ='; // "testSalt" in base64
-
-      await setSettingsSalt(salt);
-      const result = await getSettingsSalt();
-
-      expect(result).toBe(salt);
-    });
-
-    it('should overwrite existing salt', async () => {
-      await setSettingsSalt('firstSalt');
-      await setSettingsSalt('secondSalt');
-
-      const result = await getSettingsSalt();
-      expect(result).toBe('secondSalt');
-    });
-
-    it('should persist salt across multiple gets', async () => {
-      await setSettingsSalt('persistentSalt');
-
-      expect(await getSettingsSalt()).toBe('persistentSalt');
-      expect(await getSettingsSalt()).toBe('persistentSalt');
-      expect(await getSettingsSalt()).toBe('persistentSalt');
-    });
-
-    it('should handle concurrent salt writes safely', async () => {
-      // Due to write lock, these should not cause issues
-      const promises = [
-        setSettingsSalt('salt1'),
-        setSettingsSalt('salt2'),
-        setSettingsSalt('salt3'),
-      ];
-
-      await Promise.all(promises);
-
-      // One of the salts should be stored
-      const result = await getSettingsSalt();
-      expect(['salt1', 'salt2', 'salt3']).toContain(result);
-    });
-  });
-
-  describe('Cached Settings Key (session storage)', () => {
+  describe('Cached Settings Master Key (session storage)', () => {
     it('should return null when no key is cached', async () => {
-      const result = await getCachedSettingsKey();
+      const result = await getCachedSettingsMasterKey();
       expect(result).toBeNull();
     });
 
     it('should store and retrieve cached key', async () => {
       const key = 'dGVzdEtleQ=='; // "testKey" in base64
 
-      await setCachedSettingsKey(key);
-      const result = await getCachedSettingsKey();
+      await setCachedSettingsMasterKey(key);
+      const result = await getCachedSettingsMasterKey();
 
       expect(result).toBe(key);
     });
 
     it('should clear cached key', async () => {
-      await setCachedSettingsKey('keyToRemove');
-      expect(await getCachedSettingsKey()).toBe('keyToRemove');
+      await setCachedSettingsMasterKey('keyToRemove');
+      expect(await getCachedSettingsMasterKey()).toBe('keyToRemove');
 
-      await clearCachedSettingsKey();
+      await clearCachedSettingsMasterKey();
 
-      expect(await getCachedSettingsKey()).toBeNull();
+      expect(await getCachedSettingsMasterKey()).toBeNull();
     });
 
     it('should handle clearing non-existent key', async () => {
       // Should not throw
-      await expect(clearCachedSettingsKey()).resolves.not.toThrow();
+      await expect(clearCachedSettingsMasterKey()).resolves.not.toThrow();
     });
   });
 
-  describe('hasSettingsKey', () => {
+  describe('hasSettingsMasterKey', () => {
     it('should return false when no key is cached', async () => {
-      const result = await hasSettingsKey();
+      const result = await hasSettingsMasterKey();
       expect(result).toBe(false);
     });
 
     it('should return true when key is cached', async () => {
-      await setCachedSettingsKey('someKey');
+      await setCachedSettingsMasterKey('someKey');
 
-      const result = await hasSettingsKey();
+      const result = await hasSettingsMasterKey();
       expect(result).toBe(true);
     });
 
     it('should return false after key is cleared', async () => {
-      await setCachedSettingsKey('keyToRemove');
-      expect(await hasSettingsKey()).toBe(true);
+      await setCachedSettingsMasterKey('keyToRemove');
+      expect(await hasSettingsMasterKey()).toBe(true);
 
-      await clearCachedSettingsKey();
+      await clearCachedSettingsMasterKey();
 
-      expect(await hasSettingsKey()).toBe(false);
+      expect(await hasSettingsMasterKey()).toBe(false);
     });
   });
 
-  describe('Salt and Key independence', () => {
-    it('should store salt and key independently', async () => {
-      await setSettingsSalt('mySalt');
-      await setCachedSettingsKey('myKey');
-
-      expect(await getSettingsSalt()).toBe('mySalt');
-      expect(await getCachedSettingsKey()).toBe('myKey');
+  describe('Cached Keychain Master Key (session storage)', () => {
+    it('should return null when no keychain key is cached', async () => {
+      const result = await getCachedKeychainMasterKey();
+      expect(result).toBeNull();
     });
 
-    it('should clear key without affecting salt', async () => {
-      await setSettingsSalt('mySalt');
-      await setCachedSettingsKey('myKey');
+    it('should store and retrieve cached keychain key', async () => {
+      const key = 'a2V5Y2hhaW5LZXk='; // "keychainKey" in base64
 
-      await clearCachedSettingsKey();
+      await setCachedKeychainMasterKey(key);
+      const result = await getCachedKeychainMasterKey();
 
-      expect(await getSettingsSalt()).toBe('mySalt');
-      expect(await getCachedSettingsKey()).toBeNull();
+      expect(result).toBe(key);
+    });
+
+    it('should clear cached keychain key', async () => {
+      await setCachedKeychainMasterKey('keyToRemove');
+      expect(await getCachedKeychainMasterKey()).toBe('keyToRemove');
+
+      await clearCachedKeychainMasterKey();
+
+      expect(await getCachedKeychainMasterKey()).toBeNull();
+    });
+  });
+
+  describe('Settings and Keychain key independence', () => {
+    it('should store settings and keychain keys independently', async () => {
+      await setCachedSettingsMasterKey('settingsKey');
+      await setCachedKeychainMasterKey('keychainKey');
+
+      expect(await getCachedSettingsMasterKey()).toBe('settingsKey');
+      expect(await getCachedKeychainMasterKey()).toBe('keychainKey');
+    });
+
+    it('should clear settings key without affecting keychain key', async () => {
+      await setCachedSettingsMasterKey('settingsKey');
+      await setCachedKeychainMasterKey('keychainKey');
+
+      await clearCachedSettingsMasterKey();
+
+      expect(await getCachedSettingsMasterKey()).toBeNull();
+      expect(await getCachedKeychainMasterKey()).toBe('keychainKey');
+    });
+
+    it('should clear keychain key without affecting settings key', async () => {
+      await setCachedSettingsMasterKey('settingsKey');
+      await setCachedKeychainMasterKey('keychainKey');
+
+      await clearCachedKeychainMasterKey();
+
+      expect(await getCachedSettingsMasterKey()).toBe('settingsKey');
+      expect(await getCachedKeychainMasterKey()).toBeNull();
     });
   });
 });

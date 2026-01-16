@@ -23,7 +23,7 @@ import { validatePrivateKeyFormat } from "@/utils/validation/privateKey";
 const ImportPrivateKey = () => {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets, createAndUnlockPrivateKeyWallet, verifyPassword } = useWallet();
+  const { keychainExists, createPrivateKeyWallet, verifyPassword } = useWallet();
   const { pending } = useFormStatus();
 
   const [addressFormat, setAddressFormat] = useState<AddressFormat>(AddressFormat.P2PKH);
@@ -33,10 +33,9 @@ const ImportPrivateKey = () => {
   const [privateKeyValue, setPrivateKeyValue] = useState("");
   const privateKeyInputRef = useRef<HTMLInputElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
-  const walletExists = wallets.length > 0;
 
   const PATHS = {
-    BACK: walletExists ? "/add-wallet" : "/onboarding",
+    BACK: keychainExists ? "/add-wallet" : "/onboarding",
     CLOSE: "/index",
     SUCCESS: "/index",
   } as const;
@@ -59,7 +58,7 @@ const ImportPrivateKey = () => {
         ariaLabel: 'Close',
       },
     });
-  }, [setHeaderProps, navigate, walletExists]);
+  }, [setHeaderProps, navigate, keychainExists]);
 
   useEffect(() => {
     privateKeyInputRef.current?.focus();
@@ -110,7 +109,7 @@ const ImportPrivateKey = () => {
       setSubmissionError("Password is required.");
       return;
     }
-    if (walletExists) {
+    if (keychainExists) {
       const isValid = await verifyPassword(password);
       if (!isValid) {
         setSubmissionError("Invalid password.");
@@ -123,7 +122,7 @@ const ImportPrivateKey = () => {
 
     try {
       // Always use the user-selected address type from the dropdown
-      await createAndUnlockPrivateKeyWallet(privateKey.trim(), password, undefined, addressFormat);
+      await createPrivateKeyWallet(privateKey.trim(), password, undefined, addressFormat);
       navigate(PATHS.SUCCESS);
     } catch (error) {
       let errorMessage = "Failed to import private key. ";
@@ -216,7 +215,7 @@ const ImportPrivateKey = () => {
             <>
               <PasswordInput
                 name="password"
-                placeholder={walletExists ? "Confirm password" : "Create password"}
+                placeholder={keychainExists ? "Confirm password" : "Create password"}
                 disabled={pending}
                 onChange={handlePasswordChange}
                 innerRef={passwordInputRef}
