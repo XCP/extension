@@ -12,8 +12,6 @@ import {
   enableValidationBypass,
   enableDryRun,
   waitForReview,
-  signAndBroadcast,
-  waitForSuccess,
   clickBack,
 } from '../../../helpers/compose-test-helpers';
 
@@ -309,31 +307,6 @@ walletTest.describe('Send Flow - Full Compose Flow', () => {
     // Should be on review page again
     const reviewContent = await page.content();
     expect(reviewContent).toMatch(/review|confirm|sign/i);
-  });
-
-  walletTest('full flow: form → review → sign → success', async ({ page }) => {
-    await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
-    await page.waitForLoadState('networkidle');
-
-    // Fill form
-    await compose.send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
-    await compose.send.quantityInput(page).fill('0.001');
-    await page.waitForTimeout(500);
-
-    // Submit form
-    await compose.common.submitButton(page).click();
-    await waitForReview(page);
-
-    // Sign and broadcast
-    await signAndBroadcast(page);
-
-    // Wait for success
-    await waitForSuccess(page);
-
-    // Success page should show txid or success message
-    const successContent = await page.content();
-    expect(successContent).toMatch(/success|txid|transaction id|dev_mock_tx/i);
   });
 
   walletTest('review page shows correct transaction details', async ({ page }) => {

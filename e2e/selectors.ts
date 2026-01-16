@@ -287,7 +287,7 @@ export const compose = {
     quantityInput: (page: Page) => page.locator('input[name*="quantity"], input[name*="amount"]').first(),
     divisibleToggle: (page: Page) => page.locator('input[type="checkbox"], [role="switch"]').first(),
     descriptionInput: (page: Page) => page.locator('textarea, input[name*="description"]').first(),
-    issueButton: (page: Page) => page.locator('button:has-text("Create"), button:has-text("Issue")').first(),
+    issueButton: (page: Page) => page.locator('button:has-text("Continue"), button:has-text("Create"), button:has-text("Issue")').first(),
     lockSupplyButton: (page: Page) => page.locator('button:has-text("Lock")').first(),
     transferOwnershipInput: (page: Page) => page.locator('input[name*="address"], input[name*="destination"]').first(),
   },

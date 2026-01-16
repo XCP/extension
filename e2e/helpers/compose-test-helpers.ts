@@ -1,118 +1,133 @@
 /**
  * Compose Flow Test Helpers
  *
- * Helper functions for testing the compose form → review → success flow.
- * Includes support for enabling Transaction Dry Run mode for full flow testing.
+ * Helper functions for testing compose form → review flows.
+ * E2E tests stop at the review page - signing/broadcast are tested via unit tests.
  */
 
 import { Page, expect } from '@playwright/test';
 import { TEST_ADDRESSES } from './test-data';
 
 /**
- * Enable API validation bypass for compose requests.
- * This adds validate=false to all compose API calls, which skips the
- * Counterparty API's balance/funds validation (allowing tests without real funds).
- *
- * Note: This is different from dry run mode - dry run skips broadcast,
- * while validation bypass skips compose-time balance checks.
+ * Enable compose API mocking for E2E tests.
+ * Mocks compose API endpoints to return mock transaction data for review page testing.
  *
  * @param page - Playwright page instance
  */
 export async function enableValidationBypass(page: Page): Promise<void> {
-  await page.route('**/v2/addresses/*/compose/**', async (route) => {
-    const url = new URL(route.request().url());
-    url.searchParams.set('validate', 'false');
-    await route.continue({ url: url.toString() });
-  });
+  const context = page.context();
 
-  // Also handle UTXO-based compose endpoints (detach, move)
-  await page.route('**/v2/utxos/*/compose/**', async (route) => {
-    const url = new URL(route.request().url());
-    url.searchParams.set('validate', 'false');
-    await route.continue({ url: url.toString() });
+  // Mock compose response - provides data for review page display
+  const mockComposeResponse = {
+    result: {
+      rawtransaction: '0200000001abcdef', // Not used for signing in E2E
+      btc_in: 174891,
+      btc_out: 10000,
+      btc_change: 164222,
+      btc_fee: 669,
+      data: null,
+      lock_scripts: ['76a9142adc44262632a30eace56056d6435781c75cc83188ac'],
+      inputs_values: [174891],
+      signed_tx_estimated_size: {
+        vsize: 223,
+        adjusted_vsize: 223,
+        sigops_count: 4,
+      },
+      psbt: 'cHNidP8BAHQCAAAAAUzdtsQaz89A3nUAm0nbSAQJOLqnxr486itx4OsSnEpjAQAAAAD/////AhAnAAAAAAAAFgAU6N8BjH4ybMJT+qx+Rs3FHmhULEJ+gQIAAAAAABl2qRQq3EQmJjKjDqzlYFbWQ1eBx1zIMYisAAAAAAAAAAA=',
+      params: {
+        source: '14udFRS6AdnQNJZn9RZ1H3LtSqP7k2UeTC',
+        destination: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
+        asset: 'BTC',
+        quantity: 10000,
+        memo: null,
+        memo_is_hex: false,
+        use_enhanced_send: true,
+        no_dispense: false,
+        skip_validation: false,
+        asset_info: { divisible: true, asset_longname: null },
+        quantity_normalized: '0.00010000',
+      },
+      name: 'send',
+    },
+  };
+
+  // Single unified route handler for all Counterparty API requests
+  await context.route('**/api.counterparty.io**', async (route) => {
+    const url = route.request().url();
+    const method = route.request().method();
+    console.log(`[E2E Debug] ${method} ${url}`);
+
+    // Handle compose endpoints - return mock transaction data
+    if (url.includes('/compose/')) {
+      // Parse compose type and params from URL
+      const composeTypeMatch = url.match(/\/compose\/([^/?]+)/);
+      const composeType = composeTypeMatch ? composeTypeMatch[1] : 'send';
+
+      // Parse URL query params
+      const urlParams = new URL(url).searchParams;
+      const assetName = urlParams.get('asset') || 'BTC';
+      const quantity = urlParams.get('quantity') || '10000';
+      const destination = urlParams.get('destination') || mockComposeResponse.result.params.destination;
+
+      console.log(`[E2E Mock] Intercepting compose/${composeType} request for asset: ${assetName}`);
+
+      // Build dynamic response with params from request
+      const dynamicResponse = {
+        ...mockComposeResponse,
+        result: {
+          ...mockComposeResponse.result,
+          params: {
+            ...mockComposeResponse.result.params,
+            asset: assetName,
+            quantity: parseInt(quantity, 10),
+            destination: destination,
+          },
+          name: composeType,
+        },
+      };
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(dynamicResponse),
+      });
+      return;
+    }
+
+    // Handle asset details endpoints - return 404 (asset not found = available for issuance)
+    if (url.includes('/v2/assets/')) {
+      const assetMatch = url.match(/\/v2\/assets\/([^/?]+)/);
+      const assetName = assetMatch ? decodeURIComponent(assetMatch[1]) : 'UNKNOWN';
+      console.log(`[E2E Mock] Asset details for ${assetName} - returning 404 (not found = available)`);
+      await route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Asset not found' }),
+      });
+      return;
+    }
+
+    // All other requests pass through to real API
+    await route.continue();
   });
 }
 
 /**
- * Enable Transaction Dry Run mode for testing full flows without broadcasting.
- * This setting is only available in development mode.
- *
- * When enabled:
- * - Transactions return mock txid (dev_mock_tx_...)
- * - 500ms simulated delay for realistic UX
- * - No actual network calls are made
+ * Enable dry run mode - kept for backward compatibility but no longer needed.
+ * E2E tests now stop at review page rather than testing signing/broadcast.
+ * @deprecated No longer needed - tests stop at review page
  */
-export async function enableDryRun(page: Page): Promise<void> {
-  const currentUrl = page.url();
-
-  // Navigate to advanced settings
-  const hashIndex = currentUrl.indexOf('#');
-  const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-  await page.goto(`${baseUrl}/settings/advanced`);
-  await page.waitForLoadState('networkidle');
-
-  // Find the dry run toggle
-  const dryRunRow = page.locator('text=Transaction Dry Run').locator('..');
-  const toggle = dryRunRow.locator('button[role="switch"]');
-
-  // Wait for toggle to be visible (only in dev mode)
-  const isVisible = await toggle.isVisible({ timeout: 3000 }).catch(() => false);
-  if (!isVisible) {
-    console.warn('Transaction Dry Run toggle not visible - may not be in development mode');
-    await page.goto(currentUrl);
-    return;
-  }
-
-  // Only click if not already enabled
-  const isEnabled = await toggle.getAttribute('aria-checked');
-  if (isEnabled !== 'true') {
-    await toggle.click();
-    // Wait for setting to save
-    await page.waitForTimeout(500);
-  }
-
-  // Return to original page
-  await page.goto(currentUrl);
-  await page.waitForLoadState('networkidle');
-}
-
-/**
- * Check if dry run mode is currently enabled
- */
-export async function isDryRunEnabled(page: Page): Promise<boolean> {
-  const currentUrl = page.url();
-
-  const hashIndex = currentUrl.indexOf('#');
-  const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-  await page.goto(`${baseUrl}/settings/advanced`);
-  await page.waitForLoadState('networkidle');
-
-  const dryRunRow = page.locator('text=Transaction Dry Run').locator('..');
-  const toggle = dryRunRow.locator('button[role="switch"]');
-
-  const isVisible = await toggle.isVisible({ timeout: 2000 }).catch(() => false);
-  if (!isVisible) {
-    await page.goto(currentUrl);
-    return false;
-  }
-
-  const isEnabled = await toggle.getAttribute('aria-checked');
-  await page.goto(currentUrl);
-  return isEnabled === 'true';
+export async function enableDryRun(_page: Page): Promise<void> {
+  // No-op - tests now stop at review page
 }
 
 /**
  * Navigate to a compose page
- * Uses the existing URL pattern from the extension popup
  */
 export async function goToCompose(page: Page, path: string): Promise<void> {
-  // Get current URL and modify hash for navigation
   const currentUrl = page.url();
-
-  // Find the base extension URL (everything before #)
   const hashIndex = currentUrl.indexOf('#');
   if (hashIndex === -1) {
-    // If no hash, we're not on the extension popup yet
     throw new Error('goToCompose must be called from an extension page');
   }
 
@@ -121,13 +136,11 @@ export async function goToCompose(page: Page, path: string): Promise<void> {
 
   await page.goto(targetUrl);
   await page.waitForLoadState('networkidle');
-
-  // Wait for compose page to render
   await page.waitForTimeout(1000);
 }
 
 /**
- * Fill the destination input with a valid testnet address
+ * Fill the destination input with a valid address
  */
 export async function fillDestination(page: Page, address?: string): Promise<void> {
   const dest = address || TEST_ADDRESSES.testnet.p2wpkh;
@@ -179,21 +192,18 @@ export async function submitForm(page: Page): Promise<void> {
  * Wait for review page to appear
  */
 export async function waitForReview(page: Page): Promise<void> {
-  // Review page typically shows "Review" heading or transaction details
   const reviewIndicators = [
     page.locator('text=/Review Transaction|Confirm Transaction|Review/i').first(),
     page.locator('text=Sign & Broadcast').first(),
     page.locator('button:has-text("Sign"), button:has-text("Broadcast")').first(),
   ];
 
-  // Wait for any of these indicators
   await Promise.race(
     reviewIndicators.map((loc) =>
       loc.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
     )
   );
 
-  // Verify at least one is visible
   let found = false;
   for (const loc of reviewIndicators) {
     if (await loc.isVisible().catch(() => false)) {
@@ -216,48 +226,6 @@ export async function clickBack(page: Page): Promise<void> {
     .first();
   await expect(backBtn).toBeVisible({ timeout: 5000 });
   await backBtn.click();
-}
-
-/**
- * Sign and broadcast on review page
- */
-export async function signAndBroadcast(page: Page): Promise<void> {
-  const signBtn = page
-    .locator('button:has-text("Sign & Broadcast"), button:has-text("Broadcast"), button:has-text("Sign")')
-    .first();
-  await expect(signBtn).toBeVisible({ timeout: 5000 });
-  await signBtn.click();
-}
-
-/**
- * Wait for success page after signing
- */
-export async function waitForSuccess(page: Page): Promise<void> {
-  // Success page shows mock txid (dev_mock_tx_) or success message
-  const successIndicators = [
-    page.locator('text=/dev_mock_tx_/').first(),
-    page.locator('text=/Success|Transaction Sent|Broadcast Complete/i').first(),
-    page.locator('text=/Transaction ID|TXID/i').first(),
-  ];
-
-  await Promise.race(
-    successIndicators.map((loc) =>
-      loc.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
-    )
-  );
-
-  // Verify at least one is visible
-  let found = false;
-  for (const loc of successIndicators) {
-    if (await loc.isVisible().catch(() => false)) {
-      found = true;
-      break;
-    }
-  }
-
-  if (!found) {
-    throw new Error('Success page indicators not found after signing');
-  }
 }
 
 /**
@@ -325,20 +293,6 @@ export async function testFormValidation(
       expect(text).toMatch(expectedError);
     }
   }
-}
-
-/**
- * Complete the full flow: form → review → sign → success
- */
-export async function completeFullFlow(
-  page: Page,
-  fillForm: () => Promise<void>
-): Promise<void> {
-  await fillForm();
-  await submitForm(page);
-  await waitForReview(page);
-  await signAndBroadcast(page);
-  await waitForSuccess(page);
 }
 
 /**

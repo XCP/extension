@@ -10,8 +10,6 @@ import {
   enableValidationBypass,
   enableDryRun,
   waitForReview,
-  signAndBroadcast,
-  waitForSuccess,
   clickBack,
 } from '../../../helpers/compose-test-helpers';
 
@@ -165,26 +163,6 @@ walletTest.describe('Issuance Flow - Full Compose Flow', () => {
     await expect(compose.issuance.quantityInput(page)).toHaveValue(quantity);
   });
 
-  walletTest('full flow: issuance form → review → sign → success', async ({ page }) => {
-    await navigateTo(page, 'actions');
-    await actions.issueAssetOption(page).click();
-    await page.waitForURL('**/compose/issuance', { timeout: 10000 });
-
-    const assetName = generateAssetName();
-    await compose.issuance.assetNameInput(page).fill(assetName);
-    await compose.issuance.quantityInput(page).fill('1000000');
-    await page.waitForTimeout(500);
-
-    await compose.issuance.issueButton(page).click();
-    await waitForReview(page);
-
-    await signAndBroadcast(page);
-    await waitForSuccess(page);
-
-    const successContent = await page.content();
-    expect(successContent).toMatch(/success|txid|transaction id|dev_mock_tx/i);
-  });
-
   walletTest('review page shows asset name', async ({ page }) => {
     await navigateTo(page, 'actions');
     await actions.issueAssetOption(page).click();
@@ -193,6 +171,7 @@ walletTest.describe('Issuance Flow - Full Compose Flow', () => {
     const assetName = generateAssetName();
     await compose.issuance.assetNameInput(page).fill(assetName);
     await compose.issuance.quantityInput(page).fill('1000000');
+    await page.waitForTimeout(500); // Wait for debounced validation to complete
     await compose.issuance.issueButton(page).click();
     await waitForReview(page);
 

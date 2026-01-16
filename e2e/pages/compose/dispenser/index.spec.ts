@@ -10,8 +10,6 @@ import {
   enableValidationBypass,
   enableDryRun,
   waitForReview,
-  signAndBroadcast,
-  waitForSuccess,
   clickBack,
 } from '../../../helpers/compose-test-helpers';
 
@@ -208,11 +206,9 @@ walletTest.describe('Dispenser Flow - Full Compose Flow', () => {
         await submitBtn.click();
         await waitForReview(page);
 
-        await signAndBroadcast(page);
-        await waitForSuccess(page);
-
-        const successContent = await page.content();
-        expect(successContent).toMatch(/success|txid|transaction id|dev_mock_tx/i);
+        // Verify review page
+        const reviewContent = await page.content();
+        expect(reviewContent).toMatch(/review|confirm|sign/i);
       }
     }
   });

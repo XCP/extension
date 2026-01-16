@@ -10,8 +10,6 @@ import {
   enableValidationBypass,
   enableDryRun,
   waitForReview,
-  signAndBroadcast,
-  waitForSuccess,
   clickBack,
 } from '../../../helpers/compose-test-helpers';
 import { TEST_ADDRESSES } from '../../../helpers/test-data';
@@ -117,7 +115,7 @@ walletTest.describe('Sweep Flow - Full Compose Flow', () => {
     }
   });
 
-  walletTest('full flow: sweep form → review → sign → success', async ({ page }) => {
+  walletTest('form → review: sweep reaches review page', async ({ page }) => {
     await navigateTo(page, 'actions');
     await actions.sweepAddressOption(page).click();
     await page.waitForURL(/sweep/, { timeout: 5000 });
@@ -132,11 +130,10 @@ walletTest.describe('Sweep Flow - Full Compose Flow', () => {
       if (isEnabled) {
         await submitBtn.click();
         await waitForReview(page);
-        await signAndBroadcast(page);
-        await waitForSuccess(page);
 
-        const successContent = await page.content();
-        expect(successContent).toMatch(/success|txid|transaction id|dev_mock_tx/i);
+        // Verify review page
+        const reviewContent = await page.content();
+        expect(reviewContent).toMatch(/review|confirm|sign/i);
       }
     }
   });

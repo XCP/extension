@@ -175,6 +175,8 @@ export function IssuanceForm({
       }
       submitDisabled={!isAssetNameValid || (inscribeEnabled && !selectedFile)}
     >
+          {/* Hidden field to indicate this is new asset creation (vs existing asset operations) */}
+          <input type="hidden" name="_isNewAsset" value="true" />
           <AssetNameInput
             name="asset"
             value={assetName}

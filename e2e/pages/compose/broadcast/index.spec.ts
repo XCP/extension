@@ -10,8 +10,6 @@ import {
   enableValidationBypass,
   enableDryRun,
   waitForReview,
-  signAndBroadcast,
-  waitForSuccess,
   clickBack,
 } from '../../../helpers/compose-test-helpers';
 
@@ -105,25 +103,6 @@ walletTest.describe('Broadcast Flow - Full Compose Flow', () => {
     await page.waitForTimeout(500);
 
     await expect(messageInput).toHaveValue(testMessage);
-  });
-
-  walletTest('full flow: broadcast form → review → sign → success', async ({ page }) => {
-    await navigateTo(page, 'actions');
-    await actions.broadcastOption(page).click();
-    await page.waitForURL('**/compose/broadcast', { timeout: 10000 });
-
-    const messageInput = compose.broadcast.messageInput(page);
-    await messageInput.fill('E2E full flow broadcast test');
-    await page.waitForTimeout(500);
-
-    await compose.common.submitButton(page).click();
-    await waitForReview(page);
-
-    await signAndBroadcast(page);
-    await waitForSuccess(page);
-
-    const successContent = await page.content();
-    expect(successContent).toMatch(/success|txid|transaction id|dev_mock_tx/i);
   });
 
   walletTest('review page shows broadcast message', async ({ page }) => {
