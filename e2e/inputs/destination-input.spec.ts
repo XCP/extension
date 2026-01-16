@@ -261,7 +261,7 @@ walletTest.describe('DestinationInput Component', () => {
       }
 
       // Submit button should be enabled (or at least not disabled due to destination)
-      const submitBtn = compose.send.submitButton(page);
+      const submitBtn = compose.common.submitButton(page);
       // May still be disabled for other reasons (balance, etc.) but destination should be valid
       await expect(input).not.toHaveClass(/border-red-500/);
     });

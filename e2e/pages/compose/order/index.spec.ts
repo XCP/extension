@@ -102,14 +102,14 @@ walletTest.describe('Order Flow - Full Compose Flow', () => {
     }
 
     // Fill order form - DEX order requires give asset/amount and get asset/amount
-    const giveAmountInput = compose.order.giveAmountInput(page);
-    const getAmountInput = compose.order.getAmountInput(page);
+    const giveQuantityInput = compose.order.giveQuantityInput(page);
+    const getQuantityInput = compose.order.getQuantityInput(page);
 
-    if (await giveAmountInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await giveAmountInput.fill('1');
+    if (await giveQuantityInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await giveQuantityInput.fill('1');
     }
-    if (await getAmountInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await getAmountInput.fill('0.001');
+    if (await getQuantityInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await getQuantityInput.fill('0.001');
     }
     await page.waitForTimeout(500);
 
@@ -134,14 +134,14 @@ walletTest.describe('Order Flow - Full Compose Flow', () => {
       return;
     }
 
-    const giveAmountInput = compose.order.giveAmountInput(page);
-    const getAmountInput = compose.order.getAmountInput(page);
+    const giveQuantityInput2 = compose.order.giveQuantityInput(page);
+    const getQuantityInput2 = compose.order.getQuantityInput(page);
 
-    if (await giveAmountInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await giveAmountInput.fill('1');
+    if (await giveQuantityInput2.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await giveQuantityInput2.fill('1');
     }
-    if (await getAmountInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await getAmountInput.fill('0.001');
+    if (await getQuantityInput2.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await getQuantityInput2.fill('0.001');
     }
     await page.waitForTimeout(500);
 
