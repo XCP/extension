@@ -66,6 +66,9 @@ vi.mock('@/utils/fathom', () => ({
 }));
 vi.mock('@/utils/security/replayPrevention');
 vi.mock('@/utils/security/cspValidation');
+vi.mock('@/utils/storage/walletStorage', () => ({
+  keychainExists: vi.fn().mockResolvedValue(true),
+}));
 // Setup fake browser with required APIs
 beforeAll(() => {
   // Setup browser.windows.create mock

@@ -38,6 +38,7 @@ import { useAuthGuard } from '@/hooks/useAuthGuard';
 // Type for our mock wallet context
 interface MockWalletContext {
   authState: 'UNLOCKED' | 'LOCKED' | 'ONBOARDING_NEEDED';
+  keychainExists: boolean;
   wallets: any[];
   isLoading: boolean;
 }
@@ -84,6 +85,7 @@ describe('AuthRequired', () => {
     it('should not render anything while loading', () => {
       setupWalletContext({
         authState: 'UNLOCKED',
+        keychainExists: true,
         wallets: [{ id: '1' }],
         isLoading: true,
       });
@@ -99,6 +101,7 @@ describe('AuthRequired', () => {
     it('should not navigate during loading even if auth state is locked', () => {
       setupWalletContext({
         authState: 'LOCKED',
+        keychainExists: true,
         wallets: [{ id: '1' }],
         isLoading: true,
       });
@@ -113,6 +116,7 @@ describe('AuthRequired', () => {
     it('should render child routes when unlocked', () => {
       setupWalletContext({
         authState: 'UNLOCKED',
+        keychainExists: true,
         wallets: [{ id: '1' }],
         isLoading: false,
       });
@@ -126,6 +130,7 @@ describe('AuthRequired', () => {
     it('should call useAuthGuard for real-time monitoring', () => {
       setupWalletContext({
         authState: 'UNLOCKED',
+        keychainExists: true,
         wallets: [{ id: '1' }],
         isLoading: false,
       });
@@ -138,6 +143,7 @@ describe('AuthRequired', () => {
     it('should render different protected routes based on path', () => {
       setupWalletContext({
         authState: 'UNLOCKED',
+        keychainExists: true,
         wallets: [{ id: '1' }],
         isLoading: false,
       });
@@ -152,6 +158,7 @@ describe('AuthRequired', () => {
     it('should redirect to unlock screen when locked with wallets', async () => {
       setupWalletContext({
         authState: 'LOCKED',
+        keychainExists: true,
         wallets: [{ id: '1' }],
         isLoading: false,
       });
@@ -174,6 +181,7 @@ describe('AuthRequired', () => {
     it('should not include "from" state when on root path', () => {
       setupWalletContext({
         authState: 'LOCKED',
+        keychainExists: true,
         wallets: [{ id: '1' }],
         isLoading: false,
       });
@@ -192,6 +200,7 @@ describe('AuthRequired', () => {
     it('should not render protected content when locked', () => {
       setupWalletContext({
         authState: 'LOCKED',
+        keychainExists: true,
         wallets: [{ id: '1' }],
         isLoading: false,
       });
@@ -206,6 +215,7 @@ describe('AuthRequired', () => {
     it('should redirect to onboarding when no wallets exist', () => {
       setupWalletContext({
         authState: 'ONBOARDING_NEEDED',
+        keychainExists: false,
         wallets: [],
         isLoading: false,
       });
@@ -222,6 +232,7 @@ describe('AuthRequired', () => {
     it('should redirect to onboarding even if authState is LOCKED with no wallets', () => {
       setupWalletContext({
         authState: 'LOCKED',
+        keychainExists: false,
         wallets: [],
         isLoading: false,
       });
@@ -255,6 +266,7 @@ describe('AuthRequired', () => {
       // Start with loading
       setupWalletContext({
         authState: 'UNLOCKED',
+        keychainExists: true,
         wallets: [{ id: '1' }],
         isLoading: true,
       });
@@ -267,6 +279,7 @@ describe('AuthRequired', () => {
       // Transition to loaded
       setupWalletContext({
         authState: 'UNLOCKED',
+        keychainExists: true,
         wallets: [{ id: '1' }],
         isLoading: false,
       });
@@ -288,6 +301,7 @@ describe('AuthRequired', () => {
       // Start unlocked
       setupWalletContext({
         authState: 'UNLOCKED',
+        keychainExists: true,
         wallets: [{ id: '1' }],
         isLoading: false,
       });
@@ -302,6 +316,7 @@ describe('AuthRequired', () => {
       // Transition to locked
       setupWalletContext({
         authState: 'LOCKED',
+        keychainExists: true,
         wallets: [{ id: '1' }],
         isLoading: false,
       });
@@ -327,6 +342,7 @@ describe('AuthRequired', () => {
       // Start with wallet
       setupWalletContext({
         authState: 'UNLOCKED',
+        keychainExists: true,
         wallets: [{ id: '1' }],
         isLoading: false,
       });
@@ -339,6 +355,7 @@ describe('AuthRequired', () => {
       mockNavigate.mockClear();
       setupWalletContext({
         authState: 'ONBOARDING_NEEDED',
+        keychainExists: false,
         wallets: [],
         isLoading: false,
       });
@@ -365,6 +382,7 @@ describe('AuthRequired', () => {
     it('should handle empty wallets array with UNLOCKED state', () => {
       setupWalletContext({
         authState: 'UNLOCKED',
+        keychainExists: false,
         wallets: [],
         isLoading: false,
       });
@@ -384,6 +402,7 @@ describe('AuthRequired', () => {
       // The initialRoute parameter only sets the initial entry, not the actual matched route
       setupWalletContext({
         authState: 'LOCKED',
+        keychainExists: true,
         wallets: [{ id: '1' }],
         isLoading: false,
       });
@@ -404,10 +423,10 @@ describe('AuthRequired', () => {
       
       // Simulate rapid state changes
       const states: MockWalletContext[] = [
-        { authState: 'LOCKED', wallets: [{ id: '1' }], isLoading: false },
-        { authState: 'UNLOCKED', wallets: [{ id: '1' }], isLoading: false },
-        { authState: 'LOCKED', wallets: [{ id: '1' }], isLoading: false },
-        { authState: 'UNLOCKED', wallets: [{ id: '1' }], isLoading: false },
+        { authState: 'LOCKED', keychainExists: true, wallets: [{ id: '1' }], isLoading: false },
+        { authState: 'UNLOCKED', keychainExists: true, wallets: [{ id: '1' }], isLoading: false },
+        { authState: 'LOCKED', keychainExists: true, wallets: [{ id: '1' }], isLoading: false },
+        { authState: 'UNLOCKED', keychainExists: true, wallets: [{ id: '1' }], isLoading: false },
       ];
       
       states.forEach(state => {
@@ -439,10 +458,10 @@ describe('AuthRequired', () => {
   describe('Integration with useAuthGuard', () => {
     it('should always call useAuthGuard hook regardless of state', () => {
       const scenarios: MockWalletContext[] = [
-        { authState: 'UNLOCKED', wallets: [{ id: '1' }], isLoading: false },
-        { authState: 'LOCKED', wallets: [{ id: '1' }], isLoading: false },
-        { authState: 'ONBOARDING_NEEDED', wallets: [], isLoading: false },
-        { authState: 'UNLOCKED', wallets: [{ id: '1' }], isLoading: true },
+        { authState: 'UNLOCKED', keychainExists: true, wallets: [{ id: '1' }], isLoading: false },
+        { authState: 'LOCKED', keychainExists: true, wallets: [{ id: '1' }], isLoading: false },
+        { authState: 'ONBOARDING_NEEDED', keychainExists: false, wallets: [], isLoading: false },
+        { authState: 'UNLOCKED', keychainExists: true, wallets: [{ id: '1' }], isLoading: true },
       ];
       
       scenarios.forEach((scenario, index) => {
@@ -471,6 +490,7 @@ describe('AuthRequired', () => {
       
       setupWalletContext({
         authState: 'UNLOCKED',
+        keychainExists: true,
         wallets: [{ id: '1' }],
         isLoading: false,
       });
@@ -490,6 +510,7 @@ describe('AuthRequired', () => {
       // Keep the same wallet context (no change)
       setupWalletContext({
         authState: 'UNLOCKED',
+        keychainExists: true,
         wallets: [{ id: '1' }],
         isLoading: false,
       });

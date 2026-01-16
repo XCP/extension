@@ -31,6 +31,7 @@ describe('useAuthGuard', () => {
     
     vi.mocked(useWallet).mockReturnValue({
       authState: 'UNLOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
@@ -48,6 +49,7 @@ describe('useAuthGuard', () => {
     
     vi.mocked(useWallet).mockReturnValue({
       authState: 'LOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
@@ -66,6 +68,7 @@ describe('useAuthGuard', () => {
     // Start with UNLOCKED state
     vi.mocked(useWallet).mockReturnValue({
       authState: 'UNLOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
@@ -78,6 +81,7 @@ describe('useAuthGuard', () => {
     // Change to LOCKED state
     vi.mocked(useWallet).mockReturnValue({
       authState: 'LOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
 
@@ -97,6 +101,7 @@ describe('useAuthGuard', () => {
     // Start with LOCKED state (no previous state)
     vi.mocked(useWallet).mockReturnValue({
       authState: 'LOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
@@ -114,6 +119,7 @@ describe('useAuthGuard', () => {
     // Start with UNLOCKED state but no wallets
     vi.mocked(useWallet).mockReturnValue({
       authState: 'UNLOCKED',
+      keychainExists: false,
       wallets: []
     } as any);
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
@@ -123,6 +129,7 @@ describe('useAuthGuard', () => {
     // Change to LOCKED state
     vi.mocked(useWallet).mockReturnValue({
       authState: 'LOCKED',
+      keychainExists: false,
       wallets: []
     } as any);
 
@@ -140,6 +147,7 @@ describe('useAuthGuard', () => {
     // Start with ONBOARDING_NEEDED state
     vi.mocked(useWallet).mockReturnValue({
       authState: 'ONBOARDING_NEEDED',
+      keychainExists: false,
       wallets: []
     } as any);
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
@@ -149,6 +157,7 @@ describe('useAuthGuard', () => {
     // Change to LOCKED state
     vi.mocked(useWallet).mockReturnValue({
       authState: 'LOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
 
@@ -166,6 +175,7 @@ describe('useAuthGuard', () => {
     // Start with LOCKED state
     vi.mocked(useWallet).mockReturnValue({
       authState: 'LOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
@@ -175,6 +185,7 @@ describe('useAuthGuard', () => {
     // Change to UNLOCKED state (unlock event)
     vi.mocked(useWallet).mockReturnValue({
       authState: 'UNLOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
 
@@ -195,6 +206,7 @@ describe('useAuthGuard', () => {
     // Start with UNLOCKED state
     vi.mocked(useWallet).mockReturnValue({
       authState: 'UNLOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
@@ -204,6 +216,7 @@ describe('useAuthGuard', () => {
     // Change to LOCKED state
     vi.mocked(useWallet).mockReturnValue({
       authState: 'LOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
 
@@ -223,6 +236,7 @@ describe('useAuthGuard', () => {
     // Start with UNLOCKED state
     vi.mocked(useWallet).mockReturnValue({
       authState: 'UNLOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
@@ -232,6 +246,7 @@ describe('useAuthGuard', () => {
     // Rapid changes: UNLOCKED -> LOCKED -> UNLOCKED -> LOCKED
     vi.mocked(useWallet).mockReturnValue({
       authState: 'LOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
     rerender();
@@ -240,6 +255,7 @@ describe('useAuthGuard', () => {
 
     vi.mocked(useWallet).mockReturnValue({
       authState: 'UNLOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
     rerender();
@@ -249,6 +265,7 @@ describe('useAuthGuard', () => {
 
     vi.mocked(useWallet).mockReturnValue({
       authState: 'LOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
     rerender();
@@ -265,6 +282,7 @@ describe('useAuthGuard', () => {
     // Start with UNLOCKED state and one wallet
     vi.mocked(useWallet).mockReturnValue({
       authState: 'UNLOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
@@ -294,6 +312,7 @@ describe('useAuthGuard', () => {
     // Test ONBOARDING_NEEDED
     vi.mocked(useWallet).mockReturnValue({
       authState: 'ONBOARDING_NEEDED',
+      keychainExists: false,
       wallets: []
     } as any);
 
@@ -303,6 +322,7 @@ describe('useAuthGuard', () => {
     // Test LOCKED
     vi.mocked(useWallet).mockReturnValue({
       authState: 'LOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
     rerender();
@@ -311,6 +331,7 @@ describe('useAuthGuard', () => {
     // Test UNLOCKED
     vi.mocked(useWallet).mockReturnValue({
       authState: 'UNLOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
     rerender();
@@ -324,6 +345,7 @@ describe('useAuthGuard', () => {
     
     vi.mocked(useWallet).mockReturnValue({
       authState: 'UNLOCKED',
+      keychainExists: true,
       wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
     } as any);
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
