@@ -1,22 +1,35 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { utf8ToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
-import { mnemonicToSeedSync } from '@scure/bip39';
+import { mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/english.js';
 import * as sessionManager from '@/utils/auth/sessionManager';
-import { getAllEncryptedWallets, addEncryptedWallet, updateEncryptedWallet, updateEncryptedWallets, removeEncryptedWallet, EncryptedWalletRecord } from '@/utils/storage/walletStorage';
-import { encryptMnemonic, decryptMnemonic, encryptPrivateKey, decryptPrivateKey, DecryptionError } from '@/utils/encryption/walletEncryption';
+import {
+  getKeychainRecord,
+  saveKeychainRecord,
+  deleteKeychain,
+} from '@/utils/storage/walletStorage';
+import {
+  deriveKey,
+  deriveKeyAsync,
+  encryptWithKey,
+  decryptWithKey,
+  encryptJsonWithKey,
+  decryptJsonWithKey,
+  DEFAULT_PBKDF2_ITERATIONS,
+} from '@/utils/encryption/encryption';
+import { base64ToBuffer, generateRandomBytes, bufferToBase64 } from '@/utils/encryption/buffer';
 import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressFormat, isCounterwalletFormat } from '@/utils/blockchain/bitcoin/address';
 import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';
 import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
-import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
-import { reencryptSettings, getSettings, updateSettings, invalidateSettingsCache, getAutoLockTimeoutMs, type AppSettings } from '@/utils/storage/settingsStorage';
-import { initializeSettingsKey, clearSettingsKey } from '@/utils/encryption/settings';
+import { isValidCounterwalletMnemonic, getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
+import { DEFAULT_SETTINGS, getAutoLockTimeoutMs, type AppSettings } from '@/utils/settings';
 import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 import { signPSBT as btcSignPSBT } from '@/utils/blockchain/bitcoin/psbt';
 
 // Import types from centralized types module
-import type { Address, Wallet } from '@/types/wallet';
+import type { Address, Wallet, Keychain, KeychainRecord, WalletRecord } from '@/types/wallet';
 
 // Re-export types for backwards compatibility
 export type { Address, Wallet };
@@ -27,9 +40,53 @@ import { MAX_WALLETS, MAX_ADDRESSES_PER_WALLET } from './constants';
 // Re-export from constants to maintain backwards compatibility
 export { MAX_WALLETS, MAX_ADDRESSES_PER_WALLET };
 
+/** Current keychain schema version */
+const KEYCHAIN_VERSION = 1;
+
+/**
+ * WalletManager - Core wallet state management (ADR-015)
+ *
+ * ## Architecture: Unified Keychain
+ *
+ * Previous design had separate encryption for settings and each wallet, requiring
+ * password entry for each wallet switch. The unified keychain design:
+ *
+ * 1. Single password unlocks entire keychain (better UX)
+ * 2. Master key derived once, stored in session (survives SW restart)
+ * 3. Wallet secrets still individually encrypted with master key (defense in depth)
+ * 4. Settings encryption shares the same unlock flow
+ *
+ * ## Three-Level Hierarchy
+ *
+ * - **Keychain**: Password-protected vault containing all wallets
+ * - **Wallet**: Mnemonic or private key with derived addresses
+ * - **Address**: Single Bitcoin address (just a pointer, no crypto)
+ *
+ * ## Security Trade-off
+ *
+ * Master key in session = password-equivalent capability while unlocked.
+ * This is unavoidable if you want wallet switching without re-entering password.
+ * Mitigated by: auto-lock timeout, session cleared on browser close.
+ *
+ * ## State Invariants
+ *
+ * - When locked: keychain=null, wallets=[], masterKey not in session
+ * - When unlocked: keychain!=null, wallets synced with keychain.wallets, masterKey in session
+ * - Only one wallet's secret is decrypted at a time (the active wallet)
+ *
+ * ## Storage Layers
+ *
+ * - chrome.storage.local: encrypted keychain (persisted)
+ * - chrome.storage.session: master key bytes (survives SW restart, cleared on browser close)
+ * - In-memory: keychain metadata, wallet list, active wallet's decrypted secret
+ */
 export class WalletManager {
+  /** Runtime wallet list (addresses populated only for active wallet) */
   private wallets: Wallet[] = [];
+  /** Currently active wallet ID */
   private activeWalletId: string | null = null;
+  /** Decrypted keychain metadata; null when locked */
+  private keychain: Keychain | null = null;
 
   public async setLastActiveTime(): Promise<void> {
     await sessionManager.setLastActiveTime();
@@ -44,54 +101,89 @@ export class WalletManager {
     return false;
   }
 
-  public async loadWallets(): Promise<void> {
-    const encryptedRecords = await getAllEncryptedWallets();
-    this.wallets = await Promise.all(encryptedRecords.map(async (rec: EncryptedWalletRecord) => {
-      const unlockedSecret = await sessionManager.getUnlockedSecret(rec.id);
-      let addresses: Address[] = [];
-      if (unlockedSecret) {
-        if (rec.type === 'mnemonic') {
-          const count = rec.addressCount || 1;
-          addresses = Array.from({ length: count }, (_, i) =>
-            this.deriveMnemonicAddress(unlockedSecret, rec.addressFormat, i)
-          );
-        } else if (rec.isTestOnly) {
-          // Special handling for test wallets - parse the test data
-          try {
-            const testData = JSON.parse(unlockedSecret);
-            if (testData.isTestWallet && testData.address) {
-              addresses = [{
-                name: "Test Address",
-                path: "m/test",
-                address: testData.address,
-                pubKey: ''
-              }];
-            }
-          } catch (e) {
-            console.warn('Failed to parse test wallet data:', e);
-            addresses = [];
-          }
-        } else {
-          addresses = [this.deriveAddressFromPrivateKey(unlockedSecret, rec.addressFormat)];
-        }
-      }
-      // When locked (no unlockedSecret), addresses remains empty array
-      // previewAddress is always available for display in wallet list
-      return {
-        id: rec.id,
-        name: rec.name,
-        type: rec.type,
-        addressFormat: rec.addressFormat,
-        addressCount: rec.addressCount || 1,
-        addresses,
-        isTestOnly: rec.isTestOnly,
-        previewAddress: rec.previewAddress,
-      };
-    }));
-    const settings: AppSettings = await getSettings();
-    if (settings.lastActiveWalletId && this.getWalletById(settings.lastActiveWalletId)) {
-      this.activeWalletId = settings.lastActiveWalletId;
+  public async refreshWallets(): Promise<void> {
+    // If keychain is already loaded, just refresh addresses
+    if (this.keychain) {
+      await this.refreshWalletAddresses();
+      return;
     }
+
+    // Try to reload keychain from session
+    const masterKey = await sessionManager.getKeychainMasterKey();
+    if (!masterKey) return;
+
+    const keychainRecord = await getKeychainRecord();
+    if (!keychainRecord) return;
+
+    try {
+      const decryptedKeychain = await decryptJsonWithKey<Keychain>(keychainRecord.encryptedKeychain, masterKey);
+      this.keychain = decryptedKeychain;
+      this.wallets = decryptedKeychain.wallets.map((r) => this.walletFromRecord(r));
+      await this.refreshWalletAddresses();
+
+      const settings = this.getSettings();
+      if (settings.lastActiveWalletId && this.getWalletById(settings.lastActiveWalletId)) {
+        this.activeWalletId = settings.lastActiveWalletId;
+      }
+    } catch {
+      this.wallets = [];
+      this.keychain = null;
+    }
+  }
+
+  /** Converts a keychain record to a runtime wallet object */
+  private walletFromRecord(record: WalletRecord): Wallet {
+    return {
+      id: record.id,
+      name: record.name,
+      type: record.type,
+      addressFormat: record.addressFormat,
+      addressCount: record.addressCount,
+      addresses: [],
+      isTestOnly: record.isTestOnly,
+      previewAddress: record.previewAddress,
+    };
+  }
+
+  /** Refreshes addresses for all wallets that have unlocked secrets */
+  private async refreshWalletAddresses(): Promise<void> {
+    if (!this.keychain) return;
+
+    for (const wallet of this.wallets) {
+      const secret = await sessionManager.getUnlockedSecret(wallet.id);
+      if (!secret) {
+        wallet.addresses = [];
+        continue;
+      }
+
+      const record = this.keychain.wallets.find(r => r.id === wallet.id);
+      if (!record) continue;
+
+      wallet.addresses = this.deriveAddressesFromSecret(secret, record);
+    }
+  }
+
+  /** Derives addresses from a decrypted secret based on wallet type */
+  private deriveAddressesFromSecret(secret: string, record: WalletRecord): Address[] {
+    if (record.type === 'mnemonic') {
+      const count = record.addressCount || 1;
+      return Array.from({ length: count }, (_, i) =>
+        this.deriveMnemonicAddress(secret, record.addressFormat, i)
+      );
+    }
+
+    if (record.isTestOnly) {
+      try {
+        const testData = JSON.parse(secret);
+        if (testData.isTestWallet && testData.address) {
+          return [{ name: "Test Address", path: "m/test", address: testData.address, pubKey: '' }];
+        }
+      } catch {
+        return [];
+      }
+    }
+
+    return [this.deriveAddressFromPrivateKey(secret, record.addressFormat)];
   }
 
   public getWallets(): Wallet[] {
@@ -105,16 +197,13 @@ export class WalletManager {
 
   public async setActiveWallet(walletId: string): Promise<void> {
     this.activeWalletId = walletId;
-    await updateSettings({ lastActiveWalletId: walletId });
+    await this.updateSettings({ lastActiveWalletId: walletId });
   }
 
   public getWalletById(id: string): Wallet | undefined {
     return this.wallets.find((w) => w.id === id);
   }
 
-  public getWallet(walletId: string): Wallet | undefined {
-    return this.getWalletById(walletId);
-  }
 
   public async getUnencryptedMnemonic(walletId: string): Promise<string> {
     const secret = await sessionManager.getUnlockedSecret(walletId);
@@ -131,25 +220,50 @@ export class WalletManager {
     if (this.wallets.length >= MAX_WALLETS) {
       throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
     }
+
+    // Validate mnemonic
+    const isValid = addressFormat === AddressFormat.Counterwallet
+      ? isValidCounterwalletMnemonic(mnemonic)
+      : validateMnemonic(mnemonic, wordlist);
+
+    if (!isValid) {
+      throw new Error(`Invalid mnemonic for address format: ${addressFormat}`);
+    }
+
     const walletName = name || `Wallet ${this.wallets.length + 1}`;
     const id = await this.generateWalletId(mnemonic, addressFormat);
+
     if (this.wallets.some((w) => w.id === id)) {
       throw new Error('A wallet with this mnemonic+addressType combination already exists.');
     }
-    const encryptedMnemonic = await encryptMnemonic(mnemonic, password, addressFormat);
-    // Derive first address for preview display in wallet list
+
+    const masterKey = await this.getOrCreateKeychain(password);
+    const encryptedSecret = await encryptWithKey(mnemonic, masterKey);
+
+    // Derive first address for preview display
     const derivationPath = `${getDerivationPathForAddressFormat(addressFormat)}/0`;
     const previewAddress = getAddressFromMnemonic(mnemonic, derivationPath, addressFormat);
-    const record: EncryptedWalletRecord = {
+
+    // Create wallet record for keychain
+    const walletRecord: WalletRecord = {
       id,
       name: walletName,
       type: 'mnemonic',
       addressFormat,
       addressCount: 1,
-      encryptedSecret: encryptedMnemonic,
+      encryptedSecret,
       previewAddress,
+      createdAt: Date.now(),
     };
-    await addEncryptedWallet(record);
+
+    // Add to keychain
+    if (!this.keychain) {
+      throw new Error('Keychain not initialized');
+    }
+    this.keychain.wallets.push(walletRecord);
+    await this.persistKeychain();
+
+    // Add to runtime wallet list
     const wallet: Wallet = {
       id,
       name: walletName,
@@ -157,8 +271,13 @@ export class WalletManager {
       addressFormat,
       addressCount: 1,
       addresses: [],
+      previewAddress,
     };
     this.wallets.push(wallet);
+
+    // Select the newly created wallet
+    await this.selectWallet(id);
+
     return wallet;
   }
 
@@ -171,6 +290,7 @@ export class WalletManager {
     if (this.wallets.length >= MAX_WALLETS) {
       throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
     }
+
     const walletName = name || `Wallet ${this.wallets.length + 1}`;
     let privateKeyHex: string;
     let wifFormat: string;
@@ -198,19 +318,33 @@ export class WalletManager {
     if (this.wallets.some((w) => w.id === id)) {
       throw new Error('A wallet with this private key already exists.');
     }
-    const encryptedPrivateKey = await encryptPrivateKey(secretJson, password);
-    // Derive address for preview display in wallet list
+
+    const masterKey = await this.getOrCreateKeychain(password);
+    const encryptedSecret = await encryptWithKey(secretJson, masterKey);
+
+    // Derive address for preview display
     const previewAddress = getAddressFromPrivateKey(privateKeyHex, addressFormat, compressed);
-    const record: EncryptedWalletRecord = {
+
+    // Create wallet record for keychain
+    const walletRecord: WalletRecord = {
       id,
       name: walletName,
       type: 'privateKey',
       addressFormat,
       addressCount: 1,
-      encryptedSecret: encryptedPrivateKey,
+      encryptedSecret,
       previewAddress,
+      createdAt: Date.now(),
     };
-    await addEncryptedWallet(record);
+
+    // Add to keychain
+    if (!this.keychain) {
+      throw new Error('Keychain not initialized');
+    }
+    this.keychain.wallets.push(walletRecord);
+    await this.persistKeychain();
+
+    // Add to runtime wallet list
     const wallet: Wallet = {
       id,
       name: walletName,
@@ -218,8 +352,13 @@ export class WalletManager {
       addressFormat,
       addressCount: 1,
       addresses: [],
+      previewAddress,
     };
     this.wallets.push(wallet);
+
+    // Select the newly created wallet
+    await this.selectWallet(id);
+
     return wallet;
   }
 
@@ -251,42 +390,49 @@ export class WalletManager {
       addressFormat = AddressFormat.P2PKH; // Default
     }
 
-    // Generate proper SHA-256 hash ID for test wallet (similar to private key wallets)
+    // Generate proper SHA-256 hash ID for test wallet
     const testData = `TEST_WALLET_${address}_${addressFormat}_${Date.now()}`;
     const hash = sha256(utf8ToBytes(testData));
     const id = bytesToHex(hash);
     const walletName = name || `Test: ${address.slice(0, 8)}...`;
 
-    // Create a special encrypted record that marks this as test-only
-    // We use a special format that won't decrypt to a valid private key
-    const testMarker = {
+    // Create test marker data
+    const testMarker = JSON.stringify({
       isTestWallet: true,
       address: address,
       warning: 'This is a test wallet for UI development only. It cannot sign transactions.'
-    };
-    
-    // Create a fake encrypted private key structure for consistency
-    // This allows the wallet to work with existing code but won't decrypt properly
-    // We stringify it so encryptedSecret remains a string as the type expects
-    const fakeEncrypted = JSON.stringify({
-      v: 1,
-      e: JSON.stringify(testMarker),
-      t: 'test',
-      s: 'test'
     });
 
-    const record: EncryptedWalletRecord = {
+    // Check if keychain exists - test wallets need an unlocked keychain
+    if (!this.keychain) {
+      throw new Error('Keychain must be unlocked to import test addresses');
+    }
+
+    const masterKey = await sessionManager.getKeychainMasterKey();
+    if (!masterKey) {
+      throw new Error('Keychain must be unlocked to import test addresses');
+    }
+
+    // Encrypt test marker with master key (for consistency)
+    const encryptedSecret = await encryptWithKey(testMarker, masterKey);
+
+    // Create wallet record for keychain
+    const walletRecord: WalletRecord = {
       id,
       name: walletName,
-      encryptedSecret: fakeEncrypted,
       type: 'privateKey',
       addressFormat,
+      addressCount: 1,
+      encryptedSecret,
+      previewAddress: address,
       createdAt: Date.now(),
       isTestOnly: true,
     };
-    
-    await addEncryptedWallet(record);
-    
+
+    // Add to keychain
+    this.keychain.wallets.push(walletRecord);
+    await this.persistKeychain();
+
     // Create wallet object with the test address
     const wallet: Wallet = {
       id,
@@ -296,118 +442,285 @@ export class WalletManager {
       addressCount: 1,
       addresses: [{
         name: "Test Address",
-        path: "m/test", // Fake path for test addresses
+        path: "m/test",
         address: address,
-        pubKey: '' // No real public key for test addresses
+        pubKey: ''
       }],
       isTestOnly: true,
+      previewAddress: address,
     };
-    
+
     this.wallets.push(wallet);
-    
+
     // Set as active wallet
     this.activeWalletId = id;
-    
+
     // Set the test address as the last active address
-    await updateSettings({
+    await this.updateSettings({
       lastActiveWalletId: id,
       lastActiveAddress: address
     });
-    
-    // Store a fake "unlocked" secret so the wallet appears unlocked
-    // This will prevent signing but allow UI testing
-    sessionManager.storeUnlockedSecret(id, JSON.stringify({
-      isTestWallet: true,
-      address: address
-    }));
-    
+
+    // Store test marker as "unlocked" secret
+    sessionManager.storeUnlockedSecret(id, testMarker);
+
     return wallet;
   }
 
-  public async unlockWallet(walletId: string, password: string): Promise<void> {
-    const wallet = this.getWalletById(walletId);
-    if (!wallet) throw new Error('Wallet not found in memory.');
-    const allRecords = await getAllEncryptedWallets();
-    const record = allRecords.find((r) => r.id === walletId);
-    if (!record) throw new Error('Wallet record not found in storage.');
-    
-    // Special handling for test wallets
-    if (record.isTestOnly) {
-      // Test wallets are always "unlocked" - just restore the address
-      try {
-        const encryptedSecret = JSON.parse(record.encryptedSecret);
-        if (!encryptedSecret || typeof encryptedSecret.e !== 'string') {
-          throw new Error('Invalid test wallet structure');
-        }
-        const testData = JSON.parse(encryptedSecret.e);
-        // Validate test wallet marker to prevent using corrupted data
-        if (!testData || testData.isTestWallet !== true || typeof testData.address !== 'string') {
-          throw new Error('Invalid test wallet data');
-        }
-        wallet.addresses = [{
-          name: "Test Address",
-          path: "m/test",
-          address: testData.address,
-          pubKey: ''
-        }];
-        wallet.addressCount = 1;
-        this.activeWalletId = walletId;
+  // ============================================================================
+  // New Keychain-Based API
+  // ============================================================================
 
-        // Store fake secret for test wallet
-        sessionManager.storeUnlockedSecret(walletId, JSON.stringify(testData));
-      } catch (e) {
-        console.error('Failed to unlock test wallet:', e);
-        throw new Error('Test wallet data is corrupted');
-      }
-      return;
+  /**
+   * Unlocks the wallet keychain with the user's password.
+   * This decrypts the keychain metadata (names, formats, preview addresses)
+   * but individual wallet secrets remain encrypted until selectWallet() is called.
+   *
+   * @param password - User's keychain password
+   */
+  public async unlockKeychain(password: string): Promise<void> {
+    const keychainRecord = await getKeychainRecord();
+    if (!keychainRecord) {
+      throw new Error('No keychain found. Create a wallet first.');
     }
-    
+
+    // Derive master key from password + salt (uses Web Worker for non-blocking UI)
+    const salt = base64ToBuffer(keychainRecord.salt);
+    const masterKey = await deriveKeyAsync(password, salt, keychainRecord.kdf.iterations);
+
+    // Decrypt keychain
+    let decryptedKeychain: Keychain;
     try {
-      if (record.type === 'mnemonic') {
-        if (!record.encryptedSecret) throw new Error('Missing encrypted secret.');
-        const mnemonic = await decryptMnemonic(record.encryptedSecret, password);
-        sessionManager.storeUnlockedSecret(walletId, mnemonic);
-        wallet.addresses = [];
-        const count = Math.min(record.addressCount || 1, MAX_ADDRESSES_PER_WALLET);
-        wallet.addressCount = count;
-        for (let i = 0; i < count; i++) {
-          wallet.addresses.push(this.deriveMnemonicAddress(mnemonic, wallet.addressFormat, i));
-        }
-      } else {
-        if (!record.encryptedSecret) throw new Error('Missing encrypted secret.');
-        const privKeyData = await decryptPrivateKey(record.encryptedSecret, password);
-        sessionManager.storeUnlockedSecret(walletId, privKeyData);
-        wallet.addresses = [this.deriveAddressFromPrivateKey(privKeyData, wallet.addressFormat)];
-        wallet.addressCount = 1;
-      }
+      decryptedKeychain = await decryptJsonWithKey<Keychain>(keychainRecord.encryptedKeychain, masterKey);
+    } catch {
+      throw new Error('Invalid password');
+    }
 
-      // Don't override the active wallet when unlocking
-      // The active wallet should be preserved from settings (lastActiveWalletId)
-      // Only set it if there's no active wallet yet
-      if (!this.activeWalletId) {
-        this.activeWalletId = walletId;
-      }
+    // Validate keychain version
+    if (decryptedKeychain.version !== KEYCHAIN_VERSION) {
+      throw new Error(`Unsupported keychain version: ${decryptedKeychain.version}. Expected: ${KEYCHAIN_VERSION}`);
+    }
 
-      // Initialize settings encryption key FIRST (before reading settings)
-      // This allows getSettings() to decrypt the encrypted settings blob
-      await initializeSettingsKey(password);
+    // Store master key in session (survives service worker restarts)
+    await sessionManager.storeKeychainMasterKey(masterKey);
 
-      // Now we can read the real settings (will be decrypted)
-      const settings = await getSettings();
-      const timeout = getAutoLockTimeoutMs(settings?.autoLockTimer ?? '5m');
+    // Store decrypted keychain in memory (secrets still encrypted)
+    this.keychain = decryptedKeychain;
 
-      // Initialize session with the actual timeout from settings
-      await sessionManager.initializeSession(timeout);
+    // Build runtime wallet array from keychain
+    this.wallets = decryptedKeychain.wallets.map((record) => ({
+      id: record.id,
+      name: record.name,
+      type: record.type,
+      addressFormat: record.addressFormat,
+      addressCount: record.addressCount,
+      addresses: [], // Empty until selectWallet() is called
+      isTestOnly: record.isTestOnly,
+      previewAddress: record.previewAddress,
+    }));
 
-      // Set up session expiry alarm (sessionManager owns the alarm)
-      await sessionManager.scheduleSessionExpiry(timeout);
-    } catch (err) {
-      if (err instanceof DecryptionError) throw err;
-      throw new Error('Invalid password or corrupted data.');
+    // Setup session with timeout from keychain settings
+    const settings = this.getSettings();
+    const timeout = getAutoLockTimeoutMs(settings.autoLockTimer);
+    await sessionManager.initializeSession(timeout);
+    await sessionManager.scheduleSessionExpiry(timeout);
+
+    // Auto-load last active wallet (from settings inside keychain)
+    const walletId = settings.lastActiveWalletId || decryptedKeychain.wallets[0]?.id;
+    if (walletId) {
+      await this.selectWallet(walletId);
     }
   }
 
-  public async lockWallet(walletId: string): Promise<void> {
+  /**
+   * Loads a specific wallet by decrypting its secret and deriving addresses.
+   * Requires keychain to be unlocked first (via unlockKeychain).
+   * Only one wallet's secret is held in memory at a time.
+   *
+   * @param walletId - ID of the wallet to load
+   */
+  public async selectWallet(walletId: string): Promise<void> {
+    const masterKey = await sessionManager.getKeychainMasterKey();
+    if (!masterKey) {
+      throw new Error('Keychain not unlocked');
+    }
+
+    if (!this.keychain) {
+      throw new Error('Keychain not loaded');
+    }
+
+    const record = this.keychain.wallets.find((w) => w.id === walletId);
+    if (!record) {
+      throw new Error('Wallet not found in keychain');
+    }
+
+    const wallet = this.getWalletById(walletId);
+    if (!wallet) {
+      throw new Error('Wallet not found');
+    }
+
+    // Clear previous active wallet's secret
+    if (this.activeWalletId && this.activeWalletId !== walletId) {
+      sessionManager.clearUnlockedSecret(this.activeWalletId);
+      const prevWallet = this.getWalletById(this.activeWalletId);
+      if (prevWallet) {
+        prevWallet.addresses = [];
+      }
+    }
+
+    // Decrypt and derive addresses
+    const secret = await decryptWithKey(record.encryptedSecret, masterKey);
+    sessionManager.storeUnlockedSecret(walletId, secret);
+    wallet.addresses = this.deriveAddressesFromSecret(secret, record);
+    wallet.addressCount = wallet.addresses.length;
+    this.activeWalletId = walletId;
+
+    // Persist lastActiveWalletId in settings (only on explicit selection)
+    if (this.getSettings().lastActiveWalletId !== walletId) {
+      await this.updateSettings({ lastActiveWalletId: walletId });
+    }
+  }
+
+  /**
+   * Checks if the keychain is unlocked (keychain decrypted and master key available).
+   */
+  public async isKeychainUnlocked(): Promise<boolean> {
+    const masterKey = await sessionManager.getKeychainMasterKey();
+    return masterKey !== null && this.keychain !== null;
+  }
+
+  // ============================================================================
+  // Settings API (stored inside keychain)
+  // ============================================================================
+
+  /**
+   * Gets a copy of the current settings.
+   * Returns default settings if keychain is not unlocked.
+   */
+  public getSettings(): AppSettings {
+    if (!this.keychain) {
+      return { ...DEFAULT_SETTINGS };
+    }
+    // Return a copy to prevent direct mutation
+    return {
+      ...this.keychain.settings,
+      connectedWebsites: [...(this.keychain.settings.connectedWebsites || [])],
+      pinnedAssets: [...(this.keychain.settings.pinnedAssets || [])],
+    };
+  }
+
+  /**
+   * Updates settings and persists the keychain.
+   * Requires keychain to be unlocked.
+   */
+  public async updateSettings(updates: Partial<AppSettings>): Promise<void> {
+    if (!this.keychain) {
+      throw new Error('Cannot update settings: keychain not unlocked');
+    }
+
+    // Merge updates into settings
+    this.keychain.settings = {
+      ...this.keychain.settings,
+      ...updates,
+    };
+
+    await this.persistKeychain();
+
+    // If autoLockTimer changed, reschedule the session expiry alarm
+    if (updates.autoLockTimer) {
+      const timeoutMs = getAutoLockTimeoutMs(updates.autoLockTimer);
+      await sessionManager.scheduleSessionExpiry(timeoutMs);
+    }
+  }
+
+  /**
+   * Persists the current keychain state to storage.
+   * Called after keychain modifications (wallet add/remove, settings changes).
+   */
+  private async persistKeychain(): Promise<void> {
+    if (!this.keychain) {
+      throw new Error('No keychain to persist');
+    }
+
+    const masterKey = await sessionManager.getKeychainMasterKey();
+    if (!masterKey) {
+      throw new Error('Cannot persist keychain: keychain locked');
+    }
+
+    // Get existing keychain record for salt
+    const existingRecord = await getKeychainRecord();
+    if (!existingRecord) {
+      throw new Error('Cannot persist keychain: no existing record');
+    }
+
+    // Re-encrypt keychain with master key
+    const encryptedKeychain = await encryptJsonWithKey(this.keychain, masterKey);
+
+    const updatedRecord: KeychainRecord = {
+      version: KEYCHAIN_VERSION,
+      kdf: existingRecord.kdf,
+      salt: existingRecord.salt,
+      encryptedKeychain,
+    };
+
+    await saveKeychainRecord(updatedRecord);
+  }
+
+  /**
+   * Creates a new empty keychain with the given password.
+   * Used during initial wallet creation.
+   */
+  private async createKeychain(password: string): Promise<CryptoKey> {
+    const salt = generateRandomBytes(16);
+    const masterKey = await deriveKey(password, salt, DEFAULT_PBKDF2_ITERATIONS);
+
+    const newKeychain: Keychain = {
+      version: KEYCHAIN_VERSION,
+      wallets: [],
+      settings: { ...DEFAULT_SETTINGS },
+    };
+
+    const encryptedKeychain = await encryptJsonWithKey(newKeychain, masterKey);
+    const keychainRecord: KeychainRecord = {
+      version: KEYCHAIN_VERSION,
+      kdf: { iterations: DEFAULT_PBKDF2_ITERATIONS },
+      salt: bufferToBase64(salt),
+      encryptedKeychain,
+    };
+
+    await saveKeychainRecord(keychainRecord);
+    await sessionManager.storeKeychainMasterKey(masterKey);
+    this.keychain = newKeychain;
+
+    return masterKey;
+  }
+
+  /**
+   * Gets the master key, creating a new keychain if this is the first wallet.
+   * Used by wallet creation methods to handle both first-wallet and subsequent-wallet cases.
+   */
+  private async getOrCreateKeychain(password: string): Promise<CryptoKey> {
+    const existingKey = await sessionManager.getKeychainMasterKey();
+    if (existingKey) {
+      return existingKey;
+    }
+
+    // First wallet - create keychain and initialize session
+    const masterKey = await this.createKeychain(password);
+
+    // Settings are inside keychain, use default timeout for new keychain
+    const timeout = getAutoLockTimeoutMs(this.keychain?.settings?.autoLockTimer ?? '5m');
+    await sessionManager.initializeSession(timeout);
+    await sessionManager.scheduleSessionExpiry(timeout);
+
+    return masterKey;
+  }
+
+  /**
+   * Clears the decrypted secret for a specific wallet from memory.
+   * Used when switching wallets (only one wallet's secret is held at a time).
+   */
+  public clearWalletSecret(walletId: string): void {
     sessionManager.clearUnlockedSecret(walletId);
     const wallet = this.getWalletById(walletId);
     if (wallet) {
@@ -415,13 +728,12 @@ export class WalletManager {
     }
   }
 
-  public async lockAllWallets(): Promise<void> {
+  public async lockKeychain(): Promise<void> {
     await sessionManager.clearAllUnlockedSecrets();
     this.wallets.forEach((wallet) => (wallet.addresses = []));
 
-    // Clear settings encryption key and cached decrypted settings
-    await clearSettingsKey();
-    invalidateSettingsCache();
+    // Clear keychain from memory (settings are inside keychain)
+    this.keychain = null;
 
     // Clear session expiry alarm (sessionManager owns the alarm)
     await sessionManager.clearSessionExpiry();
@@ -438,95 +750,84 @@ export class WalletManager {
     if (wallet.addressCount >= MAX_ADDRESSES_PER_WALLET) {
       throw new Error(`Cannot exceed ${MAX_ADDRESSES_PER_WALLET} addresses.`);
     }
+
     const index = wallet.addressCount;
     const newAddr = this.deriveMnemonicAddress(mnemonic, wallet.addressFormat, index);
     wallet.addresses.push(newAddr);
     wallet.addressCount++;
-    const allRecords = await getAllEncryptedWallets();
-    const record = allRecords.find((r) => r.id === walletId);
-    if (!record) throw new Error('Missing storage record.');
-    record.addressCount = wallet.addressCount;
-    await updateEncryptedWallet(record);
+
+    // Update keychain record
+    if (!this.keychain) throw new Error('Keychain not loaded');
+    const keychainRecord = this.keychain.wallets.find((r) => r.id === walletId);
+    if (!keychainRecord) throw new Error('Missing keychain record.');
+    keychainRecord.addressCount = wallet.addressCount;
+    await this.persistKeychain();
+
     return newAddr;
   }
 
   public async removeWallet(walletId: string): Promise<void> {
     const idx = this.wallets.findIndex((w) => w.id === walletId);
     if (idx === -1) throw new Error('Wallet not found in memory.');
-    
+
+    // Remove from memory
     this.wallets.splice(idx, 1);
     sessionManager.clearUnlockedSecret(walletId);
-    await removeEncryptedWallet(walletId);
-    // Address previews are removed automatically with the wallet record
-    
+
+    // Remove from keychain
+    if (!this.keychain) throw new Error('Keychain not loaded');
+    const keychainIdx = this.keychain.wallets.findIndex((w) => w.id === walletId);
+    if (keychainIdx !== -1) {
+      this.keychain.wallets.splice(keychainIdx, 1);
+    }
+
     if (this.activeWalletId === walletId) {
       this.activeWalletId = null;
     }
 
     await this.renumberWallets();
+    await this.persistKeychain();
   }
 
-  private async renumberWallets(): Promise<void> {
-    // Fetch all records once instead of inside the loop
-    const allRecords = await getAllEncryptedWallets();
-    const recordsToUpdate: EncryptedWalletRecord[] = [];
+  private renumberWallets(): void {
+    if (!this.keychain) return;
 
     for (let i = 0; i < this.wallets.length; i++) {
       const wallet = this.wallets[i];
+      if (!wallet.name.match(/^Wallet \d+$/)) continue;
+
       const newName = `Wallet ${i + 1}`;
+      wallet.name = newName;
 
-      if (wallet.name.match(/^Wallet \d+$/)) {
-        wallet.name = newName;
-
-        const record = allRecords.find((r) => r.id === wallet.id);
-        if (record) {
-          record.name = newName;
-          recordsToUpdate.push(record);
-        }
-      }
-    }
-
-    // Single batch write instead of N writes
-    if (recordsToUpdate.length > 0) {
-      await updateEncryptedWallets(recordsToUpdate);
+      const keychainRecord = this.keychain.wallets.find((r) => r.id === wallet.id);
+      if (keychainRecord) keychainRecord.name = newName;
     }
   }
 
   public async verifyPassword(password: string): Promise<boolean> {
-    const all = await getAllEncryptedWallets();
-    if (all.length === 0) return false;
+    const keychainRecord = await getKeychainRecord();
+    if (!keychainRecord) return false;
 
-    // Try to decrypt all wallets in parallel for better UX on wrong password
-    // Use Promise.allSettled to get all results regardless of failures
-    const results = await Promise.allSettled(
-      all.map(async (r) => {
-        if (r.type === 'mnemonic' && r.encryptedSecret) {
-          await decryptMnemonic(r.encryptedSecret, password);
-          return true;
-        } else if (r.type === 'privateKey' && r.encryptedSecret) {
-          await decryptPrivateKey(r.encryptedSecret, password);
-          return true;
-        }
-        return false;
-      })
-    );
-
-    // If any decryption succeeded, the password is valid
-    return results.some(
-      (result) => result.status === 'fulfilled' && result.value === true
-    );
+    // Try to decrypt the keychain with the given password
+    try {
+      const salt = base64ToBuffer(keychainRecord.salt);
+      const masterKey = await deriveKey(password, salt, keychainRecord.kdf.iterations);
+      await decryptJsonWithKey<Keychain>(keychainRecord.encryptedKeychain, masterKey);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
-  public async resetAllWallets(password: string): Promise<void> {
+  public async resetKeychain(password: string): Promise<void> {
     const valid = await this.verifyPassword(password);
     if (!valid) throw new Error('Invalid password');
-    await this.lockAllWallets();
-    const all = await getAllEncryptedWallets();
-    for (const rec of all) {
-      await removeEncryptedWallet(rec.id);
-    }
+
+    await this.lockKeychain();
+    await deleteKeychain();
+
     this.wallets = [];
-    await sessionManager.clearAllUnlockedSecrets();
+    this.keychain = null;
     this.activeWalletId = null;
   }
 
@@ -534,29 +835,37 @@ export class WalletManager {
     const valid = await this.verifyPassword(currentPassword);
     if (!valid) throw new Error('Current password is incorrect');
 
-    const all = await getAllEncryptedWallets();
+    const keychainRecord = await getKeychainRecord();
+    if (!keychainRecord) throw new Error('No keychain found');
 
-    // Re-encrypt all wallets in parallel for better performance
-    const updatedRecords = await Promise.all(
-      all.map(async (rec) => {
-        if (rec.type === 'mnemonic' && rec.encryptedSecret) {
-          const mnemonic = await decryptMnemonic(rec.encryptedSecret, currentPassword);
-          rec.encryptedSecret = await encryptMnemonic(mnemonic, newPassword, rec.addressFormat);
-        } else if (rec.type === 'privateKey' && rec.encryptedSecret) {
-          const pkData = await decryptPrivateKey(rec.encryptedSecret, currentPassword);
-          rec.encryptedSecret = await encryptPrivateKey(pkData, newPassword);
-        }
-        return rec;
-      })
-    );
+    // Decrypt keychain with current password
+    const currentSalt = base64ToBuffer(keychainRecord.salt);
+    const currentKey = await deriveKey(currentPassword, currentSalt, keychainRecord.kdf.iterations);
+    const decryptedKeychain = await decryptJsonWithKey<Keychain>(keychainRecord.encryptedKeychain, currentKey);
 
-    // Single batch write instead of N writes
-    await updateEncryptedWallets(updatedRecords);
+    // Re-encrypt each wallet's secret with new key
+    const newSalt = generateRandomBytes(16);
+    const newKey = await deriveKey(newPassword, newSalt, DEFAULT_PBKDF2_ITERATIONS);
 
-    // Re-encrypt settings with new password
-    await reencryptSettings(currentPassword, newPassword);
+    // For each wallet, decrypt secret with current key, re-encrypt with new key
+    for (const walletRecord of decryptedKeychain.wallets) {
+      const secret = await decryptWithKey(walletRecord.encryptedSecret, currentKey);
+      walletRecord.encryptedSecret = await encryptWithKey(secret, newKey);
+    }
 
-    await this.lockAllWallets();
+    // Re-encrypt keychain with new key
+    const encryptedKeychain = await encryptJsonWithKey(decryptedKeychain, newKey);
+
+    // Save updated keychain (settings are inside, so they're re-encrypted automatically)
+    const newKeychainRecord: KeychainRecord = {
+      version: KEYCHAIN_VERSION,
+      kdf: { iterations: DEFAULT_PBKDF2_ITERATIONS },
+      salt: bufferToBase64(newSalt),
+      encryptedKeychain,
+    };
+    await saveKeychainRecord(newKeychainRecord);
+
+    await this.lockKeychain();
   }
 
   public async updateWalletAddressFormat(walletId: string, newType: AddressFormat): Promise<void> {
@@ -577,15 +886,16 @@ export class WalletManager {
     const derivationPath = `${getDerivationPathForAddressFormat(newType)}/0`;
     wallet.previewAddress = getAddressFromMnemonic(mnemonic, derivationPath, newType);
 
-    const allRecords = await getAllEncryptedWallets();
-    const record = allRecords.find((r) => r.id === walletId);
-    if (!record) throw new Error('Missing storage record.');
+    // Update keychain record
+    if (!this.keychain) throw new Error('Keychain not loaded');
+    const keychainRecord = this.keychain.wallets.find((r) => r.id === walletId);
+    if (!keychainRecord) throw new Error('Missing keychain record.');
 
-    record.addressFormat = newType;
-    record.addressCount = 1;
-    record.previewAddress = wallet.previewAddress;
+    keychainRecord.addressFormat = newType;
+    keychainRecord.addressCount = 1;
+    keychainRecord.previewAddress = wallet.previewAddress;
 
-    await updateEncryptedWallet(record);
+    await this.persistKeychain();
 
     if (this.activeWalletId === walletId) {
       await this.setActiveWallet(walletId);
@@ -595,11 +905,11 @@ export class WalletManager {
   /**
    * Updates the pinned assets in the global settings.
    * This method is kept for backward compatibility.
-   * 
+   *
    * @param pinnedAssets - Array of asset IDs to pin
    */
   public async updateWalletPinnedAssets(pinnedAssets: string[]): Promise<void> {
-    await updateSettings({ pinnedAssets });
+    await this.updateSettings({ pinnedAssets });
   }
 
   public async getPrivateKey(walletId: string, derivationPath?: string): Promise<{ wif: string; hex: string; compressed: boolean }> {
@@ -629,46 +939,6 @@ export class WalletManager {
       // Private key wallets
       return JSON.parse(secret);
     }
-  }
-
-  public async createAndUnlockMnemonicWallet(
-    mnemonic: string,
-    password: string,
-    name?: string,
-    addressFormat: AddressFormat = AddressFormat.P2TR
-  ): Promise<Wallet> {
-    console.log('[WalletManager] createAndUnlockMnemonicWallet called');
-    try {
-      if (!name) {
-        name = `Wallet ${this.wallets.length + 1}`;
-      }
-      console.log('[WalletManager] Creating wallet with name:', name);
-      const newWallet = await this.createMnemonicWallet(mnemonic, password, name, addressFormat);
-      console.log('[WalletManager] Wallet created, unlocking...');
-      await this.unlockWallet(newWallet.id, password);
-      console.log('[WalletManager] Wallet unlocked, setting active...');
-      await this.setActiveWallet(newWallet.id);
-      console.log('[WalletManager] Done');
-      return newWallet;
-    } catch (err) {
-      console.error('[WalletManager] createAndUnlockMnemonicWallet FAILED:', err);
-      throw err;
-    }
-  }
-
-  public async createAndUnlockPrivateKeyWallet(
-    privateKey: string,
-    password: string,
-    name?: string,
-    addressFormat: AddressFormat = AddressFormat.P2TR
-  ): Promise<Wallet> {
-    if (!name) {
-      name = `Wallet ${this.wallets.length + 1}`;
-    }
-    const newWallet = await this.createPrivateKeyWallet(privateKey, password, name, addressFormat);
-    await this.unlockWallet(newWallet.id, password);
-    await this.setActiveWallet(newWallet.id);
-    return newWallet;
   }
 
   public async getPreviewAddressForFormat(walletId: string, addressFormat: AddressFormat): Promise<string> {

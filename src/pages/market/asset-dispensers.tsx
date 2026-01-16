@@ -14,7 +14,7 @@ import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useInView } from "@/hooks/useInView";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { formatAmount } from "@/utils/format";
-import type { PriceUnit } from "@/utils/storage/settingsStorage";
+import type { PriceUnit } from "@/utils/settings";
 import { CURRENCY_INFO, type FiatCurrency } from "@/utils/blockchain/bitcoin/price";
 import {
   fetchAssetDispensers,

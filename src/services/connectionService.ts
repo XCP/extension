@@ -10,7 +10,7 @@
  */
 
 import { BaseService } from '@/services/core/BaseService';
-import { getSettings, updateSettings } from '@/utils/storage/settingsStorage';
+import { walletManager } from '@/utils/wallet/walletManager';
 import { getWalletService } from '@/services/walletService';
 import { getApprovalService, type ApprovalResult } from '@/services/approvalService';
 import { connectionRateLimiter } from '@/utils/provider/rateLimiter';
@@ -97,7 +97,7 @@ export class ConnectionService extends BaseService {
    * Perform the actual permission lookup from storage
    */
   private async doPermissionLookup(origin: string): Promise<boolean> {
-    const settings = await getSettings();
+    const settings = walletManager.getSettings();
     const isConnected = settings.connectedWebsites.includes(origin);
 
     // Update cache
@@ -236,9 +236,9 @@ export class ConnectionService extends BaseService {
       await analytics.track('connection_established');
 
       // Add to connected websites
-      const settings = await getSettings();
+      const settings = walletManager.getSettings();
       if (!settings.connectedWebsites.includes(origin)) {
-        await updateSettings({
+        await walletManager.updateSettings({
           connectedWebsites: [...settings.connectedWebsites, origin],
         });
       }
@@ -270,10 +270,10 @@ export class ConnectionService extends BaseService {
     console.debug('[ConnectionService] Disconnecting dApp:', origin);
 
     // Remove from connected websites
-    const settings = await getSettings();
+    const settings = walletManager.getSettings();
     const updatedSites = settings.connectedWebsites.filter(site => site !== origin);
 
-    await updateSettings({
+    await walletManager.updateSettings({
       connectedWebsites: updatedSites,
     });
 
@@ -309,7 +309,7 @@ export class ConnectionService extends BaseService {
    * Get all connected websites
    */
   async getConnectedWebsites(): Promise<ConnectionStatus[]> {
-    const settings = await getSettings();
+    const settings = walletManager.getSettings();
     const connections: ConnectionStatus[] = [];
 
     for (const origin of settings.connectedWebsites) {
@@ -331,11 +331,11 @@ export class ConnectionService extends BaseService {
    * Disconnect all websites
    */
   async disconnectAll(): Promise<void> {
-    const settings = await getSettings();
+    const settings = walletManager.getSettings();
     const connectedSites = [...settings.connectedWebsites];
 
     // Update settings
-    await updateSettings({ connectedWebsites: [] });
+    await walletManager.updateSettings({ connectedWebsites: [] });
 
     // Clear cache
     this.state.connectionCache.clear();

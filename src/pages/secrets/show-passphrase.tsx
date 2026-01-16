@@ -19,7 +19,7 @@ export default function ShowPassphrase(): ReactElement {
   const { walletId } = useParams<{ walletId: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { unlockWallet, getUnencryptedMnemonic } = useWallet();
+  const { selectWallet, getUnencryptedMnemonic } = useWallet();
   const { pending } = useFormStatus();
 
   const [passphrase, setPassphrase] = useState("");
@@ -55,7 +55,8 @@ export default function ShowPassphrase(): ReactElement {
       return;
     }
     try {
-      await unlockWallet(walletId, password);
+      // Load the wallet to decrypt its secret
+      await selectWallet(walletId);
       const mnemonic = await getUnencryptedMnemonic(walletId);
       if (mnemonic) {
         setPassphrase(mnemonic);

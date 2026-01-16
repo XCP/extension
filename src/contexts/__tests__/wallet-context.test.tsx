@@ -17,20 +17,6 @@ vi.mock('webext-bridge/background', () => ({
   onMessage: vi.fn().mockReturnValue(() => {}), // Return cleanup function
 }));
 
-// Mock storage first to prevent infinite loops
-vi.mock('@/utils/storage/settingsStorage', async () => {
-  const actual = await vi.importActual<typeof import('@/utils/storage/settingsStorage')>('@/utils/storage/settingsStorage');
-  return {
-    ...actual,
-    getSettings: vi.fn().mockResolvedValue({
-      ...actual.DEFAULT_SETTINGS,
-      lastActiveWalletId: 'wallet1',
-      analyticsAllowed: false,
-      pinnedAssets: [],
-      counterpartyApiBase: 'https://api.counterparty.io',
-    }),
-  };
-});
 
 // Mock withStateLock to execute functions immediately without locking
 vi.mock('@/utils/wallet/stateLockManager', async () => {
@@ -47,11 +33,29 @@ vi.mock('@/utils/wallet/stateLockManager', async () => {
 // Mock dependencies
 vi.mock('@/utils/wallet/walletManager', () => ({
   walletManager: {
-    loadWallets: vi.fn(),
+    refreshWallets: vi.fn(),
     createWallet: vi.fn(),
     importWallet: vi.fn(),
     removeWallet: vi.fn(),
-    renameWallet: vi.fn()
+    renameWallet: vi.fn(),
+    getSettings: vi.fn().mockReturnValue({
+      lastActiveWalletId: 'wallet1',
+      lastActiveAddress: undefined,
+      connectedWebsites: [],
+      showHelpText: false,
+      analyticsAllowed: false,
+      allowUnconfirmedTxs: true,
+      autoLockTimer: '5m',
+      enableMPMA: false,
+      enableAdvancedBroadcasts: false,
+      transactionDryRun: false,
+      pinnedAssets: [],
+      counterpartyApiBase: 'https://api.counterparty.io',
+      defaultOrderExpiration: 1000,
+      priceUnit: 'btc',
+      fiat: 'usd',
+    }),
+    updateSettings: vi.fn(),
   }
 }));
 vi.mock('@/utils/auth/sessionManager', () => ({
@@ -65,20 +69,19 @@ vi.mock('@/utils/auth/sessionManager', () => ({
 
 // Mock the wallet service that uses webext-bridge
 const mockWalletService = {
-  loadWallets: vi.fn().mockResolvedValue(undefined),
+  refreshWallets: vi.fn().mockResolvedValue(undefined),
   getWallets: vi.fn().mockResolvedValue([]),
   getActiveWallet: vi.fn().mockResolvedValue(null),
   getLastActiveAddress: vi.fn().mockResolvedValue(null),
   setActiveWallet: vi.fn().mockResolvedValue(undefined),
   setLastActiveAddress: vi.fn().mockResolvedValue(undefined),
   isAnyWalletUnlocked: vi.fn().mockResolvedValue(false),
-  unlockWallet: vi.fn().mockResolvedValue(true),
-  lockWallet: vi.fn().mockResolvedValue(undefined),
-  lockAllWallets: vi.fn().mockResolvedValue(undefined),
+  unlockKeychain: vi.fn().mockResolvedValue(undefined),
+  lockKeychain: vi.fn().mockResolvedValue(undefined),
   setLastActiveTime: vi.fn().mockResolvedValue(undefined),
   createWallet: vi.fn().mockResolvedValue({}),
-  createAndUnlockMnemonicWallet: vi.fn().mockResolvedValue({}),
-  createAndUnlockPrivateKeyWallet: vi.fn().mockResolvedValue({}),
+  createMnemonicWallet: vi.fn().mockResolvedValue({}),
+  createPrivateKeyWallet: vi.fn().mockResolvedValue({}),
   importWallet: vi.fn().mockResolvedValue({}),
   signTransaction: vi.fn().mockResolvedValue('0x123signed'),
   broadcastTransaction: vi.fn().mockResolvedValue({ txid: 'abc123' }),
@@ -143,7 +146,7 @@ describe('WalletContext', () => {
     vi.clearAllMocks();
     
     // Setup wallet service mocks to prevent infinite loops
-    mockWalletService.loadWallets.mockResolvedValue(undefined);
+    mockWalletService.refreshWallets.mockResolvedValue(undefined);
     mockWalletService.getWallets.mockResolvedValue(mockWallets);
     mockWalletService.getActiveWallet.mockResolvedValue(mockWallets[0]);
     mockWalletService.getLastActiveAddress.mockResolvedValue(null);
@@ -152,7 +155,7 @@ describe('WalletContext', () => {
     mockWalletService.setLastActiveAddress.mockResolvedValue(undefined);
     
     // Setup default mocks for other dependencies
-    vi.mocked(walletManager.loadWallets).mockResolvedValue(mockWallets as any);
+    vi.mocked(walletManager.refreshWallets).mockResolvedValue(mockWallets as any);
     // Default wallet is locked
     vi.mocked(sessionManager.getUnlockedSecret).mockResolvedValue(null);
   });
@@ -218,7 +221,7 @@ describe('WalletContext', () => {
         addresses: []
       };
 
-      mockWalletService.createAndUnlockMnemonicWallet.mockResolvedValue(newWallet);
+      mockWalletService.createMnemonicWallet.mockResolvedValue(newWallet);
       // Update wallets list to include the new wallet
       mockWalletService.getWallets.mockResolvedValue([...mockWallets, newWallet]);
 
@@ -227,7 +230,7 @@ describe('WalletContext', () => {
       });
 
       await act(async () => {
-        const wallet = await result.current.createAndUnlockMnemonicWallet(
+        const wallet = await result.current.createMnemonicWallet(
           'test mnemonic seed phrase words here twelve',
           'password123',
           'New Wallet',
@@ -237,11 +240,11 @@ describe('WalletContext', () => {
       });
 
       // WalletService method should have been called
-      expect(mockWalletService.createAndUnlockMnemonicWallet).toHaveBeenCalled();
+      expect(mockWalletService.createMnemonicWallet).toHaveBeenCalled();
     });
 
     it('should handle wallet creation failure', async () => {
-      mockWalletService.createAndUnlockMnemonicWallet.mockRejectedValue(new Error('Creation failed'));
+      mockWalletService.createMnemonicWallet.mockRejectedValue(new Error('Creation failed'));
 
       const { result } = renderHook(() => useWallet(), {
         wrapper: WalletProvider
@@ -249,7 +252,7 @@ describe('WalletContext', () => {
 
       await expect(async () => {
         await act(async () => {
-          await result.current.createAndUnlockMnemonicWallet(
+          await result.current.createMnemonicWallet(
             'test mnemonic',
             'password',
             'Test',
@@ -273,7 +276,7 @@ describe('WalletContext', () => {
         addresses: []
       };
 
-      mockWalletService.createAndUnlockMnemonicWallet.mockResolvedValue(importedWallet);
+      mockWalletService.createMnemonicWallet.mockResolvedValue(importedWallet);
       mockWalletService.getWallets.mockResolvedValue([...mockWallets, importedWallet]);
 
       const { result } = renderHook(() => useWallet(), {
@@ -281,7 +284,7 @@ describe('WalletContext', () => {
       });
 
       await act(async () => {
-        const wallet = await result.current.createAndUnlockMnemonicWallet(
+        const wallet = await result.current.createMnemonicWallet(
           'test mnemonic phrase words go here twelve words',
           'password123',
           'Imported',
@@ -291,7 +294,7 @@ describe('WalletContext', () => {
       });
 
       // WalletService method should have been called
-      expect(mockWalletService.createAndUnlockMnemonicWallet).toHaveBeenCalled();
+      expect(mockWalletService.createMnemonicWallet).toHaveBeenCalled();
     });
 
     it('should import wallet with private key', async () => {
@@ -306,7 +309,7 @@ describe('WalletContext', () => {
         addresses: []
       };
 
-      mockWalletService.createAndUnlockPrivateKeyWallet.mockResolvedValue(importedWallet);
+      mockWalletService.createPrivateKeyWallet.mockResolvedValue(importedWallet);
       mockWalletService.getWallets.mockResolvedValue([...mockWallets, importedWallet]);
 
       const { result } = renderHook(() => useWallet(), {
@@ -314,7 +317,7 @@ describe('WalletContext', () => {
       });
 
       await act(async () => {
-        const wallet = await result.current.createAndUnlockPrivateKeyWallet(
+        const wallet = await result.current.createPrivateKeyWallet(
           'L1234567890',
           'password123',
           'PK Import',
@@ -325,9 +328,9 @@ describe('WalletContext', () => {
     });
   });
 
-  describe('Wallet Lock/Unlock', () => {
-    it('should unlock wallet', async () => {
-      mockWalletService.unlockWallet.mockResolvedValue(true);
+  describe('Keychain Lock/Unlock', () => {
+    it('should unlock keychain', async () => {
+      mockWalletService.unlockKeychain.mockResolvedValue(undefined);
       mockWalletService.isAnyWalletUnlocked.mockResolvedValue(true);
 
       const { result } = renderHook(() => useWallet(), {
@@ -335,18 +338,15 @@ describe('WalletContext', () => {
       });
 
       await act(async () => {
-        await result.current.unlockWallet(
-          'wallet1',
-          'password123'
-        );
+        await result.current.unlockKeychain('password123');
       });
 
       // WalletService method should have been called
-      expect(mockWalletService.unlockWallet).toHaveBeenCalled();
+      expect(mockWalletService.unlockKeychain).toHaveBeenCalled();
     });
 
-    it('should lock wallet', async () => {
-      mockWalletService.lockAllWallets.mockResolvedValue(undefined);
+    it('should lock keychain', async () => {
+      mockWalletService.lockKeychain.mockResolvedValue(undefined);
       mockWalletService.isAnyWalletUnlocked.mockResolvedValue(false);
 
       const { result } = renderHook(() => useWallet(), {
@@ -354,14 +354,14 @@ describe('WalletContext', () => {
       });
 
       await act(async () => {
-        await result.current.lockAll();
+        await result.current.lockKeychain();
       });
 
       // WalletService method should have been called
-      expect(mockWalletService.lockAllWallets).toHaveBeenCalled();
+      expect(mockWalletService.lockKeychain).toHaveBeenCalled();
     });
 
-    it('should check if wallet is locked', async () => {
+    it('should check if keychain is locked', async () => {
       vi.mocked(sendMessage).mockResolvedValue({
         success: true,
         isLocked: true
@@ -372,7 +372,7 @@ describe('WalletContext', () => {
       });
 
       await act(async () => {
-        const isLocked = await result.current.isWalletLocked();
+        const isLocked = await result.current.isKeychainLocked();
         expect(isLocked).toBe(true);
       });
     });
@@ -493,7 +493,7 @@ describe('WalletContext', () => {
 
   describe('Error Handling', () => {
     it('should handle network errors gracefully', async () => {
-      mockWalletService.createAndUnlockMnemonicWallet.mockRejectedValue(new Error('Network error'));
+      mockWalletService.createMnemonicWallet.mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useWallet(), {
         wrapper: WalletProvider
@@ -501,7 +501,7 @@ describe('WalletContext', () => {
 
       await expect(async () => {
         await act(async () => {
-          await result.current.createAndUnlockMnemonicWallet(
+          await result.current.createMnemonicWallet(
             'test mnemonic',
             'password',
             'Test',
@@ -524,7 +524,7 @@ describe('WalletContext', () => {
 
   describe('Security Tests', () => {
     it('should validate password strength during wallet creation', async () => {
-      mockWalletService.createAndUnlockMnemonicWallet.mockRejectedValue(
+      mockWalletService.createMnemonicWallet.mockRejectedValue(
         new Error('Password cannot be empty')
       );
 
@@ -534,7 +534,7 @@ describe('WalletContext', () => {
 
       await expect(async () => {
         await act(async () => {
-          await result.current.createAndUnlockMnemonicWallet(
+          await result.current.createMnemonicWallet(
             'test mnemonic seed phrase words here twelve',
             '', // Empty password
             'Test Wallet',
@@ -548,7 +548,7 @@ describe('WalletContext', () => {
       // Setup initial state with a wallet that is unlocked
       mockWalletService.getWallets.mockResolvedValue(mockWallets);
       mockWalletService.getActiveWallet.mockResolvedValue(mockWallets[0]);
-      // Start unlocked, stay unlocked until lockAll is called
+      // Start unlocked, stay unlocked until lockKeychain is called
       mockWalletService.isAnyWalletUnlocked.mockResolvedValue(true);
       mockWalletService.getLastActiveAddress.mockResolvedValue('bc1qaddress1');
       
@@ -566,20 +566,20 @@ describe('WalletContext', () => {
       const initialAuthState = result.current.authState;
       expect(initialAuthState).toBe('UNLOCKED');
 
-      // Now lock all wallets
+      // Now lock keychain
       await act(async () => {
-        await result.current.lockAll();
+        await result.current.lockKeychain();
       });
 
       // Force a re-render to ensure state updates are reflected
       rerender();
 
       // The service method should have been called
-      expect(mockWalletService.lockAllWallets).toHaveBeenCalled();
+      expect(mockWalletService.lockKeychain).toHaveBeenCalled();
       
       // The main security behavior we care about is that the service was called
       // The state updates are internal implementation details
-      // What matters is that lockAllWallets was invoked which will clear secrets
+      // What matters is that lockKeychain was invoked which will clear secrets
     });
 
     it('should verify password before sensitive operations', async () => {
@@ -599,7 +599,7 @@ describe('WalletContext', () => {
 
     it('should handle concurrent wallet operations with state locking', async () => {
       // Set up delayed mock responses to simulate concurrent operations
-      mockWalletService.createAndUnlockMnemonicWallet.mockImplementation(
+      mockWalletService.createMnemonicWallet.mockImplementation(
         () => new Promise(resolve => setTimeout(() => resolve({
           id: 'concurrent-wallet',
           name: 'Concurrent Test',
@@ -610,8 +610,8 @@ describe('WalletContext', () => {
         }), 100))
       );
 
-      mockWalletService.unlockWallet.mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve(true), 100))
+      mockWalletService.unlockKeychain.mockImplementation(
+        () => new Promise(resolve => setTimeout(() => resolve(undefined), 100))
       );
 
       const { result } = renderHook(() => useWallet(), {
@@ -621,15 +621,15 @@ describe('WalletContext', () => {
       // Start multiple operations concurrently
       const operations = await act(async () => {
         const promises = [
-          result.current.createAndUnlockMnemonicWallet(
+          result.current.createMnemonicWallet(
             'test mnemonic one',
             'password1',
             'Wallet 1',
             AddressFormat.P2WPKH
           ).catch(() => null),
-          result.current.unlockWallet('wallet1', 'password').catch(() => null),
+          result.current.unlockKeychain('password').catch(() => null),
         ];
-        
+
         return await Promise.all(promises);
       });
 
@@ -671,7 +671,7 @@ describe('WalletContext', () => {
       // Initial state
       mockWalletService.getWallets.mockResolvedValue([wallet1]);
       mockWalletService.getActiveWallet.mockResolvedValue(wallet1);
-      mockWalletService.loadWallets.mockResolvedValue(undefined);
+      mockWalletService.refreshWallets.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useWallet(), {
         wrapper: WalletProvider
@@ -694,7 +694,7 @@ describe('WalletContext', () => {
         // This would normally be triggered by an external event
         // We're testing that the comparison functions detect the change
         const service = (await import('@/services/walletService')).getWalletService();
-        await service.loadWallets();
+        await service.refreshWallets();
       });
 
       // The comparison functions should have detected the address change

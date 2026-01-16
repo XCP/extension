@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { composeOrder, composeCancel, composeDispenser, composeDispense } from '../compose';
-import * as settingsStorage from '@/utils/storage/settingsStorage';
 import * as apiClientUtils from '@/utils/apiClient';
+import { walletManager } from '@/utils/wallet/walletManager';
 import {
   mockAddress,
   mockApiBase,
@@ -16,15 +16,19 @@ import {
 
 // Mock dependencies
 vi.mock('@/utils/apiClient');
-vi.mock('@/utils/storage/settingsStorage');
+vi.mock('@/utils/wallet/walletManager', () => ({
+  walletManager: {
+    getSettings: vi.fn(),
+  },
+}));
 
 const mockedApiClient = vi.mocked(apiClientUtils.apiClient, true);
-const mockedGetSettings = vi.mocked(settingsStorage.getSettings);
+const mockedGetSettings = vi.mocked(walletManager.getSettings);
 
 describe('Compose Trading Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedGetSettings.mockResolvedValue(mockSettings as any);
+    mockedGetSettings.mockReturnValue(mockSettings as any);
     // Mock both get and post methods since different functions may use different HTTP methods
     mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
     mockedApiClient.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
@@ -196,7 +200,7 @@ describe('Compose Trading Operations', () => {
     it('should handle invalid offer hash error', async () => {
       // Clear previous mocks and set up error mock
       vi.clearAllMocks();
-      mockedGetSettings.mockResolvedValue(mockSettings as any);
+      mockedGetSettings.mockReturnValue(mockSettings as any);
       const error = new Error('Invalid offer hash');
       mockedApiClient.get.mockRejectedValueOnce(error);
 
@@ -377,7 +381,7 @@ describe('Compose Trading Operations', () => {
     it('should handle insufficient BTC error', async () => {
       // Clear previous mocks and set up error mock
       vi.clearAllMocks();
-      mockedGetSettings.mockResolvedValue(mockSettings as any);
+      mockedGetSettings.mockReturnValue(mockSettings as any);
       const error = new Error('Insufficient BTC for dispense');
       mockedApiClient.get.mockRejectedValueOnce(error);
 

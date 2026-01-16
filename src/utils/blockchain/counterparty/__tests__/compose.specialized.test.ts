@@ -10,8 +10,8 @@ import {
   composeDetach,
   composeTransaction
 } from '../compose';
-import * as settingsStorage from '@/utils/storage/settingsStorage';
 import * as apiClientUtils from '@/utils/apiClient';
+import { walletManager } from '@/utils/wallet/walletManager';
 import {
   mockAddress,
   mockApiBase,
@@ -25,15 +25,19 @@ import {
 
 // Mock dependencies
 vi.mock('@/utils/apiClient');
-vi.mock('@/utils/storage/settingsStorage');
+vi.mock('@/utils/wallet/walletManager', () => ({
+  walletManager: {
+    getSettings: vi.fn(),
+  },
+}));
 
 const mockedApiClient = vi.mocked(apiClientUtils.apiClient, true);
-const mockedGetSettings = vi.mocked(settingsStorage.getSettings);
+const mockedGetSettings = vi.mocked(walletManager.getSettings);
 
 describe('Compose Specialized Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedGetSettings.mockResolvedValue(mockSettings as any);
+    mockedGetSettings.mockReturnValue(mockSettings as any);
     mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
   });
 

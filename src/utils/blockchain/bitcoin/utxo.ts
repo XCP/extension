@@ -1,5 +1,5 @@
 import { apiClient, isCancel } from '@/utils/apiClient';
-import { getSettings } from '@/utils/storage/settingsStorage';
+import { walletManager } from '@/utils/wallet/walletManager';
 
 /**
  * Bitcoin transaction details from the Counterparty API.
@@ -128,7 +128,7 @@ export function getUtxoByTxid(utxos: UTXO[], txid: string, vout: number): UTXO |
  */
 export async function fetchPreviousRawTransaction(txid: string): Promise<string | null> {
   try {
-    const settings = await getSettings();
+    const settings = walletManager.getSettings();
     const response = await apiClient.get<{ result: BitcoinTransaction }>(
       `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
     );
@@ -153,7 +153,7 @@ export async function fetchPreviousRawTransaction(txid: string): Promise<string 
  */
 export async function fetchBitcoinTransaction(txid: string): Promise<BitcoinTransaction | null> {
   try {
-    const settings = await getSettings();
+    const settings = walletManager.getSettings();
     const response = await apiClient.get<{ result: BitcoinTransaction }>(
       `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
     );

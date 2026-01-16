@@ -63,6 +63,12 @@ import {
   clearSessionMetadata,
   type SessionMetadata,
 } from '@/utils/storage/sessionMetadataStorage';
+import {
+  getCachedKeychainMasterKey,
+  setCachedKeychainMasterKey,
+  clearCachedKeychainMasterKey,
+} from '@/utils/storage/keyStorage';
+import { importKey, exportKey } from '@/utils/encryption/encryption';
 
 // In-memory store for decrypted secrets (by wallet ID).
 let unlockedSecrets: Record<string, string> = {};
@@ -225,11 +231,48 @@ export function clearUnlockedSecret(walletId: string): void {
  */
 export async function clearAllUnlockedSecrets(): Promise<void> {
   Object.keys(unlockedSecrets).forEach((walletId) => clearUnlockedSecret(walletId));
-  
+
   // Clear all rate limiting data
   clearAllRateLimits();
-  
+
+  // Clear keychain master key
+  await clearCachedKeychainMasterKey();
+
   await clearSessionMetadata();
+}
+
+// ============================================================================
+// Keychain Master Key Management
+// ============================================================================
+
+/**
+ * Stores the keychain master key in session storage.
+ * The key is exported to bytes for persistence across service worker restarts.
+ *
+ * @param key - The derived CryptoKey to store
+ */
+export async function storeKeychainMasterKey(key: CryptoKey): Promise<void> {
+  const keyBase64 = await exportKey(key);
+  await setCachedKeychainMasterKey(keyBase64);
+}
+
+/**
+ * Retrieves the keychain master key from session storage.
+ * Imports the stored bytes back to a CryptoKey.
+ * Returns null if no key is cached (keychain locked).
+ */
+export async function getKeychainMasterKey(): Promise<CryptoKey | null> {
+  const keyBase64 = await getCachedKeychainMasterKey();
+  if (!keyBase64) {
+    return null;
+  }
+
+  try {
+    return await importKey(keyBase64);
+  } catch {
+    // Corrupted key in session - treat as locked
+    return null;
+  }
 }
 
 /**

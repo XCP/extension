@@ -1,5 +1,5 @@
 import { apiClient, withRetry, isApiError, type ApiResponse } from '@/utils/apiClient';
-import { getSettings } from '@/utils/storage/settingsStorage';
+import { walletManager } from '@/utils/wallet/walletManager';
 
 export interface TransactionResponse {
   txid: string;
@@ -20,7 +20,7 @@ const broadcastEndpoints: BroadcastEndpoint[] = [
   {
     name: 'counterparty',
     getUrl: async (signedTxHex: string) => {
-      const settings = await getSettings();
+      const settings = walletManager.getSettings();
       const encoded = encodeURIComponent(signedTxHex);
       return `${settings.counterpartyApiBase}/v2/bitcoin/transactions?signedhex=${encoded}`;
     },
@@ -78,7 +78,7 @@ const generateMockTxid = (signedTxHex: string): string => {
 };
 
 export async function broadcastTransaction(signedTxHex: string): Promise<TransactionResponse> {
-  const settings = await getSettings();
+  const settings = walletManager.getSettings();
   
   if (settings.transactionDryRun) {
     await new Promise(resolve => setTimeout(resolve, 500));

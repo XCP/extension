@@ -1,5 +1,5 @@
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { FaExclamationTriangle } from "@/components/icons";
@@ -12,7 +12,7 @@ import { useWallet } from "@/contexts/wallet-context";
 function ResetWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { resetAllWallets, verifyPassword } = useWallet();
+  const { resetKeychain, verifyPassword } = useWallet();
   const { pending } = useFormStatus();
 
   const [submissionError, setSubmissionError] = useState("");
@@ -59,7 +59,7 @@ function ResetWallet() {
     }
 
     try {
-      await resetAllWallets(password);
+      await resetKeychain(password);
       navigate(PATHS.SUCCESS);
     } catch (err) {
       console.error("Error resetting wallet:", err);

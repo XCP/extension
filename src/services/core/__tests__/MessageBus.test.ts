@@ -31,7 +31,7 @@ describe('MessageBus', () => {
     it('should mark background as ready when health check succeeds', async () => {
       mockSendMessage.mockResolvedValueOnce({ status: 'ready' });
 
-      const sendPromise = MessageBus.send('walletLocked', { locked: true }, 'background');
+      const sendPromise = MessageBus.send('keychainLocked', { locked: true }, 'background');
       await vi.runAllTimersAsync();
       await sendPromise;
 
@@ -47,7 +47,7 @@ describe('MessageBus', () => {
         .mockResolvedValueOnce({ status: 'ready' })
         .mockResolvedValue({ success: true }); // For the actual message
 
-      const sendPromise = MessageBus.send('walletLocked', { locked: true }, 'background');
+      const sendPromise = MessageBus.send('keychainLocked', { locked: true }, 'background');
 
       // Run through all timers
       await vi.runAllTimersAsync();
@@ -67,7 +67,7 @@ describe('MessageBus', () => {
       }
 
       // Attach rejection handler BEFORE running timers to prevent unhandled rejection
-      const sendPromise = MessageBus.send('walletLocked', { locked: true }, 'background')
+      const sendPromise = MessageBus.send('keychainLocked', { locked: true }, 'background')
         .catch((e: Error) => e);
 
       await vi.runAllTimersAsync();
@@ -80,13 +80,13 @@ describe('MessageBus', () => {
     it('should skip readiness check when skipReadinessCheck is true', async () => {
       mockSendMessage.mockResolvedValueOnce({ success: true });
 
-      await MessageBus.send('walletLocked', { locked: true }, 'background', {
+      await MessageBus.send('keychainLocked', { locked: true }, 'background', {
         skipReadinessCheck: true,
       });
 
       // Should not have called startup-health-check
       expect(mockSendMessage).not.toHaveBeenCalledWith('startup-health-check', {}, 'background');
-      expect(mockSendMessage).toHaveBeenCalledWith('walletLocked', { locked: true }, 'background');
+      expect(mockSendMessage).toHaveBeenCalledWith('keychainLocked', { locked: true }, 'background');
     });
 
     it('should cache successful readiness check', async () => {
@@ -95,12 +95,12 @@ describe('MessageBus', () => {
         .mockResolvedValue({ success: true });
 
       // First call - triggers readiness check
-      const promise1 = MessageBus.send('walletLocked', { locked: true }, 'background');
+      const promise1 = MessageBus.send('keychainLocked', { locked: true }, 'background');
       await vi.runAllTimersAsync();
       await promise1;
 
       // Second call - should use cached result
-      await MessageBus.send('walletLocked', { locked: false }, 'background');
+      await MessageBus.send('keychainLocked', { locked: false }, 'background');
 
       // startup-health-check should only be called once
       const healthCheckCalls = mockSendMessage.mock.calls.filter(
@@ -116,7 +116,7 @@ describe('MessageBus', () => {
       }
 
       // Attach rejection handler BEFORE running timers to prevent unhandled rejection
-      const promise1 = MessageBus.send('walletLocked', { locked: true }, 'background')
+      const promise1 = MessageBus.send('keychainLocked', { locked: true }, 'background')
         .catch((e: Error) => e);
       await vi.runAllTimersAsync();
 
@@ -131,7 +131,7 @@ describe('MessageBus', () => {
         .mockResolvedValueOnce({ success: true });
 
       // Second call should retry the readiness check
-      const promise2 = MessageBus.send('walletLocked', { locked: true }, 'background');
+      const promise2 = MessageBus.send('keychainLocked', { locked: true }, 'background');
       await vi.runAllTimersAsync();
       await promise2;
 
@@ -148,9 +148,9 @@ describe('MessageBus', () => {
     it('should send message to specified target', async () => {
       mockSendMessage.mockResolvedValueOnce({ data: 'test' });
 
-      const result = await MessageBus.send('walletLocked', { locked: true }, 'background');
+      const result = await MessageBus.send('keychainLocked', { locked: true }, 'background');
 
-      expect(mockSendMessage).toHaveBeenCalledWith('walletLocked', { locked: true }, 'background');
+      expect(mockSendMessage).toHaveBeenCalledWith('keychainLocked', { locked: true }, 'background');
       expect(result).toEqual({ data: 'test' });
     });
 
@@ -163,7 +163,7 @@ describe('MessageBus', () => {
       );
 
       await expect(
-        MessageBus.send('walletLocked', { locked: true }, 'background', {
+        MessageBus.send('keychainLocked', { locked: true }, 'background', {
           timeout: 50, // Short timeout for test
         })
       ).rejects.toThrow('Message timeout after 50ms');
@@ -172,7 +172,7 @@ describe('MessageBus', () => {
     it('should resolve before timeout when response is fast', async () => {
       mockSendMessage.mockResolvedValueOnce({ success: true });
 
-      const result = await MessageBus.send('walletLocked', { locked: true }, 'background', {
+      const result = await MessageBus.send('keychainLocked', { locked: true }, 'background', {
         timeout: 5000,
       });
 
@@ -185,7 +185,7 @@ describe('MessageBus', () => {
         .mockRejectedValueOnce(new Error('Network error'))
         .mockResolvedValueOnce({ success: true });
 
-      const sendPromise = MessageBus.send('walletLocked', { locked: true }, 'background', {
+      const sendPromise = MessageBus.send('keychainLocked', { locked: true }, 'background', {
         retries: 2,
       });
 
@@ -204,7 +204,7 @@ describe('MessageBus', () => {
         .mockRejectedValueOnce(new Error('Persistent error'));
 
       // Attach rejection handler BEFORE running timers to prevent unhandled rejection
-      const sendPromise = MessageBus.send('walletLocked', { locked: true }, 'background', {
+      const sendPromise = MessageBus.send('keychainLocked', { locked: true }, 'background', {
         retries: 2,
       }).catch((e: Error) => e);
 
@@ -221,7 +221,7 @@ describe('MessageBus', () => {
       (MessageBus as any).backgroundReady = false;
       mockSendMessage.mockResolvedValueOnce({ success: true });
 
-      await MessageBus.send('walletLocked', { locked: true }, 'popup');
+      await MessageBus.send('keychainLocked', { locked: true }, 'popup');
 
       // Should not have called startup-health-check
       expect(mockSendMessage).not.toHaveBeenCalledWith('startup-health-check', {}, 'background');
@@ -236,7 +236,7 @@ describe('MessageBus', () => {
     it('should not throw on timeout', async () => {
       mockSendMessage.mockImplementation(() => new Promise(() => {}));
 
-      const sendPromise = MessageBus.sendOneWay('walletLocked', { locked: true }, 'popup');
+      const sendPromise = MessageBus.sendOneWay('keychainLocked', { locked: true }, 'popup');
 
       await vi.runAllTimersAsync();
 
@@ -248,14 +248,14 @@ describe('MessageBus', () => {
       mockSendMessage.mockRejectedValueOnce(new Error('No handler registered'));
 
       await expect(
-        MessageBus.sendOneWay('walletLocked', { locked: true }, 'popup')
+        MessageBus.sendOneWay('keychainLocked', { locked: true }, 'popup')
       ).resolves.toBeUndefined();
     });
 
     it('should send message with 5 second timeout', async () => {
       mockSendMessage.mockImplementation(() => new Promise(() => {}));
 
-      const sendPromise = MessageBus.sendOneWay('walletLocked', { locked: true }, 'popup');
+      const sendPromise = MessageBus.sendOneWay('keychainLocked', { locked: true }, 'popup');
 
       // At 4999ms should not have resolved
       vi.advanceTimersByTime(4999);
@@ -272,9 +272,9 @@ describe('MessageBus', () => {
     it('should register handler with webext-bridge', () => {
       const handler = vi.fn();
 
-      MessageBus.onMessage('walletLocked', handler);
+      MessageBus.onMessage('keychainLocked', handler);
 
-      expect(mockOnMessage).toHaveBeenCalledWith('walletLocked', expect.any(Function));
+      expect(mockOnMessage).toHaveBeenCalledWith('keychainLocked', expect.any(Function));
     });
 
     it('should wrap handler to extract data', async () => {
@@ -285,7 +285,7 @@ describe('MessageBus', () => {
         registeredHandler = fn;
       });
 
-      MessageBus.onMessage('walletLocked', handler);
+      MessageBus.onMessage('keychainLocked', handler);
 
       // Simulate receiving a message
       const result = await registeredHandler({ data: { locked: true } });
@@ -302,7 +302,7 @@ describe('MessageBus', () => {
         registeredHandler = fn;
       });
 
-      MessageBus.onMessage('walletLocked', handler);
+      MessageBus.onMessage('keychainLocked', handler);
 
       await expect(registeredHandler({ data: { locked: true } })).rejects.toThrow('Handler error');
     });
@@ -417,13 +417,13 @@ describe('MessageBus', () => {
     });
   });
 
-  describe('notifyWalletLocked', () => {
+  describe('notifyKeychainLocked', () => {
     it('should send one-way message to popup', async () => {
       mockSendMessage.mockResolvedValue(undefined);
 
-      await MessageBus.notifyWalletLocked(true);
+      await MessageBus.notifyKeychainLocked(true);
 
-      expect(mockSendMessage).toHaveBeenCalledWith('walletLocked', { locked: true }, 'popup');
+      expect(mockSendMessage).toHaveBeenCalledWith('keychainLocked', { locked: true }, 'popup');
     });
   });
 

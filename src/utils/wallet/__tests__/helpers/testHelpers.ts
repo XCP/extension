@@ -1,6 +1,6 @@
 import { vi, expect } from 'vitest';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import type { Wallet, Address } from '@/types/wallet';
+import type { Wallet, Address, KeychainRecord, Keychain } from '@/types/wallet';
 
 /**
  * Test data factory for creating wallet objects
@@ -39,6 +39,9 @@ export const defaultMocks = {
     clearUnlockedSecret: vi.fn(),
     clearAllUnlockedSecrets: vi.fn().mockResolvedValue(undefined),
     initializeSession: vi.fn().mockResolvedValue(undefined),
+    getKeychainMasterKey: vi.fn().mockResolvedValue(null),
+    storeKeychainMasterKey: vi.fn().mockResolvedValue(undefined),
+    clearKeychainMasterKey: vi.fn().mockResolvedValue(undefined),
   },
   settingsStorage: {
     getSettings: vi.fn().mockResolvedValue({
@@ -46,30 +49,21 @@ export const defaultMocks = {
       autoLockTimer: '5m',
     }),
     updateSettings: vi.fn().mockResolvedValue(undefined),
+    initializeSettingsMasterKey: vi.fn().mockResolvedValue(undefined),
+    invalidateSettingsCache: vi.fn(),
   },
   walletStorage: {
-    getAllEncryptedWallets: vi.fn().mockResolvedValue([]),
-    addEncryptedWallet: vi.fn().mockResolvedValue(undefined),
-    updateEncryptedWallet: vi.fn().mockResolvedValue(undefined),
-    removeEncryptedWallet: vi.fn().mockResolvedValue(undefined),
+    getKeychainRecord: vi.fn().mockResolvedValue(null),
+    saveKeychainRecord: vi.fn().mockResolvedValue(undefined),
+    hasKeychain: vi.fn().mockResolvedValue(false),
+    deleteKeychain: vi.fn().mockResolvedValue(undefined),
   },
-  encryption: {
-    encryptMnemonic: vi.fn().mockResolvedValue({
-      encryptedData: 'encrypted-mnemonic',
-      salt: 'salt',
-      iv: 'iv',
-      tag: 'tag',
-      version: 1,
-    }),
-    decryptMnemonic: vi.fn().mockResolvedValue('test mnemonic phrase'),
-    encryptPrivateKey: vi.fn().mockResolvedValue({
-      encryptedData: 'encrypted-pk',
-      salt: 'salt',
-      iv: 'iv',
-      tag: 'tag',
-      version: 1,
-    }),
-    decryptPrivateKey: vi.fn().mockResolvedValue('private-key-hex'),
+  keyBased: {
+    deriveKey: vi.fn().mockResolvedValue({} as CryptoKey),
+    encryptWithKey: vi.fn().mockResolvedValue('encrypted-data'),
+    decryptWithKey: vi.fn().mockResolvedValue('decrypted-data'),
+    encryptJsonWithKey: vi.fn().mockResolvedValue('encrypted-json'),
+    decryptJsonWithKey: vi.fn().mockResolvedValue({}),
   },
   bitcoin: {
     AddressFormat,
@@ -102,7 +96,7 @@ export const setupMocks = () => {
     sessionManager: vi.mocked(defaultMocks.sessionManager),
     settingsStorage: vi.mocked(defaultMocks.settingsStorage),
     walletStorage: vi.mocked(defaultMocks.walletStorage),
-    encryption: vi.mocked(defaultMocks.encryption),
+    keyBased: vi.mocked(defaultMocks.keyBased),
     bitcoin: vi.mocked(defaultMocks.bitcoin),
     crypto: vi.mocked(defaultMocks.crypto),
   };
@@ -141,22 +135,65 @@ export const createWalletWithAddresses = (
 };
 
 /**
- * Mock successful wallet unlock
+ * Create a mock keychain record for testing
  */
-export const mockSuccessfulUnlock = (
+export const createTestKeychainRecord = (wallets: Wallet[] = []): KeychainRecord => ({
+  version: 1,
+  kdf: { iterations: 600000 },
+  salt: 'dGVzdC1zYWx0', // base64 "test-salt"
+  encryptedKeychain: 'encrypted-keychain-data',
+});
+
+/**
+ * Create a mock decrypted keychain
+ */
+export const createTestKeychain = (wallets: Wallet[] = []): Keychain => ({
+  version: 1,
+  wallets: wallets.map(w => ({
+    id: w.id,
+    name: w.name,
+    type: w.type,
+    addressFormat: w.addressFormat,
+    addressCount: w.addressCount,
+    previewAddress: 'bc1qpreview',
+    encryptedSecret: 'encrypted-secret',
+  })),
+  settings: {
+    version: 2,
+    lastActiveWalletId: wallets[0]?.id,
+    autoLockTimer: '5m' as const,
+    fiat: 'usd' as const,
+    priceUnit: 'btc' as const,
+    pinnedAssets: [],
+    showHelpText: false,
+    analyticsAllowed: true,
+    connectedWebsites: [],
+    allowUnconfirmedTxs: true,
+    enableMPMA: false,
+    enableAdvancedBroadcasts: false,
+    transactionDryRun: false,
+    counterpartyApiBase: 'https://api.counterparty.io:4000',
+    defaultOrderExpiration: 8064,
+    strictTransactionVerification: true,
+  },
+});
+
+/**
+ * Mock successful keychain unlock
+ */
+export const mockKeychainUnlocked = (
   mocks: ReturnType<typeof setupMocks>,
-  wallet: Wallet,
-  secret: string = 'test mnemonic'
+  keychain: Keychain,
+  masterKey: CryptoKey = {} as CryptoKey
 ) => {
-  mocks.sessionManager.getUnlockedSecret.mockResolvedValue(null);
-  mocks.encryption.decryptMnemonic.mockResolvedValue(secret);
-  mocks.sessionManager.storeUnlockedSecret.mockImplementation(() => {
-    mocks.sessionManager.getUnlockedSecret.mockResolvedValue(secret);
-  });
+  mocks.walletStorage.getKeychainRecord.mockResolvedValue(createTestKeychainRecord());
+  mocks.keyBased.deriveKey.mockResolvedValue(masterKey);
+  mocks.keyBased.decryptJsonWithKey.mockResolvedValue(keychain);
+  mocks.sessionManager.getKeychainMasterKey.mockResolvedValue(masterKey);
 };
 
 /**
- * Mock wallet already unlocked
+ * Mock wallet already unlocked (secret available in session)
  */
 export const mockWalletUnlocked = (
   mocks: ReturnType<typeof setupMocks>,
@@ -164,7 +201,7 @@ export const mockWalletUnlocked = (
   secret: string = 'test mnemonic'
 ) => {
   mocks.sessionManager.getUnlockedSecret.mockImplementation((id) =>
-    id === walletId ? secret : null
+    Promise.resolve(id === walletId ? secret : null)
   );
 };
 
@@ -178,10 +215,10 @@ export const testScenarios = {
   validWIF: 'L1234567890abcdefghijklmnopqrstuvwxyz',
   validPassword: 'TestPassword123!',
   weakPassword: '123',
-  
+
   maxWallets: 20,
   maxAddresses: 100,
-  
+
   addressTypes: [
     AddressFormat.P2PKH,
     AddressFormat.P2WPKH,

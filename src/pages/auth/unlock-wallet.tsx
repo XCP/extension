@@ -10,7 +10,7 @@ import { getProviderService } from '@/services/providerService';
 
 const UnlockWallet = () => {
   const navigate = useNavigate();
-  const { unlockWallet, wallets, activeWallet } = useWallet();
+  const { unlockKeychain } = useWallet();
   const { setHeaderProps } = useHeader();
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -77,14 +77,9 @@ const UnlockWallet = () => {
     setIsUnlocking(true);
 
     try {
-      if (!wallets.length) {
-        throw new Error("No wallets found. Please create or import a wallet first.");
-      }
-
-      // Unlock the previously active wallet if it exists, otherwise the first wallet
-      // This preserves the user's last active wallet selection after session timeout
-      const walletToUnlock = activeWallet || wallets[0];
-      await unlockWallet(walletToUnlock.id, password);
+      // Unlock the keychain with password
+      // This decrypts the vault and auto-loads the last active wallet
+      await unlockKeychain(password);
 
       // Navigate to the appropriate destination
       // Priority: onUnlockDestination > approval queue > default success
@@ -97,10 +92,10 @@ const UnlockWallet = () => {
       }
     } catch (err) {
       console.error("Error unlocking wallet:", err);
-      
+
       // Re-throw error so UnlockScreen can handle it
       throw new Error(
-        err instanceof Error && err.message.includes("No wallets")
+        err instanceof Error && err.message.includes("No wallet")
           ? err.message
           : "Invalid password. Please try again."
       );

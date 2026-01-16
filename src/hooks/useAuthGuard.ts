@@ -45,23 +45,23 @@ import { useWallet } from '@/contexts/wallet-context';
  * }
  */
 export function useAuthGuard() {
-  const { authState, wallets } = useWallet();
+  const { authState, keychainExists } = useWallet();
   const navigate = useNavigate();
   const location = useLocation();
   const previousAuthState = useRef(authState);
 
   useEffect(() => {
     // Detect transition from UNLOCKED to LOCKED
-    if (previousAuthState.current === 'UNLOCKED' && authState === 'LOCKED' && wallets.length > 0) {
+    if (previousAuthState.current === 'UNLOCKED' && authState === 'LOCKED' && keychainExists) {
       console.log('[Auth Guard] Wallet locked, navigating to unlock screen');
-      navigate('/unlock-wallet', { 
+      navigate('/unlock-wallet', {
         replace: true,
         state: { from: location.pathname }
       });
     }
-    
+
     previousAuthState.current = authState;
-  }, [authState, wallets.length, navigate, location.pathname]);
+  }, [authState, keychainExists, navigate, location.pathname]);
 
   return { isProtected: authState === 'UNLOCKED' };
 }

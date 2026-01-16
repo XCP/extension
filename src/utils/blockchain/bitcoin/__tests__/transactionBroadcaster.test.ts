@@ -1,8 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { broadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
-import { getSettings, DEFAULT_SETTINGS } from '@/utils/storage/settingsStorage';
+import { walletManager } from '@/utils/wallet/walletManager';
+import { DEFAULT_SETTINGS } from '@/utils/settings';
 
-vi.mock('@/utils/storage/settingsStorage');
+vi.mock('@/utils/wallet/walletManager', () => ({
+  walletManager: {
+    getSettings: vi.fn().mockReturnValue({
+      counterpartyApiBase: 'https://api.counterparty.io',
+    }),
+  },
+}));
 vi.mock('@/utils/apiClient', () => ({
   apiClient: {
     post: vi.fn()
@@ -18,9 +25,10 @@ vi.mock('@/utils/apiClient', () => ({
 }));
 
 
-// Import the mocked modules  
+// Import the mocked modules
 import { apiClient } from '@/utils/apiClient';
 const mockApiClient = apiClient as any;
+const mockGetSettings = vi.mocked(walletManager.getSettings);
 
 describe('Transaction Broadcaster Utilities', () => {
   const mockSignedTxHex = '01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff08044c86041b020602ffffffff0100f2052a010000004341041b0e8c2567c12536aa13357b79a073dc4444acb83c4ec7a0e2f99dd7457516c5817242da796924ca4e99947d087fedf9ce467cb9f7c6287078f801df276fdf84424ac00000000';
@@ -29,7 +37,7 @@ describe('Transaction Broadcaster Utilities', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Default mock for all tests - use DEFAULT_SETTINGS as base
-    vi.mocked(getSettings).mockResolvedValue(DEFAULT_SETTINGS);
+    mockGetSettings.mockReturnValue(DEFAULT_SETTINGS);
   });
 
   afterEach(() => {
@@ -38,7 +46,7 @@ describe('Transaction Broadcaster Utilities', () => {
 
   describe('broadcastTransaction in dry run mode', () => {
     beforeEach(() => {
-      vi.mocked(getSettings).mockResolvedValue({
+      mockGetSettings.mockReturnValue({
         ...DEFAULT_SETTINGS,
         transactionDryRun: true, // Enable dry run for this test suite
       });
@@ -292,8 +300,8 @@ describe('Transaction Broadcaster Utilities', () => {
 
     it('should handle custom counterparty API base URL', async () => {
       // Clear the default mock and set a new one before the test
-      vi.mocked(getSettings).mockClear();
-      vi.mocked(getSettings).mockResolvedValue({
+      mockGetSettings.mockClear();
+      mockGetSettings.mockReturnValue({
         ...DEFAULT_SETTINGS,
         counterpartyApiBase: 'https://custom.api.com', // Custom API for this test
       });
@@ -336,7 +344,7 @@ describe('Transaction Broadcaster Utilities', () => {
       // Test status 202 (Accepted)
       vi.clearAllMocks();
       // Re-setup the settings mock after clearing
-      vi.mocked(getSettings).mockResolvedValue(DEFAULT_SETTINGS);
+      mockGetSettings.mockReturnValue(DEFAULT_SETTINGS);
       // Test blockstream format for 202
       mockApiClient.post
         .mockRejectedValueOnce(new Error('First failed'))  // counterparty fails

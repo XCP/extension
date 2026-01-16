@@ -11,7 +11,7 @@
  *
  * ## Persistence
  *
- * Settings are encrypted and stored using `settingsStorage`.
+ * Settings are encrypted and stored inside the keychain.
  * On wallet lock, settings reset to defaults (encryption key is cleared).
  *
  * ## Optimistic Updates
@@ -30,12 +30,8 @@ import {
   type ReactNode,
 } from "react";
 import { onMessage } from 'webext-bridge/popup';
-import {
-  getSettings,
-  updateSettings,
-  DEFAULT_SETTINGS,
-  type AppSettings,
-} from "@/utils/storage/settingsStorage";
+import { DEFAULT_SETTINGS, type AppSettings } from "@/utils/settings";
+import { getWalletService } from "@/services/walletService";
 import { withStateLock } from "@/utils/wallet/stateLockManager";
 
 /**
@@ -67,7 +63,8 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
   const loadSettings = useCallback(async () => {
     try {
       setIsLoading(true);
-      const storedSettings = await getSettings();
+      const walletService = getWalletService();
+      const storedSettings = await walletService.getSettings();
       setSettings(storedSettings);
     } finally {
       setIsLoading(false);
@@ -90,7 +87,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
         });
       }
     };
-    const unsubscribe = onMessage('walletLocked', handleLockMessage);
+    const unsubscribe = onMessage('keychainLocked', handleLockMessage);
 
     return () => {
       unsubscribe();
@@ -102,8 +99,9 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
       // Optimistically update state for instant UI response
       setSettings(prev => ({ ...prev, ...newSettings }));
 
-      // Persist to storage
-      await updateSettings(newSettings);
+      // Persist to storage via background service
+      const walletService = getWalletService();
+      await walletService.updateSettings(newSettings);
     } catch (error) {
       console.error('Failed to persist settings:', error);
       // On error, reload from storage to get the authoritative state.

@@ -17,8 +17,7 @@ import { isValidCounterwalletMnemonic } from "@/utils/blockchain/counterwallet";
 function ImportWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { unlockWallet, wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
-  const walletExists = wallets.length > 0;
+  const { keychainExists, createMnemonicWallet, verifyPassword } = useWallet();
 
   const [showMnemonic, setShowMnemonic] = useState(false);
   const [mnemonicWords, setMnemonicWords] = useState(Array(12).fill(""));
@@ -29,7 +28,7 @@ function ImportWallet() {
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
   const PATHS = {
-    BACK: walletExists ? "/add-wallet" : "/onboarding",
+    BACK: keychainExists ? "/add-wallet" : "/onboarding",
     SUCCESS: "/index",
   } as const;
   const MIN_PASSWORD_LENGTH = 8;
@@ -51,7 +50,7 @@ function ImportWallet() {
       if (!password) {
         return { error: "Password is required." };
       }
-      if (walletExists) {
+      if (keychainExists) {
         const isValid = await verifyPassword(password);
         if (!isValid) {
           return { error: "Password does not match." };
@@ -76,8 +75,7 @@ function ImportWallet() {
           }
         }
 
-        const newWallet = await createAndUnlockMnemonicWallet(mnemonic, password, undefined, addressFormat);
-        await unlockWallet(newWallet.id, password);
+        await createMnemonicWallet(mnemonic, password, undefined, addressFormat);
         navigate(PATHS.SUCCESS);
         return { error: null };
       } catch (error: unknown) {
@@ -99,7 +97,7 @@ function ImportWallet() {
         ariaLabel: showMnemonic ? "Hide recovery phrase" : "Show recovery phrase",
       },
     });
-  }, [navigate, setHeaderProps, showMnemonic, walletExists]);
+  }, [navigate, setHeaderProps, showMnemonic, keychainExists]);
 
   useEffect(() => {
     inputRefs.current[0]?.focus();
@@ -240,7 +238,7 @@ function ImportWallet() {
               <PasswordInput
                 innerRef={passwordInputRef}
                 name="password"
-                placeholder={walletExists ? "Confirm your password" : "Create a password"}
+                placeholder={keychainExists ? "Confirm your password" : "Create a password"}
                 disabled={isPending}
                 onChange={handlePasswordChange}
               />

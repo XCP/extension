@@ -13,8 +13,7 @@ import { generateNewMnemonic } from "@/utils/blockchain/bitcoin/privateKey";
 function CreateWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets, createAndUnlockMnemonicWallet, verifyPassword } = useWallet();
-  const walletExists = wallets.length > 0;
+  const { keychainExists, createMnemonicWallet, verifyPassword } = useWallet();
 
   const initialMnemonic = generateNewMnemonic();
   const [mnemonic, setMnemonic] = useState(initialMnemonic);
@@ -25,7 +24,7 @@ function CreateWallet() {
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
   const PATHS = {
-    BACK: walletExists ? "/add-wallet" : "/onboarding",
+    BACK: keychainExists ? "/add-wallet" : "/onboarding",
     SUCCESS: "/index",
   } as const;
   const MIN_PASSWORD_LENGTH = 8;
@@ -41,7 +40,7 @@ function CreateWallet() {
         return { error: "Password is required." };
       }
 
-      if (walletExists) {
+      if (keychainExists) {
         const isValid = await verifyPassword(password);
         if (!isValid) {
           return { error: "Password does not match." };
@@ -53,7 +52,7 @@ function CreateWallet() {
       }
 
       try {
-        await createAndUnlockMnemonicWallet(mnemonic, password);
+        await createMnemonicWallet(mnemonic, password);
         navigate(PATHS.SUCCESS);
         return { error: null };
       } catch {
@@ -74,7 +73,7 @@ function CreateWallet() {
         disabled: isPending,
       },
     });
-  }, [navigate, setHeaderProps, walletExists, isPending]);
+  }, [navigate, setHeaderProps, keychainExists, isPending]);
 
   function generateWallet() {
     const newMnemonic = generateNewMnemonic();
@@ -172,7 +171,7 @@ function CreateWallet() {
                 innerRef={passwordInputRef}
                 name="password"
                 placeholder={
-                  walletExists ? "Confirm your password" : "Create a password"
+                  keychainExists ? "Confirm your password" : "Create a password"
                 }
                 disabled={isPending}
                 onChange={handlePasswordChange}

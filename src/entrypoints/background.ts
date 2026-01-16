@@ -204,7 +204,7 @@ export default defineBackground(() => {
       const recoveryState = await checkSessionRecovery();
       if (recoveryState === SessionRecoveryState.LOCKED) {
         const walletService = getWalletService();
-        await walletService.lockAllWallets();
+        await walletService.lockKeychain();
         console.log('[Background] Wallets locked due to session recovery state');
       } else if (recoveryState === SessionRecoveryState.NEEDS_REAUTH) {
         console.log('[Background] Session needs re-authentication');
@@ -402,7 +402,7 @@ export default defineBackground(() => {
         case SESSION_EXPIRY_ALARM_NAME:
           console.log('[Background] Session expired via alarm');
           const walletService = getWalletService();
-          await walletService.lockAllWallets();
+          await walletService.lockKeychain();
           break;
           
         case KEEP_ALIVE_ALARM_NAME:
