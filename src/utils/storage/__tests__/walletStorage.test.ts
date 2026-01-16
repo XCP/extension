@@ -3,7 +3,7 @@ import { fakeBrowser } from 'wxt/testing';
 import {
   getKeychainRecord,
   saveKeychainRecord,
-  hasKeychain,
+  keychainExists,
   deleteKeychain,
 } from '../walletStorage';
 import type { KeychainRecord } from '@/types/wallet';
@@ -72,9 +72,9 @@ describe('walletStorage.ts', () => {
     });
   });
 
-  describe('hasKeychain', () => {
+  describe('keychainExists', () => {
     it('should return false when no keychain exists', async () => {
-      const result = await hasKeychain();
+      const result = await keychainExists();
       expect(result).toBe(false);
     });
 
@@ -82,18 +82,18 @@ describe('walletStorage.ts', () => {
       const record = createTestKeychainRecord();
       await saveKeychainRecord(record);
 
-      const result = await hasKeychain();
+      const result = await keychainExists();
       expect(result).toBe(true);
     });
 
     it('should return false after keychain is deleted', async () => {
       const record = createTestKeychainRecord();
       await saveKeychainRecord(record);
-      expect(await hasKeychain()).toBe(true);
+      expect(await keychainExists()).toBe(true);
 
       await deleteKeychain();
 
-      expect(await hasKeychain()).toBe(false);
+      expect(await keychainExists()).toBe(false);
     });
   });
 

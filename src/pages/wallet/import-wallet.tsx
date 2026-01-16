@@ -17,8 +17,7 @@ import { isValidCounterwalletMnemonic } from "@/utils/blockchain/counterwallet";
 function ImportWallet() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets, createMnemonicWallet, verifyPassword } = useWallet();
-  const walletExists = wallets.length > 0;
+  const { keychainExists, createMnemonicWallet, verifyPassword } = useWallet();
 
   const [showMnemonic, setShowMnemonic] = useState(false);
   const [mnemonicWords, setMnemonicWords] = useState(Array(12).fill(""));
@@ -29,7 +28,7 @@ function ImportWallet() {
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
   const PATHS = {
-    BACK: walletExists ? "/add-wallet" : "/onboarding",
+    BACK: keychainExists ? "/add-wallet" : "/onboarding",
     SUCCESS: "/index",
   } as const;
   const MIN_PASSWORD_LENGTH = 8;
@@ -51,7 +50,7 @@ function ImportWallet() {
       if (!password) {
         return { error: "Password is required." };
       }
-      if (walletExists) {
+      if (keychainExists) {
         const isValid = await verifyPassword(password);
         if (!isValid) {
           return { error: "Password does not match." };
@@ -98,7 +97,7 @@ function ImportWallet() {
         ariaLabel: showMnemonic ? "Hide recovery phrase" : "Show recovery phrase",
       },
     });
-  }, [navigate, setHeaderProps, showMnemonic, walletExists]);
+  }, [navigate, setHeaderProps, showMnemonic, keychainExists]);
 
   useEffect(() => {
     inputRefs.current[0]?.focus();
@@ -239,7 +238,7 @@ function ImportWallet() {
               <PasswordInput
                 innerRef={passwordInputRef}
                 name="password"
-                placeholder={walletExists ? "Confirm your password" : "Create a password"}
+                placeholder={keychainExists ? "Confirm your password" : "Create a password"}
                 disabled={isPending}
                 onChange={handlePasswordChange}
               />

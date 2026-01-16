@@ -72,8 +72,9 @@ export async function saveKeychainRecord(record: KeychainRecord): Promise<void> 
 
 /**
  * Checks if a keychain exists in storage.
+ * Used to determine onboarding vs unlock routing.
  */
-export async function hasKeychain(): Promise<boolean> {
+export async function keychainExists(): Promise<boolean> {
   const keychain = await getKeychainRecord();
   return keychain !== null;
 }

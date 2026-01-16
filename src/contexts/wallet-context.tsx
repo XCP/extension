@@ -47,6 +47,7 @@ import {
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import { getWalletService } from "@/services/walletService";
 import { walletManager } from "@/utils/wallet/walletManager";
+import { keychainExists as checkKeychainExists } from "@/utils/storage/walletStorage";
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { withStateLock } from "@/utils/wallet/stateLockManager";
 import type { Wallet, Address } from "@/types/wallet";
@@ -96,7 +97,9 @@ const walletsEqualArray = (a: Wallet[], b: Wallet[]): boolean => {
 interface WalletState {
   /** Current authentication state (onboarding, locked, or unlocked) */
   authState: AuthState;
-  /** All wallets in the extension (both locked and unlocked) */
+  /** Whether a keychain exists in storage (determines onboarding vs locked) */
+  keychainExists: boolean;
+  /** All wallets in the extension (only populated when unlocked) */
   wallets: Wallet[];
   /** Currently selected wallet, or null if none selected */
   activeWallet: Wallet | null;
@@ -116,6 +119,8 @@ interface WalletContextType {
   // ─── State ─────────────────────────────────────────────────────────────────
   /** Current authentication state */
   authState: AuthState;
+  /** Whether a keychain exists in storage */
+  keychainExists: boolean;
   /** All wallets in the extension */
   wallets: Wallet[];
   /** Currently active wallet */
@@ -220,6 +225,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
   const walletService = getWalletService();
   const [walletState, setWalletState] = useState<WalletState>({
     authState: AuthState.Onboarding,
+    keychainExists: false,
     wallets: [],
     activeWallet: null,
     activeAddress: null,
@@ -252,6 +258,9 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       // Use ref to get current state without triggering re-renders
       const currentState = walletStateRef.current;
       const newState: WalletState = { ...currentState };
+
+      // Check if keychain exists in storage (fast check, no crypto)
+      newState.keychainExists = await checkKeychainExists();
 
       let walletsEqual = walletsEqualArray(newState.wallets, allWallets);
       let activeChanged = false;
@@ -471,6 +480,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
 
   const value = useMemo<WalletContextType>(() => ({
     authState: walletState.authState,
+    keychainExists: walletState.keychainExists,
     wallets: walletState.wallets,
     activeWallet: walletState.activeWallet,
     activeAddress: walletState.activeAddress,
@@ -516,6 +526,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       await walletService.resetKeychain(password);
       setWalletState({
         authState: AuthState.Onboarding,
+        keychainExists: false,
         wallets: [],
         activeWallet: null,
         activeAddress: null,
