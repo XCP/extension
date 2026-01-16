@@ -25,7 +25,7 @@ async function deriveKeyInWorker(
   // Import password as key material
   const passwordKey = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(password) as BufferSource,
+    encoder.encode(password),
     'PBKDF2',
     false,
     ['deriveKey']
@@ -35,7 +35,7 @@ async function deriveKeyInWorker(
   const derivedKey = await crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: saltBytes as BufferSource,
+      salt: saltBytes,
       iterations,
       hash: 'SHA-256',
     },

@@ -70,14 +70,14 @@ export async function deriveKey(
 
   const passwordKey = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(password) as BufferSource,
+    encoder.encode(password),
     'PBKDF2',
     false,
     ['deriveKey']
   );
 
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
     passwordKey,
     { name: 'AES-GCM', length: KEY_BITS },
     true, // extractable - needed for session storage
@@ -126,9 +126,9 @@ export async function encryptWithKey(data: string, key: CryptoKey): Promise<stri
   const plaintext = encoder.encode(data);
 
   const ciphertext = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: iv as BufferSource, tagLength: GCM_TAG_LENGTH },
+    { name: 'AES-GCM', iv, tagLength: GCM_TAG_LENGTH },
     key,
-    plaintext as BufferSource
+    plaintext
   );
 
   // Combine IV + ciphertext
