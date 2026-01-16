@@ -6,6 +6,14 @@
 
 import { walletTest, expect, navigateTo } from '../../../fixtures';
 import { compose, actions } from '../../../selectors';
+import {
+  enableValidationBypass,
+  enableDryRun,
+  waitForReview,
+  signAndBroadcast,
+  waitForSuccess,
+  clickBack,
+} from '../../../helpers/compose-test-helpers';
 
 walletTest.describe('Compose Issuance Page (/compose/issuance)', () => {
   walletTest('can navigate to issuance from actions', async ({ page }) => {
@@ -96,5 +104,99 @@ walletTest.describe('Compose Issuance Page (/compose/issuance)', () => {
     const isOnActions = page.url().includes('actions');
     const isOnIndex = page.url().includes('index');
     expect(isOnActions || isOnIndex).toBe(true);
+  });
+});
+
+walletTest.describe('Issuance Flow - Full Compose Flow', () => {
+  // Generate unique asset name for each test run
+  const generateAssetName = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let result = '';
+    for (let i = 0; i < 10; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
+  walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
+    await enableDryRun(page);
+  });
+
+  walletTest('form → review: valid issuance shows review page', async ({ page }) => {
+    await navigateTo(page, 'actions');
+    await actions.issueAssetOption(page).click();
+    await page.waitForURL('**/compose/issuance', { timeout: 10000 });
+
+    const assetName = generateAssetName();
+    await compose.issuance.assetNameInput(page).fill(assetName);
+    await compose.issuance.quantityInput(page).fill('1000000');
+    await page.waitForTimeout(500);
+
+    const submitBtn = compose.issuance.issueButton(page);
+    await expect(submitBtn).toBeEnabled({ timeout: 5000 });
+    await submitBtn.click();
+
+    await waitForReview(page);
+
+    const reviewContent = await page.content();
+    expect(reviewContent).toMatch(/review|confirm|sign/i);
+  });
+
+  walletTest('form → review → back: issuance data preserved', async ({ page }) => {
+    await navigateTo(page, 'actions');
+    await actions.issueAssetOption(page).click();
+    await page.waitForURL('**/compose/issuance', { timeout: 10000 });
+
+    const assetName = generateAssetName();
+    const quantity = '5000000';
+
+    await compose.issuance.assetNameInput(page).fill(assetName);
+    await compose.issuance.quantityInput(page).fill(quantity);
+    await page.waitForTimeout(500);
+
+    await compose.issuance.issueButton(page).click();
+    await waitForReview(page);
+
+    await clickBack(page);
+    await page.waitForTimeout(500);
+
+    await expect(compose.issuance.assetNameInput(page)).toHaveValue(assetName);
+    await expect(compose.issuance.quantityInput(page)).toHaveValue(quantity);
+  });
+
+  walletTest('full flow: issuance form → review → sign → success', async ({ page }) => {
+    await navigateTo(page, 'actions');
+    await actions.issueAssetOption(page).click();
+    await page.waitForURL('**/compose/issuance', { timeout: 10000 });
+
+    const assetName = generateAssetName();
+    await compose.issuance.assetNameInput(page).fill(assetName);
+    await compose.issuance.quantityInput(page).fill('1000000');
+    await page.waitForTimeout(500);
+
+    await compose.issuance.issueButton(page).click();
+    await waitForReview(page);
+
+    await signAndBroadcast(page);
+    await waitForSuccess(page);
+
+    const successContent = await page.content();
+    expect(successContent).toMatch(/success|txid|transaction id|dev_mock_tx/i);
+  });
+
+  walletTest('review page shows asset name', async ({ page }) => {
+    await navigateTo(page, 'actions');
+    await actions.issueAssetOption(page).click();
+    await page.waitForURL('**/compose/issuance', { timeout: 10000 });
+
+    const assetName = generateAssetName();
+    await compose.issuance.assetNameInput(page).fill(assetName);
+    await compose.issuance.quantityInput(page).fill('1000000');
+    await compose.issuance.issueButton(page).click();
+    await waitForReview(page);
+
+    const pageContent = await page.content();
+    expect(pageContent).toContain(assetName);
   });
 });

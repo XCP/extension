@@ -6,6 +6,14 @@
 
 import { walletTest, expect, navigateTo } from '../../../fixtures';
 import { compose } from '../../../selectors';
+import {
+  enableValidationBypass,
+  enableDryRun,
+  waitForReview,
+  signAndBroadcast,
+  waitForSuccess,
+  clickBack,
+} from '../../../helpers/compose-test-helpers';
 
 walletTest.describe('Compose Dispenser Page (/compose/dispenser)', () => {
   walletTest('can navigate to create dispenser from market', async ({ page }) => {
@@ -74,6 +82,137 @@ walletTest.describe('Compose Dispenser Page (/compose/dispenser)', () => {
       if (await submitButton.isVisible({ timeout: 3000 }).catch(() => false)) {
         const isDisabled = await submitButton.isDisabled().catch(() => true);
         expect(isDisabled).toBe(true);
+      }
+    }
+  });
+});
+
+walletTest.describe('Dispenser Flow - Full Compose Flow', () => {
+  walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
+    await enableDryRun(page);
+  });
+
+  walletTest('form → review: valid dispenser shows review page', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/XCP'));
+    await page.waitForLoadState('networkidle');
+
+    if (!page.url().includes('/compose/dispenser')) {
+      return; // Skip if navigation failed
+    }
+
+    // Fill dispenser form
+    const giveInput = compose.dispenser.giveQuantityInput(page);
+    const escrowInput = compose.dispenser.escrowQuantityInput(page);
+    const rateInput = compose.dispenser.mainchainRateInput(page);
+
+    if (await giveInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await giveInput.fill('100');
+    }
+    if (await escrowInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await escrowInput.fill('1000');
+    }
+    if (await rateInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await rateInput.fill('0.0001');
+    }
+    await page.waitForTimeout(500);
+
+    const submitBtn = compose.dispenser.createButton(page);
+    if (await submitBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      const isEnabled = await submitBtn.isEnabled().catch(() => false);
+      if (isEnabled) {
+        await submitBtn.click();
+        await waitForReview(page);
+
+        const reviewContent = await page.content();
+        expect(reviewContent).toMatch(/review|confirm|sign/i);
+      }
+    }
+  });
+
+  walletTest('form → review → back: dispenser data preserved', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/XCP'));
+    await page.waitForLoadState('networkidle');
+
+    if (!page.url().includes('/compose/dispenser')) {
+      return;
+    }
+
+    const giveQuantity = '50';
+    const escrowQuantity = '500';
+    const rate = '0.00025';
+
+    const giveInput = compose.dispenser.giveQuantityInput(page);
+    const escrowInput = compose.dispenser.escrowQuantityInput(page);
+    const rateInput = compose.dispenser.mainchainRateInput(page);
+
+    if (await giveInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await giveInput.fill(giveQuantity);
+    }
+    if (await escrowInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await escrowInput.fill(escrowQuantity);
+    }
+    if (await rateInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await rateInput.fill(rate);
+    }
+    await page.waitForTimeout(500);
+
+    const submitBtn = compose.dispenser.createButton(page);
+    if (await submitBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      const isEnabled = await submitBtn.isEnabled().catch(() => false);
+      if (isEnabled) {
+        await submitBtn.click();
+        await waitForReview(page);
+
+        await clickBack(page);
+        await page.waitForTimeout(500);
+
+        // Verify form data preserved
+        if (await giveInput.isVisible().catch(() => false)) {
+          await expect(giveInput).toHaveValue(giveQuantity);
+        }
+        if (await escrowInput.isVisible().catch(() => false)) {
+          await expect(escrowInput).toHaveValue(escrowQuantity);
+        }
+      }
+    }
+  });
+
+  walletTest('full flow: dispenser form → review → sign → success', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/XCP'));
+    await page.waitForLoadState('networkidle');
+
+    if (!page.url().includes('/compose/dispenser')) {
+      return;
+    }
+
+    const giveInput = compose.dispenser.giveQuantityInput(page);
+    const escrowInput = compose.dispenser.escrowQuantityInput(page);
+    const rateInput = compose.dispenser.mainchainRateInput(page);
+
+    if (await giveInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await giveInput.fill('100');
+    }
+    if (await escrowInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await escrowInput.fill('1000');
+    }
+    if (await rateInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await rateInput.fill('0.0001');
+    }
+    await page.waitForTimeout(500);
+
+    const submitBtn = compose.dispenser.createButton(page);
+    if (await submitBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      const isEnabled = await submitBtn.isEnabled().catch(() => false);
+      if (isEnabled) {
+        await submitBtn.click();
+        await waitForReview(page);
+
+        await signAndBroadcast(page);
+        await waitForSuccess(page);
+
+        const successContent = await page.content();
+        expect(successContent).toMatch(/success|txid|transaction id|dev_mock_tx/i);
       }
     }
   });

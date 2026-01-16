@@ -88,6 +88,7 @@ export interface BaseComposeOptions {
   more_outputs?: string;
   use_all_inputs_set?: boolean;
   multisig_pubkey?: string;
+  validate?: boolean; // set false to skip validation for e2e testing
 }
 
 // Transaction-specific options
@@ -241,7 +242,8 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
   arrayParams: { [key: string]: (string | boolean | undefined)[] | undefined },
   sourceAddress: string,
   sat_per_vbyte: number,
-  encoding?: string
+  encoding?: string,
+  validate?: boolean
 ): Promise<ApiResponse> {
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
@@ -257,6 +259,7 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
     disable_utxo_locks: 'true',
     verbose: 'true',
     ...(encoding && { encoding }),
+    ...(validate === false && { validate: 'false' }),
   }));
 
   // Build URL with array notation for array params
@@ -313,7 +316,8 @@ export async function composeTransaction<T extends Record<string, unknown>>(
   paramsObj: T,
   sourceAddress: string,
   sat_per_vbyte: number,
-  encoding?: string
+  encoding?: string,
+  validate?: boolean
 ): Promise<ApiResponse> {
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
@@ -329,6 +333,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
     disable_utxo_locks: 'true',
     verbose: 'true',
     ...(encoding && { encoding }),
+    ...(validate === false && { validate: 'false' }),
   }));
 
   const url = `${apiUrl}?${params.toString()}`;
@@ -377,7 +382,8 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
   paramsObj: T,
   sourceUtxo: string,
   sat_per_vbyte: number,
-  encoding?: string
+  encoding?: string,
+  validate?: boolean
 ): Promise<ApiResponse> {
   const base = await getApiBase();
   const apiUrl = `${base}/v2/utxos/${sourceUtxo}/compose/${endpoint}`;
@@ -393,6 +399,7 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
     disable_utxo_locks: 'true',
     verbose: 'true',
     ...(encoding && { encoding }),
+    ...(validate === false && { validate: 'false' }),
   }));
 
   const url = `${apiUrl}?${params.toString()}`;
@@ -437,81 +444,93 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
 
 export async function composeBroadcast(options: BroadcastOptions): Promise<ApiResponse> {
   const {
-    sourceAddress,
-    text,
-    value = '0',
-    fee_fraction = '0',
+    sourceAddress, text, value = '0', fee_fraction = '0',
     timestamp = Math.floor(Date.now() / 1000).toString(),
-    sat_per_vbyte,
-    max_fee,
-    encoding,
-    inscription,
-    mime_type,
+    sat_per_vbyte, max_fee, encoding, inscription, mime_type, validate,
   } = options;
   const paramsObj = {
-    text,
-    value,
-    fee_fraction,
-    timestamp,
+    text, value, fee_fraction, timestamp,
     ...(inscription && { inscription }),
     ...(mime_type && { mime_type }),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('broadcast', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeTransaction('broadcast', paramsObj, sourceAddress, sat_per_vbyte, encoding, validate);
 }
 
 export async function composeBTCPay(options: BTCPayOptions): Promise<ApiResponse> {
-  const { sourceAddress, order_match_id, sat_per_vbyte, max_fee, encoding } = options;
+  const {
+    sourceAddress,
+    order_match_id,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+    validate,
+  } = options;
   const paramsObj = {
     order_match_id,
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('btcpay', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeTransaction('btcpay', paramsObj, sourceAddress, sat_per_vbyte, encoding, validate);
 }
 
 export async function composeBurn(options: BurnOptions): Promise<ApiResponse> {
-  const { sourceAddress, quantity, overburn = false, sat_per_vbyte, max_fee, encoding } = options;
+  const {
+    sourceAddress,
+    quantity,
+    overburn = false,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+    validate,
+  } = options;
   const paramsObj = {
     quantity: quantity.toString(),
     overburn: overburn.toString(),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('burn', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeTransaction('burn', paramsObj, sourceAddress, sat_per_vbyte, encoding, validate);
 }
 
 export async function composeCancel(options: CancelOptions): Promise<ApiResponse> {
-  const { sourceAddress, offer_hash, sat_per_vbyte, max_fee, encoding } = options;
+  const {
+    sourceAddress,
+    offer_hash,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+    validate,
+  } = options;
   const paramsObj = {
     offer_hash: offer_hash.trim(),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('cancel', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeTransaction('cancel', paramsObj, sourceAddress, sat_per_vbyte, encoding, validate);
 }
 
 export async function composeDestroy(options: DestroyOptions): Promise<ApiResponse> {
-  const { sourceAddress, asset, quantity, tag, sat_per_vbyte, max_fee, encoding } = options;
+  const {
+    sourceAddress,
+    asset,
+    quantity,
+    tag,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+    validate,
+  } = options;
   const paramsObj = {
     asset,
     quantity: quantity.toString(),
-    tag: tag || '', // Always include tag, even if empty
+    tag: tag || '',
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('destroy', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeTransaction('destroy', paramsObj, sourceAddress, sat_per_vbyte, encoding, validate);
 }
 
 export async function composeDispenser(options: DispenserOptions): Promise<ApiResponse> {
   const {
-    sourceAddress,
-    asset,
-    give_quantity,
-    escrow_quantity,
-    mainchainrate,
-    status = '0',
-    open_address,
-    oracle_address,
-    sat_per_vbyte,
-    max_fee,
-    encoding,
+    sourceAddress, asset, give_quantity, escrow_quantity, mainchainrate,
+    status = '0', open_address, oracle_address, sat_per_vbyte, max_fee, encoding, validate,
   } = options;
   const paramsObj = {
     asset,
@@ -523,7 +542,7 @@ export async function composeDispenser(options: DispenserOptions): Promise<ApiRe
     ...(oracle_address && { oracle_address }),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('dispenser', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeTransaction('dispenser', paramsObj, sourceAddress, sat_per_vbyte, encoding, validate);
 }
 
 export async function composeDispense(options: DispenseOptions): Promise<ApiResponse> {
@@ -535,6 +554,7 @@ export async function composeDispense(options: DispenseOptions): Promise<ApiResp
     pubkeys,
     sat_per_vbyte,
     max_fee,
+    validate,
   } = options;
   const paramsObj = {
     dispenser,
@@ -542,7 +562,7 @@ export async function composeDispense(options: DispenseOptions): Promise<ApiResp
     ...(pubkeys && { pubkeys }),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('dispense', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeTransaction('dispense', paramsObj, sourceAddress, sat_per_vbyte, encoding, validate);
 }
 
 export async function composeDividend(options: DividendOptions): Promise<ApiResponse> {
@@ -554,6 +574,7 @@ export async function composeDividend(options: DividendOptions): Promise<ApiResp
     sat_per_vbyte,
     max_fee,
     encoding,
+    validate,
   } = options;
   const paramsObj = {
     asset,
@@ -561,7 +582,7 @@ export async function composeDividend(options: DividendOptions): Promise<ApiResp
     quantity_per_unit: quantity_per_unit.toString(),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('dividend', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeTransaction('dividend', paramsObj, sourceAddress, sat_per_vbyte, encoding, validate);
 }
 
 export async function getDividendEstimateXcpFee(sourceAddress: string, asset: string): Promise<number> {
@@ -574,20 +595,8 @@ export async function getDividendEstimateXcpFee(sourceAddress: string, asset: st
 
 export async function composeIssuance(options: IssuanceOptions): Promise<ApiResponse> {
   const {
-    sourceAddress,
-    asset,
-    quantity,
-    divisible,
-    lock,
-    reset,
-    transfer_destination,
-    description,
-    sat_per_vbyte,
-    max_fee,
-    pubkeys,
-    encoding,
-    inscription,
-    mime_type,
+    sourceAddress, asset, quantity, divisible, lock, reset, transfer_destination,
+    description, sat_per_vbyte, max_fee, pubkeys, encoding, inscription, mime_type, validate,
   } = options;
   const paramsObj = {
     asset,
@@ -602,7 +611,7 @@ export async function composeIssuance(options: IssuanceOptions): Promise<ApiResp
     ...(mime_type && { mime_type }),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('issuance', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeTransaction('issuance', paramsObj, sourceAddress, sat_per_vbyte, encoding, validate);
 }
 
 export async function composeMPMA(options: MPMAOptions): Promise<ApiResponse> {
@@ -616,6 +625,7 @@ export async function composeMPMA(options: MPMAOptions): Promise<ApiResponse> {
     sat_per_vbyte,
     max_fee,
     encoding,
+    validate,
   } = options;
   if (
     !Array.isArray(assets) ||
@@ -626,42 +636,29 @@ export async function composeMPMA(options: MPMAOptions): Promise<ApiResponse> {
   ) {
     throw new Error('Assets, destinations, and quantities must be arrays of the same length.');
   }
-  
-  // Special handling for memos - need to use array notation in URL
+
   if (memos && memos.length > 0) {
     return composeTransactionWithArrays('mpma', {
       assets: assets.join(','),
       destinations: destinations.join(','),
       quantities: quantities.join(','),
       ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
-    }, {
-      memos,
-      memos_are_hex
-    }, sourceAddress, sat_per_vbyte, encoding);
+    }, { memos, memos_are_hex }, sourceAddress, sat_per_vbyte, encoding, validate);
   }
-  
-  // No memos - use regular approach
+
   const paramsObj = {
     assets: assets.join(','),
     destinations: destinations.join(','),
     quantities: quantities.join(','),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('mpma', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeTransaction('mpma', paramsObj, sourceAddress, sat_per_vbyte, encoding, validate);
 }
 
 export async function composeOrder(options: OrderOptions): Promise<ApiResponse> {
   const {
-    sourceAddress,
-    give_asset,
-    give_quantity,
-    get_asset,
-    get_quantity,
-    expiration,
-    fee_required = 0,
-    sat_per_vbyte,
-    max_fee,
-    encoding,
+    sourceAddress, give_asset, give_quantity, get_asset, get_quantity,
+    expiration, fee_required = 0, sat_per_vbyte, max_fee, encoding, validate,
   } = options;
   const paramsObj = {
     give_asset,
@@ -672,11 +669,22 @@ export async function composeOrder(options: OrderOptions): Promise<ApiResponse> 
     fee_required: fee_required.toString(),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('order', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeTransaction('order', paramsObj, sourceAddress, sat_per_vbyte, encoding, validate);
 }
 
 export async function composeSend(options: SendOptions): Promise<ApiResponse> {
-  const { sourceAddress, destination, asset, quantity, memo, memo_is_hex, sat_per_vbyte, max_fee, encoding } = options;
+  const {
+    sourceAddress,
+    destination,
+    asset,
+    quantity,
+    memo,
+    memo_is_hex,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+    validate,
+  } = options;
   const paramsObj = {
     destination,
     asset,
@@ -685,7 +693,7 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     ...(memo_is_hex !== undefined ? { memo_is_hex: memo_is_hex.toString() } : {}),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding, validate);
 }
 
 export async function composeSweep(options: SweepOptions): Promise<ApiResponse> {
@@ -697,6 +705,7 @@ export async function composeSweep(options: SweepOptions): Promise<ApiResponse> 
     sat_per_vbyte,
     max_fee,
     encoding,
+    validate,
   } = options;
   const paramsObj = {
     destination,
@@ -704,7 +713,7 @@ export async function composeSweep(options: SweepOptions): Promise<ApiResponse> 
     memo,
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('sweep', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeTransaction('sweep', paramsObj, sourceAddress, sat_per_vbyte, encoding, validate);
 }
 
 export async function getSweepEstimateXcpFee(sourceAddress: string): Promise<number> {
@@ -716,29 +725,10 @@ export async function getSweepEstimateXcpFee(sourceAddress: string): Promise<num
 
 export async function composeFairminter(options: FairminterOptions): Promise<ApiResponse> {
   const {
-    sourceAddress,
-    asset,
-    lot_price = 0,
-    lot_size = 1,
-    max_mint_per_tx = 0,
-    hard_cap = 0,
-    premint_quantity = 0,
-    start_block = 0,
-    end_block = 0,
-    soft_cap = 0,
-    soft_cap_deadline_block = 0,
-    minted_asset_commission = 0.0,
-    burn_payment = false,
-    lock_description = false,
-    lock_quantity = false,
-    divisible = true,
-    description = '',
-    encoding = 'auto',
-    sat_per_vbyte,
-    max_fee,
-    pubkeys,
-    inscription,
-    mime_type,
+    sourceAddress, asset, lot_price = 0, lot_size = 1, max_mint_per_tx = 0, hard_cap = 0,
+    premint_quantity = 0, start_block = 0, end_block = 0, soft_cap = 0, soft_cap_deadline_block = 0,
+    minted_asset_commission = 0.0, burn_payment = false, lock_description = false, lock_quantity = false,
+    divisible = true, description = '', encoding = 'auto', sat_per_vbyte, max_fee, pubkeys, inscription, mime_type, validate,
   } = options;
   const paramsObj = {
     asset,
@@ -762,19 +752,25 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
     ...(mime_type && { mime_type }),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('fairminter', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeTransaction('fairminter', paramsObj, sourceAddress, sat_per_vbyte, encoding, validate);
 }
 
 export async function composeFairmint(options: FairmintOptions): Promise<ApiResponse> {
-  const { sourceAddress, asset, quantity = 0, sat_per_vbyte, max_fee, encoding } = options;
-  
+  const {
+    sourceAddress,
+    asset,
+    quantity = 0,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+    validate,
+  } = options;
   const paramsObj = {
     asset,
     quantity: quantity.toString(),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  
-  return composeTransaction('fairmint', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeTransaction('fairmint', paramsObj, sourceAddress, sat_per_vbyte, encoding, validate);
 }
 
 export async function composeAttach(options: AttachOptions): Promise<ApiResponse> {
@@ -782,21 +778,21 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
     sourceAddress,
     asset,
     quantity,
-    utxo_value,
+    utxo_value, // Note: utxo_value is disabled after block 871900
     destination_vout,
     sat_per_vbyte,
     max_fee,
     encoding,
+    validate,
   } = options;
   const paramsObj = {
     asset,
     quantity: quantity.toString(),
-    // Note: utxo_value is disabled after block 871900
     ...(utxo_value !== undefined ? { utxo_value: utxo_value.toString() } : {}),
     ...(destination_vout !== undefined ? { destination_vout: destination_vout.toString() } : {}),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte, encoding, validate);
 }
 
 export async function getAttachEstimateXcpFee(sourceAddress: string): Promise<number> {
@@ -807,17 +803,29 @@ export async function getAttachEstimateXcpFee(sourceAddress: string): Promise<nu
 }
 
 export async function composeDetach(options: DetachOptions): Promise<ApiResponse> {
-  const { sourceUtxo, destination, sat_per_vbyte, encoding } = options;
+  const {
+    sourceUtxo,
+    destination,
+    sat_per_vbyte,
+    encoding,
+    validate,
+  } = options;
   const paramsObj = {
     ...(destination && { destination }),
   };
-  return composeUtxoTransaction('detach', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  return composeUtxoTransaction('detach', paramsObj, sourceUtxo, sat_per_vbyte, encoding, validate);
 }
 
 export async function composeMove(options: MoveOptions): Promise<ApiResponse> {
-  const { sourceUtxo, destination, sat_per_vbyte, encoding } = options;
+  const {
+    sourceUtxo,
+    destination,
+    sat_per_vbyte,
+    encoding,
+    validate,
+  } = options;
   const paramsObj = {
     destination,
   };
-  return composeUtxoTransaction('movetoutxo', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+  return composeUtxoTransaction('movetoutxo', paramsObj, sourceUtxo, sat_per_vbyte, encoding, validate);
 }

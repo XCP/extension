@@ -8,6 +8,14 @@
 import { walletTest, expect, navigateTo } from '../../../fixtures';
 import { compose, index } from '../../../selectors';
 import { TEST_ADDRESSES, TEST_AMOUNTS } from '../../../helpers/test-data';
+import {
+  enableValidationBypass,
+  enableDryRun,
+  waitForReview,
+  signAndBroadcast,
+  waitForSuccess,
+  clickBack,
+} from '../../../helpers/compose-test-helpers';
 
 walletTest.describe('Compose Send Page (/compose/send)', () => {
   walletTest('can navigate to send from dashboard', async ({ page }) => {
@@ -219,5 +227,132 @@ walletTest.describe('Send Flow - Address Type Compatibility', () => {
 
     const hasAddressError = await page.locator('.text-red-600, .text-red-500').filter({ hasText: /address|invalid/i }).first().isVisible({ timeout: 1000 }).catch(() => false);
     expect(hasAddressError).toBe(false);
+  });
+});
+
+walletTest.describe('Send Flow - Full Compose Flow', () => {
+  walletTest.beforeEach(async ({ page }) => {
+    // Enable validation bypass (skip balance checks) and dry run (skip broadcast)
+    await enableValidationBypass(page);
+    await enableDryRun(page);
+  });
+
+  walletTest('form → review: valid form shows review page', async ({ page }) => {
+    await index.sendButton(page).click();
+    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await page.waitForLoadState('networkidle');
+
+    // Fill form
+    await compose.send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
+    await compose.send.quantityInput(page).fill('0.001');
+    await page.waitForTimeout(500);
+
+    // Submit form
+    const submitBtn = compose.common.submitButton(page);
+    await expect(submitBtn).toBeEnabled({ timeout: 5000 });
+    await submitBtn.click();
+
+    // Wait for review page
+    await waitForReview(page);
+
+    // Verify review page shows transaction details
+    const reviewContent = await page.content();
+    expect(reviewContent).toMatch(/review|confirm|sign/i);
+  });
+
+  walletTest('form → review → back: form data preserved', async ({ page }) => {
+    await index.sendButton(page).click();
+    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await page.waitForLoadState('networkidle');
+
+    const testAddress = TEST_ADDRESSES.mainnet.p2wpkh;
+    const testAmount = '0.00123';
+
+    // Fill form
+    await compose.send.recipientInput(page).fill(testAddress);
+    await compose.send.quantityInput(page).fill(testAmount);
+    await page.waitForTimeout(500);
+
+    // Submit and wait for review
+    await compose.common.submitButton(page).click();
+    await waitForReview(page);
+
+    // Go back
+    await clickBack(page);
+    await page.waitForTimeout(500);
+
+    // Verify form data preserved
+    await expect(compose.send.recipientInput(page)).toHaveValue(testAddress);
+    await expect(compose.send.quantityInput(page)).toHaveValue(testAmount);
+  });
+
+  walletTest('form → review → back → edit → submit: recompose works', async ({ page }) => {
+    await index.sendButton(page).click();
+    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await page.waitForLoadState('networkidle');
+
+    // Initial submission
+    await compose.send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
+    await compose.send.quantityInput(page).fill('0.001');
+    await compose.common.submitButton(page).click();
+    await waitForReview(page);
+
+    // Go back and edit
+    await clickBack(page);
+    await compose.send.quantityInput(page).fill('0.002');
+    await page.waitForTimeout(500);
+
+    // Resubmit
+    await compose.common.submitButton(page).click();
+    await waitForReview(page);
+
+    // Should be on review page again
+    const reviewContent = await page.content();
+    expect(reviewContent).toMatch(/review|confirm|sign/i);
+  });
+
+  walletTest('full flow: form → review → sign → success', async ({ page }) => {
+    await index.sendButton(page).click();
+    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await page.waitForLoadState('networkidle');
+
+    // Fill form
+    await compose.send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
+    await compose.send.quantityInput(page).fill('0.001');
+    await page.waitForTimeout(500);
+
+    // Submit form
+    await compose.common.submitButton(page).click();
+    await waitForReview(page);
+
+    // Sign and broadcast
+    await signAndBroadcast(page);
+
+    // Wait for success
+    await waitForSuccess(page);
+
+    // Success page should show txid or success message
+    const successContent = await page.content();
+    expect(successContent).toMatch(/success|txid|transaction id|dev_mock_tx/i);
+  });
+
+  walletTest('review page shows correct transaction details', async ({ page }) => {
+    await index.sendButton(page).click();
+    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await page.waitForLoadState('networkidle');
+
+    const testAddress = TEST_ADDRESSES.mainnet.p2wpkh;
+    const testAmount = '0.00567';
+
+    // Fill and submit
+    await compose.send.recipientInput(page).fill(testAddress);
+    await compose.send.quantityInput(page).fill(testAmount);
+    await compose.common.submitButton(page).click();
+    await waitForReview(page);
+
+    // Review should show the destination address (at least partially)
+    const pageContent = await page.content();
+    const addressPrefix = testAddress.substring(0, 10);
+    expect(pageContent).toContain(addressPrefix);
   });
 });
