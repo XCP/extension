@@ -54,10 +54,8 @@ export interface AppSettings {
 
   /** Last active wallet ID (auto-load on unlock) */
   lastActiveWalletId?: string;
-  /** Last active address for current wallet */
+  /** Last active address (restored on unlock) */
   lastActiveAddress?: string;
-  /** Last active address per wallet ID (for restoring state when switching wallets) */
-  lastActiveAddressByWalletId?: Record<string, string>;
 
   /** Auto-lock timer duration */
   autoLockTimer: AutoLockTimer;
