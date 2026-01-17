@@ -171,11 +171,11 @@ interface WalletContextType {
   ) => Promise<Wallet>;
   /** Import a test/watch-only address (dev mode only) */
   importTestAddress: (address: string, name?: string) => Promise<Wallet>;
-  /** Create a hardware wallet (Trezor, Ledger) */
+  /** Create a hardware wallet (Trezor) - private keys never leave device */
   createHardwareWallet: (
     deviceType: 'trezor' | 'ledger',
     addressFormat: AddressFormat,
-    accountIndex: number,
+    accountIndex?: number,
     name?: string,
     usePassphrase?: boolean
   ) => Promise<Wallet>;
@@ -530,9 +530,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }),
-    createHardwareWallet: async () => {
-      throw new Error('Hardware wallet creation not yet implemented in new keychain architecture');
-    },
+    createHardwareWallet: withRefresh(walletService.createHardwareWallet, refreshWalletState),
     resetKeychain: async (password) => {
       await walletService.resetKeychain(password);
       setWalletState({

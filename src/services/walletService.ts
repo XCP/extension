@@ -41,6 +41,13 @@ interface WalletService {
     addressFormat?: AddressFormat
   ) => Promise<Wallet>;
   importTestAddress: (address: string, name?: string) => Promise<Wallet>;
+  createHardwareWallet: (
+    deviceType: 'trezor' | 'ledger',
+    addressFormat: AddressFormat,
+    accountIndex?: number,
+    name?: string,
+    usePassphrase?: boolean
+  ) => Promise<Wallet>;
   addAddress: (walletId: string) => Promise<Address>;
   verifyPassword: (password: string) => Promise<boolean>;
   resetKeychain: (password: string) => Promise<void>;
@@ -135,6 +142,9 @@ function createWalletService(): WalletService {
         throw new Error('Test address import is only available in development mode');
       }
       return walletManager.importTestAddress(address, name);
+    },
+    createHardwareWallet: async (deviceType, addressFormat, accountIndex, name, usePassphrase) => {
+      return walletManager.createHardwareWallet(deviceType, addressFormat, accountIndex, name, usePassphrase);
     },
     addAddress: async (walletId) => walletManager.addAddress(walletId),
     verifyPassword: async (password) => walletManager.verifyPassword(password),

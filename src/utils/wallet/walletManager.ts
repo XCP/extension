@@ -27,6 +27,7 @@ import { DEFAULT_SETTINGS, getAutoLockTimeoutMs, type AppSettings } from '@/util
 import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 import { signPSBT as btcSignPSBT } from '@/utils/blockchain/bitcoin/psbt';
+import { getTrezorAdapter } from '@/utils/hardware/trezorAdapter';
 
 // Import types from centralized types module
 import type { Address, Wallet, Keychain, KeychainRecord, WalletRecord } from '@/types/wallet';
@@ -463,6 +464,130 @@ export class WalletManager {
 
     // Store test marker as "unlocked" secret
     sessionManager.storeUnlockedSecret(id, testMarker);
+
+    return wallet;
+  }
+
+  /**
+   * Creates a hardware wallet by connecting to the device and getting the public key.
+   * Private keys NEVER leave the hardware device - only public keys are stored.
+   *
+   * @param deviceType - Hardware wallet vendor ('trezor' or 'ledger')
+   * @param addressFormat - Bitcoin address format (P2WPKH, P2TR, etc.)
+   * @param accountIndex - BIP44 account index (default 0)
+   * @param name - Optional wallet name
+   * @param usePassphrase - Whether to use passphrase-protected wallet
+   */
+  public async createHardwareWallet(
+    deviceType: 'trezor' | 'ledger',
+    addressFormat: AddressFormat,
+    accountIndex: number = 0,
+    name?: string,
+    usePassphrase: boolean = false
+  ): Promise<Wallet> {
+    if (this.wallets.length >= MAX_WALLETS) {
+      throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+    }
+
+    // Currently only Trezor is supported
+    if (deviceType !== 'trezor') {
+      throw new Error(`Hardware wallet type '${deviceType}' is not yet supported`);
+    }
+
+    // Get the Trezor adapter singleton and initialize
+    const trezor = getTrezorAdapter();
+    await trezor.init();
+
+    // Get address and public key from the hardware device
+    // This will trigger the Trezor popup for user confirmation
+    const hardwareAddress = await trezor.getAddress(
+      addressFormat,
+      accountIndex,
+      0, // index
+      true, // showOnDevice - user should verify the address
+      usePassphrase
+    );
+
+    // Generate wallet ID from the public key and address format
+    const idData = `HARDWARE_${deviceType}_${hardwareAddress.publicKey}_${addressFormat}`;
+    const hash = sha256(utf8ToBytes(idData));
+    const id = bytesToHex(hash);
+
+    // Check for duplicate
+    if (this.wallets.some((w) => w.id === id)) {
+      throw new Error('This hardware wallet is already connected.');
+    }
+
+    const walletName = name || `Trezor ${this.wallets.length + 1}`;
+
+    // For hardware wallets, we store the public key and derivation path
+    // The private key NEVER leaves the device
+    const hardwareSecret = JSON.stringify({
+      deviceType,
+      publicKey: hardwareAddress.publicKey,
+      derivationPath: hardwareAddress.path,
+      accountIndex,
+      usePassphrase,
+    });
+
+    // Check if keychain exists
+    if (!this.keychain) {
+      throw new Error('Keychain must be unlocked to add hardware wallets');
+    }
+
+    const masterKey = await sessionManager.getKeychainMasterKey();
+    if (!masterKey) {
+      throw new Error('Keychain must be unlocked to add hardware wallets');
+    }
+
+    // Encrypt hardware wallet metadata with master key
+    const encryptedSecret = await encryptWithKey(hardwareSecret, masterKey);
+
+    // Create wallet record for keychain
+    const walletRecord: WalletRecord = {
+      id,
+      name: walletName,
+      type: 'hardware',
+      addressFormat,
+      addressCount: 1,
+      encryptedSecret,
+      previewAddress: hardwareAddress.address,
+      createdAt: Date.now(),
+    };
+
+    // Add to keychain and persist
+    this.keychain.wallets.push(walletRecord);
+    await this.persistKeychain();
+
+    // Create wallet object with the hardware address
+    const wallet: Wallet = {
+      id,
+      name: walletName,
+      type: 'hardware',
+      addressFormat,
+      addressCount: 1,
+      addresses: [{
+        name: 'Account 0',
+        path: hardwareAddress.path,
+        address: hardwareAddress.address,
+        pubKey: hardwareAddress.publicKey,
+      }],
+      previewAddress: hardwareAddress.address,
+    };
+
+    this.wallets.push(wallet);
+
+    // Set as active wallet
+    this.activeWalletId = id;
+
+    // Store hardware secret as "unlocked" (contains no private keys, just metadata)
+    sessionManager.storeUnlockedSecret(id, hardwareSecret);
+
+    // Update settings
+    await this.updateSettings({
+      lastActiveWalletId: id,
+      lastActiveAddress: hardwareAddress.address,
+    });
 
     return wallet;
   }
