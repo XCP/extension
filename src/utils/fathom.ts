@@ -104,10 +104,23 @@ export const sanitizePath = (path: string): string => {
 };
 
 /**
- * Check if we're in an extension context with browser APIs available
+ * Check if we're in an extension context with browser APIs available.
+ * Real Chrome extension IDs are 32-char alphanumeric strings.
+ * Test environments (fakeBrowser) use short IDs like 'test-extension-id'.
  */
 const isExtensionContext = (): boolean => {
-  return typeof browser !== 'undefined' && browser?.runtime?.id !== undefined;
+  if (typeof browser === 'undefined' || browser?.runtime?.id === undefined) {
+    return false;
+  }
+
+  // Real extension IDs are 32-char alphanumeric (e.g., 'abcdefghijklmnopqrstuvwxyz123456')
+  // fakeBrowser uses 'test-extension-id' which is shorter and contains hyphens
+  const runtimeId = browser.runtime.id;
+  if (runtimeId.length < 32) {
+    return false;
+  }
+
+  return true;
 };
 
 /**
