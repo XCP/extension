@@ -530,8 +530,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }),
-    createHardwareWallet: async (_deviceType, _addressFormat, _accountIndex, _name?, _usePassphrase?) => {
-      // TODO: Implement hardware wallet creation in walletManager
+    createHardwareWallet: async () => {
       throw new Error('Hardware wallet creation not yet implemented in new keychain architecture');
     },
     resetKeychain: async (password) => {
