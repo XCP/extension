@@ -38,6 +38,10 @@ userData/onboarding/
 
 # Claude Code settings
 .claude/
+CLAUDE.md
+
+# Claude Code temp files
+tmpclaude-*-cwd
 
 # Local reference folders (not part of repo)
 counterparty-core/

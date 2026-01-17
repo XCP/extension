@@ -175,8 +175,11 @@ export default function AssetDispensers(): ReactElement {
       ]);
       if (infoRes) setAssetInfo(infoRes);
 
-      // Use API order (typically by block index/time)
-      setDispensers(dispensersRes.result);
+      // Sort by price (lowest first) for better UX
+      const sortedDispensers = [...dispensersRes.result].sort(
+        (a, b) => getSatsPerUnit(a) - getSatsPerUnit(b)
+      );
+      setDispensers(sortedDispensers);
       setDispenserOffset(FETCH_LIMIT);
       if (dispensersRes.result.length < FETCH_LIMIT) {
         setHasMoreDispensers(false);
@@ -246,11 +249,12 @@ export default function AssetDispensers(): ReactElement {
 
         if (res.result.length > 0) {
           setDispensers((prev) => {
-            // Append and dedupe (API returns in consistent order)
+            // Append, dedupe, and re-sort by price
             const merged = [...prev, ...res.result];
-            return merged.filter(
+            const deduped = merged.filter(
               (d, i, arr) => arr.findIndex((x) => x.tx_hash === d.tx_hash) === i
             );
+            return deduped.sort((a, b) => getSatsPerUnit(a) - getSatsPerUnit(b));
           });
           setDispenserOffset((prev) => prev + FETCH_LIMIT);
         }
