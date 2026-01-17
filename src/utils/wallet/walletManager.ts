@@ -27,7 +27,8 @@ import { DEFAULT_SETTINGS, getAutoLockTimeoutMs, type AppSettings } from '@/util
 import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 import { signPSBT as btcSignPSBT } from '@/utils/blockchain/bitcoin/psbt';
-import { getTrezorAdapter } from '@/utils/hardware/trezorAdapter';
+// Note: getTrezorAdapter is dynamically imported in createHardwareWallet to avoid
+// loading @trezor/connect-webextension at extension startup (it auto-initializes)
 
 // Import types from centralized types module
 import type { Address, Wallet, Keychain, KeychainRecord, WalletRecord } from '@/types/wallet';
@@ -494,7 +495,9 @@ export class WalletManager {
       throw new Error(`Hardware wallet type '${deviceType}' is not yet supported`);
     }
 
-    // Get the Trezor adapter singleton and initialize
+    // Dynamically import Trezor adapter to avoid loading @trezor/connect-webextension
+    // at extension startup (the module auto-initializes and can cause issues)
+    const { getTrezorAdapter } = await import('@/utils/hardware/trezorAdapter');
     const trezor = getTrezorAdapter();
     await trezor.init();
 
