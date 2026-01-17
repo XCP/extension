@@ -176,6 +176,11 @@ function encodeParameters(params: Record<string, any>): string {
  * Send tracking data to Fathom
  */
 async function sendToFathom(params: Record<string, any>): Promise<void> {
+  // Skip in test environment
+  if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
+    return;
+  }
+
   const enabled = await isAnalyticsEnabled();
   if (!enabled) {
     return;
