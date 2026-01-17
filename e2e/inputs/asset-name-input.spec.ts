@@ -31,6 +31,49 @@ walletTest.describe('AssetNameInput Component', () => {
   // Note: Route is /compose/issuance/:asset? where :asset is optional
   // Using /compose/issuance without a trailing path avoids the parent asset prefix
   walletTest.beforeEach(async ({ page }) => {
+    const context = page.context();
+
+    // Mock asset availability API - return 404 (available) for test assets, 200 for known assets
+    await context.route('**/api.counterparty.io**', async (route) => {
+      const url = route.request().url();
+
+      // Handle asset details endpoints - check if asset exists
+      if (url.includes('/v2/assets/')) {
+        const assetMatch = url.match(/\/v2\/assets\/([^/?]+)/);
+        const assetName = assetMatch ? decodeURIComponent(assetMatch[1]) : 'UNKNOWN';
+
+        // Known/reserved assets that should show as "taken"
+        const takenAssets = ['XCP', 'BTC', 'PEPECASH'];
+
+        if (takenAssets.includes(assetName)) {
+          // Asset exists - return 200 with details
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              result: {
+                asset: assetName,
+                divisible: true,
+                locked: true,
+                supply: 1000000,
+              },
+            }),
+          });
+        } else {
+          // Asset doesn't exist - return 404 (available for issuance)
+          await route.fulfill({
+            status: 404,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: 'Asset not found' }),
+          });
+        }
+        return;
+      }
+
+      // Pass through all other requests
+      await route.continue();
+    });
+
     const hashIndex = page.url().indexOf('#');
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
     await page.goto(`${baseUrl}/compose/issuance`);
