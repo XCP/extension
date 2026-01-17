@@ -1,5 +1,5 @@
 import { apiClient } from '@/utils/apiClient';
-import { getSettings } from '@/utils/storage/settingsStorage';
+import { walletManager } from '@/utils/wallet/walletManager';
 import { CounterpartyApiError } from '@/utils/blockchain/errors';
 
 /**
@@ -230,7 +230,7 @@ export interface MoveOptions extends BaseComposeOptions {
 }
 
 async function getApiBase() {
-  const settings = await getSettings();
+  const settings = walletManager.getSettings();
   return settings.counterpartyApiBase;
 }
 
@@ -247,7 +247,7 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
 
   // Get user's unconfirmed transaction preference
-  const settings = await getSettings();
+  const settings = walletManager.getSettings();
 
   const params = new URLSearchParams(toStringParams({
     ...paramsObj,
@@ -319,7 +319,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
 
   // Get user's unconfirmed transaction preference
-  const settings = await getSettings();
+  const settings = walletManager.getSettings();
 
   const params = new URLSearchParams(toStringParams({
     ...paramsObj,
@@ -383,7 +383,7 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
   const apiUrl = `${base}/v2/utxos/${sourceUtxo}/compose/${endpoint}`;
 
   // Get user's unconfirmed transaction preference
-  const settings = await getSettings();
+  const settings = walletManager.getSettings();
 
   const params = new URLSearchParams(toStringParams({
     ...paramsObj,
@@ -449,10 +449,7 @@ export async function composeBroadcast(options: BroadcastOptions): Promise<ApiRe
     mime_type,
   } = options;
   const paramsObj = {
-    text,
-    value,
-    fee_fraction,
-    timestamp,
+    text, value, fee_fraction, timestamp,
     ...(inscription && { inscription }),
     ...(mime_type && { mime_type }),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
@@ -461,7 +458,13 @@ export async function composeBroadcast(options: BroadcastOptions): Promise<ApiRe
 }
 
 export async function composeBTCPay(options: BTCPayOptions): Promise<ApiResponse> {
-  const { sourceAddress, order_match_id, sat_per_vbyte, max_fee, encoding } = options;
+  const {
+    sourceAddress,
+    order_match_id,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
   const paramsObj = {
     order_match_id,
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
@@ -470,7 +473,14 @@ export async function composeBTCPay(options: BTCPayOptions): Promise<ApiResponse
 }
 
 export async function composeBurn(options: BurnOptions): Promise<ApiResponse> {
-  const { sourceAddress, quantity, overburn = false, sat_per_vbyte, max_fee, encoding } = options;
+  const {
+    sourceAddress,
+    quantity,
+    overburn = false,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
   const paramsObj = {
     quantity: quantity.toString(),
     overburn: overburn.toString(),
@@ -480,7 +490,13 @@ export async function composeBurn(options: BurnOptions): Promise<ApiResponse> {
 }
 
 export async function composeCancel(options: CancelOptions): Promise<ApiResponse> {
-  const { sourceAddress, offer_hash, sat_per_vbyte, max_fee, encoding } = options;
+  const {
+    sourceAddress,
+    offer_hash,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
   const paramsObj = {
     offer_hash: offer_hash.trim(),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
@@ -489,11 +505,19 @@ export async function composeCancel(options: CancelOptions): Promise<ApiResponse
 }
 
 export async function composeDestroy(options: DestroyOptions): Promise<ApiResponse> {
-  const { sourceAddress, asset, quantity, tag, sat_per_vbyte, max_fee, encoding } = options;
+  const {
+    sourceAddress,
+    asset,
+    quantity,
+    tag,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
   const paramsObj = {
     asset,
     quantity: quantity.toString(),
-    tag: tag || '', // Always include tag, even if empty
+    tag: tag || '',
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('destroy', paramsObj, sourceAddress, sat_per_vbyte, encoding);
@@ -626,21 +650,16 @@ export async function composeMPMA(options: MPMAOptions): Promise<ApiResponse> {
   ) {
     throw new Error('Assets, destinations, and quantities must be arrays of the same length.');
   }
-  
-  // Special handling for memos - need to use array notation in URL
+
   if (memos && memos.length > 0) {
     return composeTransactionWithArrays('mpma', {
       assets: assets.join(','),
       destinations: destinations.join(','),
       quantities: quantities.join(','),
       ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
-    }, {
-      memos,
-      memos_are_hex
-    }, sourceAddress, sat_per_vbyte, encoding);
+    }, { memos, memos_are_hex }, sourceAddress, sat_per_vbyte, encoding);
   }
-  
-  // No memos - use regular approach
+
   const paramsObj = {
     assets: assets.join(','),
     destinations: destinations.join(','),
@@ -676,7 +695,17 @@ export async function composeOrder(options: OrderOptions): Promise<ApiResponse> 
 }
 
 export async function composeSend(options: SendOptions): Promise<ApiResponse> {
-  const { sourceAddress, destination, asset, quantity, memo, memo_is_hex, sat_per_vbyte, max_fee, encoding } = options;
+  const {
+    sourceAddress,
+    destination,
+    asset,
+    quantity,
+    memo,
+    memo_is_hex,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
   const paramsObj = {
     destination,
     asset,
@@ -766,14 +795,19 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
 }
 
 export async function composeFairmint(options: FairmintOptions): Promise<ApiResponse> {
-  const { sourceAddress, asset, quantity = 0, sat_per_vbyte, max_fee, encoding } = options;
-  
+  const {
+    sourceAddress,
+    asset,
+    quantity = 0,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
   const paramsObj = {
     asset,
     quantity: quantity.toString(),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  
   return composeTransaction('fairmint', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
 
@@ -782,7 +816,7 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
     sourceAddress,
     asset,
     quantity,
-    utxo_value,
+    utxo_value, // Note: utxo_value is disabled after block 871900
     destination_vout,
     sat_per_vbyte,
     max_fee,
@@ -791,7 +825,6 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
   const paramsObj = {
     asset,
     quantity: quantity.toString(),
-    // Note: utxo_value is disabled after block 871900
     ...(utxo_value !== undefined ? { utxo_value: utxo_value.toString() } : {}),
     ...(destination_vout !== undefined ? { destination_vout: destination_vout.toString() } : {}),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
@@ -807,7 +840,12 @@ export async function getAttachEstimateXcpFee(sourceAddress: string): Promise<nu
 }
 
 export async function composeDetach(options: DetachOptions): Promise<ApiResponse> {
-  const { sourceUtxo, destination, sat_per_vbyte, encoding } = options;
+  const {
+    sourceUtxo,
+    destination,
+    sat_per_vbyte,
+    encoding,
+  } = options;
   const paramsObj = {
     ...(destination && { destination }),
   };
@@ -815,7 +853,12 @@ export async function composeDetach(options: DetachOptions): Promise<ApiResponse
 }
 
 export async function composeMove(options: MoveOptions): Promise<ApiResponse> {
-  const { sourceUtxo, destination, sat_per_vbyte, encoding } = options;
+  const {
+    sourceUtxo,
+    destination,
+    sat_per_vbyte,
+    encoding,
+  } = options;
   const paramsObj = {
     destination,
   };

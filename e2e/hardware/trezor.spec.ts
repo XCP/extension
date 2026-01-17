@@ -12,7 +12,7 @@
  * Test seed: "all all all all all all all all all all all all"
  */
 import { test, expect, Page } from '@playwright/test';
-import { launchExtension, cleanup, createWallet, TEST_PASSWORD } from '../helpers/test-helpers';
+import { launchExtension, cleanup, createWallet, TEST_PASSWORD } from '../fixtures';
 
 // Check if emulator tests should run
 const SKIP_EMULATOR_TESTS = process.env.TREZOR_EMULATOR_AVAILABLE !== '1';

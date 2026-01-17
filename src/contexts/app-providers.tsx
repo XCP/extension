@@ -1,4 +1,4 @@
-import { useCallback, type ReactNode, type ReactElement } from 'react';
+import { useCallback, useEffect, useRef, type ReactNode, type ReactElement } from 'react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { HeaderProvider } from './header-context';
 import { SettingsProvider } from './settings-context';
@@ -6,7 +6,7 @@ import { WalletProvider } from './wallet-context';
 import { useWallet } from './wallet-context';
 import { useSettings } from './settings-context';
 import { useIdleTimer } from '@/hooks/useIdleTimer';
-import { getAutoLockTimeoutMs } from '@/utils/storage/settingsStorage';
+import { getAutoLockTimeoutMs } from '@/utils/settings';
 
 /**
  * Props for the AppProviders component.
@@ -22,18 +22,30 @@ interface AppProvidersProps {
  * @returns {ReactElement | null} Idle timer wrapped content or null if not loaded
  */
 function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement | null {
-  const { setLastActiveTime, lockAll, isLoading: walletLoading, authState } = useWallet();
-  const { settings, isLoading: settingsLoading } = useSettings();
+  const { setLastActiveTime, lockKeychain, isLoading: walletLoading, authState } = useWallet();
+  const { settings, isLoading: settingsLoading, refreshSettings } = useSettings();
+  const prevAuthStateRef = useRef(authState);
+
+  // Re-fetch settings when wallet becomes unlocked.
+  // On page reload, both popup and background need to restore from session storage.
+  // Settings may be fetched before the background's keychain is restored, returning defaults.
+  // This refresh ensures we get the correct settings after the keychain is confirmed loaded.
+  useEffect(() => {
+    if (prevAuthStateRef.current !== 'UNLOCKED' && authState === 'UNLOCKED' && !walletLoading) {
+      refreshSettings();
+    }
+    prevAuthStateRef.current = authState;
+  }, [authState, walletLoading, refreshSettings]);
 
   // Handle edge cases for idle timer
   const handleIdle = useCallback(() => {
     // Only lock if we're currently unlocked
     if (authState === 'UNLOCKED') {
-      lockAll().catch(error => {
-        console.error('[IdleTimer] Failed to lock wallet on idle:', error);
+      lockKeychain().catch(error => {
+        console.error('[IdleTimer] Failed to lock keychain on idle:', error);
       });
     }
-  }, [authState, lockAll]);
+  }, [authState, lockKeychain]);
 
   const handleAction = useCallback(() => {
     // Only update last active time if we're unlocked

@@ -25,6 +25,7 @@ import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
 import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from '@/utils/security/replayPrevention';
 import { openExtensionPopup } from '@/utils/popup';
 import { generateRequestId } from '@/utils/id';
+import { keychainExists } from '@/utils/storage/walletStorage';
 
 // In-memory storage for active requests (primary storage, fast access)
 const activeSignRequests = new Map<string, any>();
@@ -168,11 +169,11 @@ export function createProviderService(): ProviderService {
         paramSize = JSON.stringify(params).length;
       } catch {
         // If params can't be serialized (circular refs), reject the request
-        await analytics.track('request_rejected', { value: '1' });
+        await analytics.track('request_rejected');
         throw new Error('Request parameters cannot be serialized');
       }
       if (paramSize > MAX_PARAM_SIZE) {
-        await analytics.track('request_rejected', { value: '1' });
+        await analytics.track('request_rejected');
         let hostname = origin;
         try { hostname = new URL(origin).hostname; } catch { /* use raw origin */ }
         console.warn('[ProviderService] Request parameters too large', {
@@ -212,9 +213,8 @@ export function createProviderService(): ProviderService {
         // ==================== Connection Methods ====================
         
         case 'xcp_requestAccounts': {
-          // Check if any wallets exist first
-          const wallets = await walletService.getWallets();
-          if (!wallets || wallets.length === 0) {
+          // Check if keychain exists in storage (works even when locked)
+          if (!await keychainExists()) {
             // Open popup for wallet setup
             await openExtensionPopup();
             throw new Error('Please complete wallet setup first');
@@ -778,8 +778,7 @@ export function createProviderService(): ProviderService {
         error: (error as Error).message
       });
 
-      // Track error event (trackEvent doesn't support custom objects, just _value)
-      await analytics.track('provider_error', { value: '1' });
+      await analytics.track('provider_error');
 
       throw error;
     }

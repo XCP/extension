@@ -185,7 +185,14 @@ export async function normalizeFormData(
       normalizedData[quantityField] = toSatoshis(value.toString());
       continue;
     }
-    
+
+    // For issuance operations, quantity is already converted by the form
+    // (both new asset creation and issue-supply forms handle conversion)
+    if (composeType === 'issuance') {
+      normalizedData[quantityField] = value.toString();
+      continue;
+    }
+
     // Fetch asset info if not cached
     let assetInfo = assetInfoCache.get(assetName);
     if (assetInfo === undefined) {

@@ -54,6 +54,7 @@ import { getComposeType, normalizeFormData } from "@/utils/blockchain/counterpar
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import { checkReplayAttempt, recordTransaction } from "@/utils/security/replayPrevention";
 import { verifyTransaction, extractOpReturnData } from "@/utils/blockchain/counterparty/unpack/verify";
+import { analytics, getBtcBucket } from "@/utils/fathom";
 
 /**
  * Maximum age for a composed transaction before requiring recomposition (5 minutes).
@@ -169,7 +170,7 @@ export function ComposerProvider<T>({
   initialTitle,
 }: ComposerProviderProps<T>): ReactElement {
   const navigate = useNavigate();
-  const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, unlockWallet, isWalletLocked } = useWallet();
+  const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, selectWallet, isKeychainLocked } = useWallet();
   const { settings } = useSettings();
 
   const previousAddressRef = useRef<string | undefined>(activeAddress?.address);
@@ -314,6 +315,9 @@ export function ComposerProvider<T>({
       // Note: If no OP_RETURN data found, this might be a non-Counterparty transaction
       // which is allowed through (e.g., BTC-only transactions)
 
+      // Track successful compose (form → review)
+      analytics.track('compose');
+
       // Update state to review step with API response
       setState(prev => ({
         ...prev,
@@ -326,6 +330,8 @@ export function ComposerProvider<T>({
       }));
     } catch (error) {
       console.error("Compose error:", error);
+      analytics.track('compose_error');
+
       let errorMessage = "An error occurred while composing the transaction.";
       if (isApiError(error) && error.response?.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
         errorMessage = (error.response.data as { error: string }).error;
@@ -417,7 +423,7 @@ export function ComposerProvider<T>({
     }
 
     // Check if wallet is locked
-    if (await isWalletLocked()) {
+    if (await isKeychainLocked()) {
       setState(prev => ({ ...prev, showAuthModal: true }));
       return;
     }
@@ -426,6 +432,11 @@ export function ComposerProvider<T>({
 
     try {
       const apiResponseWithBroadcast = await performSignAndBroadcast();
+
+      // Track successful broadcast with fee bucket
+      const btcFee = apiResponseWithBroadcast?.result?.btc_fee || 0;
+      const btcFeeAmount = btcFee / 100000000;
+      analytics.track('broadcast', getBtcBucket(btcFeeAmount));
 
       setState(prev => ({
         ...prev,
@@ -440,12 +451,14 @@ export function ComposerProvider<T>({
       if (error instanceof Error) {
         errorMessage = error.message;
 
-        // Special handling for wallet lock
+        // Special handling for wallet lock (not an error, just needs re-auth)
         if (error.message.includes("Wallet is locked")) {
           setState(prev => ({ ...prev, showAuthModal: true, isSigning: false }));
           return;
         }
       }
+
+      analytics.track('broadcast_error');
 
       setState(prev => ({
         ...prev,
@@ -453,7 +466,7 @@ export function ComposerProvider<T>({
         isSigning: false,
       }));
     }
-  }, [state.apiResponse, state.isSigning, state.composedAt, activeAddress, activeWallet, isWalletLocked, performSignAndBroadcast]);
+  }, [state.apiResponse, state.isSigning, state.composedAt, activeAddress, activeWallet, isKeychainLocked, performSignAndBroadcast]);
 
   // Handle unlock and sign (for auth modal)
   const handleUnlockAndSign = useCallback(async (password: string) => {
@@ -461,10 +474,16 @@ export function ComposerProvider<T>({
 
     setState(prev => ({ ...prev, isSigning: true }));
     try {
-      await unlockWallet(activeWallet.id, password);
+      // Load the wallet to decrypt its secret
+      await selectWallet(activeWallet.id);
       setState(prev => ({ ...prev, showAuthModal: false }));
 
       const apiResponseWithBroadcast = await performSignAndBroadcast();
+
+      // Track successful broadcast with fee bucket
+      const btcFee = apiResponseWithBroadcast?.result?.btc_fee || 0;
+      const btcFeeAmount = btcFee / 100000000;
+      analytics.track('broadcast', getBtcBucket(btcFeeAmount));
 
       setState(prev => ({
         ...prev,
@@ -478,7 +497,7 @@ export function ComposerProvider<T>({
       setState(prev => ({ ...prev, isSigning: false }));
       throw error; // Let the modal handle the error display
     }
-  }, [activeWallet, activeAddress, state.apiResponse, unlockWallet, performSignAndBroadcast]);
+  }, [activeWallet, activeAddress, state.apiResponse, selectWallet, performSignAndBroadcast]);
 
   // Navigation actions
   const reset = useCallback(() => {

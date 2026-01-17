@@ -112,7 +112,7 @@ import ComposeUtxoMove from '@/pages/compose/utxo/move';
 import NotFound from '@/pages/not-found';
 
 export default function App() {
-  const { wallets, walletLocked, isLoading } = useWallet();
+  const { keychainExists, keychainLocked, isLoading } = useWallet();
   const location = useLocation();
 
   // Track page views when route changes
@@ -136,21 +136,19 @@ export default function App() {
     );
   }
 
-  const walletExists = wallets.length > 0;
-
   return (
     <ErrorBoundary>
       <Routes>
         {/* Root route logic:
-            - If no wallet exists, go to onboarding.
-            - If a wallet exists but is locked, go to unlock-wallet.
+            - If no keychain exists, go to onboarding.
+            - If keychain exists but is locked, go to unlock-wallet.
             - Otherwise, go to the main page. */}
         <Route
           path="/"
           element={
-            !walletExists ? (
+            !keychainExists ? (
               <Navigate to="/onboarding" replace />
-            ) : walletLocked ? (
+            ) : keychainLocked ? (
               <Navigate to="/unlock-wallet" replace />
             ) : (
               <Navigate to="/index" replace />

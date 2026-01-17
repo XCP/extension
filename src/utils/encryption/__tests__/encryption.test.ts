@@ -1,375 +1,428 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  encryptString,
-  decryptString,
-  DecryptionError,
+  deriveKey,
+  deriveKeyAsync,
+  exportKey,
+  importKey,
+  encryptWithKey,
+  decryptWithKey,
+  encryptJsonWithKey,
+  decryptJsonWithKey,
+  DEFAULT_PBKDF2_ITERATIONS,
 } from '../encryption';
+import { generateRandomBytes } from '../buffer';
 
-// Mock crypto API for testing
-const mockCrypto = {
-  getRandomValues: vi.fn((array) => {
-    // Generate deterministic but "random-looking" values for testing
-    for (let i = 0; i < array.length; i++) {
-      array[i] = Math.floor(Math.random() * 256);
-    }
-    return array;
-  }),
-  subtle: {
-    importKey: vi.fn(),
-    deriveBits: vi.fn(),
-    deriveKey: vi.fn(),
-    encrypt: vi.fn(),
-    decrypt: vi.fn(),
-    sign: vi.fn(),
-    verify: vi.fn(),
-  },
-};
-
-// Set up global crypto mock using vi.stubGlobal
-vi.stubGlobal('crypto', mockCrypto);
-
-// Test data
-const testPassword = 'testPassword123';
-const testPlaintext = 'This is test data to encrypt';
-const emptyPassword = '';
-const emptyPlaintext = '';
+// Test constants matching encryption.ts security requirements
+const VALID_PASSWORD = 'SecureP@ss1'; // 11 chars, meets 8 char minimum
+const SHORT_PASSWORD = 'short'; // 5 chars, below 8 char minimum
+const EMPTY_PASSWORD = '';
+const MIN_SALT_SIZE = 16;
+const MIN_ITERATIONS = 500_000;
+const VALID_ITERATIONS = 600_000;
+const LOW_ITERATIONS = 100_000; // Below 500K minimum
 
 describe('encryption.ts', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  describe('encryptString', () => {
-    it('should throw error for empty password', async () => {
-      await expect(encryptString(testPlaintext, emptyPassword)).rejects.toThrow(
-        'Password cannot be empty'
-      );
-    });
-
-    it('should throw error for empty plaintext', async () => {
-      await expect(encryptString(emptyPlaintext, testPassword)).rejects.toThrow(
-        'Plaintext cannot be empty'
-      );
-    });
-
-    it('should return JSON string with expected structure', async () => {
-      // Mock the crypto operations
-      mockCrypto.subtle.importKey.mockResolvedValue({} as CryptoKey);
-      mockCrypto.subtle.deriveBits.mockResolvedValue(new ArrayBuffer(32));
-      mockCrypto.subtle.deriveKey.mockResolvedValue({} as CryptoKey);
-      mockCrypto.subtle.encrypt.mockResolvedValue(new ArrayBuffer(32));
-      mockCrypto.subtle.sign.mockResolvedValue(new ArrayBuffer(32));
-
-      const result = await encryptString(testPlaintext, testPassword);
-      
-      expect(typeof result).toBe('string');
-      
-      const parsed = JSON.parse(result);
-      expect(parsed).toHaveProperty('version');
-      expect(parsed).toHaveProperty('iterations');
-      expect(parsed).toHaveProperty('encryptedData');
-      expect(parsed).toHaveProperty('authSignature');
-      expect(parsed.version).toBe(2);
-      expect(parsed.iterations).toBe(600000);
-    });
-
-    it('should call crypto operations with correct parameters', async () => {
-      mockCrypto.subtle.importKey.mockResolvedValue({} as CryptoKey);
-      mockCrypto.subtle.deriveBits.mockResolvedValue(new ArrayBuffer(32));
-      mockCrypto.subtle.deriveKey.mockResolvedValue({} as CryptoKey);
-      mockCrypto.subtle.encrypt.mockResolvedValue(new ArrayBuffer(32));
-      mockCrypto.subtle.sign.mockResolvedValue(new ArrayBuffer(32));
-
-      await encryptString(testPlaintext, testPassword);
-
-      expect(mockCrypto.subtle.importKey).toHaveBeenCalled();
-      expect(mockCrypto.subtle.deriveBits).toHaveBeenCalled();
-      expect(mockCrypto.subtle.deriveKey).toHaveBeenCalled();
-      expect(mockCrypto.subtle.encrypt).toHaveBeenCalled();
-      expect(mockCrypto.subtle.sign).toHaveBeenCalled();
-    });
-  });
-
-  describe('decryptString', () => {
-    it('should throw DecryptionError for empty password', async () => {
-      const validPayload = JSON.stringify({
-        version: 2,
-        iterations: 420690,
-        encryptedData: 'dGVzdA==',
-        authSignature: 'dGVzdA==',
-      });
-
-      await expect(decryptString(validPayload, emptyPassword)).rejects.toThrow(
-        DecryptionError
-      );
-      await expect(decryptString(validPayload, emptyPassword)).rejects.toThrow(
-        'Password cannot be empty'
-      );
-    });
-
-    it('should throw DecryptionError for empty payload', async () => {
-      await expect(decryptString('', testPassword)).rejects.toThrow(
-        DecryptionError
-      );
-      await expect(decryptString('', testPassword)).rejects.toThrow(
-        'Encrypted payload cannot be empty'
-      );
-    });
-
-    it('should throw DecryptionError for invalid JSON', async () => {
-      const invalidJson = 'not-valid-json';
-
-      await expect(decryptString(invalidJson, testPassword)).rejects.toThrow(
-        DecryptionError
-      );
-      await expect(decryptString(invalidJson, testPassword)).rejects.toThrow(
-        'Invalid encrypted payload (not valid JSON)'
-      );
-    });
-
-    it('should throw DecryptionError for unsupported version', async () => {
-      const unsupportedVersion = JSON.stringify({
-        version: 999,
-        iterations: 420690,
-        encryptedData: 'dGVzdA==',
-        authSignature: 'dGVzdA==',
-      });
-
-      await expect(decryptString(unsupportedVersion, testPassword)).rejects.toThrow(
-        DecryptionError
-      );
-      await expect(decryptString(unsupportedVersion, testPassword)).rejects.toThrow(
-        'Unsupported encryption version: 999'
-      );
-    });
-
-    it('should throw DecryptionError for invalid iterations', async () => {
-      const invalidIterations = [
-        { iterations: 0, desc: 'zero' },
-        { iterations: -1, desc: 'negative' },
-        { iterations: 1.5, desc: 'non-integer' },
-        { iterations: 'string', desc: 'string' },
-        { iterations: null, desc: 'null' },
-      ];
-
-      for (const { iterations, desc } of invalidIterations) {
-        const payload = JSON.stringify({
-          version: 2,
-          iterations,
-          encryptedData: 'dGVzdA==',
-          authSignature: 'dGVzdA==',
-        });
-
-        await expect(decryptString(payload, testPassword)).rejects.toThrow(
-          'Invalid encrypted payload (invalid iterations)'
+  describe('deriveKey', () => {
+    describe('validation', () => {
+      it('should reject empty password', async () => {
+        const salt = generateRandomBytes(MIN_SALT_SIZE);
+        await expect(deriveKey(EMPTY_PASSWORD, salt)).rejects.toThrow(
+          'Password must be at least 8 characters'
         );
-      }
-    });
-
-    it('should throw DecryptionError for incomplete data', async () => {
-      const incompleteData = JSON.stringify({
-        version: 2,
-        iterations: 420690,
-        encryptedData: 'dGVzdA==', // Too short
-        authSignature: 'dGVzdA==',
       });
 
-      await expect(decryptString(incompleteData, testPassword)).rejects.toThrow(
-        DecryptionError
-      );
-      await expect(decryptString(incompleteData, testPassword)).rejects.toThrow(
-        'Invalid encrypted payload (incomplete data)'
-      );
-    });
-
-    it('should throw DecryptionError for invalid base64 in encryptedData', async () => {
-      const invalidBase64 = JSON.stringify({
-        version: 2,
-        iterations: 420690,
-        encryptedData: '!!!not-valid-base64!!!',
-        authSignature: 'dGVzdA==',
+      it('should reject password shorter than 8 characters', async () => {
+        const salt = generateRandomBytes(MIN_SALT_SIZE);
+        await expect(deriveKey(SHORT_PASSWORD, salt)).rejects.toThrow(
+          'Password must be at least 8 characters'
+        );
       });
 
-      await expect(decryptString(invalidBase64, testPassword)).rejects.toThrow(
-        DecryptionError
-      );
-      await expect(decryptString(invalidBase64, testPassword)).rejects.toThrow(
-        'Invalid encrypted payload (invalid format)'
-      );
-    });
-
-    it('should throw DecryptionError for missing encryptedData field', async () => {
-      const missingField = JSON.stringify({
-        version: 2,
-        iterations: 420690,
-        authSignature: 'dGVzdA==',
+      it('should accept password of exactly 8 characters', async () => {
+        const salt = generateRandomBytes(MIN_SALT_SIZE);
+        const eightCharPassword = '12345678';
+        await expect(deriveKey(eightCharPassword, salt)).resolves.toBeDefined();
       });
 
-      await expect(decryptString(missingField, testPassword)).rejects.toThrow(
-        DecryptionError
-      );
-      await expect(decryptString(missingField, testPassword)).rejects.toThrow(
-        'Invalid encrypted payload (invalid format)'
-      );
-    });
-
-    it('should throw DecryptionError for invalid authentication', async () => {
-      // Create a payload with enough data length
-      const longEnoughData = 'A'.repeat(100); // Base64 that decodes to sufficient length
-      const invalidAuth = JSON.stringify({
-        version: 2,
-        iterations: 420690,
-        encryptedData: btoa(longEnoughData),
-        authSignature: 'dGVzdA==',
+      it('should reject salt smaller than 16 bytes', async () => {
+        const smallSalt = generateRandomBytes(15);
+        await expect(deriveKey(VALID_PASSWORD, smallSalt)).rejects.toThrow(
+          'Salt must be at least 16 bytes'
+        );
       });
 
-      mockCrypto.subtle.importKey.mockResolvedValue({} as CryptoKey);
-      mockCrypto.subtle.deriveBits.mockResolvedValue(new ArrayBuffer(32));
-      mockCrypto.subtle.deriveKey.mockResolvedValue({} as CryptoKey);
-      mockCrypto.subtle.verify.mockResolvedValue(false); // Invalid auth
-
-      await expect(decryptString(invalidAuth, testPassword)).rejects.toThrow(
-        DecryptionError
-      );
-      await expect(decryptString(invalidAuth, testPassword)).rejects.toThrow(
-        'Invalid password or corrupted data'
-      );
-    });
-
-    it('should successfully decrypt with valid payload and password', async () => {
-      const longEnoughData = 'A'.repeat(100);
-      const validPayload = JSON.stringify({
-        version: 2,
-        iterations: 420690,
-        encryptedData: btoa(longEnoughData),
-        authSignature: 'dGVzdA==',
+      it('should reject empty salt', async () => {
+        const emptySalt = new Uint8Array(0);
+        await expect(deriveKey(VALID_PASSWORD, emptySalt)).rejects.toThrow(
+          'Salt must be at least 16 bytes'
+        );
       });
 
-      const decryptedData = new TextEncoder().encode(testPlaintext);
-
-      mockCrypto.subtle.importKey.mockResolvedValue({} as CryptoKey);
-      mockCrypto.subtle.deriveBits.mockResolvedValue(new ArrayBuffer(32));
-      mockCrypto.subtle.deriveKey.mockResolvedValue({} as CryptoKey);
-      mockCrypto.subtle.verify.mockResolvedValue(true);
-      mockCrypto.subtle.decrypt.mockResolvedValue(decryptedData.buffer);
-
-      const result = await decryptString(validPayload, testPassword);
-
-      expect(result).toBe(testPlaintext);
-      expect(mockCrypto.subtle.verify).toHaveBeenCalled();
-      expect(mockCrypto.subtle.decrypt).toHaveBeenCalled();
-    });
-
-    it('should handle crypto operation failures', async () => {
-      const longEnoughData = 'A'.repeat(100);
-      const validPayload = JSON.stringify({
-        version: 2,
-        iterations: 420690,
-        encryptedData: btoa(longEnoughData),
-        authSignature: 'dGVzdA==',
+      it('should accept salt of exactly 16 bytes', async () => {
+        const salt = generateRandomBytes(MIN_SALT_SIZE);
+        await expect(deriveKey(VALID_PASSWORD, salt)).resolves.toBeDefined();
       });
 
-      mockCrypto.subtle.importKey.mockRejectedValue(new Error('Crypto error'));
+      it('should accept salt larger than 16 bytes', async () => {
+        const largeSalt = generateRandomBytes(32);
+        await expect(deriveKey(VALID_PASSWORD, largeSalt)).resolves.toBeDefined();
+      });
 
-      // Error message should be generic (not leak internal crypto details)
-      await expect(decryptString(validPayload, testPassword)).rejects.toThrow(
-        DecryptionError
-      );
-      await expect(decryptString(validPayload, testPassword)).rejects.toThrow(
-        'Invalid password or corrupted data'
-      );
+      it('should reject iterations below 500,000', async () => {
+        const salt = generateRandomBytes(MIN_SALT_SIZE);
+        await expect(deriveKey(VALID_PASSWORD, salt, LOW_ITERATIONS)).rejects.toThrow(
+          'PBKDF2 iterations must be at least 500000'
+        );
+      });
+
+      it('should reject non-integer iterations', async () => {
+        const salt = generateRandomBytes(MIN_SALT_SIZE);
+        await expect(deriveKey(VALID_PASSWORD, salt, 600000.5)).rejects.toThrow(
+          'PBKDF2 iterations must be at least 500000'
+        );
+      });
+
+      it('should accept iterations of exactly 500,000', async () => {
+        const salt = generateRandomBytes(MIN_SALT_SIZE);
+        await expect(deriveKey(VALID_PASSWORD, salt, MIN_ITERATIONS)).resolves.toBeDefined();
+      });
+
+      it('should use default iterations (600K) when not specified', async () => {
+        const salt = generateRandomBytes(MIN_SALT_SIZE);
+        // Should not throw - uses default 600K
+        await expect(deriveKey(VALID_PASSWORD, salt)).resolves.toBeDefined();
+      });
+    });
+
+    describe('key derivation', () => {
+      it('should derive a CryptoKey', async () => {
+        const salt = generateRandomBytes(MIN_SALT_SIZE);
+        const key = await deriveKey(VALID_PASSWORD, salt);
+
+        expect(key).toBeDefined();
+        expect(key.type).toBe('secret');
+        expect(key.algorithm.name).toBe('AES-GCM');
+        expect(key.extractable).toBe(true);
+        expect(key.usages).toContain('encrypt');
+        expect(key.usages).toContain('decrypt');
+      });
+
+      it('should derive different keys for different passwords', async () => {
+        const salt = generateRandomBytes(MIN_SALT_SIZE);
+        const key1 = await deriveKey(VALID_PASSWORD, salt);
+        const key2 = await deriveKey('DifferentPass1', salt);
+
+        const exported1 = await exportKey(key1);
+        const exported2 = await exportKey(key2);
+
+        expect(exported1).not.toBe(exported2);
+      });
+
+      it('should derive different keys for different salts', async () => {
+        const salt1 = generateRandomBytes(MIN_SALT_SIZE);
+        const salt2 = generateRandomBytes(MIN_SALT_SIZE);
+        const key1 = await deriveKey(VALID_PASSWORD, salt1);
+        const key2 = await deriveKey(VALID_PASSWORD, salt2);
+
+        const exported1 = await exportKey(key1);
+        const exported2 = await exportKey(key2);
+
+        expect(exported1).not.toBe(exported2);
+      });
+
+      it('should derive same key for same inputs (deterministic)', async () => {
+        const salt = generateRandomBytes(MIN_SALT_SIZE);
+        const key1 = await deriveKey(VALID_PASSWORD, salt, VALID_ITERATIONS);
+        const key2 = await deriveKey(VALID_PASSWORD, salt, VALID_ITERATIONS);
+
+        const exported1 = await exportKey(key1);
+        const exported2 = await exportKey(key2);
+
+        expect(exported1).toBe(exported2);
+      });
     });
   });
 
-  describe('DecryptionError', () => {
-    it('should create proper error instance', () => {
-      const message = 'Test decryption error';
-      const error = new DecryptionError(message);
+  describe('deriveKeyAsync', () => {
+    // In test environment, deriveKeyAsync falls back to deriveKey (no worker)
+    // So these tests verify the same validation logic applies
 
-      expect(error).toBeInstanceOf(Error);
-      expect(error).toBeInstanceOf(DecryptionError);
-      expect(error.name).toBe('DecryptionError');
-      expect(error.message).toBe(message);
+    describe('validation', () => {
+      it('should reject empty password', async () => {
+        const salt = generateRandomBytes(MIN_SALT_SIZE);
+        await expect(deriveKeyAsync(EMPTY_PASSWORD, salt)).rejects.toThrow(
+          'Password must be at least 8 characters'
+        );
+      });
+
+      it('should reject password shorter than 8 characters', async () => {
+        const salt = generateRandomBytes(MIN_SALT_SIZE);
+        await expect(deriveKeyAsync(SHORT_PASSWORD, salt)).rejects.toThrow(
+          'Password must be at least 8 characters'
+        );
+      });
+
+      it('should reject salt smaller than 16 bytes', async () => {
+        const smallSalt = generateRandomBytes(15);
+        await expect(deriveKeyAsync(VALID_PASSWORD, smallSalt)).rejects.toThrow(
+          'Salt must be at least 16 bytes'
+        );
+      });
+
+      it('should reject iterations below 500,000', async () => {
+        const salt = generateRandomBytes(MIN_SALT_SIZE);
+        await expect(deriveKeyAsync(VALID_PASSWORD, salt, LOW_ITERATIONS)).rejects.toThrow(
+          'PBKDF2 iterations must be at least 500000'
+        );
+      });
+    });
+
+    describe('key derivation', () => {
+      it('should derive a CryptoKey (fallback path)', async () => {
+        const salt = generateRandomBytes(MIN_SALT_SIZE);
+        const key = await deriveKeyAsync(VALID_PASSWORD, salt);
+
+        expect(key).toBeDefined();
+        expect(key.type).toBe('secret');
+        expect(key.algorithm.name).toBe('AES-GCM');
+      });
     });
   });
 
-  describe('integration scenarios', () => {
-    it('should handle various plaintext types', async () => {
-      const testCases = [
-        'Simple text',
-        'Text with special chars: !@#$%^&*()',
-        'Unicode text: 测试文本 🚀',
-        JSON.stringify({ key: 'value', number: 123 }),
-        'Very long text: ' + 'x'.repeat(1000),
-      ];
+  describe('exportKey / importKey', () => {
+    it('should export key to base64 string', async () => {
+      const salt = generateRandomBytes(MIN_SALT_SIZE);
+      const key = await deriveKey(VALID_PASSWORD, salt);
 
-      mockCrypto.subtle.importKey.mockResolvedValue({} as CryptoKey);
-      mockCrypto.subtle.deriveBits.mockResolvedValue(new ArrayBuffer(32));
-      mockCrypto.subtle.deriveKey.mockResolvedValue({} as CryptoKey);
-      mockCrypto.subtle.encrypt.mockResolvedValue(new ArrayBuffer(32));
-      mockCrypto.subtle.sign.mockResolvedValue(new ArrayBuffer(32));
+      const exported = await exportKey(key);
 
-      for (const testCase of testCases) {
-        const result = await encryptString(testCase, testPassword);
-        expect(typeof result).toBe('string');
-        expect(() => JSON.parse(result)).not.toThrow();
-      }
+      expect(typeof exported).toBe('string');
+      expect(exported.length).toBeGreaterThan(0);
+      // Base64 of 256-bit (32 bytes) key = 44 characters
+      expect(exported.length).toBe(44);
     });
 
-    it('should handle various password types', async () => {
-      const passwords = [
-        'simple',
-        'with spaces',
-        'with-dashes_and_underscores',
-        'with123numbers',
-        'withSpecialChars!@#$%',
-        'Unicode密码',
-        'very'.repeat(100) + 'long',
-      ];
+    it('should import key from base64 string', async () => {
+      const salt = generateRandomBytes(MIN_SALT_SIZE);
+      const originalKey = await deriveKey(VALID_PASSWORD, salt);
+      const exported = await exportKey(originalKey);
 
-      mockCrypto.subtle.importKey.mockResolvedValue({} as CryptoKey);
-      mockCrypto.subtle.deriveBits.mockResolvedValue(new ArrayBuffer(32));
-      mockCrypto.subtle.deriveKey.mockResolvedValue({} as CryptoKey);
-      mockCrypto.subtle.encrypt.mockResolvedValue(new ArrayBuffer(32));
-      mockCrypto.subtle.sign.mockResolvedValue(new ArrayBuffer(32));
+      const importedKey = await importKey(exported);
 
-      for (const password of passwords) {
-        const result = await encryptString(testPlaintext, password);
-        expect(typeof result).toBe('string');
-      }
+      expect(importedKey).toBeDefined();
+      expect(importedKey.type).toBe('secret');
+      expect(importedKey.algorithm.name).toBe('AES-GCM');
+      // Imported key is not extractable for security
+      expect(importedKey.extractable).toBe(false);
+    });
+
+    it('should produce functionally equivalent keys after round-trip', async () => {
+      const salt = generateRandomBytes(MIN_SALT_SIZE);
+      const originalKey = await deriveKey(VALID_PASSWORD, salt);
+      const exported = await exportKey(originalKey);
+      const importedKey = await importKey(exported);
+
+      // Both keys should encrypt/decrypt the same data
+      const testData = 'test encryption data';
+      const encrypted = await encryptWithKey(testData, originalKey);
+      const decrypted = await decryptWithKey(encrypted, importedKey);
+
+      expect(decrypted).toBe(testData);
     });
   });
 
-  describe('crypto configuration', () => {
-    it('should use correct crypto parameters', async () => {
-      mockCrypto.subtle.importKey.mockResolvedValue({} as CryptoKey);
-      mockCrypto.subtle.deriveBits.mockResolvedValue(new ArrayBuffer(32));
-      mockCrypto.subtle.deriveKey.mockResolvedValue({} as CryptoKey);
-      mockCrypto.subtle.encrypt.mockResolvedValue(new ArrayBuffer(32));
-      mockCrypto.subtle.sign.mockResolvedValue(new ArrayBuffer(32));
+  describe('encryptWithKey / decryptWithKey', () => {
+    let testKey: CryptoKey;
 
-      await encryptString(testPlaintext, testPassword);
+    beforeEach(async () => {
+      const salt = generateRandomBytes(MIN_SALT_SIZE);
+      testKey = await deriveKey(VALID_PASSWORD, salt);
+    });
 
-      // Verify PBKDF2 parameters
-      expect(mockCrypto.subtle.deriveBits).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name: 'PBKDF2',
-          iterations: 600000,
-          hash: 'SHA-256',
-        }),
-        expect.any(Object),
-        256
-      );
+    describe('encryption', () => {
+      it('should encrypt a string to base64', async () => {
+        const plaintext = 'Hello, World!';
+        const encrypted = await encryptWithKey(plaintext, testKey);
 
-      // Verify AES-GCM parameters
-      expect(mockCrypto.subtle.encrypt).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name: 'AES-GCM',
-          tagLength: 128,
-        }),
-        expect.any(Object),
-        expect.any(Object)
-      );
+        expect(typeof encrypted).toBe('string');
+        expect(encrypted.length).toBeGreaterThan(0);
+        expect(encrypted).not.toBe(plaintext);
+      });
+
+      it('should produce different ciphertext each time (random IV)', async () => {
+        const plaintext = 'Same message';
+        const encrypted1 = await encryptWithKey(plaintext, testKey);
+        const encrypted2 = await encryptWithKey(plaintext, testKey);
+
+        expect(encrypted1).not.toBe(encrypted2);
+      });
+
+      it('should handle empty string', async () => {
+        const encrypted = await encryptWithKey('', testKey);
+        const decrypted = await decryptWithKey(encrypted, testKey);
+        expect(decrypted).toBe('');
+      });
+
+      it('should handle unicode characters', async () => {
+        const plaintext = '你好世界 🌍 émojis';
+        const encrypted = await encryptWithKey(plaintext, testKey);
+        const decrypted = await decryptWithKey(encrypted, testKey);
+        expect(decrypted).toBe(plaintext);
+      });
+
+      it('should handle large data', async () => {
+        const plaintext = 'x'.repeat(100000); // 100KB of data
+        const encrypted = await encryptWithKey(plaintext, testKey);
+        const decrypted = await decryptWithKey(encrypted, testKey);
+        expect(decrypted).toBe(plaintext);
+      });
+    });
+
+    describe('decryption', () => {
+      it('should decrypt to original plaintext', async () => {
+        const plaintext = 'Secret message';
+        const encrypted = await encryptWithKey(plaintext, testKey);
+        const decrypted = await decryptWithKey(encrypted, testKey);
+
+        expect(decrypted).toBe(plaintext);
+      });
+
+      it('should fail with wrong key', async () => {
+        const plaintext = 'Secret message';
+        const encrypted = await encryptWithKey(plaintext, testKey);
+
+        const wrongSalt = generateRandomBytes(MIN_SALT_SIZE);
+        const wrongKey = await deriveKey('WrongPassword1', wrongSalt);
+
+        await expect(decryptWithKey(encrypted, wrongKey)).rejects.toThrow();
+      });
+
+      it('should fail with invalid base64', async () => {
+        await expect(decryptWithKey('not-valid-base64!!!', testKey)).rejects.toThrow(
+          'Failed to decrypt: invalid format'
+        );
+      });
+
+      it('should fail with data too short (no IV)', async () => {
+        // Minimum size is IV (12) + 1 byte + GCM tag (16) = 29 bytes
+        // This is just a few bytes, way too short
+        const tooShort = btoa('short');
+        await expect(decryptWithKey(tooShort, testKey)).rejects.toThrow(
+          'Failed to decrypt: invalid format'
+        );
+      });
+
+      it('should fail with tampered ciphertext', async () => {
+        const plaintext = 'Secret message';
+        const encrypted = await encryptWithKey(plaintext, testKey);
+
+        // Decode, tamper, re-encode
+        const decoded = atob(encrypted);
+        const tampered =
+          decoded.slice(0, 20) +
+          String.fromCharCode(decoded.charCodeAt(20) ^ 0xff) +
+          decoded.slice(21);
+        const tamperedEncoded = btoa(tampered);
+
+        await expect(decryptWithKey(tamperedEncoded, testKey)).rejects.toThrow();
+      });
+    });
+  });
+
+  describe('encryptJsonWithKey / decryptJsonWithKey', () => {
+    let testKey: CryptoKey;
+
+    beforeEach(async () => {
+      const salt = generateRandomBytes(MIN_SALT_SIZE);
+      testKey = await deriveKey(VALID_PASSWORD, salt);
+    });
+
+    it('should encrypt and decrypt simple object', async () => {
+      const obj = { name: 'test', value: 42 };
+      const encrypted = await encryptJsonWithKey(obj, testKey);
+      const decrypted = await decryptJsonWithKey<typeof obj>(encrypted, testKey);
+
+      expect(decrypted).toEqual(obj);
+    });
+
+    it('should encrypt and decrypt nested object', async () => {
+      const obj = {
+        user: {
+          name: 'Alice',
+          settings: {
+            theme: 'dark',
+            notifications: true,
+          },
+        },
+        items: [1, 2, 3],
+      };
+      const encrypted = await encryptJsonWithKey(obj, testKey);
+      const decrypted = await decryptJsonWithKey<typeof obj>(encrypted, testKey);
+
+      expect(decrypted).toEqual(obj);
+    });
+
+    it('should encrypt and decrypt array', async () => {
+      const arr = [1, 'two', { three: 3 }];
+      const encrypted = await encryptJsonWithKey(arr, testKey);
+      const decrypted = await decryptJsonWithKey<typeof arr>(encrypted, testKey);
+
+      expect(decrypted).toEqual(arr);
+    });
+
+    it('should encrypt and decrypt null', async () => {
+      const encrypted = await encryptJsonWithKey(null, testKey);
+      const decrypted = await decryptJsonWithKey<null>(encrypted, testKey);
+
+      expect(decrypted).toBeNull();
+    });
+
+    it('should encrypt and decrypt empty object', async () => {
+      const obj = {};
+      const encrypted = await encryptJsonWithKey(obj, testKey);
+      const decrypted = await decryptJsonWithKey<typeof obj>(encrypted, testKey);
+
+      expect(decrypted).toEqual(obj);
+    });
+
+    it('should fail with wrong key', async () => {
+      const obj = { secret: 'data' };
+      const encrypted = await encryptJsonWithKey(obj, testKey);
+
+      const wrongSalt = generateRandomBytes(MIN_SALT_SIZE);
+      const wrongKey = await deriveKey('WrongPassword1', wrongSalt);
+
+      await expect(decryptJsonWithKey(encrypted, wrongKey)).rejects.toThrow();
+    });
+  });
+
+  describe('DEFAULT_PBKDF2_ITERATIONS', () => {
+    it('should be 600,000', () => {
+      expect(DEFAULT_PBKDF2_ITERATIONS).toBe(600_000);
+    });
+  });
+
+  describe('timing attack mitigations', () => {
+    // Note: These tests verify the code structure exists, not actual timing security
+    // True timing analysis requires specialized tooling
+
+    it('should complete decryption in similar time for valid vs invalid data', async () => {
+      const salt = generateRandomBytes(MIN_SALT_SIZE);
+      const testKey = await deriveKey(VALID_PASSWORD, salt);
+
+      const validEncrypted = await encryptWithKey('valid data', testKey);
+
+      // Create properly-sized but invalid ciphertext
+      const invalidData = generateRandomBytes(50);
+      const invalidEncrypted = btoa(String.fromCharCode(...invalidData));
+
+      // Both should complete (one succeeds, one fails)
+      // The timing mitigation adds random delay to mask differences
+      const validResult = await decryptWithKey(validEncrypted, testKey).catch(() => 'error');
+      const invalidResult = await decryptWithKey(invalidEncrypted, testKey).catch(() => 'error');
+
+      expect(validResult).toBe('valid data');
+      expect(invalidResult).toBe('error');
     });
   });
 });

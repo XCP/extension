@@ -35,7 +35,7 @@ const CONSTANTS = {
 export default function AddressSelection(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { activeWallet, activeAddress, setActiveAddress, addAddress, walletLocked } = useWallet();
+  const { activeWallet, activeAddress, setActiveAddress, addAddress, keychainLocked } = useWallet();
   const [error, setError] = useState<string | null>(null);
   const [isAddingAddress, setIsAddingAddress] = useState(false);
 
@@ -51,7 +51,7 @@ export default function AddressSelection(): ReactElement {
     }
 
     try {
-      if (walletLocked) {
+      if (keychainLocked) {
         navigate(CONSTANTS.PATHS.UNLOCK, {
           state: { returnTo: CONSTANTS.PATHS.SELECT, walletId: activeWallet.id },
         });
@@ -66,7 +66,7 @@ export default function AddressSelection(): ReactElement {
     } finally {
       setIsAddingAddress(false);
     }
-  }, [activeWallet, walletLocked, addAddress, navigate, isAddingAddress]);
+  }, [activeWallet, keychainLocked, addAddress, navigate, isAddingAddress]);
 
   /**
    * Handles selecting an address and navigating to the index.
@@ -118,14 +118,14 @@ export default function AddressSelection(): ReactElement {
           onClick={handleAddAddress}
           disabled={
             activeWallet.addresses.length >= MAX_ADDRESSES_PER_WALLET ||
-            walletLocked ||
+            keychainLocked ||
             activeWallet.type !== "mnemonic" ||
             isAddingAddress
           }
           aria-label="Add Address"
         >
           <FaPlus className="mr-2" aria-hidden="true" />
-          {isAddingAddress ? "Adding..." : walletLocked ? "Unlock to Add Address" : "Add Address"}
+          {isAddingAddress ? "Adding..." : keychainLocked ? "Unlock to Add Address" : "Add Address"}
         </Button>
       </div>
     </div>

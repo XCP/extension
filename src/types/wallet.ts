@@ -7,7 +7,7 @@
  */
 
 import type { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import type { HardwareWalletVendor } from '@/utils/hardware/types';
+import type { AppSettings } from '@/utils/settings';
 
 /**
  * Represents a derived address within a wallet.
@@ -24,36 +24,16 @@ export interface Address {
 }
 
 /**
- * Hardware wallet specific data
- */
-export interface HardwareWalletData {
-  /** Hardware wallet vendor (e.g., 'trezor', 'ledger') */
-  vendor: HardwareWalletVendor;
-  /** Extended public key for address derivation */
-  xpub: string;
-  /** Account index used for derivation */
-  accountIndex: number;
-  /** Device label (optional, from device) */
-  deviceLabel?: string;
-  /** Whether this wallet uses a passphrase (hidden wallet) */
-  usePassphrase?: boolean;
-}
-
-/**
- * Wallet type discriminator
- */
-export type WalletType = 'mnemonic' | 'privateKey' | 'hardware';
-
-/**
  * Represents a wallet containing one or more addresses.
+ * This is the runtime representation with derived addresses.
  */
 export interface Wallet {
   /** Unique identifier (SHA-256 hash of mnemonic + addressFormat) */
   id: string;
   /** User-facing wallet name */
   name: string;
-  /** Secret type: mnemonic phrase, single private key, or hardware */
-  type: WalletType;
+  /** Secret type: mnemonic phrase, single private key, or hardware wallet */
+  type: 'mnemonic' | 'privateKey' | 'hardware';
   /** Bitcoin address format for derivation */
   addressFormat: AddressFormat;
   /** Number of derived addresses */
@@ -62,6 +42,66 @@ export interface Wallet {
   addresses: Address[];
   /** Flag for development-only test wallets */
   isTestOnly?: boolean;
-  /** Hardware wallet specific data (only for type: 'hardware') */
-  hardwareData?: HardwareWalletData;
+  /** First address for display when wallet is locked (public, not sensitive) */
+  previewAddress?: string;
+}
+
+// ============================================================================
+// Keychain Types - Encrypted Storage
+// ============================================================================
+
+/**
+ * Individual wallet record stored in the keychain.
+ * The secret remains encrypted even after keychain decryption.
+ */
+export interface WalletRecord {
+  /** Unique identifier */
+  id: string;
+  /** User-facing wallet name */
+  name: string;
+  /** Secret type: mnemonic phrase, single private key, or hardware wallet */
+  type: 'mnemonic' | 'privateKey' | 'hardware';
+  /** Bitcoin address format for derivation */
+  addressFormat: AddressFormat;
+  /** Number of derived addresses */
+  addressCount: number;
+  /** First address for display (m/.../0/0) */
+  previewAddress: string;
+  /** Encrypted secret (key-based AES-GCM, still encrypted after keychain decrypt) */
+  encryptedSecret: string;
+  /** Creation timestamp */
+  createdAt?: number;
+  /** Flag for development-only test wallets */
+  isTestOnly?: boolean;
+}
+
+/**
+ * Decrypted keychain contents (in memory when unlocked).
+ * Individual wallet secrets remain encrypted until selectWallet() is called.
+ * Settings are stored inside the keychain for single-key encryption.
+ */
+export interface Keychain {
+  /** Schema version for future migrations */
+  version: number;
+  /** Array of wallet records */
+  wallets: WalletRecord[];
+  /** Application settings (encrypted with keychain) */
+  settings: AppSettings;
+}
+
+/**
+ * Keychain record stored in local storage.
+ * Contains encrypted keychain blob and KDF parameters.
+ */
+export interface KeychainRecord {
+  /** Schema version */
+  version: number;
+  /** Key derivation parameters (stored for future rotation flexibility) */
+  kdf: {
+    iterations: number;
+  };
+  /** Salt for PBKDF2 key derivation (base64) */
+  salt: string;
+  /** Encrypted keychain blob (base64, IV + ciphertext) */
+  encryptedKeychain: string;
 }

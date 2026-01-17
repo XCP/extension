@@ -19,8 +19,11 @@ interface WalletCardProps {
  * @returns A ReactElement representing the wallet card
  */
 export function WalletCard({ wallet, selected, onSelect, isOnlyWallet }: WalletCardProps): ReactElement {
+  // Use first address if unlocked, otherwise fall back to previewAddress
   const primaryAddress =
-    wallet.addresses.length > 0 ? wallet.addresses[0].address : 'No address';
+    wallet.addresses.length > 0
+      ? wallet.addresses[0].address
+      : wallet.previewAddress || 'No address';
 
   const handleClick = (e: React.MouseEvent) => {
     // Only select the wallet if the menu wasn't clicked

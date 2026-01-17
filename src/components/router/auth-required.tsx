@@ -51,7 +51,7 @@ const AUTH_ROUTES = {
  * @returns {ReactElement | null} Outlet for child routes when authenticated, null otherwise
  */
 export function AuthRequired(): ReactElement | null {
-  const { authState, wallets, isLoading } = useWallet();
+  const { authState, keychainExists, isLoading } = useWallet();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -63,18 +63,18 @@ export function AuthRequired(): ReactElement | null {
    */
   const getRedirectPath = useCallback((
     authState: AuthState,
-    hasWallets: boolean
+    keychainExists: boolean
   ): string | null => {
-    // No wallets or needs onboarding
-    if (authState === 'ONBOARDING_NEEDED' || !hasWallets) {
+    // No keychain or needs onboarding
+    if (authState === 'ONBOARDING_NEEDED' || !keychainExists) {
       return AUTH_ROUTES.ONBOARDING;
     }
-    
-    // Has wallets but locked
-    if (authState === 'LOCKED' && hasWallets) {
+
+    // Has keychain but locked
+    if (authState === 'LOCKED' && keychainExists) {
       return AUTH_ROUTES.UNLOCK;
     }
-    
+
     // Authenticated - no redirect needed
     return null;
   }, []);
@@ -95,18 +95,18 @@ export function AuthRequired(): ReactElement | null {
     if (isLoading) {
       return;
     }
-    
-    const redirectPath = getRedirectPath(authState, wallets.length > 0);
-    
+
+    const redirectPath = getRedirectPath(authState, keychainExists);
+
     if (redirectPath) {
       // Use appropriate navigation options based on redirect type
-      const options = redirectPath === AUTH_ROUTES.UNLOCK 
-        ? navigationOptions 
+      const options = redirectPath === AUTH_ROUTES.UNLOCK
+        ? navigationOptions
         : { replace: true };
-        
+
       navigate(redirectPath, options);
     }
-  }, [authState, wallets.length, navigate, isLoading, getRedirectPath, navigationOptions]);
+  }, [authState, keychainExists, navigate, isLoading, getRedirectPath, navigationOptions]);
 
   /**
    * Only render child routes when:

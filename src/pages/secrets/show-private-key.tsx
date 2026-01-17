@@ -20,7 +20,7 @@ export default function ShowPrivateKey(): ReactElement {
   const { walletId, addressPath } = useParams<{ walletId: string; addressPath?: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { unlockWallet, getPrivateKey, verifyPassword, wallets } = useWallet();
+  const { selectWallet, getPrivateKey, verifyPassword, wallets } = useWallet();
   const { pending } = useFormStatus();
 
   const [privateKey, setPrivateKey] = useState("");
@@ -87,7 +87,8 @@ export default function ShowPrivateKey(): ReactElement {
     }
 
     try {
-      await unlockWallet(walletId, password);
+      // Load the wallet to decrypt its secret
+      await selectWallet(walletId);
       const privKeyData =
         walletType === "privateKey"
           ? await getPrivateKey(walletId)

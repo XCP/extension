@@ -1,13 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 // Mock proxy service
 const mockProxyService = {
-  loadWallets: vi.fn(),
+  refreshWallets: vi.fn(),
   getWallets: vi.fn(),
   getActiveWallet: vi.fn(),
   getActiveAddress: vi.fn(),
   setActiveWallet: vi.fn(),
-  unlockWallet: vi.fn(),
-  lockAllWallets: vi.fn(),
+  unlockKeychain: vi.fn(),
+  lockKeychain: vi.fn(),
   createMnemonicWallet: vi.fn(),
   createPrivateKeyWallet: vi.fn(),
   addAddress: vi.fn(),
@@ -27,8 +27,6 @@ const mockProxyService = {
   setLastActiveAddress: vi.fn(),
   setLastActiveTime: vi.fn(),
   isAnyWalletUnlocked: vi.fn(),
-  createAndUnlockMnemonicWallet: vi.fn(),
-  createAndUnlockPrivateKeyWallet: vi.fn()
 };
 
 describe('WalletService Proxy', () => {
@@ -41,12 +39,12 @@ describe('WalletService Proxy', () => {
   });
 
   describe('Wallet Management', () => {
-    it('should load wallets', async () => {
-      walletService.loadWallets.mockResolvedValue(undefined);
-      
-      await walletService.loadWallets();
-      
-      expect(walletService.loadWallets).toHaveBeenCalled();
+    it('should refresh wallets', async () => {
+      walletService.refreshWallets.mockResolvedValue(undefined);
+
+      await walletService.refreshWallets();
+
+      expect(walletService.refreshWallets).toHaveBeenCalled();
     });
 
     it('should get wallets list', async () => {
@@ -124,9 +122,9 @@ describe('WalletService Proxy', () => {
 
     it('should create and unlock mnemonic wallet', async () => {
       const mockWallet = { id: 'wallet3', name: 'Unlocked Wallet' };
-      walletService.createAndUnlockMnemonicWallet.mockResolvedValue(mockWallet);
+      walletService.createMnemonicWallet.mockResolvedValue(mockWallet);
       
-      const wallet = await walletService.createAndUnlockMnemonicWallet(
+      const wallet = await walletService.createMnemonicWallet(
         'test mnemonic',
         'password123'
       );
@@ -136,20 +134,20 @@ describe('WalletService Proxy', () => {
   });
 
   describe('Session Management', () => {
-    it('should unlock wallet', async () => {
-      walletService.unlockWallet.mockResolvedValue(undefined);
-      
-      await walletService.unlockWallet('wallet1', 'password123');
-      
-      expect(walletService.unlockWallet).toHaveBeenCalledWith('wallet1', 'password123');
+    it('should unlock keychain', async () => {
+      walletService.unlockKeychain.mockResolvedValue(undefined);
+
+      await walletService.unlockKeychain('password123');
+
+      expect(walletService.unlockKeychain).toHaveBeenCalledWith('password123');
     });
 
     it('should lock all wallets', async () => {
-      walletService.lockAllWallets.mockResolvedValue(undefined);
+      walletService.lockKeychain.mockResolvedValue(undefined);
       
-      await walletService.lockAllWallets();
+      await walletService.lockKeychain();
       
-      expect(walletService.lockAllWallets).toHaveBeenCalled();
+      expect(walletService.lockKeychain).toHaveBeenCalled();
     });
 
     it('should verify password', async () => {

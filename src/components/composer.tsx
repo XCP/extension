@@ -170,7 +170,7 @@ function ComposerInner<T>({
 
   // Listen for wallet lock events
   useEffect(() => {
-    const unsubscribe = onMessage('walletLocked', ({ data }: { data: { locked: boolean } }) => {
+    const unsubscribe = onMessage('keychainLocked', ({ data }: { data: { locked: boolean } }) => {
       if (data?.locked) {
         setShowAuthModal(true);
       }

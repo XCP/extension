@@ -80,7 +80,7 @@ import {
   OutputScriptType,
 } from './types';
 import { extractPsbtDetails } from '@/utils/blockchain/bitcoin/psbt';
-import { getSettings } from '@/utils/storage/settingsStorage';
+import { walletManager } from '@/utils/wallet/walletManager';
 
 // ============================================================================
 // Internal Types for Trezor SDK Compatibility
@@ -280,10 +280,10 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         // Note: This is intentionally separate from transactionDryRun to prevent
         // accidental security weakening when users just want to preview transactions
         try {
-          const settings = await getSettings();
+          const settings = walletManager.getSettings();
           isTestMode = settings.trezorEmulatorMode === true;
         } catch {
-          // Settings not available, use production mode
+          // Settings not available (keychain locked), use production mode
         }
       }
 

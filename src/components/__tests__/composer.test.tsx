@@ -38,7 +38,7 @@ const mockActiveAddress = { address: 'bc1qtest123', name: 'Test Address' };
 const mockSignTransaction = vi.fn();
 const mockBroadcastTransaction = vi.fn();
 const mockUnlockWallet = vi.fn();
-const mockIsWalletLocked = vi.fn();
+const mockIsKeychainLocked = vi.fn();
 
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
@@ -47,7 +47,7 @@ vi.mock('@/contexts/wallet-context', () => ({
     signTransaction: mockSignTransaction,
     broadcastTransaction: mockBroadcastTransaction,
     unlockWallet: mockUnlockWallet,
-    isWalletLocked: mockIsWalletLocked
+    isKeychainLocked: mockIsKeychainLocked
   })
 }));
 
@@ -177,7 +177,7 @@ describe('Composer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockIsWalletLocked.mockResolvedValue(false);
+    mockIsKeychainLocked.mockResolvedValue(false);
     mockSignTransaction.mockResolvedValue('signed123');
     mockBroadcastTransaction.mockResolvedValue({ tx_hash: 'broadcast123' });
     mockComposeApi.mockResolvedValue(mockApiResponse);
@@ -269,7 +269,7 @@ describe('Composer', () => {
   });
 
   it('should show auth modal when wallet is locked', async () => {
-    mockIsWalletLocked.mockResolvedValue(true);
+    mockIsKeychainLocked.mockResolvedValue(true);
     
     renderWithProvider();
     

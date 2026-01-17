@@ -150,6 +150,7 @@ jobs:
           name: e2e-test-results-batch-${{ matrix.batch }}
           path: test-results/
           retention-days: 7
+          if-no-files-found: ignore
       
       - name: Upload playwright report
         if: failure()
@@ -158,6 +159,7 @@ jobs:
           name: playwright-report-batch-${{ matrix.batch }}
           path: playwright-report/
           retention-days: 7
+          if-no-files-found: ignore
 
   # Combined status for branch protection (reports as "Unit Tests")
   unit-tests-status:

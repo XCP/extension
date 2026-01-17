@@ -9,7 +9,7 @@
 
 import { apiClient } from '@/utils/apiClient';
 import { CounterpartyApiError } from '@/utils/blockchain/errors';
-import { getSettings } from '@/utils/storage/settingsStorage';
+import { walletManager } from '@/utils/wallet/walletManager';
 
 // =============================================================================
 // CONSTANTS
@@ -302,7 +302,7 @@ export interface ServerInfo {
 // =============================================================================
 
 async function getApiBase(): Promise<string> {
-  const settings = await getSettings();
+  const settings = walletManager.getSettings();
   return settings.counterpartyApiBase;
 }
 

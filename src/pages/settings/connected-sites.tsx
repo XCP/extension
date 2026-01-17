@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { FiHelpCircle, FiGlobe, FiRefreshCw } from "@/components/icons";
 import { ConnectedSiteCard } from "@/components/cards/connected-site-card";
 import { useHeader } from "@/contexts/header-context";
-import { getSettings } from "@/utils/storage/settingsStorage";
+import { walletManager } from "@/utils/wallet/walletManager";
 import { getProviderService } from "@/services/providerService";
 import type { ReactElement } from "react";
 
@@ -43,7 +43,7 @@ export default function ConnectedSites(): ReactElement {
     try {
       setIsLoading(true);
       console.log('Loading connected sites from settings...');
-      const settings = await getSettings();
+      const settings = walletManager.getSettings();
       console.log('Connected websites:', settings.connectedWebsites);
       
       // Convert origins to ConnectedSite objects

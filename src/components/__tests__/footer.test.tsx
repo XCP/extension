@@ -4,6 +4,22 @@ import '@testing-library/jest-dom/vitest';
 import { Footer } from '../footer';
 import { SettingsProvider } from '@/contexts/settings-context';
 
+// Mock walletService (required by settings-context)
+vi.mock('@/services/walletService', () => ({
+  getWalletService: () => ({
+    getSettings: vi.fn().mockResolvedValue({
+      autoLockTimer: '5m',
+      analyticsAllowed: true,
+      showHelpText: false,
+      allowUnconfirmedTxs: false,
+      pinnedAssets: ['BTC', 'XCP'],
+      lastActiveWalletId: undefined,
+      lastActiveAddress: undefined,
+    }),
+    updateSettings: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 // Mock webext-bridge (required by settings-context)
 vi.mock('webext-bridge/popup', () => ({
   sendMessage: vi.fn(),

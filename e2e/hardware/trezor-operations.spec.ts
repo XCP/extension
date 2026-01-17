@@ -9,7 +9,7 @@
  *   - Test seed: "all all all all all all all all all all all all"
  */
 import { test, expect, Page, BrowserContext } from '@playwright/test';
-import { launchExtension, cleanup, createWallet, TEST_PASSWORD } from '../helpers/test-helpers';
+import { launchExtension, cleanup, createWallet, TEST_PASSWORD } from '../fixtures';
 import {
   emulatorPressYes,
   startAutoConfirm,
