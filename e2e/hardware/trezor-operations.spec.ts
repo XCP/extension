@@ -67,13 +67,31 @@ async function setupHardwareWallet(page: Page): Promise<SetupResult> {
     await createWallet(page, TEST_PASSWORD);
   }
 
-  // Navigate to connect hardware
+  // Wait for the index page to be fully loaded with authenticated content
+  // This ensures the wallet context has settled before navigating to protected routes
+  await page.waitForURL(/index/, { timeout: 10000 });
+
+  // Wait for the main wallet content to appear (confirms auth state is UNLOCKED)
+  // The index page shows wallet address when authenticated
+  await page.waitForTimeout(1000); // Allow wallet context to settle
+
+  // Now navigate to connect hardware (protected route)
   const baseUrl = page.url().split('#')[0];
   await page.goto(`${baseUrl}#/connect-hardware`);
   await page.waitForLoadState('networkidle');
 
-  // Wait for the page
-  await expect(page.getByText('Select the address format')).toBeVisible({ timeout: 10000 });
+  // Wait for the page - add debugging on failure
+  try {
+    await expect(page.getByText('Select the address format')).toBeVisible({ timeout: 15000 });
+  } catch (error) {
+    // Debug: capture page state on failure
+    const html = await page.content();
+    const url = page.url();
+    console.log('Page URL:', url);
+    console.log('Page HTML preview:', html.substring(0, 500));
+    await page.screenshot({ path: `test-results/screenshots/connect-hardware-failure-${Date.now()}.png` });
+    throw new Error(`Connect hardware page not loaded. URL: ${url}. Original error: ${error}`);
+  }
 
   // Start auto-confirm for device prompts
   const stopAutoConfirm = startAutoConfirm(300);

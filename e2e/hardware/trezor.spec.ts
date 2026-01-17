@@ -32,6 +32,11 @@ async function setupWalletForHardwareTest(page: Page): Promise<void> {
     // Create a wallet so we can access the protected routes
     await createWallet(page, TEST_PASSWORD);
   }
+
+  // Wait for wallet context to settle after creation
+  // This ensures AuthRequired component sees UNLOCKED state
+  await page.waitForURL(/index/, { timeout: 10000 });
+  await page.waitForTimeout(1000); // Allow wallet context to settle
 }
 
 /**
@@ -74,8 +79,25 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.goto(`${baseUrl}#/add-wallet`);
       await page.waitForLoadState('networkidle');
 
+      // Wait for the Add Wallet page to load by checking for the heading
+      await expect(page.getByRole('heading', { name: 'Add Wallet' })).toBeVisible({ timeout: 10000 });
+
+      // Debug: Log all visible buttons on the page
+      const buttons = await page.getByRole('button').allTextContents();
+      console.log('Visible buttons on add-wallet page:', buttons);
+
+      // Check if the Connect Hardware Wallet button exists
+      const hardwareButton = page.getByRole('button', { name: /Connect Hardware Wallet/i });
+      const hardwareButtonVisible = await hardwareButton.isVisible({ timeout: 5000 }).catch(() => false);
+
+      if (!hardwareButtonVisible) {
+        console.log('Connect Hardware Wallet button not found. Taking debug screenshot...');
+        await page.screenshot({ path: 'test-results/screenshots/add-wallet-debug.png' });
+        throw new Error('Connect Hardware Wallet button not visible. Available buttons: ' + buttons.join(', '));
+      }
+
       // Click on Connect Hardware Wallet button
-      await page.getByRole('button', { name: /Connect Hardware Wallet/i }).click();
+      await hardwareButton.click();
       await page.waitForLoadState('networkidle');
 
       // Should see the connect hardware page with new UI
@@ -106,6 +128,9 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
+      // Wait for the connect hardware page to load
+      await expect(page.getByText('Select the address format')).toBeVisible({ timeout: 15000 });
+
       // Native SegWit should be selected by default (has border-blue-500)
       const segwitButton = page.getByRole('button', { name: /Native SegWit/ });
       await expect(segwitButton).toBeVisible();
@@ -134,6 +159,9 @@ test.describe('Trezor Hardware Wallet', () => {
       const baseUrl = page.url().split('#')[0];
       await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
+
+      // Wait for the connect hardware page to load
+      await expect(page.getByText('Select the address format')).toBeVisible({ timeout: 15000 });
 
       // Advanced options should be hidden initially
       await expect(page.getByText('Account Index')).not.toBeVisible();
