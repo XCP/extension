@@ -169,11 +169,11 @@ export function createProviderService(): ProviderService {
         paramSize = JSON.stringify(params).length;
       } catch {
         // If params can't be serialized (circular refs), reject the request
-        await analytics.track('request_rejected', { value: '1' });
+        await analytics.track('request_rejected');
         throw new Error('Request parameters cannot be serialized');
       }
       if (paramSize > MAX_PARAM_SIZE) {
-        await analytics.track('request_rejected', { value: '1' });
+        await analytics.track('request_rejected');
         let hostname = origin;
         try { hostname = new URL(origin).hostname; } catch { /* use raw origin */ }
         console.warn('[ProviderService] Request parameters too large', {
@@ -778,8 +778,7 @@ export function createProviderService(): ProviderService {
         error: (error as Error).message
       });
 
-      // Track error event (trackEvent doesn't support custom objects, just _value)
-      await analytics.track('provider_error', { value: '1' });
+      await analytics.track('provider_error');
 
       throw error;
     }

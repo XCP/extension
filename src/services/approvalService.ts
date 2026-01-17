@@ -319,7 +319,7 @@ export class ApprovalService extends BaseService {
   ): Promise<void> {
     const eventName = approved ? 'request_approved' : 'request_rejected';
 
-    await analytics.track(eventName, { value: '1' });
+    await analytics.track(eventName);
   }
 
   /**

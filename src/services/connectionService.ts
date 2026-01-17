@@ -281,7 +281,7 @@ export class ConnectionService extends BaseService {
     this.state.connectionCache.delete(origin);
 
     // Track disconnect event
-    await analytics.track('connection_disconnected', { value: '1' });
+    await analytics.track('connection_disconnected');
 
     // Emit disconnect events to the webpage
     eventEmitterService.emit('emit-provider-event', {
@@ -354,10 +354,8 @@ export class ConnectionService extends BaseService {
       });
     }
 
-    // Track bulk disconnect
-    await analytics.track('connection_disconnect_all', {
-      value: connectedSites.length.toString(),
-    });
+    // Track bulk disconnect with count
+    await analytics.track('connection_disconnect_all', connectedSites.length);
 
     console.debug('[ConnectionService] Disconnected all websites:', connectedSites.length);
   }

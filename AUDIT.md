@@ -201,6 +201,25 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Stack traces hidden | Never exposed to external callers |
 | ✅ | Logging stripped in prod | console.log/error removed |
 
+## Privacy & Analytics (ADR-016)
+
+| Status | Item | Implementation |
+|--------|------|----------------|
+| ✅ | Opt-out available | Users can disable in Settings > Advanced |
+| ✅ | Firefox consent integration | Respects Firefox 140+ built-in data collection consent |
+| ✅ | Path sanitization | Dynamic params stripped (wallet IDs, asset names, tx hashes) |
+| ✅ | No query strings | Empty `qs: {}` sent; no UTM/marketing params |
+| ✅ | No referrer tracking | Empty `r: ''` for all events |
+| ✅ | No persistent user IDs | Random `cid` per request; no cookies/localStorage IDs |
+| ✅ | Aggregate-level only | App-level patterns, not user journeys |
+| ✅ | BTC amount bucketing | Transaction values bucketed for privacy |
+| ✅ | Self-hosted script | Bundled directly; no third-party JS execution |
+| ⚪ | User identification | Not supported—by design |
+
+**Events tracked:** `compose`, `broadcast`, `consolidate`, `compose_error`, `broadcast_error`, `not_found`, connection events.
+
+**BTC bucketing:** Amounts are bucketed (dust/micro/tiny/small/medium/large/whale/mega) to understand volume without revealing exact values that could correlate with on-chain data.
+
 ## Supply Chain
 
 | Status | Item | Implementation |
@@ -268,6 +287,7 @@ This is not true constant-time code. For higher-security applications, constant-
 | ADR-013 | Constants organization strategy | [wallet/constants.ts](src/utils/wallet/constants.ts) |
 | ADR-014 | Input validation thresholds for encryption | [encryption.ts](src/utils/encryption/encryption.ts) |
 | ADR-015 | Unified keychain architecture | [walletManager.ts](src/utils/wallet/walletManager.ts) |
+| ADR-016 | Privacy-focused analytics with Fathom | [fathom.ts](src/utils/fathom.ts) |
 
 ---
 
@@ -284,7 +304,8 @@ This is not true constant-time code. For higher-security applications, constant-
 | Input Validation | 5 | 0 | 0 | 0 |
 | UI/UX | 3 | 0 | 1 | 2 |
 | Error Handling | 4 | 0 | 0 | 0 |
+| Privacy & Analytics | 9 | 0 | 0 | 1 |
 | Supply Chain | 4 | 0 | 0 | 1 |
-| **Total** | **58** | **4** | **2** | **9** |
+| **Total** | **67** | **4** | **2** | **10** |
 
 **Gaps (❌):** Password strength meter, screenshot prevention (browser limitation)
