@@ -134,15 +134,65 @@ export async function enableValidationBypass(page: Page): Promise<void> {
       return;
     }
 
-    // Handle asset details endpoints - return 404 (asset not found = available for issuance)
+    // Handle asset details endpoints
     if (url.includes('/v2/assets/')) {
       const assetMatch = url.match(/\/v2\/assets\/([^/?]+)/);
       const assetName = assetMatch ? decodeURIComponent(assetMatch[1]) : 'UNKNOWN';
+
+      // Return proper details for known assets (needed for order forms, etc.)
+      const knownAssets: Record<string, { divisible: boolean; supply: number }> = {
+        XCP: { divisible: true, supply: 2648755823622677 },
+        BTC: { divisible: true, supply: 0 },
+        PEPECASH: { divisible: true, supply: 1000000000000000 },
+      };
+
+      if (knownAssets[assetName]) {
+        console.log(`[E2E Mock] Asset details for ${assetName} - returning mock data`);
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            result: {
+              asset: assetName,
+              asset_longname: null,
+              description: `Mock ${assetName} asset`,
+              divisible: knownAssets[assetName].divisible,
+              locked: true,
+              supply: knownAssets[assetName].supply,
+              issuer: null,
+            },
+          }),
+        });
+        return;
+      }
+
+      // Unknown assets return 404 (available for issuance)
       console.log(`[E2E Mock] Asset details for ${assetName} - returning 404 (not found = available)`);
       await route.fulfill({
         status: 404,
         contentType: 'application/json',
         body: JSON.stringify({ error: 'Asset not found' }),
+      });
+      return;
+    }
+
+    // Handle balance endpoints - return mock balance
+    if (url.includes('/balances/')) {
+      const assetMatch = url.match(/\/balances\/([^/?]+)/);
+      const assetName = assetMatch ? decodeURIComponent(assetMatch[1]) : 'UNKNOWN';
+      console.log(`[E2E Mock] Balance for ${assetName} - returning mock balance`);
+
+      // Return a mock balance (enough for testing)
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          result: {
+            asset: assetName,
+            quantity: assetName === 'BTC' ? 1000000 : 100000000000, // 0.01 BTC or 1000 units
+            quantity_normalized: assetName === 'BTC' ? '0.01000000' : '1000.00000000',
+          },
+        }),
       });
       return;
     }
