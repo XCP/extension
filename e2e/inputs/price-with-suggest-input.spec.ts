@@ -247,7 +247,8 @@ walletTest.describe('PriceWithSuggestInput Component', () => {
 
       if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
         const name = await input.getAttribute('name');
-        expect(name).toBe('price');
+        // Dispenser form uses mainchainrate_display for price input
+        expect(name).toBe('mainchainrate_display');
       }
     });
 
@@ -256,7 +257,8 @@ walletTest.describe('PriceWithSuggestInput Component', () => {
 
       if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
         const id = await input.getAttribute('id');
-        expect(id).toBe('price');
+        // Dispenser form uses mainchainrate_display for price input
+        expect(id).toBe('mainchainrate_display');
       }
     });
 
@@ -319,7 +321,8 @@ walletTest.describe('PriceWithSuggestInput Component', () => {
         await input.focus();
 
         const isFocused = await page.evaluate(() => {
-          return document.activeElement?.getAttribute('name') === 'price';
+          // Dispenser form uses mainchainrate_display for price input
+          return document.activeElement?.getAttribute('name') === 'mainchainrate_display';
         });
 
         expect(isFocused).toBe(true);
