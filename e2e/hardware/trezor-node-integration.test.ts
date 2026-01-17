@@ -8,7 +8,7 @@
  * Prerequisites:
  *   - Trezor emulator running via trezor-user-env (docker)
  *   - Bridge running on localhost:21325
- *   - Test seed: "all all all all all all all all all all all all"
+ *   - Emulator initialized with test seed via init-trezor-emulator.js
  *
  * Run with: npx vitest run e2e/hardware/trezor-node-integration.test.ts
  */
@@ -19,16 +19,20 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 // This version handles the handshake automatically and works with BridgeTransport
 import TrezorConnect from '@trezor/connect';
 
-// Import trezor-user-env-link for emulator control
-// This is Trezor's official package for controlling the emulator in tests
-import { TrezorUserEnvLink } from '@trezor/trezor-user-env-link';
+// Use HTTP-based emulator control instead of WebSocket-based trezor-user-env-link
+// This avoids TypeScript errors in the trezor-user-env-link package
+import {
+  emulatorPressYes,
+  isEmulatorAvailable,
+  isBridgeAvailable,
+  waitForDevice,
+} from '../helpers/trezor-emulator';
 
 // Test configuration
 const TEST_MNEMONIC = 'all all all all all all all all all all all all';
 
 // These are used by the emulator setup (logged for debugging)
-const _BRIDGE_URL = process.env.TREZOR_BRIDGE_URL || 'http://localhost:21325';
-const _WEBSOCKET_URL = process.env.TREZOR_EMULATOR_URL || 'ws://127.0.0.1:9001';
+const BRIDGE_URL = process.env.TREZOR_BRIDGE_URL || 'http://localhost:21325';
 
 // Expected addresses from the test mnemonic (verified against Trezor)
 const EXPECTED_ADDRESSES = {
@@ -56,25 +60,31 @@ describe('Trezor Node.js Integration Tests', () => {
     console.log('\n========================================');
     console.log('TREZOR NODE.JS INTEGRATION TESTS');
     console.log('========================================');
-    console.log(`Bridge URL: ${_BRIDGE_URL}`);
-    console.log(`WebSocket URL: ${_WEBSOCKET_URL}`);
+    console.log(`Bridge URL: ${BRIDGE_URL}`);
+    console.log(`Test mnemonic: ${TEST_MNEMONIC}`);
     console.log('');
 
     try {
-      // Connect to trezor-user-env for emulator control
-      // This connects to the WebSocket controller on port 9001
-      await TrezorUserEnvLink.connect();
-      console.log('Connected to trezor-user-env WebSocket');
+      // Check if emulator and bridge are available
+      const emulatorOk = await isEmulatorAvailable();
+      const bridgeOk = await isBridgeAvailable();
 
-      // Setup emulator with test mnemonic
-      // This wipes the device and sets up with our test seed
-      await TrezorUserEnvLink.api.setupEmu({
-        mnemonic: TEST_MNEMONIC,
-        pin: '',
-        passphrase_protection: false,
-        label: 'Test Device',
-      });
-      console.log('Emulator configured with test mnemonic');
+      console.log(`Emulator available: ${emulatorOk}`);
+      console.log(`Bridge available: ${bridgeOk}`);
+
+      if (!emulatorOk || !bridgeOk) {
+        console.error('Emulator or bridge not available');
+        return;
+      }
+
+      // Wait for device to be detected
+      const deviceReady = await waitForDevice(10000);
+      console.log(`Device ready: ${deviceReady}`);
+
+      if (!deviceReady) {
+        console.error('No device detected via bridge');
+        return;
+      }
 
       // Initialize TrezorConnect (Node.js version)
       // This version automatically handles the handshake without a popup
@@ -99,7 +109,6 @@ describe('Trezor Node.js Integration Tests', () => {
   afterAll(async () => {
     try {
       await TrezorConnect.dispose();
-      TrezorUserEnvLink.disconnect();
       console.log('\nCleanup complete');
     } catch {
       // Ignore cleanup errors
@@ -132,8 +141,8 @@ describe('Trezor Node.js Integration Tests', () => {
         return;
       }
 
-      // Auto-confirm on emulator
-      TrezorUserEnvLink.api.pressYes();
+      // Auto-confirm on emulator via HTTP API
+      emulatorPressYes();
 
       const result = await TrezorConnect.getAddress({
         path: "m/84'/0'/0'/0/0",
@@ -154,7 +163,7 @@ describe('Trezor Node.js Integration Tests', () => {
         return;
       }
 
-      TrezorUserEnvLink.api.pressYes();
+      emulatorPressYes();
 
       const result = await TrezorConnect.getAddress({
         path: "m/44'/0'/0'/0/0",
@@ -175,7 +184,7 @@ describe('Trezor Node.js Integration Tests', () => {
         return;
       }
 
-      TrezorUserEnvLink.api.pressYes();
+      emulatorPressYes();
 
       const result = await TrezorConnect.getAddress({
         path: "m/49'/0'/0'/0/0",
@@ -196,7 +205,7 @@ describe('Trezor Node.js Integration Tests', () => {
         return;
       }
 
-      TrezorUserEnvLink.api.pressYes();
+      emulatorPressYes();
 
       const result = await TrezorConnect.getPublicKey({
         path: "m/84'/0'/0'",
@@ -222,7 +231,7 @@ describe('Trezor Node.js Integration Tests', () => {
 
       // Start auto-confirm loop for multi-step confirmation
       const confirmLoop = setInterval(() => {
-        TrezorUserEnvLink.api.pressYes().catch(() => {});
+        emulatorPressYes();
       }, 500);
 
       try {
@@ -253,7 +262,7 @@ describe('Trezor Node.js Integration Tests', () => {
         return;
       }
 
-      TrezorUserEnvLink.api.pressYes();
+      emulatorPressYes();
 
       const result = await TrezorConnect.getAddress({
         bundle: [
@@ -315,7 +324,7 @@ describe('Trezor Node.js Integration Tests', () => {
 
       // Start auto-confirm loop for multi-step signing
       const confirmLoop = setInterval(() => {
-        TrezorUserEnvLink.api.pressYes().catch(() => {});
+        emulatorPressYes();
       }, 300);
 
       try {
