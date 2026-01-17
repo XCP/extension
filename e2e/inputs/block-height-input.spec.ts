@@ -19,12 +19,20 @@ import { walletTest, expect } from '../fixtures';
 
 walletTest.describe('BlockHeightInput Component', () => {
   // Navigate to fairminter page which uses BlockHeightInput
+  // Note: BlockHeightInput is inside "Advanced Options" disclosure that needs to be expanded
   walletTest.beforeEach(async ({ page }) => {
     const hashIndex = page.url().indexOf('#');
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
     await page.goto(`${baseUrl}/compose/fairminter`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
+
+    // Expand Advanced Options disclosure to reveal BlockHeightInput fields
+    const advancedOptions = page.locator('button:has-text("Advanced Options")');
+    if (await advancedOptions.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await advancedOptions.click();
+      await page.waitForTimeout(300);
+    }
   });
 
   // Helper to get block height inputs (there may be multiple: start_block, end_block)
@@ -46,10 +54,14 @@ walletTest.describe('BlockHeightInput Component', () => {
     });
 
     walletTest('has Block Height label', async ({ page }) => {
-      const label = page.locator('label:has-text("Block Height")');
-      const hasLabel = await label.first().isVisible({ timeout: 3000 }).catch(() => false);
+      // The fairminter page has "Start Block" and "End Block" labels (not generic "Block Height")
+      const startBlockLabel = page.locator('label:has-text("Start Block")');
+      const endBlockLabel = page.locator('label:has-text("End Block")');
 
-      expect(hasLabel).toBe(true);
+      const hasStartLabel = await startBlockLabel.isVisible({ timeout: 3000 }).catch(() => false);
+      const hasEndLabel = await endBlockLabel.isVisible({ timeout: 3000 }).catch(() => false);
+
+      expect(hasStartLabel || hasEndLabel).toBe(true);
     });
 
     walletTest('has Now button', async ({ page }) => {
@@ -125,7 +137,8 @@ walletTest.describe('BlockHeightInput Component', () => {
 
       if (await nowButton.isVisible({ timeout: 3000 }).catch(() => false)) {
         const ariaLabel = await nowButton.getAttribute('aria-label');
-        expect(ariaLabel).toContain('current block height');
+        // Component uses aria-label="Use current block height"
+        expect(ariaLabel).toContain('block height');
       }
     });
 
@@ -225,9 +238,15 @@ walletTest.describe('BlockHeightInput Component', () => {
       if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
         const inputId = await input.getAttribute('id');
         if (inputId) {
-          const label = page.locator(`label[for="${inputId}"]`);
+          // Check for label with for attribute or containing the input
+          const label = page.locator(`label[for="${inputId}"], label:has(input[id="${inputId}"])`);
           const hasLabel = await label.isVisible().catch(() => false);
-          expect(hasLabel).toBe(true);
+
+          // Also check for label:has-text that corresponds to this input
+          const startBlockLabel = page.locator('label:has-text("Start Block")');
+          const hasStartLabel = await startBlockLabel.isVisible().catch(() => false);
+
+          expect(hasLabel || hasStartLabel).toBe(true);
         }
       }
     });

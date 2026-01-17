@@ -72,7 +72,8 @@ walletTest.describe('AssetSelectInput Component', () => {
     walletTest('search input allows typing', async ({ page }) => {
       const hashIndex = page.url().indexOf('#');
       const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
-      await page.goto(`${baseUrl}/compose/dividend`);
+      // Route requires asset parameter: /compose/dividend/:asset
+      await page.goto(`${baseUrl}/compose/dividend/XCP`);
       await page.waitForLoadState('networkidle');
 
       // Find any combobox input (used by HeadlessUI)
@@ -90,7 +91,7 @@ walletTest.describe('AssetSelectInput Component', () => {
     walletTest('dropdown shows options on click', async ({ page }) => {
       const hashIndex = page.url().indexOf('#');
       const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
-      await page.goto(`${baseUrl}/compose/dividend`);
+      await page.goto(`${baseUrl}/compose/dividend/XCP`);
       await page.waitForLoadState('networkidle');
 
       // Find combobox button or input
@@ -122,7 +123,7 @@ walletTest.describe('AssetSelectInput Component', () => {
     walletTest('typing filters results', async ({ page }) => {
       const hashIndex = page.url().indexOf('#');
       const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
-      await page.goto(`${baseUrl}/compose/dividend`);
+      await page.goto(`${baseUrl}/compose/dividend/XCP`);
       await page.waitForLoadState('networkidle');
 
       const comboboxInput = page.locator('[role="combobox"] input, input[class*="uppercase"]').first();
@@ -152,7 +153,7 @@ walletTest.describe('AssetSelectInput Component', () => {
     walletTest('can select from dropdown', async ({ page }) => {
       const hashIndex = page.url().indexOf('#');
       const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
-      await page.goto(`${baseUrl}/compose/dividend`);
+      await page.goto(`${baseUrl}/compose/dividend/XCP`);
       await page.waitForLoadState('networkidle');
 
       const comboboxButton = page.locator('[role="combobox"] button, button[class*="Combobox"]').first();
@@ -180,7 +181,7 @@ walletTest.describe('AssetSelectInput Component', () => {
     walletTest('shows pinned assets on initial dropdown', async ({ page }) => {
       const hashIndex = page.url().indexOf('#');
       const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
-      await page.goto(`${baseUrl}/compose/dividend`);
+      await page.goto(`${baseUrl}/compose/dividend/XCP`);
       await page.waitForLoadState('networkidle');
 
       const comboboxButton = page.locator('[role="combobox"] button').first();
@@ -205,7 +206,7 @@ walletTest.describe('AssetSelectInput Component', () => {
     walletTest('shows loading indicator during search', async ({ page }) => {
       const hashIndex = page.url().indexOf('#');
       const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
-      await page.goto(`${baseUrl}/compose/dividend`);
+      await page.goto(`${baseUrl}/compose/dividend/XCP`);
       await page.waitForLoadState('networkidle');
 
       const comboboxInput = page.locator('[role="combobox"] input, input[class*="uppercase"]').first();
@@ -231,7 +232,7 @@ walletTest.describe('AssetSelectInput Component', () => {
     walletTest('converts input to uppercase', async ({ page }) => {
       const hashIndex = page.url().indexOf('#');
       const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
-      await page.goto(`${baseUrl}/compose/dividend`);
+      await page.goto(`${baseUrl}/compose/dividend/XCP`);
       await page.waitForLoadState('networkidle');
 
       const comboboxInput = page.locator('[role="combobox"] input, input[class*="uppercase"]').first();
@@ -250,7 +251,7 @@ walletTest.describe('AssetSelectInput Component', () => {
     walletTest('clears on selection change', async ({ page }) => {
       const hashIndex = page.url().indexOf('#');
       const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
-      await page.goto(`${baseUrl}/compose/dividend`);
+      await page.goto(`${baseUrl}/compose/dividend/XCP`);
       await page.waitForLoadState('networkidle');
 
       const comboboxInput = page.locator('[role="combobox"] input, input[class*="uppercase"]').first();
@@ -271,7 +272,7 @@ walletTest.describe('AssetSelectInput Component', () => {
     walletTest('selected asset is included in form', async ({ page }) => {
       const hashIndex = page.url().indexOf('#');
       const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
-      await page.goto(`${baseUrl}/compose/dividend`);
+      await page.goto(`${baseUrl}/compose/dividend/XCP`);
       await page.waitForLoadState('networkidle');
 
       // The combobox should have form integration

@@ -28,10 +28,12 @@ const RESERVED_NAME = 'BTC'; // Reserved
 
 walletTest.describe('AssetNameInput Component', () => {
   // Navigate to issue asset page which uses AssetNameInput
+  // Note: Route is /compose/issuance/:asset? where :asset is optional
+  // Using /compose/issuance without a trailing path avoids the parent asset prefix
   walletTest.beforeEach(async ({ page }) => {
     const hashIndex = page.url().indexOf('#');
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
-    await page.goto(`${baseUrl}/compose/issuance/issue`);
+    await page.goto(`${baseUrl}/compose/issuance`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
   });
