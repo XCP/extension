@@ -570,7 +570,7 @@ describe('TrezorAdapter', () => {
       });
 
       expect(result).toEqual({
-        signedPsbtHex: '02000000...',
+        signedTxHex: '02000000...',
       });
       expect(mockSignTransaction).toHaveBeenCalledWith(
         expect.objectContaining({

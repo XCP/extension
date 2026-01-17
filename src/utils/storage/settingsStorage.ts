@@ -103,6 +103,15 @@ export interface AppSettings {
   /** Block signing if local transaction verification fails (most secure) */
   strictTransactionVerification: boolean;
 
+  // Developer / Hardware Wallet Testing
+  /**
+   * Enable Trezor emulator mode for development testing.
+   * When enabled, Trezor Connect uses direct bridge communication without popup.
+   * WARNING: This bypasses user confirmation dialogs - only enable for testing!
+   * Separate from transactionDryRun to prevent accidental security weakening.
+   */
+  trezorEmulatorMode?: boolean;
+
   // Flags
   hasVisitedRecoverBitcoin?: boolean;
 }
@@ -126,6 +135,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   counterpartyApiBase: 'https://api.counterparty.io:4000',
   defaultOrderExpiration: 8064, // ~8 weeks (56 days) at 10min/block
   strictTransactionVerification: true, // Block signing on verification failure (most secure)
+  trezorEmulatorMode: false, // Never enable by default - security critical
   connectedWebsites: [],
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
   hasVisitedRecoverBitcoin: false,
@@ -297,6 +307,7 @@ function normalizeSettings(settings: AppSettings): AppSettings {
   normalized.enableAdvancedBroadcasts = Boolean(normalized.enableAdvancedBroadcasts);
   normalized.transactionDryRun = Boolean(normalized.transactionDryRun);
   normalized.strictTransactionVerification = normalized.strictTransactionVerification !== false; // default true
+  normalized.trezorEmulatorMode = Boolean(normalized.trezorEmulatorMode); // default false, must be explicitly enabled
   normalized.hasVisitedRecoverBitcoin = Boolean(normalized.hasVisitedRecoverBitcoin);
 
   // Validate optional string fields

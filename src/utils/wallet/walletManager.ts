@@ -1236,8 +1236,8 @@ export class WalletManager {
     });
 
     // Note: Trezor returns a fully signed raw transaction hex, not a PSBT
-    // The caller should be aware of this
-    return result.signedPsbtHex;
+    // The signedTxHex property name makes this explicit
+    return result.signedTxHex;
   }
 
   /**

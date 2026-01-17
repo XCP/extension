@@ -7,6 +7,59 @@
  * Supports two modes:
  * - Production mode (popup: true): Opens Trezor Connect popup for user interaction
  * - Test/Emulator mode (popup: false): Direct communication with Trezor Bridge for automated testing
+ *
+ * ---
+ * ADR-017: Hardware Wallet Integration Architecture
+ * ---
+ *
+ * **Context**: Users need hardware wallet support (Trezor, Ledger) for secure key storage
+ * where private keys never leave the device. Browser extensions have unique constraints:
+ * MV3 service workers, popup lifecycle, and cross-origin communication.
+ *
+ * **Decision**: Implement hardware wallets via a unified adapter interface with device-specific
+ * implementations:
+ *
+ * 1. **Vendor Abstraction (IHardwareWalletAdapter)**
+ *    - Unified interface for all hardware wallet vendors
+ *    - Device-specific logic isolated in adapter implementations
+ *    - Allows adding new vendors (Ledger, etc.) without changing core wallet code
+ *
+ * 2. **Trezor Connect Webextension Package**
+ *    - Uses @trezor/connect-webextension specifically for MV3 service worker compatibility
+ *    - Standard @trezor/connect does NOT work in service workers
+ *    - Communicates via Trezor Bridge (localhost:21325) or iframe popup
+ *
+ * 3. **No Key Material in Extension**
+ *    - Private keys NEVER leave the hardware device
+ *    - Extension sends unsigned transactions to device
+ *    - Device returns signatures only
+ *    - Eliminates risk class: memory extraction, JS heap inspection, extension compromise
+ *
+ * 4. **PSBT-Based Signing Flow**
+ *    - PSBT (BIP-174) format for SegWit transactions
+ *    - Extracts inputs/outputs from PSBT for Trezor SDK format
+ *    - Reference transactions fetched for non-SegWit inputs (Trezor requirement)
+ *
+ * 5. **Two Operational Modes**
+ *    - **Production (popup: true)**: User interacts via Trezor Connect popup
+ *    - **Testing (popup: false)**: Direct Bridge communication for emulator testing
+ *    - Mode controlled via settings, not hardcoded
+ *
+ * **Alternatives Considered**:
+ * - Direct USB communication: Blocked by browser security model
+ * - WebUSB API: Limited browser support, not in Firefox
+ * - Injecting Trezor Connect into content script: CSP violations in MV3
+ *
+ * **Trade-offs**:
+ * - Trezor popup UX adds friction (but user expects this for hardware wallets)
+ * - Bridge dependency for testing (mitigated by Docker-based Trezor emulator)
+ * - @trezor/connect-webextension pulls large dependency tree (mitigated by build-time tree shaking)
+ *
+ * **Security Properties**:
+ * - Device-bound keys: Keys generated on device, never exported
+ * - Physical confirmation: User must confirm on device display
+ * - WYSIWYS: What You See Is What You Sign - device shows transaction details
+ * - No trust in extension: Compromised extension cannot sign without device
  */
 
 import TrezorConnect, { DEVICE_EVENT, DEVICE } from '@trezor/connect-webextension';
@@ -214,7 +267,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       // Determine test mode from multiple sources:
       // 1. Build-time flag (set via TREZOR_TEST_MODE env var during build)
       // 2. Explicit option passed to init()
-      // 3. Settings transactionDryRun flag
+      // 3. Settings trezorEmulatorMode flag (explicit developer setting)
       // @ts-expect-error - __TREZOR_TEST_MODE__ is defined by vite at build time
       let isTestMode = typeof __TREZOR_TEST_MODE__ !== 'undefined' && __TREZOR_TEST_MODE__ === true;
 
@@ -223,10 +276,12 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       }
 
       if (!isTestMode) {
-        // Check settings for transactionDryRun
+        // Check settings for trezorEmulatorMode (explicit emulator setting)
+        // Note: This is intentionally separate from transactionDryRun to prevent
+        // accidental security weakening when users just want to preview transactions
         try {
           const settings = await getSettings();
-          isTestMode = settings.transactionDryRun === true;
+          isTestMode = settings.trezorEmulatorMode === true;
         } catch {
           // Settings not available, use production mode
         }
@@ -616,7 +671,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
    * hex, not a Partially Signed Bitcoin Transaction.
    *
    * This means:
-   * - The `signedPsbtHex` return value is actually a raw transaction hex
+   * - The `signedTxHex` return value is a fully signed raw transaction hex
    * - The transaction is effectively finalized (all signatures applied)
    * - It is ready for immediate broadcast, not for further PSBT processing
    * - This differs from standard PSBT workflow where multiple parties
@@ -628,9 +683,9 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
    * @param request - PSBT signing request containing:
    *   - psbtHex: The PSBT to sign (parsed internally)
    *   - inputPaths: Map of input index to BIP32 derivation paths
-   * @returns Object with signedPsbtHex (actually a raw transaction hex)
+   * @returns Object with signedTxHex (fully signed raw transaction hex, ready for broadcast)
    */
-  async signPsbt(request: HardwarePsbtSignRequest): Promise<{ signedPsbtHex: string }> {
+  async signPsbt(request: HardwarePsbtSignRequest): Promise<{ signedTxHex: string }> {
     this.ensureInitialized();
 
     const { psbtHex, inputPaths } = request;
@@ -653,6 +708,16 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         );
       }
 
+      // Validate input value - don't silently default to 0
+      if (input.value === undefined || input.value === null) {
+        throw new HardwareWalletError(
+          `PSBT input ${i} is missing value (amount in satoshis)`,
+          'INVALID_PSBT',
+          'trezor',
+          'Transaction data is incomplete. The input amount is missing.'
+        );
+      }
+
       // Determine script type from the derivation path (purpose)
       const purpose = path[0] & ~DerivationPaths.HARDENED;
       const scriptType = getScriptTypeFromPurpose(purpose);
@@ -661,7 +726,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         address_n: path,
         prev_hash: input.txid,
         prev_index: input.vout,
-        amount: String(input.value ?? 0),
+        amount: String(input.value),
         script_type: scriptType,
       });
     }
@@ -737,11 +802,10 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       );
     }
 
-    // Trezor returns a fully signed raw transaction
-    // For PSBT compatibility, we return this as the "signed PSBT"
-    // The caller should be aware this is actually a finalized raw tx
+    // Trezor returns a fully signed raw transaction, not a PSBT
+    // The signedTxHex property name makes this clear to callers
     return {
-      signedPsbtHex: result.payload.serializedTx,
+      signedTxHex: result.payload.serializedTx,
     };
   }
 

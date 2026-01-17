@@ -156,10 +156,14 @@ export interface HardwarePsbtSignRequest {
 
 /**
  * PSBT signing result
+ *
+ * Note: For hardware wallets like Trezor, this is actually a fully signed
+ * raw transaction hex, not a PSBT. The hardware wallet signs completely
+ * in one operation and returns a finalized transaction ready for broadcast.
  */
 export interface HardwarePsbtSignResult {
-  /** Signed PSBT hex (with signatures added) */
-  signedPsbtHex: string;
+  /** Signed transaction hex (fully signed raw transaction, ready for broadcast) */
+  signedTxHex: string;
 }
 
 /**
@@ -194,6 +198,17 @@ export const DerivationPaths = {
 
   /** Get BIP44 path for Bitcoin */
   getBip44Path(addressFormat: AddressFormat, account: number = 0, change: number = 0, index: number = 0): number[] {
+    // Validate path indices are non-negative to prevent malformed derivation paths
+    if (account < 0 || change < 0 || index < 0) {
+      throw new Error(`Invalid derivation path indices: account=${account}, change=${change}, index=${index}. All values must be non-negative.`);
+    }
+
+    // Validate indices are within valid BIP32 range (31-bit unsigned for hardened)
+    const MAX_INDEX = 0x7FFFFFFF; // 2^31 - 1
+    if (account > MAX_INDEX || change > MAX_INDEX || index > MAX_INDEX) {
+      throw new Error(`Derivation path index out of range. Maximum value is ${MAX_INDEX}.`);
+    }
+
     const purpose = this.getPurpose(addressFormat);
     const coinType = 0; // Bitcoin mainnet
 
