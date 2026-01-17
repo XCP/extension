@@ -121,29 +121,40 @@ export function IssuanceForm({
     });
   };
 
+  // Process form to convert quantity to satoshis and set divisible as string
+  const processedFormAction = async (formData: FormData) => {
+    // Convert quantity to satoshis if divisible
+    const quantityInt = isDivisible
+      ? toBigNumber(amount).multipliedBy(100000000).toFixed(0)
+      : toBigNumber(amount).toFixed(0);
+
+    formData.set('quantity', quantityInt);
+    formData.set('divisible', String(isDivisible));
+
+    // If inscribing, convert file to base64 and set as description
+    if (inscribeEnabled) {
+      if (selectedFile) {
+        try {
+          const base64Data = await fileToBase64(selectedFile);
+          formData.set("description", base64Data);
+          formData.set("mime_type", selectedFile.type);
+          formData.set("encoding", "taproot");
+        } catch (error) {
+          setFileError("Failed to process file");
+          return;
+        }
+      }
+    } else {
+      // Use the text description if not inscribing
+      formData.set("description", description);
+    }
+
+    formAction(formData);
+  };
+
   return (
     <ComposerForm
-      formAction={async (formData: FormData) => {
-        // If inscribing, convert file to base64 and set as description
-        if (inscribeEnabled) {
-          if (selectedFile) {
-            try {
-              const base64Data = await fileToBase64(selectedFile);
-              formData.set("description", base64Data);
-              formData.set("mime_type", selectedFile.type);
-              formData.set("encoding", "taproot");
-            } catch (error) {
-              setFileError("Failed to process file");
-              return;
-            }
-          }
-        } else {
-          // Use the text description if not inscribing
-          formData.set("description", description);
-        }
-        
-        formAction(formData);
-      }}
+      formAction={processedFormAction}
       header={
         <>
           {initialParentAsset && (
@@ -175,8 +186,6 @@ export function IssuanceForm({
       }
       submitDisabled={!isAssetNameValid || (inscribeEnabled && !selectedFile)}
     >
-          {/* Hidden field to indicate this is new asset creation (vs existing asset operations) */}
-          <input type="hidden" name="_isNewAsset" value="true" />
           <AssetNameInput
             name="asset"
             value={assetName}

@@ -186,48 +186,10 @@ export async function normalizeFormData(
       continue;
     }
 
-    // Special handling for issuance composeType
-    // Covers: new asset creation, issue-supply, lock-supply, update-description, etc.
+    // For issuance operations, quantity is already converted by the form
+    // (both new asset creation and issue-supply forms handle conversion)
     if (composeType === 'issuance') {
-      // Case 1: New asset creation - form sets _isNewAsset="true"
-      // Use form's divisible field directly (checkbox "on" = true, missing = false)
-      if (rawData['_isNewAsset'] === 'true') {
-        const isDivisible = rawData['divisible'] === 'on';
-        if (isDivisible) {
-          normalizedData[quantityField] = toSatoshis(value.toString());
-        } else {
-          normalizedData[quantityField] = value.toString();
-        }
-        continue;
-      }
-
-      // Case 2: Issue-supply - form pre-converts and sets divisible="true"/"false"
-      // Don't double-convert, quantity is already in satoshi form
-      if (rawData['divisible'] === 'true' || rawData['divisible'] === 'false') {
-        normalizedData[quantityField] = value.toString();
-        continue;
-      }
-
-      // Case 3: Other existing asset operations (lock-supply, update-description, etc.)
-      // Quantity is typically 0, but fetch asset info if needed
-      try {
-        const details = await fetchAssetDetails(assetName);
-        if (details) {
-          assetInfoCache.set(assetName, details);
-          const isDivisible = details.divisible ?? false;
-          if (isDivisible) {
-            normalizedData[quantityField] = toSatoshis(value.toString());
-          } else {
-            normalizedData[quantityField] = value.toString();
-          }
-        } else {
-          // Null response - leave quantity as-is
-          normalizedData[quantityField] = value.toString();
-        }
-      } catch {
-        // Error fetching - leave quantity as-is (likely 0 for these operations)
-        normalizedData[quantityField] = value.toString();
-      }
+      normalizedData[quantityField] = value.toString();
       continue;
     }
 
