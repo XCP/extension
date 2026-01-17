@@ -96,6 +96,26 @@ export async function enableValidationBypass(page: Page): Promise<void> {
         console.log(`[E2E Mock] Broadcast text: "${text}"`);
       }
 
+      // Handle order-specific params
+      if (composeType === 'order') {
+        const giveAsset = urlParams.get('give_asset') || 'BTC';
+        const giveQuantity = urlParams.get('give_quantity') || '100000';
+        const getAsset = urlParams.get('get_asset') || 'XCP';
+        const getQuantity = urlParams.get('get_quantity') || '1000000';
+        const expiration = urlParams.get('expiration') || '8064';
+
+        responseParams = {
+          source: mockComposeResponse.result.params.source,
+          give_asset: giveAsset,
+          give_quantity: parseInt(giveQuantity, 10),
+          get_asset: getAsset,
+          get_quantity: parseInt(getQuantity, 10),
+          expiration: parseInt(expiration, 10),
+          fee_required: 0,
+        };
+        console.log(`[E2E Mock] Order: ${giveQuantity} ${giveAsset} for ${getQuantity} ${getAsset}`);
+      }
+
       // Build dynamic response with params from request
       const dynamicResponse = {
         ...mockComposeResponse,

@@ -31,13 +31,16 @@ walletTest.describe('TextAreaInput Component', () => {
     await page.waitForTimeout(500);
   });
 
-  // Helper to get the message textarea
-  const getMessageTextarea = (page: any) => page.locator('textarea[name="message"]');
+  // Helper to get the message textarea - TextAreaInput defaults to name="textarea"
+  // Look for textarea with placeholder containing "message" or the first textarea
+  const getMessageTextarea = (page: any) => page.locator('textarea[placeholder*="message" i], textarea').first();
 
   walletTest.describe('Rendering', () => {
     walletTest('renders textarea element', async ({ page }) => {
       const textarea = getMessageTextarea(page);
-      await expect(textarea).toBeVisible({ timeout: 5000 });
+      // Use catch pattern for resilience
+      const isVisible = await textarea.isVisible({ timeout: 5000 }).catch(() => false);
+      expect(isVisible).toBe(true);
     });
 
     walletTest('renders with label', async ({ page }) => {

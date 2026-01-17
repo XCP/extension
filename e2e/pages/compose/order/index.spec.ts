@@ -14,6 +14,16 @@ import {
 } from '../../../helpers/compose-test-helpers';
 
 walletTest.describe('Compose Order Page (/compose/order)', () => {
+  // Helper to navigate to order form with asset parameter
+  const goToOrderForm = async (page: any) => {
+    const hashIndex = page.url().indexOf('#');
+    const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
+    // Order form requires asset parameter: /compose/order/:asset
+    await page.goto(`${baseUrl}/compose/order/XCP`);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+  };
+
   walletTest('can navigate to order form from actions', async ({ page }) => {
     await navigateTo(page, 'actions');
     await expect(page).toHaveURL(/actions/);
@@ -28,86 +38,83 @@ walletTest.describe('Compose Order Page (/compose/order)', () => {
     }
   });
 
-  walletTest('order form has give and get fields', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/order'));
-    await page.waitForLoadState('networkidle');
+  walletTest('order form has Buy/Sell tabs', async ({ page }) => {
+    await goToOrderForm(page);
 
-    if (page.url().includes('/compose/order')) {
-      const hasGive = await page.locator('text=/Give|Sell|You Pay/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasGet = await page.locator('text=/Get|Buy|You Receive/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasAssetSelect = await compose.common.assetSelect(page).isVisible({ timeout: 3000 }).catch(() => false);
+    const buyTab = compose.order.buyTab(page);
+    const sellTab = compose.order.sellTab(page);
 
-      expect(hasGive || hasGet || hasAssetSelect).toBe(true);
-    }
+    const hasBuyTab = await buyTab.isVisible({ timeout: 5000 }).catch(() => false);
+    const hasSellTab = await sellTab.isVisible({ timeout: 3000 }).catch(() => false);
+
+    expect(hasBuyTab || hasSellTab).toBe(true);
   });
 
-  walletTest('order form has amount inputs', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/order'));
-    await page.waitForLoadState('networkidle');
+  walletTest('order form has amount and price inputs', async ({ page }) => {
+    await goToOrderForm(page);
 
-    if (page.url().includes('/compose/order')) {
-      const amountInputs = page.locator('input[type="number"], input[name*="amount"], input[placeholder*="Amount"]');
-      const count = await amountInputs.count();
+    const amountInput = compose.order.amountInput(page);
+    const priceInput = compose.order.priceInput(page);
 
-      expect(count).toBeGreaterThan(0);
-    }
+    const hasAmount = await amountInput.isVisible({ timeout: 5000 }).catch(() => false);
+    const hasPrice = await priceInput.isVisible({ timeout: 3000 }).catch(() => false);
+
+    expect(hasAmount && hasPrice).toBe(true);
   });
 
-  walletTest('order form has expiration setting', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/order'));
-    await page.waitForLoadState('networkidle');
+  walletTest('order form has settings button', async ({ page }) => {
+    await goToOrderForm(page);
 
-    if (page.url().includes('/compose/order')) {
-      const hasExpiration = await page.locator('text=/Expir|Duration|Block/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasExpirationInput = await compose.order.expirationInput(page).isVisible({ timeout: 3000 }).catch(() => false);
+    const settingsButton = page.locator('button[aria-label="Order Settings"]');
+    const hasSettings = await settingsButton.isVisible({ timeout: 5000 }).catch(() => false);
 
-      expect(hasExpiration || hasExpirationInput || true).toBe(true);
-    }
+    expect(hasSettings).toBe(true);
   });
 
   walletTest('order form validates required fields', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/order'));
-    await page.waitForLoadState('networkidle');
+    await goToOrderForm(page);
 
-    if (page.url().includes('/compose/order')) {
-      const submitButton = compose.common.submitButton(page);
+    const submitButton = compose.common.submitButton(page);
 
-      // Use expect().toBeVisible() which properly waits
-      try {
-        await expect(submitButton).toBeVisible({ timeout: 5000 });
-        const isDisabled = await submitButton.isDisabled();
-        expect(isDisabled).toBe(true);
-      } catch {
-        // Submit button not visible - form may have different structure, test passes
-        expect(true).toBe(true);
-      }
+    try {
+      await expect(submitButton).toBeVisible({ timeout: 5000 });
+      const isDisabled = await submitButton.isDisabled();
+      expect(isDisabled).toBe(true);
+    } catch {
+      // Submit button not visible - form may have different structure, test passes
+      expect(true).toBe(true);
     }
   });
 });
 
 walletTest.describe('Order Flow - Full Compose Flow', () => {
+  // Helper to navigate to order form with asset parameter
+  const goToOrderForm = async (page: any) => {
+    const hashIndex = page.url().indexOf('#');
+    const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
+    // Order form requires asset parameter: /compose/order/:asset
+    await page.goto(`${baseUrl}/compose/order/XCP`);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+  };
+
   walletTest.beforeEach(async ({ page }) => {
     await enableValidationBypass(page);
     await enableDryRun(page);
   });
 
   walletTest('form → review: valid order shows review page', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/order'));
-    await page.waitForLoadState('networkidle');
+    await goToOrderForm(page);
 
-    if (!page.url().includes('/compose/order')) {
-      return;
+    // Fill order form - amount and price are required
+    const amountInput = compose.order.amountInput(page);
+    const priceInput = compose.order.priceInput(page);
+
+    if (await amountInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await amountInput.fill('1');
     }
-
-    // Fill order form - DEX order requires give asset/amount and get asset/amount
-    const giveQuantityInput = compose.order.giveQuantityInput(page);
-    const getQuantityInput = compose.order.getQuantityInput(page);
-
-    if (await giveQuantityInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await giveQuantityInput.fill('1');
-    }
-    if (await getQuantityInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await getQuantityInput.fill('0.001');
+    if (await priceInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await priceInput.fill('0.001');
     }
     await page.waitForTimeout(500);
 
@@ -125,21 +132,16 @@ walletTest.describe('Order Flow - Full Compose Flow', () => {
   });
 
   walletTest('full flow: order form → review → sign → success', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/order'));
-    await page.waitForLoadState('networkidle');
+    await goToOrderForm(page);
 
-    if (!page.url().includes('/compose/order')) {
-      return;
+    const amountInput = compose.order.amountInput(page);
+    const priceInput = compose.order.priceInput(page);
+
+    if (await amountInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await amountInput.fill('1');
     }
-
-    const giveQuantityInput2 = compose.order.giveQuantityInput(page);
-    const getQuantityInput2 = compose.order.getQuantityInput(page);
-
-    if (await giveQuantityInput2.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await giveQuantityInput2.fill('1');
-    }
-    if (await getQuantityInput2.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await getQuantityInput2.fill('0.001');
+    if (await priceInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await priceInput.fill('0.001');
     }
     await page.waitForTimeout(500);
 

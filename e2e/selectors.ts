@@ -272,13 +272,18 @@ export const compose = {
 
   // DEX order operations (/compose/order/*)
   order: {
-    giveAssetInput: (page: Page) => page.locator('input[placeholder*="give asset"], input[placeholder*="sell"]').first(),
-    giveQuantityInput: (page: Page) => page.locator('input[placeholder*="give quantity"], input[placeholder*="sell amount"]').first(),
-    getAssetInput: (page: Page) => page.locator('input[placeholder*="get asset"], input[placeholder*="buy"]').first(),
-    getQuantityInput: (page: Page) => page.locator('input[placeholder*="get quantity"], input[placeholder*="buy amount"]').first(),
+    // Order form uses AmountWithMaxInput (name="amount") and PriceWithSuggestInput (name="price")
+    amountInput: (page: Page) => page.locator('input[name="amount"]').first(),
+    priceInput: (page: Page) => page.locator('input[name="price"]').first(),
+    quoteAssetSelect: (page: Page) => page.locator('[role="combobox"]').first(),
+    buyTab: (page: Page) => page.locator('button:has-text("Buy")').first(),
+    sellTab: (page: Page) => page.locator('button:has-text("Sell")').first(),
     expirationInput: (page: Page) => page.locator('input[name*="expir"], select[name*="expir"]').first(),
     createOrderButton: (page: Page) => page.locator('button:has-text("Create Order"), button:has-text("Trade")').first(),
     cancelOrderButton: (page: Page) => page.locator('button:has-text("Cancel")').first(),
+    // Legacy selectors for backward compatibility
+    giveQuantityInput: (page: Page) => page.locator('input[name="amount"]').first(),
+    getQuantityInput: (page: Page) => page.locator('input[name="price"]').first(),
   },
 
   // Asset issuance (/compose/issuance/*)
