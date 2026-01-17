@@ -65,7 +65,9 @@ walletTest.describe('Compose Issuance Page (/compose/issuance)', () => {
     await page.waitForURL('**/compose/issuance', { timeout: 10000 });
 
     const nameInput = compose.issuance.assetNameInput(page);
-    await nameInput.fill('invalidname'); // lowercase - invalid
+    // Note: Component auto-uppercases input, so "invalidname" becomes "INVALIDNAME" which is valid
+    // Use "AB" which is too short (min 4 chars) to test validation
+    await nameInput.fill('AB');
     await nameInput.blur();
     await page.waitForTimeout(500);
 
