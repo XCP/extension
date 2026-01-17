@@ -161,37 +161,45 @@ walletTest.describe('State Persistence - Navigation', () => {
   });
 });
 
-test.describe('State Persistence - Multi-Wallet', () => {
-  test('active wallet selection persists after adding second wallet', async ({ extensionPage }) => {
-    await createWallet(extensionPage, TEST_PASSWORD);
+walletTest.describe('State Persistence - Multi-Wallet', () => {
+  walletTest('active wallet selection persists after adding second wallet', async ({ page }) => {
+    // walletTest already creates a wallet, get its name
+    const firstWalletName = await header.walletSelector(page).textContent();
 
-    const firstWalletName = await header.walletSelector(extensionPage).textContent();
+    // Navigate to wallet selection page
+    await header.walletSelector(page).click();
+    await page.waitForURL(/select-wallet/);
 
-    await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/select-wallet/);
-
-    const addWalletButton = extensionPage.getByRole('button', { name: /Add.*Wallet/i }).first();
+    // Add a second wallet
+    const addWalletButton = page.getByRole('button', { name: /Add.*Wallet/i }).first();
     await expect(addWalletButton).toBeVisible();
     await addWalletButton.click();
 
-    const createOption = extensionPage.getByRole('button', { name: /Create.*Wallet/i });
+    const createOption = page.getByRole('button', { name: /Create.*Wallet/i });
     await expect(createOption).toBeVisible();
     await createOption.click();
 
-    await extensionPage.waitForSelector('text=View 12-word Secret Phrase');
-    await extensionPage.getByText('View 12-word Secret Phrase').click();
-    await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
-    await extensionPage.locator('input[name="password"]').fill(TEST_PASSWORD);
-    await extensionPage.getByRole('button', { name: /Continue/i }).click();
-    await extensionPage.waitForURL(/index/, { timeout: 15000 });
+    await page.waitForSelector('text=View 12-word Secret Phrase');
+    await page.getByText('View 12-word Secret Phrase').click();
+    await page.getByLabel(/I have saved my secret recovery phrase/).check();
+    await page.locator('input[name="password"]').fill(TEST_PASSWORD);
+    await page.getByRole('button', { name: /Continue/i }).click();
+    await page.waitForURL(/index/, { timeout: 15000 });
 
-    const currentWalletName = await header.walletSelector(extensionPage).textContent();
+    // Wait for header to render after page load
+    await page.waitForLoadState('networkidle');
+    await expect(header.walletSelector(page)).toBeVisible({ timeout: 10000 });
+
+    const currentWalletName = await header.walletSelector(page).textContent();
     expect(currentWalletName).not.toBe(firstWalletName);
 
-    await lockWallet(extensionPage);
-    await unlockWallet(extensionPage, TEST_PASSWORD);
+    // Lock and unlock to verify persistence
+    await lockWallet(page);
+    await unlockWallet(page, TEST_PASSWORD);
 
-    await expect(header.walletSelector(extensionPage)).toBeVisible();
+    // Wait for header to fully render after unlock
+    await page.waitForLoadState('networkidle');
+    await expect(header.walletSelector(page)).toBeVisible({ timeout: 10000 });
   });
 });
 
