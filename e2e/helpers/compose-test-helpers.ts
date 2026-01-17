@@ -71,17 +71,37 @@ export async function enableValidationBypass(page: Page): Promise<void> {
 
       console.log(`[E2E Mock] Intercepting compose/${composeType} request for asset: ${assetName}`);
 
+      // Build params based on compose type
+      let responseParams: Record<string, unknown> = {
+        ...mockComposeResponse.result.params,
+        asset: assetName,
+        quantity: parseInt(quantity, 10),
+        destination: destination,
+      };
+
+      // Handle broadcast-specific params
+      if (composeType === 'broadcast') {
+        const text = urlParams.get('text') || '';
+        const value = urlParams.get('value') || '0';
+        const feeFraction = urlParams.get('fee_fraction') || '0';
+        const timestamp = urlParams.get('timestamp') || Math.floor(Date.now() / 1000).toString();
+
+        responseParams = {
+          source: mockComposeResponse.result.params.source,
+          text: text,
+          value: parseFloat(value),
+          fee_fraction: parseFloat(feeFraction),
+          timestamp: parseInt(timestamp, 10),
+        };
+        console.log(`[E2E Mock] Broadcast text: "${text}"`);
+      }
+
       // Build dynamic response with params from request
       const dynamicResponse = {
         ...mockComposeResponse,
         result: {
           ...mockComposeResponse.result,
-          params: {
-            ...mockComposeResponse.result.params,
-            asset: assetName,
-            quantity: parseInt(quantity, 10),
-            destination: destination,
-          },
+          params: responseParams,
           name: composeType,
         },
       };
