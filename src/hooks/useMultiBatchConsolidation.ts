@@ -7,6 +7,7 @@ import {
   type ConsolidationReport
 } from '@/utils/blockchain/bitcoin/consolidationApi';
 import { consolidateBareMultisigBatch } from '@/utils/blockchain/bitcoin/consolidateBatch';
+import { analytics, getBtcBucket } from '@/utils/fathom';
 
 export interface ConsolidationResult {
   batchNumber: number;
@@ -41,6 +42,7 @@ export function useMultiBatchConsolidation() {
     setIsProcessing(true);
     setResults([]);
     const batchResults: ConsolidationResult[] = [];
+    let totalOutputSats = 0;
 
     try {
       // Get the private key once for all batches
@@ -101,6 +103,9 @@ export function useMultiBatchConsolidation() {
           
           await consolidationApi.reportConsolidation(activeAddress.address, report);
 
+          // Accumulate output for analytics
+          totalOutputSats += consolidationResult.outputAmount;
+
           // Add to results
           const result: ConsolidationResult = {
             batchNumber: i + 1,
@@ -131,9 +136,13 @@ export function useMultiBatchConsolidation() {
         }
       }
 
+      // Track successful consolidation with bucketed BTC amount
+      const totalBtc = totalOutputSats / 100000000;
+      analytics.track('consolidate', getBtcBucket(totalBtc));
+
       // All batches successful - navigate to success with results
-      navigate('/consolidation-success', { 
-        state: { 
+      navigate('/consolidation-success', {
+        state: {
           results: batchResults,
           totalBatches: allBatches.length,
           address: activeAddress.address
