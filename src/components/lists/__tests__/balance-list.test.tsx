@@ -65,7 +65,7 @@ vi.mock('@/utils/format', () => ({
 
 vi.mock('@/components/spinner', () => ({
   Spinner: ({ message, className }: { message?: string; className?: string }) => (
-    <div data-testid="spinner" className={className}>{message || 'Loading...'}</div>
+    <div data-testid="spinner" className={className}>{message || 'Loading…'}</div>
   )
 }));
 
@@ -170,7 +170,7 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     expect(screen.getByTestId('spinner')).toBeInTheDocument();
-    expect(screen.getByText('Loading balances...')).toBeInTheDocument();
+    expect(screen.getByText('Loading balances…')).toBeInTheDocument();
   });
 
   it('should fetch BTC balance on mount', async () => {
@@ -230,7 +230,7 @@ describe('BalanceList', () => {
     });
     
     // Now look for the search input
-    expect(screen.getByPlaceholderText('Search balances...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search balances…')).toBeInTheDocument();
   });
 
   it('should show search icon', async () => {
@@ -254,7 +254,7 @@ describe('BalanceList', () => {
     });
     
     // Now interact with the search input
-    const searchInput = screen.getByPlaceholderText('Search balances...');
+    const searchInput = screen.getByPlaceholderText('Search balances…');
     fireEvent.change(searchInput, { target: { value: 'XCP' } });
     
     expect(mockSetSearchQuery).toHaveBeenCalledWith('XCP');
@@ -373,7 +373,7 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      expect(screen.getByText('Searching balances...')).toBeInTheDocument();
+      expect(screen.getByText('Searching balances…')).toBeInTheDocument();
     });
   });
 
@@ -434,11 +434,11 @@ describe('BalanceList', () => {
     
     // Wait for initial loading to complete
     await waitFor(() => {
-      expect(screen.queryByText('Loading balances...')).not.toBeInTheDocument();
+      expect(screen.queryByText('Loading balances…')).not.toBeInTheDocument();
     });
     
     // Now look for the load more message (should show since hasMore=true and not currently fetching)
-    expect(screen.getByText('Scroll to load more...')).toBeInTheDocument();
+    expect(screen.getByText('Scroll to load more…')).toBeInTheDocument();
   });
 
   it('should fetch more balances when scrolling', async () => {
@@ -536,7 +536,7 @@ describe('BalanceList', () => {
     });
     
     // Now check the search input styles
-    const searchInput = screen.getByPlaceholderText('Search balances...');
+    const searchInput = screen.getByPlaceholderText('Search balances…');
     expect(searchInput).toHaveClass('w-full');
     expect(searchInput).toHaveClass('p-2.5');
     expect(searchInput).toHaveClass('pl-8');
