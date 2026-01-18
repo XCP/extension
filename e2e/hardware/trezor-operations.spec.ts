@@ -61,19 +61,27 @@ interface SetupResult {
  * @returns SetupResult with success status and either address or error info
  */
 async function setupHardwareWallet(page: Page): Promise<SetupResult> {
-  // First create a software wallet for authentication
-  const hasCreateWallet = await page.getByText('Create Wallet').isVisible({ timeout: 5000 }).catch(() => false);
-  if (hasCreateWallet) {
+  // Wait for the page to fully load first
+  await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+
+  // Check current URL state - we might be on onboarding, unlock, or index
+  const currentUrl = page.url();
+
+  if (currentUrl.includes('/onboarding') || (currentUrl.includes('popup.html') && !currentUrl.includes('#'))) {
+    // Need to wait for onboarding page content to appear
+    const createButton = page.getByRole('button', { name: 'Create Wallet' });
+    await createButton.waitFor({ state: 'visible', timeout: 15000 });
     await createWallet(page, TEST_PASSWORD);
+  } else if (currentUrl.includes('/unlock')) {
+    // Wallet exists but is locked - shouldn't happen in fresh tests
+    console.log('Unexpected state: wallet is locked');
   }
 
   // Wait for the index page to be fully loaded with authenticated content
   // This ensures the wallet context has settled before navigating to protected routes
-  await page.waitForURL(/index/, { timeout: 10000 });
-
-  // Wait for the main wallet content to appear (confirms auth state is UNLOCKED)
-  // The index page shows wallet address when authenticated
-  await page.waitForTimeout(1000); // Allow wallet context to settle
+  await page.waitForURL(/index/, { timeout: 15000 });
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(500); // Allow wallet context to settle
 
   // Now navigate to connect hardware (protected route)
   const baseUrl = page.url().split('#')[0];

@@ -25,18 +25,31 @@ const EXPECTED_P2WPKH_ADDRESS = 'bc1qannfxke2tfd4l7vhepehpvt05y83v3qsf6nfkk';
  * The connect-hardware page requires authentication
  */
 async function setupWalletForHardwareTest(page: Page): Promise<void> {
-  // Check if we need to create a wallet first
-  const hasCreateWallet = await page.getByText('Create Wallet').isVisible({ timeout: 5000 }).catch(() => false);
+  // Wait for the page to fully load first
+  await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
 
-  if (hasCreateWallet) {
-    // Create a wallet so we can access the protected routes
+  // Check current URL state - we might be on onboarding, unlock, or index
+  const currentUrl = page.url();
+
+  if (currentUrl.includes('/onboarding') || (currentUrl.includes('popup.html') && !currentUrl.includes('#'))) {
+    // Need to wait for onboarding page content to appear
+    const createButton = page.getByRole('button', { name: 'Create Wallet' });
+    await createButton.waitFor({ state: 'visible', timeout: 15000 });
     await createWallet(page, TEST_PASSWORD);
+  } else if (currentUrl.includes('/unlock')) {
+    // Wallet exists but is locked - unlock it
+    // Note: This shouldn't happen in fresh test contexts
+    console.log('Unexpected state: wallet is locked');
   }
 
-  // Wait for wallet context to settle after creation
-  // This ensures AuthRequired component sees UNLOCKED state
-  await page.waitForURL(/index/, { timeout: 10000 });
-  await page.waitForTimeout(1000); // Allow wallet context to settle
+  // At this point, we should be at /index with wallet unlocked
+  // Wait for the wallet context to fully settle
+  await page.waitForURL(/index/, { timeout: 15000 });
+  await page.waitForLoadState('networkidle');
+
+  // Wait for wallet content to appear (confirms auth state is UNLOCKED)
+  // This ensures AuthRequired sees the proper state before navigation
+  await page.waitForTimeout(500);
 }
 
 /**
