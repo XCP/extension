@@ -1,5 +1,5 @@
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaExclamationTriangle } from "@/components/icons";
@@ -92,8 +92,8 @@ function RemoveWallet() {
       <form action={handleFormAction} className="flex flex-col items-center justify-center flex-grow" aria-describedby="remove-wallet-warning">
         <div className="max-w-md w-full bg-red-50 border-2 border-red-500 rounded-xl p-6 mb-6" id="remove-wallet-warning">
           <div className="flex items-center mb-4">
-            <FaExclamationTriangle className="w-6 h-6 text-red-500 mr-2" aria-hidden="true" />
-            <h3 className="text-xl font-bold text-red-700">Warning</h3>
+            <FaExclamationTriangle className="size-6 text-red-500 mr-2" aria-hidden="true" />
+            <h2 className="text-xl font-bold text-red-700">Warning</h2>
           </div>
           <p className="text-red-700 font-medium leading-relaxed">
             Make sure you have backed up your wallet's {walletType === "mnemonic" ? "mnemonic" : "private key"} before removing it.
@@ -107,7 +107,7 @@ function RemoveWallet() {
             innerRef={passwordInputRef}
           />
           <Button type="submit" disabled={pending} fullWidth color="red" aria-label={`Remove ${walletName || "wallet"}`}>
-            {pending ? "Removing..." : `Remove ${walletName || "Wallet"}`}
+            {pending ? "Removing…" : `Remove ${walletName || "Wallet"}`}
           </Button>
         </div>
       </form>

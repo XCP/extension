@@ -133,7 +133,7 @@ export function OrderForm({
         <div className="flex space-x-4">
           <button
             type="button"
-            className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none ${
+            className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded ${
               activeTab === "buy" || (activeTab === "settings" && previousTab === "buy") ? "underline" : ""
             }`}
             onClick={() => handleTabChange("buy")}
@@ -143,7 +143,7 @@ export function OrderForm({
           </button>
           <button
             type="button"
-            className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none ${
+            className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded ${
               activeTab === "sell" || (activeTab === "settings" && previousTab === "sell") ? "underline" : ""
             }`}
             onClick={() => handleTabChange("sell")}
@@ -154,18 +154,18 @@ export function OrderForm({
         </div>
         <button
           type="button"
-          className={`p-2 hover:bg-gray-100 rounded-full transition-colors ${
+          className={`p-2 hover:bg-gray-100 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
             activeTab === "settings" ? "bg-gray-100" : ""
           }`}
           onClick={() => activeTab === "settings" ? handleTabChange(previousTab) : handleTabChange("settings")}
           disabled={false}
           aria-label="Order Settings"
         >
-          <FaCog className="w-4 h-4 text-gray-600" aria-hidden="true" />
+          <FaCog className="size-4 text-gray-600" aria-hidden="true" />
         </button>
       </div>
       {tabLoading ? (
-        <div className="flex justify-center items-center h-[21rem]">Loading...</div>
+        <div className="flex justify-center items-center h-[21rem]">Loading…</div>
       ) : activeTab === "settings" ? (
         <OrderSettings 
           customExpiration={customExpiration}

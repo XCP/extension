@@ -18,7 +18,7 @@ export function Layout({ showFooter = false }: LayoutProps): ReactElement {
   const { headerProps } = useHeader();
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
+    <div className="flex flex-col h-dvh bg-gray-100">
       <Header {...headerProps} />
       <main className="flex-1 overflow-y-auto no-scrollbar relative">
         <Outlet />

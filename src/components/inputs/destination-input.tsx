@@ -78,7 +78,7 @@ export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputPro
       displayHelpText = lookupError;
       helpTextColor = "text-red-600";
     } else if (isLookingUp) {
-      displayHelpText = "Looking up asset owner...";
+      displayHelpText = "Looking up asset owner…";
       helpTextColor = "text-blue-600";
     } else if (lookupResult && isValidAddress) {
       displayHelpText = `Resolved to owner address`;
@@ -108,7 +108,7 @@ export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputPro
           />
           {isLookingUp && (
             <div className="absolute right-2 top-1/2 -translate-y-1/2">
-              <div className="animate-spin h-4 w-4 border-2 border-gray-500 border-t-transparent rounded-full"></div>
+              <div className="animate-spin size-4 border-2 border-gray-500 border-t-transparent rounded-full"></div>
             </div>
           )}
         </div>

@@ -60,10 +60,20 @@ export function BalanceCard({
   // Determine if the asset is divisible for proper decimal formatting
   const isDivisible = token.asset_info?.divisible ?? false;
 
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleClick();
+    }
+  };
+
   return (
     <div
-      className={`relative flex items-center p-4 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 ${className}`}
+      className={`relative flex items-center p-4 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${className}`}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
     >
       {/* Asset Icon */}
       <AssetIcon asset={token.asset} size="lg" className="flex-shrink-0" />

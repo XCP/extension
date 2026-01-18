@@ -33,7 +33,7 @@ export function MarketDispenseCard({
             {onAssetClick ? (
               <button
                 onClick={onAssetClick}
-                className="text-blue-600 hover:text-blue-800"
+                className="text-blue-600 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
               >
                 {dispense.asset}
               </button>
@@ -48,11 +48,11 @@ export function MarketDispenseCard({
         {onCopyTx && (
           <button
             onClick={() => onCopyTx(dispense.tx_hash)}
-            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 font-mono"
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
             title="Copy transaction hash"
           >
             {formatTxid(dispense.tx_hash)}
-            <FaCopy className={`w-3 h-3 ${isCopied ? "text-green-500" : ""}`} />
+            <FaCopy className={`size-3 ${isCopied ? "text-green-500" : ""}`} aria-hidden="true" />
           </button>
         )}
       </div>

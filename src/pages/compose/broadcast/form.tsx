@@ -49,13 +49,6 @@ export function BroadcastForm({
     }
   }, [initialFormData?.text]);
 
-  // Focus textarea on mount (only if not inscribing)
-  useEffect(() => {
-    if (!inscribeEnabled) {
-      const textarea = document.querySelector("textarea[name='text']") as HTMLTextAreaElement;
-      textarea?.focus();
-    }
-  }, [inscribeEnabled]);
   
   // Handlers
   const handleFileChange = (file: File | null) => {
@@ -150,6 +143,7 @@ export function BroadcastForm({
                 required
                 rows={4}
                 disabled={false}
+                autoFocus={!inscribeEnabled}
               />
               {showHelpText && (
                 <Description className="mt-2 text-sm text-gray-500">
@@ -183,7 +177,7 @@ export function BroadcastForm({
                   inputMode="numeric"
                   pattern="\d*"
                   defaultValue={initialFormData?.value || ""}
-                  className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 hover:border-gray-400"
+                  className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 hover:border-gray-400"
                   placeholder="0"
                   disabled={false}
                 />
@@ -205,7 +199,7 @@ export function BroadcastForm({
                   inputMode="numeric"
                   pattern="[0-9]*\.?[0-9]*"
                   defaultValue={initialFormData?.fee_fraction || ""}
-                  className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 hover:border-gray-400"
+                  className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 hover:border-gray-400"
                   placeholder="0"
                   disabled={false}
                 />

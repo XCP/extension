@@ -13,6 +13,7 @@ export default function ApprovalQueue() {
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [confirmingRejectAll, setConfirmingRejectAll] = useState(false);
 
   const getRequestTitle = (request: ApprovalRequest) => {
     switch (request.type) {
@@ -39,7 +40,7 @@ export default function ApprovalQueue() {
     setHeaderProps({
       title,
       rightButton: {
-        icon: <FiX className="w-4 h-4" />,
+        icon: <FiX className="size-4" aria-hidden="true" />,
         onClick: () => window.close(),
         ariaLabel: "Close",
       },
@@ -120,31 +121,30 @@ export default function ApprovalQueue() {
   };
 
   const handleRejectAll = async () => {
-    if (confirm(`Reject all ${requests.length} pending requests?`)) {
-      const approvalService = getApprovalService();
-      for (const request of requests) {
-        try {
-          await approvalService.rejectApproval(request.id, 'User denied the request');
-        } catch (error) {
-          console.error('Failed to reject request:', error);
-        }
+    setConfirmingRejectAll(false);
+    const approvalService = getApprovalService();
+    for (const request of requests) {
+      try {
+        await approvalService.rejectApproval(request.id, 'User denied the request');
+      } catch (error) {
+        console.error('Failed to reject request:', error);
       }
-      window.close();
     }
+    window.close();
   };
 
   const getRequestIcon = (type: ApprovalRequest['type']) => {
     switch (type) {
       case 'connection':
-        return <FiGlobe className="w-5 h-5" />;
+        return <FiGlobe className="size-5" aria-hidden="true" />;
       case 'transaction':
-        return <FiSend className="w-5 h-5" />;
+        return <FiSend className="size-5" aria-hidden="true" />;
       case 'compose':
-        return <FiEdit className="w-5 h-5" />;
+        return <FiEdit className="size-5" aria-hidden="true" />;
       case 'signature':
-        return <FaLock className="w-5 h-5" />;
+        return <FaLock className="size-5" aria-hidden="true" />;
       default:
-        return <FiAlertCircle className="w-5 h-5" />;
+        return <FiAlertCircle className="size-5" aria-hidden="true" />;
     }
   };
 
@@ -159,9 +159,9 @@ export default function ApprovalQueue() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen p-4">
+      <div className="flex items-center justify-center h-dvh p-4">
         <div className="text-center">
-          <p className="text-gray-500">Loading approvals...</p>
+          <p className="text-gray-500">Loading approvals…</p>
         </div>
       </div>
     );
@@ -169,7 +169,7 @@ export default function ApprovalQueue() {
 
   if (requests.length === 0) {
     return (
-      <div className="flex items-center justify-center h-screen p-4">
+      <div className="flex items-center justify-center h-dvh p-4">
         <div className="text-center">
           <p className="text-gray-500">No pending approvals</p>
         </div>
@@ -189,7 +189,7 @@ export default function ApprovalQueue() {
                 <button
                   key={req.id}
                   onClick={() => setCurrentIndex(idx)}
-                  className={`p-2 rounded flex items-center gap-2 ${
+                  className={`p-2 rounded flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                     idx === currentIndex
                       ? 'bg-blue-100 text-blue-700'
                       : 'hover:bg-gray-100 text-gray-600'
@@ -203,12 +203,30 @@ export default function ApprovalQueue() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={handleRejectAll}
-              className="text-xs text-red-600 hover:text-red-700 font-medium whitespace-nowrap ml-2"
-            >
-              Reject All
-            </button>
+            {confirmingRejectAll ? (
+              <div className="flex items-center gap-2 ml-2">
+                <span className="text-xs text-gray-600">Reject all?</span>
+                <button
+                  onClick={handleRejectAll}
+                  className="text-xs text-red-600 hover:text-red-700 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 rounded px-1"
+                >
+                  Yes
+                </button>
+                <button
+                  onClick={() => setConfirmingRejectAll(false)}
+                  className="text-xs text-gray-500 hover:text-gray-700 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 rounded px-1"
+                >
+                  No
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmingRejectAll(true)}
+                className="text-xs text-red-600 hover:text-red-700 font-medium whitespace-nowrap ml-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 rounded px-1"
+              >
+                Reject All
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -259,8 +277,8 @@ function ConnectionApproval({ request }: { request: ApprovalRequest }) {
   return (
     <div className="p-4">
       <div className="bg-white rounded-lg shadow-sm p-4 text-center">
-        <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-3">
-          <FiGlobe className="w-6 h-6 text-blue-600" />
+        <div className="inline-flex items-center justify-center size-12 bg-blue-100 rounded-full mb-3">
+          <FiGlobe className="size-6 text-blue-600" aria-hidden="true" />
         </div>
         <h2 className="text-lg font-semibold mb-1">{domain}</h2>
         <p className="text-xs text-gray-500 break-all mb-3">{request.origin}</p>
@@ -284,7 +302,7 @@ function ComposeApproval({ request }: { request: ApprovalRequest }) {
 
   return (
     <div className="p-4">
-      <p className="text-gray-500">Loading transaction details...</p>
+      <p className="text-gray-500">Loading transaction details…</p>
     </div>
   );
 }
@@ -303,7 +321,7 @@ function TransactionApproval({ request }: { request: ApprovalRequest }) {
   return (
     <div className="p-4 space-y-4">
       <div className="bg-white rounded-lg shadow-sm p-6">
-        <h3 className="font-medium mb-2">Sign Transaction</h3>
+        <h2 className="font-medium mb-2">Sign Transaction</h2>
         <p className="text-sm text-gray-600">{domain} wants to sign a transaction</p>
         <div className="mt-4 p-3 bg-gray-50 rounded text-xs font-mono break-all">
           {request.params?.[0]?.substring(0, 100)}...
@@ -327,7 +345,7 @@ function SignatureApproval({ request }: { request: ApprovalRequest }) {
   return (
     <div className="p-4 space-y-4">
       <div className="bg-white rounded-lg shadow-sm p-6">
-        <h3 className="font-medium mb-2">Sign Message</h3>
+        <h2 className="font-medium mb-2">Sign Message</h2>
         <p className="text-sm text-gray-600">{domain} wants you to sign a message</p>
         <div className="mt-4 p-3 bg-gray-50 rounded">
           <p className="text-sm">{request.params?.[0]}</p>

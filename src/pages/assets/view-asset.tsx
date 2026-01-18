@@ -239,7 +239,7 @@ export default function ViewAsset(): ReactElement {
 
   // Show spinner only if no cached data and still loading
   if (isLoading && !headerAssetInfo) {
-    return <Spinner message="Loading asset details..." />;
+    return <Spinner message="Loading asset details…" />;
   }
 
   // Only show error if there's an actual error and no data to display
@@ -263,7 +263,7 @@ export default function ViewAsset(): ReactElement {
       {/* Actions require full data for ownership checks */}
       <ActionList sections={getActionSections()} />
       <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
-        <h3 className="text-sm font-medium text-gray-900">Asset Details</h3>
+        <h2 className="text-sm font-medium text-gray-900">Asset Details</h2>
         <div className="space-y-2">
           <div className="flex justify-between">
             <span className="text-sm text-gray-500">Supply</span>
@@ -286,13 +286,13 @@ export default function ViewAsset(): ReactElement {
           <div className="flex justify-between">
             <span className="text-sm text-gray-500">Issuer</span>
             <span className="text-sm text-gray-900 font-mono">
-              {headerAssetInfo.issuer ? formatAddress(headerAssetInfo.issuer) : (isLoading ? "Loading..." : "Unknown")}
+              {headerAssetInfo.issuer ? formatAddress(headerAssetInfo.issuer) : (isLoading ? "Loading…" : "Unknown")}
             </span>
           </div>
           <div className="flex justify-between">
             <span className="text-sm text-gray-500">Your Balance</span>
             <span className="text-sm text-gray-900">
-              {assetDetails?.availableBalance || (isLoading ? "Loading..." : "0")}
+              {assetDetails?.availableBalance || (isLoading ? "Loading…" : "0")}
             </span>
           </div>
         </div>
@@ -302,18 +302,18 @@ export default function ViewAsset(): ReactElement {
       <div className="bg-white rounded-lg shadow-sm">
         <button
           onClick={() => setShowDividends(!showDividends)}
-          className="w-full p-4 flex justify-between items-center hover:bg-gray-50 transition-colors"
+          className="w-full p-4 flex justify-between items-center hover:bg-gray-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           aria-expanded={showDividends}
           aria-controls="dividend-history"
         >
           <div className="flex items-center gap-2">
-            <FaHistory className="text-gray-500 w-4 h-4" aria-hidden="true" />
-            <h3 className="text-sm font-medium text-gray-900">Dividend History</h3>
+            <FaHistory className="text-gray-500 size-4" aria-hidden="true" />
+            <h2 className="text-sm font-medium text-gray-900">Dividend History</h2>
           </div>
           {showDividends ? (
-            <FiChevronDown className="text-gray-400 w-4 h-4" aria-hidden="true" />
+            <FiChevronDown className="text-gray-400 size-4" aria-hidden="true" />
           ) : (
-            <FaChevronRight className="text-gray-400 w-4 h-4" aria-hidden="true" />
+            <FaChevronRight className="text-gray-400 size-4" aria-hidden="true" />
           )}
         </button>
         
@@ -321,7 +321,7 @@ export default function ViewAsset(): ReactElement {
           <div id="dividend-history" className="border-t border-gray-100">
             {dividendsLoading && dividends.length === 0 ? (
               <div className="p-4">
-                <Spinner message="Loading dividend history..." />
+                <Spinner message="Loading dividend history…" />
               </div>
             ) : dividendsError ? (
               <div className="p-4 text-center text-red-600 text-sm">
@@ -337,7 +337,8 @@ export default function ViewAsset(): ReactElement {
                   <div
                     key={dividend.tx_hash}
                     onClick={() => navigate(`/transaction/${dividend.tx_hash}`)}
-                    className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(`/transaction/${dividend.tx_hash}`); } }}
+                    className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     role="button"
                     tabIndex={0}
                     aria-label={`View dividend transaction ${dividend.tx_hash}`}
@@ -376,9 +377,9 @@ export default function ViewAsset(): ReactElement {
                       loadDividends();
                     }}
                     disabled={dividendsLoading}
-                    className="w-full py-2 text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50"
+                    className="w-full py-2 text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   >
-                    {dividendsLoading ? "Loading..." : "Load More"}
+                    {dividendsLoading ? "Loading…" : "Load More"}
                   </button>
                 )}
               </div>

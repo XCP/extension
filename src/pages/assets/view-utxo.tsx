@@ -73,7 +73,7 @@ export default function ViewUtxo(): ReactElement {
         }
       },
       rightButton: {
-        icon: copiedToClipboard ? <FaCheck aria-hidden="true" /> : <FaClipboard aria-hidden="true" />,
+        icon: copiedToClipboard ? <FaCheck className="size-4" aria-hidden="true" /> : <FaClipboard className="size-4" aria-hidden="true" />,
         onClick: handleCopyUtxo,
         ariaLabel: "Copy UTXO"
       }
@@ -141,7 +141,7 @@ export default function ViewUtxo(): ReactElement {
     ];
   };
 
-  if (isLoading) return <div className="p-4 text-center text-gray-600">Loading UTXO details...</div>;
+  if (isLoading) return <div className="p-4 text-center text-gray-600">Loading UTXO details…</div>;
   if (error) return <ErrorAlert message={error} onClose={() => setError(null)} />;
 
   return (
@@ -194,13 +194,14 @@ export default function ViewUtxo(): ReactElement {
         {balances.length > 0 && (
           <>
             <hr className="my-4 border-gray-200" />
-            <h3 className="text-sm font-medium text-gray-900">Balances</h3>
+            <h2 className="text-sm font-medium text-gray-900">Balances</h2>
             <div className="mt-2 space-y-2">
               {balances.map((balance, index) => (
-                <div 
-                  key={index} 
-                  className="flex justify-between p-2 -mx-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
+                <div
+                  key={index}
+                  className="flex justify-between p-2 -mx-2 rounded hover:bg-gray-50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                   onClick={() => navigate(`/balance/${balance.asset}`)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/balance/${balance.asset}`); } }}
                   role="button"
                   tabIndex={0}
                   aria-label={`View ${balance.asset} balance`}

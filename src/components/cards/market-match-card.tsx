@@ -23,8 +23,8 @@ export function MarketMatchCard({
   return (
     <div className={`bg-white rounded-lg shadow-sm p-3 ${className}`}>
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-          <FaExchangeAlt className="text-green-600 w-3 h-3" />
+        <div className="size-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+          <FaExchangeAlt className="text-green-600 size-3" aria-hidden="true" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-sm flex-wrap">
@@ -41,11 +41,11 @@ export function MarketMatchCard({
         {onCopyTx && (
           <button
             onClick={(e) => { e.stopPropagation(); onCopyTx(match.tx0_hash); }}
-            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 font-mono flex-shrink-0"
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 font-mono flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
             title="Copy transaction hash"
           >
             {formatTxid(match.tx0_hash)}
-            <FaCopy className={`w-3 h-3 ${isCopied ? "text-green-500" : ""}`} />
+            <FaCopy className={`size-3 ${isCopied ? "text-green-500" : ""}`} aria-hidden="true" />
           </button>
         )}
       </div>

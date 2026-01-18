@@ -143,7 +143,7 @@ export function FairminterSelectInput({
       <img
         src={`https://app.xcp.io/img/icon/${asset}`}
         alt={`${asset} icon`}
-        className="w-5 h-5 rounded-full"
+        className="size-5 rounded-full"
         onError={(e) => {
           (e.target as HTMLImageElement).style.display = "none";
         }}
@@ -168,25 +168,26 @@ export function FairminterSelectInput({
                   </div>
                 )}
                 <ComboboxInput
-                  className={`uppercase w-full border border-gray-300 rounded-md bg-gray-50 py-2 text-sm leading-5 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`uppercase w-full border border-gray-300 rounded-md bg-gray-50 py-2.5 text-sm leading-5 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     selectedAsset ? "pl-10" : "pl-3"
                   } pr-10`}
                   onChange={(event) => handleSearch(event.target.value)}
                   displayValue={(asset: string) => asset}
+                  aria-label={label}
                 />
               </div>
               <ComboboxButton
                 className="absolute inset-y-0 right-0 flex items-center justify-center px-1 m-1 w-11"
               >
                 <FiChevronDown
-                  className="h-5 w-5 text-gray-400"
+                  className="size-4 text-gray-400"
                   aria-hidden="true"
                 />
               </ComboboxButton>
             </div>
             
             {isLoading ? (
-              <div className="mt-2 text-sm text-gray-500">Loading fairminters...</div>
+              <div className="mt-2 text-sm text-gray-500">Loading fairminters…</div>
             ) : error ? (
               <div className="mt-2 text-sm text-red-500">{error}</div>
             ) : filteredFairminters.length > 0 ? (
@@ -196,7 +197,7 @@ export function FairminterSelectInput({
                     key={fairminter.tx_hash}
                     value={fairminter.asset}
                     className={({ active }) =>
-                      `relative cursor-pointer select-none py-2 pl-10 pr-4 ${
+                      `relative cursor-pointer select-none py-2.5 pl-10 pr-4 ${
                         active ? "bg-blue-500 text-white" : "text-gray-900"
                       }`
                     }
@@ -222,7 +223,7 @@ export function FairminterSelectInput({
                               active ? "text-white" : "text-blue-500"
                             }`}
                           >
-                            <FaCheck className="h-5 w-5" aria-hidden="true" />
+                            <FaCheck className="size-4" aria-hidden="true" />
                           </span>
                         )}
                       </>

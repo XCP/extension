@@ -75,14 +75,14 @@ export function ConnectedSiteCard({
         <div className="flex items-center gap-2">
           {/* Icon */}
           <div className="flex-shrink-0">
-            {icon || <FiGlobe className="w-4 h-4 text-gray-400" />}
+            {icon || <FiGlobe className="size-4 text-gray-400" aria-hidden="true" />}
           </div>
           
           {/* Site Details */}
           <div className="min-w-0">
-            <h3 className="font-medium text-sm text-gray-900 truncate">
+            <h2 className="font-medium text-sm text-gray-900 truncate">
               {hostname}
-            </h3>
+            </h2>
             <p className="text-xs text-gray-500 truncate" title={origin}>
               {origin}
             </p>
@@ -97,7 +97,7 @@ export function ConnectedSiteCard({
           title="Disconnect site"
           aria-label={`Disconnect ${hostname}`}
         >
-          <FiX className="w-4 h-4 text-gray-400 group-hover:text-red-500 transition-colors" />
+          <FiX className="size-4 text-gray-400 group-hover:text-red-500 transition-colors" aria-hidden="true" />
         </button>
       </div>
     </div>

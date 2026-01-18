@@ -27,7 +27,7 @@ const UnlockWallet = () => {
     setHeaderProps({
       useLogoTitle: true,
       rightButton: {
-        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => window.open(PATHS.HELP_URL, "_blank"),
         ariaLabel: "Help",
       },

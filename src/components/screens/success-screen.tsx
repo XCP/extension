@@ -92,8 +92,8 @@ export function SuccessScreen({
     <div className="flex items-center justify-center min-h-[calc(100vh-6rem)]">
       <div className="p-6 bg-green-50 rounded-lg shadow-lg text-center max-w-md w-full">
         {/* Success Icon */}
-        <FaCheckCircle 
-          className="text-green-600 w-12 h-12 mx-auto" 
+        <FaCheckCircle
+          className="text-green-600 size-12 mx-auto"
           aria-hidden="true"
         />
         
@@ -118,7 +118,7 @@ export function SuccessScreen({
             role="button"
             tabIndex={0}
             aria-label={`Transaction ID: ${txid}. Click to copy`}
-            className="font-mono text-sm bg-white border border-gray-200 rounded-lg p-3 break-all text-gray-800 select-all cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+            className="font-mono text-sm bg-white border border-gray-200 rounded-lg p-3 break-all text-gray-800 select-all cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-colors duration-200"
           >
             {txid}
           </div>
@@ -135,12 +135,12 @@ export function SuccessScreen({
           >
             {copiedToClipboard ? (
               <>
-                <FaCheck className="w-4 h-4 mr-2" aria-hidden="true" />
+                <FaCheck className="size-4 mr-2" aria-hidden="true" />
                 <span>Copied!</span>
               </>
             ) : (
               <>
-                <FaClipboard className="w-4 h-4 mr-2" aria-hidden="true" />
+                <FaClipboard className="size-4 mr-2" aria-hidden="true" />
                 <span>Copy Transaction ID</span>
               </>
             )}
@@ -152,10 +152,10 @@ export function SuccessScreen({
               href={explorerUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-blue-600 bg-white border border-blue-600 rounded-lg hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+              className="inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-blue-600 bg-white border border-blue-600 rounded-lg hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-colors duration-200"
               aria-label="View transaction on blockchain explorer (opens in new tab)"
             >
-              <FaExternalLinkAlt className="w-4 h-4 mr-2" aria-hidden="true" />
+              <FaExternalLinkAlt className="size-4 mr-2" aria-hidden="true" />
               View on Explorer
             </a>
           )}

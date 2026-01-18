@@ -57,10 +57,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
       // Default error UI
       return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
+        <div className="min-h-dvh flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
           <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
             <div className="flex items-center mb-4">
-              <BiError className="text-2xl text-red-500 mr-3" />
+              <BiError className="text-2xl text-red-500 mr-3" aria-hidden="true" />
               <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
                 Something went wrong
               </h1>
@@ -72,9 +72,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
             <button
               onClick={this.handleReset}
-              className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
-              <FiRefreshCw className="mr-2" />
+              <FiRefreshCw className="mr-2" aria-hidden="true" />
               Try Again
             </button>
           </div>

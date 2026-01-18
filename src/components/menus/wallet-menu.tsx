@@ -40,7 +40,7 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
 
   return (
     <BaseMenu
-      trigger={<HiDotsHorizontal className="w-4 h-4" aria-hidden="true" />}
+      trigger={<HiDotsHorizontal className="size-4" aria-hidden="true" />}
       ariaLabel="Wallet options"
     >
       <MenuItem>
@@ -49,7 +49,7 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
           fullWidth 
           onClick={handleShowSecret}
         >
-          <VscKey className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
+          <VscKey className="mr-3 size-4 text-gray-600" aria-hidden="true" />
           {wallet.type === 'privateKey' ? 'Show Private Key' : 'Show Passphrase'}
         </Button>
       </MenuItem>
@@ -63,7 +63,7 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
           title={isOnlyWallet ? 'Cannot remove only wallet' : undefined}
           className={isOnlyWallet ? 'opacity-50 cursor-not-allowed' : ''}
         >
-          <FaTrash className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
+          <FaTrash className="mr-3 size-4 text-gray-600" aria-hidden="true" />
           Remove {wallet.name}
         </Button>
       </MenuItem>

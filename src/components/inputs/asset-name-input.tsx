@@ -240,7 +240,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
     } else if (!value) {
       displayText = isSubasset ? "Enter a subasset name" : "Enter an asset name";
     } else if (isChecking) {
-      displayText = "Checking availability...";
+      displayText = "Checking availability…";
     } else if (showGreenBorder) {
       displayText = "Asset name is available";
     } else if (helpText) {
@@ -283,7 +283,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
           />
           {isChecking && (
             <div className="absolute right-2 top-1/2 -translate-y-1/2">
-              <div className="animate-spin h-4 w-4 border-2 border-gray-500 border-t-transparent rounded-full"></div>
+              <div className="animate-spin size-4 border-2 border-gray-500 border-t-transparent rounded-full"></div>
             </div>
           )}
         </div>

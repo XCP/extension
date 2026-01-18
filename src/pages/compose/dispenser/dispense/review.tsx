@@ -206,7 +206,7 @@ export function ReviewDispense({
     // Add mempool warning if there are competing transactions
     if (mempoolDispenses.length > 0) {
       const competingTxs = mempoolDispenses.map(tx => 
-        `• ${tx.source.substring(0, 6)}...${tx.source.substring(tx.source.length - 4)} - ${formatAmount({
+        `• ${tx.source.substring(0, 6)}…${tx.source.substring(tx.source.length - 4)} - ${formatAmount({
           value: fromSatoshis(tx.btc_amount, true),
           minimumFractionDigits: 8,
           maximumFractionDigits: 8

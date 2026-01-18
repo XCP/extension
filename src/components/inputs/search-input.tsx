@@ -25,7 +25,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>((
     value,
     onChange,
     onSearch,
-    placeholder = "Search...",
+    placeholder = "Search…",
     label,
     name = "search",
     disabled = false,
@@ -89,7 +89,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>((
       )}
       <div className="relative">
         <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-          <FaSearch className="h-4 w-4 text-gray-400" aria-hidden="true" />
+          <FaSearch className="size-4 text-gray-400" aria-hidden="true" />
         </div>
         <Input
           ref={ref}
@@ -109,7 +109,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>((
           <div className="absolute right-1 top-1/2 -translate-y-1/2">
             {isLoading ? (
               <div className="mr-2">
-                <div className="animate-spin h-4 w-4 border-2 border-gray-500 border-t-transparent rounded-full" />
+                <div className="animate-spin size-4 border-2 border-gray-500 border-t-transparent rounded-full" />
               </div>
             ) : (
               showClearButton && localValue && (
@@ -120,7 +120,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>((
                   aria-label="Clear search"
                   className="px-2 py-1"
                 >
-                  <FiX className="h-4 w-4" />
+                  <FiX className="size-4" aria-hidden="true" />
                 </Button>
               )
             )}

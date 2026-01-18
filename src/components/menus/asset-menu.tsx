@@ -38,7 +38,7 @@ export function AssetMenu({ ownedAsset }: AssetMenuProps): ReactElement {
 
   return (
     <BaseMenu
-      trigger={<BsThreeDots className="w-4 h-4" aria-hidden="true" />}
+      trigger={<BsThreeDots className="size-4" aria-hidden="true" />}
       ariaLabel="Asset actions"
       className="w-56"
     >
@@ -50,7 +50,7 @@ export function AssetMenu({ ownedAsset }: AssetMenuProps): ReactElement {
               fullWidth 
               onClick={() => handleAction('issuance/issue-supply')}
             >
-              <FaCoins className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
+              <FaCoins className="mr-3 size-4 text-gray-600" aria-hidden="true" />
               Issue Supply
             </Button>
           </MenuItem>
@@ -61,7 +61,7 @@ export function AssetMenu({ ownedAsset }: AssetMenuProps): ReactElement {
               fullWidth 
               onClick={() => handleAction('issuance/lock-supply')}
             >
-              <FaLockOpen className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
+              <FaLockOpen className="mr-3 size-4 text-gray-600" aria-hidden="true" />
               Lock Supply
             </Button>
           </MenuItem>
@@ -74,7 +74,7 @@ export function AssetMenu({ ownedAsset }: AssetMenuProps): ReactElement {
           fullWidth 
           onClick={() => handleAction('issuance/update-description')}
         >
-          <FaPen className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
+          <FaPen className="mr-3 size-4 text-gray-600" aria-hidden="true" />
           Change Description
         </Button>
       </MenuItem>
@@ -85,7 +85,7 @@ export function AssetMenu({ ownedAsset }: AssetMenuProps): ReactElement {
           fullWidth 
           onClick={() => handleAction('issuance/transfer-ownership')}
         >
-          <FaExchangeAlt className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
+          <FaExchangeAlt className="mr-3 size-4 text-gray-600" aria-hidden="true" />
           Transfer Ownership
         </Button>
       </MenuItem>

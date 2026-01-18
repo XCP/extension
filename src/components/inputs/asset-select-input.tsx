@@ -99,7 +99,7 @@ export function AssetSelectInput({
       <img
         src={`https://app.xcp.io/img/icon/${asset}`}
         alt={`${asset} icon`}
-        className="w-5 h-5 rounded-full"
+        className="size-5 rounded-full"
         onError={(e) => {
           (e.target as HTMLImageElement).style.display = "none";
         }}
@@ -134,7 +134,7 @@ export function AssetSelectInput({
                   </div>
                 )}
                 <ComboboxInput
-                  className={`uppercase w-full border border-gray-300 rounded-md bg-gray-50 py-2 text-sm leading-5 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`uppercase w-full border border-gray-300 rounded-md bg-gray-50 py-2.5 text-sm leading-5 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     selectedAsset ? "pl-10" : "pl-3"
                   } pr-10`}
                   onChange={(event) => handleSearch(event.target.value)}
@@ -147,12 +147,12 @@ export function AssetSelectInput({
               >
                 {isLoading ? (
                   <FaSpinner
-                    className="h-4 w-4 text-gray-400 animate-spin"
+                    className="size-4 text-gray-400 animate-spin"
                     aria-hidden="true"
                   />
                 ) : (
                   <FiChevronDown
-                    className="h-5 w-5 text-gray-400"
+                    className="size-4 text-gray-400"
                     aria-hidden="true"
                   />
                 )}
@@ -165,7 +165,7 @@ export function AssetSelectInput({
                     key={asset.asset}
                     value={asset.asset}
                     className={({ active }) =>
-                      `relative cursor-pointer select-none py-2 pl-10 pr-4 ${
+                      `relative cursor-pointer select-none py-2.5 pl-10 pr-4 ${
                         active ? "bg-blue-500 text-white" : "text-gray-900"
                       }`
                     }
@@ -184,7 +184,7 @@ export function AssetSelectInput({
                               active ? "text-white" : "text-blue-500"
                             }`}
                           >
-                            <FaCheck className="h-5 w-5" aria-hidden="true" />
+                            <FaCheck className="size-4" aria-hidden="true" />
                           </span>
                         )}
                       </>

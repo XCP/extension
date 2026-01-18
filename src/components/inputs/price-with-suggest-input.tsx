@@ -101,17 +101,19 @@ export function PriceWithSuggestInput({
 
   return (
     <Field className={className}>
-      <Label className="text-sm font-medium text-gray-700 flex justify-between items-center">
+      <Label htmlFor={name} className="text-sm font-medium text-gray-700 flex justify-between items-center">
         <span className="flex items-center">
           {label} <span className="text-red-500">*</span>
         </span>
         {showPairFlip && displayedPairName && (
-          <span
-            className="text-xs text-blue-500 font-normal cursor-pointer"
+          <button
+            type="button"
+            className="text-xs text-blue-500 font-normal cursor-pointer hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
             onClick={handlePairFlip}
+            aria-label={`Flip trading pair to ${isPairFlipped ? tradingPairData?.name : flipPairName(tradingPairData?.name || '')}`}
           >
             {displayedPairName}
-          </span>
+          </button>
         )}
       </Label>
       <div className="relative">

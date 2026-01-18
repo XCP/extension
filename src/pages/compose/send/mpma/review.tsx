@@ -80,7 +80,7 @@ export function ReviewMPMA({
       label: "Send",
       value: "",
       rightElement: isLoadingAssets ? (
-      <div className="text-xs text-gray-500 mt-2">Loading asset information...</div>
+      <div className="text-xs text-gray-500 mt-2">Loading asset information…</div>
     ) : (
       <div className="space-y-2 max-h-48 overflow-y-auto mt-2 w-full">
         {transactions.map((tx: any, idx: number) => (

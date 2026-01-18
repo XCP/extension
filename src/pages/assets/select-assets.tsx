@@ -78,7 +78,7 @@ export default function SelectAssets(): ReactElement {
           }
         : () => navigate(CONSTANTS.PATHS.INDEX),
       rightButton: {
-        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => setIsHelpTextOverride((prev) => !prev),
         ariaLabel: "Toggle help text",
       },
@@ -224,7 +224,7 @@ export default function SelectAssets(): ReactElement {
         to={`${CONSTANTS.PATHS.BALANCE}/${symbol}`}
         className="flex items-center flex-1 cursor-pointer hover:bg-gray-50"
       >
-        <div className="w-8 h-8 flex-shrink-0 mr-3">
+        <div className="size-8 flex-shrink-0 mr-3">
           <img src={imageUrl} alt={symbol} className="w-full h-full object-cover" />
         </div>
         <div>
@@ -244,7 +244,7 @@ export default function SelectAssets(): ReactElement {
             ref={searchInputRef}
             type="text"
             className="w-full p-2 pl-10 border rounded-lg"
-            placeholder="Search assets..."
+            placeholder="Search assets…"
             value={searchQuery}
             onChange={handleSearchChange}
             aria-label="Search assets"
@@ -255,9 +255,9 @@ export default function SelectAssets(): ReactElement {
       <div className="flex-1 px-4">
         {!searchQuery ? (
           <div className="h-full flex flex-col">
-            <h3 className="text-lg font-semibold mb-2" id="select-assets-title">
+            <h2 className="text-lg font-semibold mb-2" id="select-assets-title">
               Pinned Assets
-            </h3>
+            </h2>
             {shouldShowHelpText && (
               <p className="text-sm text-gray-500 mb-4">
                 Pin up to {CONSTANTS.MAX_PINNED_ASSETS} assets to the top of your main screen.
@@ -279,7 +279,7 @@ export default function SelectAssets(): ReactElement {
                       onDrop={(e) => handleDrop(e, index)}
                       onDragEnd={handleDragEnd}
                       onDragLeave={handleDragLeave}
-                      className={`flex items-center justify-between p-3 bg-white rounded-lg shadow-sm cursor-move transition-all ${
+                      className={`flex items-center justify-between p-3 bg-white rounded-lg shadow-sm cursor-move transition-[box-shadow,opacity] ${
                         isDragging ? "shadow-lg opacity-50" : ""
                       } ${
                         isDragOver ? "border-t-2 border-blue-500" : ""
@@ -302,9 +302,9 @@ export default function SelectAssets(): ReactElement {
           </div>
         ) : (
           <div>
-            <h3 className="text-lg font-semibold mb-2">Search Results</h3>
+            <h2 className="text-lg font-semibold mb-2">Search Results</h2>
             {isSearching ? (
-              <div className="text-center py-4">Searching...</div>
+              <div className="text-center py-4">Searching…</div>
             ) : searchResults.length === 0 ? (
               <div className="text-center py-4">No results found</div>
             ) : (

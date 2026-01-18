@@ -40,10 +40,10 @@ function PriceDisplay({
       <button
         type="button"
         onClick={() => setIsFlipped(!isFlipped)}
-        className="p-1 hover:bg-gray-100 rounded-full transition-colors ml-2"
+        className="p-1 hover:bg-gray-100 rounded-full transition-colors ml-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         aria-label="Flip price ratio"
       >
-        <FaExchangeAlt className="w-3 h-3 text-gray-600" />
+        <FaExchangeAlt className="size-3 text-gray-600" aria-hidden="true" />
       </button>
     </div>
   );

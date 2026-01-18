@@ -41,7 +41,6 @@ export default function AddressTypeSettings(): ReactElement {
   const { setHeaderProps } = useHeader();
   const { activeWallet, updateWalletAddressFormat, getPreviewAddressForFormat } = useWallet();
   const [addresses, setAddresses] = useState<{ [key: string]: string }>({});
-  const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedFormat, setSelectedFormat] = useState<AddressFormat | null>(null);
@@ -65,7 +64,7 @@ export default function AddressTypeSettings(): ReactElement {
       title: "Address Type",
       onBack: handleBack,
       rightButton: {
-        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => window.open(CONSTANTS.PATHS.HELP_URL, "_blank"),
         ariaLabel: "Help",
       },
@@ -127,9 +126,7 @@ export default function AddressTypeSettings(): ReactElement {
     
     // Track that a change has been made
     hasChangedType.current = newType !== originalAddressFormat.current;
-    
-    // Show loading state during update
-    setIsLoading(true);
+
     isChanging.current = true;
 
     try {
@@ -142,7 +139,6 @@ export default function AddressTypeSettings(): ReactElement {
       setSelectedFormat(activeWallet.addressFormat);
       hasChangedType.current = activeWallet.addressFormat !== originalAddressFormat.current;
     } finally {
-      setIsLoading(false);
       isChanging.current = false;
     }
   };
@@ -190,16 +186,10 @@ export default function AddressTypeSettings(): ReactElement {
         Address Type Settings
       </h2>
       {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
-      {isLoading && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <Spinner />
-        </div>
-      )}
       <RadioGroup
         value={selectedFormat}
         onChange={handleAddressFormatChange}
         className="space-y-2"
-        disabled={isLoading}
       >
         <SelectionCardGroup>
           {CONSTANTS.AVAILABLE_ADDRESS_TYPES.filter((type) => {

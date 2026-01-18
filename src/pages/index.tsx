@@ -130,11 +130,20 @@ export default function Index(): ReactElement {
             >
               <div className="absolute top-1/2 right-4 -translate-y-1/2">
                 <div
-                  className="py-6 px-3 -m-2 cursor-pointer hover:bg-white/5 rounded"
+                  className="py-6 px-3 -m-2 cursor-pointer hover:bg-white/5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                   onClick={handleAddressSelection}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleAddressSelection(e as unknown as React.MouseEvent);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
                   aria-label="Select another address"
                 >
-                  <FaChevronRight className="w-4 h-4" aria-hidden="true" />
+                  <FaChevronRight className="size-4" aria-hidden="true" />
                 </div>
               </div>
               <div className="text-sm mb-1 font-medium text-center">{activeAddress.name}</div>
@@ -175,7 +184,7 @@ export default function Index(): ReactElement {
       <div className="flex justify-between items-center mb-2">
         <div className="flex space-x-4">
           <button
-            className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none"
+            className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
             style={{ textDecoration: activeTab === "Assets" ? "underline" : "none" }}
             onClick={() => setSearchParams({ tab: "Assets" })}
             aria-label="View Assets"
@@ -183,7 +192,7 @@ export default function Index(): ReactElement {
             Assets
           </button>
           <button
-            className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none"
+            className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
             style={{ textDecoration: activeTab === "Balances" ? "underline" : "none" }}
             onClick={() => setSearchParams({ tab: "Balances" })}
             aria-label="View Balances"
@@ -193,10 +202,10 @@ export default function Index(): ReactElement {
         </div>
         <button
           onClick={() => navigate(CONSTANTS.PATHS.PINNED_ASSETS)}
-          className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+          className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           aria-label="Manage Pinned Assets"
         >
-          <TbPinned className="w-5 h-5 text-gray-600" aria-hidden="true" />
+          <TbPinned className="size-5 text-gray-600" aria-hidden="true" />
         </button>
       </div>
     );

@@ -67,7 +67,7 @@ export const ErrorAlert = memo<ErrorAlertProps>(({
           className="absolute top-2 right-2 z-10"
           aria-label={`Dismiss ${displayTitle.toLowerCase()} message`}
         >
-          <IoClose className={`h-4 w-4 ${styles.icon}`} aria-hidden="true" />
+          <IoClose className={`size-4 ${styles.icon}`} aria-hidden="true" />
         </Button>
       )}
       <div className="pr-8">

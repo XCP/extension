@@ -202,7 +202,7 @@ export default function ViewBalance(): ReactElement {
 
   // Show spinner only if no cached data and still loading
   if (isLoading && !balanceData) {
-    return <Spinner message="Loading balance details..." />;
+    return <Spinner message="Loading balance details…" />;
   }
 
   // Show error only if no data available at all
@@ -223,13 +223,14 @@ export default function ViewBalance(): ReactElement {
       <ActionList sections={getActionSections()} />
       {assetDetails?.utxoBalances && assetDetails.utxoBalances.length > 0 && (
         <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
-          <h3 className="text-sm font-medium text-gray-900">UTXO Balances</h3>
+          <h2 className="text-sm font-medium text-gray-900">UTXO Balances</h2>
           <div className="space-y-2">
             {assetDetails.utxoBalances.map((utxo, index) => (
               <div
                 key={index}
                 onClick={() => navigate(`${CONSTANTS.PATHS.UTXO}/${utxo.txid}`)}
-                className="flex justify-between items-center p-2 hover:bg-gray-50 rounded cursor-pointer"
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(`${CONSTANTS.PATHS.UTXO}/${utxo.txid}`); } }}
+                className="flex justify-between items-center p-2 hover:bg-gray-50 rounded cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 role="button"
                 tabIndex={0}
                 aria-label={`View UTXO ${utxo.txid}`}

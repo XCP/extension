@@ -39,7 +39,7 @@ export default function ApproveConnection(): ReactElement {
     setHeaderProps({
       title: "Connection Request",
       rightButton: {
-        icon: <FiX className="w-4 h-4" />,
+        icon: <FiX className="size-4" aria-hidden="true" />,
         onClick: () => handleReject(),
         ariaLabel: "Reject connection",
       },
@@ -83,7 +83,7 @@ export default function ApproveConnection(): ReactElement {
   
   if (!activeAddress || !activeWallet) {
     return (
-      <div className="flex items-center justify-center h-screen p-4">
+      <div className="flex items-center justify-center h-dvh p-4">
         <div className="text-center">
           <p className="text-gray-500">Please unlock your wallet first</p>
         </div>
@@ -98,8 +98,8 @@ export default function ApproveConnection(): ReactElement {
         <div className="max-w-md mx-auto space-y-6">
           {/* Site info */}
           <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-              <FiGlobe className="w-8 h-8 text-blue-600" />
+            <div className="inline-flex items-center justify-center size-16 bg-blue-100 rounded-full mb-4">
+              <FiGlobe className="size-8 text-blue-600" aria-hidden="true" />
             </div>
             
             <h2 className="text-xl font-semibold mb-2">{domain}</h2>
@@ -114,7 +114,7 @@ export default function ApproveConnection(): ReactElement {
           
           {/* Wallet info */}
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Connect with:</h3>
+            <h2 className="text-sm font-medium text-gray-700 mb-3">Connect with:</h2>
             
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -127,7 +127,7 @@ export default function ApproveConnection(): ReactElement {
                   </p>
                 </div>
                 <div className="ml-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <div className="size-2 bg-green-500 rounded-full"></div>
                 </div>
               </div>
             </div>
@@ -135,19 +135,19 @@ export default function ApproveConnection(): ReactElement {
           
           {/* Permissions */}
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">
+            <h2 className="text-sm font-medium text-gray-700 mb-3">
               This site will be able to:
-            </h3>
+            </h2>
             
             <ul className="space-y-2">
               <li className="flex items-start">
-                <FaCheck className="w-4 h-4 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+                <FaCheck className="size-4 text-green-500 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
                 <span className="text-sm text-gray-600">
                   View your wallet address
                 </span>
               </li>
               <li className="flex items-start">
-                <FaCheck className="w-4 h-4 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+                <FaCheck className="size-4 text-green-500 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
                 <span className="text-sm text-gray-600">
                   Request transaction signatures (requires approval)
                 </span>
@@ -156,7 +156,7 @@ export default function ApproveConnection(): ReactElement {
             
             <div className="mt-4 p-3 bg-blue-50 rounded-lg">
               <div className="flex items-start">
-                <FiShield className="w-4 h-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
+                <FiShield className="size-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
                 <p className="text-xs text-blue-800">
                   You can revoke this permission at any time in Settings
                 </p>
@@ -183,7 +183,7 @@ export default function ApproveConnection(): ReactElement {
             disabled={isProcessing}
             fullWidth
           >
-            {isProcessing ? "Processing..." : "Connect"}
+            {isProcessing ? "Processing…" : "Connect"}
           </Button>
         </div>
       </div>

@@ -107,11 +107,11 @@ export default function ConnectedSites(): ReactElement {
       title: "Connected Sites",
       onBack: () => navigate(CONSTANTS.PATHS.BACK),
       rightButton: connectedSites.length > 0 ? {
-        icon: <FiRefreshCw aria-hidden="true" />,
+        icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
         onClick: handleDisconnectAll,
         ariaLabel: "Disconnect all sites",
       } : {
-        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => window.open(CONSTANTS.PATHS.HELP_URL, "_blank"),
         ariaLabel: "Help",
       },
@@ -143,7 +143,7 @@ export default function ConnectedSites(): ReactElement {
 
       {connectedSites.length === 0 ? (
         <div className="bg-gray-50 rounded-lg p-8 text-center">
-          <FiGlobe className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          <FiGlobe className="size-12 text-gray-400 mx-auto mb-3" aria-hidden="true" />
           <p className="text-gray-600">No connected sites</p>
           <p className="text-sm text-gray-500 mt-1">
             Sites you connect to will appear here

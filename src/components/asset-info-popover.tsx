@@ -43,12 +43,12 @@ export function AssetInfoPopover({
     <div ref={containerRef} className={`relative ${className}`}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+        className="p-2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
         title="View asset details"
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        <FiInfo className="w-4 h-4" />
+        <FiInfo className="size-4" aria-hidden="true" />
       </button>
       {isOpen && (
         <div className="absolute right-0 top-10 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-3 min-w-[200px]">
@@ -56,10 +56,10 @@ export function AssetInfoPopover({
             <span className="text-xs font-medium text-gray-700">Asset Details</span>
             <button
               onClick={() => setIsOpen(false)}
-              className="p-0.5 text-gray-400 hover:text-gray-600 cursor-pointer"
+              className="p-0.5 text-gray-400 hover:text-gray-600 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
               aria-label="Close"
             >
-              <FiX className="w-3 h-3" />
+              <FiX className="size-3" aria-hidden="true" />
             </button>
           </div>
           {assetInfo.asset && (

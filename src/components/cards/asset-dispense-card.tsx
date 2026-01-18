@@ -60,7 +60,7 @@ export function AssetDispenseCard({
             {onCopyTx && (
               <button
                 onClick={() => onCopyTx(dispense.tx_hash)}
-                className={`flex items-center gap-1 text-xs cursor-pointer ${
+                className={`flex items-center gap-1 text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded ${
                   isCopied
                     ? "text-green-600"
                     : "text-gray-400 hover:text-gray-600"
@@ -69,9 +69,9 @@ export function AssetDispenseCard({
               >
                 TX
                 {isCopied ? (
-                  <FaCheck className="w-3 h-3" />
+                  <FaCheck className="size-3" aria-hidden="true" />
                 ) : (
-                  <FaCopy className="w-3 h-3" />
+                  <FaCopy className="size-3" aria-hidden="true" />
                 )}
               </button>
             )}

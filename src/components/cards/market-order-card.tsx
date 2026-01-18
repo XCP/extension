@@ -34,7 +34,7 @@ export function MarketOrderCard({
 
   return (
     <div
-      className={`bg-white rounded-lg shadow-sm p-3 ${onClick ? "hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500" : ""} ${className}`}
+      className={`bg-white rounded-lg shadow-sm p-3 ${onClick ? "hover:shadow-md transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" : ""} ${className}`}
       onClick={onClick}
       onKeyDown={handleKeyDown}
       role={onClick ? "button" : undefined}
@@ -45,7 +45,7 @@ export function MarketOrderCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-sm">
             <span className="font-medium text-gray-900 truncate max-w-[80px]">{giveAsset}</span>
-            <FaExchangeAlt className="text-gray-400 w-3 h-3 flex-shrink-0" />
+            <FaExchangeAlt className="text-gray-400 size-3 flex-shrink-0" aria-hidden="true" />
             <span className="text-gray-600 truncate max-w-[80px]">{getAsset}</span>
           </div>
           <div className="text-xs text-gray-500 mt-1">

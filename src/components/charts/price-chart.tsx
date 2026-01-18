@@ -199,6 +199,8 @@ export const PriceChart = memo(({
         style={{ width, height, display: 'block', cursor: data.length >= 2 ? 'crosshair' : 'default' }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
+        role="img"
+        aria-label="Price chart"
         data-testid="price-chart"
       />
     </div>

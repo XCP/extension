@@ -89,23 +89,24 @@ export const ApiUrlInput = ({
           onBlur={handleBlur}
           disabled={disabled || isValidating}
           placeholder="https://api.counterparty.io:4000"
+          aria-label="API URL"
           className={`flex-1 p-2.5 rounded-md border bg-gray-50 focus:ring-2 disabled:opacity-50 transition-colors ${getBorderClass()}`}
         />
         <button
           onClick={handleReset}
           disabled={disabled || isValidating || isDefault}
-          className="p-2.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="p-2.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           title="Reset to default"
           aria-label="Reset API URL to default"
         >
-          <FiRotateCcw className="w-5 h-5 text-gray-600" />
+          <FiRotateCcw className="size-5 text-gray-600" aria-hidden="true" />
         </button>
       </div>
       
       {showHelpText && (
         <>
           {isValidating && (
-            <p className="text-sm text-gray-500">Validating API endpoint...</p>
+            <p className="text-sm text-gray-500">Validating API endpoint…</p>
           )}
           {error && (
             <p className="text-sm text-red-500">❌ {error}</p>

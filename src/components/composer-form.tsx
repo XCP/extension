@@ -108,7 +108,7 @@ export function ComposerForm({
             fullWidth
             disabled={isSubmitting || submitDisabled}
           >
-            {isSubmitting ? "Submitting..." : submitText}
+            {isSubmitting ? "Submitting…" : submitText}
           </Button>
         </form>
       </div>

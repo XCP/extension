@@ -81,7 +81,7 @@ export function ActionCard({
     <div
       onClick={handleClick}
       onKeyDown={handleKeyDown}
-      className={`relative w-full rounded transition duration-300 p-4 cursor-pointer bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${className}`}
+      className={`relative w-full rounded transition duration-300 p-4 cursor-pointer bg-white hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${className}`}
       role="button"
       tabIndex={0}
       aria-label={ariaLabel || title}
@@ -90,7 +90,7 @@ export function ActionCard({
         {/* Optional Icon */}
         {icon && (
           <div className="flex-shrink-0 mr-3">
-            <div className="w-5 h-5 flex items-center justify-center text-gray-600">
+            <div className="size-5 flex items-center justify-center text-gray-600">
               {icon}
             </div>
           </div>
@@ -101,7 +101,7 @@ export function ActionCard({
           <div className={`text-sm font-medium ${getTitleColor()} mb-1 flex items-center`}>
             {title}
             {showNotification && (
-              <span className="ml-2 h-2 w-2 bg-orange-500 rounded-full inline-block"></span>
+              <span className="ml-2 size-2 bg-orange-500 rounded-full inline-block"></span>
             )}
           </div>
           {description && (
@@ -115,7 +115,7 @@ export function ActionCard({
         {showChevron && (
           <div className="flex-shrink-0 ml-3">
             <div className="flex items-center justify-center">
-              <FaChevronRight className="w-4 h-4 text-gray-400" aria-hidden="true" />
+              <FaChevronRight className="size-4 text-gray-400" aria-hidden="true" />
             </div>
           </div>
         )}

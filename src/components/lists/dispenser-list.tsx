@@ -37,7 +37,7 @@ export function DispenserList({
   if (isLoading) {
     return (
       <div className="text-gray-500">
-        Fetching dispenser details...
+        Fetching dispenser details…
       </div>
     );
   }

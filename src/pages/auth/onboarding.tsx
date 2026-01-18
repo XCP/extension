@@ -30,7 +30,7 @@ function Onboarding() {
       useLogoTitle: true,
       title: 'Onboarding',
       rightButton: {
-        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => window.open(PATHS.HELP_URL, '_blank'),
         ariaLabel: 'Help',
       },
@@ -63,7 +63,7 @@ function Onboarding() {
               onClick={handleCreateWallet}
               aria-label="Create wallet"
             >
-              <IoCreateOutline className="w-4 h-4 mr-2" aria-hidden="true" />
+              <IoCreateOutline className="size-4 mr-2" aria-hidden="true" />
               Create Wallet
             </Button>
             <Button
@@ -72,7 +72,7 @@ function Onboarding() {
               onClick={handleImportWallet}
               aria-label="Import wallet"
             >
-              <FaUpload className="w-4 h-4 mr-2" aria-hidden="true" />
+              <FaUpload className="size-4 mr-2" aria-hidden="true" />
               Import Wallet
             </Button>
           </div>
@@ -82,7 +82,7 @@ function Onboarding() {
         By continuing you agree to our{' '}
         <a
           href="/terms-of-service" // Replace with actual Terms of Service URL
-          className="font-bold hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           tabIndex={0}
         >
           Terms of Service

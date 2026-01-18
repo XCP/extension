@@ -9,6 +9,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import type { ReactElement } from "react";
 import type { ActionSection } from "@/components/lists/action-list";
+import packageJson from "../../../package.json";
 
 
 /**
@@ -30,7 +31,7 @@ const CONSTANTS = {
     PRIVACY: "https://www.xcp.io/privacy",
     WEBSITE: "https://www.xcp.io/?ref=wallet",
   } as const,
-  VERSION: "0.0.1",
+  VERSION: packageJson.version,
 } as const;
 
 /**
@@ -57,7 +58,7 @@ export default function Settings(): ReactElement {
       title: "Settings",
       onBack: () => navigate(CONSTANTS.PATHS.BACK),
       rightButton: {
-        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => window.open(CONSTANTS.PATHS.HELP_URL, "_blank"),
         ariaLabel: "Help",
       },
@@ -127,13 +128,13 @@ export default function Settings(): ReactElement {
   ];
 
   return (
-    <div className="flex flex-col h-full" role="main" aria-labelledby="settings-title">
+    <div className="flex flex-col h-full" role="main">
       <div className="flex-1 overflow-auto no-scrollbar">
         <div className="p-4">
           <ActionList sections={settingSections} />
 
           <div className="mt-8">
-            <h3 className="text-sm font-medium text-gray-500 px-4 mb-2">About XCP Wallet</h3>
+            <h2 className="text-sm font-medium text-gray-500 px-4 mb-2">About XCP Wallet</h2>
             <div className="bg-white rounded">
               <div className="p-4 border-b">
                 <div className="text-sm">Version {CONSTANTS.VERSION}</div>
@@ -142,7 +143,7 @@ export default function Settings(): ReactElement {
                 href={CONSTANTS.EXTERNAL_LINKS.TERMS}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block p-4 border-b text-sm text-blue-500 hover:text-blue-600 hover:bg-gray-50"
+                className="block p-4 border-b text-sm text-blue-500 hover:text-blue-600 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset"
               >
                 Terms of Service
               </a>
@@ -150,7 +151,7 @@ export default function Settings(): ReactElement {
                 href={CONSTANTS.EXTERNAL_LINKS.PRIVACY}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block p-4 border-b text-sm text-blue-500 hover:text-blue-600 hover:bg-gray-50"
+                className="block p-4 border-b text-sm text-blue-500 hover:text-blue-600 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset"
               >
                 Privacy Policy
               </a>
@@ -158,7 +159,7 @@ export default function Settings(): ReactElement {
                 href={CONSTANTS.EXTERNAL_LINKS.WEBSITE}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block p-4 text-sm text-blue-500 hover:text-blue-600 hover:bg-gray-50"
+                className="block p-4 text-sm text-blue-500 hover:text-blue-600 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset"
               >
                 Visit Website
               </a>
@@ -170,7 +171,6 @@ export default function Settings(): ReactElement {
               color="red"
               onClick={() => navigate(CONSTANTS.PATHS.RESET_WALLET)}
               fullWidth
-              aria-label="Reset Wallet"
             >
               Reset Wallet
             </Button>

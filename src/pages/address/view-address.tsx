@@ -41,7 +41,7 @@ export default function ViewAddress(): ReactElement {
       rightButton:
         activeWallet?.type === "mnemonic"
           ? {
-              icon: <FaList aria-hidden="true" />,
+              icon: <FaList className="size-4" aria-hidden="true" />,
               onClick: () =>
                 navigate(CONSTANTS.PATHS.SELECT_ADDRESS, { state: { returnTo: "/view-address" } }),
               ariaLabel: "Select Address",
@@ -125,7 +125,7 @@ function CopyAddress({ address }: CopyAddressProps): ReactElement {
           role="button"
           tabIndex={0}
           aria-label="Copy address"
-          className="font-mono text-sm bg-white border border-gray-200 rounded-lg p-4 break-all text-gray-800 select-all cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+          className="font-mono text-sm bg-white border border-gray-200 rounded-lg p-4 break-all text-gray-800 select-all cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors duration-200"
         >
           {address}
         </div>
@@ -139,12 +139,12 @@ function CopyAddress({ address }: CopyAddressProps): ReactElement {
       >
         {copiedToClipboard ? (
           <>
-            <FaCheck className="w-4 h-4 mr-2" aria-hidden="true" />
+            <FaCheck className="size-4 mr-2" aria-hidden="true" />
             <span>Copied!</span>
           </>
         ) : (
           <>
-            <FaClipboard className="w-4 h-4 mr-2" aria-hidden="true" />
+            <FaClipboard className="size-4 mr-2" aria-hidden="true" />
             <span>Copy Address</span>
           </>
         )}

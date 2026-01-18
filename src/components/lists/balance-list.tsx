@@ -194,14 +194,14 @@ export const BalanceList = (): ReactElement => {
     !pinnedAssets.includes(balance.asset.toUpperCase())
   );
 
-  if (isInitialLoading) return <Spinner message="Loading balances..." />;
+  if (isInitialLoading) return <Spinner message="Loading balances…" />;
 
   return (
     <div className="space-y-2">
       <SearchInput
         value={searchQuery}
         onChange={setSearchQuery}
-        placeholder="Search balances..."
+        placeholder="Search balances…"
         name="balance-search"
         className="mb-3"
         showClearButton={true}
@@ -209,7 +209,7 @@ export const BalanceList = (): ReactElement => {
       />
       {searchQuery ? (
         isSearching ? (
-          <Spinner message="Searching balances..." />
+          <Spinner message="Searching balances…" />
         ) : searchResults.length === 0 ? (
           <div className="text-center py-4 text-gray-500">No results found</div>
         ) : (
@@ -228,7 +228,7 @@ export const BalanceList = (): ReactElement => {
               isFetchingMore ? (
                 <Spinner className="py-4" />
               ) : (
-                <div className="text-sm text-gray-500">Scroll to load more...</div>
+                <div className="text-sm text-gray-500">Scroll to load more…</div>
               )
             ) : null}
           </div>

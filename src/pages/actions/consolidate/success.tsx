@@ -24,7 +24,7 @@ function ConsolidationSuccess() {
       title: "Started Recovery",
       onBack: () => navigate('/actions/consolidate'), // Back to recovery tool homepage
       rightButton: {
-        icon: <FiX />,
+        icon: <FiX className="size-4" aria-hidden="true" />,
         onClick: () => navigate('/'),
         ariaLabel: "Close and go home"
       }
@@ -55,7 +55,7 @@ function ConsolidationSuccess() {
       {/* Success Header */}
       <div className="bg-green-50 border border-green-200 rounded-lg p-4">
         <div className="flex items-start space-x-3">
-          <FaCheckCircle className="w-6 h-6 text-green-600 mt-1 flex-shrink-0" />
+          <FaCheckCircle className="size-6 text-green-600 mt-1 flex-shrink-0" aria-hidden="true" />
           <div className="flex-1">
             <h2 className="text-lg font-semibold text-green-900">
               Consolidation Successful!
@@ -70,7 +70,7 @@ function ConsolidationSuccess() {
       
       {/* Summary Stats */}
       <div className="bg-white rounded-lg shadow-lg p-4">
-        <h3 className="font-semibold mb-3">Consolidation Summary</h3>
+        <h2 className="font-semibold mb-3">Consolidation Summary</h2>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-600">Address:</span>
@@ -99,7 +99,7 @@ function ConsolidationSuccess() {
       
       {/* Transaction List */}
       <div className="bg-white rounded-lg shadow-lg p-4">
-        <h3 className="font-semibold mb-3">Transaction IDs</h3>
+        <h2 className="font-semibold mb-3">Transaction IDs</h2>
         <div className="space-y-2">
           {state.results.map((result) => (
             <div 
@@ -130,17 +130,19 @@ function ConsolidationSuccess() {
                   </span>
                   <button
                     onClick={() => copyToClipboard(result.txid)}
-                    className="p-1 hover:bg-gray-200 rounded transition-colors"
+                    className="p-1 hover:bg-gray-200 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     title="Copy transaction ID"
+                    aria-label="Copy transaction ID"
                   >
-                    <FaCopy className="w-4 h-4 text-gray-600" />
+                    <FaCopy className="size-4 text-gray-600" aria-hidden="true" />
                   </button>
                   <button
                     onClick={() => openInExplorer(result.txid)}
-                    className="p-1 hover:bg-gray-200 rounded transition-colors"
+                    className="p-1 hover:bg-gray-200 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     title="View in explorer"
+                    aria-label="View in explorer"
                   >
-                    <FiExternalLink className="w-4 h-4 text-gray-600" />
+                    <FiExternalLink className="size-4 text-gray-600" aria-hidden="true" />
                   </button>
                 </div>
               )}

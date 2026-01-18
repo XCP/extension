@@ -85,7 +85,7 @@ export function DispenserCloseForm({
     <img
       src={`https://app.xcp.io/img/icon/${asset}`}
       alt={`${asset} icon`}
-      className="w-5 h-5 rounded-full"
+      className="size-5 rounded-full"
       onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
     />
   );
@@ -124,19 +124,19 @@ export function DispenserCloseForm({
       }
     >
       {isLoading ? (
-        <div className="py-4 text-center">Loading dispensers...</div>
+        <div className="py-4 text-center">Loading dispensers…</div>
       ) : (
             <Field>
               <Label className="block text-sm font-medium text-gray-700">
                 Dispenser <span className="text-red-500">*</span>
               </Label>
               {relevantDispensers.length === 0 ? (
-                <div className="relative w-full mt-1 cursor-not-allowed rounded-lg bg-gray-100 py-2 pl-3 pr-10 text-left border border-gray-300 text-gray-500 sm:text-sm">
+                <div className="relative w-full mt-1 cursor-not-allowed rounded-lg bg-gray-100 py-2.5 pl-3 pr-10 text-left border border-gray-300 text-gray-500 sm:text-sm">
                   <span className="block truncate">
                     No open dispensers found for {asset || "this address"}
                   </span>
                   <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                    <FiChevronDown className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                    <FiChevronDown className="size-4 text-gray-400" aria-hidden="true" />
                   </span>
                 </div>
               ) : (
@@ -147,15 +147,15 @@ export function DispenserCloseForm({
                     onChange={setSelectedTxHash}
                     disabled={pending}
                   >
-                    <ListboxButton className="relative w-full cursor-default rounded-lg bg-gray-50 py-2 pl-3 pr-10 text-left border focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed">
+                    <ListboxButton className="relative w-full cursor-pointer rounded-lg bg-gray-50 py-2.5 pl-3 pr-10 text-left border focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed">
                       <div className="flex items-center">
                         {selectedDispenser?.asset && <AssetIcon asset={selectedDispenser.asset} />}
                         <span className={`block truncate ${selectedDispenser ? "ml-2" : ""}`}>
-                          {selectedDispenser ? `${selectedDispenser.asset} - ${selectedDispenser.tx_hash.substring(0, 8)}...` : "Select a dispenser"}
+                          {selectedDispenser ? `${selectedDispenser.asset} - ${selectedDispenser.tx_hash.substring(0, 8)}…` : "Select a dispenser"}
                         </span>
                       </div>
                       <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                        <FiChevronDown className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                        <FiChevronDown className="size-4 text-gray-400" aria-hidden="true" />
                       </span>
                     </ListboxButton>
                     <ListboxOptions className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
@@ -163,7 +163,7 @@ export function DispenserCloseForm({
                         <ListboxOption
                           key={dispenser.tx_hash}
                           value={dispenser.tx_hash}
-                          className={({ focus }) => `relative cursor-pointer select-none py-2 pl-10 pr-4 ${focus ? "bg-blue-500 text-white" : "text-gray-900"}`}
+                          className={({ focus }) => `relative cursor-pointer select-none py-2.5 pl-10 pr-4 ${focus ? "bg-blue-500 text-white" : "text-gray-900"}`}
                         >
                           {({ selected, focus }) => (
                             <>
@@ -172,12 +172,12 @@ export function DispenserCloseForm({
                                   <AssetIcon asset={dispenser.asset} />
                                 </span>
                                 <span className={`ml-2 block truncate ${selected ? "font-medium" : "font-normal"}`}>
-                                  {dispenser.asset} - {dispenser.tx_hash.substring(0, 8)}...
+                                  {dispenser.asset} - {dispenser.tx_hash.substring(0, 8)}…
                                 </span>
                               </div>
                               {selected && (
                                 <span className={`absolute inset-y-0 right-0 flex items-center pr-3 ${focus ? "text-white" : "text-blue-500"}`}>
-                                  <FaCheck className="h-5 w-5" aria-hidden="true" />
+                                  <FaCheck className="size-4" aria-hidden="true" />
                                 </span>
                               )}
                             </>

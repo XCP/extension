@@ -56,7 +56,7 @@ export default function SecuritySettings(): ReactElement {
       title: "Security",
       onBack: () => navigate(CONSTANTS.PATHS.BACK),
       rightButton: {
-        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => setIsHelpTextOverride((prev) => !prev),
         ariaLabel: "Toggle help text",
       },
@@ -181,7 +181,7 @@ export default function SecuritySettings(): ReactElement {
               disabled={isLoading || !isFormValid()}
               aria-label="Change Password"
             >
-              {isLoading ? "Changing Password..." : "Change Password"}
+              {isLoading ? "Changing Password…" : "Change Password"}
             </Button>
           </div>
           

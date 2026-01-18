@@ -215,7 +215,7 @@ export default function AssetDispensers(): ReactElement {
       onBack: () => navigate("/market"),
       rightButton: {
         ariaLabel: "Refresh dispensers",
-        icon: <FiRefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />,
+        icon: <FiRefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
         onClick: handleRefresh,
         disabled: isRefreshing,
       },
@@ -375,7 +375,7 @@ export default function AssetDispensers(): ReactElement {
   };
 
   if (loading) {
-    return <Spinner message={`Loading ${asset} dispensers...`} />;
+    return <Spinner message={`Loading ${asset} dispensers…`} />;
   }
 
   const hasMore = tab === "open" ? hasMoreDispensers : hasMoreDispenses;
@@ -411,7 +411,7 @@ export default function AssetDispensers(): ReactElement {
                       className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
                     >
                       <span>{formatPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)}</span>
-                      {isCopied(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                      {isCopied(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)) && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
                     </div>
                   </div>
                   <div>
@@ -421,7 +421,7 @@ export default function AssetDispensers(): ReactElement {
                       className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
                     >
                       <span>{formatPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)}</span>
-                      {isCopied(getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                      {isCopied(getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)) && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
                     </div>
                   </div>
                 </>
@@ -447,7 +447,7 @@ export default function AssetDispensers(): ReactElement {
                       className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
                     >
                       <span>{formatPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)}</span>
-                      {isCopied(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                      {isCopied(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)) && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
                     </div>
                   </div>
                   <div>
@@ -457,7 +457,7 @@ export default function AssetDispensers(): ReactElement {
                       className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
                     >
                       <span>{formatPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)}</span>
-                      {isCopied(getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                      {isCopied(getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)) && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
                     </div>
                   </div>
                 </>
@@ -477,10 +477,11 @@ export default function AssetDispensers(): ReactElement {
             </div>
             <button
               onClick={togglePriceUnit}
-              className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
               title={`Switch to ${getNextUnit(priceUnit, btcPrice !== null).toUpperCase()}`}
+              aria-label={`Switch price display to ${getNextUnit(priceUnit, btcPrice !== null).toUpperCase()}`}
             >
-              <TbRepeat className="w-4 h-4" />
+              <TbRepeat className="size-4" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -490,7 +491,7 @@ export default function AssetDispensers(): ReactElement {
           <div className="flex gap-1">
             <button
               onClick={() => setTab("open")}
-              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer ${
+              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                 tab === "open"
                   ? "bg-gray-200 text-gray-900 font-medium"
                   : "text-gray-500 hover:text-gray-700"
@@ -500,7 +501,7 @@ export default function AssetDispensers(): ReactElement {
             </button>
             <button
               onClick={() => setTab("dispensed")}
-              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer ${
+              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                 tab === "dispensed"
                   ? "bg-gray-200 text-gray-900 font-medium"
                   : "text-gray-500 hover:text-gray-700"
@@ -566,7 +567,7 @@ export default function AssetDispensers(): ReactElement {
                 <Spinner className="py-4" />
               </div>
             ) : (
-              <div className="text-xs text-gray-400 text-center">Scroll to load more...</div>
+              <div className="text-xs text-gray-400 text-center">Scroll to load more…</div>
             )
           ) : null}
         </div>

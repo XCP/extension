@@ -61,7 +61,7 @@ export function BaseMenu({
   return (
     <Menu as="div" className="relative inline-block text-left" onClick={handleMenuClick}>
       <MenuButton
-        className="p-1 rounded-full hover:bg-black/5 transition-colors duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        className="p-1 rounded-full hover:bg-black/5 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
         aria-label={ariaLabel}
         onClick={handleMenuButtonClick}
       >

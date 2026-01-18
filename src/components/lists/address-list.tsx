@@ -58,7 +58,7 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walle
             <div
               onClick={(e) => handleAddressClick(e, address)}
               className={`
-                relative w-full rounded transition duration-300 p-4 cursor-pointer
+                relative w-full rounded transition-colors duration-300 p-4 cursor-pointer
                 ${checked
                   ? 'bg-blue-600 text-white shadow-md'
                   : 'bg-blue-100 hover:bg-blue-200 text-gray-800'}

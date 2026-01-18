@@ -57,7 +57,7 @@ export const Footer = (): ReactElement => {
             <FaTools className="text-lg mb-1" aria-hidden="true" />
             {/* Bitcoin orange notification badge */}
             {showRecoverBitcoinNotification && (
-              <span className="absolute -top-1 -right-3 h-2 w-2 bg-orange-500 rounded-full"></span>
+              <span className="absolute -top-1 -right-3 size-2 bg-orange-500 rounded-full"></span>
             )}
           </div>
         </Button>

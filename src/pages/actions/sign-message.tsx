@@ -60,17 +60,20 @@ export default function SignMessage(): ReactElement {
       ? `Sign Message - ${new URL(providerOrigin || '').hostname}`
       : "Sign Message";
 
+    const hasContent = Boolean(message || signature || error);
+
     setHeaderProps({
       title: headerTitle,
       onBack: isProviderRequest ? handleCancel : () => navigate(-1),
       rightButton: {
         ariaLabel: "Reset form",
-        icon: <FaRedo className="w-3 h-3" />,
+        icon: <FaRedo className="size-3" aria-hidden="true" />,
         onClick: handleReset,
+        disabled: !hasContent,
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, isProviderRequest, providerOrigin, handleCancel, handleReset]);
+  }, [setHeaderProps, navigate, isProviderRequest, providerOrigin, handleCancel, handleReset, message, signature, error]);
   
   // Get signing capabilities for current address
   const addressFormat = activeWallet?.addressFormat;
@@ -203,7 +206,7 @@ export default function SignMessage(): ReactElement {
             }
           }}
           label="Message"
-          placeholder="Enter your message here..."
+          placeholder="Enter your message here…"
           rows={4}
           required={false}
           showCharCount={false}
@@ -216,7 +219,7 @@ export default function SignMessage(): ReactElement {
           {message && (
             <button
               onClick={() => handleCopy(message, 'message')}
-              className={`text-xs transition-all duration-200 cursor-pointer flex items-center gap-1 ${
+              className={`text-xs transition-colors duration-200 cursor-pointer flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded ${
                 copiedField === 'message'
                   ? 'text-green-600 hover:text-green-700'
                   : 'text-blue-600 hover:text-blue-700'
@@ -224,7 +227,7 @@ export default function SignMessage(): ReactElement {
             >
               {copiedField === 'message' ? (
                 <>
-                  <FaCheck className="w-3 h-3" />
+                  <FaCheck className="size-3" aria-hidden="true" />
                   Copied!
                 </>
               ) : (
@@ -249,20 +252,20 @@ export default function SignMessage(): ReactElement {
           {signature && (
             <div className="mt-2 flex justify-between items-center">
               <span className="text-xs text-green-600 flex items-center gap-1">
-                <FaCheckCircle className="w-3 h-3" />
+                <FaCheckCircle className="size-3" aria-hidden="true" />
                 Signed
               </span>
               <button
                 onClick={() => handleCopy(signature, 'signature')}
-                className={`text-xs transition-all duration-200 cursor-pointer flex items-center gap-1 ${
-                  copiedField === 'signature' 
-                    ? 'text-green-600 hover:text-green-700' 
+                className={`text-xs transition-colors duration-200 cursor-pointer flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded ${
+                  copiedField === 'signature'
+                    ? 'text-green-600 hover:text-green-700'
                     : 'text-blue-600 hover:text-blue-700'
                 }`}
               >
                 {copiedField === 'signature' ? (
                   <>
-                    <FaCheck className="w-3 h-3" />
+                    <FaCheck className="size-3" aria-hidden="true" />
                     Copied!
                   </>
                 ) : (
@@ -285,11 +288,11 @@ export default function SignMessage(): ReactElement {
           {isSigning ? (
             <div className="flex items-center justify-center gap-2">
               <Spinner />
-              Signing...
+              Signing…
             </div>
           ) : (
             <div className="flex items-center justify-center gap-2">
-              <FaLock className="w-4 h-4" />
+              <FaLock className="size-4" aria-hidden="true" />
               Sign Message
             </div>
           )}

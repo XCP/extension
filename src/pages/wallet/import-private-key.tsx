@@ -53,7 +53,7 @@ const ImportPrivateKey = () => {
       title: "Import Key",
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
-        icon: <FiX className="w-4 h-4" aria-hidden="true" />,
+        icon: <FiX className="size-4" aria-hidden="true" />,
         onClick: () => navigate(PATHS.CLOSE),
         ariaLabel: 'Close',
       },
@@ -155,7 +155,7 @@ const ImportPrivateKey = () => {
               <div className="mt-1 relative">
                 <input type="hidden" name="address-type" value={addressFormat} />
                 <Listbox value={addressFormat} onChange={setAddressFormat} disabled={pending}>
-                  <ListboxButton className="w-full p-2 text-left rounded-md border border-gray-200 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500">
+                  <ListboxButton className="w-full p-2.5 text-left rounded-md border border-gray-200 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed">
                     {({ value }) => {
                       const selected = ADDRESS_TYPES.find(type => type.value === value);
                       return (
@@ -171,7 +171,7 @@ const ImportPrivateKey = () => {
                       <ListboxOption 
                         key={type.value} 
                         value={type.value} 
-                        className="p-2 cursor-pointer hover:bg-gray-100 data-[selected]:bg-gray-100"
+                        className="p-2.5 cursor-pointer hover:bg-gray-100 data-[selected]:bg-gray-100"
                       >
                         {({ selected }) => (
                           <div className="flex justify-between items-center">
@@ -221,7 +221,7 @@ const ImportPrivateKey = () => {
                 innerRef={passwordInputRef}
               />
               <Button type="submit" disabled={pending || !isPasswordValid} fullWidth>
-                {pending ? "Importing..." : "Continue"}
+                {pending ? "Importing…" : "Continue"}
               </Button>
             </>
           )}

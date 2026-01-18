@@ -39,7 +39,7 @@ export function SectionHeader({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer ${
+              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                 activeTab === tab.id
                   ? "bg-gray-200 text-gray-900 font-medium"
                   : "text-gray-500 hover:text-gray-700"

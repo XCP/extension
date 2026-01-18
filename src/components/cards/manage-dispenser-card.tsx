@@ -53,10 +53,10 @@ export function ManageDispenserCard({
         )}
         <button
           onClick={() => window.open(`https://www.xcp.io/tx/${dispenser.tx_hash}`, "_blank")}
-          className="px-3 py-2 text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg"
+          className="px-3 py-2 text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           aria-label="View on XCP.io"
         >
-          <FaExternalLinkAlt className="w-3 h-3" />
+          <FaExternalLinkAlt className="size-3" aria-hidden="true" />
         </button>
       </div>
     </div>
