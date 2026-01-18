@@ -169,10 +169,10 @@ describe('CheckboxInput', () => {
     render(<CheckboxInput name="test" label="Test" />);
     
     const checkbox = screen.getByRole('checkbox');
-    expect(checkbox).toHaveClass('focus:outline-none');
-    expect(checkbox).toHaveClass('focus:ring-2');
-    expect(checkbox).toHaveClass('focus:ring-blue-500');
-    expect(checkbox).toHaveClass('focus:ring-offset-2');
+    expect(checkbox).toHaveClass('focus-visible:outline-none');
+    expect(checkbox).toHaveClass('focus-visible:ring-2');
+    expect(checkbox).toHaveClass('focus-visible:ring-blue-500');
+    expect(checkbox).toHaveClass('focus-visible:ring-offset-2');
   });
 
   it('should render checkmark SVG', () => {
