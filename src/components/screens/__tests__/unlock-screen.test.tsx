@@ -212,8 +212,8 @@ describe('UnlockScreen', () => {
     it('should show loading text when isSubmitting is true', () => {
       render(<UnlockScreen onUnlock={mockOnUnlock} isSubmitting />);
       
-      expect(screen.getByText('Unlocking...')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Unlocking...' })).toBeDisabled();
+      expect(screen.getByText('Unlocking…')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Unlocking…' })).toBeDisabled();
     });
 
     it('should disable input when isSubmitting is true', () => {
