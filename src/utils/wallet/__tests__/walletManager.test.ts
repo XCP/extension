@@ -1,4 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Mock hardware wallet module BEFORE importing WalletManager to avoid
+// @trezor/connect-webextension import side effects (Browser.runtime.onConnect.addListener)
+vi.mock('@/utils/hardware/trezorAdapter', () => ({
+  getTrezorAdapter: vi.fn(),
+  resetTrezorAdapter: vi.fn(),
+  TrezorAdapter: vi.fn()
+}));
+
 import { WalletManager } from '../walletManager';
 import {
   createTestWallet,

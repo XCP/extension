@@ -32,8 +32,8 @@ export interface Wallet {
   id: string;
   /** User-facing wallet name */
   name: string;
-  /** Secret type: mnemonic phrase or single private key */
-  type: 'mnemonic' | 'privateKey';
+  /** Secret type: mnemonic phrase, single private key, or hardware wallet */
+  type: 'mnemonic' | 'privateKey' | 'hardware';
   /** Bitcoin address format for derivation */
   addressFormat: AddressFormat;
   /** Number of derived addresses */
@@ -59,8 +59,8 @@ export interface WalletRecord {
   id: string;
   /** User-facing wallet name */
   name: string;
-  /** Secret type: mnemonic phrase or single private key */
-  type: 'mnemonic' | 'privateKey';
+  /** Secret type: mnemonic phrase, single private key, or hardware wallet */
+  type: 'mnemonic' | 'privateKey' | 'hardware';
   /** Bitcoin address format for derivation */
   addressFormat: AddressFormat;
   /** Number of derived addresses */

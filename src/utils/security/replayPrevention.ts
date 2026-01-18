@@ -1,10 +1,11 @@
 /**
  * Replay Prevention System
- * 
+ *
  * Prevents transaction replay attacks by tracking nonces, idempotency keys,
  * and broadcasted transaction hashes.
  */
 
+import { encodeString } from '@/utils/encryption/buffer';
 
 // Types for replay prevention
 interface TransactionRecord {
@@ -232,8 +233,7 @@ async function generateIdempotencyKeyAsync(origin: string, method: string, param
   const timestamp = Math.floor(Date.now() / 1000); // Second precision
   const input = `${origin}:${method}:${paramsString}:${timestamp}`;
 
-  const encoder = new TextEncoder();
-  const data = encoder.encode(input);
+  const data = encodeString(input);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   // Take first 16 bytes for a reasonable key length

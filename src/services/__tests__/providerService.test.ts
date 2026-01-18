@@ -13,10 +13,17 @@ vi.mock('webext-bridge/popup', () => ({
   onMessage: vi.fn()
 }));
 
-// Mock webext-bridge content-script module 
+// Mock webext-bridge content-script module
 vi.mock('webext-bridge/content-script', () => ({
   sendMessage: vi.fn(),
   onMessage: vi.fn()
+}));
+
+// Mock hardware wallet module to avoid @trezor/connect-webextension import side effects
+vi.mock('@/utils/hardware/trezorAdapter', () => ({
+  getTrezorAdapter: vi.fn(),
+  resetTrezorAdapter: vi.fn(),
+  TrezorAdapter: vi.fn()
 }));
 
 import { createProviderService } from '../providerService';

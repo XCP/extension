@@ -90,3 +90,21 @@ export function combineBuffers(...buffers: Uint8Array[]): Uint8Array<ArrayBuffer
   }
   return result;
 }
+
+/**
+ * Encodes a string to Uint8Array<ArrayBuffer> for Web Crypto API compatibility.
+ *
+ * TextEncoder.encode() returns Uint8Array<ArrayBufferLike>, but Web Crypto APIs
+ * require Uint8Array<ArrayBuffer>. This wrapper copies the encoded bytes to a
+ * new ArrayBuffer-backed Uint8Array to satisfy the stricter type requirements.
+ *
+ * Note: This is needed when Trezor packages are installed, as their Solana
+ * dependencies include stricter TypeScript type definitions.
+ */
+export function encodeString(str: string): Uint8Array<ArrayBuffer> {
+  const encoded = new TextEncoder().encode(str);
+  const buffer = new ArrayBuffer(encoded.length);
+  const result = new Uint8Array(buffer);
+  result.set(encoded);
+  return result;
+}

@@ -92,6 +92,14 @@ export interface AppSettings {
 
   /** User has visited recover bitcoin page */
   hasVisitedRecoverBitcoin?: boolean;
+
+  // Hardware Wallet Testing
+  /**
+   * Enable Trezor emulator mode for development testing.
+   * When enabled, Trezor Connect uses direct bridge communication without popup.
+   * SECURITY: Never enable in production - bypasses user confirmation UI.
+   */
+  trezorEmulatorMode?: boolean;
 }
 
 /**

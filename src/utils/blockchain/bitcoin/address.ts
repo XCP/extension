@@ -1,6 +1,6 @@
 import { ripemd160 } from '@noble/hashes/legacy.js';
 import { sha256 } from '@noble/hashes/sha2.js';
-import { bech32, base58, createBase58check } from '@scure/base';
+import { bech32, bech32m, base58, createBase58check } from '@scure/base';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import * as btc from '@scure/btc-signer';
@@ -54,6 +54,74 @@ export function isCounterwalletFormat(format: AddressFormat): boolean {
 
 // Create a base58check encoder instance using SHA-256.
 const base58check = createBase58check(sha256);
+
+/**
+ * Decode a Bitcoin address from a scriptPubKey hex string.
+ * Supports P2PKH, P2WPKH, P2SH, and P2TR scripts.
+ *
+ * @param scriptHex - The scriptPubKey in hex format
+ * @returns The decoded Bitcoin address, or null if unsupported script type
+ */
+export function decodeAddressFromScript(scriptHex: string): string | null {
+  try {
+    // P2PKH: OP_DUP OP_HASH160 <20 bytes> OP_EQUALVERIFY OP_CHECKSIG
+    // Format: 76a914{20-byte-hash}88ac
+    if (scriptHex.startsWith('76a914') && scriptHex.endsWith('88ac') && scriptHex.length === 50) {
+      const hashHex = scriptHex.slice(6, 46);
+      const pubKeyHash = hexToUint8Array(hashHex);
+      const payload = new Uint8Array(1 + pubKeyHash.length);
+      payload[0] = 0x00; // mainnet prefix for P2PKH
+      payload.set(pubKeyHash, 1);
+      return base58check.encode(payload);
+    }
+
+    // P2WPKH: OP_0 <20 bytes>
+    // Format: 0014{20-byte-hash}
+    if (scriptHex.startsWith('0014') && scriptHex.length === 44) {
+      const hashHex = scriptHex.slice(4);
+      const pubKeyHash = hexToUint8Array(hashHex);
+      const words = bech32.toWords(pubKeyHash);
+      return bech32.encode('bc', [0, ...words]);
+    }
+
+    // P2SH: OP_HASH160 <20 bytes> OP_EQUAL
+    // Format: a914{20-byte-hash}87
+    if (scriptHex.startsWith('a914') && scriptHex.endsWith('87') && scriptHex.length === 46) {
+      const hashHex = scriptHex.slice(4, 44);
+      const scriptHash = hexToUint8Array(hashHex);
+      const payload = new Uint8Array(1 + scriptHash.length);
+      payload[0] = 0x05; // mainnet prefix for P2SH
+      payload.set(scriptHash, 1);
+      return base58check.encode(payload);
+    }
+
+    // P2TR: OP_1 <32 bytes>
+    // Format: 5120{32-byte-pubkey}
+    if (scriptHex.startsWith('5120') && scriptHex.length === 68) {
+      const xOnlyPubKeyHex = scriptHex.slice(4);
+      const xOnlyPubKey = hexToUint8Array(xOnlyPubKeyHex);
+      const words = bech32m.toWords(xOnlyPubKey);
+      // Taproot uses bech32m (witness version 1)
+      return bech32m.encode('bc', [1, ...words]);
+    }
+
+    // Unsupported script type
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Convert hex string to Uint8Array
+ */
+function hexToUint8Array(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+  }
+  return bytes;
+}
 
 /**
  * Returns the default derivation path for a given Bitcoin address type.
