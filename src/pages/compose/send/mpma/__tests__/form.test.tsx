@@ -133,7 +133,7 @@ describe('MPMAForm', () => {
     
     await waitFor(() => {
       // Address shows first 10 chars
-      expect(screen.getByText(/bc1qar0srr\.\.\. → 1.5 XCP/)).toBeInTheDocument();
+      expect(screen.getByText(/bc1qar0srr… → 1.5 XCP/)).toBeInTheDocument();
     }, { timeout: 5000 });
   });
 
@@ -150,8 +150,8 @@ describe('MPMAForm', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/bc1qar0srr\.\.\. → 1.5 XCP/)).toBeInTheDocument();
-      expect(screen.queryByText(/Address\.\.\./)).not.toBeInTheDocument();
+      expect(screen.getByText(/bc1qar0srr… → 1.5 XCP/)).toBeInTheDocument();
+      expect(screen.queryByText(/Address…/)).not.toBeInTheDocument();
     }, { timeout: 5000 });
   });
 
@@ -239,8 +239,8 @@ describe('MPMAForm', () => {
     
     await waitFor(() => {
       expect(screen.getByText('Preview (First 5)')).toBeInTheDocument();
-      expect(screen.getByText(/bc1qar0srr\.\.\. → 1.5 XCP/)).toBeInTheDocument();
-      expect(screen.getByText(/bc1qw508d6\.\.\. → 0.001 BTC/)).toBeInTheDocument();
+      expect(screen.getByText(/bc1qar0srr… → 1.5 XCP/)).toBeInTheDocument();
+      expect(screen.getByText(/bc1qw508d6… → 0.001 BTC/)).toBeInTheDocument();
     });
   });
 

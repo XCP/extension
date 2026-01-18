@@ -184,7 +184,7 @@ describe('AmountWithMaxInput', () => {
     fireEvent.click(maxButton);
     
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Calculating maximum amount...' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Calculating maximum amount…' })).toBeInTheDocument();
     });
   });
 

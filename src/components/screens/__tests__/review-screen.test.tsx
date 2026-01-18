@@ -218,7 +218,7 @@ describe('ReviewScreen', () => {
     const backButton = screen.getByRole('button', { name: /go back/i });
     
     expect(signButton).toBeDisabled();
-    expect(signButton).toHaveTextContent('Signing...');
+    expect(signButton).toHaveTextContent('Signing…');
     expect(backButton).toBeDisabled();
   });
 
