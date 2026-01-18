@@ -107,15 +107,15 @@ export function PinnableAssetCard({
                 onMoveUp?.();
               }}
               disabled={!onMoveUp}
-              className={`p-0.5 rounded transition-all ${
+              className={`p-0.5 rounded transition-colors ${
                 !onMoveUp
                   ? "text-gray-300 cursor-not-allowed"
-                  : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                  : "text-gray-600 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
               }`}
               aria-label={`Move ${symbol} up`}
               title="Move up"
             >
-              <FiChevronUp className="w-3 h-3" />
+              <FiChevronUp className="size-3" aria-hidden="true" />
             </button>
             <button
               onClick={(e) => {
@@ -124,15 +124,15 @@ export function PinnableAssetCard({
                 onMoveDown?.();
               }}
               disabled={!onMoveDown}
-              className={`p-0.5 rounded transition-all ${
+              className={`p-0.5 rounded transition-colors ${
                 !onMoveDown
                   ? "text-gray-300 cursor-not-allowed"
-                  : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                  : "text-gray-600 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
               }`}
               aria-label={`Move ${symbol} down`}
               title="Move down"
             >
-              <FiChevronDown className="w-3 h-3" />
+              <FiChevronDown className="size-3" aria-hidden="true" />
             </button>
           </div>
         )}
@@ -140,7 +140,7 @@ export function PinnableAssetCard({
         {/* Pin/Unpin Button */}
         <button
           onClick={handlePinClick}
-          className={`p-2 rounded-md transition-all hover:scale-110 ${
+          className={`p-2 rounded-md transition-colors hover:scale-110 cursor-pointer ${
             isPinned
               ? "bg-blue-500 text-white hover:bg-blue-600"
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -149,9 +149,9 @@ export function PinnableAssetCard({
           title={isPinned ? "Unpin asset" : "Pin asset"}
         >
           {isPinned ? (
-            <TbPinnedFilled className="w-4 h-4" />
+            <TbPinnedFilled className="size-4" aria-hidden="true" />
           ) : (
-            <TbPinned className="w-4 h-4" />
+            <TbPinned className="size-4" aria-hidden="true" />
           )}
         </button>
       </div>

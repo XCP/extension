@@ -120,7 +120,7 @@ export function DividendForm({
   
   // Early returns
   if (assetLoading) {
-    return <Spinner message="Loading asset details..." />;
+    return <Spinner message="Loading asset details…" />;
   }
 
   if (assetError || !assetInfo?.assetInfo) {

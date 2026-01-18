@@ -64,8 +64,7 @@ describe('AddressHeader', () => {
     
     const logo = screen.getByAltText('XCP Wallet');
     expect(logo).toHaveAttribute('src', 'mocked-logo-path.png');
-    expect(logo).toHaveClass('w-12');
-    expect(logo).toHaveClass('h-12');
+    expect(logo).toHaveClass('size-12');
     expect(logo).toHaveClass('mr-4');
     expect(logo).toHaveClass('rounded-full');
   });

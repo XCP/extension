@@ -88,7 +88,7 @@ export function ReviewScreen({
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
-      <h3 className="text-lg font-bold text-gray-900">Review Transaction</h3>
+      <h2 className="text-lg font-bold text-gray-900">Review Transaction</h2>
       
       {error && (
         <ErrorAlert 
@@ -179,9 +179,9 @@ export function ReviewScreen({
           color="blue"
           fullWidth
           disabled={isSigning}
-          aria-label={isSigning ? "Signing transaction..." : "Sign and broadcast transaction"}
+          aria-label={isSigning ? "Signing transaction…" : "Sign and broadcast transaction"}
         >
-          {isSigning ? "Signing..." : "Sign & Broadcast"}
+          {isSigning ? "Signing…" : "Sign & Broadcast"}
         </Button>
       </div>
     </div>

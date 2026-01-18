@@ -78,10 +78,10 @@ export default function ApprovePsbt() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen p-4">
+      <div className="flex items-center justify-center h-dvh p-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading transaction details...</p>
+          <div className="animate-spin rounded-full size-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading transaction details…</p>
         </div>
       </div>
     );
@@ -90,9 +90,9 @@ export default function ApprovePsbt() {
   // Error state
   if (loadError || !request || !decodedInfo) {
     return (
-      <div className="flex items-center justify-center h-screen p-4">
+      <div className="flex items-center justify-center h-dvh p-4">
         <div className="text-center">
-          <FiAlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <FiAlertTriangle className="size-12 text-red-500 mx-auto mb-4" aria-hidden="true" />
           <p className="text-red-600 mb-4">{loadError || 'Request not found'}</p>
           <Button color="gray" onClick={() => window.close()}>Close</Button>
         </div>
@@ -103,7 +103,7 @@ export default function ApprovePsbt() {
   // No wallet state
   if (!activeAddress || !activeWallet) {
     return (
-      <div className="flex items-center justify-center h-screen p-4">
+      <div className="flex items-center justify-center h-dvh p-4">
         <div className="text-center">
           <p className="text-gray-500">Please unlock your wallet first</p>
         </div>
@@ -121,18 +121,18 @@ export default function ApprovePsbt() {
   const shouldBlockSigning = isStrictMode && verificationFailed;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-dvh bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold">Sign Transaction</h1>
           <button
             onClick={handleReject}
-            className="p-1 hover:bg-gray-100 rounded"
+            className="p-1 hover:bg-gray-100 rounded focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
             aria-label="Close"
             disabled={isSigning}
           >
-            <FiX className="w-5 h-5" />
+            <FiX className="size-5" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -142,8 +142,8 @@ export default function ApprovePsbt() {
         <div className="max-w-md mx-auto space-y-4">
           {/* Site info */}
           <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-              <FiGlobe className="w-8 h-8 text-blue-600" />
+            <div className="inline-flex items-center justify-center size-16 bg-blue-100 rounded-full mb-4">
+              <FiGlobe className="size-8 text-blue-600" aria-hidden="true" />
             </div>
             <h2 className="text-xl font-semibold mb-2">{domain}</h2>
             <p className="text-sm text-gray-500 break-all">{request.origin}</p>
@@ -154,7 +154,7 @@ export default function ApprovePsbt() {
 
           {/* Transaction Summary */}
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-4">Transaction Summary</h3>
+            <h2 className="text-sm font-medium text-gray-700 mb-4">Transaction Summary</h2>
 
             <div className="space-y-3">
               {/* Inputs */}
@@ -233,9 +233,9 @@ export default function ApprovePsbt() {
             >
               <span className="text-sm font-medium text-gray-700">Transaction Details</span>
               {showDetails ? (
-                <FiChevronUp className="w-5 h-5 text-gray-400" />
+                <FiChevronUp className="size-5 text-gray-400" aria-hidden="true" />
               ) : (
-                <FiChevronDown className="w-5 h-5 text-gray-400" />
+                <FiChevronDown className="size-5 text-gray-400" aria-hidden="true" />
               )}
             </button>
 
@@ -298,7 +298,7 @@ export default function ApprovePsbt() {
 
           {/* From Wallet */}
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Signing With</h3>
+            <h2 className="text-sm font-medium text-gray-700 mb-3">Signing With</h2>
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="text-sm font-medium text-gray-900">{activeWallet.name}</p>
               <p className="text-xs text-gray-500 truncate">{activeAddress.address}</p>
@@ -309,7 +309,7 @@ export default function ApprovePsbt() {
           {(hasHighFee || hasAnyoneCanPay) && (
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
               <div className="flex items-start">
-                <FiAlertTriangle className="w-5 h-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" />
+                <FiAlertTriangle className="size-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
                 <div className="text-sm text-orange-800">
                   <p className="font-medium mb-1">Review Carefully</p>
                   <ul className="list-disc list-inside space-y-1 text-xs">
@@ -327,7 +327,7 @@ export default function ApprovePsbt() {
 
           {/* Info box */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-blue-900 mb-2">What happens next?</h3>
+            <h2 className="text-sm font-medium text-blue-900 mb-2">What happens next?</h2>
             <ul className="text-xs text-blue-700 space-y-1">
               <li>• The transaction will be signed with your private key</li>
               <li>• The signed PSBT will be returned to the requesting site</li>
@@ -354,7 +354,7 @@ export default function ApprovePsbt() {
             disabled={isSigning || shouldBlockSigning}
             fullWidth
           >
-            {isSigning ? 'Signing...' : shouldBlockSigning ? 'Blocked' : 'Sign'}
+            {isSigning ? 'Signing…' : shouldBlockSigning ? 'Blocked' : 'Sign'}
           </Button>
         </div>
       </div>

@@ -147,7 +147,7 @@ export default function AddressHistory(): ReactElement {
         fullWidth
       >
         <div className="flex items-center justify-center gap-2">
-          <FaChevronLeft aria-hidden="true" />
+          <FaChevronLeft className="size-4" aria-hidden="true" />
           Previous
         </div>
       </Button>
@@ -159,13 +159,13 @@ export default function AddressHistory(): ReactElement {
       >
         <div className="flex items-center justify-center gap-2">
           Next
-          <FaChevronRight aria-hidden="true" />
+          <FaChevronRight className="size-4" aria-hidden="true" />
         </div>
       </Button>
     </div>
   );
 
-  if (isLoading) return <Spinner message="Loading transactions..." />;
+  if (isLoading) return <Spinner message="Loading transactions…" />;
   if (error) return <ErrorAlert message={error} onClose={() => setError(null)} />;
 
   return (

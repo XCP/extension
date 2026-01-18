@@ -74,8 +74,8 @@ function ResetWallet() {
       <form action={handleFormAction} className="flex flex-col items-center justify-center flex-grow" aria-describedby="reset-wallet-warning">
         <div className="max-w-md w-full bg-red-50 border-2 border-red-500 rounded-xl p-6 mb-6" id="reset-wallet-warning">
           <div className="flex items-center mb-4">
-            <FaExclamationTriangle className="w-6 h-6 text-red-500 mr-2" aria-hidden="true" />
-            <h3 className="text-xl font-bold text-red-700">Warning</h3>
+            <FaExclamationTriangle className="size-6 text-red-500 mr-2" aria-hidden="true" />
+            <h2 className="text-xl font-bold text-red-700">Warning</h2>
           </div>
           <p className="text-red-700 font-medium leading-relaxed">
             Resetting your wallet will delete all wallet data. This action cannot be undone.
@@ -89,7 +89,7 @@ function ResetWallet() {
             innerRef={passwordInputRef}
           />
           <Button type="submit" disabled={pending} fullWidth color="red" aria-label="Reset Wallet">
-            {pending ? "Resetting..." : "Reset Wallet"}
+            {pending ? "Resetting…" : "Reset Wallet"}
           </Button>
         </div>
       </form>

@@ -145,7 +145,7 @@ describe('DispenserList', () => {
       />
     );
 
-    expect(screen.getByText('Fetching dispenser details...')).toBeInTheDocument();
+    expect(screen.getByText('Fetching dispenser details…')).toBeInTheDocument();
     expect(screen.queryByTestId('dispenser-card-0')).not.toBeInTheDocument();
   });
 
@@ -264,7 +264,7 @@ describe('DispenserList', () => {
     );
 
     // Based on the component, loading is checked first, so it shows loading
-    expect(screen.getByText('Fetching dispenser details...')).toBeInTheDocument();
+    expect(screen.getByText('Fetching dispenser details…')).toBeInTheDocument();
     expect(screen.queryByText('Network error')).not.toBeInTheDocument();
   });
 
@@ -292,7 +292,7 @@ describe('DispenserList', () => {
       />
     );
 
-    expect(screen.getByText('Fetching dispenser details...')).toBeInTheDocument();
+    expect(screen.getByText('Fetching dispenser details…')).toBeInTheDocument();
   });
 
   it('passes BTC amount to cards', () => {
@@ -332,7 +332,7 @@ describe('DispenserList', () => {
       />
     );
 
-    const loadingElement = screen.getByText('Fetching dispenser details...');
+    const loadingElement = screen.getByText('Fetching dispenser details…');
     expect(loadingElement).toHaveClass('text-gray-500');
   });
 });

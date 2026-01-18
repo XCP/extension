@@ -45,7 +45,7 @@ export function HashInput({
   onChange,
   onValidationChange,
   hashType = "generic",
-  placeholder = "Enter hash...",
+  placeholder = "Enter hash…",
   label,
   name = "hash",
   disabled = false,
@@ -186,9 +186,9 @@ export function HashInput({
             className="absolute right-1 top-1 px-2 py-1"
           >
             {copied ? (
-              <FaCheck className="h-4 w-4 text-green-600" />
+              <FaCheck className="size-4 text-green-600" aria-hidden="true" />
             ) : (
-              <FaCopy className="h-4 w-4" />
+              <FaCopy className="size-4" aria-hidden="true" />
             )}
           </Button>
         )}

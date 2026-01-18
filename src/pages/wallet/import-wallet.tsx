@@ -92,7 +92,7 @@ function ImportWallet() {
       title: "Import Wallet",
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
-        icon: showMnemonic ? <FaEyeSlash aria-hidden="true" /> : <FaEye aria-hidden="true" />,
+        icon: showMnemonic ? <FaEyeSlash className="size-4" aria-hidden="true" /> : <FaEye className="size-4" aria-hidden="true" />,
         onClick: () => setShowMnemonic((prev) => !prev),
         ariaLabel: showMnemonic ? "Hide recovery phrase" : "Show recovery phrase",
       },
@@ -247,7 +247,7 @@ function ImportWallet() {
                 disabled={isPending || !isPasswordValid}
                 fullWidth
               >
-                {isPending ? "Submitting..." : "Continue"}
+                {isPending ? "Submitting…" : "Continue"}
               </Button>
             </>
           )}

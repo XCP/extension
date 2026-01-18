@@ -129,7 +129,7 @@ export default function App() {
       <div className="fixed inset-0 flex items-center justify-center bg-white dark:bg-gray-900">
         <FaSpinner 
           className="text-4xl text-primary-600 animate-spin" 
-          aria-label="Loading..."
+          aria-label="Loading…"
         />
       </div>
     );

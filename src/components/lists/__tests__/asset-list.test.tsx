@@ -110,7 +110,7 @@ describe('AssetList', () => {
     render(<AssetList />);
     
     expect(screen.getByTestId('spinner')).toBeInTheDocument();
-    expect(screen.getByText('Loading owned assets...')).toBeInTheDocument();
+    expect(screen.getByText('Loading owned assets…')).toBeInTheDocument();
   });
 
   it('should fetch owned assets on mount', async () => {
@@ -156,7 +156,7 @@ describe('AssetList', () => {
     });
     
     // Now look for the search input
-    expect(screen.getByPlaceholderText('Search assets...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search assets…')).toBeInTheDocument();
   });
 
   it('should show search icon', async () => {
@@ -184,7 +184,7 @@ describe('AssetList', () => {
     });
     
     // Now interact with the search input
-    const searchInput = screen.getByPlaceholderText('Search assets...');
+    const searchInput = screen.getByPlaceholderText('Search assets…');
     fireEvent.change(searchInput, { target: { value: 'PEPE' } });
     
     expect(mockSetSearchQuery).toHaveBeenCalledWith('PEPE');
@@ -293,7 +293,7 @@ describe('AssetList', () => {
     render(<AssetList />);
     
     await waitFor(() => {
-      expect(screen.getByText('Searching assets...')).toBeInTheDocument();
+      expect(screen.getByText('Searching assets…')).toBeInTheDocument();
     });
   });
 
@@ -381,7 +381,7 @@ describe('AssetList', () => {
     });
     
     // Now check the layout classes
-    const container = screen.getByPlaceholderText('Search assets...').closest('.space-y-2');
+    const container = screen.getByPlaceholderText('Search assets…').closest('.space-y-2');
     expect(container).toHaveClass('space-y-2');
   });
 
@@ -396,7 +396,7 @@ describe('AssetList', () => {
     });
     
     // Now check the search input styles
-    const searchInput = screen.getByPlaceholderText('Search assets...');
+    const searchInput = screen.getByPlaceholderText('Search assets…');
     expect(searchInput).toHaveClass('w-full');
     expect(searchInput).toHaveClass('p-2.5');
     expect(searchInput).toHaveClass('pl-8');

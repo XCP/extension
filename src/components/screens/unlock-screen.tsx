@@ -218,9 +218,9 @@ export function UnlockScreen({
                   type="submit"
                   disabled={!password || isSubmitting}
                   className="flex-1"
-                  aria-label={isSubmitting ? "Unlocking..." : submitText}
+                  aria-label={isSubmitting ? "Unlocking…" : submitText}
                 >
-                  {isSubmitting ? "Unlocking..." : submitText}
+                  {isSubmitting ? "Unlocking…" : submitText}
                 </Button>
               </div>
             ) : (
@@ -228,9 +228,9 @@ export function UnlockScreen({
                 type="submit"
                 fullWidth
                 disabled={!password || isSubmitting}
-                aria-label={isSubmitting ? "Unlocking..." : submitText}
+                aria-label={isSubmitting ? "Unlocking…" : submitText}
               >
-                {isSubmitting ? "Unlocking..." : submitText}
+                {isSubmitting ? "Unlocking…" : submitText}
               </Button>
             )}
           </form>

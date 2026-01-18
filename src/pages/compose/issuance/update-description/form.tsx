@@ -66,7 +66,7 @@ export function UpdateDescriptionForm({
   }, []);
 
   if (assetLoading) {
-    return <Spinner message="Loading asset details..." />;
+    return <Spinner message="Loading asset details…" />;
   }
 
   if (assetError || !assetInfo) {

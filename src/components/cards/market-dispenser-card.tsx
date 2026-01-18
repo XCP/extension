@@ -38,7 +38,7 @@ export function MarketDispenserCard({
 
   return (
     <div
-      className={`bg-white rounded-lg shadow-sm p-3 ${onClick ? "hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500" : ""} ${className}`}
+      className={`bg-white rounded-lg shadow-sm p-3 ${onClick ? "hover:shadow-md transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" : ""} ${className}`}
       onClick={onClick}
       onKeyDown={handleKeyDown}
       role={onClick ? "button" : undefined}
@@ -50,7 +50,7 @@ export function MarketDispenserCard({
           {onAssetClick ? (
             <button
               onClick={handleAssetClick}
-              className="font-medium text-blue-600 hover:text-blue-800 text-sm truncate text-left"
+              className="font-medium text-blue-600 hover:text-blue-800 text-sm truncate text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
             >
               {assetName}
             </button>

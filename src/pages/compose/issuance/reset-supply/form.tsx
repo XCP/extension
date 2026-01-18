@@ -43,7 +43,7 @@ export function ResetSupplyForm({
       formAction={formAction}
     >
       <div className="mb-4 p-3 bg-gray-50 rounded-md">
-        <h3 className="text-sm font-medium text-gray-700">Asset Details</h3>
+        <h2 className="text-sm font-medium text-gray-700">Asset Details</h2>
         <div className="mt-2 text-sm text-gray-600">
           <p>Current Supply: {assetInfo?.supply || "0"}</p>
           <p>Divisible: {assetInfo?.divisible ? "Yes" : "No"}</p>

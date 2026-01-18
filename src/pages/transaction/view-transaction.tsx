@@ -59,7 +59,7 @@ export default function ViewTransaction(): ReactElement {
       title: "Transaction",
       onBack: () => navigate(`/address-history?page=${savedPage}`),
       rightButton: {
-        icon: <FaExternalLinkAlt aria-hidden="true" />,
+        icon: <FaExternalLinkAlt className="size-4" aria-hidden="true" />,
         onClick: () => window.open(`https://www.xcp.io/tx/${txHash}`, "_blank"),
         ariaLabel: "View on XChain",
       },
@@ -67,7 +67,7 @@ export default function ViewTransaction(): ReactElement {
     return () => setHeaderProps(null);
   }, [setHeaderProps, navigate, txHash, savedPage]);
 
-  if (isLoading) return <Spinner message="Loading transaction..." />;
+  if (isLoading) return <Spinner message="Loading transaction…" />;
   if (error) return <ErrorAlert message={error} onClose={() => setError(null)} />;
   if (!transaction) return <ErrorAlert message="Transaction not found" />;
 
@@ -88,9 +88,9 @@ export default function ViewTransaction(): ReactElement {
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-auto no-scrollbar p-4">
         <div className="bg-white rounded-lg shadow-lg p-4 space-y-4">
-          <h3 className="text-lg font-bold">
+          <h2 className="text-lg font-bold">
             {messageType.toUpperCase().replace(/_/g, " ")}
-          </h3>
+          </h2>
 
           <div className="space-y-4">
             {/* Transaction Hash */}
@@ -214,7 +214,7 @@ export default function ViewTransaction(): ReactElement {
           fullWidth
         >
           <div className="flex items-center justify-center gap-2">
-            <FaChevronLeft aria-hidden="true" />
+            <FaChevronLeft className="size-4" aria-hidden="true" />
             Back to History
           </div>
         </Button>

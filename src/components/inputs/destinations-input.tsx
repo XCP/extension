@@ -185,27 +185,27 @@ export function DestinationsInput({
           {/* Loading spinner, Add/Remove buttons */}
           <div className="absolute right-2 top-1/2 -translate-y-1/2">
             {getLookupState(destination.id).isLookingUp ? (
-              <div className="animate-spin h-4 w-4 border-2 border-gray-500 border-t-transparent rounded-full" title="Looking up asset owner..."></div>
+              <div className="animate-spin size-4 border-2 border-gray-500 border-t-transparent rounded-full" title="Looking up asset owner…"></div>
             ) : ((index === 0 && showAddButton) || (index > 0 && canRemove)) ? (
               index === 0 && showAddButton ? (
                 <button
                   type="button"
                   onClick={addDestination}
                   disabled={disabled}
-                  className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50"
-                  title="Add another destination"
+                  className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                  aria-label="Add another destination"
                 >
-                  <FaPlus className="w-5 h-5" />
+                  <FaPlus className="size-5" aria-hidden="true" />
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={() => removeDestination(destination.id)}
                   disabled={disabled}
-                  className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50"
-                  title={`Remove destination ${index + 1}`}
+                  className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                  aria-label={`Remove destination ${index + 1}`}
                 >
-                  <FiMinus className="w-5 h-5" />
+                  <FiMinus className="size-5" aria-hidden="true" />
                 </button>
               )
             ) : null}

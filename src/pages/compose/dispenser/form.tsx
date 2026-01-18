@@ -91,11 +91,6 @@ export const DispenserForm = memo(function DispenserForm({
     }
   }, [assetDetails?.availableBalance]);
 
-  // Focus escrow_quantity input on mount
-  useEffect(() => {
-    const input = document.querySelector("input[name='escrow_quantity_display']") as HTMLInputElement;
-    input?.focus();
-  }, []);
 
   // Reset form fields when initialFormData changes to null
   const prevInitialFormDataRef = useRef(initialFormData);
@@ -204,6 +199,7 @@ export const DispenserForm = memo(function DispenserForm({
               isDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only."
             } Available: ${availableBalance}`}
             disabled={pending}
+            autoFocus
           />
           <PriceWithSuggestInput
             value={mainchainRate}
@@ -225,10 +221,11 @@ export const DispenserForm = memo(function DispenserForm({
               name="give_quantity_display"
               value={giveQuantity}
               onChange={(e) => setGiveQuantity(e.target.value)}
-              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
               placeholder={isDivisible ? "0.00000000" : "0"}
               disabled={pending}
+              inputMode="decimal"
             />
             {showHelpText && (
               <Description className="mt-2 text-sm text-gray-500">

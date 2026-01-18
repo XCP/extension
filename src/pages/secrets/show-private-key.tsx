@@ -126,8 +126,8 @@ export default function ShowPrivateKey(): ReactElement {
         <form action={handleFormAction} className="flex flex-col items-center justify-center flex-grow">
           <div className="max-w-md w-full bg-red-50 border-2 border-red-500 rounded-xl p-6 mb-6">
             <div className="flex items-center mb-4">
-              <FaExclamationTriangle className="w-6 h-6 text-red-500 mr-2" aria-hidden="true" />
-              <h3 className="text-xl font-bold text-red-700">Warning</h3>
+              <FaExclamationTriangle className="size-6 text-red-500 mr-2" aria-hidden="true" />
+              <h2 className="text-xl font-bold text-red-700">Warning</h2>
             </div>
             <p className="text-red-700 font-medium leading-relaxed">
               Never share your private key. Anyone with this sensitive string of letters can steal your funds!
@@ -141,7 +141,7 @@ export default function ShowPrivateKey(): ReactElement {
               innerRef={passwordInputRef}
             />
             <Button type="submit" disabled={pending} fullWidth color="red" aria-label="Show Private Key">
-              {pending ? "Verifying..." : "Show Private Key"}
+              {pending ? "Verifying…" : "Show Private Key"}
             </Button>
           </div>
         </form>
@@ -149,7 +149,7 @@ export default function ShowPrivateKey(): ReactElement {
         <div className="flex flex-col items-center justify-center flex-grow">
           <div className="w-full max-w-md space-y-4">
             <div className="text-center mb-6">
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">Your Private Key (WIF)</h3>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Your Private Key (WIF)</h2>
               <p className="text-sm text-gray-600">
                 This is your private key in Wallet Import Format. Never share it with anyone.
               </p>
@@ -175,7 +175,7 @@ export default function ShowPrivateKey(): ReactElement {
             </Button>
             <div className="bg-red-50 border border-red-200 rounded-xl p-4">
               <div className="flex items-center space-x-2 mb-2">
-                <FaExclamationTriangle className="w-5 h-5 text-red-500" aria-hidden="true" />
+                <FaExclamationTriangle className="size-5 text-red-500" aria-hidden="true" />
                 <p className="text-sm font-bold text-red-800">Security Notice</p>
               </div>
               <p className="text-sm text-red-700">

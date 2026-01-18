@@ -215,7 +215,7 @@ export default function Market(): ReactElement {
                     onTabChange={(tab) => setDispensersTab(tab as "open" | "dispensed")}
                   />
                   {dispensersLoading ? (
-                    <Spinner message="Loading dispensers..." />
+                    <Spinner message="Loading dispensers…" />
                   ) : dispensersTab === "open" ? (
                     recentDispensers.length > 0 ? (
                       <div className="space-y-2">
@@ -262,7 +262,7 @@ export default function Market(): ReactElement {
                     onTabChange={(tab) => setOrdersTab(tab as "open" | "history")}
                   />
                   {ordersLoading ? (
-                    <Spinner message="Loading orders..." />
+                    <Spinner message="Loading orders…" />
                   ) : ordersTab === "open" ? (
                     recentOrders.length > 0 ? (
                       <div className="space-y-2">
@@ -300,7 +300,7 @@ export default function Market(): ReactElement {
             {/* Manage Tab */}
             <TabPanel>
               {manageLoading ? (
-                <Spinner message="Loading your DEX activity..." />
+                <Spinner message="Loading your DEX activity…" />
               ) : (
                 <div className="space-y-4">
                   {/* My Orders */}
@@ -309,9 +309,9 @@ export default function Market(): ReactElement {
                       <h2 className="text-sm font-semibold text-gray-700">Your Orders</h2>
                       <button
                         onClick={() => navigate("/compose/order")}
-                        className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                        className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                       >
-                        <FaPlus className="w-3 h-3" />
+                        <FaPlus className="size-3" aria-hidden="true" />
                         New Order
                       </button>
                     </div>
@@ -336,16 +336,16 @@ export default function Market(): ReactElement {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => navigate("/dispensers/manage")}
-                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 rounded"
                           title="Manage all dispensers"
                         >
-                          <FaCog className="w-3 h-3" />
+                          <FaCog className="size-3" aria-hidden="true" />
                         </button>
                         <button
                           onClick={() => navigate("/compose/dispenser")}
-                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                         >
-                          <FaPlus className="w-3 h-3" />
+                          <FaPlus className="size-3" aria-hidden="true" />
                           New
                         </button>
                       </div>
@@ -358,7 +358,7 @@ export default function Market(): ReactElement {
                         {myDispensers.length > DISPLAY_LIMIT && (
                           <button
                             onClick={() => navigate("/dispensers/manage")}
-                            className="w-full py-2 text-sm text-blue-600 hover:text-blue-800"
+                            className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                           >
                             View all {myDispensers.length} dispensers
                           </button>

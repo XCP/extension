@@ -61,7 +61,7 @@ export function TransactionCard({
   const formatTxHash = (hash: string): string => {
     if (showFullHash) return hash;
     if (hash.length <= 20) return hash;
-    return `${hash.slice(0, 8)}...${hash.slice(-8)}`;
+    return `${hash.slice(0, 8)}…${hash.slice(-8)}`;
   };
 
   const handleClick = () => {
@@ -82,7 +82,7 @@ export function TransactionCard({
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       className={`block transition-shadow ${
-        onClick ? "hover:shadow-lg cursor-pointer" : ""
+        onClick ? "hover:shadow-lg cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg" : ""
       } ${isPending ? "opacity-75" : ""} ${className}`}
       role={onClick ? "button" : "article"}
       tabIndex={onClick ? 0 : undefined}
@@ -131,12 +131,12 @@ export function TransactionCard({
           <div className="text-xs text-gray-500">
             <div className="flex items-center gap-1">
               <span className="text-gray-400">From:</span>
-              <span className="font-mono">{transaction.source.slice(0, 8)}...</span>
+              <span className="font-mono">{transaction.source.slice(0, 8)}…</span>
             </div>
             {transaction.destination !== transaction.source && (
               <div className="flex items-center gap-1">
                 <span className="text-gray-400">To:</span>
-                <span className="font-mono">{transaction.destination.slice(0, 8)}...</span>
+                <span className="font-mono">{transaction.destination.slice(0, 8)}…</span>
               </div>
             )}
           </div>

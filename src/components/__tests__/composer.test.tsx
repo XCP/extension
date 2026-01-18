@@ -223,7 +223,7 @@ describe('Composer', () => {
 
     // Check for the loading overlay to appear immediately
     expect(screen.getByTestId('loading-overlay')).toBeInTheDocument();
-    expect(screen.getByText('Composing transaction...')).toBeInTheDocument();
+    expect(screen.getByText('Composing transaction…')).toBeInTheDocument();
 
     // Wait for it to disappear after API completes
     await waitFor(() => {

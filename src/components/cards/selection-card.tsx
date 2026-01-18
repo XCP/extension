@@ -84,7 +84,7 @@ export function SelectionCard<T = any>({
           {/* Optional Icon */}
           {icon && (
             <div className="flex-shrink-0 mr-3">
-              <div className="w-5 h-5 flex items-center justify-center text-gray-600">
+              <div className="size-5 flex items-center justify-center text-gray-600">
                 {icon}
               </div>
             </div>
@@ -116,7 +116,7 @@ export function SelectionCard<T = any>({
           {/* Check Mark Indicator */}
           {showCheckmark && checked && !disabled && (
             <div className="flex-shrink-0 ml-3">
-              <FaCheck className="w-4 h-4 text-blue-500" aria-hidden="true" />
+              <FaCheck className="size-4 text-blue-500" aria-hidden="true" />
             </div>
           )}
         </div>

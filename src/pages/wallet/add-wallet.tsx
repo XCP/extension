@@ -39,7 +39,7 @@ function AddWallet() {
       useLogoTitle: true,
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
-        icon: <FiX className="w-4 h-4" aria-hidden="true" />,
+        icon: <FiX className="size-4" aria-hidden="true" />,
         onClick: () => navigate(PATHS.CLOSE),
         ariaLabel: 'Close',
       },
@@ -94,7 +94,7 @@ function AddWallet() {
               onClick={handleCreateWallet}
               aria-label="Create New Wallet"
             >
-              <IoCreateOutline className="w-4 h-4 mr-2" aria-hidden="true" />
+              <IoCreateOutline className="size-4 mr-2" aria-hidden="true" />
               Create New Wallet
             </Button>
             <Button
@@ -103,7 +103,7 @@ function AddWallet() {
               onClick={handleImportWallet}
               aria-label="Import Wallet"
             >
-              <FiDownload className="w-4 h-4 mr-2" aria-hidden="true" />
+              <FiDownload className="size-4 mr-2" aria-hidden="true" />
               Import Mnemonic
             </Button>
             <Button
@@ -112,7 +112,7 @@ function AddWallet() {
               onClick={handleImportPrivateKey}
               aria-label="Import Private Key"
             >
-              <VscKey className="w-4 h-4 mr-2" aria-hidden="true" />
+              <VscKey className="size-4 mr-2" aria-hidden="true" />
               Import Private Key
             </Button>
             
@@ -124,7 +124,7 @@ function AddWallet() {
                 onClick={handleImportTestAddress}
                 aria-label="Import Test Address (Dev Only)"
               >
-                <FaEye className="w-4 h-4 mr-2" aria-hidden="true" />
+                <FaEye className="size-4 mr-2" aria-hidden="true" />
                 Import Test Address (Dev)
               </Button>
             )}

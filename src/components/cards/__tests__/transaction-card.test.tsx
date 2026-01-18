@@ -95,7 +95,7 @@ describe('TransactionCard', () => {
     );
 
     const hashElement = screen.getByText(/TX:/);
-    expect(hashElement.textContent).toContain('abc123de...34567890');
+    expect(hashElement.textContent).toContain('abc123de…34567890');
     expect(hashElement.textContent).not.toContain(mockTransaction.tx_hash);
   });
 
@@ -219,9 +219,9 @@ describe('TransactionCard', () => {
     );
 
     expect(screen.getByText('From:')).toBeInTheDocument();
-    expect(screen.getByText(/bc1qsour.../)).toBeInTheDocument();
+    expect(screen.getByText(/bc1qsour…/)).toBeInTheDocument();
     expect(screen.getByText('To:')).toBeInTheDocument();
-    expect(screen.getByText(/bc1qdest.../)).toBeInTheDocument();
+    expect(screen.getByText(/bc1qdest…/)).toBeInTheDocument();
   });
 
   it('does not show destination when same as source', () => {

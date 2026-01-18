@@ -67,7 +67,7 @@ function CreateWallet() {
       title: "Create Wallet",
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
-        icon: <FaSync aria-hidden="true" />,
+        icon: <FaSync className="size-4" aria-hidden="true" />,
         onClick: generateWallet,
         ariaLabel: "Generate new recovery phrase",
         disabled: isPending,
@@ -146,13 +146,14 @@ function CreateWallet() {
             </div>
             {!isRecoveryPhraseVisible && (
               <div
-                className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 cursor-pointer"
+                className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset rounded-md"
                 onClick={handleRecoveryPhraseClick}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRecoveryPhraseClick(); } }}
                 role="button"
                 tabIndex={0}
                 aria-label="Reveal recovery phrase"
               >
-                <FaEyeSlash className="mb-2 text-2xl" aria-hidden="true" />
+                <FaEyeSlash className="size-6 mb-2" aria-hidden="true" />
                 <p className="mb-2 font-bold">View 12-word Secret Phrase</p>
                 <p>Make sure no one is looking!</p>
               </div>
@@ -181,7 +182,7 @@ function CreateWallet() {
                 fullWidth
                 disabled={isPending || !isPasswordValid}
               >
-                {isPending ? "Submitting..." : "Continue"}
+                {isPending ? "Submitting…" : "Continue"}
               </Button>
             </>
           )}

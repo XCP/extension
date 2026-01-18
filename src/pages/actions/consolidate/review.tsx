@@ -116,7 +116,7 @@ export const ConsolidationReview = ({
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
-      <h3 className="text-lg font-bold">Review Consolidation</h3>
+      <h2 className="text-lg font-bold">Review Consolidation</h2>
 
       {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
 
@@ -131,7 +131,7 @@ export const ConsolidationReview = ({
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                className="bg-blue-600 h-2 rounded-full transition-[width] duration-300"
                 style={{ width: `${(currentBatch / numBatches) * 100}%` }}
               />
             </div>
@@ -284,7 +284,7 @@ export const ConsolidationReview = ({
           {isProcessing 
             ? `Processing Batch ${currentBatch} of ${numBatches}...` 
             : isSigning 
-              ? "Signing & Broadcasting..." 
+              ? "Signing & Broadcasting…" 
               : `Sign & Broadcast ${numBatches > 1 ? `${numBatches} Transactions` : 'Transaction'}`}
         </Button>
       </div>

@@ -139,7 +139,7 @@ describe('DestinationsInput', () => {
       />
     );
     
-    const addButton = screen.getByTitle('Add another destination');
+    const addButton = screen.getByLabelText('Add another destination');
     expect(addButton).toBeInTheDocument();
   });
 
@@ -152,7 +152,7 @@ describe('DestinationsInput', () => {
       />
     );
     
-    const addButton = screen.queryByTitle('Add another destination');
+    const addButton = screen.queryByLabelText('Add another destination');
     expect(addButton).not.toBeInTheDocument();
   });
 
@@ -167,7 +167,7 @@ describe('DestinationsInput', () => {
       />
     );
     
-    const addButton = screen.getByTitle('Add another destination');
+    const addButton = screen.getByLabelText('Add another destination');
     fireEvent.click(addButton);
     
     expect(onChange).toHaveBeenCalledWith(
@@ -193,7 +193,7 @@ describe('DestinationsInput', () => {
       />
     );
     
-    const removeButton = screen.getByTitle('Remove destination 2');
+    const removeButton = screen.getByLabelText('Remove destination 2');
     expect(removeButton).toBeInTheDocument();
   });
 
@@ -214,7 +214,7 @@ describe('DestinationsInput', () => {
       />
     );
     
-    const removeButton = screen.getByTitle('Remove destination 2');
+    const removeButton = screen.getByLabelText('Remove destination 2');
     fireEvent.click(removeButton);
     
     expect(onChange).toHaveBeenCalledWith([
@@ -436,7 +436,7 @@ describe('DestinationsInput', () => {
     }, { timeout: 5000 });
 
     // Should not show add button when at max limit
-    const addButton = screen.queryByTitle('Add another destination');
+    const addButton = screen.queryByLabelText('Add another destination');
     expect(addButton).not.toBeInTheDocument();
   }, 60000);
 
@@ -511,8 +511,8 @@ describe('DestinationsInput', () => {
       />
     );
     
-    const addButton = screen.getByTitle('Add another destination');
-    const removeButton = screen.getByTitle('Remove destination 2');
+    const addButton = screen.getByLabelText('Add another destination');
+    const removeButton = screen.getByLabelText('Remove destination 2');
     
     expect(addButton).toBeDisabled();
     expect(removeButton).toBeDisabled();

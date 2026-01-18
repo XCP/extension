@@ -78,8 +78,8 @@ export default function ShowPassphrase(): ReactElement {
         <form action={handleFormAction} className="flex flex-col items-center justify-center flex-grow">
           <div className="max-w-md w-full bg-red-50 border-2 border-red-500 rounded-xl p-6 mb-6">
             <div className="flex items-center mb-4">
-              <FaExclamationTriangle className="w-6 h-6 text-red-500 mr-2" aria-hidden="true" />
-              <h3 className="text-xl font-bold text-red-700">Warning</h3>
+              <FaExclamationTriangle className="size-6 text-red-500 mr-2" aria-hidden="true" />
+              <h2 className="text-xl font-bold text-red-700">Warning</h2>
             </div>
             <p className="text-red-700 font-medium leading-relaxed">
               Never share your recovery phrase with anyone. Anyone with these words can steal your funds!
@@ -93,7 +93,7 @@ export default function ShowPassphrase(): ReactElement {
               innerRef={passwordInputRef}
             />
             <Button type="submit" disabled={pending} fullWidth color="red" aria-label="Show Recovery Phrase">
-              {pending ? "Verifying..." : "Show Recovery Phrase"}
+              {pending ? "Verifying…" : "Show Recovery Phrase"}
             </Button>
           </div>
         </form>
@@ -122,7 +122,7 @@ export default function ShowPassphrase(): ReactElement {
             </div>
             <div className="bg-red-50 border border-red-200 rounded-xl p-4">
               <div className="flex items-center space-x-2 mb-2">
-                <FaExclamationTriangle className="w-5 h-5 text-red-500" aria-hidden="true" />
+                <FaExclamationTriangle className="size-5 text-red-500" aria-hidden="true" />
                 <p className="text-sm font-bold text-red-800">Security Notice</p>
               </div>
               <p className="text-sm text-red-700">

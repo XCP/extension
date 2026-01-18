@@ -105,7 +105,7 @@ function ComposerInner<T>({
       return {
         useLogoTitle: true,
         leftButton: {
-          icon: <FiX className="w-4 h-4" aria-hidden="true" />,
+          icon: <FiX className="size-4" aria-hidden="true" />,
           onClick: handleCancel,
           ariaLabel: "Cancel transaction",
         },
@@ -118,7 +118,7 @@ function ComposerInner<T>({
         title: initialTitle,
         onBack: goBack,
         rightButton: {
-          icon: <FiX className="w-4 h-4" aria-hidden="true" />,
+          icon: <FiX className="size-4" aria-hidden="true" />,
           onClick: handleCancel,
           ariaLabel: "Cancel and return to index",
         },
@@ -131,7 +131,7 @@ function ComposerInner<T>({
         useLogoTitle: true,
         onBack: onBackSuccess,
         rightButton: {
-          icon: <FiRefreshCw className="w-4 h-4" aria-hidden="true" />,
+          icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
           onClick: reset,
           ariaLabel: "Return to form",
         },
@@ -143,7 +143,7 @@ function ComposerInner<T>({
       title: initialTitle,
       onBack: headerCallbacks?.onBack || onBackDefault,
       rightButton: {
-        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: headerCallbacks?.onToggleHelp || toggleHelpText,
         ariaLabel: "Toggle help text",
       },
@@ -195,7 +195,7 @@ function ComposerInner<T>({
       {/* Local loading overlay that won't cause unmounts */}
       <LoadingOverlay
         isLoading={state.isComposing || state.isSigning}
-        message={state.isComposing ? "Composing transaction..." : "Signing and broadcasting..."}
+        message={state.isComposing ? "Composing transaction…" : "Signing and broadcasting…"}
       />
 
       {state.step === "form" && (
@@ -226,7 +226,7 @@ function ComposerInner<T>({
 
       {state.showAuthModal && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn overscroll-behavior-contain"
           role="dialog"
           aria-modal="true"
           aria-labelledby="auth-modal-title"

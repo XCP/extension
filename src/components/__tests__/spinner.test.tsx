@@ -31,19 +31,19 @@ describe('Spinner', () => {
     
     // Should not show visible message but should have screen reader text
     expect(screen.queryByRole('paragraph')).not.toBeInTheDocument();
-    expect(screen.getByText('Loading...')).toHaveClass('sr-only');
+    expect(screen.getByText('Loading…')).toHaveClass('sr-only');
   });
 
   it('should render message when provided', () => {
-    render(<Spinner message="Loading wallets..." />);
-    
-    expect(screen.getByText('Loading wallets...')).toBeInTheDocument();
+    render(<Spinner message="Loading wallets…" />);
+
+    expect(screen.getByText('Loading wallets…')).toBeInTheDocument();
   });
 
   it('should apply message styles', () => {
-    render(<Spinner message="Processing..." />);
-    
-    const message = screen.getByText('Processing...');
+    render(<Spinner message="Processing…" />);
+
+    const message = screen.getByText('Processing…');
     expect(message).toHaveClass('mt-4');
     expect(message).toHaveClass('text-gray-600');
     expect(message).toHaveClass('text-center');
@@ -89,26 +89,26 @@ describe('Spinner', () => {
   });
 
   it('should render message as paragraph element', () => {
-    render(<Spinner message="Loading..." />);
-    
-    const message = screen.getByText('Loading...');
+    render(<Spinner message="Loading…" />);
+
+    const message = screen.getByText('Loading…');
     expect(message.tagName.toLowerCase()).toBe('p');
   });
 
   it('should position message below spinner', () => {
-    const { container } = render(<Spinner message="Loading..." />);
-    
+    const { container } = render(<Spinner message="Loading…" />);
+
     const wrapper = container.firstChild as HTMLElement;
     const children = Array.from(wrapper.children);
-    
+
     expect(children[0]).toHaveAttribute('data-testid', 'spinner-icon');
-    expect(children[1]).toHaveTextContent('Loading...');
+    expect(children[1]).toHaveTextContent('Loading…');
   });
 
   it('should handle special characters in message', () => {
-    render(<Spinner message="Loading <data> & processing..." />);
-    
-    expect(screen.getByText('Loading <data> & processing...')).toBeInTheDocument();
+    render(<Spinner message="Loading <data> & processing…" />);
+
+    expect(screen.getByText('Loading <data> & processing…')).toBeInTheDocument();
   });
 
   it('should handle empty message string', () => {
@@ -129,10 +129,10 @@ describe('Spinner', () => {
 
   describe('Accessibility', () => {
     it('should have appropriate ARIA attributes for assistive technology', () => {
-      render(<Spinner message="Loading content..." />);
+      render(<Spinner message="Loading content…" />);
       
       const spinner = screen.getByTestId('spinner-icon');
-      const message = screen.getByText('Loading content...');
+      const message = screen.getByText('Loading content…');
       
       // Icon should be decorative (no aria-label needed as it's visual only)
       expect(spinner).toBeInTheDocument();
@@ -142,9 +142,9 @@ describe('Spinner', () => {
     });
 
     it('should provide loading context when message is present', () => {
-      render(<Spinner message="Processing your request..." />);
-      
-      const message = screen.getByText('Processing your request...');
+      render(<Spinner message="Processing your request…" />);
+
+      const message = screen.getByText('Processing your request…');
       expect(message).toBeInTheDocument();
       expect(message.tagName.toLowerCase()).toBe('p');
     });
@@ -159,7 +159,7 @@ describe('Spinner', () => {
     });
 
     it('should not interfere with keyboard navigation', () => {
-      const { container } = render(<Spinner message="Loading..." />);
+      const { container } = render(<Spinner message="Loading…" />);
       
       // Spinner should not have any focusable elements that would trap focus
       const focusableElements = container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
@@ -216,7 +216,7 @@ describe('Spinner', () => {
 
   describe('Message Formatting', () => {
     it('should handle multiline messages gracefully', () => {
-      const multilineMessage = 'Loading...\nThis may take a moment\nPlease wait';
+      const multilineMessage = 'Loading…\nThis may take a moment\nPlease wait';
       render(<Spinner message={multilineMessage} />);
       
       // Target specifically the paragraph element 
@@ -227,15 +227,15 @@ describe('Spinner', () => {
     });
 
     it('should handle HTML entities in messages', () => {
-      render(<Spinner message="Loading &lt;data&gt; &amp; processing..." />);
-      
-      expect(screen.getByText('Loading <data> & processing...')).toBeInTheDocument();
+      render(<Spinner message="Loading &lt;data&gt; &amp; processing…" />);
+
+      expect(screen.getByText('Loading <data> & processing…')).toBeInTheDocument();
     });
 
     it('should handle unicode characters in messages', () => {
-      render(<Spinner message="Loading... ⏳🔄⚡" />);
-      
-      expect(screen.getByText('Loading... ⏳🔄⚡')).toBeInTheDocument();
+      render(<Spinner message="Loading… ⏳🔄⚡" />);
+
+      expect(screen.getByText('Loading… ⏳🔄⚡')).toBeInTheDocument();
     });
 
     it('should apply proper text styling to messages', () => {
@@ -291,9 +291,9 @@ describe('Spinner', () => {
     });
 
     it('should handle numeric and boolean content in messages', () => {
-      render(<Spinner message="Loading item 42..." />);
-      
-      expect(screen.getByText('Loading item 42...')).toBeInTheDocument();
+      render(<Spinner message="Loading item 42…" />);
+
+      expect(screen.getByText('Loading item 42…')).toBeInTheDocument();
     });
 
     it('should handle rapidly changing messages', () => {

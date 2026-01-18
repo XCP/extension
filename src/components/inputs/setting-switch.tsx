@@ -43,14 +43,14 @@ export function SettingSwitch({
             <div className="relative inline-block">
               <button
                 type="button"
-                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                 onMouseEnter={() => setShowTooltip(true)}
                 onMouseLeave={() => setShowTooltip(false)}
                 onFocus={() => setShowTooltip(true)}
                 onBlur={() => setShowTooltip(false)}
                 aria-label={`Info: ${description}`}
               >
-                <FiInfo className="w-3.5 h-3.5" />
+                <FiInfo className="size-3.5" aria-hidden="true" />
               </button>
               {showTooltip && (
                 <div className="absolute left-0 bottom-full mb-2 z-50 w-48 p-2 text-xs text-gray-600 bg-white rounded-lg shadow-lg border border-gray-200">
@@ -72,7 +72,7 @@ export function SettingSwitch({
           <span
             className={`${
               checked ? 'translate-x-6' : 'translate-x-1'
-            } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+            } inline-block size-4 transform rounded-full bg-white transition-transform`}
           />
         </Switch>
       </div>

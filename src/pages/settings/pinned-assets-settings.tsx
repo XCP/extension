@@ -47,7 +47,7 @@ export default function PinnedAssetsSettings(): ReactElement {
       title: "Pinned Assets",
       onBack: () => navigate(CONSTANTS.PATHS.BACK),
       rightButton: {
-        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => window.open(CONSTANTS.PATHS.HELP_URL, "_blank"),
         ariaLabel: "Help",
       },
@@ -178,9 +178,9 @@ export default function PinnedAssetsSettings(): ReactElement {
     if (searchQuery) {
       return (
         <div className="h-full flex flex-col">
-          <h3 className="text-lg font-semibold mb-2">Search Results</h3>
+          <h2 className="text-lg font-semibold mb-2">Search Results</h2>
           {isSearching ? (
-            <Spinner message="Searching assets..." />
+            <Spinner message="Searching assets…" />
           ) : searchResults.length === 0 ? (
             <div className="text-center py-4 text-gray-500">No results found</div>
           ) : (
@@ -199,7 +199,7 @@ export default function PinnedAssetsSettings(): ReactElement {
       <div className="h-full flex flex-col">
         {pinnedAssets.length > 0 ? (
           <>
-            <h3 className="text-lg font-semibold mb-2">Pinned</h3>
+            <h2 className="text-lg font-semibold mb-2">Pinned</h2>
             {showHelpText && (
               <p className="text-sm text-gray-500 mb-2">
                 Pin up to 10 assets to the top of your main screen. Use arrow buttons to reorder.
@@ -236,7 +236,7 @@ export default function PinnedAssetsSettings(): ReactElement {
           ref={searchInputRef}
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder="Search assets to pin..."
+          placeholder="Search assets to pin…"
           className="mb-4"
           showClearButton={true}
           isLoading={isSearching}

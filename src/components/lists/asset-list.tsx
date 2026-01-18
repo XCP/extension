@@ -53,14 +53,14 @@ export const AssetList = (): React.ReactElement => {
   );
 
 
-  if (isLoading) return <Spinner message="Loading owned assets..." />;
+  if (isLoading) return <Spinner message="Loading owned assets…" />;
 
   return (
     <div className="space-y-2">
       <SearchInput
         value={searchQuery}
         onChange={setSearchQuery}
-        placeholder="Search assets..."
+        placeholder="Search assets…"
         name="asset-search"
         className="mb-3"
         showClearButton={true}
@@ -68,7 +68,7 @@ export const AssetList = (): React.ReactElement => {
       />
       {searchQuery ? (
         isSearching ? (
-          <Spinner message="Searching assets..." />
+          <Spinner message="Searching assets…" />
         ) : searchResults.length === 0 ? (
           <div className="text-center py-4 text-gray-500">No results found</div>
         ) : (

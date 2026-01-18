@@ -145,7 +145,7 @@ export default function BtcPrice(): ReactElement {
       onBack: () => navigate("/market"),
       rightButton: {
         ariaLabel: "Refresh price",
-        icon: <FiRefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />,
+        icon: <FiRefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
         onClick: handleRefresh,
         disabled: isRefreshing,
       },
@@ -160,7 +160,7 @@ export default function BtcPrice(): ReactElement {
   };
 
   if (loading) {
-    return <Spinner message="Loading Bitcoin price..." />;
+    return <Spinner message="Loading Bitcoin price…" />;
   }
 
   return (
@@ -179,10 +179,10 @@ export default function BtcPrice(): ReactElement {
                 <div className="relative mt-1">
                   <button
                     onClick={() => setShowCurrencyMenu(!showCurrencyMenu)}
-                    className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 cursor-pointer"
+                    className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   >
                     <span>{currency.toUpperCase()}</span>
-                    <FiChevronDown className="w-3 h-3" />
+                    <FiChevronDown className="size-3" aria-hidden="true" />
                   </button>
                   {showCurrencyMenu && (
                     <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[120px]">
@@ -190,7 +190,7 @@ export default function BtcPrice(): ReactElement {
                         <button
                           key={c}
                           onClick={() => handleCurrencyChange(c)}
-                          className={`w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 cursor-pointer ${
+                          className={`w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                             currency === c ? "font-medium text-gray-900" : "text-gray-600"
                           }`}
                         >
@@ -210,7 +210,7 @@ export default function BtcPrice(): ReactElement {
                   <span className="block">{statsError}</span>
                   <button
                     onClick={() => loadStats(currency)}
-                    className="text-xs text-blue-600 hover:text-blue-800 underline mt-1"
+                    className="text-xs text-blue-600 hover:text-blue-800 underline mt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   >
                     Retry
                   </button>
@@ -238,7 +238,7 @@ export default function BtcPrice(): ReactElement {
               <button
                 key={t.id}
                 onClick={() => handleRangeChange(t.id)}
-                className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer ${
+                className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                   range === t.id
                     ? "bg-gray-200 text-gray-900 font-medium"
                     : "text-gray-500 hover:text-gray-700"
@@ -266,7 +266,7 @@ export default function BtcPrice(): ReactElement {
               <span className="text-sm text-red-600 mb-2">{chartError}</span>
               <button
                 onClick={() => loadChartData(range, currency)}
-                className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors"
+                className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 Try Again
               </button>

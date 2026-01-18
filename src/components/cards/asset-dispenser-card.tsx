@@ -82,7 +82,7 @@ export function AssetDispenserCard({
             {onCopyAddress && (
               <button
                 onClick={handleCopyClick}
-                className={`flex-shrink-0 p-0.5 rounded transition-colors cursor-pointer ${
+                className={`flex-shrink-0 p-0.5 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                   isCopied
                     ? "text-green-600"
                     : "text-gray-400 hover:text-gray-600"
@@ -90,9 +90,9 @@ export function AssetDispenserCard({
                 title="Copy address"
               >
                 {isCopied ? (
-                  <FaCheck className="w-3 h-3" />
+                  <FaCheck className="size-3" aria-hidden="true" />
                 ) : (
-                  <FaCopy className="w-3 h-3" />
+                  <FaCopy className="size-3" aria-hidden="true" />
                 )}
               </button>
             )}

@@ -101,7 +101,7 @@ export function DispenserCard({
           <img
             src={`https://app.xcp.io/img/icon/${option.dispenser.asset}`}
             alt={option.dispenser.asset}
-            className="w-10 h-10 flex-shrink-0 rounded-full"
+            className="size-10 flex-shrink-0 rounded-full"
             onError={(e) => {
               // Fallback for missing icons
               const target = e.target as HTMLImageElement;

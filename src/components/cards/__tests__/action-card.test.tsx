@@ -184,8 +184,8 @@ describe('ActionCard', () => {
 
     const button = screen.getByRole('button');
     expect(button).toHaveClass('hover:bg-gray-50');
-    expect(button).toHaveClass('focus:outline-none');
-    expect(button).toHaveClass('focus:ring-2');
-    expect(button).toHaveClass('focus:ring-blue-500');
+    expect(button).toHaveClass('focus-visible:outline-none');
+    expect(button).toHaveClass('focus-visible:ring-2');
+    expect(button).toHaveClass('focus-visible:ring-blue-500');
   });
 });

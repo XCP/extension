@@ -92,9 +92,15 @@ export function UtxoMoveForm({
           {(initialUtxo || initialFormData?.sourceUtxo) && (
             <div>
               <label className="text-sm font-medium text-gray-700">Output <span className="text-red-500">*</span></label>
-              <div 
+              <div
                 onClick={() => navigate(`/utxo/${initialUtxo || initialFormData?.sourceUtxo}`)}
-                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(`/utxo/${initialUtxo || initialFormData?.sourceUtxo}`);
+                  }
+                }}
+                className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer flex justify-between items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 role="button"
                 tabIndex={0}
               >
@@ -104,8 +110,8 @@ export function UtxoMoveForm({
                 <span className="text-sm text-gray-500">
                   {isLoadingBalances ? (
                     <span className="flex items-center gap-1">
-                      <FaSpinner className="animate-spin h-3 w-3" />
-                      Loading...
+                      <FaSpinner className="animate-spin size-4" aria-hidden="true" />
+                      Loading…
                     </span>
                   ) : (
                     `${utxoBalances.length} ${utxoBalances.length === 1 ? 'Balance' : 'Balances'}`

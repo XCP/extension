@@ -82,7 +82,7 @@ describe('Layout', () => {
     const layoutDiv = container.firstChild as HTMLElement;
     expect(layoutDiv).toHaveClass('flex');
     expect(layoutDiv).toHaveClass('flex-col');
-    expect(layoutDiv).toHaveClass('h-screen');
+    expect(layoutDiv).toHaveClass('h-dvh');
     expect(layoutDiv).toHaveClass('bg-gray-100');
   });
 
@@ -177,6 +177,6 @@ describe('Layout', () => {
     const { container } = render(<Layout />);
     
     const layoutDiv = container.firstChild as HTMLElement;
-    expect(layoutDiv).toHaveClass('h-screen');
+    expect(layoutDiv).toHaveClass('h-dvh');
   });
 });

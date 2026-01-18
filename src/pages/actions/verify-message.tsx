@@ -37,17 +37,20 @@ export default function VerifyMessage(): ReactElement {
 
   // Configure header with reset button
   useEffect(() => {
+    const hasContent = Boolean(address || message || signature || verificationResult !== null || error);
+
     setHeaderProps({
       title: "Verify Message",
       onBack: () => navigate(-1),
       rightButton: {
         ariaLabel: "Reset form",
-        icon: <FaRedo className="w-3 h-3" />,
+        icon: <FaRedo className="size-3" aria-hidden="true" />,
         onClick: handleClear,
+        disabled: !hasContent,
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, handleClear]);
+  }, [setHeaderProps, navigate, handleClear, address, message, signature, verificationResult, error]);
   
   const handleVerify = async () => {
     if (!message.trim()) {
@@ -113,9 +116,9 @@ export default function VerifyMessage(): ReactElement {
       <div className="flex gap-2">
         <button
           onClick={handleUploadJSON}
-          className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+          className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer"
         >
-          <FaUpload className="w-4 h-4 mr-2" aria-hidden="true" />
+          <FaUpload className="size-4 mr-2" aria-hidden="true" />
           Upload JSON
         </button>
       </div>
@@ -127,7 +130,7 @@ export default function VerifyMessage(): ReactElement {
           value={message}
           onChange={setMessage}
           label="Message"
-          placeholder="Enter the exact message that was signed..."
+          placeholder="Enter the exact message that was signed…"
           rows={4}
           required={false}
           showCharCount={true}
@@ -140,7 +143,7 @@ export default function VerifyMessage(): ReactElement {
             value={signature}
             onChange={setSignature}
             label="Signature"
-            placeholder="Enter the signature (base64 or hex format)..."
+            placeholder="Enter the signature (base64 or hex format)…"
             rows={3}
             required={false}
           />
@@ -161,7 +164,7 @@ export default function VerifyMessage(): ReactElement {
               {verificationResult ? (
                 <div className="space-y-1">
                   <div className="flex items-center gap-1">
-                    <FaCheckCircle className="text-green-600 text-sm" />
+                    <FaCheckCircle className="text-green-600 size-3" aria-hidden="true" />
                     <span className="text-xs text-green-600">Signature Valid</span>
                   </div>
                   {verificationMethod && (
@@ -185,7 +188,7 @@ export default function VerifyMessage(): ReactElement {
         disabled={!address.trim() || !message.trim() || !signature.trim() || isVerifying}
         fullWidth
       >
-        {isVerifying ? "Verifying..." : "Verify Signature"}
+        {isVerifying ? "Verifying…" : "Verify Signature"}
       </Button>
       
       {/* Error Display */}

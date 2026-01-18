@@ -241,7 +241,7 @@ export default function AssetOrders(): ReactElement {
       onBack: () => navigate("/market"),
       rightButton: {
         ariaLabel: "Refresh orders",
-        icon: <FiRefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />,
+        icon: <FiRefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
         onClick: handleRefresh,
         disabled: isRefreshing,
       },
@@ -400,7 +400,7 @@ export default function AssetOrders(): ReactElement {
   };
 
   if (loading) {
-    return <Spinner message={`Loading ${baseAsset}/${quoteAsset} orders...`} />;
+    return <Spinner message={`Loading ${baseAsset}/${quoteAsset} orders…`} />;
   }
 
   const hasMore = tab === "open" ? hasMoreOrders : hasMoreMatches;
@@ -436,7 +436,7 @@ export default function AssetOrders(): ReactElement {
                       className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawOrderPrice(orderStats.floorPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
                     >
                       <span>{formatOrderPrice(orderStats.floorPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)}</span>
-                      {isCopied(getRawOrderPrice(orderStats.floorPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                      {isCopied(getRawOrderPrice(orderStats.floorPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
                     </div>
                   </div>
                   <div>
@@ -446,7 +446,7 @@ export default function AssetOrders(): ReactElement {
                       className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawOrderPrice(orderStats.weightedAvg, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
                     >
                       <span>{formatOrderPrice(orderStats.weightedAvg, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)}</span>
-                      {isCopied(getRawOrderPrice(orderStats.weightedAvg, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                      {isCopied(getRawOrderPrice(orderStats.weightedAvg, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
                     </div>
                   </div>
                 </>
@@ -472,7 +472,7 @@ export default function AssetOrders(): ReactElement {
                       className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawOrderPrice(matchStats.lastPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
                     >
                       <span>{formatOrderPrice(matchStats.lastPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)}</span>
-                      {isCopied(getRawOrderPrice(matchStats.lastPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                      {isCopied(getRawOrderPrice(matchStats.lastPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
                     </div>
                   </div>
                   <div>
@@ -482,7 +482,7 @@ export default function AssetOrders(): ReactElement {
                       className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawOrderPrice(matchStats.avgPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
                     >
                       <span>{formatOrderPrice(matchStats.avgPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)}</span>
-                      {isCopied(getRawOrderPrice(matchStats.avgPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) && <FaCheck className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                      {isCopied(getRawOrderPrice(matchStats.avgPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
                     </div>
                   </div>
                 </>
@@ -503,10 +503,11 @@ export default function AssetOrders(): ReactElement {
             {canToggleFiat && (
               <button
                 onClick={togglePriceUnit}
-                className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                 title={`Switch to ${priceUnit === "raw" ? settings.fiat.toUpperCase() : quoteAsset}`}
+                aria-label={`Switch price display to ${priceUnit === "raw" ? settings.fiat.toUpperCase() : quoteAsset}`}
               >
-                <TbRepeat className="w-4 h-4" />
+                <TbRepeat className="size-4" aria-hidden="true" />
               </button>
             )}
           </div>
@@ -517,7 +518,7 @@ export default function AssetOrders(): ReactElement {
           <div className="flex gap-1">
             <button
               onClick={() => setTab("open")}
-              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer ${
+              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                 tab === "open"
                   ? "bg-gray-200 text-gray-900 font-medium"
                   : "text-gray-500 hover:text-gray-700"
@@ -527,7 +528,7 @@ export default function AssetOrders(): ReactElement {
             </button>
             <button
               onClick={() => setTab("matched")}
-              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer ${
+              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                 tab === "matched"
                   ? "bg-gray-200 text-gray-900 font-medium"
                   : "text-gray-500 hover:text-gray-700"
@@ -584,7 +585,7 @@ export default function AssetOrders(): ReactElement {
                 <Spinner className="py-4" />
               </div>
             ) : (
-              <div className="text-xs text-gray-400 text-center">Scroll to load more...</div>
+              <div className="text-xs text-gray-400 text-center">Scroll to load more…</div>
             )
           ) : null}
         </div>

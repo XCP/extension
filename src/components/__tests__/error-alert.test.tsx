@@ -62,8 +62,7 @@ describe('ErrorAlert', () => {
     render(<ErrorAlert message="Test error" onClose={() => {}} />);
     
     const closeIcon = screen.getByTestId('close-icon');
-    expect(closeIcon).toHaveClass('h-4');
-    expect(closeIcon).toHaveClass('w-4');
+    expect(closeIcon).toHaveClass('size-4');
     expect(closeIcon).toHaveClass('text-red-700');
   });
 

@@ -47,7 +47,7 @@ export function PriceTicker({
   return (
     <div className={`grid grid-cols-2 gap-3 ${className}`}>
       <div
-        className={`bg-white rounded-lg shadow-sm border border-gray-200 p-3 ${onBtcClick ? "cursor-pointer hover:border-orange-300 hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-orange-500" : ""}`}
+        className={`bg-white rounded-lg shadow-sm border border-gray-200 p-3 ${onBtcClick ? "cursor-pointer hover:border-orange-300 hover:shadow-md transition-[border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500" : ""}`}
         onClick={onBtcClick}
         onKeyDown={handleBtcKeyDown}
         role={onBtcClick ? "button" : undefined}
@@ -72,7 +72,7 @@ export function PriceTicker({
         </div>
       </div>
       <div
-        className={`bg-white rounded-lg shadow-sm border border-gray-200 p-3 ${onXcpClick ? "cursor-pointer hover:border-blue-300 hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-blue-500" : ""}`}
+        className={`bg-white rounded-lg shadow-sm border border-gray-200 p-3 ${onXcpClick ? "cursor-pointer hover:border-blue-300 hover:shadow-md transition-[border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" : ""}`}
         onClick={onXcpClick}
         onKeyDown={handleXcpKeyDown}
         role={onXcpClick ? "button" : undefined}

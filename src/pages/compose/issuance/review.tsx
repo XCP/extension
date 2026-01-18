@@ -42,9 +42,9 @@ export function ReviewIssuance({
       label: "Issuance",
       value: formatAssetQuantity(result.params.quantity, isTruthy(isDivisible)),
       rightElement: isLocked ? (
-        <FaLock className="h-3 w-3 text-gray-500" aria-label="Supply locked" />
+        <FaLock className="size-3 text-gray-500" aria-label="Supply locked" />
       ) : (
-        <FaLockOpen className="h-3 w-3 text-gray-500" aria-label="Supply unlocked" />
+        <FaLockOpen className="size-3 text-gray-500" aria-label="Supply unlocked" />
       ),
     },
     ...(result.params.description ? [{ label: "Description", value: result.params.description }] : []),

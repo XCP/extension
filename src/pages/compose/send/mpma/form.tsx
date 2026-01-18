@@ -212,7 +212,7 @@ export function MPMAForm({
     <ComposerForm
       formAction={handleFormAction}
       submitDisabled={isSubmitDisabled}
-      submitText={isProcessing ? "Validating..." : "Continue"}
+      submitText={isProcessing ? "Validating…" : "Continue"}
     >
       {validationError && (
         <div className="mb-4">
@@ -242,7 +242,7 @@ export function MPMAForm({
                 {uploadedFileName ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-center gap-2">
-                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="size-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <span className="text-sm font-medium text-gray-700">{uploadedFileName}</span>
@@ -252,7 +252,7 @@ export function MPMAForm({
                       onClick={() => {
                         fileInputRef.current?.click();
                       }}
-                      className="text-xs text-blue-600 hover:text-blue-700"
+                      className="text-xs text-blue-600 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                       disabled={isProcessing}
                     >
                       Choose different file
@@ -263,10 +263,10 @@ export function MPMAForm({
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={isProcessing}
                     >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="size-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
                       Upload CSV
@@ -284,7 +284,7 @@ export function MPMAForm({
               <TextAreaInput
                 value=""
                 onChange={() => {}} // We only care about paste
-                placeholder="Paste CSV data here..."
+                placeholder="Paste CSV data here…"
                 onPaste={handleTextPaste}
                 rows={4}
                 disabled={isProcessing}
@@ -305,12 +305,12 @@ export function MPMAForm({
               <div className="space-y-1">
                 {csvData.slice(0, 5).map((row, idx) => (
                   <div key={idx} className="text-xs text-gray-600 font-mono">
-                    {row.address.slice(0, 10)}... → {row.originalQuantity} {row.asset}
-                    {row.memo && ` (${row.memo.slice(0, 20)}${row.memo.length > 20 ? '...' : ''})`}
+                    {row.address.slice(0, 10)}… → {row.originalQuantity} {row.asset}
+                    {row.memo && ` (${row.memo.slice(0, 20)}${row.memo.length > 20 ? '…' : ''})`}
                   </div>
                 ))}
                 {csvData.length > 5 && (
-                  <div className="text-xs text-gray-500">... and {csvData.length - 5} more</div>
+                  <div className="text-xs text-gray-500">… and {csvData.length - 5} more</div>
                 )}
               </div>
             </div>

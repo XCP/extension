@@ -37,18 +37,18 @@ export function RequestRecoveryPrompt({
   const ageDisplay = formatAge(requestAge);
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn overscroll-behavior-contain">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 animate-slideUp">
         <div className="p-6">
           {/* Header */}
           <div className="flex items-start gap-3 mb-4">
             <div className="flex-shrink-0">
-              <FiAlertCircle className="w-6 h-6 text-orange-500" />
+              <FiAlertCircle className="size-6 text-orange-500" aria-hidden="true" />
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900">
                 Pending Request Found
-              </h3>
+              </h2>
               <p className="text-sm text-gray-600 mt-1">
                 You have an incomplete {requestType === 'sign-psbt' ? 'transaction signing' : 'message signature'} request
               </p>
@@ -71,7 +71,7 @@ export function RequestRecoveryPrompt({
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Age:</span>
                 <span className="text-sm font-medium text-gray-900 flex items-center gap-1">
-                  <FiClock className="w-3 h-3" />
+                  <FiClock className="size-3" aria-hidden="true" />
                   {ageDisplay}
                 </span>
               </div>
@@ -92,7 +92,7 @@ export function RequestRecoveryPrompt({
               fullWidth
               className="flex items-center justify-center gap-2"
             >
-              <FiArrowRight className="w-4 h-4" />
+              <FiArrowRight className="size-4" aria-hidden="true" />
               Resume Request
             </Button>
             <Button
@@ -101,7 +101,7 @@ export function RequestRecoveryPrompt({
               fullWidth
               className="flex items-center justify-center gap-2"
             >
-              <FiX className="w-4 h-4" />
+              <FiX className="size-4" aria-hidden="true" />
               Cancel
             </Button>
           </div>

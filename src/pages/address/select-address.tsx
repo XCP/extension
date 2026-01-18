@@ -124,8 +124,8 @@ export default function AddressSelection(): ReactElement {
           }
           aria-label="Add Address"
         >
-          <FaPlus className="mr-2" aria-hidden="true" />
-          {isAddingAddress ? "Adding..." : keychainLocked ? "Unlock to Add Address" : "Add Address"}
+          <FaPlus className="size-4 mr-2" aria-hidden="true" />
+          {isAddingAddress ? "Adding…" : keychainLocked ? "Unlock to Add Address" : "Add Address"}
         </Button>
       </div>
     </div>

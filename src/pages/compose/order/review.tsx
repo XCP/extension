@@ -59,10 +59,10 @@ export function ReviewOrder({
         <button
           type="button"
           onClick={() => setIsPriceFlipped(!isPriceFlipped)}
-          className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+          className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           aria-label="Flip price ratio"
         >
-          <FaExchangeAlt className="w-4 h-4 text-gray-600" />
+          <FaExchangeAlt className="size-4 text-gray-600" aria-hidden="true" />
         </button>
       ),
     },

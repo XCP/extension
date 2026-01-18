@@ -82,7 +82,7 @@ export function DispenserCloseByHashForm({
       }
     >
       {isLoading ? (
-        <div className="py-4 text-center">Loading dispenser details...</div>
+        <div className="py-4 text-center">Loading dispenser details…</div>
       ) : (
         <>
           <HashInput

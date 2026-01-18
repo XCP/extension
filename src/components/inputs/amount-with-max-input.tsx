@@ -41,6 +41,7 @@ interface AmountWithMaxInputProps {
   disableMaxButton?: boolean;
   onMaxClick?: () => void;
   hasError?: boolean;
+  autoFocus?: boolean;
 }
 
 /**
@@ -70,6 +71,7 @@ export function AmountWithMaxInput({
   disableMaxButton = false,
   onMaxClick,
   hasError = false,
+  autoFocus = false,
 }: AmountWithMaxInputProps): ReactElement {
   const [isLoading, setIsLoading] = useState(false);
   
@@ -215,12 +217,13 @@ export function AmountWithMaxInput({
           }`}
           placeholder="0.00000000"
           disabled={disabled}
+          autoFocus={autoFocus}
         />
         <Button
           variant="input"
           onClick={handleMaxClick}
           disabled={isLoading || disabled || (disableMaxButton && !onMaxClick)}
-          aria-label={isLoading ? "Calculating maximum amount..." : "Use maximum available amount"}
+          aria-label={isLoading ? "Calculating maximum amount…" : "Use maximum available amount"}
           className="absolute right-1 top-1/2 transform -translate-y-1/2 px-2 py-1 text-sm"
         >
           Max

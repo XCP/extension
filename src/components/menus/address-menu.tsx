@@ -48,7 +48,7 @@ export function AddressMenu({
 
   return (
     <BaseMenu
-      trigger={<HiDotsHorizontal className="w-4 h-4" aria-hidden="true" />}
+      trigger={<HiDotsHorizontal className="size-4" aria-hidden="true" />}
       ariaLabel="Address actions"
     >
       <MenuItem>
@@ -57,7 +57,7 @@ export function AddressMenu({
           fullWidth 
           onClick={handleCopyAddress}
         >
-          <FaCopy className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
+          <FaCopy className="mr-3 size-4 text-gray-600" aria-hidden="true" />
           Copy Address
         </Button>
       </MenuItem>
@@ -68,7 +68,7 @@ export function AddressMenu({
           fullWidth 
           onClick={handleSweepAddress}
         >
-          <GiBroom className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
+          <GiBroom className="mr-3 size-4 text-gray-600" aria-hidden="true" />
           Sweep Address
         </Button>
       </MenuItem>
@@ -79,7 +79,7 @@ export function AddressMenu({
           fullWidth 
           onClick={handleShowPrivateKey}
         >
-          <VscKey className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
+          <VscKey className="mr-3 size-4 text-gray-600" aria-hidden="true" />
           Show Private Key
         </Button>
       </MenuItem>

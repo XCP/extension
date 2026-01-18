@@ -52,14 +52,14 @@ export default function AdvancedSettings(): ReactElement {
       title: "Advanced",
       onBack: () => navigate(CONSTANTS.PATHS.BACK),
       rightButton: {
-        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
+        icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => setIsHelpTextOverride((prev) => !prev),
         ariaLabel: "Toggle help text",
       },
     });
   }, [setHeaderProps, navigate]);
 
-  if (isLoading || !settings) return <div className="p-4 text-center text-gray-500">Loading...</div>;
+  if (isLoading || !settings) return <div className="p-4 text-center text-gray-500">Loading…</div>;
 
   const shouldShowHelpText = isHelpTextOverride ? !settings.showHelpText : settings.showHelpText;
 
@@ -118,7 +118,7 @@ export default function AdvancedSettings(): ReactElement {
       />
 
       <SettingSwitch
-        label="Strict Transaction Verification"
+        label="Strict TXs Verification"
         description="Block signing if local transaction verification fails. When off, a warning is shown but signing is allowed."
         checked={settings.strictTransactionVerification}
         onChange={(checked) => updateSettings({ strictTransactionVerification: checked })}

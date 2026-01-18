@@ -31,7 +31,7 @@ export function BalanceMenu({ asset }: BalanceMenuProps): ReactElement {
 
   return (
     <BaseMenu
-      trigger={<BsThreeDots className="w-4 h-4" aria-hidden="true" />}
+      trigger={<BsThreeDots className="size-4" aria-hidden="true" />}
       ariaLabel="Balance actions"
     >
       <MenuItem>
@@ -40,7 +40,7 @@ export function BalanceMenu({ asset }: BalanceMenuProps): ReactElement {
           fullWidth 
           onClick={handleMore}
         >
-          <FaTools className="mr-3 h-4 w-4 text-gray-600" aria-hidden="true" />
+          <FaTools className="mr-3 size-4 text-gray-600" aria-hidden="true" />
           More
         </Button>
       </MenuItem>

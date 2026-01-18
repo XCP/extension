@@ -41,7 +41,7 @@ export function VerificationStatus({
     return (
       <div className="bg-green-50 border border-green-200 rounded-lg p-4">
         <div className="flex items-start">
-          <FiShield className="w-5 h-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" />
+          <FiShield className="size-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
           <div className="text-sm text-green-800">
             <p className="font-medium">Transaction Verified</p>
             <p className="text-xs mt-1">
@@ -63,7 +63,7 @@ export function VerificationStatus({
   return (
     <div className={`rounded-lg p-4 ${bgColor} border ${borderColor}`}>
       <div className="flex items-start">
-        <FiShieldOff className={`w-5 h-5 mt-0.5 mr-2 flex-shrink-0 ${iconColor}`} />
+        <FiShieldOff className={`size-5 mt-0.5 mr-2 flex-shrink-0 ${iconColor}`} aria-hidden="true" />
         <div className={`text-sm ${textColor}`}>
           <p className="font-medium">
             {shouldBlock ? 'Verification Failed - Signing Blocked' : 'Verification Warning'}

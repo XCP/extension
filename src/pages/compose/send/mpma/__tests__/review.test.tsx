@@ -82,7 +82,7 @@ describe('ReviewMPMA', () => {
       />
     );
     
-    expect(screen.getByText('Loading asset information...')).toBeInTheDocument();
+    expect(screen.getByText('Loading asset information…')).toBeInTheDocument();
   });
 
   it('displays normalized quantities for divisible assets', async () => {

@@ -91,7 +91,7 @@ export default function DispenserManagement(): ReactElement {
   const filteredDispensers = getFilteredDispensers();
   
   if (isLoading) {
-    return <Spinner message="Loading your dispensers..." />;
+    return <Spinner message="Loading your dispensers…" />;
   }
   
   if (error) {
@@ -112,18 +112,18 @@ export default function DispenserManagement(): ReactElement {
         <div className="flex justify-between items-center">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
           >
-            <FaFilter className="w-3 h-3" />
+            <FaFilter className="size-3" aria-hidden="true" />
             Filter by Status
           </button>
           
           {statusFilter !== "all" && (
             <button
               onClick={() => setStatusFilter("all")}
-              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 rounded"
             >
-              <FaTimes className="w-3 h-3" />
+              <FaTimes className="size-3" aria-hidden="true" />
               Clear Filter
             </button>
           )}
@@ -133,9 +133,9 @@ export default function DispenserManagement(): ReactElement {
           <div className="mt-3 flex gap-2">
             <button
               onClick={() => setStatusFilter("all")}
-              className={`px-3 py-1 rounded text-xs ${
-                statusFilter === "all" 
-                  ? "bg-blue-100 text-blue-700" 
+              className={`px-3 py-1 rounded text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                statusFilter === "all"
+                  ? "bg-blue-100 text-blue-700"
                   : "bg-gray-100 text-gray-600"
               }`}
             >
@@ -143,9 +143,9 @@ export default function DispenserManagement(): ReactElement {
             </button>
             <button
               onClick={() => setStatusFilter("open")}
-              className={`px-3 py-1 rounded text-xs ${
-                statusFilter === "open" 
-                  ? "bg-green-100 text-green-700" 
+              className={`px-3 py-1 rounded text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${
+                statusFilter === "open"
+                  ? "bg-green-100 text-green-700"
                   : "bg-gray-100 text-gray-600"
               }`}
             >
@@ -153,9 +153,9 @@ export default function DispenserManagement(): ReactElement {
             </button>
             <button
               onClick={() => setStatusFilter("closed")}
-              className={`px-3 py-1 rounded text-xs ${
-                statusFilter === "closed" 
-                  ? "bg-gray-600 text-white" 
+              className={`px-3 py-1 rounded text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 ${
+                statusFilter === "closed"
+                  ? "bg-gray-600 text-white"
                   : "bg-gray-100 text-gray-600"
               }`}
             >
@@ -215,10 +215,10 @@ export default function DispenserManagement(): ReactElement {
                   
                   <button
                     onClick={() => window.open(`https://www.xcp.io/tx/${dispenser.tx_hash}`, "_blank")}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-gray-400 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                     aria-label="View on XCP.io"
                   >
-                    <FaExternalLinkAlt className="w-4 h-4" />
+                    <FaExternalLinkAlt className="size-4" aria-hidden="true" />
                   </button>
                 </div>
                 

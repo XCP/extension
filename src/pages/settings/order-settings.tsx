@@ -54,7 +54,7 @@ export function OrderSettings({
     }
   };
 
-  const handleCustomKeyPress = async (e: React.KeyboardEvent) => {
+  const handleCustomKeyDown = async (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && customValue) {
       const numValue = parseInt(customValue, 10);
       if (numValue > 0 && numValue <= 1000000) {
@@ -88,8 +88,8 @@ export function OrderSettings({
       <div className="space-y-4">
         <div>
           <div className="flex justify-between items-center mb-3">
-            <h3 className="font-semibold">Order Expiration</h3>
-            <span className="text-sm text-gray-500">
+            <h2 className="font-semibold">Order Expiration</h2>
+            <span className="text-sm text-gray-500 tabular-nums">
               {expiration} blocks (~{calculateDays(expiration)})
             </span>
           </div>
@@ -101,7 +101,7 @@ export function OrderSettings({
                 key={preset.blocks}
                 type="button"
                 onClick={() => handlePresetClick(preset.blocks)}
-                className={`px-3 py-2 text-sm rounded-md transition-colors ${
+                className={`px-3 py-2 text-sm rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                   expiration === preset.blocks && !customValue
                     ? 'bg-blue-500 text-white'
                     : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
@@ -118,9 +118,11 @@ export function OrderSettings({
               type="text"
               value={customValue}
               onChange={(e) => handleCustomChange(e.target.value)}
-              onKeyPress={handleCustomKeyPress}
+              onKeyDown={handleCustomKeyDown}
               placeholder="Custom blocks (press Enter)"
-              className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              inputMode="numeric"
+              aria-label="Custom expiration in blocks"
+              className="flex-1 px-3 py-2.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
@@ -129,8 +131,8 @@ export function OrderSettings({
         {isBuyingBTC && (
           <div>
             <div className="flex justify-between items-center mb-2">
-              <h3 className="font-semibold">Fee Required</h3>
-              <span className="text-sm text-gray-500">
+              <h2 className="font-semibold">Fee Required</h2>
+              <span className="text-sm text-gray-500 tabular-nums">
                 {feeRequired === 0 ? "No minimum fee" : `${feeRequired} sats (~${(feeRequired / 250).toFixed(1)} sat/vB)`}
               </span>
             </div>
@@ -147,7 +149,9 @@ export function OrderSettings({
                 value={feeRequired}
                 onChange={(e) => handleFeeRequiredChange(e.target.value)}
                 placeholder="Enter fee in satoshis (default: 0)"
-                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                inputMode="numeric"
+                aria-label="Fee required in satoshis"
+                className="flex-1 px-3 py-2.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
