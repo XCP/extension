@@ -73,11 +73,11 @@ export function Header({
       </div>
 
       {/* Center Section */}
-      <div className="col-span-2 flex justify-center items-center">
+      <div className="col-span-2 flex justify-center items-center min-w-0">
         {useLogoTitle ? (
           <img src={typeof logo === 'string' ? logo : (logo as any).src || logo} alt="Logo" className="h-8" />
         ) : typeof title === 'string' ? (
-          <h1 className="text-lg font-bold">{title}</h1>
+          <h1 className="text-lg font-bold truncate" title={title}>{title}</h1>
         ) : (
           title
         )}

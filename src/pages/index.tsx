@@ -21,7 +21,6 @@ import { useWallet } from "@/contexts/wallet-context";
 import { useProviderRequestRecovery } from "@/hooks/useProviderRequestRecovery";
 import { formatAddress } from "@/utils/format";
 import type { ReactElement } from "react";
-import { getProviderService } from '@/services/providerService';
 
 const CONSTANTS = {
   COPY_FEEDBACK_DURATION: 2000,
@@ -53,28 +52,6 @@ export default function Index(): ReactElement {
     cancelRequest,
     requestAge
   } = useProviderRequestRecovery();
-
-  // Check for pending approvals on mount and navigate if needed
-  useEffect(() => {
-    const checkPendingApprovals = async () => {
-      try {
-        const providerService = getProviderService();
-        const approvalQueue = await providerService.getApprovalQueue();
-
-        if (approvalQueue.length > 0) {
-          // Redirect to approval queue
-          navigate('/provider/approval-queue');
-        }
-      } catch (error) {
-        console.debug('Failed to check approval queue:', error);
-      }
-    };
-
-    // Only check if loading is complete and we have a wallet
-    if (!isLoading && activeWallet) {
-      checkPendingApprovals();
-    }
-  }, [isLoading, activeWallet, navigate]);
 
   useEffect(() => {
     setHeaderProps({

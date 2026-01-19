@@ -212,7 +212,7 @@ test.describe('XCP Provider', () => {
       let popup: any = null;
       const popupPromise = new Promise<any>((resolve) => {
         context.on('page', (page) => {
-          if (page.url().includes('/provider/approval-queue')) {
+          if (page.url().includes('/provider/approve-connection')) {
             popup = page;
             resolve(page);
           }
@@ -241,7 +241,7 @@ test.describe('XCP Provider', () => {
         return;
       }
 
-      expect(popup.url()).toContain('/provider/approval-queue');
+      expect(popup.url()).toContain('/provider/approve-connection');
 
       await popup.close();
 
