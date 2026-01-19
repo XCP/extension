@@ -229,19 +229,19 @@ describe('Button', () => {
     it('should apply focus ring styles for solid variant', () => {
       const { container } = render(<Button variant="solid">Solid</Button>);
       const button = container.querySelector('button');
-      
-      expect(button).toHaveClass('focus:outline-none');
-      expect(button).toHaveClass('focus:ring-2');
-      expect(button).toHaveClass('focus:ring-offset-2');
+
+      expect(button).toHaveClass('focus-visible:outline-none');
+      expect(button).toHaveClass('focus-visible:ring-2');
+      expect(button).toHaveClass('focus-visible:ring-offset-2');
     });
 
     it('should apply focus ring styles for header variant', () => {
       const { container } = render(<Button variant="header">Header</Button>);
       const button = container.querySelector('button');
-      
-      expect(button).toHaveClass('focus:outline-none');
-      expect(button).toHaveClass('focus:ring-2');
-      expect(button).toHaveClass('focus:ring-offset-2');
+
+      expect(button).toHaveClass('focus-visible:outline-none');
+      expect(button).toHaveClass('focus-visible:ring-2');
+      expect(button).toHaveClass('focus-visible:ring-offset-2');
     });
 
     it('should be accessible when disabled', () => {

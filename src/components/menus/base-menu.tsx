@@ -68,7 +68,7 @@ export function BaseMenu({
         {trigger}
       </MenuButton>
       
-      <MenuItems className={`absolute right-0 mt-1 origin-top-right divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50 ${className || 'w-48'}`}>
+      <MenuItems className={`absolute right-0 mt-1 origin-top-right divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus-visible:outline-none z-50 ${className || 'w-48'}`}>
         <div className="py-1">
           {children}
         </div>

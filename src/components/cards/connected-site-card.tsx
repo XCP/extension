@@ -93,7 +93,7 @@ export function ConnectedSiteCard({
         <button
           onClick={handleDisconnect}
           onKeyDown={handleDisconnectKeyDown}
-          className="flex-shrink-0 p-2 hover:bg-red-50 rounded-lg transition-colors group focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+          className="flex-shrink-0 p-2 hover:bg-red-50 rounded-lg transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1"
           title="Disconnect site"
           aria-label={`Disconnect ${hostname}`}
         >

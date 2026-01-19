@@ -54,5 +54,10 @@ export default defineConfig({
       ...(configEnv.mode === 'production' ? [removeConsole({ includes: ['log', 'error'] })] : []),
       tailwindcss(),
     ],
+    build: {
+      // Crypto libraries (@noble/*, @scure/*) are ~500KB minified - this is expected
+      // for a Bitcoin wallet. The warning threshold is raised to avoid noise.
+      chunkSizeWarningLimit: 1500,
+    },
   }),
 });

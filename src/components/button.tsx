@@ -27,43 +27,43 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 // Style configurations extracted as constants for better performance
 const BASE_STYLES: Record<ButtonVariant, string> = {
-  solid: 'font-bold py-3 px-4 rounded transition duration-300 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2',
-  transparent: 'font-bold py-3 px-4 rounded transition duration-300 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2',
-  menu: 'p-1 flex',
-  'menu-item': 'flex px-4 py-2 text-sm',
-  input: 'flex items-center justify-center w-11 px-2 py-1 absolute right-1 top-1/2 -translate-y-1/2 text-sm',
-  icon: 'py-2 px-3 flex items-center justify-center',
-  header: 'h-[32px] py-1 px-3 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2',
+  solid: 'font-bold py-3 px-4 rounded transition duration-300 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+  transparent: 'font-bold py-3 px-4 rounded transition duration-300 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+  menu: 'p-1 flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 rounded',
+  'menu-item': 'flex px-4 py-2 text-sm focus-visible:outline-none focus-visible:bg-gray-100',
+  input: 'flex items-center justify-center w-11 px-2 py-1 absolute right-1 top-1/2 -translate-y-1/2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded',
+  icon: 'py-2 px-3 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded',
+  header: 'h-[32px] py-1 px-3 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
   youtube: '', // Handled separately
 };
 
 const COLOR_STYLES: Record<ButtonColor, { base: string; active: string }> = {
   blue: {
-    base: 'bg-blue-500 hover:bg-blue-600 text-white focus:ring-blue-500',
-    active: 'bg-blue-700 text-white focus:ring-blue-500'
+    base: 'bg-blue-500 hover:bg-blue-600 text-white focus-visible:ring-blue-500',
+    active: 'bg-blue-700 text-white focus-visible:ring-blue-500'
   },
   gray: {
-    base: 'bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400',
-    active: 'bg-gray-400 text-gray-800 focus:ring-gray-400'
+    base: 'bg-gray-200 hover:bg-gray-300 text-gray-800 focus-visible:ring-gray-400',
+    active: 'bg-gray-400 text-gray-800 focus-visible:ring-gray-400'
   },
   green: {
-    base: 'bg-green-500 hover:bg-green-600 text-white focus:ring-green-500',
-    active: 'bg-green-700 text-white focus:ring-green-500'
+    base: 'bg-green-500 hover:bg-green-600 text-white focus-visible:ring-green-500',
+    active: 'bg-green-700 text-white focus-visible:ring-green-500'
   },
   red: {
-    base: 'bg-red-500 hover:bg-red-600 text-white focus:ring-red-500',
-    active: 'bg-red-700 text-white focus:ring-red-500'
+    base: 'bg-red-500 hover:bg-red-600 text-white focus-visible:ring-red-500',
+    active: 'bg-red-700 text-white focus-visible:ring-red-500'
   },
 };
 
 const VARIANT_STYLES: Record<ButtonVariant, string> = {
   solid: '', // Uses color styles
-  transparent: 'bg-transparent hover:bg-gray-50 focus:ring-gray-200',
-  menu: 'bg-transparent text-gray-500 hover:text-gray-700 focus:outline-none',
-  'menu-item': 'bg-transparent text-gray-800 hover:bg-gray-50 focus:outline-none',
-  input: 'bg-transparent text-gray-500 hover:text-gray-700 focus:outline-none',
-  icon: 'bg-transparent text-gray-500 hover:text-gray-700 focus:outline-none',
-  header: 'text-blue-500 hover:bg-blue-50 font-normal',
+  transparent: 'bg-transparent hover:bg-gray-50 focus-visible:ring-gray-200',
+  menu: 'bg-transparent text-gray-500 hover:text-gray-700',
+  'menu-item': 'bg-transparent text-gray-800 hover:bg-gray-50',
+  input: 'bg-transparent text-gray-500 hover:text-gray-700',
+  icon: 'bg-transparent text-gray-500 hover:text-gray-700',
+  header: 'text-blue-500 hover:bg-blue-50 font-normal focus-visible:ring-blue-500',
   youtube: '', // Handled separately
 };
 

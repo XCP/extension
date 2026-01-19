@@ -158,8 +158,8 @@ describe('ConnectedSiteCard', () => {
     render(<ConnectedSiteCard {...defaultProps} />);
 
     const disconnectButton = screen.getByRole('button', { name: /disconnect app.xcp.io/i });
-    expect(disconnectButton).toHaveClass('focus:outline-none');
-    expect(disconnectButton).toHaveClass('focus:ring-2');
-    expect(disconnectButton).toHaveClass('focus:ring-red-500');
+    expect(disconnectButton).toHaveClass('focus-visible:outline-none');
+    expect(disconnectButton).toHaveClass('focus-visible:ring-2');
+    expect(disconnectButton).toHaveClass('focus-visible:ring-red-500');
   });
 });

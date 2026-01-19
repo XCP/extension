@@ -52,7 +52,7 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walle
           key={address.path}
           // Set each option's value to the unique address string
           value={address.address}
-          className="focus:outline-none"
+          className="focus-visible:outline-none"
         >
           {({ checked }) => (
             <div
