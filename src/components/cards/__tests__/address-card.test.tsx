@@ -163,7 +163,7 @@ describe('AddressCard', () => {
       </TestWrapper>
     );
 
-    const cardElement = container.querySelector('.focus\\:outline-none');
+    const cardElement = container.querySelector('.focus-visible\\:outline-none');
     expect(cardElement).toBeInTheDocument();
   });
 
