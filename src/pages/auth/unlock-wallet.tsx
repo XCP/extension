@@ -6,7 +6,6 @@ import { UnlockScreen } from "@/components/screens/unlock-screen";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { getDisplayVersion } from "@/utils/version";
-import { getProviderService } from '@/services/providerService';
 
 const UnlockWallet = () => {
   const navigate = useNavigate();
@@ -14,12 +13,9 @@ const UnlockWallet = () => {
   const { setHeaderProps } = useHeader();
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [error, setError] = useState<string | undefined>();
-  const [pendingApprovals, setPendingApprovals] = useState(false);
-  const [onUnlockDestination, setOnUnlockDestination] = useState<string | null>(null);
 
   const PATHS = {
     SUCCESS: "/index",
-    APPROVE: "/provider/approval-queue",
     HELP_URL: "https://youtube.com/droplister",
   } as const;
 
@@ -34,41 +30,6 @@ const UnlockWallet = () => {
     });
   }, [setHeaderProps]);
 
-  // Check for pending approvals on mount
-  useEffect(() => {
-    const checkPendingApprovals = async () => {
-      try {
-        const providerService = getProviderService();
-        const approvalQueue = await providerService.getApprovalQueue();
-
-        if (approvalQueue.length > 0) {
-          setPendingApprovals(true);
-          setOnUnlockDestination(PATHS.APPROVE);
-        }
-      } catch (error) {
-        console.debug('Failed to check approval queue:', error);
-      }
-    };
-
-    // Also check for any pending unlock-connection messages from the background
-    const handleMessage = (message: any) => {
-      if (message.type === 'NAVIGATE_TO_APPROVAL_QUEUE' ||
-          message.type === 'pending-unlock-connection') {
-        setPendingApprovals(true);
-        setOnUnlockDestination(PATHS.APPROVE);
-      }
-    };
-
-    checkPendingApprovals();
-
-    // Listen for messages from background
-    chrome.runtime.onMessage.addListener(handleMessage);
-
-    return () => {
-      chrome.runtime.onMessage.removeListener(handleMessage);
-    };
-  }, []);
-
   /**
    * Handle password unlock
    */
@@ -81,15 +42,8 @@ const UnlockWallet = () => {
       // This decrypts the vault and auto-loads the last active wallet
       await unlockKeychain(password);
 
-      // Navigate to the appropriate destination
-      // Priority: onUnlockDestination > approval queue > default success
-      if (onUnlockDestination) {
-        navigate(onUnlockDestination);
-      } else if (pendingApprovals) {
-        navigate(PATHS.APPROVE);
-      } else {
-        navigate(PATHS.SUCCESS);
-      }
+      // Navigate to main page after unlock
+      navigate(PATHS.SUCCESS);
     } catch (err) {
       console.error("Error unlocking wallet:", err);
 

@@ -5,7 +5,6 @@
  * - /provider/approve-connection
  * - /provider/approve-transaction
  * - /provider/approve-psbt
- * - /provider/approval-queue
  */
 
 import { walletTest, expect } from '../../fixtures';
@@ -170,58 +169,33 @@ walletTest.describe('Approve PSBT Page (/provider/approve-psbt)', () => {
   });
 });
 
-walletTest.describe('Approval Queue Page (/provider/approval-queue)', () => {
-  // Note: The approval queue page is designed to window.close() when empty.
-  // In test context, window.close() doesn't work, resulting in a blank page.
-  // These tests verify the page loads without error - actual queue functionality
-  // requires mocking approval requests which is out of scope for basic page tests.
+walletTest.describe('Approval Pages', () => {
+  // Note: Approval pages are opened by the background service when a dApp requests permission.
+  // These pages expect query params (requestId, origin) which aren't available in direct navigation.
+  // These tests verify the pages load without crashing.
 
-  walletTest('approval queue page loads', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/provider/approval-queue'));
+  walletTest('approve-connection page loads', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/provider/approve-connection'));
     await page.waitForLoadState('networkidle');
 
-    // Page either shows content, redirects, or is blank (due to window.close() failing)
-    // All of these are valid states for an empty approval queue
-    const hasContent = await page.locator('text=/Loading|pending|Queue|Request/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const redirected = !page.url().includes('approval-queue');
-    const pageLoaded = page.url().includes('approval-queue'); // URL check confirms navigation worked
-
-    expect(hasContent || redirected || pageLoaded).toBe(true);
-  });
-
-  walletTest('approval queue shows pending requests or empty state', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/provider/approval-queue'));
-    await page.waitForLoadState('networkidle');
-
-    // When empty, page attempts window.close() - in test context this results in blank page
-    // When has requests, shows approval UI. Both are valid states.
-    const pageLoaded = page.url().includes('approval-queue');
+    // Page loads (may show error state without valid requestId, which is expected)
+    const pageLoaded = page.url().includes('approve-connection');
     expect(pageLoaded).toBe(true);
   });
 
-  walletTest('approval queue shows request count or empty message', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/provider/approval-queue'));
+  walletTest('approve-transaction page loads', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/provider/approve-transaction'));
     await page.waitForLoadState('networkidle');
 
-    if (page.url().includes('approval-queue')) {
-      // Should show count or empty message
-      const hasCount = await page.locator('text=/[0-9]+.*request|pending/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasEmpty = await page.locator('text=/No.*request|empty|Queue.*empty/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasCount || hasEmpty || true).toBe(true);
-    }
+    const pageLoaded = page.url().includes('approve-transaction');
+    expect(pageLoaded).toBe(true);
   });
 
-  walletTest('can dismiss or handle queue items', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/provider/approval-queue'));
+  walletTest('approve-psbt page loads', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/provider/approve-psbt'));
     await page.waitForLoadState('networkidle');
 
-    if (page.url().includes('approval-queue')) {
-      // Should have action buttons for queue items
-      const hasDismiss = await page.locator('button:has-text("Dismiss"), button:has-text("Clear"), button:has-text("Close")').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasApprove = await page.locator('button:has-text("Approve"), button:has-text("View")').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasDismiss || hasApprove || true).toBe(true);
-    }
+    const pageLoaded = page.url().includes('approve-psbt');
+    expect(pageLoaded).toBe(true);
   });
 });

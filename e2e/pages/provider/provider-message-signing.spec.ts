@@ -202,7 +202,7 @@ test.describe('Message Signing', () => {
 
     const connectionPopup = await popupPromise;
     if (connectionPopup) {
-      expect(connectionPopup.url()).toContain('/provider/approval-queue');
+      expect(connectionPopup.url()).toContain('/provider/approve-connection');
       await connectionPopup.close();
     }
 

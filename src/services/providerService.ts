@@ -12,7 +12,7 @@ import { getWalletService } from '@/services/walletService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getConnectionService } from '@/services/connectionService';
 import { getApprovalService } from '@/services/approvalService';
-import type { ApprovalRequest } from '@/utils/provider/approvalQueue';
+import type { ApprovalRequest } from '@/types/provider';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
 import { analytics } from '@/utils/fathom';
 import { analyzeCSP } from '@/utils/security/cspValidation';
@@ -85,32 +85,27 @@ export interface ProviderService {
    * Handle provider requests from dApps
    */
   handleRequest: (origin: string, method: string, params?: ProviderRequestParams, metadata?: ProviderMetadata) => Promise<ProviderResponse>;
-  
+
   /**
    * Check if origin is connected
    */
   isConnected: (origin: string) => Promise<boolean>;
-  
+
   /**
    * Disconnect an origin
    */
   disconnect: (origin: string) => Promise<void>;
-  
+
   /**
-   * Get all pending approval requests
+   * Get the current pending approval if any
    */
-  getApprovalQueue: () => Promise<ApprovalRequest[]>;
-  
-  /**
-   * Remove an approval request
-   */
-  removeApprovalRequest: (id: string) => Promise<boolean>;
-  
+  getCurrentApproval: () => Promise<ApprovalRequest | null>;
+
   /**
    * Get statistics about pending requests
    */
   getRequestStats: () => Promise<any>;
-  
+
   /**
    * Cleanup resources and destroy the service
    */
@@ -801,41 +796,29 @@ export function createProviderService(): ProviderService {
   }
   
   /**
-   * Get all pending approval requests
+   * Get the current pending approval if any
    */
-  async function getApprovalQueue(): Promise<ApprovalRequest[]> {
+  async function getCurrentApproval(): Promise<ApprovalRequest | null> {
     const approvalService = getApprovalService();
-    return await approvalService.getApprovalQueue();
+    return approvalService.getCurrentApproval();
   }
-  
-  /**
-   * Remove an approval request
-   */
-  async function removeApprovalRequest(id: string): Promise<boolean> {
-    const approvalService = getApprovalService();
-    return await approvalService.removeApprovalRequest(id);
-  }
-  
+
   /**
    * Get statistics about pending requests
    */
   async function getRequestStats(): Promise<any> {
     const connectionService = getConnectionService();
     const approvalService = getApprovalService();
-    
-    // Gather stats from all services
+
     const connectedSites = await connectionService.getConnectedWebsites();
-    const approvalQueue = await approvalService.getApprovalQueue();
+    const currentApproval = approvalService.getCurrentApproval();
 
     return {
       connections: {
         connectedSites: connectedSites.length,
         sites: connectedSites
       },
-      approvals: {
-        pending: approvalQueue.length,
-        queue: approvalQueue
-      }
+      approval: currentApproval
     };
   }
   
@@ -869,8 +852,7 @@ export function createProviderService(): ProviderService {
     handleRequest,
     isConnected,
     disconnect,
-    getApprovalQueue,
-    removeApprovalRequest,
+    getCurrentApproval,
     getRequestStats,
     destroy
   };

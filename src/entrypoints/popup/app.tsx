@@ -64,7 +64,6 @@ import ViewTransaction from '@/pages/transaction/view-transaction';
 import ApproveConnection from '@/pages/provider/approve-connection';
 import ApproveTransaction from '@/pages/provider/approve-transaction';
 import ApprovePsbt from '@/pages/provider/approve-psbt';
-import ApprovalQueue from '@/pages/provider/approval-queue';
 
 // Compose - Send & Transfer
 import ComposeSend from '@/pages/compose/send';
@@ -256,7 +255,6 @@ export default function App() {
             <Route path="/provider/approve-connection" element={<ApproveConnection />} />
             <Route path="/provider/approve-transaction" element={<ApproveTransaction />} />
             <Route path="/provider/approve-psbt" element={<ApprovePsbt />} />
-            <Route path="/provider/approval-queue" element={<ApprovalQueue />} />
             
           </Route>
         </Route>
