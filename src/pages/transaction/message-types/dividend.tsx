@@ -1,6 +1,5 @@
 import { type ReactNode } from "react";
 import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty/api";
 
 /**
@@ -9,8 +8,9 @@ import type { Transaction } from "@/utils/blockchain/counterparty/api";
 export function dividend(tx: Transaction): Array<{ label: string; value: string | ReactNode }> {
   const params = tx.unpacked_data?.params;
   if (!params) return [];
-  
-  const quantityPerUnit = fromSatoshis(params.quantity_per_unit, true);
+
+  // Use API-provided normalized values (verbose=true always returns these)
+  const quantityPerUnit = Number(params.quantity_per_unit_normalized);
   const isDivisibleDividend = params.dividend_asset_info?.divisible ?? true;
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
@@ -37,11 +37,11 @@ export function dividend(tx: Transaction): Array<{ label: string; value: string 
   ];
   
   // Calculate total if we have holder information
-  if (params.total_distributed !== undefined) {
+  if (params.total_distributed_normalized !== undefined) {
     fields.push({
       label: "Total Distributed",
       value: `${formatAmount({
-        value: isDivisibleDividend ? fromSatoshis(params.total_distributed, true) : params.total_distributed,
+        value: Number(params.total_distributed_normalized),
         minimumFractionDigits: isDivisibleDividend ? 8 : 0,
         maximumFractionDigits: isDivisibleDividend ? 8 : 0,
       })} ${params.dividend_asset}`,

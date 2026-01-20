@@ -1,7 +1,6 @@
 import { type ReactNode, useState } from "react";
 import { FaExchangeAlt } from "@/components/icons";
 import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty/api";
 
 /**
@@ -65,22 +64,19 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
   }
   if (!params) return [];
   
+  // Use API-provided normalized values (verbose=true always returns these)
   const giveIsDivisible = params.give_asset_info?.divisible ?? true;
   const getIsDivisible = params.get_asset_info?.divisible ?? true;
-  
-  const giveQuantity = giveIsDivisible ? 
-    fromSatoshis(params.give_quantity, true) : 
-    params.give_quantity;
-  const getQuantity = getIsDivisible ? 
-    fromSatoshis(params.get_quantity, true) : 
-    params.get_quantity;
-  
-  const giveRemaining = params.give_remaining !== undefined ?
-    (giveIsDivisible ? fromSatoshis(params.give_remaining, true) : params.give_remaining) :
-    giveQuantity;
-  const getRemaining = params.get_remaining !== undefined ?
-    (getIsDivisible ? fromSatoshis(params.get_remaining, true) : params.get_remaining) :
-    getQuantity;
+
+  const giveQuantity = Number(params.give_quantity_normalized);
+  const getQuantity = Number(params.get_quantity_normalized);
+
+  const giveRemaining = params.give_remaining_normalized !== undefined
+    ? Number(params.give_remaining_normalized)
+    : giveQuantity;
+  const getRemaining = params.get_remaining_normalized !== undefined
+    ? Number(params.get_remaining_normalized)
+    : getQuantity;
   
   // Calculate fill percentage
   const fillPercentage = giveQuantity > 0 ? 
@@ -186,23 +182,23 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
     }
   }
 
-  // Add fee details
-  if (params.fee_required !== undefined && params.fee_required > 0) {
+  // Add fee details (use normalized values from API)
+  if (params.fee_required_normalized !== undefined && Number(params.fee_required_normalized) > 0) {
     fields.push({
       label: "Fee Required",
       value: `${formatAmount({
-        value: fromSatoshis(params.fee_required, true),
+        value: Number(params.fee_required_normalized),
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
       })} BTC`,
     });
   }
 
-  if (params.fee_provided !== undefined && params.fee_provided > 0) {
+  if (params.fee_provided_normalized !== undefined && Number(params.fee_provided_normalized) > 0) {
     fields.push({
       label: "Fee Provided",
       value: `${formatAmount({
-        value: fromSatoshis(params.fee_provided, true),
+        value: Number(params.fee_provided_normalized),
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
       })} BTC`,

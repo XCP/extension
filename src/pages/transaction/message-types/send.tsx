@@ -1,6 +1,5 @@
 import { type ReactNode } from "react";
 import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty/api";
 
 /**
@@ -15,8 +14,9 @@ export function send(tx: Transaction): Array<{ label: string; value: string | Re
   }
   if (!params) return [];
   
+  // Use API-provided normalized values (verbose=true always returns these)
   const isDivisible = params.asset_info?.divisible ?? false;
-  const quantity = isDivisible ? fromSatoshis(params.quantity, true) : params.quantity;
+  const quantity = Number(params.quantity_normalized);
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {

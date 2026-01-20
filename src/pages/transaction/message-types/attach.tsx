@@ -1,6 +1,5 @@
 import { type ReactNode } from "react";
 import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty/api";
 
 /**
@@ -10,8 +9,10 @@ export function attach(tx: Transaction): Array<{ label: string; value: string | 
   const params = tx.unpacked_data?.params;
   if (!params) return [];
   
+  // Use API-provided normalized values (verbose=true always returns these)
   const isDivisible = params.asset_info?.divisible ?? true;
-  
+  const quantity = Number(params.quantity_normalized);
+
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {
       label: "Type",
@@ -24,7 +25,7 @@ export function attach(tx: Transaction): Array<{ label: string; value: string | 
     {
       label: "Quantity",
       value: `${formatAmount({
-        value: isDivisible ? fromSatoshis(params.quantity, true) : params.quantity,
+        value: quantity,
         minimumFractionDigits: isDivisible ? 8 : 0,
         maximumFractionDigits: isDivisible ? 8 : 0,
       })} ${params.asset}`,
