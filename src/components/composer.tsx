@@ -131,7 +131,7 @@ function ComposerInner<T>({
         useLogoTitle: true,
         onBack: onBackSuccess,
         rightButton: {
-          icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
+          icon: <FiRefreshCw className="size-5" aria-hidden="true" />,
           onClick: reset,
           ariaLabel: "Return to form",
         },
