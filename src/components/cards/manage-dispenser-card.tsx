@@ -45,7 +45,7 @@ export function ManageDispenserCard({
         {isOpen && (
           <Button
             color="gray"
-            onClick={() => navigate(`/compose/dispenser/close/${dispenser.source}/${dispenser.asset}`)}
+            onClick={() => navigate(`/compose/dispenser/close/${dispenser.asset}`)}
             fullWidth
           >
             Close

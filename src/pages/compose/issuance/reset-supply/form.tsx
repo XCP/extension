@@ -58,6 +58,8 @@ export function ResetSupplyForm({
       </div>
         <input type="hidden" name="asset" value={asset} />
         <input type="hidden" name="quantity" value="0" />
+        <input type="hidden" name="reset" value="true" />
+        <input type="hidden" name="divisible" value={String(assetInfo?.divisible ?? false)} />
         <CheckboxInput
           name="confirm"
           label={`I understand that resetting the supply of ${asset} will destroy all existing tokens.`}

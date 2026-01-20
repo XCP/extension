@@ -142,12 +142,13 @@ export function DispenserCloseForm({
               ) : (
                 <>
                   <Listbox
-                    name="tx_hash"
+                    name="open_address"
                     value={selectedTxHash}
                     onChange={setSelectedTxHash}
                     disabled={pending}
                   >
-                    <ListboxButton className="relative w-full cursor-pointer rounded-lg bg-gray-50 py-2.5 pl-3 pr-10 text-left border focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed">
+                    <div className="relative mt-1">
+                    <ListboxButton className="relative w-full cursor-pointer rounded-lg bg-gray-50 py-2.5 pl-3 pr-10 text-left border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed">
                       <div className="flex items-center">
                         {selectedDispenser?.asset && <AssetIcon asset={selectedDispenser.asset} />}
                         <span className={`block truncate ${selectedDispenser ? "ml-2" : ""}`}>
@@ -185,14 +186,16 @@ export function DispenserCloseForm({
                         </ListboxOption>
                       ))}
                     </ListboxOptions>
+                    </div>
                   </Listbox>
                   <input type="hidden" name="asset" value={asset} />
+                  <input type="hidden" name="status" value="10" />
                   {selectedDispenser && (
-                    <div className="mt-2 text-sm text-gray-700">
-                      <p>Asset: {selectedDispenser.asset}</p>
-                      <p>Give Quantity: {selectedDispenser.give_quantity_normalized}</p>
-                      <p>Escrow Quantity: {selectedDispenser.escrow_quantity_normalized}</p>
-                      <p>Price: {selectedDispenser.price_normalized}</p>
+                    <div className="mt-2 text-sm text-gray-700 p-3 bg-gray-50 rounded-md">
+                      <p><strong>Asset:</strong> {selectedDispenser.asset}</p>
+                      <p><strong>Give Quantity:</strong> {selectedDispenser.give_quantity_normalized}</p>
+                      <p><strong>Escrow Quantity:</strong> {selectedDispenser.escrow_quantity_normalized}</p>
+                      <p><strong>Price:</strong> {selectedDispenser.price_normalized}</p>
                     </div>
                   )}
                   {showHelpText && (

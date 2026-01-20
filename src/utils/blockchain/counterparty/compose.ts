@@ -539,9 +539,10 @@ export async function composeDispenser(options: DispenserOptions): Promise<ApiRe
   } = options;
   const paramsObj = {
     asset,
-    give_quantity: give_quantity.toString(),
-    escrow_quantity: escrow_quantity.toString(),
-    mainchainrate: mainchainrate.toString(),
+    // When closing a dispenser (status != 0), these values may be undefined - default to 0
+    give_quantity: (give_quantity ?? 0).toString(),
+    escrow_quantity: (escrow_quantity ?? 0).toString(),
+    mainchainrate: (mainchainrate ?? 0).toString(),
     status: status.toString(),
     ...(open_address && { open_address }),
     ...(oracle_address && { oracle_address }),
