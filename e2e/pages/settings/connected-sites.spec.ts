@@ -38,11 +38,11 @@ walletTest.describe('Connected Sites Page (/settings/connected-sites)', () => {
   walletTest('shows loading state initially', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/connected-sites'));
 
-    // May show loading skeleton briefly
-    const hasLoadingSkeleton = await page.locator('[class*="animate-pulse"], [class*="skeleton"]').first().isVisible({ timeout: 2000 }).catch(() => false);
+    // May show loading spinner briefly
+    const hasLoadingSpinner = await page.locator('[class*="animate-spin"], text=/Loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
     const hasContent = await page.locator('text=/Connected Sites|No connected sites/i').first().isVisible({ timeout: 5000 }).catch(() => false);
 
-    expect(hasLoadingSkeleton || hasContent).toBe(true);
+    expect(hasLoadingSpinner || hasContent).toBe(true);
   });
 
   walletTest('has back navigation to settings', async ({ page }) => {

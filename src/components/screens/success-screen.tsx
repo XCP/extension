@@ -1,5 +1,5 @@
 import { type ReactElement, useState, useCallback } from "react";
-import { FaCheckCircle, FaClipboard, FaCheck, FaExternalLinkAlt } from "@/components/icons";
+import { FaCheckCircle, FaExternalLinkAlt } from "@/components/icons";
 import { Button } from "@/components/button";
 
 /**
@@ -33,7 +33,7 @@ interface SuccessScreenProps {
 /**
  * Default blockchain explorer URL template
  */
-const DEFAULT_EXPLORER_URL = "https://blockchain.info/tx/{txid}";
+const DEFAULT_EXPLORER_URL = "https://mempool.space/tx/{txid}";
 
 /**
  * Displays a success screen after transaction broadcast.
@@ -93,24 +93,24 @@ export function SuccessScreen({
       <div className="p-6 bg-green-50 rounded-lg shadow-lg text-center max-w-md w-full">
         {/* Success Icon */}
         <FaCheckCircle
-          className="text-green-600 size-12 mx-auto"
+          className="text-green-600 size-10 mx-auto"
           aria-hidden="true"
         />
-        
+
         {/* Success Title */}
-        <h2 className="text-2xl font-bold text-green-800 mt-4">
-          Transaction Successful!
+        <h2 className="text-xl font-bold text-green-800 mt-3">
+          Transaction Broadcast
         </h2>
-        
+
         {/* Success Message */}
-        <p className="mt-2 text-green-700">
+        <p className="mt-1 text-sm text-green-700">
           Your transaction has been signed and broadcast.
         </p>
-        
+
         {/* Transaction ID Display */}
-        <div className="mt-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Transaction ID:
+        <div className="mt-4">
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            Transaction ID {copiedToClipboard && <span className="text-green-600">(Copied!)</span>}
           </label>
           <div
             onClick={handleCopyTxid}
@@ -118,48 +118,28 @@ export function SuccessScreen({
             role="button"
             tabIndex={0}
             aria-label={`Transaction ID: ${txid}. Click to copy`}
-            className="font-mono text-sm bg-white border border-gray-200 rounded-lg p-3 break-all text-gray-800 select-all cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-colors duration-200"
+            className="font-mono text-xs bg-white border border-gray-200 rounded-lg p-2 break-all text-gray-800 select-all cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-colors duration-200"
           >
             {txid}
           </div>
         </div>
-        
-        {/* Action Buttons */}
-        <div className="mt-6 space-y-3">
-          {/* Copy Button */}
-          <Button
-            onClick={handleCopyTxid}
-            color="blue"
-            fullWidth
-            aria-label={copiedToClipboard ? "Transaction ID copied" : "Copy transaction ID to clipboard"}
-          >
-            {copiedToClipboard ? (
-              <>
-                <FaCheck className="size-4 mr-2" aria-hidden="true" />
-                <span>Copied!</span>
-              </>
-            ) : (
-              <>
-                <FaClipboard className="size-4 mr-2" aria-hidden="true" />
-                <span>Copy Transaction ID</span>
-              </>
-            )}
-          </Button>
-          
+
+        {/* Action Buttons - simplified */}
+        <div className="mt-4 space-y-2">
           {/* Explorer Link */}
           {txid !== "unknown" && (
             <a
               href={explorerUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-blue-600 bg-white border border-blue-600 rounded-lg hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-colors duration-200"
-              aria-label="View transaction on blockchain explorer (opens in new tab)"
+              className="inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-colors duration-200"
+              aria-label="View transaction on mempool.space (opens in new tab)"
             >
               <FaExternalLinkAlt className="size-4 mr-2" aria-hidden="true" />
-              View on Explorer
+              View on Mempool
             </a>
           )}
-          
+
           {/* Reset Button (if callback provided) */}
           {onReset && (
             <Button

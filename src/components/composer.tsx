@@ -5,7 +5,7 @@ import { onMessage } from 'webext-bridge/popup';
 import { useNavigate } from "react-router-dom";
 import { SuccessScreen } from "@/components/screens/success-screen";
 import { UnlockScreen } from "@/components/screens/unlock-screen";
-import { LoadingOverlay } from "@/components/loading-overlay";
+import { Spinner } from "@/components/spinner";
 import { ComposerProvider, useComposer } from "@/contexts/composer-context";
 import { useHeader } from "@/contexts/header-context";
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
@@ -190,14 +190,18 @@ function ComposerInner<T>({
   }, [composeTransaction]);
 
   // Render based on current step
-  return (
-    <div className="relative">
-      {/* Local loading overlay that won't cause unmounts */}
-      <LoadingOverlay
-        isLoading={state.isComposing || state.isSigning}
+  // Show spinner during async operations (composing or signing)
+  if (state.isComposing || state.isSigning) {
+    return (
+      <Spinner
         message={state.isComposing ? "Composing transaction…" : "Signing and broadcasting…"}
+        className="min-h-[300px]"
       />
+    );
+  }
 
+  return (
+    <>
       {state.step === "form" && (
         <FormComponent
           formAction={handleFormAction}
@@ -225,13 +229,13 @@ function ComposerInner<T>({
       )}
 
       {state.showAuthModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn overscroll-behavior-contain"
           role="dialog"
           aria-modal="true"
           aria-labelledby="auth-modal-title"
         >
-          <div 
+          <div
             className="w-full max-w-lg animate-slideUp"
             onClick={(e) => e.stopPropagation()}
           >
@@ -245,7 +249,7 @@ function ComposerInner<T>({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 

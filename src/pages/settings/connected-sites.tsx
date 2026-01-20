@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHelpCircle, FiGlobe, FiRefreshCw } from "@/components/icons";
 import { ConnectedSiteCard } from "@/components/cards/connected-site-card";
+import { Spinner } from "@/components/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { walletManager } from "@/utils/wallet/walletManager";
 import { getProviderService } from "@/services/providerService";
@@ -124,15 +125,7 @@ export default function ConnectedSites(): ReactElement {
   }, [loadConnections]);
 
   if (isLoading) {
-    return (
-      <div className="p-4">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-          <div className="h-20 bg-gray-200 rounded"></div>
-          <div className="h-20 bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    );
+    return <Spinner message="Loading connected sites…" />;
   }
 
   return (

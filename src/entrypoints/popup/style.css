@@ -13,3 +13,34 @@
     scrollbar-width: none;  /* Firefox */
   }
 }
+
+/* Modal and overlay animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer utilities {
+  .animate-fadeIn {
+    animation: fadeIn 150ms ease-out;
+  }
+
+  .animate-slideUp {
+    animation: slideUp 150ms ease-out;
+  }
+}

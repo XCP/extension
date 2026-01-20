@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IoCreateOutline, FaUpload, FiHelpCircle } from '@/components/icons';
+import { FiPlus, FiUpload, FiHelpCircle } from '@/components/icons';
 import { Button } from '@/components/button';
 import { useHeader } from '@/contexts/header-context';
 import { getDisplayVersion } from '@/utils/version';
@@ -63,7 +63,7 @@ function Onboarding() {
               onClick={handleCreateWallet}
               aria-label="Create wallet"
             >
-              <IoCreateOutline className="size-4 mr-2" aria-hidden="true" />
+              <FiPlus className="size-4 mr-2" aria-hidden="true" />
               Create Wallet
             </Button>
             <Button
@@ -72,7 +72,7 @@ function Onboarding() {
               onClick={handleImportWallet}
               aria-label="Import wallet"
             >
-              <FaUpload className="size-4 mr-2" aria-hidden="true" />
+              <FiUpload className="size-4 mr-2" aria-hidden="true" />
               Import Wallet
             </Button>
           </div>
@@ -81,11 +81,21 @@ function Onboarding() {
       <div className="text-center text-xs p-4">
         By continuing you agree to our{' '}
         <a
-          href="/terms-of-service" // Replace with actual Terms of Service URL
+          href="https://www.xcp.io/terms"
+          target="_blank"
+          rel="noopener noreferrer"
           className="font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          tabIndex={0}
         >
           Terms of Service
+        </a>
+        {' '}and{' '}
+        <a
+          href="https://www.xcp.io/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          Privacy Policy
         </a>
         .
       </div>
