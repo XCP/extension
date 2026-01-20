@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSignMessageRequest } from "@/hooks/useSignMessageRequest";
-import { FaCopy, FaCheck, FaLock, FaCheckCircle, FaInfoCircle, FaRedo } from "@/components/icons";
+import { FaCopy, FaCheck, FaLock, FaCheckCircle, FaInfoCircle, FiRefreshCw } from "@/components/icons";
 import { FiDownload } from "@/components/icons";
 import { Button } from "@/components/button";
 import { TextAreaInput } from "@/components/inputs/textarea-input";
@@ -67,7 +67,7 @@ export default function SignMessage(): ReactElement {
       onBack: isProviderRequest ? handleCancel : () => navigate(-1),
       rightButton: {
         ariaLabel: "Reset form",
-        icon: <FaRedo className="size-3" aria-hidden="true" />,
+        icon: <FiRefreshCw className="size-5" aria-hidden="true" />,
         onClick: handleReset,
         disabled: !hasContent,
       },

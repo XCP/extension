@@ -215,7 +215,7 @@ export default function AssetDispensers(): ReactElement {
       onBack: () => navigate("/market"),
       rightButton: {
         ariaLabel: "Refresh dispensers",
-        icon: <FiRefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
+        icon: <FiRefreshCw className={`size-5 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
         onClick: handleRefresh,
         disabled: isRefreshing,
       },

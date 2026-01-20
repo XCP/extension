@@ -1,7 +1,7 @@
 
 import { useEffect, useState, useActionState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaSync, FaEyeSlash } from "@/components/icons";
+import { FiRefreshCw, FaEyeSlash } from "@/components/icons";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
@@ -67,7 +67,7 @@ function CreateWallet() {
       title: "Create Wallet",
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
-        icon: <FaSync className="size-4" aria-hidden="true" />,
+        icon: <FiRefreshCw className="size-5" aria-hidden="true" />,
         onClick: generateWallet,
         ariaLabel: "Generate new recovery phrase",
         disabled: isPending,

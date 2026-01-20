@@ -241,7 +241,7 @@ export default function AssetOrders(): ReactElement {
       onBack: () => navigate("/market"),
       rightButton: {
         ariaLabel: "Refresh orders",
-        icon: <FiRefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
+        icon: <FiRefreshCw className={`size-5 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
         onClick: handleRefresh,
         disabled: isRefreshing,
       },
