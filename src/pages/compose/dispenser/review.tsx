@@ -19,16 +19,16 @@ interface ReviewDispenserProps {
  * @param {ReviewDispenserProps} props - Component props
  * @returns {ReactElement} Review UI for dispenser transaction
  */
-export function ReviewDispenser({ 
-  apiResponse, 
-  onSign, 
-  onBack, 
+export function ReviewDispenser({
+  apiResponse,
+  onSign,
+  onBack,
   error,
   isSigning,
-  asset 
+  asset
 }: ReviewDispenserProps) {
   const { result } = apiResponse;
-  const assetDivisible = result.params.extra?.assetDivisible ?? true;
+  const assetDivisible = result.params.asset_info?.divisible ?? true;
 
 
   const customFields = [
