@@ -25,8 +25,9 @@ export function ReviewUtxoMove({
 }: ReviewUtxoMoveProps) {
   const { result } = apiResponse;
 
+  // For UTXO transactions, the source is the UTXO (shown in From field already)
+  // So we don't need to duplicate it here
   const customFields = [
-    { label: "Source UTXO", value: result.params.sourceUtxo || result.params.utxo || "N/A" },
     { label: "Destination", value: result.params.destination || "N/A" },
   ];
 

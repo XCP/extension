@@ -219,6 +219,18 @@ export async function normalizeFormData(
       continue;
     }
 
+    // For fairminter, the form provides divisibility - use it directly
+    // This handles both new assets (which don't exist yet) and existing assets
+    if (composeType === 'fairminter') {
+      const isDivisible = toBoolean(rawData['divisible']);
+      if (isDivisible) {
+        normalizedData[quantityField] = toSatoshis(value.toString());
+      } else {
+        normalizedData[quantityField] = value.toString();
+      }
+      continue;
+    }
+
     // Fetch asset info if not cached
     let assetInfo = assetInfoCache.get(assetName);
     if (assetInfo === undefined) {

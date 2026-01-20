@@ -108,6 +108,7 @@ export function DispenserCloseByHashForm({
             </div>
           )}
           <input type="hidden" name="asset" value={selectedDispenser?.asset || ""} />
+          <input type="hidden" name="status" value="10" />
         </>
       )}
     </ComposerForm>

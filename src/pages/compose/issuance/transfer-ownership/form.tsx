@@ -77,6 +77,7 @@ export function TransferOwnershipForm({
           <input type="hidden" name="asset" value={asset} />
           <input type="hidden" name="quantity" value="0" />
           <input type="hidden" name="transfer_destination" value={destination} />
+          <input type="hidden" name="divisible" value={String(assetInfo?.divisible ?? false)} />
           <DestinationInput
             ref={destinationRef}
             value={destination}

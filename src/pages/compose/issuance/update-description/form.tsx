@@ -101,6 +101,7 @@ export function UpdateDescriptionForm({
     >
           <input type="hidden" name="asset" value={asset} />
           <input type="hidden" name="quantity" value="0" />
+          <input type="hidden" name="divisible" value={String(assetInfo?.divisible ?? false)} />
           
           {/* Only show inscribe switch for SegWit addresses */}
           {isSegwitAddress && (
