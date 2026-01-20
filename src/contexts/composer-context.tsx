@@ -50,6 +50,7 @@ import { useNavigate } from "react-router-dom";
 import { isApiError } from "@/utils/apiClient";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { useHeader } from "@/contexts/header-context";
 import { getComposeType, normalizeFormData } from "@/utils/blockchain/counterparty/normalize";
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import { checkReplayAttempt, recordTransaction } from "@/utils/security/replayPrevention";
@@ -172,6 +173,7 @@ export function ComposerProvider<T>({
   const navigate = useNavigate();
   const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, selectWallet, isKeychainLocked } = useWallet();
   const { settings } = useSettings();
+  const { clearBalances } = useHeader();
 
   const previousAddressRef = useRef<string | undefined>(activeAddress?.address);
   const previousWalletRef = useRef<string | undefined>(activeWallet?.id);
@@ -480,6 +482,9 @@ export function ComposerProvider<T>({
       // Only skip state update if aborted (user navigated away)
       if (signal.aborted) return;
 
+      // Clear balance cache so it refreshes after broadcast
+      clearBalances();
+
       setState(prev => ({
         ...prev,
         step: "success",
@@ -518,7 +523,7 @@ export function ComposerProvider<T>({
         isSigning: false,
       }));
     }
-  }, [state.apiResponse, state.isSigning, state.composedAt, activeAddress, activeWallet, isKeychainLocked, performSignAndBroadcast]);
+  }, [state.apiResponse, state.isSigning, state.composedAt, activeAddress, activeWallet, isKeychainLocked, performSignAndBroadcast, clearBalances]);
 
   // Handle unlock and sign (for auth modal)
   const handleUnlockAndSign = useCallback(async (password: string) => {
@@ -537,6 +542,9 @@ export function ComposerProvider<T>({
       const btcFeeAmount = btcFee / 100000000;
       analytics.track('broadcast', getBtcBucket(btcFeeAmount));
 
+      // Clear balance cache so it refreshes after broadcast
+      clearBalances();
+
       setState(prev => ({
         ...prev,
         step: "success",
@@ -549,7 +557,7 @@ export function ComposerProvider<T>({
       setState(prev => ({ ...prev, isSigning: false }));
       throw error; // Let the modal handle the error display
     }
-  }, [activeWallet, activeAddress, state.apiResponse, selectWallet, performSignAndBroadcast]);
+  }, [activeWallet, activeAddress, state.apiResponse, selectWallet, performSignAndBroadcast, clearBalances]);
 
   // Navigation actions
   const reset = useCallback(() => {
