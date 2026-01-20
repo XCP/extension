@@ -29,12 +29,18 @@ test.describe('State Persistence - Lock/Unlock Cycle', () => {
   test('current address persists after lock/unlock', async ({ extensionPage }) => {
     await createWallet(extensionPage, TEST_PASSWORD);
 
+    // Wait for page to fully load before getting address
+    await extensionPage.waitForLoadState('networkidle');
+    await expect(index.addressText(extensionPage)).toBeVisible({ timeout: 10000 });
     const addressBefore = await index.addressText(extensionPage).textContent();
     expect(addressBefore).toBeTruthy();
 
     await lockWallet(extensionPage);
     await unlockWallet(extensionPage, TEST_PASSWORD);
 
+    // Wait for page to fully load after unlock
+    await expect(extensionPage).toHaveURL(/index/);
+    await extensionPage.waitForLoadState('networkidle');
     await expect(index.addressText(extensionPage)).toBeVisible({ timeout: 10000 });
 
     const addressAfter = await index.addressText(extensionPage).textContent();
