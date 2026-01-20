@@ -1,16 +1,16 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAmount, formatAssetQuantity } from "@/utils/format";
+import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 
 /**
  * Props for the ReviewDispenser component.
  */
 interface ReviewDispenserProps {
-  apiResponse: any; // Consider typing this more strictly based on your API response shape
+  apiResponse: any;
   onSign: () => void;
   onBack: () => void;
   error: string | null;
-  isSigning: boolean; // Passed from useActionState in Composer
+  isSigning: boolean;
   asset: string;
 }
 
@@ -28,17 +28,19 @@ export function ReviewDispenser({
   asset
 }: ReviewDispenserProps) {
   const { result } = apiResponse;
-  const assetDivisible = result.params.asset_info?.divisible ?? true;
 
+  // Use normalized values from verbose API response
+  const escrowQuantity = result.params.escrow_quantity_normalized;
+  const giveQuantity = result.params.give_quantity_normalized;
 
   const customFields = [
     {
       label: "Escrow Total",
-      value: `${formatAssetQuantity(Number(result.params.escrow_quantity), assetDivisible)} ${asset}`,
+      value: `${escrowQuantity} ${asset}`,
     },
     {
       label: "Give Amount",
-      value: `${formatAssetQuantity(Number(result.params.give_quantity), assetDivisible)} ${asset}`,
+      value: `${giveQuantity} ${asset}`,
     },
     {
       label: "Per Dispense",
@@ -51,7 +53,7 @@ export function ReviewDispenser({
     {
       label: "Bitcoin Total",
       value: `${formatAmount({
-        value: (Number(result.params.escrow_quantity) / Number(result.params.give_quantity)) * 
+        value: (Number(result.params.escrow_quantity) / Number(result.params.give_quantity)) *
                fromSatoshis(result.params.mainchainrate, true),
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,

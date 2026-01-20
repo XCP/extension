@@ -160,15 +160,15 @@ export function ReviewScreen({
                   })}{" "}
                   BTC
                 </span>
-                {feeInFiat !== null && (
+                {result.signed_tx_estimated_size?.adjusted_vsize && (
                   <span className="text-gray-500 ml-2">
-                    (~{formatAmount({ value: feeInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })} {settings.fiat.toUpperCase()})
+                    ({Math.round(result.btc_fee / result.signed_tx_estimated_size.adjusted_vsize)} sats/vB)
                   </span>
                 )}
               </div>
-              {result.signed_tx_estimated_size?.adjusted_vsize && (
+              {feeInFiat !== null && (
                 <span className="text-gray-500">
-                  {Math.round(result.btc_fee / result.signed_tx_estimated_size.adjusted_vsize)} sats/vB
+                  ${formatAmount({ value: feeInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               )}
             </div>
