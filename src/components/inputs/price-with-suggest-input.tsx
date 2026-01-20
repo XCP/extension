@@ -81,7 +81,7 @@ export function PriceWithSuggestInput({
 
   const handleSuggestClick = () => {
     if (!tradingPairData?.last_trade_price) return;
-    
+
     const suggestedPrice = Number(tradingPairData.last_trade_price);
     if (!isNaN(suggestedPrice)) {
       onChange(formatAmount({
@@ -91,13 +91,6 @@ export function PriceWithSuggestInput({
       }));
     }
   };
-
-  const displayValue = value ? formatAmount({
-    value: Number(value),
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 8,
-    useGrouping: true
-  }) : value;
 
   return (
     <Field className={className}>
@@ -121,7 +114,7 @@ export function PriceWithSuggestInput({
           type="text"
           id={name}
           name={name}
-          value={displayValue}
+          value={value}
           onChange={handleInputChange}
           className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-16"
           required

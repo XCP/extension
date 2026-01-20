@@ -51,11 +51,9 @@ vi.mock('@/contexts/wallet-context', () => ({
   })
 }));
 
-// LoadingProvider has been removed - loading is now handled locally
-// Mock LoadingOverlay component
-vi.mock('@/components/loading-overlay', () => ({
-  LoadingOverlay: ({ isLoading, message }: any) =>
-    isLoading ? <div data-testid="loading-overlay">{message}</div> : null
+// Mock Spinner component for loading states
+vi.mock('@/components/spinner', () => ({
+  Spinner: ({ message }: any) => <div data-testid="loading-spinner" role="status">{message}</div>
 }));
 
 const mockSetHeaderProps = vi.fn();
@@ -221,13 +219,13 @@ describe('Composer', () => {
     const form = screen.getByTestId('form-component');
     fireEvent.submit(form);
 
-    // Check for the loading overlay to appear immediately
-    expect(screen.getByTestId('loading-overlay')).toBeInTheDocument();
+    // Check for the loading spinner to appear immediately
+    expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
     expect(screen.getByText('Composing transaction…')).toBeInTheDocument();
 
     // Wait for it to disappear after API completes
     await waitFor(() => {
-      expect(screen.queryByTestId('loading-overlay')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
     });
 
     // Should now show review component

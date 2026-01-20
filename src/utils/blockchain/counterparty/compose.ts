@@ -613,10 +613,12 @@ export async function composeIssuance(options: IssuanceOptions): Promise<ApiResp
     inscription,
     mime_type,
   } = options;
+  // Boolean values are normalized upstream - convert to API string format
+  // Always include divisible to avoid API defaulting to true when we want false
   const paramsObj = {
     asset,
     quantity: quantity.toString(),
-    ...(divisible !== undefined && { divisible: divisible ? 'true' : 'false' }),
+    divisible: divisible ? 'true' : 'false',
     lock: lock ? 'true' : 'false',
     reset: reset ? 'true' : 'false',
     ...(transfer_destination && { transfer_destination }),
@@ -769,6 +771,7 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
     inscription,
     mime_type,
   } = options;
+  // Boolean values are normalized upstream - convert to API string format
   const paramsObj = {
     asset,
     lot_price: lot_price.toString(),
@@ -781,9 +784,9 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
     soft_cap: soft_cap.toString(),
     soft_cap_deadline_block: soft_cap_deadline_block.toString(),
     minted_asset_commission: minted_asset_commission.toString(),
-    burn_payment: burn_payment.toString(),
-    lock_description: lock_description.toString(),
-    lock_quantity: lock_quantity.toString(),
+    burn_payment: burn_payment ? 'true' : 'false',
+    lock_description: lock_description ? 'true' : 'false',
+    lock_quantity: lock_quantity ? 'true' : 'false',
     divisible: divisible ? 'true' : 'false',
     ...(description && { description }),
     ...(pubkeys && { pubkeys }),

@@ -1,7 +1,6 @@
 import { defineConfig } from 'wxt';
 import tailwindcss from '@tailwindcss/vite';
 import removeConsole from 'vite-plugin-remove-console';
-import pkg from './package.json';
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
@@ -13,7 +12,7 @@ export default defineConfig({
   },
   manifest: (env) => {
     const baseManifest = {
-      name: `XCP Wallet v${pkg.version}`,
+      name: 'XCP Wallet',
       web_accessible_resources: [
         {
           resources: ['injected.js'],

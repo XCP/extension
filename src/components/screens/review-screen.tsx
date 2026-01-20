@@ -109,12 +109,12 @@ export function ReviewScreen({
           </div>
         </div>
         
-        {/* Destination Address (if present) */}
+        {/* Destination Address (if present) - show full address */}
         {result.params.destination && (
           <div className="space-y-1">
             <label className="font-semibold text-gray-700">To:</label>
-            <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
-              {formatAddress(result.params.destination, true)}
+            <div className="bg-gray-50 p-2 rounded break-all text-gray-900 text-sm">
+              {formatAddress(result.params.destination, false)}
             </div>
           </div>
         )}
@@ -142,12 +142,21 @@ export function ReviewScreen({
         <div className="space-y-1">
           <label className="font-semibold text-gray-700">Fee:</label>
           <div className="bg-gray-50 p-2 rounded text-gray-900">
-            {formatAmount({
-              value: fromSatoshis(result.btc_fee, true),
-              minimumFractionDigits: 8,
-              maximumFractionDigits: 8,
-            })}{" "}
-            BTC
+            <div className="flex justify-between items-center">
+              <span>
+                {formatAmount({
+                  value: fromSatoshis(result.btc_fee, true),
+                  minimumFractionDigits: 8,
+                  maximumFractionDigits: 8,
+                })}{" "}
+                BTC
+              </span>
+              {result.signed_tx_estimated_size?.adjusted_vsize && (
+                <span className="text-sm text-gray-500">
+                  ({Math.round(result.btc_fee / result.signed_tx_estimated_size.adjusted_vsize)} sats/vB)
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>

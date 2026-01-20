@@ -8,15 +8,27 @@ import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
 import { toSatoshis } from "@/utils/numeric";
 
 /**
+ * Converts form string values to proper booleans.
+ * Handles: true, 'true', 'yes' (Headless UI checkbox value)
+ * Returns false for: false, 'false', undefined, null, empty string, 'no'
+ */
+function toBoolean(val: unknown): boolean {
+  if (val === true || val === 'true' || val === 'yes') return true;
+  return false;
+}
+
+/**
  * Configuration for normalizing form fields based on compose type.
  *
  * - `quantityFields`: Fields containing quantities that may need conversion
  * - `assetFields`: Maps quantity field → form field name to look up the asset
  *                  For hardcoded assets (e.g., BTC), use a hidden form field
+ * - `booleanFields`: Fields that should be converted from strings to booleans
  */
 const NORMALIZATION_CONFIG: Record<string, {
   quantityFields: string[];
   assetFields: Record<string, string>;
+  booleanFields?: string[];
 }> = {
   send: {
     quantityFields: ['quantity'],
@@ -31,7 +43,8 @@ const NORMALIZATION_CONFIG: Record<string, {
   },
   issuance: {
     quantityFields: ['quantity'],
-    assetFields: { quantity: 'asset' }
+    assetFields: { quantity: 'asset' },
+    booleanFields: ['divisible', 'lock', 'reset']
   },
   destroy: {
     quantityFields: ['quantity'],
@@ -67,7 +80,8 @@ const NORMALIZATION_CONFIG: Record<string, {
   },
   fairminter: {
     quantityFields: ['premint_quantity', 'lot_size'],
-    assetFields: { premint_quantity: 'asset', lot_size: 'asset' }
+    assetFields: { premint_quantity: 'asset', lot_size: 'asset' },
+    booleanFields: ['burn_payment', 'lock_description', 'lock_quantity', 'divisible']
   },
   sweep: {
     quantityFields: [],
@@ -232,6 +246,15 @@ export async function normalizeFormData(
       normalizedData[quantityField] = value.toString();
     }
   }
-  
+
+  // Process boolean fields (convert string 'true'/'false' to actual booleans)
+  if (config.booleanFields) {
+    for (const booleanField of config.booleanFields) {
+      if (booleanField in rawData) {
+        normalizedData[booleanField] = toBoolean(rawData[booleanField]);
+      }
+    }
+  }
+
   return { normalizedData, assetInfoCache };
 }
