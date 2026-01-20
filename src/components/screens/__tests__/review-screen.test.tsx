@@ -3,6 +3,26 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { ReviewScreen } from '../review-screen';
 
+// Mock useSettings hook
+vi.mock('@/contexts/settings-context', () => ({
+  useSettings: () => ({
+    settings: { fiat: 'usd' },
+    updateSettings: vi.fn(),
+    isLoading: false
+  })
+}));
+
+// Mock useMarketPrices hook
+vi.mock('@/hooks/useMarketPrices', () => ({
+  useMarketPrices: () => ({
+    btc: 50000,
+    xcp: 10,
+    loading: false,
+    error: null,
+    currency: 'usd'
+  })
+}));
+
 describe('ReviewScreen', () => {
   const mockApiResponse = {
     result: {

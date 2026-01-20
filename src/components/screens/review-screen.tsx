@@ -3,6 +3,8 @@ import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { formatAddress, formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { useSettings } from "@/contexts/settings-context";
 
 /**
  * Transaction result from API response
@@ -85,6 +87,12 @@ export function ReviewScreen({
   hideBackButton = false,
 }: ReviewScreenProps): ReactElement {
   const { result } = apiResponse;
+  const { settings } = useSettings();
+  const { btc: btcPrice } = useMarketPrices(settings.fiat);
+
+  // Calculate fee in fiat
+  const feeInBtc = fromSatoshis(result.btc_fee, true);
+  const feeInFiat = btcPrice ? feeInBtc * btcPrice : null;
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
@@ -143,17 +151,24 @@ export function ReviewScreen({
           <label className="font-semibold text-gray-700">Fee:</label>
           <div className="bg-gray-50 p-2 rounded text-gray-900">
             <div className="flex justify-between items-center">
-              <span>
-                {formatAmount({
-                  value: fromSatoshis(result.btc_fee, true),
-                  minimumFractionDigits: 8,
-                  maximumFractionDigits: 8,
-                })}{" "}
-                BTC
-              </span>
+              <div>
+                <span>
+                  {formatAmount({
+                    value: feeInBtc,
+                    minimumFractionDigits: 8,
+                    maximumFractionDigits: 8,
+                  })}{" "}
+                  BTC
+                </span>
+                {feeInFiat !== null && (
+                  <span className="text-gray-500 ml-2">
+                    (~{formatAmount({ value: feeInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })} {settings.fiat.toUpperCase()})
+                  </span>
+                )}
+              </div>
               {result.signed_tx_estimated_size?.adjusted_vsize && (
-                <span className="text-sm text-gray-500">
-                  ({Math.round(result.btc_fee / result.signed_tx_estimated_size.adjusted_vsize)} sats/vB)
+                <span className="text-gray-500">
+                  {Math.round(result.btc_fee / result.signed_tx_estimated_size.adjusted_vsize)} sats/vB
                 </span>
               )}
             </div>
