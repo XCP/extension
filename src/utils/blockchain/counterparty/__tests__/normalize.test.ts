@@ -119,22 +119,10 @@ describe('normalize.ts', () => {
         expect(result.assetInfoCache.size).toBe(0); // BTC doesn't need asset info
       });
 
-      it('should handle mainchainrate field for BTC in dispenser', async () => {
+      it('should normalize mainchainrate to satoshis when mainchainrate_asset is BTC', async () => {
         const formData = new FormData();
         formData.set('mainchainrate', '0.001');
-
-        const result = await normalizeFormData(formData, 'dispenser');
-
-        // mainchainrate should not be normalized because there's no 'BTC' field in form data
-        // The asset field is set to 'BTC' string but rawData['BTC'] is undefined
-        expect(mockToSatoshis).not.toHaveBeenCalled();
-        expect(result.normalizedData.mainchainrate).toBe('0.001');
-      });
-
-      it('should normalize mainchainrate when BTC field is present', async () => {
-        const formData = new FormData();
-        formData.set('mainchainrate', '0.001');
-        formData.set('BTC', 'BTC'); // Adding the asset field that mainchainrate expects
+        formData.set('mainchainrate_asset', 'BTC'); // Hidden field from dispenser form
 
         mockToSatoshis.mockReturnValue('100000');
 
@@ -142,6 +130,18 @@ describe('normalize.ts', () => {
 
         expect(mockToSatoshis).toHaveBeenCalledWith('0.001');
         expect(result.normalizedData.mainchainrate).toBe('100000');
+      });
+
+      it('should skip mainchainrate normalization when mainchainrate_asset field is missing', async () => {
+        const formData = new FormData();
+        formData.set('mainchainrate', '0.001');
+        // No mainchainrate_asset field - this would be a form bug
+
+        const result = await normalizeFormData(formData, 'dispenser');
+
+        // Without the asset field, the value is not normalized
+        expect(mockToSatoshis).not.toHaveBeenCalled();
+        expect(result.normalizedData.mainchainrate).toBe('0.001');
       });
     });
 
@@ -443,12 +443,13 @@ describe('normalize.ts', () => {
         expect(result.normalizedData.quantity_per_unit).toBe('50000000');
       });
 
-      it('should handle dispenser compose type', async () => {
+      it('should handle dispenser compose type with indivisible asset and BTC mainchainrate', async () => {
         const formData = new FormData();
         formData.set('give_quantity', '100');
         formData.set('asset', 'INDIVISIBLE');
         formData.set('escrow_quantity', '1000');
         formData.set('mainchainrate', '0.001');
+        formData.set('mainchainrate_asset', 'BTC'); // Hidden field from dispenser form
 
         const mockAsset: AssetInfo = {
           asset: 'INDIVISIBLE',
@@ -459,13 +460,14 @@ describe('normalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
+        mockToSatoshis.mockReturnValue('100000');
 
         const result = await normalizeFormData(formData, 'dispenser');
 
         expect(result.normalizedData.give_quantity).toBe('100'); // Indivisible
         expect(result.normalizedData.escrow_quantity).toBe('1000'); // Indivisible
-        expect(result.normalizedData.mainchainrate).toBe('0.001'); // Not normalized due to missing BTC field
-        expect(mockToSatoshis).not.toHaveBeenCalled(); // No normalization happens
+        expect(result.normalizedData.mainchainrate).toBe('100000'); // Normalized to satoshis
+        expect(mockToSatoshis).toHaveBeenCalledWith('0.001');
       });
 
       it('should handle unknown compose type without normalization', async () => {

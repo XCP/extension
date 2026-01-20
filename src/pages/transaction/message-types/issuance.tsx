@@ -1,6 +1,5 @@
 import { type ReactNode } from "react";
 import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty/api";
 
 /**
@@ -10,17 +9,18 @@ export function issuance(tx: Transaction): Array<{ label: string; value: string 
   // Try to get params from unpacked_data first, then check events
   let params = tx.unpacked_data?.params;
   if (!params) {
-    const issuanceEvent = tx.events?.find((e: any) => 
-      e.event === 'ISSUANCE' || 
+    const issuanceEvent = tx.events?.find((e: any) =>
+      e.event === 'ISSUANCE' ||
       e.event === 'ASSET_ISSUANCE' ||
       e.event === 'ASSET_CREATION'
     );
     params = issuanceEvent?.params;
   }
   if (!params) return [];
-  
+
+  // Use API-provided normalized values (verbose=true always returns these)
   const isDivisible = params.divisible ?? true;
-  const quantity = isDivisible ? fromSatoshis(params.quantity, true) : params.quantity;
+  const quantity = Number(params.quantity_normalized);
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [];
   

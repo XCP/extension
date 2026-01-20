@@ -211,6 +211,8 @@ export const DispenserForm = memo(function DispenserForm({
             priceDescription="BTC required to trigger one dispense."
             showPairFlip={false}
           />
+          {/* Hidden field to indicate mainchainrate is always in BTC for normalization */}
+          <input type="hidden" name="mainchainrate_asset" value="BTC" />
           <Field>
             <Label htmlFor="give_quantity_display" className="text-sm font-medium text-gray-700">
               Amount per Dispense <span className="text-red-500">*</span>

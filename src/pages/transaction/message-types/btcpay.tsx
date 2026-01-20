@@ -1,6 +1,5 @@
 import { type ReactNode } from "react";
 import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty/api";
 
 /**
@@ -9,8 +8,9 @@ import type { Transaction } from "@/utils/blockchain/counterparty/api";
 export function btcpay(tx: Transaction): Array<{ label: string; value: string | ReactNode }> {
   const params = tx.unpacked_data?.params;
   if (!params) return [];
-  
-  const btcAmount = fromSatoshis(params.btc_amount, true);
+
+  // Use API-provided normalized values (verbose=true always returns these)
+  const btcAmount = Number(params.btc_amount_normalized);
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {

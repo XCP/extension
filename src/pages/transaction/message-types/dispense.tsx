@@ -1,6 +1,5 @@
 import { type ReactNode } from "react";
 import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty/api";
 
 /**
@@ -11,8 +10,8 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
   const dispenseEvent = tx.events?.find((e: any) => e.event === 'DISPENSE');
   
   if (!dispenseEvent?.params) {
-    // Fallback to transaction root data
-    const btcAmount = fromSatoshis(tx.btc_amount || 0, true);
+    // Fallback to transaction root data (use normalized value)
+    const btcAmount = Number(tx.btc_amount_normalized ?? 0);
     return [
       {
         label: "Dispenser Address",
@@ -31,15 +30,10 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
   
   const params = dispenseEvent.params;
   const isDivisible = params.asset_info?.divisible ?? true;
-  
-  // Calculate effective price per unit
-  const quantityReceived = params.dispense_quantity_normalized ? 
-    parseFloat(params.dispense_quantity_normalized) :
-    isDivisible ? fromSatoshis(params.dispense_quantity || 0, true) : (params.dispense_quantity || 0);
-  
-  const btcPaid = params.btc_amount_normalized ?
-    parseFloat(params.btc_amount_normalized) :
-    fromSatoshis(params.btc_amount || 0, true);
+
+  // Use API-provided normalized values (verbose=true always returns these)
+  const quantityReceived = Number(params.dispense_quantity_normalized);
+  const btcPaid = Number(params.btc_amount_normalized);
     
   const pricePerUnit = quantityReceived > 0 ? btcPaid / quantityReceived : 0;
   
@@ -58,7 +52,7 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
     },
     {
       label: "Quantity Received",
-      value: `${params.dispense_quantity_normalized || formatAmount({
+      value: `${formatAmount({
         value: quantityReceived,
         minimumFractionDigits: isDivisible ? 8 : 0,
         maximumFractionDigits: isDivisible ? 8 : 0,
@@ -66,7 +60,7 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
     },
     {
       label: "BTC Paid",
-      value: `${params.btc_amount_normalized || formatAmount({
+      value: `${formatAmount({
         value: btcPaid,
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,

@@ -8,7 +8,11 @@ import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
 import { toSatoshis } from "@/utils/numeric";
 
 /**
- * Configuration for normalizing form fields based on compose type
+ * Configuration for normalizing form fields based on compose type.
+ *
+ * - `quantityFields`: Fields containing quantities that may need conversion
+ * - `assetFields`: Maps quantity field → form field name to look up the asset
+ *                  For hardcoded assets (e.g., BTC), use a hidden form field
  */
 const NORMALIZATION_CONFIG: Record<string, {
   quantityFields: string[];
@@ -20,7 +24,7 @@ const NORMALIZATION_CONFIG: Record<string, {
   },
   order: {
     quantityFields: ['give_quantity', 'get_quantity'],
-    assetFields: { 
+    assetFields: {
       give_quantity: 'give_asset',
       get_quantity: 'get_asset'
     }
@@ -39,10 +43,10 @@ const NORMALIZATION_CONFIG: Record<string, {
   },
   dispenser: {
     quantityFields: ['give_quantity', 'escrow_quantity', 'mainchainrate'],
-    assetFields: { 
+    assetFields: {
       give_quantity: 'asset',
       escrow_quantity: 'asset',
-      mainchainrate: 'BTC'
+      mainchainrate: 'mainchainrate_asset'  // hidden form field with value 'BTC'
     }
   },
   dispense: {
@@ -54,16 +58,16 @@ const NORMALIZATION_CONFIG: Record<string, {
     assetFields: {}
   },
   burn: {
-    quantityFields: ['quantity'],
-    assetFields: { quantity: 'asset' }
+    quantityFields: [],
+    assetFields: {}  // No UI form exists for burn
   },
   fairmint: {
     quantityFields: ['quantity'],
     assetFields: { quantity: 'asset' }
   },
   fairminter: {
-    quantityFields: ['premint_quantity'],
-    assetFields: { premint_quantity: 'asset' }
+    quantityFields: ['premint_quantity', 'lot_size'],
+    assetFields: { premint_quantity: 'asset', lot_size: 'asset' }
   },
   sweep: {
     quantityFields: [],
@@ -80,6 +84,18 @@ const NORMALIZATION_CONFIG: Record<string, {
   attach: {
     quantityFields: ['quantity'],
     assetFields: { quantity: 'asset' }
+  },
+  detach: {
+    quantityFields: [],
+    assetFields: {}
+  },
+  btcpay: {
+    quantityFields: [],
+    assetFields: {}
+  },
+  cancel: {
+    quantityFields: [],
+    assetFields: {}
   }
 };
 
@@ -169,12 +185,8 @@ export async function normalizeFormData(
       continue;
     }
     
-    // Find corresponding asset field
+    // Get asset name from form data (use hidden fields for hardcoded assets like BTC)
     const assetField = config.assetFields[quantityField];
-    if (!assetField) {
-      continue;
-    }
-    
     const assetName = rawData[assetField]?.toString();
     if (!assetName) {
       continue;

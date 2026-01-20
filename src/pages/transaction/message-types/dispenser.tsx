@@ -1,6 +1,5 @@
 import { type ReactNode } from "react";
 import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty/api";
 
 /**
@@ -19,11 +18,11 @@ export function dispenser(tx: Transaction): Array<{ label: string; value: string
   }
   if (!params) return [];
   
+  // Use API-provided normalized values (verbose=true always returns these)
   const isDivisible = params.asset_info?.divisible ?? true;
-  const giveQuantity = isDivisible ? fromSatoshis(params.give_quantity, true) : params.give_quantity;
-  const escrowQuantity = isDivisible ? fromSatoshis(params.escrow_quantity, true) : params.escrow_quantity;
-  const satoshirate = params.satoshirate || params.mainchainrate;
-  const btcPerDispense = fromSatoshis(satoshirate, true);
+  const giveQuantity = Number(params.give_quantity_normalized);
+  const escrowQuantity = Number(params.escrow_quantity_normalized);
+  const btcPerDispense = Number(params.satoshirate_normalized);
   
   // Calculate derived values
   const totalDispenses = escrowQuantity / giveQuantity;
@@ -67,8 +66,8 @@ export function dispenser(tx: Transaction): Array<{ label: string; value: string
   ];
 
   // Add remaining quantity if available
-  if (params.give_remaining !== undefined) {
-    const giveRemaining = isDivisible ? fromSatoshis(params.give_remaining, true) : params.give_remaining;
+  if (params.give_remaining_normalized !== undefined) {
+    const giveRemaining = Number(params.give_remaining_normalized);
     const remainingDispenses = Math.floor(giveRemaining / giveQuantity);
     
     fields.push({

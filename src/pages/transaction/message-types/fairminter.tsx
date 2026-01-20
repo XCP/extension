@@ -1,6 +1,5 @@
 import { type ReactNode } from "react";
 import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
 import type { Transaction } from "@/utils/blockchain/counterparty/api";
 
 /**
@@ -29,18 +28,18 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
     },
   ];
 
-  // Mint model
+  // Mint model (use API-provided normalized values)
   if (params.burn_payment === false) {
     fields.push({
       label: "Mint Model",
       value: "BTC Fee Only (to miners)",
     });
-    
-    if (params.max_mint_per_tx !== undefined) {
+
+    if (params.max_mint_per_tx_normalized !== undefined) {
       fields.push({
         label: "Max Mint per TX",
         value: formatAmount({
-          value: isDivisible ? fromSatoshis(params.max_mint_per_tx, true) : params.max_mint_per_tx,
+          value: Number(params.max_mint_per_tx_normalized),
           minimumFractionDigits: isDivisible ? 8 : 0,
           maximumFractionDigits: isDivisible ? 8 : 0,
         }),
@@ -51,27 +50,25 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
       label: "Mint Model",
       value: params.burn_payment ? "XCP Fee (burned)" : "XCP Fee (to issuer)",
     });
-    
-    // Support both new naming (lot_price) and legacy naming (price)
-    const lotPrice = params.lot_price ?? params.price;
-    if (lotPrice !== undefined) {
+
+    // Price per mint (normalized)
+    if (params.price_normalized !== undefined) {
       fields.push({
         label: "Price per Mint",
         value: `${formatAmount({
-          value: fromSatoshis(lotPrice, true),
+          value: Number(params.price_normalized),
           minimumFractionDigits: 8,
           maximumFractionDigits: 8,
         })} XCP`,
       });
     }
 
-    // Support both new naming (lot_size) and legacy naming (quantity_by_price)
-    const lotSize = params.lot_size ?? params.quantity_by_price;
-    if (lotSize !== undefined) {
+    // Quantity per price (normalized)
+    if (params.quantity_by_price_normalized !== undefined) {
       fields.push({
         label: "Quantity per Price",
         value: formatAmount({
-          value: isDivisible ? fromSatoshis(lotSize, true) : lotSize,
+          value: Number(params.quantity_by_price_normalized),
           minimumFractionDigits: isDivisible ? 8 : 0,
           maximumFractionDigits: isDivisible ? 8 : 0,
         }),
@@ -79,35 +76,35 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
     }
   }
 
-  // Caps
-  if (params.hard_cap !== undefined && params.hard_cap > 0) {
+  // Caps (use API-provided normalized values)
+  if (params.hard_cap_normalized !== undefined && Number(params.hard_cap_normalized) > 0) {
     fields.push({
       label: "Hard Cap",
       value: formatAmount({
-        value: isDivisible ? fromSatoshis(params.hard_cap, true) : params.hard_cap,
-        minimumFractionDigits: isDivisible ? 8 : 0,
-        maximumFractionDigits: isDivisible ? 8 : 0,
-      }),
-    });
-  }
-  
-  if (params.soft_cap !== undefined && params.soft_cap > 0) {
-    fields.push({
-      label: "Soft Cap",
-      value: formatAmount({
-        value: isDivisible ? fromSatoshis(params.soft_cap, true) : params.soft_cap,
+        value: Number(params.hard_cap_normalized),
         minimumFractionDigits: isDivisible ? 8 : 0,
         maximumFractionDigits: isDivisible ? 8 : 0,
       }),
     });
   }
 
-  // Premint
-  if (params.premint_quantity !== undefined && params.premint_quantity > 0) {
+  if (params.soft_cap_normalized !== undefined && Number(params.soft_cap_normalized) > 0) {
+    fields.push({
+      label: "Soft Cap",
+      value: formatAmount({
+        value: Number(params.soft_cap_normalized),
+        minimumFractionDigits: isDivisible ? 8 : 0,
+        maximumFractionDigits: isDivisible ? 8 : 0,
+      }),
+    });
+  }
+
+  // Premint (use API-provided normalized value)
+  if (params.premint_quantity_normalized !== undefined && Number(params.premint_quantity_normalized) > 0) {
     fields.push({
       label: "Premint",
       value: formatAmount({
-        value: isDivisible ? fromSatoshis(params.premint_quantity, true) : params.premint_quantity,
+        value: Number(params.premint_quantity_normalized),
         minimumFractionDigits: isDivisible ? 8 : 0,
         maximumFractionDigits: isDivisible ? 8 : 0,
       }),
