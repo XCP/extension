@@ -121,7 +121,7 @@ export function ReviewScreen({
         {result.params.destination && (
           <div className="space-y-1">
             <label className="font-semibold text-gray-700">To:</label>
-            <div className="bg-gray-50 p-2 rounded break-all text-gray-900 text-sm">
+            <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
               {formatAddress(result.params.destination, false)}
             </div>
           </div>
