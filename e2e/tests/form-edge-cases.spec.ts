@@ -13,7 +13,7 @@ import {
   TEST_MNEMONIC,
   TEST_PASSWORD
 } from '../fixtures';
-import { TEST_ADDRESSES, TEST_PRIVATE_KEYS } from '../helpers/test-data';
+import { TEST_ADDRESSES, TEST_PRIVATE_KEYS } from '../test-data';
 import { onboarding, importWallet, createWallet, actions, signMessage, index, send } from '../selectors';
 
 test.describe('Form Edge Cases - Mnemonic Input', () => {

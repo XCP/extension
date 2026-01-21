@@ -12,7 +12,7 @@
  */
 
 import { walletTest, expect } from '../fixtures';
-import { TEST_ADDRESSES, INVALID_ADDRESSES } from '../helpers/test-data';
+import { TEST_ADDRESSES, INVALID_ADDRESSES } from '../test-data';
 import { index, compose } from '../selectors';
 
 walletTest.describe('DestinationInput Component', () => {

@@ -35,7 +35,7 @@ import {
   ADDRESS_TYPE_DISPLAY_NAMES,
   ADDRESS_PREFIX_STRINGS,
   type AddressType,
-} from '../helpers/test-data';
+} from '../test-data';
 import {
   settings,
   index,

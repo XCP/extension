@@ -14,7 +14,7 @@ import {
   navigateTo,
   TEST_PASSWORD
 } from '../fixtures';
-import { TEST_ADDRESSES } from '../helpers/test-data';
+import { TEST_ADDRESSES } from '../test-data';
 import { index, settings, send, header, viewAddress, onboarding, unlock, common } from '../selectors';
 
 test.describe('Navigation Recovery - Cancel Flows', () => {

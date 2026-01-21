@@ -12,7 +12,7 @@ import {
   enableDryRun,
   waitForReview,
   clickBack,
-} from '../../../helpers/compose-test-helpers';
+} from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Broadcast Page (/compose/broadcast)', () => {
   walletTest('can navigate to broadcast from actions', async ({ page }) => {

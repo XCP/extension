@@ -11,7 +11,7 @@ import {
   enableDryRun,
   waitForReview,
   clickBack,
-} from '../../../helpers/compose-test-helpers';
+} from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Order Page (/compose/order)', () => {
   // Helper to navigate to order form with asset parameter

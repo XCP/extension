@@ -7,13 +7,13 @@
 
 import { walletTest, expect, navigateTo } from '../../../fixtures';
 import { compose, index } from '../../../selectors';
-import { TEST_ADDRESSES, TEST_AMOUNTS } from '../../../helpers/test-data';
+import { TEST_ADDRESSES, TEST_AMOUNTS } from '../../../test-data';
 import {
   enableValidationBypass,
   enableDryRun,
   waitForReview,
   clickBack,
-} from '../../../helpers/compose-test-helpers';
+} from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Send Page (/compose/send)', () => {
   walletTest('can navigate to send from dashboard', async ({ page }) => {

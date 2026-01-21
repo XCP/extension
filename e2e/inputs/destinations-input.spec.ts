@@ -7,7 +7,7 @@
 
 import { walletTest, expect } from '../fixtures';
 import { compose, index } from '../selectors';
-import { TEST_ADDRESSES, INVALID_ADDRESSES } from '../helpers/test-data';
+import { TEST_ADDRESSES, INVALID_ADDRESSES } from '../test-data';
 
 walletTest.describe('DestinationsInput Component', () => {
   // Navigate to send page which uses DestinationsInput

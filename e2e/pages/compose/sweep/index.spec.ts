@@ -11,8 +11,8 @@ import {
   enableDryRun,
   waitForReview,
   clickBack,
-} from '../../../helpers/compose-test-helpers';
-import { TEST_ADDRESSES } from '../../../helpers/test-data';
+} from '../../../compose-test-helpers';
+import { TEST_ADDRESSES } from '../../../test-data';
 
 walletTest.describe('Compose Sweep Page (/compose/sweep)', () => {
   walletTest('can navigate to sweep from actions', async ({ page }) => {
