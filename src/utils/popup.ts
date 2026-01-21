@@ -8,10 +8,12 @@
 
 /**
  * Default popup window dimensions
- * Must match the body width/height in popup/index.html
+ * These are OUTER window dimensions including window chrome (title bar, borders).
+ * Content area will be smaller (~14px less on Windows).
+ * The HTML uses min-width: 350px, so we add padding to ensure content fits.
  */
-const POPUP_WIDTH = 350;
-const POPUP_HEIGHT = 600;
+const POPUP_WIDTH = 366;
+const POPUP_HEIGHT = 632;
 
 /**
  * Result of opening a popup window

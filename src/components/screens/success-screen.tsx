@@ -1,6 +1,7 @@
-import { type ReactElement, useState, useCallback } from "react";
+import { type ReactElement } from "react";
 import { FaCheckCircle, FaClipboard, FaCheck } from "@/components/icons";
 import { Button } from "@/components/button";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
 /**
  * Broadcast response from API
@@ -51,42 +52,16 @@ const DEFAULT_EXPLORER_URL = "https://mempool.space/tx/{txid}";
  * />
  * ```
  */
-export function SuccessScreen({ 
-  apiResponse, 
+export function SuccessScreen({
+  apiResponse,
   onReset,
-  explorerUrlTemplate = DEFAULT_EXPLORER_URL 
+  explorerUrlTemplate = DEFAULT_EXPLORER_URL
 }: SuccessScreenProps): ReactElement {
-  const [copiedToClipboard, setCopiedToClipboard] = useState(false);
-  
+  const { copy, isCopied } = useCopyToClipboard();
+
   // Extract transaction ID safely
   const txid = apiResponse?.broadcast?.txid || "unknown";
   const explorerUrl = explorerUrlTemplate.replace("{txid}", txid);
-
-  /**
-   * Copies the transaction ID to clipboard
-   */
-  const handleCopyTxid = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(txid);
-      setCopiedToClipboard(true);
-      
-      // Reset the copied state after 2 seconds
-      setTimeout(() => setCopiedToClipboard(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy transaction ID:", err);
-      // Could add error toast here if we have a toast system
-    }
-  }, [txid]);
-
-  /**
-   * Handles keyboard interaction for the clickable transaction ID
-   */
-  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      handleCopyTxid();
-    }
-  }, [handleCopyTxid]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-6rem)]">
@@ -108,39 +83,43 @@ export function SuccessScreen({
           Your transaction was broadcasted.
         </p>
 
-        {/* Transaction ID Display */}
+        {/* Transaction ID Display - Clickable to copy */}
         <div className="mt-4">
           <label className="block text-xs font-medium text-gray-600 mb-1">
             Transaction ID
           </label>
           <div
-            className="font-mono text-xs bg-white border border-gray-200 rounded-lg p-2 break-all text-gray-800 select-all"
+            onClick={() => copy(txid)}
+            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && copy(txid)}
+            role="button"
+            tabIndex={0}
+            aria-label="Click to copy transaction ID"
+            className="font-mono text-xs bg-white border border-gray-200 rounded-lg p-2 break-all text-gray-800 cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors select-all"
           >
             {txid}
           </div>
         </div>
 
-        {/* Copy Button - Primary action inside green box */}
-        <div className="mt-4">
-          <Button
-            onClick={handleCopyTxid}
-            color="blue"
-            fullWidth
-            aria-label={copiedToClipboard ? "Transaction ID copied" : "Copy transaction ID to clipboard"}
-          >
-            {copiedToClipboard ? (
-              <>
-                <FaCheck className="size-4 mr-2" aria-hidden="true" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <FaClipboard className="size-4 mr-2" aria-hidden="true" />
-                Copy Transaction ID
-              </>
-            )}
-          </Button>
-        </div>
+        {/* Copy Button */}
+        <Button
+          onClick={() => copy(txid)}
+          color="blue"
+          fullWidth
+          className="mt-4"
+          aria-label="Copy transaction ID"
+        >
+          {isCopied(txid) ? (
+            <>
+              <FaCheck className="size-4 mr-2" aria-hidden="true" />
+              <span>Copied!</span>
+            </>
+          ) : (
+            <>
+              <FaClipboard className="size-4 mr-2" aria-hidden="true" />
+              <span>Copy Transaction ID</span>
+            </>
+          )}
+        </Button>
       </div>
 
       {/* Mempool link - Footer outside the green box */}

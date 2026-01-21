@@ -11,6 +11,8 @@ import {
   divideSatoshis,
   isLessThanSatoshis,
   isLessThanOrEqualToSatoshis,
+  normalizeAssetSupply,
+  calculateMaxDividendPerUnit,
 } from '../numeric';
 
 describe('numeric utilities', () => {
@@ -470,6 +472,82 @@ describe('numeric utilities', () => {
       // Convert back to BTC
       const btcAfterFee = fromSatoshis(afterFee);
       expect(btcAfterFee).toBe('0.00000544');
+    });
+  });
+
+  describe('normalizeAssetSupply', () => {
+    it('should normalize divisible asset supply from satoshis', () => {
+      // 100000000 satoshis = 1.0 for divisible
+      expect(normalizeAssetSupply('100000000', true)).toBe(1);
+      expect(normalizeAssetSupply('50000000', true)).toBe(0.5);
+      expect(normalizeAssetSupply('1', true)).toBe(0.00000001);
+    });
+
+    it('should not normalize indivisible asset supply', () => {
+      // Indivisible assets are whole units
+      expect(normalizeAssetSupply('100', false)).toBe(100);
+      expect(normalizeAssetSupply('1', false)).toBe(1);
+      expect(normalizeAssetSupply('1000000', false)).toBe(1000000);
+    });
+  });
+
+  describe('calculateMaxDividendPerUnit', () => {
+    it('should calculate max dividend for divisible asset with divisible supply', () => {
+      // 1.0 dividend balance, 1.0 normalized supply = 1.0 per unit max
+      const result = calculateMaxDividendPerUnit('1', '100000000', true);
+      expect(result.toString()).toBe('1');
+    });
+
+    it('should calculate max dividend for divisible asset with indivisible supply', () => {
+      // 1.0 dividend balance, 100 unit supply = 0.01 per unit max
+      const result = calculateMaxDividendPerUnit('1', '100', false);
+      expect(result.toString()).toBe('0.01');
+    });
+
+    it('should handle small dividend balances', () => {
+      // 0.00000001 balance (1 satoshi), 1 unit supply
+      const result = calculateMaxDividendPerUnit('0.00000001', '1', false);
+      expect(result.toFixed(8)).toBe('0.00000001');
+    });
+
+    it('should return zero for zero supply', () => {
+      const result = calculateMaxDividendPerUnit('1', '0', true);
+      expect(result.toString()).toBe('0');
+    });
+
+    it('should handle case where max is below minimum precision', () => {
+      // 0.00000001 balance (1 satoshi), 100 units = 0.0000000001 per unit
+      // This would be below the minimum 0.00000001 for divisible assets
+      const result = calculateMaxDividendPerUnit('0.00000001', '100', false);
+      expect(result.isLessThan('0.00000001')).toBe(true);
+    });
+
+    it('should calculate max for real-world scenario', () => {
+      // User has 0.47519999 of dividend asset
+      // Asset supply is 1.0 (100000000 satoshis, divisible)
+      const result = calculateMaxDividendPerUnit('0.47519999', '100000000', true);
+      expect(result.toString()).toBe('0.47519999');
+    });
+
+    it('should handle large supply scenario', () => {
+      // User has 100 tokens to distribute
+      // Asset supply is 1000 units (indivisible)
+      // Max per unit = 100 / 1000 = 0.1
+      const result = calculateMaxDividendPerUnit('100', '1000', false);
+      expect(result.toString()).toBe('0.1');
+    });
+
+    it('should ensure max * supply does not exceed balance', () => {
+      const balance = '0.47519999';
+      const supply = '100000000'; // 1.0 normalized for divisible
+      const isDivisible = true;
+
+      const maxPerUnit = calculateMaxDividendPerUnit(balance, supply, isDivisible);
+      const normalizedSupply = normalizeAssetSupply(supply, isDivisible);
+      const totalPayout = maxPerUnit.times(normalizedSupply);
+
+      // Total payout should equal the balance (within precision)
+      expect(totalPayout.toString()).toBe(balance);
     });
   });
 });

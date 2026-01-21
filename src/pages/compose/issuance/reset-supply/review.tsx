@@ -1,5 +1,4 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAssetQuantity } from "@/utils/format";
 
 interface ReviewIssuanceResetSupplyProps {
   apiResponse: any;
@@ -17,12 +16,9 @@ export function ReviewIssuanceResetSupply({
   isSigning
 }: ReviewIssuanceResetSupplyProps) {
   const { result } = apiResponse;
-  const isDivisible = result.params.asset_info.divisible;
 
-
-  const currentSupply = result.params.asset_info.supply
-    ? formatAssetQuantity(result.params.asset_info.supply, isDivisible)
-    : "0";
+  // Use normalized supply from verbose API response (handles divisibility correctly)
+  const currentSupply = result.params.asset_info?.supply_normalized ?? "0";
 
   const customFields = [
     { label: "Asset", value: result.params.asset },

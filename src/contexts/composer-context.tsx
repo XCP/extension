@@ -276,15 +276,14 @@ export function ComposerProvider<T>({
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
-    // Set isComposing to show local loading state
-    setState(prev => ({ ...prev, isComposing: true, error: null }));
+    // Convert FormData to object early so we can preserve it on error
+    const rawData = Object.fromEntries(formData);
+    const userData = rawData as unknown as T;
+
+    // Set isComposing to show local loading state, preserve formData for error recovery
+    setState(prev => ({ ...prev, isComposing: true, error: null, formData: userData }));
 
     try {
-      // Convert FormData to object
-      const rawData = Object.fromEntries(formData);
-
-      // Store original user data for form persistence
-      const userData = rawData as unknown as T;
 
       // Normalize data based on compose type (skip for broadcast which doesn't need normalization)
       let dataForApi: any = { ...userData, sourceAddress: activeAddress.address };
@@ -296,7 +295,7 @@ export function ComposerProvider<T>({
       // Check if aborted before API call
       if (signal.aborted) return;
 
-      // Call compose API
+      // Call compose API (UTXO selection is handled internally by compose functions)
       const response = await composeApi(dataForApi);
 
       // Check if aborted after API call

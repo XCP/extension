@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAssetQuantity } from "@/utils/format";
 import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 import { getAttachEstimateXcpFee } from "@/utils/blockchain/counterparty/compose";
@@ -76,12 +75,15 @@ export function ReviewUtxoAttach({
   const xcpFeeInXcp = xcpFeeEstimate !== null ? fromSatoshis(xcpFeeEstimate, true) : null;
   const xcpFeeInFiat = xcpFeeInXcp !== null && xcpPrice ? xcpFeeInXcp * xcpPrice : null;
 
+  // Use normalized quantity from verbose API response (handles divisibility correctly)
+  const quantityDisplay = result.params.quantity_normalized ?? result.params.quantity;
+
   const customFields = [
     { label: "Asset", value: result.params.asset || "N/A" },
     {
       label: "Quantity",
       value: result.params.quantity && result.params.asset ?
-        `${formatAssetQuantity(result.params.quantity, true)} ${result.params.asset}` : "N/A",
+        `${quantityDisplay} ${result.params.asset}` : "N/A",
     },
     {
       label: "XCP Fee",

@@ -1,6 +1,5 @@
 import { FaLock, FaLockOpen } from "@/components/icons";
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAssetQuantity } from "@/utils/format";
 
 /**
  * Props for the ReviewIssuance component.
@@ -18,9 +17,9 @@ interface ReviewIssuanceProps {
  * @param {ReviewIssuanceProps} props - Component props
  * @returns {ReactElement} Review UI for issuance transaction
  */
-export function ReviewIssuance({ 
-  apiResponse, 
-  onSign, 
+export function ReviewIssuance({
+  apiResponse,
+  onSign,
   onBack,
   error,
   isSigning
@@ -32,15 +31,16 @@ export function ReviewIssuance({
     return ["true", "1", 1, true].includes(value);
   };
 
-
-  const isDivisible = result.params.divisible;
   const isLocked = isTruthy(result.params.lock);
+
+  // Use normalized quantity from verbose API response (handles divisibility correctly)
+  const quantityDisplay = result.params.quantity_normalized ?? result.params.quantity;
 
   const customFields = [
     { label: "Asset", value: result.params.asset },
     {
       label: "Issuance",
-      value: formatAssetQuantity(result.params.quantity, isTruthy(isDivisible)),
+      value: quantityDisplay,
       rightElement: isLocked ? (
         <FaLock className="size-3 text-gray-500" aria-label="Supply locked" />
       ) : (

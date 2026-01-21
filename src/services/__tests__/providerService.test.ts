@@ -331,8 +331,18 @@ describe('ProviderService', () => {
         // Should return the accounts
         expect(result).toEqual(['bc1qtest123']);
       });
+
+      it('should throw error if wallet not onboarded (no keychain)', async () => {
+        // Mock keychainExists to return false
+        const { keychainExists } = await import('@/utils/storage/walletStorage');
+        vi.mocked(keychainExists).mockResolvedValueOnce(false);
+
+        await expect(
+          providerService.handleRequest('https://test.com', 'xcp_requestAccounts', [])
+        ).rejects.toThrow('Please complete wallet setup first');
+      });
     });
-    
+
     describe('xcp_accounts', () => {
       it('should return empty array if not connected', async () => {
         // Mock connection service to return false

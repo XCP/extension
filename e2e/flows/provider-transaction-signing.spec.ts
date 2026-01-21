@@ -6,9 +6,11 @@
  * - Unauthorized access rejection
  * - Approval popup display
  * - Method availability
+ *
+ * Uses walletTest fixture which provides a browser context with the extension loaded.
  */
 
-import { test, expect, Page } from '@playwright/test';
+import { walletTest, expect } from '../fixtures';
 import * as http from 'http';
 
 // Test fixtures - minimal valid transaction/PSBT hex for testing
@@ -140,38 +142,40 @@ async function closeServer(server: http.Server): Promise<void> {
   });
 }
 
-test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => {
+// Helper to wait for provider injection
+async function waitForProvider(page: any, timeout = 10000): Promise<boolean> {
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeout) {
+    const found = await page.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
+    if (found) return true;
+    await page.waitForTimeout(500);
+  }
+  return false;
+}
+
+walletTest.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => {
   let server: http.Server;
   let serverUrl: string;
-  let testPage: Page;
 
-  test.beforeAll(async () => {
+  walletTest.beforeAll(async () => {
     const serverSetup = await createTestServer();
     server = serverSetup.server;
     serverUrl = serverSetup.url;
   });
 
-  test.afterAll(async () => {
+  walletTest.afterAll(async () => {
     if (server) {
       await closeServer(server);
     }
   });
 
-  test.describe('xcp_signPsbt', () => {
-    test('should reject PSBT signing when not connected', async ({ context }) => {
-      testPage = await context.newPage();
+  walletTest.describe('xcp_signPsbt', () => {
+    walletTest('should reject PSBT signing when not connected', async ({ context }) => {
+      const testPage = await context.newPage();
       await testPage.goto(serverUrl);
 
-      for (let i = 0; i < 10; i++) {
-        const providerFound = await testPage.evaluate(() => {
-          return typeof (window as any).xcpwallet !== 'undefined';
-        });
-        if (providerFound) break;
-        await testPage.waitForTimeout(1000);
-      }
-
-      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
-      if (!hasProvider) { await testPage.close(); return; }
+      const providerFound = await waitForProvider(testPage);
+      expect(providerFound).toBe(true);
 
       const result = await testPage.evaluate(async (psbtHex) => {
         return await (window as any).testSignPsbt({ hex: psbtHex });
@@ -179,23 +183,16 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
 
       expect(result).toHaveProperty('error');
       expect(result.error).toBeTruthy();
+
       await testPage.close();
     });
 
-    test('should reject PSBT signing with missing hex parameter', async ({ context }) => {
-      testPage = await context.newPage();
+    walletTest('should reject PSBT signing with missing hex parameter', async ({ context }) => {
+      const testPage = await context.newPage();
       await testPage.goto(serverUrl);
 
-      for (let i = 0; i < 10; i++) {
-        const providerFound = await testPage.evaluate(() => {
-          return typeof (window as any).xcpwallet !== 'undefined';
-        });
-        if (providerFound) break;
-        await testPage.waitForTimeout(1000);
-      }
-
-      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
-      if (!hasProvider) { await testPage.close(); return; }
+      const providerFound = await waitForProvider(testPage);
+      expect(providerFound).toBe(true);
 
       const result = await testPage.evaluate(async () => {
         return await (window as any).testSignPsbt({});
@@ -203,24 +200,20 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
 
       expect(result).toHaveProperty('error');
       expect(result.error).toBeTruthy();
+
       await testPage.close();
     });
 
-    test('should reject PSBT signing with null params', async ({ context }) => {
-      testPage = await context.newPage();
+    walletTest('should reject PSBT signing with null params', async ({ context }) => {
+      const testPage = await context.newPage();
       await testPage.goto(serverUrl);
 
-      for (let i = 0; i < 10; i++) {
-        const providerFound = await testPage.evaluate(() => {
-          return typeof (window as any).xcpwallet !== 'undefined';
-        });
-        if (providerFound) break;
-        await testPage.waitForTimeout(1000);
-      }
+      const providerFound = await waitForProvider(testPage);
+      expect(providerFound).toBe(true);
 
       const result = await testPage.evaluate(async () => {
         const provider = (window as any).xcpwallet;
-        if (!provider) return { error: 'No provider' };
+        if (!provider) throw new Error('No provider');
 
         try {
           return await provider.request({
@@ -234,49 +227,34 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
 
       expect(result).toHaveProperty('error');
       expect(result.error).toBeTruthy();
+
       await testPage.close();
     });
 
-    test('should check provider has xcp_signPsbt method available', async ({ context }) => {
-      testPage = await context.newPage();
+    walletTest('provider should have request method for PSBT signing', async ({ context }) => {
+      const testPage = await context.newPage();
       await testPage.goto(serverUrl);
 
-      for (let i = 0; i < 10; i++) {
-        const providerFound = await testPage.evaluate(() => {
-          return typeof (window as any).xcpwallet !== 'undefined';
-        });
-        if (providerFound) break;
-        await testPage.waitForTimeout(1000);
-      }
-
-      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
-      if (!hasProvider) { await testPage.close(); return; }
+      const providerFound = await waitForProvider(testPage);
+      expect(providerFound).toBe(true);
 
       const methodCheck = await testPage.evaluate(() => {
         const provider = (window as any).xcpwallet;
-        if (!provider) return false;
-
+        if (!provider) throw new Error('No provider');
         return typeof provider.request === 'function';
       });
 
       expect(methodCheck).toBe(true);
+
       await testPage.close();
     });
 
-    test('should handle various PSBT hex formats without crashing', async ({ context }) => {
-      testPage = await context.newPage();
+    walletTest('should handle various PSBT hex formats without crashing', async ({ context }) => {
+      const testPage = await context.newPage();
       await testPage.goto(serverUrl);
 
-      for (let i = 0; i < 10; i++) {
-        const providerFound = await testPage.evaluate(() => {
-          return typeof (window as any).xcpwallet !== 'undefined';
-        });
-        if (providerFound) break;
-        await testPage.waitForTimeout(1000);
-      }
-
-      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
-      if (!hasProvider) { await testPage.close(); return; }
+      const providerFound = await waitForProvider(testPage);
+      expect(providerFound).toBe(true);
 
       const testCases = [
         TEST_FIXTURES.PSBT_HEX,
@@ -288,7 +266,7 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
       for (const hex of testCases) {
         const result = await testPage.evaluate(async (psbtHex) => {
           const provider = (window as any).xcpwallet;
-          if (!provider) return { handled: false, error: 'No provider' };
+          if (!provider) throw new Error('No provider');
 
           try {
             await provider.request({
@@ -297,31 +275,25 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
             });
             return { handled: true };
           } catch (error: any) {
+            // Error is expected (not connected), but we're testing it doesn't crash
             return { handled: true, errorMessage: error.message };
           }
         }, hex);
 
         expect(result.handled).toBe(true);
       }
+
       await testPage.close();
     });
   });
 
-  test.describe('xcp_signTransaction', () => {
-    test('should reject transaction signing when not connected', async ({ context }) => {
-      testPage = await context.newPage();
+  walletTest.describe('xcp_signTransaction', () => {
+    walletTest('should reject transaction signing when not connected', async ({ context }) => {
+      const testPage = await context.newPage();
       await testPage.goto(serverUrl);
 
-      for (let i = 0; i < 10; i++) {
-        const providerFound = await testPage.evaluate(() => {
-          return typeof (window as any).xcpwallet !== 'undefined';
-        });
-        if (providerFound) break;
-        await testPage.waitForTimeout(1000);
-      }
-
-      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
-      if (!hasProvider) { await testPage.close(); return; }
+      const providerFound = await waitForProvider(testPage);
+      expect(providerFound).toBe(true);
 
       const result = await testPage.evaluate(async (rawTxHex) => {
         return await (window as any).testSignTransaction({ hex: rawTxHex });
@@ -329,23 +301,16 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
 
       expect(result).toHaveProperty('error');
       expect(result.error).toBeTruthy();
+
       await testPage.close();
     });
 
-    test('should reject transaction signing with missing hex parameter', async ({ context }) => {
-      testPage = await context.newPage();
+    walletTest('should reject transaction signing with missing hex parameter', async ({ context }) => {
+      const testPage = await context.newPage();
       await testPage.goto(serverUrl);
 
-      for (let i = 0; i < 10; i++) {
-        const providerFound = await testPage.evaluate(() => {
-          return typeof (window as any).xcpwallet !== 'undefined';
-        });
-        if (providerFound) break;
-        await testPage.waitForTimeout(1000);
-      }
-
-      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
-      if (!hasProvider) { await testPage.close(); return; }
+      const providerFound = await waitForProvider(testPage);
+      expect(providerFound).toBe(true);
 
       const result = await testPage.evaluate(async () => {
         return await (window as any).testSignTransaction({});
@@ -353,49 +318,34 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
 
       expect(result).toHaveProperty('error');
       expect(result.error).toBeTruthy();
+
       await testPage.close();
     });
 
-    test('should check provider has xcp_signTransaction method available', async ({ context }) => {
-      testPage = await context.newPage();
+    walletTest('provider should have request method for transaction signing', async ({ context }) => {
+      const testPage = await context.newPage();
       await testPage.goto(serverUrl);
 
-      for (let i = 0; i < 10; i++) {
-        const providerFound = await testPage.evaluate(() => {
-          return typeof (window as any).xcpwallet !== 'undefined';
-        });
-        if (providerFound) break;
-        await testPage.waitForTimeout(1000);
-      }
-
-      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
-      if (!hasProvider) { await testPage.close(); return; }
+      const providerFound = await waitForProvider(testPage);
+      expect(providerFound).toBe(true);
 
       const methodCheck = await testPage.evaluate(() => {
         const provider = (window as any).xcpwallet;
-        if (!provider) return false;
-
+        if (!provider) throw new Error('No provider');
         return typeof provider.request === 'function';
       });
 
       expect(methodCheck).toBe(true);
+
       await testPage.close();
     });
 
-    test('should handle various transaction hex formats without crashing', async ({ context }) => {
-      testPage = await context.newPage();
+    walletTest('should handle various transaction hex formats without crashing', async ({ context }) => {
+      const testPage = await context.newPage();
       await testPage.goto(serverUrl);
 
-      for (let i = 0; i < 10; i++) {
-        const providerFound = await testPage.evaluate(() => {
-          return typeof (window as any).xcpwallet !== 'undefined';
-        });
-        if (providerFound) break;
-        await testPage.waitForTimeout(1000);
-      }
-
-      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
-      if (!hasProvider) { await testPage.close(); return; }
+      const providerFound = await waitForProvider(testPage);
+      expect(providerFound).toBe(true);
 
       const testCases = [
         TEST_FIXTURES.RAW_TX_HEX,
@@ -407,7 +357,7 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
       for (const hex of testCases) {
         const result = await testPage.evaluate(async (txHex) => {
           const provider = (window as any).xcpwallet;
-          if (!provider) return { handled: false, error: 'No provider' };
+          if (!provider) throw new Error('No provider');
 
           try {
             await provider.request({
@@ -416,35 +366,29 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
             });
             return { handled: true };
           } catch (error: any) {
+            // Error is expected (not connected), but we're testing it doesn't crash
             return { handled: true, errorMessage: error.message };
           }
         }, hex);
 
         expect(result.handled).toBe(true);
       }
+
       await testPage.close();
     });
   });
 
-  test.describe('Security', () => {
-    test('should not expose sensitive data in PSBT signing errors', async ({ context }) => {
-      testPage = await context.newPage();
+  walletTest.describe('Security', () => {
+    walletTest('should not expose sensitive data in PSBT signing errors', async ({ context }) => {
+      const testPage = await context.newPage();
       await testPage.goto(serverUrl);
 
-      for (let i = 0; i < 10; i++) {
-        const providerFound = await testPage.evaluate(() => {
-          return typeof (window as any).xcpwallet !== 'undefined';
-        });
-        if (providerFound) break;
-        await testPage.waitForTimeout(1000);
-      }
-
-      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
-      if (!hasProvider) { await testPage.close(); return; }
+      const providerFound = await waitForProvider(testPage);
+      expect(providerFound).toBe(true);
 
       const result = await testPage.evaluate(async (psbtHex) => {
         const provider = (window as any).xcpwallet;
-        if (!provider) return { error: 'No provider', hasSensitiveData: false };
+        if (!provider) throw new Error('No provider');
 
         try {
           await provider.request({
@@ -465,27 +409,20 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
       }, TEST_FIXTURES.PSBT_HEX);
 
       expect(result.hasSensitiveData).toBe(false);
+
       await testPage.close();
     });
 
-    test('should not expose sensitive data in transaction signing errors', async ({ context }) => {
-      testPage = await context.newPage();
+    walletTest('should not expose sensitive data in transaction signing errors', async ({ context }) => {
+      const testPage = await context.newPage();
       await testPage.goto(serverUrl);
 
-      for (let i = 0; i < 10; i++) {
-        const providerFound = await testPage.evaluate(() => {
-          return typeof (window as any).xcpwallet !== 'undefined';
-        });
-        if (providerFound) break;
-        await testPage.waitForTimeout(1000);
-      }
-
-      const hasProvider = await testPage.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
-      if (!hasProvider) { await testPage.close(); return; }
+      const providerFound = await waitForProvider(testPage);
+      expect(providerFound).toBe(true);
 
       const result = await testPage.evaluate(async (rawTxHex) => {
         const provider = (window as any).xcpwallet;
-        if (!provider) return { error: 'No provider', hasSensitiveData: false };
+        if (!provider) throw new Error('No provider');
 
         try {
           await provider.request({
@@ -506,6 +443,7 @@ test.describe('Transaction Signing (xcp_signPsbt & xcp_signTransaction)', () => 
       }, TEST_FIXTURES.RAW_TX_HEX);
 
       expect(result.hasSensitiveData).toBe(false);
+
       await testPage.close();
     });
   });

@@ -16,6 +16,7 @@ import {
   type FiatCurrency,
 } from "@/utils/blockchain/bitcoin/price";
 import { useSettings } from "@/contexts/settings-context";
+import { analytics } from "@/utils/fathom";
 import type { ReactElement } from "react";
 
 // Time range options (limited to 1h/24h due to CoinGecko API limitations)
@@ -145,7 +146,7 @@ export default function BtcPrice(): ReactElement {
       onBack: () => navigate("/market"),
       rightButton: {
         ariaLabel: "Refresh price",
-        icon: <FiRefreshCw className={`size-5 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
+        icon: <FiRefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
         onClick: handleRefresh,
         disabled: isRefreshing,
       },
@@ -249,8 +250,11 @@ export default function BtcPrice(): ReactElement {
             ))}
           </div>
           <a
-            href="#"
+            href="https://simpleswap.io/?from=sol-sol&to=btc-btc"
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-xs text-blue-600 hover:text-blue-800"
+            onClick={() => analytics.track('buy_bitcoin')}
           >
             Buy Bitcoin
           </a>

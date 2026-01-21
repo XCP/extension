@@ -4,8 +4,8 @@
  * Tests for address preview display in settings.
  */
 
-import { walletTest, expect, navigateTo } from '../../fixtures';
-import { settings, selectAddress } from '../../selectors';
+import { walletTest, expect, navigateTo } from '../fixtures';
+import { settings, selectAddress } from '../selectors';
 
 walletTest.describe('Settings Address Preview', () => {
   walletTest('shows preview address in settings index under Address Type', async ({ page }) => {

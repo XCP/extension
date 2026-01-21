@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
-import { FiChevronDown, FaCheck } from "@/components/icons";
+import { FiChevronDown, FaCheck, FaCopy } from "@/components/icons";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { Field, Label, Description, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer-form";
-import { BalanceHeader } from "@/components/headers/balance-header";
 import { AddressHeader } from "@/components/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
-import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { fetchAddressDispensers } from "@/utils/blockchain/counterparty/api";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
@@ -31,13 +30,9 @@ export function DispenserCloseForm({
   // Context hooks
   const { activeAddress, activeWallet, showHelpText, state } = useComposer();
 
-  // Data fetching hooks
-  const { data: assetDetails, error: assetDetailsError } = useAssetDetails(
-    initialAsset || initialFormData?.asset || "BTC"
-  );
-
   // Form status
   const { pending } = useFormStatus();
+  const { copy, isCopied } = useCopyToClipboard();
 
 
   // Form state
@@ -94,33 +89,13 @@ export function DispenserCloseForm({
     <ComposerForm
       formAction={formAction}
       header={
-        <div className="space-y-4">
-          {activeAddress && (
-            <AddressHeader
-              address={activeAddress.address}
-              walletName={activeWallet?.name ?? ""}
-              className="mt-1 mb-5"
-            />
-          )}
-          {activeAddress && assetDetails && (initialFormData?.asset || asset) && (
-            <BalanceHeader
-              balance={{
-                asset: initialFormData?.asset || asset,
-                quantity_normalized: assetDetails.availableBalance,
-                asset_info: assetDetails.assetInfo ? {
-                  asset_longname: assetDetails.assetInfo.asset_longname,
-                  description: assetDetails.assetInfo.description || '',
-                  issuer: assetDetails.assetInfo.issuer || 'Unknown',
-                  divisible: assetDetails.assetInfo.divisible,
-                  locked: assetDetails.assetInfo.locked,
-                  supply: assetDetails.assetInfo.supply,
-                } : { divisible: true, asset_longname: null, description: "", issuer: "", locked: false },
-              }}
-              className="mt-1 mb-5"
-            />
-          )}
-          {assetDetailsError && <div className="text-red-500 mb-2">Failed to fetch asset details.</div>}
-        </div>
+        activeAddress && (
+          <AddressHeader
+            address={activeAddress.address}
+            walletName={activeWallet?.name ?? ""}
+            className="mt-1 mb-5"
+          />
+        )
       }
     >
       {isLoading ? (
@@ -142,7 +117,6 @@ export function DispenserCloseForm({
               ) : (
                 <>
                   <Listbox
-                    name="open_address"
                     value={selectedTxHash}
                     onChange={setSelectedTxHash}
                     disabled={pending}
@@ -152,7 +126,7 @@ export function DispenserCloseForm({
                       <div className="flex items-center">
                         {selectedDispenser?.asset && <AssetIcon asset={selectedDispenser.asset} />}
                         <span className={`block truncate ${selectedDispenser ? "ml-2" : ""}`}>
-                          {selectedDispenser ? `${selectedDispenser.asset} - ${selectedDispenser.tx_hash.substring(0, 8)}…` : "Select a dispenser"}
+                          {selectedDispenser ? selectedDispenser.asset : "Select a dispenser"}
                         </span>
                       </div>
                       <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
@@ -173,7 +147,7 @@ export function DispenserCloseForm({
                                   <AssetIcon asset={dispenser.asset} />
                                 </span>
                                 <span className={`ml-2 block truncate ${selected ? "font-medium" : "font-normal"}`}>
-                                  {dispenser.asset} - {dispenser.tx_hash.substring(0, 8)}…
+                                  {dispenser.asset}
                                 </span>
                               </div>
                               {selected && (
@@ -191,13 +165,35 @@ export function DispenserCloseForm({
                   <input type="hidden" name="asset" value={asset} />
                   <input type="hidden" name="status" value="10" />
                   {selectedDispenser && (
-                    <div className="mt-2 text-sm text-gray-700 p-3 bg-gray-50 rounded-md">
-                      <p><strong>Asset:</strong> {selectedDispenser.asset}</p>
-                      <p><strong>Give Quantity:</strong> {selectedDispenser.give_quantity_normalized}</p>
-                      <p><strong>Escrow Quantity:</strong> {selectedDispenser.escrow_quantity_normalized}</p>
-                      <p><strong>Price:</strong> {selectedDispenser.price_normalized}</p>
+                    <div className="mt-3 text-sm p-3 bg-gray-50 rounded-md border border-gray-200 space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Price</span>
+                        <span className="font-medium text-gray-900">{selectedDispenser.satoshirate_normalized} BTC</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Remaining</span>
+                        <span className="font-medium text-gray-900">{selectedDispenser.give_remaining_normalized} {selectedDispenser.asset}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500">TX Hash</span>
+                        <button
+                          type="button"
+                          onClick={() => copy(selectedDispenser.tx_hash)}
+                          className="flex items-center gap-1.5 font-mono text-xs text-gray-600 hover:text-gray-900"
+                        >
+                          {selectedDispenser.tx_hash.substring(0, 8)}…{selectedDispenser.tx_hash.slice(-6)}
+                          {isCopied(selectedDispenser.tx_hash) ? (
+                            <FaCheck className="size-3 text-green-500" />
+                          ) : (
+                            <FaCopy className="size-3" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   )}
+                  <p className="mt-3 text-xs text-gray-500">
+                    Dispensers enter a closing state for 5 blocks before fully closing.
+                  </p>
                   {showHelpText && (
                     <Description className="mt-2 text-sm text-gray-500">
                       Select the dispenser you want to close.

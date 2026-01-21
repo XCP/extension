@@ -44,7 +44,7 @@ export default function VerifyMessage(): ReactElement {
       onBack: () => navigate(-1),
       rightButton: {
         ariaLabel: "Reset form",
-        icon: <FiRefreshCw className="size-5" aria-hidden="true" />,
+        icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
         onClick: handleClear,
         disabled: !hasContent,
       },

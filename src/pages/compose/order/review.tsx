@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FaExchangeAlt } from "@/components/icons";
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatPriceRatio, formatAssetQuantity } from "@/utils/format";
+import { formatPriceRatio } from "@/utils/format";
 
 /**
  * Props for the ReviewOrder component.
@@ -33,6 +33,10 @@ export function ReviewOrder({
   const giveAssetDisplay = result.params.give_asset_info?.asset_longname || result.params.give_asset;
   const getAssetDisplay = result.params.get_asset_info?.asset_longname || result.params.get_asset;
 
+  // Use normalized values from verbose API response (already formatted correctly for divisibility)
+  const giveQuantityDisplay = result.params.give_quantity_normalized ?? result.params.give_quantity;
+  const getQuantityDisplay = result.params.get_quantity_normalized ?? result.params.get_quantity;
+
   const getPriceDisplay = () => {
     return formatPriceRatio(
       result.params.give_quantity,
@@ -46,11 +50,11 @@ export function ReviewOrder({
   const customFields = [
     {
       label: "Give",
-      value: `${formatAssetQuantity(result.params.give_quantity, true)} ${giveAssetDisplay}`,
+      value: `${giveQuantityDisplay} ${giveAssetDisplay}`,
     },
     {
       label: "Get",
-      value: `${formatAssetQuantity(result.params.get_quantity, true)} ${getAssetDisplay}`,
+      value: `${getQuantityDisplay} ${getAssetDisplay}`,
     },
     {
       label: "Price",

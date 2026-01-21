@@ -9,6 +9,7 @@ import { Spinner } from "@/components/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
+import { analytics } from "@/utils/fathom";
 import type { ReactElement } from "react";
 
 /**
@@ -88,6 +89,7 @@ export default function PinnedAssetsSettings(): ReactElement {
       setPinnedAssets(newPinnedAssets);
       // Use the settings context directly to ensure proper update
       await updateSettings({ pinnedAssets: newPinnedAssets });
+      analytics.track('asset_pinned');
       // Don't clear search or reset UI state - maintain the search experience
     } catch (err) {
       console.error("Error adding asset:", err);
@@ -102,6 +104,7 @@ export default function PinnedAssetsSettings(): ReactElement {
       setPinnedAssets(newPinnedAssets);
       // Use the settings context directly to ensure proper update
       await updateSettings({ pinnedAssets: newPinnedAssets });
+      analytics.track('asset_unpinned');
       // Don't clear search or reset UI state - maintain the search experience
     } catch (err) {
       console.error("Error removing asset:", err);

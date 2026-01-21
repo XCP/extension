@@ -1,5 +1,4 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAssetQuantity } from "@/utils/format";
 import type { ReactElement, ReactNode } from "react";
 
 /**
@@ -32,23 +31,26 @@ export function ReviewSend({
 
   if (isMPMA) {
     // MPMA transaction - show expandable list of sends
+    // Use normalized quantities from verbose API response
+    const assetDestQuantListNormalized = result.params.asset_dest_quant_list_normalized || [];
     const assetDestQuantList = result.params.asset_dest_quant_list || [];
-    const isDivisible = result.params.asset_info?.divisible ?? true;
 
-    // Build transaction list for display
-    const transactions = assetDestQuantList.map((item: any[], index: number) => {
+    // Build transaction list for display using normalized values
+    const transactions = assetDestQuantListNormalized.map((item: any[], index: number) => {
       const [asset, destination, quantity] = item;
       const memo = result.params.memos?.[index];
       return {
         asset,
         destination,
-        quantity: formatAssetQuantity(Number(quantity), isDivisible),
+        quantity,
         memo
       };
     });
 
-    // Calculate total
-    const totalQuantity = assetDestQuantList.reduce((sum: number, item: any[]) => sum + Number(item[2]), 0);
+    // Calculate total from normalized values
+    const totalQuantity = assetDestQuantListNormalized.reduce(
+      (sum: number, item: any[]) => sum + Number(item[2]), 0
+    );
     const asset = assetDestQuantList[0]?.[0] || '';
 
     // Show expanded list as custom field
@@ -79,14 +81,15 @@ export function ReviewSend({
     // Total amount
     customFields.push({
       label: "Total",
-      value: `${formatAssetQuantity(totalQuantity, isDivisible)} ${asset}`,
+      value: `${totalQuantity} ${asset}`,
     });
   } else {
-    // Single send transaction
+    // Single send transaction - use normalized quantity from verbose API
+    const quantityDisplay = result.params.quantity_normalized ?? result.params.quantity;
     customFields = [
       {
         label: "Amount",
-        value: `${formatAssetQuantity(Number(result.params.quantity), result.params.asset_info.divisible)} ${result.params.asset}`,
+        value: `${quantityDisplay} ${result.params.asset}`,
       },
       ...(result.params.memo ? [{ label: "Memo", value: String(result.params.memo) }] : []),
     ];

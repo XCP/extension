@@ -122,11 +122,13 @@ export function getUtxoByTxid(utxos: UTXO[], txid: string, vout: number): UTXO |
 
 /**
  * Fetches the raw transaction hex for a given txid.
+ * Tries Counterparty API first, falls back to mempool.space for unconfirmed txs.
  *
  * @param txid - Transaction ID in hex.
  * @returns A promise that resolves to the raw transaction hex string or null if not found.
  */
 export async function fetchPreviousRawTransaction(txid: string): Promise<string | null> {
+  // Try Counterparty API first
   try {
     const settings = walletManager.getSettings();
     const response = await apiClient.get<{ result: BitcoinTransaction }>(
@@ -135,31 +137,76 @@ export async function fetchPreviousRawTransaction(txid: string): Promise<string 
 
     if (typeof response.data?.result?.hex === 'string') {
       return response.data.result.hex;
-    } else {
-      console.error(`Raw transaction hex not found for txid: ${txid}`);
-      return null;
     }
-  } catch (error) {
-    console.error(`Error fetching raw transaction for txid ${txid}:`, error);
-    return null;
+  } catch {
+    // Fall through to mempool.space
   }
+
+  // Fallback to mempool.space (handles unconfirmed txs better)
+  try {
+    const response = await apiClient.get<string>(
+      `https://mempool.space/api/tx/${txid}/hex`
+    );
+
+    if (typeof response.data === 'string' && response.data.length > 0) {
+      return response.data;
+    }
+  } catch {
+    // Both sources failed
+  }
+
+  return null;
+}
+
+/**
+ * Transaction status from mempool.space.
+ */
+interface MempoolTxStatus {
+  confirmed: boolean;
+  block_height?: number;
+  block_hash?: string;
+  block_time?: number;
+}
+
+/**
+ * Extended Bitcoin transaction with status information.
+ */
+export interface BitcoinTransactionWithStatus extends BitcoinTransaction {
+  status?: MempoolTxStatus;
+  blocktime?: number;
 }
 
 /**
  * Fetches detailed Bitcoin transaction information for a given txid.
+ * Includes confirmation status and block time from mempool.space.
  *
  * @param txid - Transaction ID in hex.
  * @returns A promise that resolves to the Bitcoin transaction details or null if not found.
  */
-export async function fetchBitcoinTransaction(txid: string): Promise<BitcoinTransaction | null> {
+export async function fetchBitcoinTransaction(txid: string): Promise<BitcoinTransactionWithStatus | null> {
   try {
     const settings = walletManager.getSettings();
-    const response = await apiClient.get<{ result: BitcoinTransaction }>(
-      `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
-    );
 
-    if (response.data && response.data.result) {
-      return response.data.result;
+    // Fetch from both Counterparty API and mempool.space in parallel
+    const [counterpartyResponse, mempoolResponse] = await Promise.all([
+      apiClient.get<{ result: BitcoinTransaction }>(
+        `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
+      ),
+      apiClient.get<MempoolTxStatus>(
+        `https://mempool.space/api/tx/${txid}/status`
+      ).catch(() => null) // Don't fail if mempool.space is unavailable
+    ]);
+
+    if (counterpartyResponse.data && counterpartyResponse.data.result) {
+      const result: BitcoinTransactionWithStatus = counterpartyResponse.data.result;
+
+      // Add status info from mempool.space if available
+      if (mempoolResponse?.data) {
+        result.status = mempoolResponse.data;
+        result.blocktime = mempoolResponse.data.block_time;
+      }
+
+      return result;
     } else {
       console.error(`Transaction details not found for txid: ${txid}`);
       return null;
@@ -169,3 +216,4 @@ export async function fetchBitcoinTransaction(txid: string): Promise<BitcoinTran
     return null;
   }
 }
+

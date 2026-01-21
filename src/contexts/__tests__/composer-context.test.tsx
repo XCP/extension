@@ -193,6 +193,38 @@ describe('ComposerContext', () => {
       });
     });
 
+    it('should preserve formData in state when compose fails', async () => {
+      const formData = new FormData();
+      formData.append('amount', '500');
+      formData.append('recipient', 'bc1qtest123');
+      const errorMessage = 'API unavailable';
+
+      const mockComposeApi = vi.fn().mockRejectedValue(new Error(errorMessage));
+
+      const { result } = renderHook(() => useComposer(), {
+        wrapper: ({ children }) => (
+          <MemoryRouter>
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
+              {children}
+            </ComposerProvider>
+          </MemoryRouter>
+        ),
+      });
+
+      await act(async () => {
+        result.current.composeTransaction(formData);
+      });
+
+      await waitFor(() => {
+        expect(result.current.state.error).toBe(errorMessage);
+        // formData should be preserved for error recovery
+        expect(result.current.state.formData).toEqual({
+          amount: '500',
+          recipient: 'bc1qtest123',
+        });
+      });
+    });
+
     it('should sign transaction', async () => {
       // This test is complex because signing now integrates with wallet context
       // We'll simplify it to test the state management aspects we can verify

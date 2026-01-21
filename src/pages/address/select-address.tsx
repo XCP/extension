@@ -8,6 +8,7 @@ import { AddressList } from "@/components/lists/address-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { MAX_ADDRESSES_PER_WALLET } from "@/utils/wallet/constants";
+import { analytics } from "@/utils/fathom";
 import type { Address } from "@/types/wallet";
 import type { ReactElement } from "react";
 
@@ -74,6 +75,7 @@ export default function AddressSelection(): ReactElement {
   const handleSelectAddress = useCallback(async (address: Address) => {
     try {
       await setActiveAddress(address);
+      analytics.track('address_switched');
       navigate(CONSTANTS.PATHS.INDEX);
     } catch (err) {
       console.error("Failed to select address:", err);

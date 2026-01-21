@@ -6,9 +6,11 @@
  * - Parameter validation
  * - Message format handling
  * - Approval popup display
+ *
+ * Uses walletTest fixture which provides a browser context with the extension loaded.
  */
 
-import { test, expect, Page } from '@playwright/test';
+import { walletTest, expect } from '../fixtures';
 import * as http from 'http';
 
 // Helper to create test HTML server
@@ -115,76 +117,66 @@ async function closeServer(server: http.Server): Promise<void> {
   });
 }
 
-test.describe('Message Signing', () => {
+// Helper to wait for provider injection
+async function waitForProvider(page: any, timeout = 10000): Promise<boolean> {
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeout) {
+    const found = await page.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
+    if (found) return true;
+    await page.waitForTimeout(500);
+  }
+  return false;
+}
+
+walletTest.describe('Message Signing', () => {
   let server: http.Server;
   let serverUrl: string;
-  let testPage: Page;
 
-  test.beforeAll(async () => {
+  walletTest.beforeAll(async () => {
     const serverSetup = await createTestServer();
     server = serverSetup.server;
     serverUrl = serverSetup.url;
   });
 
-  test.afterAll(async () => {
+  walletTest.afterAll(async () => {
     if (server) {
       await closeServer(server);
     }
   });
 
-  test('should reject message signing when not connected', async ({ context }) => {
-    testPage = await context.newPage();
+  walletTest('should reject message signing when not connected', async ({ context }) => {
+    const testPage = await context.newPage();
     await testPage.goto(serverUrl);
 
-    for (let i = 0; i < 10; i++) {
-      const providerFound = await testPage.evaluate(() => {
-        return typeof (window as any).xcpwallet !== 'undefined';
-      });
-      if (providerFound) break;
-      await testPage.waitForTimeout(1000);
-    }
-
-    // Check if provider is available
-    const hasProvider = await testPage.evaluate(() => {
-      return typeof (window as any).xcpwallet !== 'undefined';
-    });
-
-    if (!hasProvider) {
-      await testPage.close();
-      return; // Skip if provider not available
-    }
+    const providerFound = await waitForProvider(testPage);
+    expect(providerFound).toBe(true);
 
     const result = await testPage.evaluate(async () => {
       return await (window as any).testSignMessage('Hello, Bitcoin!', 'bc1qtest123');
     });
 
+    // Should error when not connected
     expect(result).toHaveProperty('error');
     expect(result.error).toBeTruthy();
+
     await testPage.close();
   });
 
-  test('should show approval popup for message signing', async ({ context }) => {
-    testPage = await context.newPage();
+  walletTest('xcp_requestAccounts triggers popup or returns error', async ({ context }) => {
+    const testPage = await context.newPage();
     await testPage.goto(serverUrl);
 
-    for (let i = 0; i < 10; i++) {
-      const providerFound = await testPage.evaluate(() => {
-        return typeof (window as any).xcpwallet !== 'undefined';
+    const providerFound = await waitForProvider(testPage);
+    expect(providerFound).toBe(true);
+
+    // Listen for popup
+    let popupPage: any = null;
+    const popupPromise = new Promise<void>((resolve) => {
+      context.on('page', (page) => {
+        popupPage = page;
+        resolve();
       });
-      if (providerFound) break;
-      await testPage.waitForTimeout(1000);
-    }
-
-    const hasProvider = await testPage.evaluate(() => {
-      return typeof (window as any).xcpwallet !== 'undefined';
     });
-
-    if (!hasProvider) {
-      await testPage.close();
-      return;
-    }
-
-    const popupPromise = context.waitForEvent('page', { timeout: 5000 }).catch(() => null);
 
     const connectionPromise = testPage.evaluate(async () => {
       const provider = (window as any).xcpwallet;
@@ -200,34 +192,48 @@ test.describe('Message Signing', () => {
       }
     });
 
-    const connectionPopup = await popupPromise;
-    if (connectionPopup) {
-      expect(connectionPopup.url()).toContain('/provider/approve-connection');
-      await connectionPopup.close();
+    // Wait for either popup or response
+    const raceResult = await Promise.race([
+      popupPromise.then(() => 'popup'),
+      connectionPromise.then(() => 'response'),
+      new Promise(resolve => setTimeout(() => resolve('timeout'), 10000))
+    ]);
+
+    if (raceResult === 'popup') {
+      // Popup opened - could be approval page or main popup (for wallet setup/unlock)
+      expect(popupPage).not.toBeNull();
+      if (popupPage) {
+        // Either approval page or main popup is valid
+        const url = popupPage.url();
+        const isValidPopup = url.includes('/provider/approve-connection') ||
+                            url.includes('popup.html');
+        expect(isValidPopup).toBe(true);
+        await popupPage.close();
+      }
+      // Wait for the error response
+      const connectionResult = await connectionPromise;
+      expect(connectionResult).toHaveProperty('error');
+    } else if (raceResult === 'response') {
+      // Got direct response - should be an error
+      const connectionResult = await connectionPromise;
+      expect(connectionResult).toHaveProperty('error');
+    } else {
+      throw new Error('Test timed out waiting for popup or response');
     }
 
-    const connectionResult = await connectionPromise;
-
-    expect(connectionResult).toBeDefined();
-    expect(connectionResult).toHaveProperty('error');
     await testPage.close();
   });
 
-  test('should validate message parameters', async ({ context }) => {
-    testPage = await context.newPage();
+  walletTest('should validate message parameters - null message', async ({ context }) => {
+    const testPage = await context.newPage();
     await testPage.goto(serverUrl);
 
-    for (let i = 0; i < 10; i++) {
-      const providerFound = await testPage.evaluate(() => {
-        return typeof (window as any).xcpwallet !== 'undefined';
-      });
-      if (providerFound) break;
-      await testPage.waitForTimeout(1000);
-    }
+    const providerFound = await waitForProvider(testPage);
+    expect(providerFound).toBe(true);
 
-    const result1 = await testPage.evaluate(async () => {
+    const result = await testPage.evaluate(async () => {
       const provider = (window as any).xcpwallet;
-      if (!provider) return { error: 'No provider' };
+      if (!provider) throw new Error('No provider');
 
       try {
         return await provider.request({
@@ -239,12 +245,22 @@ test.describe('Message Signing', () => {
       }
     });
 
-    expect(result1).toHaveProperty('error');
-    expect(result1.error).toBeTruthy();
+    expect(result).toHaveProperty('error');
+    expect(result.error).toBeTruthy();
 
-    const result2 = await testPage.evaluate(async () => {
+    await testPage.close();
+  });
+
+  walletTest('should validate message parameters - missing address', async ({ context }) => {
+    const testPage = await context.newPage();
+    await testPage.goto(serverUrl);
+
+    const providerFound = await waitForProvider(testPage);
+    expect(providerFound).toBe(true);
+
+    const result = await testPage.evaluate(async () => {
       const provider = (window as any).xcpwallet;
-      if (!provider) return { error: 'No provider' };
+      if (!provider) throw new Error('No provider');
 
       try {
         return await provider.request({
@@ -256,32 +272,18 @@ test.describe('Message Signing', () => {
       }
     });
 
-    expect(result2).toHaveProperty('error');
-    expect(result2.error).toBeTruthy();
+    expect(result).toHaveProperty('error');
+    expect(result.error).toBeTruthy();
+
     await testPage.close();
   });
 
-  test('should handle various message types', async ({ context }) => {
-    testPage = await context.newPage();
+  walletTest('should handle various message types without crashing', async ({ context }) => {
+    const testPage = await context.newPage();
     await testPage.goto(serverUrl);
 
-    for (let i = 0; i < 10; i++) {
-      const providerFound = await testPage.evaluate(() => {
-        return typeof (window as any).xcpwallet !== 'undefined';
-      });
-      if (providerFound) break;
-      await testPage.waitForTimeout(1000);
-    }
-
-    // Check if provider is available, skip test if not (CI environment may not have provider)
-    const hasProvider = await testPage.evaluate(() => {
-      return typeof (window as any).xcpwallet !== 'undefined';
-    });
-
-    if (!hasProvider) {
-      await testPage.close();
-      return; // Skip test if provider not available
-    }
+    const providerFound = await waitForProvider(testPage);
+    expect(providerFound).toBe(true);
 
     const messages = [
       'Simple text message',
@@ -295,7 +297,7 @@ test.describe('Message Signing', () => {
     for (const message of messages) {
       const result = await testPage.evaluate(async (msg) => {
         const provider = (window as any).xcpwallet;
-        if (!provider) return { handled: false, error: 'No provider' };
+        if (!provider) throw new Error('No provider');
 
         try {
           await provider.request({
@@ -304,47 +306,33 @@ test.describe('Message Signing', () => {
           });
           return { handled: true };
         } catch (error: any) {
+          // Error is expected (not connected), but we're testing it doesn't crash
           return { handled: true, errorMessage: error.message };
         }
       }, message);
 
+      // Provider should handle the request without crashing
       expect(result.handled).toBe(true);
     }
+
     await testPage.close();
   });
 
-  test('should check provider availability for signing', async ({ context }) => {
-    testPage = await context.newPage();
+  walletTest('provider should have request method for signing', async ({ context }) => {
+    const testPage = await context.newPage();
     await testPage.goto(serverUrl);
 
-    for (let i = 0; i < 10; i++) {
-      const providerFound = await testPage.evaluate(() => {
-        return typeof (window as any).xcpwallet !== 'undefined';
-      });
-      if (providerFound) break;
-      await testPage.waitForTimeout(1000);
-    }
-
-    const hasProvider = await testPage.evaluate(() => {
-      return typeof (window as any).xcpwallet !== 'undefined';
-    });
-
-    // Provider injection may not work in all CI environments
-    if (!hasProvider) {
-      await testPage.close();
-      return; // Skip if provider not available
-    }
-
-    expect(hasProvider).toBe(true);
+    const providerFound = await waitForProvider(testPage);
+    expect(providerFound).toBe(true);
 
     const methodCheck = await testPage.evaluate(() => {
       const provider = (window as any).xcpwallet;
-      if (!provider) return false;
-
+      if (!provider) throw new Error('No provider');
       return typeof provider.request === 'function';
     });
 
     expect(methodCheck).toBe(true);
+
     await testPage.close();
   });
 });

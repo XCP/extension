@@ -13,8 +13,8 @@ import {
   createWallet,
   navigateTo,
   TEST_PASSWORD
-} from '../../fixtures';
-import { header, selectAddress } from '../../selectors';
+} from '../fixtures';
+import { header, selectAddress } from '../selectors';
 
 walletTest.describe('Show Passphrase Page (/show-passphrase)', () => {
   walletTest('can access show passphrase from wallet selection', async ({ page }) => {
