@@ -113,7 +113,7 @@ export const footer = {
 
 export const header = {
   walletSelector: (page: Page) => page.locator('header button[aria-label="Select Wallet"]'),
-  lockButton: (page: Page) => page.locator('header button[aria-label="Lock Wallet"]'),
+  lockButton: (page: Page) => page.locator('header button[aria-label="Lock Keychain"]'),
 };
 
 // ============================================================================
