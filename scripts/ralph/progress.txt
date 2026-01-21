@@ -98,3 +98,46 @@ Started: Wed, Jan 21, 2026  9:35:22 AM
   - **Weakness**: Some tests for unlikely scenarios (empty storage operations, edge values) provide low value
 
 ---
+
+## 2026-01-21 - US-005: Audit Blockchain/Bitcoin Tests for Meaningfulness
+- What was implemented:
+  - Read and analyzed all 19 blockchain/bitcoin test files (~400+ tests total)
+  - Identified tests with weak assertions on crypto operations
+  - Created tasks/cleanup-blockchain.md with comprehensive analysis
+- Files changed:
+  - tasks/cleanup-blockchain.md (created)
+  - scripts/ralph/prd.json (updated)
+  - scripts/ralph/progress.txt (updated)
+- **Learnings for future iterations:**
+  - Blockchain tests are EXCELLENT overall - the highest quality test suite in the codebase
+  - BIP-322 tests use official test vectors and verify exact signature outputs
+  - PSBT tests verify signature presence, input/output counts, and finalization behavior
+  - Tests use real cryptographic libraries (@noble/secp256k1, @scure/btc-signer), not mocks
+  - One P2TR test is skipped (documented limitation - requires specific schnorr key fixtures)
+  - Few type-only assertions (e.g., `typeof result === 'string'`) are acceptable for non-deterministic crypto output
+  - Tests cover all address formats: P2PKH, P2WPKH, P2SH-P2WPKH, P2TR
+  - **No cleanup required** - blockchain tests are well-designed with strong assertions
+  - Network/API tests (balance, blockHeight, feeRate, price) have good fallback coverage
+
+---
+
+## 2026-01-21 - US-006: Compile Cleanup Summary
+- What was implemented:
+  - Read all 5 cleanup audit documents (cleanup-hooks.md, cleanup-services.md, cleanup-validation.md, cleanup-storage.md, cleanup-blockchain.md)
+  - Created tasks/cleanup-summary.md with prioritized cleanup actions
+  - Organized tests by action type: REMOVE, STRENGTHEN, REFACTOR
+  - Prioritized by effort level: Small (S), Medium (M), Large (L)
+- Files changed:
+  - tasks/cleanup-summary.md (created)
+  - scripts/ralph/prd.json (updated)
+  - scripts/ralph/progress.txt (updated)
+- **Learnings for future iterations:**
+  - Total ~1,010 tests analyzed across all test suites
+  - 18 tests to REMOVE (Score < 10) - mostly React behavior tests and empty test bodies
+  - 14 assertions to STRENGTHEN - mostly validation tests that check `toBe(false)` without error messages
+  - 1 file to DELETE entirely: walletService.test.ts (24 tests that only verify mock behavior)
+  - Blockchain tests require NO cleanup - highest quality test suite
+  - session.test.ts, mutex.test.ts, and walletStorage.test.ts are exemplary models to follow
+  - Cleanup phases: Quick wins (18 removals + 4 security assertions), Assertion cleanup (10 assertions), Major refactoring (walletService)
+
+---
