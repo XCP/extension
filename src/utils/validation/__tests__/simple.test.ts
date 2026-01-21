@@ -8,21 +8,47 @@ import { isHexMemo, validateMemo } from '../memo';
 describe('Simple Validation Tests', () => {
   describe('Asset validation', () => {
     it('should validate basic asset names', () => {
-      // Valid cases
-      expect(validateParentAsset('TEST').isValid).toBe(true);
-      expect(validateParentAsset('PEPECASH').isValid).toBe(true);
-      
-      // Invalid cases
-      expect(validateParentAsset('BTC').isValid).toBe(false);
-      expect(validateParentAsset('XCP').isValid).toBe(false);
-      expect(validateParentAsset('').isValid).toBe(false);
-      expect(validateParentAsset('ABC').isValid).toBe(false); // Too short
+      // Valid cases - verify no error property exists
+      const validTest = validateParentAsset('TEST');
+      expect(validTest.isValid).toBe(true);
+      expect(validTest.error).toBeUndefined();
+
+      const validPepe = validateParentAsset('PEPECASH');
+      expect(validPepe.isValid).toBe(true);
+      expect(validPepe.error).toBeUndefined();
+
+      // Invalid cases - verify specific error messages
+      const btcResult = validateParentAsset('BTC');
+      expect(btcResult.isValid).toBe(false);
+      expect(btcResult.error).toBe('Cannot use reserved asset names');
+
+      const xcpResult = validateParentAsset('XCP');
+      expect(xcpResult.isValid).toBe(false);
+      expect(xcpResult.error).toBe('Cannot use reserved asset names');
+
+      const emptyResult = validateParentAsset('');
+      expect(emptyResult.isValid).toBe(false);
+      expect(emptyResult.error).toBe('Asset name is required');
+
+      const shortResult = validateParentAsset('ABC');
+      expect(shortResult.isValid).toBe(false);
+      expect(shortResult.error).toBe('Asset name too short (min 4 characters)');
     });
 
     it('should validate subassets', () => {
-      expect(validateAssetName('TEST.SUB', true).isValid).toBe(true);
-      expect(validateAssetName('TEST', true).isValid).toBe(false); // No dot
-      expect(validateAssetName('', true).isValid).toBe(false);
+      // Valid subasset
+      const validSubasset = validateAssetName('TEST.SUB', true);
+      expect(validSubasset.isValid).toBe(true);
+      expect(validSubasset.error).toBeUndefined();
+
+      // Invalid subassets - verify error messages
+      const noDotsResult = validateAssetName('TEST', true);
+      expect(noDotsResult.isValid).toBe(false);
+      expect(noDotsResult.error).toBe('Invalid subasset format - must contain a dot');
+
+      const emptyResult = validateAssetName('', true);
+      expect(emptyResult.isValid).toBe(false);
+      expect(emptyResult.error).toBe('Asset name is required');
     });
   });
 

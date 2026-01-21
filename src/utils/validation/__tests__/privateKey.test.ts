@@ -190,10 +190,19 @@ describe('Private Key Validation Security Tests', () => {
       const hex64 = 'a'.repeat(64);
       const wif51 = 'a'.repeat(51);
       const wif52 = 'a'.repeat(52);
-      
-      expect(validatePrivateKeyLength(hex64).isValid).toBe(true);
-      expect(validatePrivateKeyLength(wif51).isValid).toBe(true);
-      expect(validatePrivateKeyLength(wif52).isValid).toBe(true);
+
+      // Verify valid lengths have no error property
+      const result64 = validatePrivateKeyLength(hex64);
+      expect(result64.isValid).toBe(true);
+      expect(result64.error).toBeUndefined();
+
+      const result51 = validatePrivateKeyLength(wif51);
+      expect(result51.isValid).toBe(true);
+      expect(result51.error).toBeUndefined();
+
+      const result52 = validatePrivateKeyLength(wif52);
+      expect(result52.isValid).toBe(true);
+      expect(result52.error).toBeUndefined();
     });
 
     // Fuzz test for length validation
