@@ -2,7 +2,9 @@ import { type ReactElement, type ReactNode } from "react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { formatAddress, formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
+import { fromSatoshis, formatFeeRate } from "@/utils/numeric";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { useSettings } from "@/contexts/settings-context";
 
 /**
  * Transaction result from API response
@@ -45,7 +47,7 @@ interface ReviewScreenProps {
   /** Callback when user clicks back button */
   onBack: () => void;
   /** Additional fields to display in the review */
-  customFields: CustomField[];
+  customFields?: CustomField[];
   /** Error message to display */
   error: string | null;
   /** Whether the transaction is being signed */
@@ -79,12 +81,18 @@ export function ReviewScreen({
   apiResponse,
   onSign,
   onBack,
-  customFields,
+  customFields = [],
   error,
   isSigning,
   hideBackButton = false,
 }: ReviewScreenProps): ReactElement {
   const { result } = apiResponse;
+  const { settings } = useSettings();
+  const { btc: btcPrice } = useMarketPrices(settings.fiat);
+
+  // Calculate fee in fiat
+  const feeInBtc = fromSatoshis(result.btc_fee, true);
+  const feeInFiat = btcPrice ? feeInBtc * btcPrice : null;
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
@@ -109,12 +117,12 @@ export function ReviewScreen({
           </div>
         </div>
         
-        {/* Destination Address (if present) */}
+        {/* Destination Address (if present) - show full address */}
         {result.params.destination && (
           <div className="space-y-1">
             <label className="font-semibold text-gray-700">To:</label>
             <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
-              {formatAddress(result.params.destination, true)}
+              {formatAddress(result.params.destination, false)}
             </div>
           </div>
         )}
@@ -142,12 +150,28 @@ export function ReviewScreen({
         <div className="space-y-1">
           <label className="font-semibold text-gray-700">Fee:</label>
           <div className="bg-gray-50 p-2 rounded text-gray-900">
-            {formatAmount({
-              value: fromSatoshis(result.btc_fee, true),
-              minimumFractionDigits: 8,
-              maximumFractionDigits: 8,
-            })}{" "}
-            BTC
+            <div className="flex justify-between items-center">
+              <div>
+                <span>
+                  {formatAmount({
+                    value: feeInBtc,
+                    minimumFractionDigits: 8,
+                    maximumFractionDigits: 8,
+                  })}{" "}
+                  BTC
+                </span>
+                {result.signed_tx_estimated_size?.adjusted_vsize && (
+                  <span className="text-gray-500 ml-2">
+                    ({formatFeeRate(result.btc_fee, result.signed_tx_estimated_size.adjusted_vsize)} sats/vB)
+                  </span>
+                )}
+              </div>
+              {feeInFiat !== null && (
+                <span className="text-gray-500">
+                  ${formatAmount({ value: feeInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>

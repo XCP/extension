@@ -231,7 +231,7 @@ export default function DispenserManagement(): ReactElement {
                   {dispenser.status === 0 && (
                     <>
                       <Button
-                        onClick={() => navigate(`/compose/dispenser/close/${dispenser.source}/${dispenser.asset}`)}
+                        onClick={() => navigate(`/compose/dispenser/close/${dispenser.asset}`)}
                         color="gray"
                         fullWidth
                       >

@@ -7,7 +7,6 @@ interface PriceTickerProps {
   btc: number | null;
   xcp: number | null;
   currency?: FiatCurrency;
-  loading?: boolean;
   onBtcClick?: () => void;
   onXcpClick?: () => void;
   className?: string;
@@ -21,7 +20,6 @@ export function PriceTicker({
   btc,
   xcp,
   currency = 'usd',
-  loading = false,
   onBtcClick,
   onXcpClick,
   className = "",
@@ -59,9 +57,7 @@ export function PriceTicker({
             <span className="font-medium text-gray-900 text-sm">BTC</span>
           </div>
           <div className="flex items-center">
-            {loading ? (
-              <div className="animate-pulse bg-gray-200 h-4 w-14 rounded" />
-            ) : btc ? (
+            {btc ? (
               <span className="font-semibold text-gray-900 text-sm">
                 {currencySymbol}{formatAmount({ value: btc, maximumFractionDigits: 0 })}
               </span>
@@ -84,9 +80,7 @@ export function PriceTicker({
             <span className="font-medium text-gray-900 text-sm">XCP</span>
           </div>
           <div className="flex items-center">
-            {loading ? (
-              <div className="animate-pulse bg-gray-200 h-4 w-14 rounded" />
-            ) : xcp ? (
+            {xcp ? (
               <span className="font-semibold text-gray-900 text-sm">
                 {currencySymbol}{formatAmount({ value: xcp, maximumFractionDigits: decimals })}
               </span>

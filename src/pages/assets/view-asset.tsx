@@ -166,8 +166,8 @@ export default function ViewAsset(): ReactElement {
 
     if (isOwner && hasSupply) {
       actions.push({
-        id: "give-dividend",
-        title: "Give Dividend",
+        id: "pay-dividend",
+        title: "Pay Dividend",
         description: "Distribute dividends to token holders",
         onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/dividend/${asset}`),
       });
@@ -302,7 +302,7 @@ export default function ViewAsset(): ReactElement {
       <div className="bg-white rounded-lg shadow-sm">
         <button
           onClick={() => setShowDividends(!showDividends)}
-          className="w-full p-4 flex justify-between items-center hover:bg-gray-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="w-full p-4 flex justify-between items-center hover:bg-gray-50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           aria-expanded={showDividends}
           aria-controls="dividend-history"
         >

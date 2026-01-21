@@ -344,5 +344,38 @@ export function calculateMaxDividendPerUnit(
   return balance.dividedBy(normalizedSupply);
 }
 
+/**
+ * Formats a fee rate (sats/vB) for display.
+ * Shows integer for rates >= 1, two decimal places for sub-sat rates.
+ *
+ * @param satoshis - Total fee in satoshis
+ * @param vbytes - Transaction size in virtual bytes
+ * @returns Formatted fee rate string
+ * @example
+ * formatFeeRate(1500, 150) // "10"
+ * formatFeeRate(75, 150) // "0.50"
+ */
+export function formatFeeRate(satoshis: number, vbytes: number): string {
+  if (vbytes === 0) return '0';
+  const rate = satoshis / vbytes;
+  return rate >= 1 ? Math.round(rate).toString() : rate.toFixed(2);
+}
+
+/**
+ * Formats a BigNumber to a string, removing trailing zeros.
+ * Useful for displaying user-friendly decimal values.
+ *
+ * @param value - BigNumber to format
+ * @param decimals - Maximum decimal places (default: 8)
+ * @returns Formatted string with trailing zeros removed
+ * @example
+ * formatDecimal(new BigNumber("1.50000000")) // "1.5"
+ * formatDecimal(new BigNumber("0.00000000")) // "0"
+ */
+export function formatDecimal(value: BigNumber, decimals = 8): string {
+  const fixed = value.toFixed(decimals);
+  return fixed.replace(/\.?0+$/, '') || '0';
+}
+
 // Export BigNumber for cases where direct access to constants is needed
 export { BigNumber };

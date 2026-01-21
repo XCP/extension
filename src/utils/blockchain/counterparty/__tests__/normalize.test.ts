@@ -738,5 +738,54 @@ describe('normalize.ts', () => {
         expect(result.assetInfoCache.size).toBe(1);
       });
     });
+
+    describe('Fairminter compose type', () => {
+      it('should use form divisible value instead of fetching asset info for new assets', async () => {
+        const formData = new FormData();
+        formData.set('premint_quantity', '100.5');
+        formData.set('asset', 'NEWASSET'); // Asset doesn't exist yet
+        formData.set('divisible', 'true');
+
+        mockToSatoshis.mockReturnValue('10050000000');
+
+        const result = await normalizeFormData(formData, 'fairminter');
+
+        // Should NOT fetch asset details - uses form's divisible value
+        expect(mockFetchAssetDetails).not.toHaveBeenCalled();
+        expect(mockToSatoshis).toHaveBeenCalledWith('100.5');
+        expect(result.normalizedData.premint_quantity).toBe('10050000000');
+      });
+
+      it('should handle indivisible fairminter without satoshi conversion', async () => {
+        const formData = new FormData();
+        formData.set('lot_size', '1000');
+        formData.set('asset', 'NEWASSET');
+        formData.set('divisible', 'false');
+
+        const result = await normalizeFormData(formData, 'fairminter');
+
+        expect(mockFetchAssetDetails).not.toHaveBeenCalled();
+        expect(mockToSatoshis).not.toHaveBeenCalled();
+        expect(result.normalizedData.lot_size).toBe('1000');
+      });
+
+      it('should normalize multiple quantity fields for divisible fairminter', async () => {
+        const formData = new FormData();
+        formData.set('premint_quantity', '50.5');
+        formData.set('lot_size', '10.25');
+        formData.set('asset', 'NEWDIVISIBLE');
+        formData.set('divisible', 'true');
+
+        mockToSatoshis
+          .mockReturnValueOnce('5050000000')
+          .mockReturnValueOnce('1025000000');
+
+        const result = await normalizeFormData(formData, 'fairminter');
+
+        expect(mockFetchAssetDetails).not.toHaveBeenCalled();
+        expect(result.normalizedData.premint_quantity).toBe('5050000000');
+        expect(result.normalizedData.lot_size).toBe('1025000000');
+      });
+    });
   });
 });

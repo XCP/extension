@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAssetQuantity } from "@/utils/format";
 import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 import { getAttachEstimateXcpFee } from "@/utils/blockchain/counterparty/compose";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { useSettings } from "@/contexts/settings-context";
 
 /**
  * Props for the ReviewUtxoAttach component.
@@ -46,6 +47,8 @@ export function ReviewUtxoAttach({
   }
   
   const { result } = apiResponse;
+  const { settings } = useSettings();
+  const { xcp: xcpPrice } = useMarketPrices(settings.fiat);
   const [xcpFeeEstimate, setXcpFeeEstimate] = useState<number | null>(null);
   const [feeLoading, setFeeLoading] = useState(true);
 
@@ -68,26 +71,36 @@ export function ReviewUtxoAttach({
     fetchFeeEstimate();
   }, [result.params.source]);
 
+  // Calculate XCP fee in fiat
+  const xcpFeeInXcp = xcpFeeEstimate !== null ? fromSatoshis(xcpFeeEstimate, true) : null;
+  const xcpFeeInFiat = xcpFeeInXcp !== null && xcpPrice ? xcpFeeInXcp * xcpPrice : null;
+
+  // Use normalized quantity from verbose API response (handles divisibility correctly)
+  const quantityDisplay = result.params.quantity_normalized ?? result.params.quantity;
+
   const customFields = [
     { label: "Asset", value: result.params.asset || "N/A" },
     {
       label: "Quantity",
-      value: result.params.quantity && result.params.asset ? 
-        `${formatAssetQuantity(result.params.quantity, true)} ${result.params.asset}` : "N/A",
+      value: result.params.quantity && result.params.asset ?
+        `${quantityDisplay} ${result.params.asset}` : "N/A",
     },
     {
       label: "XCP Fee",
-      value: feeLoading 
-        ? "Loading…" 
-        : xcpFeeEstimate !== null 
+      value: feeLoading
+        ? "Loading…"
+        : xcpFeeEstimate !== null
           ? `${formatAmount({
-              value: fromSatoshis(xcpFeeEstimate, true),
+              value: xcpFeeInXcp!,
               minimumFractionDigits: 8,
               maximumFractionDigits: 8,
             })} XCP`
           : "Unable to estimate",
+      rightElement: !feeLoading && xcpFeeInFiat !== null
+        ? <span className="text-gray-500">${formatAmount({ value: xcpFeeInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+        : undefined,
     },
-    ...(result.params.destination_vout !== undefined && result.params.destination_vout !== null ? 
+    ...(result.params.destination_vout !== undefined && result.params.destination_vout !== null ?
       [{ label: "Destination Output", value: String(result.params.destination_vout) }] : []),
   ];
 

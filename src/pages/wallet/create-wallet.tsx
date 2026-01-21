@@ -1,7 +1,7 @@
 
 import { useEffect, useState, useActionState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaSync, FaEyeSlash } from "@/components/icons";
+import { FiRefreshCw, FaEyeSlash } from "@/components/icons";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { CheckboxInput } from "@/components/inputs/checkbox-input";
@@ -9,6 +9,7 @@ import { PasswordInput } from "@/components/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { generateNewMnemonic } from "@/utils/blockchain/bitcoin/privateKey";
+import { analytics } from "@/utils/fathom";
 
 function CreateWallet() {
   const navigate = useNavigate();
@@ -53,6 +54,7 @@ function CreateWallet() {
 
       try {
         await createMnemonicWallet(mnemonic, password);
+        analytics.track('wallet_created');
         navigate(PATHS.SUCCESS);
         return { error: null };
       } catch {
@@ -67,7 +69,7 @@ function CreateWallet() {
       title: "Create Wallet",
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
-        icon: <FaSync className="size-4" aria-hidden="true" />,
+        icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
         onClick: generateWallet,
         ariaLabel: "Generate new recovery phrase",
         disabled: isPending,

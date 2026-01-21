@@ -19,6 +19,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { validatePrivateKeyFormat } from "@/utils/validation/privateKey";
+import { analytics } from "@/utils/fathom";
 
 const ImportPrivateKey = () => {
   const navigate = useNavigate();
@@ -123,6 +124,7 @@ const ImportPrivateKey = () => {
     try {
       // Always use the user-selected address type from the dropdown
       await createPrivateKeyWallet(privateKey.trim(), password, undefined, addressFormat);
+      analytics.track('private_key_imported');
       navigate(PATHS.SUCCESS);
     } catch (error) {
       let errorMessage = "Failed to import private key. ";

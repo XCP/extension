@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FaExternalLinkAlt, FaChevronLeft, FaChevronRight } from "@/components/icons";
+import { FiRefreshCw, FaChevronLeft, FaChevronRight } from "@/components/icons";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { Spinner } from "@/components/spinner";
@@ -19,7 +19,6 @@ const CONSTANTS = {
   PATHS: {
     BACK: "/index",
     TRANSACTION: "/transaction",
-    XCHAIN_URL: "https://www.xcp.io/address",
   } as const,
 } as const;
 
@@ -118,13 +117,14 @@ export default function AddressHistory(): ReactElement {
       title: "History",
       onBack: () => navigate(CONSTANTS.PATHS.BACK),
       rightButton: {
-        icon: <FaExternalLinkAlt aria-hidden="true" />,
-        onClick: () => window.open(`${CONSTANTS.PATHS.XCHAIN_URL}/${activeAddress?.address}`, "_blank"),
-        ariaLabel: "View on XChain",
+        icon: <FiRefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} aria-hidden="true" />,
+        onClick: () => loadTransactions(),
+        ariaLabel: "Refresh transactions",
+        disabled: isLoading,
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, activeAddress]);
+  }, [setHeaderProps, navigate, isLoading]);
 
   /**
    * Updates the current page in URL search params.

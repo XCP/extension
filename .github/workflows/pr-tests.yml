@@ -11,10 +11,42 @@ on:
     branches: [ main ]
 
 jobs:
+  check-pinned-dependencies:
+    name: Check Pinned Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for unpinned dependencies
+        run: |
+          # Check both dependencies and devDependencies for unpinned versions
+          # Unpinned = contains ^, ~, >, <, =, *, x, or "latest"
+          # Note: caret must be at end of character class in jq regex
+
+          unpinned=$(jq -r '
+            (.dependencies // {}) + (.devDependencies // {})
+            | to_entries[]
+            | select(.value | test("[~><=*x^]|latest"))
+            | "\(.key): \(.value)"
+          ' package.json)
+
+          if [ -n "$unpinned" ]; then
+            echo "❌ Found unpinned dependencies in package.json:"
+            echo "$unpinned"
+            echo ""
+            echo "All dependencies must use exact versions (e.g., \"1.2.3\" not \"^1.2.3\")"
+            exit 1
+          fi
+
+          echo "✅ All dependencies are pinned to exact versions"
+
   lint-and-type-check:
     name: Lint and Type Check
     runs-on: ubuntu-latest
-    
+    needs: check-pinned-dependencies
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -79,9 +111,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Using 10 parallel batches for ~18 test files (1-2 tests per batch)
-        # This maximizes parallelization within GitHub Actions concurrent job limits
-        batch: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        # Using 20 parallel batches for ~112 test files (~5-6 files per batch)
+        # This reduces tests per batch to fit within 15-minute timeout
+        batch: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
     
     steps:
       - name: Checkout code
@@ -116,7 +148,7 @@ jobs:
         timeout-minutes: 15  # Set a reasonable timeout per batch
         run: |
           # Dynamically discover all test files and distribute them across batches
-          TOTAL_BATCHES=10
+          TOTAL_BATCHES=20
           CURRENT_BATCH=${{ matrix.batch }}
           
           # Get all test files, sorted for consistency

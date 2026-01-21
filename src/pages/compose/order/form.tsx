@@ -54,12 +54,12 @@ export function OrderForm({
   // Local error state management for form-specific errors
   const [validationError, setValidationError] = useState<string | null>(null);
   
-  // Tab state
+  // Tab state - default to "sell" since users typically navigate here from their balances
   const [activeTab, setActiveTab] = useState<"buy" | "sell" | "settings">(
-    initialFormData?.type === "sell" ? "sell" : initialFormData?.type === "buy" ? "buy" : "buy"
+    initialFormData?.type === "buy" ? "buy" : initialFormData?.type === "sell" ? "sell" : "sell"
   );
   const [previousTab, setPreviousTab] = useState<"buy" | "sell">(
-    initialFormData?.type === "sell" ? "sell" : "buy"
+    initialFormData?.type === "buy" ? "buy" : "sell"
   );
   const [tabLoading, setTabLoading] = useState(false);
   

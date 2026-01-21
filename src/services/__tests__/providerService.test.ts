@@ -331,8 +331,9 @@ describe('ProviderService', () => {
         // Should return the accounts
         expect(result).toEqual(['bc1qtest123']);
       });
+
     });
-    
+
     describe('xcp_accounts', () => {
       it('should return empty array if not connected', async () => {
         // Mock connection service to return false

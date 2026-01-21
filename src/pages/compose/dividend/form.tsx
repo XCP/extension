@@ -9,7 +9,7 @@ import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
-import { calculateMaxDividendPerUnit } from "@/utils/numeric";
+import { calculateMaxDividendPerUnit, formatDecimal } from "@/utils/numeric";
 import { fetchTokenBalance } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
 
@@ -92,18 +92,16 @@ export function DividendForm({
     if (!assetInfo?.assetInfo?.supply || !dividendAssetBalance) {
       return "0";
     }
-    
+
     const maxPerUnitBN = calculateMaxDividendPerUnit(
       dividendAssetBalance,
       assetInfo.assetInfo.supply,
       assetInfo.assetInfo.divisible ?? false
     );
-    
-    return formatAmount({
-      value: maxPerUnitBN.toNumber(),
-      maximumFractionDigits: 8,
-      minimumFractionDigits: 8
-    });
+
+    // Round down to 8 decimal places to avoid exceeding available balance
+    const rounded = maxPerUnitBN.decimalPlaces(8, 1); // ROUND_DOWN = 1
+    return formatDecimal(rounded);
   };
 
   const handleDividendAssetChange = (asset: string) => {

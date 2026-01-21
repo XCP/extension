@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaCheckCircle, FaUpload, FaRedo } from "@/components/icons";
+import { FaCheckCircle, FaUpload, FiRefreshCw } from "@/components/icons";
 import { Button } from "@/components/button";
 import { TextAreaInput } from "@/components/inputs/textarea-input";
 import { DestinationInput } from "@/components/inputs/destination-input";
@@ -44,7 +44,7 @@ export default function VerifyMessage(): ReactElement {
       onBack: () => navigate(-1),
       rightButton: {
         ariaLabel: "Reset form",
-        icon: <FaRedo className="size-3" aria-hidden="true" />,
+        icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
         onClick: handleClear,
         disabled: !hasContent,
       },

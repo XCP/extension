@@ -12,7 +12,7 @@
  */
 
 import { walletTest, expect } from '../fixtures';
-import { TEST_AMOUNTS, TEST_ADDRESSES } from '../helpers/test-data';
+import { TEST_AMOUNTS, TEST_ADDRESSES } from '../test-data';
 import { index, compose } from '../selectors';
 
 // Helper to get the quantity/amount input

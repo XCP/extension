@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { analytics } from "@/utils/fathom";
 
 interface Asset {
   symbol: string;
@@ -136,6 +137,9 @@ export const useSearchQuery = (
         if (!currentAbortController.signal.aborted) {
           setSearchResults(results);
           setIsSearching(false);
+          if (results.length > 0) {
+            analytics.track('asset_searched');
+          }
         }
       } catch (err) {
         // Only update error state if request wasn't aborted

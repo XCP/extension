@@ -11,7 +11,7 @@ import {
   enableDryRun,
   waitForReview,
   clickBack,
-} from '../../../helpers/compose-test-helpers';
+} from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Order Page (/compose/order)', () => {
   // Helper to navigate to order form with asset parameter
@@ -48,6 +48,16 @@ walletTest.describe('Compose Order Page (/compose/order)', () => {
     const hasSellTab = await sellTab.isVisible({ timeout: 3000 }).catch(() => false);
 
     expect(hasBuyTab || hasSellTab).toBe(true);
+  });
+
+  walletTest('order form defaults to Sell tab', async ({ page }) => {
+    await goToOrderForm(page);
+
+    const sellTab = compose.order.sellTab(page);
+
+    // Sell tab should be active (has underline class) by default
+    // Users typically navigate here from their balances to sell
+    await expect(sellTab).toHaveClass(/underline/);
   });
 
   walletTest('order form has amount and price inputs', async ({ page }) => {

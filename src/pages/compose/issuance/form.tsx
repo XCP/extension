@@ -51,6 +51,7 @@ export function IssuanceForm({
   const [isAssetNameValid, setIsAssetNameValid] = useState(false);
   const [amount, setAmount] = useState(initialFormData?.quantity?.toString() || "");
   const [isDivisible, setIsDivisible] = useState(initialFormData?.divisible ?? false);
+  const [isLocked, setIsLocked] = useState(initialFormData?.lock ?? false);
   const [description, setDescription] = useState(initialFormData?.description || "");
   const [isInitializing, setIsInitializing] = useState<boolean>(!!initialParentAsset); // Loading state for parent asset
   
@@ -130,6 +131,7 @@ export function IssuanceForm({
 
     formData.set('quantity', quantityInt);
     formData.set('divisible', String(isDivisible));
+    formData.set('lock', String(isLocked));
 
     // If inscribing, convert file to base64 and set as description
     if (inscribeEnabled) {
@@ -246,7 +248,8 @@ export function IssuanceForm({
             <CheckboxInput
               name="lock"
               label="Locked"
-              defaultChecked={initialFormData?.lock ?? false}
+              defaultChecked={isLocked}
+              onChange={(checked) => setIsLocked(checked)}
               disabled={pending}
             />
           </div>

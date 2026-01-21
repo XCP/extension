@@ -113,7 +113,7 @@ export const footer = {
 
 export const header = {
   walletSelector: (page: Page) => page.locator('header button[aria-label="Select Wallet"]'),
-  lockButton: (page: Page) => page.locator('header button[aria-label="Lock Wallet"]'),
+  lockButton: (page: Page) => page.locator('header button[aria-label="Lock Keychain"]'),
 };
 
 // ============================================================================
@@ -376,8 +376,9 @@ export const selectAddress = {
 export const selectWallet = {
   walletList: (page: Page) => page.locator('[role="radiogroup"]'),
   walletOption: (page: Page, name: string) => page.getByText(name),
-  // Use the green Add Wallet button in the main content area (not the header one)
-  addWalletButton: (page: Page) => page.locator('button.bg-green-500').filter({ hasText: /Add Wallet/i }),
+  // Target the green full-width button at bottom (not the header icon button)
+  // Both have aria-label="Add Wallet", so we filter to the one with visible "Add Wallet" text
+  addWalletButton: (page: Page) => page.getByRole('button', { name: /Add Wallet/i }).filter({ hasText: 'Add Wallet' }),
 };
 
 // ============================================================================

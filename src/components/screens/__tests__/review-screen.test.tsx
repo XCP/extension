@@ -3,6 +3,26 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { ReviewScreen } from '../review-screen';
 
+// Mock useSettings hook
+vi.mock('@/contexts/settings-context', () => ({
+  useSettings: () => ({
+    settings: { fiat: 'usd' },
+    updateSettings: vi.fn(),
+    isLoading: false
+  })
+}));
+
+// Mock useMarketPrices hook
+vi.mock('@/hooks/useMarketPrices', () => ({
+  useMarketPrices: () => ({
+    btc: 50000,
+    xcp: 10,
+    loading: false,
+    error: null,
+    currency: 'usd'
+  })
+}));
+
 describe('ReviewScreen', () => {
   const mockApiResponse = {
     result: {
@@ -52,19 +72,19 @@ describe('ReviewScreen', () => {
 
     // Check title
     expect(screen.getByText('Review Transaction')).toBeInTheDocument();
-    
-    // Check source address (formatted)
+
+    // Check source address (formatted/truncated)
     expect(screen.getByText(/bc1qar0s.*5mdq/)).toBeInTheDocument();
-    
-    // Check destination address (formatted)
-    expect(screen.getByText(/bc1qxy2k.*0wlh/)).toBeInTheDocument();
-    
+
+    // Check destination address (now shown in full)
+    expect(screen.getByText('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh')).toBeInTheDocument();
+
     // Check custom fields
     expect(screen.getByText('Amount:')).toBeInTheDocument();
     expect(screen.getByText('100 XCP')).toBeInTheDocument();
     expect(screen.getByText('Memo:')).toBeInTheDocument();
     expect(screen.getByText('Test payment')).toBeInTheDocument();
-    
+
     // Check fee
     expect(screen.getByText('Fee:')).toBeInTheDocument();
     expect(screen.getByText(/0.00010000.*BTC/)).toBeInTheDocument();

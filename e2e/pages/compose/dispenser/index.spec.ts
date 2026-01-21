@@ -11,7 +11,7 @@ import {
   enableDryRun,
   waitForReview,
   clickBack,
-} from '../../../helpers/compose-test-helpers';
+} from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Dispenser Page (/compose/dispenser)', () => {
   walletTest('can navigate to create dispenser from market', async ({ page }) => {

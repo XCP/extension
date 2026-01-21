@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { analytics } from "@/utils/fathom";
 
 const DEFAULT_FEEDBACK_MS = 2000;
 const DEFAULT_AUTO_CLEAR_MS = 30000; // 30 seconds
@@ -74,6 +75,7 @@ export function useCopyToClipboard(
       }
 
       setCopiedText(text);
+      analytics.track('copy_to_clipboard');
       timeoutRef.current = setTimeout(() => {
         setCopiedText(null);
       }, feedbackMs);

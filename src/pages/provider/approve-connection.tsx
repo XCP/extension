@@ -15,7 +15,7 @@ import type { ReactElement } from "react";
 export default function ApproveConnection(): ReactElement {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { activeAddress, activeWallet } = useWallet();
+  const { activeAddress, activeWallet, isLoading } = useWallet();
   const { setHeaderProps } = useHeader();
   const [isProcessing, setIsProcessing] = useState(false);
   
@@ -47,11 +47,14 @@ export default function ApproveConnection(): ReactElement {
   }, [setHeaderProps]);
   
   useEffect(() => {
-    // If no active wallet/address, redirect to unlock
+    // Wait for wallet context to finish loading before redirecting
+    if (isLoading) return;
+
+    // If no active wallet/address after loading, redirect to unlock
     if (!activeWallet || !activeAddress) {
       navigate("/");
     }
-  }, [activeWallet, activeAddress, navigate]);
+  }, [activeWallet, activeAddress, isLoading, navigate]);
   
   const handleApprove = async () => {
     setIsProcessing(true);
@@ -81,6 +84,16 @@ export default function ApproveConnection(): ReactElement {
     }
   };
   
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-dvh p-4">
+        <div className="text-center">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!activeAddress || !activeWallet) {
     return (
       <div className="flex items-center justify-center h-dvh p-4">
