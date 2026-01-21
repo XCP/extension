@@ -29,8 +29,8 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
   walletTest('displays at least one wallet', async ({ page }) => {
     await navigateToSelectWallet(page);
 
-    // Should have at least one wallet in the list
-    const walletItems = page.locator('[data-testid*="wallet-item"], .wallet-item, [role="listitem"]');
+    // Wallets are displayed using HeadlessUI RadioGroup.Option which has role="radio"
+    const walletItems = page.locator('[role="radio"]');
     const count = await walletItems.count();
 
     expect(count).toBeGreaterThanOrEqual(1);
@@ -39,8 +39,8 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
   walletTest('shows wallet names', async ({ page }) => {
     await navigateToSelectWallet(page);
 
-    // Wallet names should be visible
-    const hasWalletName = await page.locator('text=/Wallet|My Wallet|Default/i').first().isVisible({ timeout: 5000 }).catch(() => false);
+    // Wallet names should be visible - the default wallet name is "Wallet 1"
+    const hasWalletName = await page.locator('text=/Wallet 1|Wallet|My Wallet/i').first().isVisible({ timeout: 5000 }).catch(() => false);
 
     expect(hasWalletName).toBe(true);
   });
@@ -48,7 +48,8 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
   walletTest('has add wallet button', async ({ page }) => {
     await navigateToSelectWallet(page);
 
-    const addButton = page.locator('button:has-text("Add Wallet"), button[aria-label="Add Wallet"], a[href*="add-wallet"]').first();
+    // Button at bottom of page with "Add Wallet" text
+    const addButton = page.locator('button:has-text("Add Wallet")').first();
     const isVisible = await addButton.isVisible({ timeout: 5000 }).catch(() => false);
 
     expect(isVisible).toBe(true);
@@ -85,7 +86,7 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
     await navigateToSelectWallet(page);
 
     // If there's more than one wallet, try to select a different one
-    const walletItems = page.locator('[data-testid*="wallet-item"], .wallet-item, [role="listitem"]');
+    const walletItems = page.locator('[role="radio"]');
     const count = await walletItems.count();
 
     if (count > 1) {
@@ -104,7 +105,7 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
   walletTest('selecting wallet navigates to index', async ({ page }) => {
     await navigateToSelectWallet(page);
 
-    const walletItems = page.locator('[data-testid*="wallet-item"], .wallet-item, [role="listitem"]');
+    const walletItems = page.locator('[role="radio"]');
 
     if (await walletItems.first().isVisible({ timeout: 5000 }).catch(() => false)) {
       await walletItems.first().click();
