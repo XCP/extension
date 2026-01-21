@@ -11,7 +11,7 @@ import {
   enableDryRun,
   waitForReview,
   clickBack,
-} from '../../../helpers/compose-test-helpers';
+} from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Issuance Page (/compose/issuance)', () => {
   walletTest('can navigate to issuance from actions', async ({ page }) => {
