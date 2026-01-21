@@ -48,27 +48,19 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
   walletTest('has add wallet button', async ({ page }) => {
     await navigateToSelectWallet(page);
 
-    // Use centralized selector for the green Add Wallet button
-    const addButton = selectWallet.addWalletButton(page);
-    const isVisible = await addButton.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(isVisible).toBe(true);
+    // Use web-first assertion - auto-waits and retries
+    await expect(selectWallet.addWalletButton(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('add wallet button navigates to add-wallet page', async ({ page }) => {
     await navigateToSelectWallet(page);
 
     const addButton = selectWallet.addWalletButton(page);
+    await expect(addButton).toBeVisible({ timeout: 5000 });
+    await addButton.click();
 
-    if (await addButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await addButton.click();
-      await page.waitForTimeout(1000);
-
-      const onAddPage = page.url().includes('add-wallet') ||
-        await page.locator('text=/Add Wallet|Create.*Wallet/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-      expect(onAddPage).toBe(true);
-    }
+    // Should navigate to add-wallet page
+    await expect(page).toHaveURL(/add-wallet/, { timeout: 5000 });
   });
 
   walletTest('indicates active wallet', async ({ page }) => {

@@ -376,8 +376,8 @@ export const selectAddress = {
 export const selectWallet = {
   walletList: (page: Page) => page.locator('[role="radiogroup"]'),
   walletOption: (page: Page, name: string) => page.getByText(name),
-  // Use the green Add Wallet button in the main content area (not the header one)
-  addWalletButton: (page: Page) => page.locator('button.bg-green-500').filter({ hasText: /Add Wallet/i }),
+  // Use semantic selector - the Add Wallet button at bottom of select-wallet page
+  addWalletButton: (page: Page) => page.getByRole('button', { name: /Add Wallet/i }),
 };
 
 // ============================================================================
