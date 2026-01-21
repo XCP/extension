@@ -193,3 +193,71 @@ Started: Wed, Jan 21, 2026  9:35:22 AM
   - Service test count: ~210 → 174 (36 tests removed)
 
 ---
+
+## 2026-01-21 - US-009: Strengthen Validation Test Assertions
+- What was implemented:
+  - Read cleanup findings from tasks/cleanup-validation.md
+  - Strengthened 21 weak assertions across 5 validation test files
+  - Replaced `expect(result.isValid).toBe(false)` with specific error message checks
+  - Added `expect(result.error).toBeUndefined()` for valid case assertions
+  - All 261 validation tests pass (excluding fuzz tests)
+  - Typecheck passes
+- Files changed:
+  - src/utils/validation/__tests__/simple.test.ts (strengthened 4 assertions - asset validation now checks specific error messages)
+  - src/utils/validation/__tests__/amount.test.ts (strengthened 11 assertions - empty/null/special values now verify error text)
+  - src/utils/validation/__tests__/fee.test.ts (strengthened 4 assertions - empty/null/NaN/Infinity now verify error text)
+  - src/utils/validation/__tests__/privateKey.test.ts (strengthened 1 assertion - valid lengths now verify no error property)
+  - src/utils/validation/__tests__/assetOwner.test.ts (added clarifying comments for length validation test)
+  - scripts/ralph/prd.json (updated)
+  - scripts/ralph/progress.txt (updated)
+- **Learnings for future iterations:**
+  - Pattern for valid cases: `expect(result.isValid).toBe(true); expect(result.error).toBeUndefined();`
+  - Pattern for invalid cases: `expect(result.isValid).toBe(false); expect(result.error).toBe('specific message');`
+  - `toBigNumber` utility returns 0 for invalid inputs like "NaN" - tests should reflect actual implementation behavior
+  - JavaScript `Infinity` keeps its numeric value when passed to BigNumber, while `NaN` becomes string "NaN" which converts to 0
+  - Validation error messages are defined in the source files (amount.ts, fee.ts, asset.ts) - read source to know exact messages
+  - Always test against actual implementation behavior, not assumed behavior
+
+---
+
+## 2026-01-21 - US-010: Strengthen Blockchain Test Assertions
+- What was implemented:
+  - Read cleanup findings from tasks/cleanup-blockchain.md (blockchain tests were already excellent)
+  - Converted P2TR placeholder test from `expect(true).toBe(true)` to proper `it.skip()` annotation with real test structure
+  - Added hex format validation (`/^[0-9a-f]+$/i`) to 12 tests in transactionSigner.test.ts that only checked `typeof result === 'string'`
+  - All 469 blockchain tests pass (1 skipped for P2TR schnorr key requirement)
+  - Typecheck passes
+- Files changed:
+  - src/utils/blockchain/bitcoin/__tests__/transactionSigner.test.ts (strengthened 12 assertions, improved P2TR skip)
+  - scripts/ralph/prd.json (updated)
+  - scripts/ralph/progress.txt (updated)
+- **Learnings for future iterations:**
+  - Blockchain tests are the highest quality test suite - BIP-322, PSBT, and address tests already had strong assertions
+  - The audit correctly identified that no signature verification or output value checks were missing
+  - Type-only checks are acceptable for crypto output, but adding hex format validation is a low-effort improvement
+  - Vitest's `it.skip()` is preferable to `expect(true).toBe(true)` placeholders - it shows in test output and can be implemented later
+  - P2TR testing requires x-only pubkeys (schnorr) which need specific test fixture generation
+  - transactionSigner.test.ts was the only file needing minor improvements in the entire blockchain test suite
+
+---
+
+## 2026-01-21 - US-011: Address Remaining Phase 2 Gaps
+- What was implemented:
+  - Created 17 tests for consolidateBatch.ts (src/utils/blockchain/bitcoin/__tests__/consolidateBatch.test.ts)
+  - Tests cover: fee calculations (network + service fee), dust threshold validation, error handling, batch processing, varint encoding for large input counts, sign type handling
+  - Evaluated useSignPsbtRequest hook - determined E2E coverage is sufficient (provider-transaction-signing.spec.ts has 513 lines of tests)
+  - All 17 new tests pass
+  - Typecheck passes
+- Files changed:
+  - src/utils/blockchain/bitcoin/__tests__/consolidateBatch.test.ts (created - 17 tests)
+  - scripts/ralph/prd.json (updated)
+  - scripts/ralph/progress.txt (updated)
+- **Learnings for future iterations:**
+  - consolidateBatch.ts uses pre-fetched API data vs bareMultisig.ts which fetches UTXOs directly - different testing strategies needed
+  - Core signing logic is already tested in multisigSigner.test.ts - consolidateBatch tests focus on orchestration/fee calculation
+  - Fee calculation uses estimated fee (pre-signing) for output amount but returns actual fee (post-signing) - tests should account for this intentional design
+  - useSignPsbtRequest hook is primarily React state/event handling - E2E tests cover the business logic better
+  - When E2E tests exist for provider flows, unit tests for hooks add minimal value (aligns with cleanup findings about React behavior tests)
+  - The phase2-completion-report.md referenced in PRD didn't exist - worked from acceptance criteria directly
+
+---

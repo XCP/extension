@@ -131,8 +131,8 @@
         "Typecheck passes"
       ],
       "priority": 9,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Strengthened 21 weak assertions across 5 validation test files: simple.test.ts (4 assertions), amount.test.ts (11 assertions), fee.test.ts (4 assertions), privateKey.test.ts (1 assertion), assetOwner.test.ts (1 comment clarification). Changes: replaced `expect(result.isValid).toBe(false)` with specific error message checks like `expect(result.error).toBe('Amount is required')`. Valid cases now verify `expect(result.error).toBeUndefined()`. All 261 validation tests pass."
     },
     {
       "id": "US-010",
@@ -146,8 +146,8 @@
         "Typecheck passes"
       ],
       "priority": 10,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Strengthened 12 type-only assertions in transactionSigner.test.ts by adding hex format validation (regex /^[0-9a-f]+$/i). Converted P2TR placeholder test (expect(true).toBe(true)) to proper it.skip() annotation with proper test structure. Note: Blockchain tests were already excellent - PSBT and signing tests already had strong assertions. No signature verification or output value checks were missing; the audit identified only minor formatting improvements."
     },
     {
       "id": "US-011",
@@ -161,8 +161,8 @@
         "Typecheck passes"
       ],
       "priority": 11,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Created 17 tests for consolidateBatch.ts covering fee calculations, dust threshold validation, error handling, service fee logic, and batch processing. useSignPsbtRequest hook evaluated - E2E tests exist in provider-transaction-signing.spec.ts (513 lines) covering PSBT signing, and core utilities (extractPsbtDetails, decodeCounterpartyMessage, verifyProviderTransaction) are tested. Hook is primarily React state/event handling which was identified in cleanup as low-value test target."
     },
     {
       "id": "US-012",
