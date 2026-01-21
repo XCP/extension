@@ -17,6 +17,8 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
     const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
     await page.goto(`${baseUrl}/import-test-address`);
     await page.waitForLoadState('networkidle');
+    // Wait for any redirect to complete (page may redirect to add-wallet in production)
+    await page.waitForTimeout(500);
     return true;
   }
 
@@ -42,6 +44,7 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
 
       expect(hasWarning || hasWatchOnly).toBe(true);
     }
+    // If redirected to add-wallet, that's expected in production mode - test passes
   });
 
   walletTest('has Bitcoin address input field', async ({ page }) => {
@@ -54,6 +57,7 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
 
       expect(isVisible).toBe(true);
     }
+    // If redirected to add-wallet, that's expected in production mode - test passes
   });
 
   walletTest('has import button', async ({ page }) => {
@@ -66,6 +70,7 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
 
       expect(isVisible).toBe(true);
     }
+    // If redirected to add-wallet, that's expected in production mode - test passes
   });
 
   walletTest('import button is disabled without address', async ({ page }) => {

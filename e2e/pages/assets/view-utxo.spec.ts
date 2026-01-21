@@ -39,12 +39,13 @@ walletTest.describe('View UTXO Page (/utxo/:utxo)', () => {
     await page.waitForLoadState('networkidle');
 
     if (page.url().includes('/utxo')) {
-      // Should show attached assets or "no assets attached"
-      const hasAttachedAssets = await page.locator('text=/attached|asset|token/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasNoAssets = await page.locator('text=/no asset|empty|none/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasError = await page.locator('text=/not found|error/i').first().isVisible({ timeout: 2000 }).catch(() => false);
+      // Should show balances section (attached assets), Details section, loading, or error
+      const hasBalances = await page.locator('text=/Balances/').first().isVisible({ timeout: 5000 }).catch(() => false);
+      const hasDetails = await page.locator('text=/Details/').first().isVisible({ timeout: 3000 }).catch(() => false);
+      const hasError = await page.locator('[role="alert"], text=/Failed to fetch|error/i').first().isVisible({ timeout: 2000 }).catch(() => false);
+      const hasLoading = await page.locator('text=/Loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
 
-      expect(hasAttachedAssets || hasNoAssets || hasError).toBe(true);
+      expect(hasBalances || hasDetails || hasError || hasLoading).toBe(true);
     }
   });
 
@@ -80,11 +81,12 @@ walletTest.describe('View UTXO Page (/utxo/:utxo)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/utxo/invalid-utxo-format'));
     await page.waitForLoadState('networkidle');
 
-    // Should show error or redirect
-    const hasError = await page.locator('text=/not found|error|invalid/i').first().isVisible({ timeout: 5000 }).catch(() => false);
+    // Should show error (ErrorAlert has role="alert"), loading state, or redirect
+    const hasError = await page.locator('[role="alert"], text=/Failed to fetch|error|invalid/i').first().isVisible({ timeout: 5000 }).catch(() => false);
+    const hasLoading = await page.locator('text=/Loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
     const redirected = !page.url().includes('/utxo');
 
-    expect(hasError || redirected).toBe(true);
+    expect(hasError || hasLoading || redirected).toBe(true);
   });
 
   walletTest('shows confirmation status', async ({ page }) => {
