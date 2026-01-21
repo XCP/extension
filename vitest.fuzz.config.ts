@@ -22,6 +22,5 @@ export default defineConfig({
 
     // Prevent hanging in CI
     teardownTimeout: 10000,
-    forceExit: true, // Force exit after tests complete
   },
 });
