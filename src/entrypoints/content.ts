@@ -1,11 +1,9 @@
 import { defineContentScript, injectScript } from '#imports';
 import { MESSAGE_TARGETS, MESSAGE_TYPES } from '@/constants/messaging';
 
-// Production: HTTPS only (cleaner for Chrome Web Store)
-// Development: Include localhost for local dApp testing
-const matches = import.meta.env.MODE === 'production'
-  ? ['https://*/*']
-  : ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'];
+// Always include localhost for local dApp testing (safe - only accessible locally)
+// HTTPS for all other sites
+const matches = ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'];
 
 export default defineContentScript({
   matches,
