@@ -176,8 +176,8 @@ walletTest.describe('State Persistence - Multi-Wallet', () => {
     await header.walletSelector(page).click();
     await page.waitForURL(/select-wallet/);
 
-    // Add a second wallet
-    const addWalletButton = page.getByRole('button', { name: /Add.*Wallet/i }).first();
+    // Add a second wallet - target the green button at bottom (not header icon)
+    const addWalletButton = page.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' });
     await expect(addWalletButton).toBeVisible();
     await addWalletButton.click();
 

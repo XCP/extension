@@ -74,10 +74,15 @@ test.describe('Remove Wallet', () => {
   test('can remove wallet when multiple wallets exist', async ({ extensionPage }) => {
     await createWallet(extensionPage);
 
-    // Add second wallet
-    await header.walletSelector(extensionPage).click();
+    // Add second wallet - wait for header to be ready first
+    const walletSelectorBtn = header.walletSelector(extensionPage);
+    await walletSelectorBtn.waitFor({ state: 'visible', timeout: 10000 });
+    await walletSelectorBtn.click();
     await extensionPage.waitForURL(/select-wallet/);
-    await selectWallet.addWalletButton(extensionPage).click();
+
+    const addWalletBtn = selectWallet.addWalletButton(extensionPage);
+    await addWalletBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await addWalletBtn.click();
     await onboarding.createWalletButton(extensionPage).click();
 
     await createWalletSelectors.revealPhraseCard(extensionPage).click();
@@ -113,10 +118,15 @@ test.describe('Remove Wallet', () => {
   test('remove wallet requires password verification', async ({ extensionPage }) => {
     await createWallet(extensionPage);
 
-    // Add second wallet
-    await header.walletSelector(extensionPage).click();
+    // Add second wallet - wait for header to be ready first
+    const walletSelectorBtn = header.walletSelector(extensionPage);
+    await walletSelectorBtn.waitFor({ state: 'visible', timeout: 10000 });
+    await walletSelectorBtn.click();
     await extensionPage.waitForURL(/select-wallet/);
-    await selectWallet.addWalletButton(extensionPage).click();
+
+    const addWalletBtn = selectWallet.addWalletButton(extensionPage);
+    await addWalletBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await addWalletBtn.click();
     await onboarding.createWalletButton(extensionPage).click();
 
     await createWalletSelectors.revealPhraseCard(extensionPage).click();

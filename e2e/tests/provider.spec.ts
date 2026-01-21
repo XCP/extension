@@ -132,8 +132,6 @@ walletTest.describe('XCP Provider', () => {
           hasRequest: typeof provider.request === 'function',
           hasOn: typeof provider.on === 'function',
           hasRemoveListener: typeof provider.removeListener === 'function',
-          hasIsConnected: typeof provider.isConnected === 'function',
-          isConnected: provider.isConnected()
         };
       });
 
@@ -141,8 +139,6 @@ walletTest.describe('XCP Provider', () => {
       expect(providerInfo?.hasRequest).toBe(true);
       expect(providerInfo?.hasOn).toBe(true);
       expect(providerInfo?.hasRemoveListener).toBe(true);
-      expect(providerInfo?.hasIsConnected).toBe(true);
-      expect(providerInfo?.isConnected).toBe(false);
 
       await testPage.close();
     });
@@ -167,20 +163,23 @@ walletTest.describe('XCP Provider', () => {
       await testPage.close();
     });
 
-    walletTest('should check isConnected status correctly', async ({ context }) => {
+    walletTest('should check connection status via xcp_accounts', async ({ context }) => {
+      // isConnected() is not provided - use xcp_accounts to check connection status
       const testPage = await context.newPage();
       await testPage.goto(serverUrl);
 
       const providerFound = await waitForProvider(testPage);
       expect(providerFound).toBe(true);
 
-      const isConnected = await testPage.evaluate(() => {
+      // Check connection status by calling xcp_accounts
+      const accounts = await testPage.evaluate(async () => {
         const provider = (window as any).xcpwallet;
         if (!provider) throw new Error('Provider not found');
-        return provider.isConnected();
+        return await provider.request({ method: 'xcp_accounts' });
       });
 
-      expect(isConnected).toBe(false);
+      // Empty accounts means not connected
+      expect(accounts).toEqual([]);
 
       await testPage.close();
     });

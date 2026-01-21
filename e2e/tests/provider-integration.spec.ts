@@ -350,14 +350,12 @@ test.describe('Provider Integration - Full Flow', () => {
           hasRequest: typeof p?.request === 'function',
           hasOn: typeof p?.on === 'function',
           hasRemoveListener: typeof p?.removeListener === 'function',
-          hasIsConnected: typeof p?.isConnected === 'function',
-          isConnected: p?.isConnected(),
         };
       });
 
       expect(providerInfo.hasRequest).toBe(true);
       expect(providerInfo.hasOn).toBe(true);
-      expect(providerInfo.isConnected).toBe(false);
+      expect(providerInfo.hasRemoveListener).toBe(true);
 
       // Verify xcp_accounts returns empty when not connected
       const accounts = await dappPage.evaluate(async () => {

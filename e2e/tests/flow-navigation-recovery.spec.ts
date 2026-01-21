@@ -222,7 +222,8 @@ test.describe('Navigation Recovery - Wallet Selection Flow', () => {
     await header.walletSelector(extensionPage).click();
     await extensionPage.waitForURL(/select-wallet/, { timeout: 5000 });
 
-    const addWalletButton = extensionPage.getByRole('button', { name: /Add.*Wallet/i }).first();
+    // Target the green button at bottom (not header icon) by filtering for visible text
+    const addWalletButton = extensionPage.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' });
     await expect(addWalletButton).toBeVisible({ timeout: 5000 });
     await addWalletButton.click();
 

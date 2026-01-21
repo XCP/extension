@@ -77,7 +77,7 @@ walletTest.describe('Import Wallet - Private Key', () => {
     await page.waitForURL(/select-wallet/);
 
     // Click Add Wallet
-    await page.getByRole('button', { name: /Add.*Wallet/i }).first().click();
+    await page.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' }).click();
 
     // Should see Import Private Key option
     await expect(page.getByText(/Import Private Key/i)).toBeVisible();
@@ -89,7 +89,7 @@ walletTest.describe('Import Wallet - Private Key', () => {
     await page.waitForURL(/select-wallet/);
 
     // Click Add Wallet -> Import Private Key
-    await page.getByRole('button', { name: /Add.*Wallet/i }).first().click();
+    await page.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' }).click();
     await page.getByText(/Import Private Key/i).click();
 
     // Fill in private key
@@ -107,7 +107,7 @@ walletTest.describe('Import Wallet - Private Key', () => {
     await page.waitForURL(/select-wallet/);
 
     // Click Add Wallet -> Import Private Key
-    await page.getByRole('button', { name: /Add.*Wallet/i }).first().click();
+    await page.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' }).click();
     await page.getByText(/Import Private Key/i).click();
 
     // Fill in invalid key and try to submit

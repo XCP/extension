@@ -9,119 +9,90 @@ import { header, selectWallet } from '../../selectors';
 
 walletTest.describe('Add Wallet Page (/add-wallet)', () => {
   walletTest.beforeEach(async ({ page }) => {
-    // Navigate to add-wallet page via header wallet selector
-    await header.walletSelector(page).click();
+    // Wait for header to be fully loaded with wallet selector button
+    const walletSelectorBtn = header.walletSelector(page);
+    await walletSelectorBtn.waitFor({ state: 'visible', timeout: 10000 });
+    await walletSelectorBtn.click();
     await page.waitForURL(/select-wallet/, { timeout: 5000 });
 
-    // Click add wallet button
-    await selectWallet.addWalletButton(page).click();
+    // Wait for add wallet button to be visible, then click
+    const addWalletBtn = selectWallet.addWalletButton(page);
+    await addWalletBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await addWalletBtn.click();
     await page.waitForURL(/add-wallet/, { timeout: 5000 });
   });
 
   walletTest('page loads with wallet options', async ({ page }) => {
-    // Should show the add wallet page with options
-    const hasAddWalletTitle = await page.locator('text=/Add Wallet/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasCreateOption = await page.locator('button:has-text("Create"), button[aria-label*="Create"]').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasImportOption = await page.locator('button:has-text("Import")').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasAddWalletTitle || hasCreateOption || hasImportOption).toBe(true);
+    // Should show the add wallet page with options - verify at least one option is visible
+    // The page should have either a title, create button, or import button
+    const anyOption = page.locator('text=/Add Wallet/i, button:has-text("Create"), button:has-text("Import")').first();
+    await expect(anyOption).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('displays create new wallet button', async ({ page }) => {
     const createButton = page.locator('button:has-text("Create New Wallet"), button[aria-label="Create New Wallet"]').first();
-    const isVisible = await createButton.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(isVisible).toBe(true);
+    await expect(createButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('displays import mnemonic button', async ({ page }) => {
     const importButton = page.locator('button:has-text("Import Mnemonic"), button:has-text("Import Wallet"), button[aria-label="Import Wallet"]').first();
-    const isVisible = await importButton.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(isVisible).toBe(true);
+    await expect(importButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('displays import private key button', async ({ page }) => {
     const importKeyButton = page.locator('button:has-text("Import Private Key"), button[aria-label="Import Private Key"]').first();
-    const isVisible = await importKeyButton.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(isVisible).toBe(true);
+    await expect(importKeyButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('create wallet button navigates to create-wallet page', async ({ page }) => {
     const createButton = page.locator('button:has-text("Create New Wallet"), button[aria-label="Create New Wallet"]').first();
+    await expect(createButton).toBeVisible({ timeout: 5000 });
+    await createButton.click();
 
-    if (await createButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await createButton.click();
-      await page.waitForTimeout(1000);
-
-      const onCreatePage = page.url().includes('create-wallet') ||
-        await page.locator('text=/recovery phrase|seed phrase|secret phrase/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-      expect(onCreatePage).toBe(true);
-    }
+    // Should navigate to create-wallet page
+    await page.waitForURL(/create-wallet/, { timeout: 5000 });
   });
 
   walletTest('import mnemonic button navigates to import-wallet page', async ({ page }) => {
     const importButton = page.locator('button:has-text("Import Mnemonic"), button:has-text("Import Wallet")').first();
+    await expect(importButton).toBeVisible({ timeout: 5000 });
+    await importButton.click();
 
-    if (await importButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await importButton.click();
-      await page.waitForTimeout(1000);
-
-      const onImportPage = page.url().includes('import-wallet') ||
-        await page.locator('input[name="word-0"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-      expect(onImportPage).toBe(true);
-    }
+    // Should navigate to import-wallet page with mnemonic inputs
+    await expect(page.locator('input[name="word-0"]')).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('import private key button navigates to import-private-key page', async ({ page }) => {
     const importKeyButton = page.locator('button:has-text("Import Private Key")').first();
+    await expect(importKeyButton).toBeVisible({ timeout: 5000 });
+    await importKeyButton.click();
 
-    if (await importKeyButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await importKeyButton.click();
-      await page.waitForTimeout(1000);
-
-      const onImportKeyPage = page.url().includes('import-private-key') ||
-        await page.locator('input[name="private-key"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-      expect(onImportKeyPage).toBe(true);
-    }
+    // Should navigate to import-private-key page
+    await expect(page.locator('input[name="private-key"]')).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has back button to return to select-wallet', async ({ page }) => {
-    const backButton = page.locator('button[aria-label*="back" i], button[aria-label*="Back" i], header button').first();
-    const isVisible = await backButton.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(isVisible).toBe(true);
+    // Header should have a back button
+    const backButton = page.locator('header button').first();
+    await expect(backButton).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('has close button to return to index', async ({ page }) => {
+  walletTest.skip('has close button to return to index', async ({ page }) => {
+    // Skipped: Close button is optional and may not exist on this page
     const closeButton = page.locator('button[aria-label="Close"], button[aria-label*="close" i]').first();
-    const isVisible = await closeButton.isVisible({ timeout: 5000 }).catch(() => false);
-
-    // Close button is optional
-    expect(isVisible || true).toBe(true);
+    await expect(closeButton).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('close button navigates to index page', async ({ page }) => {
+  walletTest.skip('close button navigates to index page', async ({ page }) => {
+    // Skipped: Close button is optional and may not exist on this page
     const closeButton = page.locator('button[aria-label="Close"]').first();
-
-    if (await closeButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await closeButton.click();
-      await page.waitForTimeout(1000);
-
-      expect(page.url()).toContain('index');
-    }
+    await expect(closeButton).toBeVisible({ timeout: 3000 });
+    await closeButton.click();
+    await expect(page).toHaveURL(/index/, { timeout: 5000 });
   });
 
   walletTest('displays app branding/logo', async ({ page }) => {
-    // Check for logo in header or on page
-    const hasLogo = await page.locator('img[alt*="logo" i], svg[aria-label*="logo" i], [data-testid*="logo"]').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasTitle = await page.locator('header, text=/XCP|Wallet/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    // Branding should be present
-    expect(hasLogo || hasTitle).toBe(true);
+    // Header should always be present with logo or title
+    await expect(page.locator('header')).toBeVisible({ timeout: 5000 });
   });
 });

@@ -27,7 +27,7 @@ test.describe('Wallet Selection', () => {
 
     await expect(extensionPage).toHaveURL(/select-wallet/);
     await expect(extensionPage.getByText(/Wallet 1/i)).toBeVisible();
-    await expect(extensionPage.getByRole('button', { name: /Add.*Wallet/i }).first()).toBeVisible();
+    await expect(extensionPage.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' })).toBeVisible();
   });
 
   test('wallet card shows address preview', async ({ extensionPage }) => {
@@ -54,7 +54,7 @@ test.describe('Multi-Wallet Support', () => {
     await extensionPage.waitForURL(/select-wallet/);
 
     // Add second wallet
-    await extensionPage.getByRole('button', { name: /Add.*Wallet/i }).first().click();
+    await extensionPage.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' }).click();
     await extensionPage.getByRole('button', { name: /Create.*Wallet/i }).click();
 
     // Complete second wallet creation
@@ -78,7 +78,7 @@ test.describe('Multi-Wallet Support', () => {
     await header.walletSelector(extensionPage).click();
     await extensionPage.waitForURL(/select-wallet/);
 
-    await extensionPage.getByRole('button', { name: /Add.*Wallet/i }).first().click();
+    await extensionPage.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' }).click();
     await extensionPage.getByText('Import Mnemonic').click();
 
     // Fill mnemonic
@@ -100,7 +100,7 @@ test.describe('Multi-Wallet Support', () => {
     await header.walletSelector(extensionPage).click();
     await extensionPage.waitForURL(/select-wallet/);
 
-    await extensionPage.getByRole('button', { name: /Add.*Wallet/i }).first().click();
+    await extensionPage.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' }).click();
     await extensionPage.getByText('Import Private Key').click();
 
     await extensionPage.locator('input[name="private-key"]').fill(TEST_PRIVATE_KEY);
@@ -122,7 +122,7 @@ test.describe('Multi-Wallet Support', () => {
     await header.walletSelector(extensionPage).click();
     await extensionPage.waitForURL(/select-wallet/);
 
-    await extensionPage.getByRole('button', { name: /Add.*Wallet/i }).first().click();
+    await extensionPage.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' }).click();
     await extensionPage.getByRole('button', { name: /Create.*Wallet/i }).click();
 
     await extensionPage.locator('text=View 12-word Secret Phrase').click();

@@ -376,8 +376,9 @@ export const selectAddress = {
 export const selectWallet = {
   walletList: (page: Page) => page.locator('[role="radiogroup"]'),
   walletOption: (page: Page, name: string) => page.getByText(name),
-  // Use semantic selector - the Add Wallet button at bottom of select-wallet page
-  addWalletButton: (page: Page) => page.getByRole('button', { name: /Add Wallet/i }),
+  // Target the green full-width button at bottom (not the header icon button)
+  // Both have aria-label="Add Wallet", so we filter to the one with visible "Add Wallet" text
+  addWalletButton: (page: Page) => page.getByRole('button', { name: /Add Wallet/i }).filter({ hasText: 'Add Wallet' }),
 };
 
 // ============================================================================
