@@ -113,13 +113,13 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     const keyInput = page.locator('input[name="private-key"]').first();
     if (await keyInput.isVisible({ timeout: 5000 }).catch(() => false)) {
       await keyInput.fill(TEST_PRIVATE_KEY);
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(1000); // Wait for checkbox to enable
     }
 
-    // Check the confirmation checkbox
-    const checkbox = page.locator('input[type="checkbox"], input[name="confirmed"]').first();
+    // Check the confirmation checkbox (HeadlessUI Checkbox component)
+    const checkbox = page.locator('#checkbox-confirmed, [id^="checkbox-confirmed"]').first();
     if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await checkbox.check();
+      await checkbox.click(); // Use click() instead of check() for HeadlessUI
       await page.waitForTimeout(500);
     }
 

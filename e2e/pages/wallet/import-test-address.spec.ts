@@ -36,10 +36,11 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
     await navigateToImportTestAddress(page);
 
     if (page.url().includes('import-test-address')) {
-      // Should show warning that this is for development only
-      const hasWarning = await page.locator('text=/Development|Dev|watch-only|testing/i').first().isVisible({ timeout: 5000 }).catch(() => false);
+      // Should show warning that this is for development only - the banner says "Development Mode"
+      const hasWarning = await page.locator('text=/Development Mode/').first().isVisible({ timeout: 5000 }).catch(() => false);
+      const hasWatchOnly = await page.locator('text=/watch-only/').first().isVisible({ timeout: 3000 }).catch(() => false);
 
-      expect(hasWarning).toBe(true);
+      expect(hasWarning || hasWatchOnly).toBe(true);
     }
   });
 
@@ -47,7 +48,8 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
     await navigateToImportTestAddress(page);
 
     if (page.url().includes('import-test-address')) {
-      const addressInput = page.locator('input[id="test-address"], input[placeholder*="address" i]').first();
+      // Input has id="test-address" and placeholder="Enter any Bitcoin address…"
+      const addressInput = page.locator('#test-address, input[placeholder*="Bitcoin address"]').first();
       const isVisible = await addressInput.isVisible({ timeout: 5000 }).catch(() => false);
 
       expect(isVisible).toBe(true);
@@ -58,7 +60,8 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
     await navigateToImportTestAddress(page);
 
     if (page.url().includes('import-test-address')) {
-      const importButton = page.locator('button:has-text("Import"), button[type="submit"]').first();
+      // Button text is "Import Test Address"
+      const importButton = page.locator('button:has-text("Import Test Address")').first();
       const isVisible = await importButton.isVisible({ timeout: 5000 }).catch(() => false);
 
       expect(isVisible).toBe(true);
@@ -69,7 +72,10 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
     await navigateToImportTestAddress(page);
 
     if (page.url().includes('import-test-address')) {
-      const importButton = page.locator('button:has-text("Import"), button[type="submit"]').first();
+      // Wait for the component to fully render
+      await page.waitForTimeout(500);
+
+      const importButton = page.locator('button:has-text("Import Test Address")').first();
 
       if (await importButton.isVisible({ timeout: 5000 }).catch(() => false)) {
         const isDisabled = await importButton.isDisabled().catch(() => false);
@@ -82,18 +88,12 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
     await navigateToImportTestAddress(page);
 
     if (page.url().includes('import-test-address')) {
-      const importButton = page.locator('button:has-text("Import"), button[type="submit"]').first();
+      const importButton = page.locator('button:has-text("Import Test Address")').first();
 
       if (await importButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-        // Try to click import without address
-        await importButton.click({ force: true }).catch(() => {});
-        await page.waitForTimeout(500);
-
-        // Should show error or button should have been disabled
-        const hasError = await page.locator('text=/enter.*address|required/i').first().isVisible({ timeout: 3000 }).catch(() => false);
+        // The button should be disabled without an address
         const isDisabled = await importButton.isDisabled().catch(() => false);
-
-        expect(hasError || isDisabled).toBe(true);
+        expect(isDisabled).toBe(true);
       }
     }
   });
@@ -159,10 +159,11 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
     await navigateToImportTestAddress(page);
 
     if (page.url().includes('import-test-address')) {
-      // Should explain that this is watch-only and cannot sign transactions
-      const hasExplanation = await page.locator('text=/watch-only|cannot sign|cannot broadcast/i').first().isVisible({ timeout: 5000 }).catch(() => false);
+      // The page says: "This creates a watch-only wallet for testing."
+      const hasWatchOnly = await page.locator('text=/watch-only/').first().isVisible({ timeout: 5000 }).catch(() => false);
+      const hasCannotSign = await page.locator('text=/cannot sign/').first().isVisible({ timeout: 3000 }).catch(() => false);
 
-      expect(hasExplanation).toBe(true);
+      expect(hasWatchOnly || hasCannotSign).toBe(true);
     }
   });
 
