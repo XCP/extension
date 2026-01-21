@@ -140,7 +140,10 @@ async function createWallet(page: Page, password = TEST_PASSWORD): Promise<void>
 }
 
 async function importMnemonic(page: Page, mnemonic = TEST_MNEMONIC, password = TEST_PASSWORD): Promise<void> {
-  await page.getByRole('button', { name: 'Import Wallet' }).click();
+  // Wait for Import Wallet button to be visible before clicking
+  const importButton = page.getByRole('button', { name: 'Import Wallet' });
+  await importButton.waitFor({ state: 'visible', timeout: 10000 });
+  await importButton.click();
   await page.waitForSelector('input[name="word-0"]');
 
   const words = mnemonic.split(' ');
