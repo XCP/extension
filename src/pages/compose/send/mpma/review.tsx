@@ -18,11 +18,13 @@ export function ReviewMPMA({
 }: ReviewMPMAProps): ReactElement {
   const { result } = apiResponse;
 
-  // Use normalized quantities from verbose API response (handles divisibility correctly)
-  const assetDestQuantListNormalized = result.params.asset_dest_quant_list_normalized || [];
+  // Use asset_dest_quant_list from API response - try normalized first, fall back to regular
+  // The verbose API returns asset_dest_quant_list with [asset, destination, quantity] tuples
+  const assetDestQuantList = result.params.asset_dest_quant_list_normalized ||
+                             result.params.asset_dest_quant_list || [];
 
-  // Group by transaction for display with normalized quantities
-  const transactions = assetDestQuantListNormalized.map((item: any[], index: number) => {
+  // Group by transaction for display
+  const transactions = assetDestQuantList.map((item: any[], index: number) => {
     const [asset, destination, quantity] = item;
     const memo = result.params.memos?.[index];
 

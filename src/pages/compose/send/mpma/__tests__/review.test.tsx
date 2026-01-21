@@ -212,4 +212,34 @@ describe('ReviewMPMA', () => {
 
     expect(screen.getByTestId('review-screen')).toBeInTheDocument();
   });
+
+  it('falls back to asset_dest_quant_list when normalized is not available', () => {
+    const responseWithoutNormalized = {
+      result: {
+        params: {
+          asset_dest_quant_list: [
+            ['PEPE', 'bc1qaddress1', '500'],
+            ['XCP', 'bc1qaddress2', '100000000'],
+          ],
+          memos: ['Test memo']
+        }
+      }
+    };
+
+    render(
+      <ReviewMPMA
+        apiResponse={responseWithoutNormalized}
+        onSign={mockOnSign}
+        onBack={mockOnBack}
+        error={null}
+        isSigning={false}
+      />
+    );
+
+    // Should display the transactions from asset_dest_quant_list
+    expect(screen.getByText(/500 PEPE/)).toBeInTheDocument();
+    expect(screen.getByText(/100000000 XCP/)).toBeInTheDocument();
+    expect(screen.getByText(/to bc1qaddress1/)).toBeInTheDocument();
+    expect(screen.getByText(/to bc1qaddress2/)).toBeInTheDocument();
+  });
 });

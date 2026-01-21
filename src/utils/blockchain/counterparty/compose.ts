@@ -90,6 +90,7 @@ export interface ComposeResult {
   psbt: string;
   params: ComposeParams & {
     asset_dest_quant_list?: [string, string, string][];
+    asset_dest_quant_list_normalized?: [string, string, string][];
     memos?: string[];
   };
   name: string;
