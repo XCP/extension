@@ -5,6 +5,7 @@ Started: Wed, Jan 21, 2026  9:35:22 AM
 - Hook test files are in src/hooks/__tests__/*.test.ts
 - Service test files are in src/services/__tests__/*.test.ts and src/services/core/__tests__/*.test.ts
 - Validation test files are in src/utils/validation/__tests__/*.test.ts (exclude *.fuzz.test.ts for non-fuzz analysis)
+- Storage test files are in src/utils/storage/__tests__/*.test.ts
 - Use Usefulness Score = Impact × Probability to evaluate test value
 - Tests that only verify React behavior (cleanup, initial state) are low value
 - Tests that only verify mock returns mock value are low value (over-mocked)
@@ -12,6 +13,9 @@ Started: Wed, Jan 21, 2026  9:35:22 AM
 - Security-related tests (authorization, input validation) tend to score highest
 - Best assertion pattern for validation: `expect(result).toEqual({ isValid: false, error: 'specific message' })`
 - session.test.ts is the gold standard for validation test assertions
+- mutex.test.ts is exemplary for concurrency-critical code testing
+- walletStorage.test.ts has excellent validation tests for data integrity
+- Tests using `fakeBrowser` from wxt/testing are preferred over manual mocks
 
 ---
 
@@ -71,5 +75,26 @@ Started: Wed, Jan 21, 2026  9:35:22 AM
   - simple.test.ts and amount.test.ts need the most work (~15 weak assertions combined)
   - 32 weak assertions identified across all files, 28 tests marked REVIEW, 0 marked REMOVE
   - All tests test meaningful behavior - just need stronger assertions
+
+---
+
+## 2026-01-21 - US-004: Audit Storage Tests for Usefulness
+- What was implemented:
+  - Read and analyzed all 8 storage test files (~126 tests total)
+  - Calculated Usefulness Score for each test
+  - Created tasks/cleanup-storage.md with comprehensive analysis
+- Files changed:
+  - tasks/cleanup-storage.md (created)
+  - scripts/ralph/prd.json (updated)
+  - scripts/ralph/progress.txt (updated)
+- **Learnings for future iterations:**
+  - mutex.test.ts is exemplary - tests concurrency-critical code with thorough serialization tests
+  - walletStorage.test.ts has excellent validation tests checking data integrity (version, salt, encryptedKeychain, kdf.iterations)
+  - keyStorage.test.ts has good independence tests for security-critical key storage
+  - Tests using `fakeBrowser` from wxt/testing are better than manual mocks
+  - serviceKeepAlive tests only verify "doesn't throw" - no meaningful assertion (Score 4)
+  - 4 tests marked for removal, 12 for review, ~110 to keep
+  - **Strength**: Most storage tests verify persistence through round-trip tests (save → retrieve)
+  - **Weakness**: Some tests for unlikely scenarios (empty storage operations, edge values) provide low value
 
 ---
