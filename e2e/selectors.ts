@@ -7,11 +7,18 @@
  * - Tests read better with semantic names
  *
  * SELECTOR PRIORITY (most to least preferred):
- * 1. data-testid attributes (most stable)
- * 2. ARIA roles with accessible names
- * 3. Form element names
- * 4. Text content (use sparingly)
- * 5. CSS classes (avoid - fragile)
+ * 1. getByRole with accessible name (best - tests accessibility too)
+ * 2. getByLabel for form inputs
+ * 3. aria-label attributes (locator('[aria-label="..."]'))
+ * 4. Form element names (input[name="..."])
+ * 5. getByPlaceholder (acceptable for inputs)
+ * 6. getByText (use sparingly - fragile to copy changes)
+ *
+ * AVOID:
+ * - CSS class selectors (.class-name) - break when styling changes
+ * - Positional selectors (.nth(), .first()) - break when DOM order changes
+ * - Complex chains - hard to debug when they fail
+ * - data-testid - prefer semantic/accessible selectors
  */
 
 import { Page, Locator } from '@playwright/test';
@@ -36,7 +43,8 @@ export const createWallet = {
   savedPhraseCheckbox: (page: Page) => page.getByLabel(/I have saved my secret recovery phrase/),
   passwordInput: (page: Page) => page.locator('input[name="password"]'),
   continueButton: (page: Page) => page.getByRole('button', { name: 'Continue' }),
-  mnemonicWord: (page: Page, index: number) => page.locator(`[data-testid="mnemonic-word-${index}"]`),
+  // Mnemonic words are rendered as list items with word number prefix
+  mnemonicWord: (page: Page, index: number) => page.locator('li').nth(index),
 };
 
 // ============================================================================
@@ -59,7 +67,8 @@ export const importWallet = {
 export const unlock = {
   passwordInput: (page: Page) => page.locator('input[name="password"]'),
   unlockButton: (page: Page) => page.getByRole('button', { name: /unlock/i }),
-  errorMessage: (page: Page) => page.locator('[data-testid="unlock-error"]'),
+  // Error message uses role="alert" for accessibility
+  errorMessage: (page: Page) => page.locator('[role="alert"]'),
 };
 
 // ============================================================================
@@ -67,22 +76,23 @@ export const unlock = {
 // ============================================================================
 
 export const index = {
-  // Address display
+  // Address display - uses aria-label from index.tsx
   currentAddress: (page: Page) => page.locator('[aria-label="Current address"]'),
-  addressText: (page: Page) => page.locator('[aria-label="Current address"] .font-mono'),
+  // Address text - filter by address pattern (bc1, tb1, 1, 3, m, n prefixes)
+  addressText: (page: Page) => page.locator('[aria-label="Current address"]').locator('span, p').filter({ hasText: /^(bc1|tb1|1|3|m|n)[a-zA-Z0-9]/ }).first(),
 
-  // Tab buttons
-  assetsTab: (page: Page) => page.getByRole('button', { name: 'View Assets' }),
-  balancesTab: (page: Page) => page.getByRole('button', { name: 'View Balances' }),
+  // Tab buttons - use aria-label from index.tsx
+  assetsTab: (page: Page) => page.locator('button[aria-label="View Assets"]'),
+  balancesTab: (page: Page) => page.locator('button[aria-label="View Balances"]'),
 
-  // Action buttons
-  sendButton: (page: Page) => page.getByRole('button', { name: /send/i }).first(),
-  receiveButton: (page: Page) => page.getByRole('button', { name: /receive/i }).first(),
-  historyButton: (page: Page) => page.getByText('History'),
+  // Action buttons - use aria-label from index.tsx
+  sendButton: (page: Page) => page.locator('button[aria-label="Send tokens"]'),
+  receiveButton: (page: Page) => page.locator('button[aria-label="Receive tokens"]'),
+  historyButton: (page: Page) => page.locator('button[aria-label="Transaction history"]'),
 
-  // Balance display
-  btcBalanceRow: (page: Page) => page.locator('.font-medium.text-sm.text-gray-900:has-text("BTC")'),
-  xcpBalanceRow: (page: Page) => page.locator('.font-medium.text-sm.text-gray-900:has-text("XCP")'),
+  // Balance display - use text content matching
+  btcBalanceRow: (page: Page) => page.getByRole('button').filter({ hasText: 'BTC' }).first(),
+  xcpBalanceRow: (page: Page) => page.getByRole('button').filter({ hasText: 'XCP' }).first(),
 };
 
 // ============================================================================
@@ -90,9 +100,11 @@ export const index = {
 // ============================================================================
 
 export const viewAddress = {
-  // QR code can be canvas, svg, or img depending on implementation
-  qrCode: (page: Page) => page.locator('canvas, svg, img[alt*="QR"], [class*="qr"]').first(),
-  addressDisplay: (page: Page) => page.locator('[aria-label="Current address"] .font-mono, .font-mono').first(),
+  // QR code canvas - has aria-label="QR code for {address}"
+  qrCode: (page: Page) => page.locator('canvas[aria-label^="QR code for"]'),
+  // Address display div (clickable) vs copy button - be specific about element type
+  addressDisplay: (page: Page) => page.locator('div[role="button"][aria-label="Copy address"]'),
+  copyButton: (page: Page) => page.locator('button[aria-label="Copy address"]'),
 };
 
 // ============================================================================
@@ -100,11 +112,11 @@ export const viewAddress = {
 // ============================================================================
 
 export const footer = {
-  container: (page: Page) => page.locator('div.grid.grid-cols-4').first(),
-  walletButton: (page: Page) => footer.container(page).locator('button').nth(0),
-  marketButton: (page: Page) => footer.container(page).locator('button').nth(1),
-  actionsButton: (page: Page) => footer.container(page).locator('button').nth(2),
-  settingsButton: (page: Page) => footer.container(page).locator('button').nth(3),
+  // Use aria-label attributes from footer.tsx for stable selectors
+  walletButton: (page: Page) => page.locator('button[aria-label="Wallet"]'),
+  marketButton: (page: Page) => page.locator('button[aria-label="Market"]'),
+  actionsButton: (page: Page) => page.locator('button[aria-label="Actions"]'),
+  settingsButton: (page: Page) => page.locator('button[aria-label="Settings"]'),
 };
 
 // ============================================================================
@@ -164,7 +176,8 @@ export const signMessage = {
   copyButton: (page: Page) => page.getByRole('button', { name: 'Copy signature' }),
   downloadJsonButton: (page: Page) => page.getByRole('button', { name: 'Download JSON' }),
   signedIndicator: (page: Page) => page.getByText('Signed'),
-  characterCount: (page: Page) => page.locator('[data-testid="char-count"]'),
+  // Character count displays as "N characters" text
+  characterCount: (page: Page) => page.getByText(/\d+ characters/),
 };
 
 // ============================================================================
@@ -172,15 +185,15 @@ export const signMessage = {
 // ============================================================================
 
 export const verifyMessage = {
-  addressInput: (page: Page) => page.locator('input[placeholder*="Bitcoin address"]'),
-  messageInput: (page: Page) => page.locator('textarea[placeholder*="exact message"]'),
-  signatureInput: (page: Page) => page.locator('textarea[placeholder*="base64 or hex format"]'),
+  addressInput: (page: Page) => page.getByPlaceholder(/Bitcoin address/i),
+  messageInput: (page: Page) => page.getByPlaceholder(/exact message/i),
+  signatureInput: (page: Page) => page.getByPlaceholder(/base64 or hex format/i),
   verifyButton: (page: Page) => page.getByRole('button', { name: 'Verify Signature' }),
   resetButton: (page: Page) => page.locator('button[aria-label="Reset form"]'),
   uploadJsonButton: (page: Page) => page.getByRole('button', { name: 'Upload JSON' }),
-  // Use specific CSS selectors to avoid matching input values
-  validResult: (page: Page) => page.locator('span.text-green-600:has-text("Signature Valid")'),
-  invalidResult: (page: Page) => page.locator('span.text-red-600:has-text("Signature Invalid")'),
+  // Result indicators - use text content
+  validResult: (page: Page) => page.getByText('Signature Valid'),
+  invalidResult: (page: Page) => page.getByText('Signature Invalid'),
 };
 
 // ============================================================================
@@ -193,7 +206,8 @@ export const send = {
   assetSearch: (page: Page) => page.locator('input[placeholder*="Search"]'),
   sendButton: (page: Page) => page.getByRole('button', { name: /send/i }).last(),
   confirmButton: (page: Page) => page.getByRole('button', { name: 'Confirm' }),
-  feeSelector: (page: Page) => page.locator('[data-testid="fee-selector"]'),
+  // Fee selector - use the fee slider or fee buttons
+  feeSelector: (page: Page) => page.locator('input[type="range"]'),
 };
 
 // ============================================================================
@@ -225,15 +239,16 @@ export const compose = {
     reviewFee: (page: Page) => page.locator('text=/Fee|sat/i'),
     reviewRecipient: (page: Page) => page.locator('text=/Recipient|To|Destination/i'),
 
-    // Success page elements
-    successIcon: (page: Page) => page.locator('[data-testid="success-icon"], svg.text-green-500, .text-green-500'),
-    successMessage: (page: Page) => page.locator('text=/Success|Complete|Sent|Broadcast/i'),
-    transactionHash: (page: Page) => page.locator('.font-mono').filter({ hasText: /^[a-f0-9]{64}$/i }),
-    viewOnExplorerButton: (page: Page) => page.locator('a:has-text("View"), button:has-text("Explorer")').first(),
+    // Success page elements - use heading text to identify success state
+    successHeading: (page: Page) => page.getByRole('heading', { name: /success|complete|sent|broadcast/i }),
+    successMessage: (page: Page) => page.getByText(/success|complete|sent|broadcast/i),
+    // Transaction hash is 64 hex chars - filter by pattern
+    transactionHash: (page: Page) => page.getByText(/^[a-f0-9]{64}$/i),
+    viewOnExplorerButton: (page: Page) => page.getByRole('link', { name: /view|explorer/i }),
     doneButton: (page: Page) => page.getByRole('button', { name: /done|close|finish/i }),
 
-    // Error states
-    errorMessage: (page: Page) => page.locator('.text-red-500, .text-red-600, [role="alert"], .bg-red-50'),
+    // Error states - prefer role="alert" for accessibility
+    errorMessage: (page: Page) => page.locator('[role="alert"]'),
     errorRetryButton: (page: Page) => page.getByRole('button', { name: /retry|try again/i }),
 
     // Fee selection
@@ -391,29 +406,29 @@ export const market = {
   ordersTab: (page: Page) => page.getByRole('tab', { name: 'Orders' }),
   manageTab: (page: Page) => page.getByRole('tab', { name: 'Manage' }),
 
-  // BTC Price page
-  btcPriceCard: (page: Page) => page.locator('.bg-white.rounded-lg').first(),
-  timeRange1h: (page: Page) => page.locator('text="1H"'),
-  timeRange24h: (page: Page) => page.locator('text="24H"'),
-  priceChart: (page: Page) => page.locator('canvas').first(),
+  // BTC Price page - canvas has aria-label and role="img"
+  priceChart: (page: Page) => page.locator('canvas[aria-label="Price chart"]'),
+  timeRange1h: (page: Page) => page.getByRole('button', { name: '1H' }),
+  timeRange24h: (page: Page) => page.getByRole('button', { name: '24H' }),
   refreshButton: (page: Page) => page.locator('button[aria-label*="Refresh"]'),
 
-  // Asset dispensers/orders pages
-  pageTitle: (page: Page) => page.locator('text=/Orders|Dispensers/i').first(),
-  assetName: (page: Page) => page.locator('text=/XCP|BTC/').first(),
-  floorPrice: (page: Page) => page.locator('text=/Floor/i').first(),
-  avgPrice: (page: Page) => page.locator('text=/Avg/i').first(),
-  lastPrice: (page: Page) => page.locator('text=/Last/i').first(),
-  openTab: (page: Page) => page.locator('text="Open"').first(),
-  matchedTab: (page: Page) => page.locator('text="Matched"').first(),
-  dispensedTab: (page: Page) => page.locator('text="Dispensed"').first(),
-  emptyState: (page: Page) => page.locator('text=/No open|No dispensers|No orders/i').first(),
-  myOrdersLink: (page: Page) => page.locator('text=/My Orders/i').first(),
-  myDispensersLink: (page: Page) => page.locator('text=/My Dispensers/i').first(),
-  priceUnitToggle: (page: Page) => page.locator('button[title*="Switch"], [class*="repeat"]').first(),
-  loadingState: (page: Page) => page.locator('text=/Loading/i').first(),
-  retryButton: (page: Page) => page.locator('text=/Retry|Try Again/i').first(),
-  orderCards: (page: Page) => page.locator('[class*="card"]').first(),
+  // Asset dispensers/orders pages - main heading
+  pageTitle: (page: Page) => page.getByRole('heading', { level: 1 }),
+  assetName: (page: Page) => page.getByText(/XCP|BTC/).first(),
+  floorPrice: (page: Page) => page.getByText(/Floor/i).first(),
+  avgPrice: (page: Page) => page.getByText(/Avg/i).first(),
+  lastPrice: (page: Page) => page.getByText(/Last/i).first(),
+  openTab: (page: Page) => page.getByRole('tab', { name: 'Open' }),
+  matchedTab: (page: Page) => page.getByRole('tab', { name: 'Matched' }),
+  dispensedTab: (page: Page) => page.getByRole('tab', { name: 'Dispensed' }),
+  emptyState: (page: Page) => page.getByText(/No open|No dispensers|No orders/i).first(),
+  myOrdersLink: (page: Page) => page.getByText(/My Orders/i).first(),
+  myDispensersLink: (page: Page) => page.getByText(/My Dispensers/i).first(),
+  priceUnitToggle: (page: Page) => page.locator('button[aria-label*="Switch price"]').first(),
+  loadingState: (page: Page) => page.getByText(/Loading/i).first(),
+  retryButton: (page: Page) => page.getByRole('button', { name: /Retry|Try Again/i }),
+  // Order/dispenser cards in list views
+  orderCards: (page: Page) => page.getByRole('listitem').or(page.locator('[role="button"]').filter({ hasText: /BTC|XCP/ })).first(),
 };
 
 // ============================================================================
@@ -433,9 +448,9 @@ export const securitySettings = {
 // ============================================================================
 
 export const connectedSites = {
-  emptyState: (page: Page) => page.locator('text=/No connected sites/i'),
-  siteList: (page: Page) => page.locator('[role="list"], .space-y-2'),
-  disconnectButton: (page: Page) => page.locator('button:has-text("Disconnect")'),
+  emptyState: (page: Page) => page.getByText(/No connected sites/i),
+  siteList: (page: Page) => page.getByRole('list'),
+  disconnectButton: (page: Page) => page.getByRole('button', { name: /Disconnect/i }),
   disconnectAllButton: (page: Page) => page.locator('button[aria-label*="Disconnect all"]'),
 };
 
@@ -457,12 +472,12 @@ export const pinnedAssets = {
 // ============================================================================
 
 export const addressHistory = {
-  transactionList: (page: Page) => page.locator('.space-y-2, [role="list"]').first(),
-  emptyState: (page: Page) => page.locator('text=/No Transactions/i'),
-  loadingSpinner: (page: Page) => page.locator('text=/Loading transactions/i'),
-  pagination: (page: Page) => page.locator('text=/Page [0-9]+ of [0-9]+/i'),
-  previousButton: (page: Page) => page.locator('button:has-text("Previous")'),
-  nextButton: (page: Page) => page.locator('button:has-text("Next")'),
+  transactionList: (page: Page) => page.getByRole('list').first(),
+  emptyState: (page: Page) => page.getByText(/No Transactions/i),
+  loadingSpinner: (page: Page) => page.getByText(/Loading transactions/i),
+  pagination: (page: Page) => page.getByText(/Page \d+ of \d+/i),
+  previousButton: (page: Page) => page.getByRole('button', { name: 'Previous' }),
+  nextButton: (page: Page) => page.getByRole('button', { name: 'Next' }),
   viewOnXchainButton: (page: Page) => page.locator('button[aria-label*="XChain"]'),
 };
 
@@ -498,37 +513,12 @@ export const common = {
   cancelButton: (page: Page) => page.getByRole('button', { name: /cancel/i }),
   confirmButton: (page: Page) => page.getByRole('button', { name: /confirm/i }),
   continueButton: (page: Page) => page.getByRole('button', { name: /continue/i }),
-  loadingSpinner: (page: Page) => page.locator('[data-testid="loading"]'),
+  // Spinner component uses role="status" for accessibility
+  loadingSpinner: (page: Page) => page.locator('[role="status"]'),
   errorAlert: (page: Page) => page.locator('[role="alert"]'),
-  toast: (page: Page) => page.locator('[data-testid="toast"]'),
-  // Additional common elements
-  headerBackButton: (page: Page) => page.locator('header button').first(),
+  // Header back button - use aria-label when available
+  headerBackButton: (page: Page) => page.locator('header button[aria-label="Go Back"]'),
   helpButton: (page: Page) => page.locator('button[aria-label*="Help"]'),
   refreshButton: (page: Page) => page.locator('button[aria-label*="Refresh"]'),
 };
 
-// ============================================================================
-// Helper: Navigate via footer
-// ============================================================================
-
-export async function navigateTo(
-  page: Page,
-  section: 'wallet' | 'market' | 'actions' | 'settings'
-): Promise<void> {
-  const buttons = {
-    wallet: footer.walletButton,
-    market: footer.marketButton,
-    actions: footer.actionsButton,
-    settings: footer.settingsButton,
-  };
-
-  const expectedUrl = {
-    wallet: /index/,
-    market: /market/,
-    actions: /actions/,
-    settings: /settings/,
-  };
-
-  await buttons[section](page).click();
-  await page.waitForURL(expectedUrl[section], { timeout: 5000 });
-}

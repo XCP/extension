@@ -7,17 +7,25 @@
 import { test as base, expect, BrowserContext, Page } from '@playwright/test';
 import { chromium } from '@playwright/test';
 import path from 'path';
+import { TEST_PASSWORDS, TEST_MNEMONICS, TEST_PRIVATE_KEYS } from './test-data';
+import {
+  onboarding,
+  createWallet as createWalletSelectors,
+  importWallet,
+  unlock,
+  header,
+  footer,
+  index,
+} from './selectors';
 
 // ============================================================================
-// Constants
+// Constants (re-exported from test-data.ts for convenience)
 // ============================================================================
 
-export const TEST_PASSWORD = 'TestPassword123!';
-export const TEST_MNEMONIC = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
-export const TEST_PRIVATE_KEY = 'L4p2b9VAf8k5aUahF1JCJUzZkgNEAqLfq8DDdQiyAprQAKSbu8hf';
-
-// Counterwallet mnemonic (different wordlist)
-export const TEST_COUNTERWALLET_MNEMONIC = 'like just love know never want time out there make look eye';
+export const TEST_PASSWORD = TEST_PASSWORDS.valid;
+export const TEST_MNEMONIC = TEST_MNEMONICS.standard;
+export const TEST_PRIVATE_KEY = TEST_PRIVATE_KEYS.mainnet;
+export const TEST_COUNTERWALLET_MNEMONIC = TEST_MNEMONICS.counterwallet;
 
 // ============================================================================
 // Types
@@ -121,114 +129,95 @@ async function launchExtension(testId: string): Promise<{
 async function createWallet(page: Page, password = TEST_PASSWORD): Promise<void> {
   // Wait for page to be ready and button to be visible
   await page.waitForLoadState('domcontentloaded');
-  const createButton = page.getByRole('button', { name: 'Create Wallet' });
+  const createButton = onboarding.createWalletButton(page);
   await createButton.waitFor({ state: 'visible', timeout: 15000 });
   await createButton.click();
   await page.waitForURL(/create-wallet/);
 
   // Click the reveal phrase card (not a button)
-  await page.locator('text=View 12-word Secret Phrase').click();
+  await createWalletSelectors.revealPhraseCard(page).click();
 
-  // Wait for phrase to be revealed and checkbox to appear
-  await page.waitForTimeout(500);
+  // Wait for checkbox to be visible (phrase has been revealed)
+  const checkbox = createWalletSelectors.savedPhraseCheckbox(page);
+  await expect(checkbox).toBeVisible({ timeout: 5000 });
 
-  await page.getByLabel(/I have saved my secret recovery phrase/).check();
-  await page.locator('input[name="password"]').fill(password);
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await checkbox.check();
+  await createWalletSelectors.passwordInput(page).fill(password);
+  await createWalletSelectors.continueButton(page).click();
 
   await page.waitForURL(/index/, { timeout: 15000 });
 }
 
 async function importMnemonic(page: Page, mnemonic = TEST_MNEMONIC, password = TEST_PASSWORD): Promise<void> {
   // Wait for Import Wallet button to be visible before clicking
-  const importButton = page.getByRole('button', { name: 'Import Wallet' });
+  const importButton = onboarding.importWalletButton(page);
   await importButton.waitFor({ state: 'visible', timeout: 10000 });
   await importButton.click();
-  await page.waitForSelector('input[name="word-0"]');
+  await importWallet.wordInput(page, 0).waitFor({ state: 'visible' });
 
   const words = mnemonic.split(' ');
   for (let i = 0; i < words.length && i < 12; i++) {
-    await page.locator(`input[name="word-${i}"]`).fill(words[i]);
+    await importWallet.wordInput(page, i).fill(words[i]);
   }
 
   // Wait for the checkbox to become enabled (words must be validated)
-  const checkbox = page.getByLabel(/I have saved my secret recovery phrase/);
+  const checkbox = importWallet.savedPhraseCheckbox(page);
   await expect(checkbox).toBeEnabled({ timeout: 5000 });
   await checkbox.check();
-  await page.locator('input[name="password"]').fill(password);
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await importWallet.passwordInput(page).fill(password);
+  await importWallet.continueButton(page).click();
 
   await page.waitForURL(/index/, { timeout: 15000 });
 }
 
 async function importPrivateKey(page: Page, privateKey = TEST_PRIVATE_KEY, password = TEST_PASSWORD): Promise<void> {
-  await page.getByRole('button', { name: /Import Private Key/i }).click();
-  await page.waitForSelector('input[name="private-key"]');
+  await onboarding.importPrivateKeyButton(page).click();
+  await importWallet.privateKeyInput(page).waitFor({ state: 'visible' });
 
-  await page.locator('input[name="private-key"]').fill(privateKey);
-  await page.getByLabel(/I have backed up this private key/i).check();
-  await page.locator('input[name="password"]').fill(password);
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await importWallet.privateKeyInput(page).fill(privateKey);
+  await importWallet.backedUpCheckbox(page).check();
+  await importWallet.passwordInput(page).fill(password);
+  await importWallet.continueButton(page).click();
 
   await page.waitForURL(/index/, { timeout: 15000 });
 }
 
 async function unlockWallet(page: Page, password = TEST_PASSWORD): Promise<void> {
-  await page.locator('input[name="password"]').fill(password);
-  await page.getByRole('button', { name: /unlock/i }).click();
+  await unlock.passwordInput(page).fill(password);
+  await unlock.unlockButton(page).click();
 
-  // Wait for unlock to complete - check for either index page or error
-  await page.waitForTimeout(500);
-
-  // Try to navigate to index with retry on error
-  try {
-    await page.waitForURL(/index/, { timeout: 10000 });
-  } catch {
-    // Check if there's an error message and retry
-    const hasError = await page.locator('text=/Invalid password|incorrect/i').first().isVisible({ timeout: 1000 }).catch(() => false);
-    if (hasError) {
-      // Retry unlock - clear input and try again
-      await page.locator('input[name="password"]').fill(password);
-      await page.getByRole('button', { name: /unlock/i }).click();
-    }
-    await page.waitForURL(/index/, { timeout: 10000 });
-  }
+  // Wait for navigation to index page
+  await page.waitForURL(/index/, { timeout: 15000 });
 
   // Wait for the page to fully render after unlock
   await page.waitForLoadState('domcontentloaded');
 }
 
 async function lockWallet(page: Page): Promise<void> {
-  // Use specific lock button selector - aria-label is "Lock Keychain"
-  const lockButton = page.locator('header button[aria-label="Lock Keychain"]');
+  const lockButton = header.lockButton(page);
   await lockButton.waitFor({ state: 'visible', timeout: 5000 });
   await lockButton.click();
   await page.waitForURL(/unlock/);
 }
 
 async function setupWallet(page: Page, password = TEST_PASSWORD): Promise<void> {
-  // Wait for the app to finish routing to either unlock or onboarding
-  await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+  // Wait for the app to finish initial load
+  await page.waitForLoadState('domcontentloaded');
 
   // Wait for either unlock page or create wallet button to appear
-  const unlockInput = page.locator('input[name="password"]');
-  const createButton = page.getByRole('button', { name: 'Create Wallet' });
+  const unlockInput = unlock.passwordInput(page);
+  const createButton = onboarding.createWalletButton(page);
 
-  // Wait for one of the two states to be visible
-  await Promise.race([
-    unlockInput.waitFor({ state: 'visible', timeout: 10000 }),
-    createButton.waitFor({ state: 'visible', timeout: 10000 }),
-  ]).catch(() => {});
+  // Race to see which state appears first
+  const visibleElement = await Promise.race([
+    unlockInput.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'unlock' as const),
+    createButton.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'create' as const),
+  ]);
 
-  const url = page.url();
-
-  if (url.includes('unlock') || await unlockInput.isVisible().catch(() => false)) {
+  if (visibleElement === 'unlock') {
     await unlockWallet(page, password);
   } else {
-    const hasCreate = await createButton.isVisible({ timeout: 3000 }).catch(() => false);
-    if (hasCreate) {
-      await createWallet(page, password);
-    }
+    await createWallet(page, password);
   }
 }
 
@@ -239,20 +228,25 @@ async function setupWallet(page: Page, password = TEST_PASSWORD): Promise<void> 
 type NavTarget = 'wallet' | 'market' | 'actions' | 'settings';
 
 async function navigateTo(page: Page, target: NavTarget): Promise<void> {
-  const ariaLabel = { wallet: 'Wallet', market: 'Market', actions: 'Actions', settings: 'Settings' };
+  const footerButtons = {
+    wallet: footer.walletButton,
+    market: footer.marketButton,
+    actions: footer.actionsButton,
+    settings: footer.settingsButton,
+  };
   const paths = { wallet: '/index', market: '/market', actions: '/actions', settings: '/settings' };
   const pattern = { wallet: /index/, market: /market/, actions: /actions/, settings: /settings/ };
 
-  const button = page.locator(`button[aria-label="${ariaLabel[target]}"]`);
+  // Use footer selectors from selectors.ts
+  const button = footerButtons[target](page);
 
-  // Footer buttons only visible on main pages (index, market, actions, settings)
-  // If button not visible, navigate directly via URL
-  if (await button.isVisible({ timeout: 1000 }).catch(() => false)) {
+  // Try clicking the footer button first, fall back to direct navigation
+  const buttonCount = await button.count();
+  if (buttonCount > 0) {
     await button.click();
   } else {
     // Navigate directly - handle hash-based routing (e.g., popup/index.html#/settings/address-type)
     const currentUrl = page.url();
-    // Find the base URL before the hash
     const hashIndex = currentUrl.indexOf('#');
     const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
     await page.goto(`${baseUrl}${paths[target]}`);
@@ -280,8 +274,8 @@ async function cleanup(context: BrowserContext): Promise<void> {
 }
 
 async function getCurrentAddress(page: Page): Promise<string> {
-  const addressArea = page.locator('[aria-label="Current address"]');
-  const text = await addressArea.locator('.font-mono').first().textContent();
+  // Use index.addressText which filters by address pattern (bc1, tb1, 1, 3, m, n prefixes)
+  const text = await index.addressText(page).textContent();
   return text?.trim() || '';
 }
 
@@ -376,7 +370,7 @@ export {
   cleanup,
   getCurrentAddress,
   grantClipboardPermissions,
-  sleep,
+  // Note: sleep() is intentionally not exported - use web-first assertions instead
 };
 
 export type { NavTarget };
