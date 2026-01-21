@@ -1,14 +1,14 @@
 /**
- * Select Assets Page Tests (/assets/select)
+ * Select Assets Page Tests (/select-assets)
  *
  * Tests for the asset selection page used when choosing assets for transactions.
  */
 
 import { walletTest, expect } from '../../fixtures';
 
-walletTest.describe('Select Assets Page (/assets/select)', () => {
+walletTest.describe('Select Assets Page (/select-assets)', () => {
   walletTest('page loads and shows asset selection UI', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/assets/select'));
+    await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
     await page.waitForLoadState('networkidle');
 
     // Should show asset selection UI
@@ -20,7 +20,7 @@ walletTest.describe('Select Assets Page (/assets/select)', () => {
   });
 
   walletTest('shows search/filter input', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/assets/select'));
+    await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
     await page.waitForLoadState('networkidle');
 
     const searchInput = page.locator('input[type="search"], input[placeholder*="search" i], input[placeholder*="filter" i]').first();
@@ -42,7 +42,7 @@ walletTest.describe('Select Assets Page (/assets/select)', () => {
   });
 
   walletTest('displays asset items', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/assets/select'));
+    await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
     await page.waitForLoadState('networkidle');
 
     // Check for asset items or loading/empty state
@@ -54,7 +54,7 @@ walletTest.describe('Select Assets Page (/assets/select)', () => {
   });
 
   walletTest('asset items are clickable', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/assets/select'));
+    await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
     await page.waitForLoadState('networkidle');
 
     const assetItem = page.locator('[data-testid*="asset"], .asset-item, [role="option"]').first();
@@ -68,7 +68,7 @@ walletTest.describe('Select Assets Page (/assets/select)', () => {
   });
 
   walletTest('shows asset balances in list', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/assets/select'));
+    await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
     await page.waitForLoadState('networkidle');
 
     // Check if balances are shown for assets
