@@ -23,10 +23,10 @@ walletTest.describe('Add Wallet Page (/add-wallet)', () => {
   });
 
   walletTest('page loads with wallet options', async ({ page }) => {
-    // Should show the add wallet page with options - verify at least one option is visible
-    // The page should have either a title, create button, or import button
-    const anyOption = page.locator('text=/Add Wallet/i, button:has-text("Create"), button:has-text("Import")').first();
-    await expect(anyOption).toBeVisible({ timeout: 5000 });
+    // Should show the add wallet page with at least one wallet creation option
+    // Check for the Create New Wallet button which should always be present
+    const createButton = page.locator('button:has-text("Create New Wallet")');
+    await expect(createButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('displays create new wallet button', async ({ page }) => {
