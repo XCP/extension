@@ -4,27 +4,18 @@
  * Tests for the add wallet page that provides options to create or import a wallet.
  */
 
-import { walletTest, expect, navigateTo } from '../../fixtures';
+import { walletTest, expect } from '../../fixtures';
+import { header, selectWallet } from '../../selectors';
 
 walletTest.describe('Add Wallet Page (/add-wallet)', () => {
   walletTest.beforeEach(async ({ page }) => {
-    // Navigate to add-wallet page via select-wallet
-    await navigateTo(page, 'settings');
-    await page.waitForLoadState('networkidle');
-
-    // Go to select wallet, then add wallet
-    const selectWalletLink = page.locator('a[href*="select-wallet"], button:has-text("Manage Wallets"), button:has-text("Switch Wallet")').first();
-    if (await selectWalletLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await selectWalletLink.click();
-      await page.waitForTimeout(500);
-    }
+    // Navigate to add-wallet page via header wallet selector
+    await header.walletSelector(page).click();
+    await page.waitForURL(/select-wallet/, { timeout: 5000 });
 
     // Click add wallet button
-    const addWalletButton = page.locator('button:has-text("Add Wallet"), button[aria-label="Add Wallet"], a[href*="add-wallet"]').first();
-    if (await addWalletButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await addWalletButton.click();
-      await page.waitForLoadState('networkidle');
-    }
+    await selectWallet.addWalletButton(page).click();
+    await page.waitForURL(/add-wallet/, { timeout: 5000 });
   });
 
   walletTest('page loads with wallet options', async ({ page }) => {

@@ -4,29 +4,14 @@
  * Tests for the wallet selection page that allows switching between wallets.
  */
 
-import { walletTest, expect, navigateTo, TEST_PASSWORD } from '../../fixtures';
+import { walletTest, expect } from '../../fixtures';
+import { header } from '../../selectors';
 
 walletTest.describe('Select Wallet Page (/select-wallet)', () => {
   async function navigateToSelectWallet(page: any): Promise<boolean> {
-    // Navigate to settings first
-    await navigateTo(page, 'settings');
-    await page.waitForLoadState('networkidle');
-
-    // Try to find and click the select wallet / manage wallets link
-    const selectWalletLink = page.locator('a[href*="select-wallet"], button:has-text("Manage Wallets"), button:has-text("Switch Wallet"), button:has-text("Keychain")').first();
-
-    if (await selectWalletLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await selectWalletLink.click();
-      await page.waitForLoadState('networkidle');
-      return true;
-    }
-
-    // Direct navigation fallback
-    const currentUrl = page.url();
-    const hashIndex = currentUrl.indexOf('#');
-    const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-    await page.goto(`${baseUrl}/select-wallet`);
-    await page.waitForLoadState('networkidle');
+    // Navigate via header wallet selector
+    await header.walletSelector(page).click();
+    await page.waitForURL(/select-wallet/, { timeout: 5000 });
     return true;
   }
 
