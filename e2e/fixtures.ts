@@ -119,7 +119,11 @@ async function launchExtension(testId: string): Promise<{
 // ============================================================================
 
 async function createWallet(page: Page, password = TEST_PASSWORD): Promise<void> {
-  await page.getByRole('button', { name: 'Create Wallet' }).click();
+  // Wait for page to be ready and button to be visible
+  await page.waitForLoadState('domcontentloaded');
+  const createButton = page.getByRole('button', { name: 'Create Wallet' });
+  await createButton.waitFor({ state: 'visible', timeout: 15000 });
+  await createButton.click();
   await page.waitForURL(/create-wallet/);
 
   // Click the reveal phrase card (not a button)
@@ -186,6 +190,9 @@ async function unlockWallet(page: Page, password = TEST_PASSWORD): Promise<void>
     }
     await page.waitForURL(/index/, { timeout: 10000 });
   }
+
+  // Wait for the page to fully render after unlock
+  await page.waitForLoadState('domcontentloaded');
 }
 
 async function lockWallet(page: Page): Promise<void> {

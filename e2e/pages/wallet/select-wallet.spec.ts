@@ -5,7 +5,7 @@
  */
 
 import { walletTest, expect } from '../../fixtures';
-import { header } from '../../selectors';
+import { header, selectWallet } from '../../selectors';
 
 walletTest.describe('Select Wallet Page (/select-wallet)', () => {
   async function navigateToSelectWallet(page: any): Promise<boolean> {
@@ -48,8 +48,8 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
   walletTest('has add wallet button', async ({ page }) => {
     await navigateToSelectWallet(page);
 
-    // Button at bottom of page with "Add Wallet" text
-    const addButton = page.locator('button:has-text("Add Wallet")').first();
+    // Use centralized selector for the green Add Wallet button
+    const addButton = selectWallet.addWalletButton(page);
     const isVisible = await addButton.isVisible({ timeout: 5000 }).catch(() => false);
 
     expect(isVisible).toBe(true);
@@ -58,7 +58,7 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
   walletTest('add wallet button navigates to add-wallet page', async ({ page }) => {
     await navigateToSelectWallet(page);
 
-    const addButton = page.locator('button:has-text("Add Wallet"), button[aria-label="Add Wallet"]').first();
+    const addButton = selectWallet.addWalletButton(page);
 
     if (await addButton.isVisible({ timeout: 5000 }).catch(() => false)) {
       await addButton.click();
