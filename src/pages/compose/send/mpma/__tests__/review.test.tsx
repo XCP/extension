@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import { ReviewMPMA } from '../review';
 
 // Mock the ReviewScreen component
@@ -21,6 +21,28 @@ vi.mock('@/components/screens/review-screen', () => ({
   )
 }));
 
+// Mock the fetchAssetDetails function
+vi.mock('@/utils/blockchain/counterparty/api', () => ({
+  fetchAssetDetails: vi.fn((asset: string) => {
+    // XCP and BTC are divisible, PEPE is indivisible
+    if (asset === 'XCP' || asset === 'BTC') {
+      return Promise.resolve({ divisible: true });
+    }
+    return Promise.resolve({ divisible: false });
+  })
+}));
+
+// Mock fromSatoshis
+vi.mock('@/utils/numeric', () => ({
+  fromSatoshis: (value: string) => {
+    const num = BigInt(value);
+    const divisor = BigInt(100000000);
+    const whole = num / divisor;
+    const fraction = num % divisor;
+    return `${whole}.${fraction.toString().padStart(8, '0')}`;
+  }
+}));
+
 describe('ReviewMPMA', () => {
   const mockOnSign = vi.fn();
   const mockOnBack = vi.fn();
@@ -29,21 +51,21 @@ describe('ReviewMPMA', () => {
     cleanup();
   });
 
-  // The component uses asset_dest_quant_list_normalized which contains pre-normalized quantities
+  // The API returns asset_dest_quant_list with raw quantities (satoshis for divisible)
   const mockApiResponse = {
     result: {
       params: {
-        asset_dest_quant_list_normalized: [
-          ['XCP', 'bc1qaddress1', '1.00000000'],
-          ['BTC', 'bc1qaddress2', '0.00050000'],
-          ['PEPE', 'bc1qaddress3', '1000'],
+        asset_dest_quant_list: [
+          ['XCP', 'bc1qaddress1', 100000000], // 1 XCP in satoshis
+          ['BTC', 'bc1qaddress2', 50000],     // 0.0005 BTC in satoshis
+          ['PEPE', 'bc1qaddress3', 1000],     // 1000 PEPE (indivisible)
         ],
         memos: ['Memo 1', 'Memo 2', 'Memo 3']
       }
     }
   };
 
-  it('renders review screen with transactions', () => {
+  it('renders review screen with transactions', async () => {
     render(
       <ReviewMPMA
         apiResponse={mockApiResponse}
@@ -54,10 +76,12 @@ describe('ReviewMPMA', () => {
       />
     );
 
-    expect(screen.getByText('Send')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Send')).toBeInTheDocument();
+    });
   });
 
-  it('displays normalized quantities for divisible assets', () => {
+  it('displays normalized quantities for divisible assets', async () => {
     render(
       <ReviewMPMA
         apiResponse={mockApiResponse}
@@ -68,13 +92,15 @@ describe('ReviewMPMA', () => {
       />
     );
 
-    // XCP is divisible, normalized quantity is already "1.00000000"
-    expect(screen.getByText(/1\.00000000 XCP/)).toBeInTheDocument();
-    // BTC normalized quantity is already "0.00050000"
-    expect(screen.getByText(/0\.00050000 BTC/)).toBeInTheDocument();
+    await waitFor(() => {
+      // XCP: 100000000 satoshis = 1.00000000 XCP
+      expect(screen.getByText(/1\.00000000 XCP/)).toBeInTheDocument();
+      // BTC: 50000 satoshis = 0.00050000 BTC
+      expect(screen.getByText(/0\.00050000 BTC/)).toBeInTheDocument();
+    });
   });
 
-  it('displays raw quantities for indivisible assets', () => {
+  it('displays raw quantities for indivisible assets', async () => {
     render(
       <ReviewMPMA
         apiResponse={mockApiResponse}
@@ -85,11 +111,13 @@ describe('ReviewMPMA', () => {
       />
     );
 
-    // PEPE is indivisible, displayed as-is
-    expect(screen.getByText(/1000 PEPE/)).toBeInTheDocument();
+    await waitFor(() => {
+      // PEPE is indivisible, displayed as-is
+      expect(screen.getByText(/1000 PEPE/)).toBeInTheDocument();
+    });
   });
 
-  it('displays destination addresses', () => {
+  it('displays destination addresses', async () => {
     render(
       <ReviewMPMA
         apiResponse={mockApiResponse}
@@ -100,12 +128,14 @@ describe('ReviewMPMA', () => {
       />
     );
 
-    expect(screen.getByText(/to bc1qaddress1/)).toBeInTheDocument();
-    expect(screen.getByText(/to bc1qaddress2/)).toBeInTheDocument();
-    expect(screen.getByText(/to bc1qaddress3/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/to bc1qaddress1/)).toBeInTheDocument();
+      expect(screen.getByText(/to bc1qaddress2/)).toBeInTheDocument();
+      expect(screen.getByText(/to bc1qaddress3/)).toBeInTheDocument();
+    });
   });
 
-  it('displays memos when present', () => {
+  it('displays memos when present', async () => {
     render(
       <ReviewMPMA
         apiResponse={mockApiResponse}
@@ -116,17 +146,19 @@ describe('ReviewMPMA', () => {
       />
     );
 
-    expect(screen.getByText(/Memo: Memo 1/)).toBeInTheDocument();
-    expect(screen.getByText(/Memo: Memo 2/)).toBeInTheDocument();
-    expect(screen.getByText(/Memo: Memo 3/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/Memo: Memo 1/)).toBeInTheDocument();
+      expect(screen.getByText(/Memo: Memo 2/)).toBeInTheDocument();
+      expect(screen.getByText(/Memo: Memo 3/)).toBeInTheDocument();
+    });
   });
 
-  it('handles missing memos', () => {
+  it('handles missing memos', async () => {
     const responseWithoutMemos = {
       result: {
         params: {
-          asset_dest_quant_list_normalized: [
-            ['XCP', 'bc1qaddress1', '1.00000000'],
+          asset_dest_quant_list: [
+            ['XCP', 'bc1qaddress1', 100000000],
           ]
         }
       }
@@ -142,10 +174,12 @@ describe('ReviewMPMA', () => {
       />
     );
 
-    expect(screen.queryByText(/Memo:/)).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText(/Memo:/)).not.toBeInTheDocument();
+    });
   });
 
-  it('displays send numbers', () => {
+  it('displays send numbers', async () => {
     render(
       <ReviewMPMA
         apiResponse={mockApiResponse}
@@ -156,14 +190,16 @@ describe('ReviewMPMA', () => {
       />
     );
 
-    expect(screen.getByText(/Send #1:/)).toBeInTheDocument();
-    expect(screen.getByText(/Send #2:/)).toBeInTheDocument();
-    expect(screen.getByText(/Send #3:/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/Send #1:/)).toBeInTheDocument();
+      expect(screen.getByText(/Send #2:/)).toBeInTheDocument();
+      expect(screen.getByText(/Send #3:/)).toBeInTheDocument();
+    });
   });
 
-  it('passes error to review screen', () => {
+  it('passes error to review screen', async () => {
     const error = 'Transaction failed';
-    
+
     render(
       <ReviewMPMA
         apiResponse={mockApiResponse}
@@ -173,11 +209,11 @@ describe('ReviewMPMA', () => {
         isSigning={false}
       />
     );
-    
+
     expect(screen.getByText(error)).toBeInTheDocument();
   });
 
-  it('shows signing state', () => {
+  it('shows signing state', async () => {
     render(
       <ReviewMPMA
         apiResponse={mockApiResponse}
@@ -187,15 +223,15 @@ describe('ReviewMPMA', () => {
         isSigning={true}
       />
     );
-    
+
     expect(screen.getByText('Signing...')).toBeInTheDocument();
   });
 
-  it('handles empty asset list', () => {
+  it('handles empty asset list', async () => {
     const emptyResponse = {
       result: {
         params: {
-          asset_dest_quant_list_normalized: []
+          asset_dest_quant_list: []
         }
       }
     };
@@ -210,25 +246,15 @@ describe('ReviewMPMA', () => {
       />
     );
 
-    expect(screen.getByTestId('review-screen')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('No sends')).toBeInTheDocument();
+    });
   });
 
-  it('falls back to asset_dest_quant_list when normalized is not available', () => {
-    const responseWithoutNormalized = {
-      result: {
-        params: {
-          asset_dest_quant_list: [
-            ['PEPE', 'bc1qaddress1', '500'],
-            ['XCP', 'bc1qaddress2', '100000000'],
-          ],
-          memos: ['Test memo']
-        }
-      }
-    };
-
+  it('shows loading state initially', () => {
     render(
       <ReviewMPMA
-        apiResponse={responseWithoutNormalized}
+        apiResponse={mockApiResponse}
         onSign={mockOnSign}
         onBack={mockOnBack}
         error={null}
@@ -236,10 +262,6 @@ describe('ReviewMPMA', () => {
       />
     );
 
-    // Should display the transactions from asset_dest_quant_list
-    expect(screen.getByText(/500 PEPE/)).toBeInTheDocument();
-    expect(screen.getByText(/100000000 XCP/)).toBeInTheDocument();
-    expect(screen.getByText(/to bc1qaddress1/)).toBeInTheDocument();
-    expect(screen.getByText(/to bc1qaddress2/)).toBeInTheDocument();
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 });
