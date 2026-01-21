@@ -28,6 +28,16 @@ vi.mock('@/utils/wallet/walletManager', () => ({
   },
 }));
 
+// Mock UTXO selection to prevent real API calls to mempool.space
+vi.mock('@/utils/blockchain/counterparty/utxo-selection', () => ({
+  selectUtxosForTransaction: vi.fn().mockResolvedValue({
+    utxos: [{ txid: 'mock-txid', vout: 0, value: 100000, status: { confirmed: true } }],
+    inputsSet: 'mock-txid:0',
+    totalValue: 100000,
+    excludedWithAssets: 0,
+  }),
+}));
+
 const mockedApiClient = vi.mocked(apiClientUtils.apiClient, true);
 const mockedGetSettings = vi.mocked(walletManager.getSettings);
 
