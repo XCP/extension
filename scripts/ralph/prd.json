@@ -101,8 +101,8 @@
         "Typecheck passes"
       ],
       "priority": 7,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Removed 9 low-value tests with Score < 15 that tested React behavior (cleanup on unmount, initial states, smart diffing) rather than business logic. Tests removed from 7 files: useAssetUtxos, useDragAndDrop, useSearchQuery (2), useAssetBalance, useAssetInfo (2), useAssetDetails, useAuthGuard. 79 tests remain passing."
     },
     {
       "id": "US-008",
@@ -116,8 +116,8 @@
         "Typecheck passes"
       ],
       "priority": 8,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Removed 36 tests total: (1) walletService.test.ts deleted entirely (24 over-mocked tests verifying mock returns mock), (2) 5 low-value tests from eventEmitterService.test.ts (empty stats check, null state, state version), (3) 1 empty test from providerService.lifecycle.test.ts (badge high counts), (4) 2 empty/comment-only tests from providerService.test.ts (Event Emissions, Rate Limiting), (5) 1 edge case from BaseService.test.ts (tab-only serviceName), (6) 6 unlikely edge cases from RequestManager.integration.test.ts (NaN/Infinity/zero parameters). 174 service tests remain passing."
     },
     {
       "id": "US-009",

@@ -51,30 +51,6 @@ describe('RequestManager constructor validation', () => {
     expect(() => new RequestManager(-1000)).toThrow('timeoutMs must be a positive number');
   });
 
-  test('should throw on NaN timeoutMs', () => {
-    expect(() => new RequestManager(NaN)).toThrow('timeoutMs must be a positive number');
-  });
-
-  test('should throw on Infinity timeoutMs', () => {
-    expect(() => new RequestManager(Infinity)).toThrow('timeoutMs must be a positive number');
-  });
-
-  test('should throw on zero cleanupIntervalMs', () => {
-    expect(() => new RequestManager(1000, 0)).toThrow('cleanupIntervalMs must be a positive number');
-  });
-
-  test('should throw on zero maxRequests', () => {
-    expect(() => new RequestManager(1000, 1000, 0)).toThrow('maxRequests must be a positive integer');
-  });
-
-  test('should throw on negative maxRequests', () => {
-    expect(() => new RequestManager(1000, 1000, -1)).toThrow('maxRequests must be a positive integer');
-  });
-
-  test('should throw on non-integer maxRequests', () => {
-    expect(() => new RequestManager(1000, 1000, 1.5)).toThrow('maxRequests must be a positive integer');
-  });
-
   test('should accept valid positive parameters', () => {
     const manager = new RequestManager(1000, 500, 50);
     expect(manager.size()).toBe(0);
