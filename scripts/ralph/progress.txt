@@ -3,9 +3,15 @@ Started: Wed, Jan 21, 2026  9:35:22 AM
 
 ## Codebase Patterns
 - Hook test files are in src/hooks/__tests__/*.test.ts
+- Service test files are in src/services/__tests__/*.test.ts and src/services/core/__tests__/*.test.ts
+- Validation test files are in src/utils/validation/__tests__/*.test.ts (exclude *.fuzz.test.ts for non-fuzz analysis)
 - Use Usefulness Score = Impact × Probability to evaluate test value
 - Tests that only verify React behavior (cleanup, initial state) are low value
+- Tests that only verify mock returns mock value are low value (over-mocked)
 - Threshold: Score < 15 = REMOVE, 15-29 = REVIEW, ≥30 = KEEP
+- Security-related tests (authorization, input validation) tend to score highest
+- Best assertion pattern for validation: `expect(result).toEqual({ isValid: false, error: 'specific message' })`
+- session.test.ts is the gold standard for validation test assertions
 
 ---
 
@@ -24,5 +30,46 @@ Started: Wed, Jan 21, 2026  9:35:22 AM
   - Tests that only check initial state (null, empty array) are low value
   - Security-related hooks (useAuthGuard, useIdleTimer) have highest scores
   - 9 tests marked for removal, 19 for review, 60 to keep
+
+---
+
+## 2026-01-21 - US-002: Audit Service Tests for Usefulness
+- What was implemented:
+  - Read and analyzed all 10 service test files (~138 tests total)
+  - Calculated Usefulness Score for each test
+  - Created tasks/cleanup-services.md with complete analysis
+- Files changed:
+  - tasks/cleanup-services.md (created)
+  - scripts/ralph/prd.json (updated)
+  - scripts/ralph/progress.txt (updated)
+- **Learnings for future iterations:**
+  - walletService.test.ts is problematic - all 24 tests only verify mock behavior (mock returns mock value), provides false confidence
+  - Security tests in providerService.security.test.ts are well-written and score highest (70-80)
+  - eventEmitterService has good coverage with meaningful assertions
+  - Some tests have empty bodies (Event Emissions test) or just comments (Rate Limiting)
+  - Constructor validation tests for unlikely inputs (NaN, Infinity, tab-only strings) are low value
+  - Tests that just verify "function was called" without validating behavior are problematic
+  - 5 tests marked for removal, 22 for review, ~111 to keep
+  - **Critical recommendation**: walletService.test.ts should be deleted or completely rewritten
+
+---
+
+## 2026-01-21 - US-003: Audit Validation Tests for Meaningfulness
+- What was implemented:
+  - Read and analyzed all 7 validation test files (~268 tests total, excluding fuzz tests)
+  - Identified tests with weak assertions (toBeTruthy, toBeDefined, toBe(true/false) without error checks)
+  - Created tasks/cleanup-validation.md with comprehensive analysis
+- Files changed:
+  - tasks/cleanup-validation.md (created)
+  - scripts/ralph/prd.json (updated)
+  - scripts/ralph/progress.txt (updated)
+- **Learnings for future iterations:**
+  - session.test.ts is exemplary - uses `toThrow('exact error message')` pattern consistently
+  - Best practice: replace `expect(result.isValid).toBe(false)` with error message verification
+  - Fuzz-like property tests (checking types only) are acceptable for exhaustive input coverage
+  - Validation tests should check specific error messages, not just boolean results
+  - simple.test.ts and amount.test.ts need the most work (~15 weak assertions combined)
+  - 32 weak assertions identified across all files, 28 tests marked REVIEW, 0 marked REMOVE
+  - All tests test meaningful behavior - just need stronger assertions
 
 ---
