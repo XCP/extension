@@ -1,0 +1,181 @@
+{
+  "project": "XCP Wallet Extension",
+  "branchName": "ralph/unit-test-cleanup",
+  "description": "Unit Test Cleanup - Ensure tests are useful (test critical logic) and meaningful (specific assertions)",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Audit Hook Tests for Usefulness",
+      "description": "As a developer, I need to review hook tests to identify low-value tests that should be removed.",
+      "acceptanceCriteria": [
+        "Read all tests in src/hooks/__tests__/",
+        "Calculate Usefulness Score (Impact × Probability) for each test",
+        "Create tasks/cleanup-hooks.md with: table of tests with Score and Decision (KEEP/REVIEW/REMOVE), weak assertions needing strengthening, tests duplicating E2E coverage",
+        "Identify tests that test React behavior (not our logic)",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Analyzed 78 tests across 10 hook test files. 9 tests marked REMOVE (React cleanup/trivial), 19 marked REVIEW, 60 KEEP. Key finding: many 'cleanup on unmount' tests just verify React behavior."
+    },
+    {
+      "id": "US-002",
+      "title": "Audit Service Tests for Usefulness",
+      "description": "As a developer, I need to review service tests to ensure they test business logic, not framework behavior.",
+      "acceptanceCriteria": [
+        "Read all tests in src/services/__tests__/ and src/services/core/__tests__/",
+        "Calculate Usefulness Score for each test",
+        "Create tasks/cleanup-services.md with: table of tests with Score and Decision, tests that mock too much, tests with weak assertions",
+        "Flag tests that just verify 'function was called' without validating behavior",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Audit Validation Tests for Meaningfulness",
+      "description": "As a developer, I need to ensure validation tests have specific assertions, not just 'returns true/false'.",
+      "acceptanceCriteria": [
+        "Read all tests in src/utils/validation/__tests__/ (excluding fuzz tests)",
+        "Identify tests with weak assertions (toBeTruthy, toBeDefined, toBe(true/false) without error message checks)",
+        "Create tasks/cleanup-validation.md with: tests needing assertion strengthening, missing error message validation, edge cases that only check 'returns false'",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Audit Storage Tests for Usefulness",
+      "description": "As a developer, I need to verify storage tests validate actual storage behavior, not just mock behavior.",
+      "acceptanceCriteria": [
+        "Read all tests in src/utils/storage/__tests__/",
+        "Calculate Usefulness Score for each test",
+        "Create tasks/cleanup-storage.md with: tests that over-mock storage, tests with weak assertions, missing persistence verification",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Audit Blockchain/Bitcoin Tests for Meaningfulness",
+      "description": "As a developer, I need to ensure blockchain tests validate actual cryptographic correctness, not just 'it ran'.",
+      "acceptanceCriteria": [
+        "Read all tests in src/utils/blockchain/bitcoin/__tests__/",
+        "Identify tests with weak assertions on critical crypto operations",
+        "Create tasks/cleanup-blockchain.md with: signing tests that don't verify signature validity, PSBT tests that don't verify output correctness, address tests that don't verify checksum",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Compile Cleanup Summary",
+      "description": "As a developer, I need a prioritized list of tests to clean up.",
+      "acceptanceCriteria": [
+        "Read all cleanup audit documents from tasks/ (cleanup-hooks.md, cleanup-services.md, cleanup-validation.md, cleanup-storage.md, cleanup-blockchain.md)",
+        "Create tasks/cleanup-summary.md with: tests to REMOVE (Score < 10), tests to STRENGTHEN (weak assertions), tests to REFACTOR (over-mocked), prioritized by effort (S/M/L)",
+        "Include total count of tests to modify",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Remove Low-Value Hook Tests",
+      "description": "As a developer, I need to remove hook tests with Usefulness Score < 10.",
+      "acceptanceCriteria": [
+        "Read cleanup findings from tasks/cleanup-hooks.md",
+        "Delete tests marked REMOVE (document each removal)",
+        "Run npx vitest src/hooks/__tests__/ - remaining tests pass",
+        "Document removed tests in progress.txt",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Strengthen Service Test Assertions",
+      "description": "As a developer, I need to strengthen weak assertions in service tests.",
+      "acceptanceCriteria": [
+        "Read cleanup findings from tasks/cleanup-services.md",
+        "Replace weak assertions (toBeTruthy, toBeDefined) with specific expected values",
+        "Remove 'function was called' tests that don't validate behavior",
+        "Run npx vitest src/services/__tests__/ - all tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Strengthen Validation Test Assertions",
+      "description": "As a developer, I need to ensure validation tests verify specific error messages and edge case behavior.",
+      "acceptanceCriteria": [
+        "Read cleanup findings from tasks/cleanup-validation.md",
+        "Replace expect(isValid).toBe(false) with error message checks where applicable",
+        "Add specific input/output pairs for edge cases",
+        "Run npx vitest src/utils/validation/__tests__/ --exclude '**/*.fuzz.test.ts' - all tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Strengthen Blockchain Test Assertions",
+      "description": "As a developer, I need to ensure blockchain tests verify cryptographic correctness.",
+      "acceptanceCriteria": [
+        "Read cleanup findings from tasks/cleanup-blockchain.md",
+        "Add signature verification assertions to signing tests where missing",
+        "Add output value checks to PSBT tests where missing",
+        "Run npx vitest src/utils/blockchain/bitcoin/__tests__/ - all tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Address Remaining Phase 2 Gaps",
+      "description": "As a developer, I need to create tests for remaining Priority 12-15 gaps from Phase 2.",
+      "acceptanceCriteria": [
+        "Read tasks/phase2-completion-report.md remaining gaps section",
+        "Create tests for consolidateBatch.ts (Priority 15) if not already covered",
+        "Evaluate useSignPsbtRequest hook (Priority 12) - create tests if E2E doesn't cover",
+        "Run new tests - all pass",
+        "Typecheck passes"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Final Cleanup Verification",
+      "description": "As a developer, I need to verify the cleanup improved test quality without breaking coverage.",
+      "acceptanceCriteria": [
+        "Run full test suite: npx vitest --run --exclude '**/*.fuzz.test.ts' - all tests pass",
+        "Create tasks/cleanup-completion-report.md with: tests removed (count, reason), tests strengthened (count, examples), before/after assertion quality assessment",
+        "Typecheck passes"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

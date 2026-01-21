@@ -1,0 +1,28 @@
+# Ralph Progress Log
+Started: Wed, Jan 21, 2026  9:35:22 AM
+
+## Codebase Patterns
+- Hook test files are in src/hooks/__tests__/*.test.ts
+- Use Usefulness Score = Impact × Probability to evaluate test value
+- Tests that only verify React behavior (cleanup, initial state) are low value
+- Threshold: Score < 15 = REMOVE, 15-29 = REVIEW, ≥30 = KEEP
+
+---
+
+## 2026-01-21 - US-001: Audit Hook Tests for Usefulness
+- What was implemented:
+  - Read and analyzed all 10 hook test files (78 tests total)
+  - Calculated Usefulness Score for each test
+  - Created tasks/cleanup-hooks.md with complete analysis
+- Files changed:
+  - tasks/cleanup-hooks.md (created)
+  - scripts/ralph/prd.json (updated)
+  - scripts/ralph/progress.txt (updated)
+- **Learnings for future iterations:**
+  - Many hook tests include "cleanup on unmount without errors" tests that just verify React's behavior, not our logic (Score ~6)
+  - Hook tests that verify data transformation (e.g., UTXO formatting, balance conversion) are high value
+  - Tests that only check initial state (null, empty array) are low value
+  - Security-related hooks (useAuthGuard, useIdleTimer) have highest scores
+  - 9 tests marked for removal, 19 for review, 60 to keep
+
+---
