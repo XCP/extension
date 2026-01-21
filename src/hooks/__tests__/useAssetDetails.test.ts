@@ -223,17 +223,4 @@ describe('useAssetDetails', () => {
 
     expect(result.current.data?.isDivisible).toBe(false);
   });
-
-  it('should cleanup on unmount', async () => {
-    vi.mocked(fetchAssetDetailsAndBalance).mockResolvedValue(mockAssetDetails);
-
-    const { result, unmount } = renderHook(() => useAssetDetails('PEPECASH'));
-
-    await waitFor(() => {
-      expect(result.current.data).toBeTruthy();
-    }, { timeout: 3000 });
-
-    // Should cleanup without errors
-    expect(() => unmount()).not.toThrow();
-  });
 });

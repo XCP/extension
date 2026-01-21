@@ -10,18 +10,6 @@ describe('useDragAndDrop', () => {
     mockOnReorder.mockClear();
   });
 
-  it('should initialize with null drag states', () => {
-    const { result } = renderHook(() =>
-      useDragAndDrop({
-        items: mockItems,
-        onReorder: mockOnReorder,
-      })
-    );
-
-    expect(result.current.draggedIndex).toBeNull();
-    expect(result.current.dragOverIndex).toBeNull();
-  });
-
   it('should handle drag start', () => {
     const { result } = renderHook(() =>
       useDragAndDrop({

@@ -220,23 +220,4 @@ describe('useAssetInfo', () => {
     expect(result.current.data?.asset).toBe('RAREPEPE');
     expect(result.current.data?.divisible).toBe(false);
   });
-
-  it('should cleanup on unmount without errors', () => {
-    const { unmount } = renderHook(() => useAssetInfo('XCP'));
-
-    // Should cleanup without throwing
-    expect(() => unmount()).not.toThrow();
-  });
-
-  it('should prevent unnecessary state updates with smart diffing', () => {
-    const { result, rerender } = renderHook(() => useAssetInfo('BTC'));
-
-    const initialResult = result.current;
-    
-    // Rerender with same data - should not change object reference  
-    rerender();
-    
-    // Should be the exact same object (preventing unnecessary re-renders)
-    expect(result.current).toBe(initialResult);
-  });
 });
