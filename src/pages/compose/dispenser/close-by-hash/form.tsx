@@ -89,10 +89,9 @@ export function DispenserCloseByHashForm({
             value={txHash}
             onChange={setTxHash}
             label="Transaction Hash"
-            name="open_address"
             hashType="transaction"
             placeholder="Enter dispenser transaction hash"
-            required={true}
+            required={false}
             disabled={pending}
             showHelpText={showHelpText}
             description="Transaction hash of the dispenser to close. Found in your dispenser history."
@@ -109,6 +108,8 @@ export function DispenserCloseByHashForm({
           )}
           <input type="hidden" name="asset" value={selectedDispenser?.asset || ""} />
           <input type="hidden" name="status" value="10" />
+          {/* open_address is the dispenser's source address (for closing dispensers at different addresses) */}
+          <input type="hidden" name="open_address" value={selectedDispenser?.source || ""} />
         </>
       )}
     </ComposerForm>

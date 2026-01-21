@@ -2,7 +2,7 @@ import { type ReactElement, type ReactNode } from "react";
 import { Button } from "@/components/button";
 import { ErrorAlert } from "@/components/error-alert";
 import { formatAddress, formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
+import { fromSatoshis, formatFeeRate } from "@/utils/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useSettings } from "@/contexts/settings-context";
 
@@ -47,7 +47,7 @@ interface ReviewScreenProps {
   /** Callback when user clicks back button */
   onBack: () => void;
   /** Additional fields to display in the review */
-  customFields: CustomField[];
+  customFields?: CustomField[];
   /** Error message to display */
   error: string | null;
   /** Whether the transaction is being signed */
@@ -81,7 +81,7 @@ export function ReviewScreen({
   apiResponse,
   onSign,
   onBack,
-  customFields,
+  customFields = [],
   error,
   isSigning,
   hideBackButton = false,
@@ -162,7 +162,7 @@ export function ReviewScreen({
                 </span>
                 {result.signed_tx_estimated_size?.adjusted_vsize && (
                   <span className="text-gray-500 ml-2">
-                    ({Math.round(result.btc_fee / result.signed_tx_estimated_size.adjusted_vsize)} sats/vB)
+                    ({formatFeeRate(result.btc_fee, result.signed_tx_estimated_size.adjusted_vsize)} sats/vB)
                   </span>
                 )}
               </div>

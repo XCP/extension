@@ -210,9 +210,59 @@ export function createProviderService(): ProviderService {
         case 'xcp_requestAccounts': {
           // Check if keychain exists in storage (works even when locked)
           if (!await keychainExists()) {
-            // Open popup for wallet setup
+            // Open popup for wallet setup and wait for onboarding to complete
             await openExtensionPopup();
-            throw new Error('Please complete wallet setup first');
+
+            // Wait for wallet creation, then continue with connection flow
+            return new Promise((resolve, reject) => {
+              let settled = false;
+              let timeout: ReturnType<typeof setTimeout>;
+
+              // Centralized cleanup - called on any exit path
+              const cleanup = () => {
+                if (timeout) clearTimeout(timeout);
+                eventEmitterService.off('wallet-created', handleWalletCreated);
+              };
+
+              const handleWalletCreated = async () => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+
+                // Continue with connection flow now that wallet exists
+                try {
+                  const activeAddress = await walletService.getActiveAddress();
+                  const activeWallet = await walletService.getActiveWallet();
+
+                  if (!activeAddress || !activeWallet) {
+                    reject(new Error('No active wallet or address after setup'));
+                    return;
+                  }
+
+                  // Check if already connected (unlikely after fresh setup)
+                  if (await connectionService.hasPermission(origin)) {
+                    resolve(getAccounts(origin));
+                    return;
+                  }
+
+                  // Request connection
+                  const accounts = await connectionService.connect(origin, activeAddress.address, activeWallet.id);
+                  await analytics.track('connection_established');
+                  resolve(accounts);
+                } catch (error) {
+                  reject(error);
+                }
+              };
+
+              timeout = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                reject(new Error('Wallet setup timeout - please try again'));
+              }, 10 * 60 * 1000); // 10 minute timeout for onboarding
+
+              eventEmitterService.on('wallet-created', handleWalletCreated);
+            });
           }
 
           // Check if wallet is locked

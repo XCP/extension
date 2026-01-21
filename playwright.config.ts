@@ -4,8 +4,6 @@ const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir: './e2e',
-  // Skip provider tests - webext-bridge initialization issues in test environment
-  testIgnore: ['**/provider.spec.ts'],
   fullyParallel: false,
   
   // Retry flaky tests in CI only

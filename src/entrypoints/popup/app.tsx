@@ -250,13 +250,15 @@ export default function App() {
             <Route path="/compose/utxo/attach/:asset" element={<ComposeUtxoAttach />} />
             <Route path="/compose/utxo/detach/:txid" element={<ComposeUtxoDetach />} />
             <Route path="/compose/utxo/move/:txid" element={<ComposeUtxoMove />} />
-            
-            {/* Provider approval routes */}
-            <Route path="/provider/approve-connection" element={<ApproveConnection />} />
-            <Route path="/provider/approve-transaction" element={<ApproveTransaction />} />
-            <Route path="/provider/approve-psbt" element={<ApprovePsbt />} />
-            
+
           </Route>
+        </Route>
+
+        {/* Provider approval routes - outside AuthRequired so they can handle their own auth state */}
+        <Route element={<Layout />}>
+          <Route path="/provider/approve-connection" element={<ApproveConnection />} />
+          <Route path="/provider/approve-transaction" element={<ApproveTransaction />} />
+          <Route path="/provider/approve-psbt" element={<ApprovePsbt />} />
         </Route>
 
         {/* Catch-all route */}

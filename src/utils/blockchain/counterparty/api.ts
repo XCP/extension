@@ -369,12 +369,12 @@ async function cpApiGet<T = unknown>(
 /**
  * Fetch all token balances for an address.
  * @param address - Bitcoin address to query
- * @param options - Pagination and sorting options
+ * @param options - Pagination, sorting, and type filter options
  * @returns Array of token balances with asset info
  */
 export async function fetchTokenBalances(
   address: string,
-  options: PaginationOptions & { sort?: string } = {}
+  options: PaginationOptions & { sort?: string; type?: 'all' | 'utxo' | 'address' } = {}
 ): Promise<TokenBalance[]> {
   const data = await cpApiGet<PaginatedResponse<TokenBalance>>(
     `/v2/addresses/${encodePath(address)}/balances`,
@@ -383,6 +383,7 @@ export async function fetchTokenBalances(
       limit: options.limit ?? DEFAULT_LIMIT,
       offset: options.offset ?? 0,
       ...(options.sort && { sort: options.sort }),
+      ...(options.type && { type: options.type }),
     }
   );
   return data.result ?? [];

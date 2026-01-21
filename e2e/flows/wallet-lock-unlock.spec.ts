@@ -2,8 +2,8 @@
  * Lock/Unlock Wallet Tests
  */
 
-import { walletTest, expect, lockWallet, unlockWallet, TEST_PASSWORD } from '../../fixtures';
-import { unlock, index } from '../../selectors';
+import { walletTest, expect, lockWallet, unlockWallet, TEST_PASSWORD } from '../fixtures';
+import { unlock, index } from '../selectors';
 
 walletTest.describe('Lock Wallet', () => {
   walletTest('locks wallet via header button', async ({ page }) => {

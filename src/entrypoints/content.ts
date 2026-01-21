@@ -1,10 +1,14 @@
 import { defineContentScript, injectScript } from '#imports';
 import { MESSAGE_TARGETS, MESSAGE_TYPES } from '@/constants/messaging';
 
+// Production: HTTPS only (cleaner for Chrome Web Store)
+// Development: Include localhost for local dApp testing
+const matches = import.meta.env.MODE === 'production'
+  ? ['https://*/*']
+  : ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'];
+
 export default defineContentScript({
-  matches: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'],
-  // Note: excludeMatches only supports http(s) schemes, not chrome:// or about:
-  // The browser automatically excludes restricted schemes
+  matches,
   async main(ctx) {
     /**
      * CRITICAL: Send "ready" signal to background immediately
@@ -121,7 +125,8 @@ export default defineContentScript({
             const isUserFacingError = error?.message?.includes('User denied') ||
                                        error?.message?.includes('User rejected') ||
                                        error?.message?.includes('not connected') ||
-                                       error?.message?.includes('Wallet is locked');
+                                       error?.message?.includes('Wallet is locked') ||
+                                       error?.message?.includes('wallet setup');
             response = {
               success: false,
               error: {

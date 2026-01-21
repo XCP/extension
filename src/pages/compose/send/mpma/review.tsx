@@ -1,7 +1,5 @@
-import { type ReactElement, useEffect, useState } from "react";
+import { type ReactElement } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAssetQuantity } from "@/utils/format";
-import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
 
 interface ReviewMPMAProps {
   apiResponse: any;
@@ -19,57 +17,19 @@ export function ReviewMPMA({
   isSigning,
 }: ReviewMPMAProps): ReactElement {
   const { result } = apiResponse;
-  const [assetInfoMap, setAssetInfoMap] = useState<{ [key: string]: { divisible: boolean } }>({});
-  const [isLoadingAssets, setIsLoadingAssets] = useState(true);
-  
-  // Parse the asset_dest_quant_list to show individual sends
-  const assetDestQuantList = result.params.asset_dest_quant_list || [];
-  
-  // Get unique assets to fetch info for
-  useEffect(() => {
-    const fetchAssetInfo = async () => {
-      const uniqueAssets = [...new Set(assetDestQuantList.map(([asset]: any[]) => asset))] as string[];
-      const infoMap: { [key: string]: { divisible: boolean } } = {};
-      
-      // BTC is always divisible
-      infoMap['BTC'] = { divisible: true };
-      
-      // Fetch info for each unique asset
-      await Promise.all(
-        uniqueAssets.map(async (asset) => {
-          if (asset === 'BTC') return;
-          
-          try {
-            const assetInfo = await fetchAssetDetails(asset);
-            infoMap[asset] = { divisible: assetInfo?.divisible ?? true };
-          } catch (e) {
-            // Default to divisible if we can't fetch info
-            // XCP is always divisible
-            infoMap[asset] = { divisible: asset === 'XCP' ? true : true };
-          }
-        })
-      );
-      
-      setAssetInfoMap(infoMap);
-      setIsLoadingAssets(false);
-    };
-    
-    fetchAssetInfo();
-  }, [assetDestQuantList]);
-  
+
+  // Use normalized quantities from verbose API response (handles divisibility correctly)
+  const assetDestQuantListNormalized = result.params.asset_dest_quant_list_normalized || [];
+
   // Group by transaction for display with normalized quantities
-  const transactions = assetDestQuantList.map((item: any[], index: number) => {
+  const transactions = assetDestQuantListNormalized.map((item: any[], index: number) => {
     const [asset, destination, quantity] = item;
-    const isDivisible = assetInfoMap[asset]?.divisible ?? true;
     const memo = result.params.memos?.[index];
-    
-    // Use standardized formatting for asset quantities
-    const formattedQuantity = formatAssetQuantity(quantity, isDivisible);
-    
+
     return {
       asset,
       destination,
-      quantity: formattedQuantity,
+      quantity,
       memo
     };
   });
@@ -79,28 +39,27 @@ export function ReviewMPMA({
     {
       label: "Send",
       value: "",
-      rightElement: isLoadingAssets ? (
-      <div className="text-xs text-gray-500 mt-2">Loading asset information…</div>
-    ) : (
-      <div className="space-y-2 max-h-48 overflow-y-auto mt-2 w-full">
-        {transactions.map((tx: any, idx: number) => (
-          <div key={idx} className="text-xs border-b pb-1">
-            <div className="font-mono">
-              Send #{idx + 1}: {tx.quantity} {tx.asset}
-            </div>
-            <div className="text-gray-600 truncate">
-              to {tx.destination}
-            </div>
-            {tx.memo && (
-              <div className="text-gray-500">
-                Memo: {tx.memo}
+      rightElement: (
+        <div className="space-y-2 max-h-48 overflow-y-auto mt-2 w-full">
+          {transactions.map((tx: any, idx: number) => (
+            <div key={idx} className="text-xs border-b pb-1">
+              <div className="font-mono">
+                Send #{idx + 1}: {tx.quantity} {tx.asset}
               </div>
-            )}
-          </div>
-        ))}
-      </div>
-    )
-  }];
+              <div className="text-gray-600 truncate">
+                to {tx.destination}
+              </div>
+              {tx.memo && (
+                <div className="text-gray-500">
+                  Memo: {tx.memo}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )
+    }
+  ];
 
   return (
     <ReviewScreen

@@ -15,8 +15,8 @@ import {
   TEST_PASSWORD,
   TEST_MNEMONIC,
   TEST_PRIVATE_KEY
-} from '../../fixtures';
-import { header, settings, viewAddress, importWallet, createWallet as createWalletSelectors } from '../../selectors';
+} from '../fixtures';
+import { header, settings, viewAddress, importWallet, createWallet as createWalletSelectors } from '../selectors';
 
 test.describe('Wallet Selection', () => {
   test('header button opens wallet selection', async ({ extensionPage }) => {

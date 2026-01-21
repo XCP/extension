@@ -12,6 +12,7 @@ import { UnlockScreen } from "@/components/screens/unlock-screen";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { signMessage, getSigningCapabilities } from "@/utils/blockchain/bitcoin/messageSigner";
+import { analytics } from "@/utils/fathom";
 import type { ReactElement } from "react";
 
 /**
@@ -67,7 +68,7 @@ export default function SignMessage(): ReactElement {
       onBack: isProviderRequest ? handleCancel : () => navigate(-1),
       rightButton: {
         ariaLabel: "Reset form",
-        icon: <FiRefreshCw className="size-5" aria-hidden="true" />,
+        icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
         onClick: handleReset,
         disabled: !hasContent,
       },
@@ -135,6 +136,7 @@ export default function SignMessage(): ReactElement {
       );
       
       setSignature(result.signature);
+      analytics.track('message_signed');
 
       // If this is a provider request, notify the provider of success
       if (isProviderRequest) {

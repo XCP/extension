@@ -108,7 +108,7 @@ export default function ConnectedSites(): ReactElement {
       title: "Connected Sites",
       onBack: () => navigate(CONSTANTS.PATHS.BACK),
       rightButton: connectedSites.length > 0 ? {
-        icon: <FiRefreshCw className="size-5" aria-hidden="true" />,
+        icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
         onClick: handleDisconnectAll,
         ariaLabel: "Disconnect all sites",
       } : {

@@ -36,11 +36,13 @@ jobs:
         continue-on-error: true
       
       - name: Run unit tests
+        timeout-minutes: 15
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx vitest run src
 
       - name: Run fuzz tests
+        timeout-minutes: 15
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx vitest run src --config vitest.fuzz.config.ts
@@ -52,6 +54,7 @@ jobs:
         run: npx playwright install-deps chromium
       
       - name: Run all E2E tests
+        timeout-minutes: 60
         run: npx playwright test --retries=3 --workers=1
         continue-on-error: true
       

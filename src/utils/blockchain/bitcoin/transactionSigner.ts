@@ -63,19 +63,8 @@ export async function signTransaction(
   try {
     const pubkeyBytes = getPublicKey(privateKeyBytes, compressed);
 
-    // Retry fetching UTXOs with a small delay to handle timing issues
+    // Fetch UTXOs to verify inputs exist (catches stale/invalid UTXOs early)
     let utxos = await fetchUTXOs(targetAddress.address);
-    if (!utxos || utxos.length === 0) {
-      // Wait a bit and retry once
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      utxos = await fetchUTXOs(targetAddress.address);
-      if (!utxos || utxos.length === 0) {
-        throw new UtxoError('NO_UTXOS', 'No UTXOs found for the source address after retry', {
-          address: targetAddress.address,
-          userMessage: 'No spendable funds found for this address. Please ensure the address has confirmed transactions.',
-        });
-      }
-    }
 
     const rawTxBytes = hexToBytes(rawTransaction);
     const parsedTx = Transaction.fromRaw(rawTxBytes, {
@@ -100,30 +89,16 @@ export async function signTransaction(
         throw new ValidationError('INVALID_TRANSACTION', `Invalid input at index ${i}: missing txid or index`);
       }
       const txidHex = bytesToHex(input.txid);
-      let utxo = getUtxoByTxid(utxos, txidHex, input.index);
 
-      // If UTXO not found, try fetching fresh UTXOs once
-      if (!utxo) {
-        console.warn(`UTXO not found for input ${i}: ${txidHex}:${input.index}, retrying...`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const freshUtxos = await fetchUTXOs(targetAddress.address);
-        if (freshUtxos && freshUtxos.length > 0) {
-          utxo = getUtxoByTxid(freshUtxos, txidHex, input.index);
-          if (utxo) {
-            // Update the utxos array with fresh data
-            utxos.push(...freshUtxos.filter(u => !utxos.some(existing =>
-              existing.txid === u.txid && existing.vout === u.vout
-            )));
-          }
-        }
-      }
-
+      // Verify UTXO exists - if not found, the composed tx may be using stale data
+      const utxo = getUtxoByTxid(utxos, txidHex, input.index);
       if (!utxo) {
         throw new UtxoError('UTXO_NOT_FOUND', `UTXO not found for input ${i}: ${txidHex}:${input.index}`, {
           txid: txidHex,
-          userMessage: 'Transaction input could not be found. The funds may have already been spent.',
+          userMessage: 'Transaction input not found. Please go back and try again.',
         });
       }
+
       const rawPrevTx = await fetchPreviousRawTransaction(txidHex);
       if (!rawPrevTx) {
         throw new UtxoError('UTXO_NOT_FOUND', `Failed to fetch previous transaction: ${txidHex}`, {
