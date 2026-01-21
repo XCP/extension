@@ -571,15 +571,15 @@ test.describe('Provider Integration - Wallet States', () => {
 
       // Should show error about wallet setup or connection failure
       await dappPage.waitForTimeout(2000);
-      const errorText = await dappPage.locator('#error').textContent();
-      const statusText = await dappPage.locator('#status').textContent();
+      const errorText = await dappPage.locator('#error').textContent() ?? '';
+      const statusText = await dappPage.locator('#status').textContent() ?? '';
       // Accept various error indicators - setup message, request failed, or failed status
       const hasError =
-        errorText?.toLowerCase().includes('wallet setup') ||
-        errorText?.toLowerCase().includes('request failed') ||
-        errorText?.toLowerCase().includes('timeout') ||
-        errorText?.length > 0 ||
-        statusText?.toLowerCase().includes('failed');
+        errorText.toLowerCase().includes('wallet setup') ||
+        errorText.toLowerCase().includes('request failed') ||
+        errorText.toLowerCase().includes('timeout') ||
+        errorText.length > 0 ||
+        statusText.toLowerCase().includes('failed');
       expect(hasError).toBe(true);
 
       await dappPage.close();
