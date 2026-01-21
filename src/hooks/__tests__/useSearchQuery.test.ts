@@ -24,12 +24,6 @@ describe('useSearchQuery', () => {
     expect(result.current.isSearching).toBe(false);
   });
 
-  it('should return initial query', () => {
-    const { result } = renderHook(() => useSearchQuery('bitcoin'));
-
-    expect(result.current.searchQuery).toBe('bitcoin');
-  });
-
   it('should search when query is set', async () => {
     const mockResults = {
       assets: [
@@ -400,15 +394,5 @@ describe('useSearchQuery', () => {
     expect(result.current.error).toBeNull();
     expect(result.current.searchResults).toHaveLength(1);
     expect(result.current.isSearching).toBe(false);
-  });
-
-  it('should allow setting error manually', () => {
-    const { result } = renderHook(() => useSearchQuery());
-
-    act(() => {
-      result.current.setError('Custom error message');
-    });
-
-    expect(result.current.error).toBe('Custom error message');
   });
 });

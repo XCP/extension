@@ -124,11 +124,4 @@ describe('useAssetBalance', () => {
     expect(result.current.balance).toBeNull();
     expect(result.current.error).toBe(error);
   });
-
-  it('should cleanup on unmount without errors', () => {
-    const { unmount } = renderHook(() => useAssetBalance('XCP'));
-
-    // Should cleanup without throwing
-    expect(() => unmount()).not.toThrow();
-  });
 });

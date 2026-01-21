@@ -747,24 +747,5 @@ describe('ProviderService', () => {
       });
     });
 
-    describe('Event Emissions', () => {
-      it('should emit events for provider state changes', async () => {
-        // This would test that events are emitted when accounts change, etc.
-        // The actual implementation would need event emitter mocking
-      });
-    });
-
-    describe('Rate Limiting', () => {
-      it('should respect rate limits for signing operations', async () => {
-        // Mock rate limiter to return false
-        vi.mocked(rateLimiter.transactionRateLimiter.isAllowed).mockReturnValue(false);
-
-        const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
-        mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
-
-        // Note: Rate limiting for signing operations
-        // This test documents expected behavior
-      });
-    });
   });
 });

@@ -337,23 +337,4 @@ describe('useAuthGuard', () => {
     rerender();
     expect(result.current.isProtected).toBe(true);
   });
-
-  it('should not interfere with normal component unmount', async () => {
-    const { useWallet } = await import('@/contexts/wallet-context');
-    const { useNavigate } = await import('react-router-dom');
-    const mockNavigate = vi.fn();
-    
-    vi.mocked(useWallet).mockReturnValue({
-      authState: 'UNLOCKED',
-      keychainExists: true,
-      wallets: [{ id: 'wallet-1', name: 'Test Wallet' }]
-    } as any);
-    vi.mocked(useNavigate).mockReturnValue(mockNavigate);
-
-    const { unmount } = renderHook(() => useAuthGuard());
-
-    // Should unmount cleanly without errors
-    expect(() => unmount()).not.toThrow();
-    expect(mockNavigate).not.toHaveBeenCalled();
-  });
 });

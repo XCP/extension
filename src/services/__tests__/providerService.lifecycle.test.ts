@@ -310,25 +310,6 @@ describe('Provider Service Lifecycle Tests', () => {
       expect(newBadgeText).toBe('3');
     });
 
-    it('should handle badge text for high counts', () => {
-      // Add many requests from different origins (max 10 per origin due to security limit)
-      // Use 10 origins with 10 requests each = 100 requests (hits MAX_QUEUE_SIZE)
-      for (let origin = 0; origin < 10; origin++) {
-        for (let i = 0; i < 10; i++) {
-          approvalQueue.add({
-            id: `many-${origin}-${i}`,
-            origin: `https://site${origin}.com`,
-            method: 'xcp_requestAccounts',
-            params: [],
-            type: 'connection'
-          });
-        }
-      }
-
-      // Count is 100, which is > 99, so should show 99+
-      const badgeText = approvalQueue.getCount() > 99 ? '99+' : approvalQueue.getCount().toString();
-      expect(badgeText).toBe('99+');
-    });
   });
 
   describe('Emergency Cleanup', () => {

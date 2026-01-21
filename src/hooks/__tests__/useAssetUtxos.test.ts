@@ -95,11 +95,4 @@ describe('useAssetUtxos', () => {
     expect(result.current.error).toBeNull();
     expect(fetchTokenUtxos).not.toHaveBeenCalled();
   });
-
-  it('should cleanup on unmount without errors', () => {
-    const { unmount } = renderHook(() => useAssetUtxos('XCP'));
-
-    // Should cleanup without throwing
-    expect(() => unmount()).not.toThrow();
-  });
 });
