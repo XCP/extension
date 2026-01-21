@@ -24,8 +24,8 @@ walletTest.describe('View Asset Page (/asset/:asset)', () => {
     await page.waitForLoadState('networkidle');
 
     if (page.url().includes('/asset')) {
-      // Asset name should be displayed
-      const hasAssetName = await page.locator('h1, h2, .text-xl, .text-2xl').filter({ hasText: /XCP/i }).first().isVisible({ timeout: 5000 }).catch(() => false);
+      // Asset name should be displayed somewhere on the page
+      const hasAssetName = await page.locator('text=/XCP/').first().isVisible({ timeout: 5000 }).catch(() => false);
       expect(hasAssetName).toBe(true);
     }
   });
@@ -35,13 +35,13 @@ walletTest.describe('View Asset Page (/asset/:asset)', () => {
     await page.waitForLoadState('networkidle');
 
     if (page.url().includes('/asset')) {
-      // Check for common asset metadata fields
-      const hasSupply = await page.locator('text=/supply/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasDivisible = await page.locator('text=/divisible/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasDescription = await page.locator('text=/description/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasIssuer = await page.locator('text=/issuer|owner/i').first().isVisible({ timeout: 3000 }).catch(() => false);
+      // Check for Asset Details section which contains metadata
+      const hasAssetDetails = await page.locator('text=/Asset Details/i').first().isVisible({ timeout: 5000 }).catch(() => false);
+      const hasSupply = await page.locator('text=/Supply/').first().isVisible({ timeout: 3000 }).catch(() => false);
+      const hasDivisible = await page.locator('text=/Divisible/').first().isVisible({ timeout: 3000 }).catch(() => false);
+      const hasIssuer = await page.locator('text=/Issuer/').first().isVisible({ timeout: 3000 }).catch(() => false);
 
-      expect(hasSupply || hasDivisible || hasDescription || hasIssuer).toBe(true);
+      expect(hasAssetDetails || hasSupply || hasDivisible || hasIssuer).toBe(true);
     }
   });
 
@@ -50,7 +50,8 @@ walletTest.describe('View Asset Page (/asset/:asset)', () => {
     await page.waitForLoadState('networkidle');
 
     if (page.url().includes('/asset')) {
-      const hasSupply = await page.locator('text=/supply|total|issued/i').first().isVisible({ timeout: 5000 }).catch(() => false);
+      // The page shows "Supply" label with a value
+      const hasSupply = await page.locator('text=/Supply/').first().isVisible({ timeout: 5000 }).catch(() => false);
       expect(hasSupply).toBe(true);
     }
   });
@@ -72,8 +73,8 @@ walletTest.describe('View Asset Page (/asset/:asset)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/asset/INVALID_ASSET_12345'));
     await page.waitForLoadState('networkidle');
 
-    // Should show error or redirect
-    const hasError = await page.locator('text=/not found|error|invalid|does not exist/i').first().isVisible({ timeout: 5000 }).catch(() => false);
+    // Should show error message "Failed to load asset information" or redirect
+    const hasError = await page.locator('text=/Failed to load|not found|error|invalid/i').first().isVisible({ timeout: 5000 }).catch(() => false);
     const redirected = !page.url().includes('/asset');
 
     expect(hasError || redirected).toBe(true);

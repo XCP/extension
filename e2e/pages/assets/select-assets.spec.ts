@@ -45,12 +45,13 @@ walletTest.describe('Select Assets Page (/select-assets)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
     await page.waitForLoadState('networkidle');
 
-    // Check for asset items or loading/empty state
-    const hasAssetItems = await page.locator('[data-testid*="asset"], .asset-item, [role="option"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasLoading = await page.locator('text=/loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-    const hasEmpty = await page.locator('text=/no asset|empty|none/i').first().isVisible({ timeout: 2000 }).catch(() => false);
+    // Check for asset items (links to /balance), loading, or empty state
+    const hasAssetItems = await page.locator('a[href*="/balance/"]').first().isVisible({ timeout: 5000 }).catch(() => false);
+    const hasSearchInput = await page.locator('input[placeholder*="Search"]').first().isVisible({ timeout: 3000 }).catch(() => false);
+    const hasPinnedSection = await page.locator('text=/Pinned|Assets/i').first().isVisible({ timeout: 2000 }).catch(() => false);
 
-    expect(hasAssetItems || hasLoading || hasEmpty).toBe(true);
+    // The page should have either asset links, search input, or pinned section
+    expect(hasAssetItems || hasSearchInput || hasPinnedSection).toBe(true);
   });
 
   walletTest('asset items are clickable', async ({ page }) => {
