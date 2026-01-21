@@ -46,3 +46,7 @@ tmpclaude-*-cwd
 # Local reference folders (not part of repo)
 counterparty-core/
 docs/
+
+# Ralph autonomous agent (local tooling)
+scripts/ralph/
+tasks/
