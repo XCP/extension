@@ -118,16 +118,18 @@ describe('Transaction Signer Utilities', () => {
 
     it('should throw error when no UTXOs are found', async () => {
       mockFetchUTXOs.mockResolvedValue([]);
+      mockGetUtxoByTxid.mockReturnValue(undefined);
 
       await expect(signTransaction(mockRawTransaction, mockWallet, mockTargetAddress, mockPrivateKey))
-        .rejects.toThrow('No UTXOs found for the source address');
+        .rejects.toThrow(/UTXO not found for input/);
     });
 
     it('should throw error when UTXOs is empty after retry', async () => {
       mockFetchUTXOs.mockResolvedValue([]);
+      mockGetUtxoByTxid.mockReturnValue(undefined);
 
       await expect(signTransaction(mockRawTransaction, mockWallet, mockTargetAddress, mockPrivateKey))
-        .rejects.toThrow('No UTXOs found for the source address');
+        .rejects.toThrow(/UTXO not found for input/);
     });
 
     it('should throw error for invalid input without txid', async () => {
