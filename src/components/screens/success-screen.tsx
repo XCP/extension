@@ -106,7 +106,7 @@ export function SuccessScreen({
           color="blue"
           fullWidth
           className="mt-4"
-          aria-label="Copy transaction ID"
+          aria-label={isCopied(txid) ? "Transaction ID copied" : "Copy transaction ID"}
         >
           {isCopied(txid) ? (
             <>

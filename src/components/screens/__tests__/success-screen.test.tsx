@@ -90,7 +90,10 @@ describe('SuccessScreen', () => {
     it('renders Copy Transaction ID button', () => {
       render(<SuccessScreen {...defaultProps} />);
 
-      expect(screen.getByRole('button', { name: /copy transaction id/i })).toBeInTheDocument();
+      // Use getAllBy and filter to get the actual button element (not the div with role="button")
+      const buttons = screen.getAllByRole('button', { name: /copy transaction id/i });
+      const actualButton = buttons.find(el => el.tagName === 'BUTTON');
+      expect(actualButton).toBeInTheDocument();
     });
   });
 
@@ -98,7 +101,9 @@ describe('SuccessScreen', () => {
     it('copies txid when Copy button is clicked', async () => {
       render(<SuccessScreen {...defaultProps} />);
 
-      const copyButton = screen.getByRole('button', { name: /copy transaction id/i });
+      // Get the actual button element
+      const buttons = screen.getAllByRole('button', { name: /copy transaction id/i });
+      const copyButton = buttons.find(el => el.tagName === 'BUTTON')!;
       fireEvent.click(copyButton);
 
       expect(mockWriteText).toHaveBeenCalledWith('abc123def456ghi789jkl012mno345pqr678stu901vwx234yz');
@@ -107,7 +112,9 @@ describe('SuccessScreen', () => {
     it('shows "Copied!" feedback after copying', async () => {
       render(<SuccessScreen {...defaultProps} />);
 
-      const copyButton = screen.getByRole('button', { name: /copy transaction id/i });
+      // Get the actual button element
+      const buttons = screen.getAllByRole('button', { name: /copy transaction id/i });
+      const copyButton = buttons.find(el => el.tagName === 'BUTTON')!;
       fireEvent.click(copyButton);
 
       // Wait for mock to be called
@@ -124,7 +131,9 @@ describe('SuccessScreen', () => {
     it('resets copy feedback after 2 seconds', async () => {
       render(<SuccessScreen {...defaultProps} />);
 
-      const copyButton = screen.getByRole('button', { name: /copy transaction id/i });
+      // Get the actual button element
+      const buttons = screen.getAllByRole('button', { name: /copy transaction id/i });
+      const copyButton = buttons.find(el => el.tagName === 'BUTTON')!;
       fireEvent.click(copyButton);
 
       // Should show "Copied!"
@@ -144,11 +153,13 @@ describe('SuccessScreen', () => {
 
       render(<SuccessScreen {...defaultProps} />);
 
-      const copyButton = screen.getByRole('button', { name: /copy transaction id/i });
+      // Get the actual button element
+      const buttons = screen.getAllByRole('button', { name: /copy transaction id/i });
+      const copyButton = buttons.find(el => el.tagName === 'BUTTON')!;
       fireEvent.click(copyButton);
 
       await waitFor(() => {
-        expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to copy transaction ID:', expect.any(Error));
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to copy to clipboard:', expect.any(Error));
       });
 
       consoleErrorSpy.mockRestore();
@@ -195,8 +206,9 @@ describe('SuccessScreen', () => {
     it('has proper ARIA labels on interactive elements', () => {
       render(<SuccessScreen {...defaultProps} />);
 
-      // Copy button
-      const copyButton = screen.getByRole('button', { name: /copy transaction id/i });
+      // Copy button - get the actual button element
+      const buttons = screen.getAllByRole('button', { name: /copy transaction id/i });
+      const copyButton = buttons.find(el => el.tagName === 'BUTTON');
       expect(copyButton).toBeInTheDocument();
 
       // Explorer link
@@ -207,7 +219,9 @@ describe('SuccessScreen', () => {
     it('updates aria-label when copied', async () => {
       render(<SuccessScreen {...defaultProps} />);
 
-      const copyButton = screen.getByRole('button', { name: /copy transaction id/i });
+      // Get the actual button element
+      const buttons = screen.getAllByRole('button', { name: /copy transaction id/i });
+      const copyButton = buttons.find(el => el.tagName === 'BUTTON')!;
       fireEvent.click(copyButton);
 
       await waitFor(() => {
