@@ -199,7 +199,9 @@ async function unlockWallet(page: Page, password = TEST_PASSWORD): Promise<void>
 }
 
 async function lockWallet(page: Page): Promise<void> {
-  const lockButton = page.locator('header button, nav button').last();
+  // Use specific lock button selector to avoid clicking wrong button
+  const lockButton = page.locator('header button[aria-label="Lock Wallet"]');
+  await lockButton.waitFor({ state: 'visible', timeout: 5000 });
   await lockButton.click();
   await page.waitForURL(/unlock/);
 }
