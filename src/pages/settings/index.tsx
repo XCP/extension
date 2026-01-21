@@ -82,6 +82,8 @@ export default function Settings(): ReactElement {
         return "Taproot (P2TR)";
       case AddressFormat.Counterwallet:
         return "CounterWallet (P2PKH)";
+      case AddressFormat.CounterwalletSegwit:
+        return "CounterWallet SegWit (P2WPKH)";
       default:
         return "";
     }
