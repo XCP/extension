@@ -4,8 +4,9 @@
  * Tests for participating in a fairminter (minting from a fair launch).
  * Component: src/pages/compose/fairminter/fairmint/index.tsx
  *
- * Note: This page requires an active fairminter to exist, which depends on
- * API data. Tests check basic page structure.
+ * Note: This page requires selecting a fairminter from a dropdown.
+ * Fee Rate and Continue button only appear after a fairminter is selected.
+ * Tests check the initial page structure before fairminter selection.
  */
 
 import { walletTest, expect } from '../../../fixtures';
@@ -13,7 +14,8 @@ import { walletTest, expect } from '../../../fixtures';
 walletTest.describe('Compose Fairmint Page (/compose/fairmint)', () => {
   walletTest.beforeEach(async ({ page }) => {
     // Navigate directly to fairmint page
-    await page.goto(page.url().replace(/\/index.*/, '/compose/fairminter/fairmint'));
+    // Route is /compose/fairmint/:asset? (not /compose/fairminter/fairmint)
+    await page.goto(page.url().replace(/\/index.*/, '/compose/fairmint'));
     await page.waitForLoadState('networkidle');
   });
 
@@ -23,15 +25,15 @@ walletTest.describe('Compose Fairmint Page (/compose/fairmint)', () => {
     await expect(titleText).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('shows Fee Rate selector', async ({ page }) => {
-    // Fee Rate label should be visible
-    const feeRateLabel = page.locator('label:has-text("Fee Rate")');
-    await expect(feeRateLabel).toBeVisible({ timeout: 10000 });
+  walletTest('shows Fairminter Asset selector', async ({ page }) => {
+    // The fairminter selection label should be visible
+    const fairminterLabel = page.locator('label:has-text("Fairminter Asset")');
+    await expect(fairminterLabel).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('has Continue button', async ({ page }) => {
-    // Submit button should exist
-    const submitButton = page.locator('button[type="submit"]:has-text("Continue")');
-    await expect(submitButton).toBeVisible({ timeout: 10000 });
+  walletTest('has back button', async ({ page }) => {
+    // Back button should exist for navigation
+    const backButton = page.locator('button[aria-label*="back" i], button:has-text("Back")').first();
+    await expect(backButton).toBeVisible({ timeout: 10000 });
   });
 });

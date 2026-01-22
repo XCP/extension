@@ -11,10 +11,14 @@
  */
 
 import { walletTest, expect } from '../../../fixtures';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
-walletTest.describe('Compose Destroy Supply Page (/compose/issuance/destroy-supply)', () => {
+walletTest.describe('Compose Destroy Supply Page (/compose/destroy)', () => {
+  // Use TESTUNLOCKED asset with mock enabled
+  // Route is /compose/destroy/:asset (not /compose/issuance/destroy-supply)
   walletTest.beforeEach(async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/destroy-supply/XCP'));
+    await enableValidationBypass(page);
+    await page.goto(page.url().replace(/\/index.*/, '/compose/destroy/TESTUNLOCKED'));
     await page.waitForLoadState('networkidle');
   });
 
@@ -30,9 +34,9 @@ walletTest.describe('Compose Destroy Supply Page (/compose/issuance/destroy-supp
     await expect(feeRateLabel).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('has Continue button', async ({ page }) => {
-    // Submit button should exist
-    const submitButton = page.locator('button[type="submit"]:has-text("Continue")');
+  walletTest('has Destroy Supply button', async ({ page }) => {
+    // Submit button should exist with "Destroy Supply" text
+    const submitButton = page.locator('button[type="submit"]:has-text("Destroy Supply")');
     await expect(submitButton).toBeVisible({ timeout: 10000 });
   });
 });
