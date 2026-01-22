@@ -16,9 +16,12 @@ walletTest.describe('View Balance Page (/balance/:asset)', () => {
   // Helper to navigate to balance page and wait for content to load
   async function navigateToBalance(page: any, asset: string) {
     await page.goto(page.url().replace(/\/index.*/, `/balance/${asset}`));
-    await page.waitForLoadState('networkidle');
-    // Wait for any of the three states: loading spinner, error message, or success content (Send action)
-    await page.locator('text="Loading balance details…", text="Failed to load balance information", text="Send"').first().waitFor({ state: 'visible', timeout: 10000 });
+    await page.waitForLoadState('domcontentloaded');
+    // Wait for any of the three states: loading, error, or success (Send action)
+    const loading = page.getByText('Loading balance details');
+    const error = page.getByText('Failed to load balance information');
+    const success = page.getByText('Send');
+    await expect(loading.or(error).or(success)).toBeVisible({ timeout: 15000 });
   }
 
   walletTest('page loads and shows Send action for XCP', async ({ page }) => {
