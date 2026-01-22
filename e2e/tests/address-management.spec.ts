@@ -51,7 +51,8 @@ walletTest.describe('Address Management', () => {
         expect(page.url()).toContain('address');
       }
     } else {
-      const hasAddress = await viewAddress.addressDisplay(page).isVisible();
+      // If chevron not visible, verify we're on index page with address displayed
+      const hasAddress = await index.addressText(page).isVisible({ timeout: 5000 });
       expect(hasAddress).toBe(true);
     }
   });
@@ -122,7 +123,8 @@ walletTest.describe('Address Management', () => {
         expect(foundType).toBe(true);
       }
     } else {
-      const hasAddress = await viewAddress.addressDisplay(page).isVisible();
+      // If chevron not visible, verify we're on index page with address displayed
+      const hasAddress = await index.addressText(page).isVisible({ timeout: 5000 });
       expect(hasAddress).toBe(true);
     }
   });
