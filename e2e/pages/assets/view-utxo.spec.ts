@@ -2,121 +2,62 @@
  * View UTXO Page Tests (/utxo/:utxo)
  *
  * Tests for viewing details of a specific UTXO and its attached assets.
+ * Component: src/pages/assets/view-utxo.tsx
+ *
+ * The page shows:
+ * - Loading state: "Loading UTXO details…"
+ * - Error state: ErrorAlert with role="alert"
+ * - Success state: "Details" heading with UTXO info
  */
 
 import { walletTest, expect } from '../../fixtures';
 
 walletTest.describe('View UTXO Page (/utxo/:utxo)', () => {
+  // Use a valid UTXO format (txid:vout) - API will likely return error for non-existent
   const testUtxo = '0000000000000000000000000000000000000000000000000000000000000000:0';
 
-  walletTest('page loads with UTXO parameter', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, `/utxo/${encodeURIComponent(testUtxo)}`));
+  // Helper to navigate to UTXO page and wait for content
+  async function navigateToUtxo(page: any, utxo: string) {
+    await page.goto(page.url().replace(/\/index.*/, `/utxo/${encodeURIComponent(utxo)}`));
     await page.waitForLoadState('networkidle');
+    // Wait for loading to complete - either Details heading or error alert appears
+    await page.locator('text="Details", [role="alert"]').first().waitFor({ state: 'visible', timeout: 10000 });
+  }
 
-    // Should show UTXO info, loading, or error
-    const hasUtxoInfo = await page.locator('text=/UTXO|output|transaction/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasError = await page.locator('text=/not found|error|invalid/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasLoading = await page.locator('text=/loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
+  walletTest('page loads and shows Details or error', async ({ page }) => {
+    await navigateToUtxo(page, testUtxo);
 
-    expect(hasUtxoInfo || hasError || hasLoading).toBe(true);
+    // Component shows either Details heading (success) or ErrorAlert (API failure)
+    const detailsHeading = page.locator('text="Details"');
+    await expect(detailsHeading).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('displays UTXO identifier', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, `/utxo/${encodeURIComponent(testUtxo)}`));
-    await page.waitForLoadState('networkidle');
+  walletTest('displays Output field with UTXO identifier', async ({ page }) => {
+    await navigateToUtxo(page, testUtxo);
 
-    if (page.url().includes('/utxo')) {
-      // Should show the UTXO identifier (txid:vout format) or part of it
-      const hasTxid = await page.locator('text=/[a-f0-9]{8,}/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasUtxoLabel = await page.locator('text=/UTXO|output/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasTxid || hasUtxoLabel).toBe(true);
-    }
+    // Should show the Output field with formatted UTXO
+    const outputLabel = page.locator('text="Output"');
+    await expect(outputLabel).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('shows attached assets if any', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, `/utxo/${encodeURIComponent(testUtxo)}`));
-    await page.waitForLoadState('networkidle');
+  walletTest('shows Move and Detach action buttons', async ({ page }) => {
+    await navigateToUtxo(page, testUtxo);
 
-    if (page.url().includes('/utxo')) {
-      // Should show balances section (attached assets), Details section, loading, or error
-      const hasBalances = await page.locator('text=/Balances/').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasDetails = await page.locator('text=/Details/').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasError = await page.locator('[role="alert"], text=/Failed to fetch|error/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-      const hasLoading = await page.locator('text=/Loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
+    // Action buttons should be visible
+    const moveButton = page.locator('text="Move"');
+    const detachButton = page.locator('text="Detach"');
 
-      expect(hasBalances || hasDetails || hasError || hasLoading).toBe(true);
-    }
+    await expect(moveButton).toBeVisible({ timeout: 5000 });
+    await expect(detachButton).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('shows UTXO value in satoshis', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, `/utxo/${encodeURIComponent(testUtxo)}`));
-    await page.waitForLoadState('networkidle');
-
-    if (page.url().includes('/utxo')) {
-      // Should show value in sats or BTC
-      const hasValue = await page.locator('text=/\\d+\\s*(sat|BTC)/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasValueLabel = await page.locator('text=/value|amount/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      // Value display may vary based on UTXO existence
-      expect(hasValue || hasValueLabel || true).toBe(true);
-    }
-  });
-
-  walletTest('provides detach action for UTXOs with assets', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, `/utxo/${encodeURIComponent(testUtxo)}`));
-    await page.waitForLoadState('networkidle');
-
-    if (page.url().includes('/utxo')) {
-      // Detach button should appear if UTXO has attached assets
-      const hasDetachButton = await page.locator('button:has-text("Detach"), a:has-text("Detach"), [data-testid*="detach"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasMoveButton = await page.locator('button:has-text("Move"), a:has-text("Move")').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      // Actions may or may not be present
-      expect(hasDetachButton || hasMoveButton || true).toBe(true);
-    }
-  });
-
-  walletTest('handles invalid UTXO format gracefully', async ({ page }) => {
+  walletTest('handles invalid UTXO format with error alert', async ({ page }) => {
+    // Navigate with invalid UTXO format (missing :vout)
     await page.goto(page.url().replace(/\/index.*/, '/utxo/invalid-utxo-format'));
     await page.waitForLoadState('networkidle');
 
-    // Page should handle invalid UTXO gracefully - could show error, not found, loading, or redirect
-    const hasError = await page.locator('[role="alert"], text=/Failed to fetch|error|invalid/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasNotFound = await page.locator('text=/not found|no data|unavailable/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasLoading = await page.locator('text=/Loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-    const redirected = !page.url().includes('/utxo');
-    // Page might also show a normal-looking UI with empty/default content
-    const pageLoaded = await page.locator('h1, h2, [class*="header"]').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-    expect(hasError || hasNotFound || hasLoading || redirected || pageLoaded).toBe(true);
-  });
-
-  walletTest('shows confirmation status', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, `/utxo/${encodeURIComponent(testUtxo)}`));
-    await page.waitForLoadState('networkidle');
-
-    if (page.url().includes('/utxo')) {
-      // May show confirmation count or status
-      const hasConfirmations = await page.locator('text=/confirm|block/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasStatus = await page.locator('text=/status|pending|confirmed/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      // Confirmation info may or may not be shown
-      expect(hasConfirmations || hasStatus || true).toBe(true);
-    }
-  });
-
-  walletTest('links to transaction details', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, `/utxo/${encodeURIComponent(testUtxo)}`));
-    await page.waitForLoadState('networkidle');
-
-    if (page.url().includes('/utxo')) {
-      // Should have link to view full transaction
-      const hasTransactionLink = await page.locator('a[href*="transaction"], a[href*="tx"], button:has-text("View Transaction")').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasExplorerLink = await page.locator('a[href*="explorer"], a[href*="blockstream"]').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      // Link may or may not be present
-      expect(hasTransactionLink || hasExplorerLink || true).toBe(true);
-    }
+    // Invalid UTXO should trigger API error -> ErrorAlert with role="alert"
+    const errorAlert = page.locator('[role="alert"]');
+    await expect(errorAlert).toBeVisible({ timeout: 10000 });
   });
 });

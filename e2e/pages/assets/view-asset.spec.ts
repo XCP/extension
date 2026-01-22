@@ -2,101 +2,94 @@
  * View Asset Page Tests (/asset/:asset)
  *
  * Tests for viewing detailed information about a specific Counterparty asset.
+ * Component: src/pages/assets/view-asset.tsx
+ *
+ * The page shows:
+ * - Loading state: "Loading asset details…"
+ * - Error state: "Failed to load asset information"
+ * - Success state: "Asset Details" heading with Supply, Divisible, Locked, Issuer fields
  */
 
 import { walletTest, expect } from '../../fixtures';
 
 walletTest.describe('View Asset Page (/asset/:asset)', () => {
-  walletTest('page loads with asset parameter', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/asset/XCP'));
+  // Helper to navigate to asset page and wait for content to load
+  async function navigateToAsset(page: any, asset: string) {
+    await page.goto(page.url().replace(/\/index.*/, `/asset/${asset}`));
     await page.waitForLoadState('networkidle');
+    // Wait for any of the three states: loading spinner, error message, or success content
+    await page.locator('text="Loading asset details…", text="Failed to load asset information", text="Asset Details"').first().waitFor({ state: 'visible', timeout: 10000 });
+  }
 
-    // Should show asset info, loading, or error state
-    const hasAssetInfo = await page.locator('text=/XCP/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasLoading = await page.locator('text=/loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-    const hasError = await page.locator('text=/not found|error/i').first().isVisible({ timeout: 2000 }).catch(() => false);
+  walletTest('page loads and shows content for XCP asset', async ({ page }) => {
+    await navigateToAsset(page, 'XCP');
 
-    expect(hasAssetInfo || hasLoading || hasError).toBe(true);
+    // Should show "Asset Details" section on success
+    const assetDetailsHeading = page.locator('text="Asset Details"');
+    await expect(assetDetailsHeading).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('displays asset name prominently', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/asset/XCP'));
-    await page.waitForLoadState('networkidle');
+  walletTest('displays Supply field in Asset Details', async ({ page }) => {
+    await navigateToAsset(page, 'XCP');
 
-    if (page.url().includes('/asset')) {
-      // Asset name should be displayed, or loading/error state if API slow/unavailable
-      const hasAssetName = await page.locator('text=/XCP/').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasError = await page.locator('text=/Failed to load/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-      const hasLoading = await page.locator('text=/Loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-      expect(hasAssetName || hasError || hasLoading).toBe(true);
-    }
+    // Wait for Asset Details section
+    await expect(page.locator('text="Asset Details"')).toBeVisible({ timeout: 10000 });
+
+    // Check for Supply field
+    const supplyLabel = page.locator('text="Supply"');
+    await expect(supplyLabel).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('shows asset metadata', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/asset/XCP'));
-    await page.waitForLoadState('networkidle');
+  walletTest('displays Divisible field in Asset Details', async ({ page }) => {
+    await navigateToAsset(page, 'XCP');
 
-    if (page.url().includes('/asset')) {
-      // Check for Asset Details section which contains metadata
-      const hasAssetDetails = await page.locator('text=/Asset Details/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasSupply = await page.locator('text=/Supply/').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasDivisible = await page.locator('text=/Divisible/').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasIssuer = await page.locator('text=/Issuer/').first().isVisible({ timeout: 3000 }).catch(() => false);
+    // Wait for Asset Details section
+    await expect(page.locator('text="Asset Details"')).toBeVisible({ timeout: 10000 });
 
-      expect(hasAssetDetails || hasSupply || hasDivisible || hasIssuer).toBe(true);
-    }
+    // Check for Divisible field
+    const divisibleLabel = page.locator('text="Divisible"');
+    await expect(divisibleLabel).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('shows asset supply information', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/asset/XCP'));
-    await page.waitForLoadState('networkidle');
+  walletTest('displays Locked field in Asset Details', async ({ page }) => {
+    await navigateToAsset(page, 'XCP');
 
-    if (page.url().includes('/asset')) {
-      // The page shows "Supply" label with a value, or loading/error state if API slow/unavailable
-      const hasSupply = await page.locator('text=/Supply/').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasError = await page.locator('text=/Failed to load/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-      const hasLoading = await page.locator('text=/Loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-      expect(hasSupply || hasError || hasLoading).toBe(true);
-    }
+    // Wait for Asset Details section
+    await expect(page.locator('text="Asset Details"')).toBeVisible({ timeout: 10000 });
+
+    // Check for Locked field
+    const lockedLabel = page.locator('text="Locked"');
+    await expect(lockedLabel).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('has navigation back option', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/asset/XCP'));
-    await page.waitForLoadState('networkidle');
+  walletTest('displays Issuer field in Asset Details', async ({ page }) => {
+    await navigateToAsset(page, 'XCP');
 
-    if (page.url().includes('/asset')) {
-      // Should have a way to navigate back
-      const hasBackButton = await page.locator('button[aria-label*="back" i], a[href*="back"], button:has-text("Back")').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasCloseButton = await page.locator('button[aria-label*="close" i], button:has-text("Close")').first().isVisible({ timeout: 2000 }).catch(() => false);
+    // Wait for Asset Details section
+    await expect(page.locator('text="Asset Details"')).toBeVisible({ timeout: 10000 });
 
-      expect(hasBackButton || hasCloseButton || true).toBe(true);
-    }
+    // Check for Issuer field
+    const issuerLabel = page.locator('text="Issuer"');
+    await expect(issuerLabel).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('handles invalid asset gracefully', async ({ page }) => {
+  walletTest('handles invalid asset with error state', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/asset/INVALID_ASSET_12345'));
     await page.waitForLoadState('networkidle');
 
-    // Should show error message, loading state (API still processing), or redirect
-    const hasError = await page.locator('text=/Failed to load|not found|error|invalid/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasLoading = await page.locator('text=/Loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-    const redirected = !page.url().includes('/asset');
-
-    expect(hasError || hasLoading || redirected).toBe(true);
+    // Should show error message for invalid asset
+    const errorMessage = page.locator('text="Failed to load asset information"');
+    await expect(errorMessage).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('shows asset actions when available', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/asset/XCP'));
-    await page.waitForLoadState('networkidle');
+  walletTest('shows Dividend History section', async ({ page }) => {
+    await navigateToAsset(page, 'XCP');
 
-    if (page.url().includes('/asset')) {
-      // Check for action buttons like Send, Trade, etc.
-      const hasSendButton = await page.locator('button:has-text("Send"), a:has-text("Send")').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasTradeButton = await page.locator('button:has-text("Trade"), a:has-text("Trade")').first().isVisible({ timeout: 2000 }).catch(() => false);
-      const hasActions = await page.locator('[data-testid*="action"], .action-button').first().isVisible({ timeout: 2000 }).catch(() => false);
+    // Wait for page to load
+    await expect(page.locator('text="Asset Details"')).toBeVisible({ timeout: 10000 });
 
-      // Actions may or may not be present depending on the asset
-      expect(hasSendButton || hasTradeButton || hasActions || true).toBe(true);
-    }
+    // Dividend History section should be visible (collapsible)
+    const dividendHistory = page.locator('text="Dividend History"');
+    await expect(dividendHistory).toBeVisible({ timeout: 5000 });
   });
 });
