@@ -2,31 +2,37 @@
  * Compose Dispenser Close By Hash Page Tests (/compose/dispenser/close-by-hash)
  *
  * Tests for closing a dispenser by transaction hash.
+ * Component: src/pages/compose/dispenser/close-by-hash/index.tsx
+ *
+ * The page shows:
+ * - Title "Close"
+ * - Transaction hash input
+ * - Fee Rate selector
  */
 
 import { walletTest, expect } from '../../../fixtures';
-import { compose } from '../../../selectors';
 
 walletTest.describe('Compose Dispenser Close By Hash Page (/compose/dispenser/close-by-hash)', () => {
-  walletTest('close by hash page loads', async ({ page }) => {
+  walletTest.beforeEach(async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/close-by-hash'));
     await page.waitForLoadState('networkidle');
-
-    const hasCloseByHash = await page.locator('text=/Close.*Hash|Transaction.*Hash|Hash/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasHashInput = await compose.dispenser.hashInput(page).isVisible({ timeout: 3000 }).catch(() => false);
-    const redirected = !page.url().includes('close-by-hash');
-
-    expect(hasCloseByHash || hasHashInput || redirected).toBe(true);
   });
 
-  walletTest('close by hash with hash parameter', async ({ page }) => {
-    const testHash = '0000000000000000000000000000000000000000000000000000000000000000';
-    await page.goto(page.url().replace(/\/index.*/, `/compose/dispenser/close-by-hash/${testHash}`));
-    await page.waitForLoadState('networkidle');
+  walletTest('page loads with Close title', async ({ page }) => {
+    // The header should show "Close"
+    const titleText = page.locator('text="Close"');
+    await expect(titleText).toBeVisible({ timeout: 10000 });
+  });
 
-    const hasDispenserInfo = await page.locator('text=/Dispenser|Hash|Close/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasError = await compose.common.errorMessage(page).isVisible({ timeout: 3000 }).catch(() => false);
+  walletTest('shows Fee Rate selector', async ({ page }) => {
+    // Fee Rate label should be visible
+    const feeRateLabel = page.locator('label:has-text("Fee Rate")');
+    await expect(feeRateLabel).toBeVisible({ timeout: 10000 });
+  });
 
-    expect(hasDispenserInfo || hasError || true).toBe(true);
+  walletTest('has Continue button', async ({ page }) => {
+    // Submit button should exist
+    const submitButton = page.locator('button[type="submit"]:has-text("Continue")');
+    await expect(submitButton).toBeVisible({ timeout: 10000 });
   });
 });

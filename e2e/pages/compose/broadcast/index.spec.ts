@@ -53,12 +53,9 @@ walletTest.describe('Compose Broadcast Page (/compose/broadcast)', () => {
     const messageInput = compose.broadcast.messageInput(page);
     await messageInput.fill('Test broadcast message');
 
-    await page.waitForTimeout(500);
-
-    const feeDisplay = compose.common.feeDisplay(page);
-    const hasFee = await feeDisplay.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(hasFee || true).toBe(true);
+    // Fee Rate label should be visible
+    const feeRateLabel = page.locator('label:has-text("Fee Rate")');
+    await expect(feeRateLabel).toBeVisible({ timeout: 5000 });
   });
 });
 

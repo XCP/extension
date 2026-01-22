@@ -47,13 +47,10 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
     const destinationInput = compose.send.recipientInput(page);
     await destinationInput.fill('invalid-address');
     await destinationInput.blur();
-    await page.waitForTimeout(500);
 
-    // Should show error or disable submit
-    const hasError = await compose.common.errorMessage(page).isVisible({ timeout: 2000 }).catch(() => false);
-    const submitDisabled = await compose.common.submitButton(page).isDisabled().catch(() => true);
-
-    expect(hasError || submitDisabled).toBe(true);
+    // Invalid address should disable submit button
+    const submitButton = compose.common.submitButton(page);
+    await expect(submitButton).toBeDisabled({ timeout: 5000 });
   });
 
   walletTest('send form accepts valid address', async ({ page }) => {
@@ -83,11 +80,9 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
 
     await page.waitForLoadState('networkidle');
 
-    // Fee display should be visible after filling form
-    const feeDisplay = compose.common.feeDisplay(page);
-    const hasFee = await feeDisplay.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(hasFee || true).toBe(true); // Soft check - fee may not show without balance
+    // Fee Rate label should be visible (form has showFeeRate={true})
+    const feeRateLabel = page.locator('label:has-text("Fee Rate")');
+    await expect(feeRateLabel).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('can navigate back from send form', async ({ page }) => {
@@ -108,12 +103,10 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
     await compose.send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
     await compose.send.quantityInput(page).fill(TEST_AMOUNTS.zero);
     await compose.send.quantityInput(page).blur();
-    await page.waitForTimeout(500);
 
-    const isDisabled = await compose.common.submitButton(page).isDisabled().catch(() => true);
-    const hasError = await page.locator('text=/invalid|error|must be|greater than/i').first().isVisible({ timeout: 1000 }).catch(() => false);
-
-    expect(isDisabled || hasError).toBe(true);
+    // Zero amount should disable submit button
+    const submitButton = compose.common.submitButton(page);
+    await expect(submitButton).toBeDisabled({ timeout: 5000 });
   });
 
   walletTest('validates amount - insufficient balance', async ({ page }) => {
@@ -124,14 +117,10 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
     await compose.send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
     await compose.send.quantityInput(page).fill(TEST_AMOUNTS.veryLarge);
     await compose.send.quantityInput(page).blur();
-    await page.waitForTimeout(500);
 
-    // Check if submit is disabled or error shown (wallet may have no balance to show insufficient error)
-    const isDisabled = await compose.common.submitButton(page).isDisabled().catch(() => true);
-    const hasError = await page.locator('text=/insufficient|not enough|balance|exceed/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-    // Pass if button is disabled, error shown, or we're still on the send page (validation preventing submit)
-    expect(isDisabled || hasError || page.url().includes('compose/send')).toBe(true);
+    // Very large amount should disable submit button (no balance to cover it)
+    const submitButton = compose.common.submitButton(page);
+    await expect(submitButton).toBeDisabled({ timeout: 5000 });
   });
 
   walletTest('shows Max button for BTC', async ({ page }) => {
@@ -139,11 +128,9 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
     await page.waitForURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
 
-    const maxButton = page.locator('button:has-text("Max"), button:has-text("MAX")').first();
-    const hasMax = await maxButton.isVisible({ timeout: 5000 }).catch(() => false);
-
-    // Test passes if Max button exists - clicking it with 0 balance may give empty/0
-    expect(hasMax || true).toBe(true);
+    // Max button should be visible (part of AmountWithMaxInput component)
+    const maxButton = page.locator('button:has-text("Max")');
+    await expect(maxButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows balance header', async ({ page }) => {

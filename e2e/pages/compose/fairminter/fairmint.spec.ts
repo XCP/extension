@@ -2,56 +2,36 @@
  * Compose Fairmint Page Tests (/compose/fairmint)
  *
  * Tests for participating in a fairminter (minting from a fair launch).
+ * Component: src/pages/compose/fairminter/fairmint/index.tsx
+ *
+ * Note: This page requires an active fairminter to exist, which depends on
+ * API data. Tests check basic page structure.
  */
 
-import { walletTest, expect, navigateTo } from '../../../fixtures';
-import { compose } from '../../../selectors';
+import { walletTest, expect } from '../../../fixtures';
 
 walletTest.describe('Compose Fairmint Page (/compose/fairmint)', () => {
-  walletTest('fairmint page loads with asset parameter', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/fairmint/TESTASSET'));
+  walletTest.beforeEach(async ({ page }) => {
+    // Navigate directly to fairmint page
+    await page.goto(page.url().replace(/\/index.*/, '/compose/fairminter/fairmint'));
     await page.waitForLoadState('networkidle');
-
-    const hasFairmint = await page.locator('text=/Fairmint|Mint|Participate/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasMintButton = await compose.fairmint.mintButton(page).isVisible({ timeout: 3000 }).catch(() => false);
-    const redirected = !page.url().includes('fairmint');
-
-    expect(hasFairmint || hasMintButton || redirected).toBe(true);
   });
 
-  walletTest('fairmint form has quantity input', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/fairmint/TESTASSET'));
-    await page.waitForLoadState('networkidle');
-
-    if (page.url().includes('fairmint')) {
-      const hasQuantityField = await page.locator('text=/Quantity|Amount|How.*Many/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasQuantityInput = await compose.fairmint.quantityInput(page).isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasQuantityField || hasQuantityInput || true).toBe(true);
-    }
+  walletTest('page loads with Fairmint title', async ({ page }) => {
+    // The header should show "Fairmint"
+    const titleText = page.locator('text="Fairmint"');
+    await expect(titleText).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('fairmint shows asset information', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/fairmint/TESTASSET'));
-    await page.waitForLoadState('networkidle');
-
-    if (page.url().includes('fairmint')) {
-      const hasAssetInfo = await page.locator('text=/TESTASSET|Asset.*Info|Token/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasPrice = await page.locator('text=/Price|Rate|Cost/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasAssetInfo || hasPrice || true).toBe(true);
-    }
+  walletTest('shows Fee Rate selector', async ({ page }) => {
+    // Fee Rate label should be visible
+    const feeRateLabel = page.locator('label:has-text("Fee Rate")');
+    await expect(feeRateLabel).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('fairmint has mint button', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/fairmint/TESTASSET'));
-    await page.waitForLoadState('networkidle');
-
-    if (page.url().includes('fairmint')) {
-      const hasMintButton = await compose.fairmint.mintButton(page).isVisible({ timeout: 5000 }).catch(() => false);
-      const hasSubmitButton = await compose.common.submitButton(page).isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasMintButton || hasSubmitButton || true).toBe(true);
-    }
+  walletTest('has Continue button', async ({ page }) => {
+    // Submit button should exist
+    const submitButton = page.locator('button[type="submit"]:has-text("Continue")');
+    await expect(submitButton).toBeVisible({ timeout: 10000 });
   });
 });
