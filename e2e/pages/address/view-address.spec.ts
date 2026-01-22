@@ -89,12 +89,12 @@ walletTest.describe('View Address Page (/view-address)', () => {
     }
   });
 
-  walletTest('page has header with close button', async ({ page }) => {
+  walletTest('page has header with back button', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/view-address'));
     await page.waitForLoadState('networkidle');
 
-    // Header should have a close button
-    const closeButton = page.locator('button[aria-label="Close"]');
-    await expect(closeButton).toBeVisible({ timeout: 5000 });
+    // Header should have a back button
+    const backButton = page.locator('button[aria-label="Go Back"]');
+    await expect(backButton).toBeVisible({ timeout: 5000 });
   });
 });
