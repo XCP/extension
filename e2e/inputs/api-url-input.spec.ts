@@ -126,18 +126,16 @@ walletTest.describe('ApiUrlInput Component', () => {
       // Change to something else
       await input.clear();
       await input.fill('https://custom.url.example.com');
+      await input.blur(); // Blur to trigger any change handlers
 
       // Reset button should be enabled after changing value
       await expect(resetButton).toBeEnabled({ timeout: 3000 });
 
       await resetButton.click();
 
-      // Wait for value to restore to default (should contain counterparty API domain)
-      await expect(async () => {
-        const newValue = await input.inputValue();
-        // Default URL should be the counterparty API endpoint
-        expect(newValue.toLowerCase()).toContain('api.counterparty.io');
-      }).toPass({ timeout: 5000 });
+      // Wait for validation to complete (may fail in test env but localValue should update)
+      // The component sets localValue before validation, so input should update immediately
+      await expect(input).toHaveValue(/api\.counterparty\.io/i, { timeout: 10000 });
     });
   });
 
