@@ -128,24 +128,14 @@ walletTest.describe('TextAreaInput Component', () => {
   });
 
   walletTest.describe('Validation', () => {
-    walletTest('shows error for empty required field on submit', async ({ page }) => {
+    walletTest('Sign button disabled when message is empty', async ({ page }) => {
       const textarea = getMessageTextarea(page);
       await expect(textarea).toBeVisible();
 
-      // Try to submit without entering text
-      const submitButton = page.locator('button[type="submit"]').first();
-      await expect(submitButton).toBeVisible();
-      await submitButton.click();
-
-      // Check for error styling or error message
-      await expect(async () => {
-        const classes = await textarea.getAttribute('class') || '';
-        const hasErrorStyle = classes.includes('border-red-500');
-        const errorMessage = page.locator('[role="alert"], .text-red-600, .text-red-500');
-        const hasError = await errorMessage.count() > 0;
-        // Some form of feedback should appear
-        expect(hasErrorStyle || hasError).toBe(true);
-      }).toPass({ timeout: 2000 });
+      // The Sign Message button should be disabled when message is empty
+      const signButton = page.getByRole('button', { name: 'Sign Message' });
+      await expect(signButton).toBeVisible();
+      await expect(signButton).toBeDisabled();
     });
 
     walletTest('removes error when valid text is entered', async ({ page }) => {
@@ -165,14 +155,14 @@ walletTest.describe('TextAreaInput Component', () => {
       expect(name).toBeTruthy();
     });
 
-    walletTest('textarea is in form context', async ({ page }) => {
+    walletTest('textarea is connected to sign button', async ({ page }) => {
       const textarea = getMessageTextarea(page);
-      // Sign message page wraps the textarea in a form
-      const isInForm = await textarea.evaluate((el: HTMLElement) => {
-        return el.closest('form') !== null;
-      });
-      // The sign-message page should have a form wrapper
-      expect(isInForm).toBe(true);
+      // Sign message page uses textarea with Sign Message button
+      await textarea.fill('Test message');
+
+      // The Sign Message button should be enabled when message is filled
+      const signButton = page.getByRole('button', { name: 'Sign Message' });
+      await expect(signButton).toBeEnabled();
     });
   });
 
