@@ -98,6 +98,14 @@ async function getCurrentDisplayedAddress(page: any): Promise<string> {
   return address || '';
 }
 
+async function getReceivePageAddress(page: any): Promise<string> {
+  // On view-address page, address is in a div with aria-label="Copy address"
+  const addressElement = viewAddress.addressDisplay(page);
+  await expect(addressElement).toBeVisible({ timeout: 10000 });
+  const address = await addressElement.textContent();
+  return address || '';
+}
+
 function validateAddressPrefix(address: string, addressType: AddressType): boolean {
   const prefix = ADDRESS_PREFIX_STRINGS.mainnet[addressType];
 
@@ -151,13 +159,13 @@ walletTest.describe('Address Type Matrix - Receive Address Display', () => {
       await selectAddressType(page, addressType);
 
       const receiveButton = index.receiveButton(page);
-      if (await receiveButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await receiveButton.click();
-        await page.waitForURL(/view-address|receive/);
+      await expect(receiveButton).toBeVisible({ timeout: 5000 });
+      await receiveButton.click();
+      await expect(page).toHaveURL(/view-address/, { timeout: 5000 });
 
-        const addressOnReceive = await getCurrentDisplayedAddress(page);
-        expect(validateAddressPrefix(addressOnReceive, addressType)).toBe(true);
-      }
+      // Use getReceivePageAddress for the view-address page
+      const addressOnReceive = await getReceivePageAddress(page);
+      expect(validateAddressPrefix(addressOnReceive, addressType)).toBe(true);
     });
   }
 });
@@ -216,15 +224,13 @@ walletTest.describe('Address Type Matrix - QR Code Display', () => {
       await selectAddressType(page, addressType);
 
       const receiveButton = index.receiveButton(page);
-      if (await receiveButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await receiveButton.click();
-        await page.waitForURL(/view-address|receive/);
+      await expect(receiveButton).toBeVisible({ timeout: 5000 });
+      await receiveButton.click();
+      await expect(page).toHaveURL(/view-address/, { timeout: 5000 });
 
-        const qrCode = viewAddress.qrCode(page);
-        const qrFound = await qrCode.isVisible({ timeout: 3000 }).catch(() => false);
-
-        expect(qrFound).toBe(true);
-      }
+      // QR code should be visible on the receive page
+      const qrCode = viewAddress.qrCode(page);
+      await expect(qrCode).toBeVisible({ timeout: 5000 });
     });
   }
 });

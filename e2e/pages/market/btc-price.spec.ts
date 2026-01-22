@@ -105,14 +105,16 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
 
   walletTest('has back navigation to market', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/market/btc'));
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+
+    // Wait for page title to confirm page loaded
+    const titleElement = page.locator('text=/Bitcoin Price/i').first();
+    await expect(titleElement).toBeVisible({ timeout: 15000 });
 
     const backButton = common.headerBackButton(page);
-    if (await backButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await backButton.click();
-      await page.waitForTimeout(500);
-      expect(page.url()).toContain('market');
-    }
+    await expect(backButton).toBeVisible({ timeout: 5000 });
+    await backButton.click();
+    await expect(page).toHaveURL(/market/, { timeout: 5000 });
   });
 
   walletTest('shows Buy Bitcoin link', async ({ page }) => {
