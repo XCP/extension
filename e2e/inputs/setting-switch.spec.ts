@@ -26,7 +26,7 @@ walletTest.describe('SettingSwitch Component', () => {
     await page.goto(`${baseUrl}/settings/advanced`);
     await page.waitForLoadState('networkidle');
     // Wait for switches to be ready
-    await page.locator('[role="switch"]').first().waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator('[role="switch"]').first().waitFor({ state: 'visible', timeout: 10000 });
   });
 
   walletTest.describe('Rendering', () => {

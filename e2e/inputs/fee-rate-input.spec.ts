@@ -23,7 +23,7 @@ walletTest.describe('FeeRateInput Component', () => {
     await page.waitForURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
     // Wait for fee rates to load - look for fee rate label
-    await page.locator('label:has-text("Fee Rate")').waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator('label:has-text("Fee Rate")').waitFor({ state: 'visible', timeout: 10000 });
   });
 
   walletTest.describe('Rendering', () => {

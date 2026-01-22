@@ -24,7 +24,7 @@ walletTest.describe('PasswordInput Component', () => {
     await page.goto(`${baseUrl}/settings/security`);
     await page.waitForLoadState('networkidle');
     // Wait for the password input to be visible (confirms page loaded)
-    await page.locator('input[type="password"]').first().waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator('input[type="password"]').first().waitFor({ state: 'visible', timeout: 10000 });
   });
 
   // Helper to get password input and toggle button

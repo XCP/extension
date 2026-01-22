@@ -18,6 +18,8 @@ walletTest.describe('DestinationsInput Component', () => {
     await sendButton.click();
     await page.waitForURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
+    // Wait for the form to be ready
+    await compose.send.recipientInput(page).waitFor({ state: 'visible', timeout: 10000 });
   });
 
   walletTest.describe('Rendering', () => {

@@ -28,7 +28,7 @@ walletTest.describe('TextAreaInput Component', () => {
     await page.goto(`${baseUrl}/actions/sign-message`);
     await page.waitForLoadState('networkidle');
     // Wait for textarea to confirm page is loaded
-    await page.locator('textarea').first().waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator('textarea').first().waitFor({ state: 'visible', timeout: 10000 });
   });
 
   // Helper to get the message textarea

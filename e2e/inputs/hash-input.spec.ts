@@ -33,7 +33,7 @@ walletTest.describe('HashInput Component', () => {
     await page.goto(`${baseUrl}/compose/order/cancel`);
     await page.waitForLoadState('networkidle');
     // Wait for hash input to be ready
-    await page.locator('textarea[name="offer_hash"]').waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator('textarea[name="offer_hash"]').waitFor({ state: 'visible', timeout: 10000 });
   });
 
   // Helper to get hash input

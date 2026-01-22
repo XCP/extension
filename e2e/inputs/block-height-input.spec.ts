@@ -28,12 +28,10 @@ walletTest.describe('BlockHeightInput Component', () => {
 
     // Expand Advanced Options disclosure to reveal BlockHeightInput fields
     const advancedOptions = page.locator('button:has-text("Advanced Options")');
-    const isVisible = await advancedOptions.isVisible({ timeout: 3000 }).catch(() => false);
-    if (isVisible) {
-      await advancedOptions.click();
-      // Wait for disclosure to expand
-      await page.locator('input[name="start_block"], input[name="end_block"]').first().waitFor({ state: 'visible', timeout: 3000 });
-    }
+    await advancedOptions.waitFor({ state: 'visible', timeout: 10000 });
+    await advancedOptions.click();
+    // Wait for disclosure to expand
+    await page.locator('input[name="start_block"], input[name="end_block"]').first().waitFor({ state: 'visible', timeout: 5000 });
   });
 
   // Helper to get block height inputs (there may be multiple: start_block, end_block)

@@ -46,6 +46,8 @@ walletTest.describe('FileUploadInput Component', () => {
     // Now navigate to broadcast page
     await page.goto(`${baseUrl}/compose/broadcast`);
     await page.waitForLoadState('networkidle');
+    // Wait for form to be ready (look for inscribe switch or broadcast form)
+    await page.locator('[role="switch"], textarea, input').first().waitFor({ state: 'visible', timeout: 10000 });
   });
 
   // Helper to enable inscribe mode (only available for SegWit addresses)

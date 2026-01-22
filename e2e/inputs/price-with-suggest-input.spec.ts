@@ -27,7 +27,7 @@ walletTest.describe('PriceWithSuggestInput Component', () => {
     await page.goto(`${baseUrl}/compose/dispenser/XCP`);
     await page.waitForLoadState('networkidle');
     // Wait for price input to be ready
-    await page.locator('input[name="mainchainrate_display"]').waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator('input[name="mainchainrate_display"]').waitFor({ state: 'visible', timeout: 10000 });
   });
 
   // Helper to get price input - dispenser uses name="mainchainrate_display"

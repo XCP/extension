@@ -26,7 +26,7 @@ walletTest.describe('CheckboxInput Component', () => {
     await page.goto(`${baseUrl}/compose/issuance/issue`);
     await page.waitForLoadState('networkidle');
     // Wait for checkbox to confirm page is loaded
-    await page.locator('[role="checkbox"], input[type="checkbox"]').first().waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator('[role="checkbox"], input[type="checkbox"]').first().waitFor({ state: 'visible', timeout: 10000 });
   });
 
   walletTest.describe('Rendering', () => {

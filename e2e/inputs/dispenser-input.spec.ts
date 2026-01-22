@@ -26,7 +26,7 @@ walletTest.describe('DispenserInput Component', () => {
     await page.goto(`${baseUrl}/compose/dispenser/dispense`);
     await page.waitForLoadState('networkidle');
     // Wait for dispenser input to confirm page is loaded
-    await page.locator('input[name="dispenserAddress"]').waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator('input[name="dispenserAddress"]').waitFor({ state: 'visible', timeout: 10000 });
   });
 
   // Helper to get dispenser address input

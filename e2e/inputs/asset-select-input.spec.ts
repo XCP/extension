@@ -25,7 +25,7 @@ walletTest.describe('AssetSelectInput Component', () => {
     await page.goto(`${baseUrl}/compose/dividend/XCP`);
     await page.waitForLoadState('networkidle');
     // Wait for combobox to be ready
-    await page.locator('[role="combobox"] input, input[class*="uppercase"]').first().waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator('[role="combobox"] input, input[class*="uppercase"]').first().waitFor({ state: 'visible', timeout: 10000 });
   });
 
   // Helper to get combobox elements

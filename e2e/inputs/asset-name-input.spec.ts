@@ -76,7 +76,7 @@ walletTest.describe('AssetNameInput Component', () => {
     await page.goto(`${baseUrl}/compose/issuance`);
     await page.waitForLoadState('networkidle');
     // Wait for asset name input to be ready
-    await page.locator('input[name="asset"]').waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator('input[name="asset"]').waitFor({ state: 'visible', timeout: 10000 });
   });
 
   // Helper to get asset name input

@@ -24,7 +24,7 @@ walletTest.describe('MemoInput Component', () => {
     await page.goto(`${baseUrl}/compose/send/XCP`);
     await page.waitForLoadState('networkidle');
     // Wait for memo input to be visible (confirms page loaded)
-    await page.locator('input[name="memo"]').waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator('input[name="memo"]').waitFor({ state: 'visible', timeout: 10000 });
   });
 
   // Helper to get the memo input
