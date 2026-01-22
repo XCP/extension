@@ -91,8 +91,9 @@ async function selectAddressType(page: any, addressType: AddressType): Promise<v
 }
 
 async function getCurrentDisplayedAddress(page: any): Promise<string> {
-  const addressElement = viewAddress.addressDisplay(page);
-  await expect(addressElement).toBeVisible();
+  // Use index.addressText since we're on the index page after wallet creation/type change
+  const addressElement = index.addressText(page);
+  await expect(addressElement).toBeVisible({ timeout: 10000 });
   const address = await addressElement.textContent();
   return address || '';
 }
