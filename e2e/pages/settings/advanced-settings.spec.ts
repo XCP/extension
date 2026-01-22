@@ -209,8 +209,8 @@ walletTest.describe('API URL Configuration', () => {
     await apiInput.fill('not-a-valid-url');
     await apiInput.blur();
 
-    const hasError = await page.locator('.text-red-600, .text-red-500, text=/invalid|error/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-    expect(hasError || true).toBe(true);
+    // Invalid URL should show validation feedback
+    const validationMessage = page.locator('p.text-sm.text-red-500, p.text-sm.text-gray-500');
+    await expect(validationMessage).toBeVisible({ timeout: 5000 });
   });
 });

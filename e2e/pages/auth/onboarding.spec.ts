@@ -123,18 +123,16 @@ test.describe('Onboarding Page (/auth/onboarding)', () => {
     }
   });
 
-  test('shows security notice or terms', async ({}, testInfo) => {
-    const testId = `onboard-sec-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 25)}`;
+  test('shows XCP Wallet branding text', async ({}, testInfo) => {
+    const testId = `onboard-text-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 25)}`;
     const { context, page } = await launchExtension(testId);
 
     try {
       await page.waitForLoadState('networkidle');
 
-      // May show security information or terms
-      const hasSecurityInfo = await page.locator('text=/secure|backup|responsibility|terms/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-      // Security info is optional but good practice
-      expect(hasSecurityInfo || true).toBe(true);
+      // Should show XCP Wallet text
+      const walletText = page.locator('text=/XCP.*Wallet/i').first();
+      await expect(walletText).toBeVisible({ timeout: 10000 });
     } finally {
       await cleanup(context);
     }

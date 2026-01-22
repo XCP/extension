@@ -130,17 +130,15 @@ walletTest.describe('Unlock Wallet Page (/auth/unlock)', () => {
     expect(hasWalletName).toBe(true);
   });
 
-  walletTest('has password visibility toggle', async ({ page }) => {
+  walletTest('password input is secure (type=password)', async ({ page }) => {
     await lockWallet(page);
 
     const passwordInput = unlock.passwordInput(page);
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
-    // Look for eye icon or show/hide button
-    const hasToggle = await page.locator('button[aria-label*="show" i], button[aria-label*="visibility" i], [data-testid*="toggle"]').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    // Toggle is optional UI enhancement
-    expect(hasToggle || true).toBe(true);
+    // Password field should be of type password (hides characters)
+    const inputType = await passwordInput.getAttribute('type');
+    expect(inputType).toBe('password');
   });
 
   walletTest('lock state persists after page reload', async ({ page }) => {
