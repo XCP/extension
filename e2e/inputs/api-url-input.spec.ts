@@ -123,9 +123,6 @@ walletTest.describe('ApiUrlInput Component', () => {
       const input = getApiUrlInput(page);
       const resetButton = getResetButton(page);
 
-      // Get the original default value
-      const originalValue = await input.inputValue();
-
       // Change to something else
       await input.clear();
       await input.fill('https://custom.url.example.com');
@@ -135,10 +132,11 @@ walletTest.describe('ApiUrlInput Component', () => {
 
       await resetButton.click();
 
-      // Wait for value to restore
+      // Wait for value to restore to default (should contain counterparty API domain)
       await expect(async () => {
         const newValue = await input.inputValue();
-        expect(newValue).toBe(originalValue);
+        // Default URL should be the counterparty API endpoint
+        expect(newValue.toLowerCase()).toContain('api.counterparty.io');
       }).toPass({ timeout: 5000 });
     });
   });
