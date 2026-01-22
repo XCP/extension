@@ -23,8 +23,13 @@ walletTest.describe('PasswordInput Component', () => {
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
     await page.goto(`${baseUrl}/settings/security`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
+    // Wait for the password input to be visible (confirms page loaded)
+    await page.locator('input[type="password"]').first().waitFor({ state: 'visible', timeout: 5000 });
   });
+
+  // Helper to get password input and toggle button
+  const getPasswordInput = (page: any) => page.locator('input[type="password"]').first();
+  const getToggleButton = (page: any) => page.locator('button[aria-label*="password" i]').first();
 
   walletTest.describe('Rendering', () => {
     walletTest('renders password input fields on security page', async ({ page }) => {
@@ -37,230 +42,195 @@ walletTest.describe('PasswordInput Component', () => {
     });
 
     walletTest('renders with correct input type', async ({ page }) => {
-      const passwordInput = page.locator('input[type="password"]').first();
+      const passwordInput = getPasswordInput(page);
+      await expect(passwordInput).toBeVisible();
 
-      if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const type = await passwordInput.getAttribute('type');
-        expect(type).toBe('password');
-      }
+      const type = await passwordInput.getAttribute('type');
+      expect(type).toBe('password');
     });
 
     walletTest('has show/hide toggle button', async ({ page }) => {
-      const passwordInput = page.locator('input[type="password"]').first();
-
-      if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Look for the toggle button (eye icon)
-        const toggleButton = page.locator('button[aria-label*="password" i]').first();
-        const buttonExists = await toggleButton.isVisible().catch(() => false);
-
-        // Toggle button should be present
-        expect(buttonExists).toBe(true);
-      }
+      const toggleButton = getToggleButton(page);
+      await expect(toggleButton).toBeVisible();
     });
   });
 
   walletTest.describe('Show/Hide Toggle', () => {
     walletTest('clicking toggle shows password', async ({ page }) => {
-      const passwordInput = page.locator('input[type="password"]').first();
+      const passwordInput = getPasswordInput(page);
+      await expect(passwordInput).toBeVisible();
 
-      if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Fill password first
-        await passwordInput.fill('testpassword123');
+      // Fill password first
+      await passwordInput.fill('testpassword123');
 
-        // Find and click toggle button
-        const toggleButton = page.locator('button[aria-label*="password" i]').first();
-        if (await toggleButton.isVisible().catch(() => false)) {
-          await toggleButton.click();
-          await page.waitForTimeout(300);
+      // Find and click toggle button
+      const toggleButton = getToggleButton(page);
+      await expect(toggleButton).toBeVisible();
+      await toggleButton.click();
 
-          // After toggle, need to re-query since type changed from password to text
-          const inputAfterToggle = page.locator('input[name="currentPassword"], input[name="newPassword"]').first();
-          const type = await inputAfterToggle.getAttribute('type');
-          expect(type).toBe('text');
-        }
-      }
+      // After toggle, input type should change to text
+      // Re-query for the input by name since type changed
+      const inputAfterToggle = page.locator('input[name="currentPassword"], input[name="newPassword"]').first();
+      await expect(inputAfterToggle).toHaveAttribute('type', 'text');
     });
 
     walletTest('clicking toggle again hides password', async ({ page }) => {
-      const passwordInput = page.locator('input[type="password"]').first();
+      const passwordInput = getPasswordInput(page);
+      await expect(passwordInput).toBeVisible();
 
-      if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await passwordInput.fill('testpassword123');
+      await passwordInput.fill('testpassword123');
 
-        const toggleButton = page.locator('button[aria-label*="password" i]').first();
-        if (await toggleButton.isVisible().catch(() => false)) {
-          // Click twice to toggle back
-          await toggleButton.click();
-          await toggleButton.click();
+      const toggleButton = getToggleButton(page);
+      await expect(toggleButton).toBeVisible();
 
-          // Should be back to password type
-          const type = await passwordInput.getAttribute('type');
-          expect(type).toBe('password');
-        }
-      }
+      // Click twice to toggle back
+      await toggleButton.click();
+      await toggleButton.click();
+
+      // Should be back to password type
+      await expect(passwordInput).toHaveAttribute('type', 'password');
     });
 
     walletTest('toggle button has accessible label', async ({ page }) => {
-      const toggleButton = page.locator('button[aria-label*="password" i]').first();
+      const toggleButton = getToggleButton(page);
+      await expect(toggleButton).toBeVisible();
 
-      if (await toggleButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const ariaLabel = await toggleButton.getAttribute('aria-label');
-        expect(ariaLabel).toBeTruthy();
-        expect(ariaLabel?.toLowerCase()).toContain('password');
-      }
+      const ariaLabel = await toggleButton.getAttribute('aria-label');
+      expect(ariaLabel).toBeTruthy();
+      expect(ariaLabel?.toLowerCase()).toContain('password');
     });
 
     walletTest('aria-label changes when toggled', async ({ page }) => {
-      const passwordInput = page.locator('input[type="password"]').first();
+      const toggleButton = getToggleButton(page);
+      await expect(toggleButton).toBeVisible();
 
-      if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const toggleButton = page.locator('button[aria-label*="password" i]').first();
+      // Get initial aria-label
+      const initialLabel = await toggleButton.getAttribute('aria-label');
 
-        if (await toggleButton.isVisible().catch(() => false)) {
-          // Get initial aria-label
-          const initialLabel = await toggleButton.getAttribute('aria-label');
+      // Click to show password
+      await toggleButton.click();
 
-          // Click to show password
-          await toggleButton.click();
-
-          // Get new aria-label
-          const newLabel = await toggleButton.getAttribute('aria-label');
-
-          // Labels should be different (Show -> Hide or vice versa)
-          expect(newLabel).not.toBe(initialLabel);
-        }
-      }
+      // Get new aria-label - should be different (Show -> Hide or vice versa)
+      await expect(async () => {
+        const newLabel = await toggleButton.getAttribute('aria-label');
+        expect(newLabel).not.toBe(initialLabel);
+      }).toPass({ timeout: 2000 });
     });
   });
 
   walletTest.describe('Input Behavior', () => {
     walletTest('accepts password input', async ({ page }) => {
-      const passwordInput = page.locator('input[type="password"]').first();
+      const passwordInput = getPasswordInput(page);
+      await expect(passwordInput).toBeVisible();
 
-      if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await passwordInput.fill('MySecurePassword123!');
-        const value = await passwordInput.inputValue();
-        expect(value).toBe('MySecurePassword123!');
-      }
+      await passwordInput.fill('MySecurePassword123!');
+      await expect(passwordInput).toHaveValue('MySecurePassword123!');
     });
 
     walletTest('password value is masked by default', async ({ page }) => {
-      const passwordInput = page.locator('input[type="password"]').first();
+      const passwordInput = getPasswordInput(page);
+      await expect(passwordInput).toBeVisible();
 
-      if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await passwordInput.fill('secretpassword');
+      await passwordInput.fill('secretpassword');
 
-        // Verify input type is password (which masks the value)
-        const type = await passwordInput.getAttribute('type');
-        expect(type).toBe('password');
-      }
+      // Verify input type is password (which masks the value)
+      await expect(passwordInput).toHaveAttribute('type', 'password');
     });
 
     walletTest('allows clearing password', async ({ page }) => {
-      const passwordInput = page.locator('input[type="password"]').first();
+      const passwordInput = getPasswordInput(page);
+      await expect(passwordInput).toBeVisible();
 
-      if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await passwordInput.fill('testpassword');
-        await passwordInput.clear();
+      await passwordInput.fill('testpassword');
+      await passwordInput.clear();
 
-        const value = await passwordInput.inputValue();
-        expect(value).toBe('');
-      }
+      await expect(passwordInput).toHaveValue('');
     });
 
     walletTest('accepts special characters', async ({ page }) => {
-      const passwordInput = page.locator('input[type="password"]').first();
+      const passwordInput = getPasswordInput(page);
+      await expect(passwordInput).toBeVisible();
 
-      if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const specialPassword = 'P@ssw0rd!#$%^&*()_+-=[]{}|;:,.<>?';
-        await passwordInput.fill(specialPassword);
+      const specialPassword = 'P@ssw0rd!#$%^&*()_+-=[]{}|;:,.<>?';
+      await passwordInput.fill(specialPassword);
 
-        const value = await passwordInput.inputValue();
-        expect(value).toBe(specialPassword);
-      }
+      await expect(passwordInput).toHaveValue(specialPassword);
     });
 
     walletTest('accepts unicode characters', async ({ page }) => {
-      const passwordInput = page.locator('input[type="password"]').first();
+      const passwordInput = getPasswordInput(page);
+      await expect(passwordInput).toBeVisible();
 
-      if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const unicodePassword = 'パスワード密码пароль';
-        await passwordInput.fill(unicodePassword);
+      const unicodePassword = 'パスワード密码пароль';
+      await passwordInput.fill(unicodePassword);
 
-        const value = await passwordInput.inputValue();
-        expect(value).toBe(unicodePassword);
-      }
+      await expect(passwordInput).toHaveValue(unicodePassword);
     });
 
     walletTest('handles very long password', async ({ page }) => {
-      const passwordInput = page.locator('input[type="password"]').first();
+      const passwordInput = getPasswordInput(page);
+      await expect(passwordInput).toBeVisible();
 
-      if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const longPassword = 'a'.repeat(100);
-        await passwordInput.fill(longPassword);
+      const longPassword = 'a'.repeat(100);
+      await passwordInput.fill(longPassword);
 
-        const value = await passwordInput.inputValue();
-        expect(value).toBe(longPassword);
-      }
+      await expect(passwordInput).toHaveValue(longPassword);
     });
   });
 
   walletTest.describe('Accessibility', () => {
     walletTest('has name attribute for form submission', async ({ page }) => {
-      const passwordInput = page.locator('input[type="password"]').first();
+      const passwordInput = getPasswordInput(page);
+      await expect(passwordInput).toBeVisible();
 
-      if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const name = await passwordInput.getAttribute('name');
-        expect(name).toBeTruthy();
-      }
+      const name = await passwordInput.getAttribute('name');
+      expect(name).toBeTruthy();
     });
 
     walletTest('has placeholder text', async ({ page }) => {
-      const passwordInput = page.locator('input[type="password"]').first();
+      const passwordInput = getPasswordInput(page);
+      await expect(passwordInput).toBeVisible();
 
-      if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const placeholder = await passwordInput.getAttribute('placeholder');
-        // Placeholder should exist and contain relevant text
-        expect(placeholder).toBeTruthy();
-      }
+      const placeholder = await passwordInput.getAttribute('placeholder');
+      // Placeholder should exist and contain relevant text
+      expect(placeholder).toBeTruthy();
     });
 
     walletTest('toggle button is keyboard accessible', async ({ page }) => {
-      const toggleButton = page.locator('button[aria-label*="password" i]').first();
+      const toggleButton = getToggleButton(page);
+      await expect(toggleButton).toBeVisible();
 
-      if (await toggleButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Focus the button
-        await toggleButton.focus();
+      // Get initial input type
+      const passwordInput = getPasswordInput(page);
+      const initialType = await passwordInput.getAttribute('type');
 
-        // Press Enter to toggle
-        await page.keyboard.press('Enter');
+      // Focus the button and press Enter to toggle
+      await toggleButton.focus();
+      await page.keyboard.press('Enter');
 
-        // Check if input type changed
-        const passwordInput = page.locator('input[type="text"], input[type="password"]').first();
-        const type = await passwordInput.getAttribute('type');
-
-        // Should have toggled (we started with password, should now be text)
-        expect(type === 'text' || type === 'password').toBe(true);
-      }
+      // Type should have changed
+      await expect(async () => {
+        const newType = await page.locator('input[name="currentPassword"], input[name="newPassword"]').first().getAttribute('type');
+        expect(newType).not.toBe(initialType);
+      }).toPass({ timeout: 2000 });
     });
   });
 
   walletTest.describe('Form Context', () => {
     walletTest('password input is in structured container', async ({ page }) => {
-      const passwordInput = page.locator('input[type="password"]').first();
+      const passwordInput = getPasswordInput(page);
+      await expect(passwordInput).toBeVisible();
 
-      if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Security settings uses div-based layout, not a form element
-        // Check if input is in a container (form or div with related inputs)
-        const isInContainer = await passwordInput.evaluate((el: HTMLElement) => {
-          // Check for form or structured container
-          const form = el.closest('form');
-          const container = el.closest('.space-y-4, .space-y-6, [role="main"]');
-          return form !== null || container !== null;
-        });
+      // Security settings uses div-based layout, not a form element
+      // Check if input is in a container (form or div with related inputs)
+      const isInContainer = await passwordInput.evaluate((el: HTMLElement) => {
+        // Check for form or structured container
+        const form = el.closest('form');
+        const container = el.closest('.space-y-4, .space-y-6, [role="main"]');
+        return form !== null || container !== null;
+      });
 
-        expect(isInContainer).toBe(true);
-      }
+      expect(isInContainer).toBe(true);
     });
   });
 });

@@ -166,26 +166,17 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       // Click Max
       await maxButton.click();
 
-      // Wait for calculation (may involve API call for fee estimation)
-      await page.waitForTimeout(2000);
-
-      // Amount should be filled (or error shown if no balance)
-      const value = await input.inputValue();
-
-      // Check for actual error messages (not just required field indicators)
-      // Error messages typically appear as text, not just the * indicators
+      // Wait for max calculation to complete - value should change or error should appear
       const errorAlert = page.locator('[role="alert"], .text-red-600, p.text-red-500');
-      const hasError = await errorAlert.isVisible().catch(() => false);
 
-      // Max button may:
-      // 1. Fill with calculated max amount
-      // 2. Show error if no balance/insufficient for fees
-      // 3. Show 0 if no spendable balance
-      // All are valid behaviors
-      const hasValue = value !== '' && value !== '0';
-      const hasZero = value === '0' || value === '0.00000000';
-
-      expect(hasValue || hasZero || hasError).toBe(true);
+      await expect(async () => {
+        const value = await input.inputValue();
+        const hasError = await errorAlert.count() > 0;
+        // Max calculation should result in: a value, zero, or an error
+        const hasValue = value !== '' && value !== '0';
+        const hasZero = value === '0' || value === '0.00000000';
+        expect(hasValue || hasZero || hasError).toBe(true);
+      }).toPass({ timeout: 5000 });
     });
 
     walletTest('Max button shows loading state during calculation', async ({ page }) => {
@@ -215,19 +206,18 @@ walletTest.describe('AmountWithMaxInput Component', () => {
 
       // Try to submit form
       const submitBtn = page.locator('button[type="submit"]:has-text("Continue")');
-      if (await submitBtn.isEnabled().catch(() => false)) {
+
+      // Either button is disabled (pre-validation) or clicking shows error
+      const isEnabled = await submitBtn.isEnabled();
+      if (isEnabled) {
         await submitBtn.click();
 
-        // Wait for validation/API response
-        await page.waitForTimeout(2000);
-
-        // Should show an error about insufficient balance/funds
-        // Use specific selector to avoid matching required field indicators (*)
+        // Wait for validation error to appear
         const errorMessage = page.locator('[role="alert"], .text-red-600, p.text-red-500, div.text-red-500');
-        const hasError = await errorMessage.first().isVisible().catch(() => false);
-
-        // The form should either show error or prevent submission
-        expect(hasError || !(await submitBtn.isEnabled())).toBe(true);
+        await expect(errorMessage.first()).toBeVisible({ timeout: 5000 });
+      } else {
+        // Button disabled due to validation - this is expected behavior
+        await expect(submitBtn).toBeDisabled();
       }
     });
 
@@ -235,32 +225,19 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       await fillDestination(page);
 
       const maxButton = page.locator('button:has-text("Max")');
+      const input = page.locator('input[name="quantity"]');
       await maxButton.click();
 
-      // Wait for max calculation
-      await page.waitForTimeout(2000);
+      // Wait for max calculation to complete
+      // Either: error message appears, or value is set (could be 0)
+      const errorMessages = page.locator('text=/No available balance|Insufficient balance|Failed to calculate/i');
 
-      // Check for error message (expected for test wallets with no BTC)
-      const errorMessages = [
-        page.locator('text=/No available balance/i'),
-        page.locator('text=/Insufficient balance/i'),
-        page.locator('text=/Failed to calculate/i'),
-      ];
-
-      // At least one error may be visible, or amount may be 0
-      const input = page.locator('input[name="quantity"]');
-      const value = await input.inputValue();
-
-      let hasError = false;
-      for (const msg of errorMessages) {
-        if (await msg.isVisible().catch(() => false)) {
-          hasError = true;
-          break;
-        }
-      }
-
-      // Either has error message or value is empty/zero (both valid outcomes for no balance)
-      expect(hasError || value === '' || value === '0').toBe(true);
+      await expect(async () => {
+        const value = await input.inputValue();
+        const errorCount = await errorMessages.count();
+        // Valid outcomes: error message visible OR value is empty/zero
+        expect(errorCount > 0 || value === '' || value === '0' || value === '0.00000000').toBe(true);
+      }).toPass({ timeout: 5000 });
     });
   });
 

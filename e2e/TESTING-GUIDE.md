@@ -246,6 +246,123 @@ test('submit button is enabled when form is valid', async ({ page }) => {
 
 ---
 
+## Audit Findings (inputs/ directory)
+
+### Anti-Patterns Found and Fixed
+
+#### 1. Silent Test Passing with Conditional Execution
+
+```typescript
+// ❌ BAD - If element isn't visible, test passes without testing anything
+if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+  await passwordInput.fill('testpassword123');
+  const value = await passwordInput.inputValue();
+  expect(value).toBe('testpassword123');
+}
+
+// ✅ GOOD - Test fails if element isn't visible (revealing actual bugs)
+const passwordInput = getPasswordInput(page);
+await expect(passwordInput).toBeVisible();
+await passwordInput.fill('testpassword123');
+await expect(passwordInput).toHaveValue('testpassword123');
+```
+
+**Impact:** This pattern was used 20+ times in password-input.spec.ts. Every test would silently pass if the page structure changed.
+
+#### 2. Tautologies Hiding Real Behavior
+
+```typescript
+// ❌ BAD - Always true, masks actual validation behavior
+const hasError = classes.includes('border-red-500');
+expect(typeof hasError).toBe('boolean');  // Always passes!
+
+// ✅ GOOD - Test actual expected behavior
+await expect(input).toHaveClass(/border-red-500/, { timeout: 3000 });
+// Or if validation is deferred:
+await expect(input).not.toHaveClass(/border-red-500/);
+```
+
+**Discovery:** Removing tautologies revealed that:
+- P2TR (Taproot) address validation is not implemented (shows error for valid addresses)
+- Checksum validation is deferred to server-side (no client-side error)
+
+#### 3. waitForTimeout Before Assertions
+
+```typescript
+// ❌ BAD - Arbitrary delay, doesn't guarantee state
+await page.waitForTimeout(500);
+await expect(input).toHaveClass(/border-red-500/);
+
+// ✅ GOOD - Web-first assertion handles waiting
+await expect(input).toHaveClass(/border-red-500/, { timeout: 3000 });
+```
+
+#### 4. Proper beforeEach Setup
+
+```typescript
+// ❌ BAD - waitForTimeout in setup
+walletTest.beforeEach(async ({ page }) => {
+  await page.goto(url);
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(500);
+});
+
+// ✅ GOOD - Wait for specific element that confirms page is ready
+walletTest.beforeEach(async ({ page }) => {
+  await page.goto(url);
+  await page.waitForLoadState('networkidle');
+  await page.locator('input[name="memo"]').waitFor({ state: 'visible', timeout: 5000 });
+});
+```
+
+### Documenting Known Limitations
+
+When tests reveal application limitations, use `.skip` with a TODO:
+
+```typescript
+// TODO: P2TR (bech32m) validation not yet implemented - shows error for valid addresses
+walletTest.skip('accepts valid P2TR (Taproot) address', async ({ page }) => {
+  // Test code here
+});
+```
+
+This:
+- Documents the limitation in code
+- Keeps the test visible (not deleted)
+- Tracks when the feature gets implemented
+- Shows as "skipped" in test reports
+
+### Selector Helpers
+
+Extract repeated selectors into helpers for readability:
+
+```typescript
+// Define helpers at top of describe block
+const getPasswordInput = (page: any) => page.locator('input[type="password"]').first();
+const getToggleButton = (page: any) => page.locator('button[aria-label*="password" i]').first();
+
+// Use in tests
+walletTest('accepts password input', async ({ page }) => {
+  const passwordInput = getPasswordInput(page);
+  await expect(passwordInput).toBeVisible();
+  // ...
+});
+```
+
+### Using expect().toPass() for Async State Changes
+
+For operations that take time (API calls, calculations):
+
+```typescript
+// ✅ Polls until condition is met or timeout
+await expect(async () => {
+  const value = await input.inputValue();
+  expect(value.length).toBeGreaterThan(0);
+}).toPass({ timeout: 5000 });
+```
+
+---
+
 ## Resources
 
 - [Playwright Best Practices](https://playwright.dev/docs/best-practices)
