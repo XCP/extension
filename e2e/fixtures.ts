@@ -299,8 +299,26 @@ export const test = base.extend<ExtensionFixtures>({
   },
 
   extensionPage: async ({ extensionContext }, use) => {
+    // Find the extension page that was created by launchExtension
     const page = extensionContext.pages().find(p => p.url().includes('chrome-extension://'));
     if (!page) throw new Error('Extension page not found');
+
+    // Ensure the page is fully loaded before returning
+    await page.waitForLoadState('domcontentloaded');
+
+    // Wait for either the unlock screen or onboarding to be visible
+    // This ensures the extension React app has initialized
+    const unlockInput = page.locator('input[name="password"]');
+    const createButton = page.getByRole('button', { name: /Create.*Wallet/i });
+
+    await Promise.race([
+      unlockInput.waitFor({ state: 'visible', timeout: 30000 }),
+      createButton.waitFor({ state: 'visible', timeout: 30000 }),
+    ]).catch(() => {
+      // If neither appears, the page might still be loading
+      // Continue anyway and let the test handle it
+    });
+
     await use(page);
   },
 
