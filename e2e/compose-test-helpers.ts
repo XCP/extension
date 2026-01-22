@@ -140,14 +140,16 @@ export async function enableValidationBypass(page: Page): Promise<void> {
       const assetName = assetMatch ? decodeURIComponent(assetMatch[1]) : 'UNKNOWN';
 
       // Return proper details for known assets (needed for order forms, etc.)
-      const knownAssets: Record<string, { divisible: boolean; supply: number }> = {
-        XCP: { divisible: true, supply: 2648755823622677 },
-        BTC: { divisible: true, supply: 0 },
-        PEPECASH: { divisible: true, supply: 1000000000000000 },
+      const knownAssets: Record<string, { divisible: boolean; supply: number; locked: boolean }> = {
+        XCP: { divisible: true, supply: 2648755823622677, locked: true },
+        BTC: { divisible: true, supply: 0, locked: true },
+        PEPECASH: { divisible: true, supply: 1000000000000000, locked: true },
+        // TESTUNLOCKED is an unlocked asset for testing issue-supply and lock-supply
+        TESTUNLOCKED: { divisible: true, supply: 100000000000, locked: false },
       };
 
       if (knownAssets[assetName]) {
-        console.log(`[E2E Mock] Asset details for ${assetName} - returning mock data`);
+        console.log(`[E2E Mock] Asset details for ${assetName} - returning mock data (locked: ${knownAssets[assetName].locked})`);
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -157,9 +159,9 @@ export async function enableValidationBypass(page: Page): Promise<void> {
               asset_longname: null,
               description: `Mock ${assetName} asset`,
               divisible: knownAssets[assetName].divisible,
-              locked: true,
+              locked: knownAssets[assetName].locked,
               supply: knownAssets[assetName].supply,
-              issuer: null,
+              issuer: '1TestIssuer123456789abcdefgh',
             },
           }),
         });

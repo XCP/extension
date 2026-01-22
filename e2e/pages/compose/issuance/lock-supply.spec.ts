@@ -11,10 +11,14 @@
  */
 
 import { walletTest, expect } from '../../../fixtures';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Lock Supply Page (/compose/issuance/lock-supply)', () => {
+  // Use TESTUNLOCKED asset which has locked: false in the mock
+  // XCP and other built-in assets are already locked and would show an error message
   walletTest.beforeEach(async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/lock-supply/XCP'));
+    await enableValidationBypass(page);
+    await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/lock-supply/TESTUNLOCKED'));
     await page.waitForLoadState('networkidle');
   });
 
