@@ -227,14 +227,21 @@ test.describe('Navigation Recovery - Wallet Selection Flow', () => {
     await expect(addWalletButton).toBeVisible({ timeout: 5000 });
     await addWalletButton.click();
 
-    if (await common.backButton(extensionPage).isVisible({ timeout: 2000 }).catch(() => false)) {
-      await common.backButton(extensionPage).click();
+    // Wait for possible navigation, then try to go back
+    await extensionPage.waitForTimeout(500);
+    const backButton = common.backButton(extensionPage);
+    if (await backButton.isVisible({ timeout: 2000 })) {
+      await backButton.click();
       await extensionPage.waitForTimeout(500);
     }
 
+    // Navigate back to wallet/index
     await navigateTo(extensionPage, 'wallet');
-    await expect(extensionPage).toHaveURL(/index/);
+    await expect(extensionPage).toHaveURL(/index/, { timeout: 5000 });
 
-    await expect(viewAddress.addressDisplay(extensionPage)).toBeVisible({ timeout: 5000 });
+    // Wait for the page to fully load and verify key elements exist
+    await extensionPage.waitForLoadState('networkidle');
+    // Index page has Send button (not addressDisplay which is on view-address page)
+    await expect(index.sendButton(extensionPage)).toBeVisible({ timeout: 10000 });
   });
 });
