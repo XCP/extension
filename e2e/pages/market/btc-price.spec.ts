@@ -35,15 +35,13 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
     expect(hasPrice || hasError || hasLoading || hasBtcSymbol).toBe(true);
   });
 
-  walletTest('shows 24h change percentage', async ({ page }) => {
+  walletTest('shows Bitcoin Price title', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/market/btc'));
     await page.waitForLoadState('networkidle');
 
-    // Should show percentage change (green or red)
-    const hasPercentage = await page.locator('text=/[+-]?[0-9]+\\.[0-9]+%/').first().isVisible({ timeout: 10000 }).catch(() => false);
-    const hasColoredText = await page.locator('[class*="green"], [class*="red"]').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasPercentage || hasColoredText || true).toBe(true);
+    // Page should show "Bitcoin Price" title
+    const bitcoinPriceTitle = page.locator('text=/Bitcoin Price/i').first();
+    await expect(bitcoinPriceTitle).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('shows time range tabs', async ({ page }) => {

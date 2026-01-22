@@ -75,15 +75,9 @@ walletTest.describe('AssetSelectInput Component', () => {
       // Type search query
       await comboboxInput.fill('PEPE');
 
-      // Wait for debounced search - results should filter
-      await expect(async () => {
-        const spinner = page.locator('.animate-spin');
-        const options = page.locator('[role="option"]');
-        const hasSpinner = await spinner.isVisible();
-        const hasOptions = await options.first().isVisible();
-        // Search triggers either loading or results
-        expect(hasSpinner || hasOptions || true).toBe(true);
-      }).toPass({ timeout: 3000 });
+      // Input should accept the value
+      const value = await comboboxInput.inputValue();
+      expect(value.toUpperCase()).toContain('PEPE');
     });
 
     walletTest('can select from dropdown', async ({ page }) => {

@@ -125,7 +125,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     }
   });
 
-  walletTest('has copy functionality', async ({ page }) => {
+  walletTest('has copy functionality after reveal', async ({ page }) => {
     const walletId = await getWalletId(page);
 
     if (walletId) {
@@ -133,22 +133,21 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
       await page.waitForLoadState('networkidle');
 
       const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-      if (await passwordInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await passwordInput.fill(TEST_PASSWORD);
+      await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
-        const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
-        await revealButton.click();
-        await page.waitForTimeout(1000);
+      await passwordInput.fill(TEST_PASSWORD);
 
-        // Should have copy button
-        const hasCopyButton = await page.locator('button:has-text("Copy"), button[aria-label*="copy" i]').first().isVisible({ timeout: 5000 }).catch(() => false);
+      const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
+      await revealButton.click();
+      await page.waitForTimeout(1000);
 
-        expect(hasCopyButton || true).toBe(true);
-      }
+      // After revealing, there should be a copy button
+      const copyButton = page.locator('button:has-text("Copy"), button[aria-label*="copy" i]').first();
+      await expect(copyButton).toBeVisible({ timeout: 5000 });
     }
   });
 
-  walletTest('shows QR code option', async ({ page }) => {
+  walletTest('shows private key display after reveal', async ({ page }) => {
     const walletId = await getWalletId(page);
 
     if (walletId) {
@@ -156,19 +155,17 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
       await page.waitForLoadState('networkidle');
 
       const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-      if (await passwordInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await passwordInput.fill(TEST_PASSWORD);
+      await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
-        const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
-        await revealButton.click();
-        await page.waitForTimeout(1000);
+      await passwordInput.fill(TEST_PASSWORD);
 
-        // May have QR code display
-        const hasQR = await page.locator('canvas, svg[data-testid*="qr"], .qr-code').first().isVisible({ timeout: 3000 }).catch(() => false);
+      const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
+      await revealButton.click();
+      await page.waitForTimeout(1000);
 
-        // QR is optional
-        expect(hasQR || true).toBe(true);
-      }
+      // After revealing, should show the private key in a code/display element
+      const keyDisplay = page.locator('code, pre, [data-testid*="private-key"], .font-mono').first();
+      await expect(keyDisplay).toBeVisible({ timeout: 5000 });
     }
   });
 
@@ -197,17 +194,16 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     expect(hasError || redirected).toBe(true);
   });
 
-  walletTest('shows address being exported', async ({ page }) => {
+  walletTest('page shows Private Key title', async ({ page }) => {
     const walletId = await getWalletId(page);
 
     if (walletId) {
       await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
       await page.waitForLoadState('networkidle');
 
-      // Should show which address the key is for
-      const hasAddress = await page.locator('text=/address|bc1|1[A-Za-z0-9]|3[A-Za-z0-9]/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-      expect(hasAddress || true).toBe(true);
+      // Page should show "Private Key" in the title/header
+      const privateKeyTitle = page.locator('text="Private Key"');
+      await expect(privateKeyTitle).toBeVisible({ timeout: 5000 });
     }
   });
 });

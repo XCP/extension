@@ -74,15 +74,12 @@ walletTest.describe('Address History Page (/address-history)', () => {
     }
   });
 
-  walletTest('shows pagination controls if multiple pages', async ({ page }) => {
+  walletTest('page has History title', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/address-history'));
     await page.waitForLoadState('networkidle');
 
-    // If there are many transactions, pagination should appear
-    const hasPagination = await page.locator('text=/Page [0-9]+ of [0-9]+/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasPrevNext = await page.locator('button:has-text("Previous"), button:has-text("Next")').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    // Pagination may not be visible if few/no transactions
-    expect(hasPagination || hasPrevNext || true).toBe(true);
+    // Page should show "History" title
+    const historyTitle = page.locator('h1, h2').filter({ hasText: /History/i });
+    await expect(historyTitle).toBeVisible({ timeout: 5000 });
   });
 });

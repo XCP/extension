@@ -113,7 +113,7 @@ walletTest.describe('Show Passphrase Page (/show-passphrase)', () => {
     }
   });
 
-  walletTest('show passphrase has copy button', async ({ page }) => {
+  walletTest('show passphrase has copy button after reveal', async ({ page }) => {
     const walletButton = header.walletSelector(page);
     await walletButton.click();
     await page.waitForURL(/select-wallet/, { timeout: 5000 });
@@ -132,24 +132,22 @@ walletTest.describe('Show Passphrase Page (/show-passphrase)', () => {
         await page.waitForTimeout(500);
 
         const passwordInput = page.locator('input[type="password"]');
-        if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-          await passwordInput.fill(TEST_PASSWORD);
+        await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
-          const confirmButton = page.locator('button:has-text("Show"), button:has-text("Confirm")').first();
-          await confirmButton.click();
-          await page.waitForTimeout(1000);
+        await passwordInput.fill(TEST_PASSWORD);
 
-          // Should have copy button
-          const copyButton = page.locator('button:has-text("Copy"), button[aria-label*="Copy"]').first();
-          const hasCopy = await copyButton.isVisible({ timeout: 5000 }).catch(() => false);
+        const confirmButton = page.locator('button:has-text("Show"), button:has-text("Confirm")').first();
+        await confirmButton.click();
+        await page.waitForTimeout(1000);
 
-          expect(hasCopy || true).toBe(true);
-        }
+        // Should have copy button after revealing
+        const copyButton = page.locator('button:has-text("Copy"), button[aria-label*="Copy"]').first();
+        await expect(copyButton).toBeVisible({ timeout: 5000 });
       }
     }
   });
 
-  walletTest('show passphrase has security warning', async ({ page }) => {
+  walletTest('show passphrase page shows password prompt', async ({ page }) => {
     const walletButton = header.walletSelector(page);
     await walletButton.click();
     await page.waitForURL(/select-wallet/, { timeout: 5000 });
@@ -167,10 +165,9 @@ walletTest.describe('Show Passphrase Page (/show-passphrase)', () => {
         await showPassphraseOption.click();
         await page.waitForTimeout(500);
 
-        // Should show security warning
-        const hasWarning = await page.locator('text=/Warning|Caution|Never share|Keep secret|Secure/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-        expect(hasWarning || true).toBe(true);
+        // Should show password input for verification
+        const passwordInput = page.locator('input[type="password"]');
+        await expect(passwordInput).toBeVisible({ timeout: 5000 });
       }
     }
   });

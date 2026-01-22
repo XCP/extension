@@ -317,23 +317,15 @@ walletTest.describe('Clipboard - Visual Feedback', () => {
     await page.waitForTimeout(1000);
 
     const copyButton = page.locator('button[aria-label*="Copy"], button:has-text("Copy")').first();
+    await expect(copyButton).toBeVisible({ timeout: 3000 });
 
-    if (await copyButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // Watch for visual change
-      await copyButton.click();
+    // Click copy and verify clipboard content
+    await copyButton.click();
 
-      // Look for success indicators
-      const checkIcon = page.locator('svg.lucide-check, .text-green-500, svg[class*="check"]').first();
-      const copiedText = page.locator('text=/Copied|copied/i').first();
-      const toast = page.locator('[role="alert"], .toast, [class*="toast"]').first();
-
-      const hasCheck = await checkIcon.isVisible({ timeout: 2000 }).catch(() => false);
-      const hasCopiedText = await copiedText.isVisible({ timeout: 2000 }).catch(() => false);
-      const hasToast = await toast.isVisible({ timeout: 2000 }).catch(() => false);
-
-      // At least one success indicator should appear
-      expect(hasCheck || hasCopiedText || hasToast || true).toBe(true);
-    }
+    // Verify clipboard contains address
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+    const isValidAddress = /^(bc1|1|3|tb1|m|n|2)[a-zA-Z0-9]{25,}$/.test(clipboardText);
+    expect(isValidAddress).toBe(true);
   });
 
   walletTest('copy button returns to initial state after feedback', async ({ page, context }) => {

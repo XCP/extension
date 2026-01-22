@@ -38,29 +38,25 @@ walletTest.describe('Consolidation Page (/consolidate)', () => {
     expect(hasExplanation || hasWarning || page.url().includes('consolidate')).toBe(true);
   });
 
-  walletTest('consolidate page has scan or start button', async ({ page }) => {
+  walletTest('consolidate page shows explanation text', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
     await page.waitForLoadState('networkidle');
 
     if (page.url().includes('consolidate')) {
-      // Should have action button
-      const hasButton = await page.locator('button:has-text("Scan"), button:has-text("Start"), button:has-text("Continue"), button:has-text("Recover")').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-      expect(hasButton || true).toBe(true);
+      // Should show explanation about recovery
+      const explanationText = page.locator('text=/Recover|Bitcoin|bare multisig/i').first();
+      await expect(explanationText).toBeVisible({ timeout: 5000 });
     }
   });
 
-  walletTest('consolidate page shows UTXO count or empty state', async ({ page }) => {
+  walletTest('consolidate page displays page title', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
     await page.waitForLoadState('networkidle');
 
     if (page.url().includes('consolidate')) {
-      // Should show UTXO info or empty state
-      const hasUtxoInfo = await page.locator('text=/UTXO|outputs|found|[0-9]+ BTC/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasEmpty = await page.locator('text=/No.*found|Nothing.*recover|empty/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasLoading = await page.locator('text=/Scanning|Loading|Searching/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-      expect(hasUtxoInfo || hasEmpty || hasLoading || true).toBe(true);
+      // Should show page title
+      const pageTitle = page.locator('text=/Recover Bitcoin/i').first();
+      await expect(pageTitle).toBeVisible({ timeout: 5000 });
     }
   });
 
@@ -94,16 +90,14 @@ walletTest.describe('Consolidation Success Page (/consolidation-success)', () =>
     expect(hasSuccess || hasTransactionInfo || redirected).toBe(true);
   });
 
-  walletTest('consolidation success shows transaction details', async ({ page }) => {
+  walletTest('consolidation success shows success message', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/consolidation-success'));
     await page.waitForLoadState('networkidle');
 
     if (page.url().includes('consolidation-success')) {
-      // Should show transaction details
-      const hasTxDetails = await page.locator('text=/Transaction|Amount|Fee|BTC/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasViewLink = await page.locator('a[href*="explorer"], text=/View|Explorer/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasTxDetails || hasViewLink || true).toBe(true);
+      // Should show success message
+      const successMessage = page.locator('text=/Success|Complete|Recovered/i').first();
+      await expect(successMessage).toBeVisible({ timeout: 5000 });
     }
   });
 
@@ -138,30 +132,25 @@ walletTest.describe('Consolidation Status Page (/consolidation-status)', () => {
     expect(hasStatus || hasLoading || redirected).toBe(true);
   });
 
-  walletTest('consolidation status shows transaction state', async ({ page }) => {
+  walletTest('consolidation status shows status text', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/consolidation-status'));
     await page.waitForLoadState('networkidle');
 
     if (page.url().includes('consolidation-status')) {
-      // Should show transaction status
-      const hasPending = await page.locator('text=/Pending|Unconfirmed|Mempool/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasConfirmed = await page.locator('text=/Confirmed|Complete|Success/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasProgress = await page.locator('[class*="progress"], [role="progressbar"]').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-      expect(hasPending || hasConfirmed || hasProgress || true).toBe(true);
+      // Should show status text
+      const statusText = page.locator('text=/Status|Progress|Pending|Confirmed/i').first();
+      await expect(statusText).toBeVisible({ timeout: 5000 });
     }
   });
 
-  walletTest('consolidation status has refresh or auto-update', async ({ page }) => {
+  walletTest('consolidation status page has back navigation', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/consolidation-status'));
     await page.waitForLoadState('networkidle');
 
     if (page.url().includes('consolidation-status')) {
-      // Should have refresh button or auto-update
-      const hasRefresh = await page.locator('button:has-text("Refresh"), button[aria-label*="refresh"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasAutoUpdate = await page.locator('text=/Updating|Auto|seconds/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasRefresh || hasAutoUpdate || true).toBe(true);
+      // Should have back button
+      const backButton = page.locator('button[aria-label*="back" i], header button').first();
+      await expect(backButton).toBeVisible({ timeout: 5000 });
     }
   });
 });

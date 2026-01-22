@@ -155,14 +155,15 @@ walletTest.describe('State Persistence - Navigation', () => {
   });
 
   walletTest('balance view selection persists', async ({ page }) => {
-    if (await index.assetsTab(page).isVisible({ timeout: 3000 }).catch(() => false)) {
-      await index.assetsTab(page).click();
+    const assetsTab = index.assetsTab(page);
+    if (await assetsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await assetsTab.click();
 
       await navigateTo(page, 'settings');
       await navigateTo(page, 'wallet');
 
-      const hasAssetContent = await page.locator('text=/Assets|No Assets/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      expect(hasAssetContent || true).toBe(true);
+      // After navigating back, should still be on wallet index
+      await expect(page).toHaveURL(/index/);
     }
   });
 });

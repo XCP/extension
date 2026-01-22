@@ -174,14 +174,9 @@ walletTest.describe('Form Edge Cases - Message Signing', () => {
     const specialMessage = 'Test <>&"\'\\n\\t\\r message with special chars!@#$%^&*()';
     await messageInput.fill(specialMessage);
 
-    const signButton = page.locator('button:has-text("Sign")').last();
-    if (await signButton.isEnabled()) {
-      await signButton.click();
-      await page.waitForTimeout(2000);
-
-      const hasSignature = await page.locator('.font-mono').filter({ hasText: /[a-zA-Z0-9+/=]{30,}/ }).isVisible({ timeout: 3000 }).catch(() => false);
-      expect(hasSignature || true).toBe(true);
-    }
+    // Verify input accepts special characters
+    const inputValue = await messageInput.inputValue();
+    expect(inputValue).toBe(specialMessage);
   });
 
   walletTest('handles empty message signing attempt', async ({ page }) => {
@@ -374,10 +369,9 @@ walletTest.describe('Form Edge Cases - Address Validation', () => {
     await send.recipientInput(page).blur();
     await page.waitForTimeout(500);
 
-    const hasError = await page.locator('text=/network|testnet|mainnet|mismatch/i').isVisible({ timeout: 2000 }).catch(() => false);
-    const hasGenericError = await page.locator('.text-red-600, .text-red-500').isVisible({ timeout: 1000 }).catch(() => false);
-
-    expect(hasError || hasGenericError || true).toBe(true);
+    // Should show error for testnet address on mainnet
+    const errorMessage = page.locator('.text-red-600, .text-red-500');
+    await expect(errorMessage).toBeVisible({ timeout: 3000 });
   });
 });
 
@@ -484,26 +478,19 @@ test.describe('Form Edge Cases - Private Key Import', () => {
         await privKeyInput.blur();
         await extensionPage.waitForTimeout(500);
 
-        const continueButton = extensionPage.getByRole('button', { name: /Continue/i });
-        const isEnabled = await continueButton.isEnabled().catch(() => false);
-        expect(isEnabled || true).toBe(true);
+        // Verify input accepted the value
+        const inputValue = await privKeyInput.inputValue();
+        expect(inputValue).toBe(TEST_PRIVATE_KEYS.mainnet);
       }
     }
   });
 });
 
 walletTest.describe('Form Edge Cases - Clipboard Interactions', () => {
-  walletTest('copy address button works', async ({ page }) => {
-    const copyButton = page.locator('button[aria-label*="copy"], button:has([data-icon="copy"]), [title*="Copy"], [aria-label*="Copy"]').first();
-    if (await copyButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await copyButton.click();
-      await page.waitForTimeout(500);
-
-      const hasCopiedFeedback = await page.locator('text=/copied|clipboard/i').isVisible({ timeout: 2000 }).catch(() => false);
-      const hasToast = await page.locator('[role="alert"], .toast').isVisible({ timeout: 2000 }).catch(() => false);
-
-      expect(hasCopiedFeedback || hasToast || true).toBe(true);
-    }
+  walletTest('index page has clickable address card', async ({ page }) => {
+    // The address card on index page should be clickable
+    const addressCard = page.locator('[aria-label="Current address"]');
+    await expect(addressCard).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('paste into address field works', async ({ page }) => {

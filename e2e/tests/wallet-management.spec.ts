@@ -152,19 +152,16 @@ walletTest.describe('Wallet Menu Options', () => {
     await expect(page.getByText('Show Passphrase')).toBeVisible();
   });
 
-  walletTest('remove option disabled for single wallet', async ({ page }) => {
+  walletTest('wallet options menu shows remove option', async ({ page }) => {
     await header.walletSelector(page).click();
     await page.waitForURL(/select-wallet/);
 
     const optionsButton = page.locator('button[aria-label="Wallet options"]').first();
     await optionsButton.click();
 
-    // Remove should be disabled or show tooltip
+    // Remove option should be visible in menu
     const removeOption = page.getByText(/Remove Wallet/i);
-    const isDisabled = await removeOption.isDisabled().catch(() => false);
-    const hasTooltip = await page.getByText(/Cannot remove only wallet/i).isVisible().catch(() => false);
-
-    expect(isDisabled || hasTooltip || true).toBe(true); // Soft check
+    await expect(removeOption).toBeVisible({ timeout: 3000 });
   });
 });
 

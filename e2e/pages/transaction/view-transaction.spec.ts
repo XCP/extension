@@ -22,29 +22,24 @@ walletTest.describe('Transaction Pages', () => {
       expect(hasTransaction || hasError || redirected).toBe(true);
     });
 
-    walletTest('view transaction shows transaction details', async ({ page }) => {
+    walletTest('view transaction shows error for invalid txid', async ({ page }) => {
       const testTxid = '0000000000000000000000000000000000000000000000000000000000000000';
       await page.goto(page.url().replace(/\/index.*/, `/transaction/view/${testTxid}`));
       await page.waitForLoadState('networkidle');
 
-      if (page.url().includes('/transaction/')) {
-        const hasDetails = await page.locator('text=/Hash|Block|Confirmations|Fee|Status/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-        const hasError = await page.locator('text=/not found|error/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-        expect(hasDetails || hasError || true).toBe(true);
-      }
+      // With an all-zeros txid, we expect an error message
+      const errorMessage = page.locator('text=/not found|error|invalid/i').first();
+      await expect(errorMessage).toBeVisible({ timeout: 5000 });
     });
 
-    walletTest('view transaction has explorer link', async ({ page }) => {
+    walletTest('view transaction page has back button', async ({ page }) => {
       const testTxid = '0000000000000000000000000000000000000000000000000000000000000000';
       await page.goto(page.url().replace(/\/index.*/, `/transaction/view/${testTxid}`));
       await page.waitForLoadState('networkidle');
 
-      if (page.url().includes('/transaction/')) {
-        const hasExplorerLink = await page.locator('a[href*="explorer"], a[href*="blockstream"], text=/View.*Explorer/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-        expect(hasExplorerLink || true).toBe(true);
-      }
+      // The page should have navigation controls
+      const backButton = page.locator('button[aria-label*="back" i], header button').first();
+      await expect(backButton).toBeVisible({ timeout: 5000 });
     });
   });
 });

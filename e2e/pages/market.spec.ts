@@ -169,15 +169,14 @@ walletTest.describe('Market Page', () => {
     await page.waitForLoadState('networkidle');
     await expect(page.getByText('Dispensers').first()).toBeVisible({ timeout: 10000 });
 
-    const dispensedTabs = await page.locator('button:has-text("Dispensed")').all();
+    const dispensedTab = page.locator('button:has-text("Dispensed")').first();
 
-    if (dispensedTabs.length > 0) {
-      await dispensedTabs[0].click();
+    if (await dispensedTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await dispensedTab.click();
+      await page.waitForTimeout(500);
 
-      const hasDispensedContent = await page.locator('text=/recent dispense|No recent dispenses/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasCards = await page.locator('[class*="card"], .space-y-2 > div').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-      expect(hasDispensedContent || hasCards || true).toBe(true);
+      // After clicking tab, page should still be on market
+      await expect(page).toHaveURL(/market/);
     }
   });
 
@@ -188,19 +187,18 @@ walletTest.describe('Market Page', () => {
     await page.waitForLoadState('networkidle');
     await expect(page.getByText('Orders').first()).toBeVisible({ timeout: 10000 });
 
-    const historyTabs = await page.locator('button:has-text("History")').all();
+    const historyTab = page.locator('button:has-text("History")').first();
 
-    if (historyTabs.length > 0) {
-      await historyTabs[0].click();
+    if (await historyTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await historyTab.click();
+      await page.waitForTimeout(500);
 
-      const hasHistoryContent = await page.locator('text=/order match|No recent order/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasCards = await page.locator('[class*="card"], .space-y-2 > div').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-      expect(hasHistoryContent || hasCards || true).toBe(true);
+      // After clicking tab, page should still be on market
+      await expect(page).toHaveURL(/market/);
     }
   });
 
-  walletTest('clicking on dispenser shows details or navigates', async ({ page }) => {
+  walletTest('dispensers section displays cards or empty state', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
     await page.waitForLoadState('networkidle');
@@ -208,28 +206,14 @@ walletTest.describe('Market Page', () => {
     // Wait for dispensers section to load
     await expect(page.getByText('Dispensers').first()).toBeVisible({ timeout: 10000 });
 
-    // Look for dispenser cards - they might be in a list
-    const dispenserCards = page.locator('.space-y-2 > div, [class*="card"]').filter({
-      has: page.locator('text=/satoshi|BTC|XCP/i')
-    });
+    // Should show dispenser cards or "No open dispensers" message
+    const hasCards = await page.locator('.space-y-2 > div, [class*="card"]').first().isVisible({ timeout: 5000 }).catch(() => false);
+    const hasEmptyState = await page.locator('text=/No open dispensers|No dispensers/i').first().isVisible({ timeout: 3000 }).catch(() => false);
 
-    const cardCount = await dispenserCards.count();
-
-    if (cardCount > 0) {
-      // Click on the first dispenser card
-      await dispenserCards.first().click();
-      await page.waitForTimeout(500);
-
-      // Should either show a detail view, modal, or navigate
-      const hasDetail = await page.locator('text=/Details|Close|Asset|Dispense/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const urlChanged = !page.url().includes('/market') || page.url().includes('dispenser');
-      const modalVisible = await page.locator('[role="dialog"], .modal, [class*="modal"]').first().isVisible({ timeout: 1000 }).catch(() => false);
-
-      expect(hasDetail || urlChanged || modalVisible || true).toBe(true);
-    }
+    expect(hasCards || hasEmptyState).toBe(true);
   });
 
-  walletTest('clicking on order shows details or navigates', async ({ page }) => {
+  walletTest('orders section displays cards or empty state', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
     await page.waitForLoadState('networkidle');
@@ -237,25 +221,11 @@ walletTest.describe('Market Page', () => {
     // Wait for orders section to load
     await expect(page.getByText('Orders').first()).toBeVisible({ timeout: 10000 });
 
-    // Look for order cards
-    const orderCards = page.locator('.space-y-2 > div, [class*="card"]').filter({
-      has: page.locator('text=/BTC|XCP|buy|sell/i')
-    });
+    // Should show order cards or "No open orders" message
+    const hasCards = await page.locator('.space-y-2 > div').first().isVisible({ timeout: 5000 }).catch(() => false);
+    const hasEmptyState = await page.locator('text=/No open orders|No orders/i').first().isVisible({ timeout: 3000 }).catch(() => false);
 
-    const cardCount = await orderCards.count();
-
-    if (cardCount > 0) {
-      // Click on the first order card
-      await orderCards.first().click();
-      await page.waitForTimeout(500);
-
-      // Should either show details, modal, or navigate
-      const hasDetail = await page.locator('text=/Details|Close|Order|Fill/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const urlChanged = !page.url().includes('/market') || page.url().includes('order');
-      const modalVisible = await page.locator('[role="dialog"], .modal, [class*="modal"]').first().isVisible({ timeout: 1000 }).catch(() => false);
-
-      expect(hasDetail || urlChanged || modalVisible || true).toBe(true);
-    }
+    expect(hasCards || hasEmptyState).toBe(true);
   });
 
   walletTest('market page scrolling works with content', async ({ page }) => {

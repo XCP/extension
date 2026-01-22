@@ -23,22 +23,17 @@ walletTest.describe('Select Assets Page (/select-assets)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
     await page.waitForLoadState('networkidle');
 
-    const searchInput = page.locator('input[type="search"], input[placeholder*="search" i], input[placeholder*="filter" i]').first();
-    const hasSearch = await searchInput.isVisible({ timeout: 5000 }).catch(() => false);
+    // The page should show a search input
+    const searchInput = page.locator('input[placeholder*="Search"]').first();
+    await expect(searchInput).toBeVisible({ timeout: 5000 });
 
-    if (hasSearch) {
-      // Test that search input is functional
-      await searchInput.fill('XCP');
-      await page.waitForTimeout(500);
+    // Test that search input is functional
+    await searchInput.fill('XCP');
+    await page.waitForTimeout(500);
 
-      // Input should accept the value
-      const value = await searchInput.inputValue();
-      expect(value).toBe('XCP');
-    } else {
-      // Search might not be visible if no assets - check for empty state
-      const hasEmptyState = await page.locator('text=/no asset|empty|none found/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-      expect(hasEmptyState || true).toBe(true);
-    }
+    // Input should accept the value
+    const value = await searchInput.inputValue();
+    expect(value).toBe('XCP');
   });
 
   walletTest('displays asset items', async ({ page }) => {

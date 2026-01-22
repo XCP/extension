@@ -89,15 +89,12 @@ walletTest.describe('View Address Page (/view-address)', () => {
     }
   });
 
-  walletTest('shows Select Address button for mnemonic wallets', async ({ page }) => {
+  walletTest('page has header with close button', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/view-address'));
     await page.waitForLoadState('networkidle');
 
-    // Mnemonic wallets should have a button to select different address
-    const hasSelectButton = await page.locator('button[aria-label*="Select"], button[aria-label*="List"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasListIcon = await page.locator('header button svg').last().isVisible({ timeout: 3000 }).catch(() => false);
-
-    // This may not be visible for private key wallets
-    expect(hasSelectButton || hasListIcon || true).toBe(true);
+    // Header should have a close button
+    const closeButton = page.locator('button[aria-label="Close"]');
+    await expect(closeButton).toBeVisible({ timeout: 5000 });
   });
 });

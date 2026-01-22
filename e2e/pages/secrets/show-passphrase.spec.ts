@@ -126,7 +126,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     }
   });
 
-  walletTest('has copy functionality', async ({ page }) => {
+  walletTest('has copy functionality after reveal', async ({ page }) => {
     const walletId = await getWalletId(page);
 
     if (walletId) {
@@ -134,18 +134,17 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
       await page.waitForLoadState('networkidle');
 
       const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-      if (await passwordInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await passwordInput.fill(TEST_PASSWORD);
+      await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
-        const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
-        await revealButton.click();
-        await page.waitForTimeout(1000);
+      await passwordInput.fill(TEST_PASSWORD);
 
-        // Should have copy button
-        const hasCopyButton = await page.locator('button:has-text("Copy"), button[aria-label*="copy" i]').first().isVisible({ timeout: 5000 }).catch(() => false);
+      const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
+      await revealButton.click();
+      await page.waitForTimeout(1000);
 
-        expect(hasCopyButton || true).toBe(true);
-      }
+      // After revealing, there should be a copy button
+      const copyButton = page.locator('button:has-text("Copy"), button[aria-label*="copy" i]').first();
+      await expect(copyButton).toBeVisible({ timeout: 5000 });
     }
   });
 
