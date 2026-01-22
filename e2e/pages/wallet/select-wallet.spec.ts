@@ -63,15 +63,12 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
     await expect(page).toHaveURL(/add-wallet/, { timeout: 5000 });
   });
 
-  walletTest('indicates active wallet', async ({ page }) => {
+  walletTest('indicates active wallet with checked state', async ({ page }) => {
     await navigateToSelectWallet(page);
 
-    // The active wallet should have some visual indicator (checkmark, different style, "active" text)
-    const hasActiveIndicator = await page.locator('[data-active="true"], [aria-selected="true"], .active, text=/active|selected/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasCheckmark = await page.locator('svg[aria-label*="check" i], [data-testid*="check"], .checkmark').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    // Active indicator may vary in implementation
-    expect(hasActiveIndicator || hasCheckmark || true).toBe(true);
+    // The active wallet should have aria-checked="true" on the radio item
+    const activeWallet = page.locator('[role="radio"][aria-checked="true"]');
+    await expect(activeWallet).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('can select a different wallet', async ({ page }) => {
@@ -116,14 +113,12 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
     expect(isVisible).toBe(true);
   });
 
-  walletTest('shows wallet type indicator', async ({ page }) => {
+  walletTest('displays Keychain title', async ({ page }) => {
     await navigateToSelectWallet(page);
 
-    // Wallets may show if they're mnemonic or private key based
-    const hasTypeIndicator = await page.locator('text=/mnemonic|private key|seed|12-word/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-    // Type indicator is optional
-    expect(hasTypeIndicator || true).toBe(true);
+    // The page should show "Keychain" title
+    const keychainTitle = page.locator('text="Keychain"');
+    await expect(keychainTitle).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('handles wallet selection error gracefully', async ({ page }) => {

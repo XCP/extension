@@ -222,14 +222,12 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     expect(isVisible).toBe(true);
   });
 
-  walletTest('has tutorial link', async ({ page }) => {
+  walletTest('displays instructions text', async ({ page }) => {
     await navigateToImportPrivateKey(page);
 
-    // Before checking confirmation, there should be a tutorial link
-    const hasYoutubeLink = await page.locator('a[href*="youtube"], button:has-text("Tutorial"), button:has-text("Watch")').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-    // Tutorial link is optional
-    expect(hasYoutubeLink || true).toBe(true);
+    // Page should show instruction text about private key
+    const instructionText = page.locator('text=/Enter.*private key/i');
+    await expect(instructionText).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('displays instructions', async ({ page }) => {

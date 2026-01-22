@@ -164,21 +164,18 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
     expect(hasIcon).toBe(true);
   });
 
-  walletTest('password field autofocuses', async ({ page }) => {
+  walletTest('password field is type password', async ({ page }) => {
     await navigateToResetWallet(page);
 
-    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+    const passwordInput = page.locator('input[type="password"]').first();
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
-    if (await passwordInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // Check if field is focused (may not work in all environments)
-      const isFocused = await passwordInput.evaluate((el) => document.activeElement === el).catch(() => false);
-
-      // Autofocus is a nice-to-have, not required
-      expect(isFocused || true).toBe(true);
-    }
+    // Verify the field hides input
+    const inputType = await passwordInput.getAttribute('type');
+    expect(inputType).toBe('password');
   });
 
-  walletTest('reset button shows loading state during submission', async ({ page }) => {
+  walletTest('reset button stays on page with wrong password', async ({ page }) => {
     await navigateToResetWallet(page);
 
     const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
@@ -189,10 +186,10 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
     const resetButton = page.locator('button:has-text("Reset"), button[type="submit"]').first();
     await resetButton.click();
 
-    // Button may show loading text briefly
-    const hadLoadingState = await page.locator('button:has-text("Resetting"), button[disabled]').first().isVisible({ timeout: 2000 }).catch(() => false);
+    // Wait for error handling
+    await page.waitForTimeout(1500);
 
-    // Loading state is optional but good UX
-    expect(hadLoadingState || true).toBe(true);
+    // Should still be on reset page (wrong password rejected)
+    expect(page.url()).toContain('reset-wallet');
   });
 });

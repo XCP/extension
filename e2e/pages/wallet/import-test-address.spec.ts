@@ -172,7 +172,7 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
     }
   });
 
-  walletTest('supports Enter key to submit', async ({ page }) => {
+  walletTest('input field accepts Bitcoin address', async ({ page }) => {
     await navigateToImportTestAddress(page);
 
     if (page.url().includes('import-test-address')) {
@@ -180,32 +180,24 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
 
       if (await addressInput.isVisible({ timeout: 5000 }).catch(() => false)) {
         await addressInput.fill('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
-        await addressInput.press('Enter');
-        await page.waitForTimeout(1000);
 
-        // Should either navigate away or show a response
-        const navigatedAway = !page.url().includes('import-test-address');
-        const hasResponse = await page.locator('text=/error|success|importing/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-        // Enter key handling is optional
-        expect(navigatedAway || hasResponse || true).toBe(true);
+        // Value should be set
+        await expect(addressInput).toHaveValue('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
       }
     }
   });
 
-  walletTest('has autofocus on address input', async ({ page }) => {
+  walletTest('address input has placeholder text', async ({ page }) => {
     await navigateToImportTestAddress(page);
 
     if (page.url().includes('import-test-address')) {
-      const addressInput = page.locator('input[id="test-address"], input[placeholder*="address" i]').first();
+      const addressInput = page.locator('input[id="test-address"]').first();
 
       if (await addressInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-        // Check if field has autofocus attribute or is focused
-        const hasAutoFocus = await addressInput.getAttribute('autofocus') !== null;
-        const isFocused = await addressInput.evaluate((el) => document.activeElement === el).catch(() => false);
-
-        // Autofocus is a nice-to-have
-        expect(hasAutoFocus || isFocused || true).toBe(true);
+        // Should have placeholder text
+        const placeholder = await addressInput.getAttribute('placeholder');
+        expect(placeholder).toBeTruthy();
+        expect(placeholder).toContain('Bitcoin address');
       }
     }
   });
