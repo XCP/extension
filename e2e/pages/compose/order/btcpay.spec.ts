@@ -1,20 +1,21 @@
 /**
- * Compose Order BTC Pay Page Tests (/compose/order/btcpay)
+ * Compose Order BTC Pay Page Tests (/compose/btcpay)
  *
  * Tests for paying BTC to fill an order.
  * Component: src/pages/compose/order/btcpay/index.tsx
  *
  * The page shows:
  * - Title "BTCPay"
- * - Order selection
+ * - Order Match ID input
  * - Fee Rate selector
  */
 
 import { walletTest, expect } from '../../../fixtures';
 
-walletTest.describe('Compose BTC Pay Page (/compose/order/btcpay)', () => {
+walletTest.describe('Compose BTC Pay Page (/compose/btcpay)', () => {
+  // Route is /compose/btcpay (not /compose/order/btcpay)
   walletTest.beforeEach(async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/order/btcpay'));
+    await page.goto(page.url().replace(/\/index.*/, '/compose/btcpay'));
     await page.waitForLoadState('networkidle');
   });
 

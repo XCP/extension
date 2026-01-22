@@ -1,20 +1,21 @@
 /**
- * Compose Order Cancel Page Tests (/compose/order/cancel)
+ * Compose Order Cancel Page Tests (/compose/cancel)
  *
  * Tests for cancelling an open DEX order.
  * Component: src/pages/compose/order/cancel/index.tsx
  *
  * The page shows:
  * - Title "Cancel"
- * - Order selection (dropdown of user's open orders)
+ * - Order Hash input
  * - Fee Rate selector
  */
 
 import { walletTest, expect } from '../../../fixtures';
 
-walletTest.describe('Compose Cancel Order Page (/compose/order/cancel)', () => {
+walletTest.describe('Compose Cancel Order Page (/compose/cancel)', () => {
+  // Route is /compose/cancel/:hash? (not /compose/order/cancel)
   walletTest.beforeEach(async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/order/cancel'));
+    await page.goto(page.url().replace(/\/index.*/, '/compose/cancel'));
     await page.waitForLoadState('networkidle');
   });
 
