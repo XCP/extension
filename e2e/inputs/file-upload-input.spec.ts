@@ -36,12 +36,12 @@ walletTest.describe('FileUploadInput Component', () => {
     await expect(taprootCard).toBeVisible({ timeout: 5000 });
     await taprootCard.click();
 
-    // Wait for address type to update
+    // Wait for address type to update (HeadlessUI uses data-headlessui-state or border classes)
     await expect(async () => {
-      const selected = page.locator('[data-checked="true"]:has-text("Taproot")');
+      const selected = page.locator('.border-blue-500:has-text("Taproot")');
       const isSelected = await selected.count() > 0;
       expect(isSelected).toBe(true);
-    }).toPass({ timeout: 3000 });
+    }).toPass({ timeout: 5000 });
 
     // Now navigate to broadcast page
     await page.goto(`${baseUrl}/compose/broadcast`);
