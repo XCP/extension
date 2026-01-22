@@ -24,7 +24,8 @@ walletTest.describe('SearchInput Component', () => {
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
     await page.goto(`${baseUrl}/settings/pinned-assets`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
+    // Wait for search input to confirm page is loaded
+    await page.locator('input[name="search"]').waitFor({ state: 'visible', timeout: 5000 });
   });
 
   // Helper to get search input
@@ -33,71 +34,46 @@ walletTest.describe('SearchInput Component', () => {
   walletTest.describe('Rendering', () => {
     walletTest('renders search input field', async ({ page }) => {
       const input = getSearchInput(page);
-      await expect(input).toBeVisible({ timeout: 5000 });
+      await expect(input).toBeVisible();
     });
 
     walletTest('has search icon', async ({ page }) => {
       // Search icon is positioned absolute left
       const searchIcon = page.locator('svg.text-gray-400').first();
-      const hasIcon = await searchIcon.isVisible({ timeout: 3000 }).catch(() => false);
-      expect(hasIcon).toBe(true);
+      await expect(searchIcon).toBeVisible();
     });
 
     walletTest('has placeholder text', async ({ page }) => {
       const input = getSearchInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const placeholder = await input.getAttribute('placeholder');
-        expect(placeholder).toBeTruthy();
-      }
+      const placeholder = await input.getAttribute('placeholder');
+      expect(placeholder).toBeTruthy();
     });
 
     walletTest('has aria-label for accessibility', async ({ page }) => {
       const input = getSearchInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const ariaLabel = await input.getAttribute('aria-label');
-        expect(ariaLabel).toBeTruthy();
-      }
+      const ariaLabel = await input.getAttribute('aria-label');
+      expect(ariaLabel).toBeTruthy();
     });
   });
 
   walletTest.describe('Input Behavior', () => {
     walletTest('accepts text input', async ({ page }) => {
       const input = getSearchInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('XCP');
-        await page.waitForTimeout(200);
-
-        const value = await input.inputValue();
-        expect(value).toBe('XCP');
-      }
+      await input.fill('XCP');
+      await expect(input).toHaveValue('XCP');
     });
 
     walletTest('allows typing search queries', async ({ page }) => {
       const input = getSearchInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('test asset');
-        await page.waitForTimeout(200);
-
-        const value = await input.inputValue();
-        expect(value).toBe('test asset');
-      }
+      await input.fill('test asset');
+      await expect(input).toHaveValue('test asset');
     });
 
     walletTest('preserves value after blur', async ({ page }) => {
       const input = getSearchInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('PEPECASH');
-        await input.blur();
-        await page.waitForTimeout(200);
-
-        const value = await input.inputValue();
-        expect(value).toBe('PEPECASH');
-      }
+      await input.fill('PEPECASH');
+      await input.blur();
+      await expect(input).toHaveValue('PEPECASH');
     });
   });
 
@@ -105,101 +81,73 @@ walletTest.describe('SearchInput Component', () => {
     walletTest('shows clear button when input has value', async ({ page }) => {
       const input = getSearchInput(page);
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Initially no clear button
-        let clearButton = page.locator('button[aria-label="Clear search"]');
-        const initiallyHidden = !(await clearButton.isVisible().catch(() => false));
+      // Enter text
+      await input.fill('test');
 
-        // Enter text
-        await input.fill('test');
-        await page.waitForTimeout(200);
-
-        // Clear button should appear
-        clearButton = page.locator('button[aria-label="Clear search"]');
-        const nowVisible = await clearButton.isVisible({ timeout: 2000 }).catch(() => false);
-
-        expect(initiallyHidden || nowVisible).toBe(true);
-      }
+      // Clear button should appear
+      const clearButton = page.locator('button[aria-label="Clear search"]');
+      await expect(clearButton).toBeVisible({ timeout: 2000 });
     });
 
     walletTest('clicking clear button clears input', async ({ page }) => {
       const input = getSearchInput(page);
+      await input.fill('test query');
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('test query');
-        await page.waitForTimeout(200);
+      const clearButton = page.locator('button[aria-label="Clear search"]');
+      await expect(clearButton).toBeVisible({ timeout: 2000 });
+      await clearButton.click();
 
-        const clearButton = page.locator('button[aria-label="Clear search"]');
-        if (await clearButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await clearButton.click();
-          await page.waitForTimeout(200);
-
-          const value = await input.inputValue();
-          expect(value).toBe('');
-        }
-      }
+      await expect(input).toHaveValue('');
     });
 
     walletTest('clear button disappears after clearing', async ({ page }) => {
       const input = getSearchInput(page);
+      await input.fill('test');
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('test');
-        await page.waitForTimeout(200);
+      const clearButton = page.locator('button[aria-label="Clear search"]');
+      await expect(clearButton).toBeVisible({ timeout: 2000 });
+      await clearButton.click();
 
-        const clearButton = page.locator('button[aria-label="Clear search"]');
-        if (await clearButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await clearButton.click();
-          await page.waitForTimeout(300);
-
-          // Clear button should be hidden now
-          const stillVisible = await clearButton.isVisible().catch(() => false);
-          expect(stillVisible).toBe(false);
-        }
-      }
+      // Clear button should be hidden now
+      await expect(clearButton).not.toBeVisible();
     });
   });
 
   walletTest.describe('Loading State', () => {
-    walletTest('shows spinner during search', async ({ page }) => {
+    walletTest('triggers search on input', async ({ page }) => {
       const input = getSearchInput(page);
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Type to trigger search
-        await input.fill('XCP');
+      // Type to trigger search
+      await input.fill('XCP');
 
-        // Look for spinner
-        const spinner = page.locator('.animate-spin');
-        const sawSpinner = await spinner.isVisible({ timeout: 1000 }).catch(() => false);
+      // Either spinner shows or results appear (depending on API speed)
+      const spinner = page.locator('.animate-spin');
+      const results = page.locator('text=/XCP/i');
 
-        // May or may not catch spinner depending on API speed
-        expect(typeof sawSpinner).toBe('boolean');
-      }
+      await expect(async () => {
+        const hasSpinner = await spinner.count() > 0;
+        const hasResults = await results.count() > 0;
+        // Search was triggered if either spinner or results appear
+        expect(hasSpinner || hasResults).toBe(true);
+      }).toPass({ timeout: 3000 });
     });
   });
 
   walletTest.describe('Accessibility', () => {
     walletTest('input has name attribute', async ({ page }) => {
       const input = getSearchInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const name = await input.getAttribute('name');
-        expect(name).toBe('search');
-      }
+      const name = await input.getAttribute('name');
+      expect(name).toBe('search');
     });
 
     walletTest('input is focusable', async ({ page }) => {
       const input = getSearchInput(page);
+      await input.focus();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.focus();
-
-        const isFocused = await page.evaluate(() => {
-          return document.activeElement?.getAttribute('name') === 'search';
-        });
-
-        expect(isFocused).toBe(true);
-      }
+      const isFocused = await page.evaluate(() => {
+        return document.activeElement?.getAttribute('name') === 'search';
+      });
+      expect(isFocused).toBe(true);
     });
   });
 });

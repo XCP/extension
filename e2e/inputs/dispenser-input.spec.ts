@@ -25,7 +25,8 @@ walletTest.describe('DispenserInput Component', () => {
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
     await page.goto(`${baseUrl}/compose/dispenser/dispense`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
+    // Wait for dispenser input to confirm page is loaded
+    await page.locator('input[name="dispenserAddress"]').waitFor({ state: 'visible', timeout: 5000 });
   });
 
   // Helper to get dispenser address input
@@ -34,12 +35,12 @@ walletTest.describe('DispenserInput Component', () => {
   walletTest.describe('Rendering', () => {
     walletTest('renders dispenser address input', async ({ page }) => {
       const input = getDispenserInput(page);
-      await expect(input).toBeVisible({ timeout: 5000 });
+      await expect(input).toBeVisible();
     });
 
     walletTest('has Dispenser Address label', async ({ page }) => {
       const label = page.locator('label:has-text("Dispenser Address")');
-      await expect(label).toBeVisible({ timeout: 3000 });
+      await expect(label).toBeVisible();
     });
 
     walletTest('has required indicator', async ({ page }) => {
@@ -49,187 +50,127 @@ walletTest.describe('DispenserInput Component', () => {
 
     walletTest('input starts empty', async ({ page }) => {
       const input = getDispenserInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const value = await input.inputValue();
-        expect(value).toBe('');
-      }
+      await expect(input).toHaveValue('');
     });
   });
 
   walletTest.describe('Address Input', () => {
     walletTest('accepts text input', async ({ page }) => {
       const input = getDispenserInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
-        await page.waitForTimeout(200);
-
-        const value = await input.inputValue();
-        expect(value).toBe('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
-      }
+      await input.fill('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
+      await expect(input).toHaveValue('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
     });
 
     walletTest('allows clearing input', async ({ page }) => {
       const input = getDispenserInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('someaddress');
-        await input.clear();
-
-        const value = await input.inputValue();
-        expect(value).toBe('');
-      }
+      await input.fill('someaddress');
+      await input.clear();
+      await expect(input).toHaveValue('');
     });
   });
 
   walletTest.describe('Address Validation', () => {
     walletTest('shows error border for invalid address', async ({ page }) => {
       const input = getDispenserInput(page);
+      await input.fill('notvalidaddress');
+      await input.blur();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('notvalidaddress');
-        await page.waitForTimeout(300);
-
-        // Should show red border
-        const classes = await input.getAttribute('class') || '';
-        expect(classes).toContain('border-red-500');
-      }
+      // Should show red border for invalid address
+      await expect(input).toHaveClass(/border-red-500/, { timeout: 3000 });
     });
 
     walletTest('no error border for valid address format', async ({ page }) => {
       const input = getDispenserInput(page);
+      // Use a valid-format Bitcoin address
+      await input.fill('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
+      await input.blur();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Use a valid-format Bitcoin address
-        await input.fill('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
-        await page.waitForTimeout(500);
-
-        // Should not show red border (may show other colors during loading)
-        const classes = await input.getAttribute('class') || '';
-        expect(classes).not.toContain('border-red-500');
-      }
+      // Should not show red border
+      await expect(input).not.toHaveClass(/border-red-500/);
     });
 
     walletTest('accepts SegWit bech32 address', async ({ page }) => {
       const input = getDispenserInput(page);
+      await input.fill('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
+      await input.blur();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
-        await page.waitForTimeout(500);
-
-        // Valid format should not have red border
-        const classes = await input.getAttribute('class') || '';
-        expect(classes).not.toContain('border-red-500');
-      }
+      // Valid format should not have red border
+      await expect(input).not.toHaveClass(/border-red-500/);
     });
   });
 
   walletTest.describe('Dispenser Discovery', () => {
-    walletTest('shows loading state when fetching dispensers', async ({ page }) => {
+    walletTest('shows loading or results after entering address', async ({ page }) => {
       const input = getDispenserInput(page);
+      // Enter a valid address to trigger fetch
+      await input.fill('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
+      await input.blur();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Enter a valid address to trigger fetch
-        await input.fill('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
+      // Wait for either loading indicator, no dispenser message, or dispenser list
+      const loadingText = page.locator('text=/Loading/i');
+      const noDispenser = page.locator('text=/No.*dispenser/i');
+      const dispenserList = page.locator('[role="radiogroup"], .dispenser-list, .space-y-2');
 
-        // Look for loading indicator
-        const loadingText = page.locator('text=/Loading/i');
-        const sawLoading = await loadingText.isVisible({ timeout: 2000 }).catch(() => false);
-
-        // May or may not catch loading state
-        expect(typeof sawLoading).toBe('boolean');
-      }
+      await expect(async () => {
+        const hasLoading = await loadingText.count() > 0;
+        const hasNoDispenser = await noDispenser.count() > 0;
+        const hasDispenserList = await dispenserList.count() > 0;
+        expect(hasLoading || hasNoDispenser || hasDispenserList).toBe(true);
+      }).toPass({ timeout: 5000 });
     });
 
-    walletTest('shows error when no dispensers found', async ({ page }) => {
+    walletTest('handles address with no dispensers', async ({ page }) => {
       const input = getDispenserInput(page);
+      // Use a random valid address unlikely to have dispensers
+      await input.fill('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
+      await input.blur();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Use a random valid address unlikely to have dispensers
-        await input.fill('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
-        await page.waitForTimeout(3000); // Wait for API
-
-        // Should show "no dispenser found" or similar message
+      // Wait for fetch to complete - either shows no dispenser or found some
+      await expect(async () => {
         const noDispenser = page.locator('text=/No.*dispenser/i');
-        const hasMessage = await noDispenser.isVisible().catch(() => false);
-
-        // Either shows no dispenser or found some
-        expect(typeof hasMessage).toBe('boolean');
-      }
-    });
-
-    walletTest('displays dispenser list when dispensers found', async ({ page }) => {
-      // This test checks that the list area exists
-      // Actual dispensers depend on blockchain state
-
-      const input = getDispenserInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Enter valid address
-        await input.fill('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
-        await page.waitForTimeout(2000);
-
-        // Check for dispenser list container
-        const listArea = page.locator('[role="radiogroup"], .dispenser-list, .space-y-2');
-        const hasListArea = await listArea.first().isVisible().catch(() => false);
-
-        expect(typeof hasListArea).toBe('boolean');
-      }
+        const dispenserList = page.locator('[role="radiogroup"]');
+        const hasNoDispenser = await noDispenser.count() > 0;
+        const hasDispenserList = await dispenserList.count() > 0;
+        // Either shows "no dispenser" message or a list
+        expect(hasNoDispenser || hasDispenserList).toBe(true);
+      }).toPass({ timeout: 5000 });
     });
   });
 
   walletTest.describe('Form Integration', () => {
     walletTest('input has name attribute', async ({ page }) => {
       const input = getDispenserInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const name = await input.getAttribute('name');
-        expect(name).toBe('dispenserAddress');
-      }
+      const name = await input.getAttribute('name');
+      expect(name).toBe('dispenserAddress');
     });
 
     walletTest('input has id attribute', async ({ page }) => {
       const input = getDispenserInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const id = await input.getAttribute('id');
-        expect(id).toBe('dispenserAddress');
-      }
+      const id = await input.getAttribute('id');
+      expect(id).toBe('dispenserAddress');
     });
 
     walletTest('input has required attribute', async ({ page }) => {
       const input = getDispenserInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const required = await input.getAttribute('required');
-        expect(required).not.toBeNull();
-      }
+      const required = await input.getAttribute('required');
+      expect(required).not.toBeNull();
     });
   });
 
   walletTest.describe('Accessibility', () => {
     walletTest('input is focusable', async ({ page }) => {
       const input = getDispenserInput(page);
+      await input.focus();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.focus();
-
-        const isFocused = await page.evaluate(() => {
-          return document.activeElement?.getAttribute('name') === 'dispenserAddress';
-        });
-
-        expect(isFocused).toBe(true);
-      }
+      const isFocused = await page.evaluate(() => {
+        return document.activeElement?.getAttribute('name') === 'dispenserAddress';
+      });
+      expect(isFocused).toBe(true);
     });
 
     walletTest('label is associated with input', async ({ page }) => {
-      const input = getDispenserInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const label = page.locator('label[for="dispenserAddress"]');
-        await expect(label).toBeVisible();
-      }
+      const label = page.locator('label[for="dispenserAddress"]');
+      await expect(label).toBeVisible();
     });
   });
 });

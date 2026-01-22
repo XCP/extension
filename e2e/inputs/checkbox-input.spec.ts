@@ -25,15 +25,12 @@ walletTest.describe('CheckboxInput Component', () => {
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
     await page.goto(`${baseUrl}/compose/issuance/issue`);
     await page.waitForLoadState('networkidle');
-    // Wait for form to fully render
-    await page.waitForTimeout(1000);
+    // Wait for checkbox to confirm page is loaded
+    await page.locator('[role="checkbox"], input[type="checkbox"]').first().waitFor({ state: 'visible', timeout: 5000 });
   });
 
   walletTest.describe('Rendering', () => {
     walletTest('renders checkbox element', async ({ page }) => {
-      // Wait for page content to load
-      await page.waitForTimeout(500);
-
       // Look for checkboxes (HeadlessUI Checkbox role or standard checkbox)
       const checkboxes = page.locator('[role="checkbox"], input[type="checkbox"], button[data-headlessui-state]');
       const count = await checkboxes.count();
@@ -43,252 +40,175 @@ walletTest.describe('CheckboxInput Component', () => {
     });
 
     walletTest('checkbox has associated label', async ({ page }) => {
-      // Look for a label near the checkbox
-      const checkboxContainer = page.locator('[role="checkbox"], input[type="checkbox"]').first();
+      const checkbox = page.locator('[role="checkbox"], input[type="checkbox"]').first();
+      await expect(checkbox).toBeVisible();
 
-      if (await checkboxContainer.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Check if there's a label in the same container
-        const parentField = checkboxContainer.locator('..').locator('..');
-        const label = parentField.locator('label');
-        const labelExists = await label.isVisible().catch(() => false);
-
-        expect(labelExists).toBe(true);
-      }
+      // Check if there's a label in the same container
+      const parentField = checkbox.locator('..').locator('..');
+      const label = parentField.locator('label');
+      await expect(label).toBeVisible();
     });
 
-    walletTest('checkbox is not checked by default', async ({ page }) => {
+    walletTest('checkbox has aria-checked attribute', async ({ page }) => {
       const checkbox = page.locator('[role="checkbox"]').first();
+      await expect(checkbox).toBeVisible();
 
-      if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const isChecked = await checkbox.getAttribute('aria-checked');
-        // Default should be false/unchecked for most options
-        expect(isChecked === 'false' || isChecked === 'true').toBe(true);
-      }
+      const isChecked = await checkbox.getAttribute('aria-checked');
+      // Should have true or false value
+      expect(isChecked === 'false' || isChecked === 'true').toBe(true);
     });
   });
 
   walletTest.describe('Check/Uncheck Behavior', () => {
     walletTest('clicking checkbox toggles checked state', async ({ page }) => {
       const checkbox = page.locator('[role="checkbox"]').first();
+      await expect(checkbox).toBeVisible();
 
-      if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Get initial state
-        const initialState = await checkbox.getAttribute('aria-checked');
+      // Get initial state
+      const initialState = await checkbox.getAttribute('aria-checked');
 
-        // Click to toggle
-        await checkbox.click();
-        await page.waitForTimeout(200);
+      // Click to toggle
+      await checkbox.click();
 
-        // Get new state
+      // Wait for state to change
+      await expect(async () => {
         const newState = await checkbox.getAttribute('aria-checked');
-
-        // State should have changed
         expect(newState).not.toBe(initialState);
-      }
+      }).toPass({ timeout: 2000 });
     });
 
     walletTest('clicking checkbox twice returns to original state', async ({ page }) => {
       const checkbox = page.locator('[role="checkbox"]').first();
+      await expect(checkbox).toBeVisible();
 
-      if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Get initial state
-        const initialState = await checkbox.getAttribute('aria-checked');
+      // Get initial state
+      const initialState = await checkbox.getAttribute('aria-checked');
 
-        // Click twice
-        await checkbox.click();
-        await page.waitForTimeout(100);
-        await checkbox.click();
-        await page.waitForTimeout(100);
+      // Click twice
+      await checkbox.click();
+      await checkbox.click();
 
-        // Get final state
+      // Should be back to initial state
+      await expect(async () => {
         const finalState = await checkbox.getAttribute('aria-checked');
-
-        // Should be back to initial state
         expect(finalState).toBe(initialState);
-      }
+      }).toPass({ timeout: 2000 });
     });
 
     walletTest('clicking label toggles checkbox', async ({ page }) => {
       const checkbox = page.locator('[role="checkbox"]').first();
+      await expect(checkbox).toBeVisible();
 
-      if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const initialState = await checkbox.getAttribute('aria-checked');
+      const initialState = await checkbox.getAttribute('aria-checked');
 
-        // Find and click the label
-        const checkboxId = await checkbox.getAttribute('id');
-        if (checkboxId) {
-          const label = page.locator(`label[for="${checkboxId}"]`);
-          if (await label.isVisible().catch(() => false)) {
-            await label.click();
-            await page.waitForTimeout(200);
+      // Find and click the label
+      const checkboxId = await checkbox.getAttribute('id');
+      expect(checkboxId).toBeTruthy();
 
-            const newState = await checkbox.getAttribute('aria-checked');
-            expect(newState).not.toBe(initialState);
-          }
-        }
-      }
+      const label = page.locator(`label[for="${checkboxId}"]`);
+      await expect(label).toBeVisible();
+      await label.click();
+
+      await expect(async () => {
+        const newState = await checkbox.getAttribute('aria-checked');
+        expect(newState).not.toBe(initialState);
+      }).toPass({ timeout: 2000 });
     });
   });
 
   walletTest.describe('Visual Feedback', () => {
     walletTest('checkbox shows checkmark when checked', async ({ page }) => {
       const checkbox = page.locator('[role="checkbox"]').first();
+      await expect(checkbox).toBeVisible();
 
-      if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Ensure checkbox is checked
-        const isChecked = await checkbox.getAttribute('aria-checked');
-        if (isChecked !== 'true') {
-          await checkbox.click();
-          await page.waitForTimeout(200);
-        }
-
-        // Look for checkmark svg or data-checked attribute
-        const hasCheckedData = await checkbox.getAttribute('data-checked');
-        const svg = checkbox.locator('svg');
-        const hasSvg = await svg.isVisible().catch(() => false);
-
-        // Either has data-checked or visible checkmark
-        expect(hasCheckedData === '' || hasSvg).toBe(true);
-      }
-    });
-
-    walletTest('checkbox styling changes when checked', async ({ page }) => {
-      const checkbox = page.locator('[role="checkbox"]').first();
-
-      if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Get initial classes
-        const initialClasses = await checkbox.getAttribute('class') || '';
-
-        // Toggle checkbox
+      // Ensure checkbox is checked
+      const isChecked = await checkbox.getAttribute('aria-checked');
+      if (isChecked !== 'true') {
         await checkbox.click();
-        await page.waitForTimeout(200);
-
-        // Get new classes
-        const newClasses = await checkbox.getAttribute('class') || '';
-
-        // Classes should have changed (different styling for checked)
-        // or data-checked attribute should be present
-        const hasDataChecked = await checkbox.getAttribute('data-checked');
-        expect(newClasses !== initialClasses || hasDataChecked !== null).toBe(true);
       }
+
+      // Wait for checked state
+      await expect(async () => {
+        const state = await checkbox.getAttribute('aria-checked');
+        expect(state).toBe('true');
+      }).toPass({ timeout: 2000 });
+
+      // Look for checkmark svg or data-checked attribute
+      const hasCheckedData = await checkbox.getAttribute('data-checked');
+      const svg = checkbox.locator('svg');
+      const hasSvg = await svg.isVisible();
+
+      // Either has data-checked or visible checkmark
+      expect(hasCheckedData === '' || hasSvg).toBe(true);
     });
   });
 
   walletTest.describe('Form Integration', () => {
-    walletTest('checkbox has name attribute', async ({ page }) => {
+    walletTest('checkbox is in form context', async ({ page }) => {
       const checkbox = page.locator('[role="checkbox"]').first();
+      await expect(checkbox).toBeVisible();
 
-      if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // HeadlessUI Checkbox may set name on button, hidden input, or use data attribute
-        const checkboxName = await checkbox.getAttribute('name');
-        const dataName = await checkbox.getAttribute('data-name');
+      // Check if checkbox is in a form
+      const isInForm = await checkbox.evaluate((el: HTMLElement) => {
+        if (el.closest('form')) return true;
+        const parent = el.parentElement;
+        if (parent) {
+          const hiddenInput = parent.querySelector('input[name]');
+          if (hiddenInput && hiddenInput.closest('form')) return true;
+        }
+        return false;
+      });
 
-        // Look for hidden input within parent or sibling
-        const parent = checkbox.locator('..');
-        const hiddenInput = parent.locator('input[type="hidden"], input[name]');
-        const hasNamedInput = await hiddenInput.count() > 0;
-
-        // Check form submission value - any of these indicates proper form integration
-        const hasFormIntegration = !!checkboxName || !!dataName || hasNamedInput;
-
-        // HeadlessUI Checkbox doesn't require name - it uses data-checked for state
-        // This test passes if any form integration exists, or if it's a controlled component
-        expect(hasFormIntegration || true).toBe(true);
-      }
-    });
-
-    walletTest('checkbox state is included in form', async ({ page }) => {
-      const checkbox = page.locator('[role="checkbox"]').first();
-
-      if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Check if checkbox or related input is in a form
-        const isInForm = await checkbox.evaluate((el: HTMLElement) => {
-          // Check parent form
-          if (el.closest('form')) return true;
-
-          // Check for hidden input sibling in a form
-          const parent = el.parentElement;
-          if (parent) {
-            const hiddenInput = parent.querySelector('input[name]');
-            if (hiddenInput && hiddenInput.closest('form')) return true;
-          }
-
-          return false;
-        });
-
-        // Form integration should exist
-        expect(typeof isInForm).toBe('boolean');
-      }
+      // Form integration should exist - this is a requirement for the component
+      expect(isInForm).toBe(true);
     });
   });
 
   walletTest.describe('Accessibility', () => {
     walletTest('checkbox has role="checkbox"', async ({ page }) => {
       const checkbox = page.locator('[role="checkbox"]').first();
+      await expect(checkbox).toBeVisible();
 
-      if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const role = await checkbox.getAttribute('role');
-        expect(role).toBe('checkbox');
-      }
-    });
-
-    walletTest('checkbox has aria-checked attribute', async ({ page }) => {
-      const checkbox = page.locator('[role="checkbox"]').first();
-
-      if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const ariaChecked = await checkbox.getAttribute('aria-checked');
-        expect(ariaChecked === 'true' || ariaChecked === 'false').toBe(true);
-      }
+      const role = await checkbox.getAttribute('role');
+      expect(role).toBe('checkbox');
     });
 
     walletTest('checkbox is keyboard accessible', async ({ page }) => {
       const checkbox = page.locator('[role="checkbox"]').first();
+      await expect(checkbox).toBeVisible();
 
-      if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const initialState = await checkbox.getAttribute('aria-checked');
+      const initialState = await checkbox.getAttribute('aria-checked');
 
-        // Focus and press Space to toggle
-        await checkbox.focus();
-        await page.keyboard.press('Space');
-        await page.waitForTimeout(200);
+      // Focus and press Space to toggle
+      await checkbox.focus();
+      await page.keyboard.press('Space');
 
+      await expect(async () => {
         const newState = await checkbox.getAttribute('aria-checked');
         expect(newState).not.toBe(initialState);
-      }
-    });
-
-    walletTest('checkbox receives focus on tab', async ({ page }) => {
-      // Tab to first interactive element
-      await page.keyboard.press('Tab');
-      await page.keyboard.press('Tab');
-      await page.keyboard.press('Tab');
-
-      // Check if a checkbox has focus at some point
-      const focusedElement = page.locator('[role="checkbox"]:focus, [role="checkbox"]:focus-visible');
-      const hasFocus = await focusedElement.isVisible().catch(() => false);
-
-      // May or may not be focused depending on tab order
-      expect(typeof hasFocus).toBe('boolean');
+      }).toPass({ timeout: 2000 });
     });
   });
 
   walletTest.describe('Disabled State', () => {
+    // Note: This test looks for disabled checkboxes which may not exist on the issuance page
+    // It's marked as conditional since the page may not have disabled checkboxes
     walletTest('disabled checkbox cannot be clicked', async ({ page }) => {
-      // Look for any disabled checkbox (may not exist on this page)
+      // Look for any disabled checkbox
       const disabledCheckbox = page.locator('[role="checkbox"][disabled], [role="checkbox"][aria-disabled="true"]');
 
-      if (await disabledCheckbox.isVisible({ timeout: 2000 }).catch(() => false)) {
-        const initialState = await disabledCheckbox.getAttribute('aria-checked');
+      // Skip test if no disabled checkbox exists on this page
+      const count = await disabledCheckbox.count();
+      walletTest.skip(count === 0, 'No disabled checkboxes on this page');
 
-        // Try to click
-        await disabledCheckbox.click({ force: true }).catch(() => {});
-        await page.waitForTimeout(200);
+      const initialState = await disabledCheckbox.first().getAttribute('aria-checked');
 
-        const finalState = await disabledCheckbox.getAttribute('aria-checked');
+      // Try to click (force to bypass disabled)
+      await disabledCheckbox.first().click({ force: true });
 
-        // State should not change
-        expect(finalState).toBe(initialState);
-      }
+      // State should not change
+      const finalState = await disabledCheckbox.first().getAttribute('aria-checked');
+      expect(finalState).toBe(initialState);
     });
   });
 });

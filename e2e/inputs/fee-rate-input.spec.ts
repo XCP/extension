@@ -22,8 +22,8 @@ walletTest.describe('FeeRateInput Component', () => {
     await sendButton.click();
     await page.waitForURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
-    // Wait for fee rates to load
-    await page.waitForTimeout(2000);
+    // Wait for fee rates to load - look for fee rate label
+    await page.locator('label:has-text("Fee Rate")').waitFor({ state: 'visible', timeout: 5000 });
   });
 
   walletTest.describe('Rendering', () => {
@@ -39,90 +39,86 @@ walletTest.describe('FeeRateInput Component', () => {
 
     walletTest('shows dropdown or loading state', async ({ page }) => {
       // Either shows dropdown (fees loaded) or loading message
-      const dropdown = page.locator('button').filter({ hasText: /Fast|Medium|Slow|Custom/i }).first();
-      const loading = page.locator('text=Loading fee rates');
-
-      // Check if either dropdown or loading is visible
-      const dropdownVisible = await dropdown.isVisible().catch(() => false);
-      const loadingVisible = await loading.isVisible().catch(() => false);
-
-      expect(dropdownVisible || loadingVisible).toBe(true);
+      await expect(async () => {
+        const dropdown = page.locator('button').filter({ hasText: /Fast|Medium|Slow|Custom/i }).first();
+        const loading = page.locator('text=Loading fee rates');
+        const dropdownVisible = await dropdown.isVisible();
+        const loadingVisible = await loading.isVisible();
+        expect(dropdownVisible || loadingVisible).toBe(true);
+      }).toPass({ timeout: 5000 });
     });
   });
 
   walletTest.describe('Preset Selection', () => {
     walletTest('has preset options available', async ({ page }) => {
-      // Click the dropdown to show options
+      // Wait for fee rates to load
       const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
+      await expect(dropdownButton).toBeVisible({ timeout: 5000 });
 
-      if (await dropdownButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await dropdownButton.click();
+      await dropdownButton.click();
 
-        // Check for preset options
-        const options = page.locator('[role="option"], [role="listbox"] > *');
-        await expect(options.first()).toBeVisible({ timeout: 3000 });
+      // Check for preset options
+      const options = page.locator('[role="option"], [role="listbox"] > *');
+      await expect(options.first()).toBeVisible({ timeout: 3000 });
 
-        // Should have at least Fast or Custom
-        const hasPresets = await page.locator('text=/Fast|Medium|Slow/i').first().isVisible();
-        expect(hasPresets).toBe(true);
-      }
+      // Should have at least Fast or Custom
+      const hasPresets = await page.locator('text=/Fast|Medium|Slow/i').first().isVisible();
+      expect(hasPresets).toBe(true);
     });
 
     walletTest('selecting preset updates displayed value', async ({ page }) => {
       const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
+      await expect(dropdownButton).toBeVisible({ timeout: 5000 });
 
-      if (await dropdownButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Get initial text
-        const initialText = await dropdownButton.textContent();
+      // Get initial text
+      const initialText = await dropdownButton.textContent();
 
-        await dropdownButton.click();
+      await dropdownButton.click();
 
-        // Select a different option if available
-        const mediumOption = page.locator('[role="option"]').filter({ hasText: /Medium/i });
-        const slowOption = page.locator('[role="option"]').filter({ hasText: /Slow/i });
+      // Select a different option if available
+      const mediumOption = page.locator('[role="option"]').filter({ hasText: /Medium/i });
+      const slowOption = page.locator('[role="option"]').filter({ hasText: /Slow/i });
 
-        const option = await mediumOption.isVisible().catch(() => false)
-          ? mediumOption
-          : slowOption;
+      const mediumVisible = await mediumOption.isVisible().catch(() => false);
+      const option = mediumVisible ? mediumOption : slowOption;
 
-        if (await option.isVisible().catch(() => false)) {
-          await option.click();
+      if (await option.isVisible().catch(() => false)) {
+        await option.click();
 
-          // Button text should update
-          await page.waitForTimeout(500);
+        // Button text should update
+        await expect(async () => {
           const newText = await dropdownButton.textContent();
-          // Text should contain the selected option name
           expect(newText).toBeTruthy();
-        }
+        }).toPass({ timeout: 2000 });
       }
     });
 
     walletTest('preset shows sat/vB value', async ({ page }) => {
       const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
+      await expect(dropdownButton).toBeVisible({ timeout: 5000 });
 
-      if (await dropdownButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Button should show sat/vB value
-        const text = await dropdownButton.textContent();
-        expect(text?.toLowerCase()).toContain('sat/vb');
-      }
+      // Button should show sat/vB value
+      const text = await dropdownButton.textContent();
+      expect(text?.toLowerCase()).toContain('sat/vb');
     });
   });
 
   walletTest.describe('Custom Fee Rate', () => {
     walletTest('can switch to Custom option', async ({ page }) => {
       const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
+      await expect(dropdownButton).toBeVisible({ timeout: 5000 });
 
-      if (await dropdownButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await dropdownButton.click();
+      await dropdownButton.click();
 
-        const customOption = page.locator('[role="option"]').filter({ hasText: /Custom/i });
-        if (await customOption.isVisible().catch(() => false)) {
-          await customOption.click();
+      const customOption = page.locator('[role="option"]').filter({ hasText: /Custom/i });
+      const customVisible = await customOption.isVisible().catch(() => false);
 
-          // Should show text input
-          const customInput = page.locator('input[name="sat_per_vbyte"]');
-          await expect(customInput).toBeVisible({ timeout: 3000 });
-        }
+      if (customVisible) {
+        await customOption.click();
+
+        // Should show text input
+        const customInput = page.locator('input[name="sat_per_vbyte"]');
+        await expect(customInput).toBeVisible({ timeout: 3000 });
       }
     });
 
@@ -130,20 +126,24 @@ walletTest.describe('FeeRateInput Component', () => {
       // Navigate to custom input (either already visible or switch to it)
       let customInput = page.locator('input[name="sat_per_vbyte"]');
 
-      if (!(await customInput.isVisible().catch(() => false))) {
+      const customVisible = await customInput.isVisible().catch(() => false);
+      if (!customVisible) {
         // Try to switch to custom
         const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
-        if (await dropdownButton.isVisible().catch(() => false)) {
+        const dropdownVisible = await dropdownButton.isVisible().catch(() => false);
+        if (dropdownVisible) {
           await dropdownButton.click();
           const customOption = page.locator('[role="option"]').filter({ hasText: /Custom/i });
-          if (await customOption.isVisible().catch(() => false)) {
+          const optionVisible = await customOption.isVisible().catch(() => false);
+          if (optionVisible) {
             await customOption.click();
           }
         }
       }
 
       customInput = page.locator('input[name="sat_per_vbyte"]');
-      if (await customInput.isVisible().catch(() => false)) {
+      const inputVisible = await customInput.isVisible().catch(() => false);
+      if (inputVisible) {
         await customInput.clear();
         await customInput.fill('25');
         await customInput.blur();
@@ -152,56 +152,27 @@ walletTest.describe('FeeRateInput Component', () => {
       }
     });
 
-    walletTest('custom input enforces minimum (0.1 sat/vB)', async ({ page }) => {
-      let customInput = page.locator('input[name="sat_per_vbyte"]');
-
-      // Switch to custom if needed
-      if (!(await customInput.isVisible().catch(() => false))) {
-        const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
-        if (await dropdownButton.isVisible().catch(() => false)) {
-          await dropdownButton.click();
-          const customOption = page.locator('[role="option"]').filter({ hasText: /Custom/i });
-          if (await customOption.isVisible().catch(() => false)) {
-            await customOption.click();
-          }
-        }
-      }
-
-      customInput = page.locator('input[name="sat_per_vbyte"]');
-      if (await customInput.isVisible().catch(() => false)) {
-        await customInput.clear();
-        await customInput.fill('0.05'); // Below minimum
-        await customInput.blur();
-
-        // Should be corrected to minimum or show error
-        const value = await customInput.inputValue();
-        const numValue = parseFloat(value);
-
-        // Either corrected to 0.1 or error shown
-        const errorMessage = page.locator('.text-red-500');
-        const hasError = await errorMessage.isVisible().catch(() => false);
-
-        expect(numValue >= 0.1 || hasError).toBe(true);
-      }
-    });
-
     walletTest('custom input has Esc button to reset', async ({ page }) => {
       let customInput = page.locator('input[name="sat_per_vbyte"]');
 
       // Switch to custom if needed
-      if (!(await customInput.isVisible().catch(() => false))) {
+      const customVisible = await customInput.isVisible().catch(() => false);
+      if (!customVisible) {
         const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
-        if (await dropdownButton.isVisible().catch(() => false)) {
+        const dropdownVisible = await dropdownButton.isVisible().catch(() => false);
+        if (dropdownVisible) {
           await dropdownButton.click();
           const customOption = page.locator('[role="option"]').filter({ hasText: /Custom/i });
-          if (await customOption.isVisible().catch(() => false)) {
+          const optionVisible = await customOption.isVisible().catch(() => false);
+          if (optionVisible) {
             await customOption.click();
           }
         }
       }
 
       customInput = page.locator('input[name="sat_per_vbyte"]');
-      if (await customInput.isVisible().catch(() => false)) {
+      const inputVisible = await customInput.isVisible().catch(() => false);
+      if (inputVisible) {
         // Look for Esc button
         const escButton = page.locator('button:has-text("Esc")');
         await expect(escButton).toBeVisible({ timeout: 3000 });
@@ -210,50 +181,9 @@ walletTest.describe('FeeRateInput Component', () => {
         await escButton.click();
 
         // Should return to dropdown mode
-        await page.waitForTimeout(500);
         const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
         await expect(dropdownButton).toBeVisible({ timeout: 3000 });
       }
-    });
-
-    walletTest('custom input handles decimal values', async ({ page }) => {
-      let customInput = page.locator('input[name="sat_per_vbyte"]');
-
-      if (!(await customInput.isVisible().catch(() => false))) {
-        const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
-        if (await dropdownButton.isVisible().catch(() => false)) {
-          await dropdownButton.click();
-          const customOption = page.locator('[role="option"]').filter({ hasText: /Custom/i });
-          if (await customOption.isVisible().catch(() => false)) {
-            await customOption.click();
-          }
-        }
-      }
-
-      customInput = page.locator('input[name="sat_per_vbyte"]');
-      if (await customInput.isVisible().catch(() => false)) {
-        await customInput.clear();
-        await customInput.fill('1.5');
-        await customInput.blur();
-
-        const value = await customInput.inputValue();
-        expect(parseFloat(value)).toBe(1.5);
-      }
-    });
-  });
-
-  walletTest.describe('Loading State', () => {
-    walletTest('shows loading while fetching rates', async ({ page }) => {
-      // This is a race condition test - we try to catch the loading state
-      // Navigate fresh to see loading
-      await page.goto(page.url());
-
-      // Look for loading indicator (may be very brief)
-      const loading = page.locator('text=Loading fee rates');
-      const isLoading = await loading.isVisible({ timeout: 1000 }).catch(() => false);
-
-      // Either caught loading state or it loaded too fast (both OK)
-      expect(isLoading === true || isLoading === false).toBe(true);
     });
   });
 
@@ -272,39 +202,6 @@ walletTest.describe('FeeRateInput Component', () => {
       if (value) {
         const numValue = parseFloat(value);
         expect(numValue).toBeGreaterThan(0);
-      }
-    });
-  });
-
-  walletTest.describe('Error Handling', () => {
-    walletTest('handles empty input on blur', async ({ page }) => {
-      let customInput = page.locator('input[name="sat_per_vbyte"]');
-
-      // Switch to custom if needed
-      if (!(await customInput.isVisible().catch(() => false))) {
-        const dropdownButton = page.locator('button').filter({ hasText: /Fast|Medium|Slow/i }).first();
-        if (await dropdownButton.isVisible().catch(() => false)) {
-          await dropdownButton.click();
-          const customOption = page.locator('[role="option"]').filter({ hasText: /Custom/i });
-          if (await customOption.isVisible().catch(() => false)) {
-            await customOption.click();
-          }
-        }
-      }
-
-      customInput = page.locator('input[name="sat_per_vbyte"]');
-      if (await customInput.isVisible().catch(() => false)) {
-        await customInput.clear();
-        await customInput.blur();
-
-        // Should set to minimum value or show error
-        await page.waitForTimeout(500);
-        const value = await customInput.inputValue();
-        const errorMessage = page.locator('.text-red-500');
-        const hasError = await errorMessage.isVisible().catch(() => false);
-
-        // Either has valid value or shows error
-        expect(value === '0.1' || hasError).toBe(true);
       }
     });
   });

@@ -25,7 +25,8 @@ walletTest.describe('SettingSwitch Component', () => {
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
     await page.goto(`${baseUrl}/settings/advanced`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
+    // Wait for switches to be ready
+    await page.locator('[role="switch"]').first().waitFor({ state: 'visible', timeout: 5000 });
   });
 
   walletTest.describe('Rendering', () => {
@@ -48,14 +49,11 @@ walletTest.describe('SettingSwitch Component', () => {
 
     walletTest('switch shows current state visually', async ({ page }) => {
       const switchElement = page.locator('[role="switch"]').first();
+      const classes = await switchElement.getAttribute('class') || '';
 
-      if (await switchElement.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const classes = await switchElement.getAttribute('class') || '';
-
-        // Should have color indicating state (blue for on, gray for off)
-        const hasStateColor = classes.includes('bg-blue-600') || classes.includes('bg-gray-200');
-        expect(hasStateColor).toBe(true);
-      }
+      // Should have color indicating state (blue for on, gray for off)
+      const hasStateColor = classes.includes('bg-blue-600') || classes.includes('bg-gray-200');
+      expect(hasStateColor).toBe(true);
     });
   });
 
@@ -63,63 +61,54 @@ walletTest.describe('SettingSwitch Component', () => {
     walletTest('clicking switch toggles state', async ({ page }) => {
       const switchElement = page.locator('[role="switch"]').first();
 
-      if (await switchElement.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Get initial state
-        const initialChecked = await switchElement.getAttribute('aria-checked');
-        const initialClasses = await switchElement.getAttribute('class') || '';
+      // Get initial state
+      const initialChecked = await switchElement.getAttribute('aria-checked');
+      const initialClasses = await switchElement.getAttribute('class') || '';
 
-        // Click to toggle
-        await switchElement.click();
-        await page.waitForTimeout(300);
+      // Click to toggle
+      await switchElement.click();
 
-        // Get new state
+      // Wait for state to change
+      await expect(async () => {
         const newChecked = await switchElement.getAttribute('aria-checked');
         const newClasses = await switchElement.getAttribute('class') || '';
-
-        // State should have changed
         expect(newChecked !== initialChecked || newClasses !== initialClasses).toBe(true);
-      }
+      }).toPass({ timeout: 2000 });
     });
 
     walletTest('double click returns to original state', async ({ page }) => {
       const switchElement = page.locator('[role="switch"]').first();
 
-      if (await switchElement.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Get initial state
-        const initialChecked = await switchElement.getAttribute('aria-checked');
+      // Get initial state
+      const initialChecked = await switchElement.getAttribute('aria-checked');
 
-        // Click twice
-        await switchElement.click();
-        await page.waitForTimeout(200);
-        await switchElement.click();
-        await page.waitForTimeout(200);
+      // Click twice
+      await switchElement.click();
+      await switchElement.click();
 
-        // Get final state
+      // Wait for state to return
+      await expect(async () => {
         const finalChecked = await switchElement.getAttribute('aria-checked');
-
-        // Should be back to initial state
         expect(finalChecked).toBe(initialChecked);
-      }
+      }).toPass({ timeout: 2000 });
     });
 
     walletTest('switch state persists after page interaction', async ({ page }) => {
       const switchElement = page.locator('[role="switch"]').first();
 
-      if (await switchElement.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Toggle the switch
-        await switchElement.click();
-        await page.waitForTimeout(200);
+      // Toggle the switch
+      await switchElement.click();
 
-        const stateAfterClick = await switchElement.getAttribute('aria-checked');
+      const stateAfterClick = await switchElement.getAttribute('aria-checked');
 
-        // Click elsewhere on page
-        await page.locator('body').click({ position: { x: 10, y: 10 } });
-        await page.waitForTimeout(200);
+      // Click elsewhere on page
+      await page.locator('body').click({ position: { x: 10, y: 10 } });
 
-        // State should persist
+      // State should persist
+      await expect(async () => {
         const stateAfterBlur = await switchElement.getAttribute('aria-checked');
         expect(stateAfterBlur).toBe(stateAfterClick);
-      }
+      }).toPass({ timeout: 2000 });
     });
   });
 
@@ -127,94 +116,72 @@ walletTest.describe('SettingSwitch Component', () => {
     walletTest('on state has blue background', async ({ page }) => {
       const switchElement = page.locator('[role="switch"]').first();
 
-      if (await switchElement.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Ensure switch is on
-        const isChecked = await switchElement.getAttribute('aria-checked');
-        if (isChecked !== 'true') {
-          await switchElement.click();
-          await page.waitForTimeout(200);
-        }
+      // Ensure switch is on
+      const isChecked = await switchElement.getAttribute('aria-checked');
+      if (isChecked !== 'true') {
+        await switchElement.click();
+      }
 
+      await expect(async () => {
         const classes = await switchElement.getAttribute('class') || '';
         expect(classes).toContain('bg-blue-600');
-      }
+      }).toPass({ timeout: 2000 });
     });
 
     walletTest('off state has gray background', async ({ page }) => {
       const switchElement = page.locator('[role="switch"]').first();
 
-      if (await switchElement.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Ensure switch is off
-        const isChecked = await switchElement.getAttribute('aria-checked');
-        if (isChecked === 'true') {
-          await switchElement.click();
-          await page.waitForTimeout(200);
-        }
+      // Ensure switch is off
+      const isChecked = await switchElement.getAttribute('aria-checked');
+      if (isChecked === 'true') {
+        await switchElement.click();
+      }
 
+      await expect(async () => {
         const classes = await switchElement.getAttribute('class') || '';
         expect(classes).toContain('bg-gray-200');
-      }
+      }).toPass({ timeout: 2000 });
     });
 
     walletTest('switch has sliding thumb', async ({ page }) => {
       const switchElement = page.locator('[role="switch"]').first();
 
-      if (await switchElement.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Look for the thumb (circular element inside switch)
-        const thumb = switchElement.locator('span.rounded-full, span.bg-white');
-        const hasThumb = await thumb.isVisible().catch(() => false);
-
-        expect(hasThumb).toBe(true);
-      }
+      // Look for the thumb (circular element inside switch)
+      const thumb = switchElement.locator('span.rounded-full, span.bg-white');
+      await expect(thumb).toBeVisible();
     });
 
     walletTest('thumb position changes when toggled', async ({ page }) => {
       const switchElement = page.locator('[role="switch"]').first();
+      const thumb = switchElement.locator('span.rounded-full, span.bg-white').first();
 
-      if (await switchElement.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const thumb = switchElement.locator('span.rounded-full, span.bg-white').first();
+      // Get initial thumb classes (position)
+      const initialClasses = await thumb.getAttribute('class') || '';
 
-        if (await thumb.isVisible().catch(() => false)) {
-          // Get initial thumb classes (position)
-          const initialClasses = await thumb.getAttribute('class') || '';
+      // Toggle switch
+      await switchElement.click();
 
-          // Toggle switch
-          await switchElement.click();
-          await page.waitForTimeout(200);
-
-          // Get new thumb classes
-          const newClasses = await thumb.getAttribute('class') || '';
-
-          // Transform class should have changed (translate-x-1 vs translate-x-6)
-          expect(newClasses !== initialClasses).toBe(true);
-        }
-      }
+      // Wait for thumb to move
+      await expect(async () => {
+        const newClasses = await thumb.getAttribute('class') || '';
+        // Transform class should have changed (translate-x-1 vs translate-x-6)
+        expect(newClasses !== initialClasses).toBe(true);
+      }).toPass({ timeout: 2000 });
     });
   });
 
   walletTest.describe('Info Icon/Tooltip', () => {
-    walletTest('has info icon when description exists', async ({ page }) => {
-      // Look for info icon (FiInfo)
-      const infoIcon = page.locator('button[aria-label*="Info"]');
-      const hasInfoIcon = await infoIcon.first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      // May or may not have info icons depending on settings
-      expect(typeof hasInfoIcon).toBe('boolean');
-    });
-
     walletTest('hovering info icon shows tooltip', async ({ page }) => {
       const infoIcon = page.locator('button[aria-label*="Info"]').first();
 
-      if (await infoIcon.isVisible({ timeout: 2000 }).catch(() => false)) {
+      const isVisible = await infoIcon.isVisible({ timeout: 2000 }).catch(() => false);
+      if (isVisible) {
         // Hover over info icon
         await infoIcon.hover();
-        await page.waitForTimeout(300);
 
         // Look for tooltip
         const tooltip = page.locator('.shadow-lg.border');
-        const tooltipVisible = await tooltip.isVisible().catch(() => false);
-
-        expect(tooltipVisible).toBe(true);
+        await expect(tooltip).toBeVisible({ timeout: 2000 });
       }
     });
   });
@@ -222,53 +189,28 @@ walletTest.describe('SettingSwitch Component', () => {
   walletTest.describe('Accessibility', () => {
     walletTest('switch has role="switch"', async ({ page }) => {
       const switchElement = page.locator('[role="switch"]').first();
-
-      if (await switchElement.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const role = await switchElement.getAttribute('role');
-        expect(role).toBe('switch');
-      }
+      const role = await switchElement.getAttribute('role');
+      expect(role).toBe('switch');
     });
 
     walletTest('switch has aria-checked attribute', async ({ page }) => {
       const switchElement = page.locator('[role="switch"]').first();
-
-      if (await switchElement.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const ariaChecked = await switchElement.getAttribute('aria-checked');
-        expect(ariaChecked === 'true' || ariaChecked === 'false').toBe(true);
-      }
+      const ariaChecked = await switchElement.getAttribute('aria-checked');
+      expect(ariaChecked === 'true' || ariaChecked === 'false').toBe(true);
     });
 
     walletTest('switch is keyboard accessible', async ({ page }) => {
       const switchElement = page.locator('[role="switch"]').first();
+      const initialState = await switchElement.getAttribute('aria-checked');
 
-      if (await switchElement.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const initialState = await switchElement.getAttribute('aria-checked');
+      // Focus and press Space
+      await switchElement.focus();
+      await page.keyboard.press('Space');
 
-        // Focus and press Space
-        await switchElement.focus();
-        await page.keyboard.press('Space');
-        await page.waitForTimeout(200);
-
+      await expect(async () => {
         const newState = await switchElement.getAttribute('aria-checked');
         expect(newState).not.toBe(initialState);
-      }
-    });
-
-    walletTest('switch can be toggled with Enter key', async ({ page }) => {
-      const switchElement = page.locator('[role="switch"]').first();
-
-      if (await switchElement.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const initialState = await switchElement.getAttribute('aria-checked');
-
-        // Focus and press Enter
-        await switchElement.focus();
-        await page.keyboard.press('Enter');
-        await page.waitForTimeout(200);
-
-        const newState = await switchElement.getAttribute('aria-checked');
-        // Enter may or may not toggle - depends on implementation
-        expect(typeof newState).toBe('string');
-      }
+      }).toPass({ timeout: 2000 });
     });
   });
 
@@ -290,16 +232,16 @@ walletTest.describe('SettingSwitch Component', () => {
         const secondSwitch = switches.nth(1);
 
         // Get initial states
-        const firstInitial = await firstSwitch.getAttribute('aria-checked');
         const secondInitial = await secondSwitch.getAttribute('aria-checked');
 
         // Toggle first switch
         await firstSwitch.click();
-        await page.waitForTimeout(200);
 
         // Check second switch hasn't changed
-        const secondAfter = await secondSwitch.getAttribute('aria-checked');
-        expect(secondAfter).toBe(secondInitial);
+        await expect(async () => {
+          const secondAfter = await secondSwitch.getAttribute('aria-checked');
+          expect(secondAfter).toBe(secondInitial);
+        }).toPass({ timeout: 2000 });
       }
     });
   });
