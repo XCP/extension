@@ -2,30 +2,37 @@
  * Compose Issuance Transfer Ownership Page Tests (/compose/issuance/transfer-ownership)
  *
  * Tests for transferring asset ownership to another address.
+ * Component: src/pages/compose/issuance/transfer-ownership/index.tsx
+ *
+ * The page shows:
+ * - Title "Transfer Asset"
+ * - New owner address input
+ * - Fee Rate selector
  */
 
 import { walletTest, expect } from '../../../fixtures';
-import { compose } from '../../../selectors';
 
 walletTest.describe('Compose Transfer Ownership Page (/compose/issuance/transfer-ownership)', () => {
-  walletTest('transfer ownership page loads with asset parameter', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/transfer-ownership/TESTASSET'));
+  walletTest.beforeEach(async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/transfer-ownership/XCP'));
     await page.waitForLoadState('networkidle');
-
-    const hasTransfer = await page.locator('text=/Transfer.*Ownership|New.*Owner|Transfer/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasAddressField = await compose.issuance.transferOwnershipInput(page).isVisible({ timeout: 3000 }).catch(() => false);
-    const redirected = !page.url().includes('transfer-ownership');
-
-    expect(hasTransfer || hasAddressField || redirected).toBe(true);
   });
 
-  walletTest('transfer ownership has address input', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/transfer-ownership/TESTASSET'));
-    await page.waitForLoadState('networkidle');
+  walletTest('page loads with Transfer Asset title', async ({ page }) => {
+    // The header should show "Transfer Asset"
+    const titleText = page.locator('text="Transfer Asset"');
+    await expect(titleText).toBeVisible({ timeout: 10000 });
+  });
 
-    if (page.url().includes('transfer-ownership')) {
-      const hasAddressInput = await compose.issuance.transferOwnershipInput(page).isVisible({ timeout: 5000 }).catch(() => false);
-      expect(hasAddressInput || true).toBe(true);
-    }
+  walletTest('shows Fee Rate selector', async ({ page }) => {
+    // Fee Rate label should be visible
+    const feeRateLabel = page.locator('label:has-text("Fee Rate")');
+    await expect(feeRateLabel).toBeVisible({ timeout: 10000 });
+  });
+
+  walletTest('has Continue button', async ({ page }) => {
+    // Submit button should exist
+    const submitButton = page.locator('button[type="submit"]:has-text("Continue")');
+    await expect(submitButton).toBeVisible({ timeout: 10000 });
   });
 });
