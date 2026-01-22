@@ -134,8 +134,13 @@ async function createWallet(page: Page, password = TEST_PASSWORD): Promise<void>
   await createButton.click();
   await page.waitForURL(/create-wallet/);
 
-  // Click the reveal phrase card (not a button)
-  await createWalletSelectors.revealPhraseCard(page).click();
+  // Wait for page to fully load before clicking reveal card
+  await page.waitForLoadState('networkidle');
+
+  // Click the reveal phrase card - wait for it to be visible and clickable
+  const revealCard = createWalletSelectors.revealPhraseCard(page);
+  await revealCard.waitFor({ state: 'visible', timeout: 5000 });
+  await revealCard.click();
 
   // Wait for checkbox to be visible (phrase has been revealed)
   const checkbox = createWalletSelectors.savedPhraseCheckbox(page);
