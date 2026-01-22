@@ -46,22 +46,23 @@ walletTest.describe('AmountWithMaxInput Component', () => {
 
     walletTest('renders with required indicator', async ({ page }) => {
       const requiredIndicator = page.locator('label:has-text("Amount") span.text-red-500');
-      await expect(requiredIndicator).toBeVisible();
+      await expect(requiredIndicator).toBeVisible({ timeout: 5000 });
     });
 
     walletTest('renders input field', async ({ page }) => {
       const input = page.locator('input[name="quantity"]');
-      await expect(input).toBeVisible();
-      await expect(input).toBeEnabled();
+      await expect(input).toBeVisible({ timeout: 5000 });
+      await expect(input).toBeEnabled({ timeout: 5000 });
     });
 
     walletTest('renders Max button', async ({ page }) => {
       const maxButton = page.locator('button:has-text("Max")');
-      await expect(maxButton).toBeVisible();
+      await expect(maxButton).toBeVisible({ timeout: 5000 });
     });
 
     walletTest('has placeholder showing format', async ({ page }) => {
       const input = page.locator('input[name="quantity"]');
+      await expect(input).toBeVisible({ timeout: 5000 });
       const placeholder = await input.getAttribute('placeholder');
       expect(placeholder).toContain('0.00');
     });
