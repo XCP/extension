@@ -12,9 +12,11 @@
  */
 
 import { walletTest, expect } from '../../../fixtures';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose UTXO Attach Page (/compose/utxo/attach)', () => {
   walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
     // Route requires asset parameter: /compose/utxo/attach/:asset
     await page.goto(page.url().replace(/\/index.*/, '/compose/utxo/attach/XCP'));
     await page.waitForLoadState('networkidle');

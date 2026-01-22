@@ -11,9 +11,11 @@
  */
 
 import { walletTest, expect } from '../../../fixtures';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose UTXO Move Page (/compose/utxo/move)', () => {
   walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
     // Route requires utxo parameter: /compose/utxo/move/:utxo
     const testUtxo = '0000000000000000000000000000000000000000000000000000000000000000:0';
     await page.goto(page.url().replace(/\/index.*/, `/compose/utxo/move/${encodeURIComponent(testUtxo)}`));

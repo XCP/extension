@@ -11,10 +11,13 @@
  */
 
 import { walletTest, expect } from '../../../fixtures';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Dispenser Close Page (/compose/dispenser/close)', () => {
   walletTest.beforeEach(async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/close'));
+    await enableValidationBypass(page);
+    // Route requires asset parameter: /compose/dispenser/close/:asset?
+    await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/close/XCP'));
     await page.waitForLoadState('networkidle');
   });
 

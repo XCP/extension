@@ -13,9 +13,11 @@
 
 import { walletTest, expect, navigateTo } from '../../../fixtures';
 import { compose, actions } from '../../../selectors';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Sweep Page (/compose/sweep)', () => {
   walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
     await navigateTo(page, 'actions');
     await actions.sweepAddressOption(page).click();
     await page.waitForURL(/sweep/, { timeout: 5000 });
@@ -23,7 +25,7 @@ walletTest.describe('Compose Sweep Page (/compose/sweep)', () => {
 
   walletTest('page loads with Sweep title', async ({ page }) => {
     // The header should show "Sweep"
-    const titleText = page.locator('text="Sweep"');
+    const titleText = page.getByRole('heading', { name: 'Sweep' });
     await expect(titleText).toBeVisible({ timeout: 10000 });
   });
 
@@ -38,9 +40,9 @@ walletTest.describe('Compose Sweep Page (/compose/sweep)', () => {
     await expect(feeRateLabel).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('has Continue button', async ({ page }) => {
-    // Submit button should exist
-    const submitButton = page.locator('button[type="submit"]:has-text("Continue")');
+  walletTest('has Sweep button', async ({ page }) => {
+    // Submit button exists - Sweep page uses "Sweep" not "Continue"
+    const submitButton = page.locator('button[type="submit"]:has-text("Sweep")');
     await expect(submitButton).toBeVisible({ timeout: 10000 });
   });
 

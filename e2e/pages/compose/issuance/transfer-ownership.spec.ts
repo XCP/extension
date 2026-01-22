@@ -11,9 +11,11 @@
  */
 
 import { walletTest, expect } from '../../../fixtures';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Transfer Ownership Page (/compose/issuance/transfer-ownership)', () => {
   walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
     await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/transfer-ownership/XCP'));
     await page.waitForLoadState('networkidle');
   });

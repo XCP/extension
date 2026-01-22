@@ -11,9 +11,11 @@
  */
 
 import { walletTest, expect } from '../../../fixtures';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Lock Description Page (/compose/issuance/lock-description)', () => {
   walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
     await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/lock-description/XCP'));
     await page.waitForLoadState('networkidle');
   });

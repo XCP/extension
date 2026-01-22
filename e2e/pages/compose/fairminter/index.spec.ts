@@ -12,9 +12,11 @@
  */
 
 import { walletTest, expect, navigateTo } from '../../../fixtures';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Fairminter Page (/compose/fairminter)', () => {
   walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
     // Navigate directly to fairminter page
     await page.goto(page.url().replace(/\/index.*/, '/compose/fairminter'));
     await page.waitForLoadState('networkidle');

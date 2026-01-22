@@ -11,9 +11,11 @@
  */
 
 import { walletTest, expect } from '../../../fixtures';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Broadcast Address Options Page (/compose/broadcast/address-options)', () => {
   walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
     await page.goto(page.url().replace(/\/index.*/, '/compose/broadcast/address-options'));
     await page.waitForLoadState('networkidle');
   });

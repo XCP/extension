@@ -11,10 +11,12 @@
  */
 
 import { walletTest, expect } from '../../../fixtures';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Cancel Order Page (/compose/cancel)', () => {
   // Route is /compose/cancel/:hash? (not /compose/order/cancel)
   walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
     await page.goto(page.url().replace(/\/index.*/, '/compose/cancel'));
     await page.waitForLoadState('networkidle');
   });

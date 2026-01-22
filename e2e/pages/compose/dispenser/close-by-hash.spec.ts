@@ -11,9 +11,11 @@
  */
 
 import { walletTest, expect } from '../../../fixtures';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Dispenser Close By Hash Page (/compose/dispenser/close-by-hash)', () => {
   walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
     await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/close-by-hash'));
     await page.waitForLoadState('networkidle');
   });

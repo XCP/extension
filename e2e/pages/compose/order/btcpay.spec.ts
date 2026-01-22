@@ -11,10 +11,12 @@
  */
 
 import { walletTest, expect } from '../../../fixtures';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose BTC Pay Page (/compose/btcpay)', () => {
   // Route is /compose/btcpay (not /compose/order/btcpay)
   walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
     await page.goto(page.url().replace(/\/index.*/, '/compose/btcpay'));
     await page.waitForLoadState('networkidle');
   });
