@@ -96,19 +96,11 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
 
   walletTest('has refresh button', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/market/btc'));
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
-    // Wait for page content to load
-    await page.waitForTimeout(2000);
-
-    // Refresh button might be in header or embedded in content
-    const hasRefresh = await market.refreshButton(page).isVisible({ timeout: 5000 }).catch(() => false);
-    const hasCommonRefresh = await common.refreshButton(page).isVisible({ timeout: 3000 }).catch(() => false);
-    const hasRetryButton = await page.locator('text=/Retry|Try Again/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-    const hasTitle = await page.locator('text=/Bitcoin Price/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-    // Page loaded and has some refresh/retry mechanism or just the title
-    expect(hasRefresh || hasCommonRefresh || hasRetryButton || hasTitle).toBe(true);
+    // Wait for page title to confirm page loaded
+    const titleElement = page.locator('text=/Bitcoin Price/i').first();
+    await expect(titleElement).toBeVisible({ timeout: 15000 });
   });
 
   walletTest('has back navigation to market', async ({ page }) => {
