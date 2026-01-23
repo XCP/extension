@@ -111,12 +111,8 @@ walletTest.describe('DispenserInput Component', () => {
       const noDispenser = page.locator('text=/No.*dispenser/i');
       const dispenserList = page.locator('[role="radiogroup"], .dispenser-list, .space-y-2');
 
-      await expect(async () => {
-        const hasLoading = await loadingText.count() > 0;
-        const hasNoDispenser = await noDispenser.count() > 0;
-        const hasDispenserList = await dispenserList.count() > 0;
-        expect(hasLoading || hasNoDispenser || hasDispenserList).toBe(true);
-      }).toPass({ timeout: 5000 });
+      // Use .or() for web-first assertion
+      await expect(loadingText.or(noDispenser).or(dispenserList)).toBeVisible({ timeout: 5000 });
     });
 
     walletTest('handles address with no dispensers', async ({ page }) => {
@@ -126,14 +122,11 @@ walletTest.describe('DispenserInput Component', () => {
       await input.blur();
 
       // Wait for fetch to complete - either shows no dispenser or found some
-      await expect(async () => {
-        const noDispenser = page.locator('text=/No.*dispenser/i');
-        const dispenserList = page.locator('[role="radiogroup"]');
-        const hasNoDispenser = await noDispenser.count() > 0;
-        const hasDispenserList = await dispenserList.count() > 0;
-        // Either shows "no dispenser" message or a list
-        expect(hasNoDispenser || hasDispenserList).toBe(true);
-      }).toPass({ timeout: 5000 });
+      const noDispenser = page.locator('text=/No.*dispenser/i');
+      const dispenserList = page.locator('[role="radiogroup"]');
+
+      // Use .or() for web-first assertion
+      await expect(noDispenser.or(dispenserList)).toBeVisible({ timeout: 5000 });
     });
   });
 

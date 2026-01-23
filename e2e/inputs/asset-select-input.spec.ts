@@ -56,15 +56,16 @@ walletTest.describe('AssetSelectInput Component', () => {
 
     walletTest('dropdown shows options on click', async ({ page }) => {
       const comboboxButton = getComboboxButton(page);
+      const buttonCount = await comboboxButton.count();
 
-      const isButtonVisible = await comboboxButton.isVisible();
-      if (isButtonVisible) {
-        await comboboxButton.click();
+      walletTest.skip(buttonCount === 0, 'Combobox button not visible');
 
-        // Should show options
-        const options = page.locator('[role="option"], [role="listbox"] > *');
-        await expect(options.first()).toBeVisible({ timeout: 3000 });
-      }
+      await expect(comboboxButton).toBeVisible({ timeout: 3000 });
+      await comboboxButton.click();
+
+      // Should show listbox or options
+      const listbox = page.locator('[role="listbox"]');
+      await expect(listbox).toBeVisible({ timeout: 3000 });
     });
   });
 
@@ -82,43 +83,42 @@ walletTest.describe('AssetSelectInput Component', () => {
 
     walletTest('can select from dropdown', async ({ page }) => {
       const comboboxButton = getComboboxButton(page);
+      const buttonCount = await comboboxButton.count();
 
-      const isButtonVisible = await comboboxButton.isVisible();
-      if (isButtonVisible) {
-        await comboboxButton.click();
+      walletTest.skip(buttonCount === 0, 'Combobox button not visible');
 
-        const options = page.locator('[role="option"]');
-        const firstOptionVisible = await options.first().isVisible({ timeout: 3000 }).catch(() => false);
+      await expect(comboboxButton).toBeVisible({ timeout: 3000 });
+      await comboboxButton.click();
 
-        if (firstOptionVisible) {
-          // Select first option
-          await options.first().click();
+      const options = page.locator('[role="option"]');
+      const optionCount = await options.count();
 
-          // Input should now have a value
-          const comboboxInput = getComboboxInput(page);
-          const value = await comboboxInput.inputValue();
-          expect(typeof value).toBe('string');
-        }
-      }
+      walletTest.skip(optionCount === 0, 'No dropdown options available');
+
+      await expect(options.first()).toBeVisible({ timeout: 3000 });
+
+      // Select first option
+      await options.first().click();
+
+      // Input should now have a non-empty value
+      const comboboxInput = getComboboxInput(page);
+      await expect(comboboxInput).not.toHaveValue('');
     });
   });
 
   walletTest.describe('Pinned Assets', () => {
     walletTest('shows pinned assets on initial dropdown', async ({ page }) => {
       const comboboxButton = getComboboxButton(page);
+      const buttonCount = await comboboxButton.count();
 
-      const isButtonVisible = await comboboxButton.isVisible();
-      if (isButtonVisible) {
-        await comboboxButton.click();
+      walletTest.skip(buttonCount === 0, 'Combobox button not visible');
 
-        // Wait for options to load
-        await expect(async () => {
-          const options = page.locator('[role="option"]');
-          const count = await options.count();
-          // May have pinned assets or may be empty - count is valid
-          expect(count).toBeGreaterThanOrEqual(0);
-        }).toPass({ timeout: 3000 });
-      }
+      await expect(comboboxButton).toBeVisible({ timeout: 3000 });
+      await comboboxButton.click();
+
+      // Wait for listbox to appear
+      const listbox = page.locator('[role="listbox"]');
+      await expect(listbox).toBeVisible({ timeout: 3000 });
     });
   });
 

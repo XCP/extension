@@ -126,33 +126,32 @@ walletTest.describe('PriceWithSuggestInput Component', () => {
   walletTest.describe('Min Button (Suggested Price)', () => {
     walletTest('Min button has accessible label when visible', async ({ page }) => {
       const minButton = page.locator('button:has-text("Min")');
-      const isVisible = await minButton.isVisible({ timeout: 2000 }).catch(() => false);
+      const minButtonCount = await minButton.count();
 
-      if (isVisible) {
-        const ariaLabel = await minButton.getAttribute('aria-label');
-        expect(ariaLabel).toContain('suggested price');
-      }
+      walletTest.skip(minButtonCount === 0, 'Min button not available');
+
+      await expect(minButton).toBeVisible({ timeout: 2000 });
+      const ariaLabel = await minButton.getAttribute('aria-label');
+      expect(ariaLabel).toContain('suggested price');
     });
 
     walletTest('clicking Min populates price field', async ({ page }) => {
       const input = getPriceInput(page);
       const minButton = page.locator('button:has-text("Min")');
+      const minButtonCount = await minButton.count();
 
-      const isVisible = await minButton.isVisible({ timeout: 2000 }).catch(() => false);
-      if (isVisible) {
-        // Clear input first
-        await input.clear();
+      walletTest.skip(minButtonCount === 0, 'Min button not available');
 
-        // Click Min button
-        await minButton.click();
+      await expect(minButton).toBeVisible({ timeout: 2000 });
 
-        // Price field should now have a value
-        await expect(async () => {
-          const value = await input.inputValue();
-          expect(value).toBeTruthy();
-          expect(value).not.toBe('');
-        }).toPass({ timeout: 2000 });
-      }
+      // Clear input first
+      await input.clear();
+
+      // Click Min button
+      await minButton.click();
+
+      // Price field should now have a non-empty value
+      await expect(input).not.toHaveValue('', { timeout: 2000 });
     });
   });
 

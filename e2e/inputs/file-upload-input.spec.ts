@@ -53,7 +53,10 @@ walletTest.describe('FileUploadInput Component', () => {
   // Helper to enable inscribe mode (only available for SegWit addresses)
   const enableInscribeMode = async (page: any): Promise<boolean> => {
     const inscribeSwitch = page.locator('[role="switch"]').first();
-    const isVisible = await inscribeSwitch.isVisible({ timeout: 2000 }).catch(() => false);
+    const switchCount = await inscribeSwitch.count();
+    if (switchCount === 0) return false;
+
+    const isVisible = await inscribeSwitch.isVisible({ timeout: 2000 });
     if (!isVisible) return false;
 
     const isChecked = await inscribeSwitch.getAttribute('aria-checked');

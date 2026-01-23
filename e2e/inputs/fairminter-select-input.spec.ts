@@ -18,8 +18,9 @@
 
 import { walletTest, expect } from '../fixtures';
 
-// Skip: Fairmint page requires active fairminters from API which may not be available in test environment
-walletTest.describe.skip('FairminterSelectInput Component', () => {
+// Note: Fairmint page requires active fairminters from API which may not be available in test environment
+// Tests use conditional skipping based on actual page state rather than blanket skip
+walletTest.describe('FairminterSelectInput Component', () => {
   // Navigate to fairmint page which uses FairminterSelectInput
   walletTest.beforeEach(async ({ page }) => {
     const hashIndex = page.url().indexOf('#');
@@ -53,33 +54,37 @@ walletTest.describe.skip('FairminterSelectInput Component', () => {
   });
 
   walletTest.describe('Dropdown Options', () => {
-    walletTest('clicking dropdown shows options', async ({ page }) => {
+    walletTest('clicking dropdown shows options or listbox', async ({ page }) => {
       const input = getComboboxInput(page);
 
       // Click to open dropdown
       await input.click();
 
-      // Look for dropdown options (ComboboxOptions)
-      await expect(async () => {
-        const options = page.locator('[role="listbox"], [role="option"]');
-        const hasOptions = await options.first().isVisible();
-        // May have options or may be empty depending on API
-        expect(typeof hasOptions).toBe('boolean');
-      }).toPass({ timeout: 3000 });
+      // Look for dropdown options (ComboboxOptions) - should show listbox container
+      const listbox = page.locator('[role="listbox"]');
+      await expect(listbox).toBeVisible({ timeout: 3000 });
     });
 
-    walletTest('options show asset name and price', async ({ page }) => {
+    walletTest('options may show pricing info', async ({ page }) => {
       const input = getComboboxInput(page);
 
       await input.click();
 
-      // Look for option with price text
-      await expect(async () => {
-        const priceText = page.locator('text=/Price:|Free mint/');
-        const hasPriceInfo = await priceText.first().isVisible();
-        // Options should show pricing info (if options exist)
-        expect(typeof hasPriceInfo).toBe('boolean');
-      }).toPass({ timeout: 3000 });
+      // Wait for listbox to appear
+      const listbox = page.locator('[role="listbox"]');
+      await expect(listbox).toBeVisible({ timeout: 3000 });
+
+      // Check if any options with pricing exist
+      const options = page.locator('[role="option"]');
+      const optionCount = await options.count();
+
+      // Skip if no options available (API dependent)
+      if (optionCount === 0) {
+        walletTest.skip(true, 'No fairminter options available from API');
+      }
+
+      // If options exist, verify they're visible
+      await expect(options.first()).toBeVisible();
     });
   });
 
@@ -114,19 +119,18 @@ walletTest.describe.skip('FairminterSelectInput Component', () => {
       // Click to open dropdown
       await input.click();
 
-      // Try to click first option
+      // Wait for options to be visible
       const firstOption = page.locator('[role="option"]').first();
-      const optionVisible = await firstOption.isVisible({ timeout: 2000 }).catch(() => false);
+      const optionCount = await page.locator('[role="option"]').count();
 
-      if (optionVisible) {
-        await firstOption.click();
+      // Skip if no options available (API dependent)
+      walletTest.skip(optionCount === 0, 'No fairminter options available from API');
 
-        // Input should have value
-        await expect(async () => {
-          const value = await input.inputValue();
-          expect(typeof value).toBe('string');
-        }).toPass({ timeout: 2000 });
-      }
+      await expect(firstOption).toBeVisible({ timeout: 2000 });
+      await firstOption.click();
+
+      // Input should have a non-empty value after selection
+      await expect(input).not.toHaveValue('');
     });
   });
 
@@ -148,22 +152,18 @@ walletTest.describe.skip('FairminterSelectInput Component', () => {
       expect(isFocused).toBe(true);
     });
 
-    walletTest('keyboard navigation works', async ({ page }) => {
+    walletTest('keyboard navigation opens dropdown', async ({ page }) => {
       const input = getComboboxInput(page);
 
       // Focus input
       await input.focus();
 
-      // Press down arrow to open and navigate
+      // Press down arrow to open dropdown
       await page.keyboard.press('ArrowDown');
 
-      // Options should be visible (if available)
-      await expect(async () => {
-        const options = page.locator('[role="listbox"]');
-        const hasOptions = await options.isVisible();
-        // May or may not have options depending on API data
-        expect(typeof hasOptions).toBe('boolean');
-      }).toPass({ timeout: 2000 });
+      // Listbox should be visible after keyboard navigation
+      const listbox = page.locator('[role="listbox"]');
+      await expect(listbox).toBeVisible({ timeout: 2000 });
     });
   });
 });

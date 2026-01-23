@@ -165,14 +165,16 @@ walletTest.describe('HashInput Component', () => {
       await input.fill(VALID_TX_HASH);
 
       const copyButton = page.locator('button[aria-label*="Copy"], button[aria-label*="copy"]').first();
-      const copyVisible = await copyButton.isVisible().catch(() => false);
-      if (copyVisible) {
-        await copyButton.click();
+      const copyButtonCount = await copyButton.count();
 
-        // Verify clipboard content
-        const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
-        expect(clipboardText).toBe(VALID_TX_HASH);
-      }
+      walletTest.skip(copyButtonCount === 0, 'Copy button not available');
+
+      await expect(copyButton).toBeVisible({ timeout: 2000 });
+      await copyButton.click();
+
+      // Verify clipboard content
+      const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+      expect(clipboardText).toBe(VALID_TX_HASH);
     });
   });
 

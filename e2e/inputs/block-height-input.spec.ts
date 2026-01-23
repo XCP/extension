@@ -46,12 +46,8 @@ walletTest.describe('BlockHeightInput Component', () => {
       const startInput = getBlockHeightInput(page, 'start_block');
       const endInput = getBlockHeightInput(page, 'end_block');
 
-      // At least one should be visible
-      await expect(async () => {
-        const startVisible = await startInput.isVisible();
-        const endVisible = await endInput.isVisible();
-        expect(startVisible || endVisible).toBe(true);
-      }).toPass({ timeout: 5000 });
+      // At least one should be visible - use .or() for web-first assertion
+      await expect(startInput.or(endInput)).toBeVisible({ timeout: 5000 });
     });
 
     walletTest('has Block Height label', async ({ page }) => {
@@ -59,11 +55,8 @@ walletTest.describe('BlockHeightInput Component', () => {
       const startBlockLabel = page.locator('label:has-text("Start Block")');
       const endBlockLabel = page.locator('label:has-text("End Block")');
 
-      await expect(async () => {
-        const hasStartLabel = await startBlockLabel.isVisible();
-        const hasEndLabel = await endBlockLabel.isVisible();
-        expect(hasStartLabel || hasEndLabel).toBe(true);
-      }).toPass({ timeout: 3000 });
+      // At least one should be visible - use .or() for web-first assertion
+      await expect(startBlockLabel.or(endBlockLabel)).toBeVisible({ timeout: 3000 });
     });
 
     walletTest('has Now button', async ({ page }) => {
@@ -149,7 +142,10 @@ walletTest.describe('BlockHeightInput Component', () => {
       const startInput = getBlockHeightInput(page, 'start_block');
       const endInput = getBlockHeightInput(page, 'end_block');
 
-      const startVisible = await startInput.isVisible({ timeout: 3000 }).catch(() => false);
+      // Check which input is visible
+      const startCount = await startInput.count();
+      const startVisible = startCount > 0 && await startInput.isVisible({ timeout: 3000 });
+
       if (startVisible) {
         const name = await startInput.getAttribute('name');
         expect(name).toBe('start_block');

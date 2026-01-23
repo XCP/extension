@@ -173,16 +173,18 @@ walletTest.describe('SettingSwitch Component', () => {
   walletTest.describe('Info Icon/Tooltip', () => {
     walletTest('hovering info icon shows tooltip', async ({ page }) => {
       const infoIcon = page.locator('button[aria-label*="Info"]').first();
+      const infoIconCount = await infoIcon.count();
 
-      const isVisible = await infoIcon.isVisible({ timeout: 2000 }).catch(() => false);
-      if (isVisible) {
-        // Hover over info icon
-        await infoIcon.hover();
+      walletTest.skip(infoIconCount === 0, 'No info icon on this page');
 
-        // Look for tooltip
-        const tooltip = page.locator('.shadow-lg.border');
-        await expect(tooltip).toBeVisible({ timeout: 2000 });
-      }
+      await expect(infoIcon).toBeVisible({ timeout: 2000 });
+
+      // Hover over info icon
+      await infoIcon.hover();
+
+      // Look for tooltip
+      const tooltip = page.locator('.shadow-lg.border');
+      await expect(tooltip).toBeVisible({ timeout: 2000 });
     });
   });
 

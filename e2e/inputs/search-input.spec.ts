@@ -124,12 +124,8 @@ walletTest.describe('SearchInput Component', () => {
       const spinner = page.locator('.animate-spin');
       const results = page.locator('text=/XCP/i');
 
-      await expect(async () => {
-        const hasSpinner = await spinner.count() > 0;
-        const hasResults = await results.count() > 0;
-        // Search was triggered if either spinner or results appear
-        expect(hasSpinner || hasResults).toBe(true);
-      }).toPass({ timeout: 3000 });
+      // Use .or() for web-first assertion - search was triggered if either spinner or results appear
+      await expect(spinner.or(results)).toBeVisible({ timeout: 3000 });
     });
   });
 
