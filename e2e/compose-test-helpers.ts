@@ -237,8 +237,8 @@ export async function goToCompose(page: Page, path: string): Promise<void> {
 
   await page.goto(targetUrl);
   await page.waitForLoadState('networkidle');
-  // Wait for form elements to be ready
-  await page.locator('input, textarea, button').first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+  // Wait for form elements to be ready - page must have at least one interactive element
+  await page.locator('input, textarea, button').first().waitFor({ state: 'visible', timeout: 10000 });
 }
 
 /**

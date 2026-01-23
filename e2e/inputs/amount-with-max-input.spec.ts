@@ -129,17 +129,9 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       // Verify the input accepted the value (component handles validation via form, not input mask)
       expect(value).toContain('-');
 
-      // Check that form validation catches it - submit button should be disabled
-      // or error styling should be present
-      const submitButton = compose.common.submitButton(page);
-      const hasErrorStyling = await input.evaluate(el =>
-        el.classList.contains('border-red-500') ||
-        el.getAttribute('aria-invalid') === 'true'
-      );
-      const isSubmitDisabled = await submitButton.isDisabled().catch(() => true);
-
-      // At least one validation mechanism should be present
-      expect(hasErrorStyling || isSubmitDisabled).toBe(true);
+      // Check that form validation catches it via aria-invalid attribute
+      const hasAriaInvalid = await input.getAttribute('aria-invalid');
+      expect(hasAriaInvalid).toBe('true');
     });
 
     walletTest('handles non-numeric input', async ({ page }) => {
@@ -153,17 +145,9 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       // Verify the input accepted the value
       expect(value).toBe(TEST_AMOUNTS.invalid);
 
-      // Check that form validation catches it - submit button should be disabled
-      // or error styling should be present
-      const submitButton = compose.common.submitButton(page);
-      const hasErrorStyling = await input.evaluate(el =>
-        el.classList.contains('border-red-500') ||
-        el.getAttribute('aria-invalid') === 'true'
-      );
-      const isSubmitDisabled = await submitButton.isDisabled().catch(() => true);
-
-      // At least one validation mechanism should be present
-      expect(hasErrorStyling || isSubmitDisabled).toBe(true);
+      // Check that form validation catches it via aria-invalid attribute
+      const hasAriaInvalid = await input.getAttribute('aria-invalid');
+      expect(hasAriaInvalid).toBe('true');
     });
   });
 

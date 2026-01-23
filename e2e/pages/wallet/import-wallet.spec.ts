@@ -79,8 +79,8 @@ test.describe('Import Wallet - Mnemonic', () => {
     await importWallet.wordInput(extensionPage, 0).focus();
     await extensionPage.keyboard.press('Control+v');
 
-    // Wait for all fields to be filled
-    await extensionPage.waitForTimeout(100);
+    // Wait for last word field to be populated (indicates paste completed)
+    await expect(importWallet.wordInput(extensionPage, 11)).toHaveValue(/.+/, { timeout: 5000 });
 
     // Verify all 12 fields have values
     const expectedWords = TEST_MNEMONIC.split(' ');
