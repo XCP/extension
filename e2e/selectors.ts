@@ -305,7 +305,7 @@ export const compose = {
   issuance: {
     assetNameInput: (page: Page) => page.locator('input[name*="name"], input[name*="asset"], input[placeholder*="Asset"]').first(),
     quantityInput: (page: Page) => page.locator('input[name*="quantity"], input[name*="amount"]').first(),
-    divisibleToggle: (page: Page) => page.locator('input[type="checkbox"], [role="switch"]').first(),
+    divisibleToggle: (page: Page) => page.locator('input[name="divisible"], [role="switch"][name="divisible"], [role="checkbox"]').first(),
     descriptionInput: (page: Page) => page.locator('textarea, input[name*="description"]').first(),
     issueButton: (page: Page) => page.locator('button:has-text("Continue"), button:has-text("Create"), button:has-text("Issue")').first(),
     lockSupplyButton: (page: Page) => page.locator('button:has-text("Lock")').first(),
