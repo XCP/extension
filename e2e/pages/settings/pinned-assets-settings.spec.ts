@@ -13,7 +13,7 @@ walletTest.describe('Pinned Assets Page (/settings/pinned-assets)', () => {
     await page.waitForLoadState('networkidle');
 
     // Should show pinned assets title
-    const title = page.locator('text=/Pinned Assets/i').first();
+    const title = page.getByRole('heading', { name: /Pinned Assets/i });
     await expect(title).toBeVisible({ timeout: 5000 });
   });
 
@@ -29,7 +29,7 @@ walletTest.describe('Pinned Assets Page (/settings/pinned-assets)', () => {
     await page.waitForLoadState('networkidle');
 
     // Should show page title - content depends on pinned assets
-    const pageTitle = page.locator('text=/Pinned Assets/i').first();
+    const pageTitle = page.getByRole('heading', { name: /Pinned Assets/i });
     await expect(pageTitle).toBeVisible({ timeout: 5000 });
   });
 
@@ -54,7 +54,7 @@ walletTest.describe('Pinned Assets Page (/settings/pinned-assets)', () => {
     await expect(backButton).toBeVisible({ timeout: 3000 });
 
     await backButton.click();
-    await page.waitForURL(/settings|index/, { timeout: 5000 });
+    await expect(page).toHaveURL(/settings|index/, { timeout: 5000 });
   });
 
   walletTest('has help button in header', async ({ page }) => {

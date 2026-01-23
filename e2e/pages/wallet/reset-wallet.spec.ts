@@ -5,6 +5,7 @@
  */
 
 import { walletTest, expect, navigateTo, TEST_PASSWORD } from '../../fixtures';
+import { common } from '../../selectors';
 
 walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
   walletTest.beforeEach(async ({ page }) => {
@@ -103,8 +104,7 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
   });
 
   walletTest('has back button to settings', async ({ page }) => {
-    const backButton = page.locator('button[aria-label*="back" i], header button').first();
-    await expect(backButton).toBeVisible({ timeout: 5000 });
+    await expect(common.headerBackButton(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('warning box has danger styling', async ({ page }) => {

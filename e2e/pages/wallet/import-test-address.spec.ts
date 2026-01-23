@@ -6,6 +6,7 @@
  */
 
 import { walletTest, expect } from '../../fixtures';
+import { common } from '../../selectors';
 
 walletTest.describe('Import Test Address Page (/import-test-address)', () => {
   // Note: This page only exists in development mode
@@ -18,7 +19,7 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
     await page.goto(`${baseUrl}/import-test-address`);
     await page.waitForLoadState('networkidle');
     // Wait for any redirect to complete (page may redirect to add-wallet in production)
-    await page.waitForTimeout(500);
+    await page.waitForURL(/./, { timeout: 2000 }).catch(() => {});
     return true;
   }
 
@@ -131,8 +132,7 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
 
     if (!page.url().includes('import-test-address')) return;
 
-    const backButton = page.locator('button[aria-label*="back" i], header button').first();
-    await expect(backButton).toBeVisible({ timeout: 5000 });
+    await expect(common.headerBackButton(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('explains watch-only limitations', async ({ page }) => {

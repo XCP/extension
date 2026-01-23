@@ -13,7 +13,7 @@ walletTest.describe('Connected Sites Page (/settings/connected-sites)', () => {
     await page.waitForLoadState('networkidle');
 
     // Should show connected sites title
-    const title = page.locator('text=/Connected Sites/i').first();
+    const title = page.getByRole('heading', { name: /Connected Sites/i });
     await expect(title).toBeVisible({ timeout: 5000 });
   });
 
@@ -22,16 +22,17 @@ walletTest.describe('Connected Sites Page (/settings/connected-sites)', () => {
     await page.waitForLoadState('networkidle');
 
     // Should show page title - content depends on whether sites are connected
-    const pageTitle = page.locator('text=/Connected Sites/i').first();
+    const pageTitle = page.getByRole('heading', { name: /Connected Sites/i });
     await expect(pageTitle).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows loading state initially', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/connected-sites'));
+    await page.waitForLoadState('networkidle');
 
-    // Should show content after loading
-    const content = page.locator('text=/Connected Sites|No connected sites/i').first();
-    await expect(content).toBeVisible({ timeout: 5000 });
+    // Should show content after loading - either the heading or empty state
+    const heading = page.getByRole('heading', { name: /Connected Sites/i });
+    await expect(heading).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has back navigation to settings', async ({ page }) => {
@@ -42,7 +43,7 @@ walletTest.describe('Connected Sites Page (/settings/connected-sites)', () => {
     await expect(backButton).toBeVisible({ timeout: 3000 });
 
     await backButton.click();
-    await page.waitForURL(/settings/, { timeout: 5000 });
+    await expect(page).toHaveURL(/settings/, { timeout: 5000 });
   });
 
   walletTest('has header button', async ({ page }) => {

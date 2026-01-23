@@ -6,6 +6,7 @@
  */
 
 import { walletTest, expect, TEST_PASSWORD } from '../../fixtures';
+import { secrets, common, unlock, errors } from '../../selectors';
 
 walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
   async function getWalletId(page: any): Promise<string | null> {
@@ -27,8 +28,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     await page.waitForLoadState('networkidle');
 
     // Should show password input
-    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-    await expect(passwordInput).toBeVisible({ timeout: 5000 });
+    await expect(unlock.passwordInput(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows security warning', async ({ page }) => {
@@ -39,8 +39,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     await page.waitForLoadState('networkidle');
 
     // Should warn user about security
-    const warning = page.locator('text=/warning|never share|do not share|keep secret|backup/i').first();
-    await expect(warning).toBeVisible({ timeout: 5000 });
+    await expect(secrets.warningMessage(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('requires password verification', async ({ page }) => {
@@ -51,8 +50,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     await page.waitForLoadState('networkidle');
 
     // Should have password input
-    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-    await expect(passwordInput).toBeVisible({ timeout: 5000 });
+    await expect(unlock.passwordInput(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has reveal button', async ({ page }) => {
@@ -63,8 +61,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     await page.waitForLoadState('networkidle');
 
     // Should have a button to reveal the phrase
-    const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
-    await expect(revealButton).toBeVisible({ timeout: 5000 });
+    await expect(secrets.revealButton(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('reveals passphrase with correct password', async ({ page }) => {
@@ -74,17 +71,14 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     await page.goto(page.url().replace(/\/index.*/, `/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
-    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-    await expect(passwordInput).toBeVisible({ timeout: 5000 });
+    await expect(unlock.passwordInput(page)).toBeVisible({ timeout: 5000 });
 
-    await passwordInput.fill(TEST_PASSWORD);
+    await unlock.passwordInput(page).fill(TEST_PASSWORD);
 
-    const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
-    await revealButton.click();
+    await secrets.revealButton(page).click();
 
     // Should show word display after reveal
-    const wordDisplay = page.locator('[data-testid*="word"], .word-item, .seed-word, .font-mono').first();
-    await expect(wordDisplay).toBeVisible({ timeout: 5000 });
+    await expect(secrets.mnemonicDisplay(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows error for wrong password', async ({ page }) => {
@@ -94,17 +88,14 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     await page.goto(page.url().replace(/\/index.*/, `/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
-    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-    await expect(passwordInput).toBeVisible({ timeout: 5000 });
+    await expect(unlock.passwordInput(page)).toBeVisible({ timeout: 5000 });
 
-    await passwordInput.fill('wrongpassword');
+    await unlock.passwordInput(page).fill('wrongpassword');
 
-    const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
-    await revealButton.click();
+    await secrets.revealButton(page).click();
 
     // Should show error
-    const errorMessage = page.locator('text=/incorrect|invalid|wrong|error/i').first();
-    await expect(errorMessage).toBeVisible({ timeout: 5000 });
+    await expect(errors.genericError(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has copy functionality after reveal', async ({ page }) => {
@@ -114,18 +105,14 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     await page.goto(page.url().replace(/\/index.*/, `/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
-    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-    await expect(passwordInput).toBeVisible({ timeout: 5000 });
+    await expect(unlock.passwordInput(page)).toBeVisible({ timeout: 5000 });
 
-    await passwordInput.fill(TEST_PASSWORD);
+    await unlock.passwordInput(page).fill(TEST_PASSWORD);
 
-    const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
-    await revealButton.click();
-    await page.waitForTimeout(1000);
+    await secrets.revealButton(page).click();
 
-    // After revealing, there should be a copy button
-    const copyButton = page.locator('button:has-text("Copy"), button[aria-label*="copy" i]').first();
-    await expect(copyButton).toBeVisible({ timeout: 5000 });
+    // After revealing, there should be a copy button - wait for it to appear
+    await expect(secrets.copyButton(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('can navigate back', async ({ page }) => {
@@ -136,8 +123,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     await page.waitForLoadState('networkidle');
 
     // Should have back button
-    const backButton = page.locator('button[aria-label*="back" i], button:has-text("Back"), button:has-text("Cancel")').first();
-    await expect(backButton).toBeVisible({ timeout: 5000 });
+    await expect(common.headerBackButton(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('handles invalid wallet ID', async ({ page }) => {

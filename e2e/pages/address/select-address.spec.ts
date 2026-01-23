@@ -5,6 +5,7 @@
  */
 
 import { walletTest, expect } from '../../fixtures';
+import { selectAddress, common } from '../../selectors';
 
 walletTest.describe('Select Address Page (/select-address)', () => {
   walletTest('select address page loads', async ({ page }) => {
@@ -27,12 +28,12 @@ walletTest.describe('Select Address Page (/select-address)', () => {
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
     // Should show radiogroup with addresses
-    const addressList = page.locator('[role="radiogroup"]');
+    const addressList = selectAddress.addressList(page);
     await expect(addressList).toBeVisible({ timeout: 5000 });
 
     // And should have at least one radio option
-    const radioOptions = page.locator('[role="radio"]');
-    await expect(radioOptions.first()).toBeVisible();
+    const firstAddressOption = selectAddress.addressOption(page, 0);
+    await expect(firstAddressOption).toBeVisible();
   });
 
   walletTest('shows Add Address button', async ({ page }) => {
@@ -41,8 +42,8 @@ walletTest.describe('Select Address Page (/select-address)', () => {
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
-    const addButton = page.locator('button:has-text("Add Address"), button[aria-label*="Add"]');
-    await expect(addButton.first()).toBeVisible({ timeout: 5000 });
+    const addButton = selectAddress.addAddressButton(page);
+    await expect(addButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has Add button in header', async ({ page }) => {
@@ -51,7 +52,8 @@ walletTest.describe('Select Address Page (/select-address)', () => {
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
-    const addButton = page.locator('button[aria-label*="Add"], header button svg').last();
+    // The main Add Address button (green, full-width)
+    const addButton = selectAddress.addAddressButton(page);
     await expect(addButton).toBeVisible({ timeout: 5000 });
   });
 
@@ -61,10 +63,10 @@ walletTest.describe('Select Address Page (/select-address)', () => {
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
-    // Click on first address card
-    const addressCard = page.locator('[class*="card"], [role="radio"]').first();
-    await expect(addressCard).toBeVisible({ timeout: 5000 });
-    await addressCard.click();
+    // Click on first address option
+    const firstAddressOption = selectAddress.addressOption(page, 0);
+    await expect(firstAddressOption).toBeVisible({ timeout: 5000 });
+    await firstAddressOption.click();
 
     // Should navigate to index after selection
     await expect(page).toHaveURL(/index/, { timeout: 5000 });
@@ -76,7 +78,7 @@ walletTest.describe('Select Address Page (/select-address)', () => {
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
-    const backButton = page.locator('button[aria-label*="back"], header button').first();
+    const backButton = common.headerBackButton(page);
     await expect(backButton).toBeVisible({ timeout: 5000 });
     await backButton.click();
 

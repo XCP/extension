@@ -5,6 +5,7 @@
  */
 
 import { walletTest, expect } from '../../fixtures';
+import { settings, common } from '../../selectors';
 
 walletTest.describe('Address Type Settings Page (/settings/address-type)', () => {
   walletTest('address type settings page loads', async ({ page }) => {
@@ -15,7 +16,7 @@ walletTest.describe('Address Type Settings Page (/settings/address-type)', () =>
     if (!page.url().includes('/settings/address-type')) return;
 
     // Should show address type UI
-    const addressTypeLabel = page.locator('text=/P2PKH|P2WPKH|P2TR|Legacy|SegWit|Taproot|Native|Address Type/i').first();
+    const addressTypeLabel = page.getByText(/P2PKH|P2WPKH|P2TR|Legacy|SegWit|Taproot|Native|Address Type/i).first();
     await expect(addressTypeLabel).toBeVisible({ timeout: 5000 });
   });
 
@@ -26,7 +27,7 @@ walletTest.describe('Address Type Settings Page (/settings/address-type)', () =>
     if (!page.url().includes('/settings/address-type')) return;
 
     // Should show radio group with address type options
-    const radioGroup = page.locator('[role="radiogroup"]').first();
+    const radioGroup = page.getByRole('radiogroup').first();
     await expect(radioGroup).toBeVisible({ timeout: 5000 });
   });
 
@@ -37,7 +38,7 @@ walletTest.describe('Address Type Settings Page (/settings/address-type)', () =>
     if (!page.url().includes('/settings/address-type')) return;
 
     // Should show address type labels
-    const addressTypeLabels = page.locator('text=/Legacy|SegWit|Taproot|P2PKH|P2WPKH|P2TR/i').first();
+    const addressTypeLabels = page.getByText(/Legacy|SegWit|Taproot|P2PKH|P2WPKH|P2TR/i).first();
     await expect(addressTypeLabels).toBeVisible({ timeout: 5000 });
   });
 
@@ -48,16 +49,16 @@ walletTest.describe('Address Type Settings Page (/settings/address-type)', () =>
     if (!page.url().includes('/settings/address-type')) return;
 
     // Find options and click a different one
-    const options = page.locator('[role="radio"], [data-headlessui-state]');
+    const options = page.getByRole('radio');
     const count = await options.count();
 
     if (count > 1) {
       // Click second option (likely different from current)
       await options.nth(1).click();
-      await page.waitForTimeout(500);
+      await page.waitForLoadState('networkidle');
 
       // Page should still be on settings (no crash)
-      expect(page.url()).toContain('settings');
+      await expect(page).toHaveURL(/settings/);
     }
   });
 
@@ -67,11 +68,11 @@ walletTest.describe('Address Type Settings Page (/settings/address-type)', () =>
 
     if (!page.url().includes('/settings/address-type')) return;
 
-    const backButton = page.locator('button[aria-label*="back"], header button').first();
+    const backButton = common.headerBackButton(page);
     await expect(backButton).toBeVisible({ timeout: 3000 });
 
     await backButton.click();
-    await page.waitForURL(/settings|index/, { timeout: 5000 });
+    await expect(page).toHaveURL(/settings|index/, { timeout: 5000 });
   });
 
   walletTest('shows content after loading', async ({ page }) => {
@@ -81,7 +82,7 @@ walletTest.describe('Address Type Settings Page (/settings/address-type)', () =>
     if (!page.url().includes('/settings/address-type')) return;
 
     // Should show address type content
-    const content = page.locator('text=/P2PKH|P2WPKH|Address Type/i').first();
+    const content = page.getByText(/P2PKH|P2WPKH|Address Type/i).first();
     await expect(content).toBeVisible({ timeout: 5000 });
   });
 });

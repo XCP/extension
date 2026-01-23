@@ -5,6 +5,7 @@
  */
 
 import { walletTest, expect } from '../../fixtures';
+import { addressHistory, common } from '../../selectors';
 
 walletTest.describe('Address History Page (/address-history)', () => {
   walletTest('address history page loads', async ({ page }) => {
@@ -22,8 +23,7 @@ walletTest.describe('Address History Page (/address-history)', () => {
 
     // Wait for content to load - should show either transactions or empty state
     // Using .or() for genuinely alternative states (not loading)
-    const content = page.locator('text=/No Transactions|No transactions/i').first()
-      .or(page.locator('[class*="transaction"], .space-y-2 > div').first());
+    const content = addressHistory.emptyState(page).or(addressHistory.transactionList(page));
     await expect(content).toBeVisible({ timeout: 10000 });
   });
 
@@ -48,12 +48,11 @@ walletTest.describe('Address History Page (/address-history)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/address-history'));
     await page.waitForLoadState('networkidle');
 
-    const backButton = page.locator('header button').first();
+    const backButton = common.headerBackButton(page);
     await expect(backButton).toBeVisible({ timeout: 3000 });
 
     await backButton.click();
-    await page.waitForURL(/index/, { timeout: 5000 });
-    expect(page.url()).toContain('index');
+    await expect(page).toHaveURL(/index/, { timeout: 5000 });
   });
 
   walletTest('page has History title', async ({ page }) => {

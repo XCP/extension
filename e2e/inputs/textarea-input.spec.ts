@@ -18,6 +18,7 @@
  */
 
 import { walletTest, expect } from '../fixtures';
+import { signMessage } from '../selectors';
 
 walletTest.describe('TextAreaInput Component', () => {
   // Navigate to sign message page which uses TextAreaInput
@@ -28,11 +29,11 @@ walletTest.describe('TextAreaInput Component', () => {
     await page.goto(`${baseUrl}/actions/sign-message`);
     await page.waitForLoadState('networkidle');
     // Wait for textarea to confirm page is loaded
-    await page.locator('textarea').first().waitFor({ state: 'visible', timeout: 10000 });
+    await expect(signMessage.messageInput(page)).toBeVisible({ timeout: 10000 });
   });
 
-  // Helper to get the message textarea
-  const getMessageTextarea = (page: any) => page.locator('textarea[placeholder*="message" i], textarea').first();
+  // Helper to get the message textarea - uses centralized selector
+  const getMessageTextarea = (page: any) => signMessage.messageInput(page);
 
   walletTest.describe('Rendering', () => {
     walletTest('renders textarea element', async ({ page }) => {
@@ -133,7 +134,7 @@ walletTest.describe('TextAreaInput Component', () => {
       await expect(textarea).toBeVisible();
 
       // The Sign Message button should be disabled when message is empty
-      const signButton = page.getByRole('button', { name: 'Sign Message' });
+      const signButton = signMessage.signButton(page);
       await expect(signButton).toBeVisible();
       await expect(signButton).toBeDisabled();
     });
@@ -161,8 +162,8 @@ walletTest.describe('TextAreaInput Component', () => {
       await textarea.fill('Test message');
 
       // The Sign Message button should be enabled when message is filled
-      const signButton = page.getByRole('button', { name: 'Sign Message' });
-      await expect(signButton).toBeEnabled();
+      const signBtn = signMessage.signButton(page);
+      await expect(signBtn).toBeEnabled();
     });
   });
 

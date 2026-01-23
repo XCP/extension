@@ -13,8 +13,7 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
     await page.waitForLoadState('networkidle');
 
     // Should show Bitcoin Price title
-    const titleElement = page.locator('text=/Bitcoin Price/i').first();
-    await expect(titleElement).toBeVisible({ timeout: 10000 });
+    await expect(market.btcPriceTitle(page)).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('shows current BTC price or loading state', async ({ page }) => {
@@ -22,8 +21,7 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
     await page.waitForLoadState('networkidle');
 
     // Should show Bitcoin Price title (price data may take time to load)
-    const titleElement = page.locator('text=/Bitcoin Price/i').first();
-    await expect(titleElement).toBeVisible({ timeout: 10000 });
+    await expect(market.btcPriceTitle(page)).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('shows Bitcoin Price title', async ({ page }) => {
@@ -31,8 +29,7 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
     await page.waitForLoadState('networkidle');
 
     // Page should show "Bitcoin Price" title
-    const bitcoinPriceTitle = page.locator('text=/Bitcoin Price/i').first();
-    await expect(bitcoinPriceTitle).toBeVisible({ timeout: 10000 });
+    await expect(market.btcPriceTitle(page)).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('shows time range tabs when loaded', async ({ page }) => {
@@ -40,8 +37,7 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
     await page.waitForLoadState('networkidle');
 
     // First verify page loaded
-    const titleElement = page.locator('text=/Bitcoin Price/i').first();
-    await expect(titleElement).toBeVisible({ timeout: 10000 });
+    await expect(market.btcPriceTitle(page)).toBeVisible({ timeout: 10000 });
 
     // Check for time range tabs - they may not appear until chart loads
     const tab1h = market.timeRange1h(page);
@@ -58,8 +54,7 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
     await page.waitForLoadState('networkidle');
 
     // First verify page loaded
-    const titleElement = page.locator('text=/Bitcoin Price/i').first();
-    await expect(titleElement).toBeVisible({ timeout: 10000 });
+    await expect(market.btcPriceTitle(page)).toBeVisible({ timeout: 10000 });
 
     // Click on 1H tab if available
     const tab1h = market.timeRange1h(page);
@@ -67,7 +62,7 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
 
     if (tabCount > 0) {
       await tab1h.click();
-      await page.waitForTimeout(500);
+      await page.waitForLoadState('networkidle');
       // Page should still be on market/btc
       expect(page.url()).toContain('market');
     }
@@ -78,8 +73,7 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
     await page.waitForLoadState('networkidle');
 
     // Verify page loaded with title
-    const titleElement = page.locator('text=/Bitcoin Price/i').first();
-    await expect(titleElement).toBeVisible({ timeout: 10000 });
+    await expect(market.btcPriceTitle(page)).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('has back navigation to market', async ({ page }) => {
@@ -87,8 +81,7 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Wait for page title to confirm page loaded
-    const titleElement = page.locator('text=/Bitcoin Price/i').first();
-    await expect(titleElement).toBeVisible({ timeout: 15000 });
+    await expect(market.btcPriceTitle(page)).toBeVisible({ timeout: 15000 });
 
     const backButton = common.headerBackButton(page);
     await expect(backButton).toBeVisible({ timeout: 5000 });
@@ -101,7 +94,6 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
     await page.waitForLoadState('networkidle');
 
     // Verify page has expected structure
-    const titleElement = page.locator('text=/Bitcoin Price/i').first();
-    await expect(titleElement).toBeVisible({ timeout: 10000 });
+    await expect(market.btcPriceTitle(page)).toBeVisible({ timeout: 10000 });
   });
 });

@@ -5,6 +5,7 @@
  */
 
 import { walletTest, test, expect, launchExtension, cleanup, TEST_PRIVATE_KEY, TEST_PASSWORD } from '../../fixtures';
+import { importWallet, common } from '../../selectors';
 
 // Tests for import when wallet already exists
 walletTest.describe('Import Private Key Page - With Existing Wallet (/import-private-key)', () => {
@@ -28,14 +29,13 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
   walletTest('has private key input field', async ({ page }) => {
     await navigateToImportPrivateKey(page);
 
-    const keyInput = page.locator('input[name="private-key"]').first();
-    await expect(keyInput).toBeVisible({ timeout: 5000 });
+    await expect(importWallet.privateKeyInput(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('private key input is password type for security', async ({ page }) => {
     await navigateToImportPrivateKey(page);
 
-    const keyInput = page.locator('input[name="private-key"]').first();
+    const keyInput = importWallet.privateKeyInput(page);
     await expect(keyInput).toBeVisible({ timeout: 5000 });
 
     const inputType = await keyInput.getAttribute('type');
@@ -73,7 +73,7 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     await navigateToImportPrivateKey(page);
 
     // First fill in private key to enable checkbox
-    const keyInput = page.locator('input[name="private-key"]').first();
+    const keyInput = importWallet.privateKeyInput(page);
     await expect(keyInput).toBeVisible({ timeout: 5000 });
     await keyInput.fill(TEST_PRIVATE_KEY);
 
@@ -98,7 +98,7 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     await navigateToImportPrivateKey(page);
 
     // Fill in private key
-    const keyInput = page.locator('input[name="private-key"]').first();
+    const keyInput = importWallet.privateKeyInput(page);
     await expect(keyInput).toBeVisible({ timeout: 5000 });
     await keyInput.fill(TEST_PRIVATE_KEY);
 
@@ -116,7 +116,7 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     await navigateToImportPrivateKey(page);
 
     // Fill in invalid private key
-    const keyInput = page.locator('input[name="private-key"]').first();
+    const keyInput = importWallet.privateKeyInput(page);
     await expect(keyInput).toBeVisible({ timeout: 5000 });
     await keyInput.fill('invalid-key-format');
 
@@ -135,7 +135,7 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     }
 
     // Submit
-    const continueButton = page.locator('button:has-text("Continue"), button[type="submit"]').first();
+    const continueButton = importWallet.continueButton(page);
     const buttonCount = await continueButton.count();
     if (buttonCount > 0 && await continueButton.isVisible()) {
       await continueButton.click();
@@ -150,7 +150,7 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     await navigateToImportPrivateKey(page);
 
     // Fill in valid private key
-    const keyInput = page.locator('input[name="private-key"]').first();
+    const keyInput = importWallet.privateKeyInput(page);
     await expect(keyInput).toBeVisible({ timeout: 5000 });
     await keyInput.fill(TEST_PRIVATE_KEY);
 
@@ -169,7 +169,7 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     }
 
     // Submit
-    const continueButton = page.locator('button:has-text("Continue"), button[type="submit"]').first();
+    const continueButton = importWallet.continueButton(page);
     const buttonCount = await continueButton.count();
     if (buttonCount > 0 && await continueButton.isVisible()) {
       await continueButton.click();
@@ -183,8 +183,7 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
   walletTest('has back button', async ({ page }) => {
     await navigateToImportPrivateKey(page);
 
-    const backButton = page.locator('button[aria-label*="back" i], header button').first();
-    await expect(backButton).toBeVisible({ timeout: 5000 });
+    await expect(common.headerBackButton(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has close button', async ({ page }) => {

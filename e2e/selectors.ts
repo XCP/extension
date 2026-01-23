@@ -139,11 +139,17 @@ export const settings = {
   connectedSitesOption: (page: Page) => page.getByText('Connected Sites'),
   pinnedAssetsOption: (page: Page) => page.getByText('Pinned Assets'),
   securityOption: (page: Page) => page.getByText('Security'),
+  resetWalletButton: (page: Page) => page.locator('button:has-text("Reset Wallet")'),
+  aboutSection: (page: Page) => page.getByText(/About XCP Wallet/i),
+  termsLink: (page: Page) => page.getByText(/Terms of Service/i),
 
   // Advanced settings
   autoLockTimer: (page: Page) => page.getByText(/Auto-Lock/i).first(),
   oneMinuteOption: (page: Page) => page.getByText('1 Minute'),
   fiveMinutesOption: (page: Page) => page.getByText('5 Minutes'),
+  apiUrlInput: (page: Page) => page.locator('input[type="url"], input[placeholder*="URL"], input[placeholder*="api"]').first(),
+  unconfirmedTxToggle: (page: Page) => page.getByText(/Unconfirmed.*TX|Use Unconfirmed/i).first(),
+  analyticsToggle: (page: Page) => page.getByText(/Analytics|usage data/i).first(),
 };
 
 // ============================================================================
@@ -407,7 +413,8 @@ export const market = {
   ordersTab: (page: Page) => page.getByRole('tab', { name: 'Orders' }),
   manageTab: (page: Page) => page.getByRole('tab', { name: 'Manage' }),
 
-  // BTC Price page - canvas has aria-label and role="img"
+  // BTC Price page
+  btcPriceTitle: (page: Page) => page.getByText(/Bitcoin Price/i).first(),
   priceChart: (page: Page) => page.locator('canvas[aria-label="Price chart"]'),
   timeRange1h: (page: Page) => page.getByRole('button', { name: '1H' }),
   timeRange24h: (page: Page) => page.getByRole('button', { name: '24H' }),
@@ -503,6 +510,34 @@ export const providerApproval = {
   // Approval queue
   queueCount: (page: Page) => page.locator('text=/[0-9]+.*request/i'),
   dismissButton: (page: Page) => page.locator('button:has-text("Dismiss"), button:has-text("Clear")'),
+};
+
+// ============================================================================
+// Secrets Pages (Show Passphrase / Show Private Key)
+// ============================================================================
+
+export const secrets = {
+  // Show passphrase page
+  showPassphraseTitle: (page: Page) => page.getByText(/Show.*Passphrase|View.*Seed|Recovery/i).first(),
+  revealButton: (page: Page) => page.locator('button:has-text("Reveal"), button:has-text("Show")').first(),
+  mnemonicDisplay: (page: Page) => page.locator('text=/word|phrase|mnemonic/i').first(),
+  copyButton: (page: Page) => page.locator('button[aria-label*="Copy"]').first(),
+
+  // Show private key page
+  showPrivateKeyTitle: (page: Page) => page.getByText(/Show.*Private.*Key|Export.*Key/i).first(),
+  privateKeyDisplay: (page: Page) => page.getByText(/Private Key|WIF/i).first(),
+  warningMessage: (page: Page) => page.getByText(/never share|keep.*secret|dangerous/i).first(),
+};
+
+// ============================================================================
+// Error States
+// ============================================================================
+
+export const errors = {
+  notFound: (page: Page) => page.getByText(/Not Found/i).first(),
+  unableToLoad: (page: Page) => page.getByText(/Unable to load|error/i).first(),
+  invalidPassword: (page: Page) => page.getByText(/Invalid.*password|Incorrect.*password|Wrong.*password/i).first(),
+  genericError: (page: Page) => page.getByText(/incorrect|invalid|wrong|error/i).first(),
 };
 
 // ============================================================================

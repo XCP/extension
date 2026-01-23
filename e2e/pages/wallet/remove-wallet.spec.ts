@@ -5,6 +5,7 @@
  */
 
 import { walletTest, expect, navigateTo } from '../../fixtures';
+import { common } from '../../selectors';
 
 walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
   // Navigate to remove-wallet page through the UI (via select-wallet page wallet menu)
@@ -22,11 +23,10 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
     await expect(walletMenu.first()).toBeVisible({ timeout: 5000 });
     await walletMenu.first().click();
 
-    // Wait for menu to appear
-    await page.waitForTimeout(500);
-
-    // Check if Remove button is disabled (only one wallet)
+    // Wait for menu to appear and check if Remove button is disabled (only one wallet)
     const removeOption = page.locator('button').filter({ hasText: /^Remove\s/ });
+    await expect(removeOption.or(page.getByRole('menu'))).toBeVisible({ timeout: 3000 }).catch(() => {});
+
     const removeCount = await removeOption.count();
     if (removeCount === 0) {
       return false;
@@ -110,8 +110,7 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
     const canNavigate = await navigateToRemoveWallet(page);
     walletTest.skip(!canNavigate, 'Cannot remove only wallet - Remove button is disabled');
 
-    const backButton = page.locator('button[aria-label*="back" i], header button').first();
-    await expect(backButton).toBeVisible({ timeout: 5000 });
+    await expect(common.headerBackButton(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('handles invalid wallet ID', async ({ page }) => {
