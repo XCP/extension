@@ -82,7 +82,7 @@ walletTest.describe('Show Passphrase Page (/show-passphrase)', () => {
     await expect(wordContent).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('show passphrase has copy button after reveal', async ({ page }) => {
+  walletTest('show passphrase displays security notice after reveal', async ({ page }) => {
     const walletCard = page.locator('[role="radio"]').first();
     await expect(walletCard).toBeVisible();
 
@@ -102,13 +102,13 @@ walletTest.describe('Show Passphrase Page (/show-passphrase)', () => {
     const confirmButton = secrets.revealButton(page);
     await confirmButton.click();
 
-    // Wait for passphrase to be revealed (grid of words should appear)
-    const wordGrid = page.locator('.grid, .flex-wrap').or(page.locator('text=/word|phrase|mnemonic/i')).first();
-    await expect(wordGrid).toBeVisible({ timeout: 5000 });
+    // Wait for passphrase to be revealed (ordered list of words should appear)
+    const wordList = page.locator('ol');
+    await expect(wordList).toBeVisible({ timeout: 5000 });
 
-    // Should have copy button after revealing - use the secrets selector
-    const copyButton = secrets.copyButton(page);
-    await expect(copyButton).toBeVisible({ timeout: 5000 });
+    // Should show security notice after revealing
+    const securityNotice = page.locator('text=/Security Notice|Never share/i').first();
+    await expect(securityNotice).toBeVisible({ timeout: 5000 });
   });
 });
 
