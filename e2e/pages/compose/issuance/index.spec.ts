@@ -66,11 +66,8 @@ walletTest.describe('Compose Issuance Page (/compose/issuance)', () => {
     const errorMessage = compose.common.errorMessage(page);
     const submitButton = compose.issuance.issueButton(page);
 
-    await expect(async () => {
-      const hasError = await errorMessage.isVisible();
-      const isDisabled = await submitButton.isDisabled();
-      expect(hasError || isDisabled).toBe(true);
-    }).toPass({ timeout: 5000 });
+    // Submit button should be disabled with invalid name (min 4 chars)
+    await expect(submitButton).toBeDisabled({ timeout: 5000 });
   });
 
   walletTest('issuance form accepts valid asset name', async ({ page }) => {

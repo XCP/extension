@@ -52,8 +52,7 @@ walletTest.describe('SettingSwitch Component', () => {
       const classes = await switchElement.getAttribute('class') || '';
 
       // Should have color indicating state (blue for on, gray for off)
-      const hasStateColor = classes.includes('bg-blue-600') || classes.includes('bg-gray-200');
-      expect(hasStateColor).toBe(true);
+      expect(classes).toMatch(/bg-blue-600|bg-gray-200/);
     });
   });
 
@@ -68,11 +67,10 @@ walletTest.describe('SettingSwitch Component', () => {
       // Click to toggle
       await switchElement.click();
 
-      // Wait for state to change
+      // Wait for state to change (aria-checked should toggle)
       await expect(async () => {
         const newChecked = await switchElement.getAttribute('aria-checked');
-        const newClasses = await switchElement.getAttribute('class') || '';
-        expect(newChecked !== initialChecked || newClasses !== initialClasses).toBe(true);
+        expect(newChecked).not.toBe(initialChecked);
       }).toPass({ timeout: 2000 });
     });
 
@@ -198,7 +196,7 @@ walletTest.describe('SettingSwitch Component', () => {
     walletTest('switch has aria-checked attribute', async ({ page }) => {
       const switchElement = page.locator('[role="switch"]').first();
       const ariaChecked = await switchElement.getAttribute('aria-checked');
-      expect(ariaChecked === 'true' || ariaChecked === 'false').toBe(true);
+      expect(['true', 'false']).toContain(ariaChecked);
     });
 
     walletTest('switch is keyboard accessible', async ({ page }) => {

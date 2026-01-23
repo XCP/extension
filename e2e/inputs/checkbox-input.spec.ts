@@ -55,7 +55,7 @@ walletTest.describe('CheckboxInput Component', () => {
 
       const isChecked = await checkbox.getAttribute('aria-checked');
       // Should have true or false value
-      expect(isChecked === 'false' || isChecked === 'true').toBe(true);
+      expect(['true', 'false']).toContain(isChecked);
     });
   });
 
@@ -138,8 +138,8 @@ walletTest.describe('CheckboxInput Component', () => {
       const svg = checkbox.locator('svg');
       const hasSvg = await svg.isVisible();
 
-      // Either has data-checked or visible checkmark
-      expect(hasCheckedData === '' || hasSvg).toBe(true);
+      // Should have visible checkmark when checked
+      expect(hasSvg).toBe(true);
     });
   });
 

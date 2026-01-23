@@ -84,12 +84,10 @@ test.describe('Error Handling', () => {
         // Click failed - that's acceptable
       }
       await extensionPage.waitForTimeout(500);
-      // After clicking, check if error appeared or still on same page
-      const errorAfterClick = await extensionPage.locator('text=/invalid|error|not.*valid|incorrect/i').first().count() > 0;
-      const stillOnImport = extensionPage.url().includes('import');
-      expect(errorAfterClick || stillOnImport).toBe(true);
+      // Should still be on import page (invalid mnemonic rejected)
+      await expect(extensionPage).toHaveURL(/import/);
     } else {
-      // At least one preventive measure was in place
+      // At least one preventive measure was in place - test passes
       expect(buttonDisabled || hasError || checkboxDisabled).toBe(true);
     }
   });

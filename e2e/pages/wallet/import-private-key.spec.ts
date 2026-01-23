@@ -39,8 +39,8 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     await expect(keyInput).toBeVisible({ timeout: 5000 });
 
     const inputType = await keyInput.getAttribute('type');
-    // Should be password type for security
-    expect(inputType === 'password' || inputType === 'text').toBe(true);
+    // Should be password or text type
+    expect(['password', 'text']).toContain(inputType);
   });
 
   walletTest('has address type selector', async ({ page }) => {
@@ -227,10 +227,7 @@ test.describe('Import Private Key Page - Fresh Extension', () => {
         await importKeyButton.click();
 
         // Should navigate to import-private-key page
-        const keyInput = page.locator('input[name="private-key"]').first();
-        const onImportPage = page.url().includes('import-private-key') || await keyInput.count() > 0;
-
-        expect(onImportPage).toBe(true);
+        await expect(page).toHaveURL(/import-private-key/, { timeout: 5000 });
       }
     } finally {
       await cleanup(context);

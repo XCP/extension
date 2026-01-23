@@ -222,11 +222,9 @@ walletTest.describe('Form Edge Cases - Send Amount', () => {
       await amountInput.fill('0');
       await amountInput.blur();
 
+      // Submit button should be disabled with zero amount
       const submitButton = page.locator('button:has-text("Continue"), button:has-text("Send")').first();
-      const isDisabled = await submitButton.isDisabled();
-      const errorCount = await page.locator('.text-red-600, .text-red-500').count();
-
-      expect(isDisabled || errorCount > 0).toBe(true);
+      await expect(submitButton).toBeDisabled();
     }
   });
 
@@ -241,12 +239,9 @@ walletTest.describe('Form Edge Cases - Send Amount', () => {
       await amountInput.fill('-1');
       await amountInput.blur();
 
-      const submitButton = page.locator('button:has-text("Continue"), button:has-text("Send")').first();
-      const isDisabled = await submitButton.isDisabled();
-      const errorCount = await page.locator('.text-red-600, .text-red-500').count();
+      // Negative values should be sanitized (stripped) or button disabled
       const inputValue = await amountInput.inputValue();
-
-      expect(isDisabled || errorCount > 0 || !inputValue.includes('-')).toBe(true);
+      expect(inputValue.includes('-')).toBe(false);
     }
   });
 
@@ -278,11 +273,9 @@ walletTest.describe('Form Edge Cases - Send Amount', () => {
       await amountInput.fill('999999999');
       await amountInput.blur();
 
+      // Submit button should be disabled with amount exceeding balance
       const submitButton = page.locator('button:has-text("Continue"), button:has-text("Send")').first();
-      const isDisabled = await submitButton.isDisabled();
-      const errorCount = await page.locator('text=/insufficient|not enough|exceeds/i').count();
-
-      expect(isDisabled || errorCount > 0).toBe(true);
+      await expect(submitButton).toBeDisabled();
     }
   });
 
@@ -394,10 +387,8 @@ test.describe('Form Edge Cases - Password Fields', () => {
     const continueButton = extensionPage.getByRole('button', { name: /Continue/i });
     await expect(continueButton).toBeVisible({ timeout: 5000 });
 
-    const isDisabled = await continueButton.isDisabled();
-    const errorCount = await extensionPage.locator('text=/minimum|too short|at least/i').count();
-
-    expect(isDisabled || errorCount > 0).toBe(true);
+    // Button should be disabled with short password
+    await expect(continueButton).toBeDisabled();
   });
 });
 

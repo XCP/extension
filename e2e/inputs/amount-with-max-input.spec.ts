@@ -130,11 +130,8 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       // Verify input accepted something (didn't crash)
       const value = await input.inputValue();
 
-      // The key is that the form handles it gracefully
-      // Either: value is empty (stripped), value doesn't contain negative (sanitized), or error shown
-      const hasError = await page.locator('.border-red-500, .text-red-500').first().count() > 0;
-      const isEmptyOrSanitized = value === '' || !value.includes('-');
-      expect(hasError || isEmptyOrSanitized || value === TEST_AMOUNTS.negative).toBe(true);
+      // Negative values should be sanitized (stripped)
+      expect(value.includes('-')).toBe(false);
     });
 
     walletTest('handles non-numeric input', async ({ page }) => {
@@ -142,10 +139,9 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       await input.fill(TEST_AMOUNTS.invalid);
       await input.blur();
 
-      // Non-numeric should be rejected or cause error
+      // Non-numeric should be rejected (empty value)
       const value = await input.inputValue();
-      // Either empty (rejected) or shows error
-      expect(value === '' || value === TEST_AMOUNTS.invalid).toBe(true);
+      expect(value).toBe('');
     });
   });
 
@@ -180,12 +176,10 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       // or an error should appear
       const errorAlert = page.locator('[role="alert"], .text-red-600, p.text-red-500');
 
-      // Wait for max calculation - check input gets a value or error appears
+      // Wait for max calculation - input should get a value (even if 0)
       await expect(async () => {
         const value = await input.inputValue();
-        const errorCount = await errorAlert.count();
-        // Either input has a value OR there's an error
-        expect(value !== '' || errorCount > 0).toBe(true);
+        expect(value).not.toBe('');
       }).toPass({ timeout: 5000 });
 
       // Additionally verify the input wasn't left empty (unless there's an error)
@@ -250,12 +244,10 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       // Either: error message appears, or value is set (could be 0 for empty wallet)
       const errorMessages = page.locator('text=/No available balance|Insufficient balance|Failed to calculate/i');
 
-      // Wait for something to happen (input gets value or error appears)
+      // Wait for max calculation to complete - input should have a value
       await expect(async () => {
         const value = await input.inputValue();
-        const errorCount = await errorMessages.count();
-        // Valid outcomes: error message visible OR value is set
-        expect(errorCount > 0 || value !== '').toBe(true);
+        expect(value).not.toBe('');
       }).toPass({ timeout: 5000 });
     });
   });

@@ -85,12 +85,9 @@ walletTest.describe('Compose Order Page (/compose/order)', () => {
     const amountRequired = await amountInput.getAttribute('required');
     const priceRequired = await priceInput.getAttribute('required');
 
-    // Either form requires fields OR the inputs start empty
-    const amountValue = await amountInput.inputValue();
-    const priceValue = await priceInput.inputValue();
-
-    expect(amountRequired !== null || amountValue === '').toBe(true);
-    expect(priceRequired !== null || priceValue === '').toBe(true);
+    // Both inputs should start empty (requiring user input)
+    await expect(amountInput).toHaveValue('');
+    await expect(priceInput).toHaveValue('');
   });
 });
 

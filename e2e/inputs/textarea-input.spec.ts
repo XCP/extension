@@ -175,8 +175,8 @@ walletTest.describe('TextAreaInput Component', () => {
       const textareaId = await textarea.getAttribute('id');
       const name = await textarea.getAttribute('name');
 
-      // Either has matching label or name attribute
-      expect(labelFor === textareaId || !!name).toBe(true);
+      // Should have a name attribute for form submission
+      expect(name).toBeTruthy();
     });
 
     walletTest('textarea has aria-invalid on error', async ({ page }) => {
@@ -186,7 +186,7 @@ walletTest.describe('TextAreaInput Component', () => {
       await textarea.blur();
 
       const ariaInvalid = await textarea.getAttribute('aria-invalid');
-      expect(ariaInvalid === 'false' || ariaInvalid === null).toBe(true);
+      expect([null, 'false']).toContain(ariaInvalid);
     });
   });
 

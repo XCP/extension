@@ -262,7 +262,9 @@ walletTest.describe('XCP Provider', () => {
       });
 
       // Either returns a chain ID or an error (if wallet not set up)
-      expect('chainId' in result || 'error' in result).toBe(true);
+      expect(Object.keys(result)).toEqual(
+        expect.arrayContaining([expect.stringMatching(/chainId|error/)])
+      );
 
       await testPage.close();
     });
@@ -285,7 +287,9 @@ walletTest.describe('XCP Provider', () => {
       });
 
       // Either returns a network or an error (if wallet not set up)
-      expect('network' in result || 'error' in result).toBe(true);
+      expect(Object.keys(result)).toEqual(
+        expect.arrayContaining([expect.stringMatching(/network|error/)])
+      );
 
       await testPage.close();
     });

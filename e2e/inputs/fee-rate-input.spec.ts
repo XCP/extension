@@ -50,14 +50,9 @@ walletTest.describe('FeeRateInput Component', () => {
     });
 
     walletTest('shows dropdown or loading state', async ({ page }) => {
-      // Either shows dropdown (fees loaded) or loading message
-      await expect(async () => {
-        const dropdown = page.locator('button').filter({ hasText: /Fast|Medium|Slow|Custom/i }).first();
-        const loading = page.locator('text=Loading fee rates');
-        const dropdownVisible = await dropdown.isVisible();
-        const loadingVisible = await loading.isVisible();
-        expect(dropdownVisible || loadingVisible).toBe(true);
-      }).toPass({ timeout: 5000 });
+      // Should show dropdown with fee rate options after loading
+      const dropdown = page.locator('button').filter({ hasText: /Fast|Medium|Slow|Custom/i }).first();
+      await expect(dropdown).toBeVisible({ timeout: 10000 });
     });
   });
 
