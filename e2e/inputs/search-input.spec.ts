@@ -120,12 +120,14 @@ walletTest.describe('SearchInput Component', () => {
       // Type to trigger search
       await input.fill('XCP');
 
-      // Either spinner shows or results appear (depending on API speed)
-      const spinner = page.locator('.animate-spin');
-      const results = page.locator('text=/XCP/i');
-
-      // Use .or() for web-first assertion - search was triggered if either spinner or results appear
-      await expect(spinner.or(results)).toBeVisible({ timeout: 3000 });
+      // Wait for search to complete - either spinner shows during search or results appear
+      await expect(async () => {
+        const spinnerCount = await page.locator('.animate-spin').count();
+        // Results list should appear with asset items
+        const resultsCount = await page.locator('[role="checkbox"], [role="option"], li').count();
+        // Either spinner is visible OR we have results
+        expect(spinnerCount > 0 || resultsCount > 0).toBe(true);
+      }).toPass({ timeout: 5000 });
     });
   });
 

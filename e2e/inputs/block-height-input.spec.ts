@@ -42,21 +42,15 @@ walletTest.describe('BlockHeightInput Component', () => {
 
   walletTest.describe('Rendering', () => {
     walletTest('renders block height input field', async ({ page }) => {
-      // Look for either start_block or end_block input
+      // The fairminter page has both start_block and end_block inputs in Advanced Options
       const startInput = getBlockHeightInput(page, 'start_block');
-      const endInput = getBlockHeightInput(page, 'end_block');
-
-      // At least one should be visible - use .or() for web-first assertion
-      await expect(startInput.or(endInput)).toBeVisible({ timeout: 5000 });
+      await expect(startInput).toBeVisible({ timeout: 5000 });
     });
 
     walletTest('has Block Height label', async ({ page }) => {
       // The fairminter page has "Start Block" and "End Block" labels
       const startBlockLabel = page.locator('label:has-text("Start Block")');
-      const endBlockLabel = page.locator('label:has-text("End Block")');
-
-      // At least one should be visible - use .or() for web-first assertion
-      await expect(startBlockLabel.or(endBlockLabel)).toBeVisible({ timeout: 3000 });
+      await expect(startBlockLabel).toBeVisible({ timeout: 3000 });
     });
 
     walletTest('has Now button', async ({ page }) => {

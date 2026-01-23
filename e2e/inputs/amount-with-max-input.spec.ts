@@ -180,8 +180,13 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       // or an error should appear
       const errorAlert = page.locator('[role="alert"], .text-red-600, p.text-red-500');
 
-      // Use web-first assertion: either input gets a value OR error appears
-      await expect(input.or(errorAlert.first())).toBeVisible({ timeout: 5000 });
+      // Wait for max calculation - check input gets a value or error appears
+      await expect(async () => {
+        const value = await input.inputValue();
+        const errorCount = await errorAlert.count();
+        // Either input has a value OR there's an error
+        expect(value !== '' || errorCount > 0).toBe(true);
+      }).toPass({ timeout: 5000 });
 
       // Additionally verify the input wasn't left empty (unless there's an error)
       const errorCount = await errorAlert.count();
