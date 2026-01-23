@@ -245,9 +245,14 @@ async function navigateTo(page: Page, target: NavTarget): Promise<void> {
   // Use footer selectors from selectors.ts
   const button = footerButtons[target](page);
 
+  // Wait for page to be stable before attempting navigation
+  await page.waitForLoadState('domcontentloaded');
+
   // Try clicking the footer button first, fall back to direct navigation
   const buttonCount = await button.count();
   if (buttonCount > 0) {
+    // Wait for button to be stable (avoid "element detached from DOM" errors during React re-renders)
+    await button.waitFor({ state: 'attached', timeout: 5000 });
     await button.click();
   } else {
     // Navigate directly - handle hash-based routing (e.g., popup/index.html#/settings/address-type)

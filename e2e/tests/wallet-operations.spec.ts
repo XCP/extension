@@ -184,11 +184,11 @@ test.describe('Remove Wallet - Multiple Wallets', () => {
     await createWallet(extensionPage);
     await createSecondWallet(extensionPage);
 
-    // Count wallets before removal
+    // Count wallets before removal (use web-first assertion that waits/retries)
     await header.walletSelector(extensionPage).click();
     await extensionPage.waitForURL(/select-wallet/);
-    const walletCountBefore = await extensionPage.locator('[role="radio"]').count();
-    expect(walletCountBefore).toBe(2);
+    const walletCards = extensionPage.locator('[role="radio"]');
+    await expect(walletCards).toHaveCount(2, { timeout: 5000 });
 
     // Navigate to remove first wallet
     const menuButton = extensionPage.locator('[role="radio"]').first().locator('button').first();
@@ -204,10 +204,9 @@ test.describe('Remove Wallet - Multiple Wallets', () => {
     await extensionPage.locator('input[name="password"], input[type="password"]').fill(TEST_PASSWORD);
     await extensionPage.getByRole('button', { name: /Remove|Confirm|Delete/i }).click();
 
-    // Should return to wallet selection with one fewer wallet
+    // Should return to wallet selection with one fewer wallet (2 - 1 = 1)
     await extensionPage.waitForURL(/select-wallet/, { timeout: 10000 });
-    const walletCountAfter = await extensionPage.locator('[role="radio"]').count();
-    expect(walletCountAfter).toBe(walletCountBefore - 1);
+    await expect(extensionPage.locator('[role="radio"]')).toHaveCount(1, { timeout: 5000 });
   });
 });
 
