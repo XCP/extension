@@ -236,6 +236,8 @@ test('submit button is enabled when form is valid', async ({ page }) => {
 | `page.locator('.css-class')` | `page.getByRole('button', { name: '...' })` |
 | `page.waitForTimeout(2000)` | `await expect(el).toBeVisible()` |
 | `expect(a \|\| b \|\| c).toBe(true)` | Separate tests for each case |
+| `const c = await el.count(); expect(c).toBe(2)` | `await expect(el).toHaveCount(2)` |
+| Clicking footer buttons to navigate | Direct URL navigation with `page.goto()` |
 
 ---
 
