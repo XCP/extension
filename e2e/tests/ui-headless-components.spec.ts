@@ -54,15 +54,21 @@ walletTest.describe('Settings with Headless UI Components', () => {
     }
 
     const autoLockLabel = page.locator('text=/Auto.*Lock.*Timer/i').first();
-    if (await autoLockLabel.isVisible({ timeout: 5000 }).catch(() => false)) {
-      const timeoutOptions = await page.locator('[role="radio"]').all();
-      if (timeoutOptions.length > 0) {
-        const firstOption = timeoutOptions[0];
-        await firstOption.click();
+    const autoLockCount = await autoLockLabel.count();
 
-        const isSelected = await firstOption.getAttribute('aria-checked');
-        expect(isSelected).toBe('true');
-      }
+    if (autoLockCount === 0) {
+      return; // Auto-lock timer not present on this page
+    }
+
+    await expect(autoLockLabel).toBeVisible({ timeout: 5000 });
+
+    const timeoutOptions = await page.locator('[role="radio"]').all();
+    if (timeoutOptions.length > 0) {
+      const firstOption = timeoutOptions[0];
+      await firstOption.click();
+
+      const isSelected = await firstOption.getAttribute('aria-checked');
+      expect(isSelected).toBe('true');
     }
   });
 

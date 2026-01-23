@@ -28,9 +28,9 @@ test.describe('Wallet UI Interactions', () => {
 
     // Check if refresh button exists
     const refreshButton = extensionPage.locator('button[aria-label="Generate new recovery phrase"]');
-    const hasRefreshButton = await refreshButton.isVisible({ timeout: 2000 }).catch(() => false);
+    const refreshButtonCount = await refreshButton.count();
 
-    if (hasRefreshButton) {
+    if (refreshButtonCount > 0) {
       // Get the first word before refresh - target the font-mono span inside the ol list
       const wordSpans = extensionPage.locator('ol span.font-mono');
       await expect(wordSpans.first()).toBeVisible({ timeout: 3000 });
@@ -100,9 +100,9 @@ test.describe('Wallet UI Interactions', () => {
 
     // Check if there's an eye button to toggle visibility
     const eyeButton = extensionPage.locator('button[aria-label*="recovery phrase"]').filter({ has: extensionPage.locator('svg') });
-    const hasEyeButton = await eyeButton.isVisible({ timeout: 2000 }).catch(() => false);
+    const eyeButtonCount = await eyeButton.count();
 
-    if (hasEyeButton) {
+    if (eyeButtonCount > 0) {
       // Fill in the mnemonic words
       const mnemonicWords = TEST_MNEMONIC.split(' ');
       for (let i = 0; i < mnemonicWords.length; i++) {

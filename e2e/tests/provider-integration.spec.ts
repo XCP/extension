@@ -387,13 +387,9 @@ test.describe('Provider Integration - Full Flow', () => {
       await extensionPage.waitForTimeout(1000);
 
       // Should show the approval UI
-      const hasConnectButton = await extensionPage.locator('button:has-text("Connect")').isVisible({ timeout: 5000 });
-      const hasCancelButton = await extensionPage.locator('button:has-text("Cancel")').isVisible({ timeout: 3000 });
-      const hasOriginText = await extensionPage.locator('text=/localhost/i').first().isVisible({ timeout: 3000 });
-
-      expect(hasConnectButton).toBe(true);
-      expect(hasCancelButton).toBe(true);
-      expect(hasOriginText).toBe(true);
+      await expect(extensionPage.locator('button:has-text("Connect")')).toBeVisible({ timeout: 5000 });
+      await expect(extensionPage.locator('button:has-text("Cancel")')).toBeVisible({ timeout: 3000 });
+      await expect(extensionPage.locator('text=/localhost/i').first()).toBeVisible({ timeout: 3000 });
     } finally {
       await context.close();
     }
@@ -410,8 +406,7 @@ test.describe('Provider Integration - Full Flow', () => {
       await extensionPage.waitForTimeout(1000);
 
       // Should show empty state
-      const hasEmptyState = await extensionPage.locator('text=/Sites you connect to will appear here/i').isVisible({ timeout: 5000 });
-      expect(hasEmptyState).toBe(true);
+      await expect(extensionPage.locator('text=/Sites you connect to will appear here/i')).toBeVisible({ timeout: 5000 });
     } finally {
       await context.close();
     }
@@ -471,11 +466,16 @@ test.describe('Provider Integration - Full Flow', () => {
         await popupPage.waitForTimeout(2000);
 
         // Check if Connect button is now visible
-        const hasConnect = await popupPage.locator('button:has-text("Connect")').isVisible({ timeout: 5000 }).catch(() => false);
+        const connectButton = popupPage.locator('button:has-text("Connect")');
+        const connectCount = await connectButton.count();
 
-        if (hasConnect) {
-          await popupPage.locator('button:has-text("Connect")').click();
-          await popupPage.waitForEvent('close', { timeout: 5000 }).catch(() => {});
+        if (connectCount > 0) {
+          await connectButton.click();
+          try {
+            await popupPage.waitForEvent('close', { timeout: 5000 });
+          } catch {
+            // Popup may have already closed
+          }
         } else {
           console.log('Connect button not found after reload, closing popup');
           await popupPage.close();
@@ -502,21 +502,17 @@ test.describe('Provider Integration - Full Flow', () => {
 
         // Try clicking refresh if available
         const refreshButton = extensionPage.locator('button[aria-label*="Refresh"], button:has([class*="RefreshCw"])').first();
-        if (await refreshButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+        const refreshCount = await refreshButton.count();
+        if (refreshCount > 0) {
           await refreshButton.click();
           await extensionPage.waitForTimeout(1000);
         }
 
-        // Check for the connected site or empty state
-        const hasSite = await extensionPage.locator('text=/localhost/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-        const hasEmptyState = await extensionPage.locator('text=/Sites you connect to will appear here/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-        // If we connected successfully, we should see the site (or at least no empty state)
-        // Note: The site might not persist if there's an issue with the connection service
-        console.log('Connected Sites - hasSite:', hasSite, 'hasEmptyState:', hasEmptyState);
-
-        // For now, just verify the page loads correctly
-        expect(hasSite || hasEmptyState || await extensionPage.locator('text=/Connected Sites/i').isVisible()).toBe(true);
+        // Verify the connected sites page loads - should show site, empty state, or title
+        const pageContent = extensionPage.locator('text=/localhost/i').first()
+          .or(extensionPage.locator('text=/Sites you connect to will appear here/i').first())
+          .or(extensionPage.locator('text=/Connected Sites/i'));
+        await expect(pageContent).toBeVisible({ timeout: 5000 });
       }
 
       await dappPage.close();

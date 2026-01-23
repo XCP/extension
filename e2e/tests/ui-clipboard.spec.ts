@@ -33,15 +33,10 @@ walletTest.describe('Clipboard - Copy Address', () => {
     await expect(addressCard).toBeVisible({ timeout: 5000 });
     await addressCard.click();
 
-    // Check for success feedback (green checkmark appears after copy)
-    const successIndicator = page.locator('.text-green-500');
-    const hasSuccess = await successIndicator.isVisible({ timeout: 2000 }).catch(() => false);
-
-    // Verify clipboard contains an address-like string
+    // Verify clipboard contains an address-like string (the real test)
     const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
     const isValidAddress = /^(bc1|1|3|tb1|m|n|2)[a-zA-Z0-9]{25,}$/.test(clipboardText);
-
-    expect(hasSuccess || isValidAddress).toBe(true);
+    expect(isValidAddress).toBe(true);
   });
 
   walletTest('copy address from receive page', async ({ page, context }) => {
@@ -56,16 +51,19 @@ walletTest.describe('Clipboard - Copy Address', () => {
 
     // Find copy button on receive page
     const copyButton = page.locator('button[aria-label*="Copy"], button:has-text("Copy")').first();
+    const copyButtonCount = await copyButton.count();
 
-    if (await copyButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await copyButton.click();
-
-      // Verify clipboard contains address
-      const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
-      const isValidAddress = /^(bc1|1|3|tb1|m|n|2)[a-zA-Z0-9]{25,}$/.test(clipboardText);
-
-      expect(isValidAddress).toBe(true);
+    if (copyButtonCount === 0) {
+      return; // Copy button not present on this page
     }
+
+    await expect(copyButton).toBeVisible({ timeout: 3000 });
+    await copyButton.click();
+
+    // Verify clipboard contains address
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+    const isValidAddress = /^(bc1|1|3|tb1|m|n|2)[a-zA-Z0-9]{25,}$/.test(clipboardText);
+    expect(isValidAddress).toBe(true);
   });
 
   walletTest('copy address from address selection', async ({ page, context }) => {
@@ -81,16 +79,19 @@ walletTest.describe('Clipboard - Copy Address', () => {
     // Find an address card with a copy button
     const addressCards = page.locator('.font-mono').first().locator('..').locator('..');
     const copyButton = addressCards.locator('button').filter({ has: page.locator('svg') }).first();
+    const copyButtonCount = await copyButton.count();
 
-    if (await copyButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await copyButton.click();
-
-      // Verify clipboard
-      const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
-      const isValidAddress = /^(bc1|1|3|tb1|m|n|2)[a-zA-Z0-9]{25,}$/.test(clipboardText);
-
-      expect(isValidAddress).toBe(true);
+    if (copyButtonCount === 0) {
+      return; // Copy button not present
     }
+
+    await expect(copyButton).toBeVisible({ timeout: 3000 });
+    await copyButton.click();
+
+    // Verify clipboard
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+    const isValidAddress = /^(bc1|1|3|tb1|m|n|2)[a-zA-Z0-9]{25,}$/.test(clipboardText);
+    expect(isValidAddress).toBe(true);
   });
 });
 
@@ -124,16 +125,18 @@ walletTest.describe('Clipboard - Copy Transaction Data', () => {
     // Look for copy button near signature
     const signatureSection = page.locator('text=/Signature/i').first().locator('..');
     const copyButton = signatureSection.locator('button').first();
+    const copyButtonCount = await copyButton.count();
 
-    if (await copyButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await copyButton.click();
-
-      // Verify clipboard contains base64-like signature
-      const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
-      const isBase64Like = /^[A-Za-z0-9+/=]{20,}$/.test(clipboardText);
-
-      expect(isBase64Like || clipboardText.length > 20).toBe(true);
+    if (copyButtonCount === 0) {
+      return; // Copy button not present
     }
+
+    await expect(copyButton).toBeVisible({ timeout: 3000 });
+    await copyButton.click();
+
+    // Verify clipboard contains signature (base64-like or long enough to be valid)
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clipboardText.length).toBeGreaterThan(20);
   });
 });
 
@@ -154,51 +157,58 @@ test.describe('Clipboard - Copy Sensitive Data', () => {
     // Find address card menu
     const addressCard = extensionPage.locator('.space-y-2 > div').first();
     const menuButton = addressCard.locator('button').last();
+    const menuButtonCount = await menuButton.count();
 
-    if (await menuButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await menuButton.click();
-      await extensionPage.waitForTimeout(500);
-
-      // Look for show private key option
-      const showKeyOption = extensionPage.locator('text=/Show.*Private.*Key|Export.*Key/i').first();
-      if (await showKeyOption.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await showKeyOption.click();
-
-        // Enter password
-        const passwordInput = extensionPage.locator('input[type="password"]');
-        await expect(passwordInput).toBeVisible({ timeout: 5000 });
-        await passwordInput.fill(TEST_PASSWORD);
-
-        const confirmButton = extensionPage.locator('button:has-text("Show"), button:has-text("Confirm")').first();
-        await confirmButton.click();
-
-        await extensionPage.waitForTimeout(1000);
-
-        // Find copy button
-        const copyButton = extensionPage.locator('button:has-text("Copy")').first();
-        if (await copyButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-          await copyButton.click();
-
-          // Verify clipboard contains private key (hex or WIF format)
-          const clipboardText = await extensionPage.evaluate(() => navigator.clipboard.readText());
-          const isValidPrivateKey = /^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(clipboardText) || // WIF
-                                   /^[a-fA-F0-9]{64}$/.test(clipboardText); // Hex
-
-          expect(isValidPrivateKey || clipboardText.length >= 50).toBe(true);
-        }
-      }
+    if (menuButtonCount === 0) {
+      return; // Menu button not present
     }
+
+    await menuButton.click();
+    await extensionPage.waitForTimeout(500);
+
+    // Look for show private key option
+    const showKeyOption = extensionPage.locator('text=/Show.*Private.*Key|Export.*Key/i').first();
+    const showKeyCount = await showKeyOption.count();
+
+    if (showKeyCount === 0) {
+      return; // Show private key option not present
+    }
+
+    await showKeyOption.click();
+
+    // Enter password
+    const passwordInput = extensionPage.locator('input[type="password"]');
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
+    await passwordInput.fill(TEST_PASSWORD);
+
+    const confirmButton = extensionPage.locator('button:has-text("Show"), button:has-text("Confirm")').first();
+    await confirmButton.click();
+
+    await extensionPage.waitForTimeout(1000);
+
+    // Find copy button
+    const copyButton = extensionPage.locator('button:has-text("Copy")').first();
+    const copyButtonCount = await copyButton.count();
+
+    if (copyButtonCount === 0) {
+      return; // Copy button not present
+    }
+
+    await expect(copyButton).toBeVisible({ timeout: 3000 });
+    await copyButton.click();
+
+    // Verify clipboard contains private key (should be at least 50 chars)
+    const clipboardText = await extensionPage.evaluate(() => navigator.clipboard.readText());
+    expect(clipboardText.length).toBeGreaterThanOrEqual(50);
   });
 
   test('copy mnemonic during wallet creation', async ({ extensionPage, extensionContext }) => {
     await extensionContext.grantPermissions(['clipboard-read', 'clipboard-write']);
 
-    // Start creating wallet
-    await createWalletSelectors.revealPhraseCard(extensionPage).waitFor({ state: 'visible', timeout: 5000 }).catch(() => {
-      // Need to click create wallet first
-    });
+    // Start creating wallet - check if we need to click create wallet first
     const createBtn = extensionPage.getByText('Create Wallet');
-    if (await createBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+    const createBtnCount = await createBtn.count();
+    if (createBtnCount > 0) {
       await createBtn.click();
     }
     await extensionPage.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
@@ -206,23 +216,21 @@ test.describe('Clipboard - Copy Sensitive Data', () => {
     await createWalletSelectors.revealPhraseCard(extensionPage).click();
     await extensionPage.waitForTimeout(500);
 
-    // Look for mnemonic words
-    const mnemonicContainer = extensionPage.locator('.grid, .flex-wrap').filter({
-      has: extensionPage.locator('text=/abandon|ability|able|about/i')
-    }).first();
-
     // Find copy button
     const copyButton = extensionPage.locator('button:has-text("Copy"), button[aria-label*="Copy"]').first();
+    const copyButtonCount = await copyButton.count();
 
-    if (await copyButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await copyButton.click();
-
-      // Verify clipboard contains 12 words
-      const clipboardText = await extensionPage.evaluate(() => navigator.clipboard.readText());
-      const wordCount = clipboardText.split(/\s+/).filter(w => w.length > 0).length;
-
-      expect(wordCount).toBe(12);
+    if (copyButtonCount === 0) {
+      return; // Copy button not present
     }
+
+    await expect(copyButton).toBeVisible({ timeout: 3000 });
+    await copyButton.click();
+
+    // Verify clipboard contains 12 words
+    const clipboardText = await extensionPage.evaluate(() => navigator.clipboard.readText());
+    const wordCount = clipboardText.split(/\s+/).filter(w => w.length > 0).length;
+    expect(wordCount).toBe(12);
   });
 });
 
@@ -239,7 +247,8 @@ walletTest.describe('Clipboard - Multiple Copy Operations', () => {
 
     // Add a second address if possible
     const addButton = selectAddress.addAddressButton(page);
-    if (await addButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    const addButtonCount = await addButton.count();
+    if (addButtonCount > 0) {
       await addButton.click();
       await page.waitForTimeout(1000);
     }
@@ -248,32 +257,38 @@ walletTest.describe('Clipboard - Multiple Copy Operations', () => {
     const addressCards = page.locator('.font-mono');
     const count = await addressCards.count();
 
-    if (count >= 2) {
-      // Copy first address
-      const firstAddressRow = addressCards.nth(0).locator('..').locator('..');
-      const firstCopyBtn = firstAddressRow.locator('button').filter({ has: page.locator('svg') }).first();
-
-      if (await firstCopyBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await firstCopyBtn.click();
-        const firstClipboard = await page.evaluate(() => navigator.clipboard.readText());
-
-        await page.waitForTimeout(500);
-
-        // Copy second address
-        const secondAddressRow = addressCards.nth(1).locator('..').locator('..');
-        const secondCopyBtn = secondAddressRow.locator('button').filter({ has: page.locator('svg') }).first();
-
-        if (await secondCopyBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-          await secondCopyBtn.click();
-          const secondClipboard = await page.evaluate(() => navigator.clipboard.readText());
-
-          // Addresses should be different
-          if (firstClipboard && secondClipboard) {
-            expect(firstClipboard).not.toBe(secondClipboard);
-          }
-        }
-      }
+    if (count < 2) {
+      return; // Not enough addresses to test sequential copy
     }
+
+    // Copy first address
+    const firstAddressRow = addressCards.nth(0).locator('..').locator('..');
+    const firstCopyBtn = firstAddressRow.locator('button').filter({ has: page.locator('svg') }).first();
+    const firstCopyCount = await firstCopyBtn.count();
+
+    if (firstCopyCount === 0) {
+      return; // Copy button not present
+    }
+
+    await firstCopyBtn.click();
+    const firstClipboard = await page.evaluate(() => navigator.clipboard.readText());
+
+    await page.waitForTimeout(500);
+
+    // Copy second address
+    const secondAddressRow = addressCards.nth(1).locator('..').locator('..');
+    const secondCopyBtn = secondAddressRow.locator('button').filter({ has: page.locator('svg') }).first();
+    const secondCopyCount = await secondCopyBtn.count();
+
+    if (secondCopyCount === 0) {
+      return; // Second copy button not present
+    }
+
+    await secondCopyBtn.click();
+    const secondClipboard = await page.evaluate(() => navigator.clipboard.readText());
+
+    // Addresses should be different
+    expect(firstClipboard).not.toBe(secondClipboard);
   });
 
   walletTest('copy overwrites previous clipboard content', async ({ page, context }) => {
@@ -290,18 +305,22 @@ walletTest.describe('Clipboard - Multiple Copy Operations', () => {
     await page.waitForTimeout(1000);
 
     const copyButton = page.locator('button[aria-label*="Copy"], button:has-text("Copy")').first();
+    const copyButtonCount = await copyButton.count();
 
-    if (await copyButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await copyButton.click();
-
-      // Clipboard should now have address, not initial content
-      const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
-      expect(clipboardText).not.toBe('initial-content');
-
-      // Should be a valid address
-      const isValidAddress = /^(bc1|1|3|tb1|m|n|2)[a-zA-Z0-9]{25,}$/.test(clipboardText);
-      expect(isValidAddress).toBe(true);
+    if (copyButtonCount === 0) {
+      return; // Copy button not present
     }
+
+    await expect(copyButton).toBeVisible({ timeout: 3000 });
+    await copyButton.click();
+
+    // Clipboard should now have address, not initial content
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clipboardText).not.toBe('initial-content');
+
+    // Should be a valid address
+    const isValidAddress = /^(bc1|1|3|tb1|m|n|2)[a-zA-Z0-9]{25,}$/.test(clipboardText);
+    expect(isValidAddress).toBe(true);
   });
 });
 
@@ -338,21 +357,24 @@ walletTest.describe('Clipboard - Visual Feedback', () => {
     await page.waitForTimeout(1000);
 
     const copyButton = page.locator('button[aria-label*="Copy"], button:has-text("Copy")').first();
+    const copyButtonCount = await copyButton.count();
 
-    if (await copyButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await copyButton.click();
-
-      // Wait for feedback to disappear (usually 2-3 seconds)
-      await page.waitForTimeout(3000);
-
-      // Button should still be clickable (returned to initial state)
-      const isClickable = await copyButton.isEnabled().catch(() => false);
-      expect(isClickable).toBe(true);
-
-      // Should be able to copy again
-      await copyButton.click();
-      const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
-      expect(clipboardText.length).toBeGreaterThan(0);
+    if (copyButtonCount === 0) {
+      return; // Copy button not present
     }
+
+    await expect(copyButton).toBeVisible({ timeout: 3000 });
+    await copyButton.click();
+
+    // Wait for feedback to disappear (usually 2-3 seconds)
+    await page.waitForTimeout(3000);
+
+    // Button should still be clickable (returned to initial state)
+    await expect(copyButton).toBeEnabled();
+
+    // Should be able to copy again
+    await copyButton.click();
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clipboardText.length).toBeGreaterThan(0);
   });
 });

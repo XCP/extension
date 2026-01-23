@@ -28,10 +28,10 @@ test.describe('Navigation Recovery - Cancel Flows', () => {
     await common.backButton(extensionPage).click();
 
     await extensionPage.waitForTimeout(500);
-    const isOnOnboarding = await onboarding.createWalletButton(extensionPage).isVisible({ timeout: 3000 }).catch(() => false);
-    const isOnImport = await onboarding.importWalletButton(extensionPage).isVisible({ timeout: 1000 }).catch(() => false);
-
-    expect(isOnOnboarding || isOnImport).toBe(true);
+    // Should be back on onboarding page
+    const onboardingContent = onboarding.createWalletButton(extensionPage)
+      .or(onboarding.importWalletButton(extensionPage));
+    await expect(onboardingContent).toBeVisible({ timeout: 3000 });
   });
 
   test('can cancel import wallet and return to onboarding', async ({ extensionPage }) => {
@@ -44,10 +44,10 @@ test.describe('Navigation Recovery - Cancel Flows', () => {
     await common.backButton(extensionPage).click();
 
     await extensionPage.waitForTimeout(500);
-    const isOnOnboarding = await onboarding.createWalletButton(extensionPage).isVisible({ timeout: 3000 }).catch(() => false);
-    const isOnImport = await onboarding.importWalletButton(extensionPage).isVisible({ timeout: 1000 }).catch(() => false);
-
-    expect(isOnOnboarding || isOnImport).toBe(true);
+    // Should be back on onboarding page
+    const onboardingContent = onboarding.createWalletButton(extensionPage)
+      .or(onboarding.importWalletButton(extensionPage));
+    await expect(onboardingContent).toBeVisible({ timeout: 3000 });
   });
 });
 
@@ -135,17 +135,21 @@ walletTest.describe('Navigation Recovery - Retry After Error', () => {
     await send.recipientInput(page).blur();
     await page.waitForTimeout(500);
 
-    const wasDisabledOrErrorShown = await send.sendButton(page).isDisabled().catch(() => true) ||
-      await page.locator('.text-red-600, .text-red-500').first().isVisible({ timeout: 1000 }).catch(() => false);
-    expect(wasDisabledOrErrorShown).toBe(true);
+    // Verify that either the button is disabled or an error is shown
+    const errorIndicator = page.locator('.text-red-600, .text-red-500').first();
+    const buttonDisabled = await send.sendButton(page).isDisabled();
+    const errorCount = await errorIndicator.count();
+    expect(buttonDisabled || errorCount > 0).toBe(true);
 
     await send.recipientInput(page).clear();
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
     await send.recipientInput(page).blur();
     await page.waitForTimeout(500);
 
-    const hasAddressError = await page.locator('.text-red-600, .text-red-500').filter({ hasText: /address/i }).first().isVisible({ timeout: 1000 }).catch(() => false);
-    expect(hasAddressError).toBe(false);
+    // After entering valid address, address error should not be present
+    const addressError = page.locator('.text-red-600, .text-red-500').filter({ hasText: /address/i }).first();
+    const addressErrorCount = await addressError.count();
+    expect(addressErrorCount).toBe(0);
   });
 });
 
@@ -230,7 +234,8 @@ test.describe('Navigation Recovery - Wallet Selection Flow', () => {
     // Wait for possible navigation, then try to go back
     await extensionPage.waitForTimeout(500);
     const backButton = common.backButton(extensionPage);
-    if (await backButton.isVisible({ timeout: 2000 })) {
+    const backButtonCount = await backButton.count();
+    if (backButtonCount > 0) {
       await backButton.click();
       await extensionPage.waitForTimeout(500);
     }

@@ -47,8 +47,12 @@ test.describe('Error Handling', () => {
     if (checkboxCount > 0) {
       const isCheckboxDisabled = await checkbox.isDisabled();
       if (!isCheckboxDisabled) {
-        // Try to check it
-        await checkbox.click({ timeout: 2000 }).catch(() => {});
+        // Try to check it - ignore click errors
+        try {
+          await checkbox.click({ timeout: 2000 });
+        } catch {
+          // Checkbox may not be clickable - that's acceptable
+        }
       }
     }
 
@@ -57,14 +61,28 @@ test.describe('Error Handling', () => {
 
     // Now check outcomes - validation may happen at different stages
     const errorMessage = extensionPage.locator('text=/invalid|error|not.*valid|incorrect/i').first();
-    const buttonDisabled = await continueButton.isDisabled().catch(() => false);
+    let buttonDisabled = false;
+    let checkboxDisabled = false;
+    try {
+      buttonDisabled = await continueButton.isDisabled();
+    } catch {
+      buttonDisabled = false;
+    }
     const hasError = await errorMessage.count() > 0;
-    const checkboxDisabled = await checkbox.isDisabled().catch(() => false);
+    try {
+      checkboxDisabled = await checkbox.isDisabled();
+    } catch {
+      checkboxDisabled = false;
+    }
 
     // At least one validation mechanism should prevent invalid import
     // If none triggered, try clicking continue and check for error then
     if (!buttonDisabled && !hasError && !checkboxDisabled) {
-      await continueButton.click({ timeout: 2000 }).catch(() => {});
+      try {
+        await continueButton.click({ timeout: 2000 });
+      } catch {
+        // Click failed - that's acceptable
+      }
       await extensionPage.waitForTimeout(500);
       // After clicking, check if error appeared or still on same page
       const errorAfterClick = await extensionPage.locator('text=/invalid|error|not.*valid|incorrect/i').first().count() > 0;
@@ -126,10 +144,20 @@ walletTest.describe('Error Handling - Forms', () => {
     const resultCount = await resultIndicator.count();
 
     // Also check if textarea has content as a fallback
-    const textareaValue = await signMessage.signatureOutput(page).inputValue().catch(() => '');
+    let textareaValue = '';
+    try {
+      textareaValue = await signMessage.signatureOutput(page).inputValue();
+    } catch {
+      textareaValue = '';
+    }
 
     // Page should have either shown a result, or an error, or the button state changed
-    const buttonStillEnabled = await signButton.isEnabled().catch(() => true);
+    let buttonStillEnabled = true;
+    try {
+      buttonStillEnabled = await signButton.isEnabled();
+    } catch {
+      buttonStillEnabled = true;
+    }
     const signatureProduced = textareaValue.length > 10; // Signatures are long
 
     const hasValidOutcome = signatureHeadingCount > 0 || signatureTextCount > 0 ||
