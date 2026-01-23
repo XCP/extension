@@ -40,7 +40,11 @@ import {
   settings,
   index,
   viewAddress,
-  selectAddress
+  selectAddress,
+  header,
+  selectWallet,
+  onboarding,
+  importWallet
 } from '../selectors';
 
 async function selectAddressType(page: any, addressType: AddressType): Promise<void> {
@@ -332,26 +336,23 @@ test.describe('Address Type Matrix - Counterwallet Wallet', () => {
 walletTest.describe('Address Type Matrix - Private Key Import', () => {
   walletTest('can add wallet via private key import', async ({ page }) => {
     // Navigate to select wallet to add another wallet
-    const walletSelector = page.locator('header button[aria-label="Select Wallet"]');
-    await expect(walletSelector).toBeVisible({ timeout: 5000 });
-    await walletSelector.click();
+    await expect(header.walletSelector(page)).toBeVisible({ timeout: 5000 });
+    await header.walletSelector(page).click();
     await expect(page).toHaveURL(/select-wallet/);
 
     // Click Add Wallet (the main green button, not the header one)
-    const addWalletButton = page.locator('button.bg-green-500').filter({ hasText: /Add Wallet/i });
-    await expect(addWalletButton).toBeVisible({ timeout: 5000 });
-    await addWalletButton.click();
+    await expect(selectWallet.addWalletButton(page)).toBeVisible({ timeout: 5000 });
+    await selectWallet.addWalletButton(page).click();
 
     // Click Import Private Key
-    const importPrivateKeyOption = page.getByRole('button', { name: /Import Private Key/i });
-    await expect(importPrivateKeyOption).toBeVisible({ timeout: 5000 });
-    await importPrivateKeyOption.click();
+    await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 5000 });
+    await onboarding.importPrivateKeyButton(page).click();
 
-    await page.waitForSelector('input[name="private-key"]');
-    await page.locator('input[name="private-key"]').fill(TEST_PRIVATE_KEY);
-    await page.getByLabel(/I have backed up this private key/i).check();
-    await page.locator('input[name="password"]').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(importWallet.privateKeyInput(page)).toBeVisible({ timeout: 5000 });
+    await importWallet.privateKeyInput(page).fill(TEST_PRIVATE_KEY);
+    await importWallet.backedUpCheckbox(page).check();
+    await importWallet.passwordInput(page).fill(TEST_PASSWORD);
+    await importWallet.continueButton(page).click();
 
     await page.waitForURL(/index/, { timeout: 15000 });
 
@@ -361,26 +362,23 @@ walletTest.describe('Address Type Matrix - Private Key Import', () => {
 
   walletTest('private key import shows valid address format', async ({ page }) => {
     // Navigate to select wallet to add another wallet
-    const walletSelector = page.locator('header button[aria-label="Select Wallet"]');
-    await expect(walletSelector).toBeVisible({ timeout: 5000 });
-    await walletSelector.click();
+    await expect(header.walletSelector(page)).toBeVisible({ timeout: 5000 });
+    await header.walletSelector(page).click();
     await expect(page).toHaveURL(/select-wallet/);
 
     // Click Add Wallet (the main green button, not the header one)
-    const addWalletButton = page.locator('button.bg-green-500').filter({ hasText: /Add Wallet/i });
-    await expect(addWalletButton).toBeVisible({ timeout: 5000 });
-    await addWalletButton.click();
+    await expect(selectWallet.addWalletButton(page)).toBeVisible({ timeout: 5000 });
+    await selectWallet.addWalletButton(page).click();
 
     // Click Import Private Key
-    const importPrivateKeyOption = page.getByRole('button', { name: /Import Private Key/i });
-    await expect(importPrivateKeyOption).toBeVisible({ timeout: 5000 });
-    await importPrivateKeyOption.click();
+    await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 5000 });
+    await onboarding.importPrivateKeyButton(page).click();
 
-    await page.waitForSelector('input[name="private-key"]');
-    await page.locator('input[name="private-key"]').fill(TEST_PRIVATE_KEY);
-    await page.getByLabel(/I have backed up this private key/i).check();
-    await page.locator('input[name="password"]').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(importWallet.privateKeyInput(page)).toBeVisible({ timeout: 5000 });
+    await importWallet.privateKeyInput(page).fill(TEST_PRIVATE_KEY);
+    await importWallet.backedUpCheckbox(page).check();
+    await importWallet.passwordInput(page).fill(TEST_PASSWORD);
+    await importWallet.continueButton(page).click();
 
     await page.waitForURL(/index/, { timeout: 15000 });
 

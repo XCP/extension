@@ -16,7 +16,7 @@ import {
   TEST_MNEMONIC,
   TEST_PRIVATE_KEY
 } from '../fixtures';
-import { header, settings, viewAddress, importWallet, createWallet as createWalletSelectors } from '../selectors';
+import { header, settings, viewAddress, importWallet, createWallet as createWalletSelectors, selectWallet, onboarding } from '../selectors';
 
 test.describe('Wallet Selection', () => {
   test('header button opens wallet selection', async ({ extensionPage }) => {
@@ -27,7 +27,7 @@ test.describe('Wallet Selection', () => {
 
     await expect(extensionPage).toHaveURL(/select-wallet/);
     await expect(extensionPage.getByText(/Wallet 1/i)).toBeVisible();
-    await expect(extensionPage.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' })).toBeVisible();
+    await expect(selectWallet.addWalletButton(extensionPage)).toBeVisible();
   });
 
   test('wallet card shows address preview', async ({ extensionPage }) => {
@@ -54,15 +54,14 @@ test.describe('Multi-Wallet Support', () => {
     await extensionPage.waitForURL(/select-wallet/);
 
     // Add second wallet
-    await extensionPage.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' }).click();
-    await extensionPage.getByRole('button', { name: /Create.*Wallet/i }).click();
+    await selectWallet.addWalletButton(extensionPage).click();
+    await onboarding.createWalletButton(extensionPage).click();
 
     // Complete second wallet creation
-    await extensionPage.locator('text=View 12-word Secret Phrase').click();
-    
-    await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
-    await extensionPage.locator('input[name="password"]').fill(TEST_PASSWORD);
-    await extensionPage.getByRole('button', { name: 'Continue' }).click();
+    await createWalletSelectors.revealPhraseCard(extensionPage).click();
+    await createWalletSelectors.savedPhraseCheckbox(extensionPage).check();
+    await createWalletSelectors.passwordInput(extensionPage).fill(TEST_PASSWORD);
+    await createWalletSelectors.continueButton(extensionPage).click();
 
     await extensionPage.waitForURL(/index/, { timeout: 15000 });
 
@@ -78,18 +77,18 @@ test.describe('Multi-Wallet Support', () => {
     await header.walletSelector(extensionPage).click();
     await extensionPage.waitForURL(/select-wallet/);
 
-    await extensionPage.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' }).click();
-    await extensionPage.getByText('Import Mnemonic').click();
+    await selectWallet.addWalletButton(extensionPage).click();
+    await onboarding.importWalletButton(extensionPage).click();
 
     // Fill mnemonic
     const words = TEST_MNEMONIC.split(' ');
     for (let i = 0; i < 12; i++) {
-      await extensionPage.locator(`input[name="word-${i}"]`).fill(words[i]);
+      await importWallet.wordInput(extensionPage, i).fill(words[i]);
     }
 
-    await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
-    await extensionPage.locator('input[name="password"]').fill(TEST_PASSWORD);
-    await extensionPage.getByRole('button', { name: 'Continue' }).click();
+    await importWallet.savedPhraseCheckbox(extensionPage).check();
+    await importWallet.passwordInput(extensionPage).fill(TEST_PASSWORD);
+    await importWallet.continueButton(extensionPage).click();
 
     await expect(extensionPage).toHaveURL(/index/, { timeout: 15000 });
   });
@@ -100,13 +99,13 @@ test.describe('Multi-Wallet Support', () => {
     await header.walletSelector(extensionPage).click();
     await extensionPage.waitForURL(/select-wallet/);
 
-    await extensionPage.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' }).click();
-    await extensionPage.getByText('Import Private Key').click();
+    await selectWallet.addWalletButton(extensionPage).click();
+    await onboarding.importPrivateKeyButton(extensionPage).click();
 
-    await extensionPage.locator('input[name="private-key"]').fill(TEST_PRIVATE_KEY);
-    await extensionPage.getByLabel(/I have backed up this private key/i).check();
-    await extensionPage.locator('input[name="password"]').fill(TEST_PASSWORD);
-    await extensionPage.getByRole('button', { name: 'Continue' }).click();
+    await importWallet.privateKeyInput(extensionPage).fill(TEST_PRIVATE_KEY);
+    await importWallet.backedUpCheckbox(extensionPage).check();
+    await importWallet.passwordInput(extensionPage).fill(TEST_PASSWORD);
+    await importWallet.continueButton(extensionPage).click();
 
     await expect(extensionPage).toHaveURL(/index/, { timeout: 10000 });
 
@@ -122,14 +121,13 @@ test.describe('Multi-Wallet Support', () => {
     await header.walletSelector(extensionPage).click();
     await extensionPage.waitForURL(/select-wallet/);
 
-    await extensionPage.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' }).click();
-    await extensionPage.getByRole('button', { name: /Create.*Wallet/i }).click();
+    await selectWallet.addWalletButton(extensionPage).click();
+    await onboarding.createWalletButton(extensionPage).click();
 
-    await extensionPage.locator('text=View 12-word Secret Phrase').click();
-    
-    await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
-    await extensionPage.locator('input[name="password"]').fill(TEST_PASSWORD);
-    await extensionPage.getByRole('button', { name: 'Continue' }).click();
+    await createWalletSelectors.revealPhraseCard(extensionPage).click();
+    await createWalletSelectors.savedPhraseCheckbox(extensionPage).check();
+    await createWalletSelectors.passwordInput(extensionPage).fill(TEST_PASSWORD);
+    await createWalletSelectors.continueButton(extensionPage).click();
     await extensionPage.waitForURL(/index/, { timeout: 15000 });
 
     // Switch to Wallet 1

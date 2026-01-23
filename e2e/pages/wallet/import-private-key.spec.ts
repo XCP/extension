@@ -5,7 +5,7 @@
  */
 
 import { walletTest, test, expect, launchExtension, cleanup, TEST_PRIVATE_KEY, TEST_PASSWORD } from '../../fixtures';
-import { importWallet, common } from '../../selectors';
+import { importWallet, common, onboarding } from '../../selectors';
 
 // Tests for import when wallet already exists
 walletTest.describe('Import Private Key Page - With Existing Wallet (/import-private-key)', () => {
@@ -108,8 +108,7 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     await checkbox.click(); // Use click() instead of check() for HeadlessUI
 
     // Password field should appear
-    const passwordInput = page.locator('input[name="password"]').first();
-    await expect(passwordInput).toBeVisible({ timeout: 5000 });
+    await expect(importWallet.passwordInput(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows error for invalid private key format', async ({ page }) => {
@@ -219,7 +218,7 @@ test.describe('Import Private Key Page - Fresh Extension', () => {
       await page.waitForLoadState('networkidle');
 
       // Click import private key on onboarding
-      const importKeyButton = page.locator('button:has-text("Import Private Key"), button:has-text("Private Key")').first();
+      const importKeyButton = onboarding.importPrivateKeyButton(page);
       const buttonCount = await importKeyButton.count();
 
       if (buttonCount > 0 && await importKeyButton.isVisible({ timeout: 10000 })) {
