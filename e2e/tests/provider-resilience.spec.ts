@@ -369,7 +369,7 @@ async function createWallet(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Create Wallet' }).click();
   await page.waitForURL(/create-wallet/);
   await page.locator('text=View 12-word Secret Phrase').click();
-  await page.waitForTimeout(500);
+  
   await page.getByLabel(/I have saved my secret recovery phrase/).check();
   await page.locator('input[name="password"]').fill(TEST_PASSWORD);
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -393,7 +393,7 @@ async function waitForProvider(page: Page, timeout = 10000): Promise<boolean> {
   while (Date.now() - start < timeout) {
     const hasProvider = await page.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
     if (hasProvider) return true;
-    await page.waitForTimeout(500);
+    
   }
   return false;
 }
@@ -453,7 +453,7 @@ test.describe('Provider Resilience - Connection Recovery', () => {
       });
 
       // Wait for approval popup and approve
-      await extensionPage.waitForTimeout(2000);
+      await extensionPage.waitForLoadState('networkidle');
       const pages = context.pages();
       const approvalPage = pages.find(p => p.url().includes('approve-connection'));
 
@@ -467,7 +467,7 @@ test.describe('Provider Resilience - Connection Recovery', () => {
       }
 
       await connectPromise.catch(() => {});
-      await dappPage.waitForTimeout(1000);
+      await dappPage.waitForLoadState('networkidle');
 
       // Check if connected
       const stateBeforeReload = await dappPage.evaluate(() => (window as any).testState);
@@ -483,7 +483,7 @@ test.describe('Provider Resilience - Connection Recovery', () => {
       await dappPage.waitForSelector('.status:not(.no-wallet)', { timeout: 10000 });
 
       // Should detect existing connection
-      await dappPage.waitForTimeout(2000);
+      await dappPage.waitForLoadState('networkidle');
       const stateAfterReload = await dappPage.evaluate(() => (window as any).testState);
 
       // Either still connected or the connection was properly detected
@@ -512,14 +512,14 @@ test.describe('Provider Resilience - Connection Recovery', () => {
       });
 
       // Give it a moment to start
-      await dappPage.waitForTimeout(1000);
+      await dappPage.waitForLoadState('networkidle');
 
       // Lock the wallet mid-connection
       await extensionPage.bringToFront();
       await lockWallet(extensionPage);
 
       // Wait for the connection attempt to complete (should fail or timeout)
-      await dappPage.waitForTimeout(5000);
+      await dappPage.waitForLoadState('networkidle');
 
       // dApp should handle this gracefully (either error state or disconnected)
       const state = await dappPage.evaluate(() => (window as any).testState);
@@ -544,13 +544,13 @@ test.describe('Provider Resilience - Connection Recovery', () => {
 
       // Click connect multiple times rapidly
       await dappPage.click('#connect-btn');
-      await dappPage.waitForTimeout(100);
+      
       await dappPage.click('#connect-btn').catch(() => {});
-      await dappPage.waitForTimeout(100);
+      
       await dappPage.click('#connect-btn').catch(() => {});
 
       // Wait and check state
-      await dappPage.waitForTimeout(3000);
+      await dappPage.waitForLoadState('networkidle');
 
       // Should still be in a valid state (connecting, error, or disconnected)
       const state = await dappPage.evaluate(() => (window as any).testState);
@@ -614,7 +614,7 @@ test.describe('Provider Resilience - Connection Recovery', () => {
 
       // Service worker restart is simulated by waiting - in real scenario
       // the SW can restart at any time. We verify requests still work.
-      await dappPage.waitForTimeout(2000);
+      await dappPage.waitForLoadState('networkidle');
 
       // Make a request after "restart"
       const afterResult = await dappPage.evaluate(async () => {

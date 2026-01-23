@@ -73,7 +73,7 @@ async function selectAddressType(page: any, addressType: AddressType): Promise<v
   }
 
   // Wait for the selection to be applied
-  await page.waitForTimeout(500);
+  
 
   await navigateTo(page, 'wallet');
   await expect(page).toHaveURL(/index/);

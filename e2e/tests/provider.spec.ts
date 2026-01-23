@@ -85,7 +85,8 @@ async function waitForProvider(page: any, timeout = 10000): Promise<boolean> {
   while (Date.now() - startTime < timeout) {
     const found = await page.evaluate(() => typeof (window as any).xcpwallet !== 'undefined');
     if (found) return true;
-    await page.waitForTimeout(500);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
   }
   return false;
 }

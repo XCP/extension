@@ -109,19 +109,19 @@ test.describe('State Persistence - Lock/Unlock Cycle', () => {
     }
 
     // Wait for the address type change to take effect
-    await extensionPage.waitForTimeout(2000);
+    await extensionPage.waitForLoadState('networkidle');
 
     await navigateTo(extensionPage, 'wallet');
 
     // Wait for address to be visible
     await expect(index.addressText(extensionPage)).toBeVisible({ timeout: 10000 });
-    await extensionPage.waitForTimeout(1000);
+    await extensionPage.waitForLoadState('networkidle');
 
     const addressBefore = await index.addressText(extensionPage).textContent();
 
     await lockWallet(extensionPage);
     await unlockWallet(extensionPage, TEST_PASSWORD);
-    await extensionPage.waitForTimeout(2000);
+    await extensionPage.waitForLoadState('networkidle');
 
     await expect(index.addressText(extensionPage)).toBeVisible({ timeout: 10000 });
     const addressAfter = await index.addressText(extensionPage).textContent();

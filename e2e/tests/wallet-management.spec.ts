@@ -59,7 +59,7 @@ test.describe('Multi-Wallet Support', () => {
 
     // Complete second wallet creation
     await extensionPage.locator('text=View 12-word Secret Phrase').click();
-    await extensionPage.waitForTimeout(500);
+    
     await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
     await extensionPage.locator('input[name="password"]').fill(TEST_PASSWORD);
     await extensionPage.getByRole('button', { name: 'Continue' }).click();
@@ -126,7 +126,7 @@ test.describe('Multi-Wallet Support', () => {
     await extensionPage.getByRole('button', { name: /Create.*Wallet/i }).click();
 
     await extensionPage.locator('text=View 12-word Secret Phrase').click();
-    await extensionPage.waitForTimeout(500);
+    
     await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
     await extensionPage.locator('input[name="password"]').fill(TEST_PASSWORD);
     await extensionPage.getByRole('button', { name: 'Continue' }).click();
@@ -187,7 +187,7 @@ walletTest.describe('Address Type Selection', () => {
 
     // Switch to Legacy
     await page.getByText('Legacy (P2PKH)').click();
-    await page.waitForTimeout(500);
+    
 
     // Go back using back button (goes to index page)
     await page.getByText('Back').click();

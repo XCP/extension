@@ -32,7 +32,7 @@ async function createSecondWallet(page: any): Promise<void> {
 
   // Complete second wallet creation
   await page.locator('text=View 12-word Secret Phrase').click();
-  await page.waitForTimeout(500); // Required wait for animation/state change
+   // Required wait for animation/state change
   await page.getByLabel(/I have saved my secret recovery phrase/).check();
   await page.locator('input[name="password"]').fill(TEST_PASSWORD);
   await page.getByRole('button', { name: 'Continue' }).click();

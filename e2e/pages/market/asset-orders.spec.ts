@@ -35,7 +35,7 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     await page.waitForLoadState('networkidle');
 
     // Wait for content to load
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
 
     // Should show tab navigation or loading/content
     const content = market.openTab(page)
@@ -50,7 +50,7 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     await page.waitForLoadState('networkidle');
 
     // Wait for content to load
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
 
     // Should show stats (Floor price, Average price), loading, or title
     const content = market.floorPrice(page)
@@ -74,7 +74,7 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
 
     await expect(matchedTab).toBeVisible();
     await matchedTab.click();
-    await page.waitForTimeout(500);
+    
 
     // Stats should change to Last/Avg
     await expect(market.lastPrice(page)).toBeVisible({ timeout: 3000 });
@@ -85,7 +85,7 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     await page.waitForLoadState('networkidle');
 
     // Wait for content to load
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
 
     // Should show order cards, empty state, loading, or title
     const content = market.orderCards(page)
@@ -100,7 +100,7 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     await page.waitForLoadState('networkidle');
 
     // Wait for content to load
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
 
     const content = market.refreshButton(page)
       .or(market.retryButton(page))
@@ -113,7 +113,7 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     await page.waitForLoadState('networkidle');
 
     // Wait for content to load
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
 
     const content = market.myOrdersLink(page).or(market.pageTitle(page));
     await expect(content).toBeVisible({ timeout: 5000 });
@@ -141,7 +141,7 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     await page.waitForLoadState('networkidle');
 
     // Wait for content to load
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
 
     const content = market.priceUnitToggle(page).or(market.pageTitle(page));
     await expect(content).toBeVisible({ timeout: 5000 });

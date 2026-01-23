@@ -52,7 +52,7 @@ walletTest.describe('Unlock Wallet Page (/auth/unlock)', () => {
     if (!isDisabled) {
       // If button is not disabled, clicking with empty password should show error or stay on page
       await unlockButton.click();
-      await page.waitForTimeout(500);
+      
 
       // Should still be on unlock page
       await expect(page).toHaveURL(/unlock/);
@@ -69,7 +69,7 @@ walletTest.describe('Unlock Wallet Page (/auth/unlock)', () => {
 
     await passwordInput.fill('wrongpassword123');
     await unlock.unlockButton(page).click();
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState('networkidle');
 
     // Should show error message (while still on unlock page with password input visible)
     const errorMessage = page.locator('text=/incorrect|invalid|wrong|error/i').first();
@@ -100,7 +100,7 @@ walletTest.describe('Unlock Wallet Page (/auth/unlock)', () => {
 
     await passwordInput.fill('wrongpassword');
     await unlock.unlockButton(page).click();
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState('networkidle');
 
     // Password field may or may not clear - both behaviors are acceptable
     // Just verify the page is still functional

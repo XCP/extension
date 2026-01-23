@@ -22,7 +22,7 @@ test.describe('Wallet Creation', () => {
 
     // Click the reveal phrase card
     await createWallet.revealPhraseCard(extensionPage).click();
-    await extensionPage.waitForTimeout(500);
+    
 
     // Checkbox should be visible
     await expect(createWallet.savedPhraseCheckbox(extensionPage)).toBeVisible();
@@ -45,7 +45,7 @@ test.describe('Wallet Creation', () => {
 
     // Click the reveal phrase card
     await createWallet.revealPhraseCard(extensionPage).click();
-    await extensionPage.waitForTimeout(500);
+    
     await createWallet.savedPhraseCheckbox(extensionPage).check();
 
     // Enter short password

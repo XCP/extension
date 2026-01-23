@@ -60,7 +60,7 @@ test.describe('Import Wallet - Mnemonic', () => {
     await extensionPage.evaluate((m) => navigator.clipboard.writeText(m), TEST_MNEMONIC);
     await importWallet.wordInput(extensionPage, 0).focus();
     await extensionPage.keyboard.press('Control+v');
-    await extensionPage.waitForTimeout(500);
+    
 
     const firstWord = await importWallet.wordInput(extensionPage, 0).inputValue();
     expect(firstWord).toBeTruthy();
@@ -115,7 +115,7 @@ walletTest.describe('Import Wallet - Private Key', () => {
 
     // Try to click Continue
     await importWallet.continueButton(page).click().catch(() => {});
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState('networkidle');
 
     // Should stay on import page (not navigate to index with invalid key)
     await expect(page).not.toHaveURL(/index/, { timeout: 2000 });
@@ -130,7 +130,7 @@ walletTest.describe('Import Wallet - Address Type Switching', () => {
     await page.waitForURL(/address-type/);
 
     await page.getByText('Legacy (P2PKH)').click();
-    await page.waitForTimeout(500);
+    
 
     // Go back (goes to index)
     await page.getByText('Back').click();

@@ -26,7 +26,7 @@ walletTest.describe('Select Assets Page (/select-assets)', () => {
 
     // Test that search input is functional
     await searchInput.fill('XCP');
-    await page.waitForTimeout(500);
+    
 
     // Input should accept the value
     const value = await searchInput.inputValue();
@@ -65,7 +65,7 @@ walletTest.describe('Select Assets Page (/select-assets)', () => {
 
     // Search for something unlikely to match
     await searchInput.fill('ZZZZNONEXISTENT');
-    await page.waitForTimeout(500);
+    
 
     // Input should have our search value
     const value = await searchInput.inputValue();

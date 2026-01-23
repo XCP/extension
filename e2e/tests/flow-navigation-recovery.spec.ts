@@ -27,7 +27,7 @@ test.describe('Navigation Recovery - Cancel Flows', () => {
     await expect(common.backButton(extensionPage)).toBeVisible({ timeout: 5000 });
     await common.backButton(extensionPage).click();
 
-    await extensionPage.waitForTimeout(500);
+    
     // Should be back on onboarding page - verify Create button is visible again
     await expect(onboarding.createWalletButton(extensionPage)).toBeVisible({ timeout: 3000 });
   });
@@ -41,7 +41,7 @@ test.describe('Navigation Recovery - Cancel Flows', () => {
     await expect(common.backButton(extensionPage)).toBeVisible({ timeout: 5000 });
     await common.backButton(extensionPage).click();
 
-    await extensionPage.waitForTimeout(500);
+    
     // Should be back on onboarding page - verify Import button is visible again
     await expect(onboarding.importWalletButton(extensionPage)).toBeVisible({ timeout: 3000 });
   });
@@ -56,7 +56,7 @@ walletTest.describe('Navigation Recovery - Send Flow Cancel', () => {
     await expect(common.backButton(page)).toBeVisible({ timeout: 5000 });
     await common.backButton(page).click();
 
-    await page.waitForTimeout(500);
+    
     const isOnIndex = page.url().includes('index');
     expect(isOnIndex).toBe(true);
   });
@@ -72,7 +72,7 @@ walletTest.describe('Navigation Recovery - Send Flow Cancel', () => {
     await expect(common.backButton(page)).toBeVisible({ timeout: 5000 });
     await common.backButton(page).click();
 
-    await page.waitForTimeout(500);
+    
     const isOnSettingsIndex = page.url().includes('settings') && !page.url().includes('advanced');
     expect(isOnSettingsIndex).toBe(true);
   });
@@ -85,7 +85,7 @@ walletTest.describe('Navigation Recovery - Browser Back Button', () => {
     await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
 
     await page.goBack();
-    await page.waitForTimeout(500);
+    
 
     const isOnValidPage = !page.url().includes('compose/send') || page.url().includes('index');
     expect(isOnValidPage).toBe(true);
@@ -100,7 +100,7 @@ walletTest.describe('Navigation Recovery - Browser Back Button', () => {
     await expect(page).toHaveURL(/advanced/, { timeout: 5000 });
 
     await page.goBack();
-    await page.waitForTimeout(500);
+    
 
     const isOnSettingsIndex = page.url().includes('settings') && !page.url().includes('advanced');
     expect(isOnSettingsIndex).toBe(true);
@@ -111,7 +111,7 @@ walletTest.describe('Navigation Recovery - Browser Back Button', () => {
     await expect(page).toHaveURL(/market/);
 
     await page.goBack();
-    await page.waitForTimeout(500);
+    
 
     const currentUrl = page.url();
     const isOnValidPage = currentUrl.includes('index') || !currentUrl.includes('market');
@@ -129,7 +129,7 @@ walletTest.describe('Navigation Recovery - Retry After Error', () => {
     await expect(send.recipientInput(page)).toBeVisible({ timeout: 5000 });
     await send.recipientInput(page).fill('invalid');
     await send.recipientInput(page).blur();
-    await page.waitForTimeout(500);
+    
 
     // Verify that an error indicator is shown for invalid address
     const errorIndicator = page.locator('.text-red-600, .text-red-500, .border-red-500').first();
@@ -139,7 +139,7 @@ walletTest.describe('Navigation Recovery - Retry After Error', () => {
     await send.recipientInput(page).clear();
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
     await send.recipientInput(page).blur();
-    await page.waitForTimeout(500);
+    
 
     // After entering valid address, address error should not be present
     const addressError = page.locator('.text-red-600, .text-red-500').filter({ hasText: /address/i }).first();
@@ -227,12 +227,12 @@ test.describe('Navigation Recovery - Wallet Selection Flow', () => {
     await addWalletButton.click();
 
     // Wait for possible navigation, then try to go back
-    await extensionPage.waitForTimeout(500);
+    
     const backButton = common.backButton(extensionPage);
     const backButtonCount = await backButton.count();
     if (backButtonCount > 0) {
       await backButton.click();
-      await extensionPage.waitForTimeout(500);
+      
     }
 
     // Navigate back to wallet/index

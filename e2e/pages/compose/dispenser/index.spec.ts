@@ -113,7 +113,7 @@ walletTest.describe('Dispenser Flow - Full Compose Flow', () => {
     await giveInput.blur();
 
     // Wait for React state to update
-    await page.waitForTimeout(500);
+    
 
     const submitBtn = compose.dispenser.createButton(page);
     await expect(submitBtn).toBeEnabled({ timeout: 10000 });
@@ -155,7 +155,7 @@ walletTest.describe('Dispenser Flow - Full Compose Flow', () => {
     await giveInput.blur();
 
     // Wait for React state to update
-    await page.waitForTimeout(500);
+    
 
     const submitBtn = compose.dispenser.createButton(page);
     await expect(submitBtn).toBeEnabled({ timeout: 10000 });
@@ -195,7 +195,7 @@ walletTest.describe('Dispenser Flow - Full Compose Flow', () => {
     await giveInput.blur();
 
     // Wait for React state to update
-    await page.waitForTimeout(500);
+    
 
     const submitBtn = compose.dispenser.createButton(page);
     await expect(submitBtn).toBeEnabled({ timeout: 10000 });

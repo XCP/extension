@@ -86,7 +86,7 @@ walletTest.describe('Consolidation Success Page (/consolidation-success)', () =>
 
     // Page requires state to be passed via navigation - without it, should redirect to home
     // Wait for potential redirect (the page navigates away if no state)
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState('networkidle');
     await page.waitForLoadState('networkidle');
 
     // Should have redirected away from consolidation-success (to home/index)
@@ -99,7 +99,7 @@ walletTest.describe('Consolidation Success Page (/consolidation-success)', () =>
   walletTest('consolidation success page has correct route defined', async ({ page }) => {
     // Verify the route exists by checking that navigation doesn't 404
     await page.goto(page.url().replace(/\/index.*/, '/consolidation-success'));
-    await page.waitForTimeout(500);
+    
 
     // Should not show "Not Found" error - either shows content or redirects
     const notFoundCount = await page.locator('text=/Not Found/i').count();

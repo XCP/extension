@@ -47,7 +47,7 @@ walletTest.describe('Clipboard - Copy Address', () => {
     await expect(receiveButton).toBeVisible({ timeout: 5000 });
     await receiveButton.click();
 
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState('networkidle');
 
     // Find copy button on receive page
     const copyButton = page.locator('button[aria-label*="Copy"], button:has-text("Copy")').first();
@@ -120,7 +120,7 @@ walletTest.describe('Clipboard - Copy Transaction Data', () => {
     await signBtn.click();
 
     // Wait for signature to appear
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
 
     // Look for copy button near signature
     const signatureSection = page.locator('text=/Signature/i').first().locator('..');
@@ -164,7 +164,7 @@ test.describe('Clipboard - Copy Sensitive Data', () => {
     }
 
     await menuButton.click();
-    await extensionPage.waitForTimeout(500);
+    
 
     // Look for show private key option
     const showKeyOption = extensionPage.locator('text=/Show.*Private.*Key|Export.*Key/i').first();
@@ -184,7 +184,7 @@ test.describe('Clipboard - Copy Sensitive Data', () => {
     const confirmButton = extensionPage.locator('button:has-text("Show"), button:has-text("Confirm")').first();
     await confirmButton.click();
 
-    await extensionPage.waitForTimeout(1000);
+    await extensionPage.waitForLoadState('networkidle');
 
     // Find copy button
     const copyButton = extensionPage.locator('button:has-text("Copy")').first();
@@ -214,7 +214,7 @@ test.describe('Clipboard - Copy Sensitive Data', () => {
     await extensionPage.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
 
     await createWalletSelectors.revealPhraseCard(extensionPage).click();
-    await extensionPage.waitForTimeout(500);
+    
 
     // Find copy button
     const copyButton = extensionPage.locator('button:has-text("Copy"), button[aria-label*="Copy"]').first();
@@ -250,7 +250,7 @@ walletTest.describe('Clipboard - Multiple Copy Operations', () => {
     const addButtonCount = await addButton.count();
     if (addButtonCount > 0) {
       await addButton.click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState('networkidle');
     }
 
     // Get all address cards
@@ -273,7 +273,7 @@ walletTest.describe('Clipboard - Multiple Copy Operations', () => {
     await firstCopyBtn.click();
     const firstClipboard = await page.evaluate(() => navigator.clipboard.readText());
 
-    await page.waitForTimeout(500);
+    
 
     // Copy second address
     const secondAddressRow = addressCards.nth(1).locator('..').locator('..');
@@ -302,7 +302,7 @@ walletTest.describe('Clipboard - Multiple Copy Operations', () => {
     await expect(receiveButton).toBeVisible({ timeout: 5000 });
     await receiveButton.click();
 
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState('networkidle');
 
     const copyButton = page.locator('button[aria-label*="Copy"], button:has-text("Copy")').first();
     const copyButtonCount = await copyButton.count();
@@ -333,7 +333,7 @@ walletTest.describe('Clipboard - Visual Feedback', () => {
     await expect(receiveButton).toBeVisible({ timeout: 5000 });
     await receiveButton.click();
 
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState('networkidle');
 
     const copyButton = page.locator('button[aria-label*="Copy"], button:has-text("Copy")').first();
     await expect(copyButton).toBeVisible({ timeout: 3000 });
@@ -354,7 +354,7 @@ walletTest.describe('Clipboard - Visual Feedback', () => {
     await expect(receiveButton).toBeVisible({ timeout: 5000 });
     await receiveButton.click();
 
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState('networkidle');
 
     const copyButton = page.locator('button[aria-label*="Copy"], button:has-text("Copy")').first();
     const copyButtonCount = await copyButton.count();
@@ -367,7 +367,7 @@ walletTest.describe('Clipboard - Visual Feedback', () => {
     await copyButton.click();
 
     // Wait for feedback to disappear (usually 2-3 seconds)
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState('networkidle');
 
     // Button should still be clickable (returned to initial state)
     await expect(copyButton).toBeEnabled();

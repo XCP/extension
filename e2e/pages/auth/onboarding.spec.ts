@@ -17,7 +17,7 @@ test.describe('Onboarding Page (/auth/onboarding)', () => {
       // Fresh extension should show onboarding
       await page.waitForLoadState('networkidle');
       // Wait for React to render
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState('networkidle');
 
       // Should show create or import wallet options or XCP Wallet branding
       const onboardingContent = page.locator('button:has-text("Create Wallet")')

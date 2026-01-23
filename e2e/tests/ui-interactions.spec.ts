@@ -24,7 +24,7 @@ test.describe('Wallet UI Interactions', () => {
     // Reveal the mnemonic phrase
     await expect(createWallet.revealPhraseCard(extensionPage)).toBeVisible({ timeout: 5000 });
     await createWallet.revealPhraseCard(extensionPage).click();
-    await extensionPage.waitForTimeout(500);
+    
 
     // Check if refresh button exists
     const refreshButton = extensionPage.locator('button[aria-label="Generate new recovery phrase"]');
@@ -37,7 +37,7 @@ test.describe('Wallet UI Interactions', () => {
       const firstWordBefore = await wordSpans.first().textContent();
 
       await refreshButton.click();
-      await extensionPage.waitForTimeout(500);
+      
 
       // Get the first word after refresh
       const firstWordAfter = await wordSpans.first().textContent();
@@ -56,7 +56,7 @@ test.describe('Wallet UI Interactions', () => {
 
     await expect(createWallet.revealPhraseCard(extensionPage)).toBeVisible({ timeout: 5000 });
     await createWallet.revealPhraseCard(extensionPage).click();
-    await extensionPage.waitForTimeout(500);
+    
 
     await expect(createWallet.savedPhraseCheckbox(extensionPage)).toBeVisible({ timeout: 5000 });
     await createWallet.savedPhraseCheckbox(extensionPage).check();
@@ -72,7 +72,7 @@ test.describe('Wallet UI Interactions', () => {
     await passwordInput.fill(TEST_PASSWORD);
 
     await showHideButton.click();
-    await extensionPage.waitForTimeout(300);
+    
 
     const typeAfterShow = await passwordInput.getAttribute('type');
     expect(typeAfterShow).toBe('text');
@@ -81,7 +81,7 @@ test.describe('Wallet UI Interactions', () => {
     expect(visiblePassword).toBe(TEST_PASSWORD);
 
     await showHideButton.click();
-    await extensionPage.waitForTimeout(300);
+    
 
     const typeAfterHide = await passwordInput.getAttribute('type');
     expect(typeAfterHide).toBe('password');
@@ -114,7 +114,7 @@ test.describe('Wallet UI Interactions', () => {
       expect(initialType).toBe('password');
 
       await eyeButton.click();
-      await extensionPage.waitForTimeout(300);
+      
 
       const typeAfterShow = await firstInput.getAttribute('type');
       expect(typeAfterShow).toBe('text');
@@ -123,7 +123,7 @@ test.describe('Wallet UI Interactions', () => {
       expect(visibleWord).toBe('abandon');
 
       await eyeButton.click();
-      await extensionPage.waitForTimeout(300);
+      
 
       const typeAfterHide = await firstInput.getAttribute('type');
       expect(typeAfterHide).toBe('password');
@@ -163,13 +163,13 @@ test.describe('Wallet UI Interactions', () => {
     await passwordInput.fill(TEST_PASSWORD);
 
     await showHideButton.click();
-    await extensionPage.waitForTimeout(300);
+    
 
     const typeAfterShow = await passwordInput.getAttribute('type');
     expect(typeAfterShow).toBe('text');
 
     await showHideButton.click();
-    await extensionPage.waitForTimeout(300);
+    
 
     const typeAfterHide = await passwordInput.getAttribute('type');
     expect(typeAfterHide).toBe('password');

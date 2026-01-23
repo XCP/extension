@@ -142,7 +142,7 @@ walletTest.describe('Index Page', () => {
 
       await expect(searchInput).toBeVisible();
       await searchInput.fill('BTC');
-      await page.waitForTimeout(500); // Allow filter to apply
+       // Allow filter to apply
 
       // BTC row should be visible if balances exist
       const btcRow = index.btcBalanceRow(page);

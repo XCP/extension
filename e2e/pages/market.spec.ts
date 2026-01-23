@@ -133,8 +133,8 @@ walletTest.describe('Market Page', () => {
       }
     });
 
-    // Wait a moment for any pending requests to fail
-    await page.waitForTimeout(1000);
+    // Wait for any pending requests to settle
+    await page.waitForLoadState('networkidle');
 
     // Page should still show market structure (not crash)
     const pageStillWorks = page.getByText('Marketplace')
@@ -161,7 +161,6 @@ walletTest.describe('Market Page', () => {
 
     await expect(dispensedTab).toBeVisible();
     await dispensedTab.click();
-    await page.waitForTimeout(500);
 
     // After clicking tab, page should still be on market
     await expect(page).toHaveURL(/market/);
@@ -184,7 +183,6 @@ walletTest.describe('Market Page', () => {
 
     await expect(historyTab).toBeVisible();
     await historyTab.click();
-    await page.waitForTimeout(500);
 
     // After clicking tab, page should still be on market
     await expect(page).toHaveURL(/market/);
@@ -226,7 +224,7 @@ walletTest.describe('Market Page', () => {
     await page.waitForLoadState('networkidle');
 
     // Wait for content to load
-    await page.waitForTimeout(2000);
+    await expect(page.getByText('Dispensers').first()).toBeVisible({ timeout: 10000 });
 
     // Get the scrollable container (usually the main content area)
     const scrollContainer = page.locator('main, .overflow-auto, .overflow-y-auto').first();
@@ -236,14 +234,10 @@ walletTest.describe('Market Page', () => {
       el.scrollTop = el.scrollHeight;
     });
 
-    await page.waitForTimeout(300);
-
     // Try to scroll back up
     await scrollContainer.evaluate((el) => {
       el.scrollTop = 0;
     });
-
-    await page.waitForTimeout(300);
 
     // Page should still be responsive
     await expect(page.getByText('Marketplace')).toBeVisible();
@@ -262,9 +256,7 @@ walletTest.describe('Market Page', () => {
     // Rapid tab switching
     for (let i = 0; i < 3; i++) {
       await manageTab.click();
-      await page.waitForTimeout(100);
       await browseTab.click();
-      await page.waitForTimeout(100);
     }
 
     // Page should still be stable
@@ -286,7 +278,6 @@ walletTest.describe('Market Page', () => {
 
       // Try searching for something
       await searchInput.fill('XCP');
-      await page.waitForTimeout(500);
 
       // Content should update (either show results or "no results")
       const contentUpdate = page.locator('text=/XCP|No results|No match/i').first();
@@ -294,7 +285,6 @@ walletTest.describe('Market Page', () => {
 
       // Clear search
       await searchInput.clear();
-      await page.waitForTimeout(300);
     }
 
     // Page should still work regardless of search presence
@@ -354,7 +344,6 @@ walletTest.describe('Market Page', () => {
 
     await expect(newOrderButton).toBeVisible();
     await newOrderButton.click();
-    await page.waitForTimeout(500);
 
     // Should navigate to order form
     const onOrderForm = page.url().includes('order') || page.url().includes('compose');
@@ -386,7 +375,6 @@ walletTest.describe('Market Page', () => {
 
     await expect(newDispenserButton).toBeVisible();
     await newDispenserButton.click();
-    await page.waitForTimeout(500);
 
     // Should navigate to dispenser form
     const onDispenserForm = page.url().includes('dispenser') || page.url().includes('compose');

@@ -35,7 +35,7 @@ test.describe('Error Handling', () => {
     }
 
     // Wait for validation to process
-    await extensionPage.waitForTimeout(500);
+    
 
     // With invalid mnemonic, check the form's response
     // The validation may occur at different points - try checking checkbox, then try to proceed
@@ -57,7 +57,7 @@ test.describe('Error Handling', () => {
     }
 
     // Wait a moment for any validation response
-    await extensionPage.waitForTimeout(300);
+    
 
     // Now check outcomes - validation may happen at different stages
     const errorMessage = extensionPage.locator('text=/invalid|error|not.*valid|incorrect/i').first();
@@ -83,7 +83,7 @@ test.describe('Error Handling', () => {
       } catch {
         // Click failed - that's acceptable
       }
-      await extensionPage.waitForTimeout(500);
+      
       // Should still be on import page (invalid mnemonic rejected)
       await expect(extensionPage).toHaveURL(/import/);
     } else {
@@ -125,7 +125,7 @@ walletTest.describe('Error Handling - Forms', () => {
     await signButton.click();
 
     // Wait for signing operation to complete
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
 
     // Check for any valid outcome: signature heading, textarea with value, or error
     const signatureHeading = page.locator('h3:has-text("Signature")');

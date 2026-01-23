@@ -124,7 +124,7 @@ walletTest.describe('SearchInput Component', () => {
       await expect(input).toHaveValue('XCP');
 
       // Wait a moment for any search to complete
-      await page.waitForTimeout(500);
+      
 
       // Just verify we're still on the page and no errors occurred
       await expect(input).toBeVisible();

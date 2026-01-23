@@ -30,7 +30,7 @@ walletTest.describe('FairminterSelectInput Component', () => {
     await page.goto(`${baseUrl}/compose/fairmint`);
     await page.waitForLoadState('networkidle');
     // Wait for page to load - may show "No active fairminters" if none available
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
   });
 
   // Helper to get combobox elements
@@ -82,7 +82,7 @@ walletTest.describe('FairminterSelectInput Component', () => {
       await input.click();
 
       // Wait a moment for dropdown to potentially appear
-      await page.waitForTimeout(500);
+      
 
       // Look for dropdown options (ComboboxOptions) - listbox may not appear if no options from API
       const listbox = page.locator('[role="listbox"]');
@@ -103,7 +103,7 @@ walletTest.describe('FairminterSelectInput Component', () => {
       await input.click();
 
       // Wait a moment for dropdown to potentially appear
-      await page.waitForTimeout(500);
+      
 
       // Check if listbox appeared
       const listbox = page.locator('[role="listbox"]');
@@ -216,7 +216,7 @@ walletTest.describe('FairminterSelectInput Component', () => {
       await page.keyboard.press('ArrowDown');
 
       // Wait a moment for dropdown to potentially appear
-      await page.waitForTimeout(500);
+      
 
       // Listbox may not appear if no fairminters available from API
       const listbox = page.locator('[role="listbox"]');
