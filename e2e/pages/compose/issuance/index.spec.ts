@@ -47,15 +47,9 @@ walletTest.describe('Compose Issuance Page (/compose/issuance)', () => {
     await actions.issueAssetOption(page).click();
     await page.waitForURL('**/compose/issuance', { timeout: 10000 });
 
-    // Form should have divisible option or at minimum form elements
-    const divisibleText = page.locator('text=/Divisible/i').first();
+    // Form should have divisible toggle - use the selector
     const divisibleToggle = compose.issuance.divisibleToggle(page);
-    const switchElement = page.locator('[role="switch"]').first();
-    const formInput = page.locator('input[name]').first();
-
-    await expect(
-      divisibleText.or(divisibleToggle).or(switchElement).or(formInput)
-    ).toBeVisible({ timeout: 5000 });
+    await expect(divisibleToggle).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('issuance form validates asset name format', async ({ page }) => {

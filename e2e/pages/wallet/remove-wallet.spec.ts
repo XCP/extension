@@ -4,31 +4,32 @@
  * Tests for the remove wallet page that allows deleting a wallet with password confirmation.
  */
 
-import { walletTest, expect } from '../../fixtures';
+import { walletTest, expect, navigateTo } from '../../fixtures';
 
 walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
-  async function getWalletId(page: any): Promise<string | null> {
-    return await page.evaluate(() => {
-      const state = localStorage.getItem('wallet-state');
-      if (state) {
-        const parsed = JSON.parse(state);
-        return parsed.activeWalletId || Object.keys(parsed.wallets || {})[0];
-      }
-      return null;
-    });
-  }
-
+  // Navigate to remove-wallet page through the UI (via select-wallet page wallet menu)
   async function navigateToRemoveWallet(page: any): Promise<void> {
-    const walletId = await getWalletId(page);
-    if (!walletId) {
-      throw new Error('No wallet found');
-    }
-
+    // Navigate to select-wallet page
     const currentUrl = page.url();
     const hashIndex = currentUrl.indexOf('#');
     const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-    await page.goto(`${baseUrl}/remove-wallet/${walletId}`);
+    await page.goto(`${baseUrl}/select-wallet`);
     await page.waitForLoadState('networkidle');
+
+    // Open wallet menu (the three dots button for wallet options)
+    const walletMenu = page.locator('[aria-label="Wallet options"]');
+    await expect(walletMenu.first()).toBeVisible({ timeout: 5000 });
+    await walletMenu.first().click();
+
+    // Click "Remove Wallet" option from the dropdown
+    const removeOption = page.locator('button:has-text("Remove Wallet")');
+    await expect(removeOption).toBeVisible({ timeout: 3000 });
+    await removeOption.click();
+
+    await page.waitForLoadState('networkidle');
+
+    // Verify we're on the remove-wallet page
+    await expect(page).toHaveURL(/remove-wallet/, { timeout: 5000 });
   }
 
   walletTest('page loads with warning or password input', async ({ page }) => {
