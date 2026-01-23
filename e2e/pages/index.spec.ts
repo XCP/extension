@@ -177,7 +177,7 @@ walletTest.describe('Index Page', () => {
       const balanceItem = page.getByRole('button').filter({ hasText: /^BTC|^XCP/ }).first();
       const emptyState = page.locator('text=/No assets|No balances/i').first();
 
-      await expect(balanceItem.or(emptyState)).toBeVisible({ timeout: 10000 });
+      await expect(balanceItem.or(emptyState).first()).toBeVisible({ timeout: 10000 });
     });
   });
 

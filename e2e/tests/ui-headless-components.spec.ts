@@ -16,6 +16,13 @@ walletTest.describe('Settings with Headless UI Components', () => {
     await expect(settings.addressTypeOption(page)).toBeVisible({ timeout: 5000 });
     await settings.addressTypeOption(page).click();
 
+    // Wait for address-type page to load
+    await page.waitForURL(/address-type/, { timeout: 5000 });
+    await page.waitForLoadState('networkidle');
+
+    // Wait for radio options to be visible
+    await expect(page.locator('[role="radio"]').first()).toBeVisible({ timeout: 5000 });
+
     const radioOptions = await page.locator('[role="radio"]').all();
     expect(radioOptions.length).toBeGreaterThan(1);
 

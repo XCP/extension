@@ -106,8 +106,8 @@ walletTest.describe('Show Passphrase Page (/show-passphrase)', () => {
     const wordGrid = page.locator('.grid, .flex-wrap').or(page.locator('text=/word|phrase|mnemonic/i')).first();
     await expect(wordGrid).toBeVisible({ timeout: 5000 });
 
-    // Should have copy button after revealing
-    const copyButton = page.locator('button:has-text("Copy"), button[aria-label*="Copy"]').first();
+    // Should have copy button after revealing - use the secrets selector
+    const copyButton = secrets.copyButton(page);
     await expect(copyButton).toBeVisible({ timeout: 5000 });
   });
 });
