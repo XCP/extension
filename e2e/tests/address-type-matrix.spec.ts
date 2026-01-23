@@ -260,6 +260,10 @@ test.describe('Address Type Matrix - Counterwallet Wallet', () => {
   test('importing Counterwallet mnemonic creates Counterwallet wallet', async ({ extensionPage }) => {
     await importMnemonic(extensionPage, TEST_COUNTERWALLET_MNEMONIC, TEST_PASSWORD);
 
+    // Wait for index page to fully load after import
+    await extensionPage.waitForLoadState('networkidle');
+    await expect(index.addressText(extensionPage)).toBeVisible({ timeout: 15000 });
+
     const address = await getCurrentDisplayedAddress(extensionPage);
     expect(validateAddressPrefix(address, 'counterwallet')).toBe(true);
   });

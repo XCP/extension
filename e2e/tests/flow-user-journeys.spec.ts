@@ -253,13 +253,18 @@ walletTest.describe('User Journey: Transaction Flow with Interruptions', () => {
   });
 
   walletTest('check transaction history after viewing send form', async ({ page }) => {
+    // Wait for page to be fully loaded before interacting
+    await page.waitForLoadState('networkidle');
+    await expect(index.addressText(page)).toBeVisible({ timeout: 10000 });
+
     // Step 1: Check history first
     const historyButton = index.historyButton(page);
-    await expect(historyButton).toBeVisible({ timeout: 5000 });
+    await expect(historyButton).toBeVisible({ timeout: 10000 });
     await historyButton.click();
-    await expect(page).toHaveURL(/address-history/, { timeout: 5000 });
+    await expect(page).toHaveURL(/address-history/, { timeout: 10000 });
 
     // Step 2: Verify history page content
+    await page.waitForLoadState('networkidle');
     const pageContent = await page.content();
     const hasHistoryIndicator = pageContent.includes('History') ||
                                pageContent.includes('Transactions') ||
@@ -269,6 +274,9 @@ walletTest.describe('User Journey: Transaction Flow with Interruptions', () => {
 
     // Step 3: Go back and try send
     await navigateTo(page, 'wallet');
+    await expect(page).toHaveURL(/index/, { timeout: 5000 });
+    await expect(index.sendButton(page)).toBeVisible({ timeout: 5000 });
+
     const sendButton = index.sendButton(page);
     await sendButton.click();
     await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });

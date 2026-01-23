@@ -11,6 +11,9 @@ test.describe('State Persistence - Lock/Unlock Cycle', () => {
   test('selected wallet persists after lock/unlock', async ({ extensionPage }) => {
     await createWallet(extensionPage, TEST_PASSWORD);
 
+    // Wait for page to fully load and header to be ready
+    await extensionPage.waitForLoadState('networkidle');
+    await expect(header.walletSelector(extensionPage)).toBeVisible({ timeout: 10000 });
     const walletNameBefore = await header.walletSelector(extensionPage).textContent();
 
     await lockWallet(extensionPage);
@@ -19,9 +22,10 @@ test.describe('State Persistence - Lock/Unlock Cycle', () => {
     await unlockWallet(extensionPage, TEST_PASSWORD);
     await expect(extensionPage).toHaveURL(/index/);
 
+    // Wait for page to fully load after unlock
     await extensionPage.waitForLoadState('networkidle');
+    await expect(header.walletSelector(extensionPage)).toBeVisible({ timeout: 10000 });
 
-    await expect(header.walletSelector(extensionPage)).toBeVisible();
     const walletNameAfter = await header.walletSelector(extensionPage).textContent();
     expect(walletNameAfter).toBe(walletNameBefore);
   });
@@ -170,7 +174,8 @@ walletTest.describe('State Persistence - Navigation', () => {
 
 walletTest.describe('State Persistence - Multi-Wallet', () => {
   walletTest('active wallet selection persists after adding second wallet', async ({ page }) => {
-    // walletTest already creates a wallet, get its name
+    // walletTest already creates a wallet, wait for header to be ready and get its name
+    await expect(header.walletSelector(page)).toBeVisible({ timeout: 10000 });
     const firstWalletName = await header.walletSelector(page).textContent();
 
     // Navigate to wallet selection page
@@ -179,15 +184,19 @@ walletTest.describe('State Persistence - Multi-Wallet', () => {
 
     // Add a second wallet - target the green button at bottom (not header icon)
     const addWalletButton = page.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' });
-    await expect(addWalletButton).toBeVisible();
+    await expect(addWalletButton).toBeVisible({ timeout: 5000 });
     await addWalletButton.click();
 
     const createOption = page.getByRole('button', { name: /Create.*Wallet/i });
-    await expect(createOption).toBeVisible();
+    await expect(createOption).toBeVisible({ timeout: 5000 });
     await createOption.click();
 
-    await page.waitForSelector('text=View 12-word Secret Phrase');
-    await page.getByText('View 12-word Secret Phrase').click();
+    // Wait for reveal phrase button and click it
+    const revealButton = page.getByRole('button', { name: 'Reveal recovery phrase' });
+    await expect(revealButton).toBeVisible({ timeout: 10000 });
+    await revealButton.click();
+
+    // Check the confirmation checkbox and fill password
     await page.getByLabel(/I have saved my secret recovery phrase/).check();
     await page.locator('input[name="password"]').fill(TEST_PASSWORD);
     await page.getByRole('button', { name: /Continue/i }).click();
