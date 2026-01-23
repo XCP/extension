@@ -25,21 +25,19 @@ walletTest.describe('Market Page', () => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
-    // Use .or() for legitimate alternative states
-    const priceOrLoading = page.locator('text=/BTC|XCP|\\$[0-9,]+/i').first()
-      .or(page.locator('text=/Loading/i').first());
-
-    await expect(priceOrLoading).toBeVisible({ timeout: 10000 });
+    // Market page should show price data after loading
+    const priceData = page.locator('text=/BTC|XCP|\\$[0-9,]+/i').first();
+    await expect(priceData).toBeVisible({ timeout: 15000 });
   });
 
-  walletTest('market page handles loading state', async ({ page }) => {
+  walletTest('market page shows content after loading', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
-    // Page should show either loading spinner or content
-    const loadingOrContent = page.locator('.animate-spin')
-      .or(page.locator('text=/Loading|Dispensers|Orders|No open/i'));
-    await expect(loadingOrContent.first()).toBeVisible({ timeout: 10000 });
+    // Wait for loading to complete, then verify actual content appears
+    // Should show dispensers/orders section (not just loading spinner)
+    const content = page.locator('text=/Dispensers|Orders/i').first();
+    await expect(content).toBeVisible({ timeout: 15000 });
   });
 
   walletTest('browse tab shows dispensers section', async ({ page }) => {
@@ -81,9 +79,10 @@ walletTest.describe('Market Page', () => {
 
     await manageTab.click();
 
-    // Manage tab should show either content or loading
-    const manageContent = page.locator('text=/Your Orders|Your Dispensers|You don\'t have any|Loading your DEX/i').first();
-    await expect(manageContent).toBeVisible({ timeout: 5000 });
+    // Manage tab should show user's orders/dispensers section
+    const manageContent = page.locator('text=/Your Orders|Your Dispensers/i').first()
+      .or(page.locator('text=/You don\'t have any/i').first());
+    await expect(manageContent).toBeVisible({ timeout: 10000 });
 
     await browseTab.click();
 
@@ -100,9 +99,11 @@ walletTest.describe('Market Page', () => {
 
     await page.waitForLoadState('networkidle');
 
-    // Wait for content: buttons, loading, or empty state
-    const content = page.locator('text=/New Order|New Dispenser|Create Order|Create Dispenser|Loading|No orders|No dispensers|empty/i').first();
-    await expect(content).toBeVisible({ timeout: 15000 });
+    // Wait for manage content: create buttons or empty state message
+    // NOT loading spinners - test should wait for actual content
+    const createButtons = page.locator('text=/New Order|New Dispenser|Create Order|Create Dispenser/i').first();
+    const emptyState = page.locator('text=/No orders|No dispensers|You don\'t have any/i').first();
+    await expect(createButtons.or(emptyState)).toBeVisible({ timeout: 15000 });
   });
 
   walletTest('can navigate to market from footer', async ({ page }) => {

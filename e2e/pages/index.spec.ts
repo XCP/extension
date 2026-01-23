@@ -111,9 +111,9 @@ walletTest.describe('Index Page', () => {
       await expect(assetsTab).toBeVisible();
       await assetsTab.click();
 
-      // Should show assets content, loading, or empty state
-      const assetsContent = page.locator('text=/Loading owned assets|No assets|Asset|NFT/i').first();
-      await expect(assetsContent).toBeVisible({ timeout: 5000 });
+      // Should show assets content or empty state (not loading spinner)
+      const assetsContent = page.locator('text=/No assets|Asset|NFT/i').first();
+      await expect(assetsContent).toBeVisible({ timeout: 10000 });
     });
 
     walletTest('balances tab shows BTC balance when clicked', async ({ page }) => {
@@ -158,23 +158,26 @@ walletTest.describe('Index Page', () => {
   });
 
   walletTest.describe('Balance List', () => {
-    walletTest('balance list shows content or loading state', async ({ page }) => {
+    walletTest('balance list finishes loading', async ({ page }) => {
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
 
-      // A fresh wallet may not have any balances - check for either balances or empty/loading state
-      const contentIndicator = page.locator('text=/BTC|XCP|No assets|No balances|Loading/i').first();
-      await expect(contentIndicator).toBeVisible({ timeout: 5000 });
+      // Wait for loading to complete - balance section should show actual content or empty state
+      // A fresh wallet shows "No assets" or actual balances, NOT loading spinner
+      const balanceContent = page.locator('text=/BTC|XCP|No assets|No balances/i').first();
+      await expect(balanceContent).toBeVisible({ timeout: 10000 });
     });
 
     walletTest('displays balance items or empty state', async ({ page }) => {
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
 
-      // Look for balance content, empty state, or loading
-      const content = page.locator('text=/BTC|Bitcoin|No assets|No balances|Loading|Empty/i')
-        .or(page.locator('.font-mono').first())
-        .or(page.locator('[class*="balance"]').first());
+      // After loading completes, should show either:
+      // - Balance items (BTC, asset names)
+      // - Empty state message
+      // NOT: Loading spinners, error messages
+      const content = page.locator('text=/BTC|Bitcoin|No assets|No balances/i').first()
+        .or(page.locator('.font-mono').first());
 
-      await expect(content.first()).toBeVisible({ timeout: 5000 });
+      await expect(content).toBeVisible({ timeout: 10000 });
     });
   });
 

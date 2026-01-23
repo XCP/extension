@@ -23,10 +23,9 @@ walletTest.describe('Dispenser Management Page (/dispensers/manage)', () => {
     await manageTab.click();
     await page.waitForLoadState('networkidle');
 
-    // Verify manage tab content loaded
-    await expect(
-      page.locator('text=/Your Dispensers|Dispensers|No dispensers|Create|Manage/i').first()
-    ).toBeVisible({ timeout: 5000 });
+    // Verify manage tab content loaded - should show dispensers section
+    const dispensersHeading = page.locator('text=/Your Dispensers|Dispensers/i').first();
+    await expect(dispensersHeading).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('dispenser management shows list or empty state', async ({ page }) => {
@@ -34,10 +33,11 @@ walletTest.describe('Dispenser Management Page (/dispensers/manage)', () => {
     await manageTab.click();
     await page.waitForLoadState('networkidle');
 
-    // Page should show dispensers list, empty state, or loading
-    await expect(
-      page.locator('text=/Your Dispensers|No dispensers|No open|Loading|Create Dispenser/i').first()
-    ).toBeVisible({ timeout: 5000 });
+    // Wait for loading to complete, then verify actual content (not loading spinner)
+    // Should show either dispenser list OR empty state message
+    const content = page.locator('text=/Your Dispensers/i').first()
+      .or(page.locator('text=/No dispensers|No open dispensers|You don\'t have any/i').first());
+    await expect(content).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('manage tab has create dispenser option or content', async ({ page }) => {
@@ -106,15 +106,17 @@ walletTest.describe('Asset Dispensers Page (/market/dispensers/:asset)', () => {
   });
 
   walletTest('shows dispensers page content', async ({ page }) => {
-    await expect(
-      page.locator('text=/Dispensers|XCP|satoshi|No dispensers|Loading/i').first()
-    ).toBeVisible({ timeout: 5000 });
+    // Page should show XCP dispensers title or content
+    const pageTitle = page.locator('text=/XCP.*Dispensers|Dispensers.*XCP/i').first()
+      .or(page.locator('text=/XCP/i').first());
+    await expect(pageTitle).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('displays dispenser list or empty state', async ({ page }) => {
-    await expect(
-      page.locator('text=/satoshi|BTC|price|No dispensers|No open dispensers|Loading/i').first()
-    ).toBeVisible({ timeout: 5000 });
+    // After loading, should show dispenser data OR empty state, NOT loading spinner
+    const content = page.locator('text=/satoshi|BTC.*price/i').first()
+      .or(page.locator('text=/No dispensers|No open dispensers/i').first());
+    await expect(content).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('dispense button is enabled when available', async ({ page }) => {
@@ -137,15 +139,17 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
   });
 
   walletTest('shows orders page content', async ({ page }) => {
-    await expect(
-      page.locator('text=/Orders|XCP|BTC|Buy|Sell|No orders|Loading/i').first()
-    ).toBeVisible({ timeout: 5000 });
+    // Page should show XCP/BTC orders - verify asset pair is visible
+    const assetPair = page.locator('text=/XCP.*BTC|XCP\\/BTC/i').first()
+      .or(page.locator('text=/Orders/i').first());
+    await expect(assetPair).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('displays order book or empty state', async ({ page }) => {
-    await expect(
-      page.locator('text=/Buy|Sell|Bid|Ask|No orders|No open orders|Price|Loading/i').first()
-    ).toBeVisible({ timeout: 5000 });
+    // After loading, should show order data OR empty state, NOT loading spinner
+    const content = page.locator('text=/Buy|Sell|Bid|Ask|Price/i').first()
+      .or(page.locator('text=/No orders|No open orders/i').first());
+    await expect(content).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('create order button enabled when available', async ({ page }) => {
