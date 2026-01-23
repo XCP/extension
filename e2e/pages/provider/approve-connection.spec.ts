@@ -29,12 +29,10 @@ walletTest.describe('Approve Connection Page (/provider/approve-connection)', ()
     // If we're still on the approve-connection page (not redirected)
     if (page.url().includes('approve-connection')) {
       // Should show the "Connection Request" header or unlock message
-      const hasConnectionUI = await page.locator('text=/Connection Request|unlock your wallet/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      expect(hasConnectionUI).toBe(true);
-    } else {
-      // Redirected - likely because wallet isn't unlocked, which is valid behavior
-      expect(page.url()).not.toContain('approve-connection');
+      const connectionUI = page.locator('text=/Connection Request|unlock your wallet/i').first();
+      await expect(connectionUI).toBeVisible({ timeout: 5000 });
     }
+    // Redirect is valid behavior if wallet isn't unlocked
   });
 
   walletTest('page shows domain when origin provided', async ({ page }) => {
@@ -43,8 +41,8 @@ walletTest.describe('Approve Connection Page (/provider/approve-connection)', ()
 
     if (page.url().includes('approve-connection')) {
       // Either shows the domain or the unlock message
-      const hasDomainOrUnlock = await page.locator('text=/test.example.com|unlock your wallet/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      expect(hasDomainOrUnlock).toBe(true);
+      const domainOrUnlock = page.locator('text=/test.example.com|unlock your wallet/i').first();
+      await expect(domainOrUnlock).toBeVisible({ timeout: 5000 });
     }
   });
 

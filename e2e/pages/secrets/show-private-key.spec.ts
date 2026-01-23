@@ -21,189 +21,164 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
 
   walletTest('page loads with wallet ID', async ({ page }) => {
     const walletId = await getWalletId(page);
+    if (!walletId) return;
 
-    if (walletId) {
-      await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
-      await page.waitForLoadState('networkidle');
+    await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
+    await page.waitForLoadState('networkidle');
 
-      // Should show password prompt or warning
-      const hasWarning = await page.locator('text=/Warning|Never share|Private Key/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasPasswordInput = await page.locator('input[name="password"], input[type="password"]').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasWarning || hasPasswordInput).toBe(true);
-    }
+    // Should show password input
+    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows security warning', async ({ page }) => {
     const walletId = await getWalletId(page);
+    if (!walletId) return;
 
-    if (walletId) {
-      await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
-      await page.waitForLoadState('networkidle');
+    await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
+    await page.waitForLoadState('networkidle');
 
-      // Should warn user about security
-      const hasWarning = await page.locator('text=/warning|never share|do not share|keep secret|private key/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-      expect(hasWarning).toBe(true);
-    }
+    // Should warn user about security
+    const warning = page.locator('text=/warning|never share|do not share|keep secret|private key/i').first();
+    await expect(warning).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('requires password verification', async ({ page }) => {
     const walletId = await getWalletId(page);
+    if (!walletId) return;
 
-    if (walletId) {
-      await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
-      await page.waitForLoadState('networkidle');
+    await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
+    await page.waitForLoadState('networkidle');
 
-      // Should have password input
-      const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-      await expect(passwordInput).toBeVisible({ timeout: 5000 });
-    }
+    // Should have password input
+    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has reveal button', async ({ page }) => {
     const walletId = await getWalletId(page);
+    if (!walletId) return;
 
-    if (walletId) {
-      await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
-      await page.waitForLoadState('networkidle');
+    await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
+    await page.waitForLoadState('networkidle');
 
-      // Should have a button to reveal the key
-      const hasRevealButton = await page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-      expect(hasRevealButton).toBe(true);
-    }
+    // Should have a button to reveal the key
+    const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
+    await expect(revealButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('reveals private key with correct password', async ({ page }) => {
     const walletId = await getWalletId(page);
+    if (!walletId) return;
 
-    if (walletId) {
-      await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
-      await page.waitForLoadState('networkidle');
+    await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
+    await page.waitForLoadState('networkidle');
 
-      const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-      await expect(passwordInput).toBeVisible({ timeout: 5000 });
+    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
-      await passwordInput.fill(TEST_PASSWORD);
+    await passwordInput.fill(TEST_PASSWORD);
 
-      const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
-      await revealButton.click();
+    const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
+    await revealButton.click();
 
-      await page.waitForTimeout(1000);
-
-      // Should show WIF format private key (starts with K, L, or 5)
-      const hasPrivateKey = await page.locator('text=/^[KL5][a-km-zA-HJ-NP-Z1-9]{50,51}$/').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasKeyDisplay = await page.locator('[data-testid*="private-key"], .private-key, code').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasPrivateKey || hasKeyDisplay).toBe(true);
-    }
+    // Should show key display after reveal
+    const keyDisplay = page.locator('[data-testid*="private-key"], .private-key, code, .font-mono').first();
+    await expect(keyDisplay).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows error for wrong password', async ({ page }) => {
     const walletId = await getWalletId(page);
+    if (!walletId) return;
 
-    if (walletId) {
-      await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
-      await page.waitForLoadState('networkidle');
+    await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
+    await page.waitForLoadState('networkidle');
 
-      const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-      await expect(passwordInput).toBeVisible({ timeout: 5000 });
+    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
-      await passwordInput.fill('wrongpassword');
+    await passwordInput.fill('wrongpassword');
 
-      const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
-      await revealButton.click();
+    const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
+    await revealButton.click();
 
-      await page.waitForTimeout(1000);
-
-      // Should show error
-      const hasError = await page.locator('text=/incorrect|invalid|wrong|error/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const noKey = !(await page.locator('[data-testid*="private-key"], .private-key').first().isVisible({ timeout: 1000 }).catch(() => false));
-
-      expect(hasError || noKey).toBe(true);
-    }
+    // Should show error
+    const errorMessage = page.locator('text=/incorrect|invalid|wrong|error/i').first();
+    await expect(errorMessage).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has copy functionality after reveal', async ({ page }) => {
     const walletId = await getWalletId(page);
+    if (!walletId) return;
 
-    if (walletId) {
-      await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
-      await page.waitForLoadState('networkidle');
+    await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
+    await page.waitForLoadState('networkidle');
 
-      const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-      await expect(passwordInput).toBeVisible({ timeout: 5000 });
+    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
-      await passwordInput.fill(TEST_PASSWORD);
+    await passwordInput.fill(TEST_PASSWORD);
 
-      const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
-      await revealButton.click();
-      await page.waitForTimeout(1000);
+    const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
+    await revealButton.click();
+    await page.waitForTimeout(1000);
 
-      // After revealing, there should be a copy button
-      const copyButton = page.locator('button:has-text("Copy"), button[aria-label*="copy" i]').first();
-      await expect(copyButton).toBeVisible({ timeout: 5000 });
-    }
+    // After revealing, there should be a copy button
+    const copyButton = page.locator('button:has-text("Copy"), button[aria-label*="copy" i]').first();
+    await expect(copyButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows private key display after reveal', async ({ page }) => {
     const walletId = await getWalletId(page);
+    if (!walletId) return;
 
-    if (walletId) {
-      await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
-      await page.waitForLoadState('networkidle');
+    await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
+    await page.waitForLoadState('networkidle');
 
-      const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-      await expect(passwordInput).toBeVisible({ timeout: 5000 });
+    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
-      await passwordInput.fill(TEST_PASSWORD);
+    await passwordInput.fill(TEST_PASSWORD);
 
-      const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
-      await revealButton.click();
-      await page.waitForTimeout(1000);
+    const revealButton = page.locator('button:has-text("Show"), button:has-text("Reveal"), button:has-text("View")').first();
+    await revealButton.click();
+    await page.waitForTimeout(1000);
 
-      // After revealing, should show the private key in a code/display element
-      const keyDisplay = page.locator('code, pre, [data-testid*="private-key"], .font-mono').first();
-      await expect(keyDisplay).toBeVisible({ timeout: 5000 });
-    }
+    // After revealing, should show the private key in a code/display element
+    const keyDisplay = page.locator('code, pre, [data-testid*="private-key"], .font-mono').first();
+    await expect(keyDisplay).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('can navigate back', async ({ page }) => {
     const walletId = await getWalletId(page);
+    if (!walletId) return;
 
-    if (walletId) {
-      await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
-      await page.waitForLoadState('networkidle');
+    await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
+    await page.waitForLoadState('networkidle');
 
-      // Should have back button or close button
-      const hasBackButton = await page.locator('button[aria-label*="back" i], a[href*="back"], button:has-text("Back"), button:has-text("Cancel")').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-      expect(hasBackButton).toBe(true);
-    }
+    // Should have back button
+    const backButton = page.locator('button[aria-label*="back" i], button:has-text("Back"), button:has-text("Cancel")').first();
+    await expect(backButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('handles invalid wallet ID', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/secrets/show-private-key/invalid-wallet-id-12345'));
     await page.waitForLoadState('networkidle');
 
-    // Should show error or redirect
-    const hasError = await page.locator('text=/not found|error|invalid/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const redirected = !page.url().includes('/secrets/show-private-key');
-
-    expect(hasError || redirected).toBe(true);
+    // Should redirect away from invalid page
+    const redirected = !page.url().includes('/secrets/show-private-key/invalid');
+    expect(redirected).toBe(true);
   });
 
   walletTest('page shows Private Key title', async ({ page }) => {
     const walletId = await getWalletId(page);
+    if (!walletId) return;
 
-    if (walletId) {
-      await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
-      await page.waitForLoadState('networkidle');
+    await page.goto(page.url().replace(/\/index.*/, `/secrets/show-private-key/${walletId}`));
+    await page.waitForLoadState('networkidle');
 
-      // Page should show "Private Key" in the title/header
-      const privateKeyTitle = page.locator('text="Private Key"');
-      await expect(privateKeyTitle).toBeVisible({ timeout: 5000 });
-    }
+    // Page should show "Private Key" in the title/header
+    const privateKeyTitle = page.locator('text="Private Key"');
+    await expect(privateKeyTitle).toBeVisible({ timeout: 5000 });
   });
 });

@@ -12,27 +12,18 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/market/btc'));
     await page.waitForLoadState('networkidle');
 
-    // Should show BTC price UI
-    const hasTitle = await page.locator('text=/Bitcoin Price/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasBtcSymbol = await page.locator('text=/BTC/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasPrice = await page.locator('text=/\\$[0-9,]+/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasLoading = await page.locator('text=/Loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-    expect(hasTitle || hasBtcSymbol || hasPrice || hasLoading).toBe(true);
+    // Should show Bitcoin Price title
+    const titleElement = page.locator('text=/Bitcoin Price/i').first();
+    await expect(titleElement).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('shows current BTC price', async ({ page }) => {
+  walletTest('shows current BTC price or loading state', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/market/btc'));
     await page.waitForLoadState('networkidle');
 
-    // Should show price in USD or other currency, or still loading, or error
-    const hasPrice = await page.locator('text=/\\$[0-9,]+|[0-9,]+\\.[0-9]+/').first().isVisible({ timeout: 10000 }).catch(() => false);
-    const hasError = await page.locator('text=/Unable to load|Error/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasLoading = await page.locator('text=/Loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-    const hasBtcSymbol = await page.locator('text=/BTC/').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-    // Either shows price, error, loading, or BTC symbol (page loaded successfully)
-    expect(hasPrice || hasError || hasLoading || hasBtcSymbol).toBe(true);
+    // Should show Bitcoin Price title (price data may take time to load)
+    const titleElement = page.locator('text=/Bitcoin Price/i').first();
+    await expect(titleElement).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('shows Bitcoin Price title', async ({ page }) => {
@@ -44,63 +35,51 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
     await expect(bitcoinPriceTitle).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('shows time range tabs', async ({ page }) => {
+  walletTest('shows time range tabs when loaded', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/market/btc'));
     await page.waitForLoadState('networkidle');
 
-    // Wait for content to load (either tabs or loading state)
-    await page.waitForTimeout(3000);
+    // First verify page loaded
+    const titleElement = page.locator('text=/Bitcoin Price/i').first();
+    await expect(titleElement).toBeVisible({ timeout: 10000 });
 
-    // Should show 1H, 24H tabs (may be buttons or styled elements), or loading state
-    const has1h = await market.timeRange1h(page).isVisible({ timeout: 5000 }).catch(() => false);
-    const has24h = await market.timeRange24h(page).isVisible({ timeout: 3000 }).catch(() => false);
-    const hasLoading = await page.locator('text=/Loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-    const hasTitle = await page.locator('text=/Bitcoin Price/i').first().isVisible({ timeout: 2000 }).catch(() => false);
+    // Check for time range tabs - they may not appear until chart loads
+    const tab1h = market.timeRange1h(page);
+    const tabCount = await tab1h.count();
 
-    // Page loaded in some valid state
-    expect(has1h || has24h || hasLoading || hasTitle).toBe(true);
+    if (tabCount > 0) {
+      await expect(tab1h).toBeVisible();
+    }
+    // Tabs may not be visible if chart hasn't loaded - that's OK
   });
 
-  walletTest('can switch time range', async ({ page }) => {
+  walletTest('can switch time range when tabs available', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/market/btc'));
     await page.waitForLoadState('networkidle');
 
-    // Click on 1H tab
+    // First verify page loaded
+    const titleElement = page.locator('text=/Bitcoin Price/i').first();
+    await expect(titleElement).toBeVisible({ timeout: 10000 });
+
+    // Click on 1H tab if available
     const tab1h = market.timeRange1h(page);
-    if (await tab1h.isVisible({ timeout: 5000 }).catch(() => false)) {
+    const tabCount = await tab1h.count();
+
+    if (tabCount > 0) {
       await tab1h.click();
       await page.waitForTimeout(500);
-
-      // Page should still be visible (no crash)
-      const pageStillLoaded = page.url().includes('market');
-      expect(pageStillLoaded).toBe(true);
+      // Page should still be on market/btc
+      expect(page.url()).toContain('market');
     }
   });
 
-  walletTest('shows price chart', async ({ page }) => {
+  walletTest('shows price chart or loading state', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/market/btc'));
     await page.waitForLoadState('networkidle');
 
-    // Wait for content to load
-    await page.waitForTimeout(3000);
-
-    // Should show chart (canvas or SVG), loading, or error
-    const hasChart = await market.priceChart(page).isVisible({ timeout: 5000 }).catch(() => false);
-    const hasChartError = await page.locator('text=/Unable to load chart/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasLoading = await page.locator('text=/Loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-    const hasTitle = await page.locator('text=/Bitcoin Price/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-    // Chart area loaded successfully in some state
-    expect(hasChart || hasChartError || hasLoading || hasTitle).toBe(true);
-  });
-
-  walletTest('has refresh button', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/market/btc'));
-    await page.waitForLoadState('domcontentloaded');
-
-    // Wait for page title to confirm page loaded
+    // Verify page loaded with title
     const titleElement = page.locator('text=/Bitcoin Price/i').first();
-    await expect(titleElement).toBeVisible({ timeout: 15000 });
+    await expect(titleElement).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('has back navigation to market', async ({ page }) => {
@@ -117,19 +96,12 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
     await expect(page).toHaveURL(/market/, { timeout: 5000 });
   });
 
-  walletTest('shows Buy Bitcoin link', async ({ page }) => {
+  walletTest('page structure is correct', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/market/btc'));
     await page.waitForLoadState('networkidle');
 
-    // Wait for content to load (Buy Bitcoin appears after price loads or errors)
-    await page.waitForTimeout(3000);
-
-    // Should show Buy Bitcoin link (appears after content loads)
-    const hasBuyLink = await page.locator('text=/Buy Bitcoin/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasLoading = await page.locator('text=/Loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-    const hasTitle = await page.locator('text=/Bitcoin Price/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-    // Either has the link, is still loading, or has the page title
-    expect(hasBuyLink || hasLoading || hasTitle).toBe(true);
+    // Verify page has expected structure
+    const titleElement = page.locator('text=/Bitcoin Price/i').first();
+    await expect(titleElement).toBeVisible({ timeout: 10000 });
   });
 });
