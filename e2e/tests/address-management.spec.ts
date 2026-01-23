@@ -108,7 +108,9 @@ walletTest.describe('Address Management', () => {
     expect(currentAddress).toBeTruthy();
     expect(currentAddress.length).toBeGreaterThan(10);
 
-    // Should be a valid Bitcoin address format
-    expect(currentAddress).toMatch(/^(bc1|1|3|tb1|m|n|2)[a-zA-Z0-9]{25,}/);
+    // Should be a valid Bitcoin address format (full or truncated with ... in middle)
+    // Full: bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq
+    // Truncated: bc1ptm...8g756q
+    expect(currentAddress).toMatch(/^(bc1|1|3|tb1|m|n|2)[a-zA-Z0-9]{2,}(\.{3}[a-zA-Z0-9]+|[a-zA-Z0-9]{20,})$/);
   });
 });

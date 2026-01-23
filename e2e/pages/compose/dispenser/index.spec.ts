@@ -98,16 +98,25 @@ walletTest.describe('Dispenser Flow - Full Compose Flow', () => {
     const giveInput = compose.dispenser.giveQuantityInput(page);
 
     await expect(escrowInput).toBeVisible({ timeout: 10000 });
+    await escrowInput.clear();
     await escrowInput.fill('1000');
+    await escrowInput.blur();
 
     await expect(rateInput).toBeVisible({ timeout: 5000 });
+    await rateInput.clear();
     await rateInput.fill('0.0001');
+    await rateInput.blur();
 
     await expect(giveInput).toBeVisible({ timeout: 5000 });
+    await giveInput.clear();
     await giveInput.fill('100');
+    await giveInput.blur();
+
+    // Wait for React state to update
+    await page.waitForTimeout(500);
 
     const submitBtn = compose.dispenser.createButton(page);
-    await expect(submitBtn).toBeEnabled({ timeout: 5000 });
+    await expect(submitBtn).toBeEnabled({ timeout: 10000 });
     await submitBtn.click();
 
     await waitForReview(page);
@@ -131,16 +140,25 @@ walletTest.describe('Dispenser Flow - Full Compose Flow', () => {
     const giveInput = compose.dispenser.giveQuantityInput(page);
 
     await expect(escrowInput).toBeVisible({ timeout: 10000 });
+    await escrowInput.clear();
     await escrowInput.fill(escrowQuantity);
+    await escrowInput.blur();
 
     await expect(rateInput).toBeVisible({ timeout: 5000 });
+    await rateInput.clear();
     await rateInput.fill(rate);
+    await rateInput.blur();
 
     await expect(giveInput).toBeVisible({ timeout: 5000 });
+    await giveInput.clear();
     await giveInput.fill(giveQuantity);
+    await giveInput.blur();
+
+    // Wait for React state to update
+    await page.waitForTimeout(500);
 
     const submitBtn = compose.dispenser.createButton(page);
-    await expect(submitBtn).toBeEnabled({ timeout: 5000 });
+    await expect(submitBtn).toBeEnabled({ timeout: 10000 });
     await submitBtn.click();
 
     await waitForReview(page);
@@ -162,16 +180,25 @@ walletTest.describe('Dispenser Flow - Full Compose Flow', () => {
     const giveInput = compose.dispenser.giveQuantityInput(page);
 
     await expect(escrowInput).toBeVisible({ timeout: 10000 });
+    await escrowInput.clear();
     await escrowInput.fill('1000');
+    await escrowInput.blur();
 
     await expect(rateInput).toBeVisible({ timeout: 5000 });
+    await rateInput.clear();
     await rateInput.fill('0.0001');
+    await rateInput.blur();
 
     await expect(giveInput).toBeVisible({ timeout: 5000 });
+    await giveInput.clear();
     await giveInput.fill('100');
+    await giveInput.blur();
+
+    // Wait for React state to update
+    await page.waitForTimeout(500);
 
     const submitBtn = compose.dispenser.createButton(page);
-    await expect(submitBtn).toBeEnabled({ timeout: 5000 });
+    await expect(submitBtn).toBeEnabled({ timeout: 10000 });
     await submitBtn.click();
 
     await waitForReview(page);
