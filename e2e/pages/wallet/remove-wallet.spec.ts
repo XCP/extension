@@ -75,14 +75,14 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
     const removeButton = page.locator('button:has-text("Remove"), button[type="submit"]').first();
     await removeButton.click();
 
-    // Should show error or stay on page
+    // Should show error and stay on page
     const errorText = page.locator('text=/incorrect|invalid|wrong|does not match|error/i').first();
-    const stillOnPage = page.url().includes('remove-wallet');
 
-    await expect(async () => {
-      const hasError = await errorText.isVisible();
-      expect(hasError || stillOnPage).toBe(true);
-    }).toPass({ timeout: 5000 });
+    // Wait for error to appear (wrong password should trigger validation error)
+    await expect(errorText).toBeVisible({ timeout: 5000 });
+
+    // Should still be on remove-wallet page
+    expect(page.url()).toContain('remove-wallet');
   });
 
   walletTest('has back button', async ({ page }) => {
@@ -99,14 +99,17 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
     await page.goto(`${baseUrl}/remove-wallet/invalid-wallet-id-12345`);
     await page.waitForLoadState('networkidle');
 
-    // Should show error or redirect
-    const errorText = page.locator('text=/not found|error|invalid/i').first();
-    const redirected = !page.url().includes('/remove-wallet');
+    // Should show error or redirect - check which behavior occurred
+    const wasRedirected = !page.url().includes('/remove-wallet');
 
-    await expect(async () => {
-      const hasError = await errorText.isVisible();
-      expect(hasError || redirected).toBe(true);
-    }).toPass({ timeout: 5000 });
+    if (wasRedirected) {
+      // Redirected away from invalid wallet ID - test passes
+      expect(wasRedirected).toBe(true);
+    } else {
+      // Still on page, should show error message
+      const errorText = page.locator('text=/not found|error|invalid/i').first();
+      await expect(errorText).toBeVisible({ timeout: 5000 });
+    }
   });
 
   walletTest('warning box has danger styling', async ({ page }) => {

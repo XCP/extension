@@ -11,25 +11,21 @@ walletTest.describe('Select Address Page (/select-address)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/select-address'));
     await page.waitForLoadState('networkidle');
 
-    // Should show address selection UI or redirect for non-mnemonic wallets
+    // Check if redirected (non-mnemonic wallet behavior)
+    const currentUrl = page.url();
+    walletTest.skip(!currentUrl.includes('select-address'), 'Redirected - non-mnemonic wallet');
+
+    // Should show address selection UI
     const title = page.locator('text=/Addresses/i').first();
     const addressList = page.locator('[role="radiogroup"], [class*="list"]').first();
-
-    // Either shows content or redirects
-    const currentUrl = page.url();
-    if (currentUrl.includes('select-address')) {
-      await expect(title.or(addressList)).toBeVisible({ timeout: 5000 });
-    }
-    // If redirected, test passes (non-mnemonic wallet behavior)
+    await expect(title.or(addressList)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows list of addresses', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/select-address'));
     await page.waitForLoadState('networkidle');
 
-    if (!page.url().includes('select-address')) {
-      return; // Redirected - non-mnemonic wallet
-    }
+    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
     // Should show address cards or address text
     const addressCards = page.locator('[class*="card"], [class*="address"]').first();
@@ -43,9 +39,7 @@ walletTest.describe('Select Address Page (/select-address)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/select-address'));
     await page.waitForLoadState('networkidle');
 
-    if (!page.url().includes('select-address')) {
-      return; // Redirected - non-mnemonic wallet
-    }
+    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
     const addButton = page.locator('button:has-text("Add Address"), button[aria-label*="Add"]');
     await expect(addButton.first()).toBeVisible({ timeout: 5000 });
@@ -55,9 +49,7 @@ walletTest.describe('Select Address Page (/select-address)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/select-address'));
     await page.waitForLoadState('networkidle');
 
-    if (!page.url().includes('select-address')) {
-      return; // Redirected - non-mnemonic wallet
-    }
+    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
     const addButton = page.locator('button[aria-label*="Add"], header button svg').last();
     await expect(addButton).toBeVisible({ timeout: 5000 });
@@ -67,9 +59,7 @@ walletTest.describe('Select Address Page (/select-address)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/select-address'));
     await page.waitForLoadState('networkidle');
 
-    if (!page.url().includes('select-address')) {
-      return; // Redirected - non-mnemonic wallet
-    }
+    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
     // Click on first address card
     const addressCard = page.locator('[class*="card"], [role="radio"]').first();
@@ -84,9 +74,7 @@ walletTest.describe('Select Address Page (/select-address)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/select-address'));
     await page.waitForLoadState('networkidle');
 
-    if (!page.url().includes('select-address')) {
-      return; // Redirected - non-mnemonic wallet
-    }
+    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
     const backButton = page.locator('button[aria-label*="back"], header button').first();
     await expect(backButton).toBeVisible({ timeout: 5000 });
