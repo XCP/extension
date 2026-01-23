@@ -15,10 +15,9 @@ walletTest.describe('Select Address Page (/select-address)', () => {
     const currentUrl = page.url();
     walletTest.skip(!currentUrl.includes('select-address'), 'Redirected - non-mnemonic wallet');
 
-    // Should show address selection UI
-    const title = page.locator('text=/Addresses/i').first();
-    const addressList = page.locator('[role="radiogroup"], [class*="list"]').first();
-    await expect(title.or(addressList)).toBeVisible({ timeout: 5000 });
+    // Should show address selection UI - use specific heading selector
+    const title = page.getByRole('heading', { name: 'Addresses' });
+    await expect(title).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows list of addresses', async ({ page }) => {
@@ -27,12 +26,13 @@ walletTest.describe('Select Address Page (/select-address)', () => {
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
-    // Should show address cards or address text
-    const addressCards = page.locator('[class*="card"], [class*="address"]').first();
-    const addressText = page.locator('text=/Address [0-9]+|Account [0-9]+/i').first();
-    const monoAddress = page.locator('.font-mono').first();
+    // Should show radiogroup with addresses
+    const addressList = page.locator('[role="radiogroup"]');
+    await expect(addressList).toBeVisible({ timeout: 5000 });
 
-    await expect(addressCards.or(addressText).or(monoAddress)).toBeVisible({ timeout: 5000 });
+    // And should have at least one radio option
+    const radioOptions = page.locator('[role="radio"]');
+    await expect(radioOptions.first()).toBeVisible();
   });
 
   walletTest('shows Add Address button', async ({ page }) => {
