@@ -47,10 +47,8 @@ test.describe('Import Wallet - Mnemonic', () => {
     await importWallet.passwordInput(extensionPage).fill(TEST_PASSWORD);
     await importWallet.continueButton(extensionPage).click();
 
-    // Should show error or stay on page
-    const hasError = await extensionPage.getByText(/invalid|error/i).isVisible({ timeout: 3000 }).catch(() => false);
-    const notOnIndex = !extensionPage.url().includes('index');
-    expect(hasError || notOnIndex).toBe(true);
+    // Should stay on page (not navigate to index with invalid mnemonic)
+    await expect(extensionPage).not.toHaveURL(/index/, { timeout: 3000 });
   });
 
   test('supports pasting full mnemonic', async ({ extensionPage, extensionContext }) => {
@@ -119,10 +117,8 @@ walletTest.describe('Import Wallet - Private Key', () => {
     await importWallet.continueButton(page).click().catch(() => {});
     await page.waitForTimeout(1000);
 
-    // Should show error or still be on import page (not redirected to index)
-    const hasError = await page.getByText(/invalid|error|unable/i).isVisible({ timeout: 2000 }).catch(() => false);
-    const stillOnImport = page.url().includes('import') || page.url().includes('select-wallet');
-    expect(hasError || stillOnImport).toBe(true);
+    // Should stay on import page (not navigate to index with invalid key)
+    await expect(page).not.toHaveURL(/index/, { timeout: 2000 });
   });
 });
 

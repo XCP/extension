@@ -51,10 +51,7 @@ test.describe('Wallet Creation', () => {
     // Enter short password
     await createWallet.passwordInput(extensionPage).fill('short');
 
-    // Continue button should be disabled or show error
-    const isDisabled = await createWallet.continueButton(extensionPage).isDisabled().catch(() => false);
-    const hasError = await extensionPage.getByText(/password|characters|minimum/i).isVisible().catch(() => false);
-
-    expect(isDisabled || hasError).toBe(true);
+    // Continue button should be disabled with short password
+    await expect(createWallet.continueButton(extensionPage)).toBeDisabled();
   });
 });

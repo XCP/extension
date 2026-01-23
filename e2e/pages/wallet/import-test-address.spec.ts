@@ -25,180 +25,149 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
   walletTest('redirects in production or shows form in development', async ({ page }) => {
     await navigateToImportTestAddress(page);
 
-    // In development mode, should show form
-    // In production mode, should redirect to add-wallet
-    const hasForm = await page.locator('input[id="test-address"], input[type="text"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const redirected = page.url().includes('add-wallet') || !page.url().includes('import-test-address');
-    const hasDevModeWarning = await page.locator('text=/Development Mode|Dev Only/i').first().isVisible({ timeout: 3000 }).catch(() => false);
+    // In production mode, redirects away from import-test-address
+    if (!page.url().includes('import-test-address')) {
+      // Redirected - test passes (production behavior)
+      return;
+    }
 
-    expect(hasForm || redirected || hasDevModeWarning).toBe(true);
+    // In development mode, should show form or dev mode warning
+    const formInput = page.locator('input[id="test-address"], input[type="text"]').first();
+    await expect(formInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows development mode warning if available', async ({ page }) => {
     await navigateToImportTestAddress(page);
 
-    if (page.url().includes('import-test-address')) {
-      // Should show warning that this is for development only - the banner says "Development Mode"
-      const hasWarning = await page.locator('text=/Development Mode/').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasWatchOnly = await page.locator('text=/watch-only/').first().isVisible({ timeout: 3000 }).catch(() => false);
+    if (!page.url().includes('import-test-address')) return;
 
-      expect(hasWarning || hasWatchOnly).toBe(true);
+    // Should show warning that this is for development only
+    // The page shows either "Development Mode" banner or "watch-only" description
+    const devModeWarning = page.locator('text=/Development Mode/').first();
+    const watchOnlyText = page.locator('text=/watch-only/').first();
+
+    const devModeCount = await devModeWarning.count();
+    if (devModeCount > 0) {
+      await expect(devModeWarning).toBeVisible({ timeout: 5000 });
+    } else {
+      await expect(watchOnlyText).toBeVisible({ timeout: 5000 });
     }
-    // If redirected to add-wallet, that's expected in production mode - test passes
   });
 
   walletTest('has Bitcoin address input field', async ({ page }) => {
     await navigateToImportTestAddress(page);
 
-    if (page.url().includes('import-test-address')) {
-      // Input has id="test-address" and placeholder="Enter any Bitcoin address…"
-      const addressInput = page.locator('#test-address, input[placeholder*="Bitcoin address"]').first();
-      const isVisible = await addressInput.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!page.url().includes('import-test-address')) return;
 
-      expect(isVisible).toBe(true);
-    }
-    // If redirected to add-wallet, that's expected in production mode - test passes
+    // Input has id="test-address" and placeholder="Enter any Bitcoin address…"
+    const addressInput = page.locator('#test-address, input[placeholder*="Bitcoin address"]').first();
+    await expect(addressInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has import button', async ({ page }) => {
     await navigateToImportTestAddress(page);
 
-    if (page.url().includes('import-test-address')) {
-      // Button text is "Import Test Address"
-      const importButton = page.locator('button:has-text("Import Test Address")').first();
-      const isVisible = await importButton.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!page.url().includes('import-test-address')) return;
 
-      expect(isVisible).toBe(true);
-    }
-    // If redirected to add-wallet, that's expected in production mode - test passes
+    // Button text is "Import Test Address"
+    const importButton = page.locator('button:has-text("Import Test Address")').first();
+    await expect(importButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('import button is disabled without address', async ({ page }) => {
     await navigateToImportTestAddress(page);
 
-    if (page.url().includes('import-test-address')) {
-      // Wait for the component to fully render
-      await page.waitForTimeout(500);
+    if (!page.url().includes('import-test-address')) return;
 
-      const importButton = page.locator('button:has-text("Import Test Address")').first();
-
-      if (await importButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-        const isDisabled = await importButton.isDisabled().catch(() => false);
-        expect(isDisabled).toBe(true);
-      }
-    }
+    const importButton = page.locator('button:has-text("Import Test Address")').first();
+    await expect(importButton).toBeVisible({ timeout: 5000 });
+    await expect(importButton).toBeDisabled();
   });
 
   walletTest('shows error for empty address', async ({ page }) => {
     await navigateToImportTestAddress(page);
 
-    if (page.url().includes('import-test-address')) {
-      const importButton = page.locator('button:has-text("Import Test Address")').first();
+    if (!page.url().includes('import-test-address')) return;
 
-      if (await importButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-        // The button should be disabled without an address
-        const isDisabled = await importButton.isDisabled().catch(() => false);
-        expect(isDisabled).toBe(true);
-      }
-    }
+    const importButton = page.locator('button:has-text("Import Test Address")').first();
+    await expect(importButton).toBeVisible({ timeout: 5000 });
+    // The button should be disabled without an address
+    await expect(importButton).toBeDisabled();
   });
 
   walletTest('shows error for invalid address', async ({ page }) => {
     await navigateToImportTestAddress(page);
 
-    if (page.url().includes('import-test-address')) {
-      const addressInput = page.locator('input[id="test-address"], input[placeholder*="address" i]').first();
+    if (!page.url().includes('import-test-address')) return;
 
-      if (await addressInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await addressInput.fill('invalid-address-format');
-        await page.waitForTimeout(500);
+    const addressInput = page.locator('input[id="test-address"], input[placeholder*="address" i]').first();
+    await expect(addressInput).toBeVisible({ timeout: 5000 });
 
-        const importButton = page.locator('button:has-text("Import"), button[type="submit"]').first();
-        if (await importButton.isVisible({ timeout: 3000 }).catch(() => false) && !await importButton.isDisabled()) {
-          await importButton.click();
-          await page.waitForTimeout(1000);
+    await addressInput.fill('invalid-address-format');
 
-          // Should show error
-          const hasError = await page.locator('text=/invalid|error|format/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-          const stillOnPage = page.url().includes('import-test-address');
-
-          expect(hasError || stillOnPage).toBe(true);
-        }
-      }
-    }
+    // Button should remain disabled with invalid address format
+    const importButton = page.locator('button:has-text("Import Test Address")').first();
+    await expect(importButton).toBeDisabled();
   });
 
   walletTest('accepts valid Bitcoin address format', async ({ page }) => {
     await navigateToImportTestAddress(page);
 
-    if (page.url().includes('import-test-address')) {
-      const addressInput = page.locator('input[id="test-address"], input[placeholder*="address" i]').first();
+    if (!page.url().includes('import-test-address')) return;
 
-      if (await addressInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-        // Use a valid mainnet address format
-        await addressInput.fill('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
-        await page.waitForTimeout(500);
+    const addressInput = page.locator('input[id="test-address"], input[placeholder*="address" i]').first();
+    await expect(addressInput).toBeVisible({ timeout: 5000 });
 
-        // Import button should be enabled with valid address
-        const importButton = page.locator('button:has-text("Import"), button[type="submit"]').first();
-        if (await importButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-          const isEnabled = !await importButton.isDisabled();
-          expect(isEnabled).toBe(true);
-        }
-      }
-    }
+    // Use a valid mainnet address format
+    await addressInput.fill('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
+
+    // Import button should be enabled with valid address
+    const importButton = page.locator('button:has-text("Import Test Address")').first();
+    await expect(importButton).toBeEnabled({ timeout: 3000 });
   });
 
   walletTest('has back button to add-wallet', async ({ page }) => {
     await navigateToImportTestAddress(page);
 
-    if (page.url().includes('import-test-address')) {
-      const backButton = page.locator('button[aria-label*="back" i], header button').first();
-      const isVisible = await backButton.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!page.url().includes('import-test-address')) return;
 
-      expect(isVisible).toBe(true);
-    }
+    const backButton = page.locator('button[aria-label*="back" i], header button').first();
+    await expect(backButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('explains watch-only limitations', async ({ page }) => {
     await navigateToImportTestAddress(page);
 
-    if (page.url().includes('import-test-address')) {
-      // The page says: "This creates a watch-only wallet for testing."
-      const hasWatchOnly = await page.locator('text=/watch-only/').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasCannotSign = await page.locator('text=/cannot sign/').first().isVisible({ timeout: 3000 }).catch(() => false);
+    if (!page.url().includes('import-test-address')) return;
 
-      expect(hasWatchOnly || hasCannotSign).toBe(true);
-    }
+    // The page says: "This creates a watch-only wallet for testing."
+    const watchOnlyText = page.locator('text=/watch-only/').first();
+    await expect(watchOnlyText).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('input field accepts Bitcoin address', async ({ page }) => {
     await navigateToImportTestAddress(page);
 
-    if (page.url().includes('import-test-address')) {
-      const addressInput = page.locator('input[id="test-address"], input[placeholder*="address" i]').first();
+    if (!page.url().includes('import-test-address')) return;
 
-      if (await addressInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await addressInput.fill('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
+    const addressInput = page.locator('input[id="test-address"], input[placeholder*="address" i]').first();
+    await expect(addressInput).toBeVisible({ timeout: 5000 });
 
-        // Value should be set
-        await expect(addressInput).toHaveValue('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
-      }
-    }
+    await addressInput.fill('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
+
+    // Value should be set
+    await expect(addressInput).toHaveValue('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
   });
 
   walletTest('address input has placeholder text', async ({ page }) => {
     await navigateToImportTestAddress(page);
 
-    if (page.url().includes('import-test-address')) {
-      const addressInput = page.locator('input[id="test-address"]').first();
+    if (!page.url().includes('import-test-address')) return;
 
-      if (await addressInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-        // Should have placeholder text
-        const placeholder = await addressInput.getAttribute('placeholder');
-        expect(placeholder).toBeTruthy();
-        expect(placeholder).toContain('Bitcoin address');
-      }
-    }
+    const addressInput = page.locator('input[id="test-address"]').first();
+    await expect(addressInput).toBeVisible({ timeout: 5000 });
+
+    // Should have placeholder text
+    await expect(addressInput).toHaveAttribute('placeholder', /Bitcoin address/);
   });
 });

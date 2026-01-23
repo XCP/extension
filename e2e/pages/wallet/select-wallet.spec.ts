@@ -18,12 +18,9 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
   walletTest('page loads and displays wallet list', async ({ page }) => {
     await navigateToSelectWallet(page);
 
-    // Should show wallet list or keychain title
-    const hasWalletList = await page.locator('[data-testid*="wallet-list"], [role="list"], .wallet-list').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasKeychainTitle = await page.locator('text=/Keychain|Select.*Wallet|Choose.*Wallet/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasWalletItem = await page.locator('[data-testid*="wallet-item"], .wallet-item, button:has-text("Wallet")').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasWalletList || hasKeychainTitle || hasWalletItem).toBe(true);
+    // Should show Keychain title (the page header)
+    const keychainTitle = page.locator('text="Keychain"');
+    await expect(keychainTitle).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('displays at least one wallet', async ({ page }) => {
@@ -40,9 +37,8 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
     await navigateToSelectWallet(page);
 
     // Wallet names should be visible - the default wallet name is "Wallet 1"
-    const hasWalletName = await page.locator('text=/Wallet 1|Wallet|My Wallet/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(hasWalletName).toBe(true);
+    const walletName = page.locator('text=/Wallet 1|Wallet|My Wallet/i').first();
+    await expect(walletName).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has add wallet button', async ({ page }) => {
@@ -78,39 +74,30 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
     const walletItems = page.locator('[role="radio"]');
     const count = await walletItems.count();
 
-    if (count > 1) {
-      // Click the second wallet
-      await walletItems.nth(1).click();
-      await page.waitForTimeout(1000);
+    if (count <= 1) return; // Only one wallet, nothing to switch to
 
-      // Should navigate away or update selection
-      const navigatedAway = !page.url().includes('select-wallet');
-      const selectionChanged = await page.locator('[aria-selected="true"], .active').first().isVisible({ timeout: 3000 }).catch(() => false);
+    // Click the second wallet
+    await walletItems.nth(1).click();
 
-      expect(navigatedAway || selectionChanged).toBe(true);
-    }
+    // Should navigate to index after selection
+    await expect(page).toHaveURL(/index/, { timeout: 5000 });
   });
 
   walletTest('selecting wallet navigates to index', async ({ page }) => {
     await navigateToSelectWallet(page);
 
     const walletItems = page.locator('[role="radio"]');
+    await expect(walletItems.first()).toBeVisible({ timeout: 5000 });
 
-    if (await walletItems.first().isVisible({ timeout: 5000 }).catch(() => false)) {
-      await walletItems.first().click();
-      await page.waitForTimeout(1500);
-
-      expect(page.url()).toContain('index');
-    }
+    await walletItems.first().click();
+    await expect(page).toHaveURL(/index/, { timeout: 5000 });
   });
 
   walletTest('has back button', async ({ page }) => {
     await navigateToSelectWallet(page);
 
     const backButton = page.locator('button[aria-label*="back" i], header button').first();
-    const isVisible = await backButton.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(isVisible).toBe(true);
+    await expect(backButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('displays Keychain title', async ({ page }) => {
@@ -126,9 +113,8 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
 
     // This test verifies that even if an error occurs during selection,
     // it's handled gracefully (no crash, error message shown)
-    // We can only verify this indirectly by checking the page still works
-    const pageStillFunctional = await page.locator('button, a, [role="button"]').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(pageStillFunctional).toBe(true);
+    // We verify by checking the page is functional with interactive elements
+    const interactiveElement = page.locator('button, a, [role="button"]').first();
+    await expect(interactiveElement).toBeVisible({ timeout: 3000 });
   });
 });
