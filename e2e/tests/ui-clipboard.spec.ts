@@ -19,7 +19,10 @@ import {
   selectAddress,
   actions,
   signMessage,
-  createWallet as createWalletSelectors
+  createWallet as createWalletSelectors,
+  viewAddress,
+  unlock,
+  onboarding
 } from '../selectors';
 
 walletTest.describe('Clipboard - Copy Address', () => {
@@ -29,9 +32,8 @@ walletTest.describe('Clipboard - Copy Address', () => {
 
     // The address card itself is clickable and copies the address
     // It has aria-label="Current address" and shows FaClipboard icon
-    const addressCard = page.locator('[aria-label="Current address"]');
-    await expect(addressCard).toBeVisible({ timeout: 5000 });
-    await addressCard.click();
+    await expect(index.currentAddress(page)).toBeVisible({ timeout: 5000 });
+    await index.currentAddress(page).click();
 
     // Verify clipboard contains an address-like string (the real test)
     const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
@@ -50,7 +52,7 @@ walletTest.describe('Clipboard - Copy Address', () => {
     await page.waitForLoadState('networkidle');
 
     // Find copy button on receive page
-    const copyButton = page.locator('button[aria-label*="Copy"], button:has-text("Copy")').first();
+    const copyButton = viewAddress.copyButton(page);
     const copyButtonCount = await copyButton.count();
 
     if (copyButtonCount === 0) {
@@ -177,9 +179,8 @@ test.describe('Clipboard - Copy Sensitive Data', () => {
     await showKeyOption.click();
 
     // Enter password
-    const passwordInput = extensionPage.locator('input[type="password"]');
-    await expect(passwordInput).toBeVisible({ timeout: 5000 });
-    await passwordInput.fill(TEST_PASSWORD);
+    await expect(unlock.passwordInput(extensionPage)).toBeVisible({ timeout: 5000 });
+    await unlock.passwordInput(extensionPage).fill(TEST_PASSWORD);
 
     const confirmButton = extensionPage.locator('button:has-text("Show"), button:has-text("Confirm")').first();
     await confirmButton.click();
@@ -206,12 +207,12 @@ test.describe('Clipboard - Copy Sensitive Data', () => {
     await extensionContext.grantPermissions(['clipboard-read', 'clipboard-write']);
 
     // Start creating wallet - check if we need to click create wallet first
-    const createBtn = extensionPage.getByText('Create Wallet');
+    const createBtn = onboarding.createWalletButton(extensionPage);
     const createBtnCount = await createBtn.count();
     if (createBtnCount > 0) {
       await createBtn.click();
     }
-    await extensionPage.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
+    await expect(createWalletSelectors.revealPhraseCard(extensionPage)).toBeVisible({ timeout: 5000 });
 
     await createWalletSelectors.revealPhraseCard(extensionPage).click();
     

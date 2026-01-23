@@ -18,7 +18,7 @@ import {
   TEST_PASSWORD,
   TEST_MNEMONIC
 } from '../fixtures';
-import { index, selectAddress, settings, actions, send } from '../selectors';
+import { index, selectAddress, settings, actions, send, unlock, onboarding, importWallet, common } from '../selectors';
 import { TEST_ADDRESSES } from '../test-data';
 
 test.describe('User Journey: New User Onboarding to First Transaction', () => {
@@ -28,7 +28,7 @@ test.describe('User Journey: New User Onboarding to First Transaction', () => {
     await expect(extensionPage).toHaveURL(/index/, { timeout: 10000 });
 
     // Step 2: Verify dashboard loaded with address display
-    const addressDisplay = extensionPage.locator('[aria-label="Current address"]');
+    const addressDisplay = index.currentAddress(extensionPage);
     await expect(addressDisplay).toBeVisible({ timeout: 5000 });
 
     // Step 3: Check balance section exists
@@ -46,7 +46,7 @@ test.describe('User Journey: New User Onboarding to First Transaction', () => {
     await expect(destinationInput).toBeVisible({ timeout: 5000 });
 
     // Step 6: Navigate back to dashboard
-    const backButton = extensionPage.locator('button[aria-label*="back"], button[aria-label*="Back"], header button').first();
+    const backButton = common.headerBackButton(extensionPage);
     await expect(backButton).toBeVisible({ timeout: 5000 });
     await backButton.click();
     await expect(extensionPage).toHaveURL(/index/, { timeout: 5000 });
@@ -60,7 +60,7 @@ test.describe('User Journey: Wallet Management Lifecycle', () => {
     await expect(extensionPage).toHaveURL(/index/, { timeout: 10000 });
 
     // Step 2: Verify address is displayed
-    const addressDisplay = extensionPage.locator('[aria-label="Current address"]');
+    const addressDisplay = index.currentAddress(extensionPage);
     await expect(addressDisplay).toBeVisible({ timeout: 5000 });
     const addressBefore = await addressDisplay.textContent();
 
@@ -84,7 +84,7 @@ test.describe('User Journey: Wallet Management Lifecycle', () => {
     await expect(extensionPage).toHaveURL(/index/, { timeout: 10000 });
 
     // Step 2: Get initial address
-    const addressDisplay = extensionPage.locator('[aria-label="Current address"]');
+    const addressDisplay = index.currentAddress(extensionPage);
     await expect(addressDisplay).toBeVisible({ timeout: 5000 });
     const initialAddress = await addressDisplay.textContent();
     expect(initialAddress).toBeTruthy();
@@ -313,16 +313,16 @@ test.describe('User Journey: Error Recovery', () => {
     await expect(extensionPage).toHaveURL(/unlock/, { timeout: 5000 });
 
     // Step 3: Try wrong password
-    await extensionPage.locator('input[name="password"]').fill('wrongpassword');
-    await extensionPage.locator('button:has-text("Unlock")').click();
+    await unlock.passwordInput(extensionPage).fill('wrongpassword');
+    await unlock.unlockButton(extensionPage).click();
 
     // Step 4: Verify error shown
     const errorMessage = extensionPage.locator('text=/Invalid.*password|Incorrect.*password|Wrong.*password/i');
     await expect(errorMessage).toBeVisible({ timeout: 5000 });
 
     // Step 5: Enter correct password
-    await extensionPage.locator('input[name="password"]').fill(TEST_PASSWORD);
-    await extensionPage.locator('button:has-text("Unlock")').click();
+    await unlock.passwordInput(extensionPage).fill(TEST_PASSWORD);
+    await unlock.unlockButton(extensionPage).click();
 
     // Step 6: Verify can continue working
     await expect(extensionPage).toHaveURL(/index/, { timeout: 10000 });
@@ -334,17 +334,17 @@ test.describe('User Journey: Error Recovery', () => {
 
   test('cancel during import -> start fresh create', async ({ extensionPage }) => {
     // Step 1: Start import
-    await extensionPage.getByText('Import Wallet').click();
-    const wordInput = extensionPage.locator('input[name="word-0"]');
+    await onboarding.importWalletButton(extensionPage).click();
+    const wordInput = importWallet.wordInput(extensionPage, 0);
     await expect(wordInput).toBeVisible({ timeout: 5000 });
 
     // Step 2: Cancel import by clicking back
-    const backButton = extensionPage.locator('header button').first();
+    const backButton = common.headerBackButton(extensionPage);
     await expect(backButton).toBeVisible({ timeout: 5000 });
     await backButton.click();
 
     // Step 3: Wait for onboarding page to appear again
-    await expect(extensionPage.getByText('Create Wallet')).toBeVisible({ timeout: 5000 });
+    await expect(onboarding.createWalletButton(extensionPage)).toBeVisible({ timeout: 5000 });
 
     // Step 4: Now create wallet from scratch
     await createWallet(extensionPage, TEST_PASSWORD);
@@ -378,7 +378,7 @@ walletTest.describe('User Journey: Dashboard Navigation', () => {
     await expect(page).toHaveURL(/view-address/, { timeout: 5000 });
 
     // Go back
-    const backButton = page.locator('button[aria-label*="back"], header button').first();
+    const backButton = common.headerBackButton(page);
     await expect(backButton).toBeVisible({ timeout: 5000 });
     await backButton.click();
 

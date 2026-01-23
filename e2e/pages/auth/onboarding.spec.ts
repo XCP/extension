@@ -6,6 +6,7 @@
  */
 
 import { test, expect, launchExtension, cleanup } from '../../fixtures';
+import { onboarding, importWallet } from '../../selectors';
 
 // Use base test (not walletTest) since we're testing the pre-wallet state
 test.describe('Onboarding Page (/auth/onboarding)', () => {
@@ -20,8 +21,8 @@ test.describe('Onboarding Page (/auth/onboarding)', () => {
       await page.waitForLoadState('networkidle');
 
       // Should show create or import wallet options or XCP Wallet branding
-      const onboardingContent = page.locator('button:has-text("Create Wallet")')
-        .or(page.locator('button:has-text("Import Wallet")'))
+      const onboardingContent = onboarding.createWalletButton(page)
+        .or(onboarding.importWalletButton(page))
         .or(page.locator('text=/XCP Wallet/'));
 
       await expect(onboardingContent.first()).toBeVisible({ timeout: 10000 });
@@ -37,7 +38,7 @@ test.describe('Onboarding Page (/auth/onboarding)', () => {
     try {
       await page.waitForLoadState('networkidle');
 
-      const createButton = page.locator('button:has-text("Create Wallet")').first();
+      const createButton = onboarding.createWalletButton(page);
       const buttonCount = await createButton.count();
 
       if (buttonCount === 0) {
@@ -69,7 +70,7 @@ test.describe('Onboarding Page (/auth/onboarding)', () => {
     try {
       await page.waitForLoadState('networkidle');
 
-      const importButton = page.locator('button:has-text("Import Wallet")').first();
+      const importButton = onboarding.importWalletButton(page);
       const buttonCount = await importButton.count();
 
       if (buttonCount === 0) {
@@ -80,7 +81,7 @@ test.describe('Onboarding Page (/auth/onboarding)', () => {
       await importButton.click();
 
       // Should navigate to import wallet page
-      const importPageContent = page.locator('input[name="word-0"]')
+      const importPageContent = importWallet.wordInput(page, 0)
         .or(page.locator('text=/enter.*phrase|recovery phrase/i'));
       await expect(importPageContent.first()).toBeVisible({ timeout: 5000 });
     } finally {
@@ -95,7 +96,7 @@ test.describe('Onboarding Page (/auth/onboarding)', () => {
     try {
       await page.waitForLoadState('networkidle');
 
-      const keyButton = page.locator('button:has-text("Import Private Key"), button:has-text("Private Key")').first();
+      const keyButton = onboarding.importPrivateKeyButton(page);
       const buttonCount = await keyButton.count();
 
       if (buttonCount === 0) {
@@ -106,7 +107,7 @@ test.describe('Onboarding Page (/auth/onboarding)', () => {
       await keyButton.click();
 
       // Should navigate to import private key page
-      const keyPageContent = page.locator('input[name="private-key"]')
+      const keyPageContent = importWallet.privateKeyInput(page)
         .or(page.locator('text=/private key|WIF/i'));
       await expect(keyPageContent.first()).toBeVisible({ timeout: 5000 });
     } finally {

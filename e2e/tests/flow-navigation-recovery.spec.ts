@@ -15,7 +15,7 @@ import {
   TEST_PASSWORD
 } from '../fixtures';
 import { TEST_ADDRESSES } from '../test-data';
-import { index, settings, send, header, viewAddress, onboarding, unlock, common } from '../selectors';
+import { index, settings, send, header, viewAddress, onboarding, unlock, common, selectWallet, importWallet } from '../selectors';
 
 test.describe('Navigation Recovery - Cancel Flows', () => {
   test('can cancel create wallet and return to onboarding', async ({ extensionPage }) => {
@@ -36,7 +36,7 @@ test.describe('Navigation Recovery - Cancel Flows', () => {
     await expect(onboarding.importWalletButton(extensionPage)).toBeVisible({ timeout: 5000 });
 
     await onboarding.importWalletButton(extensionPage).click();
-    await extensionPage.waitForSelector('input[name="word-0"]', { timeout: 5000 });
+    await expect(importWallet.wordInput(extensionPage, 0)).toBeVisible({ timeout: 5000 });
 
     await expect(common.backButton(extensionPage)).toBeVisible({ timeout: 5000 });
     await common.backButton(extensionPage).click();
@@ -222,9 +222,8 @@ test.describe('Navigation Recovery - Wallet Selection Flow', () => {
     await extensionPage.waitForURL(/select-wallet/, { timeout: 5000 });
 
     // Target the green button at bottom (not header icon) by filtering for visible text
-    const addWalletButton = extensionPage.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' });
-    await expect(addWalletButton).toBeVisible({ timeout: 5000 });
-    await addWalletButton.click();
+    await expect(selectWallet.addWalletButton(extensionPage)).toBeVisible({ timeout: 5000 });
+    await selectWallet.addWalletButton(extensionPage).click();
 
     // Wait for possible navigation, then try to go back
     
