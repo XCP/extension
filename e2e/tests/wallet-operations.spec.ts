@@ -15,36 +15,27 @@ import {
   navigateTo,
   TEST_PASSWORD
 } from '../fixtures';
-import {
-  header,
-  selectWallet,
-  settings,
-  onboarding,
-  createWallet as createWalletSelectors,
-} from '../selectors';
+import { header, settings } from '../selectors';
 
 /**
  * Helper to create a second wallet for multi-wallet tests.
- * Returns true if successful, throws if it fails.
+ * Uses the same pattern as wallet-management.spec.ts which is known to work reliably.
  */
 async function createSecondWallet(page: any): Promise<void> {
+  // Navigate to wallet management
   await header.walletSelector(page).click();
   await page.waitForURL(/select-wallet/);
 
-  const addWalletBtn = selectWallet.addWalletButton(page);
-  await expect(addWalletBtn).toBeVisible({ timeout: 5000 });
-  await addWalletBtn.click();
+  // Add second wallet
+  await page.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' }).click();
+  await page.getByRole('button', { name: /Create.*Wallet/i }).click();
 
-  await expect(onboarding.createWalletButton(page)).toBeVisible({ timeout: 5000 });
-  await onboarding.createWalletButton(page).click();
-
-  await expect(createWalletSelectors.revealPhraseCard(page)).toBeVisible({ timeout: 5000 });
-  await createWalletSelectors.revealPhraseCard(page).click();
-
-  await expect(createWalletSelectors.savedPhraseCheckbox(page)).toBeVisible();
-  await createWalletSelectors.savedPhraseCheckbox(page).check();
-  await createWalletSelectors.passwordInput(page).fill(TEST_PASSWORD);
-  await createWalletSelectors.continueButton(page).click();
+  // Complete second wallet creation
+  await page.locator('text=View 12-word Secret Phrase').click();
+  await page.waitForTimeout(500); // Required wait for animation/state change
+  await page.getByLabel(/I have saved my secret recovery phrase/).check();
+  await page.locator('input[name="password"]').fill(TEST_PASSWORD);
+  await page.getByRole('button', { name: 'Continue' }).click();
 
   await page.waitForURL(/index/, { timeout: 15000 });
 }

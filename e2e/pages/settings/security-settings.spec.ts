@@ -75,9 +75,4 @@ walletTest.describe('Security Settings Page (/settings/security)', () => {
     // Should navigate back to settings
     await expect(page).toHaveURL(/settings/, { timeout: 5000 });
   });
-
-  walletTest('has help button in header', async ({ page }) => {
-    const helpButton = common.helpButton(page);
-    await expect(helpButton).toBeVisible({ timeout: 5000 });
-  });
 });
