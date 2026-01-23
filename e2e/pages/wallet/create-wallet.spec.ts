@@ -147,7 +147,8 @@ test.describe('Wallet Creation', () => {
     await extensionPage.waitForURL(/create-wallet/);
 
     // YouTube tutorial button should be visible before confirming
-    const youtubeButton = extensionPage.locator('a[href*="youtube"], button:has-text("Watch Tutorial")');
+    // Note: href uses youtu.be short URL format
+    const youtubeButton = extensionPage.locator('a[href*="youtu"], button:has-text("Watch Tutorial")');
     await expect(youtubeButton.first()).toBeVisible({ timeout: 5000 });
   });
 });

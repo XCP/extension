@@ -62,10 +62,144 @@ test.describe('Import Wallet - Mnemonic', () => {
     await extensionPage.evaluate((m) => navigator.clipboard.writeText(m), TEST_MNEMONIC);
     await importWallet.wordInput(extensionPage, 0).focus();
     await extensionPage.keyboard.press('Control+v');
-    
+
 
     const firstWord = await importWallet.wordInput(extensionPage, 0).inputValue();
     expect(firstWord).toBeTruthy();
+  });
+
+  test('pasting full mnemonic fills all 12 fields', async ({ extensionPage, extensionContext }) => {
+    await extensionContext.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+    await onboarding.importWalletButton(extensionPage).click();
+    await importWallet.wordInput(extensionPage, 0).waitFor();
+
+    // Paste full mnemonic
+    await extensionPage.evaluate((m) => navigator.clipboard.writeText(m), TEST_MNEMONIC);
+    await importWallet.wordInput(extensionPage, 0).focus();
+    await extensionPage.keyboard.press('Control+v');
+
+    // Wait for all fields to be filled
+    await extensionPage.waitForTimeout(100);
+
+    // Verify all 12 fields have values
+    const expectedWords = TEST_MNEMONIC.split(' ');
+    for (let i = 0; i < 12; i++) {
+      const wordValue = await importWallet.wordInput(extensionPage, i).inputValue();
+      expect(wordValue).toBe(expectedWords[i]);
+    }
+  });
+
+  test('checkbox is disabled until all words are entered', async ({ extensionPage }) => {
+    await onboarding.importWalletButton(extensionPage).click();
+    await importWallet.wordInput(extensionPage, 0).waitFor();
+
+    // Checkbox should be disabled with no words
+    await expect(importWallet.savedPhraseCheckbox(extensionPage)).toBeDisabled();
+
+    // Enter only 6 words
+    const words = TEST_MNEMONIC.split(' ');
+    for (let i = 0; i < 6; i++) {
+      await importWallet.wordInput(extensionPage, i).fill(words[i]);
+    }
+
+    // Checkbox should still be disabled
+    await expect(importWallet.savedPhraseCheckbox(extensionPage)).toBeDisabled();
+
+    // Fill remaining words
+    for (let i = 6; i < 12; i++) {
+      await importWallet.wordInput(extensionPage, i).fill(words[i]);
+    }
+
+    // Checkbox should now be enabled
+    await expect(importWallet.savedPhraseCheckbox(extensionPage)).toBeEnabled();
+  });
+
+  test('password field appears after checking confirmation', async ({ extensionPage }) => {
+    await onboarding.importWalletButton(extensionPage).click();
+    await importWallet.wordInput(extensionPage, 0).waitFor();
+
+    // Fill all words
+    const words = TEST_MNEMONIC.split(' ');
+    for (let i = 0; i < 12; i++) {
+      await importWallet.wordInput(extensionPage, i).fill(words[i]);
+    }
+
+    // Password field should NOT be visible yet
+    await expect(importWallet.passwordInput(extensionPage)).not.toBeVisible();
+
+    // Check the confirmation checkbox
+    await importWallet.savedPhraseCheckbox(extensionPage).check();
+
+    // Password field should now be visible
+    await expect(importWallet.passwordInput(extensionPage)).toBeVisible({ timeout: 3000 });
+  });
+
+  test('has show/hide mnemonic toggle in header', async ({ extensionPage }) => {
+    await onboarding.importWalletButton(extensionPage).click();
+    await importWallet.wordInput(extensionPage, 0).waitFor();
+
+    // Should have show/hide toggle button
+    const toggleButton = extensionPage.locator('[aria-label*="recovery phrase" i]');
+    await expect(toggleButton).toBeVisible({ timeout: 5000 });
+  });
+
+  test('Enter key moves to next word input', async ({ extensionPage }) => {
+    await onboarding.importWalletButton(extensionPage).click();
+    await importWallet.wordInput(extensionPage, 0).waitFor();
+
+    // Type first word and press Enter
+    await importWallet.wordInput(extensionPage, 0).fill('test');
+    await importWallet.wordInput(extensionPage, 0).press('Enter');
+
+    // Second input should be focused
+    await expect(importWallet.wordInput(extensionPage, 1)).toBeFocused();
+  });
+
+  test('shows error for invalid mnemonic words', async ({ extensionPage }) => {
+    await onboarding.importWalletButton(extensionPage).click();
+    await importWallet.wordInput(extensionPage, 0).waitFor();
+
+    // Fill with gibberish words
+    for (let i = 0; i < 12; i++) {
+      await importWallet.wordInput(extensionPage, i).fill(`gibberish${i}`);
+    }
+
+    await importWallet.savedPhraseCheckbox(extensionPage).check();
+    await importWallet.passwordInput(extensionPage).fill(TEST_PASSWORD);
+    await importWallet.continueButton(extensionPage).click();
+
+    // Should show error about invalid mnemonic
+    const errorMessage = extensionPage.locator('text=/Invalid|recovery phrase|check each word/i');
+    await expect(errorMessage.first()).toBeVisible({ timeout: 5000 });
+  });
+
+  test('shows YouTube tutorial link', async ({ extensionPage }) => {
+    await onboarding.importWalletButton(extensionPage).click();
+    await importWallet.wordInput(extensionPage, 0).waitFor();
+
+    // Should show tutorial link before confirmation
+    const tutorialLink = extensionPage.locator('a[href*="youtube"], button:has-text("Watch Tutorial")');
+    await expect(tutorialLink.first()).toBeVisible({ timeout: 5000 });
+  });
+
+  test('Continue button is disabled with short password', async ({ extensionPage }) => {
+    await onboarding.importWalletButton(extensionPage).click();
+    await importWallet.wordInput(extensionPage, 0).waitFor();
+
+    // Fill valid mnemonic
+    const words = TEST_MNEMONIC.split(' ');
+    for (let i = 0; i < 12; i++) {
+      await importWallet.wordInput(extensionPage, i).fill(words[i]);
+    }
+
+    await importWallet.savedPhraseCheckbox(extensionPage).check();
+
+    // Enter short password
+    await importWallet.passwordInput(extensionPage).fill('short');
+
+    // Continue button should be disabled
+    await expect(importWallet.continueButton(extensionPage)).toBeDisabled();
   });
 });
 

@@ -206,27 +206,271 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     const instructions = page.locator('text=/Enter.*private key|use its address/i').first();
     await expect(instructions).toBeVisible({ timeout: 5000 });
   });
+
+  walletTest('private key input has show/hide toggle', async ({ page }) => {
+    await navigateToImportPrivateKey(page);
+
+    const keyInput = importWallet.privateKeyInput(page);
+    await expect(keyInput).toBeVisible({ timeout: 5000 });
+
+    // PasswordInput component has a toggle button
+    const toggleButton = page.locator('button[aria-label*="Show"], button[aria-label*="Hide"], button[aria-label*="password" i]').first();
+    await expect(toggleButton).toBeVisible({ timeout: 5000 });
+  });
+
+  walletTest('shows all 4 address type options with hints', async ({ page }) => {
+    await navigateToImportPrivateKey(page);
+
+    // Click dropdown to open options
+    const dropdown = page.locator('[role="listbox"] button, button:has-text("Legacy")').first();
+    await expect(dropdown).toBeVisible({ timeout: 5000 });
+    await dropdown.click();
+
+    // Should show all 4 address types with their hint prefixes
+    await expect(page.locator('text="Legacy"')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('text="Nested SegWit"')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('text="Native SegWit"')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('text="Taproot"')).toBeVisible({ timeout: 3000 });
+
+    // Should show address prefix hints
+    await expect(page.locator('text="1..."')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('text="3..."')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('text="bc1q..."')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('text="bc1p..."')).toBeVisible({ timeout: 3000 });
+  });
+
+  walletTest('selecting address type updates displayed selection', async ({ page }) => {
+    await navigateToImportPrivateKey(page);
+
+    // Default is Legacy
+    const dropdown = page.locator('[role="listbox"] button, button:has-text("Legacy")').first();
+    await expect(dropdown).toBeVisible({ timeout: 5000 });
+    await dropdown.click();
+
+    // Select Native SegWit
+    await page.locator('[role="option"]:has-text("Native SegWit")').click();
+
+    // Dropdown button should now show Native SegWit
+    await expect(page.locator('button:has-text("Native SegWit")')).toBeVisible({ timeout: 3000 });
+  });
+
+  walletTest('YouTube tutorial button visible before confirmation', async ({ page }) => {
+    await navigateToImportPrivateKey(page);
+
+    // Should show YouTube tutorial link before checkbox is confirmed
+    const tutorialButton = page.locator('a[href*="youtube"], button:has-text("Watch Tutorial")');
+    await expect(tutorialButton.first()).toBeVisible({ timeout: 5000 });
+  });
+
+  walletTest('YouTube tutorial button hidden after checkbox confirmation', async ({ page }) => {
+    await navigateToImportPrivateKey(page);
+
+    // Fill in private key
+    const keyInput = importWallet.privateKeyInput(page);
+    await expect(keyInput).toBeVisible({ timeout: 5000 });
+    await keyInput.fill(TEST_PRIVATE_KEY);
+
+    // Check confirmation checkbox
+    await importWallet.backedUpCheckbox(page).check();
+
+    // Tutorial button should be hidden when checkbox is confirmed
+    const tutorialButton = page.locator('a[href*="youtube"], button:has-text("Watch Tutorial")');
+    await expect(tutorialButton).not.toBeVisible({ timeout: 3000 });
+  });
+
+  walletTest('continue button disabled with short password', async ({ page }) => {
+    await navigateToImportPrivateKey(page);
+
+    // Fill in private key
+    const keyInput = importWallet.privateKeyInput(page);
+    await expect(keyInput).toBeVisible({ timeout: 5000 });
+    await keyInput.fill(TEST_PRIVATE_KEY);
+
+    // Check confirmation
+    await importWallet.backedUpCheckbox(page).check();
+
+    // Enter short password (less than 8 characters)
+    await importWallet.passwordInput(page).fill('short');
+
+    // Continue button should be disabled
+    await expect(importWallet.continueButton(page)).toBeDisabled();
+  });
+
+  walletTest('continue button enabled with valid password', async ({ page }) => {
+    await navigateToImportPrivateKey(page);
+
+    // Fill in private key
+    const keyInput = importWallet.privateKeyInput(page);
+    await expect(keyInput).toBeVisible({ timeout: 5000 });
+    await keyInput.fill(TEST_PRIVATE_KEY);
+
+    // Check confirmation
+    await importWallet.backedUpCheckbox(page).check();
+
+    // Enter valid password (8+ characters)
+    await importWallet.passwordInput(page).fill(TEST_PASSWORD);
+
+    // Continue button should be enabled
+    await expect(importWallet.continueButton(page)).toBeEnabled();
+  });
+
+  walletTest('shows specific error for invalid WIF format', async ({ page }) => {
+    await navigateToImportPrivateKey(page);
+
+    // Fill in invalid private key format
+    const keyInput = importWallet.privateKeyInput(page);
+    await keyInput.fill('not-a-valid-wif-key');
+
+    // Check confirmation
+    await importWallet.backedUpCheckbox(page).check();
+
+    // Fill valid password
+    await importWallet.passwordInput(page).fill(TEST_PASSWORD);
+
+    // Click continue
+    await importWallet.continueButton(page).click();
+
+    // Should show error about invalid format
+    const errorAlert = page.locator('[role="alert"], text=/Invalid.*private key/i');
+    await expect(errorAlert.first()).toBeVisible({ timeout: 5000 });
+  });
+
+  walletTest('password placeholder differs for existing vs new keychain', async ({ page }) => {
+    await navigateToImportPrivateKey(page);
+
+    // Fill in private key and check confirmation
+    await importWallet.privateKeyInput(page).fill(TEST_PRIVATE_KEY);
+    await importWallet.backedUpCheckbox(page).check();
+
+    // Since walletTest has existing keychain, placeholder should be "Confirm password"
+    const passwordInput = importWallet.passwordInput(page);
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
+
+    const placeholder = await passwordInput.getAttribute('placeholder');
+    expect(placeholder).toMatch(/Confirm password/i);
+  });
+
+  walletTest('back button navigates to add-wallet page', async ({ page }) => {
+    await navigateToImportPrivateKey(page);
+
+    await common.headerBackButton(page).click();
+
+    // Should navigate to add-wallet (since keychain exists)
+    await expect(page).toHaveURL(/add-wallet/, { timeout: 5000 });
+  });
+
+  walletTest('close button navigates to index', async ({ page }) => {
+    await navigateToImportPrivateKey(page);
+
+    const closeButton = page.locator('button[aria-label="Close"]');
+    await closeButton.click();
+
+    // Should navigate to index
+    await expect(page).toHaveURL(/index/, { timeout: 5000 });
+  });
 });
 
 // Tests for import with no existing wallet (fresh extension)
 test.describe('Import Private Key Page - Fresh Extension', () => {
-  test('can import private key on fresh extension', async ({}, testInfo) => {
-    const testId = `import-key-fresh-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 25)}`;
+  test('can navigate to import private key from onboarding', async ({}, testInfo) => {
+    const testId = `import-key-nav-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 20)}`;
     const { context, page } = await launchExtension(testId);
 
     try {
       await page.waitForLoadState('networkidle');
 
       // Click import private key on onboarding
-      const importKeyButton = onboarding.importPrivateKeyButton(page);
-      const buttonCount = await importKeyButton.count();
+      await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 10000 });
+      await onboarding.importPrivateKeyButton(page).click();
 
-      if (buttonCount > 0 && await importKeyButton.isVisible({ timeout: 10000 })) {
-        await importKeyButton.click();
+      // Should navigate to import-private-key page
+      await expect(page).toHaveURL(/import-private-key/, { timeout: 5000 });
+    } finally {
+      await cleanup(context);
+    }
+  });
 
-        // Should navigate to import-private-key page
-        await expect(page).toHaveURL(/import-private-key/, { timeout: 5000 });
-      }
+  test('fresh extension shows "Create password" placeholder', async ({}, testInfo) => {
+    const testId = `import-key-placeholder-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 15)}`;
+    const { context, page } = await launchExtension(testId);
+
+    try {
+      await page.waitForLoadState('networkidle');
+
+      // Navigate to import private key
+      await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 10000 });
+      await onboarding.importPrivateKeyButton(page).click();
+      await expect(page).toHaveURL(/import-private-key/, { timeout: 5000 });
+
+      // Fill private key and check confirmation
+      await importWallet.privateKeyInput(page).fill(TEST_PRIVATE_KEY);
+      await importWallet.backedUpCheckbox(page).check();
+
+      // Password placeholder should be "Create password" for fresh extension
+      const passwordInput = importWallet.passwordInput(page);
+      await expect(passwordInput).toBeVisible({ timeout: 5000 });
+
+      const placeholder = await passwordInput.getAttribute('placeholder');
+      expect(placeholder).toMatch(/Create password/i);
+    } finally {
+      await cleanup(context);
+    }
+  });
+
+  test('successful import creates wallet and navigates to index', async ({}, testInfo) => {
+    const testId = `import-key-success-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 15)}`;
+    const { context, page } = await launchExtension(testId);
+
+    try {
+      await page.waitForLoadState('networkidle');
+
+      // Navigate to import private key
+      await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 10000 });
+      await onboarding.importPrivateKeyButton(page).click();
+      await expect(page).toHaveURL(/import-private-key/, { timeout: 5000 });
+
+      // Fill valid private key
+      await importWallet.privateKeyInput(page).fill(TEST_PRIVATE_KEY);
+
+      // Check confirmation
+      await importWallet.backedUpCheckbox(page).check();
+
+      // Fill password
+      await importWallet.passwordInput(page).fill(TEST_PASSWORD);
+
+      // Click continue
+      await importWallet.continueButton(page).click();
+
+      // Should navigate to index after successful import
+      await expect(page).toHaveURL(/index/, { timeout: 15000 });
+    } finally {
+      await cleanup(context);
+    }
+  });
+
+  test('shows error for password under 8 characters on fresh extension', async ({}, testInfo) => {
+    const testId = `import-key-shortpwd-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 15)}`;
+    const { context, page } = await launchExtension(testId);
+
+    try {
+      await page.waitForLoadState('networkidle');
+
+      // Navigate to import private key
+      await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 10000 });
+      await onboarding.importPrivateKeyButton(page).click();
+      await expect(page).toHaveURL(/import-private-key/, { timeout: 5000 });
+
+      // Fill valid private key
+      await importWallet.privateKeyInput(page).fill(TEST_PRIVATE_KEY);
+
+      // Check confirmation
+      await importWallet.backedUpCheckbox(page).check();
+
+      // Fill short password
+      await importWallet.passwordInput(page).fill('short');
+
+      // Continue button should be disabled
+      await expect(importWallet.continueButton(page)).toBeDisabled();
     } finally {
       await cleanup(context);
     }

@@ -111,8 +111,13 @@ walletTest.describe('Select Address Page (/select-address)', () => {
     await expect(addButton).toBeVisible({ timeout: 5000 });
     await addButton.click();
 
-    // Wait for new address to be added
-    await page.waitForLoadState('networkidle');
+    // Wait for new address to appear (button shows "Adding..." then reverts)
+    // Use waitForFunction to wait for the count to increase
+    await page.waitForFunction(
+      (prevCount) => document.querySelectorAll('[role="radio"]').length > prevCount,
+      addressesBefore,
+      { timeout: 10000 }
+    );
 
     // Count addresses after - should be one more
     const addressesAfter = await page.locator('[role="radio"]').count();
@@ -164,8 +169,8 @@ walletTest.describe('Select Address Page (/select-address)', () => {
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
-    // Header should have Add Address button
-    const headerAddButton = page.locator('[aria-label="Add Address"]');
+    // Header should have Add Address button (icon only, in header section)
+    const headerAddButton = selectAddress.headerAddButton(page);
     await expect(headerAddButton).toBeVisible({ timeout: 5000 });
   });
 

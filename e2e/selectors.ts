@@ -387,8 +387,11 @@ export const compose = {
 export const selectAddress = {
   addressList: (page: Page) => page.locator('[role="radiogroup"]'),
   addressOption: (page: Page, index: number) => page.locator('[role="radio"]').nth(index),
-  // Target the green full-width button, not the header icon button
-  addAddressButton: (page: Page) => page.locator('button.bg-green-500:has-text("Add Address")'),
+  // Target the main Add Address button (green, full-width at bottom)
+  // Use aria-label for stability, filter to the visible full-width one
+  addAddressButton: (page: Page) => page.locator('button[aria-label="Add Address"]').filter({ hasText: 'Add Address' }),
+  // Header Add button (icon only, no text)
+  headerAddButton: (page: Page) => page.locator('header button[aria-label="Add Address"]'),
   chevronButton: (page: Page) => page.locator('[aria-label="Select another address"]'),
   addressLabel: (page: Page, num: number) => page.locator(`text=Address ${num}`),
   copyButton: (page: Page) => page.locator('[title*="Copy"], [aria-label*="Copy"]').first(),

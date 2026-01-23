@@ -148,8 +148,8 @@ walletTest.describe('View Address Page (/view-address)', () => {
     const qrCode = viewAddress.qrCode(page);
     await expect(qrCode).toBeVisible({ timeout: 5000 });
 
-    // QR code should have aria-label mentioning address
-    await expect(qrCode).toHaveAttribute('aria-label', /Address QR Code/i);
+    // QR code aria-label format is "QR code for {address}"
+    await expect(qrCode).toHaveAttribute('aria-label', /QR code for/i);
   });
 
   walletTest('shows address name and type label', async ({ page }) => {

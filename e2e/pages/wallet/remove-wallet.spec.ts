@@ -153,7 +153,7 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
   });
 });
 
-// Separate describe block for multi-wallet tests
+// Multi-wallet tests - create a second wallet so we can test removal
 walletTest.describe('Remove Wallet - Full Flow', () => {
   // Helper to create a second wallet via UI
   async function createSecondWallet(page: any): Promise<void> {
@@ -171,17 +171,21 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
 
     await page.waitForURL(/create-wallet/, { timeout: 5000 });
 
-    // Reveal the phrase
-    await createWallet.revealPhraseCard(page).click();
+    // Wait for and click the reveal phrase card
+    const revealCard = createWallet.revealPhraseCard(page);
+    await expect(revealCard).toBeVisible({ timeout: 5000 });
+    await revealCard.click();
 
-    // Check the saved phrase checkbox
-    await expect(createWallet.savedPhraseCheckbox(page)).toBeVisible({ timeout: 5000 });
+    // Wait for checkbox to become enabled (phrase is revealed)
+    await expect(createWallet.savedPhraseCheckbox(page)).toBeEnabled({ timeout: 5000 });
     await createWallet.savedPhraseCheckbox(page).check();
 
-    // Enter password (same as existing wallet)
+    // Wait for password input to appear and fill it
+    await expect(createWallet.passwordInput(page)).toBeVisible({ timeout: 5000 });
     await createWallet.passwordInput(page).fill(TEST_PASSWORD);
 
-    // Click continue
+    // Wait for continue button to be enabled and click it
+    await expect(createWallet.continueButton(page)).toBeEnabled({ timeout: 5000 });
     await createWallet.continueButton(page).click();
 
     // Wait for wallet to be created and redirected to index
@@ -212,25 +216,27 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
     const countAfterCreate = await getWalletCount(page);
     expect(countAfterCreate).toBeGreaterThan(initialCount);
 
-    // Open wallet menu for the SECOND wallet (the one we just created)
+    // Open wallet menu for the LAST wallet (the one we just created)
     const walletMenus = page.locator('[aria-label="Wallet options"]');
-    await walletMenus.nth(1).click();
+    const menuCount = await walletMenus.count();
+    await walletMenus.nth(menuCount - 1).click();
 
-    // Click Remove option
+    // Wait for menu to appear, then click Remove option
     const removeOption = page.locator('button').filter({ hasText: /^Remove\s/ });
-    await expect(removeOption).toBeVisible({ timeout: 3000 });
+    await expect(removeOption).toBeVisible({ timeout: 5000 });
     await removeOption.click();
 
     // Should be on remove-wallet page
     await expect(page).toHaveURL(/remove-wallet/, { timeout: 5000 });
 
     // Enter correct password
-    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+    const passwordInput = page.locator('input[name="password"]');
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
     await passwordInput.fill(TEST_PASSWORD);
 
-    // Click remove button
-    const removeButton = page.locator('button:has-text("Remove"), button[type="submit"]').first();
+    // Click remove button (red button with "Remove" in text)
+    const removeButton = page.locator('button[type="submit"]').filter({ hasText: /Remove/ });
+    await expect(removeButton).toBeVisible({ timeout: 3000 });
     await removeButton.click();
 
     // Should redirect to select-wallet page after successful removal
@@ -248,12 +254,13 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
     // Get wallet count
     const countBefore = await getWalletCount(page);
 
-    // Open wallet menu and click Remove
+    // Open wallet menu for the LAST wallet (the one we just created)
     const walletMenus = page.locator('[aria-label="Wallet options"]');
-    await walletMenus.nth(1).click();
+    const menuCount = await walletMenus.count();
+    await walletMenus.nth(menuCount - 1).click();
 
     const removeOption = page.locator('button').filter({ hasText: /^Remove\s/ });
-    await expect(removeOption).toBeVisible({ timeout: 3000 });
+    await expect(removeOption).toBeVisible({ timeout: 5000 });
     await removeOption.click();
 
     // Should be on remove-wallet page
@@ -261,6 +268,9 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
 
     // Click back button instead of confirming
     await common.headerBackButton(page).click();
+
+    // Wait for navigation away from remove-wallet
+    await expect(page).not.toHaveURL(/remove-wallet/, { timeout: 5000 });
 
     // Verify wallet count is unchanged
     const countAfter = await getWalletCount(page);

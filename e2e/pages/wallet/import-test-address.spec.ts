@@ -9,7 +9,9 @@ import { walletTest, expect } from '../../fixtures';
 import { common } from '../../selectors';
 import { TEST_ADDRESSES } from '../../test-data';
 
-walletTest.describe('Import Test Address Page (/import-test-address)', () => {
+// Skip entire suite: This page only exists in development mode (NODE_ENV=development)
+// In CI/production, the page immediately redirects to /add-wallet before any tests can run
+walletTest.describe.skip('Import Test Address Page (/import-test-address)', () => {
   // Note: This page only exists in development mode
   // In production, it redirects to add-wallet
 
