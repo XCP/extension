@@ -47,15 +47,15 @@ walletTest.describe('Unlock Wallet Page (/auth/unlock)', () => {
     await passwordInput.fill('');
 
     // Button should be disabled or clicking should not unlock
-    const isDisabled = await unlockButton.isDisabled().catch(() => false);
+    const isDisabled = await unlockButton.isDisabled();
 
     if (!isDisabled) {
-      // If button is not disabled, clicking with empty password should show error
+      // If button is not disabled, clicking with empty password should show error or stay on page
       await unlockButton.click();
       await page.waitForTimeout(500);
 
-      const stillOnUnlock = page.url().includes('unlock');
-      expect(stillOnUnlock).toBe(true);
+      // Should still be on unlock page
+      await expect(page).toHaveURL(/unlock/);
     } else {
       expect(isDisabled).toBe(true);
     }
@@ -71,11 +71,13 @@ walletTest.describe('Unlock Wallet Page (/auth/unlock)', () => {
     await unlock.unlockButton(page).click();
     await page.waitForTimeout(1000);
 
-    // Check for error message
-    const hasError = await page.locator('text=/incorrect|invalid|wrong|error/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const stillOnUnlock = page.url().includes('unlock');
+    // Should show error message or remain on unlock page
+    const errorOrUnlock = page.locator('text=/incorrect|invalid|wrong|error/i').first()
+      .or(page.locator('input[name="password"]'));
 
-    expect(hasError || stillOnUnlock).toBe(true);
+    await expect(errorOrUnlock).toBeVisible({ timeout: 5000 });
+    // Should still be on unlock page (not authenticated)
+    await expect(page).toHaveURL(/unlock/);
   });
 
   walletTest('unlocks wallet with correct password', async ({ page }) => {
@@ -125,9 +127,8 @@ walletTest.describe('Unlock Wallet Page (/auth/unlock)', () => {
     await lockWallet(page);
 
     // Should show which wallet is being unlocked
-    const hasWalletName = await page.locator('text=/Wallet|unlock your wallet/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(hasWalletName).toBe(true);
+    const walletText = page.locator('text=/Wallet|unlock your wallet/i').first();
+    await expect(walletText).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('password input is secure (type=password)', async ({ page }) => {

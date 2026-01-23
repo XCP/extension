@@ -87,52 +87,45 @@ test.describe('State Persistence - Lock/Unlock Cycle', () => {
     await navigateTo(extensionPage, 'settings');
 
     const addressTypeOption = settings.addressTypeOption(extensionPage);
-    if (!await addressTypeOption.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // Address type option not available
-      return;
+    const optionCount = await addressTypeOption.count();
+
+    if (optionCount === 0) {
+      return; // Address type option not available
     }
 
+    await expect(addressTypeOption).toBeVisible({ timeout: 5000 });
     await addressTypeOption.click();
-    await extensionPage.waitForURL(/address-type/, { timeout: 10000 }).catch(() => {});
+    await expect(extensionPage).toHaveURL(/address-type/, { timeout: 10000 });
 
     // Select Legacy (P2PKH) address type
-    const radioVisible = await extensionPage.locator('[role="radio"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-    if (!radioVisible) {
-      return;
-    }
+    const radioOptions = extensionPage.locator('[role="radio"]');
+    await expect(radioOptions.first()).toBeVisible({ timeout: 5000 });
 
-    const legacyOption = extensionPage.locator('[role="radio"]').filter({ hasText: 'Legacy' }).first();
-    if (await legacyOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+    const legacyOption = radioOptions.filter({ hasText: 'Legacy' }).first();
+    const legacyCount = await legacyOption.count();
+
+    if (legacyCount > 0) {
       await legacyOption.click();
     }
 
-    // Wait a bit for the address type change to take effect
+    // Wait for the address type change to take effect
     await extensionPage.waitForTimeout(2000);
 
     await navigateTo(extensionPage, 'wallet');
 
     // Wait for address to be visible
-    const addressVisible = await index.addressText(extensionPage).isVisible({ timeout: 10000 }).catch(() => false);
-    if (!addressVisible) {
-      // Address not visible - test passes as we got this far
-      return;
-    }
-
+    await expect(index.addressText(extensionPage)).toBeVisible({ timeout: 10000 });
     await extensionPage.waitForTimeout(1000);
 
-    const addressBefore = await index.addressText(extensionPage).textContent().catch(() => null);
+    const addressBefore = await index.addressText(extensionPage).textContent();
 
     await lockWallet(extensionPage);
     await unlockWallet(extensionPage, TEST_PASSWORD);
     await extensionPage.waitForTimeout(2000);
 
-    const addressVisibleAfter = await index.addressText(extensionPage).isVisible({ timeout: 10000 }).catch(() => false);
-    if (!addressVisibleAfter) {
-      // We successfully locked and unlocked - that's the main test
-      return;
-    }
+    await expect(index.addressText(extensionPage)).toBeVisible({ timeout: 10000 });
+    const addressAfter = await index.addressText(extensionPage).textContent();
 
-    const addressAfter = await index.addressText(extensionPage).textContent().catch(() => null);
     if (addressBefore && addressAfter) {
       const prefixBefore = addressBefore.split('...')[0];
       const prefixAfter = addressAfter.split('...')[0];
@@ -160,15 +153,20 @@ walletTest.describe('State Persistence - Navigation', () => {
 
   walletTest('balance view selection persists', async ({ page }) => {
     const assetsTab = index.assetsTab(page);
-    if (await assetsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await assetsTab.click();
+    const tabCount = await assetsTab.count();
 
-      await navigateTo(page, 'settings');
-      await navigateTo(page, 'wallet');
-
-      // After navigating back, should still be on wallet index
-      await expect(page).toHaveURL(/index/);
+    if (tabCount === 0) {
+      return; // Assets tab not present
     }
+
+    await expect(assetsTab).toBeVisible();
+    await assetsTab.click();
+
+    await navigateTo(page, 'settings');
+    await navigateTo(page, 'wallet');
+
+    // After navigating back, should still be on wallet index
+    await expect(page).toHaveURL(/index/);
   });
 });
 
@@ -240,9 +238,8 @@ walletTest.describe('State Persistence - Session', () => {
     await page.reload();
     await page.waitForLoadState('networkidle');
 
-    const isOnIndex = page.url().includes('index');
-    const isOnUnlock = page.url().includes('unlock');
-    expect(isOnIndex || isOnUnlock).toBe(true);
+    // After refresh, should be on index (still authenticated) or unlock (session expired)
+    await expect(page).toHaveURL(/index|unlock/);
   });
 });
 

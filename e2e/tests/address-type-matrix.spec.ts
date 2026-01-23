@@ -58,7 +58,8 @@ async function selectAddressType(page: any, addressType: AddressType): Promise<v
   const displayName = ADDRESS_TYPE_DISPLAY_NAMES[addressType];
   const targetOption = page.locator(`[role="radio"]`).filter({ hasText: displayName });
 
-  if (await targetOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+  const targetCount = await targetOption.count();
+  if (targetCount > 0) {
     await targetOption.click();
   } else {
     const options = await radioOptions.all();
@@ -87,7 +88,7 @@ async function selectAddressType(page: any, addressType: AddressType): Promise<v
     },
     expectedPrefix,
     { timeout: 5000 }
-  ).catch(() => {});
+  ).catch(() => {}); // Non-critical - address display may be truncated
 }
 
 async function getCurrentDisplayedAddress(page: any): Promise<string> {
@@ -205,9 +206,18 @@ walletTest.describe('Address Type Matrix - Address Preview in Settings', () => {
 
       const displayName = ADDRESS_TYPE_DISPLAY_NAMES[addressType];
       const card = page.locator('[role="radio"]').filter({ hasText: displayName });
+      const cardCount = await card.count();
 
-      if (await card.isVisible({ timeout: 2000 }).catch(() => false)) {
-        const previewText = await card.locator('.text-xs').textContent().catch(() => '');
+      if (cardCount === 0) {
+        return; // Card not present for this address type
+      }
+
+      await expect(card).toBeVisible();
+      const previewElement = card.locator('.text-xs');
+      const previewCount = await previewElement.count();
+
+      if (previewCount > 0) {
+        const previewText = await previewElement.textContent();
         const expectedPrefix = ADDRESS_PREFIX_STRINGS.mainnet[addressType];
 
         if (previewText && previewText.length > 0) {
@@ -243,13 +253,18 @@ walletTest.describe('Address Type Matrix - Copy Address', () => {
       await selectAddressType(page, addressType);
 
       const copyButton = selectAddress.copyButton(page);
-      if (await copyButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await copyButton.click();
+      const buttonCount = await copyButton.count();
 
-        const clipboardContent = await page.evaluate(() => navigator.clipboard.readText());
-        const expectedPrefix = ADDRESS_PREFIX_STRINGS.mainnet[addressType];
-        expect(clipboardContent.startsWith(expectedPrefix)).toBe(true);
+      if (buttonCount === 0) {
+        return; // Copy button not present
       }
+
+      await expect(copyButton).toBeVisible();
+      await copyButton.click();
+
+      const clipboardContent = await page.evaluate(() => navigator.clipboard.readText());
+      const expectedPrefix = ADDRESS_PREFIX_STRINGS.mainnet[addressType];
+      expect(clipboardContent.startsWith(expectedPrefix)).toBe(true);
     });
   }
 });
@@ -284,17 +299,22 @@ test.describe('Address Type Matrix - Counterwallet Wallet', () => {
     const options = await radioOptions.all();
     expect(options.length).toBe(2);
 
-    const hasCounterwalletOption = await extensionPage.locator('[role="radio"]').filter({ hasText: 'CounterWallet (P2PKH)' }).isVisible().catch(() => false);
-    const hasCounterwalletSegwitOption = await extensionPage.locator('[role="radio"]').filter({ hasText: 'CounterWallet SegWit' }).isVisible().catch(() => false);
+    // CounterWallet options should be visible
+    const counterwalletOption = extensionPage.locator('[role="radio"]').filter({ hasText: 'CounterWallet (P2PKH)' });
+    const counterwalletSegwitOption = extensionPage.locator('[role="radio"]').filter({ hasText: 'CounterWallet SegWit' });
 
-    expect(hasCounterwalletOption).toBe(true);
-    expect(hasCounterwalletSegwitOption).toBe(true);
+    await expect(counterwalletOption).toBeVisible();
+    await expect(counterwalletSegwitOption).toBeVisible();
 
-    const hasLegacyOption = await extensionPage.locator('[role="radio"]').filter({ hasText: 'Legacy (P2PKH)' }).isVisible().catch(() => false);
-    const hasTaprootOption = await extensionPage.locator('[role="radio"]').filter({ hasText: 'Taproot' }).isVisible().catch(() => false);
+    // Standard address types should NOT be visible
+    const legacyOption = extensionPage.locator('[role="radio"]').filter({ hasText: 'Legacy (P2PKH)' });
+    const taprootOption = extensionPage.locator('[role="radio"]').filter({ hasText: 'Taproot' });
 
-    expect(hasLegacyOption).toBe(false);
-    expect(hasTaprootOption).toBe(false);
+    const legacyCount = await legacyOption.count();
+    const taprootCount = await taprootOption.count();
+
+    expect(legacyCount).toBe(0);
+    expect(taprootCount).toBe(0);
   });
 
   for (const addressType of COUNTERWALLET_ADDRESS_TYPES) {

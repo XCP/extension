@@ -19,13 +19,12 @@ test.describe('Onboarding Page (/auth/onboarding)', () => {
       // Wait for React to render
       await page.waitForTimeout(1000);
 
-      // Should show create or import wallet options - try multiple selectors
-      const hasCreateWallet = await page.locator('button:has-text("Create Wallet")').first().isVisible({ timeout: 10000 }).catch(() => false);
-      const hasImportWallet = await page.locator('button:has-text("Import Wallet")').first().isVisible({ timeout: 5000 }).catch(() => false);
-      // Also check for XCP Wallet branding which indicates onboarding loaded
-      const hasTitle = await page.locator('text=/XCP Wallet/').first().isVisible({ timeout: 5000 }).catch(() => false);
+      // Should show create or import wallet options or XCP Wallet branding
+      const onboardingContent = page.locator('button:has-text("Create Wallet")')
+        .or(page.locator('button:has-text("Import Wallet")'))
+        .or(page.locator('text=/XCP Wallet/'));
 
-      expect(hasCreateWallet || hasImportWallet || hasTitle).toBe(true);
+      await expect(onboardingContent.first()).toBeVisible({ timeout: 10000 });
     } finally {
       await cleanup(context);
     }
@@ -39,17 +38,24 @@ test.describe('Onboarding Page (/auth/onboarding)', () => {
       await page.waitForLoadState('networkidle');
 
       const createButton = page.locator('button:has-text("Create Wallet")').first();
-      const isVisible = await createButton.isVisible({ timeout: 10000 }).catch(() => false);
+      const buttonCount = await createButton.count();
 
-      if (isVisible) {
-        await createButton.click();
-        await page.waitForTimeout(1000);
+      if (buttonCount === 0) {
+        // Button not present, skip
+        return;
+      }
 
-        // Should navigate to create wallet page
-        const onCreatePage = page.url().includes('create-wallet') ||
-          await page.locator('text=/recovery phrase|seed phrase|secret phrase/i').first().isVisible({ timeout: 5000 }).catch(() => false);
+      await expect(createButton).toBeVisible({ timeout: 10000 });
+      await createButton.click();
 
+      // Should navigate to create wallet page - check URL or content
+      const createPageIndicator = page.locator('text=/recovery phrase|seed phrase|secret phrase/i').first();
+      const onCreatePage = page.url().includes('create-wallet');
+
+      if (onCreatePage) {
         expect(onCreatePage).toBe(true);
+      } else {
+        await expect(createPageIndicator).toBeVisible({ timeout: 5000 });
       }
     } finally {
       await cleanup(context);
@@ -64,15 +70,19 @@ test.describe('Onboarding Page (/auth/onboarding)', () => {
       await page.waitForLoadState('networkidle');
 
       const importButton = page.locator('button:has-text("Import Wallet")').first();
-      const isVisible = await importButton.isVisible({ timeout: 10000 }).catch(() => false);
+      const buttonCount = await importButton.count();
 
-      if (isVisible) {
-        await importButton.click();
-
-        // Should navigate to import wallet page
-        const importPageContent = page.locator('input[name="word-0"]').or(page.locator('text=/enter.*phrase|recovery phrase/i')).first();
-        await expect(importPageContent).toBeVisible({ timeout: 5000 });
+      if (buttonCount === 0) {
+        return;
       }
+
+      await expect(importButton).toBeVisible({ timeout: 10000 });
+      await importButton.click();
+
+      // Should navigate to import wallet page
+      const importPageContent = page.locator('input[name="word-0"]')
+        .or(page.locator('text=/enter.*phrase|recovery phrase/i'));
+      await expect(importPageContent.first()).toBeVisible({ timeout: 5000 });
     } finally {
       await cleanup(context);
     }
@@ -86,15 +96,19 @@ test.describe('Onboarding Page (/auth/onboarding)', () => {
       await page.waitForLoadState('networkidle');
 
       const keyButton = page.locator('button:has-text("Import Private Key"), button:has-text("Private Key")').first();
-      const isVisible = await keyButton.isVisible({ timeout: 10000 }).catch(() => false);
+      const buttonCount = await keyButton.count();
 
-      if (isVisible) {
-        await keyButton.click();
-
-        // Should navigate to import private key page
-        const keyPageContent = page.locator('input[name="private-key"]').or(page.locator('text=/private key|WIF/i')).first();
-        await expect(keyPageContent).toBeVisible({ timeout: 5000 });
+      if (buttonCount === 0) {
+        return;
       }
+
+      await expect(keyButton).toBeVisible({ timeout: 10000 });
+      await keyButton.click();
+
+      // Should navigate to import private key page
+      const keyPageContent = page.locator('input[name="private-key"]')
+        .or(page.locator('text=/private key|WIF/i'));
+      await expect(keyPageContent.first()).toBeVisible({ timeout: 5000 });
     } finally {
       await cleanup(context);
     }
@@ -107,11 +121,11 @@ test.describe('Onboarding Page (/auth/onboarding)', () => {
     try {
       await page.waitForLoadState('networkidle');
 
-      // Should show XCP Wallet branding
-      const hasLogo = await page.locator('img[alt*="XCP" i], img[alt*="wallet" i], svg[aria-label*="logo" i]').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasTitle = await page.locator('text=/XCP.*Wallet|Counterparty/i').first().isVisible({ timeout: 5000 }).catch(() => false);
+      // Should show XCP Wallet branding - logo or title
+      const branding = page.locator('img[alt*="XCP" i], img[alt*="wallet" i], svg[aria-label*="logo" i]')
+        .or(page.locator('text=/XCP.*Wallet|Counterparty/i'));
 
-      expect(hasLogo || hasTitle).toBe(true);
+      await expect(branding.first()).toBeVisible({ timeout: 5000 });
     } finally {
       await cleanup(context);
     }
