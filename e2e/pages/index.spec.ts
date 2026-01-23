@@ -174,10 +174,10 @@ walletTest.describe('Index Page', () => {
       // - Balance items (BTC, asset names)
       // - Empty state message
       // NOT: Loading spinners, error messages
-      const content = page.locator('text=/BTC|Bitcoin|No assets|No balances/i').first()
-        .or(page.locator('.font-mono').first());
+      const balanceItem = page.getByRole('button').filter({ hasText: /^BTC|^XCP/ }).first();
+      const emptyState = page.locator('text=/No assets|No balances/i').first();
 
-      await expect(content).toBeVisible({ timeout: 10000 });
+      await expect(balanceItem.or(emptyState)).toBeVisible({ timeout: 10000 });
     });
   });
 
