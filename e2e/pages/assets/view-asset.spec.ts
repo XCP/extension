@@ -147,7 +147,7 @@ walletTest.describe('View Asset Page (/asset/:asset)', () => {
     expect(['Yes', 'No'].some(v => value?.includes(v))).toBe(true);
   });
 
-  walletTest('Issuer shows valid Bitcoin address', async ({ page }) => {
+  walletTest('Issuer shows valid Bitcoin address or Unknown', async ({ page }) => {
     await navigateToAsset(page, 'XCP');
 
     await expect(page.locator('text="Asset Details"')).toBeVisible({ timeout: 10000 });
@@ -155,10 +155,20 @@ walletTest.describe('View Asset Page (/asset/:asset)', () => {
     // Issuer label should be visible
     await expect(page.locator('text="Issuer"')).toBeVisible({ timeout: 5000 });
 
-    // Address is displayed truncated as "1A1zP1...DivfNa" format (6 chars + ... + 6 chars)
-    // Match truncated format: bc1xxx...xxxxxx, 1xxxxx...xxxxxx, or 3xxxxx...xxxxxx
-    const addressPattern = page.locator('span.font-mono').filter({ hasText: /^(1|3|bc1)[a-zA-Z0-9]{2,5}\.\.\.[a-zA-Z0-9]{6}$/ });
-    await expect(addressPattern.first()).toBeVisible({ timeout: 5000 });
+    // XCP was created via proof-of-burn and may not have a traditional issuer
+    // The issuer value is displayed in a font-mono span next to the Issuer label
+    // It can be either:
+    // 1. A truncated address like "1A1zP1...DivfNa" (6 chars + ... + 6 chars)
+    // 2. "Unknown" if no issuer exists
+    const issuerRow = page.locator('div').filter({ hasText: /^Issuer/ }).first();
+    const issuerValue = issuerRow.locator('span.font-mono');
+    await expect(issuerValue).toBeVisible({ timeout: 5000 });
+
+    // Verify the value is either a truncated address or "Unknown"
+    const value = await issuerValue.textContent();
+    const isAddress = /^(1|3|bc1)[a-zA-Z0-9]{2,5}\.\.\.[a-zA-Z0-9]{6}$/.test(value || '');
+    const isUnknown = value === 'Unknown';
+    expect(isAddress || isUnknown).toBe(true);
   });
 
   // ============================================================================

@@ -234,9 +234,20 @@ walletTest.describe('Consolidation Form', () => {
     await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
     await page.waitForLoadState('networkidle');
 
-    // Fee rate input uses type="text" with inputMode="decimal" (not the hidden input)
+    // Fee rate defaults to a dropdown - need to select "Custom" to get the text input
+    // First click the dropdown button to open it
+    const feeDropdown = page.locator('button').filter({ hasText: /Fast|Medium|Slow|Custom|sat\/vB/ }).first();
+    await expect(feeDropdown).toBeVisible({ timeout: 10000 });
+    await feeDropdown.click();
+
+    // Select "Custom" option from the dropdown
+    const customOption = page.locator('[role="option"]').filter({ hasText: 'Custom' });
+    await expect(customOption).toBeVisible({ timeout: 5000 });
+    await customOption.click();
+
+    // Now the text input should be visible
     const feeInput = page.locator('input[name="sat_per_vbyte"][type="text"]').first();
-    await expect(feeInput).toBeVisible({ timeout: 10000 });
+    await expect(feeInput).toBeVisible({ timeout: 5000 });
 
     // Type a fee value
     await feeInput.fill('5');
