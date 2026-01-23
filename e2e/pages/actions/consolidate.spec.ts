@@ -81,33 +81,29 @@ walletTest.describe('Consolidation Page (/consolidate)', () => {
 });
 
 walletTest.describe('Consolidation Success Page (/consolidation-success)', () => {
-  walletTest('consolidation success page loads with content or redirects', async ({ page }) => {
+  walletTest('consolidation success page redirects without state data', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/consolidation-success'));
+
+    // Page requires state to be passed via navigation - without it, should redirect to home
+    // Wait for potential redirect (the page navigates away if no state)
+    await page.waitForTimeout(1000);
     await page.waitForLoadState('networkidle');
 
-    // Page may redirect if no success data, or show success content
-    const isOnSuccessPage = page.url().includes('consolidation-success');
-
-    if (isOnSuccessPage) {
-      // Should show success or transaction info
-      const successContent = page.locator('text=/Success|Complete|Recovered|Done|Transaction|txid|hash/i').first();
-      await expect(successContent).toBeVisible({ timeout: 5000 });
-    }
-    // If redirected, that's acceptable behavior
+    // Should have redirected away from consolidation-success (to home/index)
+    // because no consolidation state data was passed
+    const currentUrl = page.url();
+    const redirectedAway = !currentUrl.includes('consolidation-success') || currentUrl.includes('index');
+    expect(redirectedAway).toBe(true);
   });
 
-  walletTest('consolidation success shows success message when on page', async ({ page }) => {
+  walletTest('consolidation success page has correct route defined', async ({ page }) => {
+    // Verify the route exists by checking that navigation doesn't 404
     await page.goto(page.url().replace(/\/index.*/, '/consolidation-success'));
-    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
 
-    const isOnSuccessPage = page.url().includes('consolidation-success');
-    if (!isOnSuccessPage) {
-      return; // Page redirected, skip test
-    }
-
-    // Should show success message
-    const successMessage = page.locator('text=/Success|Complete|Recovered/i').first();
-    await expect(successMessage).toBeVisible({ timeout: 5000 });
+    // Should not show "Not Found" error - either shows content or redirects
+    const notFoundCount = await page.locator('text=/Not Found/i').count();
+    expect(notFoundCount).toBe(0);
   });
 
   walletTest('consolidation success has return button when on page', async ({ page }) => {
