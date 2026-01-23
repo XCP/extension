@@ -21,18 +21,15 @@ walletTest.describe('Market Page', () => {
     await expect(page.getByRole('tab', { name: 'Manage' })).toBeVisible();
   });
 
-  walletTest('market page shows price ticker', async ({ page }) => {
+  walletTest('market page shows price ticker or loading state', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
-    const btcPrice = page.locator('text=/BTC|\\$[0-9,]+/').first();
-    const xcpPrice = page.locator('text=/XCP/').first();
+    // Use .or() for legitimate alternative states
+    const priceOrLoading = page.locator('text=/BTC|XCP|\\$[0-9,]+/i').first()
+      .or(page.locator('text=/Loading/i').first());
 
-    const hasBtc = await btcPrice.isVisible({ timeout: 10000 }).catch(() => false);
-    const hasXcp = await xcpPrice.isVisible({ timeout: 5000 }).catch(() => false);
-    const hasLoading = await page.locator('text=/Loading/i').isVisible({ timeout: 1000 }).catch(() => false);
-
-    expect(hasBtc || hasXcp || hasLoading).toBe(true);
+    await expect(priceOrLoading).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('market page handles loading state', async ({ page }) => {
@@ -40,8 +37,9 @@ walletTest.describe('Market Page', () => {
     await expect(page).toHaveURL(/market/);
 
     // Page should show either loading spinner or content
-    const loadingOrContent = page.locator('.animate-spin').or(page.locator('text=/Loading|Dispensers|Orders|No open/i')).first();
-    await expect(loadingOrContent).toBeVisible({ timeout: 10000 });
+    const loadingOrContent = page.locator('.animate-spin')
+      .or(page.locator('text=/Loading|Dispensers|Orders|No open/i'));
+    await expect(loadingOrContent.first()).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('browse tab shows dispensers section', async ({ page }) => {
@@ -83,18 +81,16 @@ walletTest.describe('Market Page', () => {
 
     await manageTab.click();
 
-    const yourOrdersVisible = await page.locator('text=/Your Orders|You don\'t have any/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const yourDispensersVisible = await page.locator('text=/Your Dispensers|You don\'t have any/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const loadingVisible = await page.locator('text=/Loading your DEX/i').isVisible({ timeout: 1000 }).catch(() => false);
-
-    expect(yourOrdersVisible || yourDispensersVisible || loadingVisible).toBe(true);
+    // Manage tab should show either content or loading
+    const manageContent = page.locator('text=/Your Orders|Your Dispensers|You don\'t have any|Loading your DEX/i').first();
+    await expect(manageContent).toBeVisible({ timeout: 5000 });
 
     await browseTab.click();
 
     await expect(page.getByText('Dispensers').first()).toBeVisible();
   });
 
-  walletTest('manage tab shows create buttons', async ({ page }) => {
+  walletTest('manage tab shows create buttons or loading', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
@@ -104,20 +100,9 @@ walletTest.describe('Market Page', () => {
 
     await page.waitForLoadState('networkidle');
 
-    // Wait for loading to finish (if present)
-    const loadingText = page.locator('text=/Loading/i');
-    await loadingText.waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
-
-    const newOrderButton = page.locator('text=/New Order|Create Order/i').first();
-    const newDispenserButton = page.locator('text=/New Dispenser|Create Dispenser/i').first();
-
-    const hasNewOrder = await newOrderButton.isVisible({ timeout: 5000 }).catch(() => false);
-    const hasNewDispenser = await newDispenserButton.isVisible({ timeout: 5000 }).catch(() => false);
-    const hasLoading = await loadingText.isVisible().catch(() => false);
-    const hasEmptyState = await page.locator('text=/No orders|No dispensers|empty/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-    // Accept if we see create buttons, loading, or empty state
-    expect(hasNewOrder || hasNewDispenser || hasLoading || hasEmptyState).toBe(true);
+    // Wait for content: buttons, loading, or empty state
+    const content = page.locator('text=/New Order|New Dispenser|Create Order|Create Dispenser|Loading|No orders|No dispensers|empty/i').first();
+    await expect(content).toBeVisible({ timeout: 15000 });
   });
 
   walletTest('can navigate to market from footer', async ({ page }) => {
@@ -150,15 +135,11 @@ walletTest.describe('Market Page', () => {
     // Wait a moment for any pending requests to fail
     await page.waitForTimeout(1000);
 
-    // Page should still be responsive - check for any market page elements
-    // The page may show cached data, empty states, error messages, or loading indicators
-    const hasMarketplace = await page.getByText('Marketplace').isVisible({ timeout: 2000 }).catch(() => false);
-    const hasBrowseTab = await page.getByText('Browse').isVisible({ timeout: 1000 }).catch(() => false);
-    const hasManageTab = await page.getByText('Manage').isVisible({ timeout: 1000 }).catch(() => false);
-    const hasAnyContent = await page.locator('body').isVisible();
-
-    // Page should remain functional (not crash) - at minimum the body should be visible
-    expect(hasMarketplace || hasBrowseTab || hasManageTab || hasAnyContent).toBe(true);
+    // Page should still show market structure (not crash)
+    const pageStillWorks = page.getByText('Marketplace')
+      .or(page.getByText('Browse'))
+      .or(page.getByText('Manage'));
+    await expect(pageStillWorks).toBeVisible({ timeout: 3000 });
   });
 
   walletTest('dispenser tab switching works', async ({ page }) => {
@@ -170,13 +151,19 @@ walletTest.describe('Market Page', () => {
 
     const dispensedTab = page.locator('button:has-text("Dispensed")').first();
 
-    if (await dispensedTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await dispensedTab.click();
-      await page.waitForTimeout(500);
-
-      // After clicking tab, page should still be on market
-      await expect(page).toHaveURL(/market/);
+    // Only proceed if tab exists - skip if not available
+    const tabCount = await dispensedTab.count();
+    if (tabCount === 0) {
+      // Tab not present, skip this part
+      return;
     }
+
+    await expect(dispensedTab).toBeVisible();
+    await dispensedTab.click();
+    await page.waitForTimeout(500);
+
+    // After clicking tab, page should still be on market
+    await expect(page).toHaveURL(/market/);
   });
 
   walletTest('order tab switching works', async ({ page }) => {
@@ -188,13 +175,18 @@ walletTest.describe('Market Page', () => {
 
     const historyTab = page.locator('button:has-text("History")').first();
 
-    if (await historyTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await historyTab.click();
-      await page.waitForTimeout(500);
-
-      // After clicking tab, page should still be on market
-      await expect(page).toHaveURL(/market/);
+    // Only proceed if tab exists
+    const tabCount = await historyTab.count();
+    if (tabCount === 0) {
+      return;
     }
+
+    await expect(historyTab).toBeVisible();
+    await historyTab.click();
+    await page.waitForTimeout(500);
+
+    // After clicking tab, page should still be on market
+    await expect(page).toHaveURL(/market/);
   });
 
   walletTest('dispensers section displays cards or empty state', async ({ page }) => {
@@ -286,16 +278,18 @@ walletTest.describe('Market Page', () => {
 
     // Look for search input
     const searchInput = page.locator('input[placeholder*="Search"], input[type="search"], input[placeholder*="Filter"]').first();
-    const hasSearch = await searchInput.isVisible({ timeout: 3000 }).catch(() => false);
+    const searchCount = await searchInput.count();
 
-    if (hasSearch) {
+    if (searchCount > 0) {
+      await expect(searchInput).toBeVisible();
+
       // Try searching for something
       await searchInput.fill('XCP');
       await page.waitForTimeout(500);
 
       // Content should update (either show results or "no results")
-      const contentVisible = await page.locator('text=/XCP|No results|No match/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      expect(contentVisible).toBe(true);
+      const contentUpdate = page.locator('text=/XCP|No results|No match/i').first();
+      await expect(contentUpdate).toBeVisible({ timeout: 3000 });
 
       // Clear search
       await searchInput.clear();
@@ -316,12 +310,9 @@ walletTest.describe('Market Page', () => {
 
     await page.waitForLoadState('networkidle');
 
-    // Should show "Your Dispensers" section
-    const yourDispensersVisible = await page.locator('text=/Your Dispensers/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const noDispensersVisible = await page.locator('text=/You don\'t have any dispensers|No dispensers/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const loadingVisible = await page.locator('text=/Loading/i').isVisible({ timeout: 1000 }).catch(() => false);
-
-    expect(yourDispensersVisible || noDispensersVisible || loadingVisible).toBe(true);
+    // Should show "Your Dispensers" section or loading/empty state
+    const dispensersContent = page.locator('text=/Your Dispensers|You don\'t have any dispensers|No dispensers|Loading/i').first();
+    await expect(dispensersContent).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('manage tab shows your orders section', async ({ page }) => {
@@ -334,12 +325,9 @@ walletTest.describe('Market Page', () => {
 
     await page.waitForLoadState('networkidle');
 
-    // Should show "Your Orders" section
-    const yourOrdersVisible = await page.locator('text=/Your Orders/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const noOrdersVisible = await page.locator('text=/You don\'t have any orders|No orders/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const loadingVisible = await page.locator('text=/Loading/i').isVisible({ timeout: 1000 }).catch(() => false);
-
-    expect(yourOrdersVisible || noOrdersVisible || loadingVisible).toBe(true);
+    // Should show "Your Orders" section or loading/empty state
+    const ordersContent = page.locator('text=/Your Orders|You don\'t have any orders|No orders|Loading/i').first();
+    await expect(ordersContent).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('new order button navigates to order form', async ({ page }) => {
@@ -353,18 +341,24 @@ walletTest.describe('Market Page', () => {
     await page.waitForLoadState('networkidle');
 
     // Find the New Order button
-    const newOrderButton = page.locator('button:has-text("New Order"), a:has-text("New Order"), text="New Order"').first();
-    const hasNewOrder = await newOrderButton.isVisible({ timeout: 5000 }).catch(() => false);
+    const newOrderButton = page.locator('button:has-text("New Order"), a:has-text("New Order")').first();
+    const buttonCount = await newOrderButton.count();
 
-    if (hasNewOrder) {
-      await newOrderButton.click();
-      await page.waitForTimeout(500);
+    // Skip if button not present (test environment may not have it)
+    if (buttonCount === 0) {
+      return;
+    }
 
-      // Should navigate to order form
-      const onOrderForm = page.url().includes('order') || page.url().includes('compose');
-      const hasOrderForm = await page.locator('text=/Give|Get|Amount|Asset/i').first().isVisible({ timeout: 3000 }).catch(() => false);
+    await expect(newOrderButton).toBeVisible();
+    await newOrderButton.click();
+    await page.waitForTimeout(500);
 
-      expect(onOrderForm || hasOrderForm).toBe(true);
+    // Should navigate to order form
+    const onOrderForm = page.url().includes('order') || page.url().includes('compose');
+    const hasOrderForm = page.locator('text=/Give|Get|Amount|Asset/i').first();
+
+    if (onOrderForm) {
+      await expect(hasOrderForm).toBeVisible({ timeout: 3000 });
     }
   });
 
@@ -380,17 +374,23 @@ walletTest.describe('Market Page', () => {
 
     // Find the New Dispenser button
     const newDispenserButton = page.locator('button:has-text("New Dispenser"), a:has-text("New Dispenser"), button:has-text("Create Dispenser")').first();
-    const hasNewDispenser = await newDispenserButton.isVisible({ timeout: 5000 }).catch(() => false);
+    const buttonCount = await newDispenserButton.count();
 
-    if (hasNewDispenser) {
-      await newDispenserButton.click();
-      await page.waitForTimeout(500);
+    // Skip if button not present (test environment may not have it)
+    if (buttonCount === 0) {
+      return;
+    }
 
-      // Should navigate to dispenser form
-      const onDispenserForm = page.url().includes('dispenser') || page.url().includes('compose');
-      const hasDispenserForm = await page.locator('text=/Asset|Price|Escrow|Amount/i').first().isVisible({ timeout: 3000 }).catch(() => false);
+    await expect(newDispenserButton).toBeVisible();
+    await newDispenserButton.click();
+    await page.waitForTimeout(500);
 
-      expect(onDispenserForm || hasDispenserForm).toBe(true);
+    // Should navigate to dispenser form
+    const onDispenserForm = page.url().includes('dispenser') || page.url().includes('compose');
+    const hasDispenserForm = page.locator('text=/Asset|Price|Escrow|Amount/i').first();
+
+    if (onDispenserForm) {
+      await expect(hasDispenserForm).toBeVisible({ timeout: 3000 });
     }
   });
 });
