@@ -16,6 +16,18 @@ import {
 } from '../fixtures';
 import { settings } from '../selectors';
 
+// Helper to check HeadlessUI radio button is checked (supports both aria-checked and data-headlessui-state)
+async function expectRadioChecked(option: any) {
+  await expect(async () => {
+    const ariaChecked = await option.getAttribute('aria-checked');
+    const headlessState = await option.getAttribute('data-headlessui-state');
+    const isChecked = ariaChecked === 'true' || headlessState?.includes('checked');
+    expect(isChecked,
+      `Expected radio to be checked. aria-checked=${ariaChecked}, data-headlessui-state=${headlessState}`
+    ).toBe(true);
+  }).toPass({ timeout: 3000 });
+}
+
 walletTest.describe('Auto-Lock Timer', () => {
   walletTest('auto-lock timer options are available in settings', async ({ page }) => {
     await navigateTo(page, 'settings');
@@ -44,11 +56,7 @@ walletTest.describe('Auto-Lock Timer', () => {
     await oneMinOption.click();
 
     // Verify selection - check either aria-checked or data-headlessui-state
-    await expect(async () => {
-      const ariaChecked = await oneMinOption.getAttribute('aria-checked');
-      const headlessState = await oneMinOption.getAttribute('data-headlessui-state');
-      expect(ariaChecked === 'true' || headlessState?.includes('checked')).toBe(true);
-    }).toPass({ timeout: 3000 });
+    await expectRadioChecked(oneMinOption);
   });
 
   walletTest('can select 5 minutes auto-lock timer', async ({ page }) => {
@@ -61,11 +69,7 @@ walletTest.describe('Auto-Lock Timer', () => {
     await expect(fiveMinOption).toBeVisible({ timeout: 5000 });
     await fiveMinOption.click();
 
-    await expect(async () => {
-      const ariaChecked = await fiveMinOption.getAttribute('aria-checked');
-      const headlessState = await fiveMinOption.getAttribute('data-headlessui-state');
-      expect(ariaChecked === 'true' || headlessState?.includes('checked')).toBe(true);
-    }).toPass({ timeout: 3000 });
+    await expectRadioChecked(fiveMinOption);
   });
 
   walletTest('can select 15 minutes auto-lock timer', async ({ page }) => {
@@ -77,11 +81,7 @@ walletTest.describe('Auto-Lock Timer', () => {
     await expect(fifteenMinOption).toBeVisible({ timeout: 5000 });
     await fifteenMinOption.click();
 
-    await expect(async () => {
-      const ariaChecked = await fifteenMinOption.getAttribute('aria-checked');
-      const headlessState = await fifteenMinOption.getAttribute('data-headlessui-state');
-      expect(ariaChecked === 'true' || headlessState?.includes('checked')).toBe(true);
-    }).toPass({ timeout: 3000 });
+    await expectRadioChecked(fifteenMinOption);
   });
 
   walletTest('auto-lock timer selection persists after navigation', async ({ page }) => {
@@ -106,11 +106,7 @@ walletTest.describe('Auto-Lock Timer', () => {
     const fiveMinOptionAfter = page.getByRole('radio', { name: /^5 Minutes$/ });
     await expect(fiveMinOptionAfter).toBeVisible();
 
-    await expect(async () => {
-      const ariaChecked = await fiveMinOptionAfter.getAttribute('aria-checked');
-      const headlessState = await fiveMinOptionAfter.getAttribute('data-headlessui-state');
-      expect(ariaChecked === 'true' || headlessState?.includes('checked')).toBe(true);
-    }).toPass({ timeout: 3000 });
+    await expectRadioChecked(fiveMinOptionAfter);
   });
 
   walletTest('one timer option is always selected', async ({ page }) => {
@@ -160,11 +156,7 @@ test.describe('Auto-Lock Timer - Persistence', () => {
     const fifteenMinOptionAfter = extensionPage.locator('[role="radio"]').filter({ hasText: '15 Minutes' });
     await expect(fifteenMinOptionAfter).toBeVisible();
 
-    await expect(async () => {
-      const ariaChecked = await fifteenMinOptionAfter.getAttribute('aria-checked');
-      const headlessState = await fifteenMinOptionAfter.getAttribute('data-headlessui-state');
-      expect(ariaChecked === 'true' || headlessState?.includes('checked')).toBe(true);
-    }).toPass({ timeout: 3000 });
+    await expectRadioChecked(fifteenMinOptionAfter);
   });
 });
 

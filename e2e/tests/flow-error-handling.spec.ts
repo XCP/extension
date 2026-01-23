@@ -88,7 +88,8 @@ test.describe('Error Handling', () => {
       await expect(extensionPage).toHaveURL(/import/);
     } else {
       // At least one preventive measure was in place - test passes
-      expect(buttonDisabled || hasError || checkboxDisabled).toBe(true);
+      expect(buttonDisabled || hasError || checkboxDisabled,
+        `Expected at least one validation: buttonDisabled=${buttonDisabled}, hasError=${hasError}, checkboxDisabled=${checkboxDisabled}`).toBe(true);
     }
   });
 

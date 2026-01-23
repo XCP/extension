@@ -31,7 +31,9 @@ test.describe('Import Wallet - Mnemonic', () => {
     const matchesExpected = Object.values(EXPECTED_ADDRESSES).some(addr =>
       addressText?.includes(addr.split('...')[0])
     );
-    expect(matchesExpected || addressText?.startsWith('bc1') || addressText?.startsWith('1') || addressText?.startsWith('3')).toBe(true);
+    const isValidBitcoinAddress = addressText?.startsWith('bc1') || addressText?.startsWith('1') || addressText?.startsWith('3');
+    expect(matchesExpected || isValidBitcoinAddress,
+      `Expected valid Bitcoin address, got: ${addressText}`).toBe(true);
   });
 
   test('rejects invalid mnemonic', async ({ extensionPage }) => {

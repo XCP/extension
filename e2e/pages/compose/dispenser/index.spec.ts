@@ -43,7 +43,7 @@ walletTest.describe('Compose Dispenser Page (/compose/dispenser)', () => {
     const assetSelect = compose.common.assetSelect(page);
     const formInput = page.locator('input').first();
 
-    await expect(assetField.or(assetSelect).or(formInput)).toBeVisible({ timeout: 5000 });
+    await expect(assetField.or(assetSelect).or(formInput).first()).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('create dispenser form has mainchain rate field', async ({ page }) => {

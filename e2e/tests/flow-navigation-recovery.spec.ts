@@ -187,8 +187,8 @@ test.describe('Navigation Recovery - Direct Links When Locked', () => {
     await extensionPage.goto(`chrome-extension://${extensionId}/popup.html#/settings`);
     await extensionPage.waitForLoadState('networkidle');
 
-    const currentUrl = extensionPage.url();
-    expect(currentUrl.includes('unlock') || currentUrl.includes('settings')).toBe(true);
+    // Should be on unlock or settings page
+    await expect(extensionPage).toHaveURL(/unlock|settings/);
   });
 });
 

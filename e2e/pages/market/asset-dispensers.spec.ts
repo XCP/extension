@@ -83,11 +83,9 @@ walletTest.describe('Asset Dispensers Page (/market/dispensers/:asset)', () => {
     const refreshButton = market.refreshButton(page);
     const retryButton = market.retryButton(page);
 
-    const refreshCount = await refreshButton.count();
-    const retryCount = await retryButton.count();
-
-    // Either refresh or retry button should exist, or page loaded successfully
-    expect(refreshCount > 0 || retryCount > 0 || page.url().includes('dispensers')).toBe(true);
+    // Either refresh or retry button should be visible, verifying page loaded
+    const hasButton = refreshButton.or(retryButton).first();
+    await expect(hasButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has My Dispensers link', async ({ page }) => {

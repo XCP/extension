@@ -21,7 +21,7 @@ walletTest.describe('View Asset Page (/asset/:asset)', () => {
     const loading = page.getByText('Loading asset details');
     const error = page.getByText('Failed to load asset information');
     const success = page.getByText('Asset Details');
-    await expect(loading.or(error).or(success)).toBeVisible({ timeout: 15000 });
+    await expect(loading.or(error).or(success).first()).toBeVisible({ timeout: 15000 });
   }
 
   walletTest('page loads and shows content for XCP asset', async ({ page }) => {

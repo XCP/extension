@@ -21,7 +21,7 @@ walletTest.describe('View Balance Page (/balance/:asset)', () => {
     const loading = page.getByText('Loading balance details');
     const error = page.getByText('Failed to load balance information');
     const success = page.getByText('Send');
-    await expect(loading.or(error).or(success)).toBeVisible({ timeout: 15000 });
+    await expect(loading.or(error).or(success).first()).toBeVisible({ timeout: 15000 });
   }
 
   walletTest('page loads and shows Send action for XCP', async ({ page }) => {
