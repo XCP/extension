@@ -81,7 +81,8 @@ walletTest.describe('Market Page', () => {
 
     // Manage tab should show user's orders/dispensers section
     const manageContent = page.locator('text=/Your Orders|Your Dispensers/i').first()
-      .or(page.locator('text=/You don\'t have any/i').first());
+      .or(page.locator('text=/You don\'t have any/i').first())
+      .first();
     await expect(manageContent).toBeVisible({ timeout: 10000 });
 
     await browseTab.click();

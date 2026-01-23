@@ -29,7 +29,8 @@ walletTest.describe('Not Found Page (/not-found)', () => {
 
     // Should show placeholder or not found message
     const content = page.locator('text=/Not Found/i').first()
-      .or(page.locator('text=/placeholder/i').first());
+      .or(page.locator('text=/placeholder/i').first())
+      .first();
     await expect(content).toBeVisible({ timeout: 5000 });
   });
 
@@ -97,7 +98,8 @@ walletTest.describe('Not Found Page (/not-found)', () => {
 
     // Verify page loads correctly - should show not found or placeholder content
     const content = page.locator('text=/Not Found/i').first()
-      .or(page.locator('text=/placeholder/i').first());
+      .or(page.locator('text=/placeholder/i').first())
+      .first();
     await expect(content).toBeVisible({ timeout: 5000 });
   });
 });
