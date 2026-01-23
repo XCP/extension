@@ -71,11 +71,9 @@ walletTest.describe('Unlock Wallet Page (/auth/unlock)', () => {
     await unlock.unlockButton(page).click();
     await page.waitForTimeout(1000);
 
-    // Should show error message or remain on unlock page
-    const errorOrUnlock = page.locator('text=/incorrect|invalid|wrong|error/i').first()
-      .or(page.locator('input[name="password"]'));
-
-    await expect(errorOrUnlock).toBeVisible({ timeout: 5000 });
+    // Should show error message (while still on unlock page with password input visible)
+    const errorMessage = page.locator('text=/incorrect|invalid|wrong|error/i').first();
+    await expect(errorMessage).toBeVisible({ timeout: 5000 });
     // Should still be on unlock page (not authenticated)
     await expect(page).toHaveURL(/unlock/);
   });
