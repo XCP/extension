@@ -60,9 +60,7 @@ walletTest.describe('Advanced Settings', () => {
     await expect(page.getByText('Counterparty API')).toBeVisible();
 
     const apiInput = page.locator('input[type="url"], input[placeholder*="URL"], input[placeholder*="api"]').first();
-    const hasApiInput = await apiInput.isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasApiInput).toBe(true);
+    await expect(apiInput).toBeVisible({ timeout: 3000 });
   });
 
   walletTest('advanced settings shows toggle switches', async ({ page }) => {
@@ -106,16 +104,16 @@ walletTest.describe('Advanced Settings', () => {
     await expect(page).toHaveURL(/advanced/);
 
     const mpmaText = page.locator('text=/MPMA|multi.*destination/i').first();
-    const hasMpma = await mpmaText.isVisible({ timeout: 5000 }).catch(() => false);
+    const mpmaCount = await mpmaText.count();
 
-    if (hasMpma) {
+    if (mpmaCount > 0) {
       const switches = page.locator('[role="switch"]');
       const switchCount = await switches.count();
 
       if (switchCount > 0) {
         for (let i = 0; i < switchCount; i++) {
           const sw = switches.nth(i);
-          const text = await sw.locator('..').locator('..').textContent().catch(() => '');
+          const text = await sw.locator('..').locator('..').textContent();
           if ((text || '').toLowerCase().includes('mpma')) {
             const initialState = await sw.getAttribute('aria-checked');
             await sw.click();

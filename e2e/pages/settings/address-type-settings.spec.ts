@@ -4,69 +4,60 @@
  * Tests for /settings/address-type route - change wallet address format
  */
 
-import { walletTest, expect, navigateTo } from '../../fixtures';
+import { walletTest, expect } from '../../fixtures';
 
 walletTest.describe('Address Type Settings Page (/settings/address-type)', () => {
   walletTest('address type settings page loads', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/address-type'));
     await page.waitForLoadState('networkidle');
 
-    // Should show address type UI or redirect (private key wallets don't have this option)
-    const hasAddressTypes = await page.locator('text=/P2PKH|P2WPKH|P2TR|Legacy|SegWit|Taproot|Native/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasTitle = await page.locator('text=/Address Type/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const redirected = !page.url().includes('/settings/address-type');
+    // Page may redirect for private key wallets that don't have address type option
+    if (!page.url().includes('/settings/address-type')) return;
 
-    expect(hasAddressTypes || hasTitle || redirected).toBe(true);
+    // Should show address type UI
+    const addressTypeLabel = page.locator('text=/P2PKH|P2WPKH|P2TR|Legacy|SegWit|Taproot|Native|Address Type/i').first();
+    await expect(addressTypeLabel).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows available address type options', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/address-type'));
     await page.waitForLoadState('networkidle');
 
-    if (page.url().includes('/settings/address-type')) {
-      // Should show radio group with address type options
-      const hasRadioGroup = await page.locator('[role="radiogroup"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasSelectionCards = await page.locator('[data-headlessui-state]').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasOptions = await page.locator('text=/P2PKH|P2WPKH|P2TR|P2SH/i').first().isVisible({ timeout: 3000 }).catch(() => false);
+    if (!page.url().includes('/settings/address-type')) return;
 
-      expect(hasRadioGroup || hasSelectionCards || hasOptions).toBe(true);
-    }
+    // Should show radio group with address type options
+    const radioGroup = page.locator('[role="radiogroup"]').first();
+    await expect(radioGroup).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows address previews for each type', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/address-type'));
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000); // Wait for address generation
 
-    if (page.url().includes('/settings/address-type')) {
-      // Should show address type UI with radio options
-      const hasRadioOptions = await page.locator('[role="radio"]').count() > 0;
-      const hasAddressTypeLabels = await page.locator('text=/Legacy|SegWit|Taproot|P2PKH|P2WPKH|P2TR/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasLoading = await page.locator('text=/Loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
+    if (!page.url().includes('/settings/address-type')) return;
 
-      // The page should have some content - either address options or still loading
-      expect(hasRadioOptions || hasAddressTypeLabels || hasLoading).toBe(true);
-    }
+    // Should show address type labels
+    const addressTypeLabels = page.locator('text=/Legacy|SegWit|Taproot|P2PKH|P2WPKH|P2TR/i').first();
+    await expect(addressTypeLabels).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('can select different address type', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/address-type'));
     await page.waitForLoadState('networkidle');
 
-    if (page.url().includes('/settings/address-type')) {
-      // Find a non-selected option and click it
-      const options = page.locator('[role="radio"], [data-headlessui-state]');
-      const count = await options.count();
+    if (!page.url().includes('/settings/address-type')) return;
 
-      if (count > 1) {
-        // Click second option (likely different from current)
-        await options.nth(1).click();
-        await page.waitForTimeout(1000);
+    // Find options and click a different one
+    const options = page.locator('[role="radio"], [data-headlessui-state]');
+    const count = await options.count();
 
-        // Page should still be visible (no crash)
-        const pageStillLoaded = page.url().includes('settings');
-        expect(pageStillLoaded).toBe(true);
-      }
+    if (count > 1) {
+      // Click second option (likely different from current)
+      await options.nth(1).click();
+      await page.waitForTimeout(500);
+
+      // Page should still be on settings (no crash)
+      expect(page.url()).toContain('settings');
     }
   });
 
@@ -74,27 +65,23 @@ walletTest.describe('Address Type Settings Page (/settings/address-type)', () =>
     await page.goto(page.url().replace(/\/index.*/, '/settings/address-type'));
     await page.waitForLoadState('networkidle');
 
-    if (page.url().includes('/settings/address-type')) {
-      const backButton = page.locator('button[aria-label*="back"], header button').first();
-      if (await backButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await backButton.click();
-        await page.waitForTimeout(500);
+    if (!page.url().includes('/settings/address-type')) return;
 
-        // Should navigate back to settings or index
-        const navigatedBack = page.url().includes('/settings') || page.url().includes('/index');
-        expect(navigatedBack).toBe(true);
-      }
-    }
+    const backButton = page.locator('button[aria-label*="back"], header button').first();
+    await expect(backButton).toBeVisible({ timeout: 3000 });
+
+    await backButton.click();
+    await page.waitForURL(/settings|index/, { timeout: 5000 });
   });
 
-  walletTest('shows loading spinner during address generation', async ({ page }) => {
+  walletTest('shows content after loading', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/address-type'));
+    await page.waitForLoadState('networkidle');
 
-    // May briefly show a spinner while generating preview addresses
-    const hasSpinner = await page.locator('[class*="spinner"], [class*="animate-spin"]').first().isVisible({ timeout: 2000 }).catch(() => false);
-    const hasContent = await page.locator('text=/P2PKH|P2WPKH|Address Type/i').first().isVisible({ timeout: 5000 }).catch(() => false);
+    if (!page.url().includes('/settings/address-type')) return;
 
-    // Either shows spinner briefly or loads content directly
-    expect(hasSpinner || hasContent).toBe(true);
+    // Should show address type content
+    const content = page.locator('text=/P2PKH|P2WPKH|Address Type/i').first();
+    await expect(content).toBeVisible({ timeout: 5000 });
   });
 });

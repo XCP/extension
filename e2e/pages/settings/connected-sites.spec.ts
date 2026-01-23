@@ -12,35 +12,26 @@ walletTest.describe('Connected Sites Page (/settings/connected-sites)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/connected-sites'));
     await page.waitForLoadState('networkidle');
 
-    // Should show connected sites UI
-    const hasTitle = await page.locator('text=/Connected Sites/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasEmptyState = await connectedSites.emptyState(page).isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasTitle || hasEmptyState).toBe(true);
+    // Should show connected sites title
+    const title = page.locator('text=/Connected Sites/i').first();
+    await expect(title).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows empty state when no sites connected', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/connected-sites'));
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
 
-    // New wallets should have no connected sites
-    const hasEmptyState = await connectedSites.emptyState(page).isVisible({ timeout: 5000 }).catch(() => false);
-    const hasEmptyMessage = await page.locator('text=/Sites you connect to will appear here/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasNoConnected = await page.locator('text=/No connected|No sites|empty/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-    const hasPageTitle = await page.locator('text=/Connected Sites/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-    const hasSiteList = await page.locator('[class*="list"], .space-y-2').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-    // Either empty state, page loaded, or has a site list
-    expect(hasEmptyState || hasEmptyMessage || hasNoConnected || hasPageTitle || hasSiteList).toBe(true);
+    // Should show page title - content depends on whether sites are connected
+    const pageTitle = page.locator('text=/Connected Sites/i').first();
+    await expect(pageTitle).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows loading state initially', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/connected-sites'));
 
-    // May show loading spinner or content
-    const loadingOrContent = page.locator('[class*="animate-spin"]').or(page.locator('text=/Loading|Connected Sites|No connected sites/i')).first();
-    await expect(loadingOrContent).toBeVisible({ timeout: 5000 });
+    // Should show content after loading
+    const content = page.locator('text=/Connected Sites|No connected sites/i').first();
+    await expect(content).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has back navigation to settings', async ({ page }) => {
@@ -48,21 +39,18 @@ walletTest.describe('Connected Sites Page (/settings/connected-sites)', () => {
     await page.waitForLoadState('networkidle');
 
     const backButton = common.headerBackButton(page);
-    if (await backButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await backButton.click();
-      await page.waitForTimeout(500);
-      expect(page.url()).toContain('settings');
-    }
+    await expect(backButton).toBeVisible({ timeout: 3000 });
+
+    await backButton.click();
+    await page.waitForURL(/settings/, { timeout: 5000 });
   });
 
-  walletTest('has help button in header', async ({ page }) => {
+  walletTest('has header button', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/connected-sites'));
     await page.waitForLoadState('networkidle');
 
-    // Should have help button (changes to disconnect all when sites exist)
-    const hasHelpButton = await common.helpButton(page).isVisible({ timeout: 5000 }).catch(() => false);
-    const hasDisconnectAll = await connectedSites.disconnectAllButton(page).isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasHelpButton || hasDisconnectAll).toBe(true);
+    // Should have help button or disconnect all button in header
+    const headerButton = page.locator('header button').last();
+    await expect(headerButton).toBeVisible({ timeout: 5000 });
   });
 });

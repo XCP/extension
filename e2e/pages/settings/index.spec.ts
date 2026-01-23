@@ -20,13 +20,9 @@ walletTest.describe('Settings Index Page (/settings)', () => {
     await navigateTo(page, 'settings');
     await page.waitForLoadState('networkidle');
 
-    // Should show key settings options
-    const hasAdvanced = await page.locator('text=/Advanced/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasConnectedSites = await page.locator('text=/Connected Sites/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasPinnedAssets = await page.locator('text=/Pinned Assets/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasSecurity = await page.locator('text=/Security/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasAdvanced || hasConnectedSites || hasPinnedAssets || hasSecurity).toBe(true);
+    // Should show key settings options - at least one of these should be visible
+    const advancedOption = page.locator('text=/Advanced/i').first();
+    await expect(advancedOption).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('settings page shows About section', async ({ page }) => {
@@ -34,22 +30,17 @@ walletTest.describe('Settings Index Page (/settings)', () => {
     await page.waitForLoadState('networkidle');
 
     // Should show About XCP Wallet section
-    const hasAbout = await page.locator('text=/About XCP Wallet/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasVersion = await page.locator('text=/Version/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasAbout || hasVersion).toBe(true);
+    const aboutSection = page.locator('text=/About XCP Wallet/i').first();
+    await expect(aboutSection).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('settings page shows external links', async ({ page }) => {
     await navigateTo(page, 'settings');
     await page.waitForLoadState('networkidle');
 
-    // Should show Terms of Service, Privacy Policy, Visit Website links
-    const hasTerms = await page.locator('text=/Terms of Service/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasPrivacy = await page.locator('text=/Privacy Policy/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasWebsite = await page.locator('text=/Visit Website/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasTerms || hasPrivacy || hasWebsite).toBe(true);
+    // Should show Terms of Service link
+    const termsLink = page.locator('text=/Terms of Service/i').first();
+    await expect(termsLink).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('settings page shows Reset Wallet button', async ({ page }) => {
@@ -66,16 +57,10 @@ walletTest.describe('Settings Index Page (/settings)', () => {
     await page.waitForLoadState('networkidle');
 
     const advancedOption = page.locator('text=/Advanced/i').first();
-    if (await advancedOption.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await advancedOption.click();
-      await page.waitForTimeout(500);
+    await expect(advancedOption).toBeVisible({ timeout: 5000 });
 
-      // Should navigate to advanced settings
-      const onAdvanced = page.url().includes('/settings/advanced');
-      const hasAdvancedContent = await page.locator('text=/Network|Developer|Debug/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(onAdvanced || hasAdvancedContent).toBe(true);
-    }
+    await advancedOption.click();
+    await page.waitForURL(/advanced/, { timeout: 5000 });
   });
 
   walletTest('can navigate to Connected Sites', async ({ page }) => {
@@ -83,16 +68,10 @@ walletTest.describe('Settings Index Page (/settings)', () => {
     await page.waitForLoadState('networkidle');
 
     const connectedSitesOption = page.locator('text=/Connected Sites/i').first();
-    if (await connectedSitesOption.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await connectedSitesOption.click();
-      await page.waitForTimeout(500);
+    await expect(connectedSitesOption).toBeVisible({ timeout: 5000 });
 
-      // Should navigate to connected sites
-      const onConnectedSites = page.url().includes('/settings/connected-sites');
-      const hasConnectedContent = await page.locator('text=/Connected Sites|No connected sites/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(onConnectedSites || hasConnectedContent).toBe(true);
-    }
+    await connectedSitesOption.click();
+    await page.waitForURL(/connected-sites/, { timeout: 5000 });
   });
 
   walletTest('can navigate to Security settings', async ({ page }) => {
@@ -100,16 +79,10 @@ walletTest.describe('Settings Index Page (/settings)', () => {
     await page.waitForLoadState('networkidle');
 
     const securityOption = page.locator('text=/Security/i').first();
-    if (await securityOption.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await securityOption.click();
-      await page.waitForTimeout(500);
+    await expect(securityOption).toBeVisible({ timeout: 5000 });
 
-      // Should navigate to security settings
-      const onSecurity = page.url().includes('/settings/security');
-      const hasSecurityContent = await page.locator('text=/Password|Current Password|Security/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(onSecurity || hasSecurityContent).toBe(true);
-    }
+    await securityOption.click();
+    await page.waitForURL(/security/, { timeout: 5000 });
   });
 
   walletTest('has back navigation to index', async ({ page }) => {
@@ -118,12 +91,9 @@ walletTest.describe('Settings Index Page (/settings)', () => {
 
     // Find and click back button
     const backButton = page.locator('button[aria-label*="back"], header button').first();
-    if (await backButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await backButton.click();
-      await page.waitForTimeout(500);
+    await expect(backButton).toBeVisible({ timeout: 3000 });
 
-      // Should navigate back to index
-      expect(page.url()).toContain('index');
-    }
+    await backButton.click();
+    await page.waitForURL(/index/, { timeout: 5000 });
   });
 });
